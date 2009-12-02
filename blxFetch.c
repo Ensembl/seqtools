@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.2 2009-12-02 15:12:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -387,7 +387,7 @@ MENUOPT *blxPfetchMenu(void)
 /* Gets all the sequences needed by blixem but from http proxy server instead of from
  * the pfetch server direct, this enables blixem to be run and get sequences from
  * anywhere that can see the http proxy server. */
-BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict)
+BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
 {
   BOOL status = FALSE ;
   PFetchUserPrefsStruct prefs = {NULL} ;
@@ -410,6 +410,7 @@ BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict)
       fetch_data.bar = makeProgressBar(fetch_data.seq_total) ;
       fetch_data.stats = FALSE ;
       fetch_data.min_bytes = INT_MAX ;
+      fetch_data.seq_type = seqType ;
 
       g_signal_connect(G_OBJECT(fetch_data.bar->top_level), "destroy",
 		       G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
@@ -1300,18 +1301,23 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
 	}
       else
 	{
-	  /* Small optimisation, sequences will be all dna or all peptide so cut down testing of
-	   * char by first time through setting sequence type. */
-	  if (!(fetch_data->seq_type))
+	  /* Small optimisation: sequences will be all dna or all peptide so cut
+	   * down testing of char by checking the sequence type. */
+	  gboolean isValidChar = FALSE;
+	  if (fetch_data->seq_type == BLXSEQ_DNA)
 	    {
-	      if (ISIUPACDNA(*cp))
-		fetch_data->seq_type = BLXSEQ_DNA ;
-	      else
-		fetch_data->seq_type = BLXSEQ_PEPTIDE ;
+	      /* Convert to correct case and then check if this letter is a valid base */
+	      *cp = tolower(*cp);
+	      isValidChar = ISIUPACDNA(*cp);
+	    }
+	  else if (fetch_data->seq_type == BLXSEQ_PEPTIDE)
+	    {
+	      /* Convert to correct case and then check if this letter is a valid peptide */
+	      *cp = toupper(*cp);
+	      isValidChar = ISIUPACPEPTIDE(*cp);
 	    }
 
-	  if ((fetch_data->seq_type == BLXSEQ_DNA && ISIUPACDNA(*cp))
-	      || (fetch_data->seq_type == BLXSEQ_PEPTIDE && ISIUPACPEPTIDE(*cp)))
+	  if (isValidChar)
 	    {
 #ifdef ED_G_NEVER_INCLUDE_THIS_CODE
 	      printf("%c", *cp) ;

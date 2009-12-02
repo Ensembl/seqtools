@@ -27,14 +27,12 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: blxmain.c,v 1.2 2009-12-02 15:12:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <wh/regular.h>
-#include <wh/graph.h>
-#include <wh/gex.h>
-#include <w9/blixem_.h>
+#include <SeqTools/blixem_.h>
 
 
 /*                                                                           */
@@ -278,10 +276,13 @@ int main(int argc, char **argv)
   /* Add -install for private colormaps */
   if (install)
     argvAdd(&argc, &argv, "-install");
-  graphInit(&argc, argv) ;
-  gexInit(&argc, argv);
-  gexSetMessPrefs(FALSE, BLIXEM_MESG_NUM, msgPopupsCB) ;  /* for control of popup or mesglist */
 
+  gtk_init(&argc, &argv);
+#ifdef OLD_BLIXEM
+//  graphInit(&argc, argv) ;
+//  gexInit(&argc, argv);
+//  gexSetMessPrefs(FALSE, BLIXEM_MESG_NUM, msgPopupsCB) ;  /* for control of popup or mesglist */
+#endif
 
   /* Set up program configuration. */
   if (!blxInitConfig(config_file, &error))
@@ -398,11 +399,8 @@ int main(int argc, char **argv)
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  if (GRAPH_NULL != blxview(qseq, qname, dispstart, offset, MSPlist, opts, pfetch, align_types, TRUE))
-    {
-      graphLoop(TRUE) ;
-    }
-    
+  blxview(qseq, qname, dispstart, offset, MSPlist, opts, pfetch, align_types, TRUE);
+  gtk_main();
     
   /* We should not get here.... */
   return (EXIT_FAILURE) ;
@@ -437,7 +435,7 @@ static void msgPopupsCB(BOOL msg_list)
   else
     list_length = 0 ;
 
-  gexSetMessPopUps(msg_list, list_length) ;
+//  gexSetMessPopUps(msg_list, list_length) ;
 
   return ;
 }

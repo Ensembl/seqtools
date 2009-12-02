@@ -28,14 +28,14 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: translate.c,v 1.2 2009-12-02 15:12:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <glib.h>
 #include <wh/mystdlib.h>
 #include <wh/regular.h>
-#include <wh/blxview.h>
+#include <SeqTools/blxview.h>
 #include <w9/iupac.h>
 
 

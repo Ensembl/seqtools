@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: blxview.c,v 1.2 2009-12-02 15:12:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -115,6 +115,12 @@ MSP score codes:
 -10 hidden by hand
 */
 
+#include <wh/aceio.h>
+#include <wh/key.h>
+#include <wh/menu.h>
+#include <wh/dotter.h>
+#include <wh/dict.h>
+
 #include <math.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -125,14 +131,8 @@ MSP score codes:
 #include <sys/time.h>
 #include <gdk/gdkkeysyms.h>
 
-#include <wh/aceio.h>
-#include <wh/graph.h>
-#include <wh/gex.h>
-#include <wh/key.h>
-#include <wh/menu.h>
-#include <wh/dotter.h>
-#include <wh/dict.h>
-#include <w9/blixem_.h>
+#include <SeqTools/blixem_.h>
+#include <SeqTools/blxviewMainWindow.h>
 
 #ifdef ACEDB
 #include <wh/display.h>
@@ -155,7 +155,7 @@ typedef struct _BPMSP
   char sname[FULLNAMESIZE+1];
   char *desc;
   int box;
-  Graph graph;
+//  Graph graph;
   struct _BPMSP *next;
 } BPMSP;
 
@@ -193,10 +193,8 @@ typedef struct _BPMSP
 /* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
 typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS} SortByType ;
 
-static void initBlxView(void) ;
 static void blxDestroy(void) ;
 static void blxPrint(void) ;
-static void blxHelp(void);
 static void wholePrint(void) ;
 static void blxShowStats(void) ;
 
@@ -237,22 +235,24 @@ static void scrollLeftBig(void);
 static void scrollRight1(void);
 static void scrollLeft1(void);
 
-static void Goto(void) ;
 static void gotoMatch(int direc) ;
 static BOOL gotoMatchPosition(char *match, int q_start, int q_end) ;
-static void prevMatch(void) ;
-static void nextMatch(void) ;
 
+#if OLD_BLIXEM
 static void keyboard(int key, int modifier) ;
-static void toggleColors (void);
 static void blviewPick (int box, double x_unused, double y_unused, int modifier_unused);
-static Graph blviewCreate(char *opts, char *align_types) ;
 static void blviewDestroy(GtkWidget *unused) ;
+#endif
+
+static void toggleColors (void);
+static void blviewCreate(char *opts, char *align_types) ;
 static char *getqseq(int start, int end, char *q);
+
+#if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q);
+#endif
+
 static void calcID(MSP *msp);
-static int gapCoord(MSP *msp, int x, int qfact);
-static GtkWidget *makeButtonBar(void);
 
 static BOOL haveAllSequences(MSP *msplist, DICT *dict) ;
 static char *fetchSeqRaw(char *seqname) ;
@@ -265,11 +265,6 @@ static BOOL smartDotterRange(char *selected_sequence, MSP *msp_list, int blastn,
 
 static char *abbrevTxt(char *text, int max_len) ;
 
-static GtkToolItem *addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget) ;
-static GtkToolItem *makeNewToolbarButton(GtkToolbar *toolbar,
-					 char *label,
-					 char *tooltip,
-					 GtkSignalFunc callback_func) ;
 static void printMSPs(void) ;
 
 static void toggleMatchSet(void) ;
@@ -285,12 +280,14 @@ static void     BigPictToggle(void),
             zoomIn(void),
             zoomOut(void),
             zoomWhole(void),
+#if OLD_BLIXEM
             MiddleDragBP(double x, double y),
             MiddleUpBP(double x, double y),
             MiddleDownBP(double x, double y),
+	    MiddleDownQ(double x, double y),
             MiddleDragQ(double x, double y),
             MiddleUpQ(double x, double y),
-            MiddleDownQ(double x, double y),
+#endif
             setHighlight(void),
             clrHighlight(void),
             callDotter(void),
@@ -300,7 +297,6 @@ static void     BigPictToggle(void),
             setDotterParams(void),
             autoDotterParams(void),
             allocAuxseqs(int len),
-            blixemSettings(void),
             settingsRedraw(void),
             menuCheck(MENU menu, int mode, int thismode, char *str),
 	    hidePicked(void),
@@ -319,12 +315,15 @@ static void pfetchWindow (MSP *msp);
 
 static BPMSP BPMSPlist, *bpmsp;
 static int  fetchCount;
-static Graph blixemGraph=0;        /* The blxview window */
 GtkWidget *blixemWindow = NULL ;
 static GtkWidget *messageWidget;
-static Graph frameGraph[3];
-static Graph frameGraphQ[3];
-static Graph settingsGraph=0;
+
+#if OLD_BLIXEM
+//static Graph frameGraph[3];
+//static Graph frameGraphQ[3];
+#endif
+
+//static Graph settingsGraph=0;
 
 static int   actstart,        /* Active region coordinates relative to query in BASES */
              actend,
@@ -349,7 +348,10 @@ static char *qname_G = NULL ;
        MSP  *MSPlist,          /* List of MSP's */
             *msp;
 static MSP  *pickedMSP = NULL ;	      /* Last picked MSP */
-static char  message[1024],
+static char 
+#if OLD_BLIXEM
+	    message[1024],
+#endif
 
              HighlightSeq[LONG_NAMESIZE+4] = "",
 
@@ -416,7 +418,7 @@ static int   backgColor = LIGHTGRAY,
              nonglobularEntropywin = 45,
              printColorsOn,
              wholePrintOn,
-             oneGraph,
+//             oneGraph,
              settingsButton,
              sortInvOn = 0,
              HSPgaps = 0;
@@ -424,99 +426,103 @@ static int   backgColor = LIGHTGRAY,
 static SortByType sortMode = SORTBYUNSORTED ;
 
 static int oldWidth = 0, oldHeight = 0;
+
+#if OLD_BLIXEM
 static double oldx, DNAstep;
+#endif
+
 static Array stringentEntropyarr, mediumEntropyarr, nonglobularEntropyarr;
 
 static MENU blixemMenu ;	/* Main menu - contains function calls, etc. */
 static MENU settingsMenu;	/* Contains toggles and 'states' */
 
-/* The standard context menu */
-static MENUOPT mainMenu[] =
-{
-  {blxDestroy,       "Quit\t\t\t\t\tCtrl-Q"},
-  {blxHelp,          "Help\t\t\t\t\tCtrl-H"},
-  {blxPrint,         "Print\t\t\t\t\tCtrl-P"},
-  {wholePrint,       "Print whole alignment"},
-  {blixemSettings,   "Change Settings"},
-  {selectFeatures,   selectFeaturesStr},
+///* The standard context menu */
+//static MENUOPT mainMenu[] =
+//{
+//  {blxDestroy,       "Quit\t\t\t\t\tCtrl-Q"},
+//  {blxHelp,          "Help\t\t\t\t\tCtrl-H"},
+//  {blxPrint,         "Print\t\t\t\t\tCtrl-P"},
+//  {wholePrint,       "Print whole alignment"},
+//  {blixemSettings,   "Change Settings"},
+//  {selectFeatures,   selectFeaturesStr},
+//
+//  {menuSpacer,       ""},
+//  {toggleMatchSet,   toggleMatchPasteStr},
+//
+//  {menuSpacer,       ""},
+//  /*	{dotterPanel,       "Dotter panel"},*/
+//  {callDotter,       "Dotter"},
+//  {callDotterHSPs,   "Dotter HSPs only"},
+//  {callDotterSelf,   "Dotter query vs. itself"},
+//  {setDotterParams,  "Manual Dotter parameters"},
+//  {autoDotterParams, autoDotterParamsStr},
+//
+//  {menuSpacer,       ""},
+//  {hidePicked,       "Hide picked match"},
+//  {setHighlight,     "Highlight sequences by name"},
+//  {clrHighlight,     "Clear highlighted and unhide"},
+//
+//  {0, 0}
+//};
+//
+///* The standard context menu modified to include additional options for developers */
+//static MENUOPT developerMainMenu[] =
+//{
+//  {blxDestroy,       "Quit\t\t\t\t\tCtrl-Q"},
+//  {blxHelp,          "Help\t\t\t\t\tCtrl-H"},
+//  {blxPrint,         "Print\t\t\t\t\tCtrl-P"},
+//  {wholePrint,       "Print whole alignment"},
+//  {blixemSettings,   "Change Settings"},
+//  {selectFeatures,   selectFeaturesStr},
+//  
+//  {menuSpacer,       ""},
+//  {toggleMatchSet,   toggleMatchPasteStr},
+//  
+//  {menuSpacer,       ""},
+//  /*	{dotterPanel,       "Dotter panel"},*/
+//  {callDotter,       "Dotter"},
+//  {callDotterHSPs,   "Dotter HSPs only"},
+//  {callDotterSelf,   "Dotter query vs. itself"},
+//  {setDotterParams,  "Manual Dotter parameters"},
+//  {autoDotterParams, autoDotterParamsStr},
+//  
+//  {menuSpacer,       ""},
+//  {hidePicked,       "Hide picked match"},
+//  {setHighlight,     "Highlight sequences by name"},
+//  {clrHighlight,     "Clear highlighted and unhide"},
+//  
+//  {menuSpacer,       ""},
+//  {blxShowStats,     "Statistics"},
+//  {0, 0}
+//};
 
-  {menuSpacer,       ""},
-  {toggleMatchSet,   toggleMatchPasteStr},
-
-  {menuSpacer,       ""},
-  /*	{dotterPanel,       "Dotter panel"},*/
-  {callDotter,       "Dotter"},
-  {callDotterHSPs,   "Dotter HSPs only"},
-  {callDotterSelf,   "Dotter query vs. itself"},
-  {setDotterParams,  "Manual Dotter parameters"},
-  {autoDotterParams, autoDotterParamsStr},
-
-  {menuSpacer,       ""},
-  {hidePicked,       "Hide picked match"},
-  {setHighlight,     "Highlight sequences by name"},
-  {clrHighlight,     "Clear highlighted and unhide"},
-
-  {0, 0}
-};
-
-/* The standard context menu modified to include additional options for developers */
-static MENUOPT developerMainMenu[] =
-{
-  {blxDestroy,       "Quit\t\t\t\t\tCtrl-Q"},
-  {blxHelp,          "Help\t\t\t\t\tCtrl-H"},
-  {blxPrint,         "Print\t\t\t\t\tCtrl-P"},
-  {wholePrint,       "Print whole alignment"},
-  {blixemSettings,   "Change Settings"},
-  {selectFeatures,   selectFeaturesStr},
-  
-  {menuSpacer,       ""},
-  {toggleMatchSet,   toggleMatchPasteStr},
-  
-  {menuSpacer,       ""},
-  /*	{dotterPanel,       "Dotter panel"},*/
-  {callDotter,       "Dotter"},
-  {callDotterHSPs,   "Dotter HSPs only"},
-  {callDotterSelf,   "Dotter query vs. itself"},
-  {setDotterParams,  "Manual Dotter parameters"},
-  {autoDotterParams, autoDotterParamsStr},
-  
-  {menuSpacer,       ""},
-  {hidePicked,       "Hide picked match"},
-  {setHighlight,     "Highlight sequences by name"},
-  {clrHighlight,     "Clear highlighted and unhide"},
-  
-  {menuSpacer,       ""},
-  {blxShowStats,     "Statistics"},
-  {0, 0}
-};
-
-static MENUOPT settingsMenuOpt[] =
-{
-  {sortByScore,      SortByScoreStr},
-  {sortById,         SortByIdStr},
-  {sortByName,       SortByNameStr},
-  {sortByPos,        SortByPosStr},
-  {sortToggleInv,    SortInvStr},
-  {menuSpacer,       ""},
-  {BigPictToggle,    BigPictToggleStr},
-  {BigPictToggleRev, BigPictToggleRevStr},
-  {entropytoggle,        entropytoggleStr},
-  {menuSpacer,       ""},
-  {toggleDESC,       toggleDESCStr},
-  {toggleHiliteSins, toggleHiliteSinsStr},
-  {squashFSdo,       squashFSStr},
-  {squashMatches,    squashMatchesStr},
-  {toggleIDdots,     toggleIDdotsStr},
-  {toggleHiliteUpper,toggleHiliteUpperStr},
-  {toggleHiliteLower,toggleHiliteLowerStr},
-  {menuSpacer,       ""},
-  {printColors,      printColorsStr},
-  {toggleColors,     toggleColorsStr},
-  {toggleVerbose,    toggleVerboseStr},
-  {menuSpacer,       ""},
-  {blixemSettings,   "Settings window"},
-  {0, 0}
-};
+//static MENUOPT settingsMenuOpt[] =
+//{
+//  {sortByScore,      SortByScoreStr},
+//  {sortById,         SortByIdStr},
+//  {sortByName,       SortByNameStr},
+//  {sortByPos,        SortByPosStr},
+//  {sortToggleInv,    SortInvStr},
+//  {menuSpacer,       ""},
+//  {BigPictToggle,    BigPictToggleStr},
+//  {BigPictToggleRev, BigPictToggleRevStr},
+//  {entropytoggle,        entropytoggleStr},
+//  {menuSpacer,       ""},
+//  {toggleDESC,       toggleDESCStr},
+//  {toggleHiliteSins, toggleHiliteSinsStr},
+//  {squashFSdo,       squashFSStr},
+//  {squashMatches,    squashMatchesStr},
+//  {toggleIDdots,     toggleIDdotsStr},
+//  {toggleHiliteUpper,toggleHiliteUpperStr},
+//  {toggleHiliteLower,toggleHiliteLowerStr},
+//  {menuSpacer,       ""},
+//  {printColors,      printColorsStr},
+//  {toggleColors,     toggleColorsStr},
+//  {toggleVerbose,    toggleVerboseStr},
+//  {menuSpacer,       ""},
+//  {blixemSettings,   "Settings window"},
+//  {0, 0}
+//};
 
 
 /* A stepping stone to having a blixem view context is this global struct. */
@@ -607,62 +613,6 @@ static void toggleDESC(void) {
     blviewRedraw();
 }
 
-static void ToggleStrand(void)
-{
-  dispstart += plusmin*(displen-1);
-
-  plusmin = -plusmin;
-
-  sprintf(actframe, "(%+d)", plusmin);
-  blviewRedraw();
-
-  return ;
-}
-
-static void scrollRightBig(void)
-{
-    dispstart = dispstart + plusmin*displen*.5;
-    blviewRedraw();
-}
-static void scrollLeftBig(void)
-{
-    dispstart = dispstart - plusmin*displen*.5;
-    blviewRedraw();
-}
-static void scrollRight1(void)
-{
-    dispstart = dispstart + plusmin*symbfact;
-    blviewRedraw();
-}
-static void scrollLeft1(void)
-{
-    dispstart = dispstart - plusmin*symbfact;
-    blviewRedraw();
-}
-
-static void Goto(void)
-{
-  static char dfault[32] = "";
-  int i = 0;
-  ACEIN pos_in;
-
-  /*sprintf(posstr, "%d", dispstart + qoffset);*/
-
-  if ((pos_in = messPrompt ("Goto which position: ", dfault, "t", 0)))
-    {
-      aceInInt(pos_in, &i);
-      aceInDestroy (pos_in);
-
-      dispstart = i - qoffset ;
-      sprintf(dfault, "%d", i) ;
-
-      blviewRedraw();
-    }
-
-  return ;
-}
-
-
 /* AGH...strand probably not good..... */
 static BOOL gotoMatchPosition(char *match, int q_start, int q_end)
 {
@@ -741,17 +691,7 @@ static void gotoMatch(int direc)
   return ;
 }
 
-static void prevMatch(void)
-{
-  gotoMatch(-1);
-}
-
-static void nextMatch(void)
-{
-  gotoMatch(1);
-}
-
-
+#if OLD_BLIXEM
 static void keyboard(int key, int modifier)
 {
   switch (key)
@@ -792,13 +732,14 @@ static void keyboard(int key, int modifier)
 
   return ;
 }
+#endif
 
 
 static void toggleColors (void)
 {
     static int oldback, oldgrid, oldID, oldcons, oldgene, oldhi;
 
-    graphActivate(settingsGraph);
+//    graphActivate(settingsGraph);
 
     if (!colortoggle) {
 	oldback = backgColor; backgColor = WHITE;
@@ -826,7 +767,7 @@ static void printColors (void)
 {
     static int oldback, oldgrid, oldID, oldcons, oldgene, oldhi;
 
-    graphActivate(settingsGraph);
+//    graphActivate(settingsGraph);
 
     if (!printColorsOn) {
 	oldback = backgColor; backgColor = WHITE;
@@ -929,70 +870,70 @@ int strMatch(char *text, char *query)
 }
 
 void highlightProteinboxes(BOOL warpScroll)
-{
-  MSP *msp;
-
-  /* Highlight alignment boxes of current search string seq */
-  if (*searchSeq)
-    for (msp = MSPlist; msp ; msp = msp->next)
-      if (msp->box && strMatch(msp->sname, searchSeq))
-	{
-	  graphActivate(msp->graph);
-	  graphBoxDraw(msp->box, BLACK, RED);
-	}
-
-  /* Highlight alignment boxes of currently selected seq */
-  if (!squash)
-    {
-      for (msp = MSPlist; msp ; msp = msp->next)
-	{
-	  if (msp->box && !strcmp(msp->sname, HighlightSeq))
-	    {
-	      float x1, x2, y1, y2;
-
-	      graphActivate(msp->graph);
-	      graphBoxDraw(msp->box, WHITE, BLACK);
-
-	      if (warpScroll)
-		{
-		  /* Scroll the alignment window so that the currently
-		     selected seq is visible. Not that this only happens
-		     in response to clicking on the big picture
-		     when warpScroll is TRUE. */
-		  graphBoxDim(msp->box, &x1, &y1, &x2, &y2);
-		  graphGoto(x1, y1);
-		}
-	    }
-	  }
-    }
-
-  if (BigPictON)
-    {
-      /* Highlight Big Picture boxes of current search string seq */
-      if (*searchSeq)
-	{
-	  for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
-	    {
-	      if (strMatch(bpmsp->sname, searchSeq))
-		{
-		  graphActivate(bpmsp->graph);
-		  graphBoxDraw(bpmsp->box, RED, BLACK);
-		}
-	    }
-	}
-
-      /* Highlight Big Picture boxes of currently selected seq */
-      for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
-	{
-	  if (!strcmp(bpmsp->sname, HighlightSeq))
-	    {
-	      graphActivate(bpmsp->graph);
-	      graphBoxDraw(bpmsp->box, CYAN, BLACK);
-	    }
-	}
-    }
-
-  return ;
+{//
+//  MSP *msp;
+//
+//  /* Highlight alignment boxes of current search string seq */
+//  if (*searchSeq)
+//    for (msp = MSPlist; msp ; msp = msp->next)
+//      if (msp->box && strMatch(msp->sname, searchSeq))
+//	{
+//	  graphActivate(msp->graph);
+//	  graphBoxDraw(msp->box, BLACK, RED);
+//	}
+//
+//  /* Highlight alignment boxes of currently selected seq */
+//  if (!squash)
+//    {
+//      for (msp = MSPlist; msp ; msp = msp->next)
+//	{
+//	  if (msp->box && !strcmp(msp->sname, HighlightSeq))
+//	    {
+//	      float x1, x2, y1, y2;
+//
+//	      graphActivate(msp->graph);
+//	      graphBoxDraw(msp->box, WHITE, BLACK);
+//
+//	      if (warpScroll)
+//		{
+//		  /* Scroll the alignment window so that the currently
+//		     selected seq is visible. Not that this only happens
+//		     in response to clicking on the big picture
+//		     when warpScroll is TRUE. */
+//		  graphBoxDim(msp->box, &x1, &y1, &x2, &y2);
+//		  graphGoto(x1, y1);
+//		}
+//	    }
+//	  }
+//    }
+//
+//  if (BigPictON)
+//    {
+//      /* Highlight Big Picture boxes of current search string seq */
+//      if (*searchSeq)
+//	{
+//	  for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
+//	    {
+//	      if (strMatch(bpmsp->sname, searchSeq))
+//		{
+//		  graphActivate(bpmsp->graph);
+//		  graphBoxDraw(bpmsp->box, RED, BLACK);
+//		}
+//	    }
+//	}
+//
+//      /* Highlight Big Picture boxes of currently selected seq */
+//      for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
+//	{
+//	  if (!strcmp(bpmsp->sname, HighlightSeq))
+//	    {
+//	      graphActivate(bpmsp->graph);
+//	      graphBoxDraw(bpmsp->box, CYAN, BLACK);
+//	    }
+//	}
+//    }
+//
+//  return ;
 }
 
 static void hidePicked (void)
@@ -1012,123 +953,125 @@ static void hidePicked (void)
  * for that sequence. The method of retrieving the sequence can be changed
  * via environment variables.
  *                                                                           */
+#if OLD_BLIXEM
 static void blviewPick(int box, double x_unused, double y_unused, int modifier_unused)
 {
-  MSP *msp;
-  Graph origGraph = graphActive();
-
-  if (!box)
-    return ;
-
-  if (box == lastbox)
-    {
-      /* Second click - efetch this seq */
-      for (msp = MSPlist; msp ; msp = msp->next)
-	{
-	  if (msp->box == box && msp->graph == graphActive())
-	    break;
-	}
-
-      if (msp && *msp->sname)
-	{
-	  blxDisplayMSP(msp) ;
-	}
-    }
-  else
-    {
-      /* Reset all highlighted boxes */
-      if (!squash)
-	{
-	  for (msp = MSPlist; msp ; msp = msp->next)
-	    {
-	      if (msp->box && !strcmp(msp->sname, HighlightSeq))
-		{
-		  graphActivate(msp->graph);
-		  graphBoxDraw(msp->box, BLACK, backgColor);
-		}
-	    }
-	}
-
-      if (BigPictON)
-	{
-	  for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
-	    {
-	      if (!strcmp(bpmsp->sname, HighlightSeq))
-		{
-		  graphActivate(bpmsp->graph);
-		  graphBoxDraw(bpmsp->box, BLACK, backgColor);
-		}
-	    }
-	}
-
-      /* Find clicked protein  ***********************/
-
-      for (msp = MSPlist; msp ; msp = msp->next)
-	{
-	  if (msp->box == box && msp->graph == origGraph)
-	    break ;
-	}
-
-      if (msp)
-	{
-	  /* Picked box in alignment */
-	  strcpy(HighlightSeq, msp->sname) ;
-	  pickedMSP = msp ;
-	}
-      else if (BigPictON)
-        {
-	  /* look for picked box in BigPicture */
-	  for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
-	    {
-	      if (bpmsp->box == box && bpmsp->graph == origGraph)
-		break;
-	    }
-
-	  if (bpmsp && *bpmsp->sname)
-	    strcpy(HighlightSeq, bpmsp->sname);
-	}
-
-      if (msp || (bpmsp && *bpmsp->sname))
-	{
-	  char *sname ;
-	  char *desc ;
-	  BOOL highlight_protein ;
-	  
-
-	  /* Put description in message box and in paste buffer. */
-	  if (msp)
-	    {
-	      sname = msp->sname ;
-	      desc = msp->desc ;
-	      highlight_protein = FALSE ;
-	    }
-	  else
-	    {
-	      sname = bpmsp->sname ;
-	      desc = bpmsp->desc ;
-	      highlight_protein = TRUE ;
-	    }
-
-	  strncpy(message, sname, 1023) ;
-	  if (desc)
-	    {
-	      strcat(message, " ") ;
-	      strncat(message, desc, 1023-strlen(message)) ;
-	    }
-
-	  graphPostBuffer(sname) ;
-	  
-	  /* Highlight picked box */
-	  graphActivate(blixemGraph) ;
-	  highlightProteinboxes(highlight_protein) ;
-
-	  gtk_entry_set_text(GTK_ENTRY(messageWidget), message) ;
-	  lastbox = box ;
-	}
-    }
-
-  return ;
+  //MSP *msp;
+////  Graph origGraph = graphActive();
+//
+//  if (!box)
+//    return ;
+//
+//  if (box == lastbox)
+//    {
+//      /* Second click - efetch this seq */
+//      for (msp = MSPlist; msp ; msp = msp->next)
+//	{
+//	  if (msp->box == box && msp->graph == graphActive())
+//	    break;
+//	}
+//
+//      if (msp && *msp->sname)
+//	{
+//	  blxDisplayMSP(msp) ;
+//	}
+//    }
+//  else
+//    {
+//      /* Reset all highlighted boxes */
+//      if (!squash)
+//	{
+//	  for (msp = MSPlist; msp ; msp = msp->next)
+//	    {
+//	      if (msp->box && !strcmp(msp->sname, HighlightSeq))
+//		{
+//		  graphActivate(msp->graph);
+//		  graphBoxDraw(msp->box, BLACK, backgColor);
+//		}
+//	    }
+//	}
+//
+//      if (BigPictON)
+//	{
+//	  for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
+//	    {
+//	      if (!strcmp(bpmsp->sname, HighlightSeq))
+//		{
+//		  graphActivate(bpmsp->graph);
+//		  graphBoxDraw(bpmsp->box, BLACK, backgColor);
+//		}
+//	    }
+//	}
+//
+//      /* Find clicked protein  ***********************/
+//
+////      for (msp = MSPlist; msp ; msp = msp->next)
+////	{
+////	  if (msp->box == box && msp->graph == origGraph)
+////	    break ;
+////	}
+//
+//      if (msp)
+//	{
+//	  /* Picked box in alignment */
+//	  strcpy(HighlightSeq, msp->sname) ;
+//	  pickedMSP = msp ;
+//	}
+//      else if (BigPictON)
+//        {
+//	  /* look for picked box in BigPicture */
+////	  for (bpmsp = BPMSPlist.next; bpmsp && *bpmsp->sname; bpmsp = bpmsp->next)
+////	    {
+////	      if (bpmsp->box == box && bpmsp->graph == origGraph)
+////		break;
+////	    }
+//
+//	  if (bpmsp && *bpmsp->sname)
+//	    strcpy(HighlightSeq, bpmsp->sname);
+//	}
+//
+//      if (msp || (bpmsp && *bpmsp->sname))
+//	{
+//	  char *sname ;
+//	  char *desc ;
+//	  BOOL highlight_protein ;
+//	  
+//
+//	  /* Put description in message box and in paste buffer. */
+//	  if (msp)
+//	    {
+//	      sname = msp->sname ;
+//	      desc = msp->desc ;
+//	      highlight_protein = FALSE ;
+//	    }
+//	  else
+//	    {
+//	      sname = bpmsp->sname ;
+//	      desc = bpmsp->desc ;
+//	      highlight_protein = TRUE ;
+//	    }
+//
+//	  strncpy(message, sname, 1023) ;
+//	  if (desc)
+//	    {
+//	      strcat(message, " ") ;
+//	      strncat(message, desc, 1023-strlen(message)) ;
+//	    }
+//
+//	  graphPostBuffer(sname) ;
+//	  
+//	  /* Highlight picked box */
+////	  graphActivate(blixemGraph) ;
+//	  highlightProteinboxes(highlight_protein) ;
+//
+//	  gtk_entry_set_text(GTK_ENTRY(messageWidget), message) ;
+//	  lastbox = box ;
+//	}
+//    }
+//
+//  return ;
 }
+#endif
 
 
 static void mspcpy(MSP *dest, MSP *src)
@@ -1183,9 +1126,6 @@ static void sortMSPs(int (*func)())
 	    }
 	}
     }
-
-  if (graphActivate(blixemGraph))
-    blviewRedraw() ;
 
   return ;
 }
@@ -1358,51 +1298,6 @@ static void squashFSdo(void)
 }
 
 
-static void blxHelp(void)
-{
-  graphMessage (messprintf("\
-\
-BLIXEM - BLast matches\n\
-         In an\n\
-         X-windows\n\
-         Embedded\n\
-         Multiple alignment\n\
-\n\
-LEFT MOUSE BUTTON:\n\
-  Pick on boxes and sequences.\n\
-  Fetch annotation by double clicking on sequence (Requires 'efetch' to be installed.)\n\
-\n\
-MIDDLE MOUSE BUTTON:\n\
-  Scroll horizontally.\n\
-\n\
-RIGHT MOUSE BUTTON:\n\
-  Menu.  Note that the buttons Settings and Goto have their own menus.\n\
-\n\
-\n\
-Keyboard shortcuts:\n\
-\n\
-Cntl-Q          quit application\n\
-Cntl-P          print\n\
-Cntl-H          help\n\
-\n\
-\n\
-m/M             for mark/unmark a set of matches from the cut buffer\n\
-\n\
-g/G             go to the match in the cut buffer\n\
-\n\
-\n\
-\n\
-RESIDUE COLOURS:\n\
-  Yellow = Query.\n\
-  See Settings Panel for matching residues (click on Settings button).\n\
-\n\
-version %s\n\
-(c) Erik Sonnhammer", blixemVersion));
-
-  return ;
-}
-
-
 static void wholePrint(void)
 {
     int
@@ -1462,7 +1357,7 @@ static void wholePrint(void)
 
     wholePrintOn = 1;
     BigPictON = 0;
-    oneGraph = 1;
+//    oneGraph = 1;
 
     blviewRedraw();
     graphPrint();
@@ -1471,7 +1366,7 @@ static void wholePrint(void)
     wholePrintOn = 0;
     dispstart = dispstart_save;
     displen = dispstart_save;
-    oneGraph = 0;
+//    oneGraph = 0;
     BigPictON = BigPictON_save;
 
     blviewRedraw();
@@ -1479,10 +1374,10 @@ static void wholePrint(void)
 
 static void blxPrint(void)
 {
-  oneGraph = 1;
+//  oneGraph = 1;
   blviewRedraw();
   graphPrint();
-  oneGraph = 0;
+//  oneGraph = 0;
 
   blviewRedraw();
 }
@@ -1792,88 +1687,6 @@ static void clearMatchSet(void)
 }
 
 
-/* input is co-ord on query sequence, find corresonding base in subject sequence */
-static int gapCoord(MSP *msp, int x, int qfact)
-{
-  int result = -1 ;
-
-  BOOL qForward = ((strchr(msp->qframe, '+'))) ? TRUE : FALSE ;
-  BOOL sForward = ((strchr(msp->sframe, '+'))) ? TRUE : FALSE ;
-  BOOL sameDirection = (qForward == sForward);
-  
-  int qMin = qForward ? msp->qstart : msp->qend;
-  int sMin = sForward ? msp->sstart : msp->send;
-  int sMax = sForward ? msp->send : msp->sstart;
-
-  BOOL rightToLeft = (qForward && plusmin < 0) || (!qForward && plusmin > 0); 
-
-  Array gaps = msp->gaps ;
-  if (!gaps || arrayMax(gaps) < 1)
-    {
-      /* If strands are in the same direction, find the offset from qMin and add it to sMin.
-       * If strands are in opposite directions, find the offset from qMin and subtract it from sMax. */
-      int offset = (x - qMin)/qfact ;
-      result = (sameDirection) ? sMin + offset : sMax - offset ;
-    }
-  else
-    {
-      /* Look to see if x lies inside one of the reference sequence ranges. */
-      for (i = 0 ; i < arrayMax(gaps) ; ++i)
-        {
-          SMapMap *curRange = arrp(gaps, i, SMapMap) ;
-          int qRangeMin = qForward ? curRange->r1 : curRange->r2 ;
-          int qRangeMax = qForward ? curRange->r2 : curRange->r1 ;
-          int sRangeMin = sForward ? curRange->s1 : curRange->s2 ;
-          int sRangeMax = sForward ? curRange->s2 : curRange->s1 ;
-          
-          /* We've "found" the value if it's in or before this range. Note that the
-           * the range values are in decreasing order if the q strand is reversed. */
-          BOOL found = qForward ? x <= qRangeMax : x >= qRangeMin;
-          
-          if (found)
-            {
-              BOOL inRange = qForward ? x >= qRangeMin : x <= qRangeMax;
-            
-              if (inRange)
-                {
-                  /* It's inside this range. Calculate the actual index. */
-                  int offset = (x - qRangeMin) / qfact;
-                  result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
-                }
-              else if (i == 0)
-                {
-                  /* x lies before the first range. Use the start of the first range. */
-                  result = curRange->s1;
-                
-                  if (!rightToLeft)
-                    {
-                      /* This is a special case where for normal left-to-right display we want to display the
-                       * gap before the base rather than after it.  Use 1 beyond the edge of the range to do this. */
-                      result = sForward ? result - 1 : result + 1 ;
-                    }
-                }
-              
-              break;
-            }
-          else
-            {
-              /* Remember the end of the current range (which is the result we want if x lies after the last range). */
-              result = curRange->s2;
-               
-              if (rightToLeft)
-                {
-                  /* For right-to-left display, we want to display the gap before the base rather 
-                   * than after it.  Use 1 index beyond the edge of the range to do this. */
-                  result = sForward ? result + 1 : result - 1 ;
-                }
-            }
-        }
-    }
-
-  return result ;
-}
-
-
 static void setModeP(void)
 {
   blastp = 1;
@@ -1914,6 +1727,184 @@ static void setModeL(void) {
 }
 
 
+static void blxviewInitGlobals(char *seq, char *seqname, int start, int offset, MSP *msplist)
+{
+  q = seq;
+  qlen = actend = strlen(q) ;
+  qname_G = g_strdup(seqname) ;
+  
+  dispstart = start;
+  actstart=1;
+  qoffset = offset;
+  MSPlist = msplist;
+  BPMSPlist.next = 0;
+  *HighlightSeq = 0;
+  blastx = blastp =  blastn = tblastn = tblastx = 0 ;
+  sortMode = SORTBYUNSORTED ;
+}
+
+
+static void blxviewGetOpts(char *opts, char *seq)
+{
+  char *opt = opts;
+  while (*opt)
+    {
+      /* Used options: 	 BGILMNPRSTXZ-+brsinp      */
+      
+      switch (*opt)
+      {
+	case 'I':
+	  sortInvOn = 1;                         break;
+	case 'G':
+	  /* Gapped HSPs */
+	  HiliteSins = HSPgaps = 1;                 break;
+	case 'P': setModeP();                       break;
+	case 'N': setModeN();                       break;
+	case 'X': setModeX();                       break;
+	case 'T': setModeT();                       break;
+	case 'L': setModeL();                       break;
+	case '-':
+	  strcpy(actframe, "(-1)");
+	  plusmin = -1;                           break;
+	case '+':
+	  strcpy(actframe, "(+1)");
+	  plusmin = 1;                            break;
+	case 'B':
+	  BigPictON = 1;                          break;
+	case 'b':
+	  BigPictON = 0;                          break;
+	case 'd':
+	  dotter_first = 1;                       break;
+	case 'i':
+	  sortMode = SORTBYID ;                   break;
+	case 'M':
+	  start_nextMatch = 1;                    break;
+	case 'n':
+	  sortMode = SORTBYNAME ;                 break;
+	case 'p':
+	  sortMode = SORTBYPOS ;                  break;
+	case 'R':
+	  BigPictRev = 1;                         break;
+	case 'r':
+	  BigPictRev = 0;                         break;
+	case 's':
+	  sortMode = SORTBYSCORE ;                break ;
+	case 'Z':
+	  BigPictZoom = strlen(seq);              break;
+      }
+      
+      opt++;
+    }
+  
+  if (blastx + blastn + blastp + tblastn + tblastx == 0)
+    {
+      printf("\nNo blast type specified. Detected ");
+      
+      if (Seqtype(q) == 'P')
+	{
+	  printf("protein sequence. Will try to run Blixem in blastp mode\n");
+	  setModeP();
+	}
+      else
+	{
+	  printf("nucleotide sequence. Will try to run Blixem in blastn mode\n");
+	  setModeN();
+	}
+    }
+}
+
+
+/* Returns the type of sequence we're dealing with */
+static BlxSeqType getSeqType()
+{
+  return blastx || tblastx ? BLXSEQ_PEPTIDE : BLXSEQ_DNA;
+}
+
+
+/* Returns the number of reading frames */
+static int getNumReadingFrames()
+{
+  return getSeqType() == BLXSEQ_PEPTIDE ? 3 : 1;
+}
+
+
+/* Find out if we need to fetch any sequences (they may all be contained in the input
+ * files), if we do need to, then fetch them by the appropriate method. */
+static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External)
+{
+  gboolean status = TRUE;
+
+  /* First, set the fetch mode */
+  if (pfetch)
+    {
+      /* If pfetch struct then this sets fetch mode to pfetch. */
+      
+      if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
+	blxSetFetchMode(BLX_FETCH_PFETCH) ;
+    }
+  else
+    {
+      blxFindFetchMode() ;
+    }
+  
+  
+  /* See if we have any sequences to fetch */
+  DICT *dict = dictCreate(128) ;
+  if (!haveAllSequences(MSPlist, dict))
+    {
+      if (strcmp(blxGetFetchMode(), BLX_FETCH_PFETCH) == 0)
+	{
+	  /* Fill msp->sseq fast by pfetch if possible
+	   * two ways to use this:
+	   *    1) call blixem main with "-P node:port" commandline option
+	   *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
+	   *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
+	   *       or to the name of the machine, e.g. "plato"
+	   *       and optionally setenv BLIXEM_PORT to the port number for
+	   *       the pfetch server. */
+	  enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
+	  char *net_id = NULL ;
+	  int port = PFETCH_PORT ;
+	  
+	  if (pfetch)
+	    {
+	      net_id = pfetch->net_id ;
+	      if (!(port = pfetch->port))
+		port = PFETCH_PORT ;
+	    }
+	  else if ((net_id = getenv("BLIXEM_PFETCH")))
+	    {
+	      char *port_str ;
+	      
+	      port = 0 ;
+	      if ((port_str = getenv("BLIXEM_PORT")))
+		port = atoi(port_str) ;
+	      
+	      if (port <= 0)
+		port = PFETCH_PORT ;
+	    }
+	  else
+	    {
+	      /* Lastly try for a config file. */
+	      
+	      blxConfigGetPFetchSocketPrefs(&net_id, &port) ;
+	    }
+	  
+	  if (net_id)
+	    status = blxGetSseqsPfetch(MSPlist, dict, net_id, port, External) ;
+	}
+#ifdef PFETCH_HTML 
+      else if (strcmp(blxGetFetchMode(), BLX_FETCH_PFETCH_HTML) == 0)
+	{
+	  status = blxGetSseqsPfetchHtml(MSPlist, dict, getSeqType()) ;
+	}
+#endif
+    }
+  messfree(dict) ;
+  
+  return status;
+}
+
 
 /* blxview() can be called either from other functions in the Blixem
  * program itself or directly by functions in other programs such as
@@ -1927,22 +1918,9 @@ static void setModeL(void) {
  *             pfetch struct to locate the pfetch server).
  *
  */
-Graph blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
-	      char *opts, PfetchParams *pfetch, char *align_types, BOOL External)
+int blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
+            char *opts, PfetchParams *pfetch, char *align_types, BOOL External)
 {
-  Graph result = GRAPH_NULL ;
-  static BOOL init = FALSE ;
-  char *opt;
-  BOOL status = TRUE ;
-  DICT *dict ;
-
-
-  if (!init)
-    {
-      initBlxView() ;
-    }
-
-  oneGraph = 0 ;
   if (blixemWindow)
     gtk_widget_destroy(blixemWindow) ;
 
@@ -1960,163 +1938,15 @@ Graph blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
     }
 
 
-  q = seq;
-  qlen = actend = strlen(q) ;
-  qname_G = g_strdup(seqname) ;
-
-  dispstart = start;
-  actstart=1;
-  qoffset = offset;
-  MSPlist = msplist;
-  BPMSPlist.next = 0;
-  *HighlightSeq = 0;
-  blastx = blastp =  blastn = tblastn = tblastx = 0 ;
-  sortMode = SORTBYUNSORTED ;
-
-  opt = opts;
-  while (*opt)
-    {
-      /* Used options: 	 BGILMNPRSTXZ-+brsinp      */
-
-    switch (*opt)
-      {
-      case 'I':
-	sortInvOn = 1;                         break;
-      case 'G':
-	/* Gapped HSPs */
-	HiliteSins = HSPgaps = 1;                 break;
-      case 'P': setModeP();                       break;
-      case 'N': setModeN();                       break;
-      case 'X': setModeX();                       break;
-      case 'T': setModeT();                       break;
-      case 'L': setModeL();                       break;
-      case '-':
-	strcpy(actframe, "(-1)");
-	plusmin = -1;                           break;
-      case '+':
-	strcpy(actframe, "(+1)");
-	plusmin = 1;                            break;
-      case 'B':
-	BigPictON = 1;                          break;
-      case 'b':
-	BigPictON = 0;                          break;
-      case 'd':
-	dotter_first = 1;                       break;
-      case 'i':
-	sortMode = SORTBYID ;                   break;
-      case 'M':
-	start_nextMatch = 1;                    break;
-      case 'n':
-	sortMode = SORTBYNAME ;                 break;
-      case 'p':
-	sortMode = SORTBYPOS ;                  break;
-      case 'R':
-	BigPictRev = 1;                         break;
-      case 'r':
-	BigPictRev = 0;                         break;
-      case 's':
-	sortMode = SORTBYSCORE ;                break ;
-      case 'Z':
-	BigPictZoom = strlen(seq);              break;
-      }
-
-    opt++;
-    }
-
-  if (blastx + blastn + blastp + tblastn + tblastx == 0)
-    {
-      printf("\nNo blast type specified. Detected ");
-
-      if (Seqtype(q) == 'P')
-	{
-	  printf("protein sequence. Will try to run Blixem in blastp mode\n");
-	  setModeP();
-	}
-      else
-	{
-	  printf("nucleotide sequence. Will try to run Blixem in blastn mode\n");
-	  setModeN();
-	}
-    }
-
-
-  if (pfetch)
-    {
-      /* If pfetch struct then this sets fetch mode to pfetch. */
-
-      if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
-	blxSetFetchMode(BLX_FETCH_PFETCH) ;
-    }
-  else
-    {
-      char *fetch_mode ;
-
-      fetch_mode = blxFindFetchMode() ;
-    }
-
-
-
-
-
-  /* Find out if we need to fetch any sequences (they may all be contained in the input
-   * files), if we do need to, then fetch them by the appropriate method. */
-  dict = dictCreate(128) ;
-  if (!haveAllSequences(MSPlist, dict))
-    {
-      if (strcmp(blxGetFetchMode(), BLX_FETCH_PFETCH) == 0)
-	{
-	  /* Fill msp->sseq fast by pfetch if possible
-	   * two ways to use this:
-	   *    1) call blixem main with "-P node:port" commandline option
-	   *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
-	   *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
-	   *       or to the name of the machine, e.g. "plato"
-	   *       and optionally setenv BLIXEM_PORT to the port number for
-	   *       the pfetch server. */
-	  enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
-	  char *net_id = NULL ;
-	  int port = PFETCH_PORT ;
-
-	  if (pfetch)
-	    {
-	      net_id = pfetch->net_id ;
-	      if (!(port = pfetch->port))
-		port = PFETCH_PORT ;
-	    }
-	  else if ((net_id = getenv("BLIXEM_PFETCH")))
-	    {
-	      char *port_str ;
-
-	      port = 0 ;
-	      if ((port_str = getenv("BLIXEM_PORT")))
-		port = atoi(port_str) ;
-
-	      if (port <= 0)
-		port = PFETCH_PORT ;
-	    }
-	  else
-	    {
-	      /* Lastly try for a config file. */
-
-	      blxConfigGetPFetchSocketPrefs(&net_id, &port) ;
-	    }
-
-	  if (net_id)
-	    status = blxGetSseqsPfetch(MSPlist, dict, net_id, port, External) ;
-	}
-#ifdef PFETCH_HTML 
-      else if (strcmp(blxGetFetchMode(), BLX_FETCH_PFETCH_HTML) == 0)
-	{
-	  status = blxGetSseqsPfetchHtml(MSPlist, dict) ;
-	}
-#endif
-    }
-  messfree(dict) ;
+  blxviewInitGlobals(seq, seqname, start, offset, msplist);
+  blxviewGetOpts(opts, seq);
+  gboolean status = blxviewFetchSequences(pfetch, External);
+  
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
-    result = blviewCreate(opts, align_types) ;
+    blviewCreate(opts, align_types) ;
 
   /* Sort the MSPs according to mode chosen. */
   MSPsort(sortMode) ;
@@ -2125,42 +1955,41 @@ Graph blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
 #ifdef ED_G_NEVER_INCLUDE_THIS_CODE
   printMSPs() ;
 #endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-
-  return result ;
+  
+  return 0;
 }
 
 
 
 
-/* BLVIEWCREATE initializes the display and the buttons
-*/
-static void addgraph(GtkWidget *vbox, BOOL doFrame, Graph graph)
-{
-  GtkWidget *widget;
-
-  if (doFrame)
-    {
-      widget = gtk_frame_new(NULL);
-      gtk_container_add(GTK_CONTAINER(widget), gexGraph2Widget(graph));
-    }
-  else
-    widget = gexGraph2Widget(graph);
-
-  gtk_container_border_width (GTK_CONTAINER (widget), 0);
-
-  gtk_box_pack_start(GTK_BOX(vbox),
-		     widget,
-		     !doFrame, TRUE, 0);
-
-  graphActivate(graph);
-  graphRegister (PICK, blviewPick) ;
-  graphRegister (MIDDLE_DOWN, MiddleDownQ) ;
-  graphRegister (KEYBOARD, keyboard) ;
-  graphNewMenu(blixemMenu);
-
-  return ;
-}
+#if OLD_BLIXEM
+//static void addgraph(GtkWidget *vbox, BOOL doFrame, Graph graph)
+//{
+//  GtkWidget *widget;
+//
+//  if (doFrame)
+//    {
+//      widget = gtk_frame_new(NULL);
+//      gtk_container_add(GTK_CONTAINER(widget), gexGraph2Widget(graph));
+//    }
+//  else
+//    widget = gexGraph2Widget(graph);
+//
+//  gtk_container_border_width (GTK_CONTAINER (widget), 0);
+//
+//  gtk_box_pack_start(GTK_BOX(vbox),
+//		     widget,
+//		     !doFrame, TRUE, 0);
+//
+//  graphActivate(graph);
+//  graphRegister (PICK, blviewPick) ;
+//  graphRegister (MIDDLE_DOWN, MiddleDownQ) ;
+//  graphRegister (KEYBOARD, keyboard) ;
+//  graphNewMenu(blixemMenu);
+//
+//  return ;
+//}
+#endif
 
 
 /* Return true if the current user is in our list of developers. */
@@ -2186,21 +2015,15 @@ static BOOL userIsDeveloper()
 }
 
 
-static Graph blviewCreate(char *opts, char *align_types)
-{
 
+
+/* Initialize the display and the buttons */
+static void blviewCreate(char *opts, char *align_types)
+{
   if (!blixemWindow)
     {
-      float w, h;
-      GtkWidget *vbox;
-      GtkWidget *button_bar ;
-      int i, frames = blastx ? 3 : 2 ;
-      BOOL pep_nuc_align ;
-
-      blixemWindow = gexWindowCreate();
-      vbox = gtk_vbox_new(FALSE, 0);
-      gtk_container_add(GTK_CONTAINER(blixemWindow), vbox);
-
+      blixemWindow = createMainWindow(q, MSPlist, getNumReadingFrames());
+      
       if (!oldWidth)
 	gtk_window_set_default_size(GTK_WINDOW(blixemWindow),
 				    (int)(((float)gdk_screen_width())*0.9),
@@ -2210,7 +2033,7 @@ static Graph blviewCreate(char *opts, char *align_types)
 				    oldWidth, oldHeight);
 
 
-      pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
+      BOOL pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       gtk_window_set_title(GTK_WINDOW(blixemWindow),
 			   messprintf("Blixem %s%s%s:   %s",
 				      (pep_nuc_align ? "  (" : ""),
@@ -2220,43 +2043,34 @@ static Graph blviewCreate(char *opts, char *align_types)
 				      qname_G));
 
 
-      w=3.0;
-      h=3.0;
+//      blixemMenu = menuInitialise ("blixem", userIsDeveloper() ? (MENUSPEC*)developerMainMenu : (MENUSPEC*)mainMenu) ;
+//      menuSetFlags(menuItem(blixemMenu, autoDotterParamsStr),
+//		   MENUFLAG_DISABLED);
 
-      blixemMenu = menuInitialise ("blixem", userIsDeveloper() ? (MENUSPEC*)developerMainMenu : (MENUSPEC*)mainMenu) ;
-      menuSetFlags(menuItem(blixemMenu, autoDotterParamsStr),
-		   MENUFLAG_DISABLED);
+//      if (!fsArr)
+//	menuSetFlags(menuItem(blixemMenu, selectFeaturesStr ),
+//		     MENUFLAG_DISABLED);
 
-      if (!fsArr)
-	menuSetFlags(menuItem(blixemMenu, selectFeaturesStr ),
-		     MENUFLAG_DISABLED);
+      
+//      graphRegister (MIDDLE_DOWN, MiddleDownBP) ;
+//      graphRegister (RESIZE, blviewRedraw);
 
-      blixemGraph = graphNakedResizeCreate(TEXT_FIT, NULL, w, h, TRUE);
-      addgraph(vbox, TRUE, blixemGraph);
-      graphRegister (MIDDLE_DOWN, MiddleDownBP) ;
-      graphRegister (RESIZE, blviewRedraw);
+//	    for (i=0; i<frames; i++)
+//	      {
+//		frameGraphQ[i] = graphNakedResizeCreate(TEXT_FIT, 0, w, h, FALSE);
+//		addgraph(vbox, TRUE, frameGraphQ[i]);
+//
+//		frameGraph[i] = graphNakedResizeCreate(TEXT_SCROLL, 0, w, h, FALSE);
+//		addgraph(vbox, FALSE, frameGraph[i]);
+//	      }
+//      gtk_widget_realize(blixemWindow);
+//      gtk_widget_realize(vbox);
+//      gexDestroyRegister(blixemWindow, blviewDestroy);
 
-      button_bar = makeButtonBar() ;
-      gtk_box_pack_start(GTK_BOX(vbox), button_bar, FALSE, TRUE, 0);
-
-      for (i=0; i<frames; i++)
-	{
-	  frameGraphQ[i] = graphNakedResizeCreate(TEXT_FIT, 0, w, h, FALSE);
-	  addgraph(vbox, TRUE, frameGraphQ[i]);
-
-	  frameGraph[i] = graphNakedResizeCreate(TEXT_SCROLL, 0, w, h, FALSE);
-	  addgraph(vbox, FALSE, frameGraph[i]);
-	}
-
-      gtk_widget_realize(blixemWindow);
-      gtk_widget_realize(vbox);
-      gtk_widget_show_all(blixemWindow);
-
-      gexDestroyRegister(blixemWindow, blviewDestroy);
-
-      settingsMenu = menuInitialise ("Settings", (MENUSPEC*)settingsMenuOpt) ;
-      if (blastp || tblastn)
-	menuSetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_HIDE);
+     
+//      settingsMenu = menuInitialise ("Settings", (MENUSPEC*)settingsMenuOpt) ;
+//      if (blastp || tblastn)
+//	menuSetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_HIDE);
     }
 
 
@@ -2268,18 +2082,6 @@ static Graph blviewCreate(char *opts, char *align_types)
   if (entropyOn)
     calcEntropyArrays(FALSE);
 
-#ifdef ACEDB
-  /* Acedb passes revcomp exons incorrectly for blastn * /
-     if (blastn) {
-     messout ( "\nWarning: exons on the opposite strand may be invisible due "
-     "to a strange bug in blastn mode in acedb which inverts them, "
-
-     "although the identical routine works correctly in blastx mode.\n"
-     "Also, when Blixem is called from REVCOMP blastn mode, the HSPs "
-     "are not revcomped.\n");
-     }*/
-#endif
-
   if (dotter_first && MSPlist && MSPlist->sname
       && (MSPlist->type == HSP || MSPlist->type == GSP))
     {
@@ -2287,13 +2089,13 @@ static Graph blviewCreate(char *opts, char *align_types)
       callDotter();
     }
 
-  if (start_nextMatch)
-    nextMatch();
-  else
-    blviewRedraw();
-
-  return blixemGraph;
+//  if (start_nextMatch)
+//    nextMatch();
+//  else
+//    blviewRedraw();
 }
+
+/***********************************************************/
 
 
 /* BLVIEWDESTROY frees all the allocated memory
@@ -2307,6 +2109,7 @@ static Graph blviewCreate(char *opts, char *align_types)
    Could free auxseq, auxseq2 and padseq too, but they'd have to be remalloc'ed
    next time then.
 */
+#if OLD_BLIXEM
 static void blviewDestroy(GtkWidget *unused)
 {
   MSP *msp, *fmsp;
@@ -2368,86 +2171,87 @@ static void blviewDestroy(GtkWidget *unused)
 
   return ;
 }
+#endif
 
 
 void drawBigPictMSP(MSP *msp, int BPx, char strand)
-{
-  float  msp_y, msp_sx, msp_ex, midx;
-
-  if (FS(msp)) return;
-
-  msp_sx = max((float)plusmin*(msp->qstart-BigPictStart)*BPx/BigPictLen +BPoffset, 4);
-  msp_ex = max((float)plusmin*(msp->qend-BigPictStart)*BPx/BigPictLen +BPoffset, 4);
-
-  if (msp->score == -1) /* EXON */
-    {
-      oldcolor = graphColor(geneColor);
-      oldLinew = graphLinewidth(.15);
-
-      msp_y = 7.9 + queryy ;
-      if (strand == 'R')
-	msp_y += 1.5 ;
-
-      graphRectangle(msp_sx, msp_y, msp_ex, msp_y + 0.7);
-      graphColor(oldcolor);
-      graphLinewidth(oldLinew);
-    }
-  else if (msp->score == -2) /* INTRON */
-    {
-      oldcolor = graphColor(geneColor);
-      oldLinew = graphLinewidth(.15);
-
-      msp_y = 7.9 + queryy ;
-      if (strand == 'R')
-	msp_y += 1.5 ;
-
-      midx = 0.5 * (msp_sx + msp_ex) ;
-      graphLine (msp_sx, msp_y+0.4, midx, msp_y) ;
-      graphLine (msp_ex, msp_y+0.4, midx, msp_y) ;
-      graphColor(oldcolor);
-      graphLinewidth(oldLinew);
-    }
-  else if (msp->score > 0) /* BLAST MATCH */
-    {
-      int colour ;
-
-      if (!msp->sseq)
-	getsseq(msp);
-      if (!msp->id)
-	calcID(msp);
-
-      msp_y = (float)(140 - msp->id)/20 + queryy ;
-
-      if (strand == 'R')
-	msp_y += 9 ;
-
-      if (!bpmsp->next)
-	bpmsp->next = (BPMSP *)messalloc(sizeof(BPMSP));
-
-      bpmsp = bpmsp->next;
-      strcpy(bpmsp->sname, msp->sname);
-      bpmsp->desc = msp->desc;
-
-      oldLinew = graphLinewidth(0.1);
-      bpmsp->box = graphBoxStart();
-      bpmsp->graph = graphActive();
-
-      graphFillRectangle(msp_sx, msp_y, msp_ex, msp_y+.2);
-
-      /* graphLine doesn't want to be picked */
-
-      graphBoxEnd();
-
-      if (msp->in_match_set)
-	colour = matchSetColor ;
-      else
-	colour = BLACK ;
-      
-      graphBoxDraw(bpmsp->box, colour, TRANSPARENT);
-      graphLinewidth(oldLinew);
-    }
-
-  return ;
+{//
+//  float  msp_y, msp_sx, msp_ex, midx;
+//
+//  if (FS(msp)) return;
+//
+//  msp_sx = max((float)plusmin*(msp->qstart-BigPictStart)*BPx/BigPictLen +BPoffset, 4);
+//  msp_ex = max((float)plusmin*(msp->qend-BigPictStart)*BPx/BigPictLen +BPoffset, 4);
+//
+//  if (msp->score == -1) /* EXON */
+//    {
+//      oldcolor = graphColor(geneColor);
+//      oldLinew = graphLinewidth(.15);
+//
+//      msp_y = 7.9 + queryy ;
+//      if (strand == 'R')
+//	msp_y += 1.5 ;
+//
+//      graphRectangle(msp_sx, msp_y, msp_ex, msp_y + 0.7);
+//      graphColor(oldcolor);
+//      graphLinewidth(oldLinew);
+//    }
+//  else if (msp->score == -2) /* INTRON */
+//    {
+//      oldcolor = graphColor(geneColor);
+//      oldLinew = graphLinewidth(.15);
+//
+//      msp_y = 7.9 + queryy ;
+//      if (strand == 'R')
+//	msp_y += 1.5 ;
+//
+//      midx = 0.5 * (msp_sx + msp_ex) ;
+//      graphLine (msp_sx, msp_y+0.4, midx, msp_y) ;
+//      graphLine (msp_ex, msp_y+0.4, midx, msp_y) ;
+//      graphColor(oldcolor);
+//      graphLinewidth(oldLinew);
+//    }
+//  else if (msp->score > 0) /* BLAST MATCH */
+//    {
+//      int colour ;
+//
+//      if (!msp->sseq)
+//	getsseq(msp);
+//      if (!msp->id)
+//	calcID(msp);
+//
+//      msp_y = (float)(140 - msp->id)/20 + queryy ;
+//
+//      if (strand == 'R')
+//	msp_y += 9 ;
+//
+//      if (!bpmsp->next)
+//	bpmsp->next = (BPMSP *)messalloc(sizeof(BPMSP));
+//
+//      bpmsp = bpmsp->next;
+//      strcpy(bpmsp->sname, msp->sname);
+//      bpmsp->desc = msp->desc;
+//
+//      oldLinew = graphLinewidth(0.1);
+//      bpmsp->box = graphBoxStart();
+//      bpmsp->graph = graphActive();
+//
+//      graphFillRectangle(msp_sx, msp_y, msp_ex, msp_y+.2);
+//
+//      /* graphLine doesn't want to be picked */
+//
+//      graphBoxEnd();
+//
+//      if (msp->in_match_set)
+//	colour = matchSetColor ;
+//      else
+//	colour = BLACK ;
+//      
+//      graphBoxDraw(bpmsp->box, colour, TRANSPARENT);
+//      graphLinewidth(oldLinew);
+//    }
+//
+//  return ;
 }
 
 
@@ -2691,788 +2495,797 @@ void drawStrandName(char *name, char *frame, int max_len, int x, int y)
 /* blViewRedraw Redraws the view in the disp_region */
 void blviewRedraw(void)
 {
-  unsigned char querysym, subjectsym ;
-  int     i,
-    dbdisp,  /* number of msp's displayed */
-    frame=0,
-    curframe, DNAline,
-    TickStart, TickUnit, gridx,
-    pos, exon_end ;
-  MSP    *msp;
-  float   alignstart;
-  int charHeight;
-  float fy;
-  int py;
-  char    *query = NULL, *lastname = NULL ;
-  char    text[MAXALIGNLEN+1] ;
-  BOOL compN ;
-
-
-  gdk_window_get_geometry(blixemWindow->window, NULL, NULL,
-			  &oldWidth, &oldHeight, NULL);
-  settingsRedraw();
-
-  graphActivate(blixemGraph);
-  graphClear();
-  graphBoxDraw(0, backgColor, backgColor);
-  graphTextFormat(FIXED_WIDTH);
-  graphScreenSize( NULL, NULL, NULL, &fy, NULL, &py);
-
-  charHeight = (int)((float)py/fy) + 1 ;
-
-  for (msp = MSPlist; msp ; msp = msp->next)
-    {
-      msp->box = 0 ;
-    }
-
-  lastbox = 0;
-
-  queryy = separator_y = 0.2;
-
-
-  /* Calculate window sizes **************************/
-
-  graphFitBounds (&nx, &ny);
-  nx -= 2; /* scrollbars */
-
-  graphColor(backgColor);
-  graphRectangle(0, 0, nx+100, ny+100);
-  graphColor(BLACK);
-
-  if (wholePrintOn)
-    {
-      nx = displen/symbfact + 43;
-    }
-  else
-    {
-      displen = (nx - 43)*symbfact ;        /* Keep spacious for printing */
-    }
-
-
-
-  /* Window boundary check */
-  if (strchr(actframe, '+'))
-    {
-      if (displen > qlen - (symbfact+1) )                 /* Window too big for sequence */
-	{
-	  dispstart = 1;
-	  displen = qlen - (symbfact+1);
-	  if (blastp || blastn) displen = qlen;
-	}
-      else if (dispstart < 1)                             /* Off the left edge  */
-	dispstart = 1 ;
-      else if (dispstart + displen > qlen - (blastx||tblastx ? 3 : -1))     /* Off the right edge */
-	dispstart = qlen - (blastx||tblastx ? 3 : -1) - displen;
-    }
-  else if (strchr(actframe, '-'))
-    {
-      if (displen > qlen - (symbfact+1))                  /* Window too big for sequence */
-	{
-	  dispstart = qlen;
-	  displen = qlen - (symbfact+1);
-	  if (blastn) displen = qlen;
-	}
-      else if (dispstart > qlen)                          /* Off the left edge  */
-	dispstart = qlen ;
-      else if (dispstart - displen < (blastx||tblastx ? 4 : 0) )   /* Off the right edge */
-	dispstart =  (blastx||tblastx ? 4 : 0) + displen ;
-    }
-
-
-  /* Draw Big Picture **************************/
-
-  if (BigPictON)
-    {
-      BigPictLen = displen * BigPictZoom;
-
-      if (BigPictLen > qlen)
-	{
-	  BigPictLen = qlen;
-	  BigPictZoom = (float)qlen/displen;
-	}
-
-      BigPictStart = dispstart + plusmin*displen/2 - plusmin*BigPictLen/2;
-
-      if (plusmin > 0)
-	{
-	  if (BigPictStart + BigPictLen > qlen)
-	    BigPictStart = qlen - BigPictLen;
-	  if (BigPictStart < 1)
-	    BigPictStart = 1;
-	}
-      else
-	{
-	  if (BigPictStart - BigPictLen < 1)
-	    BigPictStart = BigPictLen;
-	  if (BigPictStart > qlen)
-	    BigPictStart = qlen;
-	}
-
-      BPx = nx - BPoffset;
-      graphButton("Zoom In", zoomIn, .5, queryy +.1);
-      graphButton("Zoom Out", zoomOut, 9, queryy +.1);
-      graphButton("Whole", zoomWhole, 18.5, queryy +.1);
-
-      /* Draw position lines (ticks) */
-      TickUnit = (int)pow(10.0, floor(log10((float)BigPictLen)));
-      /* Basic scaleunit */
-      while (TickUnit*5 > BigPictLen) TickUnit /= 2;	    /* Final scaleunit */
-      TickStart = (int)TickUnit*( floor((float)(BigPictStart+qoffset)/TickUnit + .5));
-      /* Round off       */
-      for (i=TickStart;
-	   (plusmin == 1 ? i < BigPictStart+qoffset + BigPictLen : i > BigPictStart+qoffset - BigPictLen);
-	   i = i + plusmin*TickUnit)
-	{
-	  gridx = (float)plusmin*(i-BigPictStart-qoffset)*BPx/BigPictLen + BPoffset;
-	  if (gridx > 24 && gridx < nx-10)
-	    {
-	      graphText(messprintf("%d", i), gridx, queryy);
-	      graphColor(gridColor);
-	      graphLine(gridx, queryy+1, gridx, queryy+7 /*+fsTotalHeight(MSPlist)+2*/ );
-	      if (BigPictRev)
-		graphLine(gridx, queryy+11, gridx, queryy+16);
-	      graphColor(BLACK);
-	    }
-	}
-
-      /* Draw Percentage lines */
-      for (i=0; i<=100; i += 20) {
-	graphText(messprintf("%3i%%", i), 0, queryy + (float)(130-i)/20);
-	if (BigPictRev) graphText(messprintf("%3i%%", i), 0, queryy+9 + (float)(130-i)/20);
-	graphColor(gridColor);
-	graphLine(4, queryy + (float)(140-i)/20, nx+1, queryy + (float)(140-i)/20);
-	if (BigPictRev) graphLine(4, queryy+9 + (float)(140-i)/20, nx+1, queryy+9 + (float)(140-i)/20);
-	graphColor(BLACK);
-      }
-
-
-      /* Draw active window frame */
-      oldLinew = graphLinewidth(.3);
-      BPboxstart = (float)plusmin*(dispstart-BigPictStart)*BPx/BigPictLen + BPoffset;
-      BPboxwidth = (float)displen*BPx/BigPictLen;
-      BPbox = graphBoxStart();
-      graphRectangle(BPboxstart, queryy +1.7, BPboxstart+BPboxwidth, queryy +1.7 + BPboxheight);
-      graphBoxEnd(); graphBoxDraw(BPbox, geneColor, TRANSPARENT);
-      graphLinewidth(.5);
-      graphLinewidth(oldLinew);
-
-
-      /* Draw Big Picture MSPs */
-      lastExonx = 0;
-      bpmsp = &BPMSPlist;
-      for (msp = MSPlist; msp; msp = msp->next)
-        {
-	  if (strcmp(msp->sname, HighlightSeq) && !strMatch(msp->sname, searchSeq))
-	    selectBigPictMSP(msp, BPx, BigPictStart, BigPictStart+BigPictLen);
-	}
-
-      /* Draw the highlighted later, so they're not blocked by black ones */
-      for (msp = MSPlist; msp; msp = msp->next)
-	{
-	  if (!strcmp(msp->sname, HighlightSeq) || strMatch(msp->sname, searchSeq))
-	    selectBigPictMSP(msp, BPx, BigPictStart, BigPictStart+BigPictLen);
-	}
-      if (bpmsp->next) *bpmsp->next->sname = 0;
-
-      queryy += 10;
-      if (BigPictRev) queryy += 8;
-
-      /* Draw separator line with perforation * /
-	 oldLinew = graphLinewidth(1);
-	 if (squash) graphColor(RED);
-	 else graphColor(BLACK);
-	 graphLine(0, queryy-.5, nx+1, queryy-.5);
-	 graphLinewidth(.1);
-	 graphColor(WHITE);
-	 for (i = 0; i <= nx+1; i++) graphLine((float)i, queryy-.5, (float)i+.8, queryy-.5);
-	 graphColor(BLACK);
-	 graphLinewidth(oldLinew); */
-
-
-      /* Draw entropy curves **************************/
-      if (entropyOn)
-	{
-	  int y;
-
-	  drawSeparator();
-
-	  /* Draw scale */
-	  for (i = 1; i <= 4; i++)
-	    {
-	      y = queryy+5 - (i-2)*2;
-	      graphText(messprintf("%d", i), 1, y-.5);
-
-	      graphColor(DARKGRAY);
-	      graphLine (BPoffset, y, nx, y);
-	      graphColor(BLACK);
-	    }
-
-	  /* Draw entropy curves */
-	  graphColor(stringentEntropycolor);
-	  drawEntropycurve(BigPictStart, BigPictStart+BigPictLen,
-			   stringentEntropyarr, stringentEntropywin);
-
-	  graphColor(mediumEntropycolor);
-	  drawEntropycurve(BigPictStart, BigPictStart+BigPictLen,
-			   mediumEntropyarr, mediumEntropywin);
-
-	  graphColor(nonglobularEntropycolor);
-	  drawEntropycurve(BigPictStart, BigPictStart+BigPictLen,
-			   nonglobularEntropyarr, nonglobularEntropywin);
-
-	  queryy += 9;
-	}
-
-
-      /* Draw colored feature segments ********************************/
-      if (fsArr && arrayMax(fsArr))
-	{
-	  float maxy=0 ;
-
-	  /* drawSeparator();*/
-
-	  if (fsArr)
-	    {
-	      for (i = 0; i < arrayMax(fsArr); i++)
-		arrp(fsArr, i, FEATURESERIES)->y = 0;
-	    }
-
-
-	  for (msp = MSPlist; msp; msp = msp->next)
-	    {
-	      if (FS(msp) && arrp(fsArr, msp->fs, FEATURESERIES)->on &&
-		  (!strcmp(msp->qname, qname_G) || !strcmp(msp->qname, "@1")))
-		{
-		  if (msp->type == FSSEG)
-		    {
-		      drawSEG(msp, fs2y(msp, &maxy, 1+1));
-		    }
-		  else if (msp->type == XY)
-		    {
-		      drawSEGxy(msp, fs2y(msp, &maxy, fsPlotHeight+1));
-		    }
-		}
-	    }
-
-	  queryy += maxy + 2;
-	}
-
-      separator_y = queryy;
-    }
-
-
-
-  /* Draw buttons & boxes **************************/
-
-#if 0
-  if (BigPictON) {
-    menuUnsetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
-  }
-  else if (blastn || blastx || tblastx) {
-    menuSetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
-  }
-#endif
-
-  if (!oneGraph)
-    gtk_widget_set_usize(gexGraph2Widget(blixemGraph), -2, charHeight*queryy) ;
-
-  for (curframe = 1; abs(curframe) <= symbfact; curframe += (blastn ? -2 : 1))
-    {
-      int frameno;
-
-      frame = plusmin * curframe;
-      sprintf(actframe, "(%+d)", frame);
-
-      if (blastn && curframe == -1)
-	compN = TRUE ;
-      else
-	compN = FALSE ;
-
-      alignstart = NAMESIZE + 22 + (blastx || tblastx ? (float)(curframe - 1)/3 : 0);
-
-      frameno = frame2graphno(curframe);
-
-      if (!oneGraph)
-	{
-	  graphActivate(frameGraphQ[frameno]);
-	  queryy = 0; /* at start of new graph */
-	  graphClear();
-	  graphBoxDraw(0, backgColor, backgColor);
-	  graphTextFormat(FIXED_WIDTH);
-	  graphColor(backgColor);
-	  graphRectangle(0, 0, nx+100, ny+100);
-	  graphColor(BLACK);
-	}
-
-      if (frameno == 0)
-	{
-	  if (!blastn)
-	    {
-	      separator_y = queryy;
-	      queryy += 3;
-	      DNAline = queryy-2;
-	    }
-	  else
-	    {
-	      queryy += 1;
-	      DNAline = queryy;
-	    }
-	  graphText( "Score %ID  Start", 14, queryy);
-	  graphText( "End", NAMESIZE + 23 + displen/symbfact, queryy);
-	  queryy++;
-	  graphLine(NAMESIZE +  1.0, queryy-1, NAMESIZE +  1.0, ny+100);
-	  graphLine(NAMESIZE +  7.5, queryy-1, NAMESIZE +  7.5, ny+100);
-	  graphLine(NAMESIZE + 11.5, queryy-1, NAMESIZE + 11.5, ny+100);
-	  graphLine(NAMESIZE + 21.5, queryy-1, NAMESIZE + 21.5, ny+100);
-	  graphLine(NAMESIZE + 22.5 + displen/symbfact, queryy-1,
-		    NAMESIZE + 22.5 + displen/symbfact, ny+100);
-	  graphLine(NAMESIZE + 22.5 + displen/symbfact/2, DNAline-1,
-		    NAMESIZE + 22.5 + displen/symbfact/2, DNAline);
-
-	}
-
-
-      /* Draw the query (ususally black text on yellow) ********************/
-
-      if (blastx || tblastx)
-	{
-	  /* Force dispstart to cohere to the frame */
-	  if (strchr(actframe, '-'))
-	    while ((qlen - dispstart +1 +frame) % symbfact)
-	      dispstart--;
-	  else
-	    while ((dispstart - frame) % symbfact)
-	      dispstart++;
-	}
-
-      if (!(query = getqseq(dispstart, dispstart + plusmin*(displen-1), q)))
-	return;
-
-      if (compN)
-	blxComplement(query);
-
-      if (!colortoggle)
-	graphColor(hiColor);
-      else
-	graphColor(WHITE);
-      graphFillRectangle(0, queryy, nx, queryy+1);
-
-      graphColor(BLACK);
-      graphText(query, alignstart, queryy);
-
-      graphText(messprintf ("%s%s", abbrevTxt(qname_G, NAMESPACE+4), actframe),  1, queryy);
-
-      graphText(messprintf ("%9d", dispstart + qoffset),  NAMESPACE+12, queryy);
-      sprintf (text, "%-9d", dispstart+plusmin*displen + qoffset -plusmin);
-      graphText (text,  alignstart + 1 + displen/symbfact, queryy);
-
-      if (blastx || tblastx)
-	{
-	  /* Draw the DNA sequence */
-	  if (!oneGraph)
-	    graphActivate(frameGraphQ[0]);
-
-	  graphText(get3rd_base(dispstart, dispstart + plusmin*(displen-1), q),
-		    alignstart, DNAline++);
-
-	  if (!oneGraph)
-	    graphActivate(frameGraphQ[frameno]);
-	}
-
-      if (!oneGraph)
-	{
-	  gtk_widget_set_usize(gexGraph2Widget(frameGraphQ[frameno]),
-			       -2, charHeight*(queryy+1));
-
-	  graphRedraw();
-
-	  frameno = frame2graphno(curframe);
-	  graphActivate(frameGraph[frameno]);
-
-	  queryy = 0; /* at start of new graph */
-	  graphClear();
-
-	  graphBoxDraw(0, backgColor, backgColor);
-	  graphTextFormat(FIXED_WIDTH);
-	  graphColor(backgColor);
-	  graphRectangle(0, 0, nx+100, ny+100);
-	  graphColor(BLACK);
-	  graphLine(NAMESIZE +  1.0, 0, NAMESIZE +  1.0, ny+100);
-	  graphLine(NAMESIZE +  7.5, 0, NAMESIZE +  7.5, ny+100);
-	  graphLine(NAMESIZE + 11.5, 0, NAMESIZE + 11.5, ny+100);
-	  graphLine(NAMESIZE + 21.5, 0, NAMESIZE + 21.5, ny+100);
-	  graphLine(NAMESIZE + 22.5 + displen/symbfact, 0,
-		    NAMESIZE + 22.5 + displen/symbfact, ny+100);
-	}
-
-
-      /* Draw the dbhits *********************/
-
-      dbdisp = oneGraph ? 0 : -1;
-      fetchCount = 0;
-      for (msp = MSPlist ; msp ; msp = msp->next)
-        {
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-	  if (g_ascii_strcasecmp(msp->sname, "Em:BF956876.1") == 0)
-	    printf("found %s\n", "Em:BF956876.1") ;
-	  else if (g_ascii_strcasecmp(msp->sname, "Em:BX479315.1") == 0)
-	    printf("found %s\n", "Em:BX479315.1") ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-
-	  /* Current frame MSP - display if in window */
-	  if (!strcmp(msp->qframe, actframe) || (blastn && msp->qframe[1] == actframe[1]))
-	    {
-
-	      if ((!compN && frame>0
-		   && msp->qstart <= dispstart + displen && msp->qend >= dispstart)
-		  || (!compN && frame<0 && msp->qstart >= dispstart - displen && msp->qend <= dispstart)
-		  || ( compN && frame<0 && msp->qend   <= dispstart + displen && msp->qstart >= dispstart)
-		  || ( compN && frame>0 && msp->qend   >= dispstart - displen && msp->qstart <= dispstart))
-		{
-                  if (msp->score == -1)
-		    {
-		      /* EXON */
-		      if (blastx || tblastx ||  (blastn && msp->qframe[1] == actframe[1]) )
-			{
-			  dbdisp++;
-			  if (!compN)
-			    {
-			      pos = (msp->qstart - dispstart) / symbfact ;
-			      exon_end = (msp->qend - dispstart) / symbfact ;
-			    }
-			  else
-			    {
-			      pos = dispstart - msp->qend;
-			      exon_end = dispstart - msp->qstart;
-			    }
-			  if (frame < 0) {
-			    pos = -pos;
-			    exon_end = -exon_end;
-			  }
-			  exon_end++;
-
-			  if (pos < 0)
-			    pos = 0 ;
-			  if (exon_end > displen/symbfact)
-			    exon_end = displen/symbfact;
-
-			  graphColor(geneColor);
-			  oldLinew = graphLinewidth(0.3) ;
-			  graphRectangle(alignstart+pos, queryy, alignstart+exon_end, queryy+1);
-
-			  graphColor(hiColor);
-			  graphFillRectangle(alignstart+pos, queryy+dbdisp,
-					     alignstart+exon_end, queryy+dbdisp+1);
-
-			  graphColor(BLACK);
-
-                          drawStrandName(msp->sname, msp->sframe, NAMESIZE, 1, queryy+dbdisp);
-			  
-			  sprintf(text, "%5d  %3d %9d",
-				  msp->score, msp->id, (compN? msp->send : msp->sstart));
-			  graphText(text,  NAMESIZE+1, queryy+dbdisp);
-
-			  sprintf(text, "%-6d", (compN? msp->sstart : msp->send));
-			  graphText(text,  alignstart+1+displen/symbfact, queryy+dbdisp);
-			  /* graphText(msp->sseq, alignstart+pos, queryy+dbdisp); */
-
-			  graphLinewidth(oldLinew);
-		        }
-		    }
-		  else if (msp->score >= 0)
-		    {
-		      /* Alignment. */
-		      BOOL squashdo = 0;
-		      int seq_len = 0 ;
-		      int firstRes ;
-		      int colour ;
-
-		      if (FS(msp))
-			{
-			  if (squashFS)
-			    squashdo = 1;
-			}
-		      else if (squash)
-			squashdo = 1;
-
-
-		      if (FS(msp) && !arrp(fsArr, msp->fs, FEATURESERIES)->on)
-			continue;
-
-		      if (FS(msp))
-			msp->sseq = q ;
-		      else
-			{
-			  if (!msp->sseq)
-			    getsseq(msp) ;
-			}
-
-		      /* Sanity check on match sequence coords to catch      */
-		      /* errors in homolgy data, no point in displaying them.*/
-		      seq_len = strlen(msp->sseq) ;
-		      if (msp->sstart < 1 || msp->send < 1
-			  || msp->sstart > seq_len || msp->send > seq_len)
-			{
-
-
-			  messerror("Match coordinates for homology %s are partly or completely "
-				    "outside of its own sequence. "
-				    "Sequence for %s is %d long but the start/end "
-				    "coordinates are %d to %d.",
-				    msp->sname, msp->sname, seq_len, msp->sstart, msp->send) ;
-
-
-			  continue ;
-			}
-
-		      if (!msp->id)
-			calcID(msp);
-
-		      if (!squashdo || !lastname || strcmp(msp->sname, lastname))
-			dbdisp++;
-		      lastname = msp->sname;
-
-		      if (!FS(msp))
-			{
-			  msp->box = graphBoxStart();
-			  msp->graph = graphActive();
-			}
-
-		      if (msp->in_match_set)
-			graphColor(matchSetColor) ;
-		      else
-			graphColor(BLACK) ;
-
-		      if ((cp = (char *)strchr(msp->sname, ':')))
-			cp++ ;
-		      else
-			cp = msp->sname ;
-                      
-                      drawStrandName(cp, msp->sframe, NAMESIZE, 1, queryy+dbdisp);
-
-		      if (!squashdo)
-			{
-			  sprintf(text, "%5d  %3d", msp->score, msp->id);
-			  strcat(text, messprintf(" %9d", (compN ? msp->send : msp->sstart)));
-			  graphText(text,  NAMESIZE+1, queryy+dbdisp);
-
-			  sprintf(text, "%-6d", (compN ? msp->sstart : msp->send));
-			  graphText(text,  alignstart+1+displen/symbfact, queryy+dbdisp);
-			}
-
-		      graphColor(BLACK) ;
-
-		      firstRes = -1 ;
-
-		      for (i = 0 ; i < displen/symbfact ; i++)
-			{
-			  text[i] = ' ';
-                        
-			  if ((!compN && frame>0 && msp->qstart <= dispstart + i*symbfact
-			       && msp->qend >= dispstart + i*symbfact)
-			      || (!compN && frame<0 && msp->qstart >= dispstart - i*symbfact
-				  && msp->qend <= dispstart - i*symbfact)
-
-			      || (compN && frame<0 && msp->qend <= dispstart + i
-				  && msp->qstart >= dispstart + i)
-			      || (compN && frame>0 && msp->qend >= dispstart - i
-				  && msp->qstart <= dispstart - i))
-			    {
-			      if (firstRes == -1)
-				firstRes = i;
-
-                              /* Get the coresponding base in the subject sequence for this base, and the one before it. */ 
-			      int msp_offset = gapCoord(msp, (dispstart + plusmin * i * symbfact), symbfact) ;
-			      int prev_offset = gapCoord(msp, (dispstart + plusmin * (i - 1) * symbfact), symbfact) ;
-
-                              /* If the indexes are the same, that means we have a gap in the subject sequence, so display
-                               * a dot; otherwise display the relevant letter from the subject sequence. */
-			      if (prev_offset == msp_offset)
-				subjectsym = '.' ;
-			      else
-				subjectsym = msp->sseq[msp_offset - 1] ;
-
-			      querysym   = query[i];
-			      if (FS(msp))
-				{
-				  if (!colortoggle)
-				    graphColor(msp->color);
-				  else
-				    graphColor(backgColor);
-				}
-			      else if (freeupper(querysym) == freeupper(subjectsym))
-				{
-				  if (IDdots)
-				    subjectsym = '.';
-				  if (!colortoggle && !IDdots)
-				    graphColor(IDcolor);
-				  else
-				    graphColor(backgColor);
-				}
-			      else if (!blastn && PAM120[aa_atob[(unsigned int)querysym]-1 ][aa_atob[(unsigned int)subjectsym]-1 ] > 0)
-				{
-				  if (!colortoggle)
-				    graphColor(consColor);
-				  else
-				    graphColor(backgColor);
-				}
-			      else
-				{
-				  /* Mismatch */
-				  if (IDdots && !colortoggle) {
-				    if (subjectsym == '.') subjectsym = '-';
-				    graphColor(IDcolor);
-				  }
-				  else
-				    graphColor(backgColor);
-				}
-
-			      if (HiliteSins &&
-				  ((isdigit(subjectsym) || subjectsym == '(' || subjectsym == ')') ||
-				   (isalpha(subjectsym) && subjectsym == freelower(subjectsym))))
-				graphColor(RED);
-
-			      if (HiliteUpperOn && isupper(subjectsym))
-				graphColor(RED);
-			      if (HiliteLowerOn && islower(subjectsym))
-				graphColor(RED);
-
-			      text[i] = subjectsym ;
-
-			      graphFillRectangle(i+alignstart, queryy+dbdisp, i+alignstart+1, queryy+dbdisp+1);
-
-                              /* If there is a gap in the reference sequence, draw a yellow bar in the subject sequence
-                               * where we have missed letters out. */
-			      if (abs(prev_offset - msp_offset) > 1)
-				{
-                                  int bar_x = alignstart + i ;
-
-                                  BOOL forward = (strchr(msp->qframe, '+') && plusmin > 0) || (strchr(msp->qframe, '-') && plusmin < 0) ;
-				  if (forward)
-				    {
-				      if ((strchr(msp->sframe, '+') && prev_offset > msp_offset) /* Bar at start or end of base ? */
-					  || (strchr(msp->sframe, '-') && prev_offset < msp_offset))
-					bar_x++ ;
-				    }
-				  else
-				    {
-				      if ((strchr(msp->sframe, '+') && prev_offset < msp_offset) /* Bar at start or end of base ? */
-					  || (strchr(msp->sframe, '-') && prev_offset > msp_offset))
-					bar_x++ ;
-				    }
-                                     
-				  int bar_y = queryy + dbdisp ;
-
-				  graphColor(YELLOW);
-				  graphFillRectangle(bar_x - 0.2, bar_y, 
-						     bar_x + 0.2, bar_y + 1) ;
-				  graphColor(BLACK);
-				}
-			    }
-			}
-
-		      text[i] = '\0';
-
-		      graphColor(BLACK);
-
-		      graphText(text, alignstart, queryy+dbdisp);
-
-		      if (!FS(msp))
-			{
-			  graphBoxEnd();
-			  graphBoxDraw(msp->box, colour, TRANSPARENT);
-			}
-
-		      if (squashdo)
-			{
-			  graphColor(RED);
-			  graphLine(alignstart+firstRes, queryy+dbdisp,
-				    alignstart+firstRes, queryy+dbdisp+1);
-			  graphColor(BLACK);
-			}
-		    }
-
-		  if (!FS(msp) && DESCon && msp->desc)
-		    {
-		      /* Draw DESC line */
-		      int box;
-
-		      dbdisp++;
-		      box = graphBoxStart();
-		      graphText(messprintf("%s %s", msp->sname, msp->desc), 1, queryy+dbdisp);
-		      graphBoxEnd();
-		      graphBoxDraw(box, BLACK, WHITE);
-		    }
-		}
-
-	    } /* else not in active frame */
-
-	} /* End of HSPs */
-
-      queryy += dbdisp + 2;
-
-      if (!wholePrintOn)
-	graphRedraw();
-
-      if (!oneGraph)
-	{
-	  if (queryy == 1)
-	    gtk_widget_hide(gexGraph2Widget(frameGraph[frameno]));
-	  else
-	    {
-	      graphTextBounds(nx, queryy-1);
-	      gtk_widget_show(gexGraph2Widget(frameGraph[frameno]));
-	    }
-	}
-
-    } /* End of frames */
-
-  if (oneGraph)
-    gtk_widget_set_usize(gexGraph2Widget(blixemGraph), -2, charHeight*queryy);
-  else
-    graphActivate(blixemGraph);
-
-
-  if (blastn)
-    {
-      frame = -frame;
-      sprintf(actframe, "(%+d)", frame);
-    }
-
-  if (blastx || tblastx)
-    dispstart -= plusmin*2;
-
-
-  /* To ensure that all the blixem graphs get redrawn we invalidate the entire blixem window,
-   * this is a hack required by the difficulty of making the graph package coexist with gtk. */
-  {
-    GdkRectangle widg_rect ;
-
-    widg_rect.x = blixemWindow->allocation.x ;
-    widg_rect.y = blixemWindow->allocation.y ;
-    widg_rect.width = blixemWindow->allocation.width ;
-    widg_rect.height = blixemWindow->allocation.height ;
-
-    gdk_window_invalidate_rect(blixemWindow->window, &widg_rect, TRUE) ;
-  }
-
-  if (!wholePrintOn)
-    graphRedraw();
-
-  highlightProteinboxes(TRUE);
-
-  messfree(query);
-
-  setMenuCheckmarks();
-
-  return ;
+//  unsigned char querysym, subjectsym ;
+//  int     i,
+//    dbdisp,  /* number of msp's displayed */
+//    frame=0,
+//    curframe, DNAline,
+//    TickStart, TickUnit, gridx,
+//    pos, exon_end ;
+//  MSP    *msp;
+//  float   alignstart;
+//  int charHeight;
+//  float fy;
+//  int py;
+//  char    *query = NULL, *lastname = NULL ;
+//  char    text[MAXALIGNLEN+1] ;
+//  BOOL compN ;
+//
+//
+//  gdk_window_get_geometry(blixemWindow->window, NULL, NULL,
+//			  &oldWidth, &oldHeight, NULL);
+//  settingsRedraw();
+//
+//  graphActivate(blixemGraph);
+//  graphClear();
+//  graphBoxDraw(0, backgColor, backgColor);
+//  graphTextFormat(FIXED_WIDTH);
+//  graphScreenSize( NULL, NULL, NULL, &fy, NULL, &py);
+//  
+//  charHeight = (int)((float)py/fy) + 1 ;
+//
+//  for (msp = MSPlist; msp ; msp = msp->next)
+//    {
+//      msp->box = 0 ;
+//    }
+//
+//  lastbox = 0;
+//
+//  queryy = separator_y = 0.2;
+//
+//
+//  /* Calculate window sizes **************************/
+//
+//  graphFitBounds (&nx, &ny);
+//  nx -= 2; /* scrollbars */
+//
+//  graphColor(backgColor);
+//  graphRectangle(0, 0, nx+100, ny+100);
+//  graphColor(BLACK);
+//  
+//  if (wholePrintOn)
+//    {
+//      nx = displen/symbfact + 43;
+//    }
+//  else
+//    {
+//      displen = (nx - 43)*symbfact ;        /* Keep spacious for printing */
+//    }
+//
+//
+//
+//  /* Window boundary check */
+//  if (strchr(actframe, '+'))
+//    {
+//      if (displen > qlen - (symbfact+1) )                 /* Window too big for sequence */
+//	{
+//	  dispstart = 1;
+//	  displen = qlen - (symbfact+1);
+//	  if (blastp || blastn) displen = qlen;
+//	}
+//      else if (dispstart < 1)                             /* Off the left edge  */
+//	dispstart = 1 ;
+//      else if (dispstart + displen > qlen - (blastx||tblastx ? 3 : -1))     /* Off the right edge */
+//	dispstart = qlen - (blastx||tblastx ? 3 : -1) - displen;
+//    }
+//  else if (strchr(actframe, '-'))
+//    {
+//      if (displen > qlen - (symbfact+1))                  /* Window too big for sequence */
+//	{
+//	  dispstart = qlen;
+//	  displen = qlen - (symbfact+1);
+//	  if (blastn) displen = qlen;
+//	}
+//      else if (dispstart > qlen)                          /* Off the left edge  */
+//	dispstart = qlen ;
+//      else if (dispstart - displen < (blastx||tblastx ? 4 : 0) )   /* Off the right edge */
+//	dispstart =  (blastx||tblastx ? 4 : 0) + displen ;
+//    }
+//
+//
+//  /* Draw Big Picture **************************/
+//
+//  if (BigPictON)
+//    {
+//      BigPictLen = displen * BigPictZoom;
+//
+//      if (BigPictLen > qlen)
+//	{
+//	  BigPictLen = qlen;
+//	  BigPictZoom = (float)qlen/displen;
+//	}
+//
+//      BigPictStart = dispstart + plusmin*displen/2 - plusmin*BigPictLen/2;
+//
+//      if (plusmin > 0)
+//	{
+//	  if (BigPictStart + BigPictLen > qlen)
+//	    BigPictStart = qlen - BigPictLen;
+//	  if (BigPictStart < 1)
+//	    BigPictStart = 1;
+//	}
+//      else
+//	{
+//	  if (BigPictStart - BigPictLen < 1)
+//	    BigPictStart = BigPictLen;
+//	  if (BigPictStart > qlen)
+//	    BigPictStart = qlen;
+//	}
+//
+//      BPx = nx - BPoffset;
+//      graphButton("Zoom In", zoomIn, .5, queryy +.1);
+//      graphButton("Zoom Out", zoomOut, 9, queryy +.1);
+//      graphButton("Whole", zoomWhole, 18.5, queryy +.1);
+//      
+//      /* Draw position lines (ticks) */
+//      TickUnit = (int)pow(10.0, floor(log10((float)BigPictLen)));
+//      /* Basic scaleunit */
+//      while (TickUnit*5 > BigPictLen) TickUnit /= 2;	    /* Final scaleunit */
+//      TickStart = (int)TickUnit*( floor((float)(BigPictStart+qoffset)/TickUnit + .5));
+//      /* Round off       */
+//      for (i=TickStart;
+//	   (plusmin == 1 ? i < BigPictStart+qoffset + BigPictLen : i > BigPictStart+qoffset - BigPictLen);
+//	   i = i + plusmin*TickUnit)
+//	{
+//	  gridx = (float)plusmin*(i-BigPictStart-qoffset)*BPx/BigPictLen + BPoffset;
+//	  if (gridx > 24 && gridx < nx-10)
+//	    {
+//	      graphText(messprintf("%d", i), gridx, queryy);
+//	      graphColor(gridColor);
+//	      graphLine(gridx, queryy+1, gridx, queryy+7 /*+fsTotalHeight(MSPlist)+2*/ );
+//	      if (BigPictRev)
+//		graphLine(gridx, queryy+11, gridx, queryy+16);
+//	      graphColor(BLACK);
+//	    }
+//	}
+//
+//      /* Draw Percentage lines */
+//      for (i=0; i<=100; i += 20) {
+//	graphText(messprintf("%3i%%", i), 0, queryy + (float)(130-i)/20);
+//	if (BigPictRev) graphText(messprintf("%3i%%", i), 0, queryy+9 + (float)(130-i)/20);
+//	graphColor(gridColor);
+//	graphLine(4, queryy + (float)(140-i)/20, nx+1, queryy + (float)(140-i)/20);
+//	if (BigPictRev) graphLine(4, queryy+9 + (float)(140-i)/20, nx+1, queryy+9 + (float)(140-i)/20);
+//	graphColor(BLACK);
+//      }
+//
+//
+//      /* Draw active window frame */
+//      oldLinew = graphLinewidth(.3);
+//      BPboxstart = (float)plusmin*(dispstart-BigPictStart)*BPx/BigPictLen + BPoffset;
+//      BPboxwidth = (float)displen*BPx/BigPictLen;
+//      BPbox = graphBoxStart();
+//      graphRectangle(BPboxstart, queryy +1.7, BPboxstart+BPboxwidth, queryy +1.7 + BPboxheight);
+//      graphBoxEnd(); graphBoxDraw(BPbox, geneColor, TRANSPARENT);
+//      graphLinewidth(.5);
+//      graphLinewidth(oldLinew);
+//
+//
+//      /* Draw Big Picture MSPs */
+//      lastExonx = 0;
+//      bpmsp = &BPMSPlist;
+//      for (msp = MSPlist; msp; msp = msp->next)
+//        {
+//	  if (strcmp(msp->sname, HighlightSeq) && !strMatch(msp->sname, searchSeq))
+//	    selectBigPictMSP(msp, BPx, BigPictStart, BigPictStart+BigPictLen);
+//	}
+//
+//      /* Draw the highlighted later, so they're not blocked by black ones */
+//      for (msp = MSPlist; msp; msp = msp->next)
+//	{
+//	  if (!strcmp(msp->sname, HighlightSeq) || strMatch(msp->sname, searchSeq))
+//	    selectBigPictMSP(msp, BPx, BigPictStart, BigPictStart+BigPictLen);
+//	}
+//      if (bpmsp->next) *bpmsp->next->sname = 0;
+//
+//      queryy += 10;
+//      if (BigPictRev) queryy += 8;
+//
+//      /* Draw separator line with perforation * /
+//	 oldLinew = graphLinewidth(1);
+//	 if (squash) graphColor(RED);
+//	 else graphColor(BLACK);
+//	 graphLine(0, queryy-.5, nx+1, queryy-.5);
+//	 graphLinewidth(.1);
+//	 graphColor(WHITE);
+//	 for (i = 0; i <= nx+1; i++) graphLine((float)i, queryy-.5, (float)i+.8, queryy-.5);
+//	 graphColor(BLACK);
+//	 graphLinewidth(oldLinew); */
+//
+//
+//      /* Draw entropy curves **************************/
+//      if (entropyOn)
+//	{
+//	  int y;
+//
+//	  drawSeparator();
+//
+//	  /* Draw scale */
+//	  for (i = 1; i <= 4; i++)
+//	    {
+//	      y = queryy+5 - (i-2)*2;
+//	      graphText(messprintf("%d", i), 1, y-.5);
+//
+//	      graphColor(DARKGRAY);
+//	      graphLine (BPoffset, y, nx, y);
+//	      graphColor(BLACK);
+//	    }
+//
+//	  /* Draw entropy curves */
+//	  graphColor(stringentEntropycolor);
+//	  drawEntropycurve(BigPictStart, BigPictStart+BigPictLen,
+//			   stringentEntropyarr, stringentEntropywin);
+//
+//	  graphColor(mediumEntropycolor);
+//	  drawEntropycurve(BigPictStart, BigPictStart+BigPictLen,
+//			   mediumEntropyarr, mediumEntropywin);
+//
+//	  graphColor(nonglobularEntropycolor);
+//	  drawEntropycurve(BigPictStart, BigPictStart+BigPictLen,
+//			   nonglobularEntropyarr, nonglobularEntropywin);
+//
+//	  queryy += 9;
+//	}
+//
+//
+//      /* Draw colored feature segments ********************************/
+//      if (fsArr && arrayMax(fsArr))
+//	{
+//	  float maxy=0 ;
+//
+//	  /* drawSeparator();*/
+//
+//	  if (fsArr)
+//	    {
+//	      for (i = 0; i < arrayMax(fsArr); i++)
+//		arrp(fsArr, i, FEATURESERIES)->y = 0;
+//	    }
+//
+//
+//	  for (msp = MSPlist; msp; msp = msp->next)
+//	    {
+//	      if (FS(msp) && arrp(fsArr, msp->fs, FEATURESERIES)->on &&
+//		  (!strcmp(msp->qname, qname_G) || !strcmp(msp->qname, "@1")))
+//		{
+//		  if (msp->type == FSSEG)
+//		    {
+//		      drawSEG(msp, fs2y(msp, &maxy, 1+1));
+//		    }
+//		  else if (msp->type == XY)
+//		    {
+//		      drawSEGxy(msp, fs2y(msp, &maxy, fsPlotHeight+1));
+//		    }
+//		}
+//	    }
+//
+//	  queryy += maxy + 2;
+//	}
+//
+//      separator_y = queryy;
+//    }
+//
+//
+//
+//  /* Draw buttons & boxes **************************/
+//
+//#if 0
+//  if (BigPictON) {
+//    menuUnsetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
+//  }
+//  else if (blastn || blastx || tblastx) {
+//    menuSetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
+//  }
+//#endif
+//
+//#if OLD_BLIXEM
+//  if (!oneGraph)
+//    gtk_widget_set_usize(gexGraph2Widget(blixemGraph), -2, charHeight*queryy) ;
+//#endif
+//
+//  for (curframe = 1; abs(curframe) <= symbfact; curframe += (blastn ? -2 : 1))
+//    {
+//      int frameno;
+//
+//      frame = plusmin * curframe;
+//      sprintf(actframe, "(%+d)", frame);
+//
+//      if (blastn && curframe == -1)
+//	compN = TRUE ;
+//      else
+//	compN = FALSE ;
+//
+//      alignstart = NAMESIZE + 22 + (blastx || tblastx ? (float)(curframe - 1)/3 : 0);
+//
+//      frameno = frame2graphno(curframe);
+//
+//#if OLD_BLIXEM
+//      if (!oneGraph)
+//	{
+//	  graphActivate(frameGraphQ[frameno]);
+//	  queryy = 0; /* at start of new graph */
+//	  graphClear();
+//	  graphBoxDraw(0, backgColor, backgColor);
+//	  graphTextFormat(FIXED_WIDTH);
+//	  graphColor(backgColor);
+//	  graphRectangle(0, 0, nx+100, ny+100);
+//	  graphColor(BLACK);
+//	}
+//#endif
+//
+//      if (frameno == 0)
+//	{
+//	  if (!blastn)
+//	    {
+//	      separator_y = queryy;
+//	      queryy += 3;
+//	      DNAline = queryy-2;
+//	    }
+//	  else
+//	    {
+//	      queryy += 1;
+//	      DNAline = queryy;
+//	    }
+//	  graphText( "Score %ID  Start", 14, queryy);
+//	  graphText( "End", NAMESIZE + 23 + displen/symbfact, queryy);
+//	  queryy++;
+//	  graphLine(NAMESIZE +  1.0, queryy-1, NAMESIZE +  1.0, ny+100);
+//	  graphLine(NAMESIZE +  7.5, queryy-1, NAMESIZE +  7.5, ny+100);
+//	  graphLine(NAMESIZE + 11.5, queryy-1, NAMESIZE + 11.5, ny+100);
+//	  graphLine(NAMESIZE + 21.5, queryy-1, NAMESIZE + 21.5, ny+100);
+//	  graphLine(NAMESIZE + 22.5 + displen/symbfact, queryy-1,
+//		    NAMESIZE + 22.5 + displen/symbfact, ny+100);
+//	  graphLine(NAMESIZE + 22.5 + displen/symbfact/2, DNAline-1,
+//		    NAMESIZE + 22.5 + displen/symbfact/2, DNAline);
+//
+//	}
+//
+//
+//      /* Draw the query (ususally black text on yellow) ********************/
+//
+//      if (blastx || tblastx)
+//	{
+//	  /* Force dispstart to cohere to the frame */
+//	  if (strchr(actframe, '-'))
+//	    while ((qlen - dispstart +1 +frame) % symbfact)
+//	      dispstart--;
+//	  else
+//	    while ((dispstart - frame) % symbfact)
+//	      dispstart++;
+//	}
+//
+//      if (!(query = getqseq(dispstart, dispstart + plusmin*(displen-1), q)))
+//	return;
+//
+//      if (compN)
+//	blxComplement(query);
+//
+//      if (!colortoggle)
+//	graphColor(hiColor);
+//      else
+//	graphColor(WHITE);
+//      graphFillRectangle(0, queryy, nx, queryy+1);
+//
+//      graphColor(BLACK);
+//      graphText(query, alignstart, queryy);
+//
+//      graphText(messprintf ("%s%s", abbrevTxt(qname_G, NAMESPACE+4), actframe),  1, queryy);
+//
+//      graphText(messprintf ("%9d", dispstart + qoffset),  NAMESPACE+12, queryy);
+//      sprintf (text, "%-9d", dispstart+plusmin*displen + qoffset -plusmin);
+//      graphText (text,  alignstart + 1 + displen/symbfact, queryy);
+//
+//#if OLD_BLIXEM
+//      if (blastx || tblastx)
+//	{
+//	  /* Draw the DNA sequence */
+//	  if (!oneGraph)
+//	    graphActivate(frameGraphQ[0]);
+//
+//	  graphText(get3rd_base(dispstart, dispstart + plusmin*(displen-1), q),
+//		    alignstart, DNAline++);
+//
+//	  if (!oneGraph)
+//	    graphActivate(frameGraphQ[frameno]);
+//	}
+//
+//      if (!oneGraph)
+//	{
+//	  gtk_widget_set_usize(gexGraph2Widget(frameGraphQ[frameno]),
+//			       -2, charHeight*(queryy+1));
+//
+//	  graphRedraw();
+//
+//	  frameno = frame2graphno(curframe);
+//	  graphActivate(frameGraph[frameno]);
+//
+//	  queryy = 0; /* at start of new graph */
+//	  graphClear();
+//
+//	  graphBoxDraw(0, backgColor, backgColor);
+//	  graphTextFormat(FIXED_WIDTH);
+//	  graphColor(backgColor);
+//	  graphRectangle(0, 0, nx+100, ny+100);
+//	  graphColor(BLACK);
+//	  graphLine(NAMESIZE +  1.0, 0, NAMESIZE +  1.0, ny+100);
+//	  graphLine(NAMESIZE +  7.5, 0, NAMESIZE +  7.5, ny+100);
+//	  graphLine(NAMESIZE + 11.5, 0, NAMESIZE + 11.5, ny+100);
+//	  graphLine(NAMESIZE + 21.5, 0, NAMESIZE + 21.5, ny+100);
+//	  graphLine(NAMESIZE + 22.5 + displen/symbfact, 0,
+//		    NAMESIZE + 22.5 + displen/symbfact, ny+100);
+//	}
+//#endif
+//
+//      /* Draw the dbhits *********************/
+//
+//      dbdisp = oneGraph ? 0 : -1;
+//      fetchCount = 0;
+//      for (msp = MSPlist ; msp ; msp = msp->next)
+//        {
+//
+//#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
+//	  if (g_ascii_strcasecmp(msp->sname, "Em:BF956876.1") == 0)
+//	    printf("found %s\n", "Em:BF956876.1") ;
+//	  else if (g_ascii_strcasecmp(msp->sname, "Em:BX479315.1") == 0)
+//	    printf("found %s\n", "Em:BX479315.1") ;
+//#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+//
+//
+//	  /* Current frame MSP - display if in window */
+//	  if (!strcmp(msp->qframe, actframe) || (blastn && msp->qframe[1] == actframe[1]))
+//	    {
+//
+//	      if ((!compN && frame>0
+//		   && msp->qstart <= dispstart + displen && msp->qend >= dispstart)
+//		  || (!compN && frame<0 && msp->qstart >= dispstart - displen && msp->qend <= dispstart)
+//		  || ( compN && frame<0 && msp->qend   <= dispstart + displen && msp->qstart >= dispstart)
+//		  || ( compN && frame>0 && msp->qend   >= dispstart - displen && msp->qstart <= dispstart))
+//		{
+//                  if (msp->score == -1)
+//		    {
+//		      /* EXON */
+//		      if (blastx || tblastx ||  (blastn && msp->qframe[1] == actframe[1]) )
+//			{
+//			  dbdisp++;
+//			  if (!compN)
+//			    {
+//			      pos = (msp->qstart - dispstart) / symbfact ;
+//			      exon_end = (msp->qend - dispstart) / symbfact ;
+//			    }
+//			  else
+//			    {
+//			      pos = dispstart - msp->qend;
+//			      exon_end = dispstart - msp->qstart;
+//			    }
+//			  if (frame < 0) {
+//			    pos = -pos;
+//			    exon_end = -exon_end;
+//			  }
+//			  exon_end++;
+//
+//			  if (pos < 0)
+//			    pos = 0 ;
+//			  if (exon_end > displen/symbfact)
+//			    exon_end = displen/symbfact;
+//
+//			  graphColor(geneColor);
+//			  oldLinew = graphLinewidth(0.3) ;
+//			  graphRectangle(alignstart+pos, queryy, alignstart+exon_end, queryy+1);
+//
+//			  graphColor(hiColor);
+//			  graphFillRectangle(alignstart+pos, queryy+dbdisp,
+//					     alignstart+exon_end, queryy+dbdisp+1);
+//
+//			  graphColor(BLACK);
+//
+//                          drawStrandName(msp->sname, msp->sframe, NAMESIZE, 1, queryy+dbdisp);
+//			  
+//			  sprintf(text, "%5d  %3d %9d",
+//				  msp->score, msp->id, (compN? msp->send : msp->sstart));
+//			  graphText(text,  NAMESIZE+1, queryy+dbdisp);
+//
+//			  sprintf(text, "%-6d", (compN? msp->sstart : msp->send));
+//			  graphText(text,  alignstart+1+displen/symbfact, queryy+dbdisp);
+//			  /* graphText(msp->sseq, alignstart+pos, queryy+dbdisp); */
+//
+//			  graphLinewidth(oldLinew);
+//		        }
+//		    }
+//		  else if (msp->score >= 0)
+//		    {
+//		      /* Alignment. */
+//		      BOOL squashdo = 0;
+//		      int seq_len = 0 ;
+//		      int firstRes ;
+//		      int colour ;
+//
+//		      if (FS(msp))
+//			{
+//			  if (squashFS)
+//			    squashdo = 1;
+//			}
+//		      else if (squash)
+//			squashdo = 1;
+//
+//
+//		      if (FS(msp) && !arrp(fsArr, msp->fs, FEATURESERIES)->on)
+//			continue;
+//
+//		      if (FS(msp))
+//			msp->sseq = q ;
+//		      else
+//			{
+//			  if (!msp->sseq)
+//			    getsseq(msp) ;
+//			}
+//
+//		      /* Sanity check on match sequence coords to catch      */
+//		      /* errors in homolgy data, no point in displaying them.*/
+//		      seq_len = strlen(msp->sseq) ;
+//		      if (msp->sstart < 1 || msp->send < 1
+//			  || msp->sstart > seq_len || msp->send > seq_len)
+//			{
+//
+//
+//			  messerror("Match coordinates for homology %s are partly or completely "
+//				    "outside of its own sequence. "
+//				    "Sequence for %s is %d long but the start/end "
+//				    "coordinates are %d to %d.",
+//				    msp->sname, msp->sname, seq_len, msp->sstart, msp->send) ;
+//
+//
+//			  continue ;
+//			}
+//
+//		      if (!msp->id)
+//			calcID(msp);
+//
+//		      if (!squashdo || !lastname || strcmp(msp->sname, lastname))
+//			dbdisp++;
+//		      lastname = msp->sname;
+//
+//		      if (!FS(msp))
+//			{
+//			  msp->box = graphBoxStart();
+//			  msp->graph = graphActive();
+//			}
+//
+//		      if (msp->in_match_set)
+//			graphColor(matchSetColor) ;
+//		      else
+//			graphColor(BLACK) ;
+//
+//		      if ((cp = (char *)strchr(msp->sname, ':')))
+//			cp++ ;
+//		      else
+//			cp = msp->sname ;
+//                      
+//                      drawStrandName(cp, msp->sframe, NAMESIZE, 1, queryy+dbdisp);
+//
+//		      if (!squashdo)
+//			{
+//			  sprintf(text, "%5d  %3d", msp->score, msp->id);
+//			  strcat(text, messprintf(" %9d", (compN ? msp->send : msp->sstart)));
+//			  graphText(text,  NAMESIZE+1, queryy+dbdisp);
+//
+//			  sprintf(text, "%-6d", (compN ? msp->sstart : msp->send));
+//			  graphText(text,  alignstart+1+displen/symbfact, queryy+dbdisp);
+//			}
+//
+//		      graphColor(BLACK) ;
+//
+//		      firstRes = -1 ;
+//
+//		      for (i = 0 ; i < displen/symbfact ; i++)
+//			{
+//			  text[i] = ' ';
+//                        
+//			  if ((!compN && frame>0 && msp->qstart <= dispstart + i*symbfact
+//			       && msp->qend >= dispstart + i*symbfact)
+//			      || (!compN && frame<0 && msp->qstart >= dispstart - i*symbfact
+//				  && msp->qend <= dispstart - i*symbfact)
+//
+//			      || (compN && frame<0 && msp->qend <= dispstart + i
+//				  && msp->qstart >= dispstart + i)
+//			      || (compN && frame>0 && msp->qend >= dispstart - i
+//				  && msp->qstart <= dispstart - i))
+//			    {
+//			      if (firstRes == -1)
+//				firstRes = i;
+//
+//                              /* Get the coresponding base in the subject sequence for this base, and the one before it. */ 
+//			      int msp_offset = gapCoord(msp, (dispstart + plusmin * i * symbfact), symbfact) ;
+//			      int prev_offset = gapCoord(msp, (dispstart + plusmin * (i - 1) * symbfact), symbfact) ;
+//
+//                              /* If the indexes are the same, that means we have a gap in the subject sequence, so display
+//                               * a dot; otherwise display the relevant letter from the subject sequence. */
+//			      if (prev_offset == msp_offset)
+//				subjectsym = '.' ;
+//			      else
+//				subjectsym = msp->sseq[msp_offset - 1] ;
+//
+//			      querysym   = query[i];
+//			      if (FS(msp))
+//				{
+//				  if (!colortoggle)
+//				    graphColor(msp->color);
+//				  else
+//				    graphColor(backgColor);
+//				}
+//			      else if (freeupper(querysym) == freeupper(subjectsym))
+//				{
+//				  if (IDdots)
+//				    subjectsym = '.';
+//				  if (!colortoggle && !IDdots)
+//				    graphColor(IDcolor);
+//				  else
+//				    graphColor(backgColor);
+//				}
+//			      else if (!blastn && PAM120[aa_atob[(unsigned int)querysym]-1 ][aa_atob[(unsigned int)subjectsym]-1 ] > 0)
+//				{
+//				  if (!colortoggle)
+//				    graphColor(consColor);
+//				  else
+//				    graphColor(backgColor);
+//				}
+//			      else
+//				{
+//				  /* Mismatch */
+//				  if (IDdots && !colortoggle) {
+//				    if (subjectsym == '.') subjectsym = '-';
+//				    graphColor(IDcolor);
+//				  }
+//				  else
+//				    graphColor(backgColor);
+//				}
+//
+//			      if (HiliteSins &&
+//				  ((isdigit(subjectsym) || subjectsym == '(' || subjectsym == ')') ||
+//				   (isalpha(subjectsym) && subjectsym == freelower(subjectsym))))
+//				graphColor(RED);
+//
+//			      if (HiliteUpperOn && isupper(subjectsym))
+//				graphColor(RED);
+//			      if (HiliteLowerOn && islower(subjectsym))
+//				graphColor(RED);
+//
+//			      text[i] = subjectsym ;
+//
+//			      graphFillRectangle(i+alignstart, queryy+dbdisp, i+alignstart+1, queryy+dbdisp+1);
+//
+//                              /* If there is a gap in the reference sequence, draw a yellow bar in the subject sequence
+//                               * where we have missed letters out. */
+//			      if (abs(prev_offset - msp_offset) > 1)
+//				{
+//                                  int bar_x = alignstart + i ;
+//
+//                                  BOOL forward = (strchr(msp->qframe, '+') && plusmin > 0) || (strchr(msp->qframe, '-') && plusmin < 0) ;
+//				  if (forward)
+//				    {
+//				      if ((strchr(msp->sframe, '+') && prev_offset > msp_offset) /* Bar at start or end of base ? */
+//					  || (strchr(msp->sframe, '-') && prev_offset < msp_offset))
+//					bar_x++ ;
+//				    }
+//				  else
+//				    {
+//				      if ((strchr(msp->sframe, '+') && prev_offset < msp_offset) /* Bar at start or end of base ? */
+//					  || (strchr(msp->sframe, '-') && prev_offset > msp_offset))
+//					bar_x++ ;
+//				    }
+//                                     
+//				  int bar_y = queryy + dbdisp ;
+//
+//				  graphColor(YELLOW);
+//				  graphFillRectangle(bar_x - 0.2, bar_y, 
+//						     bar_x + 0.2, bar_y + 1) ;
+//				  graphColor(BLACK);
+//				}
+//			    }
+//			}
+//
+//		      text[i] = '\0';
+//
+//		      graphColor(BLACK);
+//
+//		      graphText(text, alignstart, queryy+dbdisp);
+//
+//		      if (!FS(msp))
+//			{
+//			  graphBoxEnd();
+//			  graphBoxDraw(msp->box, colour, TRANSPARENT);
+//			}
+//
+//		      if (squashdo)
+//			{
+//			  graphColor(RED);
+//			  graphLine(alignstart+firstRes, queryy+dbdisp,
+//				    alignstart+firstRes, queryy+dbdisp+1);
+//			  graphColor(BLACK);
+//			}
+//		    }
+//
+//		  if (!FS(msp) && DESCon && msp->desc)
+//		    {
+//		      /* Draw DESC line */
+//		      int box;
+//
+//		      dbdisp++;
+//		      box = graphBoxStart();
+//		      graphText(messprintf("%s %s", msp->sname, msp->desc), 1, queryy+dbdisp);
+//		      graphBoxEnd();
+//		      graphBoxDraw(box, BLACK, WHITE);
+//		    }
+//		}
+//
+//	    } /* else not in active frame */
+//
+//	} /* End of HSPs */
+//
+//      queryy += dbdisp + 2;
+//
+//      if (!wholePrintOn)
+//	graphRedraw();
+//
+//#if OLD_BLIXEM
+//      if (!oneGraph)
+//	{
+//	  if (queryy == 1)
+//	    gtk_widget_hide(gexGraph2Widget(frameGraph[frameno]));
+//	  else
+//	    {
+//	      graphTextBounds(nx, queryy-1);
+//	      gtk_widget_show(gexGraph2Widget(frameGraph[frameno]));
+//	    }
+//	}
+//#endif
+//
+//    } /* End of frames */
+//
+//#if OLD_BLIXEM
+//  if (oneGraph)
+//    gtk_widget_set_usize(gexGraph2Widget(blixemGraph), -2, charHeight*queryy);
+//  else
+//    graphActivate(blixemGraph);
+//#endif
+//
+//  if (blastn)
+//    {
+//      frame = -frame;
+//      sprintf(actframe, "(%+d)", frame);
+//    }
+//
+//  if (blastx || tblastx)
+//    dispstart -= plusmin*2;
+//
+//
+//  /* To ensure that all the blixem graphs get redrawn we invalidate the entire blixem window,
+//   * this is a hack required by the difficulty of making the graph package coexist with gtk. */
+//  {
+//    GdkRectangle widg_rect ;
+//
+//    widg_rect.x = blixemWindow->allocation.x ;
+//    widg_rect.y = blixemWindow->allocation.y ;
+//    widg_rect.width = blixemWindow->allocation.width ;
+//    widg_rect.height = blixemWindow->allocation.height ;
+//
+//    gdk_window_invalidate_rect(blixemWindow->window, &widg_rect, TRUE) ;
+//  }
+//
+//  if (!wholePrintOn)
+//    graphRedraw();
+//
+//  highlightProteinboxes(TRUE);
+//
+//  messfree(query);
+//
+//  setMenuCheckmarks();
+//
+//  return ;
 }
 
 
 /* GET3RD_BASE returns every third base from string q
 */
+#if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q)
 {
   static int i, len;
@@ -3520,6 +3333,7 @@ static char *get3rd_base(int start, int end, char *q)
 
   return bases;
 }
+#endif
 
 
 /* calcID: caculated percent identity of an MSP
@@ -4008,188 +3822,6 @@ static char *getSeq(char *seqname, char *fetch_prog)
 /********************************************************************************
 **                            BIG PICTURE ROUTINES                            ***
 ********************************************************************************/
-static void GSettings(GtkButton *button, gpointer args)
-{
-  blixemSettings();
-}
-
-static void GGoto(GtkButton *button, gpointer args)
-{
-  Goto();
-}
-
-static void GprevMatch(GtkButton *button, gpointer args)
-{
-  prevMatch();
-}
-
-static void GnextMatch(GtkButton *button, gpointer args)
-{
-  nextMatch();
-}
-
-static void GscrollLeftBig(GtkButton *button, gpointer args)
-{
-  scrollLeftBig();
-}
-
-static void GscrollRightBig(GtkButton *button, gpointer args)
-{
-  scrollRightBig();
-}
-
-static void GscrollLeft1(GtkButton *button, gpointer args)
-{
-  scrollLeft1();
-}
-
-static void GscrollRight1(GtkButton *button, gpointer args)
-{
-  scrollRight1();
-}
-
-static void GToggleStrand(GtkButton *button, gpointer args)
-{
-  ToggleStrand();
-}
-
-static void GHelp(GtkButton *button, gpointer args)
-{
-  blxHelp();
-}
-
-static void comboChange(GtkEditable *edit, gpointer args)
-{
-
-  gchar *val = gtk_editable_get_chars(edit, 0, -1);
-
-  if (GTK_WIDGET_REALIZED(blixemWindow))
-   {
-     if (strcmp(val, "score") == 0)
-       sortByScore();
-     else if (strcmp(val, "identity") == 0)
-       sortById();
-     else if (strcmp(val, "name") == 0)
-       sortByName();
-     else if (strcmp(val, "position") == 0)
-       sortByPos();
-   }
-  g_free(val);
-}
-
-static void buttonAttach(GtkHandleBox *handlebox,
-			 GtkWidget *toolbar, gpointer data)
-{
-  gtk_widget_set_usize(toolbar, 1, -2);
-}
-
-static void buttonDetach(GtkHandleBox *handlebox,
-			 GtkWidget *toolbar, gpointer data)
-{
-  gtk_widget_set_usize(toolbar, -1, -2);
-}
-
-
-static GtkWidget *makeButtonBar(void)
-{
-  GtkWidget *handleBox, *toolbar, *entry, *combo ;
-  GtkToolItem *item ;
-  GList *sortList = NULL;
-
-
-  handleBox = gtk_handle_box_new() ;
-
-  toolbar = gtk_toolbar_new() ;
-  gtk_toolbar_set_tooltips(GTK_TOOLBAR(toolbar), TRUE) ;
-
-  combo = gtk_combo_new() ;
-
-  /* next three lines stop toolbar forcing the size of a blixem window */
-  gtk_signal_connect(GTK_OBJECT(handleBox), "child-attached",
-		     GTK_SIGNAL_FUNC(buttonAttach), NULL);
-  gtk_signal_connect(GTK_OBJECT(handleBox), "child-detached",
-		     GTK_SIGNAL_FUNC(buttonDetach), NULL);
-
-  gtk_widget_set_usize(toolbar, 1, -2);
-
-  messageWidget = entry = gtk_entry_new() ;
-  gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
-  gtk_widget_set_size_request(entry, 300, -1) ;
-
-  sortList = g_list_append(sortList, "score");
-  sortList = g_list_append(sortList, "identity");
-  sortList = g_list_append(sortList, "name");
-  sortList = g_list_append(sortList, "position");
-  gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
-
-  gtk_widget_set_usize(GTK_COMBO(combo)->entry, 80, -2);
-  gtk_signal_connect(GTK_OBJECT(GTK_COMBO(combo)->entry), "changed",
-		     (GtkSignalFunc)comboChange, NULL);
-
-  gtk_combo_set_popdown_strings(GTK_COMBO(combo), sortList);
-  gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), "identity");
-
-  gtk_container_add(GTK_CONTAINER(handleBox), toolbar);
-
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-			      "Help",
-			      "Don't Panic",
-			      (GtkSignalFunc)GHelp) ;
-
-  item = addToolbarWidget(GTK_TOOLBAR(toolbar), gtk_label_new(" Sort HSPs by: ")) ;
-  item = addToolbarWidget(GTK_TOOLBAR(toolbar), combo) ;
-
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-			      "Settings",
-			      "Open the Preferences Window",
-			      (GtkSignalFunc)GSettings) ;
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-			      "Goto", "Go to specified co-ordinates",
-			      (GtkSignalFunc)GGoto) ;
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-			      "< match", "Next (leftward) match",
-			      (GtkSignalFunc)GprevMatch) ;
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-				 "match >", "Next (rightward) match",
-			      (GtkSignalFunc)GnextMatch) ;
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-				 "<<", "Scroll leftward lots",
-			      (GtkSignalFunc)GscrollLeftBig) ;
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-			      ">>", "Scroll rightward lots",
-			      (GtkSignalFunc)GscrollRightBig) ;
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-				 "<", "Scroll leftward one base",
-			      (GtkSignalFunc)GscrollLeft1) ;
-
-  item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-			      ">", "Scroll rightward one base",
-			      (GtkSignalFunc)GscrollRight1) ;
-
-
-  if (blastx ||tblastx || blastn)
-    {
-      item = makeNewToolbarButton(GTK_TOOLBAR(toolbar),
-				  "Strand^v", "Toggle strand",
-				  (GtkSignalFunc)GToggleStrand) ;
-    }
-  
-  item = addToolbarWidget(GTK_TOOLBAR(toolbar), entry) ;
-
-
-  gtk_widget_show_all(handleBox);
-
-  return handleBox ;
-}
-
 
 static void BigPictToggle (void) {
     BigPictON = !BigPictON;
@@ -4228,6 +3860,7 @@ static void zoomWhole(void)
 
 /* If crosshair-coordinates are screwed up, change here!
  ********************************************************/
+#if OLD_BLIXEM
 static int x_to_residue(float x)
 {
   int retval;
@@ -4249,113 +3882,117 @@ static int x_to_residue(float x)
     return retval +1;
   }
 }
+#endif
 
 
-static void displayResidue(double x)
-{
-  int qpos, spos ;
-  static char queryname[NAMESIZE+1] ;
+//static void displayResidue(double x)
+//{
+//  int qpos, spos ;
+//  static char queryname[NAMESIZE+1] ;
+//
+//  if (!*queryname)
+//    {
+//      if (!*qname_G)
+//	strcpy(queryname, "Query");
+//      else
+//	{
+//	  char *abbrev ;
+//
+//	  abbrev = abbrevTxt(qname_G, NAMESIZE) ;
+//	  strncpy(queryname, abbrev, NAMESIZE) ;
+//	}
+//
+//      queryname[NAMESIZE] = 0 ;
+//    }
+//
+//
+//  qpos = x_to_residue(x);
+//
+//  if (!pickedMSP)
+//    {
+//      sprintf(message, "%d   No subject picked", qpos + qoffset) ;
+//    }
+//  else
+//    {
+//      if (blastx || tblastx)
+//	{
+//	  spos = gapCoord(pickedMSP, qpos, 3);
+//	  
+//	  if (spos < pickedMSP->sstart)
+//	    spos = pickedMSP->sstart;
+//	  if (spos > pickedMSP->send)
+//	    spos = pickedMSP->send;
+//	}
+//      else if (blastn)
+//	{
+//	  spos = gapCoord(pickedMSP, qpos, 1);
+//
+//	  if (spos < pickedMSP->sstart)
+//	    spos = pickedMSP->sstart;
+//	  if (spos > pickedMSP->send)
+//	    spos = pickedMSP->send;
+//	}
+//      else if (tblastn)
+//	{
+//	  if (pickedMSP->sstart < pickedMSP->send)
+//	    {
+//	      spos = (qpos - pickedMSP->qstart)*3 + pickedMSP->sstart;
+//
+//	      if (spos < pickedMSP->sstart) spos = pickedMSP->sstart;
+//	      if (spos > pickedMSP->send)   spos = pickedMSP->send;
+//	    }
+//	  else
+//	    {
+//	      spos = pickedMSP->sstart - (qpos - pickedMSP->qstart)*3;
+//	      
+//	      if (spos > pickedMSP->sstart) spos = pickedMSP->sstart;
+//	      if (spos < pickedMSP->send)   spos = pickedMSP->send;
+//	    }
+//	}
+//      else
+//	{
+//	  spos = qpos - pickedMSP->qstart + pickedMSP->sstart;
+//	  
+//	  if (spos < pickedMSP->sstart) spos = pickedMSP->sstart;
+//	  if (spos > pickedMSP->send)   spos = pickedMSP->send;
+//	}
+//
+//      sprintf(message, "%d   ", qpos + qoffset) ;
+//
+//      if (HSPgaps)
+//	strcat(message, "Gapped HSP - no coords");
+//      else
+//	strcat(message, messprintf("%s: %d", pickedMSP->sname, spos));
+//
+//    }
+//
+//  gtk_entry_set_text(GTK_ENTRY(messageWidget), message);
+//
+//  return ;
+//}
 
-  if (!*queryname)
-    {
-      if (!*qname_G)
-	strcpy(queryname, "Query");
-      else
-	{
-	  char *abbrev ;
 
-	  abbrev = abbrevTxt(qname_G, NAMESIZE) ;
-	  strncpy(queryname, abbrev, NAMESIZE) ;
-	}
-
-      queryname[NAMESIZE] = 0 ;
-    }
-
-
-  qpos = x_to_residue(x);
-
-  if (!pickedMSP)
-    {
-      sprintf(message, "%d   No subject picked", qpos + qoffset) ;
-    }
-  else
-    {
-      if (blastx || tblastx)
-	{
-	  spos = gapCoord(pickedMSP, qpos, 3);
-	  
-	  if (spos < pickedMSP->sstart)
-	    spos = pickedMSP->sstart;
-	  if (spos > pickedMSP->send)
-	    spos = pickedMSP->send;
-	}
-      else if (blastn)
-	{
-	  spos = gapCoord(pickedMSP, qpos, 1);
-
-	  if (spos < pickedMSP->sstart)
-	    spos = pickedMSP->sstart;
-	  if (spos > pickedMSP->send)
-	    spos = pickedMSP->send;
-	}
-      else if (tblastn)
-	{
-	  if (pickedMSP->sstart < pickedMSP->send)
-	    {
-	      spos = (qpos - pickedMSP->qstart)*3 + pickedMSP->sstart;
-
-	      if (spos < pickedMSP->sstart) spos = pickedMSP->sstart;
-	      if (spos > pickedMSP->send)   spos = pickedMSP->send;
-	    }
-	  else
-	    {
-	      spos = pickedMSP->sstart - (qpos - pickedMSP->qstart)*3;
-	      
-	      if (spos > pickedMSP->sstart) spos = pickedMSP->sstart;
-	      if (spos < pickedMSP->send)   spos = pickedMSP->send;
-	    }
-	}
-      else
-	{
-	  spos = qpos - pickedMSP->qstart + pickedMSP->sstart;
-	  
-	  if (spos < pickedMSP->sstart) spos = pickedMSP->sstart;
-	  if (spos > pickedMSP->send)   spos = pickedMSP->send;
-	}
-
-      sprintf(message, "%d   ", qpos + qoffset) ;
-
-      if (HSPgaps)
-	strcat(message, "Gapped HSP - no coords");
-      else
-	strcat(message, messprintf("%s: %d", pickedMSP->sname, spos));
-
-    }
-
-  gtk_entry_set_text(GTK_ENTRY(messageWidget), message);
-
-  return ;
-}
-
-
+#if OLD_BLIXEM
 static void markDNA(double y)
 {
-  Graph old = graphActive();
-
-  if (y < 0)
-    return;
-
-  graphActivate(frameGraphQ[0]);
-
-  graphXorLine (NAMESIZE+22, 1.5 + y,
-		NAMESIZE+22+displen/3, 1.5 + y);
-
-  graphActivate(old);
+//  Graph old = graphActive();
+//
+//  if (y < 0)
+//    return;
+//
+//  graphActivate(frameGraphQ[0]);
+//
+//  graphXorLine (NAMESIZE+22, 1.5 + y,
+//		NAMESIZE+22+displen/3, 1.5 + y);
+//
+//  graphActivate(old);
 }
+#endif
 
 
 
 /* Mouse drag on the upper, "big picture", section of the graph. */
+#if OLD_BLIXEM
 static void MiddleDownBP (double x, double y)
 {
   graphXorBox (BPbox, x - BPboxwidth/2, 1.85);
@@ -4390,66 +4027,66 @@ static void MiddleUpBP (double x, double y)
 /* Mouse drag on the lower, "query", section of the graph. */
 static void MiddleDragQ (double x, double y)
 {
-  int i, noframes = blastn ? 2 : 3;
-
-  for(i=0; i<noframes; i++)
-    {
-      graphActivate(frameGraphQ[i]);
-      graphXorLine (oldx, 0, oldx, 1000) ;
-      graphXorLine (x, 0, x, 1000);
-      graphActivate(frameGraph[i]);
-      graphXorLine (oldx, 0, oldx, 1000) ;
-      graphXorLine (x, 0, x, 1000);
-    }
-
-  if (blastx || tblastx)
-    {
-      markDNA(DNAstep);
-      DNAstep =  abs ( (x_to_residue(x) - dispstart) % 3);
-      markDNA(DNAstep);
-    }
-
-  graphActivate(blixemGraph);
-
-  displayResidue(x);
-
-  oldx = x ;
+//  int i, noframes = blastn ? 2 : 3;
+//
+//  for(i=0; i<noframes; i++)
+//    {
+//      graphActivate(frameGraphQ[i]);
+//      graphXorLine (oldx, 0, oldx, 1000) ;
+//      graphXorLine (x, 0, x, 1000);
+//      graphActivate(frameGraph[i]);
+//      graphXorLine (oldx, 0, oldx, 1000) ;
+//      graphXorLine (x, 0, x, 1000);
+//    }
+//
+//  if (blastx || tblastx)
+//    {
+//      markDNA(DNAstep);
+//      DNAstep =  abs ( (x_to_residue(x) - dispstart) % 3);
+//      markDNA(DNAstep);
+//    }
+//
+//  graphActivate(blixemGraph);
+//
+//  displayResidue(x);
+//
+//  oldx = x ;
 }
 
 static void MiddleDownQ (double x, double y)
-{
-  float nyf;
-  int i, noframes = blastn ? 2 : 3;
-
-  graphFitBounds (&nx, 0);
-  graphWhere(0,0,0, &nyf);
-  ny = nyf - 0.5 ;
-  graphRegister(MIDDLE_DRAG, MiddleDragQ) ;	/* must redo */
-  graphRegister(MIDDLE_UP, MiddleUpQ) ;
-
-  for (i = 0 ; i < noframes ; i++)
-    {
-      graphActivate(frameGraphQ[i]);
-      graphXorLine (x, 0, x, 1000);
-      graphActivate(frameGraph[i]);
-      graphXorLine (x, 0, x, 1000);
-    }
-
-  /* Cleanse messagebox from pick */
-  *message = 0 ;
-  gtk_entry_set_text(GTK_ENTRY(messageWidget), message) ;
-
-  graphActivate(frameGraphQ[0]);
-  if (blastx || tblastx)
-    {
-      DNAstep = (x_to_residue(x) - dispstart) % 3;
-      markDNA(DNAstep);
-    }
-
-  displayResidue(x);
-  oldx = x;
-
-  return ;
+{//
+//  float nyf;
+//  int i, noframes = blastn ? 2 : 3;
+//
+//  graphFitBounds (&nx, 0);
+//  graphWhere(0,0,0, &nyf);
+//  ny = nyf - 0.5 ;
+//  graphRegister(MIDDLE_DRAG, MiddleDragQ) ;	/* must redo */
+//  graphRegister(MIDDLE_UP, MiddleUpQ) ;
+//
+//  for (i = 0 ; i < noframes ; i++)
+//    {
+//      graphActivate(frameGraphQ[i]);
+//      graphXorLine (x, 0, x, 1000);
+//      graphActivate(frameGraph[i]);
+//      graphXorLine (x, 0, x, 1000);
+//    }
+//
+//  /* Cleanse messagebox from pick */
+//  *message = 0 ;
+//  gtk_entry_set_text(GTK_ENTRY(messageWidget), message) ;
+//
+//  graphActivate(frameGraphQ[0]);
+//  if (blastx || tblastx)
+//    {
+//      DNAstep = (x_to_residue(x) - dispstart) % 3;
+//      markDNA(DNAstep);
+//    }
+//
+//  displayResidue(x);
+//  oldx = x;
+//
+//  return ;
 }
 
 static void MiddleUpQ (double x, double y)
@@ -4459,7 +4096,7 @@ static void MiddleUpQ (double x, double y)
 
   blviewRedraw();
 }
-
+#endif
 	
 
 
@@ -4952,8 +4589,8 @@ static void setDotterParams(void)
 
       smartDotter = 0;
 
-      menuUnsetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
-      graphNewMenu(blixemMenu);
+//      menuUnsetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
+//      graphNewMenu(blixemMenu);
 
       blviewRedraw();
     }
@@ -5067,108 +4704,98 @@ static void settingsPick(int box, double x_unused, double y_unused, int modifier
 
 static void settingsRedraw(void)
 {
-  float x1=1, x2=35, y;
-
-  static MENUOPT sortMenu[] =
-    {
-      {sortByScore,      "Score"},
-      {sortById,         "Identity"},
-      {sortByName,       "Name"},
-      {sortByPos,        "Position"},
-      {0, 0}
-    };
-
-
-  if (!graphActivate(settingsGraph))
-    return;
-
-  graphClear();
-
-    /* Background */
-    graphBoxDraw(0, backgColor, backgColor);
-    graphFitBounds (&nx, &ny);
-    graphColor(backgColor); graphRectangle(0, 0, nx+100, ny+100);graphColor(BLACK);
-
-    y  = 1;
-    graphText("Toggles:", x1, y);
-    y += 1.5;
-
-    buttonCheck(BigPictToggleStr, BigPictToggle, x1, &y, BigPictON);
-    if (blastn || blastx || tblastx) {
-	if (BigPictON) {
-	    buttonCheck(BigPictToggleRevStr, BigPictToggleRev, x1, &y, BigPictRev);
-	    menuUnsetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
-	}
-	else {
-	    graphButtonDisable(BigPictToggleRevStr, x1, &y, BigPictRev);
-	    menuSetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
-	}
-    }
-    buttonCheck(entropytoggleStr, entropytoggle, x1, &y, entropyOn);
-
-    buttonCheck(toggleDESCStr, toggleDESC, x1, &y, DESCon);
-    buttonCheck(squashFSStr, squashFSdo, x1, &y, squashFS);
-    buttonCheck(squashMatchesStr, squashMatches, x1, &y, squash);
-    buttonCheck(toggleIDdotsStr, toggleIDdots, x1, &y, IDdots);
-    buttonCheck(printColorsStr, printColors, x1, &y, printColorsOn);
-    buttonCheck(SortInvStr, sortToggleInv, x1, &y, sortInvOn);
-
-/* Old disused toggles ...? */
-/*    buttonCheck("Display colours", toggleColors, x1, &y, );*/
-/*    buttonCheck("Printerphilic colours", printColors, x1, &y, printColorsOn);*/
-
-
-    y = 1;
-    graphText("Menus:", x2, y);
-    y += 1.5;
-
-    blixemConfColour(&backgColor, backgColor, x2, &y, 3, "Background colour");
-    blixemConfColour(&gridColor, gridColor, x2, &y, 3, "Grid colour");
-    blixemConfColour(&IDcolor, IDcolor, x2, &y, 3, "Identical residues");
-    blixemConfColour(&consColor, consColor, x2, &y, 3, "Conserved residues");
-
-
-    graphText("Sort HSPs by ", x2, y);
-    graphBoxMenu(graphButton(messprintf("%s", sortModeStr), settingsRedraw, x2+13, y), sortMenu);
-    y += 1.5;
-
-    graphText("Fetch by ", x2, y);
-    graphBoxMenu(graphButton(messprintf("%s", blxGetFetchMode()), settingsRedraw, x2+9, y), blxPfetchMenu()) ;
-    y += 1.5;
-
-    if (entropyOn) {
-	graphText("Complexity curves:", x2, y);
-	y += 1.5;
-
-	sprintf(stringentEntropytx, "%d", stringentEntropywin);
-	stringentEntropybox = graphTextScrollEntry (stringentEntropytx, 6, 3, x2+19, y, setStringentEntropywin);
-	blixemConfColour(&stringentEntropycolor, stringentEntropycolor, x2, &y, 3, "window length:");
-
-	sprintf(mediumEntropytx, "%d", mediumEntropywin);
-	mediumEntropybox = graphTextScrollEntry (mediumEntropytx, 6, 3, x2+19, y, setMediumEntropywin);
-	blixemConfColour(&mediumEntropycolor, mediumEntropycolor, x2, &y, 3, "window length:");
-
-	sprintf(nonglobularEntropytx, "%d", nonglobularEntropywin);
-	nonglobularEntropybox = graphTextScrollEntry (nonglobularEntropytx, 6, 3, x2+19, y, setNonglobularEntropywin);
-	blixemConfColour(&nonglobularEntropycolor, nonglobularEntropycolor, x2, &y, 3, "window length:");
-    }
-
-    graphRedraw();
-
-
-    return ;
+//  float x1=1, x2=35, y;
+//
+//  static MENUOPT sortMenu[] =
+//    {
+//      {sortByScore,      "Score"},
+//      {sortById,         "Identity"},
+//      {sortByName,       "Name"},
+//      {sortByPos,        "Position"},
+//      {0, 0}
+//    };
+//
+//
+////  if (!graphActivate(settingsGraph))
+////    return;
+//
+//  graphClear();
+//
+//    /* Background */
+//    graphBoxDraw(0, backgColor, backgColor);
+//    graphFitBounds (&nx, &ny);
+//    graphColor(backgColor); graphRectangle(0, 0, nx+100, ny+100);graphColor(BLACK);
+//
+//    y  = 1;
+//    graphText("Toggles:", x1, y);
+//    y += 1.5;
+//
+//    buttonCheck(BigPictToggleStr, BigPictToggle, x1, &y, BigPictON);
+//    if (blastn || blastx || tblastx) {
+//	if (BigPictON) {
+//	    buttonCheck(BigPictToggleRevStr, BigPictToggleRev, x1, &y, BigPictRev);
+//	    menuUnsetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
+//	}
+//	else {
+//	    graphButtonDisable(BigPictToggleRevStr, x1, &y, BigPictRev);
+//	    menuSetFlags(menuItem(settingsMenu, BigPictToggleRevStr), MENUFLAG_DISABLED);
+//	}
+//    }
+//    buttonCheck(entropytoggleStr, entropytoggle, x1, &y, entropyOn);
+//
+//    buttonCheck(toggleDESCStr, toggleDESC, x1, &y, DESCon);
+//    buttonCheck(squashFSStr, squashFSdo, x1, &y, squashFS);
+//    buttonCheck(squashMatchesStr, squashMatches, x1, &y, squash);
+//    buttonCheck(toggleIDdotsStr, toggleIDdots, x1, &y, IDdots);
+//    buttonCheck(printColorsStr, printColors, x1, &y, printColorsOn);
+//    buttonCheck(SortInvStr, sortToggleInv, x1, &y, sortInvOn);
+//
+///* Old disused toggles ...? */
+///*    buttonCheck("Display colours", toggleColors, x1, &y, );*/
+///*    buttonCheck("Printerphilic colours", printColors, x1, &y, printColorsOn);*/
+//
+//
+//    y = 1;
+//    graphText("Menus:", x2, y);
+//    y += 1.5;
+//
+//    blixemConfColour(&backgColor, backgColor, x2, &y, 3, "Background colour");
+//    blixemConfColour(&gridColor, gridColor, x2, &y, 3, "Grid colour");
+//    blixemConfColour(&IDcolor, IDcolor, x2, &y, 3, "Identical residues");
+//    blixemConfColour(&consColor, consColor, x2, &y, 3, "Conserved residues");
+//
+//
+//    graphText("Sort HSPs by ", x2, y);
+//    graphBoxMenu(graphButton(messprintf("%s", sortModeStr), settingsRedraw, x2+13, y), sortMenu);
+//    y += 1.5;
+//
+//    graphText("Fetch by ", x2, y);
+//    graphBoxMenu(graphButton(messprintf("%s", blxGetFetchMode()), settingsRedraw, x2+9, y), blxPfetchMenu()) ;
+//    y += 1.5;
+//
+//    if (entropyOn) {
+//	graphText("Complexity curves:", x2, y);
+//	y += 1.5;
+//
+//	sprintf(stringentEntropytx, "%d", stringentEntropywin);
+//	stringentEntropybox = graphTextScrollEntry (stringentEntropytx, 6, 3, x2+19, y, setStringentEntropywin);
+//	blixemConfColour(&stringentEntropycolor, stringentEntropycolor, x2, &y, 3, "window length:");
+//
+//	sprintf(mediumEntropytx, "%d", mediumEntropywin);
+//	mediumEntropybox = graphTextScrollEntry (mediumEntropytx, 6, 3, x2+19, y, setMediumEntropywin);
+//	blixemConfColour(&mediumEntropycolor, mediumEntropycolor, x2, &y, 3, "window length:");
+//
+//	sprintf(nonglobularEntropytx, "%d", nonglobularEntropywin);
+//	nonglobularEntropybox = graphTextScrollEntry (nonglobularEntropytx, 6, 3, x2+19, y, setNonglobularEntropywin);
+//	blixemConfColour(&nonglobularEntropycolor, nonglobularEntropycolor, x2, &y, 3, "window length:");
+//    }
+//
+//    graphRedraw();
+//
+//
+//    return ;
 }
 
-
-static void blixemSettings(void)
-{
-    if (!graphActivate(settingsGraph)) {
-	settingsGraph = graphCreate(TEXT_FIT, "Blixem Settings", 0, 0, .6, .3);
-	graphRegister(PICK, settingsPick);
-	settingsRedraw();
-    }
-    else graphPop();
-}
 
 /*
 static void dotterPanel(void)
@@ -5343,45 +4970,6 @@ static char *abbrevTxt(char *text, int max_len)
 }
 
 
-
-static GtkToolItem *addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
-{
-  GtkToolItem *tool_item = NULL ;
-
-  tool_item = gtk_tool_item_new() ;
-
-  gtk_container_add(GTK_CONTAINER(tool_item), widget) ;
-
-  gtk_toolbar_insert(toolbar, tool_item, -1) ;	    /* -1 means "append" to the toolbar. */
-
-  return tool_item ;
-}
-
-
-static GtkToolItem *makeNewToolbarButton(GtkToolbar *toolbar,
-					 char *label,
-					 char *tooltip,
-					 GtkSignalFunc callback_func)
-{
-  GtkToolItem *tool_button = NULL ;
-
-  tool_button = gtk_tool_button_new(NULL, label) ;
-
-  gtk_tool_item_set_homogeneous(tool_button, FALSE) ;
-
-  gtk_tool_item_set_tooltip(tool_button, toolbar->tooltips,
-			    tooltip, NULL) ;
-
-  gtk_signal_connect(GTK_OBJECT(tool_button), "clicked",
-		     GTK_SIGNAL_FUNC(callback_func), NULL);
-
-
-  gtk_toolbar_insert(toolbar, tool_button, -1) ;	    /* -1 means "append" to the toolbar. */
-
-  return tool_button ;
-}
-
-
 /* Print out MSP's, probably for debugging.... */
 static void printMSPs(void)
 {
@@ -5400,21 +4988,6 @@ static void printMSPs(void)
 	     msp->qstart+qoffset, msp->qend+qoffset,
 	     msp->sstart, msp->send, (msp->sseq ? msp->sseq : ""));
     }
-
-  return ;
-}
-
-
-static void initBlxView(void)
-{
-  GraphGlobalCallbacksStruct graph_callbacks = {{NULL, NULL}} ;
-
-  /* Init our general graph callbacks (Cntl-Q etc.). */
-  graph_callbacks.help.func = (GraphCallBack)blxHelp ;
-  graph_callbacks.print.func = (GraphCallBack)blxPrint ;
-  graph_callbacks.quit.func = (GraphCallBack)blxDestroy ;
-
-  graphRegisterGlobalCallbacks(&graph_callbacks) ;
 
   return ;
 }

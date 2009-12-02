@@ -27,14 +27,15 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: blxview.h,v 1.2 2009-12-02 15:12:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
 #define DEF_BLXVIEW_H
 
+#define OLD_BLIXEM 0
+
 #include <wh/regular.h>
-#include <wh/graph.h>
 
 
 /* Only used in pephomolcol.c, would be good to get rid of this.... */
@@ -119,7 +120,6 @@ typedef struct _MSP
 
   char    *desc;
   int      box ;
-  Graph    graph;
 
   BOOL     in_match_set ;				    /* MSP's in the match set are shown
 							       with different colour. */
@@ -138,8 +138,19 @@ typedef struct _MSP
 } MSP ;
 
 
+typedef struct _IntRange
+  {
+    int min;
+    int max;
+  } IntRange ;
+
+
+
+typedef enum {FORWARD_STRAND, REVERSE_STRAND} Strand ;
+
+
 /* Function to show blixem window, can be called from any application. */
-Graph blxview (char *seq, char *seqname,
+int blxview (char *seq, char *seqname,
 	       int dispStart, int offset, MSP *msp, char *opts, 
 	       PfetchParams *pfetch, char *align_types, BOOL External) ;
 

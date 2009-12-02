@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: blixem_.h,v 1.2 2009-12-02 15:12:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -35,7 +35,7 @@
 #include <wh/version.h>
 #include <wh/dict.h>
 #include <wh/smap.h>
-#include <wh/blxview.h>
+#include <SeqTools/blxview.h>
 
 
 /*            blixem program version and information.                        */
@@ -83,7 +83,6 @@ typedef struct BlixemViewStructName
 #define INITDBSEQLEN 50000				    /* Initial estimate of max database sequence length */
 
 #define MAXLINE 10000
-
 
 /* Fundamental type of sequence. */
 typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
@@ -181,7 +180,7 @@ typedef struct featureSeries_ {
 
 
 /* Dotter/Blixem Package-wide functions */
-Graph blxreadhsp(FILE *seqfile, FILE *exblxfile, char *featurefile, char *qname, 
+void blxreadhsp(FILE *seqfile, FILE *exblxfile, char *featurefile, char *qname, 
 		 int dispstart, int qoffset, char *opts, int *argc, char **argv);
 char *blxTranslate(char *seq, char **code);
 char *revcomp(char *comp, char *seq);
@@ -203,10 +202,10 @@ void blxDisplayMSP(MSP *msp) ;
 char *blxFindFetchMode(void) ;
 void blxSetFetchMode(char *fetch_mode) ;
 char *blxGetFetchMode(void) ;
-MENUOPT *blxPfetchMenu(void) ;
+void blxPfetchMenu(void) ;
 char *blxGetFetchProg(void) ;
 
-BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict) ;
+BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType) ;
 BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char* pfetchIP, int port, BOOL External) ;
 void blxAssignPadseq(MSP *msp) ;
 
@@ -229,7 +228,7 @@ extern char *stdcode1[];        /* 1-letter amino acid translation code */
 extern int   aa_atob[];
 extern int PAM120[23][23];
 extern Array fsArr;		/* in dotter.c */
-extern Graph dotterGraph;
+extern int dotterGraph;
 extern float fsPlotHeight;
 extern GtkWidget *blixemWindow;
 

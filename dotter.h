@@ -34,13 +34,13 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: dotter.h,v 1.2 2009-12-02 15:12:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
 #define DEF_DOTTER_H
 
-#include "blxview.h"   /* For MSP struct */
+#include "SeqTools/blxview.h"   /* For MSP struct */
 
 void dotter(
 	char  type,        /* Mandatory, one of { P, N, X } 
