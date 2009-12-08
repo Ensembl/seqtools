@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.2 2009-12-02 15:12:54 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.3 2009-12-08 10:16:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -50,7 +50,7 @@
 #include <wh/gex.h>
 #include <libpfetch/libpfetch.h>
 #endif
-#include <w9/blixem_.h>
+#include <SeqTools/blixem_.h>
 
 
 /* 
@@ -220,6 +220,139 @@ static GKeyFile *blx_config_G = NULL ;
 
 
 
+/* SHOULD BE MERGED INTO libfree.a */
+/* call an external shell command and print output in a text_scroll window
+ *
+ * This is a replacement for the old graph based text window, it has the advantage
+ * that it uses gtk directly and provides cut/paste/scrolling but...it has the
+ * disadvantage that it will use more memory as it collects all the output into
+ * one string and then this is _copied_ into the text widget.
+ * 
+ * If this proves to be a problem I expect there is a way to feed the text to the
+ * text widget a line a time. */
+static void externalCommand (char *command)
+{
+#if !defined(MACINTOSH)
+  FILE *pipe ;
+  char text[MAXLINE+1], *cp ;
+  int line=0, len, maxlen=0;
+  static Stack stack ;
+//  Graph old ;
+  GString *str_text ;
+  
+//  old = graphActive() ;
+  
+  str_text = g_string_new(NULL) ;
+  
+  stack = stackReCreate (stack, 50) ;
+  
+  pipe = popen (command, "r") ;
+  while (!feof (pipe))
+    { 
+      if (!fgets (text, MAXLINE, pipe))
+	break;
+      
+      len = strlen (text) ;
+      if (len)
+	{ 
+	  if (text[len-1] == '\n') 
+	    text[len-1] = '\0';
+	  pushText (stack, text) ;
+	  line++;
+	  if (len > maxlen)
+	    maxlen = len;
+	}
+    }
+  pclose (pipe);
+  
+  stackCursor(stack, 0) ;
+  
+  while ((cp = stackNextText (stack)))
+    {
+      g_string_append_printf(str_text, "%s\n", cp) ;
+    }
+  
+//  gexTextEditorNew(command, str_text->str, 0,
+//		   NULL, NULL, NULL,
+//		   FALSE, FALSE, TRUE) ;
+  
+  g_string_free(str_text, TRUE) ;
+  
+//  graphActivate (old) ;
+  
+#endif
+  return ;
+}
+
+
+/* Find an executable and return its complete pathname.
+ */
+static int findCommand (char *command, char **retp)
+{
+#if !defined(NO_POPEN)
+  static char retstr[1025] ;
+  char *path, file[1025], retval;
+  int found=0;
+  
+  /* Don't use csh - fails if the path is not set in .cshrc * /
+   if (access(csh, X_OK)) {
+   messout("Could not find %s", csh);
+   return 0;
+   }
+   if (!(pipe = (FILE *)popen(messprintf("%s -cf \"which %s\"", csh, command), "r"))) {
+   return 0;
+   }
+   
+   while (!feof(pipe))
+   fgets(retval, 1024, pipe);
+   retval[1024] = 0;
+   pclose(pipe);
+   
+   if (cp = strchr(retval, '\n')) *cp = 0;
+   if (retp) *retp = retval;
+   
+   / * Check if whatever "which" returned is an existing and executable file * /
+   if (!access(retval, F_OK) && !access(retval, X_OK))
+   return 1;
+   else
+   return 0;
+   */
+  
+  path = messalloc(strlen(getenv("PATH"))+1);
+  /* Don't free 'path' since it changes later on - never mind, 
+   we're only calling it once */
+  
+  strcpy(path, getenv("PATH"));
+  path = strtok(path, ":");
+  while (path) {
+    strcpy(file, path);
+    strcat(file,"/");
+    strcat(file, command);
+    if (!access(file, F_OK) && !access(file, X_OK)) {
+      found = 1;
+      break;
+    }
+    
+    path = strtok(0, ":");
+  }
+  
+  if (found) {
+    strcpy(retstr, file);
+    retval = 1;
+  }
+  else {
+    strcpy(retstr, "Can't find executable 'dotter' in path");
+    retval = 0;
+  }
+  
+  if (retp) *retp = retstr;
+  return retval;
+  
+#endif
+}
+
+
+
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
 void blxDisplayMSP(MSP *msp)
 {
@@ -361,24 +494,22 @@ char *blxGetFetchMode(void)
 
 
 
-MENUOPT *blxPfetchMenu(void)
+void blxPfetchMenu(void)
 {
-  static MENUOPT fetchMenu[] =
-    {
-      {fetchBypfetch,     BLX_FETCH_PFETCH},
-#ifdef PFETCH_HTML 
-      {fetchBypfetchhtml, BLX_FETCH_PFETCH_HTML},
-#endif
-      {fetchByefetch,     BLX_FETCH_EFETCH},
-      {fetchByWWWefetch,  BLX_FETCH_WWW_EFETCH},
-#ifdef ACEDB
-      {fetchByacedb,      BLX_FETCH_ACEDB},
-      {fetchByacedbtext,  BLX_FETCH_ACEDB_TEXT},
-#endif
-      {0, 0}
-    };
-
-  return fetchMenu ;
+//  static MENUOPT fetchMenu[] =
+//    {
+//      {fetchBypfetch,     BLX_FETCH_PFETCH},
+//#ifdef PFETCH_HTML 
+//      {fetchBypfetchhtml, BLX_FETCH_PFETCH_HTML},
+//#endif
+//      {fetchByefetch,     BLX_FETCH_EFETCH},
+//      {fetchByWWWefetch,  BLX_FETCH_WWW_EFETCH},
+//#ifdef ACEDB
+//      {fetchByacedb,      BLX_FETCH_ACEDB},
+//      {fetchByacedbtext,  BLX_FETCH_ACEDB_TEXT},
+//#endif
+//      {0, 0}
+//    };
 }
 
 
@@ -876,7 +1007,7 @@ static void fillMSPwithSeqs(MSP *msplist, Array seqs, DICT *dict)
 	    }
 	  else
 	    {
-	      blxAssignPadseq (msp) ;	/* use pads if you can't find it */
+	      blxAssignPadseq (msp, msplist) ;	/* use pads if you can't find it */
 	    }
 	}
     }
@@ -1582,7 +1713,7 @@ BOOL readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
       int i ;
       gboolean config_loaded = FALSE ;
 
-      groups = g_key_file_get_groups(key_file, &num_groups) ;
+      groups = g_key_file_get_groups(key_file, (gsize*)(&num_groups)) ;
 
       for (i = 0, group = groups ; result && i < num_groups ; i++, group++)
 	{

@@ -27,11 +27,13 @@ enum
   N_COLUMNS
 };
 
-typedef struct _TreeProperties
+typedef struct _TreeProperties 
   {
     GtkWidget *grid;         /* The grid that this tree corresponds to */
     GtkWidget *detailView;   /* The detail view that this tree belongs to */
     GtkCellRenderer *renderer; /* The custom cell renderer to render this tree's match sequences */
+    
+    char *refSeq;	     /* The reference sequence for this tree. (It is the complemented version if the strand is reversed.) */
   } TreeProperties;
 
 
@@ -44,7 +46,7 @@ int		  treeGetNumReadingFrames(GtkWidget *tree);
 int		  treeGetSelectedBaseIdx(GtkWidget *tree);
 char*		  treeGetRefSeq(GtkWidget *tree);
 IntRange*	  treeGetDisplayRange(GtkWidget *tree);
-const MSP*	  treeGetMsp(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter);
+const MSP*	  treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter);
 GtkTreeModel*	  treeGetVisibleDataModel(GtkTreeView *tree);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 gboolean	  treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model);
@@ -62,6 +64,9 @@ gint		  setCellRendererFont(GtkWidget *tree,
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,
 				       gboolean hasHeaders,
-				       const MSP const *mspList);
+				       const MSP const *mspList,
+				       char *refSeq,
+				       IntRange *displayRange,
+				       GtkWidget **refTree);
 
 #endif /* _detail_view_tree_included_ */

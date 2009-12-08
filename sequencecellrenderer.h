@@ -43,6 +43,10 @@ typedef struct _SequenceCellRenderer
   
   /* Store a pointer to the detail view tree that this cell renderer renders mach sequences for */
   GtkWidget *tree;
+  
+  /* Cache values needed to calculate base index positions, so we don't have to recalculate them every time we re-render */
+  int charHeight;
+  int charWidth;
 } SequenceCellRenderer;
 
 
@@ -51,8 +55,10 @@ typedef struct _SequenceCellRendererClass
   GtkCellRendererTextClass  parent_class;
 } SequenceCellRendererClass;
 
-GType                sequence_cell_renderer_get_type (void);
 
+GType                sequence_cell_renderer_get_type (void);
 GtkCellRenderer     *sequence_cell_renderer_new (void);
+
+int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand);
 
 #endif /* _sequence_cell_renderer_included_ */

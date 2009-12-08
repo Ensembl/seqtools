@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.2 2009-12-02 15:12:54 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.3 2009-12-08 10:16:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -207,7 +207,7 @@ char *blxGetFetchProg(void) ;
 
 BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType) ;
 BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char* pfetchIP, int port, BOOL External) ;
-void blxAssignPadseq(MSP *msp) ;
+void blxAssignPadseq(MSP *msp, MSP *msplist) ;
 
 BOOL blxInitConfig(char *config_file, GError **error) ;
 GKeyFile *blxGetConfig(void) ;
@@ -222,6 +222,11 @@ char *translate(char  *seq, char **code) ;
 char *revComplement(char *comp, char *seq) ;
 void blxComplement(char *seq) ;
 
+void getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin, int *sSeqMax);
+void getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
+
+void sortValues(int *val1, int *val2, gboolean forwards);
+
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char *blixemVersion ;
 extern char *stdcode1[];        /* 1-letter amino acid translation code */
@@ -231,8 +236,6 @@ extern Array fsArr;		/* in dotter.c */
 extern int dotterGraph;
 extern float fsPlotHeight;
 extern GtkWidget *blixemWindow;
-
-
 
 
 #endif /*  !defined DEF_BLIXEM_P_H */

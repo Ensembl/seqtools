@@ -1,6 +1,6 @@
 /*  Last edited: Feb 14 10:47 2008 (edgrif) */
 
-/* $Id: blxselect.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $ */
+/* $Id: blxselect.c,v 1.2 2009-12-08 10:16:58 gb10 Exp $ */
 
 /* BLXSELECT - select seqbl/exblx files for blixem in a user-friendly way
  *
@@ -37,7 +37,7 @@
 #include <wh/gex.h>
 #include <wh/menu.h>
 #include <wh/key.h>
-#include <w9/blixem_.h>
+#include <SeqTools/blixem_.h>
 
 #define MAXLENGTH 1000
 #define boxColor LIGHTGRAY

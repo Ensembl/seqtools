@@ -27,7 +27,7 @@ typedef struct _GridProperties
     GtkWidget *tree;         /* The tree that this grid corresponds to */
     GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
     
-    Strand defaultStrand;    /* Whether this grid shows by default the fwd or rev strand. Does NOT take into account current toggled state. */
+    Strand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
     
     int numVCells;	     /* The number of cells in the grid vertically */
     IntRange percentIdRange; /* The currently-displayed range of values along the vertical grid axis */
@@ -54,7 +54,7 @@ gint		    convertBaseIdxToGridPos(const gint baseIdx, const GdkRectangle const *
 gint		    convertValueToGridPos(GtkWidget *grid, const gint value);
 void		    calculateGridBorders(GtkWidget *grid);
 void		    calculateHighlightBoxBorders(GtkWidget *grid);
-GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, gboolean hasHeaders, Strand defaultStrand);
+GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, gboolean hasHeaders, Strand strand);
 
 
 

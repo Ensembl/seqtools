@@ -18,6 +18,7 @@
 typedef struct _DetailViewProperties
   {
     GtkWidget *refTree;         /* Reference tree so that we can get generic info about the trees when it is the same for all trees */
+    GtkWidget *feedbackBox;	/* A text box that feeds back info to the user about the currently selected items */
     GtkAdjustment *adjustment;  /* The scroll adjustment control for the detail view */
     
     char *refSeq;		/* The reference sequence */
@@ -33,6 +34,7 @@ char*			detailViewGetRefSeq(GtkWidget *detailView);
 int			detailViewGetNumReadingFrames(GtkWidget *detailView);
 IntRange*		detailViewGetDisplayRange(GtkWidget *detailView);
 int			detailViewGetSelectedBaseIdx(GtkWidget *detailView);
+int			detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 

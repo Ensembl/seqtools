@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: dotter.c,v 1.2 2009-12-08 10:16:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -144,7 +144,7 @@
 #include <wh/gex.h>
 #include <wh/key.h>
 #include <wh/menu.h>
-#include <w9/blixem_.h>
+#include <SeqTools/blixem_.h>
 #include <wh/dotter_.h>
 
 

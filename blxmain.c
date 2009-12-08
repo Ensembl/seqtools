@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.2 2009-12-02 15:12:54 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.3 2009-12-08 10:16:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -394,7 +394,6 @@ int main(int argc, char **argv)
 	messerror("Unlink of extra MSP sequence input file \"%s\" failed: %s\n",
 		  xtra_filename, messSysErrorText()) ;
     }
-
 
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone

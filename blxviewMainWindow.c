@@ -73,7 +73,7 @@ static void setStyleProperties(GtkWidget *widget)
 }
 
 
-GtkWidget* createMainWindow(char *refSeq, MSP *mspList, int numReadingFrames)
+GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, int numReadingFrames)
 {
   int refSeqEnd = strlen(refSeq) - 1;
   IntRange refSeqRange = {1, refSeqEnd};

@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.2 2009-12-08 10:16:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -35,7 +35,7 @@
 #include <wh/regular.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
-#include <w9/blixem_.h>
+#include <SeqTools/blixem_.h>
 #include <wh/dotter_.h>
 
 static void strNamecpy(char *dest, char *src)

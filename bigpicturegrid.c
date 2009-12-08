@@ -285,7 +285,7 @@ static gboolean drawMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter 
     gdk_gc_set_rgb_fg_color(gc, &normalColor);
  
   /* Calculate where it should go */
-  const MSP* msp = treeGetMsp(GTK_TREE_VIEW(tree), model, iter);
+  const MSP* msp = treeGetMsp(model, iter);
   int x, y, width, height;
   calculateMspLineDimensions(grid, msp, &x, &y, &width, &height);
   
@@ -514,7 +514,7 @@ static void gridCreateProperties(GtkWidget *widget,
 				 GtkWidget *tree, 
 				 GtkWidget *bigPicture,
 				 gulong exposeHandlerId,
-				 Strand defaultStrand)
+				 Strand strand)
 {
   if (widget)
     { 
@@ -527,7 +527,7 @@ static void gridCreateProperties(GtkWidget *widget,
       
       properties->tree = tree;
       properties->bigPicture = bigPicture;
-      properties->defaultStrand = defaultStrand;
+      properties->strand = strand;
       
       properties->gridYPadding = DEFAULT_GRID_Y_PADDING;
       properties->cellYPadding = DEFAULT_GRID_CELL_Y_PADDING;
@@ -546,28 +546,16 @@ static void gridCreateProperties(GtkWidget *widget,
 }
 
 
-static GtkWidget* gridGetMainWindow(GtkWidget *grid)
-{
-  GridProperties *properties = grid ? gridGetProperties(grid) : NULL;
-  return properties ? bigPictureGetMainWindow(properties->bigPicture) : NULL;
-}
+//static GtkWidget* gridGetMainWindow(GtkWidget *grid)
+//{
+//  GridProperties *properties = grid ? gridGetProperties(grid) : NULL;
+//  return properties ? bigPictureGetMainWindow(properties->bigPicture) : NULL;
+//}
 
-/* Return the current strand this grid is looking at. Takes into account
- * the toggled state. */
 Strand gridGetStrand(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
-  Strand result = properties->defaultStrand;
-
-  GtkWidget *mainWindow = gridGetMainWindow(grid);
-  MainWindowProperties *mainWindowProperties = mainWindowGetProperties(mainWindow);
-  
-  if (mainWindowProperties->strandsToggled && result == FORWARD_STRAND)
-    result = REVERSE_STRAND;
-  else if (mainWindowProperties->strandsToggled && result == REVERSE_STRAND)
-    result = FORWARD_STRAND;
-  
-  return result;
+  return properties->strand;
 }
 
 
@@ -577,7 +565,7 @@ Strand gridGetStrand(GtkWidget *grid)
 
 GtkWidget* createBigPictureGrid(GtkWidget *bigPicture,
 				gboolean hasHeaders, 
-				Strand defaultStrand)
+				Strand strand)
 {
   /* Create a layout area for the big picture */
   GtkWidget *grid = gtk_layout_new(NULL, NULL);
@@ -596,7 +584,7 @@ GtkWidget* createBigPictureGrid(GtkWidget *bigPicture,
   g_signal_connect(G_OBJECT(grid), "motion-notify-event", G_CALLBACK(onMouseMoveGrid), NULL);
   
   /* Set required data in the grid. We can't set the tree yet because it hasn't been created yet. */
-  gridCreateProperties(grid, NULL, bigPicture, exposeHandlerId, defaultStrand);
+  gridCreateProperties(grid, NULL, bigPicture, exposeHandlerId, strand);
   
   return grid;
 }

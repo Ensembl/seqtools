@@ -11,10 +11,16 @@
 #include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/bigpicturemspline.h>
 #include <SeqTools/sequencecellrenderer.h>
+#include <SeqTools/blixem_.h>
 #include <string.h>
 
 #define DETAIL_VIEW_TREE_NAME		"DetailViewTreeName"
+#define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 
+
+/* Local function declarations */
+static void updateFeedbackBox(GtkWidget *tree);
+static void onSelectionChangedTree(GObject *selection, gpointer data);
 
 /***************************************************************
  *                       Sequence column                       *
@@ -78,7 +84,6 @@ static GtkWidget *treeGetDetailView(GtkWidget *tree)
 }
 
 
-/* Return the current strand that this tree is displaying (takes into account toggle status) */
 Strand treeGetStrand(GtkWidget *tree)
 {
   TreeProperties *properties = treeGetProperties(tree);
@@ -109,7 +114,10 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
 	{
 	  detailViewProperties->selectedBaseIdx = selectedBaseIdx;
 	  
-	  /* Redraw all trees in the detail view */
+	  /* Update the feedback box */
+	  updateFeedbackBox(tree);
+
+	  /* Re-render all trees in the detail view */
 	  gtk_widget_queue_draw(properties->detailView);
 	}
     }
@@ -118,7 +126,7 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
 char* treeGetRefSeq(GtkWidget *tree)
 {
   TreeProperties *properties = treeGetProperties(tree);
-  return properties ? detailViewGetRefSeq(properties->detailView) : NULL;
+  return properties ? properties->refSeq : NULL;
 }
 
 IntRange* treeGetDisplayRange(GtkWidget *tree)
@@ -183,11 +191,19 @@ void deselectAllSiblingTrees(GtkWidget *tree)
 
 
 /* Return the msp in a given tree row */
-const MSP* treeGetMsp(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter)
+const MSP* treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter)
 {
-  GValue val = {0};
-  gtk_tree_model_get_value(model, iter, MSP_COL, &val);
-  return (MSP*)g_value_get_pointer(&val);
+  MSP *msp = NULL;
+  gtk_tree_model_get(model, iter, MSP_COL, &msp, -1);
+  return msp;
+}
+
+
+/* Return the msp in a given tree row */
+static GtkWidget* treeGetFeedbackBox(GtkWidget *tree)
+{
+  DetailViewProperties *detailViewProperties = detailViewGetProperties(treeGetDetailView(tree));
+  return detailViewProperties->feedbackBox;
 }
 
 
@@ -226,7 +242,7 @@ GtkTreeModel* treeGetBaseDataModel(GtkTreeView *tree)
 }
 
 
-/* Get the path in the tree view's filtered model that corresponds to the given
+/* Get the path in the tree view's filtered (visible) model that corresponds to the given
  * path in the base (unfiltered) model */
 static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath)
 {
@@ -249,7 +265,31 @@ static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreeP
   
   return result;
 }
-								    
+	
+
+/* Get the path in the tree view's base (unfiltered) model that corresponds to the given
+ * path in the visible (filtered) model */
+static GtkTreePath *treeConvertVisiblePathToBasePath(GtkTreeView *tree, GtkTreePath *visiblePath)
+{
+  GtkTreePath *result = NULL;
+  
+  if (tree && visiblePath)
+    {
+      /* Convert the path to the equivalent path in the unfiltered (child) model. */
+      GtkTreeModel *filter = treeGetVisibleDataModel(tree);
+      if (GTK_IS_TREE_MODEL_FILTER(filter))
+	{
+	  result = gtk_tree_model_filter_convert_path_to_child_path(GTK_TREE_MODEL_FILTER(filter), visiblePath);
+	}
+      else
+	{
+	  result = visiblePath;
+	}
+    }
+  
+  return result;
+}
+
 
 /* Return true if the given path is selected in the given tree view. The given 
  * path must be in the given model, but this can be in either the base model
@@ -309,31 +349,25 @@ gint setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const char 
 							 pango_context_get_language (context));
   pango_font_description_free (font_desc);
   
-  gint row_height = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
+  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
   pango_font_metrics_unref (metrics);
   
-  /* Subtract the gaps from top and bottom so that we render over them, giving the impression of no gaps. */
+  gint charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
+
+  /* Cache these results in the cell renderer */
+  SEQUENCE_CELL_RENDERER(renderer)->charHeight = charHeight;
+  SEQUENCE_CELL_RENDERER(renderer)->charWidth = charWidth;
+  
+  /* Set the row height. Subtract the size of the vertical separators . This makes the
+   * row smaller than it is, but we will render it at normal size, so we end up drawing over
+   * the gaps, hence giving the impression that there are no gaps. */
   gint vertical_separator;
   gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
-  row_height -= vertical_separator * 2;
+  gint rowHeight = charHeight - vertical_separator * 2;
   
-  /* Update the cell renderer */
-  gtk_cell_renderer_set_fixed_size(renderer, 0, row_height);
+  gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
   
-  return row_height;
-}
-
-
-/* Utility to get the height and (approx) width of the given widget's font */
-static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
-{
-  PangoContext *context = gtk_widget_get_pango_context(widget);
-  PangoFontMetrics *metrics = pango_context_get_metrics (context,
-							 widget->style->font_desc,
-							 pango_context_get_language (context));
-  *charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  *charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
-  pango_font_metrics_unref(metrics);
+  return rowHeight;
 }
 
 
@@ -347,19 +381,11 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
   GtkCellRenderer *renderer = treeGetRenderer(tree);
   gtk_tree_view_column_cell_get_position(col, renderer, &startPos, &colWidth);
   
-  /* Allow for any padding */
-  int xPad = renderer->xpad;
-  gint horiz_separator;
-  gtk_widget_style_get (tree, "horizontal-separator", &horiz_separator, NULL);
-  
-  
   /* Check it's in range */
-  if (x > xPad + horiz_separator && x < colWidth - xPad)
+  if (x > renderer->xpad && x < colWidth - renderer->xpad)
     {
-      int charWidth, charHeight;
-      getFontCharSize(tree, &charWidth, &charHeight);
-      
-      result = ((x - xPad - horiz_separator - 1) / charWidth) + 1;
+      gint charWidth = SEQUENCE_CELL_RENDERER(renderer)->charWidth;
+      result = ((x - renderer->xpad - 1) / charWidth);
     }
   
   return result;
@@ -382,10 +408,119 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
       /* Get the base index at the clicked position */
       int charIdx = getCharIndexAtTreeCoord(tree, col, cell_x);
       GtkAdjustment *adjustment = treeGetAdjustment(tree);
-      baseIdx = charIdx + adjustment->value; /* Adjustment is 0-based, display range is 1-based */
+      baseIdx = charIdx + adjustment->value + 1; /* Adjustment is 0-based, display range is 1-based */
     }
   
   return baseIdx;
+}
+
+
+static gboolean setFeedbackText(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  gboolean done = FALSE;
+
+  GtkWidget *tree = GTK_WIDGET(data);
+
+  int qIdx = treeGetSelectedBaseIdx(tree);
+  int sIdx = UNSET_INT;
+  char *sname = NULL;
+
+  /* Extract the MSP from the selected row. */
+  const MSP *msp = treeGetMsp(model, iter);
+
+  if (treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
+    {
+      done = TRUE;
+
+      
+      /* Set the match sequence name */
+      sname = msp->sname;
+      
+      /* If a ref sequence base is selected, find the corresponding base in the match sequence */
+      if (qIdx != UNSET_INT)
+	{
+	  sIdx = gapCoord(msp, qIdx, treeGetNumReadingFrames(tree), treeGetStrand(tree));
+	}
+  
+      /* Create the message text. */
+      char messageText[500] = "";
+      
+      if (qIdx != UNSET_INT && sname != NULL)
+	{
+	  sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display both */
+	}
+      else if (qIdx != UNSET_INT)
+	{
+	  sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);	/* just the index */
+	}
+      else if (sname != NULL)
+	{
+	  sprintf(messageText, "%s", sname);				/* just the name */
+	}
+      
+      /* Update the feedback box */ 
+      GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
+      gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
+    }
+  
+  return done;
+}
+
+
+/* Updates the feedback box with info about the currently-selected row/base. This
+ * should be called every time the row selection or base selection is changed. */
+static void updateFeedbackBox(GtkWidget *tree)
+{
+  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+  gtk_tree_model_foreach(model, setFeedbackText, tree);
+  gtk_widget_queue_draw(treeGetFeedbackBox(tree));
+  
+//  int qIdx = treeGetSelectedBaseIdx(tree);
+//  int sIdx = UNSET_INT;
+//  char *sname = NULL;
+//  
+//  /* See if a row is selected. For now, we just handle single row selections. */
+//  GtkTreeModel *model = NULL;
+//  GList *treePathList = gtk_tree_selection_get_selected_rows(selection, &model);
+//  if (g_list_length(treePathList) == 1)
+//    {
+//      /* Extract the MSP from the selected row. */
+//      GtkTreePath *path = (GtkTreePath*)treePathList->data;
+//      GtkTreeIter iter;
+//      gtk_tree_model_get_iter(model, &iter, path);
+//      const MSP *msp = treeGetMsp(model, &iter);
+//      
+//      /* Set the match sequence name */
+//      sname = msp->sname;
+//      
+//      /* If a ref sequence base is selected, find the corresponding base in the match sequence */
+//      if (qIdx != UNSET_INT)
+//	{
+//	  sIdx = gapCoord(msp, qIdx, treeGetNumReadingFrames(tree), treeGetStrand(tree));
+//	}
+//    }
+//  
+//  g_list_free (treePathList);
+//  
+//  /* Create the message text. */
+//  char messageText[500] = "";
+//  
+//  if (qIdx != UNSET_INT && sname != NULL)
+//    {
+//      sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display both */
+//    }
+//  else if (qIdx != UNSET_INT)
+//    {
+//      sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);	/* just the index */
+//    }
+//  else if (sname != NULL)
+//    {
+//      sprintf(messageText, "%s", sname);				/* just the name */
+//    }
+//  
+//  /* Update the feedback box */ 
+//  GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
+//  gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
 }
 
 
@@ -398,17 +533,20 @@ gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
   if (!bDisplay)
     {
       /* Find the MSP in this row */
-      GValue val = {0};
-      gtk_tree_model_get_value(model, iter, MSP_COL, &val);
-      MSP *msp = g_value_get_pointer(&val);
+      const MSP *msp = NULL;
+      gtk_tree_model_get(model, iter, MSP_COL, &msp, -1);
       
       /* Show this row if any part of the MSP's range is inside the displayed range */
       GtkAdjustment *adjustment = treeGetAdjustment(tree);
       if (adjustment)
 	{
-	  int displayStart = adjustment->value;
+	  int displayStart = adjustment->value + 1;
 	  int displayEnd = displayStart + adjustment->page_size;
-	  bDisplay = !(msp->qstart > displayEnd || msp->qend < displayStart);
+	  
+	  int qSeqMin, qSeqMax;
+	  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+	  
+	  bDisplay = !(qSeqMin > displayEnd || qSeqMax < displayStart);
 	}
     }
   
@@ -435,7 +573,7 @@ static void onDestroyTree(GtkWidget *widget)
     }
 }
 
-static void treeCreateProperties(GtkWidget *widget, GtkWidget *grid, GtkWidget *detailView, GtkCellRenderer *renderer)
+static void treeCreateProperties(GtkWidget *widget, GtkWidget *grid, GtkWidget *detailView, GtkCellRenderer *renderer, char *refSeq)
 {
   if (widget)
     { 
@@ -444,6 +582,7 @@ static void treeCreateProperties(GtkWidget *widget, GtkWidget *grid, GtkWidget *
       properties->grid = grid;
       properties->detailView = detailView;
       properties->renderer = renderer;
+      properties->refSeq = refSeq;
       
       g_object_set_data(G_OBJECT(widget), "TreeProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyTree), NULL); 
@@ -469,9 +608,8 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
   if (event->button == 1)
     {
       /* First, deselect anything in any other trees than this one. Then let the
-       * default handler select the row(s) in this tree. */
+       * default handler select the row. */
       deselectAllSiblingTrees(tree);
-      
       handled = FALSE;
     }
   
@@ -496,7 +634,7 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
 {
   gboolean handled = FALSE;
   
-  /* Left button: Let the default handler select the row */
+  /* Left button: let default handler select the row */
   if (event->button == 1)
     {
       handled = FALSE;
@@ -574,12 +712,15 @@ static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 }
 
 
-static void onSelectionChangedTree(GtkWidget *widget, gpointer data)
+static void onSelectionChangedTree(GObject *selection, gpointer data)
 {
-  /* Redraw the corresponding grid */
   GtkWidget *tree = GTK_WIDGET(data);
-  TreeProperties *properties = treeGetProperties(tree);
+
+  /* Update the feedback box to tell the user which sequence is selected. */
+  updateFeedbackBox(tree);
   
+  /* Redraw the corresponding grid */
+  TreeProperties *properties = treeGetProperties(tree);
   if (properties->grid)
     gtk_widget_queue_draw(properties->grid);
 }
@@ -610,11 +751,8 @@ static GtkTreeViewColumn* initColumn(GtkWidget *tree, GtkCellRenderer *renderer,
 }
 
 
-static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd)
+static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRange *displayRange)
 {
-  GtkWidget *detailView = treeGetDetailView(tree);
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-  
   MSP *msp = g_malloc(sizeof(MSP));
 
   msp->next = NULL;
@@ -626,18 +764,18 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd)
   msp->qframe[1] = fwd ? '+' : '-';
   msp->qframe[2] = '0';
   msp->qframe[3] = ')';
-  msp->qstart = detailViewProperties->displayRange.min;
-  msp->qend = detailViewProperties->displayRange.max;
+  msp->qstart = displayRange->min;
+  msp->qend = displayRange->max;
   msp->sname = "Reference";
   msp->sframe[0] = '(';
   msp->sframe[1] = fwd ? '+' : '-';
   msp->sframe[2] = '0';
   msp->sframe[3] = ')';
-  msp->slength = detailViewProperties->displayRange.max - detailViewProperties->displayRange.min;
-  msp->sstart = detailViewProperties->displayRange.min;
-  msp->send = detailViewProperties->displayRange.max;
-  msp->sseq = detailViewProperties->refSeq;
-  
+  msp->slength = displayRange->max - displayRange->min;
+  msp->sstart = displayRange->min;
+  msp->send = displayRange->max;
+  msp->sseq = refSeq;
+
   return msp;
 }
 
@@ -658,12 +796,18 @@ static void addMspToTreeStore(GtkListStore *store, const MSP *msp)
 
 
 /* Add the MSPs in the given list to the given list store */
-static void addMspsToTreeStore(GtkListStore *store, const MSP const *mspList)
+static void addMspsToTreeStore(GtkListStore *store, const MSP const *mspList, GtkWidget *tree)
 {
+  gboolean treeStrandForward = (treeGetStrand(tree) == FORWARD_STRAND);
+  
   const MSP *msp = mspList;
   for ( ; msp; msp = msp->next)
     {
-      addMspToTreeStore(store, msp);
+      BOOL qForward = ((strchr(msp->qframe, '+'))) ? TRUE : FALSE ;
+      if (qForward == treeStrandForward)
+	{
+	  addMspToTreeStore(store, msp);
+	}
     }  
 }
 
@@ -690,7 +834,9 @@ static void addTreeColumns(GtkWidget *tree, GtkCellRenderer *renderer)
 /* Create the data store for a detail view tree */
 static void createTreeDataStore(GtkWidget *tree,
 				const MSP const *mspList, 
-				GtkCellRenderer *renderer)
+				GtkCellRenderer *renderer,
+				char *refSeq,
+				IntRange *displayRange)
 {
   /* Create the data store for the tree view */
   GtkListStore *store = gtk_list_store_new(N_COLUMNS,
@@ -702,10 +848,10 @@ static void createTreeDataStore(GtkWidget *tree,
 					   G_TYPE_INT);
   
   /* Add a 'fake' msp for the ref sequence */
-  addMspToTreeStore(store, createRefSeqMsp(tree, TRUE));
+  addMspToTreeStore(store, createRefSeqMsp(tree, treeGetStrand(tree) == FORWARD_STRAND, refSeq, displayRange));
 
   /* Add our data to the store */
-  addMspsToTreeStore(store, mspList);
+  addMspsToTreeStore(store, mspList, tree);
   
   /* Create a filtered version of the data store to only show rows that are within the display range. */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
@@ -742,7 +888,7 @@ static void setTreeStyle(GtkTreeView *tree, gboolean hasHeaders)
   gtk_widget_set_redraw_on_allocate(GTK_WIDGET(tree), FALSE);
   
   gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
-  gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_MULTIPLE);
+  gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_SINGLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, hasHeaders);
 
@@ -761,7 +907,10 @@ static void setTreeStyle(GtkTreeView *tree, gboolean hasHeaders)
 GtkWidget* createDetailViewTree(GtkWidget *grid, 
 				GtkWidget *detailView, 
 				gboolean hasHeaders, 
-				const MSP const *mspList)
+				const MSP const *mspList,
+				char *refSeq,
+				IntRange *displayRange,
+				GtkWidget **refTree)
 {
   /* Create a tree view for the list of match sequences */
   GtkWidget *tree = gtk_tree_view_new();
@@ -777,23 +926,34 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   /* Create a custom cell renderer to render the match sequences in this tree */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
 
+  /* If this tree is going to be viewing the reversed strand of the reference sequence, complement it */
+  char *treeRefSeq = NULL;
+  if (gridGetStrand(grid) == FORWARD_STRAND)
+    {
+      treeRefSeq = refSeq;
+    }
+  else
+    {
+      treeRefSeq = g_strdup(refSeq);
+      blxComplement(treeRefSeq);
+    }
+  
   /* The tree needs to know which grid and renderer it corresponds to, and vice versa */
-  treeCreateProperties(tree, grid, detailView, renderer);
+  treeCreateProperties(tree, grid, detailView, renderer, treeRefSeq);
   gridGetProperties(grid)->tree = tree;
   SEQUENCE_CELL_RENDERER(renderer)->tree = tree;
-  
+
   /* The detailView needs one of the trees as a reference. Give it the first one we make. */
   static int firstTree = TRUE;
   if (firstTree)
     {
-      DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-      detailViewProperties->refTree = tree;
+      *refTree = tree;
       firstTree = FALSE;
     }
   
   /* Add the columns and data, and create widgets on the grid to represent the msps */
   addTreeColumns(tree, renderer);
-  createTreeDataStore(tree, mspList, renderer);
+  createTreeDataStore(tree, mspList, renderer, treeRefSeq, displayRange);
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);

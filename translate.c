@@ -28,22 +28,20 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.2 2009-12-02 15:12:54 gb10 Exp $
+ * CVS info:   $Id: translate.c,v 1.3 2009-12-08 10:16:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <glib.h>
 #include <wh/mystdlib.h>
 #include <wh/regular.h>
-#include <SeqTools/blxview.h>
-#include <w9/iupac.h>
+#include <SeqTools/blixem_.h>
+#include <SeqTools/iupac.h>
 
 
 /* THIS FILE NEEDS RENAMING TO SOMETHING LIKE utils.c */
 
 static char complement(char *seq) ;
-
-
 
 
 /* For alignments from the forward strand strand of the match (subject) sequence
@@ -52,64 +50,25 @@ static char complement(char *seq) ;
 void blxSeq2MSP(MSP *msp, char *seq_in)
 {
   char *seq = seq_in ;
+  
+  /* Make sure qstart is the lower value in the range and qend the upper value
+   * if the q strand is forwards, or the opposite if reversed. */
+  sortValues(&msp->qstart, &msp->qend, MSP_IS_FORWARDS(msp->qframe));
+  
+  /* For the sstrand, we want the lower value to be sstart if the s seq is displayed in 
+   * the same direction as the q seq, or the higher value if the opposite direction. */
+  sortValues(&msp->sstart, &msp->send, MSP_IS_FORWARDS(msp->sframe) == MSP_IS_FORWARDS(msp->qframe));
 
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
+  /* We are always given the forwards strand of the match sequence, so complement it
+   * if the match is actually on the reverse strand. */
   if (!MSP_IS_FORWARDS(msp->sframe))
-    blxRevcompStr(seq, &seq) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-  /* ok all of this needs rationalising, sometimes we need to revcomp. sometimes
-   * just complement, currently this happens all over the place in the code.... */
-
-
-  if (MSP_IS_FORWARDS(msp->qframe) && MSP_IS_FORWARDS(msp->sframe))
     {
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-      printf("%s -> %s: +/+\n", msp->sname, msp->qname) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-    }
-  else if (MSP_IS_FORWARDS(msp->qframe) && !MSP_IS_FORWARDS(msp->sframe))
-    {
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-      printf("%s -> %s: +/-\n", msp->sname, msp->qname) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-    }
-  else if (!MSP_IS_FORWARDS(msp->qframe) && MSP_IS_FORWARDS(msp->sframe))
-    {
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-      printf("%s -> %s: -/+\n", msp->sname, msp->qname) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-    }
-  else if (!MSP_IS_FORWARDS(msp->qframe) && !MSP_IS_FORWARDS(msp->sframe))
-    {
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-      printf("%s -> %s: -/-\n", msp->sname, msp->qname) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-
       seq = strnew(seq_in, 0) ;
-
       blxComplement(seq) ;
     }
-  else
-    { 
-      messcrash("%s -> %s: BAD STRANDS\n", msp->sname, msp->qname) ;
-    }
-
+  
   msp->sseq = seq ;
-
-  return ;
 }
-
 
 
 /* Function: Translate(char *seq, char **code)

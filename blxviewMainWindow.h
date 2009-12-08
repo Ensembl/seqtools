@@ -23,7 +23,7 @@ typedef struct _MainWindowProperties
 
 /* Public function declarations */
 MainWindowProperties*	  mainWindowGetProperties(GtkWidget *widget);
-GtkWidget*		  createMainWindow(char *refSeq, MSP *mspList, int numReadingFrames);
+GtkWidget*		  createMainWindow(char *refSeq, const MSP const *mspList, int numReadingFrames);
 
 
 #endif /* _blxview_main_window_included_ */

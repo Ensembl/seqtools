@@ -18,6 +18,10 @@
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
 
 
+/* Local function declarations */
+static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
+
+
 /***********************************************************
  *		       Utility functions                   *
  ***********************************************************/
@@ -152,7 +156,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   
   /* If there is a gap at the end, shift the scrollbar back so that we show more
    * of the reference sequence (unless the whole thing is already shown). */
-  int len = strlen(detailViewProperties->refSeq);
+  int len = strlen(detailViewGetRefSeq(mainWindowProperties->detailView));
   if (newEnd >= len)
     {
       newStart = len - adjustment->page_size;
@@ -261,7 +265,7 @@ static void onZoomOutDetailView(GtkButton *button, gpointer data)
 char* detailViewGetRefSeq(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->refSeq : NULL;
+  return properties ? treeGetRefSeq(properties->refTree) : NULL;
 }
 
 int detailViewGetNumReadingFrames(GtkWidget *detailView)
@@ -303,6 +307,7 @@ static void onDestroyDetailView(GtkWidget *widget)
 
 static void detailViewCreateProperties(GtkWidget *widget,
 				       GtkWidget *refTree, 
+				       GtkWidget *feedbackBox,
 				       GtkAdjustment *adjustment, 
 				       char *refSeq,
 				       int numReadingFrames,
@@ -313,6 +318,7 @@ static void detailViewCreateProperties(GtkWidget *widget,
       DetailViewProperties *properties = g_malloc(sizeof *properties);
       
       properties->refTree = refTree;
+      properties->feedbackBox = feedbackBox;
       properties->adjustment = adjustment;
       properties->refSeq = refSeq;
       properties->numReadingFrames = numReadingFrames;
@@ -553,19 +559,19 @@ static void buttonDetach(GtkHandleBox *handlebox, GtkWidget *toolbar, gpointer d
  * pointer to the actual toolbar and returns a pointer to the container of
  * the toolbar, if different (i.e. the widget that will be packed into the
  * parent container). */
-static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkWidget **toolbar)
+static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 {
   /* Create a handle box for the toolbar and add it to the window */
   GtkWidget *handleBox = gtk_handle_box_new();
   
   /* Create the toolbar */
-  *toolbar = gtk_toolbar_new();
-  gtk_toolbar_set_tooltips(GTK_TOOLBAR(*toolbar), TRUE);
-  gtk_toolbar_set_show_arrow(GTK_TOOLBAR(*toolbar), TRUE);
-  gtk_toolbar_set_icon_size(GTK_TOOLBAR(*toolbar), GTK_ICON_SIZE_SMALL_TOOLBAR);
+  *toolbar = GTK_TOOLBAR(gtk_toolbar_new());
+  gtk_toolbar_set_tooltips(*toolbar, TRUE);
+  gtk_toolbar_set_show_arrow(*toolbar, TRUE);
+  gtk_toolbar_set_icon_size(*toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
 
   /* Set the style property that controls the spacing */
-  gtk_widget_set_name(*toolbar, DETAIL_VIEW_TOOLBAR_NAME);
+  gtk_widget_set_name(GTK_WIDGET(*toolbar), DETAIL_VIEW_TOOLBAR_NAME);
   char parseString[500];
   sprintf(parseString, "style \"packedToolbar\"\n"
 	  "{\n"
@@ -579,19 +585,26 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkWidget **toolbar)
   /* next three lines stop toolbar forcing the size of a blixem window */
   g_signal_connect(GTK_OBJECT(handleBox), "child-attached", G_CALLBACK(buttonAttach), NULL);
   g_signal_connect(GTK_OBJECT(handleBox), "child-detached", G_CALLBACK(buttonDetach), NULL);
-  gtk_widget_set_usize(*toolbar, 1, -2);
+  gtk_widget_set_usize(GTK_WIDGET(*toolbar), 1, -2);
   
   /* Add the toolbar to the handle box */
-  gtk_container_add(GTK_CONTAINER(handleBox), *toolbar);
+  gtk_container_add(GTK_CONTAINER(handleBox), GTK_WIDGET(*toolbar));
   
   return handleBox;
 }
 
 
 /* Create the combo box used for selecting sort criteria */
-static GtkWidget* createSortBox()
+static void createSortBox(GtkToolbar *toolbar)
 {
+  /* Add a label, to make it obvious what the combo box is for */
+  GtkWidget *label = gtk_label_new(" <i>Sort HSPs by:</i>");
+  gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+  addToolbarWidget(toolbar, label);
+
+  /* Create the combo box */
   GtkWidget *combo = gtk_combo_new();
+  addToolbarWidget(toolbar, combo);
 
   gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
   gtk_widget_set_usize(GTK_COMBO(combo)->entry, 80, -2);
@@ -607,8 +620,25 @@ static GtkWidget* createSortBox()
   
   /* Set the identity field as the default */
   gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), "identity");
+}
+
+
+/* Create the feedback box. (This feeds back info to the user about the currently-
+ * selected base/sequence.) */
+static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
+{
+  GtkWidget *feedbackBox = gtk_entry_new() ;
+
+  /* User can copy text out but not edit contents */
+  gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
+
+  /* Make it expandable so we use all available space. Set minimum size to be 0
+   * because it's better to show it small than not at all. */
+  gtk_widget_set_size_request(feedbackBox, 0, -1) ;
+  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox) ;
+  gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
   
-  return combo;
+  return feedbackBox;
 }
 
 
@@ -641,49 +671,39 @@ static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
 
 
 /* Create the detail view toolbar */
-static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView)
+static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **feedbackBox)
 {
-  GtkWidget *toolbar = NULL;
+  GtkToolbar *toolbar = NULL;
   GtkWidget *toolbarContainer = createEmptyButtonBar(detailView, &toolbar);
   
   /* Zoom buttons */
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "+", "Zoom in", (GtkSignalFunc)onZoomInDetailView, detailView);
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "-", "Zoom out", (GtkSignalFunc)onZoomOutDetailView, detailView);
+  makeToolbarButton(toolbar, "+", "Zoom in", (GtkSignalFunc)onZoomInDetailView, detailView);
+  makeToolbarButton(toolbar, "-", "Zoom out", (GtkSignalFunc)onZoomOutDetailView, detailView);
   
   /* Help button */
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "Help",	 "Don't Panic",			 (GtkSignalFunc)GHelp,		  NULL);
+  makeToolbarButton(toolbar, "Help",	 "Don't Panic",			 (GtkSignalFunc)GHelp,		  NULL);
 
-  /* Combo box for sorting (and a label to say what it is) */
-  GtkWidget *label = gtk_label_new(" <i>Sort HSPs by:</i>");
-  gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-  GtkWidget *combo = createSortBox();
-  addToolbarWidget(GTK_TOOLBAR(toolbar), label);
-  addToolbarWidget(GTK_TOOLBAR(toolbar), combo);
+  /* Combo box for sorting */
+  createSortBox(toolbar);
   
   /* Settings button */
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "Settings", "Open the Preferences Window",  (GtkSignalFunc)GSettings,	  NULL);
+  makeToolbarButton(toolbar, "Settings", "Open the Preferences Window",  (GtkSignalFunc)GSettings,	  NULL);
   
   /* Navigation buttons */
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "Goto",	 "Go to specified co-ordinates", (GtkSignalFunc)GGoto,		  NULL);
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "< match",  "Next (leftward) match",	 (GtkSignalFunc)GprevMatch,	  NULL);
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "match >",  "Next (rightward) match",	 (GtkSignalFunc)GnextMatch,	  NULL);
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "<<",	 "Scroll leftward lots",	 (GtkSignalFunc)GscrollLeftBig,	  NULL);
-  makeToolbarButton(GTK_TOOLBAR(toolbar), ">>",       "Scroll rightward lots",	 (GtkSignalFunc)GscrollRightBig,  NULL);
-  makeToolbarButton(GTK_TOOLBAR(toolbar), "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  NULL);
-  makeToolbarButton(GTK_TOOLBAR(toolbar), ">",	 "Scroll rightward one base",	 (GtkSignalFunc)GscrollRight1,	  NULL);
+  makeToolbarButton(toolbar, "Goto",	 "Go to specified co-ordinates", (GtkSignalFunc)GGoto,		  NULL);
+  makeToolbarButton(toolbar, "< match",  "Next (leftward) match",	 (GtkSignalFunc)GprevMatch,	  NULL);
+  makeToolbarButton(toolbar, "match >",  "Next (rightward) match",	 (GtkSignalFunc)GnextMatch,	  NULL);
+  makeToolbarButton(toolbar, "<<",	 "Scroll leftward lots",	 (GtkSignalFunc)GscrollLeftBig,	  NULL);
+  makeToolbarButton(toolbar, ">>",       "Scroll rightward lots",	 (GtkSignalFunc)GscrollRightBig,  NULL);
+  makeToolbarButton(toolbar, "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  NULL);
+  makeToolbarButton(toolbar, ">",	 "Scroll rightward one base",	 (GtkSignalFunc)GscrollRight1,	  NULL);
   
   if (1) //blastx ||tblastx || blastn)
     {
-      makeToolbarButton(GTK_TOOLBAR(toolbar), "Strand^v", "Toggle strand", (GtkSignalFunc)GToggleStrand, NULL);
+      makeToolbarButton(toolbar, "Strand^v", "Toggle strand", (GtkSignalFunc)GToggleStrand, NULL);
     }
   
-  /* Feedback box. (Feeds back info to the user about the currently-selected base/sequence. The 
-   * user can copy text out of this box, but cannot edit the box's contents.) */
-  GtkWidget *feedbackBox = gtk_entry_new() ;
-  gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
-  gtk_widget_set_size_request(feedbackBox, 0, -1) ;
-  GtkToolItem *item = addToolbarWidget(GTK_TOOLBAR(toolbar), feedbackBox) ;
-  gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
+  *feedbackBox = createFeedbackBox(toolbar);
   
   return toolbarContainer;
 }
@@ -695,10 +715,13 @@ static void createTwoPanedTrees(GtkWidget *panedWidget,
 				GtkWidget *grid1, 
 				GtkWidget *grid2,
 				gboolean hasHeaders, 
-				const MSP const *mspList)
+				const MSP const *mspList,
+				char *refSeq,
+				IntRange *displayRange,
+				GtkWidget **refTree)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, panedWidget, hasHeaders, mspList);
-  GtkWidget *tree2 = createDetailViewTree(grid2, panedWidget, FALSE, mspList);
+  GtkWidget *tree1 = createDetailViewTree(grid1, panedWidget, hasHeaders, mspList, refSeq, displayRange, refTree);
+  GtkWidget *tree2 = createDetailViewTree(grid2, panedWidget, FALSE, mspList, refSeq, displayRange, refTree);
   gtk_paned_pack1(GTK_PANED(panedWidget), tree1, FALSE, TRUE);
   gtk_paned_pack2(GTK_PANED(panedWidget), tree2, TRUE, TRUE);
 }
@@ -710,25 +733,28 @@ static void createDetailViewPanes(GtkWidget *detailView,
 				  GtkWidget *fwdStrandGrid, 
 				  GtkWidget *revStrandGrid, 
 				  const MSP const *mspList,
-				  const int numReadingFrames)
+				  char *refSeq,
+				  IntRange *displayRange,
+				  const int numReadingFrames,
+				  GtkWidget **refTree)
 {
   if (numReadingFrames == 1)
     {
       /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse */
-      createTwoPanedTrees(detailView, fwdStrandGrid, revStrandGrid, TRUE, mspList);
+      createTwoPanedTrees(detailView, fwdStrandGrid, revStrandGrid, TRUE, mspList, refSeq, displayRange, refTree);
     }
   else if (numReadingFrames == 3)
     {
       /* Protein matches: we need 3 trees for the 3 reading frames. We only have
        * 2 panes in our parent container, so one pane will have to contain
        * a second, nested paned widget. */
-      GtkWidget *tree1 = createDetailViewTree(fwdStrandGrid, detailView, TRUE, mspList);
+      GtkWidget *tree1 = createDetailViewTree(fwdStrandGrid, detailView, TRUE, mspList, refSeq, displayRange, refTree);
       GtkWidget *nestedPanedWidget = gtk_vpaned_new();
       
       gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
       gtk_paned_pack1(GTK_PANED(detailView), nestedPanedWidget, TRUE, TRUE);
       
-      createTwoPanedTrees(nestedPanedWidget, fwdStrandGrid, fwdStrandGrid, FALSE, mspList);
+      createTwoPanedTrees(nestedPanedWidget, fwdStrandGrid, fwdStrandGrid, FALSE, mspList, refSeq, displayRange, refTree);
     }
 }
 
@@ -748,13 +774,14 @@ GtkWidget* createDetailView(GtkWidget *container,
    * to look at all children recursively and check if they're the correct type. (We'll give 
    * all of our detail-view trees the same name so we can identify them.) */
   GtkWidget *detailView = gtk_vpaned_new();
-  detailViewCreateProperties(detailView, NULL, adjustment, refSeq, numReadingFrames, refSeqRange);
   
-  /* Create the trees */
-  createDetailViewPanes(detailView, fwdStrandGrid, revStrandGrid, mspList, numReadingFrames);
+  /* Create the trees. We need to remember a reference tree. */
+  GtkWidget *refTree = NULL;
+  createDetailViewPanes(detailView, fwdStrandGrid, revStrandGrid, mspList, refSeq, refSeqRange, numReadingFrames, &refTree);
   
-  /* Create the toolbar */
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView);
+  /* Create the toolbar. We need to remember the feedback box. */
+  GtkWidget *feedbackBox = NULL;
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, &feedbackBox);
   
   /* Put everything in a vbox, because we need to have a toolbar at the top
    * of the detail view. */
@@ -767,6 +794,9 @@ GtkWidget* createDetailView(GtkWidget *container,
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
+  
+  /* Set the required properties */
+  detailViewCreateProperties(detailView, refTree, feedbackBox, adjustment, refSeq, numReadingFrames, refSeqRange);
   
   return detailView;
 }

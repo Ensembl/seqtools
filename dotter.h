@@ -34,7 +34,7 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.2 2009-12-02 15:12:54 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.3 2009-12-08 10:16:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
@@ -91,7 +91,7 @@ void dotter(
 			      Compression of dotplot {1, 2, 3, ... }
 			      Automatically calculated if NULL */
 
-	MSP  *MSPlist,	   /* Optional, may be NULL
+	const MSP const *MSPlist, /* Optional, may be NULL
 			      List of MSPs containing genes and blast matches */
 
 	int   MSPoffset,   /* Optional, may be NULL

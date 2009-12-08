@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: blxparser.c,v 1.2 2009-12-08 10:16:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -42,7 +42,7 @@
 #include <wh/graph.h>
 #include <wh/gex.h>
 #include <wh/smap.h>					    /* for SMapMap struct. */
-#include <w9/blixem_.h>
+#include <SeqTools/blixem_.h>
 
 static char *nextLine(FILE *file, GString *line_string) ;
 
@@ -181,72 +181,6 @@ int pickMatch (char *cp, char *tp)
 
   /* ummmm, no return here ???? is the above water tight ????? */
 }
-
-
-/* SHOULD BE MERGED INTO libfree.a */
-/* call an external shell command and print output in a text_scroll window
- *
- * This is a replacement for the old graph based text window, it has the advantage
- * that it uses gtk directly and provides cut/paste/scrolling but...it has the
- * disadvantage that it will use more memory as it collects all the output into
- * one string and then this is _copied_ into the text widget.
- * 
- * If this proves to be a problem I expect there is a way to feed the text to the
- * text widget a line a time. */
-void externalCommand (char *command)
-{
-#if !defined(MACINTOSH)
-  FILE *pipe ;
-  char text[MAXLINE+1], *cp ;
-  int line=0, len, maxlen=0;
-  static Stack stack ;
-  Graph old ;
-  GString *str_text ;
-
-  old = graphActive() ;
-
-  str_text = g_string_new(NULL) ;
-
-  stack = stackReCreate (stack, 50) ;
-
-  pipe = popen (command, "r") ;
-  while (!feof (pipe))
-    { 
-      if (!fgets (text, MAXLINE, pipe))
-	break;
-
-      len = strlen (text) ;
-      if (len)
-	{ 
-	  if (text[len-1] == '\n') 
-	    text[len-1] = '\0';
-	  pushText (stack, text) ;
-	  line++;
-	  if (len > maxlen)
-	    maxlen = len;
-	}
-    }
-  pclose (pipe);
-
-  stackCursor(stack, 0) ;
-
-  while ((cp = stackNextText (stack)))
-    {
-      g_string_append_printf(str_text, "%s\n", cp) ;
-    }
-
-  gexTextEditorNew(command, str_text->str, 0,
-		   NULL, NULL, NULL,
-		   FALSE, FALSE, TRUE) ;
-
-  g_string_free(str_text, TRUE) ;
-
-  graphActivate (old) ;
-
-#endif
-  return ;
-}
-
 
 
 /* Function: parse a stream of SFS data
@@ -1345,6 +1279,19 @@ static char *nextLine(FILE *file, GString *line_string)
 }
 
 
+/* Sorts the given values so that val1 is less than val2 if forwards is true,
+ * or the reverse if forwards is false. */
+void sortValues(int *val1, int *val2, gboolean forwards)
+{
+  if ((forwards && *val1 > *val2) || (!forwards && *val1 < *val2))
+    {
+      int temp = *val1;
+      *val1 = *val2;
+      *val2 = temp;
+    }
+}
+
+
 /* Expects a string in the format "Gaps [ref_start ref_end match_start match_end]+ ; more text....."
  * and parses out the coords. Only spaces allowed in the string, not tabs. Moves text
  * to first char after ';'. */
@@ -1356,6 +1303,7 @@ static BOOL parseGaps(char **text, MSP *msp)
   BOOL end ;
 
   msp->gaps = arrayCreate(10, SMapMap) ;	    
+  printf("parseGaps: msp sname=%s, sstart=%d, send=%d\n", msp->sname, msp->sstart, msp->send);
 
   end = FALSE ;
   next_gap = strtok(NULL, " ") ;
@@ -1378,26 +1326,43 @@ static BOOL parseGaps(char **text, MSP *msp)
 	    }
 	     
 	  switch (i)
-	    {
+	  {
 	    case 0:
+	    {
+	      /* First value is start of subject sequence range */
 	      gap = arrayp(msp->gaps, arrayMax(msp->gaps), SMapMap) ;
 	      gap->s1 = atoi(next_gap);
 	      break;
-		
+	    }
+	      
 	    case 1:
+	    {
+	      /* Second value is end of subject sequence range. Order values so that
+	       * s1 is less than s2 if we have the forward strand or v.v. if the reverse. */
 	      gap->s2 = atoi(next_gap);
+	      sortValues(&gap->s1, &gap->s2, MSP_IS_FORWARDS(msp->sframe));
 	      break;
-		
+	    }
+	      
 	    case 2:
+	    {
+	      /* Third value is start of reference sequence range */
 	      gap->r1 = atoi(next_gap);
 	      break;
-		
-	    case 3:
-	      gap->r2 = atoi(next_gap);
 	    }
+	      
+	    case 3:
+	    {
+	      /* Fourth value is end of reference sequence range. Order values so that
+	       * r1 is less than r2 if ref sequence is forward strand or v.v. if the reverse. */
+	      gap->r2 = atoi(next_gap);
+	      sortValues(&gap->r1, &gap->r2, MSP_IS_FORWARDS(msp->qframe));
+	    }
+	  }
 
 	  next_gap = strtok(NULL, "\t ") ; 
 	}  
+      printf("  gap s1=%d, s2=%d, r1=%d, r2=%d\n", gap->s1, gap->s2, gap->r1, gap->r2);
     }
 
   return result ;
@@ -1432,7 +1397,7 @@ static BOOL parseSequence(char **text, MSP *msp)
 
   cp = strtok(NULL, "\t ") ;				    /* skip "Sequence" */
 
-  if ((length = strspn(cp, "acgt")))
+  if ((length = strspn(cp, "acgtACGT")))
     {
       char *seq ;
 
