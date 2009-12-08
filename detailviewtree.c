@@ -267,28 +267,28 @@ static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreeP
 }
 	
 
-/* Get the path in the tree view's base (unfiltered) model that corresponds to the given
- * path in the visible (filtered) model */
-static GtkTreePath *treeConvertVisiblePathToBasePath(GtkTreeView *tree, GtkTreePath *visiblePath)
-{
-  GtkTreePath *result = NULL;
-  
-  if (tree && visiblePath)
-    {
-      /* Convert the path to the equivalent path in the unfiltered (child) model. */
-      GtkTreeModel *filter = treeGetVisibleDataModel(tree);
-      if (GTK_IS_TREE_MODEL_FILTER(filter))
-	{
-	  result = gtk_tree_model_filter_convert_path_to_child_path(GTK_TREE_MODEL_FILTER(filter), visiblePath);
-	}
-      else
-	{
-	  result = visiblePath;
-	}
-    }
-  
-  return result;
-}
+///* Get the path in the tree view's base (unfiltered) model that corresponds to the given
+// * path in the visible (filtered) model */
+//static GtkTreePath *treeConvertVisiblePathToBasePath(GtkTreeView *tree, GtkTreePath *visiblePath)
+//{
+//  GtkTreePath *result = NULL;
+//  
+//  if (tree && visiblePath)
+//    {
+//      /* Convert the path to the equivalent path in the unfiltered (child) model. */
+//      GtkTreeModel *filter = treeGetVisibleDataModel(tree);
+//      if (GTK_IS_TREE_MODEL_FILTER(filter))
+//	{
+//	  result = gtk_tree_model_filter_convert_path_to_child_path(GTK_TREE_MODEL_FILTER(filter), visiblePath);
+//	}
+//      else
+//	{
+//	  result = visiblePath;
+//	}
+//    }
+//  
+//  return result;
+//}
 
 
 /* Return true if the given path is selected in the given tree view. The given 
@@ -757,16 +757,16 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRang
 
   msp->next = NULL;
   msp->type = BLX_MSP_INVALID;
-  msp->score = -1;
+  msp->score = 0;
   msp->id = -1;
-  msp->qname = "Reference";
+  msp->qname = REFERENCE_SEQUENCE_NAME;
   msp->qframe[0] = '(';
   msp->qframe[1] = fwd ? '+' : '-';
   msp->qframe[2] = '0';
   msp->qframe[3] = ')';
   msp->qstart = displayRange->min;
   msp->qend = displayRange->max;
-  msp->sname = "Reference";
+  msp->sname = REFERENCE_SEQUENCE_NAME;
   msp->sframe[0] = '(';
   msp->sframe[1] = fwd ? '+' : '-';
   msp->sframe[2] = '0';

@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.3 2009-12-08 10:16:58 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.4 2009-12-08 13:06:16 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -50,6 +50,7 @@
 #define BLIXEM_TITLE_STRING    UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
 #define BLIXEM_VERSION_COMPILE BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
 
+#define REFERENCE_SEQUENCE_NAME "Reference"
 
 /* This will probably never be completed but I want to start creating a blixem context....which
  * will require the following steps:

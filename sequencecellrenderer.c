@@ -611,35 +611,45 @@ static char* getMarkupTextForBase(MSP *msp,
   
   if (qIdx >= qSeqMin && qIdx <= qSeqMax)
     {
-      int sIdx = gapCoord(msp, qIdx, numReadingFrames, strand);
-      
-      if (sIdx != UNSET_INT)
+      if (msp->score < 0)
 	{
-	  /* Find the background colour depending on whether this is a match or not. */
-	  char *bgColour;
-	  if (msp->score < 0)
-	    {
-	      /* Ref seq. Yellow background */
-	      bgColour = (qIdx == selectedBaseIdx ? DARK_YELLOW : YELLOW);
-	    }
-	  else if (tolower(msp->sseq[sIdx - 1]) == tolower(refSeq[qIdx - 1]))
-	    {
-	      /* Match. Blue background */
-	      bgColour = (qIdx == selectedBaseIdx ? DARK_BLUE : BLUE);
-	    }
-	  else
-	    {
-	      /* Mismatch. Grey background */
-	      bgColour = (qIdx == selectedBaseIdx ? DARK_GREY : GREY);
-	    }
-	  
-	  appendBaseWithBgColour(markupText, msp, msp->sseq[sIdx - 1], &i, bgColour);
+	  /* Exon. Draw a blank space with yellow background */
+	  char *bgColour = (qIdx == selectedBaseIdx ? DARK_YELLOW : YELLOW);
+	  appendBaseWithBgColour(markupText, msp, ' ', &i, bgColour);
+	}
+      else if (msp->score == 0 && msp->id == -1) /* (not a great way of identifying the ref seq...) */
+	{
+	  /* Reference sequence. */
+	  char *bgColour = (qIdx == selectedBaseIdx ? DARK_YELLOW : YELLOW);
+	  appendBaseWithBgColour(markupText, msp, msp->sseq[qIdx - 1], &i, bgColour);
 	}
       else
 	{
-	  /* There is no equivalent base in the match sequence, i.e. draw a gap. */
-	  char *bgColour =  (qIdx == selectedBaseIdx ? DARK_GREY : GREY);
-	  appendBaseWithBgColour(markupText, msp, MATCH_SEQ_GAP_CHAR[0], &i, bgColour);
+	  int sIdx = gapCoord(msp, qIdx, numReadingFrames, strand);
+	  
+	  if (sIdx != UNSET_INT)
+	    {
+	      /* Find the background colour depending on whether this is a match or not. */
+	      char *bgColour;
+	      if (tolower(msp->sseq[sIdx - 1]) == tolower(refSeq[qIdx - 1]))
+		{
+		  /* Match. Blue background */
+		  bgColour = (qIdx == selectedBaseIdx ? DARK_BLUE : BLUE);
+		}
+	      else
+		{
+		  /* Mismatch. Grey background */
+		  bgColour = (qIdx == selectedBaseIdx ? DARK_GREY : GREY);
+		}
+	      
+	      appendBaseWithBgColour(markupText, msp, msp->sseq[sIdx - 1], &i, bgColour);
+	    }
+	  else
+	    {
+	      /* There is no equivalent base in the match sequence, i.e. draw a gap. */
+	      char *bgColour =  (qIdx == selectedBaseIdx ? DARK_GREY : GREY);
+	      appendBaseWithBgColour(markupText, msp, MATCH_SEQ_GAP_CHAR[0], &i, bgColour);
+	    }
 	}
     }
     else if (qIdx == selectedBaseIdx)
