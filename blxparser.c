@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.2 2009-12-08 10:16:58 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.3 2009-12-10 13:27:16 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1303,7 +1303,6 @@ static BOOL parseGaps(char **text, MSP *msp)
   BOOL end ;
 
   msp->gaps = arrayCreate(10, SMapMap) ;	    
-  printf("parseGaps: msp sname=%s, sstart=%d, send=%d\n", msp->sname, msp->sstart, msp->send);
 
   end = FALSE ;
   next_gap = strtok(NULL, " ") ;
@@ -1362,7 +1361,6 @@ static BOOL parseGaps(char **text, MSP *msp)
 
 	  next_gap = strtok(NULL, "\t ") ; 
 	}  
-      printf("  gap s1=%d, s2=%d, r1=%d, r2=%d\n", gap->s1, gap->s2, gap->r1, gap->r2);
     }
 
   return result ;

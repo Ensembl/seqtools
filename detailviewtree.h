@@ -41,6 +41,7 @@ typedef struct _TreeProperties
 TreeProperties*	  treeGetProperties(GtkWidget *widget);
 GtkAdjustment*	  treeGetAdjustment(GtkWidget *tree);
 GtkCellRenderer*  treeGetRenderer(GtkWidget *tree);
+GtkWidget*	  treeGetGrid(GtkWidget *tree);
 Strand		  treeGetStrand(GtkWidget *tree);
 int		  treeGetNumReadingFrames(GtkWidget *tree);
 int		  treeGetSelectedBaseIdx(GtkWidget *tree);
@@ -61,12 +62,14 @@ gint		  setCellRendererFont(GtkWidget *tree,
 				      const char *fontName, 
 				      const int fontSize);
 
+void		  addMspToTreeModel(GtkTreeModel *model, 
+				    const MSP *msp);
+
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,
-				       gboolean hasHeaders,
-				       const MSP const *mspList,
-				       char *refSeq,
-				       IntRange *displayRange,
-				       GtkWidget **refTree);
+				       GList **treeList);
+
+void		   treeCreateBaseDataModel(GtkWidget *tree, gpointer data);
+void		   treeCreateFilteredDataModel(GtkWidget *tree, gpointer data);
 
 #endif /* _detail_view_tree_included_ */

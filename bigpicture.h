@@ -14,7 +14,9 @@
 typedef struct _BigPictureProperties
   {
     GtkWidget *mainWindow;  /* The main window widget that this grid belongs to */
-    GtkWidget *header;	    /* A pointer to the header widget */
+    GtkWidget *header;	    /* The grid header */
+    GtkWidget *fwdStrandGrid; /* The grid that displays the forward ref seq strand */
+    GtkWidget *revStrandGrid; /* The grid that displays the reverse ref seq strand */
     
     IntRange displayRange;  /* The currently-displayed range in the big picture */
     IntRange fullRange;     /* The full range of the reference sequence */
@@ -57,8 +59,15 @@ void			      setGdkColorCyan(GdkColor *color);
 
 BigPictureProperties*	      bigPictureGetProperties(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetMainWindow(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetFwdGrid(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetRevGrid(GtkWidget *bigPicture);
+gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
+IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
+
+void			      refreshGridOrder(GtkWidget *bigPicture);
+
 GtkWidget*		      createBigPicture(GtkWidget *mainWindow, 
 					       GtkWidget **header,
 					       GtkWidget **fwdStrandGrid, 

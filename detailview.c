@@ -11,16 +11,19 @@
 #include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/utilities.h>
+#include <gtk/gtk.h>
 
 #define MIN_FONT_SIZE			2
 #define MAX_FONT_SIZE			20
-#define FONT_INCREMENT_SIZE		2
+#define FONT_INCREMENT_SIZE		1
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
 
 
 /* Local function declarations */
-static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
-
+static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
+static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
+//static BlxSeqType	    detailViewGetSeqType(GtkWidget *detailView);
+static gboolean		    detailViewGetStrandsToggled(GtkWidget *detailView);
 
 /***********************************************************
  *		       Utility functions                   *
@@ -56,6 +59,8 @@ static void decrementFontSize(GtkWidget *tree, gpointer data)
  * bounds checking. */
 void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
 {
+  static int c=0; ++c; printf("setDetailViewScrollPos%d\n", c);
+  
   if (value < adjustment->lower)
     {
       value = adjustment->lower;
@@ -110,14 +115,90 @@ static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
 static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 {
   GtkAdjustment *adjustment = treeGetAdjustment(tree);
-  int newPageSize = calcNumBasesInSequenceColumn(tree, colWidth);
   
-  /* Only perform an update if it's actually changed */
-  if (newPageSize != adjustment->page_size)
+  if (adjustment)
     {
-      adjustment->page_size = newPageSize;
-      adjustment->page_increment = newPageSize;
-      gtk_adjustment_changed(adjustment);
+      int newPageSize = calcNumBasesInSequenceColumn(tree, colWidth);
+      
+      /* Only trigger updates if things have actually changed */
+      if (newPageSize != adjustment->page_size)
+	{
+	  adjustment->page_size = newPageSize;
+	  adjustment->page_increment = newPageSize;
+	  gtk_adjustment_changed(adjustment);
+	}
+    }
+}
+
+
+/* Add all trees in the given list to the detail view */
+static void addTreesToDetailView(GtkContainer *detailView, GList *treeList, gboolean first, gboolean last)
+{
+  if (GTK_IS_PANED(detailView))
+    {
+      int numTrees = g_list_length(treeList);
+      if (numTrees > 0)
+	{
+	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
+	  
+	  if (first)
+	    {
+	      gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
+	    }
+	  else if (last)
+	    {
+	      gtk_paned_pack2(GTK_PANED(detailView), tree1, TRUE, TRUE);
+	    }
+	}
+    }
+}
+
+
+/* Remove the given widget from the detail view. Does NOT remove nested paned
+ * widgets, but does remove THEIR children. */
+static void removeFromDetailView(GtkWidget *widget, gpointer data)
+{
+  GtkContainer *parent = GTK_CONTAINER(data);
+  
+  if (!GTK_IS_PANED(widget))
+    {
+      gtk_container_remove(parent, widget);
+    }
+  else
+    {
+      /* This widget is a nested paned widget. Leave it in the heirarchy, but 
+       * recurse to remove all its child widgets. */
+      gtk_container_foreach(GTK_CONTAINER(widget), removeFromDetailView, widget);
+    }
+}
+
+
+/* This function removes the trees from the detail view and re-adds them in the
+ * correct order according to the strandsToggled flag. It should be called every
+ * time the strands are toggled. It assumes the trees are already in the 
+ * detailView container, and that the properties have been set for all 3 widgets. */
+static void refreshTreeOrder(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  gboolean toggled = detailViewGetStrandsToggled(detailView);
+
+  if (properties->seqType == BLXSEQ_DNA)
+    {
+      gtk_container_foreach(GTK_CONTAINER(detailView), removeFromDetailView, detailView);
+      
+      if (toggled)
+	{
+	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->revStrandTrees, TRUE, FALSE);
+	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->fwdStrandTrees, FALSE, TRUE);
+	}
+      else
+	{
+	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->fwdStrandTrees, TRUE, FALSE);
+	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->revStrandTrees, FALSE, TRUE);
+	}
+    }
+  else if (properties->seqType == BLXSEQ_PEPTIDE)
+    {
     }
 }
 
@@ -128,12 +209,9 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 
 static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *allocation, gpointer data)
 {
-  //  static int count = 0; ++count; printf("onSizeAllocateDetailView%d\n", count);
-  
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-  
-  if (detailViewProperties->refTree)
-    updateSeqColumnSize(detailViewProperties->refTree, UNSET_INT);
+  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
+  if (firstTree)
+    updateSeqColumnSize(firstTree, UNSET_INT);
 }
 
 
@@ -190,6 +268,8 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 
 static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 {
+  static int count = 0; ++count; printf("scroll pos changed %d\n", count);
+  
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *mainWindow = GTK_WIDGET(data);
   
@@ -226,16 +306,20 @@ static void onZoomInDetailView(GtkButton *button, gpointer data)
   GtkWidget *detailView = GTK_WIDGET(data);
   
   /* Remember the size of the sequence column. This gets reset to 0 when we change the font. */
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(properties->refTree), MSP_COL);
-  int colWidth = gtk_tree_view_column_get_width(sequenceCol);
+  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
+  int colWidth = UNSET_INT;
+  if (firstTree)
+    {
+      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), MSP_COL);
+      colWidth = gtk_tree_view_column_get_width(sequenceCol);
+    }
   
   /* Call the increment-font-size function on all trees in the detail view */
   callFuncOnAllDetailViewTrees(detailView, incrementFontSize);
   
-  if (properties->refTree)
+  if (firstTree && colWidth != UNSET_INT)
     {
-      updateSeqColumnSize(properties->refTree, colWidth);
+      updateSeqColumnSize(firstTree, colWidth);
     }
 }
 
@@ -244,16 +328,20 @@ static void onZoomOutDetailView(GtkButton *button, gpointer data)
   GtkWidget *detailView = GTK_WIDGET(data);
   
   /* Remember the size of the sequence column. This gets reset to 0 when we change the font. */
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(properties->refTree), MSP_COL);
-  int colWidth = gtk_tree_view_column_get_width(sequenceCol);
+  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
+  int colWidth = UNSET_INT;
+  if (firstTree)
+    {
+      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), MSP_COL);
+      colWidth = gtk_tree_view_column_get_width(sequenceCol);
+    }
   
   /* Call the decrement-font-size function on all trees in the detail view */
   callFuncOnAllDetailViewTrees(detailView, decrementFontSize);
   
-  if (properties->refTree)
+  if (firstTree && colWidth != UNSET_INT)
     {
-      updateSeqColumnSize(properties->refTree, colWidth);
+      updateSeqColumnSize(firstTree, colWidth);
     }
 }
 
@@ -262,10 +350,114 @@ static void onZoomOutDetailView(GtkButton *button, gpointer data)
  *                       Properties                        *
  ***********************************************************/
 
+static void assertDetailView(GtkWidget *detailView)
+{
+  /* Check it's a valid detail-view tree type */
+  if (!detailView)
+    messcrash("Detail-view widget is null");
+  
+  if (!GTK_IS_WIDGET(detailView))
+    messcrash("Detail-view is not a valid widget [%x]", detailView);
+  
+  if (!GTK_IS_CONTAINER(detailView))
+    messcrash("Detail-view is not a valid container [%x]", detailView);
+  
+  if (!detailViewGetProperties(detailView))
+    messcrash("Tree properties not set [widget=%x]", detailView);
+}
+
+GtkAdjustment* detailViewGetAdjustment(GtkWidget *detailView)
+{
+  assertDetailView(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->adjustment : NULL;
+}
+
+/* Get the forward strand of the reference sequence */
 char* detailViewGetRefSeq(GtkWidget *detailView)
 {
+  assertDetailView(detailView);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? treeGetRefSeq(properties->refTree) : NULL;
+  return properties->refSeq;
+}
+
+static GtkWidget* detailViewGetMainWindow(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->mainWindow : NULL;
+}
+
+static gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
+{
+  return mainWindowGetStrandsToggled(detailViewGetMainWindow(detailView));
+}
+
+/* Extract the tree view for the given frame on the given strand */
+static GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GtkWidget *result = NULL;
+  
+  /* Get the list of trees for the forward or reverse strand, as per the input argument */
+  GList *list = forward ? properties->fwdStrandTrees : properties->revStrandTrees;
+
+  /* Extract the tree for this given frame number. The list should be sorted in order of frame
+   * number, and we should not be requesting a frame number greater than the number of items in the list */
+  if (frame > g_list_length(list))
+    {
+      if (g_list_length(list) > 0)
+	{
+	  frame = 1;
+	}
+      else
+	{
+	  messcrash("Invalid frame number. Requested frame=%d on %s strand but number of detail view trees=%d.",
+		    frame, (forward ? "forward" : "reverse"), g_list_length(list));
+	}
+    }
+
+  GtkWidget *item = NULL;
+  switch (frame)
+  {
+    case 1:
+      item = list->data;
+      break;
+    case 2:
+      item = list->next->data;
+      break;
+    case 3:
+      item = list->next->next->data;
+      break;
+    default:
+      messcrash("Invalid frame number. Requested frame=%d but max frame number=3", frame);
+  }
+  
+  /* The item in the list is probably a container (i.e. a scrolled window), so extract the actual tree */
+  if (GTK_IS_TREE_VIEW(item))
+    {
+      result = GTK_WIDGET(item);
+    }
+  else if (GTK_IS_CONTAINER(item))
+    {
+      GList *children = gtk_container_get_children(GTK_CONTAINER(item));
+      if (children && g_list_length(children) == 1)
+	{
+	  result = GTK_WIDGET(children->data);
+	}
+    }
+
+  if (!result)
+    messcrash("Tree list for %s strand contains an invalid widget type for frame %d.", (forward ? "forward" : "reverse"), frame);
+  
+  return result;
+}
+
+/* Get the first tree in the 'current' list of trees (i.e. the forward strand
+ * list by default, or the reverse strand list if strands are toggled). */
+static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
+{
+  gboolean forward = !detailViewGetStrandsToggled(detailView);
+  return detailViewGetFrameTree(detailView, forward, 1);
 }
 
 int detailViewGetNumReadingFrames(GtkWidget *detailView)
@@ -286,6 +478,12 @@ int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
   return properties ? properties->selectedBaseIdx : UNSET_INT;
 }
 
+//static BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
+//{
+//  DetailViewProperties *properties = detailViewGetProperties(detailView);
+//  return properties ? properties->seqType : UNSET_INT;
+//}
+
 
 DetailViewProperties* detailViewGetProperties(GtkWidget *widget)
 {
@@ -305,29 +503,35 @@ static void onDestroyDetailView(GtkWidget *widget)
 }
 
 
-static void detailViewCreateProperties(GtkWidget *widget,
-				       GtkWidget *refTree, 
+static void detailViewCreateProperties(GtkWidget *detailView,
+				       GtkWidget *mainWindow,
+				       GList *fwdStrandTrees,
+				       GList *revStrandTrees,
 				       GtkWidget *feedbackBox,
 				       GtkAdjustment *adjustment, 
 				       char *refSeq,
+				       BlxSeqType seqType,
 				       int numReadingFrames,
 				       IntRange *displayRange)
 {
-  if (widget)
+  if (detailView)
     { 
       DetailViewProperties *properties = g_malloc(sizeof *properties);
-      
-      properties->refTree = refTree;
+
+      properties->mainWindow = mainWindow;
+      properties->fwdStrandTrees = fwdStrandTrees;
+      properties->revStrandTrees = revStrandTrees;
       properties->feedbackBox = feedbackBox;
       properties->adjustment = adjustment;
       properties->refSeq = refSeq;
+      properties->seqType = seqType;
       properties->numReadingFrames = numReadingFrames;
       properties->displayRange.min = displayRange->min;
       properties->displayRange.max = displayRange->max;
       properties->selectedBaseIdx = UNSET_INT;
       
-      g_object_set_data(G_OBJECT(widget), "DetailViewProperties", properties);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
+      g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
+      g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
     }
 }
 
@@ -336,49 +540,69 @@ static void detailViewCreateProperties(GtkWidget *widget,
  *                     Callbacks                           *
  ***********************************************************/
 
+static void showModalDialog(char *title, char *messageText)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
+						  NULL, 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+  
+  /* Add the message */
+//  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog)); //not in pre 2.14 versions
+  GtkWidget *vbox = GTK_DIALOG(dialog)->vbox;
+  GtkWidget *label = gtk_label_new(messageText);
+  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+  
+  /* Ensure dialog is destroyed when user responds */
+  g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+  
+  gtk_widget_show_all(dialog);
+}
 
 static void blxHelp(void)
 {
-  //  graphMessage (messprintf("\
-  //			   \
-  //			   BLIXEM - BLast matches\n\
-  //			   In an\n\
-  //			   X-windows\n\
-  //			   Embedded\n\
-  //			   Multiple alignment\n\
-  //			   \n\
-  //			   LEFT MOUSE BUTTON:\n\
-  //			   Pick on boxes and sequences.\n\
-  //			   Fetch annotation by double clicking on sequence (Requires 'efetch' to be installed.)\n\
-  //			   \n\
-  //			   MIDDLE MOUSE BUTTON:\n\
-  //			   Scroll horizontally.\n\
-  //			   \n\
-  //			   RIGHT MOUSE BUTTON:\n\
-  //			   Menu.  Note that the buttons Settings and Goto have their own menus.\n\
-  //			   \n\
-  //			   \n\
-  //			   Keyboard shortcuts:\n\
-  //			   \n\
-  //			   Cntl-Q          quit application\n\
-  //			   Cntl-P          print\n\
-  //			   Cntl-H          help\n\
-  //			   \n\
-  //			   \n\
-  //			   m/M             for mark/unmark a set of matches from the cut buffer\n\
-  //			   \n\
-  //			   g/G             go to the match in the cut buffer\n\
-  //			   \n\
-  //			   \n\
-  //			   \n\
-  //			   RESIDUE COLOURS:\n\
-  //			   Yellow = Query.\n\
-  //			   See Settings Panel for matching residues (click on Settings button).\n\
-  //			   \n\
-  //			   version %s\n\
-  //			   (c) Erik Sonnhammer", blixemVersion));
-  //  
-  //  return ;
+  char *messageText = (messprintf("\
+			   \
+			   BLIXEM - BLast matches\n\
+			   In an\n\
+			   X-windows\n\
+			   Embedded\n\
+			   Multiple alignment\n\
+			   \n\
+			   LEFT MOUSE BUTTON:\n\
+			   Pick on boxes and sequences.\n\
+			   Fetch annotation by double clicking on sequence (Requires 'efetch' to be installed.)\n\
+			   \n\
+			   MIDDLE MOUSE BUTTON:\n\
+			   Scroll horizontally.\n\
+			   \n\
+			   RIGHT MOUSE BUTTON:\n\
+			   Menu.  Note that the buttons Settings and Goto have their own menus.\n\
+			   \n\
+			   \n\
+			   Keyboard shortcuts:\n\
+			   \n\
+			   Cntl-Q          quit application\n\
+			   Cntl-P          print\n\
+			   Cntl-H          help\n\
+			   \n\
+			   \n\
+			   m/M             for mark/unmark a set of matches from the cut buffer\n\
+			   \n\
+			   g/G             go to the match in the cut buffer\n\
+			   \n\
+			   \n\
+			   \n\
+			   RESIDUE COLOURS:\n\
+			   Yellow = Query.\n\
+			   See Settings Panel for matching residues (click on Settings button).\n\
+			   \n\
+			   version %s\n\
+			   (c) Erik Sonnhammer", blixemVersion));
+  
+  showModalDialog("Help", messageText);
 }
 
 static void blixemSettings(void)
@@ -391,16 +615,15 @@ static void blixemSettings(void)
   //    else graphPop();
 }
 
-static void ToggleStrand(void)
+static void ToggleStrand(GtkWidget *detailView)
 {
-  //  dispstart += plusmin*(displen-1);
-  //  
-  //  plusmin = -plusmin;
-  //  
-  //  sprintf(actframe, "(%+d)", plusmin);
-  //  blviewRedraw();
-  //  
-  //  return ;
+  MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewGetMainWindow(detailView));
+  mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
+  
+  refreshTreeOrder(detailView);
+  
+  GtkWidget *bigPicture = mainWindowGetBigPicture(detailViewGetMainWindow(detailView));
+  refreshGridOrder(bigPicture);
 }
 
 static void scrollRightBig(void)
@@ -522,9 +745,10 @@ static void GscrollRight1(GtkButton *button, gpointer args)
   scrollRight1();
 }
 
-static void GToggleStrand(GtkButton *button, gpointer args)
+static void GToggleStrand(GtkButton *button, gpointer data)
 {
-  ToggleStrand();
+  GtkWidget *detailView = GTK_WIDGET(data);
+  ToggleStrand(detailView);
 }
 
 /***********************************************************
@@ -700,7 +924,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **f
   
   if (1) //blastx ||tblastx || blastn)
     {
-      makeToolbarButton(toolbar, "Strand^v", "Toggle strand", (GtkSignalFunc)GToggleStrand, NULL);
+      makeToolbarButton(toolbar, "Strand^v", "Toggle strand", (GtkSignalFunc)GToggleStrand, detailView);
     }
   
   *feedbackBox = createFeedbackBox(toolbar);
@@ -710,18 +934,15 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **f
 
 
 /* Create two detail-view trees and place them in the 2 panes of the paned widget. The first
- * tree gets associated with grid1 and the second with grid2. */
+ * tree gets associated with grid1 and appended to list1, and the second with grid2 and list2. */
 static void createTwoPanedTrees(GtkWidget *panedWidget, 
 				GtkWidget *grid1, 
 				GtkWidget *grid2,
-				gboolean hasHeaders, 
-				const MSP const *mspList,
-				char *refSeq,
-				IntRange *displayRange,
-				GtkWidget **refTree)
+				GList **list1,
+				GList **list2)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, panedWidget, hasHeaders, mspList, refSeq, displayRange, refTree);
-  GtkWidget *tree2 = createDetailViewTree(grid2, panedWidget, FALSE, mspList, refSeq, displayRange, refTree);
+  GtkWidget *tree1 = createDetailViewTree(grid1, panedWidget, list1);
+  GtkWidget *tree2 = createDetailViewTree(grid2, panedWidget, list2);
   gtk_paned_pack1(GTK_PANED(panedWidget), tree1, FALSE, TRUE);
   gtk_paned_pack2(GTK_PANED(panedWidget), tree2, TRUE, TRUE);
 }
@@ -732,39 +953,61 @@ static void createTwoPanedTrees(GtkWidget *panedWidget,
 static void createDetailViewPanes(GtkWidget *detailView, 
 				  GtkWidget *fwdStrandGrid, 
 				  GtkWidget *revStrandGrid, 
-				  const MSP const *mspList,
-				  char *refSeq,
-				  IntRange *displayRange,
 				  const int numReadingFrames,
-				  GtkWidget **refTree)
+				  GList **fwdStrandTrees,
+				  GList **revStrandTrees)
 {
   if (numReadingFrames == 1)
     {
       /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse */
-      createTwoPanedTrees(detailView, fwdStrandGrid, revStrandGrid, TRUE, mspList, refSeq, displayRange, refTree);
+      createTwoPanedTrees(detailView, fwdStrandGrid, revStrandGrid, fwdStrandTrees, revStrandTrees);
     }
   else if (numReadingFrames == 3)
     {
       /* Protein matches: we need 3 trees for the 3 reading frames. We only have
        * 2 panes in our parent container, so one pane will have to contain
        * a second, nested paned widget. */
-      GtkWidget *tree1 = createDetailViewTree(fwdStrandGrid, detailView, TRUE, mspList, refSeq, displayRange, refTree);
+      GtkWidget *tree1 = createDetailViewTree(fwdStrandGrid, detailView, fwdStrandTrees);
       GtkWidget *nestedPanedWidget = gtk_vpaned_new();
       
       gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
       gtk_paned_pack1(GTK_PANED(detailView), nestedPanedWidget, TRUE, TRUE);
       
-      createTwoPanedTrees(nestedPanedWidget, fwdStrandGrid, fwdStrandGrid, FALSE, mspList, refSeq, displayRange, refTree);
+      createTwoPanedTrees(nestedPanedWidget, fwdStrandGrid, fwdStrandGrid, fwdStrandTrees, fwdStrandTrees);
     }
 }
 
 
-GtkWidget* createDetailView(GtkWidget *container,
+/* Add the MSPs to the detail-view trees */
+static void detailViewAddMspData(GtkWidget *detailView, const MSP const *mspList)
+{
+  /* First, create a data store for each tree so we have something to add our data to. */
+  callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel);
+
+  /* Loop through each MSP, and add it to the correct tree based on its strand and reading frame */
+  const MSP *msp = mspList;
+  for ( ; msp; msp = msp->next)
+    {
+      gboolean qForward = (msp->qframe[1] == '+');
+      int frame = atoi(&msp->qframe[2]);
+      GtkWidget *tree = detailViewGetFrameTree(detailView, qForward, frame);
+      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      addMspToTreeModel(model, msp);
+    }
+  
+  /* Finally, create a custom-filtered version of the data store for each tree. We do 
+   * this AFTER adding the data so that it doesn't try to re-filter every time we add a row. */
+  callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel);
+}
+
+
+GtkWidget* createDetailView(GtkWidget *mainWindow,
 			    GtkAdjustment *adjustment, 
-			    const MSP const *mspList,
 			    GtkWidget *fwdStrandGrid, 
 			    GtkWidget *revStrandGrid,
+			    const MSP const *mspList,
 			    char *refSeq,
+			    BlxSeqType seqType,
 			    int numReadingFrames,
 			    IntRange *refSeqRange)
 {
@@ -775,9 +1018,14 @@ GtkWidget* createDetailView(GtkWidget *container,
    * all of our detail-view trees the same name so we can identify them.) */
   GtkWidget *detailView = gtk_vpaned_new();
   
-  /* Create the trees. We need to remember a reference tree. */
-  GtkWidget *refTree = NULL;
-  createDetailViewPanes(detailView, fwdStrandGrid, revStrandGrid, mspList, refSeq, refSeqRange, numReadingFrames, &refTree);
+  /* Create the trees. */
+  GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
+  createDetailViewPanes(detailView, 
+			fwdStrandGrid, 
+			revStrandGrid, 
+			numReadingFrames, 
+			&fwdStrandTrees,
+			&revStrandTrees);
   
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;
@@ -789,14 +1037,26 @@ GtkWidget* createDetailView(GtkWidget *container,
   gtk_box_pack_start(GTK_BOX(vbox), buttonBar, FALSE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), detailView, TRUE, TRUE, 0);
   
-  /* Put the vbox in the container we were passed */
-  gtk_paned_pack2(GTK_PANED(container), vbox, TRUE, TRUE);
+  /* Put the whole lot into the main window */
+  gtk_paned_pack2(GTK_PANED(mainWindow), vbox, TRUE, TRUE);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
   
   /* Set the required properties */
-  detailViewCreateProperties(detailView, refTree, feedbackBox, adjustment, refSeq, numReadingFrames, refSeqRange);
+  detailViewCreateProperties(detailView, 
+			     mainWindow, 
+			     fwdStrandTrees,
+			     revStrandTrees,
+			     feedbackBox, 
+			     adjustment, 
+			     refSeq, 
+			     seqType,
+			     numReadingFrames, 
+			     refSeqRange);
+
+  /* Add the MSP's to the trees */
+  detailViewAddMspData(detailView, mspList);
   
   return detailView;
 }

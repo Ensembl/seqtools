@@ -25,6 +25,10 @@
 #define DEFAULT_GRID_CELL_Y_PADDING	-2
 #define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2
 
+/* Local function declarations */
+static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
+static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
+
 
 /***********************************************************
  *                     Utility functions	           *
@@ -353,17 +357,18 @@ static void drawBigPictureGrid(GtkWidget *grid)
 void calculateHighlightBoxBorders(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
    * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
-  GtkAdjustment *adjustment = (properties && properties->tree) ? treeGetAdjustment(properties->tree) : NULL;
+  GtkAdjustment *adjustment = gridGetAdjustment(grid);
   if (adjustment)
     {
-      properties->highlightRect.x = convertBaseIdxToGridPos(adjustment->value, &properties->gridRect, &bigPictureProperties->displayRange);
+      IntRange *displayRange = gridGetDisplayRange(grid);
+
+      properties->highlightRect.x = convertBaseIdxToGridPos(adjustment->value, &properties->gridRect, displayRange);
       properties->highlightRect.y = properties->gridRect.y - properties->highlightBoxYPad;
       
-      properties->highlightRect.width = (gint)((gdouble)adjustment->page_size * pixelsPerBase(properties->gridRect.width, &bigPictureProperties->displayRange));
+      properties->highlightRect.width = (gint)((gdouble)adjustment->page_size * pixelsPerBase(properties->gridRect.width, displayRange));
       properties->highlightRect.height = properties->gridRect.height + properties->mspLineHeight + (2 * properties->highlightBoxYPad);
     }
 }
@@ -556,6 +561,26 @@ Strand gridGetStrand(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
   return properties->strand;
+}
+
+GtkWidget* gridGetBigPicture(GtkWidget *grid)
+{
+  GridProperties *properties = gridGetProperties(grid);
+  return properties->bigPicture;
+}
+
+static IntRange* gridGetDisplayRange(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  return bigPictureGetDisplayRange(bigPicture);
+}
+
+static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  return detailViewGetAdjustment(detailView);
 }
 
 

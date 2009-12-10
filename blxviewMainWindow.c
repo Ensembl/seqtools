@@ -54,6 +54,23 @@ static void mainWindowCreateProperties(GtkWidget *widget,
     }
 }
 
+gboolean mainWindowGetStrandsToggled(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->strandsToggled : FALSE;
+}
+
+GtkWidget* mainWindowGetBigPicture(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->bigPicture : FALSE;
+}
+
+GtkWidget* mainWindowGetDetailView(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->detailView : FALSE;
+}
 
 /***********************************************************
  *                      Initialisation                     *
@@ -73,9 +90,9 @@ static void setStyleProperties(GtkWidget *widget)
 }
 
 
-GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, int numReadingFrames)
+GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, BlxSeqType seqType, int numReadingFrames)
 {
-  int refSeqEnd = strlen(refSeq) - 1;
+  int refSeqEnd = strlen(refSeq) ;
   IntRange refSeqRange = {1, refSeqEnd};
   IntRange bigPictureDisplayRange  = {1, refSeqEnd};
   
@@ -97,21 +114,26 @@ GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, int numReadi
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL, *header = NULL;
   
+  printf("Creating big picture...\n");
   GtkWidget *bigPicture = createBigPicture(panedWidget, 
 					   &header, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid, 
 					   &bigPictureDisplayRange, 
 					   &refSeqRange);
+  printf("Done.\n");
   
+  printf("Creating detail view...\n");
   GtkWidget *detailView = createDetailView(panedWidget, 
 					   detailAdjustment, 
-					   mspList, 
 					   fwdStrandGrid, 
 					   revStrandGrid,
+					   mspList,
 					   refSeq,
+					   seqType,
 					   numReadingFrames,
 					   &refSeqRange);
+  printf("Done.\n");
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, panedWidget);
@@ -124,8 +146,9 @@ GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, int numReadi
   g_signal_connect(G_OBJECT (window), "destroy", G_CALLBACK (gtk_main_quit), NULL); 
   
   /* Show the window */
-  printf("realizing widgets....\n");
+  printf("realizing widgets...\n");
   gtk_widget_show_all(window);
+  printf("Done.\n");
   
   /* Now the grids have real size, calculate the size and position of the msp lines */
   callFuncOnAllMspLines(panedWidget, configureMspLine);

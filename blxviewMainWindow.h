@@ -10,20 +10,27 @@
 #define _blxview_main_window_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blxview.h>
+#include <SeqTools/blixem_.h>
 
 typedef struct _MainWindowProperties
   {
     GtkWidget *bigPicture;
     GtkWidget *detailView;
     
-    gboolean strandsToggled; /* If true, views look at the rev strand if their default is fwd or v.v. */
+    gboolean strandsToggled; /* If true, the reverse strand becomes the 'main' or 'top' strand */
   } MainWindowProperties;
 
 
 /* Public function declarations */
 MainWindowProperties*	  mainWindowGetProperties(GtkWidget *widget);
-GtkWidget*		  createMainWindow(char *refSeq, const MSP const *mspList, int numReadingFrames);
+gboolean		  mainWindowGetStrandsToggled(GtkWidget *mainWindow);
+GtkWidget*		  mainWindowGetBigPicture(GtkWidget *mainWindow);
+GtkWidget*		  mainWindowGetDetailView(GtkWidget *mainWindow);
+
+GtkWidget*		  createMainWindow(char *refSeq, 
+					   const MSP const *mspList, 
+					   BlxSeqType seqType, 
+					   int numReadingFrames);
 
 
 #endif /* _blxview_main_window_included_ */

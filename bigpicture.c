@@ -7,18 +7,19 @@
  */
 
 #include <SeqTools/bigpicture.h>
+#include <SeqTools/blxviewMainWindow.h>
 #include <math.h>
 
 
 #define DEFAULT_PREVIEW_BOX_LINE_WIDTH  1
 #define DEFAULT_GRID_NUM_HEADER_LINES   1
+#define DEFAULT_GRID_HEADER_Y_PAD	0
 #define DEFAULT_GRID_CELL_WIDTH		100
 #define DEFAULT_GRID_NUM_HOZ_CELLS	5
 
 
 /* Local function declarations */
-static GridHeaderProperties* gridHeaderGetProperties(GtkWidget *gridHeader);
-
+static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -150,6 +151,53 @@ void calculateGridHeaderBorders(GtkWidget *header)
 }
 
 
+/* Add the given child to the big picture. This is separated out into its
+ * own function in case we want to change the container type in the future. */
+static void addChildToBigPicture(GtkWidget *container, GtkWidget *child, gboolean expand)
+{
+  if (GTK_IS_BOX(container))
+    {
+      gtk_box_pack_start(GTK_BOX(container), child, expand, FALSE, 0);
+    }
+}
+
+
+/* This function removes the grids from the big picture and re-adds them in the
+ * correct order according to the strandsToggled flag. It should be called every
+ * time the strands are toggled. It assumes the two grids are both already in the 
+ * bigPicture container, and that the properties have been set for all 3 widgets. */
+void refreshGridOrder(GtkWidget *bigPicture)
+{
+  GtkWidget *fwdStrandGrid = bigPictureGetFwdGrid(bigPicture);
+  GtkWidget *revStrandGrid = bigPictureGetRevGrid(bigPicture);
+  
+  /* Increase the reference count to make sure the widgets aren't destroyed when we remove them. */
+  g_object_ref(fwdStrandGrid);
+  g_object_ref(revStrandGrid);
+  
+  /* Remove them */
+  gtk_container_remove(GTK_CONTAINER(bigPicture), fwdStrandGrid);
+  gtk_container_remove(GTK_CONTAINER(bigPicture), revStrandGrid);
+  
+  /* Add them back, with the forward-strand grid at the top, or vice versa
+   * if the strands are toggled. */
+  if (bigPictureGetStrandsToggled(bigPicture))
+    {
+      addChildToBigPicture(bigPicture, revStrandGrid, FALSE);
+      addChildToBigPicture(bigPicture, fwdStrandGrid, TRUE);
+    }
+  else
+    {
+      addChildToBigPicture(bigPicture, fwdStrandGrid, FALSE);
+      addChildToBigPicture(bigPicture, revStrandGrid, TRUE);
+    }
+  
+  /* Decrease the ref count again */
+  g_object_unref(fwdStrandGrid);
+  g_object_unref(revStrandGrid);
+}
+
+
 /***********************************************************
  *			    Events			   *
  ***********************************************************/
@@ -222,9 +270,36 @@ GtkWidget* bigPictureGetMainWindow(GtkWidget *bigPicture)
   return properties ? properties->mainWindow : NULL;
 }
 
+GtkWidget* bigPictureGetFwdGrid(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties ? properties->fwdStrandGrid : NULL;
+}
+
+GtkWidget* bigPictureGetRevGrid(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties ? properties->revStrandGrid : NULL;
+}
+
+gboolean bigPictureGetStrandsToggled(GtkWidget *bigPicture)
+{
+  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  return mainWindow ? mainWindowGetStrandsToggled(mainWindow) : FALSE;
+}
+
+IntRange* bigPictureGetDisplayRange(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return &properties->displayRange;
+}
+
+
 static void bigPictureCreateProperties(GtkWidget *bigPicture, 
 				       GtkWidget *mainWindow, 
 				       GtkWidget *header, 
+				       GtkWidget *fwdStrandGrid,
+				       GtkWidget *revStrandGrid,
 				       IntRange *displayRange, 
 				       IntRange *fullRange, 
 				       int cellWidth, 
@@ -237,6 +312,8 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       
       properties->mainWindow = mainWindow;
       properties->header = header;
+      properties->fwdStrandGrid = fwdStrandGrid;
+      properties->revStrandGrid = revStrandGrid;
       properties->displayRange.min = displayRange->min;
       properties->displayRange.max = displayRange->max;
       properties->fullRange.min = fullRange->min;
@@ -272,6 +349,7 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
       properties->bigPicture = bigPicture;
       properties->refButton = refButton;
       properties->numHeaderLines = DEFAULT_GRID_NUM_HEADER_LINES;
+      properties->headerYPad = DEFAULT_GRID_HEADER_Y_PAD;
       
       g_object_set_data(G_OBJECT(gridHeader), "GridHeaderProperties", properties);
       g_signal_connect(G_OBJECT(gridHeader), "destroy", G_CALLBACK(onDestroyGridHeader), NULL);
@@ -344,18 +422,25 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
    * 3. bottom grid (reverse strand) */
   
   *header = createBigPictureGridHeader(bigPicture);
-  gtk_box_pack_start(GTK_BOX(bigPicture), *header, FALSE, TRUE, 0);
-  
+  addChildToBigPicture(bigPicture, *header, FALSE);
+  messout("Grid header created [%x]", *header);
+
+  /* By default, make the forward strand the top grid */
   *fwdStrandGrid = createBigPictureGrid(bigPicture, TRUE, FORWARD_STRAND);
-  gtk_box_pack_start(GTK_BOX(bigPicture), *fwdStrandGrid, FALSE, TRUE, 0);
-  
   *revStrandGrid = createBigPictureGrid(bigPicture, FALSE, REVERSE_STRAND);
-  gtk_box_pack_start(GTK_BOX(bigPicture), *revStrandGrid, TRUE, TRUE, 0);
   
+  messout("Grid1 created [%x]", *fwdStrandGrid);
+  messout("Grid2 created [%x]", *revStrandGrid);
+  
+  addChildToBigPicture(bigPicture, *fwdStrandGrid, FALSE);
+  addChildToBigPicture(bigPicture, *revStrandGrid, TRUE);
+
   /* Set the big picture properties */
   bigPictureCreateProperties(bigPicture, 
 			     mainWindow,
 			     *header, 
+			     *fwdStrandGrid,
+			     *revStrandGrid,
 			     displayRange, 
 			     fullRange, 
 			     DEFAULT_GRID_CELL_WIDTH, 

@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.2 2009-12-02 15:12:54 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.3 2009-12-10 13:27:16 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -151,8 +151,8 @@ typedef enum {FORWARD_STRAND, REVERSE_STRAND} Strand ;
 
 /* Function to show blixem window, can be called from any application. */
 int blxview (char *seq, char *seqname,
-	       int dispStart, int offset, MSP *msp, char *opts, 
-	       PfetchParams *pfetch, char *align_types, BOOL External) ;
+	     int start, int offset, const MSP *msplist, char *opts, 
+	     PfetchParams *pfetch, char *align_types, BOOL External) ;
 
 
 #endif /*  !defined DEF_BLXVIEW_H */

@@ -24,6 +24,13 @@
 #define GREY			"bebebe"
 #define DARK_GREY		"404040"
 
+GdkColor yellow = {16776960};
+GdkColor dark_yellow = {8421376};
+GdkColor cyan = {65535};
+GdkColor dark_cyan = {32896};
+GdkColor grey = {12500670};
+GdkColor dark_grey = {4210752};
+GdkColor black = {0};
 
 /* Properties */
 enum 
@@ -386,155 +393,6 @@ int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand)
 }
 
 
-static void appendChar(char *text1, int *i, char text2)
-{
-  text1[*i] = text2;
-  *i = *i + 1;
-}
-
-
-static void appendText(char *text1, int *i, char *text2)
-{
-  int j = 0;
-  int len = strlen(text2);
-  for ( ; j < len; ++j)
-    {
-      text1[*i] = text2[j];
-      *i = *i + 1;
-    }
-}
-
-
-//static char* getMarkupText(SequenceCellRenderer *renderer)
-//{
-//  char *markupText = NULL;
-//  
-//  MSP *msp = renderer->msp;
-//  char *refSeq = getRefSeq(renderer);
-//  IntRange *displayRange = getDisplayRange(renderer);
-//  int selectedBaseIdx = getSelectedBaseIdx(renderer);
-//  
-//  if (msp && msp->sseq)
-//    {
-//      /* Loop through the displayed chars in the reference sequence and compare to the s seq */
-//      markupText = g_malloc(sizeof(char) * (displayRange->max - displayRange->min + 50000)); //extra space to allow for markup
-//      markupText[0] = '\0';
-//      
-//      int qIdx = displayRange->min;
-//      int i = 0;
-//      
-//      appendText(markupText, &i, "<span letter_spacing='0'>");
-//      
-//      for ( ; qIdx < displayRange->max; ++qIdx)
-//	{
-//	  int sIdx = gapCoord(msp, qIdx, getNumReadingFrames(renderer), getStrand(renderer));
-//	  gboolean mismatch = FALSE;
-//	  
-//	  if (sIdx > 0)
-//	    {
-//	      if (msp->score < 0)
-//		{
-//		  /* Ref seq. Draw as it is, just with a yellow background */
-//		  if (qIdx == selectedBaseIdx)
-//		    appendText(markupText, &i, "<span background='#808000'>");
-//		  else
-//		    appendText(markupText, &i, "<span background='#ffff00'>");
-//		  
-//		  appendChar(markupText, &i, msp->sseq[sIdx - 1]);
-//		  appendText(markupText, &i, "</span>");
-//		}
-//	      else if (tolower(msp->sseq[sIdx - 1]) == tolower(refSeq[qIdx - 1]))
-//		{
-//		  /* Match. Blue background */
-//		  if (qIdx == selectedBaseIdx)
-//		    appendText(markupText, &i, "<span background='#008080'>");
-//		  else
-//		    appendText(markupText, &i, "<span background='#00ffff'>");
-//		  
-//		  appendChar(markupText, &i, msp->sseq[sIdx - 1]);
-//		  appendText(markupText, &i, "</span>");
-//		}
-//	      else
-//		{
-//		  /* Mismatch. Grey background */
-//		  mismatch = TRUE;
-//		  if (qIdx == selectedBaseIdx)
-//		    appendText(markupText, &i, "<span background='#404040'>");
-//		  else
-//		    appendText(markupText, &i, "<span background='#bebebe'>");
-//		  
-//		  appendChar(markupText, &i, msp->sseq[sIdx - 1]);
-//		  appendText(markupText, &i, "</span>");
-//		}
-//	    }
-//	  else
-//	    {
-//	      if (qIdx == selectedBaseIdx)
-//		{
-//		  appendText(markupText, &i, "<span background='#808080'>");
-//		  appendChar(markupText, &i, ' ');
-//		  appendText(markupText, &i, "</span>");
-//		}
-//	      else
-//		appendChar(markupText, &i, ' ');
-//	    }
-//	}
-//      
-//      appendText(markupText, &i, "</span>");
-//      markupText[i] = '\0';
-//    }
-//  
-//  return markupText;
-//}
-
-
-//static PangoLayout* get_layout(GtkWidget *widget, SequenceCellRenderer *renderer)
-//{
-//  PangoLayout *layout = NULL;
-//
-//  if (renderer->useMsp)
-//    {
-//      /* Get the marked-up text of the sequence */
-//      char *markupText = getMarkupText(renderer);
-//
-//      if (markupText)
-//	{
-//	  /* Parse the markup to create the displayed text and a list of attributes */
-//	  char *displayText;
-//	  GError *error = NULL;
-//	  PangoAttrList *attr_list = pango_attr_list_new ();
-//	  
-//	  if (markupText && !pango_parse_markup(markupText, -1, 0, &attr_list, &displayText, NULL, &error))
-//	    {
-//	      g_warning ("Failed to set cell text from markup due to error parsing markup: %s\n\nmarkupText:\n%s\n",
-//			 error->message, markupText);
-//	      g_error_free (error);
-//	    }
-//	  else
-//	    {
-//	      /* Create the layout and set the attributes*/
-//	      layout = gtk_widget_create_pango_layout (widget, displayText);
-//	      pango_layout_set_attributes (layout, attr_list);
-//	      PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
-//	      pango_layout_set_font_description(layout, font_desc);
-//	    }      
-//	  
-//	  /* clean up */
-//	  g_free(displayText);
-//	}
-//    }
-//  else
-//    {
-//      layout = gtk_widget_create_pango_layout(widget, renderer->text);
-//      PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
-//      pango_layout_set_font_description(layout, font_desc);
-//    }
-//  
-//  
-//  return layout;
-//}
-
-
 static void
 get_size (GtkCellRenderer *cell,
 	  GtkWidget       *widget,
@@ -543,7 +401,8 @@ get_size (GtkCellRenderer *cell,
 	  gint            *x_offset,
 	  gint            *y_offset,
 	  gint            *width,
-	  gint            *height)
+	  gint            *height,
+	  gint		  *vertical_separator)
 {
   if (height)
     *height = cell->height;
@@ -553,6 +412,11 @@ get_size (GtkCellRenderer *cell,
   
   if (cell_area)
     cell_area->height = cell->height;
+  
+  if (vertical_separator)
+    {
+      gtk_widget_style_get (widget, "vertical-separator", vertical_separator, NULL);
+    }
 }
 
 
@@ -560,15 +424,15 @@ static void drawText(SequenceCellRenderer *renderer,
 		     GtkWidget *widget,
 		     GdkWindow *window, 
 		     GtkStateType state, 
-		     GdkRectangle *cell_area, 
-		     int x_offset, 
-		     int y_offset, 
-		     int vertical_separator)
+		     GdkRectangle *cell_area)
 {
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, renderer->text);
   PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
   pango_layout_set_font_description(layout, font_desc);
-  
+
+  gint x_offset = 0, y_offset = 0, vertical_separator = 0;
+  get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
+
   gtk_paint_layout (widget->style,
 		    window,
 		    state,
@@ -582,187 +446,273 @@ static void drawText(SequenceCellRenderer *renderer,
 }
 
 
-static void appendBaseWithBgColour(char *markupText, MSP *msp, char charToDisplay, int *i, char *bgColour)
+static char getRefSeqBase(char *refSeq, int qIdx, Strand qStrand)
 {
-  char spanStartText[100];
-  sprintf(spanStartText, "<span background='#%s'>", bgColour);
-  appendText(markupText, i, spanStartText);
+  char result;
+  char base = tolower(refSeq[qIdx - 1]);
   
-  appendChar(markupText, i, tolower(charToDisplay)); /* adjust for zero-indexing */
+  if (qStrand == FORWARD_STRAND)
+    {
+      result = base;
+    }
+  else
+    {
+      switch (base)
+      {
+	case 'c':
+	  result = 'g';
+	  break;
+	case 'g':
+	  result = 'c';
+	  break;
+	case 'a':
+	  result = 't';
+	  break;
+	case 't':
+	  result = 'a';
+	  break;
+	default:
+	  result = ' ';
+	  break;
+      }
+    }
   
-  appendText(markupText, i, "</span>");
+  return result;
 }
 
 
-static char* getMarkupTextForBase(MSP *msp, 
-				  int qIdx, 
-				  char *refSeq, 
-				  int selectedBaseIdx, 
-				  int numReadingFrames, 
-				  Strand strand,
-				  int qSeqMin,
-				  int qSeqMax)
+/* Place the given character into the given string at the given index, then increment the index.
+ * The given string may be null, in which case this function does nothing. */
+static void insertChar(char *text1, int *i, char charToAdd, MSP *msp)
 {
-  char *markupText = g_malloc(sizeof(char) * 1000);
-  markupText[0] = '\0';
+  if (text1)
+    {
+      text1[*i] = charToAdd;
+      *i = *i + 1;
+    }
+}
+
+
+/* Colour in the background of a particular base in the given match sequence. Returns
+ * the calculated index into the match sequence (for effiency, so that we don't have to
+ * recalculate it later on). */
+static void drawBaseBackgroundColour(MSP *msp, 
+				     int qIdx, 
+				     char *refSeq, 
+				     int selectedBaseIdx, 
+				     int numReadingFrames, 
+				     Strand qStrand,
+				     int qSeqMin,
+				     int qSeqMax,
+				     int x, 
+				     int y,
+				     int width,
+				     int height,
+				     GdkWindow *window,
+				     GdkGC *gc,
+				     char *displayText,
+				     int *strIdx)
+{
+  gboolean selected = (qIdx == selectedBaseIdx);
   
-  int i = 0;
-  appendText(markupText, &i, "<span letter_spacing='0'>");
+  char charToDisplay = 'x';
+  GdkColor *baseBgColour;
   
   if (qIdx >= qSeqMin && qIdx <= qSeqMax)
     {
       if (msp->score < 0)
 	{
 	  /* Exon. Draw a blank space with yellow background */
-	  char *bgColour = (qIdx == selectedBaseIdx ? DARK_YELLOW : YELLOW);
-	  appendBaseWithBgColour(markupText, msp, ' ', &i, bgColour);
+	  charToDisplay = ' ';
+	  baseBgColour = selected ? &dark_yellow : &yellow;
 	}
       else if (msp->score == 0 && msp->id == -1) /* (not a great way of identifying the ref seq...) */
 	{
 	  /* Reference sequence. */
-	  char *bgColour = (qIdx == selectedBaseIdx ? DARK_YELLOW : YELLOW);
-	  appendBaseWithBgColour(markupText, msp, msp->sseq[qIdx - 1], &i, bgColour);
+	  charToDisplay = getRefSeqBase(refSeq, qIdx, qStrand);
+	  baseBgColour = selected ? &dark_yellow : &yellow;
 	}
       else
 	{
-	  int sIdx = gapCoord(msp, qIdx, numReadingFrames, strand);
+	  int sIdx = gapCoord(msp, qIdx, numReadingFrames, qStrand);
 	  
 	  if (sIdx != UNSET_INT)
 	    {
 	      /* Find the background colour depending on whether this is a match or not. */
-	      char *bgColour;
-	      if (tolower(msp->sseq[sIdx - 1]) == tolower(refSeq[qIdx - 1]))
+	      charToDisplay = tolower(msp->sseq[sIdx - 1]);
+	      char qBase = getRefSeqBase(refSeq, qIdx, qStrand);
+	      
+	      if (charToDisplay == qBase)
 		{
 		  /* Match. Blue background */
-		  bgColour = (qIdx == selectedBaseIdx ? DARK_BLUE : BLUE);
+		  baseBgColour = selected ? &dark_cyan : &cyan;
 		}
 	      else
 		{
 		  /* Mismatch. Grey background */
-		  bgColour = (qIdx == selectedBaseIdx ? DARK_GREY : GREY);
+		  baseBgColour = selected ? &dark_grey : &grey;
 		}
-	      
-	      appendBaseWithBgColour(markupText, msp, msp->sseq[sIdx - 1], &i, bgColour);
 	    }
 	  else
 	    {
-	      /* There is no equivalent base in the match sequence, i.e. draw a gap. */
-	      char *bgColour =  (qIdx == selectedBaseIdx ? DARK_GREY : GREY);
-	      appendBaseWithBgColour(markupText, msp, MATCH_SEQ_GAP_CHAR[0], &i, bgColour);
+	      /* There is no equivalent base in the match sequence so draw a gap */
+	      charToDisplay = '.';
+	      baseBgColour = selected ? &dark_grey : &grey;
 	    }
 	}
     }
-    else if (qIdx == selectedBaseIdx)
+    else if (selected)
     {
       /* Base does not exist in this match sequence but it is selected, so colour the background */
-      appendBaseWithBgColour(markupText, msp, ' ', &i, GREY);
+      charToDisplay = ' ';
+      baseBgColour = &grey;
     }
-  
-  appendText(markupText, &i, "</span>");
-  markupText[i] = '\0';
-  
-  return markupText;
+
+  if (charToDisplay != 'x')
+    {
+      insertChar(displayText, strIdx, charToDisplay, msp);
+      gdk_gc_set_foreground(gc, baseBgColour);
+      gdk_draw_rectangle(window, gc, TRUE, x, y, width, height);
+    }  
 }
 
 
-static PangoLayout* getLayoutFromMarkup(char *markupText, GtkWidget *widget)
+static PangoLayout* getLayoutFromText(char *displayText, GtkWidget *widget, PangoFontDescription *font_desc)
 {
-  PangoLayout *layout = NULL;
-  
-  if (markupText)
-    {
-      /* Parse the markup to create the displayed text and a list of attributes */
-      char *displayText;
-      GError *error = NULL;
-      PangoAttrList *attr_list = pango_attr_list_new ();
-      
-      if (markupText && !pango_parse_markup(markupText, -1, 0, &attr_list, &displayText, NULL, &error))
-	{
-	  g_warning ("Failed to set cell text from markup due to error parsing markup: %s\n\nmarkupText:\n%s\n",
-		     error->message, markupText);
-	  g_error_free (error);
-	}
-      else
-	{
-	  /* Create the layout and set the attributes */
-	  layout = gtk_widget_create_pango_layout (widget, displayText);
-	  pango_layout_set_attributes (layout, attr_list);
-	  PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
-	  pango_layout_set_font_description(layout, font_desc);
-	}
-      
-      g_free(displayText);
-      g_free(markupText);
-    }
-  
+  PangoLayout *layout = gtk_widget_create_pango_layout(widget, displayText);
+  pango_layout_set_font_description(layout, font_desc);
   return layout;
+}
+
+
+/* Return the x/y coords for the top-left corner where we want to draw the base
+ * with the given index in the reference sequence */
+static void getCoordsForBaseIdx(int qIdx, SequenceCellRenderer *renderer, IntRange *displayRange, GdkRectangle *cell_area, int x_offset, int y_offset, int vertical_separator, int *x, int* y)
+{
+  int charIdx = qIdx - displayRange->min;
+  *x = cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad + (charIdx * renderer->charWidth);
+  *y = cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator;
 }
 
 
 static void drawBases(SequenceCellRenderer *renderer,
 		      GtkWidget *widget,
 		      GdkWindow *window, 
-		      GtkStateType state, 
-		      GdkRectangle *cell_area, 
-		      int x_offset, 
-		      int y_offset, 
-		      int vertical_separator)
+		      GtkStateType state,
+		      GdkRectangle *cell_area)
 {
-  /* Extract some info we'll use again and again */
-  MSP *msp = renderer->msp;
-  char *refSeq = getRefSeq(renderer);
+  gint x_offset = 0, y_offset = 0, vertical_separator = 0;
+  get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
+  
+  PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
+  GdkGC *gc = gdk_gc_new(window);
+  
   IntRange *displayRange = getDisplayRange(renderer);
   int selectedBaseIdx = getSelectedBaseIdx(renderer);
-  int numReadingFrames = getNumReadingFrames(renderer);
-  Strand strand = getStrand(renderer);
-//  gboolean qForward = strchr(msp->qframe, '+') ? TRUE : FALSE ;
   
   int qSeqMin, qSeqMax;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+  getMspRangeExtents(renderer->msp, &qSeqMin, &qSeqMax, NULL, NULL);
   
   /* Loop through each index in the match sequence that is within the display range. */
+  int qStart = qSeqMin >= displayRange->min ? qSeqMin : displayRange->min;
+  int qEnd = qSeqMax <= displayRange->max ? qSeqMax : displayRange->max;
+  
+  int displayLen = qEnd - qStart + 2;
+  char displayText[displayLen];
+  int strIdx = 0;
+  
   gboolean doneSelectedBase = FALSE;
-  int qIdx = qSeqMin >= displayRange->min ? qSeqMin : displayRange->min;
-  int lastIdx = qSeqMax <= displayRange->max ? qSeqMax : displayRange->max;
 
-  for ( ; qIdx <= lastIdx; ++qIdx)
+  int qIdx;
+  for (qIdx = qStart ; qIdx <= qEnd; ++qIdx)
     {
       doneSelectedBase = (qIdx == selectedBaseIdx);
       
-      char *markupText = getMarkupTextForBase(msp, qIdx, refSeq, selectedBaseIdx, numReadingFrames, strand, qSeqMin, qSeqMax);
-      PangoLayout *layout = getLayoutFromMarkup(markupText, widget);
+      int x, y;
+      getCoordsForBaseIdx(qIdx, renderer, displayRange, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
       
-      if (layout)
-	{
-	  /* Calculate the position */
-	  int charIdx = qIdx - displayRange->min;
-	  int x = cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad + (charIdx * renderer->charWidth);
-	  int y = cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator;
-	  
-	  /* Draw it */
-	  gtk_paint_layout (widget->style, window, state, TRUE, NULL, widget, NULL, x, y, layout);
-	}
+      drawBaseBackgroundColour(renderer->msp, 
+				qIdx, 
+				getRefSeq(renderer), 
+				selectedBaseIdx,
+				getNumReadingFrames(renderer), 
+				getStrand(renderer), 
+				qSeqMin, 
+				qSeqMax, 
+				x, 
+				y, 
+				renderer->charWidth, 
+				renderer->charHeight,
+				window, 
+				gc,
+				displayText,
+				&strIdx);
     }
-  
-  /* Do the selected base index, if not already done, because we always need to colour its background */
+
+  /* Null-terminate the string */
+  insertChar(displayText, &strIdx, '\0', renderer->msp);
+
+
+  /* Make sure we always colour the selected base index's background for every row */
   if (selectedBaseIdx != UNSET_INT && !doneSelectedBase)
     {
-      char *markupText = getMarkupTextForBase(msp, selectedBaseIdx, refSeq, selectedBaseIdx, numReadingFrames, strand, qSeqMin, qSeqMax);
-      PangoLayout *layout = getLayoutFromMarkup(markupText, widget);
-      
-      if (layout)
-	{
-	  /* Calculate the position */
-	  int charIdx = selectedBaseIdx - displayRange->min;
-	  int x = cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad + (charIdx * renderer->charWidth);
-	  int y = cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator;
-	  
-	  /* Draw it */
-	  gtk_paint_layout (widget->style, window, state, TRUE, NULL, widget, NULL, x, y, layout);
-	}
-    }
-}
+      int x, y;
+      getCoordsForBaseIdx(selectedBaseIdx, renderer, displayRange, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
 
+      drawBaseBackgroundColour(renderer->msp, 
+			       selectedBaseIdx, 
+			       getRefSeq(renderer), 
+			       selectedBaseIdx, 
+			       getNumReadingFrames(renderer), 
+			       getStrand(renderer), 
+			       qSeqMin, 
+			       qSeqMax, 
+			       x, 
+			       y, 
+			       renderer->charWidth, 
+			       renderer->charHeight,
+			       window, 
+			       gc,
+			       NULL,
+			       NULL);
+    }
+  
+  /* Draw the sequence text over the top of the coloured backgrounds. */
+  if (qStart <= qEnd)
+    {
+      /* Get the coords for the first base we're displaying. The display text was 
+       * constructed such that everything else will line up from here. */
+      int x, y;
+      getCoordsForBaseIdx(qStart, renderer, displayRange, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+
+      PangoLayout *layout = getLayoutFromText(displayText, widget, font_desc);
+      gtk_paint_layout (widget->style, window, state, TRUE, NULL, widget, NULL, x, y, layout);
+    }
+}    
+
+
+static GtkStateType getState(GtkWidget *widget, guint flags)
+{
+  GtkStateType state;
+  if ((flags & GTK_CELL_RENDERER_SELECTED) == GTK_CELL_RENDERER_SELECTED)
+    {
+      state = GTK_WIDGET_HAS_FOCUS(widget) ? GTK_STATE_SELECTED : GTK_STATE_ACTIVE;
+    }
+  else if ((flags & GTK_CELL_RENDERER_PRELIT) == GTK_CELL_RENDERER_PRELIT && GTK_WIDGET_STATE (widget) == GTK_STATE_PRELIGHT)
+    {
+      state = GTK_STATE_PRELIGHT;
+    }
+  else if (GTK_WIDGET_STATE (widget) == GTK_STATE_INSENSITIVE)
+    {
+      state = GTK_STATE_INSENSITIVE;
+    }
+  else
+    {
+      state = GTK_STATE_NORMAL;
+    }
+  
+  return state;
+}
 
 /***************************************************************************
  *
@@ -782,7 +732,7 @@ sequence_cell_renderer_get_size (GtkCellRenderer *cell,
                                         gint            *width,
                                         gint            *height)
 {
-  get_size(cell, widget, cell_area, NULL, x_offset, y_offset, width, height);  
+  get_size(cell, widget, cell_area, NULL, x_offset, y_offset, width, height, NULL);  
 }
 
 
@@ -794,116 +744,30 @@ sequence_cell_renderer_get_size (GtkCellRenderer *cell,
 
 static void
 sequence_cell_renderer_render (GtkCellRenderer *cell,
-                                      GdkWindow       *window,
-                                      GtkWidget       *widget,
-                                      GdkRectangle    *background_area,
-                                      GdkRectangle    *cell_area,
-                                      GdkRectangle    *expose_area,
-                                      guint            flags)
+			       GdkWindow       *window,
+			       GtkWidget       *widget,
+			       GdkRectangle    *background_area,
+			       GdkRectangle    *cell_area,
+			       GdkRectangle    *expose_area,
+			       guint            flags)
 {
   SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
-  gint x_offset = 0, y_offset = 0, width = 0, height = 0;
-  get_size (cell, widget, cell_area, NULL, &x_offset, &y_offset, &width, &height);
-
-  gint vertical_separator;
-  gtk_widget_style_get (widget, "vertical-separator", &vertical_separator, NULL);
-  height += vertical_separator * 2;
-
-  GtkStateType state;
-  if ((flags & GTK_CELL_RENDERER_SELECTED) == GTK_CELL_RENDERER_SELECTED)
-    {
-      state = GTK_WIDGET_HAS_FOCUS(widget) ? GTK_STATE_SELECTED : GTK_STATE_ACTIVE;
-    }
-  else if ((flags & GTK_CELL_RENDERER_PRELIT) == GTK_CELL_RENDERER_PRELIT && GTK_WIDGET_STATE (widget) == GTK_STATE_PRELIGHT)
-    {
-      state = GTK_STATE_PRELIGHT;
-    }
-  else if (GTK_WIDGET_STATE (widget) == GTK_STATE_INSENSITIVE)
-    {
-      state = GTK_STATE_INSENSITIVE;
-    }
-  else
-    {
-      state = GTK_STATE_NORMAL;
-    }
-  
-  
   if (renderer->useMsp)
-    drawBases(renderer, widget, window, state, cell_area, x_offset, y_offset, vertical_separator);
+    {
+      drawBases(renderer, 
+		widget, 
+		window, 
+		getState(widget, flags),
+		cell_area);
+    }
   else
-    drawText(renderer, widget, window, state, cell_area, x_offset, y_offset, vertical_separator);
-  
-  
-//  PangoLayout *layout = get_layout(widget, renderer);
-//  if (layout)
-//    {
-//      printf("expose area ht = %d; background area ht = %d\n", expose_area->height, background_area->height);
-      
-      /* 
-      // if (renderer->background_set && (flags & GTK_CELL_RENDERER_SELECTED) == 0)
-	{
-	  GdkColor color;
-	  color.red = 0; //renderer->background.red;
-	  color.green = 0; //renderer->background.green;
-	  color.blue = 0; //renderer->background.blue;
-	  
-	  GdkGC *gc = gdk_gc_new (window);
-	  gdk_gc_set_rgb_fg_color (gc, &color);
-	  
-	  if (expose_area)               
-	    gdk_gc_set_clip_rectangle (gc, expose_area);
-	  //background_area->y -= vertical_separator;
-	  //background_area->height += vertical_separator;
-	  gdk_draw_rectangle (window,
-			      gc,
-			      TRUE,
-			      background_area->x,
-			      background_area->y,
-			      background_area->width,
-			      background_area->height);
-	  if (expose_area)               
-	    gdk_gc_set_clip_rectangle (gc, NULL);
-	  g_object_unref (gc);
-	} 
-       */
-      
-//      gtk_paint_layout (widget->style,
-//			window,
-//			state,
-//			TRUE,
-//			NULL,
-//			widget,
-//			NULL, //"cellrenderertext",
-//			cell_area->x + x_offset + cell->xpad,
-//			cell_area->y + y_offset + cell->ypad - vertical_separator,
-//			layout);
-//      
-//      g_object_unref (layout);
-      
-      
-//	  GdkColor color;
-//	  color.red = 0; //renderer->background.red;
-//	  color.green = 255; //renderer->background.green;
-//	  color.blue = 255; //renderer->background.blue;
-//	  
-//	  GdkGC *gc = gdk_gc_new (window);
-//	  gdk_gc_set_rgb_fg_color (gc, &color);
-//	  
-//	  if (expose_area)               
-//	    gdk_gc_set_clip_rectangle (gc, expose_area);
-//	  //background_area->y -= vertical_separator;
-//	  //background_area->height += vertical_separator;
-//	  gdk_draw_rectangle (window,
-//			      gc,
-//			      TRUE,
-//			      background_area->x,
-//			      background_area->y,
-//			      background_area->width,
-//			      background_area->height);
-//	  if (expose_area)               
-//	    gdk_gc_set_clip_rectangle (gc, NULL);
-//	  g_object_unref (gc);
-//    }
+    {
+      drawText(renderer,
+	       widget, 
+	       window, 
+	       getState(widget, flags),
+	       cell_area);
+    }
 }
 
 
