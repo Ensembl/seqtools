@@ -393,7 +393,7 @@ static gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
 }
 
 /* Extract the tree view for the given frame on the given strand */
-static GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame)
+GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GtkWidget *result = NULL;
@@ -458,6 +458,18 @@ static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 {
   gboolean forward = !detailViewGetStrandsToggled(detailView);
   return detailViewGetFrameTree(detailView, forward, 1);
+}
+
+GList* detailViewGetFwdStrandTrees(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties->fwdStrandTrees;
+}
+
+GList* detailViewGetRevStrandTrees(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties->revStrandTrees;
 }
 
 int detailViewGetNumReadingFrames(GtkWidget *detailView)

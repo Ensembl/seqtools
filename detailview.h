@@ -41,6 +41,9 @@ IntRange*		detailViewGetDisplayRange(GtkWidget *detailView);
 int			detailViewGetSelectedBaseIdx(GtkWidget *detailView);
 int			detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*		detailViewGetAdjustment(GtkWidget *detailView);
+GList*			detailViewGetFwdStrandTrees(GtkWidget *detailView);
+GList*			detailViewGetRevStrandTrees(GtkWidget *detailView);
+GtkWidget*		detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 

@@ -19,7 +19,7 @@
 
 
 /* Local function declarations */
-static void updateFeedbackBox(GtkWidget *tree);
+static void updateFeedbackBoxForAllTrees(GtkWidget *tree);
 static void onSelectionChangedTree(GObject *selection, gpointer data);
 
 /***************************************************************
@@ -148,7 +148,7 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
 	  detailViewProperties->selectedBaseIdx = selectedBaseIdx;
 	  
 	  /* Update the feedback box */
-	  updateFeedbackBox(tree);
+	  updateFeedbackBoxForAllTrees(tree);
 
 	  /* Re-render all trees in the detail view */
 	  gtk_widget_queue_draw(properties->detailView);
@@ -457,65 +457,124 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
 }
 
 
+/* Set the text displayed in the user feedback box based on this row's sequence name (if this
+ * row is selected), and also the currently-selected base index (if there is one). This function
+ * returns true if this is the selected row in order to end any recursion (i.e. it is only
+ * intended to deal with single-row selections). */
 static gboolean setFeedbackText(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   gboolean done = FALSE;
 
+  /* Clear the original entry */
   GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
+  gtk_entry_set_text(GTK_ENTRY(feedbackBox), "");
 
+  /* The info we need to find... */
   int qIdx = treeGetSelectedBaseIdx(tree);
   int sIdx = UNSET_INT;
   char *sname = NULL;
-
-  /* Extract the MSP from the selected row. */
-  const MSP *msp = treeGetMsp(model, iter);
-
+  
+  /* See if this row's selected */
   if (treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
     {
       done = TRUE;
 
-      
-      /* Set the match sequence name */
-      sname = msp->sname;
-      
-      /* If a ref sequence base is selected, find the corresponding base in the match sequence */
-      if (qIdx != UNSET_INT)
+      const MSP *msp = treeGetMsp(model, iter);
+
+      /* If we have a match, set the sequence name */
+      if (msp)
 	{
-	  sIdx = gapCoord(msp, qIdx, treeGetNumReadingFrames(tree), treeGetStrand(tree));
+	  sname = msp->sname;
+      
+	  /* If a ref sequence base is selected, find the corresponding base in the match sequence */
+	  sIdx = UNSET_INT;
+	  if (msp && qIdx != UNSET_INT)
+	    {
+	      sIdx = gapCoord(msp, qIdx, treeGetNumReadingFrames(tree), treeGetStrand(tree));
+	    }
 	}
+    }
   
-      /* Create the message text. */
-      char messageText[500] = "";
-      
-      if (qIdx != UNSET_INT && sname != NULL)
-	{
-	  sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display both */
-	}
-      else if (qIdx != UNSET_INT)
-	{
-	  sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);	/* just the index */
-	}
-      else if (sname != NULL)
-	{
-	  sprintf(messageText, "%s", sname);				/* just the name */
-	}
-      
-      /* Update the feedback box */ 
-      GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
-      gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
+  /* Create the message text. */
+  char messageText[500] = "";
+  
+  if (sname != NULL && qIdx != UNSET_INT)
+    {
+      sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display all */
+    }
+  else if (sname != NULL)
+    {
+      sprintf(messageText, "%s", sname);				/* just the name */
+    }
+  else if (qIdx != UNSET_INT)
+    {
+      sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);  /* just the index */
+    }
+  
+  /* Update the feedback box */ 
+  gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
+  
+  /* Single-row selection, so once we've found the selected row don't continue any more */
+  return done;
+}
+
+
+/* Updates the feedback box with info about any currently-selected row/base in the
+ * given tree.  This currently assumes single-row selections, but could be extended
+ * in the future to display, say, summary information about multiple rows. Returns true
+ * if the given tree has rows selected. */
+static gboolean updateFeedbackBoxForTree(GtkWidget *tree)
+{
+  gboolean done = FALSE;
+  
+  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+  if (model)
+    {
+      gtk_tree_model_foreach(model, setFeedbackText, tree);
+      gtk_widget_queue_draw(treeGetFeedbackBox(tree));
+    }
+  
+  GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+  if (gtk_tree_selection_count_selected_rows(selection) > 0)
+    {
+      done = TRUE;
     }
   
   return done;
 }
 
 
-/* Updates the feedback box with info about the currently-selected row/base. This
- * should be called every time the row selection or base selection is changed. */
-static void updateFeedbackBox(GtkWidget *tree)
+/* Updates the feedback box with info about the currently-selected row/base. Takes
+ * into account selections in any of the trees. This should be called every time 
+ * the row selection or base selection is changed. 
+ * TNote that there shouldn't be rows selected in different trees at the same time,
+ * so this function doesn't really deal with that situation - what will happen is
+ * that the contents of the feedback box will be overwritten by the last tree the
+ * update function is called for. */
+static void updateFeedbackBoxForAllTrees(GtkWidget *tree)
 {
-  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_model_foreach(model, setFeedbackText, tree);
-  gtk_widget_queue_draw(treeGetFeedbackBox(tree));
+  GtkWidget *detailView = treeGetDetailView(tree);
+
+
+  /* Loop through all of the trees. Stop if we find one that has selected rows. */
+  int numFrames = detailViewGetNumReadingFrames(detailView);
+  gboolean done = FALSE;
+
+  int frame = 1;
+  for ( ; frame <= numFrames && !done; ++frame)
+    {
+      /* Forward strand tree for this reading frame */
+      GtkWidget *curTree = detailViewGetFrameTree(detailView, TRUE, frame);
+      done = updateFeedbackBoxForTree(curTree);
+
+      if (!done)
+	{
+	  /* Reverse strand tree for this reading frame */
+	  GtkWidget *curTree = detailViewGetFrameTree(detailView, FALSE, frame);
+	  done = updateFeedbackBoxForTree(curTree);
+	}
+    }
 }
 
 
@@ -604,12 +663,14 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 {
   gboolean handled = FALSE;
   
-  /* Left button: Let the default handler select the row */
+  /* Left button: select row */
   if (event->button == 1)
     {
       /* First, deselect anything in any other trees than this one. Then let the
        * default handler select the row. */
       deselectAllSiblingTrees(tree);
+      
+      /* Let the default handler select the row */
       handled = FALSE;
     }
   
@@ -622,6 +683,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
   /* Middle button: scrolls */
   if (event->button == 2)
     {
+      /* Select the base index at the clicked coords */
       treeSetSelectedBaseIdx(tree, getBaseIndexAtTreeCoords(tree, event->x, event->y));
       handled = TRUE;
     }
@@ -717,7 +779,7 @@ static void onSelectionChangedTree(GObject *selection, gpointer data)
   GtkWidget *tree = GTK_WIDGET(data);
 
   /* Update the feedback box to tell the user which sequence is selected. */
-  updateFeedbackBox(tree);
+  updateFeedbackBoxForAllTrees(tree);
   
   /* Redraw the corresponding grid */
   TreeProperties *properties = treeGetProperties(tree);
