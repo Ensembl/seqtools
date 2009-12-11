@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.4 2009-12-08 13:06:16 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.5 2009-12-11 12:07:07 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -227,6 +227,8 @@ void getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin
 void getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
 void sortValues(int *val1, int *val2, gboolean forwards);
+int  numDigitsInInt(int val);
+
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char *blixemVersion ;

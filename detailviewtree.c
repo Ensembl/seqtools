@@ -104,7 +104,7 @@ GtkCellRenderer *treeGetRenderer(GtkWidget *tree)
   return properties ? properties->renderer : NULL;
 }
 
-static GtkWidget *treeGetDetailView(GtkWidget *tree)
+GtkWidget *treeGetDetailView(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -118,6 +118,15 @@ Strand treeGetStrand(GtkWidget *tree)
   TreeProperties *properties = treeGetProperties(tree);
   return gridGetStrand(properties->grid);
 }
+
+
+gboolean treeGetStrandsToggled(GtkWidget *tree)
+{
+  assertTree(tree);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetStrandsToggled(detailView);
+}
+
 
 int treeGetNumReadingFrames(GtkWidget *tree)
 {
@@ -423,11 +432,18 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
   GtkCellRenderer *renderer = treeGetRenderer(tree);
   gtk_tree_view_column_cell_get_position(col, renderer, &startPos, &colWidth);
   
-  /* Check it's in range */
-  if (x > renderer->xpad && x < colWidth - renderer->xpad)
+  /* Find the direction of the display. If strands are toggled, the reference
+   * sequence is shown right-to-left (i.e. lowest value on the right). */
+  gboolean rightToLeft = treeGetStrandsToggled(tree);
+  
+  /* Check that the given coord is within the cell's display area */
+  if (x > renderer->xpad && x < colWidth)
     {
       gint charWidth = SEQUENCE_CELL_RENDERER(renderer)->charWidth;
-      result = ((x - renderer->xpad - 1) / charWidth);
+
+      /* Calculate the distance from the left edge (or right edge, if display reversed). */
+      int distFromEdge = rightToLeft ? colWidth - (x - renderer->xpad * 2) : x - renderer->xpad * 2;
+      result = (int)((double)(distFromEdge) / (double)charWidth);
     }
   
   return result;
@@ -721,7 +737,7 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
 	  if (adjustment)
 	    {
 	      int scrollStart = properties->selectedBaseIdx - (adjustment->page_size / 2);
-	      setDetailViewScrollPos(adjustment, scrollStart);
+	      setDetailViewScrollPos(treeGetDetailView(tree), scrollStart);
 	    }
 	}
       
@@ -858,15 +874,65 @@ void addMspToTreeModel(GtkTreeModel *model, const MSP *msp)
 }
 
 
+/* Cell data function for the "start" column. This displays the start coord of the match 
+ * sequence in normal left-to-right display, but the end coord if the display is reversed */
+static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
+				     GtkCellRenderer *renderer, 
+				     GtkTreeModel *model, 
+				     GtkTreeIter *iter, 
+				     gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  gboolean rightToLeft = treeGetStrandsToggled(tree);
+  
+  /* Get the msp for this row */
+  const MSP *msp = treeGetMsp(model, iter);
+  
+  /* We want to display the start coord, unless the display is reversed, in which case display the end */
+  int coord = rightToLeft ? msp->send : msp->sstart;
+
+  char displayText[numDigitsInInt(coord) + 1];
+  sprintf(displayText, "%d", coord);
+  g_object_set(renderer, "text", displayText, NULL);
+}
+
+
+/* Cell data function for the "end" column. This displays the end coord of the match 
+ * sequence in normal left-to-right display, but the start coord if the display is reversed */
+static void cellDataFunctionEndCol(GtkTreeViewColumn *column, 
+				   GtkCellRenderer *renderer, 
+				   GtkTreeModel *model, 
+				   GtkTreeIter *iter, 
+				   gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  gboolean rightToLeft = treeGetStrandsToggled(tree);
+  
+  /* Get the msp for this row */
+  const MSP *msp = treeGetMsp(model, iter);
+  
+  /* We want to display the end coord, unless the display is reversed, in which case display the start */
+  int coord = rightToLeft ? msp->sstart : msp->send;
+  
+  char displayText[numDigitsInInt(coord) + 1];
+  sprintf(displayText, "%d", coord);
+  g_object_set(renderer, "text", displayText, NULL);
+}
+
+
 static void addTreeColumns(GtkWidget *tree, GtkCellRenderer *renderer)
 {
   /* Add the columns */
   initColumn(tree,  renderer,  "Name",     "text", S_NAME_COL, FALSE, 90);
   initColumn(tree,  renderer,  "Score",    "text", SCORE_COL,  FALSE, 30);
   initColumn(tree,  renderer,  "%ID",      "text", ID_COL,	  FALSE, 30);
-  initColumn(tree,  renderer,  "Start",    "text", START_COL,  FALSE, 40);
-  GtkTreeViewColumn *seqCol = initColumn(tree,  renderer,  "Sequence", "msp",  MSP_COL,  TRUE, 40);
-  initColumn(tree,  renderer,  "End",      "text", END_COL,	  FALSE, 30);
+  GtkTreeViewColumn *startCol = initColumn(tree,  renderer,  "Start",    "text", START_COL,  FALSE, 40);
+  GtkTreeViewColumn *seqCol   = initColumn(tree,  renderer,  "Sequence", "msp",  MSP_COL,  TRUE, 40);
+  GtkTreeViewColumn *endCol   = initColumn(tree,  renderer,  "End",      "text", END_COL,	  FALSE, 30);
+
+  /* Set custom data functions for start/end cols (so that coords flip when display is reversed) */
+  gtk_tree_view_column_set_cell_data_func(startCol, renderer, cellDataFunctionStartCol, tree, NULL);
+  gtk_tree_view_column_set_cell_data_func(endCol, renderer, cellDataFunctionEndCol, tree, NULL);
   
   /* Set it to use a fixed width font. This also sets the row height based on the font size.
    * For now we just use the default size from the theme. */

@@ -44,10 +44,11 @@ GtkAdjustment*		detailViewGetAdjustment(GtkWidget *detailView);
 GList*			detailViewGetFwdStrandTrees(GtkWidget *detailView);
 GList*			detailViewGetRevStrandTrees(GtkWidget *detailView);
 GtkWidget*		detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame);
+gboolean		detailViewGetStrandsToggled(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
-void			setDetailViewScrollPos(GtkAdjustment *adjustment, 
+void			setDetailViewScrollPos(GtkWidget *detailView, 
 					       int value);
 
 GtkWidget*		createDetailView(GtkWidget *container, 

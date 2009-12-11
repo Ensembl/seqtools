@@ -27,6 +27,7 @@
 
 /* Local function declarations */
 static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
+static GtkAdjustment*	    gridGetDetailView(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 
 
@@ -470,7 +471,7 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
       /* Update the detail view's scroll pos to start at the start base */
       GtkAdjustment *adjustment = properties->tree ? treeGetAdjustment(properties->tree) : NULL;
       if (adjustment)
-	setDetailViewScrollPos(adjustment, baseIdx);
+	setDetailViewScrollPos(gridGetDetailView(grid), baseIdx);
       
       gtk_widget_queue_draw(grid);
     }
@@ -581,6 +582,13 @@ static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
   GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
   return detailViewGetAdjustment(detailView);
+}
+
+static GtkAdjustment* gridGetDetailView(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  return mainWindowGetDetailView(mainWindow);
 }
 
 

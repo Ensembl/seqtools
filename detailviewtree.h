@@ -43,6 +43,7 @@ GtkAdjustment*	  treeGetAdjustment(GtkWidget *tree);
 GtkCellRenderer*  treeGetRenderer(GtkWidget *tree);
 GtkWidget*	  treeGetGrid(GtkWidget *tree);
 Strand		  treeGetStrand(GtkWidget *tree);
+gboolean	  treeGetStrandsToggled(GtkWidget *tree);
 int		  treeGetNumReadingFrames(GtkWidget *tree);
 int		  treeGetSelectedBaseIdx(GtkWidget *tree);
 char*		  treeGetRefSeq(GtkWidget *tree);
@@ -51,6 +52,7 @@ const MSP*	  treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter);
 GtkTreeModel*	  treeGetVisibleDataModel(GtkTreeView *tree);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 gboolean	  treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model);
+GtkWidget*	  treeGetDetailView(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 

@@ -26,7 +26,7 @@ static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
  ***********************************************************/
 
 /* Utility to calculate how many digits are in an integer */
-static int numDigitsInInt(int val)
+int numDigitsInInt(int val)
 {
   int count = 0;
   while (val > 0)

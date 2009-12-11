@@ -23,7 +23,7 @@
 static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
 //static BlxSeqType	    detailViewGetSeqType(GtkWidget *detailView);
-static gboolean		    detailViewGetStrandsToggled(GtkWidget *detailView);
+
 
 /***********************************************************
  *		       Utility functions                   *
@@ -57,10 +57,11 @@ static void decrementFontSize(GtkWidget *tree, gpointer data)
 
 /* Update the scroll position of the given adjustment to the given value. Does
  * bounds checking. */
-void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
+void setDetailViewScrollPos(GtkWidget *detailView, int value)
 {
-  static int c=0; ++c; printf("setDetailViewScrollPos%d\n", c);
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   
+  /* bounds checking */
   if (value < adjustment->lower)
     {
       value = adjustment->lower;
@@ -387,7 +388,7 @@ static GtkWidget* detailViewGetMainWindow(GtkWidget *detailView)
   return properties ? properties->mainWindow : NULL;
 }
 
-static gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
+gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
 {
   return mainWindowGetStrandsToggled(detailViewGetMainWindow(detailView));
 }
@@ -632,6 +633,21 @@ static void ToggleStrand(GtkWidget *detailView)
   MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewGetMainWindow(detailView));
   mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
   
+  /* Toggle the position of the scrollbar */
+//  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+//  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+//  if (mainWindowProperties->strandsToggled)
+//    {
+//      adjustment->value = adjustment->upper - displayRange->max - 1;
+//    }
+//    else
+//    {
+//      adjustment->value = displayRange->min - 1;
+//    }
+//  
+//  gtk_adjustment_changed(adjustment);
+  
+  /* Refresh the tree and grid order (i.e. switch them based on the new toggle status) */
   refreshTreeOrder(detailView);
   
   GtkWidget *bigPicture = mainWindowGetBigPicture(detailViewGetMainWindow(detailView));

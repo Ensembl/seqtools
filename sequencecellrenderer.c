@@ -298,6 +298,13 @@ static IntRange* getDisplayRange(SequenceCellRenderer *renderer)
 }
 
 
+/* Get the main window strands-toggled status */
+static gboolean getStrandsToggled(SequenceCellRenderer *renderer)
+{
+  return treeGetStrandsToggled(renderer->tree);
+}
+
+
 /* Get the number of reading frames in the detail view */
 static int getNumReadingFrames(SequenceCellRenderer *renderer)
 {
@@ -571,8 +578,16 @@ static void drawBaseBackgroundColour(MSP *msp,
   if (charToDisplay != 'x')
     {
       insertChar(displayText, strIdx, charToDisplay, msp);
-      gdk_gc_set_foreground(gc, baseBgColour);
-      gdk_draw_rectangle(window, gc, TRUE, x, y, width, height);
+      
+      if (GDK_IS_GC(gc))
+	{
+	  gdk_gc_set_foreground(gc, baseBgColour);
+	  gdk_draw_rectangle(window, gc, TRUE, x, y, width, height);
+	}
+      else
+	{
+	  messerror("Invalid graphics context");
+	}
     }  
 }
 
@@ -587,9 +602,31 @@ static PangoLayout* getLayoutFromText(char *displayText, GtkWidget *widget, Pang
 
 /* Return the x/y coords for the top-left corner where we want to draw the base
  * with the given index in the reference sequence */
-static void getCoordsForBaseIdx(int qIdx, SequenceCellRenderer *renderer, IntRange *displayRange, GdkRectangle *cell_area, int x_offset, int y_offset, int vertical_separator, int *x, int* y)
+static void getCoordsForBaseIdx(int qIdx, 
+				SequenceCellRenderer *renderer, 
+				IntRange *displayRange, 
+				gboolean rightToLeft,
+				GdkRectangle *cell_area, 
+				int x_offset, 
+				int y_offset, 
+				int vertical_separator, 
+				int *x, 
+				int* y)
 {
-  int charIdx = qIdx - displayRange->min;
+  /* Calculate the index of the character within the cell. */
+  int charIdx = UNSET_INT;
+  if (rightToLeft)
+    {
+      /* Strands have been toggled, so display sequences reversed (i.e. so they read right-to-left) */
+      charIdx = displayRange->max - qIdx - 1;
+    }
+  else
+    {
+      /* Normal left-to-right display */
+      charIdx = qIdx - displayRange->min;
+    }
+
+  /* Calculate the coords */
   *x = cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad + (charIdx * renderer->charWidth);
   *y = cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator;
 }
@@ -608,28 +645,34 @@ static void drawBases(SequenceCellRenderer *renderer,
   GdkGC *gc = gdk_gc_new(window);
   
   IntRange *displayRange = getDisplayRange(renderer);
+  gboolean rightToLeft = getStrandsToggled(renderer);
   int selectedBaseIdx = getSelectedBaseIdx(renderer);
   
   int qSeqMin, qSeqMax;
   getMspRangeExtents(renderer->msp, &qSeqMin, &qSeqMax, NULL, NULL);
   
-  /* Loop through each index in the match sequence that is within the display range. */
-  int qStart = qSeqMin >= displayRange->min ? qSeqMin : displayRange->min;
-  int qEnd = qSeqMax <= displayRange->max ? qSeqMax : displayRange->max;
+  /* We'll through each index in the match sequence that is within the display range. 
+   * First, find the min and max values to display. */
+  int qMin = qSeqMin >= displayRange->min ? qSeqMin : displayRange->min;
+  int qMax = qSeqMax <= displayRange->max ? qSeqMax : displayRange->max;
+
+  /* We'll start drawing from the left. In normal left-to-right display, low values
+   * are on the left and high values on the right. If the display is toggled, this
+   * is reversed. */
+  int qStart = rightToLeft ? qMax : qMin;
   
-  int displayLen = qEnd - qStart + 2;
-  char displayText[displayLen];
+  /* We'll populate a string with the characters to display as we loop through the indices. */
+  char displayText[qMax - qMin + 2];
   int strIdx = 0;
   
   gboolean doneSelectedBase = FALSE;
 
+  /* Ok, let's loop through the bases we're interested in displaying. */
   int qIdx;
-  for (qIdx = qStart ; qIdx <= qEnd; ++qIdx)
+  for (qIdx = qStart; qIdx >= qMin && qIdx <= qMax; (rightToLeft ? --qIdx : ++qIdx))
     {
-      doneSelectedBase = (qIdx == selectedBaseIdx);
-      
       int x, y;
-      getCoordsForBaseIdx(qIdx, renderer, displayRange, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+      getCoordsForBaseIdx(qIdx, renderer, displayRange, rightToLeft, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
       
       drawBaseBackgroundColour(renderer->msp, 
 				qIdx, 
@@ -647,6 +690,8 @@ static void drawBases(SequenceCellRenderer *renderer,
 				gc,
 				displayText,
 				&strIdx);
+      
+      doneSelectedBase = doneSelectedBase || (qIdx == selectedBaseIdx);
     }
 
   /* Null-terminate the string */
@@ -654,10 +699,10 @@ static void drawBases(SequenceCellRenderer *renderer,
 
 
   /* Make sure we always colour the selected base index's background for every row */
-  if (selectedBaseIdx != UNSET_INT && !doneSelectedBase)
+  if (!doneSelectedBase && selectedBaseIdx >= displayRange->min && selectedBaseIdx <= displayRange->max)
     {
       int x, y;
-      getCoordsForBaseIdx(selectedBaseIdx, renderer, displayRange, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+      getCoordsForBaseIdx(selectedBaseIdx, renderer, displayRange, rightToLeft, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
 
       drawBaseBackgroundColour(renderer->msp, 
 			       selectedBaseIdx, 
@@ -678,15 +723,19 @@ static void drawBases(SequenceCellRenderer *renderer,
     }
   
   /* Draw the sequence text over the top of the coloured backgrounds. */
-  if (qStart <= qEnd)
+  /* Get the coords for the first base we're displaying. The display text was 
+   * constructed such that everything else will line up from here. */
+  if (g_utf8_validate(displayText, -1, NULL))
     {
-      /* Get the coords for the first base we're displaying. The display text was 
-       * constructed such that everything else will line up from here. */
       int x, y;
-      getCoordsForBaseIdx(qStart, renderer, displayRange, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+      getCoordsForBaseIdx(qStart, renderer, displayRange, rightToLeft, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
 
       PangoLayout *layout = getLayoutFromText(displayText, widget, font_desc);
       gtk_paint_layout (widget->style, window, state, TRUE, NULL, widget, NULL, x, y, layout);
+    }
+  else
+    {
+      messerror("Invalid string constructed when trying to display sequence:\n%s\n", displayText);
     }
 }    
 
