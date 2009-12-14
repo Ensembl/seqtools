@@ -34,7 +34,20 @@ typedef struct _TreeProperties
     GtkCellRenderer *renderer; /* The custom cell renderer to render this tree's match sequences */
     
     char *refSeq;	     /* The reference sequence for this tree. (It is the complemented version if the strand is reversed.) */
+
+    /* Display colours */
+    GdkColor refSeqColour;
+    GdkColor refSeqSelectedColour;
+    GdkColor matchColour;
+    GdkColor matchSelectedColour;
+    GdkColor mismatchColour;
+    GdkColor mismatchSelectedColour;
+    GdkColor exonColour;
+    GdkColor exonSelectedColour;
+    GdkColor gapColour;
+    GdkColor gapSelectedColour;
   } TreeProperties;
+GdkColor exonColour;
 
 
 /* Public function declarations */
@@ -53,6 +66,18 @@ GtkTreeModel*	  treeGetVisibleDataModel(GtkTreeView *tree);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 gboolean	  treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model);
 GtkWidget*	  treeGetDetailView(GtkWidget *tree);
+
+
+GdkColor*	  treeGetRefSeqColour(GtkWidget *tree);
+GdkColor*	  treeGetRefSeqSelectedColour(GtkWidget *tree);
+GdkColor*	  treeGetMatchColour(GtkWidget *tree);
+GdkColor*	  treeGetMatchSelectedColour(GtkWidget *tree);
+GdkColor*	  treeGetMismatchColour(GtkWidget *tree);
+GdkColor*	  treeGetMismatchSelectedColour(GtkWidget *tree);
+GdkColor*	  treeGetExonColour(GtkWidget *tree);
+GdkColor*	  treeGetExonSelectedColour(GtkWidget *tree);
+GdkColor*	  treeGetGapColour(GtkWidget *tree);
+GdkColor*	  treeGetGapSelectedColour(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 

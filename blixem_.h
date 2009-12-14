@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.5 2009-12-11 12:07:07 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.6 2009-12-14 10:30:52 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -84,6 +84,19 @@ typedef struct BlixemViewStructName
 #define INITDBSEQLEN 50000				    /* Initial estimate of max database sequence length */
 
 #define MAXLINE 10000
+
+/* These colours are decimal version of, e.g. "ffff00" for yellow, i.e. R=255, G=255, B=0.
+ * They can be used to define a GdkColor */
+#define GDK_YELLOW	    16776960 
+#define GDK_DARK_YELLOW	    8421376
+#define GDK_CYAN	    65535
+#define GDK_DARK_CYAN	    32896
+#define GDK_BLUE	    255
+#define GDK_DARK_BLUE	    128
+#define GDK_GREY	    12500670
+#define GDK_DARK_GREY	    4210752
+#define GDK_BLACK	    0
+
 
 /* Fundamental type of sequence. */
 typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
@@ -228,6 +241,7 @@ void getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int 
 
 void sortValues(int *val1, int *val2, gboolean forwards);
 int  numDigitsInInt(int val);
+GdkColor getGdkColor(gulong colour);
 
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */

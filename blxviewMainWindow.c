@@ -150,8 +150,5 @@ GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, BlxSeqType s
   gtk_widget_show_all(window);
   printf("Done.\n");
   
-  /* Now the grids have real size, calculate the size and position of the msp lines */
-  callFuncOnAllMspLines(panedWidget, configureMspLine);
-  
   return window;
 }

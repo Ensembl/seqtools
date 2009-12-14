@@ -64,6 +64,13 @@ static void seqColCreateProperties(GtkTreeViewColumn *column, GtkWidget *tree)
  *                Tree - utility functions                 *
  ***********************************************************/
 
+GdkColor getGdkColor(gulong colour)
+{
+  GdkColor result = {colour};
+  return result;
+}
+
+
 static void assertTree(GtkWidget *tree)
 {
   if (!tree)
@@ -251,6 +258,66 @@ static GtkWidget* treeGetFeedbackBox(GtkWidget *tree)
   assertTree(tree);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeGetDetailView(tree));
   return detailViewProperties->feedbackBox;
+}
+
+GdkColor* treeGetRefSeqColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->refSeqColour;
+}
+
+GdkColor* treeGetRefSeqSelectedColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->refSeqSelectedColour;
+}
+
+GdkColor* treeGetMatchColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->matchColour;
+}
+
+GdkColor* treeGetMatchSelectedColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->matchSelectedColour;
+}
+
+GdkColor* treeGetMismatchColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->mismatchColour;
+}
+
+GdkColor* treeGetMismatchSelectedColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->mismatchSelectedColour;
+}
+
+GdkColor* treeGetExonColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->exonColour;
+}
+
+GdkColor* treeGetExonSelectedColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->exonSelectedColour;
+}
+
+GdkColor* treeGetGapColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->gapColour;
+}
+
+GdkColor* treeGetGapSelectedColour(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return &properties->gapSelectedColour;
 }
 
 
@@ -646,6 +713,7 @@ static void onDestroyTree(GtkWidget *widget)
     }
 }
 
+
 static void treeCreateProperties(GtkWidget *widget, 
 				 GtkWidget *grid, 
 				 GtkWidget *detailView, 
@@ -658,6 +726,17 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->grid = grid;
       properties->detailView = detailView;
       properties->renderer = renderer;
+      
+      properties->refSeqColour = getGdkColor(GDK_YELLOW);
+      properties->refSeqSelectedColour = getGdkColor(GDK_DARK_YELLOW);
+      properties->matchColour = getGdkColor(GDK_CYAN);
+      properties->matchSelectedColour = getGdkColor(GDK_DARK_CYAN);
+      properties->mismatchColour = getGdkColor(GDK_GREY);
+      properties->mismatchSelectedColour = getGdkColor(GDK_DARK_GREY);
+      properties->exonColour = getGdkColor(GDK_YELLOW);
+      properties->exonSelectedColour = getGdkColor(GDK_DARK_YELLOW);
+      properties->gapColour = getGdkColor(GDK_GREY);
+      properties->gapSelectedColour = getGdkColor(GDK_DARK_GREY);
       
       g_object_set_data(G_OBJECT(widget), "TreeProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyTree), NULL); 

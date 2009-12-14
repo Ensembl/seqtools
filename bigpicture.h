@@ -11,6 +11,8 @@
 
 #include <SeqTools/bigpicturegrid.h>
 
+
+
 typedef struct _BigPictureProperties
   {
     GtkWidget *mainWindow;  /* The main window widget that this grid belongs to */
@@ -30,11 +32,14 @@ typedef struct _BigPictureProperties
     int charWidth;	    /* The width of the characters in the big picture grids */
     int charHeight;	    /* The height of the characters in the big picture grids */
     
-    /* Drawing properties */
-    GdkColor gridLineColor;
-    GdkColor gridTextColor;
-    GdkColor highlightColor;
-    GdkColor previewColor;
+    /* Colour settings */
+    GdkColor gridLineColour;
+    GdkColor gridTextColour;
+    GdkColor highlightBoxColour;
+    GdkColor previewBoxColour;
+    GdkColor mspLineColour;
+    GdkColor mspLineHighlightColour;
+    
     int highlightBoxLineWidth;
     int previewBoxLineWidth;
   } BigPictureProperties;
@@ -63,6 +68,7 @@ GtkWidget*		      bigPictureGetFwdGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevGrid(GtkWidget *bigPicture);
 gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 

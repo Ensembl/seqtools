@@ -10,27 +10,9 @@
 #include <SeqTools/sequencecellrenderer.h>
 #include <SeqTools/blixem_.h>
 #include <SeqTools/detailviewtree.h>
-
 #include <wh/smap.h>
-
 #include <gtk/gtkcellrenderertext.h>
 
-
-#define MATCH_SEQ_GAP_CHAR	"."	    /* Character to display when there is a gap in the match sequence */
-#define YELLOW			"ffff00"
-#define DARK_YELLOW		"808000"
-#define BLUE			"00ffff"
-#define DARK_BLUE		"008080"
-#define GREY			"bebebe"
-#define DARK_GREY		"404040"
-
-GdkColor yellow = {16776960};
-GdkColor dark_yellow = {8421376};
-GdkColor cyan = {65535};
-GdkColor dark_cyan = {32896};
-GdkColor grey = {12500670};
-GdkColor dark_grey = {4210752};
-GdkColor black = {0};
 
 /* Properties */
 enum 
@@ -318,6 +300,33 @@ static int getSelectedBaseIdx(SequenceCellRenderer *renderer)
   return treeGetSelectedBaseIdx(renderer->tree);
 }
 
+/* Get colours */
+static GdkColor* getRefSeqColour(SequenceCellRenderer *renderer, gboolean selected)
+{
+  return selected ? treeGetRefSeqSelectedColour(renderer->tree) : treeGetRefSeqColour(renderer->tree);;
+}
+
+static GdkColor* getMatchColour(SequenceCellRenderer *renderer, gboolean selected)
+{
+  return selected ? treeGetMatchSelectedColour(renderer->tree) : treeGetMatchColour(renderer->tree);
+}
+
+static GdkColor* getMismatchColour(SequenceCellRenderer *renderer, gboolean selected)
+{
+  return selected ? treeGetMismatchSelectedColour(renderer->tree) : treeGetMismatchColour(renderer->tree);
+}
+
+static GdkColor* getGapColour(SequenceCellRenderer *renderer, gboolean selected)
+{
+  return selected ? treeGetGapSelectedColour(renderer->tree) : treeGetGapColour(renderer->tree);
+}
+
+static GdkColor* getExonColour(SequenceCellRenderer *renderer, gboolean selected)
+{
+  return selected ? treeGetExonSelectedColour(renderer->tree) : treeGetExonColour(renderer->tree);
+}
+
+
 
 /* input is co-ord on query sequence, find corresonding base in subject sequence */
 int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand)
@@ -517,6 +526,7 @@ static void drawBaseBackgroundColour(MSP *msp,
 				     int height,
 				     GdkWindow *window,
 				     GdkGC *gc,
+				     SequenceCellRenderer *renderer,
 				     char *displayText,
 				     int *strIdx)
 {
@@ -531,13 +541,13 @@ static void drawBaseBackgroundColour(MSP *msp,
 	{
 	  /* Exon. Draw a blank space with yellow background */
 	  charToDisplay = ' ';
-	  baseBgColour = selected ? &dark_yellow : &yellow;
+	  baseBgColour = getExonColour(renderer, selected);
 	}
       else if (msp->score == 0 && msp->id == -1) /* (not a great way of identifying the ref seq...) */
 	{
 	  /* Reference sequence. */
 	  charToDisplay = getRefSeqBase(refSeq, qIdx, qStrand);
-	  baseBgColour = selected ? &dark_yellow : &yellow;
+	  baseBgColour = getRefSeqColour(renderer, selected);
 	}
       else
 	{
@@ -547,24 +557,24 @@ static void drawBaseBackgroundColour(MSP *msp,
 	    {
 	      /* Find the background colour depending on whether this is a match or not. */
 	      charToDisplay = tolower(msp->sseq[sIdx - 1]);
-	      char qBase = getRefSeqBase(refSeq, qIdx, qStrand);
+	      int qBase = getRefSeqBase(refSeq, qIdx, qStrand);
 	      
 	      if (charToDisplay == qBase)
 		{
 		  /* Match. Blue background */
-		  baseBgColour = selected ? &dark_cyan : &cyan;
+		  baseBgColour = getMatchColour(renderer, selected); 
 		}
 	      else
 		{
 		  /* Mismatch. Grey background */
-		  baseBgColour = selected ? &dark_grey : &grey;
+		  baseBgColour = getMismatchColour(renderer, selected);
 		}
 	    }
 	  else
 	    {
 	      /* There is no equivalent base in the match sequence so draw a gap */
 	      charToDisplay = '.';
-	      baseBgColour = selected ? &dark_grey : &grey;
+	      baseBgColour = getGapColour(renderer, selected);
 	    }
 	}
     }
@@ -572,7 +582,7 @@ static void drawBaseBackgroundColour(MSP *msp,
     {
       /* Base does not exist in this match sequence but it is selected, so colour the background */
       charToDisplay = ' ';
-      baseBgColour = &grey;
+      baseBgColour = getGapColour(renderer, selected);
     }
 
   if (charToDisplay != 'x')
@@ -688,6 +698,7 @@ static void drawBases(SequenceCellRenderer *renderer,
 				renderer->charHeight,
 				window, 
 				gc,
+				renderer,   
 				displayText,
 				&strIdx);
       
@@ -718,6 +729,7 @@ static void drawBases(SequenceCellRenderer *renderer,
 			       renderer->charHeight,
 			       window, 
 			       gc,
+			       renderer,
 			       NULL,
 			       NULL);
     }

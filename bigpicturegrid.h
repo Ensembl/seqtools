@@ -49,13 +49,24 @@ typedef struct _GridProperties
 /* Public function declarations */
 GridProperties*	    gridGetProperties(GtkWidget *widget);
 Strand		    gridGetStrand(GtkWidget *grid);
-void		    callFuncOnAllBigPictureGrids(GtkWidget *widget, gpointer data);
-gint		    convertBaseIdxToGridPos(const gint baseIdx, const GdkRectangle const *gridRect, const IntRange const *displayRange);
-gint		    convertValueToGridPos(GtkWidget *grid, const gint value);
+
 void		    calculateGridBorders(GtkWidget *grid);
 void		    calculateHighlightBoxBorders(GtkWidget *grid);
-GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, gboolean hasHeaders, Strand strand);
 
+void		    callFuncOnAllBigPictureGrids(GtkWidget *widget, 
+						 gpointer data);
+
+gint		    convertValueToGridPos(GtkWidget *grid, 
+					  const gint value);
+
+GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
+					 gboolean hasHeaders, 
+					 Strand strand);
+
+gint		    convertBaseIdxToGridPos(const gint baseIdx, 
+					    const GdkRectangle const *gridRect, 
+					    const IntRange const *displayRange,
+					    const gboolean rightToLeft);
 
 
 #endif /* _big_picture_grid_included_ */

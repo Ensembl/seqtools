@@ -25,11 +25,15 @@
 #define DEFAULT_GRID_CELL_Y_PADDING	-2
 #define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2
 
+
 /* Local function declarations */
 static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
-static GtkAdjustment*	    gridGetDetailView(GtkWidget *grid);
+static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
-
+static gboolean		    gridGetStrandsToggled(GtkWidget *grid);
+static GdkColor*	    gridGetMspLineHighlightColour(GtkWidget *grid);
+static GdkColor*	    gridGetMspLineColour(GtkWidget *grid);
+static GtkWidget*	    gridGetTree(GtkWidget *grid);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -111,10 +115,27 @@ static gdouble pixelsPerBase(const gint gridWidth, const IntRange const *display
 
 
 /* Convert a base index to a grid position x coord. Returns the number of pixels from the
- * left edge of the widget to where the base lies. */
-gint convertBaseIdxToGridPos(const gint baseIdx, const GdkRectangle const *gridRect, const IntRange const *displayRange)
+ * left edge of the widget to where the base lies. rightToLeft should be passed as true if
+ * the display is toggled (i.e. low values on the right and high values on the left). */
+gint convertBaseIdxToGridPos(const gint baseIdx, 
+			     const GdkRectangle const *gridRect, 
+			     const IntRange const *displayRange,
+			     const gboolean rightToLeft)
 {
-  return gridRect->x + (gint)((gdouble)baseIdx * pixelsPerBase(gridRect->width, displayRange));
+  gint result = UNSET_INT;
+  
+  gint pixelsFromEdge = (gint)((gdouble)baseIdx * pixelsPerBase(gridRect->width, displayRange));
+  
+  if (rightToLeft)
+    {
+      result = gridRect->x + gridRect->width - pixelsFromEdge;
+    }
+  else
+    {
+      result = gridRect->x + pixelsFromEdge;
+    }
+  
+  return result;
 }
 
 
@@ -162,10 +183,13 @@ static void gridSetPreviewBoxCentre(GtkWidget *grid, int previewBoxCentre)
 
 
 /* Draw the highlight box. */
-static void drawHighlightBox(GtkWidget *widget, GdkGC *gc, const GdkRectangle const *rect,
-			     const gint lineWidth, GdkColor *lineColor)
+static void drawHighlightBox(GtkWidget *widget, 
+			     GdkGC *gc, 
+			     const GdkRectangle const *rect,
+			     const gint lineWidth, 
+			     GdkColor *lineColour)
 {
-  gdk_gc_set_rgb_fg_color(gc, lineColor);
+  gdk_gc_set_foreground(gc, lineColour);
   gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
   gdk_draw_rectangle(GTK_LAYOUT(widget)->bin_window, gc, FALSE, 
 		     rect->x, rect->y, rect->width, rect->height);
@@ -175,7 +199,7 @@ static void drawHighlightBox(GtkWidget *widget, GdkGC *gc, const GdkRectangle co
 /* Draw the preview box, if applicable */
 static void drawPreviewBox(GtkWidget *grid, GdkGC *gc, 
 			   const GdkRectangle const *highlightRect,
-			   const gint lineWidth, GdkColor *lineColor)
+			   const gint lineWidth, GdkColor *lineColour)
 {
   /* If a preview position is set, draw a preview of the highlight rect 
    * centred at that position */
@@ -189,7 +213,7 @@ static void drawPreviewBox(GtkWidget *grid, GdkGC *gc,
       
       /* The other dimensions of the preview box are the same as the current highlight box. */
       GdkRectangle previewRect = {x, highlightRect->y, highlightRect->width, highlightRect->height};
-      drawHighlightBox(grid, gc, &previewRect, lineWidth, lineColor);
+      drawHighlightBox(grid, gc, &previewRect, lineWidth, lineColour);
     }
 }
 
@@ -197,7 +221,7 @@ static void drawPreviewBox(GtkWidget *grid, GdkGC *gc,
 /* Draw the vertical gridlines in the big picture view */
 static void drawVerticalGridLines(GtkWidget *grid, GdkGC *gc, 
 				  const gint numCells, const gdouble cellWidth, 
-				  const GdkColor const *lineColor)
+				  const GdkColor const *lineColour)
 {
   GridProperties *properties = gridGetProperties(grid);
   
@@ -209,7 +233,7 @@ static void drawVerticalGridLines(GtkWidget *grid, GdkGC *gc,
   for ( ; hCell < numCells; ++hCell)
     {
       gint x = properties->gridRect.x + (gint)((gdouble)hCell * cellWidth);
-      gdk_gc_set_rgb_fg_color(gc, lineColor);
+      gdk_gc_set_foreground(gc, lineColour);
       gdk_draw_line (GTK_LAYOUT(grid)->bin_window, gc, x, topBorder, x, bottomBorder);
     }
 }
@@ -219,8 +243,8 @@ static void drawVerticalGridLines(GtkWidget *grid, GdkGC *gc,
 static void drawHorizontalGridLines(GtkWidget *grid, GdkGC *gc, 
 				    const gint numCells, 
 				    const gint rangePerCell, const gint maxVal, 
-				    const GdkColor const *textColor,
-				    const GdkColor const *lineColor)
+				    const GdkColor const *textColour,
+				    const GdkColor const *lineColour)
 {
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
@@ -234,7 +258,7 @@ static void drawHorizontalGridLines(GtkWidget *grid, GdkGC *gc,
       
       /* Label this gridline with the %ID */
       gint percent = maxVal - (rangePerCell * vCell);
-      gdk_gc_set_rgb_fg_color(gc, textColor);
+      gdk_gc_set_foreground(gc, textColour);
       
       char text[bigPictureProperties->leftBorderChars + 1];
       sprintf(text, "%d%%", percent);
@@ -244,7 +268,7 @@ static void drawHorizontalGridLines(GtkWidget *grid, GdkGC *gc,
       g_object_unref(layout);
       
       /* Draw the gridline */
-      gdk_gc_set_rgb_fg_color(gc, lineColor);
+      gdk_gc_set_foreground(gc, lineColour);
       gdk_draw_line (GTK_LAYOUT(grid)->bin_window, gc, properties->gridRect.x, y, rightBorder, y);
     }
 }
@@ -257,10 +281,17 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
   GridProperties *gridProperties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(gridProperties->bigPicture);
 
+  gboolean rightToLeft = bigPictureGetStrandsToggled(gridProperties->bigPicture);
+  
   /* Find the coordinates of the start and end base in this match sequence */
-  *x = convertBaseIdxToGridPos(msp->qstart, &gridProperties->gridRect, &bigPictureProperties->displayRange);
-  int xEnd = convertBaseIdxToGridPos(msp->qend + 1, &gridProperties->gridRect, &bigPictureProperties->displayRange);
-  *width = xEnd - *x;
+  int qSeqMin, qSeqMax;
+  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+  int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
+  int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
+
+  /* We'll start drawing at the lowest x coord */
+  *x = min(x1, x2);
+  *width = abs(x1 - x2);
   
   /* Find where in the y axis we should draw the line, based on the %ID value */
   *y = convertValueToGridPos(grid, msp->id);
@@ -268,37 +299,52 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
 }
 
 
-/* Draw a line on the grid to represent the MSP in the given tree path */
-static gboolean drawMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 {
-  GtkWidget *grid = GTK_WIDGET(data);
-  GridProperties *gridProperties = gridGetProperties(grid);
-  GtkWidget *tree = gridProperties->tree;
-
-  /* Set some colours, and our drawing context */
   GdkGC *gc = gdk_gc_new(grid->window);
   gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
-
-  GdkColor normalColor, highlightColor;
-  setGdkColorBlack(&normalColor);
-  setGdkColorCyan(&highlightColor);
+  gdk_gc_set_foreground(gc, colour);
   
-  /* Set the colour depending on the selection status */
-  if (treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
-    gdk_gc_set_rgb_fg_color(gc, &highlightColor);
-  else
-    gdk_gc_set_rgb_fg_color(gc, &normalColor);
- 
   /* Calculate where it should go */
-  const MSP* msp = treeGetMsp(model, iter);
   int x, y, width, height;
   calculateMspLineDimensions(grid, msp, &x, &y, &width, &height);
   
   /* Draw it */
   gdk_draw_rectangle(GTK_LAYOUT(grid)->bin_window, gc, TRUE, x, y, width, height);
   
-  /* Clean up */
   g_object_unref(gc);
+}
+
+
+/* Draw a line on the grid to represent the MSP in the given tree path. Ignores msps
+ * that are selected. */
+static gboolean drawNormalMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  GtkWidget *grid = GTK_WIDGET(data);
+  GtkWidget *tree = gridGetTree(grid);
+
+  if (!treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
+    {
+      const MSP* msp = treeGetMsp(model, iter);
+      drawMspLine(grid, gridGetMspLineColour(grid), msp);
+    }
+  
+  return FALSE;
+}
+
+
+/* Draw a line on the grid to represent the MSP in the given tree path. Ignores msps
+ * that are un-selected. */
+static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  GtkWidget *grid = GTK_WIDGET(data);
+  GtkWidget *tree = gridGetTree(grid);
+  
+  if (treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
+    {
+      const MSP* msp = treeGetMsp(model, iter);
+      drawMspLine(grid, gridGetMspLineHighlightColour(grid), msp);
+    }
   
   return FALSE;
 }
@@ -314,7 +360,8 @@ static void drawMspLines(GtkWidget *grid)
   if (properties && properties->tree)
     {
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(properties->tree));
-      gtk_tree_model_foreach(model, drawMspLine, grid);
+      gtk_tree_model_foreach(model, drawNormalMspLine, grid);
+      gtk_tree_model_foreach(model, drawSelectedMspLine, grid);
     }
 }
 
@@ -334,22 +381,35 @@ static void drawBigPictureGrid(GtkWidget *grid)
     (properties->numVCells > 0 ? properties->numVCells : 1);
   
   /* Draw the grid */
-  drawVerticalGridLines(grid, gc, bigPictureProperties->numHCells, bigPictureProperties->cellWidth,
-			&bigPictureProperties->gridLineColor);
+  drawVerticalGridLines(grid, 
+			gc, 
+			bigPictureProperties->numHCells, 
+			bigPictureProperties->cellWidth,
+			&bigPictureProperties->gridLineColour);
   
-  drawHorizontalGridLines(grid, gc, properties->numVCells, percentPerCell, 
-			  properties->percentIdRange.max, &bigPictureProperties->gridTextColor, 
-			  &bigPictureProperties->gridLineColor);
+  drawHorizontalGridLines(grid, 
+			  gc, 
+			  properties->numVCells, 
+			  percentPerCell, 
+			  properties->percentIdRange.max, 
+			  &bigPictureProperties->gridTextColour, 
+			  &bigPictureProperties->gridLineColour);
   
   /* Draw lines corresponding to the MSPs */
   drawMspLines(grid);
   
   /* Draw the highlight box */
-  drawHighlightBox(grid, gc, &properties->highlightRect, bigPictureProperties->highlightBoxLineWidth,
-		   &bigPictureProperties->highlightColor);
+  drawHighlightBox(grid, 
+		   gc,
+		   &properties->highlightRect, 
+		   bigPictureProperties->highlightBoxLineWidth,
+		   &bigPictureProperties->highlightBoxColour);
   
-  drawPreviewBox(grid, gc, &properties->highlightRect, bigPictureProperties->previewBoxLineWidth, 
-		 &bigPictureProperties->previewColor);
+  drawPreviewBox(grid,
+		 gc,
+		 &properties->highlightRect, 
+		 bigPictureProperties->previewBoxLineWidth, 
+		 &bigPictureProperties->previewBoxColour);
   
   g_object_unref(gc);
 }
@@ -365,8 +425,10 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
   if (adjustment)
     {
       IntRange *displayRange = gridGetDisplayRange(grid);
+      gboolean rightToLeft = gridGetStrandsToggled(grid);
+      int firstBaseIdx = rightToLeft ? adjustment->value + adjustment->page_size + 1 : adjustment->value + 1;
 
-      properties->highlightRect.x = convertBaseIdxToGridPos(adjustment->value, &properties->gridRect, displayRange);
+      properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->gridRect, displayRange, rightToLeft);
       properties->highlightRect.y = properties->gridRect.y - properties->highlightBoxYPad;
       
       properties->highlightRect.width = (gint)((gdouble)adjustment->page_size * pixelsPerBase(properties->gridRect.width, displayRange));
@@ -470,8 +532,11 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
       
       /* Update the detail view's scroll pos to start at the start base */
       GtkAdjustment *adjustment = properties->tree ? treeGetAdjustment(properties->tree) : NULL;
+      
       if (adjustment)
-	setDetailViewScrollPos(gridGetDetailView(grid), baseIdx);
+	{
+	  setDetailViewScrollPos(gridGetDetailView(grid), baseIdx);
+	}
       
       gtk_widget_queue_draw(grid);
     }
@@ -570,10 +635,22 @@ GtkWidget* gridGetBigPicture(GtkWidget *grid)
   return properties->bigPicture;
 }
 
+static GtkWidget* gridGetTree(GtkWidget *grid)
+{
+  GridProperties *properties = gridGetProperties(grid);
+  return properties->tree;
+}
+
 static IntRange* gridGetDisplayRange(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   return bigPictureGetDisplayRange(bigPicture);
+}
+
+static gboolean gridGetStrandsToggled(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  return bigPictureGetStrandsToggled(bigPicture);
 }
 
 static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
@@ -584,13 +661,26 @@ static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
   return detailViewGetAdjustment(detailView);
 }
 
-static GtkAdjustment* gridGetDetailView(GtkWidget *grid)
+static GtkWidget* gridGetDetailView(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
   return mainWindowGetDetailView(mainWindow);
 }
 
+static GdkColor *gridGetMspLineColour(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return &properties->mspLineColour;
+}
+
+static GdkColor *gridGetMspLineHighlightColour(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return &properties->mspLineHighlightColour;
+}
 
 /***********************************************************
  *                     Initialization                      *

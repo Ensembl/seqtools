@@ -652,6 +652,12 @@ static void ToggleStrand(GtkWidget *detailView)
   
   GtkWidget *bigPicture = mainWindowGetBigPicture(detailViewGetMainWindow(detailView));
   refreshGridOrder(bigPicture);
+  
+  /* Redraw all trees (and their corresponding grids) */
+  callFuncOnAllDetailViewTrees(mainWindowProperties->detailView, refreshTreeAndGrid);
+  
+  /* Redraw the grid header */
+  gtk_widget_queue_draw(bigPictureGetGridHeader(mainWindowProperties->bigPicture));
 }
 
 static void scrollRightBig(void)

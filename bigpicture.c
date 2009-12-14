@@ -20,6 +20,8 @@
 
 /* Local function declarations */
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
+static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
+static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -39,33 +41,6 @@ int numDigitsInInt(int val)
 }
 
 
-/* Utility functions to specify some standard colours */
-void setGdkColorBlack(GdkColor *color)
-{
-  color->red = 0;
-  color->green = 0;
-  color->blue = 0;
-}
-void setGdkColorYellow(GdkColor *color)
-{
-  color->red = 65535;
-  color->green = 65535;
-  color->blue = 0;
-}
-void setGdkColorBlue(GdkColor *color)
-{
-  color->red = 0;
-  color->green = 0;
-  color->blue = 65535;
-}
-void setGdkColorCyan(GdkColor *color)
-{
-  color->red = 0;
-  color->green = 65535;
-  color->blue = 65535;
-}
-
-
 /* Utility to get the height and (approx) width of the given widget's font */
 static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
 {
@@ -79,13 +54,22 @@ static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
 }
 
 
-static void drawVerticalGridLineHeaders(GtkWidget *header, GdkGC *gc, 
-					const gint numCells, const gdouble cellWidth, 
-					const gint rangePerCell, const GdkColor const *textColor, const GdkColor const *lineColor)
+static void drawVerticalGridLineHeaders(GtkWidget *header, 
+					GtkWidget *bigPicture, 
+					GdkGC *gc, 
+					const GdkColor const *textColour, 
+					const GdkColor const *lineColour)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
   const gint bottomBorder = properties->headerRect.y + properties->headerRect.height;
   const gint topBorder = bottomBorder - properties->markerHeight;
+  
+  gboolean rightToLeft = bigPictureGetStrandsToggled(bigPicture);
+  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  int numCells = bigPictureGetNumHCells(bigPicture);
+  int cellWidth = bigPictureGetCellWidth(bigPicture);
+  
+  gint basesPerCell = ceil((double)(displayRange->max - displayRange->min) / numCells);
   
   /* Omit the first and last lines */
   gint hCell = 1;
@@ -93,16 +77,20 @@ static void drawVerticalGridLineHeaders(GtkWidget *header, GdkGC *gc,
     {
       gint x = properties->headerRect.x + (gint)((gdouble)hCell * cellWidth);
       
-      /* Draw the label */
-      gdk_gc_set_rgb_fg_color(gc, textColor);
-      gchar text[20];
-      sprintf(text, "%d", rangePerCell * hCell);
+      /* Draw the label, showing which base index is at this x coord */
+      int numBasesFromLeft = basesPerCell * hCell;
+      int baseIdx = rightToLeft ? displayRange->max - numBasesFromLeft : displayRange->min + numBasesFromLeft;
+      
+      gdk_gc_set_foreground(gc, textColour);
+      gchar text[numDigitsInInt(baseIdx) + 1];
+      sprintf(text, "%d", baseIdx);
+
       PangoLayout *layout = gtk_widget_create_pango_layout(header, text);
       gdk_draw_layout(GTK_LAYOUT(header)->bin_window, gc, x, 0, layout);
       g_object_unref(layout);
       
       /* Draw the marker line */
-      gdk_gc_set_rgb_fg_color(gc, lineColor);
+      gdk_gc_set_foreground(gc, lineColour);
       gdk_draw_line (GTK_LAYOUT(header)->bin_window, gc, x, topBorder, x, bottomBorder);
     }
 }
@@ -118,14 +106,12 @@ static void drawBigPictureGridHeader(GtkWidget *header)
   GdkGC *gc = gdk_gc_new(header->window);
   gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
   
-  /* Calculate some factors for scaling */
-  const gint displayLen = bigPictureProperties->displayRange.max - bigPictureProperties->displayRange.min;
-  const gint basesPerCell = ceil((double)displayLen / bigPictureProperties->numHCells);
-  
-  /* Draw the grid */
-  drawVerticalGridLineHeaders(header, gc, bigPictureProperties->numHCells, 
-			      bigPictureProperties->cellWidth, basesPerCell,
-			      &bigPictureProperties->gridTextColor, &bigPictureProperties->gridLineColor);
+  /* Draw the grid headers */
+  drawVerticalGridLineHeaders(header, 
+			      properties->bigPicture, 
+			      gc,
+			      &bigPictureProperties->gridTextColour, 
+			      &bigPictureProperties->gridLineColour);
   
   g_object_unref(gc);
 }
@@ -294,6 +280,23 @@ IntRange* bigPictureGetDisplayRange(GtkWidget *bigPicture)
   return &properties->displayRange;
 }
 
+static int bigPictureGetNumHCells(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties->numHCells;
+}
+
+int bigPictureGetCellWidth(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties->cellWidth;
+}
+
+GtkWidget* bigPictureGetGridHeader(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties->header;
+}
 
 static void bigPictureCreateProperties(GtkWidget *bigPicture, 
 				       GtkWidget *mainWindow, 
@@ -325,14 +328,15 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->highlightBoxLineWidth = DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH;
       properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
       
+      properties->gridLineColour = getGdkColor(GDK_YELLOW);
+      properties->gridTextColour = getGdkColor(GDK_BLACK);
+      properties->highlightBoxColour = getGdkColor(GDK_BLUE);
+      properties->previewBoxColour = getGdkColor(GDK_DARK_GREY);
+      properties->mspLineHighlightColour = getGdkColor(GDK_CYAN);
+      properties->mspLineColour = getGdkColor(GDK_BLACK);
+      
       /* Calculate the font size */
       getFontCharSize(bigPicture, &properties->charWidth, &properties->charHeight);
-      
-      /* Set the drawing colours */
-      setGdkColorYellow(&properties->gridLineColor);
-      setGdkColorBlack(&properties->gridTextColor);
-      setGdkColorBlue(&properties->highlightColor);
-      setGdkColorBlack(&properties->previewColor);
       
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", properties);
       g_signal_connect(G_OBJECT(bigPicture), "destroy", G_CALLBACK(onDestroyBigPicture), NULL); 
