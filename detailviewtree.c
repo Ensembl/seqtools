@@ -71,6 +71,30 @@ GdkColor getGdkColor(gulong colour)
 }
 
 
+/* Returns true if the given MSP is a "fake" MSP (i.e. one that that is used just
+ * to display the reference sequence and does not represent a real match.) */
+gboolean mspIsFake(const MSP const *msp)
+{
+  /* This is not a great way to identify fake msp's but it'll do for now. */
+  return (msp && msp->score == 0 && msp->id < 0);
+}
+
+gboolean mspIsExon(const MSP const *msp)
+{
+  return (msp && msp->score == -1);
+}
+
+gboolean mspIsIntron(const MSP const *msp)
+{
+  return (msp && msp->score == -2);
+}
+
+gboolean mspIsBlastMatch(const MSP const *msp)
+{
+  return (msp && msp->score > 0);
+}
+
+
 static void assertTree(GtkWidget *tree)
 {
   if (!tree)
@@ -540,16 +564,12 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
 }
 
 
-/* Set the text displayed in the user feedback box based on this row's sequence name (if this
- * row is selected), and also the currently-selected base index (if there is one). This function
- * returns true if this is the selected row in order to end any recursion (i.e. it is only
- * intended to deal with single-row selections). */
-static gboolean setFeedbackText(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Get the text displayed in the user feedback box based on the given row's sequence name (if a
+ * row iterater and model are given), and also the currently-selected base index (if there is one). 
+ * The string returned by this function must be free'd with g_free. */
+static char* getFeedbackText(GtkWidget *tree, GtkTreeModel *model, GtkTreeIter *iter)
 {
-  gboolean done = FALSE;
-
   /* Clear the original entry */
-  GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
   gtk_entry_set_text(GTK_ENTRY(feedbackBox), "");
 
@@ -557,31 +577,38 @@ static gboolean setFeedbackText(GtkTreeModel *model, GtkTreePath *path, GtkTreeI
   int qIdx = treeGetSelectedBaseIdx(tree);
   int sIdx = UNSET_INT;
   char *sname = NULL;
+
+  /* Make sure we have enough space for all the bits to go in the string */
+  int msgLen = numDigitsInInt(qIdx);
   
-  /* See if this row's selected */
-  if (treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
+  /* If a row is given, set the sequence name to that row's sequence */
+  if (iter != NULL && model != NULL)
     {
-      done = TRUE;
-
       const MSP *msp = treeGetMsp(model, iter);
-
-      /* If we have a match, set the sequence name */
       if (msp)
 	{
 	  sname = msp->sname;
+	  msgLen += strlen(sname);
       
 	  /* If a ref sequence base is selected, find the corresponding base in the match sequence */
 	  sIdx = UNSET_INT;
 	  if (msp && qIdx != UNSET_INT)
 	    {
 	      sIdx = gapCoord(msp, qIdx, treeGetNumReadingFrames(tree), treeGetStrand(tree));
+	      msgLen += numDigitsInInt(sIdx);
 	    }
 	}
     }
+
+  if (!sname)
+    {
+      msgLen += strlen(NO_SUBJECT_SELECTED_TEXT);
+    }
+
+  msgLen += 10; /* for format text */
+  char *messageText = g_malloc(sizeof(char) * msgLen);
   
   /* Create the message text. */
-  char messageText[500] = "";
-  
   if (sname != NULL && qIdx != UNSET_INT)
     {
       sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display all */
@@ -595,11 +622,7 @@ static gboolean setFeedbackText(GtkTreeModel *model, GtkTreePath *path, GtkTreeI
       sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);  /* just the index */
     }
   
-  /* Update the feedback box */ 
-  gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
-  
-  /* Single-row selection, so once we've found the selected row don't continue any more */
-  return done;
+  return messageText;
 }
 
 
@@ -610,20 +633,34 @@ static gboolean setFeedbackText(GtkTreeModel *model, GtkTreePath *path, GtkTreeI
 static gboolean updateFeedbackBoxForTree(GtkWidget *tree)
 {
   gboolean done = FALSE;
-  
-  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  if (model)
-    {
-      gtk_tree_model_foreach(model, setFeedbackText, tree);
-      gtk_widget_queue_draw(treeGetFeedbackBox(tree));
-    }
+  char *messageText = NULL;
   
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-  if (gtk_tree_selection_count_selected_rows(selection) > 0)
+  GtkTreeModel *model = NULL;
+  GList *selectedRows = gtk_tree_selection_get_selected_rows(selection, &model);
+
+  if (g_list_length(selectedRows) > 0)
     {
       done = TRUE;
+
+      /* We currently only handle single-selection, so only process the first selected row */
+      GtkTreePath *path = (GtkTreePath*)(selectedRows->data);
+
+      GtkTreeIter iter;
+      gtk_tree_model_get_iter(model, &iter, path);
+      
+      messageText = getFeedbackText(tree, model, &iter);
     }
-  
+  else
+    {
+      /* No rows selected. Just see if a base index is selected. */
+      messageText = getFeedbackText(tree, NULL, NULL);
+    }
+
+  GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
+  gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
+  gtk_widget_queue_draw(feedbackBox);
+
   return done;
 }
 
@@ -939,17 +976,21 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRang
 
 void addMspToTreeModel(GtkTreeModel *model, const MSP *msp)
 {
-  GtkListStore *store = GTK_LIST_STORE(model);
-  GtkTreeIter iter;
-  gtk_list_store_append(store, &iter);
-  gtk_list_store_set(store, &iter,
-		     S_NAME_COL, msp->sname,
-		     SCORE_COL, msp->score,
-		     ID_COL, msp->id,
-		     START_COL, msp->sstart,
-		     MSP_COL, msp,
-		     END_COL, msp->send,
-		     -1);
+  /* We don't display introns in the detail view */
+  if (!mspIsIntron(msp))
+    {
+      GtkListStore *store = GTK_LIST_STORE(model);
+      GtkTreeIter iter;
+      gtk_list_store_append(store, &iter);
+      gtk_list_store_set(store, &iter,
+			 S_NAME_COL, msp->sname,
+			 SCORE_COL, msp->score,
+			 ID_COL, msp->id,
+			 START_COL, msp->sstart,
+			 MSP_COL, msp,
+			 END_COL, msp->send,
+			 -1);
+    }
 }
 
 

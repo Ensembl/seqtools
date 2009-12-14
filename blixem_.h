@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.6 2009-12-14 10:30:52 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.7 2009-12-14 12:15:44 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -242,7 +242,10 @@ void getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int 
 void sortValues(int *val1, int *val2, gboolean forwards);
 int  numDigitsInInt(int val);
 GdkColor getGdkColor(gulong colour);
-
+gboolean mspIsFake(const MSP const *msp);
+gboolean mspIsExon(const MSP const *msp);
+gboolean mspIsIntron(const MSP const *msp);
+gboolean mspIsBlastMatch(const MSP const *msp);
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char *blixemVersion ;

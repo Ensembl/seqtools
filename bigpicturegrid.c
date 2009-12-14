@@ -299,26 +299,30 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
 }
 
 
+/* Draw a line on the given grid to represent the given match */
 static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 {
-  GdkGC *gc = gdk_gc_new(grid->window);
-  gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
-  gdk_gc_set_foreground(gc, colour);
-  
-  /* Calculate where it should go */
-  int x, y, width, height;
-  calculateMspLineDimensions(grid, msp, &x, &y, &width, &height);
-  
-  /* Draw it */
-  gdk_draw_rectangle(GTK_LAYOUT(grid)->bin_window, gc, TRUE, x, y, width, height);
-  
-  g_object_unref(gc);
+  /* Ignore "fake" MSPs and introns. */
+  if (!mspIsFake(msp) && !mspIsIntron(msp))
+    {
+      GdkGC *gc = gdk_gc_new(grid->window);
+      gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
+      gdk_gc_set_foreground(gc, colour);
+      
+      /* Calculate where it should go */
+      int x, y, width, height;
+      calculateMspLineDimensions(grid, msp, &x, &y, &width, &height);
+      
+      /* Draw it */
+      gdk_draw_rectangle(GTK_LAYOUT(grid)->bin_window, gc, TRUE, x, y, width, height);
+      
+      g_object_unref(gc);
+    }
 }
 
 
-/* Draw a line on the grid to represent the MSP in the given tree path. Ignores msps
- * that are selected. */
-static gboolean drawNormalMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Wrapper function around drawMspLine that only draws unselected MSPs. */
+static gboolean drawUnselectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *grid = GTK_WIDGET(data);
   GtkWidget *tree = gridGetTree(grid);
@@ -333,8 +337,7 @@ static gboolean drawNormalMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTre
 }
 
 
-/* Draw a line on the grid to represent the MSP in the given tree path. Ignores msps
- * that are un-selected. */
+/* Wrapper function around drawMspLine that only draws selected MSPs. */
 static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *grid = GTK_WIDGET(data);
@@ -350,17 +353,19 @@ static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkT
 }
 
 
-/* Draw the MSP lines for the given grid */
+/* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid)
 {
-  /* Get the corresponding tree */
-  GridProperties *properties = gridGetProperties(grid);
-  
-  /* Loop through each row in the base (i.e. unfiltered) model for this tree. */
-  if (properties && properties->tree)
+  GtkWidget *tree = gridGetTree(grid);
+
+  if (tree)
     {
-      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(properties->tree));
-      gtk_tree_model_foreach(model, drawNormalMspLine, grid);
+      /* We'll loop through every row in the base (i.e. unfiltered) data. */
+      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      
+      /* Loop twice, first drawing unselected MSPs and then selected MSPs, so
+       * that selected MSPs are always drawn on top. */
+      gtk_tree_model_foreach(model, drawUnselectedMspLine, grid);
       gtk_tree_model_foreach(model, drawSelectedMspLine, grid);
     }
 }

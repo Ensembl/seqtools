@@ -537,19 +537,19 @@ static void drawBaseBackgroundColour(MSP *msp,
   
   if (qIdx >= qSeqMin && qIdx <= qSeqMax)
     {
-      if (msp->score < 0)
+      if (mspIsExon(msp))
 	{
-	  /* Exon. Draw a blank space with yellow background */
 	  charToDisplay = ' ';
 	  baseBgColour = getExonColour(renderer, selected);
 	}
-      else if (msp->score == 0 && msp->id == -1) /* (not a great way of identifying the ref seq...) */
+      else if (mspIsFake(msp))
 	{
-	  /* Reference sequence. */
+	  /* This is a "fake" msp that holds the reference sequence rather than
+	   * a real match sequence. We always draw all bases in the ref sequence. */
 	  charToDisplay = getRefSeqBase(refSeq, qIdx, qStrand);
 	  baseBgColour = getRefSeqColour(renderer, selected);
 	}
-      else
+      else if (mspIsBlastMatch(msp))
 	{
 	  int sIdx = gapCoord(msp, qIdx, numReadingFrames, qStrand);
 	  
