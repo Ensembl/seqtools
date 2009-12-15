@@ -39,7 +39,8 @@ static void onDestroyMainWindow(GtkWidget *widget)
 
 static void mainWindowCreateProperties(GtkWidget *widget, 
 				       GtkWidget *bigPicture, 
-				       GtkWidget *detailView)
+				       GtkWidget *detailView,
+				       const BlxBlastMode blastMode)
 {
   if (widget)
     {
@@ -47,6 +48,7 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
+      properties->blastMode = blastMode;
       properties->strandsToggled = FALSE;
       
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
@@ -72,6 +74,12 @@ GtkWidget* mainWindowGetDetailView(GtkWidget *mainWindow)
   return properties ? properties->detailView : FALSE;
 }
 
+BlxBlastMode mainWindowGetBlastMode(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->blastMode : FALSE;
+}
+
 /***********************************************************
  *                      Initialisation                     *
  ***********************************************************/
@@ -90,7 +98,11 @@ static void setStyleProperties(GtkWidget *widget)
 }
 
 
-GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, BlxSeqType seqType, int numReadingFrames)
+GtkWidget* createMainWindow(char *refSeq, 
+			    MSP *mspList, 
+			    BlxBlastMode blastMode,
+			    BlxSeqType seqType, 
+			    int numReadingFrames)
 {
   int refSeqEnd = strlen(refSeq) ;
   IntRange refSeqRange = {1, refSeqEnd};
@@ -130,6 +142,7 @@ GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, BlxSeqType s
 					   revStrandGrid,
 					   mspList,
 					   refSeq,
+					   blastMode,
 					   seqType,
 					   numReadingFrames,
 					   &refSeqRange);
@@ -140,7 +153,7 @@ GtkWidget* createMainWindow(char *refSeq, const MSP const *mspList, BlxSeqType s
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
   
   /* Set required data in the main window widget */
-  mainWindowCreateProperties(panedWidget, bigPicture, detailView);
+  mainWindowCreateProperties(panedWidget, bigPicture, detailView, blastMode);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT (window), "destroy", G_CALLBACK (gtk_main_quit), NULL); 

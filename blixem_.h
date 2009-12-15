@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.7 2009-12-14 12:15:44 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.8 2009-12-15 16:42:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -100,7 +100,6 @@ typedef struct BlixemViewStructName
 
 /* Fundamental type of sequence. */
 typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
-
 
 /* Types and struct to support retrieving data from the window systems clipboard. */
 typedef enum
@@ -246,6 +245,9 @@ gboolean mspIsFake(const MSP const *msp);
 gboolean mspIsExon(const MSP const *msp);
 gboolean mspIsIntron(const MSP const *msp);
 gboolean mspIsBlastMatch(const MSP const *msp);
+char *getqseq(int start, int end, const char const *refSeq);
+
+
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char *blixemVersion ;

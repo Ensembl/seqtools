@@ -602,9 +602,9 @@ static void drawBaseBackgroundColour(MSP *msp,
 }
 
 
-static PangoLayout* getLayoutFromText(char *displayText, GtkWidget *widget, PangoFontDescription *font_desc)
+static PangoLayout* getLayoutFromText(char *sequence, GtkWidget *widget, PangoFontDescription *font_desc)
 {
-  PangoLayout *layout = gtk_widget_create_pango_layout(widget, displayText);
+  PangoLayout *layout = gtk_widget_create_pango_layout(widget, sequence);
   pango_layout_set_font_description(layout, font_desc);
   return layout;
 }
@@ -743,7 +743,15 @@ static void drawBases(SequenceCellRenderer *renderer,
       getCoordsForBaseIdx(qStart, renderer, displayRange, rightToLeft, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
 
       PangoLayout *layout = getLayoutFromText(displayText, widget, font_desc);
-      gtk_paint_layout (widget->style, window, state, TRUE, NULL, widget, NULL, x, y, layout);
+      
+      if (layout)
+	{
+	  gtk_paint_layout (widget->style, window, state, TRUE, NULL, widget, NULL, x, y, layout);
+	}
+      else
+	{
+	  messerror("Error creating layout while trying to display sequence:\n%s\n", displayText);
+	}
     }
   else
     {

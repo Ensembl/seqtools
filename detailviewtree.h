@@ -83,18 +83,17 @@ void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeAndGrid(GtkWidget *tree, gpointer data);
-
-gint		  setCellRendererFont(GtkWidget *tree, 
-				      GtkCellRenderer *renderer, 
-				      const char *fontName, 
-				      const int fontSize);
+void		  treeIncrementFontSize(GtkWidget *tree, gpointer data);
+void		  treeDecrementFontSize(GtkWidget *tree, gpointer data);
 
 void		  addMspToTreeModel(GtkTreeModel *model, 
-				    const MSP *msp);
+				    MSP *msp,
+				    GtkWidget *tree);
 
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,
-				       GList **treeList);
+				       GList **treeList,
+				       const char *fontFamily);
 
 void		   treeCreateBaseDataModel(GtkWidget *tree, gpointer data);
 void		   treeCreateFilteredDataModel(GtkWidget *tree, gpointer data);

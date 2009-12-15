@@ -13,8 +13,6 @@
 #include <SeqTools/blixem_.h>
 
 
-#define FIXED_WIDTH_FONT		"Courier"
-
 typedef struct _DetailViewProperties
   {
     GtkWidget *mainWindow;	/* The main window that this view belongs to */
@@ -30,6 +28,8 @@ typedef struct _DetailViewProperties
         
     IntRange displayRange;	/* The currently-displayed range of bases in the reference sequence */
     int selectedBaseIdx;	/* The currently-selected base in the reference sequence */
+    
+    const char *fontFamily;	/* The fixed-width font that will be used to display the alignments */
   } DetailViewProperties;
 
 
@@ -45,6 +45,8 @@ GList*			detailViewGetFwdStrandTrees(GtkWidget *detailView);
 GList*			detailViewGetRevStrandTrees(GtkWidget *detailView);
 GtkWidget*		detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame);
 gboolean		detailViewGetStrandsToggled(GtkWidget *detailView);
+BlxBlastMode		detailViewGetBlastMode(GtkWidget *detailView);
+const char*		detailViewGetFontFamily(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -55,8 +57,9 @@ GtkWidget*		createDetailView(GtkWidget *container,
 					 GtkAdjustment *adjustment, 
 					 GtkWidget *fwdStrandGrid, 
 					 GtkWidget *revStrandGrid,
-					 const MSP const *mspList,
+					 MSP *mspList,
 					 char *refSeq,
+					 BlxBlastMode mode,
 					 BlxSeqType seqType,
 					 int numReadingFrames,
 					 IntRange *refSeqRange);

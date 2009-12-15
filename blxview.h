@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.3 2009-12-10 13:27:16 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.4 2009-12-15 16:42:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -41,6 +41,9 @@
 /* Only used in pephomolcol.c, would be good to get rid of this.... */
 #define FULLNAMESIZE 255
 
+
+/* The type of blast matching used */
+typedef enum {BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BLXMODE_TBLASTN, BLXMODE_BLASTP} BlxBlastMode ;
 
 
 /* blixem can use either efetch (default) or a pfetch server to get
@@ -151,7 +154,7 @@ typedef enum {FORWARD_STRAND, REVERSE_STRAND} Strand ;
 
 /* Function to show blixem window, can be called from any application. */
 int blxview (char *seq, char *seqname,
-	     int start, int offset, const MSP *msplist, char *opts, 
+	     int start, int offset, MSP *msplist, char *opts, 
 	     PfetchParams *pfetch, char *align_types, BOOL External) ;
 
 

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.4 2009-12-10 13:27:16 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.5 2009-12-15 16:42:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -196,7 +196,7 @@ typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS} Sort
 static void blxDestroy(void) ;
 static void blxPrint(void) ;
 static void wholePrint(void) ;
-static void blxShowStats(const MSP const *msplist) ;
+static void blxShowStats(MSP *msplist) ;
 
 static void blxPaste(BlxPasteType paste_type) ;
 static void pasteCB(char *text) ;
@@ -246,7 +246,6 @@ static void blviewDestroy(GtkWidget *unused) ;
 
 static void toggleColors (void);
 static void blviewCreate(char *opts, char *align_types, const MSP *msplist) ;
-static char *getqseq(int start, int end, char *q);
 
 #if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q);
@@ -1851,6 +1850,26 @@ static void blxviewGetOpts(char *opts, char *seq)
 }
 
 
+/* Returns the blast mode, i.e. blastx, blastn etc. */
+static BlxBlastMode getBlastMode()
+{
+  BlxBlastMode mode;
+  
+  if (blastx)
+    mode = BLXMODE_BLASTX;
+  else if (tblastx)
+    mode = BLXMODE_TBLASTX;
+  else if (blastn)
+    mode = BLXMODE_BLASTN;
+  else if (tblastn)
+    mode = BLXMODE_TBLASTN;
+  else if (blastp)
+    mode = BLXMODE_BLASTP;
+  
+  return mode;
+}
+
+
 /* Returns the type of sequence we're dealing with */
 static BlxSeqType getSeqType()
 {
@@ -1867,7 +1886,7 @@ static int getNumReadingFrames()
 
 /* Find out if we need to fetch any sequences (they may all be contained in the input
  * files), if we do need to, then fetch them by the appropriate method. */
-static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, const MSP *msplist)
+static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, MSP *msplist)
 {
   gboolean status = TRUE;
 
@@ -1955,7 +1974,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, c
  *             pfetch struct to locate the pfetch server).
  *
  */
-int blxview(char *seq, char *seqname, int start, int offset, const MSP *msplist,
+int blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
             char *opts, PfetchParams *pfetch, char *align_types, BOOL External)
 {
   if (blixemWindow)
@@ -2059,7 +2078,7 @@ static void blviewCreate(char *opts, char *align_types, const MSP const *msplist
 {
   if (!blixemWindow)
     {
-      blixemWindow = createMainWindow(q, msplist, getSeqType(), getNumReadingFrames());
+      blixemWindow = createMainWindow(q, msplist, getBlastMode(), getSeqType(), getNumReadingFrames());
       
       if (!oldWidth)
 	gtk_window_set_default_size(GTK_WINDOW(blixemWindow),
@@ -3582,14 +3601,14 @@ void blxAssignPadseq(MSP *msp, MSP *msplist)
 
 
 /* GETQSEQ translates a segment of the query seq (with 'sequence' coords = 1...) */
-static char *getqseq(int start, int end, char *q)
+char *getqseq(int start, int end, const char const *refSeq)
 {
   char *query = NULL ;
 
-  if (start < 1 || end < 1 || start > strlen(q) || end > strlen(q))
+  if (start < 1 || end < 1 || start > strlen(refSeq) || end > strlen(refSeq))
     {
       messout ( "Requested query sequence %d - %d out of available range: 1 - %d\n",
-		start, end, strlen(q));
+		start, end, strlen(refSeq));
 
       return NULL;
     }
@@ -3613,7 +3632,7 @@ static char *getqseq(int start, int end, char *q)
     }
   else if (start > end) /* Reverse and complement it */
     {
-      strncpy(auxseq2, q+end-1, start-end+1);
+      strncpy(auxseq2, refSeq + end - 1, start - end + 1);
       auxseq2[start-end+1] = 0;
 
       if (!revComplement(auxseq, auxseq2))
@@ -3626,7 +3645,7 @@ static char *getqseq(int start, int end, char *q)
 
   if (blastn) 
     {
-      query =  messalloc(strlen(auxseq)+1);
+      query =  messalloc(strlen(auxseq) + 1);
       strcpy(query, auxseq);
 
       return query;
@@ -5111,7 +5130,7 @@ static void showStatsDialog(MSP *MSPlist)
 
 
 /* Pop up a dialog reporting on various statistics about the process */
-static void blxShowStats(const MSP const *msplist)
+static void blxShowStats(MSP *msplist)
 {
   showStatsDialog(msplist);
 }

@@ -18,6 +18,7 @@ typedef struct _MainWindowProperties
     GtkWidget *detailView;
     
     gboolean strandsToggled; /* If true, the reverse strand becomes the 'main' or 'top' strand */
+    BlxBlastMode blastMode;  /* The type of blast matching that was used */
   } MainWindowProperties;
 
 
@@ -26,9 +27,11 @@ MainWindowProperties*	  mainWindowGetProperties(GtkWidget *widget);
 gboolean		  mainWindowGetStrandsToggled(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetBigPicture(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetDetailView(GtkWidget *mainWindow);
+BlxBlastMode		  mainWindowGetBlastMode(GtkWidget *mainWindow);
 
 GtkWidget*		  createMainWindow(char *refSeq, 
-					   const MSP const *mspList, 
+					   MSP *mspList, 
+					   BlxBlastMode blastMode,
 					   BlxSeqType seqType, 
 					   int numReadingFrames);
 

@@ -16,11 +16,16 @@
 
 #define DETAIL_VIEW_TREE_NAME		"DetailViewTreeName"
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
+#define FONT_INCREMENT_SIZE		1
+#define MIN_FONT_SIZE			2
+#define MAX_FONT_SIZE			20
 
 
 /* Local function declarations */
 static void updateFeedbackBoxForAllTrees(GtkWidget *tree);
 static void onSelectionChangedTree(GObject *selection, gpointer data);
+static gint setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const int fontSize, const char *fontFamily);
+
 
 /***************************************************************
  *                       Sequence column                       *
@@ -76,7 +81,7 @@ GdkColor getGdkColor(gulong colour)
 gboolean mspIsFake(const MSP const *msp)
 {
   /* This is not a great way to identify fake msp's but it'll do for now. */
-  return (msp && msp->score == 0 && msp->id < 0);
+  return (msp && msp->score == 0);
 }
 
 gboolean mspIsExon(const MSP const *msp)
@@ -158,6 +163,11 @@ gboolean treeGetStrandsToggled(GtkWidget *tree)
   return detailViewGetStrandsToggled(detailView);
 }
 
+BlxBlastMode treeGetBlastMode(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetBlastMode(detailView);
+}
 
 int treeGetNumReadingFrames(GtkWidget *tree)
 {
@@ -344,6 +354,12 @@ GdkColor* treeGetGapSelectedColour(GtkWidget *tree)
   return &properties->gapSelectedColour;
 }
 
+const char* treeGetFontFamily(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetFontFamily(detailView);
+}
+
 
 /* For the given tree view, return the data model used for the visible view
  * (which may be a filtered tree model). */
@@ -354,7 +370,6 @@ GtkTreeModel* treeGetVisibleDataModel(GtkTreeView *tree)
   assertTree(GTK_WIDGET(tree));
   return gtk_tree_view_get_model(tree);
 }
-
 
 /* For the given tree view, return the base data model i.e. all data in the tree
  * without any filtering. Returns the same as treeGetVisibleDataModel if the tree does
@@ -472,29 +487,56 @@ void refreshTreeAndGrid(GtkWidget *tree, gpointer data)
 }
 
 
+/* Increase the font size in the detail view trees (i.e. effectively zoom in) */
+void treeIncrementFontSize(GtkWidget *tree, gpointer data)
+{
+  int newSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE) + FONT_INCREMENT_SIZE;
+  
+  if (newSize <= MAX_FONT_SIZE)
+    {
+      GtkCellRenderer *renderer = treeGetRenderer(tree);
+      setCellRendererFont(tree, renderer, newSize, treeGetFontFamily(tree));
+    }
+}
+
+
+/* Decrease the font size in the detail view trees (i.e. effectively zoom out) */
+void treeDecrementFontSize(GtkWidget *tree, gpointer data)
+{
+  int newSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE) - FONT_INCREMENT_SIZE;
+  
+  if (newSize >= MIN_FONT_SIZE)
+    {
+      GtkCellRenderer *renderer = treeGetRenderer(tree);
+      setCellRendererFont(tree, renderer, newSize, treeGetFontFamily(tree));
+    }
+}
+
+
 /* Set the font for the detail view cell renderer. Should be called after
  * the font size is changed by zooming in/out of the detail view. */
-gint setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const char *fontName, const int fontSize)
+static gint setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const int fontSize, const char *fontFamily)
 {
-  gint newSize = fontSize * PANGO_SCALE;
+  /* Update the widget with the new font size. */
+  PangoFontDescription *fontDesc = pango_font_description_copy(tree->style->font_desc);
   
-  /* Update the widget */
-  PangoFontDescription *font_desc = pango_font_description_copy (tree->style->font_desc);
-  pango_font_description_set_size(font_desc, newSize);
-  pango_font_description_set_family(font_desc, fontName);
-  gtk_widget_modify_font(tree, font_desc);
+  if (fontFamily)
+    {
+      pango_font_description_set_family(fontDesc, fontFamily);
+    }
+  
+  pango_font_description_set_size  (fontDesc, fontSize * PANGO_SCALE);
+  gtk_widget_modify_font(tree, fontDesc);
   
   /* Calculate the row height from the font metrics */
   PangoContext *context = gtk_widget_get_pango_context (tree);
-  PangoFontMetrics *metrics = pango_context_get_metrics (context,
-							 font_desc,
-							 pango_context_get_language (context));
-  pango_font_description_free (font_desc);
+  PangoFontMetrics *metrics = pango_context_get_metrics (context, fontDesc, pango_context_get_language(context));
   
   gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  pango_font_metrics_unref (metrics);
-  
   gint charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
+
+  pango_font_description_free(fontDesc);
+  pango_font_metrics_unref(metrics);
 
   /* Cache these results in the cell renderer */
   SEQUENCE_CELL_RENDERER(renderer)->charHeight = charHeight;
@@ -506,7 +548,6 @@ gint setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const char 
   gint vertical_separator;
   gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
   gint rowHeight = charHeight - vertical_separator * 2;
-  
   gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
   
   return rowHeight;
@@ -945,6 +986,170 @@ static GtkTreeViewColumn* initColumn(GtkWidget *tree, GtkCellRenderer *renderer,
 }
 
 
+/* calcID: caculated percent identity of an MSP
+ * 
+ * There seems to be a general problem with this routine for protein
+ * alignments, the existing code certainly does not do the right thing.
+ * I have fixed this routine for gapped sequence alignments but not for
+ * protein stuff at all.
+ * 
+ * To be honest I think this routine is a _waste_ of time, the alignment
+ * programs that feed data to blixem produce an identity anyway so why
+ * not use that...why reinvent the wheel......
+ * 
+ * */
+static void calcID(MSP *msp, GtkWidget *tree)
+{
+  static int id, i, len ;
+  char *qseq ;
+  
+  BOOL sForward = strchr(msp->sframe, '+') ? TRUE : FALSE;
+  BlxBlastMode blastMode = treeGetBlastMode(tree);
+
+  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
+  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
+  
+  if (msp->sseq /* to do: is this required? && msp->sseq != padseq */)
+    {
+      /* Note that getqseq() will reverse complement if qstart > qend, this means that
+       * where there is no gaps array the comparison is trivial as coordinates can be
+       * ignored and the two sequences just whipped through. */
+      char *refSeq = treeGetRefSeq(tree);
+      
+      if (!(qseq = getqseq(msp->qstart, msp->qend, refSeq)))
+	{
+	  messout ( "calcID failed: Don't have genomic sequence %d - %d\n",
+		   msp->qstart, msp->qend);
+	  msp->id = 0;
+	  
+	  return;
+	}
+      
+      
+      /* NOTE, tblastn/x are not implemented for gaps yet. */
+      if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
+	{
+	  /* Ungapped alignments. */
+	  
+	  if (blastMode == BLXMODE_TBLASTN)
+	    {
+	      len = msp->qend - msp->qstart + 1;
+	      
+	      for (i=0, id=0; i < len; i++)
+		if (freeupper(msp->sseq[i]) == freeupper(qseq[i]))
+		  id++;
+	    }
+	  else if (blastMode == BLXMODE_TBLASTX)
+	    {
+	      len = abs(msp->qend - msp->qstart + 1)/3;
+	      
+	      for (i=0, id=0; i < len; i++)
+		if (freeupper(msp->sseq[i]) == freeupper(qseq[i]))
+		  id++;
+	    }
+	  else						    /* blastn, blastp & blastx */
+	    {
+	      len = sSeqMax - sSeqMin + 1 ;
+	      
+	      for (i=0, id=0; i< len; i++)
+                {
+                  int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
+		  if (freeupper(msp->sseq[sIndex]) == freeupper(qseq[i]))
+		    id++;
+                }
+	    }
+	}
+      else
+	{
+	  /* Gapped alignments. */
+	  
+	  /* To do tblastn and tblastx is not imposssible but would like to work from
+	   * examples to get it right.... */
+	  if (blastMode == BLXMODE_TBLASTN)
+	    {
+	      printf("not implemented yet\n") ;
+	    }
+	  else if (blastMode == BLXMODE_TBLASTX)
+	    {
+	      printf("not implemented yet\n") ;
+	    }
+	  else
+	    {
+	      /* blastn and blastp remain simple but blastx is more complex since the query
+               * coords are nucleic not protein. */
+	      
+              BOOL qForward = (strchr(msp->qframe, '+')) ? TRUE : FALSE ;
+              Array gaps = msp->gaps;
+	      int numFrames = treeGetNumReadingFrames(tree);
+	      
+	      len = 0 ;
+              int i ;
+	      for (i = 0, id = 0 ; i < arrayMax(gaps) ; i++)
+		{
+		  SMapMap *m = arrp(gaps, i, SMapMap) ;
+		  
+                  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+		  
+                  len += sRangeMax - sRangeMin + 1;
+                  
+                  /* Note that qseq has been cut down to just the section relating to this msp.
+		   * We need to translate the first coord in the range (which is in terms of the full
+		   * reference sequence) into coords in the cut-down ref sequence. */
+                  int q_start = qForward ? (qRangeMin - qSeqMin) / numFrames : (qSeqMax - qRangeMax) / numFrames;
+		  
+		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
+		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
+		   * so start from the lower or upper end accordingly. */
+                  int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
+		  
+                  int j = s_start, k = q_start ;
+		  while ((sForward && j < sRangeMax) || (!sForward && j >= sRangeMin - 1))
+		    {
+		      
+#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
+		      char *sub, *query ;
+		      char *dummy ;
+#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+		      
+#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
+		      /* for debug..... */
+		      sub = msp->sseq + j ;
+		      query = qseq + k ;
+#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+		      
+		      
+		      if (freeupper(msp->sseq[j]) == freeupper(qseq[k]))
+			id++ ;
+		      
+                      
+#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
+		      else
+			dummy = sub ;
+#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+                      
+		      
+                      /* Move to the next base. The qseq is always forward, but we might have to
+                       * traverse the s sequence in reverse. */
+                      ++k ;
+                      if (sForward) ++j ;
+                      else --j ;
+		    }
+		}
+	    }
+	}
+      
+      msp->id = (int)((float)100*id/len + .5);
+      
+      messfree(qseq);
+    }
+  else
+    msp->id = 0 ;
+  
+  return ;
+}
+
+
 static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRange *displayRange)
 {
   MSP *msp = g_malloc(sizeof(MSP));
@@ -974,14 +1179,20 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRang
 }
 
 
-void addMspToTreeModel(GtkTreeModel *model, const MSP *msp)
+void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
 {
   /* We don't display introns in the detail view */
   if (!mspIsIntron(msp))
     {
+      /* Calculate the id */
+      calcID(msp, tree);
+      
+      /* Add it to the tree's data store */
       GtkListStore *store = GTK_LIST_STORE(model);
+      
       GtkTreeIter iter;
       gtk_list_store_append(store, &iter);
+      
       gtk_list_store_set(store, &iter,
 			 S_NAME_COL, msp->sname,
 			 SCORE_COL, msp->score,
@@ -1040,7 +1251,7 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
 }
 
 
-static void addTreeColumns(GtkWidget *tree, GtkCellRenderer *renderer)
+static void addTreeColumns(GtkWidget *tree, GtkCellRenderer *renderer, const char *fontFamily)
 {
   /* Add the columns */
   initColumn(tree,  renderer,  "Name",     "text", S_NAME_COL, FALSE, 90);
@@ -1057,7 +1268,7 @@ static void addTreeColumns(GtkWidget *tree, GtkCellRenderer *renderer)
   /* Set it to use a fixed width font. This also sets the row height based on the font size.
    * For now we just use the default size from the theme. */
   int origSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE);
-  setCellRendererFont(tree, renderer, FIXED_WIDTH_FONT, origSize);
+  setCellRendererFont(tree, renderer, origSize, fontFamily);
   
   seqColCreateProperties(seqCol, tree);
 }
@@ -1076,11 +1287,15 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 					   G_TYPE_INT);
   
   /* Add a 'fake' msp for the ref sequence */
-  addMspToTreeModel(GTK_TREE_MODEL(store), 
-		    createRefSeqMsp(tree,
-				    treeGetStrand(tree) == FORWARD_STRAND, 
-				    treeGetRefSeq(tree), 
-				    treeGetDisplayRange(tree)));
+  char *refSeq = treeGetRefSeq(tree);
+  
+  MSP *refSeqMsp = createRefSeqMsp(tree,
+				   treeGetStrand(tree) == FORWARD_STRAND, 
+				   refSeq, 
+				   treeGetDisplayRange(tree));
+  
+  addMspToTreeModel(GTK_TREE_MODEL(store), refSeqMsp, tree);
+		    
   
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
   g_object_unref(G_OBJECT(store));
@@ -1128,7 +1343,8 @@ static void setTreeStyle(GtkTreeView *tree)
 
 GtkWidget* createDetailViewTree(GtkWidget *grid, 
 				GtkWidget *detailView, 
-				GList **treeList)
+				GList **treeList,
+				const char *fontFamily)
 {
   /* Create a tree view for the list of match sequences */
   GtkWidget *tree = gtk_tree_view_new();
@@ -1154,7 +1370,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   SEQUENCE_CELL_RENDERER(renderer)->tree = tree;
 
   /* Add the columns */
-  addTreeColumns(tree, renderer);
+  addTreeColumns(tree, renderer, fontFamily);
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);

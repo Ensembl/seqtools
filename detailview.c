@@ -13,16 +13,12 @@
 #include <SeqTools/utilities.h>
 #include <gtk/gtk.h>
 
-#define MIN_FONT_SIZE			2
-#define MAX_FONT_SIZE			20
-#define FONT_INCREMENT_SIZE		1
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
 
 
 /* Local function declarations */
 static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
-//static BlxSeqType	    detailViewGetSeqType(GtkWidget *detailView);
 
 
 /***********************************************************
@@ -30,30 +26,87 @@ static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
  ***********************************************************/
 
 
-/* Increase the font size in the detail view trees (i.e. effectively zoom in) */
-static void incrementFontSize(GtkWidget *tree, gpointer data)
+
+/* Tries to return a fixed font from the list given in pref_families, returns
+ * TRUE if it succeeded in finding a matching font, FALSE otherwise.
+ * The list of preferred fonts is treated with most preferred first and least
+ * preferred last.  The function will attempt to return the most preferred font
+ * it finds.
+ *
+ * @param widget         Needed to get a context, ideally should be the widget you want to
+ *                       either set a font in or find out about a font for.
+ * @param pref_families  List of font families (as text strings).
+ * @param points         Size of font in points.
+ * @param weight         Weight of font (e.g. PANGO_WEIGHT_NORMAL)
+ * @param font_out       If non-NULL, the font is returned.
+ * @param desc_out       If non-NULL, the font description is returned.
+ * @return               TRUE if font found, FALSE otherwise.
+ */
+static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families)
 {
-  gint newSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE) + FONT_INCREMENT_SIZE;
+  /* Find all the font families available */
+  PangoContext *context = gtk_widget_get_pango_context(widget) ;
+  PangoFontFamily **families;
+  gint n_families;
+  pango_context_list_families(context, &families, &n_families) ;
   
-  if (newSize <= MAX_FONT_SIZE)
+  /* Loop through the available font families looking for one in our preferred list */
+  gboolean found_most_preferred = FALSE;
+  gint most_preferred = g_list_length(pref_families);
+  PangoFontFamily *match_family = NULL;
+
+  gint i;
+  for (i = 0 ; (i < n_families && !found_most_preferred) ; i++)
     {
-      GtkCellRenderer *renderer = treeGetRenderer(tree);
-      setCellRendererFont(tree, renderer, FIXED_WIDTH_FONT, newSize);
+      const gchar *name = pango_font_family_get_name(families[i]) ;
+
+      /* Look for this font family in our list of preferred families */
+      GList *pref = g_list_first(pref_families) ;
+      gint current = 1;
+      
+      while(pref)
+	{
+	  char *pref_font = (char *)pref->data ;
+	  
+	  if (g_ascii_strncasecmp(name, pref_font, strlen(pref_font)) == 0
+#if GLIB_MAJOR_VERSION == 2 && GLIB_MINOR_VERSION >= 6
+	      && pango_font_family_is_monospace(families[i])
+#endif
+	      )
+	    {
+	      /* We prefer ones nearer the start of the list */
+              if(current <= most_preferred)
+                {
+		  most_preferred = current;
+		  match_family = families[i];
+
+                  if(most_preferred == 1)
+		    {
+		      found_most_preferred = TRUE;
+		    }
+                }
+
+	      break;
+	    }
+	  
+	  pref = g_list_next(pref);
+	  ++current;
+	}
     }
+
+  const char *result = NULL;
+  if (match_family)
+    {
+      result = pango_font_family_get_name(match_family);
+    }
+  else
+    {
+      messerror("Could not find a fixed-width font. Alignments may not be displayed correctly.");
+    }
+  
+  return result;
 }
 
-
-/* Decrease the font size in the detail view trees (i.e. effectively zoom out) */
-static void decrementFontSize(GtkWidget *tree, gpointer data)
-{
-  gint newSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE) - FONT_INCREMENT_SIZE;
-  
-  if (newSize >= MIN_FONT_SIZE)
-    {
-      GtkCellRenderer *renderer = treeGetRenderer(tree);
-      setCellRendererFont(tree, renderer, FIXED_WIDTH_FONT, newSize);
-    }
-}
 
 /* Update the scroll position of the given adjustment to the given value. Does
  * bounds checking. */
@@ -269,8 +322,6 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 
 static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 {
-  static int count = 0; ++count; printf("scroll pos changed %d\n", count);
-  
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *mainWindow = GTK_WIDGET(data);
   
@@ -316,7 +367,7 @@ static void onZoomInDetailView(GtkButton *button, gpointer data)
     }
   
   /* Call the increment-font-size function on all trees in the detail view */
-  callFuncOnAllDetailViewTrees(detailView, incrementFontSize);
+  callFuncOnAllDetailViewTrees(detailView, treeIncrementFontSize);
   
   if (firstTree && colWidth != UNSET_INT)
     {
@@ -338,7 +389,7 @@ static void onZoomOutDetailView(GtkButton *button, gpointer data)
     }
   
   /* Call the decrement-font-size function on all trees in the detail view */
-  callFuncOnAllDetailViewTrees(detailView, decrementFontSize);
+  callFuncOnAllDetailViewTrees(detailView, treeDecrementFontSize);
   
   if (firstTree && colWidth != UNSET_INT)
     {
@@ -392,6 +443,13 @@ gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
 {
   return mainWindowGetStrandsToggled(detailViewGetMainWindow(detailView));
 }
+
+const char* detailViewGetFontFamily(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->fontFamily : NULL;
+}
+
 
 /* Extract the tree view for the given frame on the given strand */
 GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame)
@@ -491,6 +549,12 @@ int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
   return properties ? properties->selectedBaseIdx : UNSET_INT;
 }
 
+BlxBlastMode detailViewGetBlastMode(GtkWidget *detailView)
+{
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetBlastMode(mainWindow);
+}
+
 //static BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
 //{
 //  DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -525,7 +589,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       char *refSeq,
 				       BlxSeqType seqType,
 				       int numReadingFrames,
-				       IntRange *displayRange)
+				       IntRange *displayRange,
+				       const char *fontFamily)
 {
   if (detailView)
     { 
@@ -542,7 +607,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->displayRange.min = displayRange->min;
       properties->displayRange.max = displayRange->max;
       properties->selectedBaseIdx = UNSET_INT;
-      
+      properties->fontFamily = fontFamily;
+
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
     }
@@ -973,10 +1039,11 @@ static void createTwoPanedTrees(GtkWidget *panedWidget,
 				GtkWidget *grid1, 
 				GtkWidget *grid2,
 				GList **list1,
-				GList **list2)
+				GList **list2,
+				const char *fontFamily)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, panedWidget, list1);
-  GtkWidget *tree2 = createDetailViewTree(grid2, panedWidget, list2);
+  GtkWidget *tree1 = createDetailViewTree(grid1, panedWidget, list1, fontFamily);
+  GtkWidget *tree2 = createDetailViewTree(grid2, panedWidget, list2, fontFamily);
   gtk_paned_pack1(GTK_PANED(panedWidget), tree1, FALSE, TRUE);
   gtk_paned_pack2(GTK_PANED(panedWidget), tree2, TRUE, TRUE);
 }
@@ -989,44 +1056,47 @@ static void createDetailViewPanes(GtkWidget *detailView,
 				  GtkWidget *revStrandGrid, 
 				  const int numReadingFrames,
 				  GList **fwdStrandTrees,
-				  GList **revStrandTrees)
+				  GList **revStrandTrees,
+				  const char *fontFamily)
 {
   if (numReadingFrames == 1)
     {
       /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse */
-      createTwoPanedTrees(detailView, fwdStrandGrid, revStrandGrid, fwdStrandTrees, revStrandTrees);
+      createTwoPanedTrees(detailView, fwdStrandGrid, revStrandGrid, fwdStrandTrees, revStrandTrees, fontFamily);
     }
   else if (numReadingFrames == 3)
     {
       /* Protein matches: we need 3 trees for the 3 reading frames. We only have
        * 2 panes in our parent container, so one pane will have to contain
        * a second, nested paned widget. */
-      GtkWidget *tree1 = createDetailViewTree(fwdStrandGrid, detailView, fwdStrandTrees);
+      GtkWidget *tree1 = createDetailViewTree(fwdStrandGrid, detailView, fwdStrandTrees, fontFamily);
       GtkWidget *nestedPanedWidget = gtk_vpaned_new();
       
       gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
       gtk_paned_pack1(GTK_PANED(detailView), nestedPanedWidget, TRUE, TRUE);
       
-      createTwoPanedTrees(nestedPanedWidget, fwdStrandGrid, fwdStrandGrid, fwdStrandTrees, fwdStrandTrees);
+      createTwoPanedTrees(nestedPanedWidget, fwdStrandGrid, fwdStrandGrid, fwdStrandTrees, fwdStrandTrees, fontFamily);
     }
 }
 
 
 /* Add the MSPs to the detail-view trees */
-static void detailViewAddMspData(GtkWidget *detailView, const MSP const *mspList)
+static void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 {
   /* First, create a data store for each tree so we have something to add our data to. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel);
 
   /* Loop through each MSP, and add it to the correct tree based on its strand and reading frame */
-  const MSP *msp = mspList;
+  MSP *msp = mspList;
   for ( ; msp; msp = msp->next)
     {
       gboolean qForward = (msp->qframe[1] == '+');
       int frame = atoi(&msp->qframe[2]);
+      
       GtkWidget *tree = detailViewGetFrameTree(detailView, qForward, frame);
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-      addMspToTreeModel(model, msp);
+      
+      addMspToTreeModel(model, msp, tree);
     }
   
   /* Finally, create a custom-filtered version of the data store for each tree. We do 
@@ -1039,8 +1109,9 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			    GtkAdjustment *adjustment, 
 			    GtkWidget *fwdStrandGrid, 
 			    GtkWidget *revStrandGrid,
-			    const MSP const *mspList,
+			    MSP *mspList,
 			    char *refSeq,
+			    BlxBlastMode mode,
 			    BlxSeqType seqType,
 			    int numReadingFrames,
 			    IntRange *refSeqRange)
@@ -1052,6 +1123,19 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
    * all of our detail-view trees the same name so we can identify them.) */
   GtkWidget *detailView = gtk_vpaned_new();
   
+  /* We need a fixed-width font for displaying alignments. Find one from a 
+   * list of possibilities. */
+  GList *fixed_font_list = NULL ;
+
+  fixed_font_list = g_list_append(fixed_font_list, "Monaco");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier New");
+  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
+  fixed_font_list = g_list_append(fixed_font_list, "fixed");
+
+  const char *fontFamily = findFixedWidthFontFamily(detailView, fixed_font_list);
+  g_list_free(fixed_font_list);
+    
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
   createDetailViewPanes(detailView, 
@@ -1059,7 +1143,8 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			revStrandGrid, 
 			numReadingFrames, 
 			&fwdStrandTrees,
-			&revStrandTrees);
+			&revStrandTrees,
+			fontFamily);
   
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;
@@ -1087,7 +1172,8 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			     refSeq, 
 			     seqType,
 			     numReadingFrames, 
-			     refSeqRange);
+			     refSeqRange,
+			     fontFamily);
 
   /* Add the MSP's to the trees */
   detailViewAddMspData(detailView, mspList);
