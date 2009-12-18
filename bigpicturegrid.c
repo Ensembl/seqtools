@@ -140,9 +140,25 @@ gint convertBaseIdxToGridPos(const gint baseIdx,
 
 
 /* Convert an x coord on the given grid to a base index */
-static gint convertGridPosToBaseIdx(const gint gridPos, const GdkRectangle const *gridRect,  const IntRange const *displayRange)
+static gint convertGridPosToBaseIdx(const gint gridPos, 
+				    const GdkRectangle const *gridRect,  
+				    const IntRange const *displayRange,
+				    gboolean rightToLeft)
 {
-  return round((gdouble)(gridPos - gridRect->x) / pixelsPerBase(gridRect->width, displayRange));
+  gint result = UNSET_INT;
+  
+  gdouble basesFromEdge = round(((gdouble)gridPos - (gdouble)gridRect->x) / pixelsPerBase(gridRect->width, displayRange));
+  
+  if (rightToLeft)
+    {
+      result = displayRange->max - basesFromEdge;
+    }
+  else
+    {
+      result = displayRange->min + basesFromEdge;
+    }
+  
+  return result;
 }
 
 
@@ -526,11 +542,12 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
   if (event->button == 2) /* middle button */
     {
       GridProperties *properties = gridGetProperties(grid);
-      BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-      
+      IntRange *displayRange = gridGetDisplayRange(grid);
+      gboolean rightToLeft = gridGetStrandsToggled(grid);
+
       /* Find the base index where the preview box starts */
       int x = getLeftCoordFromCentre(event->x, properties->highlightRect.width, &properties->gridRect);
-      int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, &bigPictureProperties->displayRange);
+      int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange, rightToLeft);
       
       /* Clear the preview box */
       gridSetPreviewBoxCentre(grid, UNSET_INT);
@@ -540,7 +557,7 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
       
       if (adjustment)
 	{
-	  setDetailViewScrollPos(gridGetDetailView(grid), baseIdx);
+	  setDetailViewScrollPos(gridGetDetailView(grid), baseIdx - displayRange->min);
 	}
       
       gtk_widget_queue_draw(grid);
