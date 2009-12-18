@@ -53,7 +53,8 @@ DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 void			setDetailViewScrollPos(GtkWidget *detailView, 
 					       int value);
 
-GtkWidget*		createDetailView(GtkWidget *container, 
+GtkWidget*		createDetailView(GtkWidget *mainWindow,
+					 GtkWidget *panedWidget,
 					 GtkAdjustment *adjustment, 
 					 GtkWidget *fwdStrandGrid, 
 					 GtkWidget *revStrandGrid,

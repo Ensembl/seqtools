@@ -511,8 +511,9 @@ static void insertChar(char *text1, int *i, char charToAdd, MSP *msp)
 
 /* Colour in the background of a particular base in the given match sequence. Returns
  * the calculated index into the match sequence (for effiency, so that we don't have to
- * recalculate it later on). */
-static void drawBaseBackgroundColour(MSP *msp, 
+ * recalculate it later on). Returns the equivalent index in the subject sequence, or 
+ * UNSET_INT if there is none. */
+static int drawBaseBackgroundColour(MSP *msp, 
 				     int qIdx, 
 				     char *refSeq, 
 				     int selectedBaseIdx, 
@@ -530,9 +531,10 @@ static void drawBaseBackgroundColour(MSP *msp,
 				     char *displayText,
 				     int *strIdx)
 {
+  int sIdx = UNSET_INT;
   gboolean selected = (qIdx == selectedBaseIdx);
-  
-  char charToDisplay = 'x';
+    
+  char charToDisplay = '\0';
   GdkColor *baseBgColour;
   
   if (qIdx >= qSeqMin && qIdx <= qSeqMax)
@@ -551,7 +553,7 @@ static void drawBaseBackgroundColour(MSP *msp,
 	}
       else if (mspIsBlastMatch(msp))
 	{
-	  int sIdx = gapCoord(msp, qIdx, numReadingFrames, qStrand);
+	  sIdx = gapCoord(msp, qIdx, numReadingFrames, qStrand);
 	  
 	  if (sIdx != UNSET_INT)
 	    {
@@ -585,7 +587,7 @@ static void drawBaseBackgroundColour(MSP *msp,
       baseBgColour = getGapColour(renderer, selected);
     }
 
-  if (charToDisplay != 'x')
+  if (charToDisplay != '\0')
     {
       insertChar(displayText, strIdx, charToDisplay, msp);
       
@@ -599,6 +601,8 @@ static void drawBaseBackgroundColour(MSP *msp,
 	  messerror("Invalid graphics context");
 	}
     }  
+
+  return sIdx;
 }
 
 
@@ -642,6 +646,28 @@ static void getCoordsForBaseIdx(int qIdx,
 }
 
 
+static void drawGap(int qIdx, 
+		    int sIdx, 
+		    int qIdxLastFound, 
+		    int sIdxLastFound, 
+		    int x, 
+		    int y, 
+		    int width, 
+		    int height,
+		    GdkWindow *window, 
+		    GdkGC *gc)
+{
+  if (sIdx != UNSET_INT && sIdxLastFound != UNSET_INT &&
+      abs(sIdx - sIdxLastFound) > 1)
+    {
+      /* There is a gap between this index and the previous one (in a left-to-right sense) */
+      GdkColor col = {GDK_YELLOW};
+      gdk_gc_set_foreground(gc, &col);
+      gdk_draw_rectangle(window, gc, TRUE, x - width/2, y, width, height);
+    }
+}
+
+
 static void drawBases(SequenceCellRenderer *renderer,
 		      GtkWidget *widget,
 		      GdkWindow *window, 
@@ -670,39 +696,68 @@ static void drawBases(SequenceCellRenderer *renderer,
    * are on the left and high values on the right. If the display is toggled, this
    * is reversed. */
   int qStart = rightToLeft ? qMax : qMin;
+  int qEnd = rightToLeft ? qMin : qMax;
   
   /* We'll populate a string with the characters to display as we loop through the indices. */
   char displayText[qMax - qMin + 2];
   int strIdx = 0;
   
+  
   gboolean doneSelectedBase = FALSE;
 
-  /* Ok, let's loop through the bases we're interested in displaying. */
-  int qIdx;
-  for (qIdx = qStart; qIdx >= qMin && qIdx <= qMax; (rightToLeft ? --qIdx : ++qIdx))
+  /* Ok, let's loop through the bases we're interested in displaying. Keep track of the
+   * previous index, and also the last match where there was an equivalent base (whether a
+   * match or mismatch) in the subject sequence. */
+  
+  int qIdx = qStart;
+  int qIdxLastFound = UNSET_INT;
+  int sIdxLastFound = UNSET_INT;
+  
+  gboolean done = FALSE;
+  while (!done)
     {
       int x, y;
       getCoordsForBaseIdx(qIdx, renderer, displayRange, rightToLeft, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
       
-      drawBaseBackgroundColour(renderer->msp, 
-				qIdx, 
-				getRefSeq(renderer), 
-				selectedBaseIdx,
-				getNumReadingFrames(renderer), 
-				getStrand(renderer), 
-				qSeqMin, 
-				qSeqMax, 
-				x, 
-				y, 
-				renderer->charWidth, 
-				renderer->charHeight,
-				window, 
-				gc,
-				renderer,   
-				displayText,
-				&strIdx);
+      int sIdx = drawBaseBackgroundColour(renderer->msp, 
+					  qIdx, 
+					  getRefSeq(renderer), 
+					  selectedBaseIdx,
+					  getNumReadingFrames(renderer), 
+					  getStrand(renderer), 
+					  qSeqMin, 
+					  qSeqMax, 
+					  x, 
+					  y, 
+					  renderer->charWidth, 
+					  renderer->charHeight,
+					  window, 
+					  gc,
+					  renderer,   
+					  displayText,
+					  &strIdx);
       
+      drawGap(qIdx, sIdx, qIdxLastFound, sIdxLastFound, x, y, 3, renderer->charHeight, window, gc);
+
       doneSelectedBase = doneSelectedBase || (qIdx == selectedBaseIdx);
+
+      if (sIdx != UNSET_INT)
+	{
+	  qIdxLastFound = qIdx;
+	  sIdxLastFound = sIdx;
+	}
+      
+      /* See if we're at the last index */
+      if (qIdx == qEnd)
+	{
+	  done = TRUE;
+	}
+      
+      /* Increment (or decrement if display is reversed) */
+      if (rightToLeft)
+	--qIdx;
+      else
+	++qIdx;
     }
 
   /* Null-terminate the string */

@@ -409,6 +409,7 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 
 
 GtkWidget* createBigPicture(GtkWidget *mainWindow, 
+			    GtkWidget *panedWidget,
 			    GtkWidget **header,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid, 
@@ -418,7 +419,7 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
   /* Create the main big picture widget, which will contain all of the 
    * individual big-picture grids, plus a header. */
   GtkWidget *bigPicture = gtk_vbox_new(FALSE, 0);
-  gtk_paned_pack1(GTK_PANED(mainWindow), bigPicture, FALSE, TRUE);
+  gtk_paned_pack1(GTK_PANED(panedWidget), bigPicture, FALSE, TRUE);
   
   /* Our big picture needs to have a header plus 3 panes:
    * 1. the top grid (fwd strand);

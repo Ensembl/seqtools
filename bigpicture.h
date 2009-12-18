@@ -74,7 +74,8 @@ void			      calculateGridHeaderBorders(GtkWidget *header);
 
 void			      refreshGridOrder(GtkWidget *bigPicture);
 
-GtkWidget*		      createBigPicture(GtkWidget *mainWindow, 
+GtkWidget*		      createBigPicture(GtkWidget *mainWindow,
+					       GtkWidget *panedWidget,
 					       GtkWidget **header,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid, 

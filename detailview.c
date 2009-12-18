@@ -19,6 +19,7 @@
 /* Local function declarations */
 static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
+static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
 
 
 /***********************************************************
@@ -277,10 +278,7 @@ static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *alloc
 static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 {
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  
-  MainWindowProperties *mainWindowProperties = mainWindowGetProperties(mainWindow);
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(mainWindowProperties->detailView);
+  GtkWidget *detailView = GTK_WIDGET(data);
   
   /* Reset the display range so that it is between the scrollbar min and max. */
   int newStart = adjustment->value;
@@ -288,7 +286,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   
   /* If there is a gap at the end, shift the scrollbar back so that we show more
    * of the reference sequence (unless the whole thing is already shown). */
-  int len = strlen(detailViewGetRefSeq(mainWindowProperties->detailView));
+  int len = strlen(detailViewGetRefSeq(detailView));
   if (newEnd >= len)
     {
       newStart = len - adjustment->page_size;
@@ -299,7 +297,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       adjustment->value = newStart;
     }
   
-  IntRange *displayRange = &detailViewProperties->displayRange;
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
   if (displayRange->min != newStart + 1 || displayRange->max != newEnd + 1)
     {
       /* Adjustment is zero-based but display range is 1-based */
@@ -307,15 +305,16 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       displayRange->max = newEnd + 1;
       
       /* Recalculate the borders for all the grids and the header in the big picture */
-      BigPictureProperties *bigPictureProperties = bigPictureGetProperties(mainWindowProperties->bigPicture);
-      calculateGridHeaderBorders(bigPictureProperties->header);
-      callFuncOnAllBigPictureGrids(mainWindowProperties->bigPicture, calculateGridBorders);
+      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
+      GtkWidget *header = bigPictureGetGridHeader(bigPicture);
+      calculateGridHeaderBorders(header);
+      callFuncOnAllBigPictureGrids(bigPicture, calculateGridBorders);
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      callFuncOnAllDetailViewTrees(mainWindowProperties->detailView, refilterTree);
+      callFuncOnAllDetailViewTrees(detailView, refilterTree);
       
       /* Redraw all trees (and their corresponding grids) */
-      callFuncOnAllDetailViewTrees(mainWindowProperties->detailView, refreshTreeAndGrid);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
     }
 }
 
@@ -323,28 +322,26 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 {
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  
-  MainWindowProperties *mainWindowProperties = mainWindowGetProperties(mainWindow);
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(mainWindowProperties->detailView);
+  GtkWidget *detailView = GTK_WIDGET(data);
   
   /* Set the display range so that it starts at the new scroll pos */
   int newEnd = adjustment->value + adjustment->page_size;
 
-  IntRange *displayRange = &detailViewProperties->displayRange;
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
   if (displayRange->min != adjustment->value + 1 || displayRange->max != newEnd + 1)
     {
       displayRange->min = adjustment->value + 1;
       displayRange->max = newEnd + 1;
       
       /* Update the highlight box position for all grids in the big picture */
-      callFuncOnAllBigPictureGrids(mainWindowProperties->bigPicture, calculateHighlightBoxBorders);
+      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
+      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      callFuncOnAllDetailViewTrees(mainWindowProperties->detailView, refilterTree);
+      callFuncOnAllDetailViewTrees(detailView, refilterTree);
       
       /* Redraw all trees (and their corresponding grids) */
-      callFuncOnAllDetailViewTrees(mainWindowProperties->detailView, refreshTreeAndGrid);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
     }
 }
 
@@ -555,6 +552,12 @@ BlxBlastMode detailViewGetBlastMode(GtkWidget *detailView)
   return mainWindowGetBlastMode(mainWindow);
 }
 
+static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
+{
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetBigPicture(mainWindow);
+}
+
 //static BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
 //{
 //  DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -618,71 +621,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 /***********************************************************
  *                     Callbacks                           *
  ***********************************************************/
-
-static void showModalDialog(char *title, char *messageText)
-{
-  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-						  NULL, 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
-  
-  /* Add the message */
-//  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog)); //not in pre 2.14 versions
-  GtkWidget *vbox = GTK_DIALOG(dialog)->vbox;
-  GtkWidget *label = gtk_label_new(messageText);
-  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
-  
-  /* Ensure dialog is destroyed when user responds */
-  g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
-  
-  gtk_widget_show_all(dialog);
-}
-
-static void blxHelp(void)
-{
-  char *messageText = (messprintf("\
-			   \
-			   BLIXEM - BLast matches\n\
-			   In an\n\
-			   X-windows\n\
-			   Embedded\n\
-			   Multiple alignment\n\
-			   \n\
-			   LEFT MOUSE BUTTON:\n\
-			   Pick on boxes and sequences.\n\
-			   Fetch annotation by double clicking on sequence (Requires 'efetch' to be installed.)\n\
-			   \n\
-			   MIDDLE MOUSE BUTTON:\n\
-			   Scroll horizontally.\n\
-			   \n\
-			   RIGHT MOUSE BUTTON:\n\
-			   Menu.  Note that the buttons Settings and Goto have their own menus.\n\
-			   \n\
-			   \n\
-			   Keyboard shortcuts:\n\
-			   \n\
-			   Cntl-Q          quit application\n\
-			   Cntl-P          print\n\
-			   Cntl-H          help\n\
-			   \n\
-			   \n\
-			   m/M             for mark/unmark a set of matches from the cut buffer\n\
-			   \n\
-			   g/G             go to the match in the cut buffer\n\
-			   \n\
-			   \n\
-			   \n\
-			   RESIDUE COLOURS:\n\
-			   Yellow = Query.\n\
-			   See Settings Panel for matching residues (click on Settings button).\n\
-			   \n\
-			   version %s\n\
-			   (c) Erik Sonnhammer", blixemVersion));
-  
-  showModalDialog("Help", messageText);
-}
 
 static void blixemSettings(void)
 {
@@ -855,13 +793,13 @@ static void GToggleStrand(GtkButton *button, gpointer data)
  *                     Initialization                      *
  ***********************************************************/
 
-GtkWidget* createDetailViewScrollBar(GtkAdjustment *adjustment, GtkWidget *mainWindow)
+ GtkWidget* createDetailViewScrollBar(GtkAdjustment *adjustment, GtkWidget *detailView)
 {
   GtkWidget *scrollBar = gtk_hscrollbar_new(adjustment);
   
   /* Connect signals */
-  g_signal_connect(G_OBJECT(adjustment), "changed", G_CALLBACK(onScrollRangeChangedDetailView), mainWindow);
-  g_signal_connect(G_OBJECT(adjustment), "value-changed", G_CALLBACK(onScrollPosChangedDetailView), mainWindow);
+  g_signal_connect(G_OBJECT(adjustment), "changed", G_CALLBACK(onScrollRangeChangedDetailView), detailView);
+  g_signal_connect(G_OBJECT(adjustment), "value-changed", G_CALLBACK(onScrollPosChangedDetailView), detailView);
   
   return scrollBar;
 }
@@ -1106,6 +1044,7 @@ static void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 
 
 GtkWidget* createDetailView(GtkWidget *mainWindow,
+			    GtkWidget *panedWidget,
 			    GtkAdjustment *adjustment, 
 			    GtkWidget *fwdStrandGrid, 
 			    GtkWidget *revStrandGrid,
@@ -1157,7 +1096,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   gtk_box_pack_start(GTK_BOX(vbox), detailView, TRUE, TRUE, 0);
   
   /* Put the whole lot into the main window */
-  gtk_paned_pack2(GTK_PANED(mainWindow), vbox, TRUE, TRUE);
+  gtk_paned_pack2(GTK_PANED(panedWidget), vbox, TRUE, TRUE);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);

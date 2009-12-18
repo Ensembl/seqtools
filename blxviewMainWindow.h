@@ -17,12 +17,18 @@ typedef struct _MainWindowProperties
     GtkWidget *bigPicture;
     GtkWidget *detailView;
     
-    gboolean strandsToggled; /* If true, the reverse strand becomes the 'main' or 'top' strand */
-    BlxBlastMode blastMode;  /* The type of blast matching that was used */
+    MSP *mspList;		/* Linked list of match sequences */
+    const char const *refSeq;	/* The reference sequence */
+    
+    gboolean strandsToggled;	/* If true, the reverse strand becomes the 'main' or 'top' strand */
+    BlxBlastMode blastMode;	/* The type of blast matching that was used */
+    
   } MainWindowProperties;
 
 
 /* Public function declarations */
+void blxHelp(void);
+
 MainWindowProperties*	  mainWindowGetProperties(GtkWidget *widget);
 gboolean		  mainWindowGetStrandsToggled(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetBigPicture(GtkWidget *mainWindow);
