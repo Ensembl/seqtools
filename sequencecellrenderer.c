@@ -328,10 +328,20 @@ static GdkColor* getExonColour(SequenceCellRenderer *renderer, gboolean selected
 
 
 
-/* input is co-ord on query sequence, find corresonding base in subject sequence */
-int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand)
+/* Given a base index on the query sequence, find the corresonding base 
+ * in subject sequence. The return value is always UNSET_INT if there is not
+ * a corresponding base at this position. However, in this case the start/end
+ * of the sequence (or nearest gap) is returned in the nearestIdx argument. If
+ * the base exists then the return idx and nearestIdx will be the same. 
+ * nearestIdx can be null if not required. */
+int gapCoord(const MSP *msp, 
+	     const int qIdx, 
+	     const int numFrames, 
+	     const Strand strand, 
+	     const gboolean rightToLeft, 
+	     int *nearestIdx)
 {
-  int result = UNSET_INT ;
+  int result = UNSET_INT;
   
   int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
   getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
@@ -340,8 +350,6 @@ int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand)
   BOOL sForward = ((strchr(msp->sframe, '+'))) ? TRUE : FALSE ;
   BOOL sameDirection = (qForward == sForward);
   
-  //BOOL rightToLeft = (qForward && plusmin < 0) || (!qForward && plusmin > 0); 
-  
   Array gaps = msp->gaps ;
   if (!gaps || arrayMax(gaps) < 1)
     {
@@ -349,9 +357,34 @@ int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand)
        * If strands are in opposite directions, find the offset from qSeqMin and subtract it from sSeqMax. */
       int offset = (qIdx - qSeqMin)/numFrames ;
       result = (sameDirection) ? sSeqMin + offset : sSeqMax - offset ;
+      
+      if (result < sSeqMin)
+	{
+	  result = UNSET_INT;
+	  
+	  if (nearestIdx)
+	    {
+	      *nearestIdx = sSeqMin;
+	    }
+	}
+      else if (result > sSeqMax)
+	{
+	  result = UNSET_INT;
+	  
+	  if (nearestIdx)
+	    {
+	      *nearestIdx = sSeqMax;
+	    }
+	}
+      else if (nearestIdx)
+	{
+	  *nearestIdx = result;
+	}
     }
   else
     {
+      gboolean gapsReversedWrtDisplay = (rightToLeft == qForward);
+      
       /* Look to see if x lies inside one of the reference sequence ranges. */
       int i = 0;
       for ( ; i < arrayMax(gaps) ; ++i)
@@ -374,34 +407,30 @@ int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand)
 		  /* It's inside this range. Calculate the actual index. */
 		  int offset = (qIdx - qRangeMin) / numFrames;
 		  result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
+		  
+		  if (nearestIdx)
+		    {
+		      *nearestIdx = result;
+		    }
 		}
-  //		  else if (i == 0)
-  //		    {
-  //		      /* qIdx lies before the first range. Use the start of the first range. */
-  //		      result = curRange->s1;
-  //		      
-  //		      if (!rightToLeft)
-  //			{
-  //			  /* This is a special case where for normal left-to-right display we want to display the
-  //			   * gap before the base rather than after it.  Use 1 beyond the edge of the range to do this. */
-  //			  result = sForward ? result - 1 : result + 1 ;
-  //			}
-  //		    }
+		else if (nearestIdx && (i == 0 || gapsReversedWrtDisplay))
+		  {
+		    /* Remember the start of the current range. This will be the value we
+		     * return if the index is before of the first range, or if we're in a gap
+		     * and gaps are ordered in the opposite direction to the display (i.e. gap
+		     * coords go from low to high and display shows high to low or v.v.) */
+		    *nearestIdx = curRange->s1;
+		  }
 	      
 	      break;
 	    }
-  //	      else
-  //		{
-  //		  /* Remember the end of the current range (which is the result we want if qIdx lies after the last range). */
-  //		  result = curRange->s2;
-  //		  
-  //		  if (rightToLeft)
-  //		    {
-  //		      /* For right-to-left display, we want to display the gap before the base rather 
-  //		       * than after it.  Use 1 index beyond the edge of the range to do this. */
-  //		      result = sForward ? result + 1 : result - 1 ;
-  //		    }
-  //		}
+	  else if (nearestIdx && !gapsReversedWrtDisplay)
+	    {
+	      /* Remember the end of the current range (which is the result we will return
+	       * if qIdx lies after this range but before the next - unless gaps are reversed
+	       * with respect to the display). */
+	      *nearestIdx = curRange->s2;
+	    }
 	}
     }
   
@@ -519,6 +548,7 @@ static int drawBaseBackgroundColour(MSP *msp,
 				     int selectedBaseIdx, 
 				     int numReadingFrames, 
 				     Strand qStrand,
+				     gboolean rightToLeft,
 				     int qSeqMin,
 				     int qSeqMax,
 				     int x, 
@@ -553,7 +583,7 @@ static int drawBaseBackgroundColour(MSP *msp,
 	}
       else if (mspIsBlastMatch(msp))
 	{
-	  sIdx = gapCoord(msp, qIdx, numReadingFrames, qStrand);
+	  sIdx = gapCoord(msp, qIdx, numReadingFrames, qStrand, rightToLeft, NULL);
 	  
 	  if (sIdx != UNSET_INT)
 	    {
@@ -725,6 +755,7 @@ static void drawBases(SequenceCellRenderer *renderer,
 					  selectedBaseIdx,
 					  getNumReadingFrames(renderer), 
 					  getStrand(renderer), 
+					  rightToLeft,
 					  qSeqMin, 
 					  qSeqMax, 
 					  x, 
@@ -776,6 +807,7 @@ static void drawBases(SequenceCellRenderer *renderer,
 			       selectedBaseIdx, 
 			       getNumReadingFrames(renderer), 
 			       getStrand(renderer), 
+			       rightToLeft,
 			       qSeqMin, 
 			       qSeqMax, 
 			       x, 

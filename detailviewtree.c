@@ -635,7 +635,14 @@ static char* getFeedbackText(GtkWidget *tree, GtkTreeModel *model, GtkTreeIter *
 	  sIdx = UNSET_INT;
 	  if (msp && qIdx != UNSET_INT)
 	    {
-	      sIdx = gapCoord(msp, qIdx, treeGetNumReadingFrames(tree), treeGetStrand(tree));
+	      /* If the base doesn't exist in the match sequence, just get the "nearest" value */
+	      gapCoord(msp, 
+		       qIdx, 
+		       treeGetNumReadingFrames(tree), 
+		       treeGetStrand(tree), 
+		       treeGetStrandsToggled(tree), 
+		       &sIdx);
+	      
 	      msgLen += numDigitsInInt(sIdx);
 	    }
 	}

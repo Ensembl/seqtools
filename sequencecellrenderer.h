@@ -59,6 +59,6 @@ typedef struct _SequenceCellRendererClass
 GType                sequence_cell_renderer_get_type (void);
 GtkCellRenderer     *sequence_cell_renderer_new (void);
 
-int gapCoord(const MSP *msp, int qIdx, int numFrames, Strand strand);
+int gapCoord(const MSP *msp, const int qIdx, const int numFrames, const Strand strand, const gboolean rightToLeft, int *nearestIdx);
 
 #endif /* _sequence_cell_renderer_included_ */
