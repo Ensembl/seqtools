@@ -81,6 +81,9 @@ GdkColor*	  treeGetGapSelectedColour(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 
+void		  selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter);
+void		  deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent);
+
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeAndGrid(GtkWidget *tree, gpointer data);
 void		  treeIncrementFontSize(GtkWidget *tree, gpointer data);

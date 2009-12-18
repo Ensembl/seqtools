@@ -22,9 +22,10 @@
 
 
 /* Local function declarations */
-static void updateFeedbackBoxForAllTrees(GtkWidget *tree);
-static void onSelectionChangedTree(GObject *selection, gpointer data);
-static gint setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const int fontSize, const char *fontFamily);
+static void		updateFeedbackBoxForAllTrees(GtkWidget *tree);
+static void		onSelectionChangedTree(GObject *selection, gpointer data);
+static gint		setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const int fontSize, const char *fontFamily);
+static GtkTreePath*	treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath);
 
 
 /***************************************************************
@@ -238,6 +239,23 @@ void callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data)
 }
 
 
+/* Selects the given row iterator in the given tree. The iter must be in the given
+ * model, but the model can be either the base or filtered model for this tree
+ * (this function converts accordingly) */
+void selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter)
+{
+  GtkTreeSelection *selection = gtk_tree_view_get_selection(tree);
+  GtkTreePath *path = gtk_tree_model_get_path(model, iter);
+
+  /* Convert to the visible (filtered) model if necessary */
+  GtkTreeModel *visibleModel = treeGetVisibleDataModel(tree);
+  GtkTreePath *visiblePath = (model == visibleModel) ? path : treeConvertBasePathToVisiblePath(tree, path);
+  
+  if (visiblePath)
+    gtk_tree_selection_select_path(selection, visiblePath);
+}
+
+
 /* Deselect all rows in the given tree */
 void deselectAllRows(GtkWidget *tree)
 {
@@ -268,12 +286,22 @@ void deselectAllRowsNotInTree(GtkWidget *widget, gpointer data)
 
 
 /* Call the deselect-all function on all trees that are in the same detail view 
- * as the given tree, but NOT on the given tree itself. */
-void deselectAllSiblingTrees(GtkWidget *tree)
+ * as the given tree (but NOT on the given tree itself unless includeCurrent is true). */
+void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 {
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
-  gtk_container_foreach(GTK_CONTAINER(detailView), deselectAllRowsNotInTree, tree);
+  
+  if (includeCurrent)
+    {
+      /* Just call the recursive function */
+      callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
+    }
+  else
+    {
+      /* Need to pass extra data (i.e. the tree to omit), so do this call manually */
+      gtk_container_foreach(GTK_CONTAINER(detailView), deselectAllRowsNotInTree, tree);
+    }
 }
 
 
@@ -610,10 +638,6 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
  * The string returned by this function must be free'd with g_free. */
 static char* getFeedbackText(GtkWidget *tree, GtkTreeModel *model, GtkTreeIter *iter)
 {
-  /* Clear the original entry */
-  GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
-  gtk_entry_set_text(GTK_ENTRY(feedbackBox), "");
-
   /* The info we need to find... */
   int qIdx = treeGetSelectedBaseIdx(tree);
   int sIdx = UNSET_INT;
@@ -668,6 +692,10 @@ static char* getFeedbackText(GtkWidget *tree, GtkTreeModel *model, GtkTreeIter *
   else if (qIdx != UNSET_INT)
     {
       sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);  /* just the index */
+    }
+  else
+    {
+      sprintf(messageText, " ");
     }
   
   return messageText;
@@ -848,7 +876,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     {
       /* First, deselect anything in any other trees than this one. Then let the
        * default handler select the row. */
-      deselectAllSiblingTrees(tree);
+      deselectAllSiblingTrees(tree, FALSE);
       
       /* Let the default handler select the row */
       handled = FALSE;

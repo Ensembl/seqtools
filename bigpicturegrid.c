@@ -290,7 +290,8 @@ static void drawHorizontalGridLines(GtkWidget *grid, GdkGC *gc,
 }
 
 
-/* Calculates the size and position of an MSP line in the given grid. */
+/* Calculates the size and position of an MSP line in the given grid. Return
+ * args can be null if not required. */
 void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp, 
 				int *x, int *y, int *width, int *height)
 {
@@ -305,13 +306,27 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
   int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
   int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
 
-  /* We'll start drawing at the lowest x coord */
-  *x = min(x1, x2);
-  *width = abs(x1 - x2);
+  /* We'll start drawing at the lowest x coord, so set x to the min of x1 and x2 */
+  if (x)
+    *x = min(x1, x2);
+  
+  if (width)
+    *width = abs(x1 - x2);
   
   /* Find where in the y axis we should draw the line, based on the %ID value */
-  *y = convertValueToGridPos(grid, msp->id);
-  *height = gridProperties->mspLineHeight;
+  if (y)
+    *y = convertValueToGridPos(grid, msp->id);
+  
+  if (height)
+    *height = gridProperties->mspLineHeight;
+}
+
+
+/* Returns true if the given msp is displayed in the grid, i.e. is not
+ * an intron or something */
+static gboolean mspShownInGrid(const MSP const *msp)
+{
+  return !mspIsFake(msp) && !mspIsIntron(msp);
 }
 
 
@@ -319,7 +334,7 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
 static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 {
   /* Ignore "fake" MSPs and introns. */
-  if (!mspIsFake(msp) && !mspIsIntron(msp))
+  if (mspShownInGrid(msp))
     {
       GdkGC *gc = gdk_gc_new(grid->window);
       gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
@@ -515,15 +530,82 @@ static void onSizeAllocateBigPictureGrid(GtkWidget *grid, GtkAllocation *allocat
   
   calculateGridHeaderBorders(bigPictureProperties->header);
   callFuncOnAllBigPictureGrids(properties->bigPicture, calculateGridBorders);
+}
+
+
+/* Mark the given row as selected if its MSP line contains the given coords,
+ * Returns true if it was selected. */
+static gboolean selectRowIfContainsCoords(GtkWidget *grid, 
+					  GtkWidget *tree, 
+					  GtkTreeModel *model, 
+					  GtkTreeIter *iter,
+					  const int x,
+					  const int y,
+					  gboolean deselectOthers)
+{
+  gboolean wasSelected = FALSE;
   
-  /* Update the child msp lines */
-//  callFuncOnAllMspLines(grid, configureMspLine);
+  const MSP *msp = treeGetMsp(model, iter);
+  
+  if (mspShownInGrid(msp))
+    {
+      int mspX, mspY, mspWidth, mspHeight;
+      calculateMspLineDimensions(grid, msp, &mspX, &mspY, &mspWidth, &mspHeight);
+      
+      if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
+	{
+	  /* It's a hit */
+	  wasSelected = TRUE;
+	  
+	  if (deselectOthers)
+	    deselectAllSiblingTrees(tree, TRUE);
+	  
+	  selectRow(GTK_TREE_VIEW(tree), model, iter);
+	}
+    }
+  
+  return wasSelected;
+}
+
+
+/* Loop through all the msp lines for this grid and mark them as selected
+ * if they contain the coords of the mouse press */
+static void selectClickedMspLines(GtkWidget *grid, GdkEventButton *event)
+{
+  /* The msp info lives in the tree */
+  GtkWidget *tree = gridGetTree(grid);
+
+  if (tree)
+    {
+      /* We'll loop through every row in the base (i.e. unfiltered) data */
+      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      
+      /* If multiple overlap, just select the first one we find for now. */
+      gboolean done = FALSE;
+      
+      GtkTreeIter iter;
+      gboolean validIter = gtk_tree_model_get_iter_first(model, &iter);
+      
+      while (validIter && !done)
+	{
+	  done = selectRowIfContainsCoords(grid, tree, model, &iter, event->x, event->y, TRUE);
+	  validIter = gtk_tree_model_iter_next(model, &iter);
+	}
+    }
 }
 
 
 static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpointer data)
 {
-  if (event->button == 2) /* middle button */
+  gboolean handled = FALSE;
+  
+  if (event->button == 1) /* left button */
+    {
+      /* If we clicked on top of an msp line, select that msp */
+      selectClickedMspLines(grid, event);
+      handled = TRUE;
+    }
+  else if (event->button == 2) /* middle button */
     {
       /* Draw a preview box at the clicked position */
       gridSetPreviewBoxCentre(grid, event->x);
@@ -531,9 +613,11 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
       /* Force immediate update so that it happens before the button-release event */
       gtk_widget_queue_draw(grid);
       gdk_window_process_updates(grid->window, TRUE);
+      
+      handled = TRUE;
     }
   
-  return FALSE;
+  return handled;
 }
 
 
