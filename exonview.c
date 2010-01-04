@@ -41,14 +41,35 @@ static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
  *                       Utility functions                 *
  ***********************************************************/
 
-/* Draw the exon for a specific row in a tree model */
-static gboolean drawExon(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Draw an exon */
+static void drawExon(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width, int height)
+{
+  gdk_draw_rectangle(drawable, gc, FALSE, x, y, width, height);
+  
+}
+
+
+/* Draw an intron */
+static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width, int height)
+{
+  int xMid = x + round((double)width / 2.0);
+  int xEnd = x + width;
+  int yMid = y + round((double)height / 2.0);
+  
+  gdk_draw_line(drawable, gc, x, yMid, xMid, y);
+  gdk_draw_line(drawable, gc, xMid, y, xEnd, yMid);
+}
+
+
+/* Draw the specific exon/intron in the given tree row. (Does nothing
+ * if this row does not contain an exon/intron.) */
+static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   printf("drawing exonview\n");
 
   const MSP *msp = treeGetMsp(model, iter);
   
-  if (mspIsExon(msp))
+  if (mspIsExon(msp) || mspIsIntron(msp))
     {
       GtkWidget *exonView = GTK_WIDGET(data);
       ExonViewProperties *properties = exonViewGetProperties(exonView);
@@ -60,27 +81,33 @@ static gboolean drawExon(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *it
       int x = min(x1, x2);
       int width = abs(x2 - x1);
       
+      int y = properties->exonViewRect.y;
+      int height = properties->exonViewRect.height;
+      
       GdkGC *gc = gdk_gc_new(exonView->window);
       gdk_gc_set_foreground(gc, &properties->exonColour);
-//      gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+      //gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-      gdk_draw_rectangle(GTK_LAYOUT(exonView)->bin_window, gc, FALSE, 
-			 x, 
-			 properties->exonViewRect.y, 
-			 width, 
-			 properties->exonViewRect.height);
+      if (mspIsExon(msp))
+	{
+	  drawExon(GTK_LAYOUT(exonView)->bin_window, gc, x, y, width, height);
+	}
+      else if (mspIsIntron(msp))
+	{
+	  drawIntron(GTK_LAYOUT(exonView)->bin_window, gc, x, y, width, height);
+	}
     }
   
   return FALSE;
 }
 
 
-/* Draw all of the exons in the given tree */
-static void drawExonsForTree(GtkWidget *exonView, GtkWidget *tree)
+/* Draw all of the exons/introns in the given tree */
+static void drawExonsIntronsForTree(GtkWidget *exonView, GtkWidget *tree)
 {
   /* Loop through all of the (unfiltered) rows in the tree */
   GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_model_foreach(model, drawExon, exonView);
+  gtk_tree_model_foreach(model, drawExonIntron, exonView);
 }
 
 
@@ -96,10 +123,10 @@ static void drawExonView(GtkWidget *exonView)
   for ( ; frame <= numFrames; ++frame)
     {
       GtkWidget *tree = detailViewGetFrameTree(detailView, TRUE, frame);
-      drawExonsForTree(exonView, tree);
+      drawExonsIntronsForTree(exonView, tree);
 
       tree = detailViewGetFrameTree(detailView, FALSE, frame);
-      drawExonsForTree(exonView, tree);
+      drawExonsIntronsForTree(exonView, tree);
     }
 }
 

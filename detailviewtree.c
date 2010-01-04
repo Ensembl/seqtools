@@ -9,7 +9,6 @@
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/bigpicturegrid.h>
-#include <SeqTools/bigpicturemspline.h>
 #include <SeqTools/sequencecellrenderer.h>
 #include <SeqTools/blixem_.h>
 #include <string.h>
@@ -780,26 +779,25 @@ gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
   GtkWidget *tree = GTK_WIDGET(data);
   
   gboolean bDisplay = FALSE;
-  if (!bDisplay)
+  
+  /* Find the MSP in this row */
+  const MSP *msp = NULL;
+  gtk_tree_model_get(model, iter, MSP_COL, &msp, -1);
+  
+  /* Don't show introns */
+  if (msp && !mspIsIntron(msp))
     {
-      /* Find the MSP in this row */
-      const MSP *msp = NULL;
-      gtk_tree_model_get(model, iter, MSP_COL, &msp, -1);
-      
-      if (msp)
+      /* Only show this row if part of the MSP's range is inside the displayed range */
+      GtkAdjustment *adjustment = treeGetAdjustment(tree);
+      if (adjustment)
 	{
-	  /* Show this row if any part of the MSP's range is inside the displayed range */
-	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
-	  if (adjustment)
-	    {
-	      int displayStart = adjustment->value + 1;
-	      int displayEnd = displayStart + adjustment->page_size;
-	      
-	      int qSeqMin, qSeqMax;
-	      getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
-	      
-	      bDisplay = !(qSeqMin > displayEnd || qSeqMax < displayStart);
-	    }
+	  int displayStart = adjustment->value + 1;
+	  int displayEnd = displayStart + adjustment->page_size;
+	  
+	  int qSeqMin, qSeqMax;
+	  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+	  
+	  bDisplay = !(qSeqMin > displayEnd || qSeqMax < displayStart);
 	}
     }
   
@@ -1262,27 +1260,23 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRang
 
 void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
 {
-  /* We don't display introns in the detail view */
-  if (!mspIsIntron(msp))
-    {
-      /* Calculate the id */
-      calcID(msp, tree);
-      
-      /* Add it to the tree's data store */
-      GtkListStore *store = GTK_LIST_STORE(model);
-      
-      GtkTreeIter iter;
-      gtk_list_store_append(store, &iter);
-      
-      gtk_list_store_set(store, &iter,
-			 S_NAME_COL, msp->sname,
-			 SCORE_COL, msp->score,
-			 ID_COL, msp->id,
-			 START_COL, msp->sstart,
-			 MSP_COL, msp,
-			 END_COL, msp->send,
-			 -1);
-    }
+  /* Calculate the id */
+  calcID(msp, tree);
+  
+  /* Add it to the tree's data store */
+  GtkListStore *store = GTK_LIST_STORE(model);
+  
+  GtkTreeIter iter;
+  gtk_list_store_append(store, &iter);
+  
+  gtk_list_store_set(store, &iter,
+		     S_NAME_COL, msp->sname,
+		     SCORE_COL, msp->score,
+		     ID_COL, msp->id,
+		     START_COL, msp->sstart,
+		     MSP_COL, msp,
+		     END_COL, msp->send,
+		     -1);
 }
 
 
