@@ -10,8 +10,6 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/bigpicture.h>
-#include <SeqTools/bigpicturemspline.h>
-#include <SeqTools/utilities.h>
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      4
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2
@@ -300,6 +298,7 @@ static MSP* mainWindowGetMspList(GtkWidget *mainWindow)
  *                      Initialisation                     *
  ***********************************************************/
 
+/* Set various properties for the main window widget */
 static void setStyleProperties(GtkWidget *widget)
 {
   gtk_container_set_border_width (GTK_CONTAINER(widget), DEFAULT_WINDOW_BORDER_WIDTH); 
@@ -314,6 +313,7 @@ static void setStyleProperties(GtkWidget *widget)
 }
 
 
+/* Create the main menu */
 static GtkWidget* createMainMenu(GtkWidget *window)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
@@ -337,6 +337,7 @@ static GtkWidget* createMainMenu(GtkWidget *window)
 }
 
 
+/* Create the main window */
 GtkWidget* createMainWindow(char *refSeq, 
 			    MSP *mspList, 
 			    BlxBlastMode blastMode,
