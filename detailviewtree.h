@@ -84,6 +84,10 @@ void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 void		  selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter);
 void		  deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent);
 
+void		  treeSortByName(GtkWidget *tree, gpointer data);
+void		  treeSortById(GtkWidget *tree, gpointer data);
+void		  treeSortByScore(GtkWidget *tree, gpointer data);
+void		  treeSortByPos(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeAndGrid(GtkWidget *tree, gpointer data);
 void		  treeIncrementFontSize(GtkWidget *tree, gpointer data);

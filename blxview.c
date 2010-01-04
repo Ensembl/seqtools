@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.6 2010-01-04 11:26:41 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.7 2010-01-04 16:14:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -210,14 +210,8 @@ static BOOL parseFeatureLine(char *line,
 static BOOL setMatchSet(char **matches) ;
 static void clearMatchSet(void) ;
 
-static void sortByName(void) ;
-static void sortByScore(void) ;
-static void sortByScore(void) ;
-static void sortByPos(void) ;
-static void sortById(void) ;
 static void sortToggleInv(void) ;
 
-static void MSPsort(SortByType sort_mode) ;
 static void squashMatches(void) ;
 static void squashFSdo(void) ;
 
@@ -1195,85 +1189,19 @@ static int idsort(MSP *msp1, MSP *msp2)
 }
 
 
-
-/* Sort the match entries by..... */
-
-static void sortByName(void)
+static void sortToggleInv(void)
 {
-  sortMode = SORTBYNAME;
-  strcpy(sortModeStr, "Name");
-  sortMSPs(namesort);
-
-  return ;
-}
-
-static void sortByScore(void)
-{
-  sortMode = SORTBYSCORE;
-  strcpy(sortModeStr, "Score");
-  sortMSPs(scoresort);
-
-  return ;
-}
-
-static void sortByPos(void)
-{
-  sortMode = SORTBYPOS;
-  strcpy(sortModeStr, "Position");
-  sortMSPs(possort);
-
-  return ;
-}
-
-static void sortById(void)
-{
-  sortMode = SORTBYID;
-  strcpy(sortModeStr, "Identity");
-  sortMSPs(idsort);
-
-  return ;
-}
-
-
-static void MSPsort(SortByType sort_mode)
-{
- // switch (sort_mode)
+//  sortInvOn = !sortInvOn;
+//  switch (sortMode)
 //    {
-//    case SORTBYNAME :
-//      sortByName(); break;
-//    case SORTBYSCORE :
-//      sortByScore(); break;
-//    case SORTBYPOS :
-//      sortByPos(); break;
-//    case SORTBYID :
-//    default:						    /* Make the default sort by Identity */
-//      {
-//	for (msp = MSPlist; msp; msp = msp->next)
-//	  if (!msp->id)
-//	    calcID(msp);
-//	sortById();
-//      }
-//      break ;
+//    case SORTBYNAME : sortByName(); break;
+//    case SORTBYSCORE : sortByScore(); break;
+//    case SORTBYPOS : sortByPos(); break;
+//    case SORTBYID : sortById(); break;
+//    default: blviewRedraw(); break;
 //    }
 //
 //  return ;
-}
-
-
-
-static void sortToggleInv(void)
-{
-  sortInvOn = !sortInvOn;
-  switch (sortMode)
-    {
-    case SORTBYNAME : sortByName(); break;
-    case SORTBYSCORE : sortByScore(); break;
-    case SORTBYPOS : sortByPos(); break;
-    case SORTBYID : sortById(); break;
-    default: blviewRedraw(); break;
-    }
-
-  return ;
 }
 
 /*
@@ -1302,17 +1230,17 @@ static void squashMatches(void)
     static int oldSortMode;
 
     if (!squash) {
-	oldSortMode = sortMode;
-	sortByName();
+//	oldSortMode = sortMode;
+//	sortByName();
 	squash = 1;
     }
     else {
-	switch (oldSortMode) {
-	case SORTBYNAME : sortByName(); break;
-	case SORTBYSCORE : sortByScore(); break;
-	case SORTBYPOS : sortByPos(); break;
-	case SORTBYID : sortById(); break;
-	}
+//	switch (oldSortMode) {
+//	case SORTBYNAME : sortByName(); break;
+//	case SORTBYSCORE : sortByScore(); break;
+//	case SORTBYPOS : sortByPos(); break;
+//	case SORTBYID : sortById(); break;
+//	}
 	squash = 0;
     }
 
@@ -1999,8 +1927,8 @@ int blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
   if (status || !External)
     blviewCreate(opts, align_types, msplist) ;
 
-  /* Sort the MSPs according to mode chosen. */
-  MSPsort(sortMode) ;
+//  /* Sort the MSPs according to mode chosen. */
+//  MSPsort(sortMode) ;
 
 
 #ifdef ED_G_NEVER_INCLUDE_THIS_CODE

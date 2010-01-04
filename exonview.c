@@ -65,8 +65,6 @@ static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width
  * if this row does not contain an exon/intron.) */
 static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-  printf("drawing exonview\n");
-
   const MSP *msp = treeGetMsp(model, iter);
   
   if (mspIsExon(msp) || mspIsIntron(msp))

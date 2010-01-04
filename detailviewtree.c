@@ -20,6 +20,9 @@
 #define MAX_FONT_SIZE			20
 
 
+enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
+
+
 /* Local function declarations */
 static void		updateFeedbackBoxForAllTrees(GtkWidget *tree);
 static void		onSelectionChangedTree(GObject *selection, gpointer data);
@@ -238,72 +241,6 @@ void callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data)
 }
 
 
-/* Selects the given row iterator in the given tree. The iter must be in the given
- * model, but the model can be either the base or filtered model for this tree
- * (this function converts accordingly) */
-void selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter)
-{
-  GtkTreeSelection *selection = gtk_tree_view_get_selection(tree);
-  GtkTreePath *path = gtk_tree_model_get_path(model, iter);
-
-  /* Convert to the visible (filtered) model if necessary */
-  GtkTreeModel *visibleModel = treeGetVisibleDataModel(tree);
-  GtkTreePath *visiblePath = (model == visibleModel) ? path : treeConvertBasePathToVisiblePath(tree, path);
-  
-  if (visiblePath)
-    gtk_tree_selection_select_path(selection, visiblePath);
-}
-
-
-/* Deselect all rows in the given tree */
-void deselectAllRows(GtkWidget *tree)
-{
-  assertTree(tree);
-  GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-  gtk_tree_selection_unselect_all(selection);
-}
-
-
-/* Deselect all rows in the given widget (if it is a tree) or in all of its child 
- * trees (if it is a container), unless it is the tree that is passed as the data pointer,
- * in which case ignore it. */
-void deselectAllRowsNotInTree(GtkWidget *widget, gpointer data)
-{
-  if (widget != data)
-    {
-      const gchar *name = gtk_widget_get_name(widget);
-      if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
-	{
-	  deselectAllRows(widget);
-	}
-      else if (GTK_IS_CONTAINER(widget))
-	{
-	  gtk_container_foreach(GTK_CONTAINER(widget), deselectAllRowsNotInTree, data);
-	}
-    }
-}
-
-
-/* Call the deselect-all function on all trees that are in the same detail view 
- * as the given tree (but NOT on the given tree itself unless includeCurrent is true). */
-void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
-{
-  assertTree(tree);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  
-  if (includeCurrent)
-    {
-      /* Just call the recursive function */
-      callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
-    }
-  else
-    {
-      /* Need to pass extra data (i.e. the tree to omit), so do this call manually */
-      gtk_container_foreach(GTK_CONTAINER(detailView), deselectAllRowsNotInTree, tree);
-    }
-}
-
-
 /* Return the msp in a given tree row */
 const MSP* treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter)
 {
@@ -472,46 +409,6 @@ static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreeP
 //  
 //  return result;
 //}
-
-
-/* Return true if the given path is selected in the given tree view. The given 
- * path must be in the given model, but this can be in either the base model
- * or the filtered model of the tree - we will check and do any conversion necessary. */
-gboolean treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model)
-{
-  gboolean result = FALSE;
-  
-  GtkTreeModel *baseModel = treeGetBaseDataModel(tree);
-  GtkTreePath *visiblePath = (model == baseModel) ? treeConvertBasePathToVisiblePath(tree, path) : path;
-  
-  if (visiblePath)
-    {
-      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-      result = gtk_tree_selection_path_is_selected(selection, visiblePath);
-    }
-  
-  return result;
-}
-
-
-/* Refilter the data for the given tree */
-void refilterTree(GtkWidget *tree, gpointer data)
-{
-  assertTree(tree);
-  GtkTreeModelFilter *filter = GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(GTK_TREE_VIEW(tree)));
-  gtk_tree_model_filter_refilter(filter);
-}
-
-
-/* Queue a redraw for the given tree, and the grid that corresponds to it */
-void refreshTreeAndGrid(GtkWidget *tree, gpointer data)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  if (properties->grid)
-    gtk_widget_queue_draw(properties->grid);
-  
-//  gtk_widget_queue_draw(tree); /* re-rendering seems to happen before this... */
-}
 
 
 /* Increase the font size in the detail view trees (i.e. effectively zoom in) */
@@ -701,6 +598,21 @@ static char* getFeedbackText(GtkWidget *tree, GtkTreeModel *model, GtkTreeIter *
 }
 
 
+/***********************************************************
+ *			      Updates			   *
+ ***********************************************************/
+
+/* Queue a redraw for the given tree, and the grid that corresponds to it */
+void refreshTreeAndGrid(GtkWidget *tree, gpointer data)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  if (properties->grid)
+    gtk_widget_queue_draw(properties->grid);
+  
+  //  gtk_widget_queue_draw(tree); /* re-rendering seems to happen before this... */
+}
+
+
 /* Updates the feedback box with info about any currently-selected row/base in the
  * given tree.  This currently assumes single-row selections, but could be extended
  * in the future to display, say, summary information about multiple rows. Returns true
@@ -773,7 +685,110 @@ static void updateFeedbackBoxForAllTrees(GtkWidget *tree)
 }
 
 
-/* Returns true if the given row in the given tree model should be visible. */
+/***********************************************************
+ *			  Selections			   *
+ ***********************************************************/
+
+/* Return true if the given path is selected in the given tree view. The given 
+ * path must be in the given model, but this can be in either the base model
+ * or the filtered model of the tree - we will check and do any conversion necessary. */
+gboolean treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model)
+{
+  gboolean result = FALSE;
+  
+  GtkTreeModel *baseModel = treeGetBaseDataModel(tree);
+  GtkTreePath *visiblePath = (model == baseModel) ? treeConvertBasePathToVisiblePath(tree, path) : path;
+  
+  if (visiblePath)
+    {
+      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+      result = gtk_tree_selection_path_is_selected(selection, visiblePath);
+    }
+  
+  return result;
+}
+
+
+/* Selects the given row iterator in the given tree. The iter must be in the given
+ * model, but the model can be either the base or filtered model for this tree
+ * (this function converts accordingly) */
+void selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter)
+{
+  GtkTreeSelection *selection = gtk_tree_view_get_selection(tree);
+  GtkTreePath *path = gtk_tree_model_get_path(model, iter);
+  
+  /* Convert to the visible (filtered) model if necessary */
+  GtkTreeModel *visibleModel = treeGetVisibleDataModel(tree);
+  GtkTreePath *visiblePath = (model == visibleModel) ? path : treeConvertBasePathToVisiblePath(tree, path);
+  
+  if (visiblePath)
+    gtk_tree_selection_select_path(selection, visiblePath);
+}
+
+
+/* Deselect all rows in the given tree */
+void deselectAllRows(GtkWidget *tree)
+{
+  assertTree(tree);
+  GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+  gtk_tree_selection_unselect_all(selection);
+}
+
+
+/* Deselect all rows in the given widget (if it is a tree) or in all of its child 
+ * trees (if it is a container), unless it is the tree that is passed as the data pointer,
+ * in which case ignore it. */
+void deselectAllRowsNotInTree(GtkWidget *widget, gpointer data)
+{
+  if (widget != data)
+    {
+      const gchar *name = gtk_widget_get_name(widget);
+      if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
+	{
+	  deselectAllRows(widget);
+	}
+      else if (GTK_IS_CONTAINER(widget))
+	{
+	  gtk_container_foreach(GTK_CONTAINER(widget), deselectAllRowsNotInTree, data);
+	}
+    }
+}
+
+
+/* Call the deselect-all function on all trees that are in the same detail view 
+ * as the given tree (but NOT on the given tree itself unless includeCurrent is true). */
+void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
+{
+  assertTree(tree);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  
+  if (includeCurrent)
+    {
+      /* Just call the recursive function */
+      callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
+    }
+  else
+    {
+      /* Need to pass extra data (i.e. the tree to omit), so do this call manually */
+      gtk_container_foreach(GTK_CONTAINER(detailView), deselectAllRowsNotInTree, tree);
+    }
+}
+
+
+/***********************************************************
+ *                   Sorting and filtering                 *
+ ***********************************************************/
+
+/* Refilter the data for the given tree */
+void refilterTree(GtkWidget *tree, gpointer data)
+{
+  assertTree(tree);
+  GtkTreeModelFilter *filter = GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(GTK_TREE_VIEW(tree)));
+  gtk_tree_model_filter_refilter(filter);
+}
+
+
+/* Filter function. Returns true if the given row in the given tree model should be visible. */
 gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
@@ -803,6 +818,36 @@ gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
   
   return bDisplay;
 }
+
+
+void treeSortByName(GtkWidget *tree, gpointer data)
+{
+  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+  gtk_tree_sortable_set_sort_column_id(model, S_NAME_COL, GTK_SORT_ASCENDING);
+}
+
+void treeSortById(GtkWidget *tree, gpointer data)
+{
+  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+  gtk_tree_sortable_set_sort_column_id(model, ID_COL, GTK_SORT_ASCENDING);
+}
+
+void treeSortByScore(GtkWidget *tree, gpointer data)
+{
+  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+  gtk_tree_sortable_set_sort_column_id(model, SCORE_COL, GTK_SORT_ASCENDING);
+}
+
+void treeSortByPos(GtkWidget *tree, gpointer data)
+{
+  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+  
+  /* Sort ascending if the reference sequence is displayed in the normal left-to-right
+   * direction, otherwise sort descending. */
+//  gboolean rightToLeft = treeGetStrandsToggled(tree);
+  gtk_tree_sortable_set_sort_column_id(model, MSP_COL, GTK_SORT_ASCENDING);
+}
+
 
 /***********************************************************
  *                       Properties                        *
@@ -1349,6 +1394,96 @@ static void addTreeColumns(GtkWidget *tree, GtkCellRenderer *renderer, const cha
 }
 
 
+static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data)
+{
+  gint result = UNSET_INT;
+
+  /* Extract the sort column and sort order */
+  gint sortColumn;
+  GtkSortType sortOrder;
+  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, &sortOrder);
+  gboolean ascending = (sortOrder == GTK_SORT_ASCENDING);
+
+  /* Extract the MSPs from the tree rows */
+  const MSP *msp1 = treeGetMsp(model, iter1);
+  const MSP *msp2 = treeGetMsp(model, iter2);
+
+  gint sortType = (gint)data;
+  
+  /* Always put "fake" sequences (i.e. the reference sequence) at the top */
+  if (mspIsFake(msp1) && mspIsFake(msp2))
+    {
+      result = 0;
+    }
+  else if (mspIsFake(msp1))
+    {
+      result = ascending ? -1 : 1;
+    }
+  else if (mspIsFake(msp2))
+    {
+      result = ascending ? 1 : -1;
+    }
+  else
+    {
+      /* Otherwise, use standard string/int comparison */
+      switch (sortType)
+	{
+	  case SORT_BY_NAME:
+	    {
+	      result = strcmp(msp1->sname, msp2->sname);
+	      break;
+	    }
+	    
+	  case SORT_BY_SCORE:
+	    { 
+	      result = msp1->score - msp2->score;
+	      break;
+	    }
+	    
+	  case SORT_BY_ID:
+	    {
+	      result = msp1->id - msp2->id;
+	      break;
+	    }
+	    
+	  case SORT_BY_POS:
+	    {
+	      /* Use the low end of the reference sequence range */
+	      int qMin1, qMin2;
+	      getMspRangeExtents(msp1, &qMin1, NULL, NULL, NULL);
+	      getMspRangeExtents(msp2, &qMin2, NULL, NULL, NULL);
+	      result = qMin1 - qMin2;
+	      break;
+	    }
+	    
+	  default:
+	    break;
+	}
+      
+      /* If values are the same, further sort by name, then position, then length */
+      if (!result && sortType != SORT_BY_NAME)
+	{
+	  result = strcmp(msp1->sname, msp2->sname);
+	}
+      
+      if (!result && sortType != SORT_BY_POS)
+	{
+	  int sMin1, sMin2;
+	  getMspRangeExtents(msp1, NULL, NULL, &sMin1, NULL);
+	  getMspRangeExtents(msp2, NULL, NULL, &sMin2, NULL);
+	  result = sMin1 - sMin2;
+	}
+      
+      if (!result)
+	{
+	  result = msp1->slength - msp2->slength;
+	}
+    }
+  
+  return result;
+}
+
+
 /* Create the base data store for a detail view tree */
 void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 {
@@ -1370,7 +1505,12 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 				   treeGetDisplayRange(tree));
   
   addMspToTreeModel(GTK_TREE_MODEL(store), refSeqMsp, tree);
-		    
+
+  /* Set the sort functions for each column */
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL, sortColumnCompareFunc, (gpointer)SORT_BY_NAME, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL, sortColumnCompareFunc, (gpointer)SORT_BY_ID, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), MSP_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
   
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
   g_object_unref(G_OBJECT(store));

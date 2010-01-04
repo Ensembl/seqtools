@@ -10,10 +10,13 @@
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/bigpicture.h>
-#include <SeqTools/utilities.h>
 #include <gtk/gtk.h>
 
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
+#define SORT_BY_SCORE_STRING		"Score"
+#define SORT_BY_ID_STRING		"Identity"
+#define SORT_BY_NAME_STRING		"Name"
+#define SORT_BY_POSITION_STRING		"Position"
 
 
 /* Local function declarations */
@@ -755,6 +758,30 @@ static void Goto(void)
   //  return ;
 }
 
+/* Sort the match entries by..... */
+
+static void sortByName(GtkWidget *detailView)
+{
+  callFuncOnAllDetailViewTrees(detailView, treeSortByName);
+}
+
+static void sortByScore(GtkWidget *detailView)
+{
+  callFuncOnAllDetailViewTrees(detailView, treeSortByScore);
+}
+
+static void sortByPos(GtkWidget *detailView)
+{
+  callFuncOnAllDetailViewTrees(detailView, treeSortByPos);
+}
+
+static void sortById(GtkWidget *detailView)
+{
+  callFuncOnAllDetailViewTrees(detailView, treeSortById);
+}
+
+
+
 static void prevMatch(void)
 {
   //  gotoMatch(-1);
@@ -766,72 +793,75 @@ static void nextMatch(void)
 }
 
 
-static void comboChange(GtkWidget *window, GtkEditable *edit, gpointer args)
+static void comboChange(GtkEditable *editBox, gpointer data)
 {
+  GtkWidget *detailView = GTK_WIDGET(data);
   
-  //  gchar *val = gtk_editable_get_chars(edit, 0, -1);
-  //  
-  //  if (GTK_WIDGET_REALIZED(window))
-  //    {
-  //      if (strcmp(val, "score") == 0)
-  //	sortByScore();
-  //      else if (strcmp(val, "identity") == 0)
-  //	sortById();
-  //      else if (strcmp(val, "name") == 0)
-  //	sortByName();
-  //      else if (strcmp(val, "position") == 0)
-  //	sortByPos();
-  //    }
-  //  g_free(val);
+  /* Get the value to sort by from the combo box */
+  gchar *val = gtk_editable_get_chars(editBox, 0, -1);
+  
+  if (GTK_WIDGET_REALIZED(detailView))
+    {
+      if (strcmp(val, SORT_BY_SCORE_STRING) == 0)
+	sortByScore(detailView);
+      else if (strcmp(val, SORT_BY_ID_STRING) == 0)
+	sortById(detailView);
+      else if (strcmp(val, SORT_BY_NAME_STRING) == 0)
+	sortByName(detailView);
+      else if (strcmp(val, SORT_BY_POSITION_STRING) == 0)
+	sortByPos(detailView);
+    }
+  
+  g_free(val);
 }
 
 
-static void GHelp(GtkButton *button, gpointer args)
+static void GHelp(GtkButton *button, gpointer data)
 {
   blxHelp();
 }
 
-static void GSettings(GtkButton *button, gpointer args)
+static void GSettings(GtkButton *button, gpointer data)
 {
   blixemSettings();
 }
 
-static void GGoto(GtkButton *button, gpointer args)
+static void GGoto(GtkButton *button, gpointer data)
 {
   Goto();
 }
 
-static void GprevMatch(GtkButton *button, gpointer args)
+static void GprevMatch(GtkButton *button, gpointer data)
 {
   prevMatch();
 }
 
-static void GnextMatch(GtkButton *button, gpointer args)
+static void GnextMatch(GtkButton *button, gpointer data)
 {
   nextMatch();
 }
 
-static void GscrollLeftBig(GtkButton *button, gpointer args)
+static void GscrollLeftBig(GtkButton *button, gpointer data)
 {
-  GtkWidget *detailView = GTK_WIDGET(args);
+  GtkWidget *detailView = GTK_WIDGET(data);
   scrollDetailViewLeftPage(detailView);
 }
 
-static void GscrollRightBig(GtkButton *button, gpointer args)
+static void GscrollRightBig(GtkButton *button, gpointer data)
 {  
-  GtkWidget *detailView = GTK_WIDGET(args);
+  GtkWidget *detailView = GTK_WIDGET(data);
   scrollDetailViewRightPage(detailView);
 }
 
-static void GscrollLeft1(GtkButton *button, gpointer args)
+static void GscrollLeft1(GtkButton *button, gpointer data)
 {
-  GtkWidget *detailView = GTK_WIDGET(args);
+  GtkWidget *detailView = GTK_WIDGET(data);
   scrollDetailViewLeft1(detailView);
 }
 
-static void GscrollRight1(GtkButton *button, gpointer args)
+static void GscrollRight1(GtkButton *button, gpointer data)
 {
-  GtkWidget *detailView = GTK_WIDGET(args);
+  GtkWidget *detailView = GTK_WIDGET(data);
   scrollDetailViewRight1(detailView);
 }
 
@@ -909,7 +939,7 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 
 
 /* Create the combo box used for selecting sort criteria */
-static void createSortBox(GtkToolbar *toolbar)
+static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView)
 {
   /* Add a label, to make it obvious what the combo box is for */
   GtkWidget *label = gtk_label_new(" <i>Sort HSPs by:</i>");
@@ -922,18 +952,18 @@ static void createSortBox(GtkToolbar *toolbar)
 
   gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
   gtk_widget_set_usize(GTK_COMBO(combo)->entry, 80, -2);
-  gtk_signal_connect(GTK_OBJECT(GTK_COMBO(combo)->entry), "changed", (GtkSignalFunc)comboChange, NULL);
+  gtk_signal_connect(GTK_OBJECT(GTK_COMBO(combo)->entry), "changed", (GtkSignalFunc)comboChange, detailView);
   
   /* Create the list of strings the user can choose to sort by */
   GList *sortList = NULL;
-  sortList = g_list_append(sortList, "score");
-  sortList = g_list_append(sortList, "identity");
-  sortList = g_list_append(sortList, "name");
-  sortList = g_list_append(sortList, "position");
+  sortList = g_list_append(sortList, SORT_BY_SCORE_STRING);
+  sortList = g_list_append(sortList, SORT_BY_ID_STRING);
+  sortList = g_list_append(sortList, SORT_BY_NAME_STRING);
+  sortList = g_list_append(sortList, SORT_BY_POSITION_STRING);
   gtk_combo_set_popdown_strings(GTK_COMBO(combo), sortList);
   
   /* Set the identity field as the default */
-  gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), "identity");
+  gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_ID_STRING);
 }
 
 
@@ -998,7 +1028,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **f
   makeToolbarButton(toolbar, "Help",	 "Don't Panic",			 (GtkSignalFunc)GHelp,		  NULL);
 
   /* Combo box for sorting */
-  createSortBox(toolbar);
+  createSortBox(toolbar, detailView);
   
   /* Settings button */
   makeToolbarButton(toolbar, "Settings", "Open the Preferences Window",  (GtkSignalFunc)GSettings,	  NULL);
