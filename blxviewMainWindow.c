@@ -28,9 +28,9 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",	  NULL, "_Quit",	"<control>Q",	"Quit the program",	  gtk_main_quit},
   { "Help",	  NULL, "_Help",	"<control>H",	"Display help",		  blxHelp},
   { "Print",	  NULL, "_Print",	"<control>P",	"Print",		  NULL},
-  { "Settings",	  NULL, "_Settings",	NULL,		"Change settings",	  NULL},
+  { "Settings",	  NULL, "_Settings",	"<control>S",	"Change settings",	  NULL},
   { "Dotter",	  NULL, "_Dotter",	NULL,		"Start Dotter",		  NULL},
-  { "Statistics", NULL, "_Statistics",	NULL,		"Show memory statistics", G_CALLBACK(blxShowStats)}
+  { "Statistics", NULL, "S_tatistics",	"<control>T",	"Show memory statistics", G_CALLBACK(blxShowStats)}
 };
 
 
@@ -366,12 +366,11 @@ GtkWidget* createMainWindow(char *refSeq,
    * by the big picture view, so create it first. */
   GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, refSeqRange.max - refSeqRange.min + 1, 1, 0, 0));
   
-  GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL, *header = NULL;
+  GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
   
   printf("Creating big picture...\n");
   GtkWidget *bigPicture = createBigPicture(window,
 					   panedWidget, 
-					   &header, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid, 
 					   &bigPictureDisplayRange, 

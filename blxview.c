@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.5 2009-12-15 16:42:09 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.6 2010-01-04 11:26:41 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -230,11 +230,6 @@ static void toggleDESC(void) ;
 static void ToggleStrand(void) ;
 static void printColors (void) ;
 
-static void scrollRightBig(void);
-static void scrollLeftBig(void);
-static void scrollRight1(void);
-static void scrollLeft1(void);
-
 static void gotoMatch(int direc) ;
 static BOOL gotoMatchPosition(char *match, int q_start, int q_end) ;
 
@@ -245,7 +240,7 @@ static void blviewDestroy(GtkWidget *unused) ;
 #endif
 
 static void toggleColors (void);
-static void blviewCreate(char *opts, char *align_types, const MSP *msplist) ;
+static void blviewCreate(char *opts, char *align_types, MSP *msplist) ;
 
 #if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q);
@@ -2074,7 +2069,7 @@ static BOOL userIsDeveloper()
 
 
 /* Initialize the display and the buttons */
-static void blviewCreate(char *opts, char *align_types, const MSP const *msplist)
+static void blviewCreate(char *opts, char *align_types, MSP *msplist)
 {
   if (!blixemWindow)
     {

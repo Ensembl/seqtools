@@ -871,30 +871,40 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 {
   gboolean handled = FALSE;
   
-  /* Left button: select row */
-  if (event->button == 1)
+  switch (event->button)
     {
-      /* First, deselect anything in any other trees than this one. Then let the
-       * default handler select the row. */
-      deselectAllSiblingTrees(tree, FALSE);
+    
+    case 1:
+      {
+	/* Left button: select row */
+	/* First, deselect anything in any other trees than this one. Then let the
+	 * default handler select the row. */
+	deselectAllSiblingTrees(tree, FALSE);
+	
+	/* Let the default handler select the row */
+	handled = FALSE;
+	break;
+      }
+
+    case 2:
+      {
+	/* Middle button: scroll to centre on clicked base */
+	/* Select the base index at the clicked coords */
+	treeSetSelectedBaseIdx(tree, getBaseIndexAtTreeCoords(tree, event->x, event->y));
+	handled = TRUE;
+	break;
+      }
       
-      /* Let the default handler select the row */
-      handled = FALSE;
-    }
-  
-  /* Right button: show context menu (to do) */
-  if (event->button == 3)
-    {
-      handled = TRUE;
-    }
-  
-  /* Middle button: scrolls */
-  if (event->button == 2)
-    {
-      /* Select the base index at the clicked coords */
-      treeSetSelectedBaseIdx(tree, getBaseIndexAtTreeCoords(tree, event->x, event->y));
-      handled = TRUE;
-    }
+    case 3:
+      {
+	/* Right button: show context menu (to do) */
+	handled = TRUE;
+	break;
+      }
+      
+    default:
+      break;
+    };
   
   return handled;
 }
@@ -929,7 +939,7 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
 	  if (adjustment)
 	    {
 	      int scrollStart = properties->selectedBaseIdx - (adjustment->page_size / 2);
-	      setDetailViewScrollPos(treeGetDetailView(tree), scrollStart);
+	      setDetailViewScrollPos(adjustment, scrollStart);
 	    }
 	}
       
@@ -940,11 +950,47 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
 }
 
 
+/* Implement custom scrolling for horizontal mouse wheel movements over the tree.
+ * This scrolls our custom horizontal scrollbar for the whole Detail View. Leaves
+ * vertical scrolling to the default handler. */
+static gboolean onScrollTree(GtkWidget *tree, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->direction)
+    {
+      case GDK_SCROLL_LEFT:
+	{
+	  scrollDetailViewLeftStep(treeGetDetailView(tree));
+	  handled = TRUE;
+	  break;
+	}
+	
+      case GDK_SCROLL_RIGHT:
+	{
+	  scrollDetailViewRightStep(treeGetDetailView(tree));
+	  handled = TRUE;
+	  break;
+	}
+
+      default:
+	{
+	  /* Default handler can handle vertical scrolling */
+	  handled = FALSE;
+	  break;
+	}
+    };
+  
+  return handled;
+}
+
+
 static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer data)
 {
-  /* Middle mouse button down */
   if (event->state == GDK_BUTTON2_MASK)
     {
+      /* Moving mouse with middle mouse button down. Update the currently-selected base
+       * (but don't re-centre on the selected base until the mouse button is released). */
       treeSetSelectedBaseIdx(tree, getBaseIndexAtTreeCoords(tree, event->x, event->y));
     }
   
@@ -1409,15 +1455,17 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
-  g_signal_connect(G_OBJECT(tree), "button-press-event", G_CALLBACK(onButtonPressTree), detailView);
-  g_signal_connect(G_OBJECT(tree),  "button-release-event", G_CALLBACK(onButtonReleaseTree), detailView);
-  g_signal_connect(G_OBJECT(tree), "motion-notify-event", G_CALLBACK(onMouseMoveTree), detailView);
-  g_signal_connect(G_OBJECT(tree), "enter-notify-event", G_CALLBACK(onEnterTree), NULL);
-  g_signal_connect(G_OBJECT(tree), "leave-notify-event", G_CALLBACK(onLeaveTree), NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-begin", G_CALLBACK(onDragBeginTree), NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-end", G_CALLBACK(onDragEndTree), NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-motion", G_CALLBACK(onDragMotionTree), NULL);
-  g_signal_connect(G_OBJECT(tree), "expose-event", G_CALLBACK(onExposeDetailViewTree), NULL);
+  
+  g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	detailView);
+  g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
+  g_signal_connect(G_OBJECT(tree), "motion-notify-event",   G_CALLBACK(onMouseMoveTree),	detailView);
+  g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
+  g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);
+  g_signal_connect(G_OBJECT(tree), "leave-notify-event",    G_CALLBACK(onLeaveTree),		NULL);
+  g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);
+  g_signal_connect(G_OBJECT(tree), "drag-end",		    G_CALLBACK(onDragEndTree),		NULL);
+  g_signal_connect(G_OBJECT(tree), "drag-motion",	    G_CALLBACK(onDragMotionTree),	NULL);
+  g_signal_connect(G_OBJECT(tree), "expose-event",	    G_CALLBACK(onExposeDetailViewTree), NULL);
   
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
   g_signal_connect(G_OBJECT(selection), "changed", G_CALLBACK(onSelectionChangedTree), tree);

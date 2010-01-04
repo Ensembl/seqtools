@@ -19,6 +19,7 @@ typedef struct _BigPictureProperties
     GtkWidget *header;	    /* The grid header */
     GtkWidget *fwdStrandGrid; /* The grid that displays the forward ref seq strand */
     GtkWidget *revStrandGrid; /* The grid that displays the reverse ref seq strand */
+    GtkWidget *exonView;    /* The section showing the exons */
     
     IntRange displayRange;  /* The currently-displayed range in the big picture */
     IntRange fullRange;     /* The full range of the reference sequence */
@@ -69,14 +70,25 @@ GtkWidget*		      bigPictureGetRevGrid(GtkWidget *bigPicture);
 gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetDetailView(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
+void			      setBigPictureDisplayWidth(GtkWidget *bigPicture, int width);
+void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture);
+
+gdouble			      pixelsPerBase(const gint displayWidth, 
+					    const IntRange const *displayRange);
+
+gint			      convertBaseIdxToGridPos(const gint baseIdx, 
+						      const GdkRectangle const *gridRect, 
+						      const IntRange const *displayRange,
+						      const gboolean rightToLeft);
+
 
 void			      refreshGridOrder(GtkWidget *bigPicture);
 
 GtkWidget*		      createBigPicture(GtkWidget *mainWindow,
 					       GtkWidget *panedWidget,
-					       GtkWidget **header,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid, 
 					       IntRange *displayRange, 

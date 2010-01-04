@@ -50,8 +50,13 @@ const char*		detailViewGetFontFamily(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
-void			setDetailViewScrollPos(GtkWidget *detailView, 
-					       int value);
+void			setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
+void			scrollDetailViewLeft1(GtkWidget *detailView);
+void			scrollDetailViewRight1(GtkWidget *detailView);
+void			scrollDetailViewLeftStep(GtkWidget *detailView);
+void			scrollDetailViewRightStep(GtkWidget *detailView);
+void			scrollDetailViewLeftPage(GtkWidget *detailView);
+void			scrollDetailViewRightPage(GtkWidget *detailView);
 
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 GtkWidget *panedWidget,

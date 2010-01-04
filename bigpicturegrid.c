@@ -28,12 +28,12 @@
 
 /* Local function declarations */
 static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
-static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static gboolean		    gridGetStrandsToggled(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineHighlightColour(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColour(GtkWidget *grid);
 static GtkWidget*	    gridGetTree(GtkWidget *grid);
+static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -101,39 +101,6 @@ static int gridGetPreviewBoxCentre(GtkWidget *grid)
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(gridProperties->bigPicture);
   if (bigPictureProperties)
     result = bigPictureProperties->previewBoxCentre;
-  
-  return result;
-}
-
-
-/* Calculate how many pixels wide a base is */
-static gdouble pixelsPerBase(const gint gridWidth, const IntRange const *displayRange)
-{
-  gdouble displayLen = (gdouble)(displayRange->max - displayRange->min);
-  return ((gdouble)gridWidth / displayLen);
-}
-
-
-/* Convert a base index to a grid position x coord. Returns the number of pixels from the
- * left edge of the widget to where the base lies. rightToLeft should be passed as true if
- * the display is toggled (i.e. low values on the right and high values on the left). */
-gint convertBaseIdxToGridPos(const gint baseIdx, 
-			     const GdkRectangle const *gridRect, 
-			     const IntRange const *displayRange,
-			     const gboolean rightToLeft)
-{
-  gint result = UNSET_INT;
-  
-  gint pixelsFromEdge = (gint)((gdouble)baseIdx * pixelsPerBase(gridRect->width, displayRange));
-  
-  if (rightToLeft)
-    {
-      result = gridRect->x + gridRect->width - pixelsFromEdge;
-    }
-  else
-    {
-      result = gridRect->x + pixelsFromEdge;
-    }
   
   return result;
 }
@@ -326,7 +293,7 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
  * an intron or something */
 static gboolean mspShownInGrid(const MSP const *msp)
 {
-  return !mspIsFake(msp) && !mspIsIntron(msp);
+  return !mspIsFake(msp) && !mspIsIntron(msp) && !mspIsExon(msp);
 }
 
 
@@ -529,7 +496,7 @@ static void onSizeAllocateBigPictureGrid(GtkWidget *grid, GtkAllocation *allocat
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   calculateGridHeaderBorders(bigPictureProperties->header);
-  callFuncOnAllBigPictureGrids(properties->bigPicture, calculateGridBorders);
+  calculateGridBorders(grid);
 }
 
 
@@ -641,13 +608,47 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
       
       if (adjustment)
 	{
-	  setDetailViewScrollPos(gridGetDetailView(grid), baseIdx - displayRange->min);
+	  setDetailViewScrollPos(adjustment, baseIdx);
 	}
       
       gtk_widget_queue_draw(grid);
     }
   
   return TRUE;
+}
+
+
+/* Implement custom scrolling for horizontal mouse wheel movements over the grid.
+ * This scrolls the position of the highlight box, i.e. it scrolls the display
+ * range in the detail view. */
+static gboolean onScrollGrid(GtkWidget *grid, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->direction)
+    {
+      case GDK_SCROLL_LEFT:
+	{
+	  scrollDetailViewLeftStep(gridGetDetailView(grid));
+	  handled = TRUE;
+	  break;
+	}
+	
+      case GDK_SCROLL_RIGHT:
+	{
+	  scrollDetailViewRightStep(gridGetDetailView(grid));
+	  handled = TRUE;
+	  break;
+	}
+
+      default:
+	{
+	  handled = FALSE;
+	  break;
+	}
+    };
+  
+  return handled;
 }
 
 
@@ -792,9 +793,7 @@ static GdkColor *gridGetMspLineHighlightColour(GtkWidget *grid)
  *                     Initialization                      *
  ***********************************************************/
 
-GtkWidget* createBigPictureGrid(GtkWidget *bigPicture,
-				gboolean hasHeaders, 
-				Strand strand)
+GtkWidget* createBigPictureGrid(GtkWidget *bigPicture, Strand strand)
 {
   /* Create a layout area for the big picture */
   GtkWidget *grid = gtk_layout_new(NULL, NULL);
@@ -806,11 +805,12 @@ GtkWidget* createBigPictureGrid(GtkWidget *bigPicture,
   gtk_widget_add_events(grid, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(grid, GDK_POINTER_MOTION_MASK);
   
-  gulong exposeHandlerId = g_signal_connect(G_OBJECT(grid), "expose-event", G_CALLBACK(onExposeGrid), NULL);
-  g_signal_connect(G_OBJECT(grid), "size-allocate", G_CALLBACK(onSizeAllocateBigPictureGrid), NULL);
-  g_signal_connect(G_OBJECT(grid), "button-press-event", G_CALLBACK(onButtonPressGrid), NULL);
-  g_signal_connect(G_OBJECT(grid), "button-release-event", G_CALLBACK(onButtonReleaseGrid), NULL);
-  g_signal_connect(G_OBJECT(grid), "motion-notify-event", G_CALLBACK(onMouseMoveGrid), NULL);
+  gulong exposeHandlerId = g_signal_connect(G_OBJECT(grid), "expose-event", G_CALLBACK(onExposeGrid), NULL);  
+  g_signal_connect(G_OBJECT(grid), "size-allocate",	    G_CALLBACK(onSizeAllocateBigPictureGrid), NULL);
+  g_signal_connect(G_OBJECT(grid), "button-press-event",    G_CALLBACK(onButtonPressGrid),	      NULL);
+  g_signal_connect(G_OBJECT(grid), "button-release-event",  G_CALLBACK(onButtonReleaseGrid),	      NULL);
+  g_signal_connect(G_OBJECT(grid), "motion-notify-event",   G_CALLBACK(onMouseMoveGrid),	      NULL);
+  g_signal_connect(G_OBJECT(grid), "scroll-event",	    G_CALLBACK(onScrollGrid),		      NULL);
   
   /* Set required data in the grid. We can't set the tree yet because it hasn't been created yet. */
   gridCreateProperties(grid, NULL, bigPicture, exposeHandlerId, strand);

@@ -111,10 +111,8 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
 
 /* Update the scroll position of the given adjustment to the given value. Does
  * bounds checking. */
-void setDetailViewScrollPos(GtkWidget *detailView, int value)
-{
-  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-  
+void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
+{  
   /* bounds checking */
   if (value < adjustment->lower)
     {
@@ -122,7 +120,7 @@ void setDetailViewScrollPos(GtkWidget *detailView, int value)
     }
   else
     {
-      int maxValue = adjustment->upper - adjustment->page_size + 1;
+      int maxValue = adjustment->upper - adjustment->page_size;
       if (value > maxValue)
 	value = maxValue;
       
@@ -132,6 +130,70 @@ void setDetailViewScrollPos(GtkWidget *detailView, int value)
   
   adjustment->value = value;
   gtk_adjustment_value_changed(adjustment);
+}
+
+
+/* Scroll by one base */
+void scrollDetailViewLeft1(GtkWidget *detailView)
+{
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+  
+  if (detailViewGetStrandsToggled(detailView))
+    setDetailViewScrollPos(adjustment, adjustment->value + 1);
+  else
+    setDetailViewScrollPos(adjustment, adjustment->value - 1);
+}
+
+void scrollDetailViewRight1(GtkWidget *detailView)
+{
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (detailViewGetStrandsToggled(detailView))
+    setDetailViewScrollPos(adjustment, adjustment->value - 1);
+  else
+    setDetailViewScrollPos(adjustment, adjustment->value + 1);
+}
+
+/* Scroll by one step increment */
+void scrollDetailViewLeftStep(GtkWidget *detailView)
+{
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (detailViewGetStrandsToggled(detailView))
+    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->step_increment);
+  else
+    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->step_increment);
+}
+
+void scrollDetailViewRightStep(GtkWidget *detailView)
+{
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (detailViewGetStrandsToggled(detailView))
+    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->step_increment);
+  else
+    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->step_increment);
+}
+
+/* Scroll by one page size */
+void scrollDetailViewLeftPage(GtkWidget *detailView)
+{
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (detailViewGetStrandsToggled(detailView))
+    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->page_increment);
+  else
+    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->page_increment);
+}
+
+void scrollDetailViewRightPage(GtkWidget *detailView)
+{
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (detailViewGetStrandsToggled(detailView))
+    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->page_increment);
+  else
+    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->page_increment);
 }
 
 
@@ -304,14 +366,17 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       displayRange->min = newStart + 1;
       displayRange->max = newEnd + 1;
       
-      /* Recalculate the borders for all the grids and the header in the big picture */
+      /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
+      callFuncOnAllDetailViewTrees(detailView, refilterTree);
+
+      /* Scroll big picture if necessary to keep highlight box in view */
       GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
+      refreshBigPictureDisplayRange(bigPicture);
+
+      /* Recalculate the borders for all the grids and the header in the big picture */
       GtkWidget *header = bigPictureGetGridHeader(bigPicture);
       calculateGridHeaderBorders(header);
       callFuncOnAllBigPictureGrids(bigPicture, calculateGridBorders);
-      
-      /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      callFuncOnAllDetailViewTrees(detailView, refilterTree);
       
       /* Redraw all trees (and their corresponding grids) */
       callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
@@ -332,14 +397,17 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
     {
       displayRange->min = adjustment->value + 1;
       displayRange->max = newEnd + 1;
-      
-      /* Update the highlight box position for all grids in the big picture */
-      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
-      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
-      
+
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       callFuncOnAllDetailViewTrees(detailView, refilterTree);
+
+      /* Scroll big picture if necessary to keep highlight box in view */
+      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
+      refreshBigPictureDisplayRange(bigPicture);
       
+      /* Update the highlight box position for all grids in the big picture */
+      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
+            
       /* Redraw all trees (and their corresponding grids) */
       callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
     }
@@ -664,26 +732,6 @@ static void ToggleStrand(GtkWidget *detailView)
   gtk_widget_queue_draw(bigPictureGetGridHeader(mainWindowProperties->bigPicture));
 }
 
-static void scrollRightBig(void)
-{
-  //  dispstart = dispstart + plusmin*displen*.5;
-  //  blviewRedraw();
-}
-static void scrollLeftBig(void)
-{
-  //  dispstart = dispstart - plusmin*displen*.5;
-  //  blviewRedraw();
-}
-static void scrollRight1(void)
-{
-  //  dispstart = dispstart + plusmin*symbfact;
-  //  blviewRedraw();
-}
-static void scrollLeft1(void)
-{
-  //  dispstart = dispstart - plusmin*symbfact;
-  //  blviewRedraw();
-}
 
 static void Goto(void)
 {
@@ -765,22 +813,26 @@ static void GnextMatch(GtkButton *button, gpointer args)
 
 static void GscrollLeftBig(GtkButton *button, gpointer args)
 {
-  scrollLeftBig();
+  GtkWidget *detailView = GTK_WIDGET(args);
+  scrollDetailViewLeftPage(detailView);
 }
 
 static void GscrollRightBig(GtkButton *button, gpointer args)
-{
-  scrollRightBig();
+{  
+  GtkWidget *detailView = GTK_WIDGET(args);
+  scrollDetailViewRightPage(detailView);
 }
 
 static void GscrollLeft1(GtkButton *button, gpointer args)
 {
-  scrollLeft1();
+  GtkWidget *detailView = GTK_WIDGET(args);
+  scrollDetailViewLeft1(detailView);
 }
 
 static void GscrollRight1(GtkButton *button, gpointer args)
 {
-  scrollRight1();
+  GtkWidget *detailView = GTK_WIDGET(args);
+  scrollDetailViewRight1(detailView);
 }
 
 static void GToggleStrand(GtkButton *button, gpointer data)
@@ -955,10 +1007,10 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **f
   makeToolbarButton(toolbar, "Goto",	 "Go to specified co-ordinates", (GtkSignalFunc)GGoto,		  NULL);
   makeToolbarButton(toolbar, "< match",  "Next (leftward) match",	 (GtkSignalFunc)GprevMatch,	  NULL);
   makeToolbarButton(toolbar, "match >",  "Next (rightward) match",	 (GtkSignalFunc)GnextMatch,	  NULL);
-  makeToolbarButton(toolbar, "<<",	 "Scroll leftward lots",	 (GtkSignalFunc)GscrollLeftBig,	  NULL);
-  makeToolbarButton(toolbar, ">>",       "Scroll rightward lots",	 (GtkSignalFunc)GscrollRightBig,  NULL);
-  makeToolbarButton(toolbar, "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  NULL);
-  makeToolbarButton(toolbar, ">",	 "Scroll rightward one base",	 (GtkSignalFunc)GscrollRight1,	  NULL);
+  makeToolbarButton(toolbar, "<<",	 "Scroll leftward lots",	 (GtkSignalFunc)GscrollLeftBig,	  detailView);
+  makeToolbarButton(toolbar, ">>",       "Scroll rightward lots",	 (GtkSignalFunc)GscrollRightBig,  detailView);
+  makeToolbarButton(toolbar, "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  detailView);
+  makeToolbarButton(toolbar, ">",	 "Scroll rightward one base",	 (GtkSignalFunc)GscrollRight1,	  detailView);
   
   if (1) //blastx ||tblastx || blastn)
     {

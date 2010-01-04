@@ -60,13 +60,6 @@ gint		    convertValueToGridPos(GtkWidget *grid,
 					  const gint value);
 
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
-					 gboolean hasHeaders, 
 					 Strand strand);
-
-gint		    convertBaseIdxToGridPos(const gint baseIdx, 
-					    const GdkRectangle const *gridRect, 
-					    const IntRange const *displayRange,
-					    const gboolean rightToLeft);
-
 
 #endif /* _big_picture_grid_included_ */

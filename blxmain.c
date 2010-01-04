@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.3 2009-12-08 10:16:58 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.4 2010-01-04 11:26:41 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -49,7 +49,7 @@ enum {BLIXEM_MESG_NUM = 50} ;
 
 
 
-static void msgPopupsCB(BOOL msg_list) ;
+//static void msgPopupsCB(BOOL msg_list) ;
 
 
 
@@ -425,19 +425,19 @@ char *blxVersion(void)
 
 /* Enables user to switch between seeing informational messages in popups
  * or in a scrolled window. */
-static void msgPopupsCB(BOOL msg_list)
-{
-  int list_length ;
-
-  if (msg_list)
-    list_length = BLIXEM_MESG_NUM ;
-  else
-    list_length = 0 ;
-
-//  gexSetMessPopUps(msg_list, list_length) ;
-
-  return ;
-}
+//static void msgPopupsCB(BOOL msg_list)
+//{
+//  int list_length ;
+//
+//  if (msg_list)
+//    list_length = BLIXEM_MESG_NUM ;
+//  else
+//    list_length = 0 ;
+//
+////  gexSetMessPopUps(msg_list, list_length) ;
+//
+//  return ;
+//}
 
 
 
