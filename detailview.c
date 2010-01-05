@@ -10,6 +10,7 @@
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/bigpicture.h>
+#include <SeqTools/utilities.h>
 #include <gtk/gtk.h>
 
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
@@ -203,24 +204,19 @@ void scrollDetailViewRightPage(GtkWidget *detailView)
 /* Calculate the number of bases that can be displayed in the sequence column */
 static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
 {
-  /* Find the width of the sequence column */
-  GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), MSP_COL);
-  
+  /* Find the width of the sequence column (if we weren't already passed it) */
   if (colWidth == UNSET_INT)
-    colWidth = gtk_tree_view_column_get_width(sequenceCol);
+    {
+      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), MSP_COL);
+      colWidth = gtk_tree_view_column_get_width(sequenceCol);
+    }
   
-  /* Find the character width of the font */
-  PangoFontDescription *font_desc = pango_font_description_copy (tree->style->font_desc);
-  PangoContext *context = gtk_widget_get_pango_context (tree);
-  PangoFontMetrics *metrics = pango_context_get_metrics (context,
-							 font_desc,
-							 pango_context_get_language (context));
-  pango_font_description_free (font_desc);
-  
-  int charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
-  pango_font_metrics_unref(metrics);
+  /* Don't include the cell padding area */
+  GtkCellRenderer *renderer = treeGetRenderer(tree);
+  colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
   
   /* Return the number of whole characters that fit in the column. */
+  gint charWidth = SEQUENCE_CELL_RENDERER(renderer)->charWidth;
   int numChars = (int)((double)colWidth / (double)charWidth);
   
   return numChars;
@@ -251,12 +247,7 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 	  IntRange *displayRange = treeGetDisplayRange(tree);
 	  int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
 	  
-	  int centre = selectedBaseIdx;
-	  if (centre == UNSET_INT)
-	    {
-	      centre = displayRange->min + round((double)(displayRange->max - displayRange->min) / 2.0);
-	    }
-	  
+	  int centre = selectedBaseIdx == UNSET_INT ? getRangeCentre(displayRange) : selectedBaseIdx;
 	  int offset = round((double)adjustment->page_size / 2.0);
 	  adjustment->value = centre - offset - 1;
 	  
@@ -376,7 +367,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   GtkWidget *detailView = GTK_WIDGET(data);
   
   int newStart = adjustment->value + 1;
-  int newEnd = newStart + adjustment->page_size;
+  int newEnd = adjustment->value + adjustment->page_size;
   
   /* Only update if something has changed */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
@@ -411,7 +402,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
   
   /* Set the display range so that it starts at the new scroll pos */
   int newStart = adjustment->value + 1;
-  int newEnd = newStart + adjustment->page_size;
+  int newEnd = adjustment->value + adjustment->page_size;
 
   /* Only update if something has changed */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);

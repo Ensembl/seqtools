@@ -344,7 +344,7 @@ GtkWidget* createMainWindow(char *refSeq,
 			    BlxSeqType seqType, 
 			    int numReadingFrames)
 {
-  int refSeqEnd = strlen(refSeq) ;
+  int refSeqEnd = strlen(refSeq);
   IntRange refSeqRange = {1, refSeqEnd};
   IntRange bigPictureDisplayRange  = {1, refSeqEnd};
   

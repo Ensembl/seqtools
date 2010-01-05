@@ -12,6 +12,7 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/utilities.h>
 #include <math.h>
 #include <string.h>
 
@@ -90,14 +91,16 @@ static gint convertGridPosToBaseIdx(const gint gridPos,
 {
   gint result = UNSET_INT;
   
-  gdouble basesFromEdge = round(((gdouble)gridPos - (gdouble)gridRect->x) / pixelsPerBase(gridRect->width, displayRange));
-  
   if (rightToLeft)
     {
+      int distFromEdge = ceil((gdouble)gridPos - (gdouble)gridRect->x);
+      int basesFromEdge = distFromEdge / pixelsPerBase(gridRect->width, displayRange);
       result = displayRange->max - basesFromEdge;
     }
   else
     {
+      int distFromEdge = trunc((gdouble)gridPos - (gdouble)gridRect->x);
+      int basesFromEdge = distFromEdge / pixelsPerBase(gridRect->width, displayRange);
       result = displayRange->min + basesFromEdge;
     }
   
@@ -171,14 +174,22 @@ static void drawPreviewBox(GtkWidget *grid,
       IntRange *displayRange = gridGetDisplayRange(grid);
       gboolean rightToLeft = gridGetStrandsToggled(grid);
 
-      /* Find the x coord for the left edge of the preview box. Convert it to the base
-       * index and back again so that we get it rounded to the position of the nearest base. */
-      int xLeft = getLeftCoordFromCentre(previewBoxCentre, highlightRect->width, &properties->gridRect);
-      int baseIdx = convertGridPosToBaseIdx(xLeft, &properties->gridRect, displayRange, rightToLeft);
+      /* Find the x coord for the left edge of the preview box (or the right edge, if
+       * the display is right-to-left). */
+      int x = rightToLeft
+	? getRightCoordFromCentre(previewBoxCentre, properties->highlightRect.width, &properties->gridRect)
+	: getLeftCoordFromCentre(previewBoxCentre, properties->highlightRect.width, &properties->gridRect);
+      
+      /* Convert it to the base index and back again so that we get it rounded to the position of
+       * the nearest base. */
+      int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange, rightToLeft);
       int xRounded = convertBaseIdxToGridPos(baseIdx, &properties->gridRect, displayRange, rightToLeft);
       
-//      /* Find the x coord for the left edge of the preview box. */
-//      int x = getLeftCoordFromCentre(previewBoxCentre, highlightRect->width, &properties->gridRect);
+      if (rightToLeft)
+	{
+	  /* Adjust to get the left edge */
+	  xRounded = xRounded - highlightRect->width - 1;
+	}
       
       /* The other dimensions of the preview box are the same as the current highlight box. */
       GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};

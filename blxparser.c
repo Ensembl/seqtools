@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.3 2009-12-10 13:27:16 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.4 2010-01-05 15:47:33 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1276,19 +1276,6 @@ static char *nextLine(FILE *file, GString *line_string)
     }
 
   return result ;
-}
-
-
-/* Sorts the given values so that val1 is less than val2 if forwards is true,
- * or the reverse if forwards is false. */
-void sortValues(int *val1, int *val2, gboolean forwards)
-{
-  if ((forwards && *val1 > *val2) || (!forwards && *val1 < *val2))
-    {
-      int temp = *val1;
-      *val1 = *val2;
-      *val2 = temp;
-    }
 }
 
 

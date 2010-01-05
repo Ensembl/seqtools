@@ -10,7 +10,7 @@
 #include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/exonview.h>
-
+#include <SeqTools/utilities.h>
 #include <math.h>
 
 
@@ -27,25 +27,10 @@ static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
 static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 static GtkWidget*		    bigPictureGetExonView(GtkWidget *bigPicture);
-static int			    getRangeCentre(IntRange *range);
 
 /***********************************************************
  *                     Utility functions	           *
  ***********************************************************/
-
-/* Utility to calculate how many digits are in an integer */
-int numDigitsInInt(int val)
-{
-  int count = 0;
-  while (val > 0)
-    {
-      ++count;
-      val /= 10;
-    }
-  
-  return count;
-}
-
 
 /* Utility to get the height and (approx) width of the given widget's font */
 static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
@@ -63,7 +48,7 @@ static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
 /* Calculate how many pixels wide a base is */
 gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRange)
 {
-  gdouble displayLen = (gdouble)(displayRange->max - displayRange->min);
+  gdouble displayLen = (gdouble)(displayRange->max - displayRange->min) + 1;
   return ((gdouble)displayWidth / displayLen);
 }
 
@@ -79,21 +64,31 @@ gint convertBaseIdxToGridPos(const gint baseIdx,
 {
   gint result = UNSET_INT;
   
-  gdouble numBasesFromEdge = (gdouble)(baseIdx - displayRange->min);
+  gdouble numBasesFromEdge = (gdouble)(baseIdx - displayRange->min); /* 0-based index from edge */
   if (numBasesFromEdge < 0)
     {
       numBasesFromEdge = 0;
     }
   
-  gint pixelsFromEdge = (gint)(numBasesFromEdge * pixelsPerBase(rect->width, displayRange));
+  gint pixelsFromEdge = trunc(numBasesFromEdge * pixelsPerBase(rect->width, displayRange));
   
   if (rightToLeft)
     {
       result = rect->x + rect->width - pixelsFromEdge;
+      
+      if (result < rect->x)
+	{
+	  result = rect->x;
+	}
     }
   else
     {
       result = rect->x + pixelsFromEdge;
+      
+      if (result > rect->x + rect->width)
+	{
+	  result = rect->x + rect->width;
+	}
     }
   
   return result;
@@ -311,13 +306,6 @@ void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width)
 }
 
 
-/* Utility to return the centre value of the given range (rounded down if an odd number) */
-static int getRangeCentre(IntRange *range)
-{
-  return range->min + (int)(((double)(range->max - range->min)) / 2.0);
-}
-
-
 /* This function makes sure the big picture remains centred on the highlight box:
  * it scrolls the big picture display range if necessary to keep the highlight box
  * (i.e. the range that is displayed in the detail-view) centred. */
@@ -370,7 +358,7 @@ int getRightCoordFromCentre(const int centreCoord, const int width, const GdkRec
   
   if (outerRect)
     {
-      if (rightCoord > outerRect->x + outerRect->width + 1)
+      if (rightCoord > outerRect->x + outerRect->width)
 	rightCoord = outerRect->x + outerRect->width;
       else
 	{

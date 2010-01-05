@@ -10,7 +10,7 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/sequencecellrenderer.h>
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 #include <string.h>
 
 #define DETAIL_VIEW_TREE_NAME		"DetailViewTreeName"
@@ -72,37 +72,6 @@ static void seqColCreateProperties(GtkTreeViewColumn *column, GtkWidget *tree)
  *                Tree - utility functions                 *
  ***********************************************************/
 
-GdkColor getGdkColor(gulong colour)
-{
-  GdkColor result = {colour};
-  return result;
-}
-
-
-/* Returns true if the given MSP is a "fake" MSP (i.e. one that that is used just
- * to display the reference sequence and does not represent a real match.) */
-gboolean mspIsFake(const MSP const *msp)
-{
-  /* This is not a great way to identify fake msp's but it'll do for now. */
-  return (msp && msp->score == 0);
-}
-
-gboolean mspIsExon(const MSP const *msp)
-{
-  return (msp && msp->score == -1);
-}
-
-gboolean mspIsIntron(const MSP const *msp)
-{
-  return (msp && msp->score == -2);
-}
-
-gboolean mspIsBlastMatch(const MSP const *msp)
-{
-  return (msp && msp->score > 0);
-}
-
-
 static void assertTree(GtkWidget *tree)
 {
   if (!tree)
@@ -141,6 +110,12 @@ GtkCellRenderer *treeGetRenderer(GtkWidget *tree)
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
   return properties ? properties->renderer : NULL;
+}
+
+int treeGetCharWidth(GtkWidget *tree)
+{
+  GtkCellRenderer *renderer = treeGetRenderer(tree);
+  return SEQUENCE_CELL_RENDERER(renderer)->charWidth;
 }
 
 GtkWidget *treeGetDetailView(GtkWidget *tree)
@@ -493,13 +468,36 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
   gboolean rightToLeft = treeGetStrandsToggled(tree);
   
   /* Check that the given coord is within the cell's display area */
-  if (x > renderer->xpad && x < colWidth)
+  double leftEdge = (double)renderer->xpad + renderer->xalign;
+  double rightEdge = colWidth - renderer->xpad;
+  
+  if (x >= leftEdge && x <= rightEdge)
     {
+      /* Calculate the number of bases from the left edge */
       gint charWidth = SEQUENCE_CELL_RENDERER(renderer)->charWidth;
-
-      /* Calculate the distance from the left edge (or right edge, if display reversed). */
-      int distFromEdge = rightToLeft ? colWidth - (x - renderer->xpad * 2) : x - renderer->xpad * 2;
-      result = (int)((double)(distFromEdge) / (double)charWidth);
+      double distFromLeft = (double)x - leftEdge;
+      int numBasesFromLeft = trunc(distFromLeft / (double)charWidth);
+      
+      if (rightToLeft)
+	{
+	  /* Numbers are displayed increasing from right-to-left. Subtract the 
+	   * number of bases from the total number of bases displayed. */
+	  IntRange *displayRange = treeGetDisplayRange(tree);
+	  int displayLen = displayRange->max - displayRange->min;
+	  result = displayLen - numBasesFromLeft;
+	  
+	  /* x could be in an empty gap at the end, so bounds check the result.
+	   * Note that our index is 0-based but the display range is 1-based. */
+	  if (result < 0)
+	    {
+	      result = UNSET_INT;
+	    }
+	}
+      else
+	{
+	  /* Normal left-to-right display. */
+	  result = numBasesFromLeft;
+	}
     }
   
   return result;
@@ -521,8 +519,12 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
     {
       /* Get the base index at the clicked position */
       int charIdx = getCharIndexAtTreeCoord(tree, col, cell_x);
-      GtkAdjustment *adjustment = treeGetAdjustment(tree);
-      baseIdx = charIdx + adjustment->value + 1; /* Adjustment is 0-based, display range is 1-based */
+      
+      if (charIdx != UNSET_INT)
+	{
+	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
+	  baseIdx = charIdx + adjustment->value + 1; /* Adjustment is 0-based, display range is 1-based */
+	}
     }
   
   return baseIdx;
@@ -933,7 +935,13 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
       {
 	/* Middle button: scroll to centre on clicked base */
 	/* Select the base index at the clicked coords */
-	treeSetSelectedBaseIdx(tree, getBaseIndexAtTreeCoords(tree, event->x, event->y));
+	int baseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y);
+	
+	if (baseIdx != UNSET_INT)
+	  {
+	    treeSetSelectedBaseIdx(tree, baseIdx);
+	  }
+	
 	handled = TRUE;
 	break;
       }
@@ -1548,8 +1556,9 @@ static void setTreeStyle(GtkTreeView *tree)
   char parseString[500];
   sprintf(parseString, "style \"packedTree\"\n"
 	  "{\n"
-	  "GtkTreeView::expander-size = 0\n"
-	  "GtkTreeView::vertical-separator = 2\n"
+	  "GtkTreeView::expander-size	      = 0\n"
+	  "GtkTreeView::vertical-separator    = 2\n"
+	  "GtkTreeView::horizontal-separator  = 0\n"
 	  "}"
 	  "widget \"*%s*\" style \"packedTree\"", DETAIL_VIEW_TREE_NAME);
   gtk_rc_parse_string(parseString);

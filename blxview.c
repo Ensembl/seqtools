@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.7 2010-01-04 16:14:36 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.8 2010-01-05 15:47:33 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -132,6 +132,7 @@ MSP score codes:
 #include <gdk/gdkkeysyms.h>
 
 #include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 #include <SeqTools/blxviewMainWindow.h>
 
 #ifdef ACEDB
@@ -540,43 +541,6 @@ static BlixemView getBlxViewContext(void)
 {
   return &blixem_context_G ;
 }
-
-
-/* Returns the upper and lower extents of the query and subject sequence ranges in 
- * the given MSP. Any of the return values can be NULL if they are not required. */
-void getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin, int *sSeqMax)
-{
-  if (qSeqMin)
-    *qSeqMin = msp->qstart < msp->qend ? msp->qstart : msp->qend;
-  
-  if (qSeqMax)
-    *qSeqMax = msp->qstart < msp->qend ? msp->qend : msp->qstart;
-  
-  if (sSeqMin)
-    *sSeqMin = msp->sstart < msp->send ? msp->sstart : msp->send;
-  
-  if (sSeqMax)
-    *sSeqMax = msp->sstart < msp->send ? msp->send : msp->sstart;
-}
-
-
-/* Returns the upper and lower extents of the query and subject sequence ranges in
- * the given gap range. Any of the return values can be passed as NULL if they are not required. */
-void getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax)
-{
-  if (qRangeMin)
-    *qRangeMin = range->r1 < range->r2 ? range->r1 : range->r2;
-  
-  if (qRangeMax)
-    *qRangeMax = range->r1 < range->r2 ? range->r2 : range->r1;
-  
-  if (sRangeMin)
-    *sRangeMin = range->s1 < range->s2 ? range->s1 : range->s2;
-  
-  if (sRangeMax)
-    *sRangeMax = range->s1 < range->s2 ? range->s2 : range->s1;
-}
-
 
 
 static void toggleMatchSet(void)

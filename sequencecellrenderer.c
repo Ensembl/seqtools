@@ -8,11 +8,13 @@
  */
 
 #include <SeqTools/sequencecellrenderer.h>
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 #include <SeqTools/detailviewtree.h>
 #include <wh/smap.h>
 #include <gtk/gtkcellrenderertext.h>
 
+
+#define SEQUENCE_CELL_RENDERER_NAME   "SequenceCellRenderer"
 
 /* Properties */
 enum 
@@ -108,8 +110,6 @@ static void
 sequence_cell_renderer_init (SequenceCellRenderer *cellrenderersequence)
 {
   GTK_CELL_RENDERER(cellrenderersequence)->mode = GTK_CELL_RENDERER_MODE_INERT;
-  GTK_CELL_RENDERER(cellrenderersequence)->xpad = 2;
-  GTK_CELL_RENDERER(cellrenderersequence)->ypad = 0;
 
   cellrenderersequence->msp = NULL;
   cellrenderersequence->text = NULL;
@@ -662,7 +662,7 @@ static void getCoordsForBaseIdx(int qIdx,
   if (rightToLeft)
     {
       /* Strands have been toggled, so display sequences reversed (i.e. so they read right-to-left) */
-      charIdx = displayRange->max - qIdx - 1;
+      charIdx = displayRange->max - qIdx;
     }
   else
     {

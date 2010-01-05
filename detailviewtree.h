@@ -54,6 +54,7 @@ GdkColor exonColour;
 TreeProperties*	  treeGetProperties(GtkWidget *widget);
 GtkAdjustment*	  treeGetAdjustment(GtkWidget *tree);
 GtkCellRenderer*  treeGetRenderer(GtkWidget *tree);
+int		  treeGetCharWidth(GtkWidget *tree);
 GtkWidget*	  treeGetGrid(GtkWidget *tree);
 Strand		  treeGetStrand(GtkWidget *tree);
 gboolean	  treeGetStrandsToggled(GtkWidget *tree);
