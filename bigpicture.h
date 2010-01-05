@@ -84,6 +84,13 @@ gint			      convertBaseIdxToGridPos(const gint baseIdx,
 						      const IntRange const *displayRange,
 						      const gboolean rightToLeft);
 
+int			      getLeftCoordFromCentre(const int centreCoord, 
+						     const int width, 
+						     const GdkRectangle *outerRect);
+
+int			      getRightCoordFromCentre(const int centreCoord, 
+						      const int width, 
+						      const GdkRectangle *outerRect);
 
 void			      refreshGridOrder(GtkWidget *bigPicture);
 

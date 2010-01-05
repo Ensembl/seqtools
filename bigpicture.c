@@ -340,7 +340,7 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture)
  * rectangle lies entirely within the outer rect. */
 int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRectangle *outerRect)
 {
-  int leftCoord = centreCoord - (width / 2);
+  int leftCoord = centreCoord - round((double)width / 2.0);
   
   if (outerRect)
     {
@@ -349,14 +349,42 @@ int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRect
       else
 	{
 	  int leftCoordMax = outerRect->x + outerRect->width - width;
+	  
 	  if (leftCoord > leftCoordMax) 
-	    leftCoord = leftCoordMax;
+	    {
+	      leftCoord = leftCoordMax;
+	    }
 	}
     }
   
   return leftCoord;
 }
 
+
+/* Given the centre x coord of a rectangle and its width, find the x coord of the 
+ * right edge. If an outer rectangle is given, limit the coord so that the
+ * rectangle lies entirely within the outer rect. */
+int getRightCoordFromCentre(const int centreCoord, const int width, const GdkRectangle *outerRect)
+{
+  int rightCoord = centreCoord + round((double)width / 2.0);
+  
+  if (outerRect)
+    {
+      if (rightCoord > outerRect->x + outerRect->width + 1)
+	rightCoord = outerRect->x + outerRect->width;
+      else
+	{
+	  int rightCoordMin = outerRect->x + width;
+	  
+	  if (rightCoord < rightCoordMin) 
+	    {
+	      rightCoord = rightCoordMin;
+	    }
+	}
+    }
+  
+  return rightCoord;
+}
 
 /***********************************************************
  *			    Events			   *

@@ -156,9 +156,11 @@ static void drawHighlightBox(GtkWidget *widget,
 
 
 /* Draw the preview box, if applicable */
-static void drawPreviewBox(GtkWidget *grid, GdkGC *gc, 
+static void drawPreviewBox(GtkWidget *grid, 
+			   GdkGC *gc, 
 			   const GdkRectangle const *highlightRect,
-			   const gint lineWidth, GdkColor *lineColour)
+			   const gint lineWidth, 
+			   GdkColor *lineColour)
 {
   /* If a preview position is set, draw a preview of the highlight rect 
    * centred at that position */
@@ -166,12 +168,20 @@ static void drawPreviewBox(GtkWidget *grid, GdkGC *gc,
   if (previewBoxCentre != UNSET_INT)
     {
       GridProperties *properties = gridGetProperties(grid);
+      IntRange *displayRange = gridGetDisplayRange(grid);
+      gboolean rightToLeft = gridGetStrandsToggled(grid);
+
+      /* Find the x coord for the left edge of the preview box. Convert it to the base
+       * index and back again so that we get it rounded to the position of the nearest base. */
+      int xLeft = getLeftCoordFromCentre(previewBoxCentre, highlightRect->width, &properties->gridRect);
+      int baseIdx = convertGridPosToBaseIdx(xLeft, &properties->gridRect, displayRange, rightToLeft);
+      int xRounded = convertBaseIdxToGridPos(baseIdx, &properties->gridRect, displayRange, rightToLeft);
       
-      /* Find the x coord for the left edge of the preview box. */
-      int x = getLeftCoordFromCentre(previewBoxCentre, highlightRect->width, &properties->gridRect);
+//      /* Find the x coord for the left edge of the preview box. */
+//      int x = getLeftCoordFromCentre(previewBoxCentre, highlightRect->width, &properties->gridRect);
       
       /* The other dimensions of the preview box are the same as the current highlight box. */
-      GdkRectangle previewRect = {x, highlightRect->y, highlightRect->width, highlightRect->height};
+      GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
       drawHighlightBox(grid, gc, &previewRect, lineWidth, lineColour);
     }
 }
@@ -465,15 +475,20 @@ void showPreviewBox(GtkWidget *grid, const int x)
 
 
 /* Scroll to the position of the preview box, and clear the preview */
-void acceptAndClearPreviewBox(GtkWidget *grid, const int x)
+void acceptAndClearPreviewBox(GtkWidget *grid, const int xCentre)
 {
   GridProperties *properties = gridGetProperties(grid);
   IntRange *displayRange = gridGetDisplayRange(grid);
   gboolean rightToLeft = gridGetStrandsToggled(grid);
   
-  /* Find the base index where the preview box starts */
-  int xLeft = getLeftCoordFromCentre(x, properties->highlightRect.width, &properties->gridRect);
-  int baseIdx = convertGridPosToBaseIdx(xLeft, &properties->gridRect, displayRange, rightToLeft);
+  /* Find the base index where the new scroll range will start. This is the leftmost
+   * edge of the preview box if numbers increase in the normal left-to-right direction, 
+   * or the rightmost edge if the display is reversed. */
+  int x = rightToLeft
+    ? getRightCoordFromCentre(xCentre, properties->highlightRect.width, &properties->gridRect)
+    : getLeftCoordFromCentre(xCentre, properties->highlightRect.width, &properties->gridRect);
+  
+  int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange, rightToLeft);
   
   /* Clear the preview box */
   gridSetPreviewBoxCentre(grid, UNSET_INT);
@@ -483,7 +498,7 @@ void acceptAndClearPreviewBox(GtkWidget *grid, const int x)
   
   if (adjustment)
     {
-      setDetailViewScrollPos(adjustment, baseIdx);
+      setDetailViewScrollPos(adjustment, baseIdx - 1); /* adjust for 0-indexing */
     }
   
   gtk_widget_queue_draw(grid);
