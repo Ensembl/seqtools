@@ -11,7 +11,7 @@
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/detailview.h>
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 #include <math.h>
 
 #define EXON_VIEW_DEFAULT_COMPRESSED_HEIGHT      10
