@@ -11,7 +11,6 @@
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
-#include <SeqTools/bigpicturemspline.h>
 #include <SeqTools/blxviewMainWindow.h>
 #include <math.h>
 #include <string.h>
@@ -64,29 +63,6 @@ static gint gridGetCellHeight(GtkWidget *grid)
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   return bigPictureProperties->charHeight + (2 * properties->cellYPadding);
-}
-
-
-/* Given the centre x coord of a rectangle and its width, find the x coord of the 
- * left edge. If an outer rectangle is given, limit the coord so that the
- * rectangle lies entirely within the outer rect. */
-static int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRectangle *outerRect)
-{
-  int leftCoord = centreCoord - (width / 2);
-  
-  if (outerRect)
-    {
-      if (leftCoord < outerRect->x) 
-	leftCoord = outerRect->x;
-      else
-	{
-	  int leftCoordMax = outerRect->x + outerRect->width - width;
-	  if (leftCoord > leftCoordMax) 
-	    leftCoord = leftCoordMax;
-	}
-    }
-  
-  return leftCoord;
 }
 
 
@@ -476,6 +452,44 @@ void calculateGridBorders(GtkWidget *grid)
 }
 
 
+/* Show a preview box centred on the given x coord */
+void showPreviewBox(GtkWidget *grid, const int x)
+{
+  /* Draw a preview box at the clicked position */
+  gridSetPreviewBoxCentre(grid, x);
+  
+  /* Force immediate update so that it happens before the button-release event */
+  gtk_widget_queue_draw(grid);
+  gdk_window_process_updates(grid->window, TRUE);
+}
+
+
+/* Scroll to the position of the preview box, and clear the preview */
+void acceptAndClearPreviewBox(GtkWidget *grid, const int x)
+{
+  GridProperties *properties = gridGetProperties(grid);
+  IntRange *displayRange = gridGetDisplayRange(grid);
+  gboolean rightToLeft = gridGetStrandsToggled(grid);
+  
+  /* Find the base index where the preview box starts */
+  int xLeft = getLeftCoordFromCentre(x, properties->highlightRect.width, &properties->gridRect);
+  int baseIdx = convertGridPosToBaseIdx(xLeft, &properties->gridRect, displayRange, rightToLeft);
+  
+  /* Clear the preview box */
+  gridSetPreviewBoxCentre(grid, UNSET_INT);
+  
+  /* Update the detail view's scroll pos to start at the start base */
+  GtkAdjustment *adjustment = properties->tree ? treeGetAdjustment(properties->tree) : NULL;
+  
+  if (adjustment)
+    {
+      setDetailViewScrollPos(adjustment, baseIdx);
+    }
+  
+  gtk_widget_queue_draw(grid);
+}
+
+
 /***********************************************************
  *			    Events			   *
  ***********************************************************/
@@ -574,13 +588,7 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
     }
   else if (event->button == 2) /* middle button */
     {
-      /* Draw a preview box at the clicked position */
-      gridSetPreviewBoxCentre(grid, event->x);
-      
-      /* Force immediate update so that it happens before the button-release event */
-      gtk_widget_queue_draw(grid);
-      gdk_window_process_updates(grid->window, TRUE);
-      
+      showPreviewBox(grid, event->x);
       handled = TRUE;
     }
   
@@ -592,26 +600,7 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
 {
   if (event->button == 2) /* middle button */
     {
-      GridProperties *properties = gridGetProperties(grid);
-      IntRange *displayRange = gridGetDisplayRange(grid);
-      gboolean rightToLeft = gridGetStrandsToggled(grid);
-
-      /* Find the base index where the preview box starts */
-      int x = getLeftCoordFromCentre(event->x, properties->highlightRect.width, &properties->gridRect);
-      int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange, rightToLeft);
-      
-      /* Clear the preview box */
-      gridSetPreviewBoxCentre(grid, UNSET_INT);
-      
-      /* Update the detail view's scroll pos to start at the start base */
-      GtkAdjustment *adjustment = properties->tree ? treeGetAdjustment(properties->tree) : NULL;
-      
-      if (adjustment)
-	{
-	  setDetailViewScrollPos(adjustment, baseIdx);
-	}
-      
-      gtk_widget_queue_draw(grid);
+      acceptAndClearPreviewBox(grid, event->x);
     }
   
   return TRUE;
@@ -657,9 +646,7 @@ static gboolean onMouseMoveGrid(GtkWidget *grid, GdkEventMotion *event, gpointer
   if (event->state == GDK_BUTTON2_MASK) /* middle button */
     {
       /* Draw a preview box at the mouse pointer location */
-      gridSetPreviewBoxCentre(grid, event->x);
-      gtk_widget_queue_draw(grid);
-      gdk_window_process_updates(grid->window, TRUE);
+      showPreviewBox(grid, event->x);
     }
   
   return TRUE;

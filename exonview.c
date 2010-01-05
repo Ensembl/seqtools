@@ -9,6 +9,7 @@
 #include <SeqTools/exonview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/bigpicture.h>
+#include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/blixem_.h>
 #include <math.h>
@@ -35,6 +36,7 @@ typedef struct _ExonViewProperties
 /* Local function declarations */
 static GtkWidget*		exonViewGetBigPicture(GtkWidget *exonView);
 static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
+static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
 
 
 /***********************************************************
@@ -193,6 +195,24 @@ static GtkWidget* exonViewGetBigPicture(GtkWidget *exonView)
   return properties->bigPicture;
 }
 
+static GtkWidget* exonViewGetTopGrid(GtkWidget *exonView)
+{
+  GtkWidget *bigPicture = exonViewGetBigPicture(exonView);
+  
+  GtkWidget *topGrid = NULL;
+  
+  if (bigPictureGetStrandsToggled(bigPicture))
+    {
+      topGrid = bigPictureGetRevGrid(bigPicture);
+    }
+  else
+    {
+      topGrid = bigPictureGetFwdGrid(bigPicture);
+    }
+      
+  return topGrid;
+}
+
 
 /***********************************************************
  *                       Events                            *
@@ -210,6 +230,46 @@ static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocatio
 }
 
 
+static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  if (event->button == 2) /* middle button */
+    {
+      GtkWidget *grid = exonViewGetTopGrid(exonView);
+      showPreviewBox(grid, event->x);
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+
+static gboolean onButtonReleaseExonView(GtkWidget *exonView, GdkEventButton *event, gpointer data)
+{
+  if (event->button == 2) /* middle button */
+    {
+      GtkWidget *grid = exonViewGetTopGrid(exonView);
+      acceptAndClearPreviewBox(grid, event->x);
+    }
+  
+  return TRUE;
+}
+
+
+static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, gpointer data)
+{
+  if (event->state == GDK_BUTTON2_MASK) /* middle button */
+    {
+      /* Draw a preview box at the mouse pointer location */
+      GtkWidget *grid = exonViewGetTopGrid(exonView);
+      showPreviewBox(grid, event->x);
+    }
+  
+  return TRUE;
+}
+
+
 /***********************************************************
  *                       Initialisation                    *
  ***********************************************************/
@@ -218,12 +278,20 @@ static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocatio
 GtkWidget *createExonView(GtkWidget *bigPicture)
 {
   GtkWidget *exonView = gtk_layout_new(NULL, NULL);
-  exonViewCreateProperties(exonView, bigPicture);
   
   /* Connect signals */
-  g_signal_connect(G_OBJECT(exonView),	"expose-event",	  G_CALLBACK(onExposeExonView), NULL);
-  g_signal_connect(G_OBJECT(exonView),	"size-allocate",  G_CALLBACK(onSizeAllocateExonView), NULL);
+  gtk_widget_add_events(exonView, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_add_events(exonView, GDK_BUTTON_RELEASE_MASK);
+  gtk_widget_add_events(exonView, GDK_POINTER_MOTION_MASK);
   
+  g_signal_connect(G_OBJECT(exonView),	"expose-event",		G_CALLBACK(onExposeExonView),	      NULL);
+  g_signal_connect(G_OBJECT(exonView),	"size-allocate",	G_CALLBACK(onSizeAllocateExonView),   NULL);
+  g_signal_connect(G_OBJECT(exonView),	"button-press-event",   G_CALLBACK(onButtonPressExonView),    NULL);
+  g_signal_connect(G_OBJECT(exonView),	"button-release-event", G_CALLBACK(onButtonReleaseExonView),  NULL);
+  g_signal_connect(G_OBJECT(exonView),	"motion-notify-event",  G_CALLBACK(onMouseMoveExonView),      NULL);
+
+  exonViewCreateProperties(exonView, bigPicture);
+
   return exonView;
 }
 

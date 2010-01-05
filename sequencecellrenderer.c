@@ -779,7 +779,7 @@ static void drawBases(SequenceCellRenderer *renderer,
 	}
       
       /* See if we're at the last index */
-      if (qIdx == qEnd)
+      if (rightToLeft ? qIdx <= qEnd : qIdx >= qEnd)
 	{
 	  done = TRUE;
 	}

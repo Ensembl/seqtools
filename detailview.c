@@ -245,6 +245,36 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 	{
 	  adjustment->page_size = newPageSize;
 	  adjustment->page_increment = newPageSize;
+	  
+	  /* Reset the display range so that it is between the scrollbar min and max. Try to keep
+	   * it centred on the same base. Note that display range is 1-based but adjustment is 0-based */
+	  IntRange *displayRange = treeGetDisplayRange(tree);
+	  int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
+	  
+	  int centre = selectedBaseIdx;
+	  if (centre == UNSET_INT)
+	    {
+	      centre = displayRange->min + round((double)(displayRange->max - displayRange->min) / 2.0);
+	    }
+	  
+	  int offset = round((double)adjustment->page_size / 2.0);
+	  adjustment->value = centre - offset - 1;
+	  
+	  /* If there is a gap at the end, shift the scrollbar back so that we show as much
+	   * of the reference sequence as possible (unless the whole thing is already shown - 
+	   * note that in this case we can end up with a gap at the start of the display if strands
+	   * are toggled and the ref sequence is shorter than the page size, but this is unlikely 
+	   * to happen in the real world so not worth worrying about. */
+	  if (adjustment->value > adjustment->upper - adjustment->page_size)
+	    {
+	      adjustment->value = adjustment->upper - adjustment->page_size;
+	    }
+	  
+	  if (adjustment->value < adjustment->lower)
+	    {
+	      adjustment->value = adjustment->lower;
+	    }
+	  
 	  gtk_adjustment_changed(adjustment);
 	}
     }
@@ -345,29 +375,16 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *detailView = GTK_WIDGET(data);
   
-  /* Reset the display range so that it is between the scrollbar min and max. */
-  int newStart = adjustment->value;
-  int newEnd = adjustment->value + adjustment->page_size;
+  int newStart = adjustment->value + 1;
+  int newEnd = newStart + adjustment->page_size;
   
-  /* If there is a gap at the end, shift the scrollbar back so that we show more
-   * of the reference sequence (unless the whole thing is already shown). */
-  int len = strlen(detailViewGetRefSeq(detailView));
-  if (newEnd >= len)
-    {
-      newStart = len - adjustment->page_size;
-      if (newStart < adjustment->lower)
-	newStart = adjustment->lower;
-      
-      newEnd = newStart + adjustment->page_size;
-      adjustment->value = newStart;
-    }
-  
+  /* Only update if something has changed */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  if (displayRange->min != newStart + 1 || displayRange->max != newEnd + 1)
+  if (displayRange->min != newStart || displayRange->max != newEnd)
     {
       /* Adjustment is zero-based but display range is 1-based */
-      displayRange->min = newStart + 1;
-      displayRange->max = newEnd + 1;
+      displayRange->min = newStart;
+      displayRange->max = newEnd;
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       callFuncOnAllDetailViewTrees(detailView, refilterTree);
@@ -393,13 +410,15 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
   GtkWidget *detailView = GTK_WIDGET(data);
   
   /* Set the display range so that it starts at the new scroll pos */
-  int newEnd = adjustment->value + adjustment->page_size;
+  int newStart = adjustment->value + 1;
+  int newEnd = newStart + adjustment->page_size;
 
+  /* Only update if something has changed */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  if (displayRange->min != adjustment->value + 1 || displayRange->max != newEnd + 1)
+  if (displayRange->min != newStart || displayRange->max != newEnd)
     {
-      displayRange->min = adjustment->value + 1;
-      displayRange->max = newEnd + 1;
+      displayRange->min = newStart;
+      displayRange->max = newEnd;
 
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       callFuncOnAllDetailViewTrees(detailView, refilterTree);

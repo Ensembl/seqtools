@@ -59,6 +59,9 @@ void		    callFuncOnAllBigPictureGrids(GtkWidget *widget,
 gint		    convertValueToGridPos(GtkWidget *grid, 
 					  const gint value);
 
+void		    showPreviewBox(GtkWidget *grid, const int x);
+void		    acceptAndClearPreviewBox(GtkWidget *grid, const int x);
+
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
 					 Strand strand);
 
