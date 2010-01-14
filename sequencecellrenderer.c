@@ -9,7 +9,7 @@
 
 #include <SeqTools/sequencecellrenderer.h>
 #include <SeqTools/utilities.h>
-#include <SeqTools/detailviewtree.h>
+#include <SeqTools/detailview.h>
 #include <wh/smap.h>
 #include <gtk/gtkcellrenderertext.h>
 
@@ -21,8 +21,16 @@ enum
 {
   PROP_0,
   
-  PROP_DATA,
-  PROP_TEXT
+  PROP_NAME,
+  PROP_SCORE,
+  PROP_ID,
+  PROP_START,
+  PROP_MSP,
+  PROP_END,
+  PROP_DATA
+  
+//  PROP_DATA,
+//  PROP_TEXT
 };
 
 
@@ -110,9 +118,18 @@ static void
 sequence_cell_renderer_init (SequenceCellRenderer *cellrenderersequence)
 {
   GTK_CELL_RENDERER(cellrenderersequence)->mode = GTK_CELL_RENDERER_MODE_INERT;
+  GTK_CELL_RENDERER(cellrenderersequence)->xalign = 0;
+  GTK_CELL_RENDERER(cellrenderersequence)->yalign = 0;
+  GTK_CELL_RENDERER(cellrenderersequence)->xpad = 0;
+  GTK_CELL_RENDERER(cellrenderersequence)->ypad = 0;
 
+  cellrenderersequence->data = NULL;
   cellrenderersequence->msp = NULL;
-  cellrenderersequence->text = NULL;
+  cellrenderersequence->name = NULL;
+  cellrenderersequence->score = NULL;
+  cellrenderersequence->id = NULL;
+  cellrenderersequence->start = NULL;
+  cellrenderersequence->end = NULL;
   cellrenderersequence->charWidth = 0;
   cellrenderersequence->charHeight = 0;
 }
@@ -148,18 +165,64 @@ sequence_cell_renderer_class_init (SequenceCellRendererClass *klass)
   
   g_object_class_install_property (object_class,
                                    PROP_DATA,
+                                   g_param_spec_pointer ("data",
+                                                         "Data",
+                                                         "Pointer to the msp",
+                                                         G_PARAM_WRITABLE));
+
+  g_object_class_install_property (object_class,
+                                   PROP_MSP,
                                    g_param_spec_pointer ("msp",
                                                          "MSP",
                                                          "Pointer to an msp whose sequence to display",
                                                          G_PARAM_WRITABLE));
-  
+
   g_object_class_install_property (object_class,
-                                   PROP_TEXT,
-                                   g_param_spec_string ("text",
-                                                        "Text",
-                                                        "Text to display",
+                                   PROP_NAME,
+                                   g_param_spec_string ("name",
+                                                        "Name",
+                                                        "Sequence name",
 							NULL,
                                                         G_PARAM_WRITABLE));
+
+  g_object_class_install_property (object_class,
+                                   PROP_SCORE,
+                                   g_param_spec_string ("score",
+                                                        "Score",
+                                                        "Score",
+							NULL,
+                                                        G_PARAM_WRITABLE));
+							
+  g_object_class_install_property (object_class,
+                                   PROP_ID,
+                                   g_param_spec_string ("id",
+                                                        "%ID",
+                                                        "Identity",
+							NULL,
+                                                        G_PARAM_WRITABLE));
+							
+  g_object_class_install_property (object_class,
+                                   PROP_START,
+                                   g_param_spec_string ("start",
+                                                        "Start",
+                                                        "Start index of match",
+							NULL,
+                                                        G_PARAM_WRITABLE));
+							
+  g_object_class_install_property (object_class,
+                                   PROP_END,
+                                   g_param_spec_string ("end",
+                                                        "End",
+                                                        "End index of match",
+							NULL,
+                                                        G_PARAM_WRITABLE));  
+//  g_object_class_install_property (object_class,
+//                                   PROP_TEXT,
+//                                   g_param_spec_string ("text",
+//                                                        "Text",
+//                                                        "Text to display",
+//							NULL,
+//                                                        G_PARAM_WRITABLE));
   
 }
 
@@ -202,6 +265,12 @@ sequence_cell_renderer_new (void)
  *
  ***************************************************************************/
 
+static void setAllPropertiesNull(SequenceCellRenderer *renderer)
+{
+  renderer->name = renderer->score = renderer->id = renderer->start = renderer->end = NULL;
+  renderer->msp = NULL;
+}
+
 static void
 sequence_cell_renderer_set_property (GObject      *object,
 				     guint         param_id,
@@ -213,15 +282,40 @@ sequence_cell_renderer_set_property (GObject      *object,
   switch (param_id)
   {
     case PROP_DATA:
+      /* Additional data. DON'T reset other properties. */
+      renderer->data = (MSP*)g_value_get_pointer(value);
+      break;
+      
+    case PROP_MSP:
+      setAllPropertiesNull(renderer);
       renderer->msp = (MSP*)g_value_get_pointer(value);
-      renderer->useMsp = TRUE;
+      break;
+
+    case PROP_NAME:
+      setAllPropertiesNull(renderer);
+      renderer->name = g_strdup(g_value_get_string(value));
       break;
       
-    case PROP_TEXT:
-      renderer->text = g_strdup(g_value_get_string(value));
-      renderer->useMsp = FALSE;
+    case PROP_SCORE:
+      setAllPropertiesNull(renderer);
+      renderer->score = g_strdup(g_value_get_string(value));
       break;
-      
+
+    case PROP_ID:
+      setAllPropertiesNull(renderer);
+      renderer->id = g_strdup(g_value_get_string(value));
+      break;
+
+    case PROP_START:
+      setAllPropertiesNull(renderer);
+      renderer->start = g_strdup(g_value_get_string(value));
+      break;
+
+    case PROP_END:
+      setAllPropertiesNull(renderer);
+      renderer->end = g_strdup(g_value_get_string(value));
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, param_id, pspec);
       break;
@@ -245,11 +339,31 @@ sequence_cell_renderer_get_property (GObject      *object,
   switch (param_id)
   {
     case PROP_DATA:
+      g_value_set_pointer(value, renderer->data);
+      break;
+
+    case PROP_MSP:
       g_value_set_pointer(value, renderer->msp);
       break;
       
-    case PROP_TEXT:
-      g_value_set_string(value, renderer->text);
+    case PROP_NAME:
+      g_value_set_string(value, renderer->name);
+      break;
+
+    case PROP_SCORE:
+      g_value_set_string(value, renderer->score);
+      break;
+
+    case PROP_ID:
+      g_value_set_string(value, renderer->id);
+      break;
+
+    case PROP_START:
+      g_value_set_string(value, renderer->start);
+      break;
+
+    case PROP_END:
+      g_value_set_string(value, renderer->end);
       break;
 
     default:
@@ -259,71 +373,71 @@ sequence_cell_renderer_get_property (GObject      *object,
 }
 
 
-/* Returns the current strand that this renderer is displaying */
-static int getStrand(SequenceCellRenderer *renderer)
+/* Returns which strand of the reference sequence the given match is on */
+static Strand getRefSeqStrand(const MSP const *msp)
 {
-  return treeGetStrand(renderer->tree);
+  return (MSP_IS_FORWARDS(msp->qframe) ? FORWARD_STRAND : REVERSE_STRAND);
 }
 
 
 /* Returns the reference sequence */
 static char* getRefSeq(SequenceCellRenderer *renderer)
 {
-  return treeGetRefSeq(renderer->tree);
+  return detailViewGetRefSeq(renderer->detailView);
 }
 
 
 /* Get the detail view display range */
 static IntRange* getDisplayRange(SequenceCellRenderer *renderer)
 {
-  return treeGetDisplayRange(renderer->tree);
+  return detailViewGetDisplayRange(renderer->detailView);
 }
 
 
 /* Get the main window strands-toggled status */
 static gboolean getStrandsToggled(SequenceCellRenderer *renderer)
 {
-  return treeGetStrandsToggled(renderer->tree);
+  return detailViewGetStrandsToggled(renderer->detailView);
 }
 
 
 /* Get the number of reading frames in the detail view */
 static int getNumReadingFrames(SequenceCellRenderer *renderer)
 {
-  return treeGetNumReadingFrames(renderer->tree);
+  return detailViewGetNumReadingFrames(renderer->detailView);
 }
 
 
 /* Get the currently-selected base in the reference sequence */
 static int getSelectedBaseIdx(SequenceCellRenderer *renderer)
 {
-  return treeGetSelectedBaseIdx(renderer->tree);
+  return detailViewGetSelectedBaseIdx(renderer->detailView);
 }
 
 /* Get colours */
 static GdkColor* getRefSeqColour(SequenceCellRenderer *renderer, gboolean selected)
 {
-  return selected ? treeGetRefSeqSelectedColour(renderer->tree) : treeGetRefSeqColour(renderer->tree);;
+  return selected ? detailViewGetRefSeqSelectedColour(renderer->detailView) : detailViewGetRefSeqColour(renderer->detailView);
 }
 
 static GdkColor* getMatchColour(SequenceCellRenderer *renderer, gboolean selected)
 {
-  return selected ? treeGetMatchSelectedColour(renderer->tree) : treeGetMatchColour(renderer->tree);
+  return selected ? detailViewGetMatchSelectedColour(renderer->detailView) : detailViewGetMatchColour(renderer->detailView);
 }
 
 static GdkColor* getMismatchColour(SequenceCellRenderer *renderer, gboolean selected)
 {
-  return selected ? treeGetMismatchSelectedColour(renderer->tree) : treeGetMismatchColour(renderer->tree);
+  return selected ? detailViewGetMismatchSelectedColour(renderer->detailView) : detailViewGetMismatchColour(renderer->detailView);
 }
 
 static GdkColor* getGapColour(SequenceCellRenderer *renderer, gboolean selected)
 {
-  return selected ? treeGetGapSelectedColour(renderer->tree) : treeGetGapColour(renderer->tree);
+  return selected ? detailViewGetGapSelectedColour(renderer->detailView) : detailViewGetGapColour(renderer->detailView);
 }
 
 static GdkColor* getExonColour(SequenceCellRenderer *renderer, gboolean selected)
 {
-  return selected ? treeGetExonSelectedColour(renderer->tree) : treeGetExonColour(renderer->tree);
+  return selected ? detailViewGetExonSelectedColour(renderer->detailView) : detailViewGetExonColour(renderer->detailView);
 }
 
 
@@ -458,10 +572,48 @@ get_size (GtkCellRenderer *cell,
   if (cell_area)
     cell_area->height = cell->height;
   
+  SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
   if (vertical_separator)
     {
-      gtk_widget_style_get (widget, "vertical-separator", vertical_separator, NULL);
+      *vertical_separator = detailViewGetVerticalSeparator(renderer->detailView);
     }
+}
+
+
+static char* getText(SequenceCellRenderer *renderer)
+{
+  if (renderer->name)
+    return renderer->name;
+  else if (renderer->score)
+    return renderer->score;
+  else if (renderer->id)
+    return renderer->id;
+  else if (renderer->start)
+    return renderer->start;
+  else if (renderer->end)
+    return renderer->end;
+    
+  return NULL;
+}
+
+
+/* Utility to return true if the text for a text field should be displayed. e.g. this is false
+ * when it's the score/id field for the reference sequence. */
+static gboolean showColumn(SequenceCellRenderer *renderer)
+{
+  gboolean result = TRUE;
+  
+  if (renderer->data && mspIsFake(renderer->data))
+    {
+      /* It's a "fake" row, indicating that it's displaying the ref sequence. The score and id
+       * columns are not valid. */
+       if (renderer->score || renderer->id)
+       {
+	 result = FALSE;
+       }
+    }
+  
+  return result;
 }
 
 
@@ -471,23 +623,26 @@ static void drawText(SequenceCellRenderer *renderer,
 		     GtkStateType state, 
 		     GdkRectangle *cell_area)
 {
-  PangoLayout *layout = gtk_widget_create_pango_layout(widget, renderer->text);
-  PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
-  pango_layout_set_font_description(layout, font_desc);
+  if (showColumn(renderer))
+    {
+      PangoLayout *layout = gtk_widget_create_pango_layout(widget, getText(renderer));
+      PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
+      pango_layout_set_font_description(layout, font_desc);
 
-  gint x_offset = 0, y_offset = 0, vertical_separator = 0;
-  get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
+      gint x_offset = 0, y_offset = 0, vertical_separator = 0;
+      get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
 
-  gtk_paint_layout (widget->style,
-		    window,
-		    state,
-		    TRUE,
-		    NULL,
-		    widget,
-		    NULL, //"cellrenderertext",
-		    cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad,
-		    cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator,
-		    layout);
+      gtk_paint_layout (widget->style,
+			window,
+			state,
+			TRUE,
+			NULL,
+			widget,
+			NULL, //"cellrenderertext",
+			cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad,
+			cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator,
+			layout);
+    }
 }
 
 
@@ -696,7 +851,7 @@ static void drawGap(int qIdx,
       gdk_draw_rectangle(window, gc, TRUE, x - width/2, y, width, height);
     }
 }
-
+	       
 
 static void drawBases(SequenceCellRenderer *renderer,
 		      GtkWidget *widget,
@@ -713,6 +868,7 @@ static void drawBases(SequenceCellRenderer *renderer,
   IntRange *displayRange = getDisplayRange(renderer);
   gboolean rightToLeft = getStrandsToggled(renderer);
   int selectedBaseIdx = getSelectedBaseIdx(renderer);
+  Strand refSeqStrand = getRefSeqStrand(renderer->msp);
   
   int qSeqMin, qSeqMax;
   getMspRangeExtents(renderer->msp, &qSeqMin, &qSeqMax, NULL, NULL);
@@ -754,7 +910,7 @@ static void drawBases(SequenceCellRenderer *renderer,
 					  getRefSeq(renderer), 
 					  selectedBaseIdx,
 					  getNumReadingFrames(renderer), 
-					  getStrand(renderer), 
+					  refSeqStrand, 
 					  rightToLeft,
 					  qSeqMin, 
 					  qSeqMax, 
@@ -806,7 +962,7 @@ static void drawBases(SequenceCellRenderer *renderer,
 			       getRefSeq(renderer), 
 			       selectedBaseIdx, 
 			       getNumReadingFrames(renderer), 
-			       getStrand(renderer), 
+			       refSeqStrand, 
 			       rightToLeft,
 			       qSeqMin, 
 			       qSeqMax, 
@@ -908,21 +1064,13 @@ sequence_cell_renderer_render (GtkCellRenderer *cell,
 			       guint            flags)
 {
   SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
-  if (renderer->useMsp)
+  if (renderer->msp)
     {
-      drawBases(renderer, 
-		widget, 
-		window, 
-		getState(widget, flags),
-		cell_area);
+      drawBases(renderer, widget, window, getState(widget, flags), cell_area);
     }
   else
     {
-      drawText(renderer,
-	       widget, 
-	       window, 
-	       getState(widget, flags),
-	       cell_area);
+      drawText(renderer, widget, window, getState(widget, flags), cell_area);
     }
 }
 

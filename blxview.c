@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.8 2010-01-05 15:47:33 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.9 2010-01-14 13:01:17 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -222,7 +222,7 @@ static void toggleHiliteSins(void) ;
 static void toggleHiliteUpper(void) ;
 static void toggleHiliteLower(void) ;
 static void toggleDESC(void) ;
-static void ToggleStrand(void) ;
+//static void ToggleStrand(void) ;
 static void printColors (void) ;
 
 static void gotoMatch(int direc) ;

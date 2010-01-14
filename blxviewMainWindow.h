@@ -22,7 +22,7 @@ typedef struct _MainWindowProperties
     
     gboolean strandsToggled;	/* If true, the reverse strand becomes the 'main' or 'top' strand */
     BlxBlastMode blastMode;	/* The type of blast matching that was used */
-    
+    BlxSeqType seqType;		/* The type of sequence, e.g. DNA or peptide */
   } MainWindowProperties;
 
 

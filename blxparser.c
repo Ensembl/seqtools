@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.4 2010-01-05 15:47:33 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.5 2010-01-14 13:01:16 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -42,7 +42,7 @@
 #include <wh/graph.h>
 #include <wh/gex.h>
 #include <wh/smap.h>					    /* for SMapMap struct. */
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 
 static char *nextLine(FILE *file, GString *line_string) ;
 
@@ -769,8 +769,10 @@ static void getDesc(MSP *msp, char *s1, char *s2)
 /* Check if we have a reversed subject and, if so, if this is allowed. Throws an error if not. */
 static void CheckReversedSubjectAllowed(const MSP *msp, const char *opts)
 {
-  if ((msp->sstart > msp->send) && (*opts != 'T' && *opts != 'L' && *opts != 'N'))
-    messcrash("Reversed subjects are not allowed in modes blastp or blastx");
+  if (!MSP_IS_FORWARDS(msp->sframe) && *opts != 'T' && *opts != 'L' && *opts != 'N')
+    {
+      messcrash("Reversed subjects are not allowed in modes blastp or blastx");
+    }
 }
 
 

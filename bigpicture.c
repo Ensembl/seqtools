@@ -25,7 +25,6 @@
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
 static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
 static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
-static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 static GtkWidget*		    bigPictureGetExonView(GtkWidget *bigPicture);
 
 /***********************************************************
@@ -498,7 +497,7 @@ IntRange* bigPictureGetDisplayRange(GtkWidget *bigPicture)
   return &properties->displayRange;
 }
 
-static IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
+IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   return &properties->fullRange;

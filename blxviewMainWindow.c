@@ -10,6 +10,7 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/bigpicture.h>
+#include <gdk/gdkkeysyms.h>
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      4
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2
@@ -214,6 +215,62 @@ static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event
   return FALSE;
 }
 
+static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpointer data)
+{
+  if (event->keyval == GDK_Left || event->keyval == GDK_Right)
+    {
+      MainWindowProperties *properties = mainWindowGetProperties(window);
+      GtkWidget *detailView = properties->detailView;
+      DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
+      
+      IntRange *fullRange = bigPictureGetFullRange(properties->bigPicture); /* should probably live in MainWindowProperties */
+      IntRange *displayRange = &detailViewProperties->displayRange;
+      
+      if (detailViewProperties->selectedBaseIdx != UNSET_INT)
+	{
+	  /* Move the selection left/right by 1 base */
+	  if (event->keyval == GDK_Left)
+	    {
+	      detailViewProperties->selectedBaseIdx -= 1;
+	    }
+	  else if (event->keyval == GDK_Right)
+	    {
+	      detailViewProperties->selectedBaseIdx += 1;
+	    }
+	  
+	  /* Limit it to within the reference sequence range */
+	  if (detailViewProperties->selectedBaseIdx < fullRange->min)
+	    {
+	      detailViewProperties->selectedBaseIdx = fullRange->min;
+	    }
+	  else if (detailViewProperties->selectedBaseIdx > fullRange->max)
+	    {
+	      detailViewProperties->selectedBaseIdx = fullRange->max;
+	    }
+	    
+	  /* If we've moved outside the current display range, scroll by 1 base.
+	   * (This should probably also jump to the the selected base if it was previously
+	   * out of view - at the moment it just scrolls by 1, which is usually not enough 
+	   * to bring it into view.) */
+	  if (detailViewProperties->selectedBaseIdx > displayRange->max)
+	    {
+	      scrollDetailViewRight1(detailView);
+	    }
+	  else if (detailViewProperties->selectedBaseIdx < displayRange->min)
+	    {
+	      scrollDetailViewLeft1(detailView);
+	    }
+
+	  /* Update the feedback box and the trees */
+	  updateFeedbackBox(detailView);
+	  gtk_widget_queue_draw(detailView);
+	}
+      
+      return TRUE;
+  }
+  
+  return FALSE;
+}
 
 /***********************************************************
  *			   Properties                      *
@@ -240,7 +297,8 @@ static void mainWindowCreateProperties(GtkWidget *widget,
 				       GtkWidget *detailView,
 				       MSP *mspList,
 				       const BlxBlastMode blastMode,
-				       const char const *refSeq)
+				       const char const *refSeq,
+				       const BlxSeqType seqType)
 {
   if (widget)
     {
@@ -252,6 +310,7 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->blastMode = blastMode;
       properties->refSeq = refSeq;
       properties->strandsToggled = FALSE;
+      properties->seqType = seqType;
       
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyMainWindow), NULL); 
@@ -397,11 +456,12 @@ GtkWidget* createMainWindow(char *refSeq,
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
   
   /* Set required data in the main window widget */
-  mainWindowCreateProperties(window, bigPicture, detailView, mspList, blastMode, refSeq);
+  mainWindowCreateProperties(window, bigPicture, detailView, mspList, blastMode, refSeq, seqType);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK (gtk_main_quit), NULL);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);
+  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
   
   /* Show the window */
   printf("realizing widgets...\n");

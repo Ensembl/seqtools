@@ -37,12 +37,17 @@ typedef struct _SequenceCellRenderer
   GtkCellRenderer   parent;
   
   /* The cell renderer can be used to render a match sequence or plain text */
-  MSP *msp;
-  char *text;
-  gboolean useMsp;
+  MSP *msp;      /* property for the sequence column */
+  char *name;    /* property for the name column */
+  char *score;   /* property for the score column */
+  char *id;	 /* property for the id column */
+  char *start;   /* property for the start column */
+  char *end;	 /* property for the end column */
   
-  /* Store a pointer to the detail view tree that this cell renderer renders mach sequences for */
-  GtkWidget *tree;
+  MSP *data; /* property that is set for every column */
+  
+  /* Store a pointer to the detail view that this cell renderer renders mach sequences for */
+  GtkWidget *detailView;
   
   /* Cache values needed to calculate base index positions, so we don't have to recalculate them every time we re-render */
   int charHeight;

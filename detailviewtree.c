@@ -15,58 +15,15 @@
 
 #define DETAIL_VIEW_TREE_NAME		"DetailViewTreeName"
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
-#define FONT_INCREMENT_SIZE		1
-#define MIN_FONT_SIZE			2
-#define MAX_FONT_SIZE			20
 
 
 enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
 
 
 /* Local function declarations */
-static void		updateFeedbackBoxForAllTrees(GtkWidget *tree);
 static void		onSelectionChangedTree(GObject *selection, gpointer data);
-static gint		setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const int fontSize, const char *fontFamily);
 static GtkTreePath*	treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath);
-
-
-/***************************************************************
- *                       Sequence column                       *
- * A specially-formatted column for displaying match sequences *
- ***************************************************************/
-
-typedef struct _SeqColProperties
-  {
-    GtkWidget *tree;
-  } SeqColProperties;
-
-static SeqColProperties* seqColGetProperties(GtkTreeViewColumn *column)
-{
-  return column ? (SeqColProperties*)(g_object_get_data(G_OBJECT(column), "SeqColProperties")) : NULL;
-}
-
-static void onDestroySeqCol(GtkTreeViewColumn *column)
-{
-  SeqColProperties *properties = seqColGetProperties(column);
-  if (properties)
-    {
-      free(properties);
-      properties = NULL;
-      g_object_set_data(G_OBJECT(column), "SeqColProperties", NULL);
-    }
-}
-
-static void seqColCreateProperties(GtkTreeViewColumn *column, GtkWidget *tree)
-{
-  if (column)
-    {
-      SeqColProperties *properties = malloc(sizeof *properties);
-      properties->tree = tree;
-      g_object_set_data(G_OBJECT(column), "SeqColProperties", properties);
-      g_signal_connect(G_OBJECT(column), "destroy", G_CALLBACK(onDestroySeqCol), NULL); 
-    }
-}
-
+//static void		sequenceColHeaderDataFunc(GtkCellLayout *cellLayout, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -108,8 +65,8 @@ GtkWidget *treeGetGrid(GtkWidget *tree)
 GtkCellRenderer *treeGetRenderer(GtkWidget *tree)
 {
   assertTree(tree);
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties ? properties->renderer : NULL;
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetRenderer(detailView);
 }
 
 int treeGetCharWidth(GtkWidget *tree)
@@ -175,10 +132,8 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
 	{
 	  detailViewProperties->selectedBaseIdx = selectedBaseIdx;
 	  
-	  /* Update the feedback box */
-	  updateFeedbackBoxForAllTrees(tree);
-
-	  /* Re-render all trees in the detail view */
+	  /* Update the feedback box and the trees */
+	  updateFeedbackBox(properties->detailView);
 	  gtk_widget_queue_draw(properties->detailView);
 	}
     }
@@ -198,20 +153,54 @@ IntRange* treeGetDisplayRange(GtkWidget *tree)
   return properties ? detailViewGetDisplayRange(properties->detailView) : NULL;
 }
 
-/* Calls the given function on the given widget if it is a tree in the detail-view, or, if it
- * is a container, calls the function on all children/grandchildren/etc that are dettail-view trees */
-void callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data)
+PangoFontDescription* treeGetFontDesc(GtkWidget *tree)
 {
-  GtkCallback func = (GtkCallback)data;
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetFontDesc(detailView);
+}
 
-  const gchar *name = gtk_widget_get_name(widget);
-  if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
+
+///* Calls the given function on the given widget if it is a detail-view-tree, or, if it is a
+// * container, calls the function on all children/grandchildren/etc that are dettail-view-trees */
+//static void callFuncRecursivelyOnChildTrees(GtkWidget *widget, gpointer data)
+//{
+//  GtkCallback func = (GtkCallback)data;
+//  
+//  const gchar *name = gtk_widget_get_name(widget);
+//  if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
+//    {
+//      func(widget, NULL);
+//    }
+//  else if (GTK_IS_CONTAINER(widget))
+//    {
+//      gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnAllDetailViewTrees, func);
+//    }
+//}
+
+
+/* Call the given function on all trees in the detail view */
+void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
+{
+  int numReadingFrames = detailViewGetNumReadingFrames(detailView);
+  GtkCallback func = (GtkCallback)data;
+  
+  /* Call the function on the forward strand tree and reverse strand tree
+   * for each frame. */
+  int frame = 1;
+  for ( ; frame <= numReadingFrames; ++frame)
     {
-      func(widget, NULL);
-    }
-  else if (GTK_IS_CONTAINER(widget))
-    {
-      gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnAllDetailViewTrees, func);
+      GtkWidget *fwdTree = detailViewGetFrameTree(detailView, TRUE, frame);
+      GtkWidget *revTree = detailViewGetFrameTree(detailView, FALSE, frame);
+      
+      if (fwdTree)
+	{
+	  func(fwdTree, NULL);
+	}
+      
+      if (revTree)
+	{
+	  func(revTree, NULL);
+	}
     }
 }
 
@@ -231,72 +220,6 @@ static GtkWidget* treeGetFeedbackBox(GtkWidget *tree)
   assertTree(tree);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeGetDetailView(tree));
   return detailViewProperties->feedbackBox;
-}
-
-GdkColor* treeGetRefSeqColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->refSeqColour;
-}
-
-GdkColor* treeGetRefSeqSelectedColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->refSeqSelectedColour;
-}
-
-GdkColor* treeGetMatchColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->matchColour;
-}
-
-GdkColor* treeGetMatchSelectedColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->matchSelectedColour;
-}
-
-GdkColor* treeGetMismatchColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->mismatchColour;
-}
-
-GdkColor* treeGetMismatchSelectedColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->mismatchSelectedColour;
-}
-
-GdkColor* treeGetExonColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->exonColour;
-}
-
-GdkColor* treeGetExonSelectedColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->exonSelectedColour;
-}
-
-GdkColor* treeGetGapColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->gapColour;
-}
-
-GdkColor* treeGetGapSelectedColour(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return &properties->gapSelectedColour;
-}
-
-const char* treeGetFontFamily(GtkWidget *tree)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetFontFamily(detailView);
 }
 
 
@@ -360,96 +283,13 @@ static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreeP
   
   return result;
 }
-	
-
-///* Get the path in the tree view's base (unfiltered) model that corresponds to the given
-// * path in the visible (filtered) model */
-//static GtkTreePath *treeConvertVisiblePathToBasePath(GtkTreeView *tree, GtkTreePath *visiblePath)
-//{
-//  GtkTreePath *result = NULL;
-//  
-//  if (tree && visiblePath)
-//    {
-//      /* Convert the path to the equivalent path in the unfiltered (child) model. */
-//      GtkTreeModel *filter = treeGetVisibleDataModel(tree);
-//      if (GTK_IS_TREE_MODEL_FILTER(filter))
-//	{
-//	  result = gtk_tree_model_filter_convert_path_to_child_path(GTK_TREE_MODEL_FILTER(filter), visiblePath);
-//	}
-//      else
-//	{
-//	  result = visiblePath;
-//	}
-//    }
-//  
-//  return result;
-//}
-
-
-/* Increase the font size in the detail view trees (i.e. effectively zoom in) */
-void treeIncrementFontSize(GtkWidget *tree, gpointer data)
-{
-  int newSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE) + FONT_INCREMENT_SIZE;
-  
-  if (newSize <= MAX_FONT_SIZE)
-    {
-      GtkCellRenderer *renderer = treeGetRenderer(tree);
-      setCellRendererFont(tree, renderer, newSize, treeGetFontFamily(tree));
-    }
-}
 
 
 /* Decrease the font size in the detail view trees (i.e. effectively zoom out) */
-void treeDecrementFontSize(GtkWidget *tree, gpointer data)
+void treeUpdateFontSize(GtkWidget *tree, gpointer data)
 {
-  int newSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE) - FONT_INCREMENT_SIZE;
-  
-  if (newSize >= MIN_FONT_SIZE)
-    {
-      GtkCellRenderer *renderer = treeGetRenderer(tree);
-      setCellRendererFont(tree, renderer, newSize, treeGetFontFamily(tree));
-    }
-}
-
-
-/* Set the font for the detail view cell renderer. Should be called after
- * the font size is changed by zooming in/out of the detail view. */
-static gint setCellRendererFont(GtkWidget *tree, GtkCellRenderer *renderer, const int fontSize, const char *fontFamily)
-{
-  /* Update the widget with the new font size. */
-  PangoFontDescription *fontDesc = pango_font_description_copy(tree->style->font_desc);
-  
-  if (fontFamily)
-    {
-      pango_font_description_set_family(fontDesc, fontFamily);
-    }
-  
-  pango_font_description_set_size  (fontDesc, fontSize * PANGO_SCALE);
+  PangoFontDescription *fontDesc = treeGetFontDesc(tree);  
   gtk_widget_modify_font(tree, fontDesc);
-  
-  /* Calculate the row height from the font metrics */
-  PangoContext *context = gtk_widget_get_pango_context (tree);
-  PangoFontMetrics *metrics = pango_context_get_metrics (context, fontDesc, pango_context_get_language(context));
-  
-  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  gint charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
-
-  pango_font_description_free(fontDesc);
-  pango_font_metrics_unref(metrics);
-
-  /* Cache these results in the cell renderer */
-  SEQUENCE_CELL_RENDERER(renderer)->charHeight = charHeight;
-  SEQUENCE_CELL_RENDERER(renderer)->charWidth = charWidth;
-  
-  /* Set the row height. Subtract the size of the vertical separators . This makes the
-   * row smaller than it is, but we will render it at normal size, so we end up drawing over
-   * the gaps, hence giving the impression that there are no gaps. */
-  gint vertical_separator;
-  gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
-  gint rowHeight = charHeight - vertical_separator * 2;
-  gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
-  
-  return rowHeight;
 }
 
 
@@ -474,7 +314,8 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
   if (x >= leftEdge && x <= rightEdge)
     {
       /* Calculate the number of bases from the left edge */
-      gint charWidth = SEQUENCE_CELL_RENDERER(renderer)->charWidth;
+      SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
+      gint charWidth = seqRenderer->charWidth;
       double distFromLeft = (double)x - leftEdge;
       int numBasesFromLeft = trunc(distFromLeft / (double)charWidth);
       
@@ -610,7 +451,8 @@ void refreshTreeAndGrid(GtkWidget *tree, gpointer data)
   TreeProperties *properties = treeGetProperties(tree);
   if (properties->grid)
     gtk_widget_queue_draw(properties->grid);
-  
+ 
+  /* Re-draw the tree */
   //  gtk_widget_queue_draw(tree); /* re-rendering seems to happen before this... */
 }
 
@@ -619,7 +461,7 @@ void refreshTreeAndGrid(GtkWidget *tree, gpointer data)
  * given tree.  This currently assumes single-row selections, but could be extended
  * in the future to display, say, summary information about multiple rows. Returns true
  * if the given tree has rows selected. */
-static gboolean updateFeedbackBoxForTree(GtkWidget *tree)
+gboolean updateFeedbackBoxForTree(GtkWidget *tree)
 {
   gboolean done = FALSE;
   char *messageText = NULL;
@@ -651,39 +493,6 @@ static gboolean updateFeedbackBoxForTree(GtkWidget *tree)
   gtk_widget_queue_draw(feedbackBox);
 
   return done;
-}
-
-
-/* Updates the feedback box with info about the currently-selected row/base. Takes
- * into account selections in any of the trees. This should be called every time 
- * the row selection or base selection is changed. 
- * TNote that there shouldn't be rows selected in different trees at the same time,
- * so this function doesn't really deal with that situation - what will happen is
- * that the contents of the feedback box will be overwritten by the last tree the
- * update function is called for. */
-static void updateFeedbackBoxForAllTrees(GtkWidget *tree)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-
-
-  /* Loop through all of the trees. Stop if we find one that has selected rows. */
-  int numFrames = detailViewGetNumReadingFrames(detailView);
-  gboolean done = FALSE;
-
-  int frame = 1;
-  for ( ; frame <= numFrames && !done; ++frame)
-    {
-      /* Forward strand tree for this reading frame */
-      GtkWidget *curTree = detailViewGetFrameTree(detailView, TRUE, frame);
-      done = updateFeedbackBoxForTree(curTree);
-
-      if (!done)
-	{
-	  /* Reverse strand tree for this reading frame */
-	  GtkWidget *curTree = detailViewGetFrameTree(detailView, FALSE, frame);
-	  done = updateFeedbackBoxForTree(curTree);
-	}
-    }
 }
 
 
@@ -884,18 +693,7 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->grid = grid;
       properties->detailView = detailView;
       properties->renderer = renderer;
-      
-      properties->refSeqColour = getGdkColor(GDK_YELLOW);
-      properties->refSeqSelectedColour = getGdkColor(GDK_DARK_YELLOW);
-      properties->matchColour = getGdkColor(GDK_CYAN);
-      properties->matchSelectedColour = getGdkColor(GDK_DARK_CYAN);
-      properties->mismatchColour = getGdkColor(GDK_GREY);
-      properties->mismatchSelectedColour = getGdkColor(GDK_DARK_GREY);
-      properties->exonColour = getGdkColor(GDK_YELLOW);
-      properties->exonSelectedColour = getGdkColor(GDK_DARK_YELLOW);
-      properties->gapColour = getGdkColor(GDK_GREY);
-      properties->gapSelectedColour = getGdkColor(GDK_DARK_GREY);
-      
+
       g_object_set_data(G_OBJECT(widget), "TreeProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyTree), NULL); 
     }
@@ -1082,9 +880,10 @@ static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 static void onSelectionChangedTree(GObject *selection, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *detailView = treeGetDetailView(tree);
 
   /* Update the feedback box to tell the user which sequence is selected. */
-  updateFeedbackBoxForAllTrees(tree);
+  updateFeedbackBox(detailView);
   
   /* Redraw the corresponding grid */
   TreeProperties *properties = treeGetProperties(tree);
@@ -1096,27 +895,6 @@ static void onSelectionChangedTree(GObject *selection, gpointer data)
 /***********************************************************
  *                     Initialization                      *
  ***********************************************************/
-
-static GtkTreeViewColumn* initColumn(GtkWidget *tree, GtkCellRenderer *renderer, char *colName, 
-				     char *rendererProperty, int colNum, gboolean expand, const int width)
-{
-  GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(colName, renderer, rendererProperty, colNum, NULL);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-  
-  //  gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
-  //  gtk_tree_view_column_set_min_width(column, 0);
-  gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
-  gtk_tree_view_column_set_fixed_width(column, width);
-  gtk_tree_view_column_set_resizable(column, TRUE);
-  
-  /* If expand is true, this column gobbles up any extra width in the widget
-   * when the window or any other columns are resized. */
-  if (expand)
-    gtk_tree_view_column_set_expand(column, TRUE);
-  
-  return column;
-}
-
 
 /* calcID: caculated percent identity of an MSP
  * 
@@ -1311,6 +1089,9 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRang
 }
 
 
+/* Add the given msp as a row in the given model in the given tree. If the sequence
+ * column header is supplied, it indicates that that widget should also point to the
+ * row for this msp. */
 void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
 {
   /* Calculate the id */
@@ -1333,6 +1114,18 @@ void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
 }
 
 
+///* Cell data function for the custom sequence-column header, if there is one. This is used
+// * in protein matches to display the DNA triplets for each codon. */
+//static void sequenceColHeaderDataFunc(GtkCellLayout *cellLayout,
+//				      GtkCellRenderer *renderer, 
+//				      GtkTreeModel *model, 
+//				      GtkTreeIter *iter, 
+//				      gpointer data)
+//{
+////  g_object_set(renderer, "msp", "test text", NULL);
+//}
+
+
 /* Cell data function for the "start" column. This displays the start coord of the match 
  * sequence in normal left-to-right display, but the end coord if the display is reversed */
 static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
@@ -1350,9 +1143,16 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
   /* We want to display the start coord, unless the display is reversed, in which case display the end */
   int coord = rightToLeft ? msp->send : msp->sstart;
 
+  if (mspIsFake(msp))
+    {
+      /* For the reference sequence, show the start and end of the display range. (Temp for debug.) */
+      IntRange *displayRange = treeGetDisplayRange(tree);
+      coord = rightToLeft ? displayRange->max : displayRange->min;
+    }
+  
   char displayText[numDigitsInInt(coord) + 1];
   sprintf(displayText, "%d", coord);
-  g_object_set(renderer, "text", displayText, NULL);
+  g_object_set(renderer, "start", displayText, NULL);
 }
 
 
@@ -1373,32 +1173,75 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
   /* We want to display the end coord, unless the display is reversed, in which case display the start */
   int coord = rightToLeft ? msp->sstart : msp->send;
   
+  if (mspIsFake(msp))
+    {
+      /* For the reference sequence, show the start and end of the display range. (Temp for debug.) */
+      IntRange *displayRange = treeGetDisplayRange(tree);
+      coord = rightToLeft ? displayRange->min : displayRange->max;
+    }
+
   char displayText[numDigitsInInt(coord) + 1];
   sprintf(displayText, "%d", coord);
-  g_object_set(renderer, "text", displayText, NULL);
+  g_object_set(renderer, "end", displayText, NULL);
 }
 
 
-static void addTreeColumns(GtkWidget *tree, GtkCellRenderer *renderer, const char *fontFamily)
+/* Create a single column in the tree. */
+static void initColumn(GtkWidget *tree, 
+		       GtkCellRenderer *renderer, 
+		       const char *title,
+		       char *rendererProperty, 
+		       const int colNum, 
+		       const int width,
+		       const BlxSeqType seqType,
+		       const gboolean hasHeaders)
+{
+  GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(title, 
+								       renderer, 
+								       rendererProperty, colNum, 
+								       "data", MSP_COL, /* always set msp so each column has access to all the data */
+								       NULL);
+  
+  gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+  gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
+  gtk_tree_view_column_set_fixed_width(column, width);
+  gtk_tree_view_column_set_resizable(column, TRUE);
+  
+  switch (colNum)
+  {
+    case MSP_COL:
+      gtk_tree_view_column_set_expand(column, TRUE);
+      break;
+      
+    case START_COL:
+      /* Set custom data function for start col (so that coords flip when display is reversed) */
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionStartCol, tree, NULL);
+      break;
+      
+    case END_COL:
+      /* Set custom data function for end col (so that coords flip when display is reversed) */
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionEndCol, tree, NULL);
+      break;
+      
+    default:
+      break;
+  }
+}
+
+
+/* Create the columns. Returns the header widget for the sequence column */
+static void addTreeColumns(GtkWidget *tree, 
+			   GtkCellRenderer *renderer, 
+			   const BlxSeqType seqType,
+			   const gboolean hasHeaders)
 {
   /* Add the columns */
-  initColumn(tree,  renderer,  "Name",     "text", S_NAME_COL, FALSE, 90);
-  initColumn(tree,  renderer,  "Score",    "text", SCORE_COL,  FALSE, 30);
-  initColumn(tree,  renderer,  "%ID",      "text", ID_COL,	  FALSE, 30);
-  GtkTreeViewColumn *startCol = initColumn(tree,  renderer,  "Start",    "text", START_COL,  FALSE, 40);
-  GtkTreeViewColumn *seqCol   = initColumn(tree,  renderer,  "Sequence", "msp",  MSP_COL,  TRUE, 40);
-  GtkTreeViewColumn *endCol   = initColumn(tree,  renderer,  "End",      "text", END_COL,	  FALSE, 30);
-
-  /* Set custom data functions for start/end cols (so that coords flip when display is reversed) */
-  gtk_tree_view_column_set_cell_data_func(startCol, renderer, cellDataFunctionStartCol, tree, NULL);
-  gtk_tree_view_column_set_cell_data_func(endCol, renderer, cellDataFunctionEndCol, tree, NULL);
-  
-  /* Set it to use a fixed width font. This also sets the row height based on the font size.
-   * For now we just use the default size from the theme. */
-  int origSize = (pango_font_description_get_size(tree->style->font_desc) / PANGO_SCALE);
-  setCellRendererFont(tree, renderer, origSize, fontFamily);
-  
-  seqColCreateProperties(seqCol, tree);
+  initColumn(tree,  renderer,  "Name",     "name",  S_NAME_COL,	NAME_COLUMN_DEFAULT_WIDTH,  seqType, hasHeaders);
+  initColumn(tree,  renderer,  "Score",    "score", SCORE_COL,	SCORE_COLUMN_DEFAULT_WIDTH, seqType, hasHeaders);
+  initColumn(tree,  renderer,  "%ID",      "id",    ID_COL,	ID_COLUMN_DEFAULT_WIDTH,    seqType, hasHeaders);
+  initColumn(tree,  renderer,  "Start",    "start", START_COL,	START_COLUMN_DEFAULT_WIDTH, seqType, hasHeaders);
+  initColumn(tree,  renderer,  "Sequence", "msp",   MSP_COL,	SEQ_COLUMN_DEFAULT_WIDTH,   seqType, hasHeaders);
+  initColumn(tree,  renderer,  "End",      "end",   END_COL,	END_COLUMN_DEFAULT_WIDTH,   seqType, hasHeaders);
 }
 
 
@@ -1504,7 +1347,7 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 					   G_TYPE_POINTER, 
 					   G_TYPE_INT);
   
-  /* Add a 'fake' msp for the ref sequence */
+  /* Add a 'fake' msp for the ref sequence and add it to the model */
   char *refSeq = treeGetRefSeq(tree);
   
   MSP *refSeqMsp = createRefSeqMsp(tree,
@@ -1542,7 +1385,7 @@ void treeCreateFilteredDataModel(GtkWidget *tree, gpointer data)
 }
 
 
-static void setTreeStyle(GtkTreeView *tree)
+static void setTreeStyle(GtkTreeView *tree, const gboolean hasHeaders)
 {
   gtk_widget_set_name(GTK_WIDGET(tree), DETAIL_VIEW_TREE_NAME);
   gtk_widget_set_redraw_on_allocate(GTK_WIDGET(tree), FALSE);
@@ -1550,29 +1393,32 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_SINGLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
-  gtk_tree_view_set_headers_visible(tree, FALSE);
+  gtk_tree_view_set_headers_visible(tree, hasHeaders);
+  gtk_tree_view_set_headers_clickable(tree, TRUE);
 
   /* Set the expander size to 0 so that we can have tiny rows (otherwise the min is 12pt) */
   char parseString[500];
   sprintf(parseString, "style \"packedTree\"\n"
 	  "{\n"
 	  "GtkTreeView::expander-size	      = 0\n"
-	  "GtkTreeView::vertical-separator    = 2\n"
+	  "GtkTreeView::vertical-separator    = %d\n"
 	  "GtkTreeView::horizontal-separator  = 0\n"
 	  "}"
-	  "widget \"*%s*\" style \"packedTree\"", DETAIL_VIEW_TREE_NAME);
+	  "widget \"*%s*\" style \"packedTree\"", VERTICAL_SEPARATOR_HEIGHT, DETAIL_VIEW_TREE_NAME);
   gtk_rc_parse_string(parseString);
 }
 
 
 GtkWidget* createDetailViewTree(GtkWidget *grid, 
 				GtkWidget *detailView, 
+				GtkCellRenderer *renderer,
 				GList **treeList,
-				const char *fontFamily)
+				const gboolean hasHeaders,
+				BlxSeqType seqType)
 {
   /* Create a tree view for the list of match sequences */
   GtkWidget *tree = gtk_tree_view_new();
-  setTreeStyle(GTK_TREE_VIEW(tree));
+  setTreeStyle(GTK_TREE_VIEW(tree), hasHeaders);
   
   /* Put it in a scrolled window for vertical scrolling only (hoz scrolling will be via our
    * custom adjustment). Always display the scrollbars because we assume the column widths 
@@ -1585,19 +1431,15 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   /* Add the tree to the given list. We add its overall container, so we can treat the thing as a whole. */
   *treeList = g_list_append(*treeList, scrollWin);
 
-  /* Create a custom cell renderer to render the match sequences in this tree */
-  GtkCellRenderer *renderer = sequence_cell_renderer_new();
+  /* Add the columns */
+  addTreeColumns(tree, renderer, seqType, hasHeaders);
+  
+  /* Connect signals */
+  gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
 
   /* The tree needs to know which grid and renderer it corresponds to, and vice versa */
   treeCreateProperties(tree, grid, detailView, renderer);
   gridGetProperties(grid)->tree = tree;
-  SEQUENCE_CELL_RENDERER(renderer)->tree = tree;
-
-  /* Add the columns */
-  addTreeColumns(tree, renderer, fontFamily);
-  
-  /* Connect signals */
-  gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
   
   g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
@@ -1615,6 +1457,5 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   
   messout("Created detail-view tree [%x] in container [%x]", tree, scrollWin);
   
-  GTK_WIDGET(tree);
   return scrollWin;
 }

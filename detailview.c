@@ -18,12 +18,20 @@
 #define SORT_BY_ID_STRING		"Identity"
 #define SORT_BY_NAME_STRING		"Name"
 #define SORT_BY_POSITION_STRING		"Position"
+#define FONT_INCREMENT_SIZE		1
+#define MIN_FONT_SIZE			2
+#define MAX_FONT_SIZE			20
 
 
 /* Local function declarations */
-static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
+static GtkWidget*	    detailViewGetHeader(GtkWidget *detailView);
+
+static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
+static gboolean		    widgetIsTree(GtkWidget *widget);
+static gboolean		    widgetIsTreeContainer(GtkWidget *widget);
+static void		    updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
 
 
 /***********************************************************
@@ -216,7 +224,8 @@ static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
   colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
   
   /* Return the number of whole characters that fit in the column. */
-  gint charWidth = SEQUENCE_CELL_RENDERER(renderer)->charWidth;
+  SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
+  gint charWidth = seqRenderer->charWidth;
   int numChars = (int)((double)colWidth / (double)charWidth);
   
   return numChars;
@@ -272,25 +281,124 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 }
 
 
-/* Add all trees in the given list to the detail view */
-static void addTreesToDetailView(GtkContainer *detailView, GList *treeList, gboolean first, gboolean last)
+/* Find a child widget of this widget that is a paned widget. Returns null if it does not
+ * have one. If there are two, it returns the first one it finds. */
+static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
 {
+  GtkWidget *result = NULL;
+  
+  GList *children = gtk_container_get_children(parentWidget);
+  GList *child = children;
+  
+  while (child)
+    {
+      GtkWidget *childWidget = GTK_WIDGET(child->data);
+      if (GTK_IS_PANED(childWidget))
+	{
+	  result = childWidget;
+	  break;
+	}
+      
+      child = child->next;
+    }
+  
+  return result;
+}
+
+
+/* The given widget should be a detail-view-tree or a container (or series of nested 
+ * containers) containing a single tree. This function extracts the tree and sets the headers
+ * to be visible or hidden as indicated by the 'visible' flag. */
+static void setTreeHeadersVisible(GtkWidget *widget, const gboolean visible)
+{
+  if (widgetIsTree(widget))
+    {
+      gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(widget), visible);
+    }
+  else if (widgetIsTreeContainer(widget))
+    {
+      /* Get the child and recurse. */
+      GList *child = gtk_container_get_children(GTK_CONTAINER(widget));
+      setTreeHeadersVisible(GTK_WIDGET(child->data), visible);
+    }
+  else 
+    {
+      messerror("Unexpected widget type [%d]. Expected a tree or container containing a single tree. Could not set tree header visibility.", widget);
+    }
+}
+
+
+/* Add all trees in the given list to the detail view. Note that the treeList may not contain
+ * actual trees, it may contain their containers (e.g. if they live in scrolled windows). 'first'
+ * indicates that this is the first (set of) tree(s) added. This information is used to determine
+ * which pane to put the tree in and/or whether the first tree in the list should have headers. */
+static void addTreesToDetailView(GtkContainer *detailView, 
+				 GList *treeList, 
+				 const gboolean first)
+{
+  /* Currently we expect the detail view to be a paned widget */
   if (GTK_IS_PANED(detailView))
     {
       int numTrees = g_list_length(treeList);
-      if (numTrees > 0)
+      
+      if (numTrees == 1)
 	{
+	  /* Two panes, one tree. Use 'first' flags to decide which pane to put it in and
+	   * whether to show headers. */
 	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
+//	  setTreeHeadersVisible(tree1, first);
 	  
 	  if (first)
 	    {
 	      gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
 	    }
-	  else if (last)
+	  else
 	    {
 	      gtk_paned_pack2(GTK_PANED(detailView), tree1, TRUE, TRUE);
 	    }
 	}
+      else if (numTrees == 2)
+	{
+	  /* Two panes, two trees. Easy - put one in each. */
+	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
+	  GtkWidget *tree2 = GTK_WIDGET(treeList->next->data);
+	  
+	  gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
+	  gtk_paned_pack2(GTK_PANED(detailView), tree2, TRUE, TRUE);
+	  
+//	  setTreeHeadersVisible(tree1, first);
+//	  setTreeHeadersVisible(tree2, FALSE);
+	}
+      else if (numTrees > 2)
+	{
+	  /* Two panes, three trees. Put one tree in pane 1. There should be a
+	   * nested widget in pane 2 that we can put the remaining trees in. */
+	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
+	  gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
+//	  setTreeHeadersVisible(tree1, first);
+	  
+	  GtkWidget *nestedPanedWidget = findNestedPanedWidget(detailView);
+	  
+	  if (nestedPanedWidget)
+	    {
+	      /* Create a new list containing the remaining trees and call this 
+	       * function again on the nested paned widget. */
+	      GList *remainingTrees = NULL;
+	      GList *nextTree = treeList->next;
+	      while (nextTree)
+		{
+		  remainingTrees = g_list_append(remainingTrees, nextTree->data);
+		  nextTree = nextTree->next;
+		}
+	      
+	      /* Pass 'first' as false to make sure we don't add any more headers */
+	      addTreesToDetailView(GTK_CONTAINER(nestedPanedWidget), remainingTrees, FALSE);
+	    }
+	}
+    }
+  else
+    {
+      messcrash("Unexpected detail view type: expected a paned widget. Could not add child trees.");
     }
 }
 
@@ -314,6 +422,69 @@ static void removeFromDetailView(GtkWidget *widget, gpointer data)
 }
 
 
+/* Returns true if this widget is a detail-view-tree */
+static gboolean widgetIsTree(GtkWidget *widget)
+{
+  gboolean result = FALSE;
+  
+  const gchar *name = gtk_widget_get_name(widget);
+  if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
+    {
+      result = TRUE;
+    }
+  
+  return result;
+}
+
+
+/* Returns true if this widget is a detail-view-tree-container (that is, 
+ * a container that has only one child which is a detail-view-tree). This is
+ * intended so that we can identify the outermost parent of a single tree (so, for example,
+ * we can identify the scrolled window that a tree lives in). It returns false if the widget 
+ * is a container that contains multiple children and therefore might contain multiple trees. */
+static gboolean widgetIsTreeContainer(GtkWidget *widget)
+{
+  gboolean result = FALSE;
+  
+  if (GTK_IS_CONTAINER(widget))
+    {
+      /* See if this container has an only child */
+      GList *children = gtk_container_get_children(GTK_CONTAINER(widget));      
+      if (children && g_list_length(children) == 1 && GTK_IS_WIDGET(children->data))
+	{
+	  GtkWidget *childWidget = GTK_WIDGET(children->data);
+	  
+	  /* See if this child is a tree, or if it is another container containing only a single tree. */
+	  if (widgetIsTree(childWidget) || widgetIsTreeContainer(childWidget))
+	    {
+	      result = TRUE;
+	    }
+	}
+    }
+  
+  return result;
+}
+
+
+/* This function removes all detail-view-trees from the given container widget. */
+static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
+{
+  /* See if this widget is a tree (or a container containing only a single tree - the
+   * detail view contains the outermost single-tree container, e.g. typically the trees
+   * will live in a scrolled window, and it is the scrolled windows that the detail view knows about) */
+  if (widgetIsTree(widget) || widgetIsTreeContainer(widget))
+    {
+      GtkContainer *parent = GTK_CONTAINER(data);
+      gtk_container_remove(parent, widget);
+    }
+  else if (GTK_IS_CONTAINER(widget))
+    {
+      /* It is a nested container, containing multiple children. Recurse. */
+      gtk_container_foreach(GTK_CONTAINER(widget), removeAllTreesFromContainer, widget);
+    }
+}
+
+
 /* This function removes the trees from the detail view and re-adds them in the
  * correct order according to the strandsToggled flag. It should be called every
  * time the strands are toggled. It assumes the trees are already in the 
@@ -323,26 +494,175 @@ static void refreshTreeOrder(GtkWidget *detailView)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   gboolean toggled = detailViewGetStrandsToggled(detailView);
 
+  gtk_container_foreach(GTK_CONTAINER(detailView), removeAllTreesFromContainer, detailView);
+
   if (properties->seqType == BLXSEQ_DNA)
     {
-      gtk_container_foreach(GTK_CONTAINER(detailView), removeFromDetailView, detailView);
-      
-      if (toggled)
-	{
-	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->revStrandTrees, TRUE, FALSE);
-	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->fwdStrandTrees, FALSE, TRUE);
-	}
-      else
-	{
-	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->fwdStrandTrees, TRUE, FALSE);
-	  addTreesToDetailView(GTK_CONTAINER(detailView), properties->revStrandTrees, FALSE, TRUE);
-	}
+      /* Add both trees - the order they're added will depend on whether the display is toggled or not. */
+      addTreesToDetailView(GTK_CONTAINER(detailView), properties->fwdStrandTrees, !toggled);
+      addTreesToDetailView(GTK_CONTAINER(detailView), properties->revStrandTrees, toggled);
     }
   else if (properties->seqType == BLXSEQ_PEPTIDE)
     {
+      /* Only add one set of trees - the reverse strand if toggled, the forward strand if not. */
+      GList *treeList = toggled ? properties->revStrandTrees : properties->fwdStrandTrees;
+      addTreesToDetailView(GTK_CONTAINER(detailView), treeList, TRUE);
+    }
+  
+  gtk_widget_show_all(detailView);
+}
+
+
+/* Update the font for the custom sequence column header, if there is one */
+static void updateDetailViewHeaderFont(GtkWidget *detailView, PangoFontDescription *fontDesc)
+{
+  GtkWidget *header = detailViewGetHeader(detailView);
+  
+  /* The sequence column header is a vbox containing 3 labels, one for each reading frame. */
+  if (header != NULL && GTK_IS_CONTAINER(header))
+    {
+      GList *lines = gtk_container_get_children(GTK_CONTAINER(header));
+      GList *line = lines;
+      
+      while (line)
+	{
+	  GtkWidget *lineWidget = GTK_WIDGET(line->data);
+	  gtk_widget_modify_font(lineWidget, fontDesc);
+	  line = line->next;
+	}
     }
 }
 
+
+/* Refresh a specific line in the sequence column header */
+static void refreshSequenceColHeaderLine(GtkWidget *detailView,
+					 GtkWidget *lineWidget, 
+					 const int frame, 
+					 const char *refSeq)
+{
+  if (GTK_IS_LABEL(lineWidget))
+    {
+      GtkLabel *label = GTK_LABEL(lineWidget);
+//      int numReadingFrames = detailViewGetNumReadingFrames(detailView);
+      IntRange *displayRange = detailViewGetDisplayRange(detailView);
+      int displayLen = displayRange->max - displayRange->min + 1;
+      
+      char displayText[displayLen + 10];
+      
+      int i = 0;
+      int qIdx = displayRange->min;
+      for ( ; qIdx <= displayRange->max; ++i, ++qIdx)
+	{
+	  displayText[i] = refSeq[qIdx - 1];
+	}
+
+      /* temp for testing to fill up seq col header while it's the wrong size... */
+      displayText[i++] = 'z';
+      displayText[i++] = 'z';
+      displayText[i++] = 'z';
+      displayText[i++] = 'z';
+      displayText[i++] = 'z';
+
+      displayText[i] = '\0';
+      
+      gtk_label_set_text(label, displayText);
+    }
+  else
+    {
+      messcrash("Unexpected widget type in detail view header: expected label");
+    }
+}
+
+
+/* Refresh the detail view header */
+static void refreshDetailViewHeader(GtkWidget *detailView)
+{
+  GtkWidget *header = detailViewGetHeader(detailView);
+  
+  /* The sequence column header is a vbox containing 3 labels, one for each reading frame. */
+  if (header && GTK_IS_CONTAINER(header))
+    {
+      const char* refSeq = detailViewGetRefSeq(detailView);
+
+      GList *lines = gtk_container_get_children(GTK_CONTAINER(header));
+      GList *line = lines;
+      int frame = 1;
+      
+      while (line)
+	{
+	  GtkWidget *lineWidget = GTK_WIDGET(line->data);
+	  refreshSequenceColHeaderLine(detailView, lineWidget, frame, refSeq);
+	  
+	  ++frame;
+	  line = line->next;
+	}
+    }
+}
+
+
+/* Update the font description for all relevant components of the detail view */
+static void updateDetailViewFontDesc(GtkWidget *detailView, PangoFontDescription *fontDesc)
+{
+  updateCellRendererFont(detailView, fontDesc);
+  updateDetailViewHeaderFont(detailView, fontDesc);
+  callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize);
+}
+
+
+static void incrementFontSize(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  int newSize = (pango_font_description_get_size(properties->fontDesc) / PANGO_SCALE) + FONT_INCREMENT_SIZE;
+  
+  if (newSize <= MAX_FONT_SIZE)
+    {
+      pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
+      updateDetailViewFontDesc(detailView, properties->fontDesc);
+    }
+}
+
+
+static void decrementFontSize(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  int newSize = (pango_font_description_get_size(properties->fontDesc) / PANGO_SCALE) - FONT_INCREMENT_SIZE;
+  
+  if (newSize >= MIN_FONT_SIZE)
+    {
+      pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
+      updateDetailViewFontDesc(detailView, properties->fontDesc);
+    }
+}
+
+
+/* Updates the feedback box with info about the currently-selected row/base. Takes
+ * into account selections in any of the trees. This should be called every time 
+ * the row selection or base selection is changed. 
+ * TNote that there shouldn't be rows selected in different trees at the same time,
+ * so this function doesn't really deal with that situation - what will happen is
+ * that the contents of the feedback box will be overwritten by the last tree the
+ * update function is called for. */
+void updateFeedbackBox(GtkWidget *detailView)
+{
+  /* Loop through all of the trees. Stop if we find one that has selected rows. */
+  int numFrames = detailViewGetNumReadingFrames(detailView);
+  gboolean done = FALSE;
+  
+  int frame = 1;
+  for ( ; frame <= numFrames && !done; ++frame)
+    {
+      /* Forward strand tree for this reading frame */
+      GtkWidget *curTree = detailViewGetFrameTree(detailView, TRUE, frame);
+      done = updateFeedbackBoxForTree(curTree);
+      
+      if (!done)
+	{
+	  /* Reverse strand tree for this reading frame */
+	  GtkWidget *curTree = detailViewGetFrameTree(detailView, FALSE, frame);
+	  done = updateFeedbackBoxForTree(curTree);
+	}
+    }
+}
 
 /***********************************************************
  *                    Detail view events                   *
@@ -391,6 +711,8 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       
       /* Redraw all trees (and their corresponding grids) */
       callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
+      
+      refreshDetailViewHeader(detailView);
     }
 }
 
@@ -423,6 +745,8 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
             
       /* Redraw all trees (and their corresponding grids) */
       callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
+      
+      refreshDetailViewHeader(detailView);
     }
 }
 
@@ -444,8 +768,7 @@ static void onZoomInDetailView(GtkButton *button, gpointer data)
       colWidth = gtk_tree_view_column_get_width(sequenceCol);
     }
   
-  /* Call the increment-font-size function on all trees in the detail view */
-  callFuncOnAllDetailViewTrees(detailView, treeIncrementFontSize);
+  incrementFontSize(detailView);
   
   if (firstTree && colWidth != UNSET_INT)
     {
@@ -466,13 +789,40 @@ static void onZoomOutDetailView(GtkButton *button, gpointer data)
       colWidth = gtk_tree_view_column_get_width(sequenceCol);
     }
   
-  /* Call the decrement-font-size function on all trees in the detail view */
-  callFuncOnAllDetailViewTrees(detailView, treeDecrementFontSize);
+  decrementFontSize(detailView);
   
   if (firstTree && colWidth != UNSET_INT)
     {
       updateSeqColumnSize(firstTree, colWidth);
     }
+}
+
+
+/* Set the font for the detail view cell renderer. Should be called after
+ * the font size is changed by zooming in/out of the detail view. */
+static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc)
+{
+  /* Calculate the row height from the font metrics */
+  PangoContext *context = gtk_widget_get_pango_context(detailView);
+  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+  
+  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
+  gint charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
+  
+  pango_font_metrics_unref(metrics);
+  
+  /* Cache these results in the sequence renderer for easier calculations when we render the sequence column */
+  GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
+  SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
+  seqRenderer->charHeight = charHeight;
+  seqRenderer->charWidth = charWidth;
+  
+  /* Set the row height. Subtract the size of the vertical separators . This makes the
+   * row smaller than it is, but we will render it at normal size, so we end up drawing over
+   * the gaps, hence giving the impression that there are no gaps. */
+  int verticalSeparator = detailViewGetVerticalSeparator(detailView);
+  gint rowHeight = charHeight - verticalSeparator * 2;
+  gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
 }
 
 
@@ -503,6 +853,13 @@ GtkAdjustment* detailViewGetAdjustment(GtkWidget *detailView)
   return properties ? properties->adjustment : NULL;
 }
 
+GtkCellRenderer* detailViewGetRenderer(GtkWidget *detailView)
+{
+  assertDetailView(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->renderer : NULL;
+}
+
 /* Get the forward strand of the reference sequence */
 char* detailViewGetRefSeq(GtkWidget *detailView)
 {
@@ -517,15 +874,87 @@ static GtkWidget* detailViewGetMainWindow(GtkWidget *detailView)
   return properties ? properties->mainWindow : NULL;
 }
 
+static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->header : NULL;
+}
+
 gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
 {
   return mainWindowGetStrandsToggled(detailViewGetMainWindow(detailView));
 }
 
-const char* detailViewGetFontFamily(GtkWidget *detailView)
+PangoFontDescription *detailViewGetFontDesc(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->fontFamily : NULL;
+  return properties ? properties->fontDesc : NULL;
+}
+
+int detailViewGetVerticalSeparator(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->verticalSeparator : UNSET_INT;
+}
+
+GdkColor* detailViewGetRefSeqColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->refSeqColour;
+}
+
+GdkColor* detailViewGetRefSeqSelectedColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->refSeqSelectedColour;
+}
+
+GdkColor* detailViewGetMatchColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->matchColour;
+}
+
+GdkColor* detailViewGetMatchSelectedColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->matchSelectedColour;
+}
+
+GdkColor* detailViewGetMismatchColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->mismatchColour;
+}
+
+GdkColor* detailViewGetMismatchSelectedColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->mismatchSelectedColour;
+}
+
+GdkColor* detailViewGetExonColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->exonColour;
+}
+
+GdkColor* detailViewGetExonSelectedColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->exonSelectedColour;
+}
+
+GdkColor* detailViewGetGapColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->gapColour;
+}
+
+GdkColor* detailViewGetGapSelectedColour(GtkWidget *tree)
+{
+  DetailViewProperties *properties = detailViewGetProperties(tree);
+  return &properties->gapSelectedColour;
 }
 
 
@@ -584,7 +1013,7 @@ GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int f
     }
 
   if (!result)
-    messcrash("Tree list for %s strand contains an invalid widget type for frame %d.", (forward ? "forward" : "reverse"), frame);
+    messerror("Tree not found for strand %s, frame %d.", (forward ? "forward" : "reverse"), frame);
   
   return result;
 }
@@ -639,12 +1068,6 @@ static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
   return mainWindowGetBigPicture(mainWindow);
 }
 
-//static BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
-//{
-//  DetailViewProperties *properties = detailViewGetProperties(detailView);
-//  return properties ? properties->seqType : UNSET_INT;
-//}
-
 
 DetailViewProperties* detailViewGetProperties(GtkWidget *widget)
 {
@@ -666,24 +1089,28 @@ static void onDestroyDetailView(GtkWidget *widget)
 
 static void detailViewCreateProperties(GtkWidget *detailView,
 				       GtkWidget *mainWindow,
+				       GtkCellRenderer *renderer,
 				       GList *fwdStrandTrees,
 				       GList *revStrandTrees,
 				       GtkWidget *feedbackBox,
+				       GtkWidget *header,
 				       GtkAdjustment *adjustment, 
 				       char *refSeq,
 				       BlxSeqType seqType,
 				       int numReadingFrames,
 				       IntRange *displayRange,
-				       const char *fontFamily)
+				       PangoFontDescription *fontDesc)
 {
   if (detailView)
     { 
       DetailViewProperties *properties = g_malloc(sizeof *properties);
 
       properties->mainWindow = mainWindow;
+      properties->renderer = renderer;
       properties->fwdStrandTrees = fwdStrandTrees;
       properties->revStrandTrees = revStrandTrees;
       properties->feedbackBox = feedbackBox;
+      properties->header = header;
       properties->adjustment = adjustment;
       properties->refSeq = refSeq;
       properties->seqType = seqType;
@@ -691,8 +1118,20 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->displayRange.min = displayRange->min;
       properties->displayRange.max = displayRange->max;
       properties->selectedBaseIdx = UNSET_INT;
-      properties->fontFamily = fontFamily;
+      properties->fontDesc = fontDesc;
+      properties->verticalSeparator = VERTICAL_SEPARATOR_HEIGHT;
 
+      properties->refSeqColour		  = getGdkColor(GDK_YELLOW);
+      properties->refSeqSelectedColour	  = getGdkColor(GDK_DARK_YELLOW);
+      properties->matchColour		  = getGdkColor(GDK_CYAN);
+      properties->matchSelectedColour	  = getGdkColor(GDK_DARK_CYAN);
+      properties->mismatchColour	  = getGdkColor(GDK_GREY);
+      properties->mismatchSelectedColour  = getGdkColor(GDK_DARK_GREY);
+      properties->exonColour		  = getGdkColor(GDK_YELLOW);
+      properties->exonSelectedColour	  = getGdkColor(GDK_DARK_YELLOW);
+      properties->gapColour		  = getGdkColor(GDK_GREY);
+      properties->gapSelectedColour	  = getGdkColor(GDK_DARK_GREY);
+      
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
     }
@@ -885,6 +1324,87 @@ static void GToggleStrand(GtkButton *button, gpointer data)
  *                     Initialization                      *
  ***********************************************************/
 
+//static GtkWidget *createTripletCell(GtkCellRenderer *renderer)
+//{
+//  GtkWidget *cellView = gtk_cell_view_new();
+//  
+//  GtkCellLayout *layout = GTK_CELL_LAYOUT(cellView);
+//  gtk_cell_layout_pack_start(layout, renderer, TRUE);
+//  gtk_cell_layout_add_attribute(layout, renderer, "header", MSP_COL);
+//  gtk_cell_layout_add_attribute(layout, renderer, "msp", MSP_COL);
+//  gtk_cell_layout_add_attribute(layout, renderer, "data", MSP_COL);
+//  //      gtk_cell_layout_set_cell_data_func(layout, renderer, sequenceColHeaderDataFunc, NULL, NULL);  
+//  
+//  return cellView;
+//}
+
+
+static GtkWidget* createTripletCell()
+{
+  GtkWidget *label = gtk_label_new("");
+  gtk_label_set_width_chars(GTK_LABEL(label), 1);
+
+  return label;
+}
+
+
+/* Create the header bar for the detail view trees. Uses the custom header
+ * widget for the sequence column if supplied, otherwise just creates a normal
+ * label for this column header. */
+static GtkWidget* createDetailViewHeader(GtkWidget *sequenceColHeader)
+{
+  GtkWidget *header = gtk_hbox_new(FALSE, 0);
+  
+  GtkWidget *nameLabel = gtk_label_new("Name");
+  GtkWidget *scoreLabel = gtk_label_new("Score");
+  GtkWidget *idLabel = gtk_label_new("%ID");
+  GtkWidget *startLabel = gtk_label_new("Start");
+  GtkWidget *sequenceLabel = sequenceColHeader ? sequenceColHeader : gtk_label_new("Sequence");
+  GtkWidget *endLabel = gtk_label_new("End");  
+
+  gtk_widget_set_size_request(nameLabel, NAME_COLUMN_DEFAULT_WIDTH, -1);
+  gtk_widget_set_size_request(scoreLabel, SCORE_COLUMN_DEFAULT_WIDTH, -1);
+  gtk_widget_set_size_request(idLabel, ID_COLUMN_DEFAULT_WIDTH, -1);
+  gtk_widget_set_size_request(startLabel, START_COLUMN_DEFAULT_WIDTH, -1);
+  gtk_widget_set_size_request(sequenceLabel, SEQ_COLUMN_DEFAULT_WIDTH, -1);
+  gtk_widget_set_size_request(endLabel, END_COLUMN_DEFAULT_WIDTH, -1);
+  
+  gtk_box_pack_start(GTK_BOX(header), nameLabel, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(header), scoreLabel, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(header), idLabel, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(header), startLabel, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(header), sequenceLabel, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(header), endLabel, FALSE, TRUE, 0);
+  
+  return header;
+}
+
+
+/* Create a custom header widget for the sequence column for protein matches. This is where
+ * we will display the triplets that make up the codons. Returns null for DNA matches. */
+static GtkWidget* createSequenceColHeader(GtkWidget *detailView,
+				 	 const BlxSeqType seqType,
+					  const int numReadingFrames)
+{
+  GtkWidget *header = NULL;
+  
+  if (seqType == BLXSEQ_PEPTIDE)
+    {
+      header = gtk_vbox_new(FALSE, 0);
+      
+      /* Create a line for each reading frame */
+      int i = 0;
+      for ( ; i < numReadingFrames; ++i)
+	{
+	  GtkWidget *line = createTripletCell();
+	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
+	}
+    }
+  
+  return header;
+}
+
+
  GtkWidget* createDetailViewScrollBar(GtkAdjustment *adjustment, GtkWidget *detailView)
 {
   GtkWidget *scrollBar = gtk_hscrollbar_new(adjustment);
@@ -1025,7 +1545,9 @@ static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
 
 
 /* Create the detail view toolbar */
-static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **feedbackBox)
+static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
+					    BlxBlastMode mode,
+					    GtkWidget **feedbackBox)
 {
   GtkToolbar *toolbar = NULL;
   GtkWidget *toolbarContainer = createEmptyButtonBar(detailView, &toolbar);
@@ -1052,7 +1574,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **f
   makeToolbarButton(toolbar, "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  detailView);
   makeToolbarButton(toolbar, ">",	 "Scroll rightward one base",	 (GtkSignalFunc)GscrollRight1,	  detailView);
   
-  if (1) //blastx ||tblastx || blastn)
+  if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)
     {
       makeToolbarButton(toolbar, "Strand^v", "Toggle strand", (GtkSignalFunc)GToggleStrand, detailView);
     }
@@ -1063,49 +1585,93 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, GtkWidget **f
 }
 
 
-/* Create two detail-view trees and place them in the 2 panes of the paned widget. The first
- * tree gets associated with grid1 and appended to list1, and the second with grid2 and list2. */
-static void createTwoPanedTrees(GtkWidget *panedWidget, 
+/* Create two detail-view trees and place them in the 2 panes of the container (if one is
+ * given). The first tree gets associated with grid1 and appended to list1, and the second
+ * with grid2 and list2. If hasHeaders is true, the first tree will have visible headers. */
+static void createTwoPanedTrees(GtkWidget *detailView,
+				GtkWidget *container, 
+				GtkCellRenderer *renderer,
 				GtkWidget *grid1, 
 				GtkWidget *grid2,
 				GList **list1,
 				GList **list2,
-				const char *fontFamily)
+				BlxSeqType seqType,
+				const gboolean hasHeaders)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, panedWidget, list1, fontFamily);
-  GtkWidget *tree2 = createDetailViewTree(grid2, panedWidget, list2, fontFamily);
-  gtk_paned_pack1(GTK_PANED(panedWidget), tree1, FALSE, TRUE);
-  gtk_paned_pack2(GTK_PANED(panedWidget), tree2, TRUE, TRUE);
+  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, hasHeaders, seqType);
+  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, FALSE, seqType);
+  
+  if (container)
+    {
+      gtk_paned_pack1(GTK_PANED(container), tree1, FALSE, TRUE);
+      gtk_paned_pack2(GTK_PANED(container), tree2, TRUE, TRUE);
+    }
+}
+
+
+/* Create three detail-view trees and place them in the paned widget. We only have
+ * two panes in the widget, so two of the trees will be placed in a second, nested
+ * paned widget. */
+static void createThreePanedTrees(GtkWidget *detailView,
+				  GtkCellRenderer *renderer,
+				  GtkWidget *grid,
+				  GList **list,
+				  BlxSeqType seqType,
+				  const gboolean addToDetailView,
+				  const gboolean hasHeaders)
+{
+  /* Create a tree for pane1 (but only add it to the detailView if instructed to).
+   * The first tree has headers. */
+  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, hasHeaders, seqType);
+  
+  GtkWidget *nestedPanedWidget = NULL;
+  
+  if (addToDetailView)
+    {
+      gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
+      
+      /* Create another paned widget and place it in pane 2 */
+      nestedPanedWidget = gtk_vpaned_new();
+      gtk_paned_pack2(GTK_PANED(detailView), nestedPanedWidget, TRUE, TRUE);
+    }
+  
+  /* Create two more trees (and place them in the nested paned widget, if it is not null). 
+   * Neither of these trees should have headers. */
+  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, FALSE);
 }
 
 
 /* Create the trees for the detail view, creating sub-panes if necessary depending
  * on how many trees we need */
 static void createDetailViewPanes(GtkWidget *detailView, 
+				  GtkCellRenderer *renderer,
 				  GtkWidget *fwdStrandGrid, 
 				  GtkWidget *revStrandGrid, 
 				  const int numReadingFrames,
 				  GList **fwdStrandTrees,
 				  GList **revStrandTrees,
-				  const char *fontFamily)
+				  BlxSeqType seqType,
+				  const gboolean allowHeaders)
 {
   if (numReadingFrames == 1)
     {
       /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse */
-      createTwoPanedTrees(detailView, fwdStrandGrid, revStrandGrid, fwdStrandTrees, revStrandTrees, fontFamily);
+      createTwoPanedTrees(detailView, 
+			  detailView, 
+			  renderer,
+			  fwdStrandGrid, 
+			  revStrandGrid, 
+			  fwdStrandTrees, 
+			  revStrandTrees, 
+			  seqType,
+			  allowHeaders);
     }
   else if (numReadingFrames == 3)
     {
-      /* Protein matches: we need 3 trees for the 3 reading frames. We only have
-       * 2 panes in our parent container, so one pane will have to contain
-       * a second, nested paned widget. */
-      GtkWidget *tree1 = createDetailViewTree(fwdStrandGrid, detailView, fwdStrandTrees, fontFamily);
-      GtkWidget *nestedPanedWidget = gtk_vpaned_new();
-      
-      gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
-      gtk_paned_pack1(GTK_PANED(detailView), nestedPanedWidget, TRUE, TRUE);
-      
-      createTwoPanedTrees(nestedPanedWidget, fwdStrandGrid, fwdStrandGrid, fwdStrandTrees, fwdStrandTrees, fontFamily);
+      /* Protein matches: we need 3 trees for the 3 reading frames for EACH strand (although only
+       * one set of trees will be displayed at a time). */
+      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, allowHeaders);
+      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, allowHeaders);
     }
 }
 
@@ -1135,6 +1701,25 @@ static void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 }
 
 
+/* We need a fixed-width font for displaying alignments. Find one from a 
+ * list of possibilities. */
+static const char* findDetailViewFont(GtkWidget *detailView)
+{
+  GList *fixed_font_list = NULL ;
+  
+  fixed_font_list = g_list_append(fixed_font_list, "Monaco");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier New");
+  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
+  fixed_font_list = g_list_append(fixed_font_list, "fixed");
+  
+  const char *fontFamily = findFixedWidthFontFamily(detailView, fixed_font_list);
+  g_list_free(fixed_font_list);
+  
+  return fontFamily;
+}
+
+
 GtkWidget* createDetailView(GtkWidget *mainWindow,
 			    GtkWidget *panedWidget,
 			    GtkAdjustment *adjustment, 
@@ -1151,40 +1736,42 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
    * together (so that operations like zooming and scrolling can act on the group). The
    * trees might be a direct child of this or a grandchild/grand-grandchild, so we will need
    * to look at all children recursively and check if they're the correct type. (We'll give 
-   * all of our detail-view trees the same name so we can identify them.) */
+   * all of our detail-view trees the same name so that we can identify them.) */
   GtkWidget *detailView = gtk_vpaned_new();
   
-  /* We need a fixed-width font for displaying alignments. Find one from a 
-   * list of possibilities. */
-  GList *fixed_font_list = NULL ;
+  /* Find a fixed-width font */
+  const char *fontFamily = findDetailViewFont(detailView);
+  PangoFontDescription *fontDesc = pango_font_description_copy(detailView->style->font_desc);
+  pango_font_description_set_family(fontDesc, fontFamily);
+  
+  /* Create a custom cell renderer to render the sequences in the detail view */
+  GtkCellRenderer *renderer = sequence_cell_renderer_new();
+  SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
+  seqRenderer->detailView = detailView;
 
-  fixed_font_list = g_list_append(fixed_font_list, "Monaco");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier New");
-  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
-  fixed_font_list = g_list_append(fixed_font_list, "fixed");
-
-  const char *fontFamily = findFixedWidthFontFamily(detailView, fixed_font_list);
-  g_list_free(fixed_font_list);
-    
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
   createDetailViewPanes(detailView, 
+			renderer,
 			fwdStrandGrid, 
 			revStrandGrid, 
 			numReadingFrames, 
 			&fwdStrandTrees,
 			&revStrandTrees,
-			fontFamily);
+			seqType,
+			FALSE);
   
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, &feedbackBox);
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, &feedbackBox);
+
+  GtkWidget *sequenceColHeader = createSequenceColHeader(detailView, seqType, numReadingFrames);
+  GtkWidget *header = createDetailViewHeader(sequenceColHeader);
   
-  /* Put everything in a vbox, because we need to have a toolbar at the top
-   * of the detail view. */
+  /* Put everything in a vbox. */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), buttonBar, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), detailView, TRUE, TRUE, 0);
   
   /* Put the whole lot into the main window */
@@ -1196,15 +1783,20 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   /* Set the required properties */
   detailViewCreateProperties(detailView, 
 			     mainWindow, 
+			     renderer,
 			     fwdStrandTrees,
 			     revStrandTrees,
 			     feedbackBox, 
+			     sequenceColHeader,
 			     adjustment, 
 			     refSeq, 
 			     seqType,
 			     numReadingFrames, 
 			     refSeqRange,
-			     fontFamily);
+			     fontDesc);
+  
+  /* Set the initial font. (Requires detail view properties to be set) */
+  updateDetailViewFontDesc(detailView, fontDesc);
 
   /* Add the MSP's to the trees */
   detailViewAddMspData(detailView, mspList);

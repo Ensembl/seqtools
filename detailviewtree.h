@@ -10,11 +10,10 @@
 #define _detail_view_tree_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blxview.h>
+#include <SeqTools/blixem_.h>
 #include <SeqTools/sequencecellrenderer.h>
 
 #define DETAIL_VIEW_TREE_NAME		"DetailViewTreeName"
-
 
 enum
 {
@@ -32,20 +31,9 @@ typedef struct _TreeProperties
     GtkWidget *grid;         /* The grid that this tree corresponds to */
     GtkWidget *detailView;   /* The detail view that this tree belongs to */
     GtkCellRenderer *renderer; /* The custom cell renderer to render this tree's match sequences */
+    GtkWidget *sequenceColHeader; /* The custom header for the sequence column, or NULL if N/A */
     
     char *refSeq;	     /* The reference sequence for this tree. (It is the complemented version if the strand is reversed.) */
-
-    /* Display colours */
-    GdkColor refSeqColour;
-    GdkColor refSeqSelectedColour;
-    GdkColor matchColour;
-    GdkColor matchSelectedColour;
-    GdkColor mismatchColour;
-    GdkColor mismatchSelectedColour;
-    GdkColor exonColour;
-    GdkColor exonSelectedColour;
-    GdkColor gapColour;
-    GdkColor gapSelectedColour;
   } TreeProperties;
 GdkColor exonColour;
 
@@ -68,18 +56,6 @@ GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 gboolean	  treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model);
 GtkWidget*	  treeGetDetailView(GtkWidget *tree);
 
-
-GdkColor*	  treeGetRefSeqColour(GtkWidget *tree);
-GdkColor*	  treeGetRefSeqSelectedColour(GtkWidget *tree);
-GdkColor*	  treeGetMatchColour(GtkWidget *tree);
-GdkColor*	  treeGetMatchSelectedColour(GtkWidget *tree);
-GdkColor*	  treeGetMismatchColour(GtkWidget *tree);
-GdkColor*	  treeGetMismatchSelectedColour(GtkWidget *tree);
-GdkColor*	  treeGetExonColour(GtkWidget *tree);
-GdkColor*	  treeGetExonSelectedColour(GtkWidget *tree);
-GdkColor*	  treeGetGapColour(GtkWidget *tree);
-GdkColor*	  treeGetGapSelectedColour(GtkWidget *tree);
-
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 
 void		  selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter);
@@ -91,8 +67,9 @@ void		  treeSortByScore(GtkWidget *tree, gpointer data);
 void		  treeSortByPos(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeAndGrid(GtkWidget *tree, gpointer data);
-void		  treeIncrementFontSize(GtkWidget *tree, gpointer data);
-void		  treeDecrementFontSize(GtkWidget *tree, gpointer data);
+void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
+
+gboolean	  updateFeedbackBoxForTree(GtkWidget *tree);
 
 void		  addMspToTreeModel(GtkTreeModel *model, 
 				    MSP *msp,
@@ -100,8 +77,10 @@ void		  addMspToTreeModel(GtkTreeModel *model,
 
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,
+				       GtkCellRenderer *renderer,
 				       GList **treeList,
-				       const char *fontFamily);
+				       const gboolean hasHeaders,
+				       BlxSeqType seqType);
 
 void		   treeCreateBaseDataModel(GtkWidget *tree, gpointer data);
 void		   treeCreateFilteredDataModel(GtkWidget *tree, gpointer data);

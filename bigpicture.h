@@ -71,6 +71,7 @@ gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetDetailView(GtkWidget *bigPicture);
+IntRange*		      bigPictureGetFullRange(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      setBigPictureDisplayWidth(GtkWidget *bigPicture, int width);
