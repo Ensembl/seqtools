@@ -48,7 +48,9 @@ char*			  mainWindowGetRefSeq(GtkWidget *mainWindow);
 char*			  mainWindowGetDisplaySeq(GtkWidget *mainWindow);
 int			  mainWindowGetNumReadingFrames(GtkWidget *mainWindow);
 
-gchar*			  getRefSeqSegment(GtkWidget *mainWindow, 
+gchar*			  getSequenceSegment(GtkWidget *mainWindow, 
+					   const char const *sequence,
+					   const IntRange const *sequenceRange,
 					   const int coord1, 
 					   const int coord2,
 					   const Strand strand,

@@ -70,12 +70,14 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
 }
 
 
-/* Get a segment of the reference sequence (which is always the DNA sequence and
+/* Get a segment of the given sequence (which is always the DNA sequence and
  * always the forward strand) and reverse/complement it as required for the given
  * strand and reading frame (note that the sequence will only actually be reversed
  * if the 'reverse' argument is true). This function also translates it to a peptide
  * sequence if relevant. */
-gchar *getRefSeqSegment(GtkWidget *mainWindow, 
+gchar *getSequenceSegment(GtkWidget *mainWindow, 
+			const char const *sequence,
+			const IntRange const *sequenceRange,
 		        const int coord1, 
 		        const int coord2,
 		        const Strand strand,
@@ -96,24 +98,21 @@ gchar *getRefSeqSegment(GtkWidget *mainWindow,
       qMax = convertPeptideToDna(qMax, frame, numReadingFrames);
     }
   
-  /* Check that the requested segment is within the reference sequence range */
-  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  
-  if (qMin < refSeqRange->min || qMax > refSeqRange->max)
+  /* Check that the requested segment is within the sequence's range */
+  if (qMin < sequenceRange->min || qMax > sequenceRange->max)
     {
-      messout ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, refSeqRange->min, refSeqRange->max);
+      messout ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max);
       if (inputSeqType == BLXSEQ_PEPTIDE) messout("Input coords on peptide sequence were %d - %d", coord1, coord2);
       return NULL;
     }
   
   /* Copy the portion of interest from the reference sequence and translate as necessary */
-  const char const *refSeq = mainWindowGetRefSeq(mainWindow);
   BlxBlastMode mode = mainWindowGetBlastMode(mainWindow);
 			    
   if (mode == BLXMODE_BLASTP || mode == BLXMODE_TBLASTN)
     {
       /* Just get a straight copy of this segment from the ref seq */
-      result = copySeqSegment(refSeq, qMin, qMax);
+      result = copySeqSegment(sequence, qMin, qMax);
       
       if (reverse)
 	{
@@ -128,12 +127,12 @@ gchar *getRefSeqSegment(GtkWidget *mainWindow,
       if (strand == FORWARD_STRAND)
 	{
 	  /* Straight copy of the ref seq segment */
-	  segment = copySeqSegment(refSeq, qMin, qMax);
+	  segment = copySeqSegment(sequence, qMin, qMax);
 	}
       else
 	{
 	  /* Get the segment of the ref seq and then complement it */
-	  segment = copySeqSegment(refSeq, qMin, qMax);
+	  segment = copySeqSegment(sequence, qMin, qMax);
 	  blxComplement(segment);
 	  
 	  if (!segment)

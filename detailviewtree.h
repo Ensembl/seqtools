@@ -33,7 +33,7 @@ typedef struct _TreeProperties
     GtkCellRenderer *renderer; /* The custom cell renderer to render this tree's match sequences */
     GtkWidget *sequenceColHeader; /* The custom header for the sequence column, or NULL if N/A */
     
-    char *refSeq;	     /* The reference sequence for this tree. (It is the complemented version if the strand is reversed.) */
+    int readingFrame;	      /* Which reading frame this tree is displaying */
   } TreeProperties;
 GdkColor exonColour;
 
@@ -80,7 +80,8 @@ GtkWidget*	  createDetailViewTree(GtkWidget *grid,
 				       GtkCellRenderer *renderer,
 				       GList **treeList,
 				       const gboolean hasHeaders,
-				       BlxSeqType seqType);
+				       BlxSeqType seqType,
+				       const int frame);
 
 void		   treeCreateBaseDataModel(GtkWidget *tree, gpointer data);
 void		   treeCreateFilteredDataModel(GtkWidget *tree, gpointer data);

@@ -700,14 +700,16 @@ static void drawRefSequence(SequenceCellRenderer *renderer,
   int selectedBaseIdx = getSelectedBaseIdx(renderer);
   
   GtkWidget *mainWindow = detailViewGetMainWindow(renderer->detailView);
-  gchar *segmentToDisplay = getRefSeqSegment(mainWindow, 
-					    segmentRange->min, 
-					    segmentRange->max, 
-					    getRefSeqStrand(renderer), 
-					    getSeqType(renderer),
-					    getRefSeqFrame(renderer), 
-					    getNumReadingFrames(renderer),
-					    rightToLeft);
+  gchar *segmentToDisplay = getSequenceSegment(mainWindow, 
+					       mainWindowGetRefSeq(mainWindow),
+					       mainWindowGetRefSeqRange(mainWindow),
+					       segmentRange->min, 
+					       segmentRange->max, 
+					       getRefSeqStrand(renderer), 
+					       getSeqType(renderer),
+					       getRefSeqFrame(renderer), 
+					       getNumReadingFrames(renderer),
+					       rightToLeft);
   
   if (segmentToDisplay)
     {
@@ -1055,14 +1057,16 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   
   GtkWidget *mainWindow = detailViewGetMainWindow(renderer->detailView);
   
-  gchar *refSeqSegment = getRefSeqSegment(mainWindow, 
-					 segmentRange.min, 
-					 segmentRange.max, 
-					 qStrand, 
-					 getSeqType(renderer),
-					 qFrame, 
-					 getNumReadingFrames(renderer),
-					 rightToLeft);
+  gchar *refSeqSegment = getSequenceSegment(mainWindow, 
+					    mainWindowGetRefSeq(mainWindow),
+					    mainWindowGetRefSeqRange(mainWindow),
+					    segmentRange.min, 
+					    segmentRange.max, 
+					    qStrand, 
+					    getSeqType(renderer),
+					    qFrame, 
+					    getNumReadingFrames(renderer),
+					    rightToLeft);
 
   if (refSeqSegment)
     {

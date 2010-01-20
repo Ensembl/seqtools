@@ -1658,10 +1658,11 @@ static void createTwoPanedTrees(GtkWidget *detailView,
 				GList **list1,
 				GList **list2,
 				BlxSeqType seqType,
-				const gboolean hasHeaders)
+				const gboolean hasHeaders,
+				const int firstFrame)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, hasHeaders, seqType);
-  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, FALSE, seqType);
+  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, hasHeaders, seqType, firstFrame);
+  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, FALSE, seqType, firstFrame + 1);
   
   if (container)
     {
@@ -1684,7 +1685,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
 {
   /* Create a tree for pane1 (but only add it to the detailView if instructed to).
    * The first tree has headers. */
-  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, hasHeaders, seqType);
+  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, hasHeaders, seqType, 1);
   
   GtkWidget *nestedPanedWidget = NULL;
   
@@ -1699,7 +1700,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
   
   /* Create two more trees (and place them in the nested paned widget, if it is not null). 
    * Neither of these trees should have headers. */
-  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, FALSE);
+  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, FALSE, 2);
 }
 
 
@@ -1726,7 +1727,8 @@ static void createDetailViewPanes(GtkWidget *detailView,
 			  fwdStrandTrees, 
 			  revStrandTrees, 
 			  seqType,
-			  allowHeaders);
+			  allowHeaders,
+			  1);
     }
   else if (numReadingFrames == 3)
     {
