@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.9 2010-01-14 13:01:17 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.10 2010-01-20 18:16:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -194,13 +194,12 @@ typedef struct _BPMSP
 /* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
 typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS} SortByType ;
 
-static void blxDestroy(void) ;
-static void blxPrint(void) ;
-static void wholePrint(void) ;
-static void blxShowStats(MSP *msplist) ;
+//static void blxDestroy(void) ;
+//static void blxPrint(void) ;
+//static void wholePrint(void) ;
 
-static void blxPaste(BlxPasteType paste_type) ;
-static void pasteCB(char *text) ;
+//static void blxPaste(BlxPasteType paste_type) ;
+//static void pasteCB(char *text) ;
 BOOL parsePasteText(char *text, BlxPasteData paste_data) ;
 void freePasteData(BlxPasteData paste_data) ;
 static char *parseMatchLines(char *text) ;
@@ -208,25 +207,25 @@ static BOOL parseFeatureLine(char *line,
 			     char **feature_name_out,
 			     int *feature_start_out, int *feature_end_out, int *feature_length_out) ;
 
-static BOOL setMatchSet(char **matches) ;
-static void clearMatchSet(void) ;
+//static BOOL setMatchSet(char **matches) ;
+//static void clearMatchSet(void) ;
 
-static void sortToggleInv(void) ;
+//static void sortToggleInv(void) ;
 
-static void squashMatches(void) ;
-static void squashFSdo(void) ;
+//static void squashMatches(void) ;
+//static void squashFSdo(void) ;
 
-static void toggleIDdots (void) ;
-static void toggleVerbose(void) ;
-static void toggleHiliteSins(void) ;
-static void toggleHiliteUpper(void) ;
-static void toggleHiliteLower(void) ;
-static void toggleDESC(void) ;
+//static void toggleIDdots (void) ;
+//static void toggleVerbose(void) ;
+//static void toggleHiliteSins(void) ;
+//static void toggleHiliteUpper(void) ;
+//static void toggleHiliteLower(void) ;
+//static void toggleDESC(void) ;
 //static void ToggleStrand(void) ;
-static void printColors (void) ;
+//static void printColors (void) ;
 
-static void gotoMatch(int direc) ;
-static BOOL gotoMatchPosition(char *match, int q_start, int q_end) ;
+//static void gotoMatch(int direc) ;
+//static BOOL gotoMatchPosition(char *match, int q_start, int q_end) ;
 
 #if OLD_BLIXEM
 static void keyboard(int key, int modifier) ;
@@ -234,41 +233,39 @@ static void blviewPick (int box, double x_unused, double y_unused, int modifier_
 static void blviewDestroy(GtkWidget *unused) ;
 #endif
 
-static void toggleColors (void);
-static void blviewCreate(char *opts, char *align_types, MSP *msplist) ;
+//static void toggleColors (void);
+static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset) ;
 
 #if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q);
 #endif
 
-static void calcID(MSP *msp);
-
 static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
-static char *fetchSeqRaw(char *seqname) ;
-static void getsseq(MSP *msp, MSP *msplist) ;
-static char *getSeq(char *seqname, char *fetch_prog) ;
+//static char *fetchSeqRaw(char *seqname) ;
+//static void getsseq(MSP *msp, MSP *msplist) ;
+//static char *getSeq(char *seqname, char *fetch_prog) ;
 
-static BOOL smartDotterRange(char *selected_sequence, const MSP const *msp_list, int blastn,
-			     int strand_sign, int view_start, int view_end,
-			     char **dottersseq_out, int *dotter_start_out, int *dotter_end_out) ;
+//static BOOL smartDotterRange(char *selected_sequence, const MSP const *msp_list, int blastn,
+//			     int strand_sign, int view_start, int view_end,
+//			     char **dottersseq_out, int *dotter_start_out, int *dotter_end_out) ;
 
-static char *abbrevTxt(char *text, int max_len) ;
+//static char *abbrevTxt(char *text, int max_len) ;
 
-static void printMSPs(void) ;
+//static void printMSPs(void) ;
 
-static void toggleMatchSet(void) ;
+//static void toggleMatchSet(void) ;
 
 
 /*
  *                 Local globals....sigh....
  */
 
-static void     BigPictToggle(void),
-            entropytoggle(void),
-            BigPictToggleRev(void),
-            zoomIn(void),
-            zoomOut(void),
-            zoomWhole(void),
+static void//     BigPictToggle(void),
+//            entropytoggle(void),
+//            BigPictToggleRev(void),
+//            zoomIn(void),
+//            zoomOut(void),
+//            zoomWhole(void),
 #if OLD_BLIXEM
             MiddleDragBP(double x, double y),
             MiddleUpBP(double x, double y),
@@ -277,19 +274,19 @@ static void     BigPictToggle(void),
             MiddleDragQ(double x, double y),
             MiddleUpQ(double x, double y),
 #endif
-            setHighlight(void),
-            clrHighlight(void),
-            callDotter(const MSP const *msplist),
-            callDotterHSPs(const MSP const *msplist),
-            callDotterSelf(const MSP const *msplist),
+//            setHighlight(void),
+ //           clrHighlight(void),
+            callDotter(const MSP const *msplist);
+//            callDotterHSPs(const MSP const *msplist),
+//            callDotterSelf(const MSP const *msplist),
   /*             dotterPanel(void), */
-            setDotterParams(void),
-            autoDotterParams(void),
-            allocAuxseqs(int len),
-            settingsRedraw(void),
-            menuCheck(MENU menu, int mode, int thismode, char *str),
-	    hidePicked(void),
-            setMenuCheckmarks(void);
+//            setDotterParams(void),
+//            autoDotterParams(void),
+//            allocAuxseqs(int len),
+//            settingsRedraw(void),
+//            menuCheck(MENU menu, int mode, int thismode, char *str),
+//	    hidePicked(void),
+//            setMenuCheckmarks(void);
 
 
 #ifdef ED_G_NEVER_INCLUDE_THIS_CODE
@@ -302,10 +299,10 @@ static void pfetchWindow (MSP *msp);
 /* GLOBAL VARIABLES...really its hard to beat this for a list of globals,
  * one for the Guinness Book of Records perhaps... */
 
-static BPMSP BPMSPlist, *bpmsp;
-static int  fetchCount;
+static BPMSP BPMSPlist;// *bpmsp;
+//static int  fetchCount;
 GtkWidget *blixemWindow = NULL ;
-static GtkWidget *messageWidget;
+//static GtkWidget *messageWidget;
 
 #if OLD_BLIXEM
 //static Graph frameGraph[3];
@@ -315,52 +312,48 @@ static GtkWidget *messageWidget;
 //static Graph settingsGraph=0;
 
 static int   actstart,        /* Active region coordinates relative to query in BASES */
-             actend,
-             dispstart,       /* Displayed region relative to query in BASES */
-             displen=240;     /* Displayed sequence length in BASES */
+//             actend,
+             dispstart;       /* Displayed region relative to query in BASES */
+//             displen=240;     /* Displayed sequence length in BASES */
 static char  actframe[16]="(+1)";    /* Active frame */
 static int   plusmin = 1 ;       /* +1 for top strand, -1 */
-static float queryy,          /* Screen coords of genome seq */
-             separator_y,	/* y coord of previous panel separator */
-             lastExonx,
-             BPboxheight = 5.7,
-             BPboxstart,
-             BPboxwidth,
-             BigPictZoom = 10,
-  oldLinew;
+static float //queryy,          /* Screen coords of genome seq */
+             //separator_y,	/* y coord of previous panel separator */
+             //lastExonx,
+             //BPboxheight = 5.7,
+             //BPboxstart,
+             //BPboxwidth,
+             BigPictZoom = 10;
+//  oldLinew;
 
 
-static char *q;    /* The genomic sequence (query=the translated seq) */
-static int   qlen;
-static int   qoffset;         /* Offset to the 'real' DNA start */
-static char *qname_G = NULL ;
+//static char *q;    /* The genomic sequence (query=the translated seq) */
+//static int   qlen;
+//static int   qoffset;         /* Offset to the 'real' DNA start */
+//static char *qname_G = NULL ;
 //       MSP  *MSPlist,          /* List of MSP's */
 //            *msp;
-static MSP  *pickedMSP = NULL ;	      /* Last picked MSP */
+//static MSP  *pickedMSP = NULL ;	      /* Last picked MSP */
 static char 
-#if OLD_BLIXEM
-	    message[1024],
-#endif
-
+//	    message[1024],
              HighlightSeq[LONG_NAMESIZE+4] = "",
+//             searchSeq[NAMESIZE+4] = "",
+//            *cp,
+            *padseq = 0;
+//            *auxseq = 0,
+//            *auxseq2 = 0,
+//            *dottersseq = NULL,
+//  dotterqname[LONG_NAMESIZE] = "",
+//             stringentEntropytx[10],
+//             mediumEntropytx[10],
+//             nonglobularEntropytx[10],
+//  sortModeStr[32] = "Identity" ;
 
-             searchSeq[NAMESIZE+4] = "",
-            *cp,
-            *padseq = 0,
-            *auxseq = 0,
-            *auxseq2 = 0,
-            *dottersseq = NULL,
-  dotterqname[LONG_NAMESIZE] = "",
-             stringentEntropytx[10],
-             mediumEntropytx[10],
-             nonglobularEntropytx[10],
-  sortModeStr[32] = "Identity" ;
 
+//static BlxPasteType paste_type_G = BLXPASTE_INVALID ;
 
-static BlxPasteType paste_type_G = BLXPASTE_INVALID ;
-
-static int   lastbox = 0;
-static int   colortoggle = 0;
+//static int   lastbox = 0;
+//static int   colortoggle = 0;
 //static int   backgColor = LIGHTGRAY,
 //             IDcolor = CYAN,
 //             consColor = MIDBLUE,
@@ -371,44 +364,44 @@ static int   colortoggle = 0;
 //             oldcolor;
 static int   BigPictON = 1,
              BigPictRev = 0,	/* Draw other strand in Big picture */
-             BigPictStart, BigPictLen, BPbox, BPx,
-             nx, ny,
+//             BigPictStart, BigPictLen, BPbox, BPx,
+//             nx, ny,
 
              blastx = 1, blastp = 0, blastn = 0, tblastn = 0, tblastx = 0,
 
              symbfact = 3,
-             i,
+//             i,
              start_nextMatch = 0,
              dotter_first = 0,
-             IDdots = 0,
-             squash = 0,
-             squashFS = 1,
-             verbose = 0,
+//             IDdots = 0,
+//             squash = 0,
+//             squashFS = 1,
+//             verbose = 0,
              HiliteSins = 0,
-             HiliteUpperOn = 0,
-             HiliteLowerOn = 0,
-             DESCon = 0,
-             dotterZoom = 0,
-             dotterStart = 0,
-             dotterEnd = 0,
-             dotterHSPs = 0,
-             auxseqlen = 0,
-             smartDotter = 1,
-             entropyOn = 0,
+//             HiliteUpperOn = 0,
+//             HiliteLowerOn = 0,
+//             DESCon = 0,
+//             dotterZoom = 0,
+//             dotterStart = 0,
+//             dotterEnd = 0,
+//             dotterHSPs = 0,
+//             auxseqlen = 0,
+//             smartDotter = 1,
+//             entropyOn = 0,
 //             stringentEntropycolor = LIGHTGREEN,
-             stringentEntropybox,
+//             stringentEntropybox,
 //             mediumEntropycolor = GREEN,
-             mediumEntropybox,
+//             mediumEntropybox,
 //             nonglobularEntropycolor = DARKGREEN,
-             nonglobularEntropybox,
+//             nonglobularEntropybox,
              alphabetsize,
-             stringentEntropywin = 12,
-             mediumEntropywin = 25,
-             nonglobularEntropywin = 45,
-             printColorsOn,
-             wholePrintOn,
+//             stringentEntropywin = 12,
+//             mediumEntropywin = 25,
+//             nonglobularEntropywin = 45,
+//             printColorsOn,
+//             wholePrintOn,
 //             oneGraph,
-             settingsButton,
+//             settingsButton,
              sortInvOn = 0,
              HSPgaps = 0;
 
@@ -420,10 +413,10 @@ static int oldWidth = 0, oldHeight = 0;
 static double oldx, DNAstep;
 #endif
 
-static Array stringentEntropyarr, mediumEntropyarr, nonglobularEntropyarr;
+//static Array stringentEntropyarr, mediumEntropyarr, nonglobularEntropyarr;
 
-static MENU blixemMenu ;	/* Main menu - contains function calls, etc. */
-static MENU settingsMenu;	/* Contains toggles and 'states' */
+//static MENU blixemMenu ;	/* Main menu - contains function calls, etc. */
+//static MENU settingsMenu;	/* Contains toggles and 'states' */
 
 ///* The standard context menu */
 //static MENUOPT mainMenu[] =
@@ -481,7 +474,6 @@ static MENU settingsMenu;	/* Contains toggles and 'states' */
 //  {clrHighlight,     "Clear highlighted and unhide"},
 //  
 //  {menuSpacer,       ""},
-//  {blxShowStats,     "Statistics"},
 //  {0, 0}
 //};
 
@@ -515,7 +507,7 @@ static MENU settingsMenu;	/* Contains toggles and 'states' */
 
 
 /* A stepping stone to having a blixem view context is this global struct. */
-static BlixemViewStruct blixem_context_G = {FALSE} ;
+//static BlixemViewStruct blixem_context_G = {FALSE} ;
 
 
 
@@ -537,75 +529,75 @@ static BlixemViewStruct blixem_context_G = {FALSE} ;
  */
 
 /* Temporary function while introducing a blixem view context. */
-static BlixemView getBlxViewContext(void)
-{
-  return &blixem_context_G ;
-}
+//static BlixemView getBlxViewContext(void)
+//{
+//  return &blixem_context_G ;
+//}
 
 
-static void toggleMatchSet(void)
-{
-  BlixemView blxview = getBlxViewContext() ;
-  BOOL result ;
+//static void toggleMatchSet(void)
+//{
+//  BlixemView blxview = getBlxViewContext() ;
+//  BOOL result ;
+//
+//  if (blxview->match_set)
+//    {
+//      clearMatchSet() ;
+//      blxview->match_set = FALSE ;
+//
+//      result = menuSetLabel(menuItem(blixemMenu, toggleMatchClearStr), toggleMatchPasteStr) ;
+//    }      
+//  else
+//    {
+//      /* We cannot reset the menu yet because blxPaste() is asynchronous so we don't know if it worked. */
+//      blxPaste(BLXPASTE_MATCHSET) ;
+//    }
+//
+//
+//
+//  return ;
+//}
 
-  if (blxview->match_set)
-    {
-      clearMatchSet() ;
-      blxview->match_set = FALSE ;
-
-      result = menuSetLabel(menuItem(blixemMenu, toggleMatchClearStr), toggleMatchPasteStr) ;
-    }      
-  else
-    {
-      /* We cannot reset the menu yet because blxPaste() is asynchronous so we don't know if it worked. */
-      blxPaste(BLXPASTE_MATCHSET) ;
-    }
 
 
+//static void toggleVerbose(void)
+//{
+//  verbose = (verbose ? 0 : 1);
+//
+//  if (verbose)
+//    printMSPs() ;
+//
+//  blviewRedraw();
+//
+//  return ;  
+//}
 
-  return ;
-}
+//static void toggleHiliteSins(void)
+//{
+//    HiliteSins = (HiliteSins ? 0 : 1);
+//    blviewRedraw();
+//}
 
+//static void toggleHiliteUpper(void)
+//{
+//    HiliteUpperOn = (HiliteUpperOn ? 0 : 1);
+//    blviewRedraw();
+//}
 
+//static void toggleHiliteLower(void) {
+//    HiliteLowerOn = (HiliteLowerOn ? 0 : 1);
+//    blviewRedraw();
+//}
 
-static void toggleVerbose(void)
-{
-  verbose = (verbose ? 0 : 1);
-
-  if (verbose)
-    printMSPs() ;
-
-  blviewRedraw();
-
-  return ;  
-}
-
-static void toggleHiliteSins(void)
-{
-    HiliteSins = (HiliteSins ? 0 : 1);
-    blviewRedraw();
-}
-
-static void toggleHiliteUpper(void)
-{
-    HiliteUpperOn = (HiliteUpperOn ? 0 : 1);
-    blviewRedraw();
-}
-
-static void toggleHiliteLower(void) {
-    HiliteLowerOn = (HiliteLowerOn ? 0 : 1);
-    blviewRedraw();
-}
-
-static void toggleDESC(void) {
-    DESCon = (DESCon ? 0 : 1);
-    blviewRedraw();
-}
+//static void toggleDESC(void) {
+//    DESCon = (DESCon ? 0 : 1);
+//    blviewRedraw();
+//}
 
 /* AGH...strand probably not good..... */
-static BOOL gotoMatchPosition(char *match, int q_start, int q_end)
-{
-  BOOL result = FALSE ;
+//static BOOL gotoMatchPosition(char *match, int q_start, int q_end)
+//{
+//  BOOL result = FALSE ;
 //  MSP *msp ;
 //
 //  for (msp = MSPlist; msp ; msp = msp->next)
@@ -624,13 +616,13 @@ static BOOL gotoMatchPosition(char *match, int q_start, int q_end)
 //	    }
 //	}
 //    }
+//
+//  return result ;
+//}
 
-  return result ;
-}
 
-
-static void gotoMatch(int direc)
-{
+//static void gotoMatch(int direc)
+//{
 //  MSP *msp, *closest;
 //  int offset, closest_offset;
 //  char strand;
@@ -678,54 +670,54 @@ static void gotoMatch(int direc)
 //    }
 //
 //  return ;
-}
+//}
+//
+//#if OLD_BLIXEM
+//static void keyboard(int key, int modifier)
+//{
+//  switch (key)
+//    {
+//    case '<':
+//    case ',':
+//      scrollLeft1();
+//      break;
+//    case '>':
+//    case '.':
+//      scrollRight1();
+//      break;
+//
+//    case UP_KEY:
+//      blviewPick(lastbox - 1, 0, 0, 0);
+//      break;
+//    case DOWN_KEY:
+//      blviewPick(lastbox + 1, 0, 0, 0);
+//      break;
+//
+//    case GDK_G:
+//    case GDK_g: 
+//      {
+//	blxPaste(BLXPASTE_MOVETO) ;
+//	break ;
+//      }
+//
+//    case GDK_M:
+//    case GDK_m: 
+//      {
+//	toggleMatchSet() ;
+//	break ;
+//      }
+//
+//    default:
+//      break;
+//    }
+//
+//  return ;
+//}
+//#endif
 
-#if OLD_BLIXEM
-static void keyboard(int key, int modifier)
-{
-  switch (key)
-    {
-    case '<':
-    case ',':
-      scrollLeft1();
-      break;
-    case '>':
-    case '.':
-      scrollRight1();
-      break;
 
-    case UP_KEY:
-      blviewPick(lastbox - 1, 0, 0, 0);
-      break;
-    case DOWN_KEY:
-      blviewPick(lastbox + 1, 0, 0, 0);
-      break;
-
-    case GDK_G:
-    case GDK_g: 
-      {
-	blxPaste(BLXPASTE_MOVETO) ;
-	break ;
-      }
-
-    case GDK_M:
-    case GDK_m: 
-      {
-	toggleMatchSet() ;
-	break ;
-      }
-
-    default:
-      break;
-    }
-
-  return ;
-}
-#endif
-
-
-static void toggleColors (void)
-{
+//static void toggleColors (void)
+//{
  //   static int oldback, oldgrid, oldID, oldcons, oldgene, oldhi;
 //
 ////    graphActivate(settingsGraph);
@@ -749,11 +741,11 @@ static void toggleColors (void)
 //	colortoggle = 0;
 //    }
 //    blviewRedraw();
-}
+//}
 
 
-static void printColors (void)
-{
+//static void printColors (void)
+//{
 //    static int oldback, oldgrid, oldID, oldcons, oldgene, oldhi;
 //
 ////    graphActivate(settingsGraph);
@@ -777,71 +769,71 @@ static void printColors (void)
 //	printColorsOn = 0;
 //    }
 //    blviewRedraw();
-}
+//}
 
 
-static void toggleIDdots (void)
-{
-    IDdots = !IDdots;
-    blviewRedraw();
-}
+//static void toggleIDdots (void)
+//{
+//    IDdots = !IDdots;
+//    blviewRedraw();
+//}
 
 
-static void calcEntropyArray(Array array, int win)
-{
-    int i, j, *rescount;
-    float pi, sum;
-
-    rescount = (int *)messalloc(24*sizeof(int));
-
-    for (i=0; i < qlen; i++) {
-	rescount[aa_atob[(unsigned int)q[i]]]++;
-	if (i+1 >= win) {
-	    for (sum = j = 0; j < 24; j++)
-		if (rescount[j]) {
-		    pi = (float)rescount[j]/win;
-		    sum += pi*log(pi);
-		}
-	    arr(array, i-win/2, float) = -sum/log(2);
-	    rescount[aa_atob[(unsigned int)q[i+1-win]]]--;
-	}
-    }
-
-    messfree(rescount);
+//static void calcEntropyArray(Array array, int win)
+//{
+//    int i, j, *rescount;
+//    float pi, sum;
+//
+//    rescount = (int *)g_malloc(24*sizeof(int));
+//
+//    for (i=0; i < qlen; i++) {
+//	rescount[aa_atob[(unsigned int)q[i]]]++;
+//	if (i+1 >= win) {
+//	    for (sum = j = 0; j < 24; j++)
+//		if (rescount[j]) {
+//		    pi = (float)rescount[j]/win;
+//		    sum += pi*log(pi);
+//		}
+//	    arr(array, i-win/2, float) = -sum/log(2);
+//	    rescount[aa_atob[(unsigned int)q[i+1-win]]]--;
+//	}
+//    }
+//
+//    g_free(rescount);
 
     /* TEST - delete later * /
     for (i=0; i < qlen; i++)
 	printf ("%3d  %c  %f\n", i, q[i], arr(stringentEntropyarr, i, float));
 	*/
-}
+//}
 
-static void calcEntropyArrays(BOOL force)
-{
-    /* force:
-       FALSE - only calculate if necessary, i.e. first call.
-       TRUE - force (re)calculation.
-       */
+//static void calcEntropyArrays(BOOL force)
+//{
+//    /* force:
+//       FALSE - only calculate if necessary, i.e. first call.
+//       TRUE - force (re)calculation.
+//       */
+//
+//    if (!stringentEntropyarr) {
+//	calcEntropyArray(stringentEntropyarr = arrayCreate(qlen, float), stringentEntropywin);
+//	calcEntropyArray(mediumEntropyarr = arrayCreate(qlen, float), mediumEntropywin);
+//	calcEntropyArray(nonglobularEntropyarr = arrayCreate(qlen, float), nonglobularEntropywin);
+//    }
+//    else if (force) {
+//	calcEntropyArray(stringentEntropyarr = arrayCreate(qlen, float), stringentEntropywin);
+//	calcEntropyArray(mediumEntropyarr = arrayCreate(qlen, float), mediumEntropywin);
+//	calcEntropyArray(nonglobularEntropyarr = arrayCreate(qlen, float), nonglobularEntropywin);
+//    }
+//}
 
-    if (!stringentEntropyarr) {
-	calcEntropyArray(stringentEntropyarr = arrayCreate(qlen, float), stringentEntropywin);
-	calcEntropyArray(mediumEntropyarr = arrayCreate(qlen, float), mediumEntropywin);
-	calcEntropyArray(nonglobularEntropyarr = arrayCreate(qlen, float), nonglobularEntropywin);
-    }
-    else if (force) {
-	calcEntropyArray(stringentEntropyarr = arrayCreate(qlen, float), stringentEntropywin);
-	calcEntropyArray(mediumEntropyarr = arrayCreate(qlen, float), mediumEntropywin);
-	calcEntropyArray(nonglobularEntropyarr = arrayCreate(qlen, float), nonglobularEntropywin);
-    }
-}
 
-
-static void entropytoggle (void)
-{
-    entropyOn = !entropyOn;
-    if (entropyOn) BigPictON = 1;
-    calcEntropyArrays(FALSE);
-    blviewRedraw();
-}
+//static void entropytoggle (void)
+//{
+//    entropyOn = !entropyOn;
+//    if (entropyOn) BigPictON = 1;
+//    calcEntropyArrays(FALSE);
+//    blviewRedraw();
+//}
 
 
 /* Find the expression 'query' in the string 'text'
@@ -925,8 +917,8 @@ void highlightProteinboxes(BOOL warpScroll)
 //  return ;
 }
 
-static void hidePicked (void)
-{
+//static void hidePicked (void)
+//{
 //  MSP *msp;
 //
 //  for (msp = MSPlist; msp ; msp = msp->next)
@@ -935,7 +927,7 @@ static void hidePicked (void)
 //      msp->score = -999;
 //    }
 //  blviewRedraw () ;
-}
+//}
 
 
 /* Callback for when user clicks on a sequence to retrieve the EMBL entry
@@ -1063,41 +1055,41 @@ static void blviewPick(int box, double x_unused, double y_unused, int modifier_u
 #endif
 
 
-static void mspcpy(MSP *dest, MSP *src)
-{
-    dest->type   = src->type;
-    dest->score  = src->score;
-    dest->id     = src->id;
+//static void mspcpy(MSP *dest, MSP *src)
+//{
+//    dest->type   = src->type;
+//    dest->score  = src->score;
+//    dest->id     = src->id;
+//
+//    strcpy(dest->qframe, src->qframe);
+//    dest->qstart = src->qstart;
+//    dest->qend   = src->qend;
+//
+//    dest->sname  = src->sname;
+//    strcpy(dest->sframe, src->sframe);
+//    dest->sstart = src->sstart;
+//    dest->send   = src->send;
+//    dest->sseq   = src->sseq;
+//
+//    dest->desc   = src->desc;
+//    dest->box    = src->box;
+//
+//    dest->color  = src->color;
+//    dest->shape  = src->shape;
+//    dest->fs     = src->fs;
+//
+//    dest->xy     = src->xy;
+//
+//    dest->gaps   = src->gaps;
+//
+//#ifdef ACEDB
+//    dest->key    = src->key;
+//#endif
+//}
 
-    strcpy(dest->qframe, src->qframe);
-    dest->qstart = src->qstart;
-    dest->qend   = src->qend;
 
-    dest->sname  = src->sname;
-    strcpy(dest->sframe, src->sframe);
-    dest->sstart = src->sstart;
-    dest->send   = src->send;
-    dest->sseq   = src->sseq;
-
-    dest->desc   = src->desc;
-    dest->box    = src->box;
-
-    dest->color  = src->color;
-    dest->shape  = src->shape;
-    dest->fs     = src->fs;
-
-    dest->xy     = src->xy;
-
-    dest->gaps   = src->gaps;
-
-#ifdef ACEDB
-    dest->key    = src->key;
-#endif
-}
-
-
-static void sortMSPs(int (*func)())
-{
+//static void sortMSPs(int (*func)())
+//{
 //  MSP tmpmsp, *msp1, *msp2;
 //
 //  if (!MSPlist)
@@ -1117,44 +1109,44 @@ static void sortMSPs(int (*func)())
 //    }
 //
 //  return ;
-}
+//}
 
 
 /* aghhh, this all needs rewriting, how opaque can you get sigh... */
 
 #define FSpriority {if (FS(msp1) && !FS(msp2)) return -1; else if (FS(msp2) && !FS(msp1)) return 1;}
 
-static int possort(MSP *msp1, MSP *msp2) {
-    FSpriority
-    return ( (msp1->qstart > msp2->qstart) ? 1 : -1 );
-}
+//static int possort(MSP *msp1, MSP *msp2) {
+//    FSpriority
+//    return ( (msp1->qstart > msp2->qstart) ? 1 : -1 );
+//}
+//
+//static int namesort(MSP *msp1, MSP *msp2) {
+//    FSpriority
+//    if (strcmp(msp1->sname, msp2->sname))
+//	return strcmp(msp1->sname, msp2->sname);
+//    else
+//	return possort(msp1, msp2);
+//}
+//static int scoresort(MSP *msp1, MSP *msp2) {
+//    FSpriority
+//    return ( (msp1->score < msp2->score) ? 1 : -1 );
+//}
+//
+//static int idsort(MSP *msp1, MSP *msp2)
+//{
+//  int result = 0 ;
+//
+//  FSpriority
+//
+//  result = ( (msp1->id < msp2->id) ? 1 : -1 ) ;
+//
+//  return result ;
+//}
 
-static int namesort(MSP *msp1, MSP *msp2) {
-    FSpriority
-    if (strcmp(msp1->sname, msp2->sname))
-	return strcmp(msp1->sname, msp2->sname);
-    else
-	return possort(msp1, msp2);
-}
-static int scoresort(MSP *msp1, MSP *msp2) {
-    FSpriority
-    return ( (msp1->score < msp2->score) ? 1 : -1 );
-}
 
-static int idsort(MSP *msp1, MSP *msp2)
-{
-  int result = 0 ;
-
-  FSpriority
-
-  result = ( (msp1->id < msp2->id) ? 1 : -1 ) ;
-
-  return result ;
-}
-
-
-static void sortToggleInv(void)
-{
+//static void sortToggleInv(void)
+//{
 //  sortInvOn = !sortInvOn;
 //  switch (sortMode)
 //    {
@@ -1166,7 +1158,7 @@ static void sortToggleInv(void)
 //    }
 //
 //  return ;
-}
+//}
 
 /*
 static void incBack(void) {
@@ -1189,40 +1181,40 @@ static void decGrid(void) {
 }
 */
 
-static void squashMatches(void)
-{
-    static int oldSortMode;
-
-    if (!squash) {
-//	oldSortMode = sortMode;
-//	sortByName();
-	squash = 1;
-    }
-    else {
+//static void squashMatches(void)
+//{
+//    static int oldSortMode;
+//
+//    if (!squash) {
+//      oldSortMode = sortMode;
+//      sortByName();
+//      squash = 1;
+//    }
+//    else {
 //	switch (oldSortMode) {
 //	case SORTBYNAME : sortByName(); break;
 //	case SORTBYSCORE : sortByScore(); break;
 //	case SORTBYPOS : sortByPos(); break;
 //	case SORTBYID : sortById(); break;
 //	}
-	squash = 0;
-    }
-
-    blviewRedraw();
-
-    return ;
-}
-
-
-static void squashFSdo(void)
-{
-    squashFS = !squashFS;
-    blviewRedraw();
-}
+//	squash = 0;
+//    }
+//
+//    blviewRedraw();
+//
+//    return ;
+//}
 
 
-static void wholePrint(void)
-{
+//static void squashFSdo(void)
+//{
+//    squashFS = !squashFS;
+//    blviewRedraw();
+//}
+
+
+//static void wholePrint(void)
+//{
    // int
 //	tmp,
 //	dispstart_save = dispstart,
@@ -1293,25 +1285,25 @@ static void wholePrint(void)
 //    BigPictON = BigPictON_save;
 //
 //    blviewRedraw();
-}
+//}
 
-static void blxPrint(void)
-{
+//static void blxPrint(void)
+//{
 //  oneGraph = 1;
 //  blviewRedraw();
 //  graphPrint();
 //  oneGraph = 0;
 //
 //  blviewRedraw();
-}
+//}
 
 
-static void blxDestroy(void)
-{
-  gtk_widget_destroy(blixemWindow) ;
-
-  return ;
-}
+//static void blxDestroy(void)
+//{
+//  gtk_widget_destroy(blixemWindow) ;
+//
+//  return ;
+//}
 
 
 
@@ -1320,74 +1312,74 @@ static void blxDestroy(void)
  */
 
 /* Called by menu/keyboard code. */
-static void blxPaste(BlxPasteType paste_type)
-{
+//static void blxPaste(BlxPasteType paste_type)
+//{
 //  paste_type_G = paste_type ;				    /* acedb callbacks force us to have a global. */
 //
 //  graphPasteBuffer(pasteCB) ;				    /* get clipboard data. */
 //
 //  return ;
-}
+//}
 
 
 /* Called by graph asynchronously (when it gets the "select" signal) with data
  * taken from the windowing systems clipboard. */
-static void pasteCB(char *text)
-{
-  BlixemView blxview = getBlxViewContext() ;
-  BlxPasteDataStruct paste_data = {BLXPASTE_INVALID} ;
-
-  paste_data.type = paste_type_G ;
-
-  if (!parsePasteText(text, &paste_data))
-    {
-      messerror("Could not paste from clipboard, unknown format: \"%s\"", (text ? text : "no data on clipboard")) ;
-    }
-  else
-    {
-      if (paste_type_G && (paste_type_G != paste_data.type))
-	{
-	  messerror("Wrong type of clipboard data, expected %d but got %d", paste_type_G, paste_data.type) ;
-	}
-      else
-	{
-	  switch (paste_data.type)
-	    {
-	    case BLXPASTE_MATCHSET:
-	      {
-		if ((blxview->match_set = setMatchSet(paste_data.data.match_set)))
-		  {
-		    menuSetLabel(menuItem(blixemMenu, toggleMatchPasteStr), toggleMatchClearStr) ;
-		  }
-
-		blviewRedraw() ;
-		break ;
-	      }
-	    case BLXPASTE_MOVETO:
-	      {
-		if (!gotoMatchPosition(paste_data.data.move_to.match,
-				       paste_data.data.move_to.start,
-				       paste_data.data.move_to.end))
-		  messerror("Failed to find/move to match \"%s\" at %d %d",
-			    paste_data.data.move_to.match,
-			    paste_data.data.move_to.start, paste_data.data.move_to.end) ;
-		break ;
-	      }
-	    default:
-	      {
-		printf("debug: data unrecognised !!\n") ;
-		break ;
-	      }
-	    }
-	}
-
-      freePasteData(&paste_data) ;
-    }
-
-  paste_type_G = BLXPASTE_INVALID ;			    /* Be sure to reset. */
-
-  return ;
-}
+//static void pasteCB(char *text)
+//{
+//  BlixemView blxview = getBlxViewContext() ;
+//  BlxPasteDataStruct paste_data = {BLXPASTE_INVALID} ;
+//
+//  paste_data.type = paste_type_G ;
+//
+//  if (!parsePasteText(text, &paste_data))
+//    {
+//      messerror("Could not paste from clipboard, unknown format: \"%s\"", (text ? text : "no data on clipboard")) ;
+//    }
+//  else
+//    {
+//      if (paste_type_G && (paste_type_G != paste_data.type))
+//	{
+//	  messerror("Wrong type of clipboard data, expected %d but got %d", paste_type_G, paste_data.type) ;
+//	}
+//      else
+//	{
+//	  switch (paste_data.type)
+//	    {
+//	    case BLXPASTE_MATCHSET:
+//	      {
+//		if ((blxview->match_set = setMatchSet(paste_data.data.match_set)))
+//		  {
+//		    menuSetLabel(menuItem(blixemMenu, toggleMatchPasteStr), toggleMatchClearStr) ;
+//		  }
+//
+//		blviewRedraw() ;
+//		break ;
+//	      }
+//	    case BLXPASTE_MOVETO:
+//	      {
+//		if (!gotoMatchPosition(paste_data.data.move_to.match,
+//				       paste_data.data.move_to.start,
+//				       paste_data.data.move_to.end))
+//		  messerror("Failed to find/move to match \"%s\" at %d %d",
+//			    paste_data.data.move_to.match,
+//			    paste_data.data.move_to.start, paste_data.data.move_to.end) ;
+//		break ;
+//	      }
+//	    default:
+//	      {
+//		printf("debug: data unrecognised !!\n") ;
+//		break ;
+//	      }
+//	    }
+//	}
+//
+//      freePasteData(&paste_data) ;
+//    }
+//
+//  paste_type_G = BLXPASTE_INVALID ;			    /* Be sure to reset. */
+//
+//  return ;
+//}
 
 
 /* Parses clipboard text looking for one of several formats. */
@@ -1555,9 +1547,9 @@ static BOOL parseFeatureLine(char *line,
 /* Takes a list of match names and looks for those names in the msp list,
  * returns TRUE if any of the matches found. Error message reports matches
  * not found. */
-static BOOL setMatchSet(char **matches_in)
-{
-  BOOL result = FALSE ;
+//static BOOL setMatchSet(char **matches_in)
+//{
+//  BOOL result = FALSE ;
  // GString *not_found ;
 //  char **matches = matches_in ;
 //  char *match = *matches ;
@@ -1588,14 +1580,14 @@ static BOOL setMatchSet(char **matches_in)
 //    messerror("Match setting: following matches not found in blixem: %s", not_found->str) ;
 //
 //  g_string_free(not_found, TRUE) ;
-
-  return result ;
-}
+//
+//  return result ;
+//}
 
 
 /* Reset to no match set. */
-static void clearMatchSet(void)
-{
+//static void clearMatchSet(void)
+//{
 //  MSP *msp ;
 //
 //  for (msp = MSPlist; msp; msp = msp->next)
@@ -1607,7 +1599,7 @@ static void clearMatchSet(void)
 //  blviewRedraw() ;
 //
 //  return ;
-}
+//}
 
 
 static void setModeP(void)
@@ -1652,13 +1644,13 @@ static void setModeL(void) {
 
 static void blxviewInitGlobals(char *seq, char *seqname, int start, int offset, const MSP *msplist)
 {
-  q = seq;
-  qlen = actend = strlen(q) ;
-  qname_G = g_strdup(seqname) ;
+//  q = seq;
+//  qlen = actend = strlen(q) ;
+//  qname_G = g_strdup(seqname) ;
   
   dispstart = start;
   actstart=1;
-  qoffset = offset;
+//  qoffset = offset;
 //  MSPlist = msplist;
   BPMSPlist.next = 0;
   *HighlightSeq = 0;
@@ -1667,7 +1659,7 @@ static void blxviewInitGlobals(char *seq, char *seqname, int start, int offset, 
 }
 
 
-static void blxviewGetOpts(char *opts, char *seq)
+static void blxviewGetOpts(char *opts, char *refSeq)
 {
   char *opt = opts;
   while (*opt)
@@ -1713,7 +1705,7 @@ static void blxviewGetOpts(char *opts, char *seq)
 	case 's':
 	  sortMode = SORTBYSCORE ;                break ;
 	case 'Z':
-	  BigPictZoom = strlen(seq);              break;
+	  BigPictZoom = strlen(refSeq);              break;
       }
       
       opt++;
@@ -1723,7 +1715,7 @@ static void blxviewGetOpts(char *opts, char *seq)
     {
       printf("\nNo blast type specified. Detected ");
       
-      if (Seqtype(q) == 'P')
+      if (Seqtype(refSeq) == 'P')
 	{
 	  printf("protein sequence. Will try to run Blixem in blastp mode\n");
 	  setModeP();
@@ -1861,7 +1853,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
  *             pfetch struct to locate the pfetch server).
  *
  */
-int blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
+int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist,
             char *opts, PfetchParams *pfetch, char *align_types, BOOL External)
 {
   if (blixemWindow)
@@ -1881,24 +1873,20 @@ int blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
     }
 
 
-  blxviewInitGlobals(seq, seqname, start, offset, msplist);
-  blxviewGetOpts(opts, seq);
+  blxviewInitGlobals(refSeq, refSeqName, start, qOffset, msplist);
+  blxviewGetOpts(opts, refSeq);
   gboolean status = blxviewFetchSequences(pfetch, External, msplist);
   
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
-    blviewCreate(opts, align_types, msplist) ;
+    blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset) ;
 
 //  /* Sort the MSPs according to mode chosen. */
 //  MSPsort(sortMode) ;
 
 
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-  printMSPs() ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-  
   return 0;
 }
 
@@ -1936,36 +1924,36 @@ int blxview(char *seq, char *seqname, int start, int offset, MSP *msplist,
 
 
 /* Return true if the current user is in our list of developers. */
-static BOOL userIsDeveloper()
-{
-  gchar* developers[] = {"edgrif", "gb10"};
-
-  BOOL result = FALSE;
-  const gchar *user = g_get_user_name();
-  int numDevelopers = sizeof(developers) / sizeof(gchar*);
-  
-  int i = 0;
-  for (i = 0; i < numDevelopers; ++i)
-    {
-      if (strcmp(user, developers[i]) == 0)
-        {
-          result = TRUE;
-          break;
-        }
-    }
-
-  return result;
-}
+//static BOOL userIsDeveloper()
+//{
+//  gchar* developers[] = {"edgrif", "gb10"};
+//
+//  BOOL result = FALSE;
+//  const gchar *user = g_get_user_name();
+//  int numDevelopers = sizeof(developers) / sizeof(gchar*);
+//  
+//  int i = 0;
+//  for (i = 0; i < numDevelopers; ++i)
+//    {
+//      if (strcmp(user, developers[i]) == 0)
+//        {
+//          result = TRUE;
+//          break;
+//        }
+//    }
+//
+//  return result;
+//}
 
 
 
 
 /* Initialize the display and the buttons */
-static void blviewCreate(char *opts, char *align_types, MSP *msplist)
+static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset)
 {
   if (!blixemWindow)
     {
-      blixemWindow = createMainWindow(q, msplist, getBlastMode(), getSeqType(), getNumReadingFrames());
+      blixemWindow = createMainWindow(refSeq, msplist, getBlastMode(), getSeqType(), getNumReadingFrames(), stdcode1, qOffset);
       
       if (!oldWidth)
 	gtk_window_set_default_size(GTK_WINDOW(blixemWindow),
@@ -1983,7 +1971,7 @@ static void blviewCreate(char *opts, char *align_types, MSP *msplist)
 				      (align_types ? align_types : (*opts == 'X' ? "peptide" :
 								    (*opts == 'N' ? "nucleotide" : ""))),
 				      (pep_nuc_align ? " alignment)" : ""),
-				      qname_G));
+				      refSeqName));
 
 
 //      blixemMenu = menuInitialise ("blixem", userIsDeveloper() ? (MENUSPEC*)developerMainMenu : (MENUSPEC*)mainMenu) ;
@@ -2017,13 +2005,14 @@ static void blviewCreate(char *opts, char *align_types, MSP *msplist)
     }
 
 
-  if ((cp = (char *)strrchr(qname_G, '/')))
-    qname_G = cp+1;
+  char *nameSeparatorPos = (char *)strrchr(refSeqName, '/');
+  if (nameSeparatorPos)
+    refSeqName = nameSeparatorPos + 1;
 
-  allocAuxseqs(INITDBSEQLEN);
+//  allocAuxseqs(INITDBSEQLEN);
 
-  if (entropyOn)
-    calcEntropyArrays(FALSE);
+//  if (entropyOn)
+//    calcEntropyArrays(FALSE);
 
   if (dotter_first && msplist && msplist->sname && (msplist->type == HSP || msplist->type == GSP))
     {
@@ -2059,7 +2048,7 @@ static void blviewDestroy(GtkWidget *unused)
 
   g_free(qname_G) ;
 
-  messfree(q);
+  g_free(q);
 
   /* Free the allocated sequences and names */
   for (msp = MSPlist; msp; msp = msp->next)
@@ -2075,10 +2064,10 @@ static void blviewDestroy(GtkWidget *unused)
 	/* Bug in fmapfeatures.c causes introns to have stale sseq's */
 	if (msp->score >= 0)
 	  {
-	    messfree(msp->sseq);
-	    messfree(msp->qname);
-	    messfree(msp->sname);
-	    messfree(msp->desc);
+	    g_free(msp->sseq);
+	    g_free(msp->qname);
+	    g_free(msp->sname);
+	    g_free(msp->desc);
 	    arrayDestroy(msp->gaps);
 	    arrayDestroy(msp->xy);
 	  }
@@ -2089,14 +2078,14 @@ static void blviewDestroy(GtkWidget *unused)
     {
       fmsp = msp;
       msp = msp->next;
-      messfree(fmsp);
+      g_free(fmsp);
     }
 
   for (bpmsp = BPMSPlist.next; bpmsp; )
     {
       tmsp = bpmsp;
       bpmsp = bpmsp->next;
-      messfree(tmsp);
+      g_free(tmsp);
     }
 
   arrayDestroy(stringentEntropyarr);
@@ -2168,7 +2157,7 @@ void drawBigPictMSP(MSP *msp, int BPx, char strand)
 //	msp_y += 9 ;
 //
 //      if (!bpmsp->next)
-//	bpmsp->next = (BPMSP *)messalloc(sizeof(BPMSP));
+//	bpmsp->next = (BPMSP *)g_malloc(sizeof(BPMSP));
 //
 //      bpmsp = bpmsp->next;
 //      strcpy(bpmsp->sname, msp->sname);
@@ -2199,77 +2188,77 @@ void drawBigPictMSP(MSP *msp, int BPx, char strand)
 
 /* Function: return true if pos is a value in between or equal to start and end
  */
-static int inRange(pos, start, end)
-{
-    if (start < end) {
-        if (pos >= start && pos <= end) return 1;
-	else return 0;
-    }
-    else {
-        if (pos >= end && pos <= start) return 1;
-	else return 0;
-    }
-}
+//static int inRange(pos, start, end)
+//{
+//    if (start < end) {
+//        if (pos >= start && pos <= end) return 1;
+//	else return 0;
+//    }
+//    else {
+//        if (pos >= end && pos <= start) return 1;
+//	else return 0;
+//    }
+//}
 
 
 /* Checks if the msp is supposed to be drawn given its frame and position */
-static void selectBigPictMSP(MSP *msp, int BPx, int BigPictStart, int BigPictLen)
-{
-    int BPend = (actframe[1] == '+' ? BigPictStart+BigPictLen : BigPictStart-BigPictLen);
-
-    /* Check if MSP is in range.  There are three cases:
-       1. MSP spans beginning of BP range
-       2. MSP spans end of BP range
-       3. MSP spans entire BP range (i.e. BigPictStart is within the MSP-range)
-       (4. MSP is included in BP range, falls into 1. and 2.)
-    */
-    if (!inRange(msp->qstart, BigPictStart, BPend) &&
-	!inRange(msp->qend, BigPictStart, BPend) &&
-	!inRange(BigPictStart, msp->qstart, msp->qend))
-        return;
-
-
-    if (actframe[1] == msp->qframe[1])
-	drawBigPictMSP(msp, BPx, 'M');
-
-    if (BigPictRev)
-	if (actframe[1] != msp->qframe[1])
-	    drawBigPictMSP(msp, BPx, 'R');
-
-    return;
-
-#ifdef OLD_CODE_TOO_COMPLICATED_AND_BUGGED__LEFT_FOR_AMUSEMENT
-    if (( ((actframe[1] == '+' && msp->frame[1] == '+')) &&
-	  (msp->qstart <  BigPictStart && msp->qend >  BigPictStart || /* left || span */
-	   msp->qstart >= BigPictStart && msp->qend <= BigPictStart+BigPictLen || /* middle */
-	   msp->qstart <  BigPictStart+BigPictLen && msp->qend > BigPictStart+BigPictLen)) /* right || span */
-	||
-	(actframe[1] == '-' && msp->frame[1] == '-' &&
-	 (msp->qend > BigPictStart && msp->qstart < BigPictStart ||
-	  msp->qend <= BigPictStart && msp->qstart >= BigPictStart-BigPictLen ||
-	  msp->qend > BigPictStart-BigPictLen && msp->qstart < BigPictStart-BigPictLen)))
-	drawBigPictMSP(msp, BPx, 'M');
-    if (BigPictRev)
-	if ( (strchr(actframe, '+') && strchr(msp->frame, '-') &&
-	      (msp->qend <  BigPictStart && msp->qstart < BigPictStart+BigPictLen ||
-	       msp->qend >= BigPictStart && msp->qstart <= BigPictStart+BigPictLen ||
-	       msp->qend <  BigPictStart+BigPictLen && msp->qstart > BigPictStart+BigPictLen))
-	     ||
-	     (strchr(actframe, '-') && strchr(msp->frame, '+') &&
-	      (msp->qend >  BigPictStart && msp->qstart < BigPictStart ||
-	       msp->qend <= BigPictStart && msp->qstart >= BigPictStart-BigPictLen ||
-	       msp->qend > BigPictStart-BigPictLen && msp->qstart < BigPictStart-BigPictLen)))
-	    drawBigPictMSP(msp, BPx, 'R');
-#endif
-}
+//static void selectBigPictMSP(MSP *msp, int BPx, int BigPictStart, int BigPictLen)
+//{
+//    int BPend = (actframe[1] == '+' ? BigPictStart+BigPictLen : BigPictStart-BigPictLen);
+//
+//    /* Check if MSP is in range.  There are three cases:
+//       1. MSP spans beginning of BP range
+//       2. MSP spans end of BP range
+//       3. MSP spans entire BP range (i.e. BigPictStart is within the MSP-range)
+//       (4. MSP is included in BP range, falls into 1. and 2.)
+//    */
+//    if (!inRange(msp->qstart, BigPictStart, BPend) &&
+//	!inRange(msp->qend, BigPictStart, BPend) &&
+//	!inRange(BigPictStart, msp->qstart, msp->qend))
+//        return;
+//
+//
+//    if (actframe[1] == msp->qframe[1])
+//	drawBigPictMSP(msp, BPx, 'M');
+//
+//    if (BigPictRev)
+//	if (actframe[1] != msp->qframe[1])
+//	    drawBigPictMSP(msp, BPx, 'R');
+//
+//    return;
+//
+//#ifdef OLD_CODE_TOO_COMPLICATED_AND_BUGGED__LEFT_FOR_AMUSEMENT
+//    if (( ((actframe[1] == '+' && msp->frame[1] == '+')) &&
+//	  (msp->qstart <  BigPictStart && msp->qend >  BigPictStart || /* left || span */
+//	   msp->qstart >= BigPictStart && msp->qend <= BigPictStart+BigPictLen || /* middle */
+//	   msp->qstart <  BigPictStart+BigPictLen && msp->qend > BigPictStart+BigPictLen)) /* right || span */
+//	||
+//	(actframe[1] == '-' && msp->frame[1] == '-' &&
+//	 (msp->qend > BigPictStart && msp->qstart < BigPictStart ||
+//	  msp->qend <= BigPictStart && msp->qstart >= BigPictStart-BigPictLen ||
+//	  msp->qend > BigPictStart-BigPictLen && msp->qstart < BigPictStart-BigPictLen)))
+//	drawBigPictMSP(msp, BPx, 'M');
+//    if (BigPictRev)
+//	if ( (strchr(actframe, '+') && strchr(msp->frame, '-') &&
+//	      (msp->qend <  BigPictStart && msp->qstart < BigPictStart+BigPictLen ||
+//	       msp->qend >= BigPictStart && msp->qstart <= BigPictStart+BigPictLen ||
+//	       msp->qend <  BigPictStart+BigPictLen && msp->qstart > BigPictStart+BigPictLen))
+//	     ||
+//	     (strchr(actframe, '-') && strchr(msp->frame, '+') &&
+//	      (msp->qend >  BigPictStart && msp->qstart < BigPictStart ||
+//	       msp->qend <= BigPictStart && msp->qstart >= BigPictStart-BigPictLen ||
+//	       msp->qend > BigPictStart-BigPictLen && msp->qstart < BigPictStart-BigPictLen)))
+//	    drawBigPictMSP(msp, BPx, 'R');
+//#endif
+//}
 
 
 /* Function: Put feature segment on the screen
 
    Note: this routine does not support reversed mode.  Worry about that later.
 */
-static void drawSEG(MSP *msp, float offset)
-{
+//static void drawSEG(MSP *msp, float offset)
+//{
 //    float
 //	msp_sy,
 //	msp_ey = queryy + offset-1,
@@ -2292,15 +2281,15 @@ static void drawSEG(MSP *msp, float offset)
 //    graphRectangle(msp_sx, msp_sy, msp_ex, msp_ey);
 //    graphText(msp->desc, msp_sx, msp_ey);
 //    graphColor(oldcolor); graphLinewidth(oldLinew);
-}
+//}
 
 
 /* Function: put XY curves on the screen.
 
    Note: this routine does not support reversed mode.  Worry about that later.
 */
-static void drawSEGxy(MSP *msp, float offset)
-{
+//static void drawSEGxy(MSP *msp, float offset)
+//{
 //    int i, inNotFilled=0, descShown=0;
 //    float
 //	msp_y = queryy + offset-1,
@@ -2354,11 +2343,11 @@ static void drawSEGxy(MSP *msp, float offset)
 //    }
 //
 //    graphColor(oldcolor); graphLinewidth(oldLinew);
-}
+//}
 
 
-static void drawEntropycurve(int start, int end, Array array, int win)
-{
+//static void drawEntropycurve(int start, int end, Array array, int win)
+//{
 //    int i;
 //    float x, y, xold=0, yold=0;
 //
@@ -2381,11 +2370,11 @@ static void drawEntropycurve(int start, int end, Array array, int win)
 //    /* printf("min = %f , max = %f\n", min, max); */
 //
 //    graphLinewidth(oldLinew);
-}
+//}
 
 
 /* Draw separator line a la Mosaic <HR> */
-static void drawSeparator(void) {
+//static void drawSeparator(void) {
 //    oldLinew = graphLinewidth(separatorwidth);
 //    if (squash)
 //	graphColor(RED);
@@ -2398,7 +2387,7 @@ static void drawSeparator(void) {
 //    graphLine(0, queryy-1.1+0.5*separatorwidth, nx+1, queryy-1.1+0.5*separatorwidth);
 //    graphColor(BLACK);
 //    graphLinewidth(oldLinew);
-}
+//}
 
 
 int frame2graphno(int frame)
@@ -3218,7 +3207,7 @@ void blviewRedraw(void)
 //
 //  highlightProteinboxes(TRUE);
 //
-//  messfree(query);
+//  g_free(query);
 //
 //  setMenuCheckmarks();
 //
@@ -3244,9 +3233,9 @@ static char *get3rd_base(int start, int end, char *q)
 
   if (!bases)
     {
-      bases = messalloc(qlen+1);
-      aux = messalloc(qlen+1);
-      aux2 = messalloc(qlen+1);
+      bases = g_malloc(qlen+1);
+      aux = g_malloc(qlen+1);
+      aux2 = g_malloc(qlen+1);
     }
 
   len = abs(end-start) + 1;
@@ -3279,179 +3268,17 @@ static char *get3rd_base(int start, int end, char *q)
 #endif
 
 
-/* calcID: caculated percent identity of an MSP
- * 
- * There seems to be a general problem with this routine for protein
- * alignments, the existing code certainly does not do the right thing.
- * I have fixed this routine for gapped sequence alignments but not for
- * protein stuff at all.
- * 
- * To be honest I think this routine is a _waste_ of time, the alignment
- * programs that feed data to blixem produce an identity anyway so why
- * not use that...why reinvent the wheel......
- * 
- * */
-static void calcID(MSP *msp)
-{
-  static int id, i, len ;
-  char *qseq ;
-
-  BOOL sForward = strchr(msp->sframe, '+') ? TRUE : FALSE;
-  
-  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
-
-  if (msp->sseq && msp->sseq != padseq)
-    {
-      /* Note that getqseq() will reverse complement if qstart > qend, this means that
-       * where there is no gaps array the comparison is trivial as coordinates can be
-       * ignored and the two sequences just whipped through. */
-      if (!(qseq = getqseq(msp->qstart, msp->qend, q)))
-	{
-	  messout ( "calcID failed: Don't have genomic sequence %d - %d\n",
-		    msp->qstart, msp->qend);
-	  msp->id = 0;
-
-	  return;
-	}
-
-
-      /* NOTE, tblastn/x are not implemented for gaps yet. */
-      if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
-	{
-	  /* Ungapped alignments. */
-
-	  if (tblastn)
-	    {
-	      len = msp->qend - msp->qstart + 1;
-	  
-	      for (i=0, id=0; i < len; i++)
-		if (freeupper(msp->sseq[i]) == freeupper(qseq[i]))
-		  id++;
-	    }
-	  else if (tblastx)
-	    {
-	      len = abs(msp->qend - msp->qstart + 1)/3;
-	  
-	      for (i=0, id=0; i < len; i++)
-		if (freeupper(msp->sseq[i]) == freeupper(qseq[i]))
-		  id++;
-	    }
-	  else						    /* blastn, blastp & blastx */
-	    {
-	      len = sSeqMax - sSeqMin + 1 ;
-	  
-	      for (i=0, id=0; i< len; i++)
-                {
-                  int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
-		  if (freeupper(msp->sseq[sIndex]) == freeupper(qseq[i]))
-		    id++;
-                }
-	    }
-	}
-      else
-          {
-	  /* Gapped alignments. */
-
-	  /* To do tblastn and tblastx is not imposssible but would like to work from
-	   * examples to get it right.... */
-	  if (tblastn)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else if (tblastx)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else
-	    {
-	      /* blastn and blastp remain simple but blastx is more complex since the query
-               * coords are nucleic not protein. */
-            
-              BOOL qForward = (strchr(msp->qframe, '+')) ? TRUE : FALSE ;
-              Array gaps = msp->gaps;
-	      int factor = blastx ? 3 : 1 ;
-
-	      len = 0 ;
-              int i ;
-	      for (i = 0, id = 0 ; i < arrayMax(gaps) ; i++)
-		{
-		  SMapMap *m = arrp(gaps, i, SMapMap) ;
-
-                  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-		  
-                  len += sRangeMax - sRangeMin + 1;
-                  
-                  /* Note that qseq has been cut down to just the section relating to this msp.
-		   * We need to translate the first coord in the range (which is in terms of the full
-		   * reference sequence) into coords in the cut-down ref sequence. */
-                  int q_start = qForward ? (qRangeMin - qSeqMin) / factor : (qSeqMax - qRangeMax) / factor;
-		  
-		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
-		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
-		   * so start from the lower or upper end accordingly. */
-                  int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
-		  
-                  int j = s_start, k = q_start ;
-		  while ((sForward && j < sRangeMax) || (!sForward && j >= sRangeMin - 1))
-		    {
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-		      char *sub, *query ;
-		      char *dummy ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-		      /* for debug..... */
-		      sub = msp->sseq + j ;
-		      query = qseq + k ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-			
-		      if (freeupper(msp->sseq[j]) == freeupper(qseq[k]))
-			id++ ;
-
-                      
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-		      else
-			dummy = sub ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-                      
-
-                      /* Move to the next base. The qseq is always forward, but we might have to
-                       * traverse the s sequence in reverse. */
-                      ++k ;
-                      if (sForward) ++j ;
-                      else --j ;
-		    }
-		}
-	    }
-	}
-
-      msp->id = (int)((float)100*id/len + .5);
-
-      messfree(qseq);
-    }
-  else
-    msp->id = 0 ;
-
-  return ;
-}
-
-
-
-static void allocAuxseqs(int len)
-{
-    if (auxseq) {
-	messfree(auxseq);
-	messfree(auxseq2);
-    }
-
-    auxseq = messalloc(len+1);
-    auxseq2 = messalloc(len+1);
-    auxseqlen = len;
-}
+//static void allocAuxseqs(int len)
+//{
+//    if (auxseq) {
+//	g_free(auxseq);
+//	g_free(auxseq2);
+//    }
+//
+//    auxseq = g_malloc(len+1);
+//    auxseq2 = g_malloc(len+1);
+//    auxseqlen = len;
+//}
 
 
 
@@ -3464,16 +3291,16 @@ void blxAssignPadseq(MSP *msp, MSP *msplist)
     MSP *hsp;
 
     if (!padseq) {
-	padseq = messalloc(INITDBSEQLEN+1);
+	padseq = g_malloc(INITDBSEQLEN+1);
 	memset(padseq, '-', INITDBSEQLEN);
 	padseqlen = INITDBSEQLEN;
     }
 
     if (len > padseqlen) {
 	oldpadseq = padseq;
-	messfree(padseq);
+	g_free(padseq);
 
-	padseq = messalloc(len+1);
+	padseq = g_malloc(len+1);
 	memset(padseq, '-', len);
 	padseqlen = len;
 
@@ -3490,328 +3317,343 @@ void blxAssignPadseq(MSP *msp, MSP *msplist)
 /* GETQSEQ translates a segment of the query seq (with 'sequence' coords = 1...) */
 char *getqseq(int start, int end, const char const *refSeq)
 {
-  char *query = NULL ;
-
-  if (start < 1 || end < 1 || start > strlen(refSeq) || end > strlen(refSeq))
-    {
-      messout ( "Requested query sequence %d - %d out of available range: 1 - %d\n",
-		start, end, strlen(refSeq));
-
-      return NULL;
-    }
-
-  if (blastp || tblastn)
-    {
-      query = messalloc(end-start+2);
-      strncpy(query, q+start-1, end-start+1);
-      query[end-start+1] = 0;
-
-      return query;
-    }
-
-  if (abs(end-start)+1 > auxseqlen)
-    allocAuxseqs(abs(end-start)+1);
-
-  if (start <= end)
-    {
-      strncpy(auxseq, q+start-1, end-start+1);
-      auxseq[end-start+1] = 0;
-    }
-  else if (start > end) /* Reverse and complement it */
-    {
-      strncpy(auxseq2, refSeq + end - 1, start - end + 1);
-      auxseq2[start-end+1] = 0;
-
-      if (!revComplement(auxseq, auxseq2))
-	messcrash ("Cannot reverse & complement") ;
-    }
-  else
-    {
-      return NULL;
-    }
-
-  if (blastn) 
-    {
-      query =  messalloc(strlen(auxseq) + 1);
-      strcpy(query, auxseq);
-
-      return query;
-    }
-
-  /* Translate the DNA sequence */
-  if (!(query = blxTranslate(auxseq, stdcode1)))
-    messcrash ("Cannot translate the genomic sequence") ;
-
-  return query;
+//  char *query = NULL ;
+//  int refSeqLen = strlen(refSeq);
+//
+//  if (start < 1 || end < 1 || start > refSeqLen || end > refSeqLen)
+//    {
+//      messout ( "Requested query sequence %d - %d out of available range: 1 - %d\n",
+//		start, end, refSeqLen);
+//
+//      return NULL;
+//    }
+//
+//  if (blastp || tblastn)
+//    {
+//      query = g_malloc(end-start+2);
+//      strncpy(query, q+start-1, end-start+1);
+//      query[end-start+1] = 0;
+//
+//      return query;
+//    }
+//
+//  if (abs(end-start)+1 > auxseqlen)
+//    allocAuxseqs(abs(end-start)+1);
+//
+//  if (start <= end)
+//    {
+//      strncpy(auxseq, q+start-1, end-start+1);
+//      auxseq[end-start+1] = 0;
+//    }
+//  else if (start > end) /* Reverse and complement it */
+//    {
+//      strncpy(auxseq2, refSeq + end - 1, start - end + 1);
+//      auxseq2[start-end+1] = 0;
+//
+//      if (!revComplement(auxseq, auxseq2))
+//	messcrash ("Cannot reverse & complement") ;
+//    }
+//  else
+//    {
+//      return NULL;
+//    }
+//
+//  if (blastn) 
+//    {
+//      query =  g_malloc(strlen(auxseq) + 1);
+//      strcpy(query, auxseq);
+//
+//      return query;
+//    }
+//
+//  /* Translate the DNA sequence */
+//  if (!(query = blxTranslate(auxseq, stdcode1)))
+//    messcrash ("Cannot translate the genomic sequence") ;
+//
+//  return query;
+  return NULL;
 }
 
 
 /* GETSSEQ fetches the database sequence from an external database,
  * currently uses either efetch or pfetch. */
-static void getsseq(MSP *msp, MSP *msplist)
-{
-
-  MSP  *auxmsp;
-  int   len;
-  char *fetch_prog ;
-  char *seq_buf = NULL ;
-
-  if (!*msp->sname)
-    {
-      messout ( "Nameless HSP at %d-%d - skipping Efetch\n",
-		msp->qstart+qoffset, msp->qend+qoffset);
-      blxAssignPadseq(msp, msplist);
-
-      return ;
-    }
-
-  fetch_prog = blxGetFetchProg() ;
-
-  if (verbose)
-    printf("%sing %s\n", fetch_prog, msp->sname);
-  else
-    {
-      if (!fetchCount)
-	{
-	  fetchCount++;
-	  printf("\n%sing external sequences", fetch_prog);
-	}
-      printf(".");
-      fflush(stdout);
-    }
-
-  if (msp->score >= 0)
-    {
-      if ((seq_buf = getSeq(msp->sname, blxGetFetchMode())))
-	{
-	  msp->sseq = messalloc(strlen(seq_buf)+1);
-
-	  /* Harmonize upper and lower case - (t)blastx always translate
-	   * the query to upper case */
-	  if (isupper(*q) || tblastx || blastx)
-	    {
-	      for (i=0; seq_buf[i]; i++)
-		msp->sseq[i] = freeupper(seq_buf[i]);
-	      msp->sseq[i] = 0;
-	    }
-	  else
-	    {
-	      for (i=0; seq_buf[i]; i++)
-		msp->sseq[i] = freelower(seq_buf[i]);
-
-	      msp->sseq[i] = 0;
-	    }
-
-	  /* Check illegal offsets */
-	  len = strlen(msp->sseq);
-	  for (auxmsp = msplist; auxmsp ; auxmsp = auxmsp->next)
-	    if (!strcmp(auxmsp->sname, msp->sname) && auxmsp->send > len )
-	      {
-		printf("%s HSP with offset beyond sequence (%d > %d) - using pads\n",
-		       msp->sname, auxmsp->send, len);
-		blxAssignPadseq(msp, msplist);
-
-		break;
-	      }
-	}
-      else
-	{
-#if !defined(ACEDB)
-	  messout ( "Unable to %s %s - using pads instead\n", fetch_prog, msp->sname);
-#endif
-	  /* Sequence not in database - fill up with pads */
-	  blxAssignPadseq(msp, msplist);
-	}
-
-      
-
-
-
-
-
-      /* Set sseq for all MSPs of this subject, either a padseq or
-       * the sequence for that subject, taking into account the _strand_.
-       * 
-       * THIS IS NOT TOO EFFICIENT...WE COULD BE HASHING HERE....
-       *  */
-      for (auxmsp = msplist ; auxmsp ; auxmsp = auxmsp->next)
-	{
-	  if (strcmp(auxmsp->sname, msp->sname) == 0)
-	    {
-	      /* Either assign */
-	      if (msp->sseq == padseq)
-		blxAssignPadseq(auxmsp, msplist);
-	      else if (MSPSTRAND(auxmsp->sframe) == MSPSTRAND(msp->sframe))
-		auxmsp->sseq = msp->sseq ;
-
-	      calcID(auxmsp);
-	    }
-	}
-    }
-
-
-  return ;
-}
+//static void getsseq(MSP *msp, MSP *msplist)
+//{
+//
+//  MSP  *auxmsp;
+//  int   len;
+//  char *fetch_prog ;
+//  char *seq_buf = NULL ;
+//
+//  if (!*msp->sname)
+//    {
+//      messout ( "Nameless HSP at %d-%d - skipping Efetch\n",
+//		msp->qstart+qoffset, msp->qend+qoffset);
+//      blxAssignPadseq(msp, msplist);
+//
+//      return ;
+//    }
+//
+//  fetch_prog = blxGetFetchProg() ;
+//
+//  if (verbose)
+//    printf("%sing %s\n", fetch_prog, msp->sname);
+//  else
+//    {
+//      if (!fetchCount)
+//	{
+//	  fetchCount++;
+//	  printf("\n%sing external sequences", fetch_prog);
+//	}
+//      printf(".");
+//      fflush(stdout);
+//    }
+//
+//  if (msp->score >= 0)
+//    {
+//      if ((seq_buf = getSeq(msp->sname, blxGetFetchMode())))
+//	{
+//	  msp->sseq = g_malloc(strlen(seq_buf)+1);
+//
+//	  /* Harmonize upper and lower case - (t)blastx always translate
+//	   * the query to upper case */
+//	  if (isupper(*q) || tblastx || blastx)
+//	    {
+//	      for (i=0; seq_buf[i]; i++)
+//		msp->sseq[i] = freeupper(seq_buf[i]);
+//	      msp->sseq[i] = 0;
+//	    }
+//	  else
+//	    {
+//	      for (i=0; seq_buf[i]; i++)
+//		msp->sseq[i] = freelower(seq_buf[i]);
+//
+//	      msp->sseq[i] = 0;
+//	    }
+//
+//	  /* Check illegal offsets */
+//	  len = strlen(msp->sseq);
+//	  for (auxmsp = msplist; auxmsp ; auxmsp = auxmsp->next)
+//	    if (!strcmp(auxmsp->sname, msp->sname) && auxmsp->send > len )
+//	      {
+//		printf("%s HSP with offset beyond sequence (%d > %d) - using pads\n",
+//		       msp->sname, auxmsp->send, len);
+//		blxAssignPadseq(msp, msplist);
+//
+//		break;
+//	      }
+//	}
+//      else
+//	{
+//#if !defined(ACEDB)
+//	  messout ( "Unable to %s %s - using pads instead\n", fetch_prog, msp->sname);
+//#endif
+//	  /* Sequence not in database - fill up with pads */
+//	  blxAssignPadseq(msp, msplist);
+//	}
+//
+//      
+//
+//
+//
+//
+//
+//      /* Set sseq for all MSPs of this subject, either a padseq or
+//       * the sequence for that subject, taking into account the _strand_.
+//       * 
+//       * THIS IS NOT TOO EFFICIENT...WE COULD BE HASHING HERE....
+//       *  */
+//      for (auxmsp = msplist ; auxmsp ; auxmsp = auxmsp->next)
+//	{
+//	  if (strcmp(auxmsp->sname, msp->sname) == 0)
+//	    {
+//	      /* Either assign */
+//	      if (msp->sseq == padseq)
+//		blxAssignPadseq(auxmsp, msplist);
+//	      else if (MSPSTRAND(auxmsp->sframe) == MSPSTRAND(msp->sframe))
+//		auxmsp->sseq = msp->sseq ;
+//
+//	      calcID(auxmsp);
+//	    }
+//	}
+//    }
+//
+//
+//  return ;
+//}
 
 
 /* Get a sequence entry using either efetch or pfetch. */
-static char *fetchSeqRaw(char *seqname)
-{
-  char *result = NULL ;
-  char *fetch_prog = NULL ;
-  char *seq_buf = NULL ;
-
-  if (!*seqname)
-    {
-      messout ( "Nameless sequence - skipping Efetch\n");
-      return NULL ;
-    }
-
-  fetch_prog = blxGetFetchProg() ;
-
-  if ((seq_buf = getSeq(seqname, fetch_prog)))
-    {
-      result = messalloc(strlen(seq_buf)+1) ;
-      strcpy(result, seq_buf) ;
-    }
-  else
-    {
-      messout("Unable to %s %s \n", fetch_prog, seqname);
-      result = 0;
-    }
-
-  return result ;
-
-}
+//static char *fetchSeqRaw(char *seqname)
+//{
+//  char *result = NULL ;
+  //char *fetch_prog = NULL ;
+//  char *seq_buf = NULL ;
+//
+//  if (!*seqname)
+//    {
+//      messout ( "Nameless sequence - skipping Efetch\n");
+//      return NULL ;
+//    }
+//
+//  fetch_prog = blxGetFetchProg() ;
+//
+//  if ((seq_buf = getSeq(seqname, fetch_prog)))
+//    {
+//      result = g_malloc(strlen(seq_buf)+1) ;
+//      strcpy(result, seq_buf) ;
+//    }
+//  else
+//    {
+//      messout("Unable to %s %s \n", fetch_prog, seqname);
+//      result = 0;
+//    }
+//
+//  return result ;
+//
+//}
 
 /* Common routine to call efetch or pfetch to retrieve a sequence entry. */
-static char *getSeq(char *seqname, char *fetch_prog)
-{
-  char *result = NULL ;
-  static char *fetchstr = NULL ;
-  char *cp ;
-  FILE *pipe ;
-  int len ;
-  FILE *fp ;
-
-  /* I have no idea why blixem trys to open this file, it doesn't work unless you are in
-   * a directory that you have write access to anyway....I await an answer from Eric.
-   * Meanwhile at least now we record the error rather than crashing later in this
-   * routine when we can't open the file. */
-  if (!(fp = fopen("myoutput","w")))
-    {
-      messerror("%s", "Cannot open blixem sequence output file: \"myoutput\"") ;
-    }
-
-  if (!strcmp(fetch_prog, "pfetch"))
-    {
-      /* --client gives logging information to pfetch server,
-       * -q  Sequence only output (one line) */
-      fetchstr = hprintf(0, "%s --client=acedb_%s_%s -q '%s' &",
-			 fetch_prog, getSystemName(), getLogin(TRUE), seqname) ;
-    }
-  else
-    {
-      fetchstr = hprintf(0, "%s -q '%s'", fetch_prog, seqname) ;
-    }
-
-  printf("%sing %s...\n", fetch_prog, seqname);
-
-  /* Try and get the sequence, if we overrun the buffer then we need to try again. */
-  if (!(pipe = (FILE*)popen(fetchstr, "r")))
-    messcrash("Failed to open pipe %s\n", fetchstr);
-  len = 0;
-  cp = auxseq ;
-  while (!feof(pipe))
-    {
-      if (len < auxseqlen)
-	*cp++ = fgetc(pipe);
-      else
-	fgetc(pipe);
-      len++;
-
-      if (fp)						    /* n.b. file may not have been opened. */
-	fprintf(fp, "%s", cp);
-    }
-  pclose(pipe);
-
-
-  /* Check if auxseq was long enough */
-  if (len > auxseqlen)
-    {
-      allocAuxseqs(len);
-      cp = auxseq;
-
-      if (!(pipe = (FILE*)popen(fetchstr, "r")))
-	messcrash("Failed to open pipe %s\n", fetchstr);
-
-      while (!feof(pipe))
-	{
-	  *cp++ = fgetc(pipe);
-	}
-      pclose(pipe);
-    }
-
-  *cp = 0;
-
-  if (len > 1) /* Otherwise failed */
-    {
-      if ((cp = (char *)strchr(auxseq, '\n')))
-	*cp = 0;
-      result = auxseq ;
-    }
-  else
-    {
-      result = NULL ;
-    }
-
-  if (fetchstr)
-    messfree(fetchstr) ;
-
-  if (fp)
-    fclose(fp);
-
-  return result ;
-}
+//static char *getSeq(char *seqname, char *fetch_prog)
+//{
+//  char *result = NULL ;
+//  static char *fetchstr = NULL ;
+//  FILE *pipe ;
+//  FILE *fp ;
+//
+//  /* I have no idea why blixem trys to open this file, it doesn't work unless you are in
+//   * a directory that you have write access to anyway....I await an answer from Eric.
+//   * Meanwhile at least now we record the error rather than crashing later in this
+//   * routine when we can't open the file. */
+//  if (!(fp = fopen("myoutput","w")))
+//    {
+//      messerror("%s", "Cannot open blixem sequence output file: \"myoutput\"") ;
+//    }
+//
+//  if (!strcmp(fetch_prog, "pfetch"))
+//    {
+//      /* --client gives logging information to pfetch server,
+//       * -q  Sequence only output (one line) */
+//      fetchstr = hprintf(0, "%s --client=acedb_%s_%s -q '%s' &",
+//			 fetch_prog, getSystemName(), getLogin(TRUE), seqname) ;
+//    }
+//  else
+//    {
+//      fetchstr = hprintf(0, "%s -q '%s'", fetch_prog, seqname) ;
+//    }
+//
+//  printf("%sing %s...\n", fetch_prog, seqname);
+//
+//  /* Try and get the sequence, if we overrun the buffer then we need to try again. */
+//  if (!(pipe = (FILE*)popen(fetchstr, "r")))
+//    {
+//      messcrash("Failed to open pipe %s\n", fetchstr);
+//    }
+//  
+//  int len = 0;
+//  char *auxSeqPtr = auxseq ;
+//  
+//  while (!feof(pipe))
+//    {
+//      if (len < auxseqlen)
+//	{
+//	  *auxSeqPtr++ = fgetc(pipe);
+//	}
+//      else
+//	{
+//	  fgetc(pipe);
+//	}
+//      
+//      len++;
+//
+//      if (fp)						    /* n.b. file may not have been opened. */
+//	{
+//	  fprintf(fp, "%s", auxSeqPtr);
+//	}
+//    }
+//  
+//  pclose(pipe);
+//
+//
+//  /* Check if auxseq was long enough */
+//  if (len > auxseqlen)
+//    {
+//      allocAuxseqs(len);
+//      auxSeqPtr = auxseq;
+//
+//      if (!(pipe = (FILE*)popen(fetchstr, "r")))
+//	messcrash("Failed to open pipe %s\n", fetchstr);
+//
+//      while (!feof(pipe))
+//	{
+//	  *auxSeqPtr++ = fgetc(pipe);
+//	}
+//      pclose(pipe);
+//    }
+//
+//  *auxSeqPtr = 0;
+//
+//  if (len > 1) /* Otherwise failed */
+//    {
+//      if ((auxSeqPtr = (char *)strchr(auxseq, '\n')))
+//	{
+//	  *auxSeqPtr = 0;
+//	}
+//      
+//      result = auxseq ;
+//    }
+//  else
+//    {
+//      result = NULL ;
+//    }
+//
+//  if (fetchstr)
+//    g_free(fetchstr) ;
+//
+//  if (fp)
+//    fclose(fp);
+//
+//  return result ;
+//}
 
 
 /********************************************************************************
 **                            BIG PICTURE ROUTINES                            ***
 ********************************************************************************/
 
-static void BigPictToggle (void) {
-    BigPictON = !BigPictON;
-    blviewRedraw();
-}
-
-static void BigPictToggleRev (void) {
-    BigPictRev = !BigPictRev;
-    blviewRedraw();
-}
-
-
-static void zoomOut(void)
-{
-  BigPictZoom *= 2;
-
-  blviewRedraw();
-}
-
-static void zoomIn(void)
-{
-  BigPictZoom /= (float)2;
-  if (BigPictZoom < 1)
-    BigPictZoom = 1;
-
-  blviewRedraw();
-}
-
-static void zoomWhole(void)
-{
-  BigPictZoom = (float)qlen/displen;
-
-  blviewRedraw();
-}
+//static void BigPictToggle (void) {
+//    BigPictON = !BigPictON;
+//    blviewRedraw();
+//}
+//
+//static void BigPictToggleRev (void) {
+//    BigPictRev = !BigPictRev;
+//    blviewRedraw();
+//}
+//
+//
+//static void zoomOut(void)
+//{
+//  BigPictZoom *= 2;
+//
+//  blviewRedraw();
+//}
+//
+//static void zoomIn(void)
+//{
+//  BigPictZoom /= (float)2;
+//  if (BigPictZoom < 1)
+//    BigPictZoom = 1;
+//
+//  blviewRedraw();
+//}
+//
+//static void zoomWhole(void)
+//{
+//  BigPictZoom = (float)qlen/displen;
+//
+//  blviewRedraw();
+//}
 
 
 /* If crosshair-coordinates are screwed up, change here!
@@ -4056,8 +3898,8 @@ static void MiddleUpQ (double x, double y)
 	
 
 
-static void setHighlight(void)
-{
+//static void setHighlight(void)
+//{
 //    static char dfault[64] = "";
 //    ACEIN string_in;
 //
@@ -4079,11 +3921,11 @@ static void setHighlight(void)
 //
 //	aceInDestroy (string_in);
 //    }
-}
+//}
 
 
-static void clrHighlight(void)
-{
+//static void clrHighlight(void)
+//{
 //    MSP *msp;
 //
 //    /* Clear highlighted */
@@ -4098,7 +3940,7 @@ static void clrHighlight(void)
 //	}
 //
 //    blviewRedraw();
-}
+//}
 
 
 
@@ -4106,375 +3948,376 @@ static void clrHighlight(void)
  * hits can occur over a much wider range than the user is looking at, so the function
  * attempts to find the range of hits that corresponds to what the user can see.
  * Returns TRUE if it managed to find sequences and set a sensible range, FALSE otherwise. */
-static BOOL smartDotterRange(char *selected_sequence, const MSP const *msp_list, int blastn,
-			     int strand_sign, int view_start, int view_end,
-			     char **dottersseq_out, int *dotter_start_out, int *dotter_end_out)
-{
-  BOOL result = FALSE ;
-  char strand ;
-  int qstart, qend, sstart, send, extend, len, mid ;
-  const MSP *msp ;
-  int start, end ;
-
-  if (strand_sign > 0)
-    {
-      start = view_start ;
-      end = view_end ;
-    }
-  else
-    {
-      start = view_end ;
-      end = view_start ;
-    }
-
-  strand = (strand_sign > 0 ? '+' : '-') ;
-
-  /* Estimate wanted query region from extent of HSP's that are completely within view. */
-  for (qstart = 0, qend=0, sstart=0, send=0, msp = msp_list ; msp ; msp = msp->next)
-    {
-      if (strcmp(msp->sname, selected_sequence) == 0 && (msp->qframe[1] == strand || blastn))
-	{
-	  /* If you alter this code remember that you need to allow for strand. */
-	  if (msp->qstart >= start && msp->qend <= end)
-	    {
-	      if (!qstart)
-		{
-		  qstart = msp->qstart;
-		  qend = msp->qend;
-		  sstart = msp->sstart;
-		  send = msp->send;
-		}
-	      else
-		{
-		  if (msp->qframe[1] == '+')
-		    {
-		      if (msp->qstart < qstart)
-			{
-			  qstart = msp->qstart;
-			  sstart = msp->sstart;
-			}
-		      if (msp->qend > qend)
-			{
-			  qend = msp->qend;
-			  send = msp->send;
-			}
-		    }
-		  else
-		    {
-		      if (msp->qstart > qstart)
-			{
-			  qstart = msp->qstart;
-			  sstart = msp->sstart;
-			}
-		      if (msp->qend < qend)
-			{
-			  qend = msp->qend;
-			  send = msp->send;
-			}
-		    }
-		}
-	    }
-	}
-    }
-
-
-
-  if (!qstart)
-    {
-      messout("Could not find any matches on the '%c' strand to %s.",
-	      strand, selected_sequence) ;
-      result = FALSE ;
-    }
-  else
-    {
-      /* MSP's hold both query and subject positions as always forward and hold the strand
-       * for both separately, this means we can do all these calculations with forward
-       * coords and then reverse the start/end when we've finished. */
-
-      /* Extrapolate start to start of vertical sequence */
-      extend = sstart;
-      if (blastx || tblastx)
-	extend *= 3;
-
-      qstart -= extend ;
-
-      /* Extrapolate end to end of vertical sequence */
-      if (!tblastn && (*dottersseq_out = fetchSeqRaw(selected_sequence)))
-	{
-	  extend = strlen(*dottersseq_out) - send;
-	}
-      else
-	{
-	  extend = 200;
-	}
-      if (blastx || tblastx)
-	extend *= 3;
-      qend += extend;
-
-
-      /* Due to gaps, we might miss the ends - add some more */
-      extend = 0.1 * (qend - qstart) ;
-      qstart -= extend ;
-      qend += extend ;
-
-      if (blastx || tblastx)
-	{
-	  /* If sstart and send weren't in the end exons, we'll miss those - add some more */
-	  extend = 0.2 * (qend - qstart) ;
-	  qstart -= extend ;
-	  qend += extend ;
-	}
-
-      /* Keep it within bounds */
-      if (qstart < 1)
-	qstart = 1;
-      if (qend > qlen)
-	qend = qlen;
-      if (qstart > qlen)
-	qstart = qlen;
-      if (qend < 1)
-	qend = 1;
-
-      /* Apply min and max limits:  min 500 residues, max 10 Mb dots */
-      len = (qend - qstart) ;
-      mid = qstart + len/2 ;
-
-      if (len < 500)
-	len = 500 ;
-      if (len * (send-sstart) > 1e7)
-	len = 1e7/(send - sstart) ;
-
-      qstart = mid - (len / 2) ;
-      qend = mid + (len / 2) ;
-
-      /* Keep it within bounds */
-      if (qstart < 1)
-	qstart = 1;
-      if (qend > qlen)
-	qend = qlen;
-      if (qstart > qlen)
-	qstart = qlen;
-      if (qend < 1)
-	qend = 1;
-
-      /* Return the start/end, now we do need to do something about strand... */
-      if (strand_sign > 0)
-	{
-	  *dotter_start_out = qstart ;
-	  *dotter_end_out = qend ;
-	}
-      else
-	{
-	  *dotter_start_out = qend ;
-	  *dotter_end_out = qstart ;
-	}
-
-      result = TRUE ;
-    }
-
-  return result ;
-}
+//static BOOL smartDotterRange(char *selected_sequence, const MSP const *msp_list, int blastn,
+//			     int strand_sign, int view_start, int view_end,
+//			     char **dottersseq_out, int *dotter_start_out, int *dotter_end_out)
+//{//
+//  BOOL result = FALSE ;
+//  char strand ;
+//  int qstart, qend, sstart, send, extend, len, mid ;
+//  const MSP *msp ;
+//  int start, end ;
+//
+//  if (strand_sign > 0)
+//    {
+//      start = view_start ;
+//      end = view_end ;
+//    }
+//  else
+//    {
+//      start = view_end ;
+//      end = view_start ;
+//    }
+//
+//  strand = (strand_sign > 0 ? '+' : '-') ;
+//
+//  /* Estimate wanted query region from extent of HSP's that are completely within view. */
+//  for (qstart = 0, qend=0, sstart=0, send=0, msp = msp_list ; msp ; msp = msp->next)
+//    {
+//      if (strcmp(msp->sname, selected_sequence) == 0 && (msp->qframe[1] == strand || blastn))
+//	{
+//	  /* If you alter this code remember that you need to allow for strand. */
+//	  if (msp->qstart >= start && msp->qend <= end)
+//	    {
+//	      if (!qstart)
+//		{
+//		  qstart = msp->qstart;
+//		  qend = msp->qend;
+//		  sstart = msp->sstart;
+//		  send = msp->send;
+//		}
+//	      else
+//		{
+//		  if (msp->qframe[1] == '+')
+//		    {
+//		      if (msp->qstart < qstart)
+//			{
+//			  qstart = msp->qstart;
+//			  sstart = msp->sstart;
+//			}
+//		      if (msp->qend > qend)
+//			{
+//			  qend = msp->qend;
+//			  send = msp->send;
+//			}
+//		    }
+//		  else
+//		    {
+//		      if (msp->qstart > qstart)
+//			{
+//			  qstart = msp->qstart;
+//			  sstart = msp->sstart;
+//			}
+//		      if (msp->qend < qend)
+//			{
+//			  qend = msp->qend;
+//			  send = msp->send;
+//			}
+//		    }
+//		}
+//	    }
+//	}
+//    }
+//
+//
+//
+//  if (!qstart)
+//    {
+//      messout("Could not find any matches on the '%c' strand to %s.",
+//	      strand, selected_sequence) ;
+//      result = FALSE ;
+//    }
+//  else
+//    {
+//      /* MSP's hold both query and subject positions as always forward and hold the strand
+//       * for both separately, this means we can do all these calculations with forward
+//       * coords and then reverse the start/end when we've finished. */
+//
+//      /* Extrapolate start to start of vertical sequence */
+//      extend = sstart;
+//      if (blastx || tblastx)
+//	extend *= 3;
+//
+//      qstart -= extend ;
+//
+//      /* Extrapolate end to end of vertical sequence */
+//      if (!tblastn && (*dottersseq_out = fetchSeqRaw(selected_sequence)))
+//	{
+//	  extend = strlen(*dottersseq_out) - send;
+//	}
+//      else
+//	{
+//	  extend = 200;
+//	}
+//      if (blastx || tblastx)
+//	extend *= 3;
+//      qend += extend;
+//
+//
+//      /* Due to gaps, we might miss the ends - add some more */
+//      extend = 0.1 * (qend - qstart) ;
+//      qstart -= extend ;
+//      qend += extend ;
+//
+//      if (blastx || tblastx)
+//	{
+//	  /* If sstart and send weren't in the end exons, we'll miss those - add some more */
+//	  extend = 0.2 * (qend - qstart) ;
+//	  qstart -= extend ;
+//	  qend += extend ;
+//	}
+//
+//      /* Keep it within bounds */
+//      if (qstart < 1)
+//	qstart = 1;
+//      if (qend > qlen)
+//	qend = qlen;
+//      if (qstart > qlen)
+//	qstart = qlen;
+//      if (qend < 1)
+//	qend = 1;
+//
+//      /* Apply min and max limits:  min 500 residues, max 10 Mb dots */
+//      len = (qend - qstart) ;
+//      mid = qstart + len/2 ;
+//
+//      if (len < 500)
+//	len = 500 ;
+//      if (len * (send-sstart) > 1e7)
+//	len = 1e7/(send - sstart) ;
+//
+//      qstart = mid - (len / 2) ;
+//      qend = mid + (len / 2) ;
+//
+//      /* Keep it within bounds */
+//      if (qstart < 1)
+//	qstart = 1;
+//      if (qend > qlen)
+//	qend = qlen;
+//      if (qstart > qlen)
+//	qstart = qlen;
+//      if (qend < 1)
+//	qend = 1;
+//
+//      /* Return the start/end, now we do need to do something about strand... */
+//      if (strand_sign > 0)
+//	{
+//	  *dotter_start_out = qstart ;
+//	  *dotter_end_out = qend ;
+//	}
+//      else
+//	{
+//	  *dotter_start_out = qend ;
+//	  *dotter_end_out = qstart ;
+//	}
+//
+//      result = TRUE ;
+//    }
+//
+//  return result ;
+//  return FALSE;
+//}
 
 
 static void callDotter(const MSP const *msplist)
-{
-  static char opts[] = "     ";
-  char type, *queryseq, *sname;
-  int offset;
-  const MSP *msp;
-
-  if (!*HighlightSeq)
-    {
-      messout("Select a sequence first");
-      return;
-    }
-
-  if (smartDotter)
-    {
-      int end ;
-
-      if (plusmin == 1)
-	end = (BigPictStart + BigPictLen - 1) ;
-      else
-	end = (BigPictStart - BigPictLen + 1) ;
-
-
-      if (!smartDotterRange(HighlightSeq, msplist, blastn,
-			    plusmin, BigPictStart, end,
-			    &dottersseq, &dotterStart, &dotterEnd))
-	return ;
-    }
-  else
-    dottersseq = fetchSeqRaw(HighlightSeq);
-
-  type = ' ' ;
-  if (blastp || tblastn)
-    type = 'P';
-  else if (blastx)
-    type = 'X';
-  else if (blastn || tblastx)
-    type = 'N';
-
-  /* Try to get the subject sequence, in case we're in seqbl mode (only part of seq in MSP) */
-  if (!dottersseq || tblastn)
-    {
-    /* Check if sequence is passed from acedb */
-    if (!tblastx)
-      {
-	printf("Looking for sequence stored internally ... ");
-	for (msp = msplist; msp ; msp = msp->next)
-	  {
-	    if (!strcmp(msp->sname, HighlightSeq) && msp->sseq != padseq)
-	      {
-		dottersseq = messalloc(strlen(msp->sseq)+1);
-		strcpy(dottersseq, msp->sseq);
-		break;
-	      }
-	  }
-	if (!dottersseq) printf("not ");
-	printf("found\n");
-      }
-
-    if (!dottersseq)
-      {
-	printf("Can't fetch subject sequence for dotter - aborting\n");
-	messout("Can't fetch subject sequence for dotter - aborting\n");
-	return;
-      }
-    }
-
-  if (strchr(dottersseq, '-') || tblastn )
-    messout("Note: the sequence passed to dotter is incomplete");
-
-  if (!*dotterqname)
-    {
-      if (!*qname_G)
-	strcpy(dotterqname, "Blixem-seq");
-      else
-	strncpy(dotterqname, qname_G, LONG_NAMESIZE);
-      dotterqname[LONG_NAMESIZE] = 0;
-    }
-
-  /* Get query sequence */
-  /* Avoid translating queryseq by pretending to be blastn - very sneaky and dangerous */
-  if (blastx || tblastx)
-    blastn = 1;
-  if (!(queryseq = getqseq(dotterStart, dotterEnd, q)))
-    {
-      if (blastx || tblastx)
-	blastn = 0;	/* if blastn was set, reset it */
-      return;
-    }
-  if (blastx || tblastx)
-    blastn = 0;
-
-  if (plusmin > 0)
-    {
-      offset = dotterStart-1 + qoffset;
-      opts[0] = ' ';
-    }
-  else
-    {
-      offset = dotterEnd-1 + qoffset;
-      opts[0] = 'R';
-    }
-
-  if ((sname = strchr(HighlightSeq, ':')))
-    sname++;
-  else
-    sname = HighlightSeq;
-
-  opts[1] = (dotterHSPs ? 'H' : ' ');
-
-  opts[2] = (HSPgaps ? 'G' : ' ');
-
-  printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
-
-  printf("  query sequence: name -  %s, offset - %d\n"
-	 "subject sequence: name -  %s, offset - %d\n", dotterqname, offset, sname, 0) ;
-
-  dotter(type, opts, dotterqname, queryseq, offset, sname, dottersseq, 0,
-	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, msplist, qoffset, 0, 0);
-
-  return ;
+{//
+//  static char opts[] = "     ";
+//  char type, *queryseq, *sname;
+//  int offset;
+//  const MSP *msp;
+//
+//  if (!*HighlightSeq)
+//    {
+//      messout("Select a sequence first");
+//      return;
+//    }
+//
+//  if (smartDotter)
+//    {
+//      int end ;
+//
+//      if (plusmin == 1)
+//	end = (BigPictStart + BigPictLen - 1) ;
+//      else
+//	end = (BigPictStart - BigPictLen + 1) ;
+//
+//
+//      if (!smartDotterRange(HighlightSeq, msplist, blastn,
+//			    plusmin, BigPictStart, end,
+//			    &dottersseq, &dotterStart, &dotterEnd))
+//	return ;
+//    }
+//  else
+//    dottersseq = fetchSeqRaw(HighlightSeq);
+//
+//  type = ' ' ;
+//  if (blastp || tblastn)
+//    type = 'P';
+//  else if (blastx)
+//    type = 'X';
+//  else if (blastn || tblastx)
+//    type = 'N';
+//
+//  /* Try to get the subject sequence, in case we're in seqbl mode (only part of seq in MSP) */
+//  if (!dottersseq || tblastn)
+//    {
+//    /* Check if sequence is passed from acedb */
+//    if (!tblastx)
+//      {
+//	printf("Looking for sequence stored internally ... ");
+//	for (msp = msplist; msp ; msp = msp->next)
+//	  {
+//	    if (!strcmp(msp->sname, HighlightSeq) && msp->sseq != padseq)
+//	      {
+//		dottersseq = g_malloc(strlen(msp->sseq)+1);
+//		strcpy(dottersseq, msp->sseq);
+//		break;
+//	      }
+//	  }
+//	if (!dottersseq) printf("not ");
+//	printf("found\n");
+//      }
+//
+//    if (!dottersseq)
+//      {
+//	printf("Can't fetch subject sequence for dotter - aborting\n");
+//	messout("Can't fetch subject sequence for dotter - aborting\n");
+//	return;
+//      }
+//    }
+//
+//  if (strchr(dottersseq, '-') || tblastn )
+//    messout("Note: the sequence passed to dotter is incomplete");
+//
+//  if (!*dotterqname)
+//    {
+//      if (!*qname_G)
+//	strcpy(dotterqname, "Blixem-seq");
+//      else
+//	strncpy(dotterqname, qname_G, LONG_NAMESIZE);
+//      dotterqname[LONG_NAMESIZE] = 0;
+//    }
+//
+//  /* Get query sequence */
+//  /* Avoid translating queryseq by pretending to be blastn - very sneaky and dangerous */
+//  if (blastx || tblastx)
+//    blastn = 1;
+//  if (!(queryseq = getqseq(dotterStart, dotterEnd, q)))
+//    {
+//      if (blastx || tblastx)
+//	blastn = 0;	/* if blastn was set, reset it */
+//      return;
+//    }
+//  if (blastx || tblastx)
+//    blastn = 0;
+//
+//  if (plusmin > 0)
+//    {
+//      offset = dotterStart-1 + qoffset;
+//      opts[0] = ' ';
+//    }
+//  else
+//    {
+//      offset = dotterEnd-1 + qoffset;
+//      opts[0] = 'R';
+//    }
+//
+//  if ((sname = strchr(HighlightSeq, ':')))
+//    sname++;
+//  else
+//    sname = HighlightSeq;
+//
+//  opts[1] = (dotterHSPs ? 'H' : ' ');
+//
+//  opts[2] = (HSPgaps ? 'G' : ' ');
+//
+//  printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
+//
+//  printf("  query sequence: name -  %s, offset - %d\n"
+//	 "subject sequence: name -  %s, offset - %d\n", dotterqname, offset, sname, 0) ;
+//
+//  dotter(type, opts, dotterqname, queryseq, offset, sname, dottersseq, 0,
+//	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, msplist, qoffset, 0, 0);
+//
+//  return ;
 }
 
 
-static void callDotterHSPs(const MSP const *msplist)
-{
-    dotterHSPs = 1;
-    callDotter(msplist);
-    dotterHSPs = 0;
-}
+//static void callDotterHSPs(const MSP const *msplist)
+//{
+//    dotterHSPs = 1;
+//    callDotter(msplist);
+//    dotterHSPs = 0;
+//}
 
 
-static int smartDotterRangeSelf(void)
-{
-    int len, mid;
+//static int smartDotterRangeSelf(void)
+//{
+//    int len, mid;
+//
+//    len = 2000;
+//    mid = dispstart + plusmin*displen/2;
+//
+//    dotterStart = mid - plusmin*len/2;
+//    dotterEnd = mid + plusmin*len/2;
+//
+//    /* Keep it within bounds */
+//    if (dotterStart < 1) dotterStart = 1;
+//    if (dotterStart > qlen) dotterStart = qlen;
+//    if (dotterEnd > qlen) dotterEnd = qlen;
+//    if (dotterEnd < 1) dotterEnd = 1;
 
-    len = 2000;
-    mid = dispstart + plusmin*displen/2;
-
-    dotterStart = mid - plusmin*len/2;
-    dotterEnd = mid + plusmin*len/2;
-
-    /* Keep it within bounds */
-    if (dotterStart < 1) dotterStart = 1;
-    if (dotterStart > qlen) dotterStart = qlen;
-    if (dotterEnd > qlen) dotterEnd = qlen;
-    if (dotterEnd < 1) dotterEnd = 1;
-
-    return 1;
-}
+//    return 1;
+//}
 
 
-static void callDotterSelf(const MSP const *msplist)
-{
-    static char opts[] = "     ";
-    char type, *queryseq;
-    int  offset;
-
-    type = ' ';
-    if (blastp || tblastn || tblastx)
-      type = 'P';
-    else if (blastx || blastn)
-      type = 'N';
-
-    if (smartDotter)
-	if (!smartDotterRangeSelf())
-	  return;
-
-    if (!*dotterqname)
-      {
-	if (!*qname_G)
-	  strcpy(dotterqname, "Blixem-seq");
-	else
-	  strncpy(dotterqname, qname_G, LONG_NAMESIZE);
-	dotterqname[LONG_NAMESIZE] = 0;
-      }
-
-    /* Get query sequence */
-    /* Can't do reversed strand since Dotter can't reverse vertical scale */
-    /* Avoid translating queryseq by pretending to be blastn - very sneaky and dangerous */
-    if (blastx || tblastx)
-      blastn = 1;
-
-    if (!(queryseq = getqseq(min(dotterStart, dotterEnd), max(dotterStart, dotterEnd), q)))
-      return;
-
-    if (blastx || tblastx)
-      blastn = 0;
-
-    dottersseq = messalloc(strlen(queryseq)+1);
-    strcpy(dottersseq, queryseq);
-
-    offset = min(dotterStart, dotterEnd)-1 + qoffset;
-
-    printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
-
-    dotter(type, opts, dotterqname, queryseq, offset, dotterqname, dottersseq, offset,
-	   0, 0, NULL, NULL, NULL, 0.0, dotterZoom, msplist, qoffset, 0, 0);
-}
+//static void callDotterSelf(const MSP const *msplist)
+//{//
+//    static char opts[] = "     ";
+//    char type, *queryseq;
+//    int  offset;
+//
+//    type = ' ';
+//    if (blastp || tblastn || tblastx)
+//      type = 'P';
+//    else if (blastx || blastn)
+//      type = 'N';
+//
+//    if (smartDotter)
+//	if (!smartDotterRangeSelf())
+//	  return;
+//
+//    if (!*dotterqname)
+//      {
+//	if (!*qname_G)
+//	  strcpy(dotterqname, "Blixem-seq");
+//	else
+//	  strncpy(dotterqname, qname_G, LONG_NAMESIZE);
+//	dotterqname[LONG_NAMESIZE] = 0;
+//      }
+//
+//    /* Get query sequence */
+//    /* Can't do reversed strand since Dotter can't reverse vertical scale */
+//    /* Avoid translating queryseq by pretending to be blastn - very sneaky and dangerous */
+//    if (blastx || tblastx)
+//      blastn = 1;
+//
+//    if (!(queryseq = getqseq(min(dotterStart, dotterEnd), max(dotterStart, dotterEnd), q)))
+//      return;
+//
+//    if (blastx || tblastx)
+//      blastn = 0;
+//
+//    dottersseq = g_malloc(strlen(queryseq)+1);
+//    strcpy(dottersseq, queryseq);
+//
+//    offset = min(dotterStart, dotterEnd)-1 + qoffset;
+//
+//    printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
+//
+//    dotter(type, opts, dotterqname, queryseq, offset, dotterqname, dottersseq, offset,
+//	   0, 0, NULL, NULL, NULL, 0.0, dotterZoom, msplist, qoffset, 0, 0);
+//}
 
 
 /* Allows user to set coord range for dotter.
@@ -4482,92 +4325,92 @@ static void callDotterSelf(const MSP const *msplist)
  * NOTE that currently the coord range is stored for the life of the blixem window
  * and must be flipped if the user flips the strand.
  *  */
-static void setDotterParams(void)
-{
-  ACEIN params_in ;
+//static void setDotterParams(void)
+//{//
+//  ACEIN params_in ;
+//
+//  if (!*dotterqname)
+//    {
+//      if (!*qname_G)
+//	strcpy(dotterqname, "Blixem-seq");
+//      else
+//	strncpy(dotterqname, qname_G, LONG_NAMESIZE);
+//
+//      dotterqname[LONG_NAMESIZE] = 0;
+//    }
+//
+//  if (dotterStart == 0)
+//    dotterStart = dispstart - 100 ;
+//  if (dotterEnd == 0)
+//    dotterEnd = dispstart + 100 ;
+//
+//  /* Flip coords to match strand setting if necessary. */
+//  if ((plusmin == 1 && dotterEnd < dotterStart)
+//      || (plusmin == -1 && dotterEnd > dotterStart))
+//    {
+//      int tmp ;
+//      
+//      tmp = dotterStart ;
+//      dotterStart = dotterEnd ;
+//      dotterEnd = tmp ;
+//    }
+//
+//  if ((params_in = messPrompt ("Dotter parameters: zoom (compression) factor, "
+//			       "start, end, Queryname",
+//			       messprintf("%d %d %d %s", dotterZoom,
+//					  dotterStart+qoffset,
+//					  dotterEnd+qoffset,
+//					  dotterqname),
+//			       "iiiw", 0)))
+//    {
+//      aceInInt(params_in, &dotterZoom);
+//
+//      aceInInt(params_in, &dotterStart);
+//      dotterStart -= qoffset;
+//      aceInInt(params_in, &dotterEnd);
+//      dotterEnd -= qoffset;
+//
+//      /* Flip coords to match strand setting if necessary. */
+//      if ((plusmin == 1 && dotterEnd < dotterStart)
+//	  || (plusmin == -1 && dotterEnd > dotterStart))
+//	{
+//	  int tmp ;
+//
+//	  tmp = dotterStart ;
+//	  dotterStart = dotterEnd ;
+//	  dotterEnd = tmp ;
+//	}
+//
+//      strncpy(dotterqname, aceInWord(params_in), LONG_NAMESIZE);
+//      dotterqname[LONG_NAMESIZE] = '\0';
+//
+//      aceInDestroy(params_in);
+//
+//      smartDotter = 0;
+//
+////      menuUnsetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
+////      graphNewMenu(blixemMenu);
+//
+//      blviewRedraw();
+//    }
+//
+//  return ;
+//}
 
-  if (!*dotterqname)
-    {
-      if (!*qname_G)
-	strcpy(dotterqname, "Blixem-seq");
-      else
-	strncpy(dotterqname, qname_G, LONG_NAMESIZE);
 
-      dotterqname[LONG_NAMESIZE] = 0;
-    }
-
-  if (dotterStart == 0)
-    dotterStart = dispstart - 100 ;
-  if (dotterEnd == 0)
-    dotterEnd = dispstart + 100 ;
-
-  /* Flip coords to match strand setting if necessary. */
-  if ((plusmin == 1 && dotterEnd < dotterStart)
-      || (plusmin == -1 && dotterEnd > dotterStart))
-    {
-      int tmp ;
-      
-      tmp = dotterStart ;
-      dotterStart = dotterEnd ;
-      dotterEnd = tmp ;
-    }
-
-  if ((params_in = messPrompt ("Dotter parameters: zoom (compression) factor, "
-			       "start, end, Queryname",
-			       messprintf("%d %d %d %s", dotterZoom,
-					  dotterStart+qoffset,
-					  dotterEnd+qoffset,
-					  dotterqname),
-			       "iiiw", 0)))
-    {
-      aceInInt(params_in, &dotterZoom);
-
-      aceInInt(params_in, &dotterStart);
-      dotterStart -= qoffset;
-      aceInInt(params_in, &dotterEnd);
-      dotterEnd -= qoffset;
-
-      /* Flip coords to match strand setting if necessary. */
-      if ((plusmin == 1 && dotterEnd < dotterStart)
-	  || (plusmin == -1 && dotterEnd > dotterStart))
-	{
-	  int tmp ;
-
-	  tmp = dotterStart ;
-	  dotterStart = dotterEnd ;
-	  dotterEnd = tmp ;
-	}
-
-      strncpy(dotterqname, aceInWord(params_in), LONG_NAMESIZE);
-      dotterqname[LONG_NAMESIZE] = '\0';
-
-      aceInDestroy(params_in);
-
-      smartDotter = 0;
-
-//      menuUnsetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
-//      graphNewMenu(blixemMenu);
-
-      blviewRedraw();
-    }
-
-  return ;
-}
-
-
-static void autoDotterParams(void)
-{
-    smartDotter = 1;
-//    menuSetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
-//    graphNewMenu(blixemMenu);
-}
+//static void autoDotterParams(void)
+//{
+//    smartDotter = 1;
+////    menuSetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
+////    graphNewMenu(blixemMenu);
+//}
 
 
 
 /************************  BLIXEM SETTINGS  WINDOW  **************************/
 
-static void blixemConfColourMenu(KEY key, int box)
-{
+//static void blixemConfColourMenu(KEY key, int box)
+//{
 //  /* Taken from ? */
 //  int *colour;
 //
@@ -4580,11 +4423,11 @@ static void blixemConfColourMenu(KEY key, int box)
 //    }
 //
 //  return ;
-}
+//}
 
 
-static void blixemConfColour(int *colour, int init, float x, float *y, int len, char *text)
-{
+//static void blixemConfColour(int *colour, int init, float x, float *y, int len, char *text)
+//{
 //    int box;
 //    if (text)
 //	graphText(text, x+len+1, *y);
@@ -4598,16 +4441,16 @@ static void blixemConfColour(int *colour, int init, float x, float *y, int len, 
 //    graphAssociate(assVoid(box+2000), colour);
 //
 //    *y += 1.5;
-}
+//}
 
 
-static void buttonCheck(char* text, void (*func)(void), float x, float *y, int On)
-{
+//static void buttonCheck(char* text, void (*func)(void), float x, float *y, int On)
+//{
 //  char *but_text ;
 //
 //  but_text = hprintf(0, "%s %s", On ? "*" : " ", text) ;
 //  graphButton(but_text, func, x, *y);
-//  messfree(but_text) ;
+//  g_free(but_text) ;
 //
 //  /* Could be more fancy like this
 //     if (On) graphFillRectangle(x-.5, *y, x-2, *y+1.2);
@@ -4616,50 +4459,50 @@ static void buttonCheck(char* text, void (*func)(void), float x, float *y, int O
 //  *y += 1.5;
 //
 //  return ;
-}
+//}
 
 
-static void graphButtonDisable(char* text, float x, float *y, int On)
-{
+//static void graphButtonDisable(char* text, float x, float *y, int On)
+//{
 //    int box = graphBoxStart();
 //    graphText(messprintf("%s %s", On ? "*" : " ", text), x, *y);
 //    graphBoxEnd();
 //    graphBoxDraw (box, DARKGRAY, WHITE);
 //
 //    *y += 1.5;
-}
+//}
 
 
-static void setStringentEntropywin(char *cp)
-{
-    stringentEntropywin = atoi(cp);
-    calcEntropyArrays(TRUE);
-    blviewRedraw();
-}
-static void setMediumEntropywin(char *cp)
-{
-    mediumEntropywin = atoi(cp);
-    calcEntropyArrays(TRUE);
-    blviewRedraw();
-}
-static void setNonglobularEntropywin(char *cp)
-{
-    nonglobularEntropywin = atoi(cp);
-    calcEntropyArrays(TRUE);
-    blviewRedraw();
-}
+//static void setStringentEntropywin(char *cp)
+//{
+//    stringentEntropywin = atoi(cp);
+//    calcEntropyArrays(TRUE);
+//    blviewRedraw();
+//}
+//static void setMediumEntropywin(char *cp)
+//{
+//    mediumEntropywin = atoi(cp);
+//    calcEntropyArrays(TRUE);
+//    blviewRedraw();
+//}
+//static void setNonglobularEntropywin(char *cp)
+//{
+//    nonglobularEntropywin = atoi(cp);
+//    calcEntropyArrays(TRUE);
+//    blviewRedraw();
+//}
 
 
 
-static void settingsPick(int box, double x_unused, double y_unused, int modifier_unused)
-{
+//static void settingsPick(int box, double x_unused, double y_unused, int modifier_unused)
+//{
 //    if (box == stringentEntropybox) graphTextScrollEntry(stringentEntropytx,0,0,0,0,0);
 //    else if (box == mediumEntropybox) graphTextScrollEntry(mediumEntropytx,0,0,0,0,0);
 //    else if (box == nonglobularEntropybox) graphTextScrollEntry(nonglobularEntropytx,0,0,0,0,0);
-}
+//}
 
-static void settingsRedraw(void)
-{
+//static void settingsRedraw(void)
+//{
 //  float x1=1, x2=35, y;
 //
 //  static MENUOPT sortMenu[] =
@@ -4750,7 +4593,7 @@ static void settingsRedraw(void)
 //
 //
 //    return ;
-}
+//}
 
 
 /*
@@ -4766,19 +4609,19 @@ static void dotterPanel(void)
 
 /* Menu checkmarks */
 
-static void menuCheck(MENU menu, int mode, int thismode, char *str)
-{
-  if (mode == thismode)
-    menuSetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
-  else
-    menuUnsetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
+//static void menuCheck(MENU menu, int mode, int thismode, char *str)
+//{
+//  if (mode == thismode)
+//    menuSetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
+//  else
+//    menuUnsetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
+//
+//  return ;
+//}
 
-  return ;
-}
 
-
-static void setMenuCheckmarks(void)
-{
+//static void setMenuCheckmarks(void)
+//{
 //  menuCheck(settingsMenu, sortMode, SORTBYSCORE, SortByScoreStr);
 //  menuCheck(settingsMenu, sortMode, SORTBYID, SortByIdStr);
 //  menuCheck(settingsMenu, sortMode, SORTBYNAME, SortByNameStr);
@@ -4801,8 +4644,8 @@ static void setMenuCheckmarks(void)
 //  graphNewBoxMenu(settingsButton, settingsMenu);
 //  graphNewMenu(blixemMenu);
 
-  return ;
-}
+//  return ;
+//}
 
 
 /* Checks the MSP list of sequences for blixem to display to see if it contains sequence
@@ -4876,60 +4719,60 @@ static void pfetchWindow (MSP *msp)
  * the string abbreviated in the form "xxxxx...yyyyy". The string is a pointer
  * to a static buffer, caller should make a copy of it if they wish to retain
  * it or alter it. */
-static char *abbrevTxt(char *text, int max_len)
-{
-  char *result ;
-  char *abbrev = "<>" ;
-  static char *abbrev_buf = NULL ;
-  static int buf_len, text_len, head_bytes, tail_bytes ;
-
-  /* First time through allocate the reusable buffer, allocate larger one if required. */
-  if (abbrev_buf == NULL)
-    {
-      buf_len = 50 ;					    /* not many sequence names this long. */
-      abbrev_buf = (char *)messalloc(buf_len) ;
-    }
-  else if (max_len > (buf_len - 1))
-    {
-      messfree(abbrev_buf) ;
-      buf_len = (max_len * 1.5) ;
-      abbrev_buf = (char *)messalloc(buf_len) ;
-    }
-
-
-  result = abbrev_buf ;
-
-  text_len = strlen(text) ;
-  if (text_len <= max_len)
-    {
-      result = strcpy(result, text) ;
-    }
-  else
-    {
-      char *tail_ptr ;
-
-      /* don't really need to calculate these each time... */
-      head_bytes = (max_len / 2) - 1 ;
-      tail_bytes = max_len - ((max_len / 2) + 1) ;
-
-      tail_ptr = text + text_len - tail_bytes ;		    /* trailing null fudged in here. */
-
-      result = strncpy(result, text, head_bytes) ;
-
-      strcpy((result + head_bytes), "") ;
-
-      result = strcat(result, abbrev) ;
-
-      result = strcat(result, tail_ptr) ;
-    }
-
-  return (result) ;
-}
+//static char *abbrevTxt(char *text, int max_len)
+//{
+//  char *result ;
+//  char *abbrev = "<>" ;
+//  static char *abbrev_buf = NULL ;
+//  static int buf_len, text_len, head_bytes, tail_bytes ;
+//
+//  /* First time through allocate the reusable buffer, allocate larger one if required. */
+//  if (abbrev_buf == NULL)
+//    {
+//      buf_len = 50 ;					    /* not many sequence names this long. */
+//      abbrev_buf = (char *)g_malloc(buf_len) ;
+//    }
+//  else if (max_len > (buf_len - 1))
+//    {
+//      g_free(abbrev_buf) ;
+//      buf_len = (max_len * 1.5) ;
+//      abbrev_buf = (char *)g_malloc(buf_len) ;
+//    }
+//
+//
+//  result = abbrev_buf ;
+//
+//  text_len = strlen(text) ;
+//  if (text_len <= max_len)
+//    {
+//      result = strcpy(result, text) ;
+//    }
+//  else
+//    {
+//      char *tail_ptr ;
+//
+//      /* don't really need to calculate these each time... */
+//      head_bytes = (max_len / 2) - 1 ;
+//      tail_bytes = max_len - ((max_len / 2) + 1) ;
+//
+//      tail_ptr = text + text_len - tail_bytes ;		    /* trailing null fudged in here. */
+//
+//      result = strncpy(result, text, head_bytes) ;
+//
+//      strcpy((result + head_bytes), "") ;
+//
+//      result = strcat(result, abbrev) ;
+//
+//      result = strcat(result, tail_ptr) ;
+//    }
+//
+//  return (result) ;
+//}
 
 
 /* Print out MSP's, probably for debugging.... */
-static void printMSPs(void)
-{
+//static void printMSPs(void)
+//{
 //  MSP *msp;
 //
 //  for (msp = MSPlist; msp; msp = msp->next)
@@ -4947,80 +4790,8 @@ static void printMSPs(void)
 //    }
 //
 //  return ;
-}
+//}
 
-
-static void getStats(GString *result, MSP *MSPlist)
-{
-  int numMSPs = 0;          //count of MSPs
-  int numSeqs = 0;          //count of sequences (excluding duplicates)
-  gint32 totalSeqSize = 0;  //total memory used by the sequences
-  GHashTable *sequences = g_hash_table_new(NULL, NULL); //remembers which sequences we've already seen
-
-  MSP *msp = NULL;
-  for (msp = MSPlist; msp ; msp = msp->next)
-    {
-      ++numMSPs;
-    
-      if (!g_hash_table_lookup(sequences, msp->sseq))
-        {
-          ++numSeqs;
-        if (msp->sseq)
-          {
-            totalSeqSize += strlen(msp->sseq) * sizeof(char);
-          }
-          
-          g_hash_table_insert(sequences, msp->sseq, &msp->slength);
-        }
-    }
-  
-  g_hash_table_destroy(sequences);
-
-  /* Create the text based on the results */
-  g_string_printf(result, "%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s",
-                  "Length of reference sequence\t\t= ", qlen, " characters\n\n",
-                  "Number of match sequences\t\t= ", numSeqs, "\n",
-                  "Total memory used by sequences\t= ", totalSeqSize, " bytes\n\n",
-		  "Number of MSPs\t\t\t\t\t= ", numMSPs, "\n",
-                  "Size of each MSP\t\t\t\t\t= ", (int)sizeof(MSP), " bytes\n",
-		  "Total memory used by MSPs\t\t= ", (int)sizeof(MSP) * numMSPs, " bytes");
-}
-
-
-static void showStatsDialog(MSP *MSPlist)
-{
-  /* Create a modal dialog widget with an OK button */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Statistics", 
-                                                  GTK_WINDOW(blixemWindow),
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  NULL);
-
-  /* Ensure that the dialog box (along with any children) is destroyed when the user responds. */
-  g_signal_connect_swapped (dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
-
-  /* Create a text buffer containing the required text*/
-  GString *displayText = g_string_sized_new(200); //will be extended if we need more space
-  getStats(displayText, MSPlist);
-  GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
-  gtk_text_buffer_set_text(GTK_TEXT_BUFFER(textBuffer), displayText->str, -1);
-  g_string_free(displayText, TRUE);
-
-  /* Create a text view widget and put it in the vbox area of the dialog */
-  GtkWidget *textView = gtk_text_view_new_with_buffer(GTK_TEXT_BUFFER(textBuffer));
-  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), textView, TRUE, TRUE, 0);
-  
-  /* Show the dialog */
-  gtk_widget_show(textView);
-  gtk_widget_show(dialog);
-}
-
-
-/* Pop up a dialog reporting on various statistics about the process */
-static void blxShowStats(MSP *msplist)
-{
-  showStatsDialog(msplist);
-}
 
 
 /***************** end of file ***********************/

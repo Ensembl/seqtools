@@ -35,3 +35,13 @@ void		      getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *
 void		      getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
 int		      getRangeCentre(IntRange *range);
+
+int		      convertPeptideToDna(const int peptideIdx, const int frame, const int numFrames);
+int		      convertDnaToPeptide(const int dnaIdx, const int numFrames);
+char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
+
+char		      getRefSeqBase(char *refSeq, 
+				    const int qIdx, 
+				    const gboolean complement, 
+				    IntRange *refSeqRange,
+				    const BlxSeqType seqType);

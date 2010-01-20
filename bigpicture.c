@@ -26,6 +26,9 @@ static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
 static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
 static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
 static GtkWidget*		    bigPictureGetExonView(GtkWidget *bigPicture);
+static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
+static int			    bigPictureGetNumReadingFrames(GtkWidget *bigPicture);
+static BlxSeqType		    bigPictureGetSeqType(GtkWidget *bigPicture);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -120,6 +123,11 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       /* Draw the label, showing which base index is at this x coord */
       int numBasesFromLeft = basesPerCell * hCell;
       int baseIdx = rightToLeft ? displayRange->max - numBasesFromLeft : displayRange->min + numBasesFromLeft;
+      
+      if (bigPictureGetSeqType(bigPicture) == BLXSEQ_PEPTIDE)
+	{
+	  baseIdx = convertPeptideToDna(baseIdx, 1, bigPictureGetNumReadingFrames(bigPicture));
+	}
       
       gdk_gc_set_foreground(gc, textColour);
       gchar text[numDigitsInInt(baseIdx) + 1];
@@ -497,10 +505,10 @@ IntRange* bigPictureGetDisplayRange(GtkWidget *bigPicture)
   return &properties->displayRange;
 }
 
-IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
+static IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
 {
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return &properties->fullRange;
+  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  return mainWindowGetFullRange(mainWindow);
 }
 
 static int bigPictureGetNumHCells(GtkWidget *bigPicture)
@@ -521,14 +529,25 @@ GtkWidget* bigPictureGetGridHeader(GtkWidget *bigPicture)
   return properties->header;
 }
 
+static BlxSeqType bigPictureGetSeqType(GtkWidget *bigPicture)
+{
+  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  return mainWindowGetSeqType(mainWindow);
+}
+
+static int bigPictureGetNumReadingFrames(GtkWidget *bigPicture)
+{
+  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  return mainWindowGetNumReadingFrames(mainWindow);
+}
+
 static void bigPictureCreateProperties(GtkWidget *bigPicture, 
 				       GtkWidget *mainWindow, 
 				       GtkWidget *header, 
 				       GtkWidget *fwdStrandGrid,
 				       GtkWidget *revStrandGrid,
 				       GtkWidget *exonView,
-				       IntRange *displayRange, 
-				       IntRange *fullRange, 
+				       const IntRange const *initDisplayRange, 
 				       int cellWidth, 
 				       int numHCells, 
 				       int previewBoxCentre)
@@ -542,10 +561,8 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->fwdStrandGrid = fwdStrandGrid;
       properties->revStrandGrid = revStrandGrid;
       properties->exonView = exonView;
-      properties->displayRange.min = displayRange->min;
-      properties->displayRange.max = displayRange->max;
-      properties->fullRange.min = fullRange->min;
-      properties->fullRange.max = fullRange->max;
+      properties->displayRange.min = initDisplayRange->min;
+      properties->displayRange.max = initDisplayRange->max;
       properties->cellWidth = cellWidth;
       properties->numHCells = numHCells;
       properties->previewBoxCentre = previewBoxCentre;
@@ -637,8 +654,7 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
 			    GtkWidget *panedWidget,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid, 
-			    IntRange *displayRange, 
-			    IntRange *fullRange)
+			    const IntRange const *initDisplayRange)
 {
   /* Create the main big picture widget, which will contain all of the 
    * individual big-picture grids, plus a header. */
@@ -670,8 +686,7 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
 			     *fwdStrandGrid,
 			     *revStrandGrid,
 			     exonView,
-			     displayRange, 
-			     fullRange, 
+			     initDisplayRange, 
 			     DEFAULT_GRID_CELL_WIDTH, 
 			     DEFAULT_GRID_NUM_HOZ_CELLS, 
 			     UNSET_INT);
@@ -679,3 +694,6 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
   
   return bigPicture;
 }
+
+
+

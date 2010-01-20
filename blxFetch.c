@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.3 2009-12-08 10:16:58 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.4 2010-01-20 18:16:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -158,12 +158,12 @@ typedef struct
   || (PEPTIDE) == '*' || (PEPTIDE) == '.' || (PEPTIDE) == '-'))
 
 
-static void fetchBypfetch(void) ;
+//static void fetchBypfetch(void) ;
 #ifdef PFETCH_HTML 
 static void fetchBypfetchhtml(void) ;
 #endif
-static void fetchByefetch(void) ;
-static void fetchByWWWefetch(void) ;
+//static void fetchByefetch(void) ;
+//static void fetchByWWWefetch(void) ;
 #ifdef ACEDB
 static void fetchByacedb(void) ;
 static void fetchByacedbtext(void) ;
@@ -318,7 +318,7 @@ static int findCommand (char *command, char **retp)
    return 0;
    */
   
-  path = messalloc(strlen(getenv("PATH"))+1);
+  path = g_malloc(strlen(getenv("PATH"))+1);
   /* Don't free 'path' since it changes later on - never mind, 
    we're only calling it once */
   
@@ -420,7 +420,7 @@ void blxDisplayMSP(MSP *msp)
 
   if (!URL)
     {
-      URL = messalloc(256);
+      URL = g_malloc(256);
       strcpy(URL, "http://www.sanger.ac.uk/cgi-bin/seq-query?");
     }
 
@@ -1023,7 +1023,7 @@ static void freeSeqs(Array seqs)
   for (i = 0 ; i < arrayMax(seqs) ; i++)
     {
       if ((array(seqs, i, char*)))
-	messfree(array(seqs, i, char*)) ;
+	g_free(array(seqs, i, char*)) ;
     }
 
   return ;
@@ -1046,7 +1046,7 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
 
 
   /* Construct the server address structure */
-  servAddr = (struct sockaddr_in *) messalloc (sizeof (struct sockaddr_in)) ;
+  servAddr = (struct sockaddr_in *) g_malloc (sizeof (struct sockaddr_in)) ;
   hp = gethostbyname(ipAddress) ;
   if (!hp)
   {
@@ -1075,7 +1075,7 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
       sock = -1 ;
     }
 
-  messfree (servAddr) ;
+  g_free (servAddr) ;
 
   return sock ;
 }
@@ -1092,7 +1092,7 @@ static BOOL socketSend (int sock, char *text)
   /* so 0x20 is added to mark the end of the string and the C string term-   */
   /* inator is moved up one and is not actually sent.                        */
   len = strlen(text) ;
-  tmp = messalloc(len + 2) ;
+  tmp = g_malloc(len + 2) ;
   strcpy(tmp, text) ;
   tmp[len] = 0x20 ;					    /* Add new string terminator. */
   tmp[len + 1] = 0 ;
@@ -1127,7 +1127,7 @@ static BOOL socketSend (int sock, char *text)
   if (sigaction(SIGPIPE, &oldsigpipe, NULL) < 0)
     messcrash("Cannot reset previous signal handler for signal SIGPIPE for socket write operations") ;
 
-  messfree(tmp) ;
+  g_free(tmp) ;
 
   return status ;
 }
@@ -1137,14 +1137,14 @@ static BOOL socketSend (int sock, char *text)
 /* Set of callbacks to set up different methods of fetching EMBL entry for a */
 /* sequence.                                                                 */
 /*                                                                           */
-static void fetchBypfetch(void)
-{
-  strcpy(fetchMode, BLX_FETCH_PFETCH);
-
-  blviewRedraw();
-
-  return ;
-}
+//static void fetchBypfetch(void)
+//{
+//  strcpy(fetchMode, BLX_FETCH_PFETCH);
+//
+//  blviewRedraw();
+//
+//  return ;
+//}
 
 #ifdef PFETCH_HTML 
 static void fetchBypfetchhtml(void)
@@ -1157,23 +1157,23 @@ static void fetchBypfetchhtml(void)
 }
 #endif
 
-static void fetchByefetch(void)
-{
-  strcpy(fetchMode, BLX_FETCH_EFETCH);
+//static void fetchByefetch(void)
+//{
+//  strcpy(fetchMode, BLX_FETCH_EFETCH);
+//
+//  blviewRedraw();
+//
+//  return ;
+//}
 
-  blviewRedraw();
-
-  return ;
-}
-
-static void fetchByWWWefetch(void)
-{
-  strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
-
-  blviewRedraw();
-
-  return ;
-}
+//static void fetchByWWWefetch(void)
+//{
+//  strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
+//
+//  blviewRedraw();
+//
+//  return ;
+//}
 
 
 #ifdef ACEDB

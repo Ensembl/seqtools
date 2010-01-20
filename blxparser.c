@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.5 2010-01-14 13:01:16 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.6 2010-01-20 18:16:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -180,6 +180,40 @@ int pickMatch (char *cp, char *tp)
 
 
   /* ummmm, no return here ???? is the above water tight ????? */
+}
+
+
+/* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values */
+static MSP* createEmptyMsp()
+{
+  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
+  
+  msp->next = NULL;
+  msp->type = BLX_MSP_INVALID;
+  msp->score = 0;
+  msp->id = 0;
+  msp->qname = NULL;
+  msp->qframe[0] = 0;
+  msp->qstart = 0;
+  msp->qend = 0;
+  msp->sname = NULL;
+  msp->sframe[0] = 0;
+  msp->slength = 0;
+  msp->sstart = 0;
+  msp->send = 0;
+  msp->sseq = NULL;
+  msp->displayStart = 0;
+  msp->displayEnd = 0;
+  msp->desc = NULL;
+  msp->box = 0;
+  msp->in_match_set = FALSE;
+  msp->color = 0;
+  msp->shape = 0;
+  msp->fs = 0;
+  msp->xy = NULL;
+  msp->gaps = NULL;
+  
+  return msp;
 }
 
 
@@ -355,9 +389,9 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	    {
 	      char *tmp;
 	      maxseqlen += MAXLINE + strlen(line);
-	      tmp = messalloc(maxseqlen+1);
+	      tmp = g_malloc(maxseqlen+1);
 	      strcpy(tmp, *readseq);
-	      messfree(*readseq);
+	      g_free(*readseq);
 	      *readseq = tmp;
 	    }
 	  strcpy(*readseq+readseqcount, line);
@@ -386,7 +420,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	    }
 	    
 	  maxseqlen = MAXLINE;
-	  *readseq = messalloc(maxseqlen+1);
+	  *readseq = g_malloc(maxseqlen+1);
 	  readseqcount = 0;
 
 	  type = SEQdata;
@@ -399,13 +433,13 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
       /* If it's a chunk of a dna sequence, leave as is.      */
       if (!*MSPlist) 
 	{
-	  msp = *MSPlist = (MSP *)messalloc(sizeof(MSP));
+	  msp = *MSPlist = createEmptyMsp();
 	}
       else 
 	{
 	  if (strcspn(line, "acgt") != 0)	/* ie line contains chars other than acgt */
 	    {
-	      msp->next = (MSP *)messalloc(sizeof(MSP));
+	      msp->next = createEmptyMsp();
 	      msp = msp->next;
 	    }
 	}
@@ -439,9 +473,9 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	      abort();
 	    }
 
-	  msp->qname = messalloc(strlen(qname)+1);
+	  msp->qname = g_malloc(strlen(qname)+1);
 	  strcpy(msp->qname, qname);
-	  msp->sname = messalloc(strlen(sname)+1);
+	  msp->sname = g_malloc(strlen(sname)+1);
 	  strcpy(msp->sname, sname);
 
 	  *msp->qframe = *msp->sframe = '(';
@@ -472,10 +506,10 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	  msp->sstart = msp->qstart;
 	  msp->send = msp->qend;
 
-	  msp->qname = messalloc(strlen(qname)+1);
+	  msp->qname = g_malloc(strlen(qname)+1);
 	  strcpy(msp->qname, qname);
 	  
-	  msp->sname = messalloc(strlen(series)+1); 
+	  msp->sname = g_malloc(strlen(series)+1); 
 	  strcpy(msp->sname, series);
 	  
 	  strcpy(msp->qframe, "(+1)");
@@ -510,13 +544,13 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	  msp->sstart = msp->qstart;
 	  msp->send = msp->qend;
 	  
-	  msp->qname = messalloc(strlen(qname)+1);
+	  msp->qname = g_malloc(strlen(qname)+1);
 	  strcpy(msp->qname, qname);
 	  
-	  msp->sname = messalloc(strlen(series)+1); 
+	  msp->sname = g_malloc(strlen(series)+1); 
 	  strcpy(msp->sname, series);
 
-	  msp->desc = messalloc(strlen(series)+1); 
+	  msp->desc = g_malloc(strlen(series)+1); 
 	  strcpy(msp->desc, series);
 	  
 	  msp->color = 6;	/* Blue */
@@ -566,10 +600,10 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	  
 	  type = XYdata; /* Start parsing XY data */
 
-	  msp->qname = messalloc(strlen(qname)+1);
+	  msp->qname = g_malloc(strlen(qname)+1);
 	  strcpy(msp->qname, qname);
 
-	  msp->sname = messalloc(strlen(series)+1); 
+	  msp->sname = g_malloc(strlen(series)+1); 
 	  strcpy(msp->sname, series);
 
 	  strcpy(msp->qframe, "(+1)");
@@ -607,12 +641,12 @@ void insertFS(MSP *msp, char *series)
     fs.y = 0.0;
     fs.xy = (msp->type == XY ? 1 : 0);
 
-    fs.name = messalloc(strlen(series)+1);
+    fs.name = g_malloc(strlen(series)+1);
     strcpy(fs.name, series);
 
     if (arrayFind(fsArr, &fs, &i, fsorder)) {
 	msp->fs = arrp(fsArr, i, FEATURESERIES)->nr;
-	messfree(fs.name);
+	g_free(fs.name);
     }
     else {
 	msp->fs = fs.nr = curnr++;
@@ -643,14 +677,14 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 	    if (isalpha(ch) || ch == '.' || ch == '*') 
 		array(arr, i++, char) = ch;
 	}
-	q = messalloc(arrayMax(arr)+1);
+	q = g_malloc(arrayMax(arr)+1);
 	cq = q;
 	for (i = 0; i < arrayMax(arr);) *cq++ = arr(arr, i++, char);
 	arrayDestroy(arr);
     }
     else {
 	fseek(seqfile, 0, SEEK_END);
-	q = messalloc(ftell(seqfile)+1);
+	q = g_malloc(ftell(seqfile)+1);
 	cq = q;
 	fseek(seqfile, 0, SEEK_SET);
 	while (!feof(seqfile))
@@ -727,7 +761,7 @@ static void parseLook(MSP *msp, char *s)
     char *cp, *s2;
 
     /* Make copy of string to mess up */
-    s2 = messalloc(strlen(s)+1);
+    s2 = g_malloc(strlen(s)+1);
     strcpy(s2, s);
 
     cp = strtok(s2, "," );
@@ -744,7 +778,7 @@ static void parseLook(MSP *msp, char *s)
 	
 	cp = strtok(0, "," );
     }
-    messfree(s2);
+    g_free(s2);
 }
 
 
@@ -760,7 +794,7 @@ static void getDesc(MSP *msp, char *s1, char *s2)
 
     cp += strlen(s2)+1;
 
-    msp->desc = messalloc(strlen(cp)+1);
+    msp->desc = g_malloc(strlen(cp)+1);
     strcpy(msp->desc, cp);
 }
 
@@ -781,7 +815,7 @@ static void prepSeq(MSP *msp, char *seq, char *opts)
 {
   if (*opts == 'T' || *opts == 'L') 
     {
-      msp->sseq = messalloc(strlen(seq)+1) ;
+      msp->sseq = g_malloc(strlen(seq)+1) ;
       strcpy(msp->sseq, seq) ;
     }
   else 
@@ -790,7 +824,7 @@ static void prepSeq(MSP *msp, char *seq, char *opts)
 
       /* I think this is a mistake in the code, we get the whole sequence so shouldn't be
        * prepending the '-'s */
-      msp->sseq = messalloc(msp->sstart+strlen(seq)+1);
+      msp->sseq = g_malloc(msp->sstart+strlen(seq)+1);
       memset(msp->sseq, '-', msp->sstart); /* Fill up with dashes */
       strcpy(msp->sseq + msp->sstart - 1, seq);
     }
@@ -856,7 +890,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
   if (*opts == 'T')
     strcpy(msp->qframe, "(+1)");
   
-  msp->sname = messalloc(strlen(sname)+1);
+  msp->sname = g_malloc(strlen(sname)+1);
   strcpy(msp->sname, sname); 
       
   /* Convert to upper case (necessary?) */
@@ -874,7 +908,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
     {
       char *p, *src;
   	
-      src = messalloc(strlen(msp->sname)+1);
+      src = g_malloc(strlen(msp->sname)+1);
       strcpy(src, msp->sname);
   	
       p = strtok(src, "|");
@@ -902,7 +936,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
 	  strcat(msp->sname, last);
 	}
   	
-      messfree(src);
+      g_free(src);
     }
   
   if (!(cp = strstr(line, sname)))
@@ -972,7 +1006,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
 	{
 	  char *seq ;
 
-	  seq = messalloc(line_string->len + 1) ;
+	  seq = g_malloc(line_string->len + 1) ;
 	  
 	  if (sscanf(seq_pos, "%s", seq) != 1)
 	    {
@@ -1057,7 +1091,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
   if (*opts == 'T')
     strcpy(msp->qframe, "(+1)");
   
-  msp->sname = messalloc(strlen(sname)+1);
+  msp->sname = g_malloc(strlen(sname)+1);
   strcpy(msp->sname, sname); 
       
   /* Convert to upper case (necessary?) */
@@ -1074,7 +1108,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
     {
       char *p, *src;
   	
-      src = messalloc(strlen(msp->sname)+1);
+      src = g_malloc(strlen(msp->sname)+1);
       strcpy(src, msp->sname);
   	
       p = strtok(src, "|");
@@ -1102,7 +1136,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 	  strcat(msp->sname, last);
 	}
   	
-      messfree(src);
+      g_free(src);
     }
   
   if (!(cp = strstr(line, sname)))
@@ -1388,7 +1422,7 @@ static BOOL parseSequence(char **text, MSP *msp)
     {
       char *seq ;
 
-      seq = messalloc(length + 1) ;
+      seq = g_malloc(length + 1) ;
 	  
       if (sscanf(cp, "%s", seq) != 1)
 	{

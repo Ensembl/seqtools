@@ -1,6 +1,6 @@
 /*  Last edited: Feb 14 10:47 2008 (edgrif) */
 
-/* $Id: blxselect.c,v 1.2 2009-12-08 10:16:58 gb10 Exp $ */
+/* $Id: blxselect.c,v 1.3 2010-01-20 18:16:55 gb10 Exp $ */
 
 /* BLXSELECT - select seqbl/exblx files for blixem in a user-friendly way
  *
@@ -241,7 +241,7 @@ static void seqblmenu(FILE *file)
 	n = countHSP(text);
 	if (len && (n || zeroOK)) {
 	    if (len > maxLen) maxLen = len;
-	    array(names, items, char*) = messalloc(len+1);
+	    array(names, items, char*) = g_malloc(len+1);
 	    strcpy(array(names, items, char*), text); 
 	    array(counts, items, int) = n;
 	    items++;
@@ -334,7 +334,7 @@ int main(int argc, char **argv)
  by Erik.Sonnhammer@cgr.ki.se\n\
  Version ";
 
-    usage = messalloc(strlen(usageText) + strlen(blixelectVersion) + strlen(cc_date) + 20);
+    usage = g_malloc(strlen(usageText) + strlen(blixelectVersion) + strlen(cc_date) + 20);
     sprintf(usage, "%s%s, compiled %s\n", usageText, blixelectVersion, cc_date);
     
     while ((optc = getopt(argc, argv, optstring)) != -1)

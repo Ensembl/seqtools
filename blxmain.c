@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.4 2010-01-04 11:26:41 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.5 2010-01-20 18:16:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -134,26 +134,27 @@ static char *help_string = "\n\
 int main(int argc, char **argv)
 {
   FILE        *seqfile, *FSfile;
-  char seqfilename[1000] = {'\0'}, FSfilename[1000] = {'\0'} ;
-  char  *qseq = NULL, 
-    *dummyseq = NULL,					    /* Needed for blxparser to handle both */
-							    /* dotter and blixem */
-    line[MAXLINE+1],
-    ch, *cp, *cq, *c;
-  MSP         *MSPlist = NULL ;
-  static char opts[32]=" MBr Z   ",	/* 0 L|N|P|T|X
-					   1 M
-					   2 B|b
-					   3 R|r (blxparser.c)
-					   4    (available)
-					   5 Z (blxparser.c)
-					   6 I 
-					   7 G (blxparser.c)
-					   8    sorting mode
-					*/
-    qname[FULLNAMESIZE+1],
-    dummyseqname[FULLNAMESIZE+1];
-  int dispstart = 0, offset = 0, install = 1, seqInSFS = 0 ;
+  char seqfilename[1000] = {'\0'};
+  char FSfilename[1000] = {'\0'};
+  char *refSeq = NULL;
+  char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+  char line[MAXLINE+1];
+  MSP *mspList = NULL ;
+  char opts[32]=" MBr Z   ";	/* 0 L|N|P|T|X
+				   1 M
+				   2 B|b
+				   3 R|r (blxparser.c)
+				   4    (available)
+				   5 Z (blxparser.c)
+				   6 I 
+				   7 G (blxparser.c)
+				   8    sorting mode
+				*/
+  char refSeqName[FULLNAMESIZE+1];
+  char dummyseqname[FULLNAMESIZE+1];
+  
+  int displayStart = 0, qOffset = 0, install = 1, seqInSFS = 0 ;
+  
   int          optc;
   extern int   optind;
   extern char *optarg;
@@ -173,7 +174,7 @@ int main(int argc, char **argv)
   messSetMsgInfo(argv[0], BLIXEM_TITLE_STRING) ;
 
   /* Stick version info. into usage string. */
-  usage = messalloc(strlen(usageText) + strlen(blixemVersion) + 10) ;
+  usage = g_malloc(strlen(usageText) + strlen(blixemVersion) + 10) ;
   sprintf(usage, "%s %s\n", usageText, blixemVersion) ;
 
 
@@ -226,14 +227,14 @@ int main(int argc, char **argv)
 	  /* Note that I don't do any checking of the value, this is in line */
 	  /* with the way blxview() accepts any value of offset, I just check*/
 	  /* its actually an integer.                                        */
-	  if (!(utStr2Int(optarg, &offset)))
+	  if (!(utStr2Int(optarg, &qOffset)))
 	    messcrash("Bad offset argument: \"-%c %s\"", optc, optarg) ;
 	  break;
 	case 'p':
 	  opts[0] = 'P';
 	  break;
 	case 'P':
-	  pfetch = messalloc(sizeof(PfetchParams)) ;
+	  pfetch = g_malloc(sizeof(PfetchParams)) ;
 	  pfetch->net_id = strtok(optarg, ":") ;
 	  pfetch->port = atoi(strtok(NULL, ":")) ;
 	  break;
@@ -241,7 +242,7 @@ int main(int argc, char **argv)
 	  rm_input_files = TRUE ;
 	  break ;
 	case 'S': 
-	  if (!(dispstart = atoi(optarg)))
+	  if (!(displayStart = atoi(optarg)))
 	    messcrash("Bad diplay start position: %s", optarg); 
 	  opts[1] = ' ';
 	  break;
@@ -315,42 +316,67 @@ int main(int argc, char **argv)
 	  if (!fgets(line, MAXLINE, seqfile))
 	    messcrash("Error reading seqFile");;
 
-	  sscanf(line, "%s", qname);
+	  sscanf(line, "%s", refSeqName);
+
+	  /* Scan the input stream and place the chars in an array */
+	  char charFromStream = fgetc(seqfile);
+	  while (charFromStream != '\n')
+	    {
+	      array(arr, i++, char) = charFromStream;
+	    }
+	  
+	  /* Allocate the reference sequence from the array of chars */
+	  refSeq = g_malloc(arrayMax(arr)+1);
+	  char *refSeqChar = refSeq;
+	  
+	  for (i = 0; i < arrayMax(arr);)
+	    {
+	      *refSeqChar++ = arr(arr, i++, char);
+	    }
 	    
-	  while ((ch = fgetc(seqfile)) != '\n') {
-	    /*if (isAlnRes(ch) || isAlnNonres(ch))*/
-	    array(arr, i++, char) = ch;
-	  }
-	  qseq = messalloc(arrayMax(arr)+1);
-	  cq = qseq;
-	  for (i = 0; i < arrayMax(arr);) *cq++ = arr(arr, i++, char);
 	  arrayDestroy(arr);
 	}
       else
 	{
 	  fseek(seqfile, 0, SEEK_END);
-	  qseq = messalloc(ftell(seqfile)+1);
-	  cq = qseq;
+	  refSeq = g_malloc(ftell(seqfile)+1);
+	  char *refSeqChar = refSeq;
 	  fseek(seqfile, 0, SEEK_SET);
+	  
 	  while (!feof(seqfile))
 	    {
 	      if (!fgets(line, MAXLINE, seqfile))
-		break;
-	      if ((c = (char *)strchr(line, '\n')))
-		*c = 0;
+		{
+		  break;
+		}
+		  
+	      char *newLineCharPtr = (char *)strchr(line, '\n');
+	      if (newLineCharPtr)
+		{
+		  *newLineCharPtr = 0;
+		}
 		    
 	      if (*line == '>')
 		{
-		  strncpy(qname, line+1, 255);
-		  qname[255]=0;
-		  if ((c = (char *)strchr(qname, ' ')))
-		    *c = 0;
+		  strncpy(refSeqName, line+1, 255);
+		  refSeqName[255]=0;
+		  
+		  char *spaceCharPtr = (char *)strchr(refSeqName, ' ');
+		  if (spaceCharPtr)
+		    {
+		      *spaceCharPtr = 0;
+		    }
+		  
 		  continue;
 		}
-		    
-	      for (cp = line; *cp; cp++) 
-		/*if (isAlnRes(*cp) || isAlnNonres(*cp))*/ *cq++ = *cp;
-	      *cq = 0;
+
+	      char *lineChar = NULL;
+	      for (lineChar = line; *lineChar; lineChar++) 
+		{
+		  *refSeqChar++ = *lineChar;
+		}
+		
+	      *refSeqChar = 0;
 	    }
 	  fclose(seqfile);
 	}
@@ -365,7 +391,7 @@ int main(int argc, char **argv)
     {
       messcrash("Cannot open %s\n", FSfilename);
     }
-  parseFS(&MSPlist, FSfile, opts, &qseq, qname, &dummyseq, dummyseqname) ;
+  parseFS(&mspList, FSfile, opts, &refSeq, refSeqName, &dummyseq, dummyseqname) ;
   if (FSfile != stdin)
     fclose(FSfile) ;
 
@@ -376,7 +402,7 @@ int main(int argc, char **argv)
 	{
 	  messcrash("Cannot open %s\n", xtra_filename) ;
 	}
-      parseFS(&MSPlist, xtra_file, opts, &qseq, qname, &dummyseq, dummyseqname) ;
+      parseFS(&mspList, xtra_file, opts, &refSeq, refSeqName, &dummyseq, dummyseqname) ;
       fclose(xtra_file) ;
     }
 
@@ -398,7 +424,7 @@ int main(int argc, char **argv)
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  blxview(qseq, qname, dispstart, offset, MSPlist, opts, pfetch, align_types, TRUE);
+  blxview(refSeq, refSeqName, displayStart, qOffset, mspList, opts, pfetch, align_types, TRUE);
   gtk_main();
     
   /* We should not get here.... */

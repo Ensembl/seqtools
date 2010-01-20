@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.4 2009-12-15 16:42:09 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.5 2010-01-20 18:16:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -120,6 +120,10 @@ typedef struct _MSP
   int      sstart; 
   int      send;
   char    *sseq;
+  
+  /* Coords on the displayed ref sequence (different to ref sequence if displaying peptide sequences) */
+  int	  displayStart;
+  int	  displayEnd;
 
   char    *desc;
   int      box ;
@@ -153,8 +157,8 @@ typedef enum {FORWARD_STRAND, REVERSE_STRAND} Strand ;
 
 
 /* Function to show blixem window, can be called from any application. */
-int blxview (char *seq, char *seqname,
-	     int start, int offset, MSP *msplist, char *opts, 
+int blxview (char *refSeq, char *refSeqName,
+	     int start, int qOffset, MSP *msplist, char *opts, 
 	     PfetchParams *pfetch, char *align_types, BOOL External) ;
 
 

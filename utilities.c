@@ -110,3 +110,74 @@ void getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int 
   if (sRangeMax)
     *sRangeMax = range->s1 < range->s2 ? range->s2 : range->s1;
 }
+
+
+char convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType)
+{
+  char result = (seqType == BLXSEQ_PEPTIDE) ? toupper(charToConvert) : tolower(charToConvert);
+  return result;
+}
+
+
+/* Returns the base at the given index in the reference sequence. If
+ * 'complement' is true, the result is complemented. */
+char getRefSeqBase(char *refSeq,
+		   const int qIdx, 
+		   const gboolean complement, 
+		   IntRange *refSeqRange,
+		   const BlxSeqType seqType)
+{
+  char result = ' ';
+  
+  if (!refSeqRange || (qIdx >= refSeqRange->min && qIdx <= refSeqRange->max))
+    {
+      char base = refSeq[qIdx - 1];
+      base = convertBaseToCorrectCase(base, seqType);
+      
+      if (!complement)
+	{
+	  result = base;
+	}
+      else
+	{
+	  switch (base)
+	  {
+	    case 'c':
+	      result = 'g';
+	      break;
+	    case 'g':
+	      result = 'c';
+	      break;
+	    case 'a':
+	      result = 't';
+	      break;
+	    case 't':
+	      result = 'a';
+	      break;
+	    default:
+	      result = ' ';
+	      break;
+	  }
+	}
+    }
+  
+  return result;
+}
+
+
+/* Given an index into a peptide sequence and a reading frame number, return
+ * the index into the DNA sequence that will give the equivalent DNA base */
+int convertPeptideToDna(const int peptideIdx, const int frame, const int numFrames)
+{
+  return (peptideIdx * numFrames) - numFrames + frame;
+}
+
+
+/* Given an index into a dna sequence and a reading frame number, return
+ * the index into the protein sequence that will give the equivalent peptide */
+int convertDnaToPeptide(const int dnaIdx, const int numFrames)
+{
+  return ceil((double)dnaIdx / (double)numFrames);
+}
+
+

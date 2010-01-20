@@ -28,14 +28,14 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.3 2009-12-08 10:16:59 gb10 Exp $
+ * CVS info:   $Id: translate.c,v 1.4 2010-01-20 18:16:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <glib.h>
 #include <wh/mystdlib.h>
 #include <wh/regular.h>
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 #include <SeqTools/iupac.h>
 
 
@@ -96,7 +96,7 @@ char *blxTranslate(char  *seq, char **code)
   
   if (seq && *seq)
     {
-      aaseq = (char *)messalloc(strlen(seq) + 1) ;
+      aaseq = (char *)g_malloc(strlen(seq) + 1) ;
 
       for (aaptr = aaseq ; *seq != '\0' && *(seq+1) != '\0' && *(seq+2) != '\0'; seq += 3)
 	{

@@ -139,6 +139,7 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
     }
 }
 
+/* Get the reference sequence (always the forward strand and always the DNA seq) */
 char* treeGetRefSeq(GtkWidget *tree)
 {
   assertTree(tree);
@@ -146,11 +147,38 @@ char* treeGetRefSeq(GtkWidget *tree)
   return detailViewGetRefSeq(detailView);
 }
 
+/* Get the actual displayed reference sequence (may be the DNA sequence or peptide sequence.
+ * Always the forward strand.) */
+static char* treeGetDisplaySeq(GtkWidget *tree)
+{
+  assertTree(tree);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetDisplaySeq(detailView);
+}
+
+/* Returns the currently-displayed range in the tree view */
 IntRange* treeGetDisplayRange(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
   return properties ? detailViewGetDisplayRange(properties->detailView) : NULL;
+}
+
+/* Returns the full display range */
+IntRange* treeGetFullRange(GtkWidget *tree)
+{
+  assertTree(tree);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetFullRange(detailView);
+}
+
+/* Returns the range of the reference sequence (as a DNA sequence, regardless of
+ * whether it is shown as a peptide sequence in reality) */
+IntRange* treeGetRefSeqRange(GtkWidget *tree)
+{
+  assertTree(tree);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetRefSeqRange(detailView);
 }
 
 PangoFontDescription* treeGetFontDesc(GtkWidget *tree)
@@ -491,6 +519,8 @@ gboolean updateFeedbackBoxForTree(GtkWidget *tree)
   GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
   gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
   gtk_widget_queue_draw(feedbackBox);
+  
+  g_free(messageText);
 
   return done;
 }
@@ -619,9 +649,9 @@ gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 	{
 	  int displayStart = adjustment->value + 1;
 	  int displayEnd = displayStart + adjustment->page_size;
-	  
-	  int qSeqMin, qSeqMax;
-	  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+
+	  int qSeqMin = min(msp->displayStart, msp->displayEnd);
+	  int qSeqMax = max(msp->displayStart, msp->displayEnd);
 	  
 	  bDisplay = !(qSeqMin > displayEnd || qSeqMax < displayStart);
 	}
@@ -910,14 +940,11 @@ static void onSelectionChangedTree(GObject *selection, gpointer data)
  * */
 static void calcID(MSP *msp, GtkWidget *tree)
 {
-  static int id, i, len ;
-  char *qseq ;
-  
   BOOL sForward = strchr(msp->sframe, '+') ? TRUE : FALSE;
   BlxBlastMode blastMode = treeGetBlastMode(tree);
 
-  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
+  int displaySeqMin, displaySeqMax, sSeqMin, sSeqMax;
+  getMspRangeExtents(msp, &displaySeqMin, &displaySeqMax, &sSeqMin, &sSeqMax);
   
   if (msp->sseq /* to do: is this required? && msp->sseq != padseq */)
     {
@@ -925,18 +952,19 @@ static void calcID(MSP *msp, GtkWidget *tree)
        * where there is no gaps array the comparison is trivial as coordinates can be
        * ignored and the two sequences just whipped through. */
       char *refSeq = treeGetRefSeq(tree);
+      char *displaySeq = getqseq(msp->qstart, msp->qend, refSeq);
       
-      if (!(qseq = getqseq(msp->qstart, msp->qend, refSeq)))
+      if (!displaySeq)
 	{
-	  messout ( "calcID failed: Don't have genomic sequence %d - %d\n",
-		   msp->qstart, msp->qend);
+	  messout ( "calcID failed: Don't have genomic sequence %d - %d\n", msp->qstart, msp->qend);
 	  msp->id = 0;
-	  
 	  return;
 	}
       
       
       /* NOTE, tblastn/x are not implemented for gaps yet. */
+      int id = 0, len = 0;
+      
       if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
 	{
 	  /* Ungapped alignments. */
@@ -945,27 +973,40 @@ static void calcID(MSP *msp, GtkWidget *tree)
 	    {
 	      len = msp->qend - msp->qstart + 1;
 	      
-	      for (i=0, id=0; i < len; i++)
-		if (freeupper(msp->sseq[i]) == freeupper(qseq[i]))
-		  id++;
+	      int i = 0;
+	      for (id=0; i < len; i++)
+		{
+		  if (freeupper(msp->sseq[i]) == freeupper(displaySeq[i]))
+		    {
+		      id++;
+		    }
+		}
 	    }
 	  else if (blastMode == BLXMODE_TBLASTX)
 	    {
 	      len = abs(msp->qend - msp->qstart + 1)/3;
 	      
-	      for (i=0, id=0; i < len; i++)
-		if (freeupper(msp->sseq[i]) == freeupper(qseq[i]))
-		  id++;
+	      int i = 0;
+	      for (id=0; i < len; i++)
+		{
+		  if (freeupper(msp->sseq[i]) == freeupper(displaySeq[i]))
+		    {
+		      id++;
+		    }
+		}
 	    }
 	  else						    /* blastn, blastp & blastx */
 	    {
 	      len = sSeqMax - sSeqMin + 1 ;
 	      
-	      for (i=0, id=0; i< len; i++)
+	      int i = 0;
+	      for (id=0; i< len; i++)
                 {
                   int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
-		  if (freeupper(msp->sseq[sIndex]) == freeupper(qseq[i]))
-		    id++;
+		  if (freeupper(msp->sseq[sIndex]) == freeupper(displaySeq[i]))
+		    {
+		      id++;
+		    }
                 }
 	    }
 	}
@@ -1003,10 +1044,10 @@ static void calcID(MSP *msp, GtkWidget *tree)
 		  
                   len += sRangeMax - sRangeMin + 1;
                   
-                  /* Note that qseq has been cut down to just the section relating to this msp.
+                  /* Note that displaySeq has been cut down to just the section relating to this msp.
 		   * We need to translate the first coord in the range (which is in terms of the full
 		   * reference sequence) into coords in the cut-down ref sequence. */
-                  int q_start = qForward ? (qRangeMin - qSeqMin) / numFrames : (qSeqMax - qRangeMax) / numFrames;
+                  int q_start = qForward ? (qRangeMin - displaySeqMin) / numFrames : (displaySeqMax - qRangeMax) / numFrames;
 		  
 		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
 		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
@@ -1025,11 +1066,11 @@ static void calcID(MSP *msp, GtkWidget *tree)
 #ifdef ED_G_NEVER_INCLUDE_THIS_CODE
 		      /* for debug..... */
 		      sub = msp->sseq + j ;
-		      query = qseq + k ;
+		      query = displaySeq + k ;
 #endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
 		      
 		      
-		      if (freeupper(msp->sseq[j]) == freeupper(qseq[k]))
+		      if (freeupper(msp->sseq[j]) == freeupper(displaySeq[k]))
 			id++ ;
 		      
                       
@@ -1039,7 +1080,7 @@ static void calcID(MSP *msp, GtkWidget *tree)
 #endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
                       
 		      
-                      /* Move to the next base. The qseq is always forward, but we might have to
+                      /* Move to the next base. The displaySeq is always forward, but we might have to
                        * traverse the s sequence in reverse. */
                       ++k ;
                       if (sForward) ++j ;
@@ -1051,16 +1092,26 @@ static void calcID(MSP *msp, GtkWidget *tree)
       
       msp->id = (int)((float)100*id/len + .5);
       
-      messfree(qseq);
+      g_free(displaySeq);
     }
   else
-    msp->id = 0 ;
+    {
+      msp->id = 0 ;
+    }
   
   return ;
 }
 
 
-static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRange *displayRange)
+/* Create a dummy MSP for the reference sequence so that we can display it in the
+ * detail-view tree along with all the other sequences. Note that the q coords are
+ * in the DNA sequence and the s coords are in the actual displayed sequence (which
+ * may be a peptide sequence if we're doing protein matches). */
+static MSP* createRefSeqMsp(GtkWidget *tree, 
+			    gboolean fwd, 
+			    char *displaySeq, 
+			    const IntRange const *refSeqRange,
+			    const IntRange *displaySeqRange)
 {
   MSP *msp = g_malloc(sizeof(MSP));
 
@@ -1068,22 +1119,27 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRang
   msp->type = BLX_MSP_INVALID;
   msp->score = 0;
   msp->id = -1;
+
   msp->qname = REFERENCE_SEQUENCE_NAME;
   msp->qframe[0] = '(';
   msp->qframe[1] = fwd ? '+' : '-';
   msp->qframe[2] = '0';
   msp->qframe[3] = ')';
-  msp->qstart = displayRange->min;
-  msp->qend = displayRange->max;
+  msp->qstart = refSeqRange->min;
+  msp->qend = refSeqRange->max;
+  
+  msp->displayStart = displaySeqRange->min;
+  msp->displayEnd = displaySeqRange->max;
+  
   msp->sname = REFERENCE_SEQUENCE_NAME;
   msp->sframe[0] = '(';
   msp->sframe[1] = fwd ? '+' : '-';
   msp->sframe[2] = '0';
   msp->sframe[3] = ')';
-  msp->slength = displayRange->max - displayRange->min;
-  msp->sstart = displayRange->min;
-  msp->send = displayRange->max;
-  msp->sseq = refSeq;
+  msp->slength = displaySeqRange->max - displaySeqRange->min + 1;
+  msp->sstart = displaySeqRange->min;
+  msp->send = displaySeqRange->max;
+  msp->sseq = displaySeq;
 
   return msp;
 }
@@ -1094,8 +1150,14 @@ static MSP* createRefSeqMsp(GtkWidget *tree, gboolean fwd, char *refSeq, IntRang
  * row for this msp. */
 void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
 {
-  /* Calculate the id */
-  calcID(msp, tree);
+  /* First, calculate the id and set the "real" reference sequence coords (the
+   * ones relative to the ref seq that is actually displayed - different to the
+   * DNA ref sequence if we're displaying protein matches). */
+//  calcID(msp, tree);
+  
+  const int numReadingFrames = treeGetNumReadingFrames(tree);
+  msp->displayStart = convertDnaToPeptide(msp->qstart, numReadingFrames);
+  msp->displayEnd = convertDnaToPeptide(msp->qend, numReadingFrames);
   
   /* Add it to the tree's data store */
   GtkListStore *store = GTK_LIST_STORE(model);
@@ -1348,12 +1410,13 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 					   G_TYPE_INT);
   
   /* Add a 'fake' msp for the ref sequence and add it to the model */
-  char *refSeq = treeGetRefSeq(tree);
+  char *displaySeq = treeGetDisplaySeq(tree);
   
   MSP *refSeqMsp = createRefSeqMsp(tree,
 				   treeGetStrand(tree) == FORWARD_STRAND, 
-				   refSeq, 
-				   treeGetDisplayRange(tree));
+				   displaySeq, 
+				   treeGetRefSeqRange(tree),
+				   treeGetFullRange(tree));
   
   addMspToTreeModel(GTK_TREE_MODEL(store), refSeqMsp, tree);
 

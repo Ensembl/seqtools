@@ -33,7 +33,6 @@ typedef struct _DetailViewProperties
     GList *fwdStrandTrees;	  /* A list of all the trees that show the forward strand of the ref seq */
     GList *revStrandTrees;	  /* A list of all the trees that show the reverse strand of the ref seq */
     
-    char *refSeq;		  /* The reference sequence (forward strand) */
     BlxSeqType seqType;		  /* The match type, i.e. dna or peptide */
     int numReadingFrames;	  /* The number of reading frames */
     int verticalSeparator;	  /* The vertical distance between the tree rows */
@@ -58,9 +57,10 @@ typedef struct _DetailViewProperties
 
 /* Public function declarations */
 char*			detailViewGetRefSeq(GtkWidget *detailView);
-char*			detailViewGetRefSeqReverseStrand(GtkWidget *detailView);
+char*			detailViewGetDisplaySeq(GtkWidget *detailView);
 int			detailViewGetNumReadingFrames(GtkWidget *detailView);
 IntRange*		detailViewGetDisplayRange(GtkWidget *detailView);
+IntRange*		detailViewGetFullRange(GtkWidget *detailView);
 int			detailViewGetSelectedBaseIdx(GtkWidget *detailView);
 int			detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*		detailViewGetAdjustment(GtkWidget *detailView);
@@ -72,6 +72,10 @@ BlxBlastMode		detailViewGetBlastMode(GtkWidget *detailView);
 PangoFontDescription*	detailViewGetFontDesc(GtkWidget *detailView);
 GtkCellRenderer*	detailViewGetRenderer(GtkWidget *detailView);
 int			detailViewGetVerticalSeparator(GtkWidget *detailView);
+BlxSeqType		detailViewGetSeqType(GtkWidget *detailView);
+char**			detailViewGetGeneticCode(GtkWidget *detailView);
+IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);
+GtkWidget*	        detailViewGetMainWindow(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -96,13 +100,14 @@ void			scrollDetailViewRightPage(GtkWidget *detailView);
 
 void			updateFeedbackBox(GtkWidget *detailView);
 
+void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
+
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 GtkWidget *panedWidget,
 					 GtkAdjustment *adjustment, 
 					 GtkWidget *fwdStrandGrid, 
 					 GtkWidget *revStrandGrid,
 					 MSP *mspList,
-					 char *refSeq,
 					 BlxBlastMode mode,
 					 BlxSeqType seqType,
 					 int numReadingFrames,

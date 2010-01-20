@@ -22,7 +22,6 @@ typedef struct _BigPictureProperties
     GtkWidget *exonView;    /* The section showing the exons */
     
     IntRange displayRange;  /* The currently-displayed range in the big picture */
-    IntRange fullRange;     /* The full range of the reference sequence */
     
     int cellWidth;	    /* The width of the grid cells (same for all grids) */
     int numHCells;	    /* The number of cells in the grid horizontally */
@@ -71,7 +70,6 @@ gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetDetailView(GtkWidget *bigPicture);
-IntRange*		      bigPictureGetFullRange(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      setBigPictureDisplayWidth(GtkWidget *bigPicture, int width);
@@ -99,8 +97,7 @@ GtkWidget*		      createBigPicture(GtkWidget *mainWindow,
 					       GtkWidget *panedWidget,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid, 
-					       IntRange *displayRange, 
-					       IntRange *fullRange);
+					       const IntRange const *initDisplayRange);
 
 
 #endif /* _big_picture_included_ */

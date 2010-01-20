@@ -96,6 +96,8 @@ static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
 	{
 	  drawIntron(GTK_LAYOUT(exonView)->bin_window, gc, x, y, width, height);
 	}
+	
+      g_object_unref(gc);
     }
   
   return FALSE;

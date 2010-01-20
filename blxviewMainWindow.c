@@ -10,6 +10,7 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/bigpicture.h>
+#include <SeqTools/utilities.h>
 #include <gdk/gdkkeysyms.h>
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      4
@@ -18,7 +19,6 @@
 
 /* Local function declarations */
 static void			  blxShowStats(GtkAction *action, gpointer data);
-static const char const*	  mainWindowGetRefSeq(GtkWidget *mainWindow);
 static MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
 
 
@@ -46,6 +46,129 @@ static const char *mainMenuDescription =
 "      <menuitem action='Statistics'/>"
 "  </popup>"
 "</ui>";
+
+
+
+/***********************************************************
+ *			   Menu Utilities                  *
+ ***********************************************************/
+
+/* Copy a segment of the given sequence into a new string. The result must be
+ * free'd with g_free by the caller. The given indices are 1-based. */
+static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const int idx2)
+{
+  const int minIdx = min(idx1, idx2);
+  const int maxIdx = max(idx1, idx2);
+  
+  const int segmentLen = maxIdx - minIdx + 1;
+  gchar *segment = g_malloc(sizeof(gchar) * segmentLen + 1);
+  
+  strncpy(segment, inputSeq + minIdx - 1, segmentLen);
+  segment[segmentLen] = '\0';
+  
+  return segment;
+}
+
+
+/* Get a segment of the reference sequence (which is always the DNA sequence and
+ * always the forward strand) and reverse/complement it as required for the given
+ * strand and reading frame (note that the sequence will only actually be reversed
+ * if the 'reverse' argument is true). This function also translates it to a peptide
+ * sequence if relevant. */
+gchar *getRefSeqSegment(GtkWidget *mainWindow, 
+		        const int coord1, 
+		        const int coord2,
+		        const Strand strand,
+			const BlxSeqType inputSeqType,
+		        const int frame,
+			const int numReadingFrames,
+		        const gboolean reverse)
+{
+  gchar *result = NULL;
+  
+  int qMin = min(coord1, coord2); 
+  int qMax = max(coord1, coord2);
+
+  /* If the input coords are on a peptide sequence, convert them to DNA sequence coords */
+  if (inputSeqType == BLXSEQ_PEPTIDE)
+    {
+      qMin = convertPeptideToDna(qMin, frame, numReadingFrames);
+      qMax = convertPeptideToDna(qMax, frame, numReadingFrames);
+    }
+  
+  /* Check that the requested segment is within the reference sequence range */
+  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  
+  if (qMin < refSeqRange->min || qMax > refSeqRange->max)
+    {
+      messout ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, refSeqRange->min, refSeqRange->max);
+      if (inputSeqType == BLXSEQ_PEPTIDE) messout("Input coords on peptide sequence were %d - %d", coord1, coord2);
+      return NULL;
+    }
+  
+  /* Copy the portion of interest from the reference sequence and translate as necessary */
+  const char const *refSeq = mainWindowGetRefSeq(mainWindow);
+  BlxBlastMode mode = mainWindowGetBlastMode(mainWindow);
+			    
+  if (mode == BLXMODE_BLASTP || mode == BLXMODE_TBLASTN)
+    {
+      /* Just get a straight copy of this segment from the ref seq */
+      result = copySeqSegment(refSeq, qMin, qMax);
+      
+      if (reverse)
+	{
+	  g_strreverse(result);
+	}
+    }
+  else
+    {
+      /* Get the segment of the ref seq, adjusted as necessary for this strand */
+      gchar *segment = NULL;
+      
+      if (strand == FORWARD_STRAND)
+	{
+	  /* Straight copy of the ref seq segment */
+	  segment = copySeqSegment(refSeq, qMin, qMax);
+	}
+      else
+	{
+	  /* Get the segment of the ref seq and then complement it */
+	  segment = copySeqSegment(refSeq, qMin, qMax);
+	  blxComplement(segment);
+	  
+	  if (!segment)
+	    {
+	      messcrash ("Error getting the reference sequence segment: Failed to complement the reference sequence for the range %d - %d.", qMin, qMax);
+	    }
+	}
+      
+      if (reverse)
+	{
+	  g_strreverse(segment);
+	}
+      
+      if (mode == BLXMODE_BLASTN) 
+	{
+	  /* Just return the segment of DNA sequence */
+	  result = segment;
+	}
+      else
+	{
+	  /* Translate the DNA sequence to a peptide sequence */
+	  result = blxTranslate(segment, mainWindowGetGeneticCode(mainWindow));
+	  
+	  g_free(segment); /* delete this because we're not returning it */
+	  segment = NULL;
+	  
+	  if (!result)
+	    {
+	      messcrash ("Error getting the reference sequence segment: Failed to translate the DNA sequence for the reference range %d - %d/\n", coord1, coord2) ;
+	    }
+	}
+    }
+  
+  return result;
+}
 
 
 /***********************************************************
@@ -223,7 +346,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
       GtkWidget *detailView = properties->detailView;
       DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
       
-      IntRange *fullRange = bigPictureGetFullRange(properties->bigPicture); /* should probably live in MainWindowProperties */
+      IntRange *fullRange = mainWindowGetFullRange(window);
       IntRange *displayRange = &detailViewProperties->displayRange;
       
       if (detailViewProperties->selectedBaseIdx != UNSET_INT)
@@ -297,8 +420,13 @@ static void mainWindowCreateProperties(GtkWidget *widget,
 				       GtkWidget *detailView,
 				       MSP *mspList,
 				       const BlxBlastMode blastMode,
-				       const char const *refSeq,
-				       const BlxSeqType seqType)
+				       char *refSeq,
+				       char *displaySeq,
+				       const IntRange const *refSeqRange,
+				       const IntRange const *fullDisplayRange,
+				       const BlxSeqType seqType,
+				       char **geneticCode,
+				       int numReadingFrames)
 {
   if (widget)
     {
@@ -309,8 +437,15 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->mspList = mspList;
       properties->blastMode = blastMode;
       properties->refSeq = refSeq;
+      properties->displaySeq = displaySeq;
+      properties->refSeqRange.min = refSeqRange->min;
+      properties->refSeqRange.max = refSeqRange->max;
+      properties->fullDisplayRange.min = fullDisplayRange->min;
+      properties->fullDisplayRange.max = fullDisplayRange->max;
       properties->strandsToggled = FALSE;
       properties->seqType = seqType;
+      properties->geneticCode = geneticCode;
+      properties->numReadingFrames = numReadingFrames;
       
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyMainWindow), NULL); 
@@ -341,16 +476,52 @@ BlxBlastMode mainWindowGetBlastMode(GtkWidget *mainWindow)
   return properties ? properties->blastMode : FALSE;
 }
 
-static const char const* mainWindowGetRefSeq(GtkWidget *mainWindow)
+char * mainWindowGetRefSeq(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->refSeq : NULL;
+}
+
+char* mainWindowGetDisplaySeq(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->displaySeq : NULL;
+}
+
+char** mainWindowGetGeneticCode(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->geneticCode : NULL;
 }
 
 static MSP* mainWindowGetMspList(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->mspList : FALSE;
+}
+
+BlxSeqType mainWindowGetSeqType(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->seqType : FALSE;
+}
+
+IntRange* mainWindowGetFullRange(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? &properties->fullDisplayRange : NULL;
+}
+
+IntRange* mainWindowGetRefSeqRange(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? &properties->refSeqRange : NULL;
+}
+
+int mainWindowGetNumReadingFrames(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->numReadingFrames : UNSET_INT;
 }
 
 /***********************************************************
@@ -401,11 +572,24 @@ GtkWidget* createMainWindow(char *refSeq,
 			    MSP *mspList, 
 			    BlxBlastMode blastMode,
 			    BlxSeqType seqType, 
-			    int numReadingFrames)
+			    int numReadingFrames,
+			    char **geneticCode,
+			    const int refSeqOffset)
 {
-  int refSeqEnd = strlen(refSeq);
-  IntRange refSeqRange = {1, refSeqEnd};
-  IntRange bigPictureDisplayRange  = {1, refSeqEnd};
+  /* Get the range of the reference sequence. If this is a DNA sequence but our
+   * matches are peptide sequences, we must convert to the peptide sequence. */
+  const int refSeqLen = (int)strlen(refSeq);
+  IntRange refSeqRange = {refSeqOffset + 1, refSeqOffset + refSeqLen};
+  IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
+  char *displaySeq = refSeq;
+  
+  if (seqType == BLXSEQ_PEPTIDE)
+    {
+      displaySeq = blxTranslate(refSeq, geneticCode);
+      fullDisplayRange.min = 1;
+      fullDisplayRange.max = strlen(displaySeq);
+      printf("Converted DNA sequence (len=%d) to peptide sequence (len=%d).\n",  refSeqLen, fullDisplayRange.max);
+    }
   
   /* Create the main window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -424,7 +608,7 @@ GtkWidget* createMainWindow(char *refSeq,
   
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
-  GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, refSeqRange.max - refSeqRange.min + 1, 1, 0, 0));
+  GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, fullDisplayRange.max - fullDisplayRange.min + 1, 1, 0, 0));
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
   
@@ -433,8 +617,7 @@ GtkWidget* createMainWindow(char *refSeq,
 					   panedWidget, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid, 
-					   &bigPictureDisplayRange, 
-					   &refSeqRange);
+					   &fullDisplayRange);
   printf("Done.\n");
   
   printf("Creating detail view...\n");
@@ -444,11 +627,10 @@ GtkWidget* createMainWindow(char *refSeq,
 					   fwdStrandGrid, 
 					   revStrandGrid,
 					   mspList,
-					   refSeq,
 					   blastMode,
 					   seqType,
 					   numReadingFrames,
-					   &refSeqRange);
+					   &fullDisplayRange);
   printf("Done.\n");
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
@@ -456,13 +638,27 @@ GtkWidget* createMainWindow(char *refSeq,
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
   
   /* Set required data in the main window widget */
-  mainWindowCreateProperties(window, bigPicture, detailView, mspList, blastMode, refSeq, seqType);
+  mainWindowCreateProperties(window, 
+			     bigPicture, 
+			     detailView, 
+			     mspList, 
+			     blastMode, 
+			     refSeq, 
+			     displaySeq,
+			     &refSeqRange, 
+			     &fullDisplayRange, 
+			     seqType, 
+			     geneticCode,
+			     numReadingFrames);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK (gtk_main_quit), NULL);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
   
+  /* Add the MSP's to the trees */
+  detailViewAddMspData(detailView, mspList);
+
   /* Show the window */
   printf("realizing widgets...\n");
   gtk_widget_show_all(window);

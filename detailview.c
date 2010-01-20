@@ -32,7 +32,7 @@ static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
 static gboolean		    widgetIsTree(GtkWidget *widget);
 static gboolean		    widgetIsTreeContainer(GtkWidget *widget);
 static void		    updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
-
+static void		    refreshDetailViewHeader(GtkWidget *detailView);
 
 /***********************************************************
  *		       Utility functions                   *
@@ -68,10 +68,10 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
   gint most_preferred = g_list_length(pref_families);
   PangoFontFamily *match_family = NULL;
 
-  gint i;
-  for (i = 0 ; (i < n_families && !found_most_preferred) ; i++)
+  gint displayTextPos;
+  for (displayTextPos = 0 ; (displayTextPos < n_families && !found_most_preferred) ; displayTextPos++)
     {
-      const gchar *name = pango_font_family_get_name(families[i]) ;
+      const gchar *name = pango_font_family_get_name(families[displayTextPos]) ;
 
       /* Look for this font family in our list of preferred families */
       GList *pref = g_list_first(pref_families) ;
@@ -83,7 +83,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
 	  
 	  if (g_ascii_strncasecmp(name, pref_font, strlen(pref_font)) == 0
 #if GLIB_MAJOR_VERSION == 2 && GLIB_MINOR_VERSION >= 6
-	      && pango_font_family_is_monospace(families[i])
+	      && pango_font_family_is_monospace(families[displayTextPos])
 #endif
 	      )
 	    {
@@ -91,7 +91,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
               if(current <= most_preferred)
                 {
 		  most_preferred = current;
-		  match_family = families[i];
+		  match_family = families[displayTextPos];
 
                   if(most_preferred == 1)
 		    {
@@ -538,39 +538,68 @@ static void updateDetailViewHeaderFont(GtkWidget *detailView, PangoFontDescripti
 static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 					 GtkWidget *lineWidget, 
 					 const int frame, 
-					 const char *refSeq)
+					 char *refSeq)
 {
-  if (GTK_IS_LABEL(lineWidget))
-    {
-      GtkLabel *label = GTK_LABEL(lineWidget);
-//      int numReadingFrames = detailViewGetNumReadingFrames(detailView);
-      IntRange *displayRange = detailViewGetDisplayRange(detailView);
-      int displayLen = displayRange->max - displayRange->min + 1;
-      
-      char displayText[displayLen + 10];
-      
-      int i = 0;
-      int qIdx = displayRange->min;
-      for ( ; qIdx <= displayRange->max; ++i, ++qIdx)
-	{
-	  displayText[i] = refSeq[qIdx - 1];
-	}
-
-      /* temp for testing to fill up seq col header while it's the wrong size... */
-      displayText[i++] = 'z';
-      displayText[i++] = 'z';
-      displayText[i++] = 'z';
-      displayText[i++] = 'z';
-      displayText[i++] = 'z';
-
-      displayText[i] = '\0';
-      
-      gtk_label_set_text(label, displayText);
-    }
-  else
+  if (!GTK_IS_LABEL(lineWidget))
     {
       messcrash("Unexpected widget type in detail view header: expected label");
     }
+
+  
+  GtkLabel *label = GTK_LABEL(lineWidget);
+  
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  char displayText[displayRange->max - displayRange->min + 1 + 10];
+  
+  /* Loop forward/backward through the display range depending on which strand we're viewing.
+   * The display range is the range for the peptides. We have to adjust by the number of reading
+   * frames to get the index into the reference sequence (which is DNA bases). */
+  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
+
+  IntRange qRange;
+  qRange.min = convertPeptideToDna(displayRange->min, frame, numFrames);
+  qRange.max = convertPeptideToDna(displayRange->max, frame, numFrames);
+  
+  int qIdx = rightToLeft ? qRange.max : qRange.min;
+
+  int incrementValue = numFrames;
+  int displayTextPos = 0;
+  gboolean done = FALSE;
+  
+  while (!done)
+    {
+      /* Get the base at this index */
+      displayText[displayTextPos] = getRefSeqBase(refSeq,
+						  qIdx, 
+						  rightToLeft, /* we've got the reverse strand if display is toggled */
+						  &qRange, 
+						  BLXSEQ_DNA /* header always shows DNA bases */
+						 );
+      ++displayTextPos;
+
+      /* Get the next index and check if we've finished */
+      if (rightToLeft)
+	qIdx -= incrementValue;
+      else
+	qIdx += incrementValue;
+      
+      if (qIdx < qRange.min || qIdx > qRange.max)
+	done = TRUE;
+    }
+
+  /* to do: temp for testing to fill up seq col header while it's the wrong size (otherwise
+   * it doesn't align left)... Need to fix the header size really. */
+  displayText[displayTextPos++] = ' ';
+  displayText[displayTextPos++] = ' ';
+  displayText[displayTextPos++] = ' ';
+  displayText[displayTextPos++] = ' ';
+  displayText[displayTextPos++] = ' ';
+
+  /* Make sure the string is terminated properly */
+  displayText[displayTextPos] = '\0';
+  
+  gtk_label_set_text(label, displayText);
 }
 
 
@@ -582,7 +611,7 @@ static void refreshDetailViewHeader(GtkWidget *detailView)
   /* The sequence column header is a vbox containing 3 labels, one for each reading frame. */
   if (header && GTK_IS_CONTAINER(header))
     {
-      const char* refSeq = detailViewGetRefSeq(detailView);
+      char* refSeq = detailViewGetRefSeq(detailView);
 
       GList *lines = gtk_container_get_children(GTK_CONTAINER(header));
       GList *line = lines;
@@ -846,6 +875,12 @@ static void assertDetailView(GtkWidget *detailView)
     messcrash("Tree properties not set [widget=%x]", detailView);
 }
 
+GtkWidget* detailViewGetMainWindow(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->mainWindow : NULL;
+}
+
 GtkAdjustment* detailViewGetAdjustment(GtkWidget *detailView)
 {
   assertDetailView(detailView);
@@ -860,18 +895,29 @@ GtkCellRenderer* detailViewGetRenderer(GtkWidget *detailView)
   return properties ? properties->renderer : NULL;
 }
 
-/* Get the forward strand of the reference sequence */
+/* Get the reference sequence (always the forward strand and always the DNA seq) */
 char* detailViewGetRefSeq(GtkWidget *detailView)
 {
   assertDetailView(detailView);
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties->refSeq;
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetRefSeq(mainWindow);
 }
 
-static GtkWidget* detailViewGetMainWindow(GtkWidget *detailView)
+/* Get the actual displayed reference sequence (may be the DNA sequence or peptide 
+ * sequence - whichever we're displaying according to the BlxSeqType). Always the
+ * forward strand.) */
+char* detailViewGetDisplaySeq(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->mainWindow : NULL;
+  assertDetailView(detailView);
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetDisplaySeq(mainWindow);
+}
+
+char** detailViewGetGeneticCode(GtkWidget *detailView)
+{
+  assertDetailView(detailView);
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetGeneticCode(mainWindow);
 }
 
 static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
@@ -1050,6 +1096,24 @@ IntRange* detailViewGetDisplayRange(GtkWidget *detailView)
   return properties ? &properties->displayRange : NULL;
 }
 
+IntRange* detailViewGetFullRange(GtkWidget *detailView)
+{
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetFullRange(mainWindow);
+}
+
+IntRange* detailViewGetRefSeqRange(GtkWidget *detailView)
+{
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetRefSeqRange(mainWindow);
+}
+
+BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
+{
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  return mainWindowGetSeqType(mainWindow);
+}
+
 int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1095,7 +1159,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GtkWidget *feedbackBox,
 				       GtkWidget *header,
 				       GtkAdjustment *adjustment, 
-				       char *refSeq,
 				       BlxSeqType seqType,
 				       int numReadingFrames,
 				       IntRange *displayRange,
@@ -1112,7 +1175,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->feedbackBox = feedbackBox;
       properties->header = header;
       properties->adjustment = adjustment;
-      properties->refSeq = refSeq;
       properties->seqType = seqType;
       properties->numReadingFrames = numReadingFrames;
       properties->displayRange.min = displayRange->min;
@@ -1180,8 +1242,9 @@ static void ToggleStrand(GtkWidget *detailView)
   /* Redraw all trees (and their corresponding grids) */
   callFuncOnAllDetailViewTrees(mainWindowProperties->detailView, refreshTreeAndGrid);
   
-  /* Redraw the grid header */
+  /* Redraw the grid header and detail view header */
   gtk_widget_queue_draw(bigPictureGetGridHeader(mainWindowProperties->bigPicture));
+  refreshDetailViewHeader(detailView);
 }
 
 
@@ -1339,11 +1402,10 @@ static void GToggleStrand(GtkButton *button, gpointer data)
 //}
 
 
-static GtkWidget* createTripletCell()
+static GtkWidget* createTripletCell(const int frame)
 {
   GtkWidget *label = gtk_label_new("");
   gtk_label_set_width_chars(GTK_LABEL(label), 1);
-
   return label;
 }
 
@@ -1393,10 +1455,10 @@ static GtkWidget* createSequenceColHeader(GtkWidget *detailView,
       header = gtk_vbox_new(FALSE, 0);
       
       /* Create a line for each reading frame */
-      int i = 0;
-      for ( ; i < numReadingFrames; ++i)
+      int frame = 0;
+      for ( ; frame < numReadingFrames; ++frame)
 	{
-	  GtkWidget *line = createTripletCell();
+	  GtkWidget *line = createTripletCell(frame);
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
 	}
     }
@@ -1677,7 +1739,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
 
 
 /* Add the MSPs to the detail-view trees */
-static void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
+void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 {
   /* First, create a data store for each tree so we have something to add our data to. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel);
@@ -1726,11 +1788,10 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			    GtkWidget *fwdStrandGrid, 
 			    GtkWidget *revStrandGrid,
 			    MSP *mspList,
-			    char *refSeq,
 			    BlxBlastMode mode,
 			    BlxSeqType seqType,
 			    int numReadingFrames,
-			    IntRange *refSeqRange)
+			    IntRange *initDisplayRange)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -1789,18 +1850,14 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			     feedbackBox, 
 			     sequenceColHeader,
 			     adjustment, 
-			     refSeq, 
 			     seqType,
 			     numReadingFrames, 
-			     refSeqRange,
+			     initDisplayRange,
 			     fontDesc);
   
   /* Set the initial font. (Requires detail view properties to be set) */
   updateDetailViewFontDesc(detailView, fontDesc);
 
-  /* Add the MSP's to the trees */
-  detailViewAddMspData(detailView, mspList);
-  
   return detailView;
 }
 

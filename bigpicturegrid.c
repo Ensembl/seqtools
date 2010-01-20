@@ -265,8 +265,9 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
   gboolean rightToLeft = bigPictureGetStrandsToggled(gridProperties->bigPicture);
   
   /* Find the coordinates of the start and end base in this match sequence */
-  int qSeqMin, qSeqMax;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+  int qSeqMin = min(msp->displayStart, msp->displayEnd);
+  int qSeqMax = max(msp->displayStart, msp->displayEnd);
+
   int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
   int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
 
