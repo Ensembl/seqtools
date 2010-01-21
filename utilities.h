@@ -9,6 +9,9 @@
 #include <gtk/gtk.h>
 #include <SeqTools/blixem_.h>
 
+
+#define UNSET_INT  -1
+
 /* These colours are decimal version of, e.g. "ffff00" for yellow, i.e. R=255, G=255, B=0.
  * They can be used to define a GdkColor */
 #define GDK_YELLOW	    16776960 
@@ -35,6 +38,7 @@ void		      getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *
 void		      getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
 int		      getRangeCentre(IntRange *range);
+gboolean	      indexWithinRange(const int idx, const IntRange const *range);
 
 int		      convertPeptideToDna(const int peptideIdx, const int frame, const int numFrames);
 int		      convertDnaToPeptide(const int dnaIdx, const int numFrames);

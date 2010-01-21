@@ -26,8 +26,6 @@
 #define IS_SEQUENCE_CELL_RENDERER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass),  SEQUENCE_CELL_RENDERER_TYPE))
 #define SEQUENCE_CELL_RENDERER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj),  SEQUENCE_CELL_RENDERER_TYPE, SequenceCellRendererClass))
 
-/* Some custom constants */
-#define UNSET_INT  -1
 
 /* SequenceCellRenderer: Our custom cell renderer
  *   structure. Extend according to need */

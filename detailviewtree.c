@@ -1149,9 +1149,18 @@ static MSP* createRefSeqMsp(GtkWidget *tree,
 			    gboolean fwd, 
 			    char *displaySeq, 
 			    const IntRange const *refSeqRange,
-			    const IntRange *displaySeqRange)
+			    const IntRange *displaySeqRange,
+			    const int frame)
 {
   MSP *msp = g_malloc(sizeof(MSP));
+  
+  /* Convert the frame number to a char. It should only be one digit long. */
+  int frameCharLen = numDigitsInInt(frame);
+  char frameChar[frameCharLen];
+  sprintf(frameChar, "%d", frame);
+  
+  if (frameCharLen > 1)
+    messerror("Frame should only be one digit but frame = '%d'. Frame may be incorrect.", frame);
 
   msp->next = NULL;
   msp->type = BLX_MSP_INVALID;
@@ -1161,7 +1170,7 @@ static MSP* createRefSeqMsp(GtkWidget *tree,
   msp->qname = REFERENCE_SEQUENCE_NAME;
   msp->qframe[0] = '(';
   msp->qframe[1] = fwd ? '+' : '-';
-  msp->qframe[2] = '0';
+  msp->qframe[2] = frameChar[0];
   msp->qframe[3] = ')';
   msp->qstart = refSeqRange->min;
   msp->qend = refSeqRange->max;
@@ -1172,7 +1181,7 @@ static MSP* createRefSeqMsp(GtkWidget *tree,
   msp->sname = REFERENCE_SEQUENCE_NAME;
   msp->sframe[0] = '(';
   msp->sframe[1] = fwd ? '+' : '-';
-  msp->sframe[2] = '0';
+  msp->sframe[2] = frameChar[0];
   msp->sframe[3] = ')';
   msp->slength = displaySeqRange->max - displaySeqRange->min + 1;
   msp->sstart = displaySeqRange->min;
@@ -1468,7 +1477,8 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 				   treeGetStrand(tree) == FORWARD_STRAND, 
 				   displaySeq, 
 				   treeGetRefSeqRange(tree),
-				   treeGetFullRange(tree));
+				   treeGetFullRange(tree),
+				   treeGetFrame(tree));
   
   addMspToTreeModel(GTK_TREE_MODEL(store), refSeqMsp, tree);
 

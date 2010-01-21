@@ -76,8 +76,8 @@ static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
       IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
       gboolean rightToLeft = bigPictureGetStrandsToggled(properties->bigPicture);
       
-      int x1 = convertBaseIdxToGridPos(msp->qstart, &properties->exonViewRect, displayRange, rightToLeft);
-      int x2 = convertBaseIdxToGridPos(msp->qend, &properties->exonViewRect, displayRange, rightToLeft);
+      int x1 = convertBaseIdxToGridPos(msp->displayStart, &properties->exonViewRect, displayRange, rightToLeft);
+      int x2 = convertBaseIdxToGridPos(msp->displayEnd, &properties->exonViewRect, displayRange, rightToLeft);
       int x = min(x1, x2);
       int width = abs(x2 - x1);
       

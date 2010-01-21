@@ -15,8 +15,6 @@
 #include <SeqTools/blxview.h>
 
 
-#define UNSET_INT			-1
-
 #define BIG_PICTURE_GRID_NAME		"BigPictureGrid"
 #define DEFAULT_GRID_PERCENT_ID_MAX	100
 #define DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH 2

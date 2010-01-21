@@ -181,3 +181,12 @@ int convertDnaToPeptide(const int dnaIdx, const int numFrames)
 }
 
 
+/* Simple utility to determine whether the given index is within the given range.
+ * Returns false if the given index is an unset int or the given range is null */
+gboolean indexWithinRange(const int idx, const IntRange const *range)
+{
+  return (idx != UNSET_INT && range != NULL && idx >= range->min && idx <= range->max);
+}
+
+
+

@@ -1735,6 +1735,20 @@ static void createDetailViewPanes(GtkWidget *detailView,
 }
 
 
+static int mspGetFrame(const MSP const *msp, const BlxSeqType seqType)
+{
+  if (seqType == BLXSEQ_DNA)
+    {
+      /* Ignore the frame in  the msp. For DNA matches we only have one frame on each strand. */
+      return 1;
+    }
+  else
+    {
+      return atoi(&msp->qframe[2]);
+    }
+}
+
+
 /* Add the MSPs to the detail-view trees */
 void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 {
@@ -1742,11 +1756,13 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel);
 
   /* Loop through each MSP, and add it to the correct tree based on its strand and reading frame */
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);
   MSP *msp = mspList;
+  
   for ( ; msp; msp = msp->next)
     {
       Strand strand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
-      int frame = atoi(&msp->qframe[2]);
+      const int frame = mspGetFrame(msp, seqType);
       
       GtkWidget *tree = detailViewGetFrameTree(detailView, strand, frame);
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));

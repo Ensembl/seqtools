@@ -745,6 +745,36 @@ static void drawRefSequence(SequenceCellRenderer *renderer,
 } 
 
 
+/* The given renderer is an MSP. This function checks if there is a base index
+ * selected and, if so, colours the background for that base with the given colour. */
+static void highlightSelectedBase(SequenceCellRenderer *renderer, 
+				  GdkColor *highlightColour,
+				  GdkGC *gc,
+				  GdkWindow *window,
+				  GdkRectangle *cell_area,
+				  const int x_offset,
+				  const int y_offset,
+				  const int vertical_separator)
+{
+  const int selectedBaseIdx = getSelectedBaseIdx(renderer);
+  IntRange *displayRange = getDisplayRange(renderer);
+  
+  if (selectedBaseIdx != UNSET_INT && indexWithinRange(selectedBaseIdx, displayRange))
+    {
+      /* Convert the display-range index to a 0-based index for the section of sequence displayed */
+      const int segmentIdx = getStrandsToggled(renderer) ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
+      
+      int x, y;
+      getCoordsForBaseIdx(segmentIdx, displayRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+
+      gdk_gc_set_foreground(gc, highlightColour);
+      gdk_draw_rectangle(window, gc, TRUE, x, y, renderer->charWidth, renderer->charHeight);
+    }
+}
+
+
+/* The given renderer is an MSP that is an exon. This function draws the exon
+ * or part of the exon that is in view, if it is within the current display range. */
 static void drawExon(SequenceCellRenderer *renderer,
 		     GtkWidget *widget,
 		     GdkWindow *window, 
@@ -762,11 +792,23 @@ static void drawExon(SequenceCellRenderer *renderer,
   int x, y;
   getCoordsForBaseIdx(0, &segmentRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
   const int width = segmentLen * renderer->charWidth;
-      
+
+  /* Just draw one big rectangle the same colour for the whole thing */
   GdkColor *baseBgColour = getExonColour(renderer, FALSE);
-  
   gdk_gc_set_foreground(gc, baseBgColour);
   gdk_draw_rectangle(window, gc, TRUE, x, y, width, renderer->charHeight);
+  
+  /* If a base is selected, highlight it. The colour depends on whether it is within our exon range
+   * or not. */
+  const int selectedBaseIdx = getSelectedBaseIdx(renderer);
+  if (selectedBaseIdx != UNSET_INT)
+    {
+      GdkColor *bgColour = indexWithinRange(selectedBaseIdx, &segmentRange) 
+	? getExonColour(renderer, TRUE) 
+	: getGapColour(renderer, TRUE);
+      
+      highlightSelectedBase(renderer, bgColour, gc, window, cell_area, x_offset, y_offset, vertical_separator);
+    }
 } 
 
 
@@ -837,6 +879,7 @@ static int drawBase(SequenceCellRenderer *renderer,
 		    const int segmentIdx, 
 		    const IntRange const *segmentRange,
 		    char *refSeqSegment, 
+		    const int selectedBaseIdx,
 		    GdkWindow *window,
 		    GdkGC *gc,
 		    const int x,
@@ -848,7 +891,7 @@ static int drawBase(SequenceCellRenderer *renderer,
   
   const int refSeqIdx = getRefSeqIndexFromSegment(renderer, segmentRange, segmentIdx);
   const int sIdx = getMatchIdxFromRefIdx(renderer, refSeqIdx);
-  const gboolean selected = (refSeqIdx == getSelectedBaseIdx(renderer));
+  const gboolean selected = (refSeqIdx == selectedBaseIdx);
   
   if (sIdx == UNSET_INT)
     {
@@ -1047,6 +1090,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   gboolean rightToLeft = getStrandsToggled(renderer);
   const Strand qStrand = getRefSeqStrand(renderer);
   const int qFrame = getRefSeqFrame(renderer);
+  const int selectedBaseIdx = getSelectedBaseIdx(renderer);
   
   GtkWidget *mainWindow = detailViewGetMainWindow(renderer->detailView);
   
@@ -1076,7 +1120,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 	  getCoordsForBaseIdx(segmentIdx, &segmentRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
 	  
 	  /* Find the base in the match sequence and draw the background colour according to how well it matches */
-	  int sIdx = drawBase(renderer, segmentIdx, &segmentRange, refSeqSegment, window, gc, x, y, displayText);
+	  int sIdx = drawBase(renderer, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, window, gc, x, y, displayText);
 	  
 	  /* If there is an insertion/deletion between this and the previous match, draw it now */
 	  drawGap(renderer, sIdx, lastFoundSIdx, x, y, window, gc);
@@ -1094,6 +1138,12 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       drawSequenceText(renderer, displayText, &segmentRange, cell_area, x_offset, y_offset, vertical_separator, widget, window, state, gc);
       
       g_free(refSeqSegment);
+    }
+    
+  /* If a base is selected and we've not already processed it, highlight it now */
+  if (selectedBaseIdx != UNSET_INT && !indexWithinRange(selectedBaseIdx, &segmentRange))
+    {
+      highlightSelectedBase(renderer, getGapColour(renderer, TRUE), gc, window, cell_area, x_offset, y_offset, vertical_separator);
     }
 }    
 
