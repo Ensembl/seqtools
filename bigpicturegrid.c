@@ -18,12 +18,13 @@
 
 
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"
-#define DEFAULT_GRID_NUM_VERT_CELLS	5
-#define DEFAULT_GRID_PERCENT_ID_MIN	0
-#define DEFAULT_MSP_LINE_HEIGHT		3
-#define DEFAULT_GRID_Y_PADDING		5
-#define DEFAULT_GRID_CELL_Y_PADDING	-2
-#define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2
+#define DEFAULT_GRID_NUM_VERT_CELLS	5	  /* the number of vertical cells to split the grid into */
+#define DEFAULT_GRID_PERCENT_ID_MIN	0	  /* the minimum value on the y-axis of the grid */
+#define DEFAULT_MSP_LINE_HEIGHT		2	  /* the height of the MSP lines in the grid */
+#define DEFAULT_GRID_Y_PADDING		5	  /* this provides space between the grid and the edge of the widget */
+#define DEFAULT_GRID_CELL_Y_PADDING	-2	  /* this controls the vertical space between the labels on the y axis */
+#define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2	  /* this provides space between highlight box and the top/bottom of the grid */
+#define MIN_MSP_LINE_WIDTH		1	  /* used to make sure the MSP lines never get so narrow that they are not invisible */
 
 
 /* Local function declarations */
@@ -129,8 +130,8 @@ gint convertValueToGridPos(GtkWidget *grid, const gint value)
   IntRange *valRange = &properties->percentIdRange;
   gdouble percent = (gdouble)(valRange->max - value) / (gdouble)(valRange->max - valRange->min);
   
-  /* Make sure we do the multiplication before truncating to int */
-  gint result = properties->gridRect.y + (gint)((gdouble)properties->gridRect.height * percent);
+  /* Make sure we do the multiplication on doubles before rounding to int */
+  gint result = properties->gridRect.y + round((gdouble)properties->gridRect.height * percent);
   return result;
 }
 
@@ -286,17 +287,25 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
 
   /* We'll start drawing at the lowest x coord, so set x to the min of x1 and x2 */
   if (x)
-    *x = min(x1, x2);
-  
+    {
+      *x = min(x1, x2);
+    }
+    
   if (width)
-    *width = abs(x1 - x2);
+    {
+      *width = max(abs(x1 - x2), MIN_MSP_LINE_WIDTH);
+    }
   
   /* Find where in the y axis we should draw the line, based on the %ID value */
   if (y)
-    *y = convertValueToGridPos(grid, msp->id);
-  
+    {
+      *y = convertValueToGridPos(grid, msp->id);
+    }
+    
   if (height)
-    *height = gridProperties->mspLineHeight;
+    {
+      *height = gridProperties->mspLineHeight;
+    }
 }
 
 

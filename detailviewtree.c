@@ -968,18 +968,22 @@ static void onSelectionChangedTree(GObject *selection, gpointer data)
  * */
 static void calcID(MSP *msp, GtkWidget *tree)
 {
-  BOOL sForward = strchr(msp->sframe, '+') ? TRUE : FALSE;
-  BlxBlastMode blastMode = treeGetBlastMode(tree);
+  const gboolean sForward = (strchr(msp->sframe, '+')) ? TRUE : FALSE ;
+  const gboolean qForward = (strchr(msp->qframe, '+')) ? TRUE : FALSE ;
+
+  const BlxBlastMode blastMode = treeGetBlastMode(tree);
+  const int numFrames = treeGetNumReadingFrames(tree);
 
   int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
   getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
   
+  msp->id = 0;
+  
   if (msp->sseq && !mspIsFake(msp) /* to do: is this required? && msp->sseq != padseq */)
     {
-      /* Note that getSequenceSegment will reverse complement if we pass 'reverse' as true,
-       * (which we do if the display is toggled and we're drawing right-to-left). This 
-       * means that where there is no gaps array the comparison is trivial as coordinates
-       * can be ignored and the two sequences just whipped through. */
+      /* Note that getSequenceSegment will reverse complement the ref seq if it is the rev
+       * reverse strand. This means that where there is no gaps array the comparison is trivial 
+       * as coordinates can be ignored and the two sequences just whipped through. */
       GtkWidget *detailView = treeGetDetailView(tree);
       char *refSeqSegment = getSequenceSegment(detailViewGetMainWindow(detailView),
 					       detailViewGetRefSeq(detailView),
@@ -990,60 +994,44 @@ static void calcID(MSP *msp, GtkWidget *tree)
 					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
 					       treeGetFrame(tree),
 					       treeGetNumReadingFrames(tree),
-					       treeGetStrandsToggled(tree));
+					       !qForward);
       
       if (!refSeqSegment)
 	{
-	  messout ( "calcID failed: Don't have genomic sequence %d - %d\n", msp->qstart, msp->qend);
+	  messout ( "calcID failed: Don't have genomic sequence %d - %d, requested for match sequence '%s' (match coords = %d - %d)\n", msp->qstart, msp->qend, msp->sname, msp->sstart, msp->send);
 	  msp->id = 0;
 	  return;
 	}
-      
-      
-      /* NOTE, tblastn/x are not implemented for gaps yet. */
-      int id = 0, len = 0;
+
+      /* We need to find the number of characters that match out of the total number */
+      int numMatchingChars = 0;
+      int totalNumChars = 0;
       
       if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
 	{
 	  /* Ungapped alignments. */
-	  
-	  if (blastMode == BLXMODE_TBLASTN)
+	  totalNumChars = (qSeqMax - qSeqMin + 1) / numFrames;
+
+	  if (blastMode == BLXMODE_TBLASTN || blastMode == BLXMODE_TBLASTX)
 	    {
-	      len = msp->qend - msp->qstart + 1;
-	      
 	      int i = 0;
-	      for (id=0; i < len; i++)
+	      for ( ; i < totalNumChars; i++)
 		{
 		  if (freeupper(msp->sseq[i]) == freeupper(refSeqSegment[i]))
 		    {
-		      id++;
-		    }
-		}
-	    }
-	  else if (blastMode == BLXMODE_TBLASTX)
-	    {
-	      len = abs(msp->qend - msp->qstart + 1)/3;
-	      
-	      int i = 0;
-	      for (id=0; i < len; i++)
-		{
-		  if (freeupper(msp->sseq[i]) == freeupper(refSeqSegment[i]))
-		    {
-		      id++;
+		      numMatchingChars++;
 		    }
 		}
 	    }
 	  else						    /* blastn, blastp & blastx */
 	    {
-	      len = sSeqMax - sSeqMin + 1 ;
-	      
 	      int i = 0;
-	      for (id=0; i< len; i++)
+	      for ( ; i < totalNumChars; i++)
                 {
                   int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
 		  if (freeupper(msp->sseq[sIndex]) == freeupper(refSeqSegment[i]))
 		    {
-		      id++;
+		      numMatchingChars++;
 		    }
                 }
 	    }
@@ -1067,22 +1055,19 @@ static void calcID(MSP *msp, GtkWidget *tree)
 	      /* blastn and blastp remain simple but blastx is more complex since the query
                * coords are nucleic not protein. */
 	      
-              BOOL qForward = (strchr(msp->qframe, '+')) ? TRUE : FALSE ;
               Array gaps = msp->gaps;
-	      int numFrames = treeGetNumReadingFrames(tree);
 	      
-	      len = 0 ;
-              int i ;
-	      for (i = 0, id = 0 ; i < arrayMax(gaps) ; i++)
+              int i = 0;
+	      for ( ; i < arrayMax(gaps) ; i++)
 		{
 		  SMapMap *m = arrp(gaps, i, SMapMap) ;
 		  
                   int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
 		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
 		  
-                  len += sRangeMax - sRangeMin + 1;
+                  totalNumChars += sRangeMax - sRangeMin + 1;
                   
-                  /* Note that refSeqSegment has been cut down to just the section relating to this msp.
+                  /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
 		   * We need to translate the first coord in the range (which is in terms of the full
 		   * reference sequence) into coords in the cut-down ref sequence. */
                   int q_start = qForward ? (qRangeMin - qSeqMin) / numFrames : (qSeqMax - qRangeMax) / numFrames;
@@ -1092,49 +1077,25 @@ static void calcID(MSP *msp, GtkWidget *tree)
 		   * so start from the lower or upper end accordingly. */
                   int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
 		  
-                  int j = s_start, k = q_start ;
-		  while ((sForward && j < sRangeMax) || (!sForward && j >= sRangeMin - 1))
+                  int sIdx = s_start, qIdx = q_start ;
+		  while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
 		    {
-		      
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-		      char *sub, *query ;
-		      char *dummy ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-		      
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-		      /* for debug..... */
-		      sub = msp->sseq + j ;
-		      query = refSeqSegment + k ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-		      
-		      
-		      if (freeupper(msp->sseq[j]) == freeupper(refSeqSegment[k]))
-			id++ ;
-		      
-                      
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-		      else
-			dummy = sub ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-                      
+		      if (freeupper(msp->sseq[sIdx]) == freeupper(refSeqSegment[qIdx]))
+			numMatchingChars++ ;
 		      
                       /* Move to the next base. The refSeqSegment is always forward, but we might have to
                        * traverse the s sequence in reverse. */
-                      ++k ;
-                      if (sForward) ++j ;
-                      else --j ;
+                      ++qIdx ;
+                      if (sForward) ++sIdx ;
+                      else --sIdx ;
 		    }
 		}
 	    }
 	}
       
-      msp->id = (int)((float)100*id/len + .5);
+      msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
       
       g_free(refSeqSegment);
-    }
-  else
-    {
-      msp->id = 0 ;
     }
   
   return ;
