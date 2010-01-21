@@ -725,7 +725,8 @@ static void drawRefSequence(SequenceCellRenderer *renderer,
 	  getCoordsForBaseIdx(segmentIdx, segmentRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
 	  
 	  /* Draw the background */
-	  gboolean isSelected = (selectedBaseIdx == segmentIdx + 1);
+	  const int displayIdx = rightToLeft ? segmentRange->max - segmentIdx : segmentRange->min + segmentIdx;
+	  gboolean isSelected = (selectedBaseIdx == displayIdx);
 	  GdkColor *baseBgColour = getRefSeqColour(renderer, isSelected);
 
 	  if (baseBgColour)

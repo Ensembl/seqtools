@@ -119,6 +119,13 @@ int treeGetFrame(GtkWidget *tree)
   return properties ? properties->readingFrame : UNSET_INT;
 }
 
+static int treeGetSeqType(GtkWidget *tree)
+{
+  assertTree(tree);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetSeqType(detailView);
+}
+
 int treeGetSelectedBaseIdx(GtkWidget *tree)
 {
   assertTree(tree);
@@ -414,9 +421,20 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
 static char* getFeedbackText(GtkWidget *tree, GtkTreeModel *model, GtkTreeIter *iter)
 {
   /* The info we need to find... */
-  int qIdx = treeGetSelectedBaseIdx(tree);
-  int sIdx = UNSET_INT;
+  int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
+  int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
   char *sname = NULL;
+
+  /* See if a base is selected. If we're displaying peptide matches, this will be a coord in
+   * the peptide reference sequence, so we'll need to convert it to a coord into the DNA ref seq.
+   * We'll display the coord for the DNA base relevant for this tree's reading frame. */
+  int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
+  qIdx = selectedBaseIdx;
+  
+  if (selectedBaseIdx != UNSET_INT && treeGetSeqType(tree) == BLXSEQ_PEPTIDE)
+    {
+      qIdx = convertPeptideToDna(selectedBaseIdx, treeGetFrame(tree), treeGetNumReadingFrames(tree));
+    }
 
   /* Make sure we have enough space for all the bits to go in the string */
   int msgLen = numDigitsInInt(qIdx);
@@ -1227,9 +1245,14 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
 
   if (mspIsFake(msp))
     {
-      /* For the reference sequence, show the start and end of the display range. (Temp for debug.) */
+      /* For the reference sequence, show the start and end of the display range. Convert to DNA seq coords if not already. */
       IntRange *displayRange = treeGetDisplayRange(tree);
       coord = rightToLeft ? displayRange->max : displayRange->min;
+      
+      if (treeGetSeqType(tree) == BLXSEQ_PEPTIDE)
+	{
+	  coord = convertPeptideToDna(coord, treeGetFrame(tree), treeGetNumReadingFrames(tree));
+	}
     }
   
   char displayText[numDigitsInInt(coord) + 1];
@@ -1260,6 +1283,15 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
       /* For the reference sequence, show the start and end of the display range. (Temp for debug.) */
       IntRange *displayRange = treeGetDisplayRange(tree);
       coord = rightToLeft ? displayRange->min : displayRange->max;
+      
+      if (treeGetSeqType(tree) == BLXSEQ_PEPTIDE)
+	{
+	  int numFrames = treeGetNumReadingFrames(tree);
+	  coord = convertPeptideToDna(coord, treeGetFrame(tree), numFrames);
+	  
+	  /* Conversion returns the first base for the reading frame. We want the last base. */
+	  coord = coord + numFrames - 1;
+	}
     }
 
   char displayText[numDigitsInInt(coord) + 1];

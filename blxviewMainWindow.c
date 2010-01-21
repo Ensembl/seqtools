@@ -91,11 +91,11 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
   int qMin = min(coord1, coord2); 
   int qMax = max(coord1, coord2);
 
-  /* If the input coords are on a peptide sequence, convert them to DNA sequence coords */
+  /* If the input coords are on a peptide sequence, convert them to DNA sequence coords. */
   if (inputSeqType == BLXSEQ_PEPTIDE)
     {
-      qMin = convertPeptideToDna(qMin, frame, numReadingFrames);
-      qMax = convertPeptideToDna(qMax, frame, numReadingFrames);
+      qMin = convertPeptideToDna(qMin, frame, numReadingFrames);			/* 1st base in frame */
+      qMax = convertPeptideToDna(qMax, frame, numReadingFrames) + numReadingFrames - 1; /* last base in frame */
     }
   
   /* Check that the requested segment is within the sequence's range */
