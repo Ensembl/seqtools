@@ -225,8 +225,8 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
   int frame = 1;
   for ( ; frame <= numReadingFrames; ++frame)
     {
-      GtkWidget *fwdTree = detailViewGetFrameTree(detailView, TRUE, frame);
-      GtkWidget *revTree = detailViewGetFrameTree(detailView, FALSE, frame);
+      GtkWidget *fwdTree = detailViewGetFrameTree(detailView, FORWARD_STRAND, frame);
+      GtkWidget *revTree = detailViewGetFrameTree(detailView, REVERSE_STRAND, frame);
       
       if (fwdTree)
 	{
@@ -1521,9 +1521,8 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
 
-  /* The tree needs to know which grid and renderer it corresponds to, and vice versa */
+  /* Set the essential tree properties */
   treeCreateProperties(tree, grid, detailView, renderer, frame);
-  gridGetProperties(grid)->tree = tree;
   
   g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);

@@ -10,6 +10,7 @@
 #define _big_picture_included_
 
 #include <SeqTools/bigpicturegrid.h>
+#include <SeqTools/blixem_.h>
 
 
 
@@ -70,6 +71,8 @@ gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetDetailView(GtkWidget *bigPicture);
+BlxSeqType		      bigPictureGetSeqType(GtkWidget *bigPicture);
+int			      bigPictureGetNumReadingFrames(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      setBigPictureDisplayWidth(GtkWidget *bigPicture, int width);

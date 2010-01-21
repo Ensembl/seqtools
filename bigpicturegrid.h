@@ -24,7 +24,6 @@
 
 typedef struct _GridProperties
   {
-    GtkWidget *tree;         /* The tree that this grid corresponds to */
     GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
     
     Strand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */

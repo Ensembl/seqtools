@@ -124,10 +124,10 @@ static void drawExonView(GtkWidget *exonView)
   
   for ( ; frame <= numFrames; ++frame)
     {
-      GtkWidget *tree = detailViewGetFrameTree(detailView, TRUE, frame);
+      GtkWidget *tree = detailViewGetFrameTree(detailView, FORWARD_STRAND, frame);
       drawExonsIntronsForTree(exonView, tree);
 
-      tree = detailViewGetFrameTree(detailView, FALSE, frame);
+      tree = detailViewGetFrameTree(detailView, REVERSE_STRAND, frame);
       drawExonsIntronsForTree(exonView, tree);
     }
 }

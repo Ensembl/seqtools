@@ -27,8 +27,6 @@ static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
 static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
 static GtkWidget*		    bigPictureGetExonView(GtkWidget *bigPicture);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
-static int			    bigPictureGetNumReadingFrames(GtkWidget *bigPicture);
-static BlxSeqType		    bigPictureGetSeqType(GtkWidget *bigPicture);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -529,13 +527,13 @@ GtkWidget* bigPictureGetGridHeader(GtkWidget *bigPicture)
   return properties->header;
 }
 
-static BlxSeqType bigPictureGetSeqType(GtkWidget *bigPicture)
+BlxSeqType bigPictureGetSeqType(GtkWidget *bigPicture)
 {
   GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
   return mainWindowGetSeqType(mainWindow);
 }
 
-static int bigPictureGetNumReadingFrames(GtkWidget *bigPicture)
+int bigPictureGetNumReadingFrames(GtkWidget *bigPicture)
 {
   GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
   return mainWindowGetNumReadingFrames(mainWindow);

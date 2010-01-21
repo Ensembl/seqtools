@@ -681,13 +681,13 @@ void updateFeedbackBox(GtkWidget *detailView)
   for ( ; frame <= numFrames && !done; ++frame)
     {
       /* Forward strand tree for this reading frame */
-      GtkWidget *curTree = detailViewGetFrameTree(detailView, TRUE, frame);
+      GtkWidget *curTree = detailViewGetFrameTree(detailView, FORWARD_STRAND, frame);
       done = updateFeedbackBoxForTree(curTree);
       
       if (!done)
 	{
 	  /* Reverse strand tree for this reading frame */
-	  GtkWidget *curTree = detailViewGetFrameTree(detailView, FALSE, frame);
+	  GtkWidget *curTree = detailViewGetFrameTree(detailView, REVERSE_STRAND, frame);
 	  done = updateFeedbackBoxForTree(curTree);
 	}
     }
@@ -1004,62 +1004,57 @@ GdkColor* detailViewGetGapSelectedColour(GtkWidget *tree)
 }
 
 
+GList *detailViewGetStrandTrees(GtkWidget *detailView, const Strand strand)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return (strand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
+}
+
+
 /* Extract the tree view for the given frame on the given strand */
-GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int frame)
+GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, const Strand strand, const int frame)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GtkWidget *result = NULL;
   
   /* Get the list of trees for the forward or reverse strand, as per the input argument */
-  GList *list = forward ? properties->fwdStrandTrees : properties->revStrandTrees;
+  GList *list = (strand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
 
   /* Extract the tree for this given frame number. The list should be sorted in order of frame
    * number, and we should not be requesting a frame number greater than the number of items in the list */
-  if (frame > g_list_length(list))
+  if (frame <= g_list_length(list))
     {
-      if (g_list_length(list) > 0)
+      GList *listItem = list;
+      int count = 1;
+      
+      for ( ; listItem && count < frame; ++count)
 	{
-	  frame = 1;
+	  listItem = listItem->next;
 	}
-      else
+      
+      if (count == frame)
 	{
-	  messcrash("Invalid frame number. Requested frame=%d on %s strand but number of detail view trees=%d.",
-		    frame, (forward ? "forward" : "reverse"), g_list_length(list));
-	}
-    }
-
-  GtkWidget *item = NULL;
-  switch (frame)
-  {
-    case 1:
-      item = list->data;
-      break;
-    case 2:
-      item = list->next->data;
-      break;
-    case 3:
-      item = list->next->next->data;
-      break;
-    default:
-      messcrash("Invalid frame number. Requested frame=%d but max frame number=3", frame);
-  }
-  
-  /* The item in the list is probably a container (i.e. a scrolled window), so extract the actual tree */
-  if (GTK_IS_TREE_VIEW(item))
-    {
-      result = GTK_WIDGET(item);
-    }
-  else if (GTK_IS_CONTAINER(item))
-    {
-      GList *children = gtk_container_get_children(GTK_CONTAINER(item));
-      if (children && g_list_length(children) == 1)
-	{
-	  result = GTK_WIDGET(children->data);
+	  /* The item in the list is probably a container (i.e. a scrolled window), so extract the actual tree */
+	  if (GTK_IS_TREE_VIEW(listItem->data))
+	    {
+	      result = GTK_WIDGET(listItem->data);
+	    }
+	  else if (GTK_IS_CONTAINER(listItem->data))
+	    {
+	      GList *children = gtk_container_get_children(GTK_CONTAINER(listItem->data));
+	      
+	      if (children && g_list_length(children) == 1 && GTK_IS_WIDGET(children->data))
+		{
+		  result = GTK_WIDGET(children->data);
+		}
+	    }
 	}
     }
 
   if (!result)
-    messerror("Tree not found for strand %s, frame %d.", (forward ? "forward" : "reverse"), frame);
+    {
+      messerror("Tree not found for '%s' strand, frame '%d'. Number of trees = '%d'. Returning NULL.", ((strand == FORWARD_STRAND) ? "forward" : "reverse"), frame, g_list_length(list));
+    }
   
   return result;
 }
@@ -1068,8 +1063,8 @@ GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, gboolean forward, int f
  * list by default, or the reverse strand list if strands are toggled). */
 static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 {
-  gboolean forward = !detailViewGetStrandsToggled(detailView);
-  return detailViewGetFrameTree(detailView, forward, 1);
+  const Strand strand = detailViewGetStrandsToggled(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
+  return detailViewGetFrameTree(detailView, strand, 1);
 }
 
 GList* detailViewGetFwdStrandTrees(GtkWidget *detailView)
@@ -1750,10 +1745,10 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   MSP *msp = mspList;
   for ( ; msp; msp = msp->next)
     {
-      gboolean qForward = (msp->qframe[1] == '+');
+      Strand strand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
       int frame = atoi(&msp->qframe[2]);
       
-      GtkWidget *tree = detailViewGetFrameTree(detailView, qForward, frame);
+      GtkWidget *tree = detailViewGetFrameTree(detailView, strand, frame);
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
       
       addMspToTreeModel(model, msp, tree);

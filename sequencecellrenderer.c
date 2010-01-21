@@ -994,18 +994,10 @@ static IntRange getVisibleMspRange(SequenceCellRenderer *renderer)
 {
   IntRange result = {UNSET_INT, UNSET_INT};
   
-  /* Find the start/end of the MSP. These will be indices into the DNA ref sequence.
-   * If we are looking at protein matches, convert them to indices into the peptide sequence. */
+  /* Find the start/end of the MSP in terms of the display coords */
   int minIdx = min(renderer->msp->displayStart, renderer->msp->displayEnd);
   int maxIdx = max(renderer->msp->displayStart, renderer->msp->displayEnd);
 
-  if (getSeqType(renderer) == BLXSEQ_PEPTIDE)
-    {
-      const int numReadingFrames = getNumReadingFrames(renderer);
-      minIdx = convertDnaToPeptide(minIdx, numReadingFrames);
-      maxIdx = convertDnaToPeptide(maxIdx, numReadingFrames);
-    }
-  
   IntRange *displayRange = getDisplayRange(renderer);
 
   /* Check it's in the visible range. */

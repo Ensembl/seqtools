@@ -32,8 +32,11 @@ static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static gboolean		    gridGetStrandsToggled(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineHighlightColour(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColour(GtkWidget *grid);
-static GtkWidget*	    gridGetTree(GtkWidget *grid);
+static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
+static GtkWidget*	    gridGetMainWindow(GtkWidget *grid);
+static int		    gridGetNumReadingFrames(GtkWidget *grid);
+GtkWidget*		    gridGetBigPicture(GtkWidget *grid);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -267,6 +270,16 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
   /* Find the coordinates of the start and end base in this match sequence */
   int qSeqMin = min(msp->displayStart, msp->displayEnd);
   int qSeqMax = max(msp->displayStart, msp->displayEnd);
+  
+  /* If we've got a peptide sequence, convert the display range to coords on the DNA sequence. (The MSP q coords
+   * are already coords on the DNA sequence) */
+  IntRange dnaDisplayRange = {bigPictureProperties->displayRange.min, bigPictureProperties->displayRange.max};
+  if (bigPictureGetSeqType(gridProperties->bigPicture) == BLXSEQ_PEPTIDE)
+    {
+      int numFrames = bigPictureGetNumReadingFrames(gridProperties->bigPicture);
+      dnaDisplayRange.min = convertPeptideToDna(bigPictureProperties->displayRange.min, 1, numFrames);
+      dnaDisplayRange.max = convertPeptideToDna(bigPictureProperties->displayRange.max, 3, numFrames);
+    }
 
   int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
   int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
@@ -320,8 +333,8 @@ static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 /* Wrapper function around drawMspLine that only draws unselected MSPs. */
 static gboolean drawUnselectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-  GtkWidget *grid = GTK_WIDGET(data);
-  GtkWidget *tree = gridGetTree(grid);
+  GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *grid = treeGetGrid(tree);
 
   if (!treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
     {
@@ -336,8 +349,8 @@ static gboolean drawUnselectedMspLine(GtkTreeModel *model, GtkTreePath *path, Gt
 /* Wrapper function around drawMspLine that only draws selected MSPs. */
 static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-  GtkWidget *grid = GTK_WIDGET(data);
-  GtkWidget *tree = gridGetTree(grid);
+  GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *grid = treeGetGrid(tree);
   
   if (treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
     {
@@ -352,17 +365,28 @@ static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkT
 /* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid)
 {
-  GtkWidget *tree = gridGetTree(grid);
+  /* The MSP data lives in the detail-view trees. There is one tree for each reading frame. */
+  const int numFrames = gridGetNumReadingFrames(grid);
+  int frame = 1;
 
-  if (tree)
+  for ( ; frame <= numFrames; ++frame)
     {
-      /* We'll loop through every row in the base (i.e. unfiltered) data. */
-      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      GtkWidget *tree = gridGetTree(grid, frame);
       
-      /* Loop twice, first drawing unselected MSPs and then selected MSPs, so
-       * that selected MSPs are always drawn on top. */
-      gtk_tree_model_foreach(model, drawUnselectedMspLine, grid);
-      gtk_tree_model_foreach(model, drawSelectedMspLine, grid);
+      if (tree)
+	{
+	  /* We'll loop through every row in the base (i.e. unfiltered) data model for this tree. */
+	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+	  
+	  /* Loop twice, first drawing unselected MSPs and then selected MSPs, so
+	   * that selected MSPs are always drawn on top. */
+	  gtk_tree_model_foreach(model, drawUnselectedMspLine, tree);
+	  gtk_tree_model_foreach(model, drawSelectedMspLine, tree);
+	}
+      else
+	{
+	  messout("Warning: tree list for grid [%x] contains items that are not valid GTK trees", grid);
+	}
     }
 }
 
@@ -506,7 +530,7 @@ void acceptAndClearPreviewBox(GtkWidget *grid, const int xCentre)
   gridSetPreviewBoxCentre(grid, UNSET_INT);
   
   /* Update the detail view's scroll pos to start at the start base */
-  GtkAdjustment *adjustment = properties->tree ? treeGetAdjustment(properties->tree) : NULL;
+  GtkAdjustment *adjustment = gridGetAdjustment(grid);
   
   if (adjustment)
     {
@@ -580,24 +604,30 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
  * if they contain the coords of the mouse press */
 static void selectClickedMspLines(GtkWidget *grid, GdkEventButton *event)
 {
-  /* The msp info lives in the tree */
-  GtkWidget *tree = gridGetTree(grid);
+  /* If multiple MSP lines overlap, just select the first one we find (for now). */
+  gboolean done = FALSE;
 
-  if (tree)
+  /* The msp info lives in the tree(s). There is one tree for each frame */
+  const int numFrames = gridGetNumReadingFrames(grid);
+  int frame = 1;
+  
+  for ( ; frame <= numFrames; ++frame)
     {
-      /* We'll loop through every row in the base (i.e. unfiltered) data */
-      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      GtkWidget *tree = gridGetTree(grid, frame);
       
-      /* If multiple overlap, just select the first one we find for now. */
-      gboolean done = FALSE;
-      
-      GtkTreeIter iter;
-      gboolean validIter = gtk_tree_model_get_iter_first(model, &iter);
-      
-      while (validIter && !done)
+      if (tree)
 	{
-	  done = selectRowIfContainsCoords(grid, tree, model, &iter, event->x, event->y, TRUE);
-	  validIter = gtk_tree_model_iter_next(model, &iter);
+	  /* We'll loop through every row in the base (i.e. unfiltered) data model for the tree */
+	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+	  
+	  GtkTreeIter iter;
+	  gboolean validIter = gtk_tree_model_get_iter_first(model, &iter);
+	  
+	  while (validIter && !done)
+	    {
+	      done = selectRowIfContainsCoords(grid, GTK_WIDGET(tree), model, &iter, event->x, event->y, TRUE);
+	      validIter = gtk_tree_model_iter_next(model, &iter);
+	    }
 	}
     }
 }
@@ -703,7 +733,6 @@ static void onDestroyGrid(GtkWidget *widget)
 
 
 static void gridCreateProperties(GtkWidget *widget, 
-				 GtkWidget *tree, 
 				 GtkWidget *bigPicture,
 				 gulong exposeHandlerId,
 				 Strand strand)
@@ -717,7 +746,6 @@ static void gridCreateProperties(GtkWidget *widget,
        * the calculated char width is approximate and may not give enough space */
       GridProperties *properties = g_malloc(sizeof *properties);
       
-      properties->tree = tree;
       properties->bigPicture = bigPicture;
       properties->strand = strand;
       
@@ -738,16 +766,22 @@ static void gridCreateProperties(GtkWidget *widget,
 }
 
 
-//static GtkWidget* gridGetMainWindow(GtkWidget *grid)
-//{
-//  GridProperties *properties = grid ? gridGetProperties(grid) : NULL;
-//  return properties ? bigPictureGetMainWindow(properties->bigPicture) : NULL;
-//}
+static GtkWidget* gridGetMainWindow(GtkWidget *grid)
+{
+  GridProperties *properties = grid ? gridGetProperties(grid) : NULL;
+  return properties ? bigPictureGetMainWindow(properties->bigPicture) : NULL;
+}
 
 Strand gridGetStrand(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
   return properties->strand;
+}
+
+static int gridGetNumReadingFrames(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  return bigPictureGetNumReadingFrames(bigPicture);
 }
 
 GtkWidget* gridGetBigPicture(GtkWidget *grid)
@@ -756,10 +790,10 @@ GtkWidget* gridGetBigPicture(GtkWidget *grid)
   return properties->bigPicture;
 }
 
-static GtkWidget* gridGetTree(GtkWidget *grid)
+static GtkWidget* gridGetTree(GtkWidget *grid, const int frame)
 {
-  GridProperties *properties = gridGetProperties(grid);
-  return properties->tree;
+  GtkWidget *detailView = gridGetDetailView(grid);
+  return detailViewGetFrameTree(detailView, gridGetStrand(grid), frame);
 }
 
 static IntRange* gridGetDisplayRange(GtkWidget *grid)
@@ -776,16 +810,13 @@ static gboolean gridGetStrandsToggled(GtkWidget *grid)
 
 static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
 {
-  GtkWidget *bigPicture = gridGetBigPicture(grid);
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = gridGetDetailView(grid);
   return detailViewGetAdjustment(detailView);
 }
 
 static GtkWidget* gridGetDetailView(GtkWidget *grid)
 {
-  GtkWidget *bigPicture = gridGetBigPicture(grid);
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  GtkWidget *mainWindow = gridGetMainWindow(grid);
   return mainWindowGetDetailView(mainWindow);
 }
 
@@ -827,7 +858,7 @@ GtkWidget* createBigPictureGrid(GtkWidget *bigPicture, Strand strand)
   g_signal_connect(G_OBJECT(grid), "scroll-event",	    G_CALLBACK(onScrollGrid),		      NULL);
   
   /* Set required data in the grid. We can't set the tree yet because it hasn't been created yet. */
-  gridCreateProperties(grid, NULL, bigPicture, exposeHandlerId, strand);
+  gridCreateProperties(grid, bigPicture, exposeHandlerId, strand);
   
   return grid;
 }
