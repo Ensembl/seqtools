@@ -49,3 +49,15 @@ char		      getRefSeqBase(char *refSeq,
 				    const gboolean complement, 
 				    IntRange *refSeqRange,
 				    const BlxSeqType seqType);
+
+int		      getStartDnaCoord(const IntRange const *displayRange, 
+				       const BlxSeqType displaySeqType, 
+				       const gboolean reverse, 
+				       const int numReadingFrames);
+
+int		      getEndDnaCoord(const IntRange const *displayRange, 
+				     const BlxSeqType displaySeqType, 
+				     const gboolean reverse, 
+				     const int numReadingFrames);
+
+

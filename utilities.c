@@ -189,4 +189,47 @@ gboolean indexWithinRange(const int idx, const IntRange const *range)
 }
 
 
+/* Get the start coord in the given display range, reversed as necessary if 'reverse' is true.
+ * Result is a coord in the DNA sequence - converts as necessary if the display range is in terms
+ * of peptide coords */
+int getStartDnaCoord(const IntRange const *displayRange, 
+		     const BlxSeqType displaySeqType, 
+		     const gboolean reverse, 
+		     const int numReadingFrames)
+{
+  int result = reverse ? displayRange->max : displayRange->min;
+  
+  if (displaySeqType == BLXSEQ_PEPTIDE)
+    {
+      /* Take the first reading frame to get the first DNA coord for this peptide (or the last frame if reversed) */
+      int frame = reverse ? numReadingFrames : 1;
+      result = convertPeptideToDna(result, frame, numReadingFrames);
+    }
+  
+  return result;
+}
+
+
+/* Get the end coord in the given display range, reversed as necessary if 'reverse' is true.
+ * Result is a coord in the DNA sequence - converts as necessary if the display range is in terms
+ * of peptide coords */
+int getEndDnaCoord(const IntRange const *displayRange, 
+		   const BlxSeqType displaySeqType, 
+		   const gboolean reverse, 
+		   const int numReadingFrames)
+{
+  int result = reverse ? displayRange->min : displayRange->max;
+  
+  if (displaySeqType == BLXSEQ_PEPTIDE)
+    {
+      /* Take the last reading frame to get the last DNA coord for this peptide (or the first frame if reversed) */
+      int frame = reverse ? 1 : numReadingFrames;
+      result = convertPeptideToDna(result, frame, numReadingFrames);
+    }
+  
+  return result;
+}
+
+
+
 

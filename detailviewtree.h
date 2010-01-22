@@ -13,18 +13,19 @@
 #include <SeqTools/blixem_.h>
 #include <SeqTools/sequencecellrenderer.h>
 
-#define DETAIL_VIEW_TREE_NAME		"DetailViewTreeName"
+#define DETAIL_VIEW_TREE_NAME		  "DetailViewTreeName"
+#define DETAIL_VIEW_TREE_CONTAINER_NAME	  "DetailViewTreeContainerName"
 
-enum
-{
-  S_NAME_COL,
-  SCORE_COL,
-  ID_COL,
-  START_COL,
-  MSP_COL,
-  END_COL,
-  N_COLUMNS
-};
+
+/* This struct holds info about a tree header widget. */
+typedef struct _TreeColumnHeaderInfo
+  {
+    GtkWidget *headerWidget;	/* the actual header */
+    GList *columnIds;		/* a list of columns spanned by this header. columns must be next to each other */
+    GtkCallback refreshFunc;   /* function to be called when a refresh is requested */
+  } TreeColumnHeaderInfo;
+
+
 
 typedef struct _TreeProperties 
   {
@@ -33,7 +34,8 @@ typedef struct _TreeProperties
     GtkCellRenderer *renderer; /* The custom cell renderer to render this tree's match sequences */
     GtkWidget *sequenceColHeader; /* The custom header for the sequence column, or NULL if N/A */
     
-    int readingFrame;	      /* Which reading frame this tree is displaying */
+    int readingFrame;	      /* Which reading frame this tree displays */
+    GList *treeColumnHeaderList;  /* List of info about the tree column headers */
   } TreeProperties;
 GdkColor exonColour;
 
@@ -67,6 +69,7 @@ void		  treeSortByScore(GtkWidget *tree, gpointer data);
 void		  treeSortByPos(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeAndGrid(GtkWidget *tree, gpointer data);
+void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
 gboolean	  updateFeedbackBoxForTree(GtkWidget *tree);
@@ -79,7 +82,7 @@ GtkWidget*	  createDetailViewTree(GtkWidget *grid,
 				       GtkWidget *detailView,
 				       GtkCellRenderer *renderer,
 				       GList **treeList,
-				       const gboolean hasHeaders,
+				       GList *columnList,
 				       BlxSeqType seqType,
 				       const int frame);
 

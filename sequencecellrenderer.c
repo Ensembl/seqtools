@@ -198,47 +198,47 @@ sequence_cell_renderer_class_init (SequenceCellRendererClass *klass)
 
   g_object_class_install_property (object_class,
                                    PROP_MSP,
-                                   g_param_spec_pointer ("msp",
-                                                         "MSP",
+                                   g_param_spec_pointer (SEQ_COLUMN_PROPERTY_NAME,
+                                                         SEQ_COLUMN_HEADER_TEXT,
                                                          "Pointer to an msp whose sequence to display",
                                                          G_PARAM_WRITABLE));
 
   g_object_class_install_property (object_class,
                                    PROP_NAME,
-                                   g_param_spec_string ("name",
-                                                        "Name",
+                                   g_param_spec_string (NAME_COLUMN_PROPERTY_NAME,
+                                                        NAME_COLUMN_HEADER_TEXT,
                                                         "Sequence name",
 							NULL,
                                                         G_PARAM_WRITABLE));
 
   g_object_class_install_property (object_class,
                                    PROP_SCORE,
-                                   g_param_spec_string ("score",
-                                                        "Score",
+                                   g_param_spec_string (SCORE_COLUMN_PROPERTY_NAME,
+                                                        SCORE_COLUMN_HEADER_TEXT,
                                                         "Score",
 							NULL,
                                                         G_PARAM_WRITABLE));
 							
   g_object_class_install_property (object_class,
                                    PROP_ID,
-                                   g_param_spec_string ("id",
-                                                        "%ID",
+                                   g_param_spec_string (ID_COLUMN_PROPERTY_NAME,
+                                                        ID_COLUMN_HEADER_TEXT,
                                                         "Identity",
 							NULL,
                                                         G_PARAM_WRITABLE));
 							
   g_object_class_install_property (object_class,
                                    PROP_START,
-                                   g_param_spec_string ("start",
-                                                        "Start",
+                                   g_param_spec_string (START_COLUMN_PROPERTY_NAME,
+                                                        START_COLUMN_HEADER_TEXT,
                                                         "Start index of match",
 							NULL,
                                                         G_PARAM_WRITABLE));
 							
   g_object_class_install_property (object_class,
                                    PROP_END,
-                                   g_param_spec_string ("end",
-                                                        "End",
+                                   g_param_spec_string (END_COLUMN_PROPERTY_NAME,
+                                                        END_COLUMN_HEADER_TEXT,
                                                         "End index of match",
 							NULL,
                                                         G_PARAM_WRITABLE));  

@@ -22,22 +22,42 @@
 #define MIN_FONT_SIZE			2
 #define MAX_FONT_SIZE			20
 
-
 /* Local function declarations */
 static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
-static GtkWidget*	    detailViewGetHeader(GtkWidget *detailView);
+static GList*		    detailViewGetColumnList(GtkWidget *detailView);
 
 static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		    widgetIsTree(GtkWidget *widget);
 static gboolean		    widgetIsTreeContainer(GtkWidget *widget);
 static void		    updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
-static void		    refreshDetailViewHeader(GtkWidget *detailView);
+static void		    refreshDetailViewHeaders(GtkWidget *detailView);
+static GtkWidget*	    createSequenceColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
+static const char*	    findDetailViewFont(GtkWidget *detailView);
 
 /***********************************************************
  *		       Utility functions                   *
  ***********************************************************/
 
+/* Return the width of the column with the given column id */
+int getDetailViewColumnWidth(GtkWidget *detailView, const ColumnId columnId)
+{
+  GList *listItem = detailViewGetColumnList(detailView);
+  int result = UNSET_INT;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)listItem->data;
+      
+      if (columnInfo && columnInfo->columnId == columnId)
+	{
+	  result = columnInfo->width;
+	  break;
+	}
+    }
+  
+  return result;
+}
 
 
 /* Tries to return a fixed font from the list given in pref_families, returns
@@ -306,28 +326,6 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
 }
 
 
-/* The given widget should be a detail-view-tree or a container (or series of nested 
- * containers) containing a single tree. This function extracts the tree and sets the headers
- * to be visible or hidden as indicated by the 'visible' flag. */
-static void setTreeHeadersVisible(GtkWidget *widget, const gboolean visible)
-{
-  if (widgetIsTree(widget))
-    {
-      gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(widget), visible);
-    }
-  else if (widgetIsTreeContainer(widget))
-    {
-      /* Get the child and recurse. */
-      GList *child = gtk_container_get_children(GTK_CONTAINER(widget));
-      setTreeHeadersVisible(GTK_WIDGET(child->data), visible);
-    }
-  else 
-    {
-      messerror("Unexpected widget type [%d]. Expected a tree or container containing a single tree. Could not set tree header visibility.", widget);
-    }
-}
-
-
 /* Add all trees in the given list to the detail view. Note that the treeList may not contain
  * actual trees, it may contain their containers (e.g. if they live in scrolled windows). 'first'
  * indicates that this is the first (set of) tree(s) added. This information is used to determine
@@ -346,7 +344,6 @@ static void addTreesToDetailView(GtkContainer *detailView,
 	  /* Two panes, one tree. Use 'first' flags to decide which pane to put it in and
 	   * whether to show headers. */
 	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
-//	  setTreeHeadersVisible(tree1, first);
 	  
 	  if (first)
 	    {
@@ -365,9 +362,6 @@ static void addTreesToDetailView(GtkContainer *detailView,
 	  
 	  gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
 	  gtk_paned_pack2(GTK_PANED(detailView), tree2, TRUE, TRUE);
-	  
-//	  setTreeHeadersVisible(tree1, first);
-//	  setTreeHeadersVisible(tree2, FALSE);
 	}
       else if (numTrees > 2)
 	{
@@ -375,7 +369,6 @@ static void addTreesToDetailView(GtkContainer *detailView,
 	   * nested widget in pane 2 that we can put the remaining trees in. */
 	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
 	  gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
-//	  setTreeHeadersVisible(tree1, first);
 	  
 	  GtkWidget *nestedPanedWidget = findNestedPanedWidget(detailView);
 	  
@@ -425,40 +418,42 @@ static void removeFromDetailView(GtkWidget *widget, gpointer data)
 /* Returns true if this widget is a detail-view-tree */
 static gboolean widgetIsTree(GtkWidget *widget)
 {
-  gboolean result = FALSE;
-  
-  const gchar *name = gtk_widget_get_name(widget);
-  if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
-    {
-      result = TRUE;
-    }
-  
-  return result;
+  const char *name = gtk_widget_get_name(widget);
+  return (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0);
 }
 
 
 /* Returns true if this widget is a detail-view-tree-container (that is, 
- * a container that has only one child which is a detail-view-tree). This is
- * intended so that we can identify the outermost parent of a single tree (so, for example,
- * we can identify the scrolled window that a tree lives in). It returns false if the widget 
- * is a container that contains multiple children and therefore might contain multiple trees. */
+ * a container that has only one child that is a detail-view-tree.) */
 static gboolean widgetIsTreeContainer(GtkWidget *widget)
 {
-  gboolean result = FALSE;
+  const char *name = gtk_widget_get_name(widget);
+  return (strcmp(name, DETAIL_VIEW_TREE_CONTAINER_NAME) == 0);
+}
+
+
+/* Given a widget contains a single child that is a detail-view-tree, return
+ * that tree. */
+static GtkWidget *treeContainerGetTree(GtkContainer *container)
+{
+  GtkWidget *result = NULL;
   
-  if (GTK_IS_CONTAINER(widget))
+  GList *child = gtk_container_get_children(container);
+  
+  for ( ; child && !result; child = child->next)
     {
-      /* See if this container has an only child */
-      GList *children = gtk_container_get_children(GTK_CONTAINER(widget));      
-      if (children && g_list_length(children) == 1 && GTK_IS_WIDGET(children->data))
+      if (GTK_IS_WIDGET(child->data))
 	{
-	  GtkWidget *childWidget = GTK_WIDGET(children->data);
+	  GtkWidget *childWidget = GTK_WIDGET(child->data);
 	  
-	  /* See if this child is a tree, or if it is another container containing only a single tree. */
-	  if (widgetIsTree(childWidget) || widgetIsTreeContainer(childWidget))
+	  if (widgetIsTree(childWidget))
 	    {
-	      result = TRUE;
+	      result = childWidget;
 	    }
+	  else if (GTK_IS_CONTAINER(childWidget))
+	   {
+	     result = treeContainerGetTree(GTK_CONTAINER(childWidget));
+	   }
 	}
     }
   
@@ -471,7 +466,8 @@ static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
 {
   /* See if this widget is a tree (or a container containing only a single tree - the
    * detail view contains the outermost single-tree container, e.g. typically the trees
-   * will live in a scrolled window, and it is the scrolled windows that the detail view knows about) */
+   * will live in a vbox or scrolled window, and it is this container that the detail view
+   * knows about) */
   if (widgetIsTree(widget) || widgetIsTreeContainer(widget))
     {
       GtkContainer *parent = GTK_CONTAINER(data);
@@ -510,27 +506,6 @@ static void refreshTreeOrder(GtkWidget *detailView)
     }
   
   gtk_widget_show_all(detailView);
-}
-
-
-/* Update the font for the custom sequence column header, if there is one */
-static void updateDetailViewHeaderFont(GtkWidget *detailView, PangoFontDescription *fontDesc)
-{
-  GtkWidget *header = detailViewGetHeader(detailView);
-  
-  /* The sequence column header is a vbox containing 3 labels, one for each reading frame. */
-  if (header != NULL && GTK_IS_CONTAINER(header))
-    {
-      GList *lines = gtk_container_get_children(GTK_CONTAINER(header));
-      GList *line = lines;
-      
-      while (line)
-	{
-	  GtkWidget *lineWidget = GTK_WIDGET(line->data);
-	  gtk_widget_modify_font(lineWidget, fontDesc);
-	  line = line->next;
-	}
-    }
 }
 
 
@@ -603,13 +578,18 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 }
 
 
-/* Refresh the detail view header */
-static void refreshDetailViewHeader(GtkWidget *detailView)
+/* Refresh the sequence column header in the detail view. This column header
+ * contains the DNA sequence for the currently displayed section of peptide 
+ * sequence for protein matches. It currently displays nothing for DNA matches, 
+ * so this callback is not required in that case. */
+static void refreshDetailViewSequenceColHeader(GtkWidget *header, gpointer data)
 {
-  GtkWidget *header = detailViewGetHeader(detailView);
+  GtkWidget *detailView = GTK_WIDGET(data);
+  PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
   
-  /* The sequence column header is a vbox containing 3 labels, one for each reading frame. */
-  if (header && GTK_IS_CONTAINER(header))
+  /* If the header is a normal label, there is nothing to do. If it is a container
+   * containing multiple labels, then refresh each of the labels  */
+  if (GTK_IS_CONTAINER(header))
     {
       char* refSeq = detailViewGetRefSeq(detailView);
 
@@ -620,6 +600,11 @@ static void refreshDetailViewHeader(GtkWidget *detailView)
       while (line)
 	{
 	  GtkWidget *lineWidget = GTK_WIDGET(line->data);
+	  
+	  /* update the font, in case it has changed */
+	  gtk_widget_modify_font(lineWidget, fontDesc);
+
+	  /* refresh the displayed text */
 	  refreshSequenceColHeaderLine(detailView, lineWidget, frame, refSeq);
 	  
 	  ++frame;
@@ -629,11 +614,41 @@ static void refreshDetailViewHeader(GtkWidget *detailView)
 }
 
 
-/* Update the font description for all relevant components of the detail view */
-static void updateDetailViewFontDesc(GtkWidget *detailView, PangoFontDescription *fontDesc)
+/* Refresh the headers for the detail view. */
+static void refreshDetailViewHeaders(GtkWidget *detailView)
 {
+  /* Loop through all columns and call the refresh callback function on each column
+   * header widget, if one exists. */
+  
+  GList	*columnList = detailViewGetColumnList(detailView);
+  GList *column = columnList;
+  
+  for ( ; column; column = column->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)column->data;
+      if (columnInfo)
+	{
+	  if (columnInfo->headerWidget && columnInfo->refreshFunc)
+	    {
+	      columnInfo->refreshFunc(columnInfo->headerWidget, detailView);
+	    }
+	}
+      else
+	{
+	  messerror("refreshDetailViewHeaders: Invalid column data for detail view header. Header may not be refreshed correctly.");
+	}
+    }
+}
+
+
+/* Update the font description for all relevant components of the detail view */
+void updateDetailViewFontDesc(GtkWidget *detailView)
+{
+  PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
+  
   updateCellRendererFont(detailView, fontDesc);
-  updateDetailViewHeaderFont(detailView, fontDesc);
+  refreshDetailViewHeaders(detailView);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
   callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize);
 }
 
@@ -646,7 +661,7 @@ static void incrementFontSize(GtkWidget *detailView)
   if (newSize <= MAX_FONT_SIZE)
     {
       pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
-      updateDetailViewFontDesc(detailView, properties->fontDesc);
+      updateDetailViewFontDesc(detailView);
     }
 }
 
@@ -659,7 +674,7 @@ static void decrementFontSize(GtkWidget *detailView)
   if (newSize >= MIN_FONT_SIZE)
     {
       pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
-      updateDetailViewFontDesc(detailView, properties->fontDesc);
+      updateDetailViewFontDesc(detailView);
     }
 }
 
@@ -740,8 +755,11 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       
       /* Redraw all trees (and their corresponding grids) */
       callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
-      
-      refreshDetailViewHeader(detailView);
+
+      /* Refresh the detail view header (which may contain the DNA sequence), and 
+       * the headers for all the trees (which contains the reference sequence) */
+      refreshDetailViewHeaders(detailView);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
     }
 }
 
@@ -775,7 +793,10 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       /* Redraw all trees (and their corresponding grids) */
       callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
       
-      refreshDetailViewHeader(detailView);
+      /* Refresh the detail view header (which may contain the DNA sequence), and 
+       * the headers for all the trees (which contains the reference sequence) */
+      refreshDetailViewHeaders(detailView);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
     }
 }
 
@@ -920,10 +941,10 @@ char** detailViewGetGeneticCode(GtkWidget *detailView)
   return mainWindowGetGeneticCode(mainWindow);
 }
 
-static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
+static GList* detailViewGetColumnList(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->header : NULL;
+  return properties ? properties->columnList : NULL;
 }
 
 gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
@@ -943,63 +964,63 @@ int detailViewGetVerticalSeparator(GtkWidget *detailView)
   return properties ? properties->verticalSeparator : UNSET_INT;
 }
 
-GdkColor* detailViewGetRefSeqColour(GtkWidget *tree)
+GdkColor* detailViewGetRefSeqColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->refSeqColour;
 }
 
-GdkColor* detailViewGetRefSeqSelectedColour(GtkWidget *tree)
+GdkColor* detailViewGetRefSeqSelectedColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->refSeqSelectedColour;
 }
 
-GdkColor* detailViewGetMatchColour(GtkWidget *tree)
+GdkColor* detailViewGetMatchColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->matchColour;
 }
 
-GdkColor* detailViewGetMatchSelectedColour(GtkWidget *tree)
+GdkColor* detailViewGetMatchSelectedColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->matchSelectedColour;
 }
 
-GdkColor* detailViewGetMismatchColour(GtkWidget *tree)
+GdkColor* detailViewGetMismatchColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->mismatchColour;
 }
 
-GdkColor* detailViewGetMismatchSelectedColour(GtkWidget *tree)
+GdkColor* detailViewGetMismatchSelectedColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->mismatchSelectedColour;
 }
 
-GdkColor* detailViewGetExonColour(GtkWidget *tree)
+GdkColor* detailViewGetExonColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->exonColour;
 }
 
-GdkColor* detailViewGetExonSelectedColour(GtkWidget *tree)
+GdkColor* detailViewGetExonSelectedColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->exonSelectedColour;
 }
 
-GdkColor* detailViewGetGapColour(GtkWidget *tree)
+GdkColor* detailViewGetGapColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->gapColour;
 }
 
-GdkColor* detailViewGetGapSelectedColour(GtkWidget *tree)
+GdkColor* detailViewGetGapSelectedColour(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   return &properties->gapSelectedColour;
 }
 
@@ -1032,21 +1053,17 @@ GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, const Strand strand, co
 	  listItem = listItem->next;
 	}
       
-      if (count == frame)
+      if (count == frame && GTK_IS_WIDGET(listItem->data))
 	{
-	  /* The item in the list is probably a container (i.e. a scrolled window), so extract the actual tree */
-	  if (GTK_IS_TREE_VIEW(listItem->data))
+	  GtkWidget *widget = GTK_WIDGET(listItem->data);
+	  
+	  if(widgetIsTree(widget))
 	    {
-	      result = GTK_WIDGET(listItem->data);
+	      result = widget;
 	    }
-	  else if (GTK_IS_CONTAINER(listItem->data))
+	  else if (widgetIsTreeContainer(widget))
 	    {
-	      GList *children = gtk_container_get_children(GTK_CONTAINER(listItem->data));
-	      
-	      if (children && g_list_length(children) == 1 && GTK_IS_WIDGET(children->data))
-		{
-		  result = GTK_WIDGET(children->data);
-		}
+	      result = treeContainerGetTree(GTK_CONTAINER(widget));
 	    }
 	}
     }
@@ -1152,23 +1169,27 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GList *fwdStrandTrees,
 				       GList *revStrandTrees,
 				       GtkWidget *feedbackBox,
-				       GtkWidget *header,
+				       GList *columnList,
 				       GtkAdjustment *adjustment, 
 				       BlxSeqType seqType,
 				       int numReadingFrames,
-				       IntRange *displayRange,
-				       PangoFontDescription *fontDesc)
+				       IntRange *displayRange)
 {
   if (detailView)
     { 
       DetailViewProperties *properties = g_malloc(sizeof *properties);
 
+      /* Find a fixed-width font */
+      const char *fontFamily = findDetailViewFont(detailView);
+      PangoFontDescription *fontDesc = pango_font_description_copy(detailView->style->font_desc);
+      pango_font_description_set_family(fontDesc, fontFamily);
+      
       properties->mainWindow = mainWindow;
       properties->renderer = renderer;
       properties->fwdStrandTrees = fwdStrandTrees;
       properties->revStrandTrees = revStrandTrees;
       properties->feedbackBox = feedbackBox;
-      properties->header = header;
+      properties->columnList = columnList;
       properties->adjustment = adjustment;
       properties->seqType = seqType;
       properties->numReadingFrames = numReadingFrames;
@@ -1239,7 +1260,8 @@ static void ToggleStrand(GtkWidget *detailView)
   
   /* Redraw the grid header and detail view header */
   gtk_widget_queue_draw(bigPictureGetGridHeader(mainWindowProperties->bigPicture));
-  refreshDetailViewHeader(detailView);
+  refreshDetailViewHeaders(detailView);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
 }
 
 
@@ -1399,48 +1421,81 @@ static void GToggleStrand(GtkButton *button, gpointer data)
 
 static GtkWidget* createTripletCell(const int frame)
 {
-  GtkWidget *label = gtk_label_new("");
+  GtkWidget *label = gtk_widget_new(GTK_TYPE_LABEL, "label", "", "xalign", 0.0, NULL);
   gtk_label_set_width_chars(GTK_LABEL(label), 1);
   return label;
 }
 
 
-/* Create the header bar for the detail view trees. Uses the custom header
- * widget for the sequence column if supplied, otherwise just creates a normal
- * label for this column header. */
-static GtkWidget* createDetailViewHeader(GtkWidget *sequenceColHeader)
+/* Adds the given column-header widget to the container, and adds its column info
+ * to the columnList. Also sets the default width of the widget and the alignment. */
+static void addHeaderColumn(GtkBox *container, 
+			    ColumnId columnId, 
+			    GtkWidget *specialWidget,
+			    GtkCallback callbackFn, 
+			    char *title,
+			    char *propertyName,
+			    const int defaultWidth,
+			    const gboolean expand,
+			    GList **columnList)
 {
-  GtkWidget *header = gtk_hbox_new(FALSE, 0);
+  /* Create a simple label for the header (unless already passed a special header widget) */
+  GtkWidget *headerWidget = specialWidget ? specialWidget : gtk_label_new(title);
+  gtk_box_pack_start(container, headerWidget, expand, TRUE, 0);
+  gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
   
-  GtkWidget *nameLabel = gtk_label_new("Name");
-  GtkWidget *scoreLabel = gtk_label_new("Score");
-  GtkWidget *idLabel = gtk_label_new("%ID");
-  GtkWidget *startLabel = gtk_label_new("Start");
-  GtkWidget *sequenceLabel = sequenceColHeader ? sequenceColHeader : gtk_label_new("Sequence");
-  GtkWidget *endLabel = gtk_label_new("End");  
+  if (GTK_IS_MISC(headerWidget))
+    {
+      /* Align the text bottom-left */
+      gtk_misc_set_alignment(GTK_MISC(headerWidget), 0.0, 1.0);
+    }
 
-  gtk_widget_set_size_request(nameLabel, NAME_COLUMN_DEFAULT_WIDTH, -1);
-  gtk_widget_set_size_request(scoreLabel, SCORE_COLUMN_DEFAULT_WIDTH, -1);
-  gtk_widget_set_size_request(idLabel, ID_COLUMN_DEFAULT_WIDTH, -1);
-  gtk_widget_set_size_request(startLabel, START_COLUMN_DEFAULT_WIDTH, -1);
-  gtk_widget_set_size_request(sequenceLabel, SEQ_COLUMN_DEFAULT_WIDTH, -1);
-  gtk_widget_set_size_request(endLabel, END_COLUMN_DEFAULT_WIDTH, -1);
-  
-  gtk_box_pack_start(GTK_BOX(header), nameLabel, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(header), scoreLabel, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(header), idLabel, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(header), startLabel, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(header), sequenceLabel, TRUE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(header), endLabel, FALSE, TRUE, 0);
-  
-  return header;
+  /* Create the column info and place it in the list */
+  DetailViewColumnInfo *columnInfo = g_malloc(sizeof(DetailViewColumnInfo));
+  columnInfo->columnId = columnId;
+  columnInfo->headerWidget = headerWidget;
+  columnInfo->refreshFunc = callbackFn,
+  columnInfo->title = title;
+  columnInfo->propertyName = propertyName;
+  columnInfo->width = defaultWidth;
+  *columnList = g_list_append(*columnList, columnInfo);
 }
 
 
-/* Create a custom header widget for the sequence column for protein matches. This is where
- * we will display the triplets that make up the codons. Returns null for DNA matches. */
+/* Create the header bar for the detail view. This contains the labels for the
+ * detail-view trees (since we only want one label at the top, rather than 
+ * individual labels for each tree). For protein sequence matches, the header
+ * for the sequence column will also show the DNA sequence (separated into reading
+ * frames). 
+ * Column data is compiled into the detailViewColumns return argument. */
+static GtkWidget* createDetailViewHeader(GtkWidget *detailView, 
+					 const BlxSeqType seqType, 
+					 const int numReadingFrames,
+					 GList **columnList)
+{
+  GtkBox *header = GTK_BOX(gtk_hbox_new(FALSE, 0));
+
+  /* The sequence column has a special header and callback when we're dealing with peptide sequences */
+  GtkWidget *seqHeader = createSequenceColHeader(detailView, seqType, numReadingFrames);
+  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshDetailViewSequenceColHeader : NULL;
+  
+  const int endColWidth = END_COLUMN_DEFAULT_WIDTH;
+  
+  addHeaderColumn(header, S_NAME_COL, NULL,	  NULL,		NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  FALSE, columnList);
+  addHeaderColumn(header, SCORE_COL,  NULL,	  NULL,		SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
+  addHeaderColumn(header, ID_COL,     NULL,	  NULL,		ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    FALSE, columnList);
+  addHeaderColumn(header, START_COL,  NULL,	  NULL,		START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
+  addHeaderColumn(header, MSP_COL,    seqHeader,  seqCallback,	SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
+  addHeaderColumn(header, END_COL,    NULL,	  NULL,		END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   endColWidth,		  FALSE, columnList);
+
+  return GTK_WIDGET(header);
+}
+
+
+/* Create a custom header widget for the sequence column for protein matches (this is where
+ * we will display the triplets that make up the codons.) Returns NULL for DNA matches. */
 static GtkWidget* createSequenceColHeader(GtkWidget *detailView,
-				 	 const BlxSeqType seqType,
+				 	  const BlxSeqType seqType,
 					  const int numReadingFrames)
 {
   GtkWidget *header = NULL;
@@ -1653,11 +1708,11 @@ static void createTwoPanedTrees(GtkWidget *detailView,
 				GList **list1,
 				GList **list2,
 				BlxSeqType seqType,
-				const gboolean hasHeaders,
+				GList *columnList,
 				const int firstFrame)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, hasHeaders, seqType, firstFrame);
-  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, FALSE, seqType, firstFrame + 1);
+  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, firstFrame);
+  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, firstFrame + 1);
   
   if (container)
     {
@@ -1676,11 +1731,11 @@ static void createThreePanedTrees(GtkWidget *detailView,
 				  GList **list,
 				  BlxSeqType seqType,
 				  const gboolean addToDetailView,
-				  const gboolean hasHeaders)
+				  GList *columnList)
 {
   /* Create a tree for pane1 (but only add it to the detailView if instructed to).
    * The first tree has headers. */
-  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, hasHeaders, seqType, 1);
+  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, 1);
   
   GtkWidget *nestedPanedWidget = NULL;
   
@@ -1695,7 +1750,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
   
   /* Create two more trees (and place them in the nested paned widget, if it is not null). 
    * Neither of these trees should have headers. */
-  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, FALSE, 2);
+  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, 2);
 }
 
 
@@ -1709,7 +1764,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
 				  GList **fwdStrandTrees,
 				  GList **revStrandTrees,
 				  BlxSeqType seqType,
-				  const gboolean allowHeaders)
+				  GList *columnList)
 {
   if (numReadingFrames == 1)
     {
@@ -1722,15 +1777,15 @@ static void createDetailViewPanes(GtkWidget *detailView,
 			  fwdStrandTrees, 
 			  revStrandTrees, 
 			  seqType,
-			  allowHeaders,
+			  columnList,
 			  1);
     }
   else if (numReadingFrames == 3)
     {
       /* Protein matches: we need 3 trees for the 3 reading frames for EACH strand (although only
        * one set of trees will be displayed at a time). */
-      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, allowHeaders);
-      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, allowHeaders);
+      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, columnList);
+      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, columnList);
     }
 }
 
@@ -1813,16 +1868,19 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
    * all of our detail-view trees the same name so that we can identify them.) */
   GtkWidget *detailView = gtk_vpaned_new();
   
-  /* Find a fixed-width font */
-  const char *fontFamily = findDetailViewFont(detailView);
-  PangoFontDescription *fontDesc = pango_font_description_copy(detailView->style->font_desc);
-  pango_font_description_set_family(fontDesc, fontFamily);
-  
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
   SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
   seqRenderer->detailView = detailView;
 
+  /* Create the toolbar. We need to remember the feedback box. */
+  GtkWidget *feedbackBox = NULL;
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, &feedbackBox);
+  
+  /* Create the header, and compile a list of columns */
+  GList *columnList = NULL;
+  GtkWidget *header = createDetailViewHeader(detailView, seqType, numReadingFrames, &columnList);
+  
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
   createDetailViewPanes(detailView, 
@@ -1833,22 +1891,14 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			&fwdStrandTrees,
 			&revStrandTrees,
 			seqType,
-			FALSE);
+			columnList);
   
-  /* Create the toolbar. We need to remember the feedback box. */
-  GtkWidget *feedbackBox = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, &feedbackBox);
-
-  GtkWidget *sequenceColHeader = createSequenceColHeader(detailView, seqType, numReadingFrames);
-  GtkWidget *header = createDetailViewHeader(sequenceColHeader);
-  
-  /* Put everything in a vbox. */
+  /* Put everything in a vbox, and pack it into the main window. */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), buttonBar, FALSE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), detailView, TRUE, TRUE, 0);
-  
-  /* Put the whole lot into the main window */
+
   gtk_paned_pack2(GTK_PANED(panedWidget), vbox, TRUE, TRUE);
   
   /* Connect signals */
@@ -1861,16 +1911,12 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			     fwdStrandTrees,
 			     revStrandTrees,
 			     feedbackBox, 
-			     sequenceColHeader,
+			     columnList,
 			     adjustment, 
 			     seqType,
 			     numReadingFrames, 
-			     initDisplayRange,
-			     fontDesc);
+			     initDisplayRange);
   
-  /* Set the initial font. (Requires detail view properties to be set) */
-  updateDetailViewFontDesc(detailView, fontDesc);
-
   return detailView;
 }
 

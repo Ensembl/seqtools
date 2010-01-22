@@ -19,7 +19,7 @@
 
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"
 #define DEFAULT_GRID_NUM_VERT_CELLS	5	  /* the number of vertical cells to split the grid into */
-#define DEFAULT_GRID_PERCENT_ID_MIN	0	  /* the minimum value on the y-axis of the grid */
+#define DEFAULT_GRID_PERCENT_ID_MIN	80	  /* the minimum value on the y-axis of the grid */
 #define DEFAULT_MSP_LINE_HEIGHT		2	  /* the height of the MSP lines in the grid */
 #define DEFAULT_GRID_Y_PADDING		5	  /* this provides space between the grid and the edge of the widget */
 #define DEFAULT_GRID_CELL_Y_PADDING	-2	  /* this controls the vertical space between the labels on the y axis */

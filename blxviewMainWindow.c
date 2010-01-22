@@ -658,6 +658,9 @@ GtkWidget* createMainWindow(char *refSeq,
   /* Add the MSP's to the trees */
   detailViewAddMspData(detailView, mspList);
 
+  /* Initial update to set the detail view font */
+  updateDetailViewFontDesc(detailView);
+
   /* Show the window */
   printf("realizing widgets...\n");
   gtk_widget_show_all(window);
