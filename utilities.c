@@ -39,14 +39,6 @@ GdkColor getGdkColor(gulong colour)
 }
 
 
-/* Returns true if the given MSP is a "fake" MSP (i.e. one that that is used just
- * to display the reference sequence and does not represent a real match.) */
-gboolean mspIsFake(const MSP const *msp)
-{
-  /* This is not a great way to identify fake msp's but it'll do for now. */
-  return (msp && msp->score == 0);
-}
-
 gboolean mspIsExon(const MSP const *msp)
 {
   return (msp && msp->score == -1);

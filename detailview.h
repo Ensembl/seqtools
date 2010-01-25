@@ -149,6 +149,7 @@ void			scrollDetailViewRightStep(GtkWidget *detailView);
 void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
+void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx);
 void			updateFeedbackBox(GtkWidget *detailView);
 
 void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
@@ -163,7 +164,7 @@ GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 BlxBlastMode mode,
 					 BlxSeqType seqType,
 					 int numReadingFrames,
-					 IntRange *refSeqRange);
+					 const char const *refSeqName);
 
 GtkWidget*		createDetailViewScrollBar(GtkAdjustment *adjustment, 
 						  GtkWidget *mainWindow);

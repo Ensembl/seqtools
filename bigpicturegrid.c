@@ -19,7 +19,7 @@
 
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"
 #define DEFAULT_GRID_NUM_VERT_CELLS	5	  /* the number of vertical cells to split the grid into */
-#define DEFAULT_GRID_PERCENT_ID_MIN	80	  /* the minimum value on the y-axis of the grid */
+#define DEFAULT_GRID_PERCENT_ID_MIN	0	  /* the minimum value on the y-axis of the grid */
 #define DEFAULT_MSP_LINE_HEIGHT		2	  /* the height of the MSP lines in the grid */
 #define DEFAULT_GRID_Y_PADDING		5	  /* this provides space between the grid and the edge of the widget */
 #define DEFAULT_GRID_CELL_Y_PADDING	-2	  /* this controls the vertical space between the labels on the y axis */
@@ -313,14 +313,14 @@ void calculateMspLineDimensions(GtkWidget *grid, const MSP const *msp,
  * an intron or something */
 static gboolean mspShownInGrid(const MSP const *msp)
 {
-  return !mspIsFake(msp) && !mspIsIntron(msp) && !mspIsExon(msp);
+  return !mspIsIntron(msp) && !mspIsExon(msp);
 }
 
 
 /* Draw a line on the given grid to represent the given match */
 static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 {
-  /* Ignore "fake" MSPs and introns. */
+  /* Ignore introns. */
   if (mspShownInGrid(msp))
     {
       GdkGC *gc = gdk_gc_new(grid->window);
@@ -343,11 +343,13 @@ static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 static gboolean drawUnselectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *grid = treeGetGrid(tree);
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  
+  MSP* msp = treeGetMsp(model, iter);
 
-  if (!treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
+  if (!mainWindowIsMspSelected(mainWindow, msp))
     {
-      const MSP* msp = treeGetMsp(model, iter);
+      GtkWidget *grid = treeGetGrid(tree);
       drawMspLine(grid, gridGetMspLineColour(grid), msp);
     }
   
@@ -359,11 +361,13 @@ static gboolean drawUnselectedMspLine(GtkTreeModel *model, GtkTreePath *path, Gt
 static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *grid = treeGetGrid(tree);
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
   
-  if (treePathIsSelected(GTK_TREE_VIEW(tree), path, model))
+  MSP* msp = treeGetMsp(model, iter);
+  
+  if (mainWindowIsMspSelected(mainWindow, msp))
     {
-      const MSP* msp = treeGetMsp(model, iter);
+      GtkWidget *grid = treeGetGrid(tree);
       drawMspLine(grid, gridGetMspLineHighlightColour(grid), msp);
     }
   
@@ -374,28 +378,24 @@ static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkT
 /* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid)
 {
-  /* The MSP data lives in the detail-view trees. There is one tree for each reading frame. */
+  /* The MSP data lives in the detail-view trees. There is one tree for each reading frame.
+   * Loop through all the MSPs in each tree twice - first drawing unselected MSPs and then 
+   * selected MSPs, so that selected lines appear on top. */
   const int numFrames = gridGetNumReadingFrames(grid);
   int frame = 1;
-
-  for ( ; frame <= numFrames; ++frame)
+  
+  for (frame = 1 ; frame <= numFrames; ++frame)
     {
       GtkWidget *tree = gridGetTree(grid, frame);
-      
-      if (tree)
-	{
-	  /* We'll loop through every row in the base (i.e. unfiltered) data model for this tree. */
-	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-	  
-	  /* Loop twice, first drawing unselected MSPs and then selected MSPs, so
-	   * that selected MSPs are always drawn on top. */
-	  gtk_tree_model_foreach(model, drawUnselectedMspLine, tree);
-	  gtk_tree_model_foreach(model, drawSelectedMspLine, tree);
-	}
-      else
-	{
-	  messout("Warning: tree list for grid [%x] contains items that are not valid GTK trees", grid);
-	}
+      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      gtk_tree_model_foreach(model, drawUnselectedMspLine, tree);
+    }
+
+  for (frame = 1 ; frame <= numFrames; ++frame)
+    {
+      GtkWidget *tree = gridGetTree(grid, frame);
+      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      gtk_tree_model_foreach(model, drawSelectedMspLine, tree);
     }
 }
 
@@ -586,7 +586,7 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 {
   gboolean wasSelected = FALSE;
   
-  const MSP *msp = treeGetMsp(model, iter);
+  MSP *msp = treeGetMsp(model, iter);
   
   if (mspShownInGrid(msp))
     {
@@ -598,10 +598,9 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 	  /* It's a hit */
 	  wasSelected = TRUE;
 	  
-	  if (deselectOthers)
-	    deselectAllSiblingTrees(tree, TRUE);
-	  
-	  selectRow(GTK_TREE_VIEW(tree), model, iter);
+	  GtkWidget *mainWindow = gridGetMainWindow(grid);
+	  mainWindowDeselectAllMsps(mainWindow, TRUE);
+	  mainWindowSelectMsp(mainWindow, msp, TRUE);
 	}
     }
   

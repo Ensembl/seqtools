@@ -337,59 +337,65 @@ static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event
   return FALSE;
 }
 
-static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpointer data)
-{
-  if (event->keyval == GDK_Left || event->keyval == GDK_Right)
-    {
-      MainWindowProperties *properties = mainWindowGetProperties(window);
-      GtkWidget *detailView = properties->detailView;
-      DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-      
-      IntRange *fullRange = mainWindowGetFullRange(window);
-      IntRange *displayRange = &detailViewProperties->displayRange;
-      
-      if (detailViewProperties->selectedBaseIdx != UNSET_INT)
-	{
-	  /* Move the selection left/right by 1 base */
-	  if (event->keyval == GDK_Left)
-	    {
-	      detailViewProperties->selectedBaseIdx -= 1;
-	    }
-	  else if (event->keyval == GDK_Right)
-	    {
-	      detailViewProperties->selectedBaseIdx += 1;
-	    }
-	  
-	  /* Limit it to within the reference sequence range */
-	  if (detailViewProperties->selectedBaseIdx < fullRange->min)
-	    {
-	      detailViewProperties->selectedBaseIdx = fullRange->min;
-	    }
-	  else if (detailViewProperties->selectedBaseIdx > fullRange->max)
-	    {
-	      detailViewProperties->selectedBaseIdx = fullRange->max;
-	    }
-	    
-	  /* If we've moved outside the current display range, scroll by 1 base.
-	   * (This should probably also jump to the the selected base if it was previously
-	   * out of view - at the moment it just scrolls by 1, which is usually not enough 
-	   * to bring it into view.) */
-	  if (detailViewProperties->selectedBaseIdx > displayRange->max)
-	    {
-	      scrollDetailViewRight1(detailView);
-	    }
-	  else if (detailViewProperties->selectedBaseIdx < displayRange->min)
-	    {
-	      scrollDetailViewLeft1(detailView);
-	    }
 
-	  /* Update the feedback box and the trees */
-	  updateFeedbackBox(detailView);
-	  gtk_widget_queue_draw(detailView);
+static gboolean keyPressLeftRight(GtkWidget *window, GdkEventKey *event)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(window);
+  GtkWidget *detailView = properties->detailView;
+  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
+  
+  IntRange *fullRange = mainWindowGetFullRange(window);
+  IntRange *displayRange = &detailViewProperties->displayRange;
+  
+  if (detailViewProperties->selectedBaseIdx != UNSET_INT)
+    {
+      /* Move the selection left/right by 1 base */
+      if (event->keyval == GDK_Left)
+	{
+	  detailViewProperties->selectedBaseIdx -= 1;
+	}
+      else if (event->keyval == GDK_Right)
+	{
+	  detailViewProperties->selectedBaseIdx += 1;
 	}
       
-      return TRUE;
-  }
+      /* Limit it to within the reference sequence range */
+      if (detailViewProperties->selectedBaseIdx < fullRange->min)
+	{
+	  detailViewSetSelectedBaseIdx(detailView, fullRange->min);
+	}
+      else if (detailViewProperties->selectedBaseIdx > fullRange->max)
+	{
+	  detailViewSetSelectedBaseIdx(detailView, fullRange->max);
+	}
+      
+      /* If we've moved outside the current display range, scroll by 1 base.
+       * (This should probably also jump to the the selected base if it was previously
+       * out of view - at the moment it just scrolls by 1, which is usually not enough 
+       * to bring it into view.) */
+      if (detailViewProperties->selectedBaseIdx > displayRange->max)
+	{
+	  scrollDetailViewRight1(detailView);
+	}
+      else if (detailViewProperties->selectedBaseIdx < displayRange->min)
+	{
+	  scrollDetailViewLeft1(detailView);
+	}
+    }
+  
+  return TRUE;
+}
+
+
+static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpointer data)
+{
+  gboolean result = FALSE;
+  
+  if (event->keyval == GDK_Left || event->keyval == GDK_Right)
+    {
+      keyPressLeftRight(window, event);
+      result = TRUE;
+    }
   
   return FALSE;
 }
@@ -445,6 +451,7 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->seqType = seqType;
       properties->geneticCode = geneticCode;
       properties->numReadingFrames = numReadingFrames;
+      properties->selectedMsps = NULL;
       
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyMainWindow), NULL); 
@@ -523,6 +530,71 @@ int mainWindowGetNumReadingFrames(GtkWidget *mainWindow)
   return properties ? properties->numReadingFrames : UNSET_INT;
 }
 
+GList* mainWindowGetSelectedMsps(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->selectedMsps : NULL;
+}
+
+
+/* Update function to be called whenever the MSP selection has changed */
+static void selectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
+{
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  
+  if (updateTrees)
+    {
+      callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
+      callFuncOnAllDetailViewTrees(detailView, selectRowsForSelectedMsps);
+    }
+  
+  /* Update the feedback box to tell the user which sequence is selected. */
+  updateFeedbackBox(detailView);
+  
+  /* Redraw the grids */
+  gtk_widget_queue_draw(mainWindowGetBigPicture(mainWindow));
+}
+
+
+void mainWindowSelectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees)
+{
+  if (!mainWindowIsMspSelected(mainWindow, msp))
+    {
+      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      properties->selectedMsps = g_list_prepend(properties->selectedMsps, msp);
+      selectionChanged(mainWindow, updateTrees);
+    }
+}
+
+void mainWindowDeselectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees)
+{
+  if (mainWindowIsMspSelected(mainWindow, msp))
+    {
+      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      properties->selectedMsps = g_list_remove(properties->selectedMsps, msp);
+      selectionChanged(mainWindow, updateTrees);
+    }
+}
+
+void mainWindowDeselectAllMsps(GtkWidget *mainWindow, const gboolean updateTrees)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+
+  if (g_list_length(properties->selectedMsps) > 0)
+    {
+      g_list_free(properties->selectedMsps);
+      properties->selectedMsps = NULL;
+      selectionChanged(mainWindow, updateTrees);
+    }
+}
+
+gboolean mainWindowIsMspSelected(GtkWidget *mainWindow, MSP *msp)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return (g_list_find(properties->selectedMsps, msp) != NULL);
+}
+
+
 /***********************************************************
  *                      Initialisation                     *
  ***********************************************************/
@@ -568,6 +640,7 @@ static GtkWidget* createMainMenu(GtkWidget *window)
 
 /* Create the main window */
 GtkWidget* createMainWindow(char *refSeq, 
+			    const char const *refSeqName,
 			    MSP *mspList, 
 			    BlxBlastMode blastMode,
 			    BlxSeqType seqType, 
@@ -629,7 +702,7 @@ GtkWidget* createMainWindow(char *refSeq,
 					   blastMode,
 					   seqType,
 					   numReadingFrames,
-					   &fullDisplayRange);
+					   refSeqName);
   printf("Done.\n");
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */

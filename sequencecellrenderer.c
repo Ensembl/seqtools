@@ -449,11 +449,6 @@ static int getSelectedBaseIdx(SequenceCellRenderer *renderer)
 }
 
 /* Get colours */
-static GdkColor* getRefSeqColour(SequenceCellRenderer *renderer, gboolean selected)
-{
-  return selected ? detailViewGetRefSeqSelectedColour(renderer->detailView) : detailViewGetRefSeqColour(renderer->detailView);
-}
-
 static GdkColor* getMatchColour(SequenceCellRenderer *renderer, gboolean selected)
 {
   return selected ? detailViewGetMatchSelectedColour(renderer->detailView) : detailViewGetMatchColour(renderer->detailView);
@@ -630,119 +625,35 @@ static char* getText(SequenceCellRenderer *renderer)
 }
 
 
-/* Utility to return true if the text for a text field should be displayed. e.g. this is false
- * when it's the score/id field for the reference sequence. */
-static gboolean showColumn(SequenceCellRenderer *renderer)
-{
-  gboolean result = TRUE;
-  
-  if (renderer->data && mspIsFake(renderer->data))
-    {
-      /* It's a "fake" row, indicating that it's displaying the ref sequence. The score and id
-       * columns are not valid. */
-       if (renderer->score || renderer->id)
-       {
-	 result = FALSE;
-       }
-    }
-  
-  return result;
-}
-
-
 static void drawText(SequenceCellRenderer *renderer, 
 		     GtkWidget *widget,
 		     GdkWindow *window, 
 		     GtkStateType state, 
 		     GdkRectangle *cell_area)
 {
-  if (showColumn(renderer))
-    {
-      gchar *displayText = getText(renderer);
-      PangoLayout *layout = gtk_widget_create_pango_layout(widget, displayText);
+  gchar *displayText = getText(renderer);
+  PangoLayout *layout = gtk_widget_create_pango_layout(widget, displayText);
 
-      PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
-      pango_layout_set_font_description(layout, font_desc);
-      pango_font_description_free(font_desc);
+  PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
+  pango_layout_set_font_description(layout, font_desc);
+  pango_font_description_free(font_desc);
 
-      gint x_offset = 0, y_offset = 0, vertical_separator = 0;
-      get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
-
-      gtk_paint_layout (widget->style,
-			window,
-			state,
-			TRUE,
-			NULL,
-			widget,
-			NULL, //"cellrenderertext",
-			cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad,
-			cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator,
-			layout);
-      
-      g_object_unref(layout);
-    }
-}
-
-
-static void drawRefSequence(SequenceCellRenderer *renderer,
-			    GtkWidget *widget,
-			    GdkWindow *window, 
-			    GtkStateType state,
-			    GdkRectangle *cell_area)
-{
   gint x_offset = 0, y_offset = 0, vertical_separator = 0;
   get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
-  
-  GdkGC *gc = gdk_gc_new(window);
-  
-  IntRange *segmentRange = getDisplayRange(renderer);
-  gboolean rightToLeft = getStrandsToggled(renderer);
-  int selectedBaseIdx = getSelectedBaseIdx(renderer);
-  
-  GtkWidget *mainWindow = detailViewGetMainWindow(renderer->detailView);
-  gchar *segmentToDisplay = getSequenceSegment(mainWindow, 
-					       mainWindowGetRefSeq(mainWindow),
-					       mainWindowGetRefSeqRange(mainWindow),
-					       segmentRange->min, 
-					       segmentRange->max, 
-					       getRefSeqStrand(renderer), 
-					       getSeqType(renderer),
-					       getRefSeqFrame(renderer), 
-					       getNumReadingFrames(renderer),
-					       rightToLeft);
-  
-  if (segmentToDisplay)
-    {
-      /* Just loop through and display each base in the ref sequence. The background colour
-       * depends on whether the base is selected or not. */
-      const int segmentLen = segmentRange->max - segmentRange->min + 1;
-      int segmentIdx = 0;
-      
-      for ( ; segmentIdx < segmentLen; ++segmentIdx)
-	{
-	  /* Find where to position this base */
-	  int x, y;
-	  getCoordsForBaseIdx(segmentIdx, segmentRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
-	  
-	  /* Draw the background */
-	  const int displayIdx = rightToLeft ? segmentRange->max - segmentIdx : segmentRange->min + segmentIdx;
-	  gboolean isSelected = (selectedBaseIdx == displayIdx);
-	  GdkColor *baseBgColour = getRefSeqColour(renderer, isSelected);
 
-	  if (baseBgColour)
-	    {
-	      gdk_gc_set_foreground(gc, baseBgColour);
-	      gdk_draw_rectangle(window, gc, TRUE, x, y, renderer->charWidth, renderer->charHeight);
-	    }
-	}
-      
-      /* Draw the sequence text */
-      drawSequenceText(renderer, segmentToDisplay, segmentRange, cell_area, x_offset, y_offset, vertical_separator, widget, window, state, gc);
-      
-      /* Clean up */
-      g_free(segmentToDisplay);
-    }
-} 
+  gtk_paint_layout (widget->style,
+		    window,
+		    state,
+		    TRUE,
+		    NULL,
+		    widget,
+		    NULL, //"cellrenderertext",
+		    cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad,
+		    cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator,
+		    layout);
+  
+  g_object_unref(layout);
+}
 
 
 /* The given renderer is an MSP. This function checks if there is a base index
@@ -1210,11 +1121,7 @@ sequence_cell_renderer_render (GtkCellRenderer *cell,
 {
   SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
   
-  if (renderer->msp && mspIsFake(renderer->msp))
-    {
-      drawRefSequence(renderer, widget, window, getState(widget, flags), cell_area);
-    }
-  else if (renderer->msp && mspIsExon(renderer->msp))
+  if (renderer->msp && mspIsExon(renderer->msp))
     {
       drawExon(renderer, widget, window, getState(widget, flags), cell_area);
     }

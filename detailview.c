@@ -21,11 +21,14 @@
 #define FONT_INCREMENT_SIZE		1
 #define MIN_FONT_SIZE			2
 #define MAX_FONT_SIZE			20
+#define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
+
 
 /* Local function declarations */
 static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
 static GList*		    detailViewGetColumnList(GtkWidget *detailView);
+static GtkWidget*	    detailViewGetFeedbackBox(GtkWidget *detailView);
 
 static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		    widgetIsTree(GtkWidget *widget);
@@ -34,6 +37,7 @@ static void		    updateCellRendererFont(GtkWidget *detailView, PangoFontDescript
 static void		    refreshDetailViewHeaders(GtkWidget *detailView);
 static GtkWidget*	    createSequenceColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
 static const char*	    findDetailViewFont(GtkWidget *detailView);
+static Strand		    mspGetStrand(const MSP const *msp);
 
 /***********************************************************
  *		       Utility functions                   *
@@ -679,33 +683,108 @@ static void decrementFontSize(GtkWidget *detailView)
 }
 
 
-/* Updates the feedback box with info about the currently-selected row/base. Takes
- * into account selections in any of the trees. This should be called every time 
- * the row selection or base selection is changed. 
- * TNote that there shouldn't be rows selected in different trees at the same time,
- * so this function doesn't really deal with that situation - what will happen is
- * that the contents of the feedback box will be overwritten by the last tree the
- * update function is called for. */
-void updateFeedbackBox(GtkWidget *detailView)
+/* Get the text displayed in the user feedback box based on the given MSPs sequence name
+ * (if an MSP is given), and also the currently-selected base index (if there is one). 
+ * The string returned by this function must be free'd with g_free. */
+static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
 {
-  /* Loop through all of the trees. Stop if we find one that has selected rows. */
-  int numFrames = detailViewGetNumReadingFrames(detailView);
-  gboolean done = FALSE;
+  /* The info we need to find... */
+  int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
+  int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
+  char *sname = NULL;
   
-  int frame = 1;
-  for ( ; frame <= numFrames && !done; ++frame)
+  /* See if a base is selected. If we're displaying peptide matches, this will be a coord in
+   * the peptide reference sequence, so we'll need to convert it to a coord into the DNA ref seq.
+   * We'll display the coord for the DNA base relevant for this tree's reading frame. */
+  int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  qIdx = selectedBaseIdx;
+  
+  if (selectedBaseIdx != UNSET_INT && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
     {
-      /* Forward strand tree for this reading frame */
-      GtkWidget *curTree = detailViewGetFrameTree(detailView, FORWARD_STRAND, frame);
-      done = updateFeedbackBoxForTree(curTree);
+      qIdx = convertPeptideToDna(selectedBaseIdx, 1, detailViewGetNumReadingFrames(detailView)); /* to do: determine frame based on click pos? */
+    }
+  
+  /* Make sure we have enough space for all the bits to go in the result text */
+  int msgLen = numDigitsInInt(qIdx);
+  
+  /* If an MSP is given, set the sequence name to that MSP's match sequence */
+  if (msp)
+    {
+      sname = msp->sname;
+      msgLen += strlen(sname);
       
-      if (!done)
+      /* If a ref sequence base is selected, find the corresponding base in the match sequence */
+      sIdx = UNSET_INT;
+      if (msp && qIdx != UNSET_INT)
 	{
-	  /* Reverse strand tree for this reading frame */
-	  GtkWidget *curTree = detailViewGetFrameTree(detailView, REVERSE_STRAND, frame);
-	  done = updateFeedbackBoxForTree(curTree);
+	  /* If the base doesn't exist in the match sequence, just get the "nearest" value */
+	  gapCoord(msp, 
+		   qIdx, 
+		   detailViewGetNumReadingFrames(detailView), 
+		   mspGetStrand(msp),
+		   detailViewGetStrandsToggled(detailView), 
+		   &sIdx);
+	  
+	  msgLen += numDigitsInInt(sIdx);
 	}
     }
+  
+  if (!sname)
+    {
+      msgLen += strlen(NO_SUBJECT_SELECTED_TEXT);
+    }
+  
+  msgLen += 10; /* for format text */
+  char *messageText = g_malloc(sizeof(char) * msgLen);
+  
+  /* Create the message text. */
+  if (sname != NULL && qIdx != UNSET_INT)
+    {
+      sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display all */
+    }
+  else if (sname != NULL)
+    {
+      sprintf(messageText, "%s", sname);				/* just the name */
+    }
+  else if (qIdx != UNSET_INT)
+    {
+      sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);  /* just the index */
+    }
+  else
+    {
+      sprintf(messageText, " ");
+    }
+  
+  return messageText;
+}
+
+
+/* Updates the feedback box with info about any currently-selected MSPs. This 
+ * currently assumes single-MSP selections, but could be extended in the future 
+ * to display, say, summary information about multiple MSPs. */
+void updateFeedbackBox(GtkWidget *detailView)
+{
+  char *messageText = NULL;
+
+  GList *selectedMsps = mainWindowGetSelectedMsps(detailViewGetMainWindow(detailView));
+  
+  if (g_list_length(selectedMsps) > 0)
+    {
+      /* We currently only handle single-selection, so only process the first selected MSP */
+      MSP *selectedMsp = (MSP*)selectedMsps->data;
+      messageText = getFeedbackText(detailView, selectedMsp);
+    }
+  else
+    {
+      /* No MSPs selected. Just see if a base index is selected. */
+      messageText = getFeedbackText(detailView, NULL);
+    }
+  
+  GtkWidget *feedbackBox = detailViewGetFeedbackBox(detailView);
+  gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
+  gtk_widget_queue_draw(feedbackBox);
+  
+  g_free(messageText);
 }
 
 /***********************************************************
@@ -1102,6 +1181,12 @@ int detailViewGetNumReadingFrames(GtkWidget *detailView)
   return properties ? properties->numReadingFrames : UNSET_INT;
 }
 
+static GtkWidget* detailViewGetFeedbackBox(GtkWidget *detailView)
+{
+  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
+  return detailViewProperties->feedbackBox;
+}
+
 IntRange* detailViewGetDisplayRange(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1130,6 +1215,16 @@ int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->selectedBaseIdx : UNSET_INT;
+}
+
+void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->selectedBaseIdx = selectedBaseIdx;
+  
+  updateFeedbackBox(detailView);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+  gtk_widget_queue_draw(detailView);
 }
 
 BlxBlastMode detailViewGetBlastMode(GtkWidget *detailView)
@@ -1172,8 +1267,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GList *columnList,
 				       GtkAdjustment *adjustment, 
 				       BlxSeqType seqType,
-				       int numReadingFrames,
-				       IntRange *displayRange)
+				       int numReadingFrames)
 {
   if (detailView)
     { 
@@ -1193,8 +1287,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->adjustment = adjustment;
       properties->seqType = seqType;
       properties->numReadingFrames = numReadingFrames;
-      properties->displayRange.min = displayRange->min;
-      properties->displayRange.max = displayRange->max;
+      properties->displayRange.min = 1;
+      properties->displayRange.max = 1;
       properties->selectedBaseIdx = UNSET_INT;
       properties->fontDesc = fontDesc;
       properties->verticalSeparator = VERTICAL_SEPARATOR_HEIGHT;
@@ -1709,14 +1803,15 @@ static void createTwoPanedTrees(GtkWidget *detailView,
 				GList **list2,
 				BlxSeqType seqType,
 				GList *columnList,
+				const char const *refSeqName,
 				const int firstFrame)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, firstFrame);
-  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, firstFrame + 1);
+  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, refSeqName, firstFrame);
+  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, refSeqName, firstFrame + 1);
   
   if (container)
     {
-      gtk_paned_pack1(GTK_PANED(container), tree1, FALSE, TRUE);
+      gtk_paned_pack1(GTK_PANED(container), tree1, TRUE, TRUE);
       gtk_paned_pack2(GTK_PANED(container), tree2, TRUE, TRUE);
     }
 }
@@ -1731,17 +1826,18 @@ static void createThreePanedTrees(GtkWidget *detailView,
 				  GList **list,
 				  BlxSeqType seqType,
 				  const gboolean addToDetailView,
-				  GList *columnList)
+				  GList *columnList,
+				  const char const *refSeqName)
 {
   /* Create a tree for pane1 (but only add it to the detailView if instructed to).
    * The first tree has headers. */
-  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, 1);
+  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, refSeqName, 1);
   
   GtkWidget *nestedPanedWidget = NULL;
   
   if (addToDetailView)
     {
-      gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
+      gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
       
       /* Create another paned widget and place it in pane 2 */
       nestedPanedWidget = gtk_vpaned_new();
@@ -1750,7 +1846,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
   
   /* Create two more trees (and place them in the nested paned widget, if it is not null). 
    * Neither of these trees should have headers. */
-  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, 2);
+  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, refSeqName, 2);
 }
 
 
@@ -1764,7 +1860,8 @@ static void createDetailViewPanes(GtkWidget *detailView,
 				  GList **fwdStrandTrees,
 				  GList **revStrandTrees,
 				  BlxSeqType seqType,
-				  GList *columnList)
+				  GList *columnList,
+				  const char const *refSeqName)
 {
   if (numReadingFrames == 1)
     {
@@ -1778,14 +1875,15 @@ static void createDetailViewPanes(GtkWidget *detailView,
 			  revStrandTrees, 
 			  seqType,
 			  columnList,
+			  refSeqName,
 			  1);
     }
   else if (numReadingFrames == 3)
     {
       /* Protein matches: we need 3 trees for the 3 reading frames for EACH strand (although only
        * one set of trees will be displayed at a time). */
-      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, columnList);
-      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, columnList);
+      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, columnList, refSeqName);
+      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, columnList, refSeqName);
     }
 }
 
@@ -1801,6 +1899,12 @@ static int mspGetFrame(const MSP const *msp, const BlxSeqType seqType)
     {
       return atoi(&msp->qframe[2]);
     }
+}
+
+
+static Strand mspGetStrand(const MSP const *msp)
+{
+  return msp->qframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
 }
 
 
@@ -1859,7 +1963,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			    BlxBlastMode mode,
 			    BlxSeqType seqType,
 			    int numReadingFrames,
-			    IntRange *initDisplayRange)
+			    const char const *refSeqName)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -1891,7 +1995,8 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			&fwdStrandTrees,
 			&revStrandTrees,
 			seqType,
-			columnList);
+			columnList,
+			refSeqName);
   
   /* Put everything in a vbox, and pack it into the main window. */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -1914,8 +2019,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			     columnList,
 			     adjustment, 
 			     seqType,
-			     numReadingFrames, 
-			     initDisplayRange);
+			     numReadingFrames);
   
   return detailView;
 }

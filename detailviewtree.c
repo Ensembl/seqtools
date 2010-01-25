@@ -12,9 +12,8 @@
 #include <SeqTools/sequencecellrenderer.h>
 #include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/utilities.h>
+#include <gdk/gdkkeysyms.h>
 #include <string.h>
-
-#define NO_SUBJECT_SELECTED_TEXT		"<no subject selected>"
 
 
 enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
@@ -22,7 +21,7 @@ enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
 
 /* Local function declarations */
 static void		onSelectionChangedTree(GObject *selection, gpointer data);
-static GtkTreePath*	treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath);
+//static GtkTreePath*	treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 
 /***********************************************************
@@ -82,6 +81,11 @@ GtkWidget *treeGetDetailView(GtkWidget *tree)
   return properties ? properties->detailView : NULL;
 }
 
+GtkWidget *treeGetMainWindow(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetMainWindow(detailView);
+}
 
 Strand treeGetStrand(GtkWidget *tree)
 {
@@ -144,11 +148,7 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
       /* Only update if things have changed */
       if (detailViewProperties && detailViewProperties->selectedBaseIdx != selectedBaseIdx)
 	{
-	  detailViewProperties->selectedBaseIdx = selectedBaseIdx;
-	  
-	  /* Update the feedback box and the trees */
-	  updateFeedbackBox(properties->detailView);
-	  gtk_widget_queue_draw(properties->detailView);
+	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx);
 	}
     }
 }
@@ -163,12 +163,12 @@ char* treeGetRefSeq(GtkWidget *tree)
 
 /* Get the actual displayed reference sequence (may be the DNA sequence or peptide sequence.
  * Always the forward strand.) */
-static char* treeGetDisplaySeq(GtkWidget *tree)
-{
-  assertTree(tree);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetDisplaySeq(detailView);
-}
+//static char* treeGetDisplaySeq(GtkWidget *tree)
+//{
+//  assertTree(tree);
+//  GtkWidget *detailView = treeGetDetailView(tree);
+//  return detailViewGetDisplaySeq(detailView);
+//}
 
 /* Returns the currently-displayed range in the tree view */
 IntRange* treeGetDisplayRange(GtkWidget *tree)
@@ -248,20 +248,11 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 
 
 /* Return the msp in a given tree row */
-const MSP* treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter)
+MSP* treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter)
 {
   MSP *msp = NULL;
   gtk_tree_model_get(model, iter, MSP_COL, &msp, -1);
   return msp;
-}
-
-
-/* Return the msp in a given tree row */
-static GtkWidget* treeGetFeedbackBox(GtkWidget *tree)
-{
-  assertTree(tree);
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(treeGetDetailView(tree));
-  return detailViewProperties->feedbackBox;
 }
 
 
@@ -304,27 +295,27 @@ GtkTreeModel* treeGetBaseDataModel(GtkTreeView *tree)
 
 /* Get the path in the tree view's filtered (visible) model that corresponds to the given
  * path in the base (unfiltered) model */
-static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath)
-{
-  GtkTreePath *result = NULL;
-  
-  if (tree && basePath)
-    {
-      /* Convert the child path to the equivalent path in the filtered model. The
-       * result may be null if the child row does not appear in the filtered model. */
-      GtkTreeModel *filter = treeGetVisibleDataModel(tree);
-      if (GTK_IS_TREE_MODEL_FILTER(filter))
-	{
-	  result = gtk_tree_model_filter_convert_child_path_to_path(GTK_TREE_MODEL_FILTER(filter), basePath);
-	}
-      else
-	{
-	  result = basePath;
-	}
-    }
-  
-  return result;
-}
+//static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath)
+//{
+//  GtkTreePath *result = NULL;
+//  
+//  if (tree && basePath)
+//    {
+//      /* Convert the child path to the equivalent path in the filtered model. The
+//       * result may be null if the child row does not appear in the filtered model. */
+//      GtkTreeModel *filter = treeGetVisibleDataModel(tree);
+//      if (GTK_IS_TREE_MODEL_FILTER(filter))
+//	{
+//	  result = gtk_tree_model_filter_convert_child_path_to_path(GTK_TREE_MODEL_FILTER(filter), basePath);
+//	}
+//      else
+//	{
+//	  result = basePath;
+//	}
+//    }
+//  
+//  return result;
+//}
 
 
 /* Decrease the font size in the detail view trees (i.e. effectively zoom out) */
@@ -414,86 +405,6 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
 }
 
 
-/* Get the text displayed in the user feedback box based on the given row's sequence name (if a
- * row iterater and model are given), and also the currently-selected base index (if there is one). 
- * The string returned by this function must be free'd with g_free. */
-static char* getFeedbackText(GtkWidget *tree, GtkTreeModel *model, GtkTreeIter *iter)
-{
-  /* The info we need to find... */
-  int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
-  int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
-  char *sname = NULL;
-
-  /* See if a base is selected. If we're displaying peptide matches, this will be a coord in
-   * the peptide reference sequence, so we'll need to convert it to a coord into the DNA ref seq.
-   * We'll display the coord for the DNA base relevant for this tree's reading frame. */
-  int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
-  qIdx = selectedBaseIdx;
-  
-  if (selectedBaseIdx != UNSET_INT && treeGetSeqType(tree) == BLXSEQ_PEPTIDE)
-    {
-      qIdx = convertPeptideToDna(selectedBaseIdx, treeGetFrame(tree), treeGetNumReadingFrames(tree));
-    }
-
-  /* Make sure we have enough space for all the bits to go in the string */
-  int msgLen = numDigitsInInt(qIdx);
-  
-  /* If a row is given, set the sequence name to that row's sequence */
-  if (iter != NULL && model != NULL)
-    {
-      const MSP *msp = treeGetMsp(model, iter);
-      if (msp)
-	{
-	  sname = msp->sname;
-	  msgLen += strlen(sname);
-      
-	  /* If a ref sequence base is selected, find the corresponding base in the match sequence */
-	  sIdx = UNSET_INT;
-	  if (msp && qIdx != UNSET_INT)
-	    {
-	      /* If the base doesn't exist in the match sequence, just get the "nearest" value */
-	      gapCoord(msp, 
-		       qIdx, 
-		       treeGetNumReadingFrames(tree), 
-		       treeGetStrand(tree), 
-		       treeGetStrandsToggled(tree), 
-		       &sIdx);
-	      
-	      msgLen += numDigitsInInt(sIdx);
-	    }
-	}
-    }
-
-  if (!sname)
-    {
-      msgLen += strlen(NO_SUBJECT_SELECTED_TEXT);
-    }
-
-  msgLen += 10; /* for format text */
-  char *messageText = g_malloc(sizeof(char) * msgLen);
-  
-  /* Create the message text. */
-  if (sname != NULL && qIdx != UNSET_INT)
-    {
-      sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display all */
-    }
-  else if (sname != NULL)
-    {
-      sprintf(messageText, "%s", sname);				/* just the name */
-    }
-  else if (qIdx != UNSET_INT)
-    {
-      sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);  /* just the index */
-    }
-  else
-    {
-      sprintf(messageText, " ");
-    }
-  
-  return messageText;
-}
-
-
 /***********************************************************
  *			      Updates			   *
  ***********************************************************/
@@ -521,25 +432,25 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
       TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)header->data;
       if (headerInfo && headerInfo->headerWidget)
 	{
-	  if (headerInfo->refreshFunc)
-	    {
-	      /* Refresh the contents */
-	      headerInfo->refreshFunc(headerInfo->headerWidget, tree);
-	    }
-
 	  /* Set the background colour. Must set it in the parent event box seeing as labels
 	   * don't have a window themselves. */
 	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
-//	  GdkColor *bgColour = detailViewGetRefSeqColour(treeGetDetailView(tree)); //to do: should use this but doesn't work
-	  GdkColor bgColour;
-	  gdk_color_parse("yellow", &bgColour);
-	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour);
+//	  GdkColor *bgColour = detailViewGetRefSeqColour(properties->detailView); //to do: should use this but doesn't work
+	  GdkColor bgColour2;
+	  gdk_color_parse("yellow", &bgColour2);
+	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour2);
 	  
 	  /* Update the font and widget size */
 	  gtk_widget_modify_font(headerInfo->headerWidget, treeGetFontDesc(tree));
 	  int width = calculateColumnWidth(headerInfo, tree);
 	  gtk_widget_set_size_request(headerInfo->headerWidget, width, -1);
 	  gtk_widget_queue_resize(headerInfo->headerWidget);
+	  
+	  if (headerInfo->refreshFunc)
+	    {
+	      /* Refresh the contents */
+	      headerInfo->refreshFunc(headerInfo->headerWidget, tree);
+	    }
 	}
       else
 	{
@@ -549,86 +460,52 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 }
 
 
-/* Updates the feedback box with info about any currently-selected row/base in the
- * given tree.  This currently assumes single-row selections, but could be extended
- * in the future to display, say, summary information about multiple rows. Returns true
- * if the given tree has rows selected. */
-gboolean updateFeedbackBoxForTree(GtkWidget *tree)
-{
-  gboolean done = FALSE;
-  char *messageText = NULL;
-  
-  GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-  GtkTreeModel *model = NULL;
-  GList *selectedRows = gtk_tree_selection_get_selected_rows(selection, &model);
-
-  if (g_list_length(selectedRows) > 0)
-    {
-      done = TRUE;
-
-      /* We currently only handle single-selection, so only process the first selected row */
-      GtkTreePath *path = (GtkTreePath*)(selectedRows->data);
-
-      GtkTreeIter iter;
-      gtk_tree_model_get_iter(model, &iter, path);
-      
-      messageText = getFeedbackText(tree, model, &iter);
-    }
-  else
-    {
-      /* No rows selected. Just see if a base index is selected. */
-      messageText = getFeedbackText(tree, NULL, NULL);
-    }
-
-  GtkWidget *feedbackBox = treeGetFeedbackBox(tree);
-  gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
-  gtk_widget_queue_draw(feedbackBox);
-  
-  g_free(messageText);
-
-  return done;
-}
-
-
 /***********************************************************
  *			  Selections			   *
  ***********************************************************/
-
-/* Return true if the given path is selected in the given tree view. The given 
- * path must be in the given model, but this can be in either the base model
- * or the filtered model of the tree - we will check and do any conversion necessary. */
-gboolean treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model)
-{
-  gboolean result = FALSE;
-  
-  GtkTreeModel *baseModel = treeGetBaseDataModel(tree);
-  GtkTreePath *visiblePath = (model == baseModel) ? treeConvertBasePathToVisiblePath(tree, path) : path;
-  
-  if (visiblePath)
-    {
-      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-      result = gtk_tree_selection_path_is_selected(selection, visiblePath);
-    }
-  
-  return result;
-}
+//
+///* Return true if the given path is selected in the given tree view. The given 
+// * path must be in the given model, but this can be in either the base model
+// * or the filtered model of the tree - we will check and do any conversion necessary. */
+//gboolean treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model)
+//{
+//  gboolean result = FALSE;
+//  
+//  GtkTreeModel *baseModel = treeGetBaseDataModel(tree);
+//  GtkTreePath *visiblePath = (model == baseModel) ? treeConvertBasePathToVisiblePath(tree, path) : path;
+//  
+//  if (visiblePath)
+//    {
+//      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+//      result = gtk_tree_selection_path_is_selected(selection, visiblePath);
+//    }
+//  
+//  return result;
+//}
 
 
 /* Selects the given row iterator in the given tree. The iter must be in the given
  * model, but the model can be either the base or filtered model for this tree
  * (this function converts accordingly) */
-void selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter)
-{
-  GtkTreeSelection *selection = gtk_tree_view_get_selection(tree);
-  GtkTreePath *path = gtk_tree_model_get_path(model, iter);
-  
-  /* Convert to the visible (filtered) model if necessary */
-  GtkTreeModel *visibleModel = treeGetVisibleDataModel(tree);
-  GtkTreePath *visiblePath = (model == visibleModel) ? path : treeConvertBasePathToVisiblePath(tree, path);
-  
-  if (visiblePath)
-    gtk_tree_selection_select_path(selection, visiblePath);
-}
+//void selectTreeRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter, const gboolean deselectOthers)
+//{
+//  if (deselectOthers)
+//    {
+//      deselectAllSiblingTrees(tree, TRUE);
+//    }
+//  
+//  GtkTreeSelection *selection = gtk_tree_view_get_selection(tree);
+//  GtkTreePath *path = gtk_tree_model_get_path(model, iter);
+//  
+//  /* Convert to the visible (filtered) model if necessary */
+//  GtkTreeModel *visibleModel = treeGetVisibleDataModel(tree);
+//  GtkTreePath *visiblePath = (model == visibleModel) ? path : treeConvertBasePathToVisiblePath(tree, path);
+//  
+//  if (visiblePath)
+//    {
+//      gtk_tree_selection_select_path(selection, visiblePath);
+//    }
+//}
 
 
 /* Deselect all rows in the given tree */
@@ -680,16 +557,68 @@ void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 }
 
 
+/* Select the given row if its MSP is marked as selected. */
+static gboolean selectRowIfMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  MSP *msp = treeGetMsp(model, iter);
+  
+  if (mainWindowIsMspSelected(mainWindow, msp))
+    {
+      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+      gtk_tree_selection_select_path(selection, path);
+    }
+  
+  return FALSE;
+}
+
+
+/* Select all rows in this tree whose MSPs are marked as selected */
+void selectRowsForSelectedMsps(GtkWidget *tree, gpointer data)
+{
+  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+  gtk_tree_model_foreach(model, selectRowIfMspSelected, tree);
+}
+
+
+/* Mark the given row's MSP as selected in the main window's list of selected MSPs.
+ * Does not allow the main window to re-update the tree selection */
+static void markRowMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  
+  MSP *msp = treeGetMsp(model, iter);
+  
+  mainWindowSelectMsp(mainWindow, msp, FALSE);
+  
+  gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
+}
+
+
+static void onSelectionChangedTree(GObject *selection, gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(selection), markRowMspSelected, tree);
+}
+
+
 /***********************************************************
  *                   Sorting and filtering                 *
  ***********************************************************/
+
+
 
 /* Refilter the data for the given tree */
 void refilterTree(GtkWidget *tree, gpointer data)
 {
   assertTree(tree);
+  
   GtkTreeModelFilter *filter = GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(GTK_TREE_VIEW(tree)));
   gtk_tree_model_filter_refilter(filter);
+
+  selectRowsForSelectedMsps(tree, NULL);
 }
 
 
@@ -818,10 +747,10 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     case 1:
       {
 	/* Left button: select row */
-	/* First, deselect anything in any other trees than this one. Then let the
-	 * default handler select the row. */
-	deselectAllSiblingTrees(tree, FALSE);
 	
+	mainWindowDeselectAllMsps(treeGetMainWindow(tree), FALSE);
+	deselectAllSiblingTrees(tree, FALSE);
+
 	/* Let the default handler select the row */
 	handled = FALSE;
 	break;
@@ -854,6 +783,45 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     };
   
   return handled;
+}
+
+
+static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer data)
+{
+  if (event->keyval == GDK_Up || event->keyval == GDK_Down)
+    {
+      /* Mark the currently selected MSPs as no longer selected unless selection
+       * has not changed */
+      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+      GtkTreeModel *model;
+      GList *listItem = gtk_tree_selection_get_selected_rows(selection, &model);
+      
+      if (listItem)
+	{
+	  GtkTreePath *path = (GtkTreePath*)(listItem->data);
+	  
+	  if (event->keyval == GDK_Up)
+	    {
+	      if (gtk_tree_path_prev(path))
+		{
+		  mainWindowDeselectAllMsps(treeGetMainWindow(tree), FALSE);
+		}
+	    }
+	  else
+	    {
+	      /* For some reason gtk_tree_path_next doesn't indicate if next is null, so we have to get an iter... */
+	      GtkTreeIter iter;
+	      gtk_tree_model_get_iter(model, &iter, path);
+	      
+	      if (gtk_tree_model_iter_next(model, &iter))
+		{
+		  mainWindowDeselectAllMsps(treeGetMainWindow(tree), FALSE);
+		}
+	    }
+	}
+    }
+  
+  return FALSE;
 }
 
 
@@ -975,21 +943,6 @@ static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 }
 
 
-static void onSelectionChangedTree(GObject *selection, gpointer data)
-{
-  GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *detailView = treeGetDetailView(tree);
-
-  /* Update the feedback box to tell the user which sequence is selected. */
-  updateFeedbackBox(detailView);
-  
-  /* Redraw the corresponding grid */
-  TreeProperties *properties = treeGetProperties(tree);
-  if (properties->grid)
-    gtk_widget_queue_draw(properties->grid);
-}
-
-
 /***********************************************************
  *                     Initialization                      *
  ***********************************************************/
@@ -1019,7 +972,7 @@ static void calcID(MSP *msp, GtkWidget *tree)
   
   msp->id = 0;
   
-  if (msp->sseq && !mspIsFake(msp) /* to do: is this required? && msp->sseq != padseq */)
+  if (msp->sseq /* to do: is this required? && msp->sseq != padseq */)
     {
       /* Note that getSequenceSegment will reverse complement the ref seq if it is the rev
        * reverse strand. This means that where there is no gaps array the comparison is trivial 
@@ -1146,52 +1099,52 @@ static void calcID(MSP *msp, GtkWidget *tree)
  * detail-view tree along with all the other sequences. Note that the q coords are
  * in the DNA sequence and the s coords are in the actual displayed sequence (which
  * may be a peptide sequence if we're doing protein matches). */
-static MSP* createRefSeqMsp(GtkWidget *tree, 
-			    gboolean fwd, 
-			    char *displaySeq, 
-			    const IntRange const *refSeqRange,
-			    const IntRange *displaySeqRange,
-			    const int frame)
-{
-  MSP *msp = g_malloc(sizeof(MSP));
-  
-  /* Convert the frame number to a char. It should only be one digit long. */
-  int frameCharLen = numDigitsInInt(frame);
-  char frameChar[frameCharLen];
-  sprintf(frameChar, "%d", frame);
-  
-  if (frameCharLen > 1)
-    messerror("Frame should only be one digit but frame = '%d'. Frame may be incorrect.", frame);
-
-  msp->next = NULL;
-  msp->type = BLX_MSP_INVALID;
-  msp->score = 0;
-  msp->id = -1;
-
-  msp->qname = REFERENCE_SEQUENCE_NAME;
-  msp->qframe[0] = '(';
-  msp->qframe[1] = fwd ? '+' : '-';
-  msp->qframe[2] = frameChar[0];
-  msp->qframe[3] = ')';
-  msp->qstart = refSeqRange->min;
-  msp->qend = refSeqRange->max;
-  
-  msp->displayStart = displaySeqRange->min;
-  msp->displayEnd = displaySeqRange->max;
-  
-  msp->sname = REFERENCE_SEQUENCE_NAME;
-  msp->sframe[0] = '(';
-  msp->sframe[1] = fwd ? '+' : '-';
-  msp->sframe[2] = frameChar[0];
-  msp->sframe[3] = ')';
-  msp->slength = displaySeqRange->max - displaySeqRange->min + 1;
-  msp->sstart = displaySeqRange->min;
-  msp->send = displaySeqRange->max;
-  msp->sseq = displaySeq;
-
-  return msp;
-}
-
+//static MSP* createRefSeqMsp(GtkWidget *tree, 
+//			    gboolean fwd, 
+//			    char *displaySeq, 
+//			    const IntRange const *refSeqRange,
+//			    const IntRange *displaySeqRange,
+//			    const int frame)
+//{
+//  MSP *msp = g_malloc(sizeof(MSP));
+//  
+//  /* Convert the frame number to a char. It should only be one digit long. */
+//  int frameCharLen = numDigitsInInt(frame);
+//  char frameChar[frameCharLen];
+//  sprintf(frameChar, "%d", frame);
+//  
+//  if (frameCharLen > 1)
+//    messerror("Frame should only be one digit but frame = '%d'. Frame may be incorrect.", frame);
+//
+//  msp->next = NULL;
+//  msp->type = BLX_MSP_INVALID;
+//  msp->score = 0;
+//  msp->id = -1;
+//
+//  msp->qname = REFERENCE_SEQUENCE_NAME;
+//  msp->qframe[0] = '(';
+//  msp->qframe[1] = fwd ? '+' : '-';
+//  msp->qframe[2] = frameChar[0];
+//  msp->qframe[3] = ')';
+//  msp->qstart = refSeqRange->min;
+//  msp->qend = refSeqRange->max;
+//  
+//  msp->displayStart = displaySeqRange->min;
+//  msp->displayEnd = displaySeqRange->max;
+//  
+//  msp->sname = REFERENCE_SEQUENCE_NAME;
+//  msp->sframe[0] = '(';
+//  msp->sframe[1] = fwd ? '+' : '-';
+//  msp->sframe[2] = frameChar[0];
+//  msp->sframe[3] = ')';
+//  msp->slength = displaySeqRange->max - displaySeqRange->min + 1;
+//  msp->sstart = displaySeqRange->min;
+//  msp->send = displaySeqRange->max;
+//  msp->sseq = displaySeq;
+//
+//  return msp;
+//}
+//
 
 /* Add the given msp as a row in the given model in the given tree. If the sequence
  * column header is supplied, it indicates that that widget should also point to the
@@ -1253,13 +1206,6 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
   /* We want to display the start coord, unless the display is reversed, in which case display the end */
   int coord = rightToLeft ? msp->send : msp->sstart;
 
-  if (mspIsFake(msp))
-    {
-      /* For the reference sequence, show the start and end of the display range. Convert to DNA seq coords if not already. */
-      IntRange *displayRange = treeGetDisplayRange(tree);
-      coord = getStartDnaCoord(displayRange, treeGetSeqType(tree), rightToLeft, treeGetNumReadingFrames(tree));
-    }
-  
   char displayText[numDigitsInInt(coord) + 1];
   sprintf(displayText, "%d", coord);
   g_object_set(renderer, START_COLUMN_PROPERTY_NAME, displayText, NULL);
@@ -1283,13 +1229,6 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
   /* We want to display the end coord, unless the display is reversed, in which case display the start */
   int coord = rightToLeft ? msp->sstart : msp->send;
   
-  if (mspIsFake(msp))
-    {
-      /* For the reference sequence, show the start and end of the display range. (Temp for debug.) */
-      IntRange *displayRange = treeGetDisplayRange(tree);
-      coord = getEndDnaCoord(displayRange, treeGetSeqType(tree), rightToLeft, treeGetNumReadingFrames(tree));
-    }
-
   char displayText[numDigitsInInt(coord) + 1];
   sprintf(displayText, "%d", coord);
   g_object_set(renderer, END_COLUMN_PROPERTY_NAME, displayText, NULL);
@@ -1356,15 +1295,83 @@ static void initColumn(GtkWidget *tree,
 }
 
 
-/* Refresh the sequecne column header. This header shows the section of reference
+/* Refresh the sequence column header. This header shows the section of reference
  * sequence for the current display range, so it needs to be refreshed after
  * scrolling, zooming etc. */
 static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
 {
-//  GtkWidget *tree = GTK_WIDGET(data);
-
+  GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
   
-  gtk_label_set_text(GTK_LABEL(headerWidget), "TEST TEst fteat");
+  /* Find the segment of the ref sequence to display (complemented if this tree is
+   * displaying the reverse strand, and reversed if the display is toggled */
+  IntRange *displayRange = treeGetDisplayRange(tree);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+
+  gchar *segmentToDisplay = getSequenceSegment(mainWindow, 
+					       mainWindowGetRefSeq(mainWindow),
+					       mainWindowGetRefSeqRange(mainWindow),
+					       displayRange->min, 
+					       displayRange->max, 
+					       treeGetStrand(tree), 
+					       mainWindowGetSeqType(mainWindow),
+					       treeGetFrame(tree), 
+					       mainWindowGetNumReadingFrames(mainWindow),
+					       rightToLeft);
+  
+  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  if (selectedBaseIdx == UNSET_INT)
+    {
+      /* Just draw plain text */
+      gtk_label_set_markup(GTK_LABEL(headerWidget), segmentToDisplay);
+    }
+  else
+    {
+      /* Markup the text so the selected base is highlighted in a different colour */
+      int charIdx = rightToLeft ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
+      const int segLen = strlen(segmentToDisplay);
+      
+      if (charIdx >= 0 && charIdx < segLen)
+	{
+	  char text1[charIdx];
+	  char text2[segLen - charIdx + 200];
+	  char text3[2];
+	  
+	  int i = 0;
+	  for ( ; i < charIdx; ++i)
+	    {
+	      text1[i] = segmentToDisplay[i];
+	    }
+	  text1[i] = '\0';
+	  
+	  text3[0] = segmentToDisplay[i];
+	  text3[1] = '\0';
+
+	  int j = 0;
+	  ++i;
+	  for ( ; i < segLen; ++i, ++j)
+	    {
+	      text2[j] = segmentToDisplay[i];
+	    }
+	  text2[j] = '\0';
+
+	  GdkColor *selectedColour = detailViewGetRefSeqSelectedColour(detailView);
+
+	  char markupText[segLen + 200];
+	  sprintf(markupText, "%s<span bgcolor='#%x'>%s</span>%s", 
+		  text1, selectedColour->pixel, text3, text2);
+
+	  gtk_label_set_markup(GTK_LABEL(headerWidget), markupText);
+	}
+      else
+	{
+	  gtk_label_set_markup(GTK_LABEL(headerWidget), segmentToDisplay);
+	}
+    }
+  
+  
+  g_free(segmentToDisplay);
 }
 
 
@@ -1437,7 +1444,10 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
 static void createTreeColHeader(GList **headerWidgets, 
 				DetailViewColumnInfo *columnInfo,
 				GtkWidget *headerBar,
-				GtkWidget *tree)
+				GtkWidget *tree,
+				const char const *refSeqName,
+				const int frame,
+				const Strand strand)
 {
   /* Create a header for this column, if required. Create a list of other 
    * columns we wish to merge under the same header. */
@@ -1452,7 +1462,11 @@ static void createTreeColHeader(GList **headerWidgets,
 	  /* The header above the name column will display the reference sequence name.
 	   * This header will also span the score and id columns, seeing as we don't need
 	   * to show any info in those columns. */
-	  headerWidget = gtk_label_new("ref seq name"); //to do: add real ref seq name.
+	  int textLen = strlen(refSeqName) + numDigitsInInt(frame) + 5;
+	  char displayText[textLen];
+	  sprintf(displayText, "%s (%s%d)", refSeqName, (strand == FORWARD_STRAND ? "+" : "-"), frame);
+	  
+	  headerWidget = gtk_label_new(displayText);
 	  
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(S_NAME_COL));
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(SCORE_COL));
@@ -1464,7 +1478,8 @@ static void createTreeColHeader(GList **headerWidgets,
 	{
 	  /* The sequence column header displays the reference sequence. This needs a custom
 	   * refresh callback function because it needs to be updated after scrolling etc. */
-	  headerWidget = gtk_label_new("");
+	  headerWidget = gtk_label_new(NULL);
+	  gtk_label_set_use_markup(GTK_LABEL(headerWidget), TRUE);
 	  refreshFunc = refreshSequenceColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  break;
@@ -1503,14 +1518,11 @@ static void createTreeColHeader(GList **headerWidgets,
 	}
       
       /* Put the widget in an event box so that we can colour its background. */
-      GtkWidget *eventBox = gtk_event_box_new();
-      gtk_container_add(GTK_CONTAINER(eventBox), headerWidget);
-      
-      GdkColor fgColour = getGdkColor(GDK_BLACK);
-      gtk_widget_modify_fg(headerWidget, GTK_STATE_NORMAL, &fgColour);
+      GtkWidget *parent = gtk_event_box_new();
+      gtk_container_add(GTK_CONTAINER(parent), headerWidget);
       
       /* Put the event box into the header bar */
-      gtk_box_pack_start(GTK_BOX(headerBar), eventBox, (columnInfo->columnId == MSP_COL), TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == MSP_COL), TRUE, 0);
       
       /* Create the header info */
       TreeColumnHeaderInfo *headerInfo = g_malloc(sizeof(TreeColumnHeaderInfo));
@@ -1529,7 +1541,10 @@ static GList* addTreeColumns(GtkWidget *tree,
 			     GtkCellRenderer *renderer, 
 			     const BlxSeqType seqType,
 			     GList *columnList,
-			     GtkWidget *headerBar)
+			     GtkWidget *headerBar,
+			     const char const *refSeqName,
+			     const int frame,
+			     const Strand strand)
 {
   /* We'll create the headers as we create the columns */
   GList *headerWidgets = NULL;
@@ -1545,7 +1560,7 @@ static GList* addTreeColumns(GtkWidget *tree,
       if (columnInfo)
 	{
 	  initColumn(tree, renderer, columnInfo);
-	  createTreeColHeader(&headerWidgets, columnInfo, headerBar, tree);
+	  createTreeColHeader(&headerWidgets, columnInfo, headerBar, tree, refSeqName, frame, strand);
 	}
       else
 	{
@@ -1565,7 +1580,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   gint sortColumn;
   GtkSortType sortOrder;
   gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, &sortOrder);
-  gboolean ascending = (sortOrder == GTK_SORT_ASCENDING);
+//  gboolean ascending = (sortOrder == GTK_SORT_ASCENDING);
 
   /* Extract the MSPs from the tree rows */
   const MSP *msp1 = treeGetMsp(model, iter1);
@@ -1573,74 +1588,58 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 
   gint sortType = (gint)data;
   
-  /* Always put "fake" sequences (i.e. the reference sequence) at the top */
-  if (mspIsFake(msp1) && mspIsFake(msp2))
+  /* Otherwise, use standard string/int comparison */
+  switch (sortType)
     {
-      result = 0;
-    }
-  else if (mspIsFake(msp1))
-    {
-      result = ascending ? -1 : 1;
-    }
-  else if (mspIsFake(msp2))
-    {
-      result = ascending ? 1 : -1;
-    }
-  else
-    {
-      /* Otherwise, use standard string/int comparison */
-      switch (sortType)
-	{
-	  case SORT_BY_NAME:
-	    {
-	      result = strcmp(msp1->sname, msp2->sname);
-	      break;
-	    }
-	    
-	  case SORT_BY_SCORE:
-	    { 
-	      result = msp1->score - msp2->score;
-	      break;
-	    }
-	    
-	  case SORT_BY_ID:
-	    {
-	      result = msp1->id - msp2->id;
-	      break;
-	    }
-	    
-	  case SORT_BY_POS:
-	    {
-	      /* Use the low end of the reference sequence range */
-	      int qMin1, qMin2;
-	      getMspRangeExtents(msp1, &qMin1, NULL, NULL, NULL);
-	      getMspRangeExtents(msp2, &qMin2, NULL, NULL, NULL);
-	      result = qMin1 - qMin2;
-	      break;
-	    }
-	    
-	  default:
-	    break;
-	}
-      
-      /* If values are the same, further sort by name, then position, then length */
-      if (!result && sortType != SORT_BY_NAME)
+      case SORT_BY_NAME:
 	{
 	  result = strcmp(msp1->sname, msp2->sname);
+	  break;
 	}
-      
-      if (!result && sortType != SORT_BY_POS)
+	
+      case SORT_BY_SCORE:
+	{ 
+	  result = msp1->score - msp2->score;
+	  break;
+	}
+	
+      case SORT_BY_ID:
 	{
-	  int sMin1, sMin2;
-	  getMspRangeExtents(msp1, NULL, NULL, &sMin1, NULL);
-	  getMspRangeExtents(msp2, NULL, NULL, &sMin2, NULL);
-	  result = sMin1 - sMin2;
+	  result = msp1->id - msp2->id;
+	  break;
 	}
-      
-      if (!result)
+	
+      case SORT_BY_POS:
 	{
-	  result = msp1->slength - msp2->slength;
+	  /* Use the low end of the reference sequence range */
+	  int qMin1, qMin2;
+	  getMspRangeExtents(msp1, &qMin1, NULL, NULL, NULL);
+	  getMspRangeExtents(msp2, &qMin2, NULL, NULL, NULL);
+	  result = qMin1 - qMin2;
+	  break;
 	}
+	
+      default:
+	break;
+    };
+  
+  /* If values are the same, further sort by name, then position, then length */
+  if (!result && sortType != SORT_BY_NAME)
+    {
+      result = strcmp(msp1->sname, msp2->sname);
+    }
+  
+  if (!result && sortType != SORT_BY_POS)
+    {
+      int sMin1, sMin2;
+      getMspRangeExtents(msp1, NULL, NULL, &sMin1, NULL);
+      getMspRangeExtents(msp2, NULL, NULL, &sMin2, NULL);
+      result = sMin1 - sMin2;
+    }
+  
+  if (!result)
+    {
+      result = msp1->slength - msp2->slength;
     }
   
   return result;
@@ -1659,18 +1658,6 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 					   G_TYPE_POINTER, 
 					   G_TYPE_INT);
   
-  /* Add a 'fake' msp for the ref sequence and add it to the model */
-  char *displaySeq = treeGetDisplaySeq(tree);
-  
-  MSP *refSeqMsp = createRefSeqMsp(tree,
-				   treeGetStrand(tree) == FORWARD_STRAND, 
-				   displaySeq, 
-				   treeGetRefSeqRange(tree),
-				   treeGetFullRange(tree),
-				   treeGetFrame(tree));
-  
-  addMspToTreeModel(GTK_TREE_MODEL(store), refSeqMsp, tree);
-
   /* Set the sort functions for each column */
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL, sortColumnCompareFunc, (gpointer)SORT_BY_NAME, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL, sortColumnCompareFunc, (gpointer)SORT_BY_ID, NULL);
@@ -1735,6 +1722,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
 				GList **treeList,
 				GList *columnList,
 				BlxSeqType seqType,
+				const char const *refSeqName,
 				const int frame)
 {
   /* Create a tree view for the list of match sequences */
@@ -1756,7 +1744,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
   
   /* Add the columns */
-  GList *treeColumnHeaderList = addTreeColumns(tree, renderer, seqType, columnList, treeHeader);
+  GList *treeColumnHeaderList = addTreeColumns(tree, renderer, seqType, columnList, treeHeader, refSeqName, frame, gridGetStrand(grid));
   
   /* Set the essential tree properties */
   treeCreateProperties(tree, grid, detailView, renderer, frame, treeColumnHeaderList);
@@ -1765,6 +1753,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
   g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
+  g_signal_connect(G_OBJECT(tree), "key-press-event",	    G_CALLBACK(onKeyPressTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "motion-notify-event",   G_CALLBACK(onMouseMoveTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
   g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);

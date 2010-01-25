@@ -29,7 +29,6 @@ void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
 GdkColor	      getGdkColor(gulong colour);
 
-gboolean	      mspIsFake(const MSP const *msp);
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);

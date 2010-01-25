@@ -29,6 +29,7 @@ typedef struct _MainWindowProperties
     int numReadingFrames;	    /* The number of reading frames */
 
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
+    GList *selectedMsps;	    /* List of MSPs that are selected */
   } MainWindowProperties;
 
 
@@ -47,6 +48,12 @@ char**			  mainWindowGetGeneticCode(GtkWidget *mainWindow);
 char*			  mainWindowGetRefSeq(GtkWidget *mainWindow);
 char*			  mainWindowGetDisplaySeq(GtkWidget *mainWindow);
 int			  mainWindowGetNumReadingFrames(GtkWidget *mainWindow);
+GList*			  mainWindowGetSelectedMsps(GtkWidget *mainWindow);
+
+void			  mainWindowSelectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees);
+void			  mainWindowDeselectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees);
+void			  mainWindowDeselectAllMsps(GtkWidget *mainWindow, const gboolean updateTrees);
+gboolean		  mainWindowIsMspSelected(GtkWidget *mainWindow, MSP *msp);
 
 gchar*			  getSequenceSegment(GtkWidget *mainWindow, 
 					   const char const *sequence,
@@ -60,6 +67,7 @@ gchar*			  getSequenceSegment(GtkWidget *mainWindow,
 					   const gboolean reverse);
   
 GtkWidget*		  createMainWindow(char *refSeq, 
+					   const char const *refSeqName,
 					   MSP *mspList, 
 					   BlxBlastMode blastMode,
 					   BlxSeqType seqType, 

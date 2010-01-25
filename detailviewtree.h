@@ -52,16 +52,17 @@ int		  treeGetNumReadingFrames(GtkWidget *tree);
 int		  treeGetSelectedBaseIdx(GtkWidget *tree);
 char*		  treeGetRefSeq(GtkWidget *tree);
 IntRange*	  treeGetDisplayRange(GtkWidget *tree);
-const MSP*	  treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter);
+MSP*		  treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter);
 GtkTreeModel*	  treeGetVisibleDataModel(GtkTreeView *tree);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
-gboolean	  treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model);
+GtkWidget*	  treeGetMainWindow(GtkWidget *tree);
+//gboolean	  treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model);
 GtkWidget*	  treeGetDetailView(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 
-void		  selectRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter);
 void		  deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent);
+void		  deselectAllRows(GtkWidget *tree, gpointer data);
 
 void		  treeSortByName(GtkWidget *tree, gpointer data);
 void		  treeSortById(GtkWidget *tree, gpointer data);
@@ -72,7 +73,7 @@ void		  refreshTreeAndGrid(GtkWidget *tree, gpointer data);
 void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
-gboolean	  updateFeedbackBoxForTree(GtkWidget *tree);
+void		  selectRowsForSelectedMsps(GtkWidget *tree, gpointer data);
 
 void		  addMspToTreeModel(GtkTreeModel *model, 
 				    MSP *msp,
@@ -84,6 +85,7 @@ GtkWidget*	  createDetailViewTree(GtkWidget *grid,
 				       GList **treeList,
 				       GList *columnList,
 				       BlxSeqType seqType,
+				       const char const *refSeqName,
 				       const int frame);
 
 void		   treeCreateBaseDataModel(GtkWidget *tree, gpointer data);
