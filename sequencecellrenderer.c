@@ -15,7 +15,9 @@
 #include <gtk/gtkcellrenderertext.h>
 
 
-#define SEQUENCE_CELL_RENDERER_NAME   "SequenceCellRenderer"
+#define SEQUENCE_CELL_RENDERER_NAME	"SequenceCellRenderer"
+#define GAP_WIDTH_AS_FRACTION		0.25	/* multiplier used to get the width of the "gap" marker based on a fraction of char width */
+#define MIN_GAP_WIDTH			2
 
 /* Properties */
 enum 
@@ -46,9 +48,8 @@ static void drawSequenceText(SequenceCellRenderer *renderer,
 			     gchar *displayText, 
 			     const IntRange const *segmentRange,
 			     GdkRectangle *cell_area, 
-			     const int x_offset, 
-			     const int y_offset, 
-			     const int vertical_separator, 
+			     const int cellXPadding, 
+			     const int cellYPadding,
 			     GtkWidget *widget, 
 			     GdkWindow *window, 
 			     GtkStateType state,
@@ -59,9 +60,8 @@ static void getCoordsForBaseIdx(const int segmentIdx,
 				const IntRange const *segmentRange,
 				SequenceCellRenderer *renderer, 
 				GdkRectangle *cell_area, 
-				int x_offset, 
-				int y_offset, 
-				int vertical_separator, 
+				const int cellXPadding, 
+				const int cellYPadding,
 				int *x, 
 				int* y);
 
@@ -448,6 +448,21 @@ static int getSelectedBaseIdx(SequenceCellRenderer *renderer)
   return detailViewGetSelectedBaseIdx(renderer->detailView);
 }
 
+
+/* Get the X padding between the cell area and the background area. */
+static int getCellXPadding(SequenceCellRenderer *renderer)
+{
+  return detailViewGetCellXPadding(renderer->detailView);
+}
+
+
+/* Get the Y padding between the cell area and the background area. */
+static int getCellYPadding(SequenceCellRenderer *renderer)
+{
+  return detailViewGetCellYPadding(renderer->detailView);
+}
+
+
 /* Get colours */
 static GdkColor* getMatchColour(SequenceCellRenderer *renderer, gboolean selected)
 {
@@ -584,12 +599,10 @@ static void
 get_size (GtkCellRenderer *cell,
 	  GtkWidget       *widget,
 	  GdkRectangle    *cell_area,
-	  PangoLayout     *layout,
 	  gint            *x_offset,
 	  gint            *y_offset,
 	  gint            *width,
-	  gint            *height,
-	  gint		  *vertical_separator)
+	  gint            *height)
 {
   if (height)
     *height = cell->height;
@@ -599,12 +612,6 @@ get_size (GtkCellRenderer *cell,
   
   if (cell_area)
     cell_area->height = cell->height;
-  
-  SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
-  if (vertical_separator)
-    {
-      *vertical_separator = detailViewGetVerticalSeparator(renderer->detailView);
-    }
 }
 
 
@@ -638,9 +645,6 @@ static void drawText(SequenceCellRenderer *renderer,
   pango_layout_set_font_description(layout, font_desc);
   pango_font_description_free(font_desc);
 
-  gint x_offset = 0, y_offset = 0, vertical_separator = 0;
-  get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
-
   gtk_paint_layout (widget->style,
 		    window,
 		    state,
@@ -648,8 +652,8 @@ static void drawText(SequenceCellRenderer *renderer,
 		    NULL,
 		    widget,
 		    NULL, //"cellrenderertext",
-		    cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad,
-		    cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator,
+		    cell_area->x - getCellXPadding(renderer),
+		    cell_area->y - getCellYPadding(renderer),
 		    layout);
   
   g_object_unref(layout);
@@ -663,9 +667,8 @@ static void highlightSelectedBase(SequenceCellRenderer *renderer,
 				  GdkGC *gc,
 				  GdkWindow *window,
 				  GdkRectangle *cell_area,
-				  const int x_offset,
-				  const int y_offset,
-				  const int vertical_separator)
+				  const int cellXPadding,
+				  const int cellYPadding)
 {
   const int selectedBaseIdx = getSelectedBaseIdx(renderer);
   IntRange *displayRange = getDisplayRange(renderer);
@@ -676,7 +679,7 @@ static void highlightSelectedBase(SequenceCellRenderer *renderer,
       const int segmentIdx = getStrandsToggled(renderer) ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
       
       int x, y;
-      getCoordsForBaseIdx(segmentIdx, displayRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+      getCoordsForBaseIdx(segmentIdx, displayRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
 
       gdk_gc_set_foreground(gc, highlightColour);
       gdk_draw_rectangle(window, gc, TRUE, x, y, renderer->charWidth, renderer->charHeight);
@@ -692,16 +695,15 @@ static void drawExon(SequenceCellRenderer *renderer,
 		     GtkStateType state,
 		     GdkRectangle *cell_area)
 {
-  gint x_offset = 0, y_offset = 0, vertical_separator = 0;
-  get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
-  
   GdkGC *gc = gdk_gc_new(window);
   
   IntRange segmentRange = getVisibleMspRange(renderer);
   const int segmentLen = segmentRange.max - segmentRange.min + 1;
+  const int cellXPadding = getCellXPadding(renderer);
+  const int cellYPadding = getCellYPadding(renderer);
   
   int x, y;
-  getCoordsForBaseIdx(0, &segmentRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+  getCoordsForBaseIdx(0, &segmentRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
   const int width = segmentLen * renderer->charWidth;
 
   /* Just draw one big rectangle the same colour for the whole thing */
@@ -718,7 +720,7 @@ static void drawExon(SequenceCellRenderer *renderer,
 	? getExonColour(renderer, TRUE) 
 	: getGapColour(renderer, TRUE);
       
-      highlightSelectedBase(renderer, bgColour, gc, window, cell_area, x_offset, y_offset, vertical_separator);
+      highlightSelectedBase(renderer, bgColour, gc, window, cell_area, cellXPadding, cellYPadding);
     }
 } 
 
@@ -852,9 +854,8 @@ static void getCoordsForBaseIdx(const int segmentIdx,
 				const IntRange const *segmentRange,
 				SequenceCellRenderer *renderer, 
 				GdkRectangle *cell_area, 
-				int x_offset, 
-				int y_offset, 
-				int vertical_separator, 
+				const int cellXPadding, 
+				const int cellYPadding,
 				int *x, 
 				int* y)
 {
@@ -870,8 +871,8 @@ static void getCoordsForBaseIdx(const int segmentIdx,
   int charIdx = startPos + segmentIdx;
 
   /* Calculate the coords */
-  *x = cell_area->x + x_offset + GTK_CELL_RENDERER(renderer)->xpad + (charIdx * renderer->charWidth);
-  *y = cell_area->y + y_offset + GTK_CELL_RENDERER(renderer)->ypad - vertical_separator;
+  *x = cell_area->x - cellXPadding + (charIdx * renderer->charWidth);
+  *y = cell_area->y - cellYPadding;
 }
 
 
@@ -891,10 +892,11 @@ static void drawGap(SequenceCellRenderer *renderer,
       
       /* This is not very sophisticated - just uses a fudge factor to find a suitable width and
        * draws it half over the current base and half over the previous one. */
-      int gapWidth = renderer->charWidth / 4;
-      if (gapWidth < 1)
+      int gapWidth = round((gdouble)renderer->charWidth * GAP_WIDTH_AS_FRACTION);
+
+      if (gapWidth < MIN_GAP_WIDTH)
 	{
-	  gapWidth = 1;
+	  gapWidth = MIN_GAP_WIDTH;
         }
       
       gdk_draw_rectangle(window, gc, TRUE, x - gapWidth/2, y, gapWidth, renderer->charHeight);
@@ -906,9 +908,8 @@ static void drawSequenceText(SequenceCellRenderer *renderer,
 			     gchar *displayText, 
 			     const IntRange const *segmentRange,
 			     GdkRectangle *cell_area, 
-			     const int x_offset, 
-			     const int y_offset, 
-			     const int vertical_separator, 
+			     const int cellXPadding, 
+			     const int cellYPadding,
 			     GtkWidget *widget, 
 			     GdkWindow *window, 
 			     GtkStateType state,
@@ -919,7 +920,7 @@ static void drawSequenceText(SequenceCellRenderer *renderer,
       /* Get the coords for the first base. The display text should have been
        * was constructed such that everything else will line up from here. */
       int x, y;
-      getCoordsForBaseIdx(0, segmentRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+      getCoordsForBaseIdx(0, segmentRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
       
       PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
       PangoLayout *layout = getLayoutFromText(displayText, widget, font_desc);
@@ -984,9 +985,6 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 			    GtkStateType state,
 			    GdkRectangle *cell_area)
 {
-  gint x_offset = 0, y_offset = 0, vertical_separator = 0;
-  get_size (GTK_CELL_RENDERER(renderer), widget, cell_area, NULL, &x_offset, &y_offset, NULL, NULL, &vertical_separator);
-  
   GdkGC *gc = gdk_gc_new(window);
 
   /* Extract the section of the reference sequence that we're interested in. */
@@ -1002,6 +1000,8 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   const Strand qStrand = getRefSeqStrand(renderer);
   const int qFrame = getRefSeqFrame(renderer);
   const int selectedBaseIdx = getSelectedBaseIdx(renderer);
+  const int cellXPadding = getCellXPadding(renderer);
+  const int cellYPadding = getCellYPadding(renderer);
   
   GtkWidget *mainWindow = detailViewGetMainWindow(renderer->detailView);
   
@@ -1028,7 +1028,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       for ( ; segmentIdx < segmentLen; ++segmentIdx)
 	{
 	  int x, y;
-	  getCoordsForBaseIdx(segmentIdx, &segmentRange, renderer, cell_area, x_offset, y_offset, vertical_separator, &x, &y);
+	  getCoordsForBaseIdx(segmentIdx, &segmentRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
 	  
 	  /* Find the base in the match sequence and draw the background colour according to how well it matches */
 	  int sIdx = drawBase(renderer, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, window, gc, x, y, displayText);
@@ -1046,7 +1046,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       insertChar(displayText, &segmentIdx, '\0', renderer->msp);
 
       /* Draw the sequence text */
-      drawSequenceText(renderer, displayText, &segmentRange, cell_area, x_offset, y_offset, vertical_separator, widget, window, state, gc);
+      drawSequenceText(renderer, displayText, &segmentRange, cell_area, cellXPadding, cellYPadding, widget, window, state, gc);
       
       g_free(refSeqSegment);
     }
@@ -1054,7 +1054,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   /* If a base is selected and we've not already processed it, highlight it now */
   if (selectedBaseIdx != UNSET_INT && !indexWithinRange(selectedBaseIdx, &segmentRange))
     {
-      highlightSelectedBase(renderer, getGapColour(renderer, TRUE), gc, window, cell_area, x_offset, y_offset, vertical_separator);
+      highlightSelectedBase(renderer, getGapColour(renderer, TRUE), gc, window, cell_area, cellXPadding, cellYPadding);
     }
 }    
 
@@ -1100,7 +1100,7 @@ sequence_cell_renderer_get_size (GtkCellRenderer *cell,
                                         gint            *width,
                                         gint            *height)
 {
-  get_size(cell, widget, cell_area, NULL, x_offset, y_offset, width, height, NULL);  
+  get_size(cell, widget, cell_area, x_offset, y_offset, width, height);  
 }
 
 

@@ -1696,15 +1696,19 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
 
-  /* Set the expander size to 0 so that we can have tiny rows (otherwise the min is 12pt) */
+  /* Set the expander size to 0 so that we can have tiny rows (otherwise the min is 12pt).
+   * Also set the vertical separator to 0 so that we can have the option of the smallest
+   * fonts possible. (The vertical separator causes gaps between rows. We want rows to be
+   * flush, so we render over this gap. However, the bigger the vertical separator, the
+   * bigger the row height (and hence font size) we must have to cover the gaps.) */
   char parseString[500];
   sprintf(parseString, "style \"packedTree\"\n"
 	  "{\n"
 	  "GtkTreeView::expander-size	      = 0\n"
-	  "GtkTreeView::vertical-separator    = %d\n"
+	  "GtkTreeView::vertical-separator    = 0\n"
 	  "GtkTreeView::horizontal-separator  = 0\n"
 	  "}"
-	  "widget \"*%s*\" style \"packedTree\"", VERTICAL_SEPARATOR_HEIGHT, DETAIL_VIEW_TREE_NAME);
+	  "widget \"*%s*\" style \"packedTree\"", DETAIL_VIEW_TREE_NAME);
   gtk_rc_parse_string(parseString);
 }
 

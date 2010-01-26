@@ -13,8 +13,6 @@
 #include <SeqTools/blixem_.h>
 
 
-#define VERTICAL_SEPARATOR_HEIGHT	2
-
 /* Define the columns. Specify a default width, the display text for the
  * column header, and also a name for the property that will be set in the
  * cell renderer. (The latter cannot contain special characters.) */
@@ -83,7 +81,8 @@ typedef struct _DetailViewProperties
     
     BlxSeqType seqType;		  /* The match type, i.e. dna or peptide */
     int numReadingFrames;	  /* The number of reading frames */
-    int verticalSeparator;	  /* The vertical distance between the tree rows */
+    int cellXPadding;		  /* The x padding between the tree cell background area and their drawing area */
+    int cellYPadding;		  /* The y padding between the tree cell background area and their drawing area */
         
     IntRange displayRange;	  /* The currently-displayed range of bases in the reference sequence */
     int selectedBaseIdx;	  /* The currently-selected base in the reference sequence */
@@ -120,7 +119,8 @@ gboolean		detailViewGetStrandsToggled(GtkWidget *detailView);
 BlxBlastMode		detailViewGetBlastMode(GtkWidget *detailView);
 PangoFontDescription*	detailViewGetFontDesc(GtkWidget *detailView);
 GtkCellRenderer*	detailViewGetRenderer(GtkWidget *detailView);
-int			detailViewGetVerticalSeparator(GtkWidget *detailView);
+int			detailViewGetCellXPadding(GtkWidget *detailView);
+int			detailViewGetCellYPadding(GtkWidget *detailView);
 BlxSeqType		detailViewGetSeqType(GtkWidget *detailView);
 char**			detailViewGetGeneticCode(GtkWidget *detailView);
 IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);

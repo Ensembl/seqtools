@@ -256,11 +256,12 @@ static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
 }
 
 
-/* This should be called when the width of the sequence column has changed. The
- * given tree can be any of the trees in the detail view - they all have the same
- * column sizes, so this function only needs to be called once. This function will
- * adjust the scroll range of our custom scroll adjustment so that it represents
- * the range that can be displayed in the new column width. */
+/* This should be called when the width of the sequence column has changed (or the
+ * size of the font has changed). The given tree can be any of the trees in the 
+ * detail view - they all have the same column sizes, so this function only needs 
+ * to be called once. This function will adjust the scroll range of our custom scroll
+ * adjustment so that it represents the range that can be displayed in the new column 
+ * width. */
 static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 {
   GtkAdjustment *adjustment = treeGetAdjustment(tree);
@@ -278,10 +279,9 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 	  /* Reset the display range so that it is between the scrollbar min and max. Try to keep
 	   * it centred on the same base. Note that display range is 1-based but adjustment is 0-based */
 	  IntRange *displayRange = treeGetDisplayRange(tree);
-	  int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
-	  
-	  int centre = selectedBaseIdx == UNSET_INT ? getRangeCentre(displayRange) : selectedBaseIdx;
+	  int centre = getRangeCentre(displayRange);
 	  int offset = round((double)adjustment->page_size / 2.0);
+
 	  adjustment->value = centre - offset - 1;
 	  
 	  /* If there is a gap at the end, shift the scrollbar back so that we show as much
@@ -675,7 +675,9 @@ static void decrementFontSize(GtkWidget *detailView)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   int newSize = (pango_font_description_get_size(properties->fontDesc) / PANGO_SCALE) - FONT_INCREMENT_SIZE;
   
-  if (newSize >= MIN_FONT_SIZE)
+  /* Note that the font needs to be big enough to cover the vertical separators and padding around the
+   * cell, otherwise we will end up with visible gaps between rows. */
+  if (newSize >= MIN_FONT_SIZE && newSize >= (detailViewGetCellYPadding(detailView) * 2))
     {
       pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
       updateDetailViewFontDesc(detailView);
@@ -946,11 +948,10 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
   seqRenderer->charHeight = charHeight;
   seqRenderer->charWidth = charWidth;
   
-  /* Set the row height. Subtract the size of the vertical separators . This makes the
-   * row smaller than it is, but we will render it at normal size, so we end up drawing over
-   * the gaps, hence giving the impression that there are no gaps. */
-  int verticalSeparator = detailViewGetVerticalSeparator(detailView);
-  gint rowHeight = charHeight - verticalSeparator * 2;
+  /* Set the row height. Subtract the padding between the cell's actual area and
+   * its background area. We will render at the background area's height, so that
+   * we draw over the "gaps" between the cells, giving the impression of no gaps. */
+  gint rowHeight = charHeight - (detailViewGetCellYPadding(detailView) * 2);
   gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
 }
 
@@ -1037,12 +1038,6 @@ PangoFontDescription *detailViewGetFontDesc(GtkWidget *detailView)
   return properties ? properties->fontDesc : NULL;
 }
 
-int detailViewGetVerticalSeparator(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->verticalSeparator : UNSET_INT;
-}
-
 GdkColor* detailViewGetRefSeqColour(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1109,6 +1104,20 @@ GList *detailViewGetStrandTrees(GtkWidget *detailView, const Strand strand)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return (strand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
 }
+
+
+int detailViewGetCellXPadding(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->cellXPadding : 0;
+}
+
+int detailViewGetCellYPadding(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->cellYPadding : 0;
+}
+
 
 
 /* Extract the tree view for the given frame on the given strand */
@@ -1291,8 +1300,29 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->displayRange.max = 1;
       properties->selectedBaseIdx = UNSET_INT;
       properties->fontDesc = fontDesc;
-      properties->verticalSeparator = VERTICAL_SEPARATOR_HEIGHT;
 
+      /* Find the padding between the background area of the tree cells and the actual
+       * drawing area. This is used to render the full height of the background area, so
+       * that we don't have gaps between rows. */
+      if (fwdStrandTrees)
+	{
+	  GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
+
+	  GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
+	  gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
+	    
+	  /* I can't get this to work properly using gtk_tree_view_get_cell_area etc. The cell
+	   * area and background area come out wrong - perhaps because I'm not using a real
+	   * row path. After a bit of experimentation it seems that the y padding is always
+	   * related to the vertical-separator as follows: ypad = trunc(vseparator / 2) + 1 */
+	  gint vertical_separator, horizontal_separator;
+	  gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
+	  gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
+	  
+	  properties->cellXPadding = (horizontal_separator / 2) + 1;
+	  properties->cellYPadding = (vertical_separator / 2) + 1;
+	}
+      
       properties->refSeqColour		  = getGdkColor(GDK_YELLOW);
       properties->refSeqSelectedColour	  = getGdkColor(GDK_DARK_YELLOW);
       properties->matchColour		  = getGdkColor(GDK_CYAN);
@@ -2009,7 +2039,6 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   /* Connect signals */
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
   
-  /* Set the required properties */
   detailViewCreateProperties(detailView, 
 			     mainWindow, 
 			     renderer,
