@@ -15,7 +15,7 @@
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      4
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2
-
+#define DEFAULT_SCROLL_STEP_INCREMENT	 5
 
 /* Local function declarations */
 static void			  blxShowStats(GtkAction *action, gpointer data);
@@ -680,7 +680,12 @@ GtkWidget* createMainWindow(char *refSeq,
   
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
-  GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, fullDisplayRange.max - fullDisplayRange.min + 1, 1, 0, 0));
+  GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, /* initial value = 0 */
+								      0, /* lower = 0 */
+								      fullDisplayRange.max - fullDisplayRange.min + 1, /* upper = lenght of ref seq */
+								      DEFAULT_SCROLL_STEP_INCREMENT, /* step increment used for mouse wheel scrolling */
+								      0,   /* page increment dynamically set based on display range */
+								      0)); /* page size dunamically set based on display range */
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
   

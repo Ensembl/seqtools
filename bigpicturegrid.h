@@ -23,6 +23,8 @@
 typedef struct _GridProperties
   {
     GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
+    GdkDrawable *drawable;   /* The bitmap that the grid is drawn on to */
+    GdkGC *gc;		     /* Graphics context for the bitmap */
     
     Strand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
     
@@ -46,6 +48,7 @@ typedef struct _GridProperties
 /* Public function declarations */
 GridProperties*	    gridGetProperties(GtkWidget *widget);
 Strand		    gridGetStrand(GtkWidget *grid);
+GtkWidget*	    gridGetBigPicture(GtkWidget *grid);
 
 void		    calculateGridBorders(GtkWidget *grid);
 void		    calculateHighlightBoxBorders(GtkWidget *grid);
@@ -58,6 +61,8 @@ gint		    convertValueToGridPos(GtkWidget *grid,
 
 void		    showPreviewBox(GtkWidget *grid, const int x);
 void		    acceptAndClearPreviewBox(GtkWidget *grid, const int x);
+
+void		    redrawBigPictureGrid(GtkWidget *grid);
 
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
 					 Strand strand);

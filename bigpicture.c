@@ -307,6 +307,7 @@ void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width)
   
   /* Recalculate highlight box position and redraw */
   callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
+//  callFuncOnAllBigPictureGrids(bigPicture, redrawBigPictureGrid);
   gtk_widget_queue_draw(bigPicture);
 }
 
@@ -324,6 +325,11 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture)
     {
       int width = displayRange->max - displayRange->min;
       setBigPictureDisplayWidth(bigPicture, width);
+      
+      /* Move the highlight box and redraw the grids */
+      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
+//      callFuncOnAllBigPictureGrids(bigPicture, redrawBigPictureGrid);
+      gtk_widget_queue_draw(bigPicture);
     }
 }
 

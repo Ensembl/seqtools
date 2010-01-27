@@ -165,7 +165,9 @@ void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
     }
   
   adjustment->value = value;
-  gtk_adjustment_value_changed(adjustment);
+  
+  /* Emit notification that the scroll pos has changed */
+   gtk_adjustment_value_changed(adjustment);
 }
 
 
@@ -825,22 +827,14 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       callFuncOnAllDetailViewTrees(detailView, refilterTree);
 
-      /* Scroll big picture if necessary to keep highlight box in view */
-      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
-      refreshBigPictureDisplayRange(bigPicture);
-
-      /* Recalculate the borders for all the grids and the header in the big picture */
-      GtkWidget *header = bigPictureGetGridHeader(bigPicture);
-      calculateGridHeaderBorders(header);
-      callFuncOnAllBigPictureGrids(bigPicture, calculateGridBorders);
-      
-      /* Redraw all trees (and their corresponding grids) */
-      callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
-
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+
+      /* Update the big picture because the highlight box has moved */
+      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
+      refreshBigPictureDisplayRange(bigPicture);
     }
 }
 
@@ -864,20 +858,14 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       callFuncOnAllDetailViewTrees(detailView, refilterTree);
 
-      /* Scroll big picture if necessary to keep highlight box in view */
-      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
-      refreshBigPictureDisplayRange(bigPicture);
-      
-      /* Update the highlight box position for all grids in the big picture */
-      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
-            
-      /* Redraw all trees (and their corresponding grids) */
-      callFuncOnAllDetailViewTrees(detailView, refreshTreeAndGrid);
-      
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+
+      /* Update the big picture because the highlight box has moved */
+      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
+      refreshBigPictureDisplayRange(bigPicture);
     }
 }
 
@@ -1357,33 +1345,20 @@ static void blixemSettings(void)
 static void ToggleStrand(GtkWidget *detailView)
 {
   MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewGetMainWindow(detailView));
-  mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
   
-  /* Toggle the position of the scrollbar */
-//  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-//  IntRange *displayRange = detailViewGetDisplayRange(detailView);
-//  if (mainWindowProperties->strandsToggled)
-//    {
-//      adjustment->value = adjustment->upper - displayRange->max - 1;
-//    }
-//    else
-//    {
-//      adjustment->value = displayRange->min - 1;
-//    }
-//  
-//  gtk_adjustment_changed(adjustment);
+  /* Toggle the flag */
+  mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
   
   /* Refresh the tree and grid order (i.e. switch them based on the new toggle status) */
   refreshTreeOrder(detailView);
+  refreshGridOrder(mainWindowProperties->bigPicture);
   
-  GtkWidget *bigPicture = mainWindowGetBigPicture(detailViewGetMainWindow(detailView));
-  refreshGridOrder(bigPicture);
-  
-  /* Redraw all trees (and their corresponding grids) */
-  callFuncOnAllDetailViewTrees(mainWindowProperties->detailView, refreshTreeAndGrid);
+  /* Redraw all grids */
+  gtk_widget_queue_draw(mainWindowProperties->bigPicture);
+//  callFuncOnAllBigPictureGrids(mainWindowProperties->bigPicture, redrawBigPictureGrid);
   
   /* Redraw the grid header and detail view header */
-  gtk_widget_queue_draw(bigPictureGetGridHeader(mainWindowProperties->bigPicture));
+//  gtk_widget_queue_draw(bigPictureGetGridHeader(mainWindowProperties->bigPicture));
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
 }

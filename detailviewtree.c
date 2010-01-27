@@ -409,18 +409,6 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
  *			      Updates			   *
  ***********************************************************/
 
-/* Queue a redraw for the given tree, and the grid that corresponds to it */
-void refreshTreeAndGrid(GtkWidget *tree, gpointer data)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  if (properties->grid)
-    gtk_widget_queue_draw(properties->grid);
- 
-  /* Re-draw the tree */
-  //  gtk_widget_queue_draw(tree); /* re-rendering seems to happen before this... */
-}
-
-
 /* Refresh the tree header widgets */
 void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 {

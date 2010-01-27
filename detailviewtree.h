@@ -69,7 +69,6 @@ void		  treeSortById(GtkWidget *tree, gpointer data);
 void		  treeSortByScore(GtkWidget *tree, gpointer data);
 void		  treeSortByPos(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
-void		  refreshTreeAndGrid(GtkWidget *tree, gpointer data);
 void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
