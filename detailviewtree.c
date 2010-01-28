@@ -46,6 +46,12 @@ static void assertTree(GtkWidget *tree)
     messcrash("Tree properties not set [widget=%x]", tree);
 }
 
+GdkDrawable *treeGetDrawable(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return properties ? properties->drawable : NULL;
+}
+
 GtkAdjustment *treeGetAdjustment(GtkWidget *tree)
 {
   assertTree(tree);
@@ -683,6 +689,7 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->grid = grid;
       properties->detailView = detailView;
       properties->renderer = renderer;
+      properties->drawable = NULL;
       properties->readingFrame = frame;
       properties->treeColumnHeaderList = treeColumnHeaderList;
 
@@ -698,6 +705,31 @@ static void treeCreateProperties(GtkWidget *widget,
 
 static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, gpointer data)
 {
+  /* Create a bitmap to draw to. Our custom cell renderer will draw to this as
+   * well as the main window. (Ideally we'd just draw to the bitmap and then push
+   * this to the screen, but I'm not sure if it's possible to detect when the 
+   * cell renderer has finished drawing.) */
+  TreeProperties *properties = treeGetProperties(tree);
+
+  if (properties->drawable)
+    {
+      g_object_unref(properties->drawable);
+      properties->drawable = NULL;
+    }
+  
+  properties->drawable = gdk_pixmap_new(tree->window, tree->allocation.width, tree->allocation.height, -1);
+  gdk_drawable_set_colormap(properties->drawable, gdk_colormap_get_system());
+
+  /* Draw a blank rectangle of the required widget background colour */
+  GdkGC *gc = gdk_gc_new(properties->drawable);
+  GtkStyle *style = gtk_widget_get_style(tree);
+  GdkColor bgColour = getGdkColor(GDK_WHITE);
+  gdk_gc_set_foreground(gc, &bgColour);
+  
+  gdk_draw_rectangle(properties->drawable, gc, TRUE, 
+		     0, 0, tree->allocation.width, tree->allocation.height);
+  
+  /* Let the default handler continue */
   return FALSE;
 }
 

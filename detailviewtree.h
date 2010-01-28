@@ -29,13 +29,14 @@ typedef struct _TreeColumnHeaderInfo
 
 typedef struct _TreeProperties 
   {
-    GtkWidget *grid;         /* The grid that this tree corresponds to */
-    GtkWidget *detailView;   /* The detail view that this tree belongs to */
-    GtkCellRenderer *renderer; /* The custom cell renderer to render this tree's match sequences */
-    GtkWidget *sequenceColHeader; /* The custom header for the sequence column, or NULL if N/A */
-    
-    int readingFrame;	      /* Which reading frame this tree displays */
-    GList *treeColumnHeaderList;  /* List of info about the tree column headers */
+    GtkWidget *grid;		    /* The grid that this tree corresponds to */
+    GtkWidget *detailView;	    /* The detail view that this tree belongs to */
+    GtkCellRenderer *renderer;	    /* The custom cell renderer to render this tree's match sequences */
+    GtkWidget *sequenceColHeader;   /* The custom header for the sequence column, or NULL if N/A */
+    GdkDrawable *drawable;	    /* Bitmap to draw the tree to before pushing to screen/printer etc. */
+
+    int readingFrame;		    /* Which reading frame this tree displays */
+    GList *treeColumnHeaderList;    /* List of info about the tree column headers */
   } TreeProperties;
 GdkColor exonColour;
 
@@ -63,6 +64,7 @@ int		  treeGetCharWidth(GtkWidget *tree);
 int		  treeGetCharHeight(GtkWidget *tree);
 int		  treeGetFrame(GtkWidget *tree);
 int		  treeGetSeqType(GtkWidget *tree);
+GdkDrawable*	  treeGetDrawable(GtkWidget *tree);
 
 GdkColor*	  treeGetRefSeqColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetMatchColour(GtkWidget *tree, const gboolean selected);

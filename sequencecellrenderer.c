@@ -93,6 +93,46 @@ static void sequence_cell_renderer_set_property (GObject      *object,
 static   gpointer parent_class;
 
 
+
+/***************************************************************************/
+
+/* Custom version of gtk_paint_layout that draws the same thing to two GdkDrawables */
+static void paintLayout2(GtkStyle *style,
+			 GdkDrawable *drawable1,
+			 GdkDrawable *drawable2,
+			 GtkStateType state_type,
+			 gboolean use_text,
+			 const GdkRectangle *area,
+			 GtkWidget *widget,
+			 const gchar *detail,
+			 gint x,
+			 gint y,
+			 PangoLayout *layout)
+{
+  if (drawable1)
+    gtk_paint_layout (style, drawable1, state_type, use_text, area, widget, detail, x, y, layout);
+  
+  if (drawable2)
+    gtk_paint_layout (style, drawable2, state_type, use_text, area, widget, detail, x, y, layout);
+}
+
+/* Custom version of gdk_draw_rectangle that draws the same thing to two GdkDrawables */
+void drawRectangle2(GdkDrawable *drawable1,
+		    GdkDrawable *drawable2,
+		    GdkGC *gc,
+		    gboolean filled,
+		    gint x,
+		    gint y,
+		    gint width,
+		    gint height)
+{
+  if (drawable1)
+    gdk_draw_rectangle(drawable1, gc, filled, x, y, width, height);
+  
+  if (drawable2)
+    gdk_draw_rectangle(drawable2, gc, filled, x, y, width, height);
+}
+
 /***************************************************************************
  *
  *  sequence_cell_renderer_get_type: here we register our type with
@@ -544,6 +584,7 @@ static char* getText(SequenceCellRenderer *renderer)
 }
 
 
+/* Render function for a cell that contains simple text */
 static void drawText(SequenceCellRenderer *renderer, 
 		     GtkWidget *tree,
 		     GdkWindow *window, 
@@ -557,16 +598,17 @@ static void drawText(SequenceCellRenderer *renderer,
   pango_layout_set_font_description(layout, font_desc);
   pango_font_description_free(font_desc);
 
-  gtk_paint_layout (tree->style,
-		    window,
-		    state,
-		    TRUE,
-		    NULL,
-		    tree,
-		    NULL, //"cellrenderertext",
-		    cell_area->x - treeGetCellXPadding(tree),
-		    cell_area->y - treeGetCellYPadding(tree),
-		    layout);
+  paintLayout2(tree->style,
+	       window,
+	       treeGetDrawable(tree),
+	       state,
+	       TRUE,
+	       NULL,
+	       tree,
+	       NULL, //"cellrenderertext",
+	       cell_area->x - treeGetCellXPadding(tree),
+	       cell_area->y - treeGetCellYPadding(tree),
+	       layout);
   
   g_object_unref(layout);
 }
@@ -584,6 +626,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
 				  const int cellYPadding,
 				  GdkGC *gc,
 				  GdkWindow *window,
+				  GdkDrawable *drawable,
 				  GdkRectangle *cell_area)
 {
   if (selectedBaseIdx != UNSET_INT && indexWithinRange(selectedBaseIdx, displayRange))
@@ -595,7 +638,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
       getCoordsForBaseIdx(segmentIdx, displayRange, displayRange, rightToLeft, charWidth, cellXPadding, cellYPadding, cell_area, &x, &y);
 
       gdk_gc_set_foreground(gc, highlightColour);
-      gdk_draw_rectangle(window, gc, TRUE, x, y, charWidth, charHeight);
+      drawRectangle2(window, drawable, gc, TRUE, x, y, charWidth, charHeight);
     }
 }
 
@@ -627,7 +670,7 @@ static void drawExon(SequenceCellRenderer *renderer,
   /* Just draw one big rectangle the same colour for the whole thing */
   GdkColor *baseBgColour = treeGetExonColour(tree, FALSE);
   gdk_gc_set_foreground(gc, baseBgColour);
-  gdk_draw_rectangle(window, gc, TRUE, x, y, width, charHeight);
+  drawRectangle2(window, treeGetDrawable(tree), gc, TRUE, x, y, width, charHeight);
   
   /* If a base is selected, highlight it. The colour depends on whether it is within our exon range
    * or not. */
@@ -638,7 +681,7 @@ static void drawExon(SequenceCellRenderer *renderer,
 	? treeGetExonColour(tree, TRUE) 
 	: treeGetGapColour(tree, TRUE);
       
-      highlightSelectedBase(selectedBaseIdx, bgColour, displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, cell_area);
+      highlightSelectedBase(selectedBaseIdx, bgColour, displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, treeGetDrawable(tree), cell_area);
     }
 } 
 
@@ -720,6 +763,7 @@ static int drawBase(MSP *msp,
 		    
 		    GtkWidget *tree,
 		    GdkWindow *window,
+		    GdkDrawable *drawable,
 		    GdkGC *gc,
 		    
 		    const int x,
@@ -758,7 +802,7 @@ static int drawBase(MSP *msp,
 
   /* Draw the background colour */
   gdk_gc_set_foreground(gc, baseBgColour);
-  gdk_draw_rectangle(window, gc, TRUE, x, y, charWidth, charHeight);
+  drawRectangle2(window, drawable, gc, TRUE, x, y, charWidth, charHeight);
 
   /* Add this character into the display text */
   displayText[segmentIdx] = charToDisplay;
@@ -810,6 +854,7 @@ static void drawGap(int sIdx,
 		    const int charWidth,
 		    const int charHeight,
 		    GdkWindow *window, 
+		    GdkDrawable *drawable,
 		    GdkGC *gc)
 {
   if (sIdx != UNSET_INT && sIdxLastFound != UNSET_INT && abs(sIdx - sIdxLastFound) > 1)
@@ -827,7 +872,7 @@ static void drawGap(int sIdx,
 	  gapWidth = MIN_GAP_WIDTH;
         }
       
-      gdk_draw_rectangle(window, gc, TRUE, x - gapWidth/2, y, gapWidth, charHeight);
+      drawRectangle2(window, drawable, gc, TRUE, x - gapWidth/2, y, gapWidth, charHeight);
     }
 }
 
@@ -853,7 +898,7 @@ static void drawSequenceText(GtkWidget *tree,
 
       if (layout)
 	{
-	  gtk_paint_layout (tree->style, window, state, TRUE, NULL, tree, NULL, x, y, layout);
+	  paintLayout2(tree->style, window, treeGetDrawable(tree), state, TRUE, NULL, tree, NULL, x, y, layout);
 	  g_object_unref(layout);
 	}
       else
@@ -932,6 +977,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   const int charHeight = treeGetCharHeight(tree);
   const BlxSeqType seqType = treeGetSeqType(tree);
   const IntRange const *displayRange = treeGetDisplayRange(tree);
+  GdkDrawable *drawable = treeGetDrawable(tree);
   
   GtkWidget *mainWindow = treeGetMainWindow(tree);
   
@@ -961,10 +1007,10 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 	  getCoordsForBaseIdx(segmentIdx, &segmentRange, displayRange, rightToLeft, charWidth, cellXPadding, cellYPadding, cell_area, &x, &y);
 	  
 	  /* Find the base in the match sequence and draw the background colour according to how well it matches */
-	  int sIdx = drawBase(renderer->msp, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, qFrame, qStrand, seqType, rightToLeft, numFrames, charWidth, charHeight, tree, window, gc, x, y, displayText);
+	  int sIdx = drawBase(renderer->msp, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, qFrame, qStrand, seqType, rightToLeft, numFrames, charWidth, charHeight, tree, window, drawable, gc, x, y, displayText);
 	  
 	  /* If there is an insertion/deletion between this and the previous match, draw it now */
-	  drawGap(sIdx, lastFoundSIdx, x, y, charWidth, charHeight, window, gc);
+	  drawGap(sIdx, lastFoundSIdx, x, y, charWidth, charHeight, window, drawable, gc);
 
 	  if (sIdx != UNSET_INT)
 	    {
@@ -984,7 +1030,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   /* If a base is selected and we've not already processed it, highlight it now */
   if (selectedBaseIdx != UNSET_INT && !indexWithinRange(selectedBaseIdx, &segmentRange))
     {
-      highlightSelectedBase(selectedBaseIdx, treeGetGapColour(tree, TRUE), displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, cell_area);
+      highlightSelectedBase(selectedBaseIdx, treeGetGapColour(tree, TRUE), displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, treeGetDrawable(tree), cell_area);
     }
 }    
 

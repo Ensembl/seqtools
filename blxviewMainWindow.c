@@ -414,11 +414,6 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
   GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
 
-  GtkWidget *grid1 = toggled ? properties->revStrandGrid : properties->fwdStrandGrid;
-  GtkWidget *grid2 = toggled ? properties->fwdStrandGrid : properties->revStrandGrid;
-  GdkDrawable *grid1pixmap = gridGetProperties(grid1)->drawable;
-  GdkDrawable *grid2pixmap = gridGetProperties(grid2)->drawable;
-
   /* Create a blank white pixmap */
   GdkDrawable *pixmap = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
   GdkGC *gc = gdk_gc_new(pixmap);
@@ -426,9 +421,42 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
   gdk_gc_set_foreground(gc, &fgColour);
   gdk_draw_rectangle(pixmap, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
 
-  /* Draw the grids onto the main pixmap */
-  gdk_draw_drawable(pixmap, gc, grid1pixmap, 0, 0, 0, 0, -1, -1);
-  gdk_draw_drawable(pixmap, gc, grid2pixmap, 0, 0, 0, grid1->allocation.height, -1, -1);
+  int height = 0;
+  
+  /* Get the pixmaps for the grids and draw them onto the main pixmap */
+  GtkWidget *grid1 = toggled ? properties->revStrandGrid : properties->fwdStrandGrid;
+  GtkWidget *grid2 = toggled ? properties->fwdStrandGrid : properties->revStrandGrid;
+  GdkDrawable *grid1pixmap = gridGetProperties(grid1)->drawable;
+  GdkDrawable *grid2pixmap = gridGetProperties(grid2)->drawable;
+
+  gdk_draw_drawable(pixmap, gc, grid1pixmap, 0, 0, 0, height, -1, -1);
+  height += grid1->allocation.height;
+  gdk_draw_drawable(pixmap, gc, grid2pixmap, 0, 0, 0, height, -1, -1);
+  height += grid2->allocation.height;
+  
+  /* Get the pixmaps for the trees and draw them onto the main pixmap */
+  int frame = 1;
+  int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  
+  for ( ; frame <= numFrames; ++frame)
+    {
+      GtkWidget *fwdTree = detailViewGetFrameTree(detailView, FORWARD_STRAND, frame);
+      if (fwdTree && GTK_WIDGET_VISIBLE(fwdTree))
+	{
+	  GdkDrawable *treePixmap = treeGetDrawable(fwdTree);
+	  gdk_draw_drawable(pixmap, gc, treePixmap, 0, 0, 0, height, -1, -1);
+	  height += fwdTree->allocation.height;
+	}
+
+      GtkWidget *revTree = detailViewGetFrameTree(detailView, REVERSE_STRAND, frame);
+      if (revTree && GTK_WIDGET_VISIBLE(revTree))
+	{
+	  GdkDrawable *treePixmap = treeGetDrawable(revTree);
+	  gdk_draw_drawable(pixmap, gc, treePixmap, 0, 0, 0, height, -1, -1);
+	  height += revTree->allocation.height;
+	}
+    }
   
   cairo_t *cr = gtk_print_context_get_cairo_context (context);
   gdk_cairo_set_source_pixmap(cr, pixmap, 0, 0);
