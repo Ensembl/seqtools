@@ -88,18 +88,22 @@ typedef struct _DetailViewProperties
     IntRange displayRange;	  /* The currently-displayed range of bases in the reference sequence */
     int selectedBaseIdx;	  /* The currently-selected base in the reference sequence */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
+
+    /* Cached font sizes, needed often for calculations */
+    int charHeight;
+    int charWidth;
     
     /* Display colours */
     GdkColor refSeqColour;
-    GdkColor refSeqSelectedColour;
+    GdkColor refSeqColourSelected;
     GdkColor matchColour;
-    GdkColor matchSelectedColour;
+    GdkColor matchColourSelected;
     GdkColor mismatchColour;
-    GdkColor mismatchSelectedColour;
+    GdkColor mismatchColourSelected;
     GdkColor exonColour;
-    GdkColor exonSelectedColour;
+    GdkColor exonColourSelected;
     GdkColor gapColour;
-    GdkColor gapSelectedColour;
+    GdkColor gapColourSelected;
   } DetailViewProperties;
 
 
@@ -126,21 +130,18 @@ BlxSeqType		detailViewGetSeqType(GtkWidget *detailView);
 char**			detailViewGetGeneticCode(GtkWidget *detailView);
 IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);
 GtkWidget*	        detailViewGetMainWindow(GtkWidget *detailView);
+int			detailViewGetCharWidth(GtkWidget *detailView);
+int			detailViewGetCharHeight(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
 int			getDetailViewColumnWidth(GtkWidget *detailView, const ColumnId columnId);
 
-GdkColor*		detailViewGetRefSeqColour(GtkWidget *detailView);
-GdkColor*		detailViewGetRefSeqSelectedColour(GtkWidget *detailView);
-GdkColor*		detailViewGetMatchColour(GtkWidget *detailView);
-GdkColor*		detailViewGetMatchSelectedColour(GtkWidget *detailView);
-GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView);
-GdkColor*		detailViewGetMismatchSelectedColour(GtkWidget *detailView);
-GdkColor*		detailViewGetExonColour(GtkWidget *detailView);
-GdkColor*		detailViewGetExonSelectedColour(GtkWidget *detailView);
-GdkColor*		detailViewGetGapColour(GtkWidget *detailView);
-GdkColor*		detailViewGetGapSelectedColour(GtkWidget *detailView);
+GdkColor*		detailViewGetRefSeqColour(GtkWidget *detailView, const gboolean selected);
+GdkColor*		detailViewGetMatchColour(GtkWidget *detailView, const gboolean selected);
+GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView, const gboolean selected);
+GdkColor*		detailViewGetExonColour(GtkWidget *detailView, const gboolean selected);
+GdkColor*		detailViewGetGapColour(GtkWidget *detailView, const gboolean selected);
 
 void			setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 void			scrollDetailViewLeft1(GtkWidget *detailView);

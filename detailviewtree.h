@@ -56,8 +56,19 @@ MSP*		  treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter);
 GtkTreeModel*	  treeGetVisibleDataModel(GtkTreeView *tree);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 GtkWidget*	  treeGetMainWindow(GtkWidget *tree);
-//gboolean	  treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model);
 GtkWidget*	  treeGetDetailView(GtkWidget *tree);
+int		  treeGetCellXPadding(GtkWidget *tree);
+int		  treeGetCellYPadding(GtkWidget *tree);
+int		  treeGetCharWidth(GtkWidget *tree);
+int		  treeGetCharHeight(GtkWidget *tree);
+int		  treeGetFrame(GtkWidget *tree);
+int		  treeGetSeqType(GtkWidget *tree);
+
+GdkColor*	  treeGetRefSeqColour(GtkWidget *tree, const gboolean selected);
+GdkColor*	  treeGetMatchColour(GtkWidget *tree, const gboolean selected);
+GdkColor*	  treeGetMismatchColour(GtkWidget *tree, const gboolean selected);
+GdkColor*	  treeGetExonColour(GtkWidget *tree, const gboolean selected);
+GdkColor*	  treeGetGapColour(GtkWidget *tree, const gboolean selected);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 

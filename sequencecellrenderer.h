@@ -43,13 +43,6 @@ typedef struct _SequenceCellRenderer
   char *end;	 /* property for the end column */
   
   MSP *data; /* property that is set for every column */
-  
-  /* Store a pointer to the detail view that this cell renderer renders mach sequences for */
-  GtkWidget *detailView;
-  
-  /* Cache values needed to calculate base index positions, so we don't have to recalculate them every time we re-render */
-  int charHeight;
-  int charWidth;
 } SequenceCellRenderer;
 
 

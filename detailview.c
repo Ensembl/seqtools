@@ -30,6 +30,7 @@ static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
 static GList*		    detailViewGetColumnList(GtkWidget *detailView);
 static GtkWidget*	    detailViewGetFeedbackBox(GtkWidget *detailView);
 
+static void		    detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
 static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		    widgetIsTree(GtkWidget *widget);
 static gboolean		    widgetIsTreeContainer(GtkWidget *widget);
@@ -250,8 +251,7 @@ static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
   colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
   
   /* Return the number of whole characters that fit in the column. */
-  SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
-  gint charWidth = seqRenderer->charWidth;
+  gint charWidth = treeGetCharWidth(tree);
   int numChars = (int)((double)colWidth / (double)charWidth);
   
   return numChars;
@@ -930,16 +930,15 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
   
   pango_font_metrics_unref(metrics);
   
-  /* Cache these results in the sequence renderer for easier calculations when we render the sequence column */
-  GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
-  SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
-  seqRenderer->charHeight = charHeight;
-  seqRenderer->charWidth = charWidth;
+  /* Cache these results, because we use them often for calculations */
+  detailViewCacheFontSize(detailView, charWidth, charHeight);
   
   /* Set the row height. Subtract the padding between the cell's actual area and
    * its background area. We will render at the background area's height, so that
    * we draw over the "gaps" between the cells, giving the impression of no gaps. */
   gint rowHeight = charHeight - (detailViewGetCellYPadding(detailView) * 2);
+
+  GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
   gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
 }
 
@@ -1026,66 +1025,35 @@ PangoFontDescription *detailViewGetFontDesc(GtkWidget *detailView)
   return properties ? properties->fontDesc : NULL;
 }
 
-GdkColor* detailViewGetRefSeqColour(GtkWidget *detailView)
+GdkColor* detailViewGetRefSeqColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->refSeqColour;
+  return selected ? &properties->refSeqColourSelected : &properties->refSeqColour;
 }
 
-GdkColor* detailViewGetRefSeqSelectedColour(GtkWidget *detailView)
+GdkColor* detailViewGetMatchColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->refSeqSelectedColour;
+  return selected ? &properties->matchColourSelected : &properties->matchColour;
 }
 
-GdkColor* detailViewGetMatchColour(GtkWidget *detailView)
+GdkColor* detailViewGetMismatchColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->matchColour;
+  return selected ? &properties->mismatchColourSelected : &properties->mismatchColour;
 }
 
-GdkColor* detailViewGetMatchSelectedColour(GtkWidget *detailView)
+GdkColor* detailViewGetExonColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->matchSelectedColour;
+  return selected ? &properties->exonColourSelected : &properties->exonColour;
 }
 
-GdkColor* detailViewGetMismatchColour(GtkWidget *detailView)
+GdkColor* detailViewGetGapColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->mismatchColour;
+  return selected ? &properties->gapColourSelected : &properties->gapColour;
 }
-
-GdkColor* detailViewGetMismatchSelectedColour(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->mismatchSelectedColour;
-}
-
-GdkColor* detailViewGetExonColour(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->exonColour;
-}
-
-GdkColor* detailViewGetExonSelectedColour(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->exonSelectedColour;
-}
-
-GdkColor* detailViewGetGapColour(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->gapColour;
-}
-
-GdkColor* detailViewGetGapSelectedColour(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->gapSelectedColour;
-}
-
 
 GList *detailViewGetStrandTrees(GtkWidget *detailView, const Strand strand)
 {
@@ -1106,6 +1074,24 @@ int detailViewGetCellYPadding(GtkWidget *detailView)
   return properties ? properties->cellYPadding : 0;
 }
 
+int detailViewGetCharWidth(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->charWidth : 0;
+}
+
+int detailViewGetCharHeight(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->charHeight : 0;
+}
+
+static void detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->charWidth = charWidth;
+  properties->charHeight = charHeight;
+}
 
 
 /* Extract the tree view for the given frame on the given strand */
@@ -1288,6 +1274,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->displayRange.max = 1;
       properties->selectedBaseIdx = UNSET_INT;
       properties->fontDesc = fontDesc;
+      properties->charWidth = 0;
+      properties->charHeight = 0;
 
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
@@ -1312,15 +1300,15 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 	}
       
       properties->refSeqColour		  = getGdkColor(GDK_YELLOW);
-      properties->refSeqSelectedColour	  = getGdkColor(GDK_DARK_YELLOW);
+      properties->refSeqColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->matchColour		  = getGdkColor(GDK_CYAN);
-      properties->matchSelectedColour	  = getGdkColor(GDK_DARK_CYAN);
+      properties->matchColourSelected	  = getGdkColor(GDK_DARK_CYAN);
       properties->mismatchColour	  = getGdkColor(GDK_GREY);
-      properties->mismatchSelectedColour  = getGdkColor(GDK_DARK_GREY);
+      properties->mismatchColourSelected  = getGdkColor(GDK_DARK_GREY);
       properties->exonColour		  = getGdkColor(GDK_YELLOW);
-      properties->exonSelectedColour	  = getGdkColor(GDK_DARK_YELLOW);
+      properties->exonColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->gapColour		  = getGdkColor(GDK_GREY);
-      properties->gapSelectedColour	  = getGdkColor(GDK_DARK_GREY);
+      properties->gapColourSelected	  = getGdkColor(GDK_DARK_GREY);
       
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
@@ -1980,7 +1968,6 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
   SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
-  seqRenderer->detailView = detailView;
 
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;

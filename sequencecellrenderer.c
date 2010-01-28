@@ -8,9 +8,10 @@
  */
 
 #include <SeqTools/sequencecellrenderer.h>
-#include <SeqTools/utilities.h>
 #include <SeqTools/detailview.h>
+#include <SeqTools/detailviewtree.h>
 #include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/utilities.h>
 #include <wh/smap.h>
 #include <gtk/gtkcellrenderertext.h>
 
@@ -42,15 +43,12 @@ static void     sequence_cell_renderer_init       (SequenceCellRenderer      *ce
 static void     sequence_cell_renderer_class_init (SequenceCellRendererClass *klass);
 static void     sequence_cell_renderer_finalize (GObject *gobject);
 
-static IntRange getVisibleMspRange(SequenceCellRenderer *renderer);
+static IntRange getVisibleMspRange(MSP *msp, GtkWidget *tree);
 
-static void drawSequenceText(SequenceCellRenderer *renderer, 
+static void drawSequenceText(GtkWidget *tree,
 			     gchar *displayText, 
 			     const IntRange const *segmentRange,
 			     GdkRectangle *cell_area, 
-			     const int cellXPadding, 
-			     const int cellYPadding,
-			     GtkWidget *widget, 
 			     GdkWindow *window, 
 			     GtkStateType state,
 			     GdkGC *gc);
@@ -58,10 +56,12 @@ static void drawSequenceText(SequenceCellRenderer *renderer,
 
 static void getCoordsForBaseIdx(const int segmentIdx, 
 				const IntRange const *segmentRange,
-				SequenceCellRenderer *renderer, 
-				GdkRectangle *cell_area, 
-				const int cellXPadding, 
+				const IntRange const *displayRange,
+				const gboolean rightToLeft,
+				const int charWidth,
+				const int cellXPadding,
 				const int cellYPadding,
+				GdkRectangle *cell_area, 
 				int *x, 
 				int* y);
 
@@ -76,7 +76,7 @@ static void     sequence_cell_renderer_get_size   (GtkCellRenderer            *c
                                                           gint                       *height);
 static void     sequence_cell_renderer_render     (GtkCellRenderer            *cell,
                                                           GdkWindow                  *window,
-                                                          GtkWidget                  *widget,
+                                                          GtkWidget                  *tree,
                                                           GdkRectangle               *background_area,
                                                           GdkRectangle               *cell_area,
                                                           GdkRectangle               *expose_area,
@@ -156,8 +156,6 @@ sequence_cell_renderer_init (SequenceCellRenderer *cellrenderersequence)
   cellrenderersequence->id = NULL;
   cellrenderersequence->start = NULL;
   cellrenderersequence->end = NULL;
-  cellrenderersequence->charWidth = 0;
-  cellrenderersequence->charHeight = 0;
 }
 
 
@@ -399,92 +397,6 @@ sequence_cell_renderer_get_property (GObject      *object,
 }
 
 
-static BlxSeqType getSeqType(SequenceCellRenderer *renderer)
-{
-  return detailViewGetSeqType(renderer->detailView);
-}
-
-static Strand getRefSeqStrand(SequenceCellRenderer *renderer)
-{
-  return (MSP_IS_FORWARDS(renderer->msp->qframe) ? FORWARD_STRAND : REVERSE_STRAND);
-}
-
-static int getRefSeqFrame(SequenceCellRenderer *renderer)
-{
-  int frame = 1; /* always return 1 for DNA matches */
-  
-  if (getSeqType(renderer) == BLXSEQ_PEPTIDE)
-    {
-      frame = atoi(&renderer->msp->qframe[2]);
-      if (frame < 1) frame = 1; /*to do: temp fix while ref seq q frame is incorrect */
-    }
-  
-  return frame;
-}
-
-static IntRange* getDisplayRange(SequenceCellRenderer *renderer)
-{
-  return detailViewGetDisplayRange(renderer->detailView);
-}
-
-
-/* Get the main window strands-toggled status */
-static gboolean getStrandsToggled(SequenceCellRenderer *renderer)
-{
-  return detailViewGetStrandsToggled(renderer->detailView);
-}
-
-
-/* Get the number of reading frames in the detail view */
-static int getNumReadingFrames(SequenceCellRenderer *renderer)
-{
-  return detailViewGetNumReadingFrames(renderer->detailView);
-}
-
-
-/* Get the currently-selected base in the reference sequence */
-static int getSelectedBaseIdx(SequenceCellRenderer *renderer)
-{
-  return detailViewGetSelectedBaseIdx(renderer->detailView);
-}
-
-
-/* Get the X padding between the cell area and the background area. */
-static int getCellXPadding(SequenceCellRenderer *renderer)
-{
-  return detailViewGetCellXPadding(renderer->detailView);
-}
-
-
-/* Get the Y padding between the cell area and the background area. */
-static int getCellYPadding(SequenceCellRenderer *renderer)
-{
-  return detailViewGetCellYPadding(renderer->detailView);
-}
-
-
-/* Get colours */
-static GdkColor* getMatchColour(SequenceCellRenderer *renderer, gboolean selected)
-{
-  return selected ? detailViewGetMatchSelectedColour(renderer->detailView) : detailViewGetMatchColour(renderer->detailView);
-}
-
-static GdkColor* getMismatchColour(SequenceCellRenderer *renderer, gboolean selected)
-{
-  return selected ? detailViewGetMismatchSelectedColour(renderer->detailView) : detailViewGetMismatchColour(renderer->detailView);
-}
-
-static GdkColor* getGapColour(SequenceCellRenderer *renderer, gboolean selected)
-{
-  return selected ? detailViewGetGapSelectedColour(renderer->detailView) : detailViewGetGapColour(renderer->detailView);
-}
-
-static GdkColor* getExonColour(SequenceCellRenderer *renderer, gboolean selected)
-{
-  return selected ? detailViewGetExonSelectedColour(renderer->detailView) : detailViewGetExonColour(renderer->detailView);
-}
-
-
 /* Given a base index on the query sequence, find the corresonding base 
  * in subject sequence. The return value is always UNSET_INT if there is not
  * a corresponding base at this position. However, in this case the start/end
@@ -633,27 +545,27 @@ static char* getText(SequenceCellRenderer *renderer)
 
 
 static void drawText(SequenceCellRenderer *renderer, 
-		     GtkWidget *widget,
+		     GtkWidget *tree,
 		     GdkWindow *window, 
 		     GtkStateType state, 
 		     GdkRectangle *cell_area)
 {
   gchar *displayText = getText(renderer);
-  PangoLayout *layout = gtk_widget_create_pango_layout(widget, displayText);
+  PangoLayout *layout = gtk_widget_create_pango_layout(tree, displayText);
 
-  PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
+  PangoFontDescription *font_desc = pango_font_description_copy(tree->style->font_desc);
   pango_layout_set_font_description(layout, font_desc);
   pango_font_description_free(font_desc);
 
-  gtk_paint_layout (widget->style,
+  gtk_paint_layout (tree->style,
 		    window,
 		    state,
 		    TRUE,
 		    NULL,
-		    widget,
+		    tree,
 		    NULL, //"cellrenderertext",
-		    cell_area->x - getCellXPadding(renderer),
-		    cell_area->y - getCellYPadding(renderer),
+		    cell_area->x - treeGetCellXPadding(tree),
+		    cell_area->y - treeGetCellYPadding(tree),
 		    layout);
   
   g_object_unref(layout);
@@ -662,27 +574,28 @@ static void drawText(SequenceCellRenderer *renderer,
 
 /* The given renderer is an MSP. This function checks if there is a base index
  * selected and, if so, colours the background for that base with the given colour. */
-static void highlightSelectedBase(SequenceCellRenderer *renderer, 
+static void highlightSelectedBase(const int selectedBaseIdx,
 				  GdkColor *highlightColour,
+				  const IntRange const *displayRange,
+				  const gboolean rightToLeft,
+				  const int charWidth,
+				  const int charHeight,
+				  const int cellXPadding,
+				  const int cellYPadding,
 				  GdkGC *gc,
 				  GdkWindow *window,
-				  GdkRectangle *cell_area,
-				  const int cellXPadding,
-				  const int cellYPadding)
+				  GdkRectangle *cell_area)
 {
-  const int selectedBaseIdx = getSelectedBaseIdx(renderer);
-  IntRange *displayRange = getDisplayRange(renderer);
-  
   if (selectedBaseIdx != UNSET_INT && indexWithinRange(selectedBaseIdx, displayRange))
     {
       /* Convert the display-range index to a 0-based index for the section of sequence displayed */
-      const int segmentIdx = getStrandsToggled(renderer) ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
+      const int segmentIdx = rightToLeft ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
       
       int x, y;
-      getCoordsForBaseIdx(segmentIdx, displayRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
+      getCoordsForBaseIdx(segmentIdx, displayRange, displayRange, rightToLeft, charWidth, cellXPadding, cellYPadding, cell_area, &x, &y);
 
       gdk_gc_set_foreground(gc, highlightColour);
-      gdk_draw_rectangle(window, gc, TRUE, x, y, renderer->charWidth, renderer->charHeight);
+      gdk_draw_rectangle(window, gc, TRUE, x, y, charWidth, charHeight);
     }
 }
 
@@ -690,37 +603,42 @@ static void highlightSelectedBase(SequenceCellRenderer *renderer,
 /* The given renderer is an MSP that is an exon. This function draws the exon
  * or part of the exon that is in view, if it is within the current display range. */
 static void drawExon(SequenceCellRenderer *renderer,
-		     GtkWidget *widget,
+		     GtkWidget *tree,
 		     GdkWindow *window, 
 		     GtkStateType state,
 		     GdkRectangle *cell_area)
 {
   GdkGC *gc = gdk_gc_new(window);
   
-  IntRange segmentRange = getVisibleMspRange(renderer);
+  IntRange segmentRange = getVisibleMspRange(renderer->msp, tree);
   const int segmentLen = segmentRange.max - segmentRange.min + 1;
-  const int cellXPadding = getCellXPadding(renderer);
-  const int cellYPadding = getCellYPadding(renderer);
+
+  const IntRange const *displayRange = treeGetDisplayRange(tree);
+  const int charWidth = treeGetCharWidth(tree);
+  const int charHeight = treeGetCharHeight(tree);
+  const int cellXPadding = treeGetCellXPadding(tree);
+  const int cellYPadding = treeGetCellYPadding(tree);
+  const gboolean rightToLeft = treeGetStrandsToggled(tree);
   
   int x, y;
-  getCoordsForBaseIdx(0, &segmentRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
-  const int width = segmentLen * renderer->charWidth;
+  getCoordsForBaseIdx(0, &segmentRange, displayRange, rightToLeft, charWidth, cellXPadding, cellYPadding, cell_area, &x, &y);
+  const int width = segmentLen * charWidth;
 
   /* Just draw one big rectangle the same colour for the whole thing */
-  GdkColor *baseBgColour = getExonColour(renderer, FALSE);
+  GdkColor *baseBgColour = treeGetExonColour(tree, FALSE);
   gdk_gc_set_foreground(gc, baseBgColour);
-  gdk_draw_rectangle(window, gc, TRUE, x, y, width, renderer->charHeight);
+  gdk_draw_rectangle(window, gc, TRUE, x, y, width, charHeight);
   
   /* If a base is selected, highlight it. The colour depends on whether it is within our exon range
    * or not. */
-  const int selectedBaseIdx = getSelectedBaseIdx(renderer);
+  const int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
   if (selectedBaseIdx != UNSET_INT)
     {
       GdkColor *bgColour = indexWithinRange(selectedBaseIdx, &segmentRange) 
-	? getExonColour(renderer, TRUE) 
-	: getGapColour(renderer, TRUE);
+	? treeGetExonColour(tree, TRUE) 
+	: treeGetGapColour(tree, TRUE);
       
-      highlightSelectedBase(renderer, bgColour, gc, window, cell_area, cellXPadding, cellYPadding);
+      highlightSelectedBase(selectedBaseIdx, bgColour, displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, cell_area);
     }
 } 
 
@@ -750,11 +668,10 @@ static char getMatchSeqBase(char *matchSeq, const int sIdx, const BlxSeqType seq
 
 /* Given a 0-based index into a segment of the reference sequence, find the
  * index into the full reference sequence. */
-static int getRefSeqIndexFromSegment(SequenceCellRenderer *renderer,
+static int getRefSeqIndexFromSegment(const int segmentIdx,
 				     const IntRange const *segmentRange,
-				     const int segmentIdx)
+				     const gboolean rightToLeft)
 {
-  const gboolean rightToLeft = getStrandsToggled(renderer);
   return (rightToLeft ? segmentRange->max - segmentIdx : segmentRange->min + segmentIdx);
 }
 
@@ -762,25 +679,24 @@ static int getRefSeqIndexFromSegment(SequenceCellRenderer *renderer,
 /* Given an index into the full displayed reference sequence, find the equivalent base
  * in the match sequence (converting the ref sequence coord from peptide to dna if
  * necessary). */
-static int getMatchIdxFromRefIdx(SequenceCellRenderer *renderer,
-				 const int refSeqIdx)
+static int getMatchIdxFromRefIdx(MSP *msp,
+				 const int refSeqIdx,
+				 const int qFrame,
+				 const Strand qStrand,
+				 const gboolean rightToLeft,
+				 const BlxSeqType seqType,
+				 const int numFrames)
 {
   /* If we have a peptide sequence we must convert the ref seq coord to the DNA sequence coord */
   int qIdx = refSeqIdx;
-  const int numReadingFrames = getNumReadingFrames(renderer);
 
-  if (getSeqType(renderer) == BLXSEQ_PEPTIDE)
+  if (seqType == BLXSEQ_PEPTIDE)
     {
-      const int frame = getRefSeqFrame(renderer);
-      
-      qIdx = convertPeptideToDna(refSeqIdx, frame, numReadingFrames);
+      qIdx = convertPeptideToDna(qIdx, qFrame, numFrames);
     }
   
   /* Find the s index */
-  const Strand qStrand = getRefSeqStrand(renderer);
-  const gboolean rightToLeft = getStrandsToggled(renderer);
-
-  return gapCoord(renderer->msp, qIdx, numReadingFrames, qStrand, rightToLeft, NULL);
+  return gapCoord(msp, qIdx, numFrames, qStrand, rightToLeft, NULL);
 }
 	   
 
@@ -788,13 +704,24 @@ static int getMatchIdxFromRefIdx(SequenceCellRenderer *renderer,
  * the calculated index into the match sequence (for effiency, so that we don't have to
  * recalculate it later on). Returns the equivalent index in the subject sequence, or 
  * UNSET_INT if there is none. */
-static int drawBase(SequenceCellRenderer *renderer,
+static int drawBase(MSP *msp,
 		    const int segmentIdx, 
 		    const IntRange const *segmentRange,
 		    char *refSeqSegment, 
+
 		    const int selectedBaseIdx,
+		    const int qFrame,
+		    const Strand qStrand,
+		    const BlxSeqType seqType,
+		    const gboolean rightToLeft,
+		    const int numFrames,
+		    const int charWidth,
+		    const int charHeight,
+		    
+		    GtkWidget *tree,
 		    GdkWindow *window,
 		    GdkGC *gc,
+		    
 		    const int x,
 		    const int y,
 		    gchar *displayText)
@@ -802,35 +729,36 @@ static int drawBase(SequenceCellRenderer *renderer,
   char charToDisplay = '\0';
   GdkColor *baseBgColour;
   
-  const int refSeqIdx = getRefSeqIndexFromSegment(renderer, segmentRange, segmentIdx);
-  const int sIdx = getMatchIdxFromRefIdx(renderer, refSeqIdx);
-  const gboolean selected = (refSeqIdx == selectedBaseIdx);
+  const int refSeqIdx = getRefSeqIndexFromSegment(segmentIdx, segmentRange, rightToLeft);
+  const int sIdx = getMatchIdxFromRefIdx(msp, refSeqIdx, qFrame, qStrand, rightToLeft, seqType, numFrames);
+  
+  gboolean selected = (refSeqIdx == selectedBaseIdx);
   
   if (sIdx == UNSET_INT)
     {
       /* There is no equivalent base in the match sequence so draw a gap */
       charToDisplay = '.';
-      baseBgColour = getGapColour(renderer, selected);
+      baseBgColour = treeGetGapColour(tree, selected);
     }
   else
     {
       /* There is a base in the match sequence. See if it matches the ref sequence */
-      charToDisplay = getMatchSeqBase(renderer->msp->sseq, sIdx, getSeqType(renderer));
+      charToDisplay = getMatchSeqBase(msp->sseq, sIdx, seqType);
       char qBase = refSeqSegment[segmentIdx];
 
       if (charToDisplay == qBase)
 	{
-	  baseBgColour = getMatchColour(renderer, selected); 
+	  baseBgColour = treeGetMatchColour(tree, selected); 
 	}
       else
 	{
-	  baseBgColour = getMismatchColour(renderer, selected);
+	  baseBgColour = treeGetMismatchColour(tree, selected);
 	}
     }
 
   /* Draw the background colour */
   gdk_gc_set_foreground(gc, baseBgColour);
-  gdk_draw_rectangle(window, gc, TRUE, x, y, renderer->charWidth, renderer->charHeight);
+  gdk_draw_rectangle(window, gc, TRUE, x, y, charWidth, charHeight);
 
   /* Add this character into the display text */
   displayText[segmentIdx] = charToDisplay;
@@ -839,9 +767,9 @@ static int drawBase(SequenceCellRenderer *renderer,
 }
 
 
-static PangoLayout* getLayoutFromText(gchar *displayText, GtkWidget *widget, PangoFontDescription *font_desc)
+static PangoLayout* getLayoutFromText(gchar *displayText, GtkWidget *tree, PangoFontDescription *font_desc)
 {
-  PangoLayout *layout = gtk_widget_create_pango_layout(widget, displayText);
+  PangoLayout *layout = gtk_widget_create_pango_layout(tree, displayText);
   pango_layout_set_font_description(layout, font_desc);
   return layout;
 }
@@ -852,16 +780,15 @@ static PangoLayout* getLayoutFromText(gchar *displayText, GtkWidget *widget, Pan
  * index in the display. */
 static void getCoordsForBaseIdx(const int segmentIdx, 
 				const IntRange const *segmentRange,
-				SequenceCellRenderer *renderer, 
-				GdkRectangle *cell_area, 
-				const int cellXPadding, 
+				const IntRange const *displayRange,
+				const gboolean rightToLeft,
+				const int charWidth,
+				const int cellXPadding,
 				const int cellYPadding,
+				GdkRectangle *cell_area, 
 				int *x, 
 				int* y)
 {
-  IntRange *displayRange = getDisplayRange(renderer);
-  const gboolean rightToLeft = getStrandsToggled(renderer);
-  
   /* Find the start of the segment with respect to the display range */
   const int startPos = rightToLeft 
     ? displayRange->max - segmentRange->max
@@ -871,16 +798,17 @@ static void getCoordsForBaseIdx(const int segmentIdx,
   int charIdx = startPos + segmentIdx;
 
   /* Calculate the coords */
-  *x = cell_area->x - cellXPadding + (charIdx * renderer->charWidth);
+  *x = cell_area->x - cellXPadding + (charIdx * charWidth);
   *y = cell_area->y - cellYPadding;
 }
 
 
-static void drawGap(SequenceCellRenderer *renderer,
-		    int sIdx, 
+static void drawGap(int sIdx, 
 		    int sIdxLastFound, 
 		    int x, 
 		    int y, 
+		    const int charWidth,
+		    const int charHeight,
 		    GdkWindow *window, 
 		    GdkGC *gc)
 {
@@ -892,25 +820,22 @@ static void drawGap(SequenceCellRenderer *renderer,
       
       /* This is not very sophisticated - just uses a fudge factor to find a suitable width and
        * draws it half over the current base and half over the previous one. */
-      int gapWidth = round((gdouble)renderer->charWidth * GAP_WIDTH_AS_FRACTION);
+      int gapWidth = round((gdouble)charWidth * GAP_WIDTH_AS_FRACTION);
 
       if (gapWidth < MIN_GAP_WIDTH)
 	{
 	  gapWidth = MIN_GAP_WIDTH;
         }
       
-      gdk_draw_rectangle(window, gc, TRUE, x - gapWidth/2, y, gapWidth, renderer->charHeight);
+      gdk_draw_rectangle(window, gc, TRUE, x - gapWidth/2, y, gapWidth, charHeight);
     }
 }
 
 
-static void drawSequenceText(SequenceCellRenderer *renderer, 
+static void drawSequenceText(GtkWidget *tree,
 			     gchar *displayText, 
 			     const IntRange const *segmentRange,
 			     GdkRectangle *cell_area, 
-			     const int cellXPadding, 
-			     const int cellYPadding,
-			     GtkWidget *widget, 
 			     GdkWindow *window, 
 			     GtkStateType state,
 			     GdkGC *gc)
@@ -920,15 +845,15 @@ static void drawSequenceText(SequenceCellRenderer *renderer,
       /* Get the coords for the first base. The display text should have been
        * was constructed such that everything else will line up from here. */
       int x, y;
-      getCoordsForBaseIdx(0, segmentRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
+      getCoordsForBaseIdx(0, segmentRange, treeGetDisplayRange(tree), treeGetStrandsToggled(tree), treeGetCharWidth(tree), treeGetCellXPadding(tree), treeGetCellYPadding(tree), cell_area, &x, &y);
       
-      PangoFontDescription *font_desc = pango_font_description_copy(widget->style->font_desc);
-      PangoLayout *layout = getLayoutFromText(displayText, widget, font_desc);
+      PangoFontDescription *font_desc = pango_font_description_copy(tree->style->font_desc);
+      PangoLayout *layout = getLayoutFromText(displayText, tree, font_desc);
       pango_font_description_free(font_desc);
 
       if (layout)
 	{
-	  gtk_paint_layout (widget->style, window, state, TRUE, NULL, widget, NULL, x, y, layout);
+	  gtk_paint_layout (tree->style, window, state, TRUE, NULL, tree, NULL, x, y, layout);
 	  g_object_unref(layout);
 	}
       else
@@ -946,15 +871,15 @@ static void drawSequenceText(SequenceCellRenderer *renderer,
 
 /* Get the range of the msp that is inside the currently displayed range. The returned
  * range has UNSET_INTs if no part of the msp is visible. */
-static IntRange getVisibleMspRange(SequenceCellRenderer *renderer)
+static IntRange getVisibleMspRange(MSP *msp, GtkWidget *tree)
 {
   IntRange result = {UNSET_INT, UNSET_INT};
   
   /* Find the start/end of the MSP in terms of the display coords */
-  int minIdx = min(renderer->msp->displayStart, renderer->msp->displayEnd);
-  int maxIdx = max(renderer->msp->displayStart, renderer->msp->displayEnd);
+  int minIdx = min(msp->displayStart, msp->displayEnd);
+  int maxIdx = max(msp->displayStart, msp->displayEnd);
 
-  IntRange *displayRange = getDisplayRange(renderer);
+  IntRange *displayRange = treeGetDisplayRange(tree);
 
   /* Check it's in the visible range. */
   if (maxIdx > displayRange->min && minIdx < displayRange->max)
@@ -980,7 +905,7 @@ static IntRange getVisibleMspRange(SequenceCellRenderer *renderer)
 
 
 static void drawDnaSequence(SequenceCellRenderer *renderer,
-			    GtkWidget *widget,
+			    GtkWidget *tree,
 			    GdkWindow *window, 
 			    GtkStateType state,
 			    GdkRectangle *cell_area)
@@ -988,7 +913,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   GdkGC *gc = gdk_gc_new(window);
 
   /* Extract the section of the reference sequence that we're interested in. */
-  IntRange segmentRange = getVisibleMspRange(renderer);
+  IntRange segmentRange = getVisibleMspRange(renderer->msp, tree);
   
   /* Nothing to do if this msp is not in the visible range */
   if (segmentRange.min == UNSET_INT)
@@ -996,14 +921,19 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       return;
     }
   
-  gboolean rightToLeft = getStrandsToggled(renderer);
-  const Strand qStrand = getRefSeqStrand(renderer);
-  const int qFrame = getRefSeqFrame(renderer);
-  const int selectedBaseIdx = getSelectedBaseIdx(renderer);
-  const int cellXPadding = getCellXPadding(renderer);
-  const int cellYPadding = getCellYPadding(renderer);
+  const gboolean rightToLeft = treeGetStrandsToggled(tree);
+  const Strand qStrand = treeGetStrand(tree);
+  const int qFrame = treeGetFrame(tree);
+  const int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
+  const int cellXPadding = treeGetCellXPadding(tree);
+  const int cellYPadding = treeGetCellYPadding(tree);
+  const int numFrames = treeGetNumReadingFrames(tree);
+  const int charWidth = treeGetCharWidth(tree);
+  const int charHeight = treeGetCharHeight(tree);
+  const BlxSeqType seqType = treeGetSeqType(tree);
+  const IntRange const *displayRange = treeGetDisplayRange(tree);
   
-  GtkWidget *mainWindow = detailViewGetMainWindow(renderer->detailView);
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
   
   gchar *refSeqSegment = getSequenceSegment(mainWindow, 
 					    mainWindowGetRefSeq(mainWindow),
@@ -1011,9 +941,9 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 					    segmentRange.min, 
 					    segmentRange.max, 
 					    qStrand, 
-					    getSeqType(renderer),
+					    seqType,
 					    qFrame, 
-					    getNumReadingFrames(renderer),
+					    numFrames,
 					    rightToLeft);
 
   if (refSeqSegment)
@@ -1028,13 +958,13 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       for ( ; segmentIdx < segmentLen; ++segmentIdx)
 	{
 	  int x, y;
-	  getCoordsForBaseIdx(segmentIdx, &segmentRange, renderer, cell_area, cellXPadding, cellYPadding, &x, &y);
+	  getCoordsForBaseIdx(segmentIdx, &segmentRange, displayRange, rightToLeft, charWidth, cellXPadding, cellYPadding, cell_area, &x, &y);
 	  
 	  /* Find the base in the match sequence and draw the background colour according to how well it matches */
-	  int sIdx = drawBase(renderer, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, window, gc, x, y, displayText);
+	  int sIdx = drawBase(renderer->msp, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, qFrame, qStrand, seqType, rightToLeft, numFrames, charWidth, charHeight, tree, window, gc, x, y, displayText);
 	  
 	  /* If there is an insertion/deletion between this and the previous match, draw it now */
-	  drawGap(renderer, sIdx, lastFoundSIdx, x, y, window, gc);
+	  drawGap(sIdx, lastFoundSIdx, x, y, charWidth, charHeight, window, gc);
 
 	  if (sIdx != UNSET_INT)
 	    {
@@ -1046,7 +976,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       insertChar(displayText, &segmentIdx, '\0', renderer->msp);
 
       /* Draw the sequence text */
-      drawSequenceText(renderer, displayText, &segmentRange, cell_area, cellXPadding, cellYPadding, widget, window, state, gc);
+      drawSequenceText(tree, displayText, &segmentRange, cell_area, window, state, gc);
       
       g_free(refSeqSegment);
     }
@@ -1054,7 +984,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   /* If a base is selected and we've not already processed it, highlight it now */
   if (selectedBaseIdx != UNSET_INT && !indexWithinRange(selectedBaseIdx, &segmentRange))
     {
-      highlightSelectedBase(renderer, getGapColour(renderer, TRUE), gc, window, cell_area, cellXPadding, cellYPadding);
+      highlightSelectedBase(selectedBaseIdx, treeGetGapColour(tree, TRUE), displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, cell_area);
     }
 }    
 
@@ -1113,7 +1043,7 @@ sequence_cell_renderer_get_size (GtkCellRenderer *cell,
 static void
 sequence_cell_renderer_render (GtkCellRenderer *cell,
 			       GdkWindow       *window,
-			       GtkWidget       *widget,
+			       GtkWidget       *tree,
 			       GdkRectangle    *background_area,
 			       GdkRectangle    *cell_area,
 			       GdkRectangle    *expose_area,
@@ -1123,19 +1053,19 @@ sequence_cell_renderer_render (GtkCellRenderer *cell,
   
   if (renderer->msp && mspIsExon(renderer->msp))
     {
-      drawExon(renderer, widget, window, getState(widget, flags), cell_area);
+      drawExon(renderer, tree, window, getState(tree, flags), cell_area);
     }
-  else if (renderer->msp && getSeqType(renderer) == BLXSEQ_PEPTIDE)
+  else if (renderer->msp && treeGetSeqType(tree) == BLXSEQ_PEPTIDE)
     {
-      drawDnaSequence(renderer, widget, window, getState(widget, flags), cell_area);
+      drawDnaSequence(renderer, tree, window, getState(tree, flags), cell_area);
     }
   else if (renderer->msp)
     {
-      drawDnaSequence(renderer, widget, window, getState(widget, flags), cell_area);
+      drawDnaSequence(renderer, tree, window, getState(tree, flags), cell_area);
     }
   else
     {
-      drawText(renderer, widget, window, getState(widget, flags), cell_area);
+      drawText(renderer, tree, window, getState(tree, flags), cell_area);
     }
 }
 

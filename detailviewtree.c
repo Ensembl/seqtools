@@ -68,12 +68,6 @@ GtkCellRenderer *treeGetRenderer(GtkWidget *tree)
   return detailViewGetRenderer(detailView);
 }
 
-int treeGetCharWidth(GtkWidget *tree)
-{
-  GtkCellRenderer *renderer = treeGetRenderer(tree);
-  return SEQUENCE_CELL_RENDERER(renderer)->charWidth;
-}
-
 GtkWidget *treeGetDetailView(GtkWidget *tree)
 {
   assertTree(tree);
@@ -122,7 +116,7 @@ int treeGetFrame(GtkWidget *tree)
   return properties ? properties->readingFrame : UNSET_INT;
 }
 
-static int treeGetSeqType(GtkWidget *tree)
+int treeGetSeqType(GtkWidget *tree)
 {
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
@@ -161,15 +155,6 @@ char* treeGetRefSeq(GtkWidget *tree)
   return detailViewGetRefSeq(detailView);
 }
 
-/* Get the actual displayed reference sequence (may be the DNA sequence or peptide sequence.
- * Always the forward strand.) */
-//static char* treeGetDisplaySeq(GtkWidget *tree)
-//{
-//  assertTree(tree);
-//  GtkWidget *detailView = treeGetDetailView(tree);
-//  return detailViewGetDisplaySeq(detailView);
-//}
-
 /* Returns the currently-displayed range in the tree view */
 IntRange* treeGetDisplayRange(GtkWidget *tree)
 {
@@ -201,23 +186,60 @@ PangoFontDescription* treeGetFontDesc(GtkWidget *tree)
   return detailViewGetFontDesc(detailView);
 }
 
+int treeGetCellXPadding(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetCellXPadding(detailView);
+}
 
-///* Calls the given function on the given widget if it is a detail-view-tree, or, if it is a
-// * container, calls the function on all children/grandchildren/etc that are dettail-view-trees */
-//static void callFuncRecursivelyOnChildTrees(GtkWidget *widget, gpointer data)
-//{
-//  GtkCallback func = (GtkCallback)data;
-//  
-//  const gchar *name = gtk_widget_get_name(widget);
-//  if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
-//    {
-//      func(widget, NULL);
-//    }
-//  else if (GTK_IS_CONTAINER(widget))
-//    {
-//      gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnAllDetailViewTrees, func);
-//    }
-//}
+int treeGetCellYPadding(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetCellYPadding(detailView);
+}
+
+int treeGetCharWidth(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetCharWidth(detailView);
+}
+
+int treeGetCharHeight(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetCharHeight(detailView);
+}
+
+GdkColor* treeGetRefSeqColour(GtkWidget *tree, const gboolean selected)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetRefSeqColour(detailView, selected);
+}
+
+GdkColor* treeGetMatchColour(GtkWidget *tree, const gboolean selected)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetMatchColour(detailView, selected);
+}
+
+GdkColor* treeGetMismatchColour(GtkWidget *tree, const gboolean selected)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetMismatchColour(detailView, selected);
+}
+
+GdkColor* treeGetExonColour(GtkWidget *tree, const gboolean selected)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetExonColour(detailView, selected);
+}
+
+GdkColor* treeGetGapColour(GtkWidget *tree, const gboolean selected)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetGapColour(detailView, selected);
+}
+
 
 
 /* Call the given function on all trees in the detail view */
@@ -347,8 +369,7 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
   if (x >= leftEdge && x <= rightEdge)
     {
       /* Calculate the number of bases from the left edge */
-      SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
-      gint charWidth = seqRenderer->charWidth;
+      gint charWidth = treeGetCharWidth(tree);
       double distFromLeft = (double)x - leftEdge;
       int numBasesFromLeft = trunc(distFromLeft / (double)charWidth);
       
@@ -451,50 +472,6 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 /***********************************************************
  *			  Selections			   *
  ***********************************************************/
-//
-///* Return true if the given path is selected in the given tree view. The given 
-// * path must be in the given model, but this can be in either the base model
-// * or the filtered model of the tree - we will check and do any conversion necessary. */
-//gboolean treePathIsSelected(GtkTreeView *tree, GtkTreePath *path, GtkTreeModel *model)
-//{
-//  gboolean result = FALSE;
-//  
-//  GtkTreeModel *baseModel = treeGetBaseDataModel(tree);
-//  GtkTreePath *visiblePath = (model == baseModel) ? treeConvertBasePathToVisiblePath(tree, path) : path;
-//  
-//  if (visiblePath)
-//    {
-//      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-//      result = gtk_tree_selection_path_is_selected(selection, visiblePath);
-//    }
-//  
-//  return result;
-//}
-
-
-/* Selects the given row iterator in the given tree. The iter must be in the given
- * model, but the model can be either the base or filtered model for this tree
- * (this function converts accordingly) */
-//void selectTreeRow(GtkTreeView *tree, GtkTreeModel *model, GtkTreeIter *iter, const gboolean deselectOthers)
-//{
-//  if (deselectOthers)
-//    {
-//      deselectAllSiblingTrees(tree, TRUE);
-//    }
-//  
-//  GtkTreeSelection *selection = gtk_tree_view_get_selection(tree);
-//  GtkTreePath *path = gtk_tree_model_get_path(model, iter);
-//  
-//  /* Convert to the visible (filtered) model if necessary */
-//  GtkTreeModel *visibleModel = treeGetVisibleDataModel(tree);
-//  GtkTreePath *visiblePath = (model == visibleModel) ? path : treeConvertBasePathToVisiblePath(tree, path);
-//  
-//  if (visiblePath)
-//    {
-//      gtk_tree_selection_select_path(selection, visiblePath);
-//    }
-//}
-
 
 /* Deselect all rows in the given tree */
 void deselectAllRows(GtkWidget *tree, gpointer data)
@@ -1344,7 +1321,7 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
 	    }
 	  text2[j] = '\0';
 
-	  GdkColor *selectedColour = detailViewGetRefSeqSelectedColour(detailView);
+	  GdkColor *selectedColour = treeGetRefSeqColour(tree, TRUE);
 
 	  char markupText[segLen + 200];
 	  sprintf(markupText, "%s<span bgcolor='#%x'>%s</span>%s", 
