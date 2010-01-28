@@ -1446,7 +1446,7 @@ static void comboChange(GtkEditable *editBox, gpointer data)
 
 static void GHelp(GtkButton *button, gpointer data)
 {
-  blxHelp();
+  onDisplayHelp();
 }
 
 static void GSettings(GtkButton *button, gpointer data)

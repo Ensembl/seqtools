@@ -73,6 +73,7 @@ typedef struct _DetailViewProperties
     GtkWidget *mainWindow;	  /* The main window that this view belongs to */
     GtkCellRenderer *renderer;	  /* The cell renderer that renders the sequences */
     GtkAdjustment *adjustment;	  /* The scroll adjustment control for the detail view */
+
     GtkWidget *feedbackBox;	  /* A text box that feeds back info to the user about the currently selected items */
     GList *columnList;		  /* A list of details about all the columns in the detail view */
     

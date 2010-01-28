@@ -30,11 +30,13 @@ typedef struct _MainWindowProperties
 
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
     GList *selectedMsps;	    /* List of MSPs that are selected */
+    
+    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
   } MainWindowProperties;
 
 
 /* Public function declarations */
-void blxHelp(void);
+void onDisplayHelp();
 
 MainWindowProperties*	  mainWindowGetProperties(GtkWidget *widget);
 gboolean		  mainWindowGetStrandsToggled(GtkWidget *mainWindow);

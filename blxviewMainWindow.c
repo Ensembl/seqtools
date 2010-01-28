@@ -18,18 +18,22 @@
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5
 
 /* Local function declarations */
-static void			  blxShowStats(GtkAction *action, gpointer data);
+static void			  onShowStatistics(GtkAction *action, gpointer data);
+static void			  onPrint(GtkAction *action, gpointer data);
+static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
+static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
+
 static MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
 
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",	  NULL, "_Quit",	"<control>Q",	"Quit the program",	  gtk_main_quit},
-  { "Help",	  NULL, "_Help",	"<control>H",	"Display help",		  blxHelp},
-  { "Print",	  NULL, "_Print",	"<control>P",	"Print",		  NULL},
-  { "Settings",	  NULL, "_Settings",	"<control>S",	"Change settings",	  NULL},
-  { "Dotter",	  NULL, "_Dotter",	NULL,		"Start Dotter",		  NULL},
-  { "Statistics", NULL, "S_tatistics",	"<control>T",	"Show memory statistics", G_CALLBACK(blxShowStats)}
+  { "Quit",	      NULL, "_Quit",	    "<control>Q",	"Quit the program",	  gtk_main_quit},
+  { "Help",	      NULL, "_Help",	    "<control>H",	"Display help",		  onDisplayHelp},
+  { "Print",	      NULL, "_Print",	    "<control>P",	"Print",		  G_CALLBACK(onPrint)},
+  { "Settings",	      NULL, "_Settings",    "<control>S",	"Settings",		  NULL},
+  { "Dotter",	      NULL, "_Dotter",	    NULL,		"Start Dotter",		  NULL},
+  { "Statistics",     NULL, "S_tatistics",  "<control>T",	"Show memory statistics", G_CALLBACK(onShowStatistics)}
 };
 
 
@@ -268,16 +272,56 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
  *			  Menu actions                     *
  ***********************************************************/
 
+
+/* Called when the user selects the Print menu option, or hits the Print shortcut key */
+static void onPrint(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  
+  /* Create a print operation, using the same settings as the last print, if there was one */
+  GtkPrintOperation *print = gtk_print_operation_new();
+  
+  if (properties->printSettings != NULL)
+    {
+      gtk_print_operation_set_print_settings(print, properties->printSettings);
+    }
+  
+  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
+  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
+  
+  /* Pop up the print dialog */
+  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
+								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
+								 GTK_WINDOW(mainWindow),
+								 NULL);
+  
+  /* If the user hit ok, remember the print settings for next time */
+  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
+    {
+      if (properties->printSettings != NULL)
+	{
+	  g_object_unref(properties->printSettings);
+	}
+      
+      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
+    }
+
+  g_object_unref(print);
+}
+
+
 /* Pop up a dialog reporting on various statistics about the process */
-static void blxShowStats(GtkAction *action, gpointer data)
+static void onShowStatistics(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
   MSP *mspList = mainWindowGetMspList(mainWindow);
   showStatsDialog(mainWindow, mspList);
 }
 
+
 /* Pop up a dialog showing help information */
-void blxHelp(void)
+void onDisplayHelp()
 {
   char *messageText = (messprintf("\
 				  \
@@ -325,6 +369,72 @@ void blxHelp(void)
 /***********************************************************
  *			   Events                          *
  ***********************************************************/
+
+/* Called after the user clicks ok in the print dialog. For now just scales the 
+ * whole output to fit on a single page. */
+static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+
+  /* Set the orientation based on the stored print settings (not sure why this doesn't
+   * already get set when the settings are set in the print operation...). */
+  GtkPrintSettings *printSettings = gtk_print_operation_get_print_settings(print);
+  gtk_print_settings_set_orientation(printSettings, gtk_print_settings_get_orientation(properties->printSettings));
+
+//  //gdouble scale = gtk_print_settings_get_scale(printSettings);
+//  
+//  gdouble windowWidth = (mainWindow->allocation.width);
+//  gdouble windowHeight = (mainWindow->allocation.height);
+//
+//  gboolean landscape = 0;//gtk_print_settings_get_orientation(printSettings) == GTK_PAGE_ORIENTATION_LANDSCAPE;
+//  gdouble pageWidth = landscape ? gtk_print_context_get_height(context) : gtk_print_context_get_width(context);
+//  gdouble pageHeight = landscape ? gtk_print_context_get_width(context) : gtk_print_context_get_height(context);
+//
+//  gdouble hScale = (pageWidth * 100) / windowWidth;
+//  gdouble vScale = (pageHeight * 100) / windowHeight;
+//  gdouble scale = min(hScale, vScale);
+//  scale = min(scale, 100); /* don't print bigger than 100% */
+//  gtk_print_settings_set_scale(printSettings, scale);
+//  gtk_print_operation_set_print_settings(print, printSettings);
+
+//  int numWide = ceil(windowWidth / pageWidth);
+//  int numHigh = ceil(windowHeight / pageHeight);
+
+  gtk_print_operation_set_n_pages(print, 1);
+}
+
+
+/* Print handler - renders a specific page */
+static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  
+  gboolean toggled = mainWindowGetStrandsToggled(mainWindow);
+  GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+
+  GtkWidget *grid1 = toggled ? properties->revStrandGrid : properties->fwdStrandGrid;
+  GtkWidget *grid2 = toggled ? properties->fwdStrandGrid : properties->revStrandGrid;
+  GdkDrawable *grid1pixmap = gridGetProperties(grid1)->drawable;
+  GdkDrawable *grid2pixmap = gridGetProperties(grid2)->drawable;
+
+  /* Create a blank white pixmap */
+  GdkDrawable *pixmap = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
+  GdkGC *gc = gdk_gc_new(pixmap);
+  GdkColor fgColour = getGdkColor(GDK_WHITE);
+  gdk_gc_set_foreground(gc, &fgColour);
+  gdk_draw_rectangle(pixmap, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
+
+  /* Draw the grids onto the main pixmap */
+  gdk_draw_drawable(pixmap, gc, grid1pixmap, 0, 0, 0, 0, -1, -1);
+  gdk_draw_drawable(pixmap, gc, grid2pixmap, 0, 0, 0, grid1->allocation.height, -1, -1);
+  
+  cairo_t *cr = gtk_print_context_get_cairo_context (context);
+  gdk_cairo_set_source_pixmap(cr, pixmap, 0, 0);
+  cairo_paint(cr);
+}
+
 
 static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event, gpointer data)
 {
@@ -452,6 +562,9 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->geneticCode = geneticCode;
       properties->numReadingFrames = numReadingFrames;
       properties->selectedMsps = NULL;
+      
+      properties->printSettings = gtk_print_settings_new();
+      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
       
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyMainWindow), NULL); 

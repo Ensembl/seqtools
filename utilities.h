@@ -23,6 +23,7 @@
 #define GDK_GREY	    12500670
 #define GDK_DARK_GREY	    4210752
 #define GDK_BLACK	    0
+#define GDK_WHITE	    16777215
 
 
 void		      sortValues(int *val1, int *val2, gboolean forwards);
