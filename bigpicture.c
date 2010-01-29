@@ -422,7 +422,22 @@ static void onZoomWholeBigPicture(GtkButton *button, gpointer data)
 
 static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpointer data)
 {
+  GdkDrawable *drawable = gdk_pixmap_new(GTK_LAYOUT(header)->bin_window, header->allocation.width, header->allocation.height, -1);
+  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+  widgetSetDrawable(header, drawable);
+
+  GdkGC *gc = gdk_gc_new(GTK_LAYOUT(header)->bin_window);
+  GtkStyle *style = gtk_widget_get_style(header);
+  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColour);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, header->allocation.width, header->allocation.height);
+
+  /* Draw the header onto the pixmap */
   drawBigPictureGridHeader(header);
+  
+  /* Push the pixmap onto the screen */
+  gdk_draw_drawable(GTK_LAYOUT(header)->bin_window, gc, drawable, 0, 0, 0, 0, -1, -1);
+  
   return TRUE;
 }
 

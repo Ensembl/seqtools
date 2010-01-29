@@ -84,17 +84,17 @@ static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
       int y = properties->exonViewRect.y;
       int height = properties->exonViewRect.height;
       
-      GdkGC *gc = gdk_gc_new(exonView->window);
+      GdkDrawable *drawable = widgetGetDrawable(exonView);
+      GdkGC *gc = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gc, &properties->exonColour);
-      //gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
       if (mspIsExon(msp))
 	{
-	  drawExon(GTK_LAYOUT(exonView)->bin_window, gc, x, y, width, height);
+	  drawExon(drawable, gc, x, y, width, height);
 	}
       else if (mspIsIntron(msp))
 	{
-	  drawIntron(GTK_LAYOUT(exonView)->bin_window, gc, x, y, width, height);
+	  drawIntron(drawable, gc, x, y, width, height);
 	}
 	
       g_object_unref(gc);
@@ -222,7 +222,22 @@ static GtkWidget* exonViewGetTopGrid(GtkWidget *exonView)
 
 static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpointer data)
 {
+  GdkDrawable *drawable = gdk_pixmap_new(GTK_LAYOUT(exonView)->bin_window, exonView->allocation.width, exonView->allocation.height, -1);
+  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+  widgetSetDrawable(exonView, drawable);
+
+  GdkGC *gc = gdk_gc_new(GTK_LAYOUT(exonView)->bin_window);
+  GtkStyle *style = gtk_widget_get_style(exonView);
+  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColour);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, exonView->allocation.width, exonView->allocation.height);
+
+  /* Draw the exon view onto the pixmap */
   drawExonView(exonView);
+  
+  /* Push the pixmap onto the screen */
+  gdk_draw_drawable(GTK_LAYOUT(exonView)->bin_window, gc, drawable, 0, 0, 0, 0, -1, -1);
+  
   return TRUE;
 }
 

@@ -600,7 +600,7 @@ static void drawText(SequenceCellRenderer *renderer,
 
   paintLayout2(tree->style,
 	       window,
-	       treeGetDrawable(tree),
+	       widgetGetDrawable(tree),
 	       state,
 	       TRUE,
 	       NULL,
@@ -670,7 +670,7 @@ static void drawExon(SequenceCellRenderer *renderer,
   /* Just draw one big rectangle the same colour for the whole thing */
   GdkColor *baseBgColour = treeGetExonColour(tree, FALSE);
   gdk_gc_set_foreground(gc, baseBgColour);
-  drawRectangle2(window, treeGetDrawable(tree), gc, TRUE, x, y, width, charHeight);
+  drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, x, y, width, charHeight);
   
   /* If a base is selected, highlight it. The colour depends on whether it is within our exon range
    * or not. */
@@ -681,7 +681,7 @@ static void drawExon(SequenceCellRenderer *renderer,
 	? treeGetExonColour(tree, TRUE) 
 	: treeGetGapColour(tree, TRUE);
       
-      highlightSelectedBase(selectedBaseIdx, bgColour, displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, treeGetDrawable(tree), cell_area);
+      highlightSelectedBase(selectedBaseIdx, bgColour, displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, widgetGetDrawable(tree), cell_area);
     }
 } 
 
@@ -898,7 +898,7 @@ static void drawSequenceText(GtkWidget *tree,
 
       if (layout)
 	{
-	  paintLayout2(tree->style, window, treeGetDrawable(tree), state, TRUE, NULL, tree, NULL, x, y, layout);
+	  paintLayout2(tree->style, window, widgetGetDrawable(tree), state, TRUE, NULL, tree, NULL, x, y, layout);
 	  g_object_unref(layout);
 	}
       else
@@ -977,7 +977,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   const int charHeight = treeGetCharHeight(tree);
   const BlxSeqType seqType = treeGetSeqType(tree);
   const IntRange const *displayRange = treeGetDisplayRange(tree);
-  GdkDrawable *drawable = treeGetDrawable(tree);
+  GdkDrawable *drawable = widgetGetDrawable(tree);
   
   GtkWidget *mainWindow = treeGetMainWindow(tree);
   
@@ -1030,7 +1030,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   /* If a base is selected and we've not already processed it, highlight it now */
   if (selectedBaseIdx != UNSET_INT && !indexWithinRange(selectedBaseIdx, &segmentRange))
     {
-      highlightSelectedBase(selectedBaseIdx, treeGetGapColour(tree, TRUE), displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, treeGetDrawable(tree), cell_area);
+      highlightSelectedBase(selectedBaseIdx, treeGetGapColour(tree, TRUE), displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, widgetGetDrawable(tree), cell_area);
     }
 }    
 

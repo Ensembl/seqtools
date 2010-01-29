@@ -17,6 +17,7 @@
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5
 
+
 /* Local function declarations */
 static void			  onShowStatistics(GtkAction *action, gpointer data);
 static void			  onPrint(GtkAction *action, gpointer data);
@@ -405,61 +406,73 @@ static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpo
 }
 
 
+static void collatePixmaps(GtkWidget *widget, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  GdkDrawable *drawable = widgetGetDrawable(widget);
+
+  /* If this widget is visible and has a drawable set, draw it onto the main window's drawable */
+  if (drawable && GTK_WIDGET_VISIBLE(widget))
+    {
+      /* Get the left edge of the widget in terms of the main window's coordinates */
+      int xSrc = 0, ySrc = 0;
+      int xDest, yDest;
+      gtk_widget_translate_coordinates(widget, mainWindow, xSrc, ySrc, &xDest, &yDest);
+
+      /* Get the coords where to draw */
+      int x = xDest; /* this is a bit too simplified really but works ok for our mainly-vertical layout */
+      int y = 0;
+      
+      if (yDest == properties->lastYCoord)
+	{
+	  /* Draw at the same height as the last widget */
+	  y = properties->lastYStart;
+	}
+      else
+	{
+	  /* Draw at the end of the last widget, and increment the Y pos */
+	  y = properties->lastYEnd;
+	  
+	  properties->lastYStart = properties->lastYEnd;
+	  properties->lastYEnd = properties->lastYEnd + widget->allocation.height;
+	  properties->lastYCoord = yDest;
+	}
+      
+      GdkGC *gc = gdk_gc_new(widget->window);
+      gdk_draw_drawable(properties->drawable, gc, drawable, xSrc, ySrc, x, y, -1, -1); /* -1 means full width/height */
+    }
+  
+  /* If this widget is a container, recurse over its children */
+  if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, mainWindow);
+    }
+}
+
+
 /* Print handler - renders a specific page */
 static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   
-  gboolean toggled = mainWindowGetStrandsToggled(mainWindow);
-  GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-
-  /* Create a blank white pixmap */
-  GdkDrawable *pixmap = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
-  GdkGC *gc = gdk_gc_new(pixmap);
+  /* Create a blank white pixmap to draw on to */
+  properties->drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
+  
+  GdkGC *gc = gdk_gc_new(properties->drawable);
   GdkColor fgColour = getGdkColor(GDK_WHITE);
   gdk_gc_set_foreground(gc, &fgColour);
-  gdk_draw_rectangle(pixmap, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
+  gdk_draw_rectangle(properties->drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
 
-  int height = 0;
-  
-  /* Get the pixmaps for the grids and draw them onto the main pixmap */
-  GtkWidget *grid1 = toggled ? properties->revStrandGrid : properties->fwdStrandGrid;
-  GtkWidget *grid2 = toggled ? properties->fwdStrandGrid : properties->revStrandGrid;
-  GdkDrawable *grid1pixmap = gridGetProperties(grid1)->drawable;
-  GdkDrawable *grid2pixmap = gridGetProperties(grid2)->drawable;
-
-  gdk_draw_drawable(pixmap, gc, grid1pixmap, 0, 0, 0, height, -1, -1);
-  height += grid1->allocation.height;
-  gdk_draw_drawable(pixmap, gc, grid2pixmap, 0, 0, 0, height, -1, -1);
-  height += grid2->allocation.height;
-  
-  /* Get the pixmaps for the trees and draw them onto the main pixmap */
-  int frame = 1;
-  int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
-  
-  for ( ; frame <= numFrames; ++frame)
-    {
-      GtkWidget *fwdTree = detailViewGetFrameTree(detailView, FORWARD_STRAND, frame);
-      if (fwdTree && GTK_WIDGET_VISIBLE(fwdTree))
-	{
-	  GdkDrawable *treePixmap = treeGetDrawable(fwdTree);
-	  gdk_draw_drawable(pixmap, gc, treePixmap, 0, 0, 0, height, -1, -1);
-	  height += fwdTree->allocation.height;
-	}
-
-      GtkWidget *revTree = detailViewGetFrameTree(detailView, REVERSE_STRAND, frame);
-      if (revTree && GTK_WIDGET_VISIBLE(revTree))
-	{
-	  GdkDrawable *treePixmap = treeGetDrawable(revTree);
-	  gdk_draw_drawable(pixmap, gc, treePixmap, 0, 0, 0, height, -1, -1);
-	  height += revTree->allocation.height;
-	}
-    }
+  /* For each child widget that has a drawable set, draw this onto the main pixmap */
+  properties->lastYStart = 0;
+  properties->lastYEnd = 0;
+  properties->lastYCoord = -1;
+  gtk_container_foreach(GTK_CONTAINER(mainWindow), collatePixmaps, mainWindow);
   
   cairo_t *cr = gtk_print_context_get_cairo_context (context);
-  gdk_cairo_set_source_pixmap(cr, pixmap, 0, 0);
+  gdk_cairo_set_source_pixmap(cr, properties->drawable, 0, 0);
   cairo_paint(cr);
 }
 
@@ -593,6 +606,7 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       
       properties->printSettings = gtk_print_settings_new();
       gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
       
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyMainWindow), NULL); 

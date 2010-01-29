@@ -26,6 +26,12 @@
 #define GDK_WHITE	    16777215
 
 
+GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
+void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
+
+gboolean	      onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointer data);
+GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
+
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
 GdkColor	      getGdkColor(gulong colour);

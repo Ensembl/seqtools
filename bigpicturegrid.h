@@ -23,7 +23,6 @@
 typedef struct _GridProperties
   {
     GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
-    GdkDrawable *drawable;   /* The bitmap that the grid is drawn on to */
     GdkGC *gc;		     /* Graphics context for the bitmap */
     
     Strand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */

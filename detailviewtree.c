@@ -46,12 +46,6 @@ static void assertTree(GtkWidget *tree)
     messcrash("Tree properties not set [widget=%x]", tree);
 }
 
-GdkDrawable *treeGetDrawable(GtkWidget *tree)
-{
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties ? properties->drawable : NULL;
-}
-
 GtkAdjustment *treeGetAdjustment(GtkWidget *tree)
 {
   assertTree(tree);
@@ -447,12 +441,13 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
       TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)header->data;
       if (headerInfo && headerInfo->headerWidget)
 	{
-	  /* Set the background colour. Must set it in the parent event box seeing as labels
-	   * don't have a window themselves. */
-	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
-//	  GdkColor *bgColour = detailViewGetRefSeqColour(properties->detailView); //to do: should use this but doesn't work
+	  /* Set the background colour. Set it in the parent too seeing as labels don't have a window themselves. */
+//	  GdkColor *bgColour = treeGetRefSeqColour(tree, FALSE); //to do: should use this but doesn't work - comes out black for some reason
 	  GdkColor bgColour2;
 	  gdk_color_parse("yellow", &bgColour2);
+	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, &bgColour2);
+
+	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
 	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour2);
 	  
 	  /* Update the font and widget size */
@@ -689,7 +684,6 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->grid = grid;
       properties->detailView = detailView;
       properties->renderer = renderer;
-      properties->drawable = NULL;
       properties->readingFrame = frame;
       properties->treeColumnHeaderList = treeColumnHeaderList;
 
@@ -705,29 +699,21 @@ static void treeCreateProperties(GtkWidget *widget,
 
 static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, gpointer data)
 {
-  /* Create a bitmap to draw to. Our custom cell renderer will draw to this as
+  /* Create a new drawable to draw to. Our custom cell renderer will draw to this as
    * well as the main window. (Ideally we'd just draw to the bitmap and then push
    * this to the screen, but I'm not sure if it's possible to detect when the 
    * cell renderer has finished drawing.) */
-  TreeProperties *properties = treeGetProperties(tree);
-
-  if (properties->drawable)
-    {
-      g_object_unref(properties->drawable);
-      properties->drawable = NULL;
-    }
-  
-  properties->drawable = gdk_pixmap_new(tree->window, tree->allocation.width, tree->allocation.height, -1);
-  gdk_drawable_set_colormap(properties->drawable, gdk_colormap_get_system());
+  GdkDrawable *drawable = gdk_pixmap_new(tree->window, tree->allocation.width, tree->allocation.height, -1);
+  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+  widgetSetDrawable(tree, drawable);
 
   /* Draw a blank rectangle of the required widget background colour */
-  GdkGC *gc = gdk_gc_new(properties->drawable);
-  GtkStyle *style = gtk_widget_get_style(tree);
+  GdkGC *gc = gdk_gc_new(drawable);
+  //GtkStyle *style = gtk_widget_get_style(tree);
   GdkColor bgColour = getGdkColor(GDK_WHITE);
   gdk_gc_set_foreground(gc, &bgColour);
   
-  gdk_draw_rectangle(properties->drawable, gc, TRUE, 
-		     0, 0, tree->allocation.width, tree->allocation.height);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, tree->allocation.width, tree->allocation.height);
   
   /* Let the default handler continue */
   return FALSE;
@@ -1463,7 +1449,7 @@ static void createTreeColHeader(GList **headerWidgets,
 	  char displayText[textLen];
 	  sprintf(displayText, "%s (%s%d)", refSeqName, (strand == FORWARD_STRAND ? "+" : "-"), frame);
 	  
-	  headerWidget = gtk_label_new(displayText);
+	  headerWidget = createLabel(displayText, 0.0, 1.0, TRUE, TRUE);
 	  
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(S_NAME_COL));
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(SCORE_COL));
@@ -1475,7 +1461,7 @@ static void createTreeColHeader(GList **headerWidgets,
 	{
 	  /* The sequence column header displays the reference sequence. This needs a custom
 	   * refresh callback function because it needs to be updated after scrolling etc. */
-	  headerWidget = gtk_label_new(NULL);
+	  headerWidget = createLabel(NULL, 0.0, 1.0, TRUE, TRUE);
 	  gtk_label_set_use_markup(GTK_LABEL(headerWidget), TRUE);
 	  refreshFunc = refreshSequenceColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
@@ -1485,7 +1471,7 @@ static void createTreeColHeader(GList **headerWidgets,
       case START_COL:
 	{
 	  /* The start column header displays the start index of the current display range */
-	  headerWidget = gtk_label_new("");
+	  headerWidget = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshStartColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  break;
@@ -1494,7 +1480,7 @@ static void createTreeColHeader(GList **headerWidgets,
       case END_COL:
 	{
 	  /* The end column header displays the start index of the current display range */
-	  headerWidget = gtk_label_new("");
+	  headerWidget = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshEndColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  break;
@@ -1509,11 +1495,6 @@ static void createTreeColHeader(GList **headerWidgets,
   
   if (headerWidget != NULL)
     { 
-      if (GTK_IS_MISC(headerWidget))
-	{
-	  gtk_misc_set_alignment(GTK_MISC(headerWidget), 0.0, 1.0); /* align bottom-left */
-	}
-      
       /* Put the widget in an event box so that we can colour its background. */
       GtkWidget *parent = gtk_event_box_new();
       gtk_container_add(GTK_CONTAINER(parent), headerWidget);
@@ -1710,6 +1691,8 @@ static void setTreeStyle(GtkTreeView *tree)
 }
 
 
+/* Create the widget that will contain the header labels. Not much to do here
+ * because the labels are added when the columns are added. */
 static GtkWidget *createDetailViewTreeHeader()
 {
   GtkWidget *header = gtk_hbox_new(FALSE, 0);

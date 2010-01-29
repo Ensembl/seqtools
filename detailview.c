@@ -1506,14 +1506,6 @@ static void GToggleStrand(GtkButton *button, gpointer data)
 //}
 
 
-static GtkWidget* createTripletCell(const int frame)
-{
-  GtkWidget *label = gtk_widget_new(GTK_TYPE_LABEL, "label", "", "xalign", 0.0, NULL);
-  gtk_label_set_width_chars(GTK_LABEL(label), 1);
-  return label;
-}
-
-
 /* Adds the given column-header widget to the container, and adds its column info
  * to the columnList. Also sets the default width of the widget and the alignment. */
 static void addHeaderColumn(GtkBox *container, 
@@ -1527,7 +1519,7 @@ static void addHeaderColumn(GtkBox *container,
 			    GList **columnList)
 {
   /* Create a simple label for the header (unless already passed a special header widget) */
-  GtkWidget *headerWidget = specialWidget ? specialWidget : gtk_label_new(title);
+  GtkWidget *headerWidget = specialWidget ? specialWidget : gtk_label_new(title); //createLabel(title, 0.0, 1.0, (columnId==MSP_COL), TRUE);
   gtk_box_pack_start(container, headerWidget, expand, TRUE, 0);
   gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
   
@@ -1595,7 +1587,7 @@ static GtkWidget* createSequenceColHeader(GtkWidget *detailView,
       int frame = 0;
       for ( ; frame < numReadingFrames; ++frame)
 	{
-	  GtkWidget *line = createTripletCell(frame);
+	  GtkWidget *line = createLabel("", 0.0, 0.0, TRUE, TRUE);
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
 	}
     }
@@ -1967,7 +1959,6 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
-  SequenceCellRenderer *seqRenderer = SEQUENCE_CELL_RENDERER(renderer);
 
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;

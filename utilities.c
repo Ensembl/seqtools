@@ -9,6 +9,97 @@
 #include "SeqTools/utilities.h"
 
 
+/* Functions to get/set a GdkDrawable in a widget property, if a different drawable
+ * than the window is required to be drawn to. The main purpose of this is for printing
+ * (and only widgets that have this drawable set are printed) */
+GdkDrawable* widgetGetDrawable(GtkWidget *widget)
+{
+  return widget ? (GdkDrawable*)(g_object_get_data(G_OBJECT(widget), "drawable")) : NULL;
+}
+
+static void onDestroyWidget(GtkWidget *widget)
+{
+  GdkDrawable *drawable = widgetGetDrawable(widget);
+  if (drawable)
+    {
+      g_free(drawable);
+      drawable = NULL;
+      g_object_set_data(G_OBJECT(widget), "drawable", NULL);
+    }
+}
+
+void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
+{
+  if (widget)
+    { 
+      /* Delete the old one first, if there is one */
+      GdkDrawable *oldDrawable = widgetGetDrawable(widget);
+      if (oldDrawable)
+	{
+	  g_object_unref(oldDrawable);
+	}
+
+      g_object_set_data(G_OBJECT(widget), "drawable", drawable);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyWidget), NULL);
+    }
+}
+
+
+/* Create a label with the given properties. If 'showWhenPrinting' is false 
+ * this label will not appear when printing */
+GtkWidget* createLabel(const char *text, 
+		       const gdouble xalign,
+		       const gdouble yalign,
+		       const gboolean enableCopyPaste,
+		       const gboolean showWhenPrinting)
+{
+  GtkWidget *label = gtk_widget_new(GTK_TYPE_LABEL, 
+				    "label", text, 
+				    "xalign", xalign, 
+				    "yalign", yalign, 
+				    "selectable", enableCopyPaste,
+				    NULL);
+  
+  if (showWhenPrinting)
+    {
+      /* Connect to the expose event handler that will create the drawable object required for printing */
+      g_signal_connect(G_OBJECT(label), "expose-event", G_CALLBACK(onExposePrintableLabel), NULL);
+    }
+
+  return label;
+}
+
+
+
+/* Expose-event handler for labels that are required to be shown during printing. */
+gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointer data)
+{
+  if (!label || !GTK_IS_LABEL(label))
+    {
+      messerror("onExposeLabel: invalid widget type. Expected label [widget=%x]", label);
+    }
+  
+  /* Only widgets that have a pixmap set will be shown in print output */
+  GtkWidget *parent = gtk_widget_get_parent(label);
+  GdkDrawable *drawable =  gdk_pixmap_new(parent->window, label->allocation.width, label->allocation.height, -1);
+  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+  widgetSetDrawable(label, drawable);
+  
+  GdkGC *gc = gdk_gc_new(drawable);
+  GtkStyle *style = gtk_widget_get_style(label);
+  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColour);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, label->allocation.width, label->allocation.height);
+
+  PangoLayout *layout = gtk_label_get_layout(GTK_LABEL(label));
+  if (layout)
+    {
+      gtk_paint_layout(label->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, label, NULL, 0, 0, layout);
+    }
+  
+  return FALSE; /* let the default handler continue */
+}
+
 
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
 int getRangeCentre(IntRange *range)
@@ -221,7 +312,5 @@ int getEndDnaCoord(const IntRange const *displayRange,
   
   return result;
 }
-
-
 
 

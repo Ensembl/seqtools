@@ -37,7 +37,6 @@ static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static GtkWidget*	    gridGetMainWindow(GtkWidget *grid);
 static int		    gridGetNumReadingFrames(GtkWidget *grid);
-static GdkDrawable*	    gridGetDrawable(GtkWidget *grid);
 static GdkGC*		    gridGetGraphicsContext(GtkWidget *grid);
 
 /***********************************************************
@@ -224,7 +223,7 @@ static void drawVerticalGridLines(GtkWidget *grid,
     {
       gint x = properties->gridRect.x + (gint)((gdouble)hCell * cellWidth);
       gdk_gc_set_foreground(properties->gc, lineColour);
-      gdk_draw_line (gridGetDrawable(grid), properties->gc, x, topBorder, x, bottomBorder);
+      gdk_draw_line (widgetGetDrawable(grid), properties->gc, x, topBorder, x, bottomBorder);
     }
 }
 
@@ -255,12 +254,12 @@ static void drawHorizontalGridLines(GtkWidget *grid,
       sprintf(text, "%d%%", percent);
       
       PangoLayout *layout = gtk_widget_create_pango_layout(grid, text);
-      gdk_draw_layout(gridGetDrawable(grid), properties->gc, 0, y - gridGetCellHeight(grid)/2, layout);
+      gdk_draw_layout(widgetGetDrawable(grid), properties->gc, 0, y - gridGetCellHeight(grid)/2, layout);
       g_object_unref(layout);
       
       /* Draw the gridline */
       gdk_gc_set_foreground(properties->gc, lineColour);
-      gdk_draw_line (gridGetDrawable(grid), properties->gc, properties->gridRect.x, y, rightBorder, y);
+      gdk_draw_line (widgetGetDrawable(grid), properties->gc, properties->gridRect.x, y, rightBorder, y);
     }
 }
 
@@ -343,7 +342,7 @@ static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
       calculateMspLineDimensions(grid, msp, &x, &y, &width, &height);
       
       /* Draw it */
-      gdk_draw_rectangle(gridGetDrawable(grid), gc, TRUE, x, y, width, height);
+      gdk_draw_rectangle(widgetGetDrawable(grid), gc, TRUE, x, y, width, height);
     }
 }
 
@@ -412,26 +411,19 @@ static void drawMspLines(GtkWidget *grid)
 /* Clears the grid's current bitmap so we have a clean slate to draw on */
 static void clearGridBitmap(GtkWidget *grid)
 {
+  GdkDrawable *drawable = gdk_pixmap_new(GTK_LAYOUT(grid)->bin_window, grid->allocation.width, grid->allocation.height, -1);
+  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+  widgetSetDrawable(grid, drawable);
+
+  /* Delete and re-create the graphics context to go with this drawable */
   GridProperties *properties = gridGetProperties(grid);
-
-  /* Delete the bitmap and recreate it */
-  if (properties->drawable)
-    {
-      g_object_unref(properties->drawable);
-      properties->drawable = NULL;
-    }
-
-  properties->drawable = gdk_pixmap_new(GTK_LAYOUT(grid)->bin_window, grid->allocation.width, grid->allocation.height, -1);
-  gdk_drawable_set_colormap(properties->drawable, gdk_colormap_get_system()); /* must provide colormap because it doesn't automatically get one */
-
-  /* Delete and re-create the graphics context to go with this bitmap */
   if (properties->gc)
     {
       g_object_unref(properties->gc);
       properties->gc = NULL;
     }
 
-  properties->gc = gdk_gc_new(properties->drawable);
+  properties->gc = gdk_gc_new(drawable);
   
   /* Set some default line attributes */
   gdk_gc_set_line_attributes(properties->gc, 1, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
@@ -441,8 +433,7 @@ static void clearGridBitmap(GtkWidget *grid)
   GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(properties->gc, bgColour);
 
-  gdk_draw_rectangle(properties->drawable, properties->gc, TRUE, 
-		     0, 0, grid->allocation.width, grid->allocation.height);
+  gdk_draw_rectangle(drawable, properties->gc, TRUE, 0, 0, grid->allocation.width, grid->allocation.height);
 }
 
 
@@ -485,7 +476,7 @@ void redrawBigPictureGrid(GtkWidget *grid)
   
   /* Draw the highlight box */
   drawHighlightBox(grid, 
-		   properties->drawable,
+		   widgetGetDrawable(grid),
 		   properties->gc,
 		   &properties->highlightRect, 
 		   bigPictureProperties->highlightBoxLineWidth,
@@ -605,7 +596,7 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
   redrawBigPictureGrid(grid);
   
   /* Push the bitmap onto the screen */
-  GdkDrawable *srcDrawable = gridGetDrawable(grid);
+  GdkDrawable *srcDrawable = widgetGetDrawable(grid);
   GdkGC *gc = gdk_gc_new(GTK_LAYOUT(grid)->bin_window);
   gdk_draw_drawable(GTK_LAYOUT(grid)->bin_window, gc, srcDrawable, 0, 0, 0, 0, -1, -1);
   
@@ -809,7 +800,6 @@ static void gridCreateProperties(GtkWidget *widget,
       GridProperties *properties = g_malloc(sizeof *properties);
       
       properties->bigPicture = bigPicture;
-      properties->drawable = NULL;
       properties->gc = NULL;
       properties->strand = strand;
       
@@ -834,13 +824,6 @@ static GtkWidget* gridGetMainWindow(GtkWidget *grid)
 {
   GridProperties *properties = grid ? gridGetProperties(grid) : NULL;
   return properties ? bigPictureGetMainWindow(properties->bigPicture) : NULL;
-}
-
-
-static GdkDrawable* gridGetDrawable(GtkWidget *grid)
-{
-  GridProperties *properties = gridGetProperties(grid);
-  return properties->drawable;
 }
 
 
