@@ -385,6 +385,25 @@ int getRightCoordFromCentre(const int centreCoord, const int width, const GdkRec
   return rightCoord;
 }
 
+
+/* Zoom the big picture in/out. Just halves or doubles the current display range. */
+void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
+{
+  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  int newWidth = UNSET_INT;
+  
+  if (zoomIn)
+    {
+      newWidth = round(((double)(displayRange->max - displayRange->min)) / 2.0);
+    }
+  else
+    {
+      newWidth = (displayRange->max - displayRange->min) * 2;
+    }
+
+  setBigPictureDisplayWidth(bigPicture, newWidth);
+}
+
 /***********************************************************
  *			    Events			   *
  ***********************************************************/
@@ -392,22 +411,14 @@ int getRightCoordFromCentre(const int centreCoord, const int width, const GdkRec
 static void onZoomInBigPicture(GtkButton *button, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
-  
-  int newWidth = round(((double)(displayRange->max - displayRange->min)) / 2.0);
-
-  setBigPictureDisplayWidth(bigPicture, newWidth);
+  zoomBigPicture(bigPicture, TRUE);
 }
 
 
 static void onZoomOutBigPicture(GtkButton *button, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
-
-  int newWidth = (displayRange->max - displayRange->min) * 2;
-
-  setBigPictureDisplayWidth(bigPicture, newWidth);
+  zoomBigPicture(bigPicture, FALSE);
 }
 
 

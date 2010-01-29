@@ -172,7 +172,7 @@ void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
 }
 
 
-/* Scroll by one base */
+/* Scroll left/right by one base. */
 void scrollDetailViewLeft1(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
@@ -687,6 +687,34 @@ static void decrementFontSize(GtkWidget *detailView)
 }
 
 
+/* Zoom the detail view in/out */
+void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
+{
+  /* Remember the size of the sequence column. This gets reset to 0 when we change the font. */
+  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
+  int colWidth = UNSET_INT;  
+  if (firstTree)
+    {
+      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), MSP_COL);
+      colWidth = gtk_tree_view_column_get_width(sequenceCol);
+    }
+  
+  if (zoomIn)
+    {
+      incrementFontSize(detailView);
+    }
+  else
+    {
+      decrementFontSize(detailView);
+    }
+  
+  if (firstTree && colWidth != UNSET_INT)
+    {
+      updateSeqColumnSize(firstTree, colWidth);
+    }  
+}
+
+
 /* Get the text displayed in the user feedback box based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). 
  * The string returned by this function must be free'd with g_free. */
@@ -877,43 +905,13 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 static void onZoomInDetailView(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  
-  /* Remember the size of the sequence column. This gets reset to 0 when we change the font. */
-  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
-  int colWidth = UNSET_INT;
-  if (firstTree)
-    {
-      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), MSP_COL);
-      colWidth = gtk_tree_view_column_get_width(sequenceCol);
-    }
-  
-  incrementFontSize(detailView);
-  
-  if (firstTree && colWidth != UNSET_INT)
-    {
-      updateSeqColumnSize(firstTree, colWidth);
-    }
+  zoomDetailView(detailView, TRUE);
 }
 
 static void onZoomOutDetailView(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  
-  /* Remember the size of the sequence column. This gets reset to 0 when we change the font. */
-  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
-  int colWidth = UNSET_INT;
-  if (firstTree)
-    {
-      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), MSP_COL);
-      colWidth = gtk_tree_view_column_get_width(sequenceCol);
-    }
-  
-  decrementFontSize(detailView);
-  
-  if (firstTree && colWidth != UNSET_INT)
-    {
-      updateSeqColumnSize(firstTree, colWidth);
-    }
+  zoomDetailView(detailView, FALSE);
 }
 
 

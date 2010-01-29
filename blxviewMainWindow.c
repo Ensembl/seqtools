@@ -55,7 +55,7 @@ static const char *mainMenuDescription =
 
 
 /***********************************************************
- *			   Menu Utilities                  *
+ *			   Utilities			   *
  ***********************************************************/
 
 /* Copy a segment of the given sequence into a new string. The result must be
@@ -172,6 +172,87 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
     }
   
   return result;
+}
+
+
+/* Scroll the detail view left/right by 1 base */
+static void scrollDetailViewBy1(GtkWidget *window, const gboolean moveLeft)
+{
+  GtkWidget *detailView = mainWindowGetDetailView(window);
+  
+  if (moveLeft)
+    {
+      scrollDetailViewLeft1(detailView);
+    }
+  else
+    {
+      scrollDetailViewRight1(detailView);
+    }
+}
+
+
+/* Move the selected base index 1 base to the left/right. Scrolls the detail view
+ * if necessary to keep the new base in view. */
+static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(window);
+  GtkWidget *detailView = properties->detailView;
+  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
+  
+  IntRange *fullRange = mainWindowGetFullRange(window);
+  IntRange *displayRange = &detailViewProperties->displayRange;
+  
+  if (detailViewProperties->selectedBaseIdx != UNSET_INT)
+    {
+      /* Decrement the index if moving left decrease and increment it if moving right, 
+       * unless the display is toggled, in which case do the opposite */
+      if (moveLeft != properties->strandsToggled)
+	{
+	  detailViewSetSelectedBaseIdx(detailView, detailViewProperties->selectedBaseIdx - 1);
+	}
+      else
+	{
+	  detailViewSetSelectedBaseIdx(detailView, detailViewProperties->selectedBaseIdx + 1);
+	}
+      
+      /* Limit it to within the reference sequence range */
+      if (detailViewProperties->selectedBaseIdx < fullRange->min)
+	{
+	  detailViewSetSelectedBaseIdx(detailView, fullRange->min);
+	}
+      else if (detailViewProperties->selectedBaseIdx > fullRange->max)
+	{
+	  detailViewSetSelectedBaseIdx(detailView, fullRange->max);
+	}
+      
+      /* If we've moved outside the current display range, scroll by 1 base.
+       * (This should probably also jump to the the selected base if it was previously
+       * out of view - at the moment it just scrolls by 1, which is usually not enough 
+       * to bring it into view.) */
+      if (detailViewProperties->selectedBaseIdx > displayRange->max)
+	{
+	  scrollDetailViewRight1(detailView);
+	}
+      else if (detailViewProperties->selectedBaseIdx < displayRange->min)
+	{
+	  scrollDetailViewLeft1(detailView);
+	}
+    }
+}
+
+
+/* Zooms the display in/out. if zoomOverview is true it zooms the big-picture section of
+ * the display; otherwise it zooms the detail-view section. */
+static void zoomMainWindow(GtkWidget *window, const gboolean zoomIn, const gboolean zoomOverview)
+{
+  if (zoomOverview)
+    {
+      zoomBigPicture(mainWindowGetBigPicture(window), zoomIn);
+    }
+  else
+    {
+      zoomDetailView(mainWindowGetDetailView(window), zoomIn);
+    }
 }
 
 
@@ -477,6 +558,7 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
 }
 
 
+/* Mouse button handler */
 static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event, gpointer data)
 {
   if (event->type == GDK_BUTTON_PRESS && event->button == 3)
@@ -489,66 +571,52 @@ static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event
 }
 
 
-static gboolean keyPressLeftRight(GtkWidget *window, GdkEventKey *event)
-{
-  MainWindowProperties *properties = mainWindowGetProperties(window);
-  GtkWidget *detailView = properties->detailView;
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-  
-  IntRange *fullRange = mainWindowGetFullRange(window);
-  IntRange *displayRange = &detailViewProperties->displayRange;
-  
-  if (detailViewProperties->selectedBaseIdx != UNSET_INT)
-    {
-      /* Move the selection left/right by 1 base */
-      if (event->keyval == GDK_Left)
-	{
-	  detailViewProperties->selectedBaseIdx -= 1;
-	}
-      else if (event->keyval == GDK_Right)
-	{
-	  detailViewProperties->selectedBaseIdx += 1;
-	}
-      
-      /* Limit it to within the reference sequence range */
-      if (detailViewProperties->selectedBaseIdx < fullRange->min)
-	{
-	  detailViewSetSelectedBaseIdx(detailView, fullRange->min);
-	}
-      else if (detailViewProperties->selectedBaseIdx > fullRange->max)
-	{
-	  detailViewSetSelectedBaseIdx(detailView, fullRange->max);
-	}
-      
-      /* If we've moved outside the current display range, scroll by 1 base.
-       * (This should probably also jump to the the selected base if it was previously
-       * out of view - at the moment it just scrolls by 1, which is usually not enough 
-       * to bring it into view.) */
-      if (detailViewProperties->selectedBaseIdx > displayRange->max)
-	{
-	  scrollDetailViewRight1(detailView);
-	}
-      else if (detailViewProperties->selectedBaseIdx < displayRange->min)
-	{
-	  scrollDetailViewLeft1(detailView);
-	}
-    }
-  
-  return TRUE;
-}
-
-
+/* Key press handler */
 static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpointer data)
 {
   gboolean result = FALSE;
   
-  if (event->keyval == GDK_Left || event->keyval == GDK_Right)
-    {
-      keyPressLeftRight(window, event);
-      result = TRUE;
-    }
+  guint modifiers = gtk_accelerator_get_default_mod_mask();
+  const gboolean ctrlModifier = (event->state & modifiers) & GDK_CONTROL_MASK;
   
-  return FALSE;
+  switch (event->keyval)
+    {
+      /* Move left/right */
+      case GDK_Left:
+      case GDK_Right:
+	{
+	  if (ctrlModifier)
+	    scrollDetailViewBy1(window, event->keyval == GDK_Left);
+	  else
+	    moveSelectedBaseIdxBy1(window, event->keyval == GDK_Left);
+	  
+	  result = TRUE;
+	  break;
+	}
+
+      /* Move left/right */
+      case GDK_comma: 
+      case GDK_period:
+	{
+	  scrollDetailViewBy1(window, event->keyval == GDK_comma);
+	  result = TRUE;
+	  break;
+	}
+
+      /* Zoom. Treat '+' and '=' the same (i.e. don't care whether shift is pressed) */
+      case GDK_plus:
+      case GDK_equal:
+      case GDK_minus:
+	{
+	  /* If ctrl is pressed, zoom the big picture; otherwise zoom the detail view */
+	  const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
+	  zoomMainWindow(window, zoomIn, ctrlModifier);
+	  result = TRUE;
+	  break;
+	}
+    };
+  
+  return result;
 }
 
 /***********************************************************

@@ -151,6 +151,7 @@ void			scrollDetailViewRightStep(GtkWidget *detailView);
 void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
+void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx);
 void			updateFeedbackBox(GtkWidget *detailView);
 
