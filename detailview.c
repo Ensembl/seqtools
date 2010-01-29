@@ -24,6 +24,17 @@
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 
 
+typedef struct 
+  {
+    const IntRange const *displayRange; 
+    const gboolean searchRight;
+    const int searchDirection;
+    const gboolean rightToLeft;
+    
+    int smallestOffset;
+  } MatchSearchData;
+
+
 /* Local function declarations */
 static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
@@ -39,6 +50,7 @@ static void		    refreshDetailViewHeaders(GtkWidget *detailView);
 static GtkWidget*	    createSequenceColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
 static const char*	    findDetailViewFont(GtkWidget *detailView);
 static Strand		    mspGetStrand(const MSP const *msp);
+static void		    setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 
 /***********************************************************
  *		       Utility functions                   *
@@ -146,23 +158,41 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
 }
 
 
-/* Update the scroll position of the given adjustment to the given value. Does
+/* Scroll the detail view so that the given coord is at the start of the display
+ * range (within bounds). coordSeqType specifies the type of sequence that the coord
+ * is an index into. */
+void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
+{
+  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
+  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+    {
+      coord = convertDnaToPeptide(coord, detailViewGetNumReadingFrames(detailView));
+    }
+
+  /* Adjust to a 0-based value */
+  const IntRange const *fullRange = detailViewGetFullRange(detailView);
+  coord = coord - fullRange->min;
+  
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+  setDetailViewScrollPos(adjustment, coord);
+}
+
+
+/* Update the scroll position of the adjustment to the given (0-based) value. Does
  * bounds checking. */
-void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
+static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
 {  
   /* bounds checking */
+  int maxValue = adjustment->upper - adjustment->page_size;
+  
+  if (value > maxValue)
+    {
+      value = maxValue;
+    }
+  
   if (value < adjustment->lower)
     {
       value = adjustment->lower;
-    }
-  else
-    {
-      int maxValue = adjustment->upper - adjustment->page_size;
-      if (value > maxValue)
-	value = maxValue;
-      
-      if (value < 0)
-	value = 0; /* Can happen if page size is larger than upper value */
     }
   
   adjustment->value = value;
@@ -279,29 +309,17 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 	  adjustment->page_increment = newPageSize;
 	  
 	  /* Reset the display range so that it is between the scrollbar min and max. Try to keep
-	   * it centred on the same base. Note that display range is 1-based but adjustment is 0-based */
-	  IntRange *displayRange = treeGetDisplayRange(tree);
+	   * it centred on the same base. The base index is in terms of the display range coords, 
+	   * so the sequence type of the coord is whatever the display sequence type is. */
+	  GtkWidget *detailView = treeGetDetailView(tree);
+	  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+
 	  int centre = getRangeCentre(displayRange);
 	  int offset = round((double)adjustment->page_size / 2.0);
-
-	  adjustment->value = centre - offset - 1;
+	  setDetailViewStartIdx(detailView, centre - offset, seqType);
 	  
-	  /* If there is a gap at the end, shift the scrollbar back so that we show as much
-	   * of the reference sequence as possible (unless the whole thing is already shown - 
-	   * note that in this case we can end up with a gap at the start of the display if strands
-	   * are toggled and the ref sequence is shorter than the page size, but this is unlikely 
-	   * to happen in the real world so not worth worrying about. */
-	  if (adjustment->value > adjustment->upper - adjustment->page_size)
-	    {
-	      adjustment->value = adjustment->upper - adjustment->page_size;
-	    }
-	  
-	  if (adjustment->value < adjustment->lower)
-	    {
-	      adjustment->value = adjustment->lower;
-	    }
-	  
-	  gtk_adjustment_changed(adjustment);
+	  gtk_adjustment_changed(adjustment); /* signal that the scroll range has changed */
 	}
     }
 }
@@ -581,6 +599,40 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
   displayText[displayTextPos] = '\0';
   
   gtk_label_set_text(label, displayText);
+}
+
+
+/* Refresh the header label for the start-coord column. It shows 'Start' for normal
+ * orientation or 'End' if the display is reversed. */
+static void refreshDetailViewStartColHeader(GtkWidget *header, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+
+  if (detailViewGetStrandsToggled(detailView))
+    {
+      gtk_label_set_text(GTK_LABEL(header), END_COLUMN_HEADER_TEXT);
+    }
+  else
+    {
+      gtk_label_set_text(GTK_LABEL(header), START_COLUMN_HEADER_TEXT);
+    }
+}
+
+
+/* Refresh the header label for the end-coord column. It shows 'End' for normal
+ * orientation or 'Start' if the display is reversed. */
+static void refreshDetailViewEndColHeader(GtkWidget *header, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+
+  if (detailViewGetStrandsToggled(detailView))
+    {
+      gtk_label_set_text(GTK_LABEL(header), START_COLUMN_HEADER_TEXT);
+    }
+  else
+    {
+      gtk_label_set_text(GTK_LABEL(header), END_COLUMN_HEADER_TEXT);
+    }
 }
 
 
@@ -1350,27 +1402,49 @@ static void ToggleStrand(GtkWidget *detailView)
 }
 
 
-static void Goto(void)
+/* Go to a user-specified coord (in terms of the DNA or peptide sequence as specified
+ * by coordSeqType). */
+void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 {
-  //  static char dfault[32] = "";
-  //  int i = 0;
-  //  ACEIN pos_in;
-  //  
-  //  /*sprintf(posstr, "%d", dispstart + qoffset);*/
-  //  
-  //  if ((pos_in = messPrompt ("Goto which position: ", dfault, "t", 0)))
-  //    {
-  //      aceInInt(pos_in, &i);
-  //      aceInDestroy (pos_in);
-  //      
-  //      dispstart = i - qoffset ;
-  //      sprintf(dfault, "%d", i) ;
-  //      
-  //      blviewRedraw();
-  //    }
-  //  
-  //  return ;
+  static gchar defaultInput[32] = "";
+  
+  /* Pop up a dialog to request a coord from the user */
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Goto which position: ", 
+						  NULL, 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
+						  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+						  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+						  NULL);
+
+  GtkWidget *entry = gtk_entry_new();
+  gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
+  gtk_widget_show(entry);
+
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  gtk_box_pack_start(GTK_BOX(contentArea), entry, TRUE, TRUE, 0);
+
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      const gchar *inputText = gtk_entry_get_text(GTK_ENTRY(entry));
+      
+      /* Convert the input string to an int */
+      int requestedCoord = atoi(inputText);
+      
+      if (requestedCoord)
+	{
+	  /* Remember this input for next time */
+	  sprintf(defaultInput, "%d", requestedCoord);
+
+	  setDetailViewStartIdx(detailView, requestedCoord, coordSeqType);
+	}
+    }
+
+  gtk_widget_destroy(dialog);
 }
+
 
 /* Sort the match entries by..... */
 
@@ -1396,14 +1470,80 @@ static void sortById(GtkWidget *detailView)
 
 
 
-static void prevMatch(void)
+
+static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-  //  gotoMatch(-1);
+  const MSP *msp = treeGetMsp(model, iter);
+  
+  if (mspIsBlastMatch(msp) || mspIsExon(msp))
+    {
+      MatchSearchData *searchData = (MatchSearchData*)data;
+
+      int qSeqMin, qSeqMax;
+      getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+      
+      int curOffset = UNSET_INT;
+      if (searchData->rightToLeft)
+	{
+	  curOffset = (qSeqMax - searchData->displayRange->max) * searchData->searchDirection;
+	}
+      else
+	{
+	  curOffset = (qSeqMin - searchData->displayRange->min) * searchData->searchDirection;
+	}
+      
+      if (curOffset > 0 && (curOffset < searchData->smallestOffset || searchData->smallestOffset == UNSET_INT))
+	{
+	  searchData->smallestOffset = curOffset;
+	}
+    }
+  
+  return FALSE;
 }
 
-static void nextMatch(void)
+
+/* Find and go to the next match (either left or right depending on the search flag) */
+static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
 {
-  //  gotoMatch(1);
+  /* If the display is toggled (i.e. showing right-to-left), then the active
+   * strand is the reverse strand. This function currently only searchs for 
+   * MSPs in the active strand. */
+  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+  const Strand activeStrand = rightToLeft ? REVERSE_STRAND : FORWARD_STRAND;
+  const int searchDirection = (searchRight != rightToLeft) ? 1 : -1;
+  
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  
+  /* Loop through each tree associated with this strand */
+  MatchSearchData searchData = {displayRange, searchRight, searchDirection, rightToLeft, UNSET_INT};
+
+  int frame = 1;
+  for (  ; frame <= numFrames; ++frame)
+    {
+      /* Loop through all the MSPs in this tree and find the smallest offset
+       * in the direction we're searching. */
+      GtkWidget *tree = detailViewGetFrameTree(detailView, activeStrand, frame);
+      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
+    }
+  
+  if (searchData.smallestOffset != UNSET_INT)
+    {
+      /* Scroll the detail by this offset */
+      const int newStart = displayRange->min + (searchData.smallestOffset * searchDirection);
+      setDetailViewStartIdx(detailView, newStart, BLXSEQ_DNA);
+    }
+}
+
+static void prevMatch(GtkWidget *detailView)
+{
+  goToNextMatch(detailView, FALSE);
+}
+
+static void nextMatch(GtkWidget *detailView)
+{
+  goToNextMatch(detailView, TRUE);
 }
 
 
@@ -1442,17 +1582,20 @@ static void GSettings(GtkButton *button, gpointer data)
 
 static void GGoto(GtkButton *button, gpointer data)
 {
-  Goto();
+  GtkWidget *detailView = GTK_WIDGET(data);
+  goToDetailViewCoord(detailView, BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
 }
 
 static void GprevMatch(GtkButton *button, gpointer data)
 {
-  prevMatch();
+  GtkWidget *detailView = GTK_WIDGET(data);
+  prevMatch(detailView);
 }
 
 static void GnextMatch(GtkButton *button, gpointer data)
 {
-  nextMatch();
+  GtkWidget *detailView = GTK_WIDGET(data);
+  nextMatch(detailView);
 }
 
 static void GscrollLeftBig(GtkButton *button, gpointer data)
@@ -1556,14 +1699,18 @@ static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
   GtkWidget *seqHeader = createSequenceColHeader(detailView, seqType, numReadingFrames);
   GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshDetailViewSequenceColHeader : NULL;
   
+  /* The start and end columns have callbacks to switch the start/end text when display is toggled */
+  GtkCallback startCallback = refreshDetailViewStartColHeader;
+  GtkCallback endCallback = refreshDetailViewEndColHeader;
+  
   const int endColWidth = END_COLUMN_DEFAULT_WIDTH;
   
-  addHeaderColumn(header, S_NAME_COL, NULL,	  NULL,		NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  FALSE, columnList);
-  addHeaderColumn(header, SCORE_COL,  NULL,	  NULL,		SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
-  addHeaderColumn(header, ID_COL,     NULL,	  NULL,		ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    FALSE, columnList);
-  addHeaderColumn(header, START_COL,  NULL,	  NULL,		START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
-  addHeaderColumn(header, MSP_COL,    seqHeader,  seqCallback,	SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
-  addHeaderColumn(header, END_COL,    NULL,	  NULL,		END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   endColWidth,		  FALSE, columnList);
+  addHeaderColumn(header, S_NAME_COL, NULL,	  NULL,		 NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  FALSE, columnList);
+  addHeaderColumn(header, SCORE_COL,  NULL,	  NULL,		 SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
+  addHeaderColumn(header, ID_COL,     NULL,	  NULL,		 ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    FALSE, columnList);
+  addHeaderColumn(header, START_COL,  NULL,	  startCallback, START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
+  addHeaderColumn(header, MSP_COL,    seqHeader,  seqCallback,	 SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
+  addHeaderColumn(header, END_COL,    NULL,	  endCallback,	 END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   endColWidth,		  FALSE, columnList);
 
   return GTK_WIDGET(header);
 }
@@ -1755,9 +1902,9 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "Settings", "Open the Preferences Window",  (GtkSignalFunc)GSettings,	  NULL);
   
   /* Navigation buttons */
-  makeToolbarButton(toolbar, "Goto",	 "Go to specified co-ordinates", (GtkSignalFunc)GGoto,		  NULL);
-  makeToolbarButton(toolbar, "< match",  "Next (leftward) match",	 (GtkSignalFunc)GprevMatch,	  NULL);
-  makeToolbarButton(toolbar, "match >",  "Next (rightward) match",	 (GtkSignalFunc)GnextMatch,	  NULL);
+  makeToolbarButton(toolbar, "Goto",	 "Go to specified co-ordinates", (GtkSignalFunc)GGoto,		  detailView);
+  makeToolbarButton(toolbar, "< match",  "Next (leftward) match",	 (GtkSignalFunc)GprevMatch,	  detailView);
+  makeToolbarButton(toolbar, "match >",  "Next (rightward) match",	 (GtkSignalFunc)GnextMatch,	  detailView);
   makeToolbarButton(toolbar, "<<",	 "Scroll leftward lots",	 (GtkSignalFunc)GscrollLeftBig,	  detailView);
   makeToolbarButton(toolbar, ">>",       "Scroll rightward lots",	 (GtkSignalFunc)GscrollRightBig,  detailView);
   makeToolbarButton(toolbar, "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  detailView);

@@ -574,14 +574,12 @@ void acceptAndClearPreviewBox(GtkWidget *grid, const int xCentre)
   /* Clear the preview box */
   gridSetPreviewBoxCentre(grid, UNSET_INT);
   
-  /* Update the detail view's scroll pos to start at the start base */
-  GtkAdjustment *adjustment = gridGetAdjustment(grid);
-  
-  if (adjustment)
-    {
-      setDetailViewScrollPos(adjustment, baseIdx - 1); /* adjust for 0-indexing */
-    }
-  
+  /* Update the detail view's scroll pos to start at the new base. The base index is in terms of
+   * the display coords, so the coord's sequence type is whatever the displayed sequence type is */
+  GtkWidget *detailView = gridGetDetailView(grid);
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);  /* displayed seq type */
+  setDetailViewStartIdx(detailView, baseIdx, seqType);
+
   gtk_widget_queue_draw(grid);
 }
 

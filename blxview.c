@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.11 2010-01-25 18:27:10 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.12 2010-01-29 16:24:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -224,7 +224,6 @@ static BOOL parseFeatureLine(char *line,
 //static void ToggleStrand(void) ;
 //static void printColors (void) ;
 
-//static void gotoMatch(int direc) ;
 //static BOOL gotoMatchPosition(char *match, int q_start, int q_end) ;
 
 #if OLD_BLIXEM
@@ -621,56 +620,6 @@ static double oldx, DNAstep;
 //}
 
 
-//static void gotoMatch(int direc)
-//{
-//  MSP *msp, *closest;
-//  int offset, closest_offset;
-//  char strand;
-//
-//  if (strchr(actframe, '+'))
-//    strand = '+';
-//  else
-//    strand = '-';
-//
-//  if (direc != -1 && direc != 1)
-//    {
-//      messerror( "gotoMatch must have -1 or 1 as argument\n" ) ;
-//
-//      return ;
-//    }
-//
-//  closest_offset = 0;
-//  closest = NULL;
-//
-//  for (msp = MSPlist; msp ; msp = msp->next)
-//    {
-//      if (strchr(msp->qframe, strand) && (msp->qstart - dispstart)*plusmin*direc - 2 > 0)
-//	{
-//	  offset = (msp->qstart - dispstart)*plusmin*direc - 2;
-//
-//	  if (!closest_offset)
-//	    closest_offset = offset;
-//	  else if (offset < closest_offset)
-//	    closest_offset = offset;
-//	}
-//    }
-//
-//  if (!closest_offset)
-//    {
-//      blviewRedraw();
-//    }
-//  else
-//    {
-//      if (direc < 0)
-//	dispstart -= 4 * plusmin ;
-//
-//      dispstart = dispstart + (direc * plusmin * (closest_offset)) ;
-//      
-//      blviewRedraw();
-//    }
-//
-//  return ;
-//}
 //
 //#if OLD_BLIXEM
 //static void keyboard(int key, int modifier)

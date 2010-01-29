@@ -581,8 +581,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
   
   switch (event->keyval)
     {
-      /* Move left/right */
-      case GDK_Left:
+      case GDK_Left: /* fall through */
       case GDK_Right:
 	{
 	  if (ctrlModifier)
@@ -594,8 +593,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  break;
 	}
 
-      /* Move left/right */
-      case GDK_comma: 
+      case GDK_comma:  /* fall through */
       case GDK_period:
 	{
 	  scrollDetailViewBy1(window, event->keyval == GDK_comma);
@@ -603,14 +601,21 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  break;
 	}
 
-      /* Zoom. Treat '+' and '=' the same (i.e. don't care whether shift is pressed) */
-      case GDK_plus:
-      case GDK_equal:
+      case GDK_plus:  /* fall through */
+      case GDK_equal: /* fall through */
       case GDK_minus:
 	{
 	  /* If ctrl is pressed, zoom the big picture; otherwise zoom the detail view */
 	  const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
 	  zoomMainWindow(window, zoomIn, ctrlModifier);
+	  result = TRUE;
+	  break;
+	}
+	
+      case GDK_g: /* fall through */
+      case GDK_G:
+	{
+	  goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
 	  result = TRUE;
 	  break;
 	}

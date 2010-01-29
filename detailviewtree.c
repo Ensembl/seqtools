@@ -829,16 +829,16 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
     {
       /* Move the scrollbar so that the currently-selected base index is at the centre */
       GtkWidget *detailView = GTK_WIDGET(data);
-      DetailViewProperties *properties = detailViewGetProperties(detailView);
+      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
       
-      if (properties->selectedBaseIdx != UNSET_INT)
+      if (selectedBaseIdx != UNSET_INT)
 	{
-	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
-	  if (adjustment)
-	    {
-	      int scrollStart = properties->selectedBaseIdx - (adjustment->page_size / 2);
-	      setDetailViewScrollPos(adjustment, scrollStart);
-	    }
+	  /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
+	  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+	  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	  
+	  int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+	  setDetailViewStartIdx(detailView, newStart, seqType);
 	}
       
       handled = TRUE;

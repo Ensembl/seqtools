@@ -43,7 +43,8 @@ gboolean	      mspIsBlastMatch(const MSP const *msp);
 void		      getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin, int *sSeqMax);
 void		      getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
-int		      getRangeCentre(IntRange *range);
+int		      getRangeLength(const IntRange const *range);
+int		      getRangeCentre(const IntRange const *range);
 gboolean	      indexWithinRange(const int idx, const IntRange const *range);
 
 int		      convertPeptideToDna(const int peptideIdx, const int frame, const int numFrames);

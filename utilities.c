@@ -101,8 +101,15 @@ gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointe
 }
 
 
+/* Utility to return the length of the given range */
+int getRangeLength(const IntRange const *range)
+{
+  return (range->max - range->min + 1);
+}
+
+
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
-int getRangeCentre(IntRange *range)
+int getRangeCentre(const IntRange const *range)
 {
   return range->min + round(((double)(range->max - range->min)) / 2.0);
 }

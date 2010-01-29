@@ -143,7 +143,8 @@ GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView, const gboolean sel
 GdkColor*		detailViewGetExonColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetGapColour(GtkWidget *detailView, const gboolean selected);
 
-void			setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
+void			goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
+void			setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
 void			scrollDetailViewLeft1(GtkWidget *detailView);
 void			scrollDetailViewRight1(GtkWidget *detailView);
 void			scrollDetailViewLeftStep(GtkWidget *detailView);
