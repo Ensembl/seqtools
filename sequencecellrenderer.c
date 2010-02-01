@@ -17,7 +17,7 @@
 
 
 #define SEQUENCE_CELL_RENDERER_NAME	"SequenceCellRenderer"
-#define GAP_WIDTH_AS_FRACTION		0.25	/* multiplier used to get the width of the "gap" marker based on a fraction of char width */
+#define GAP_WIDTH_AS_FRACTION		0.375	/* multiplier used to get the width of the "gap" marker based on a fraction of char width */
 #define MIN_GAP_WIDTH			2
 
 /* Properties */
@@ -38,12 +38,21 @@ enum
 };
 
 
+typedef struct
+  {
+    GtkWidget *tree;
+    GdkWindow *window;
+    GdkRectangle *cell_area;
+  } DrawExonBoundariesData;
+
+
 /* Some boring function declarations: GObject type system stuff */
 static void     sequence_cell_renderer_init       (SequenceCellRenderer      *cellrenderersequence);
 static void     sequence_cell_renderer_class_init (SequenceCellRendererClass *klass);
 static void     sequence_cell_renderer_finalize (GObject *gobject);
 
 static IntRange getVisibleMspRange(MSP *msp, GtkWidget *tree);
+void		drawVisibleExonBoundaries(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell_area);
 
 static void drawSequenceText(GtkWidget *tree,
 			     gchar *displayText, 
@@ -683,6 +692,8 @@ static void drawExon(SequenceCellRenderer *renderer,
       
       highlightSelectedBase(selectedBaseIdx, bgColour, displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, widgetGetDrawable(tree), cell_area);
     }
+  
+  drawVisibleExonBoundaries(tree, window, cell_area);
 } 
 
 
@@ -844,6 +855,67 @@ static void getCoordsForBaseIdx(const int segmentIdx,
   /* Calculate the coords */
   *x = cell_area->x - cellXPadding + (charIdx * charWidth);
   *y = cell_area->y - cellYPadding;
+}
+
+
+/* Draw the start/end boundaries for the given exon, if the start/end is within the current display range */
+static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  const MSP *msp = treeGetMsp(model, iter);
+  
+  if (msp && mspIsExon(msp))
+    {
+      DrawExonBoundariesData *drawData = (DrawExonBoundariesData*)data;
+      
+      GtkWidget *tree = drawData->tree;
+      const IntRange const *displayRange = treeGetDisplayRange(tree);
+      const int charWidth = treeGetCharWidth(tree);
+      const int charHeight = treeGetCharHeight(tree);
+      const int cellXPadding = treeGetCellXPadding(tree);
+      const int cellYPadding = treeGetCellYPadding(tree);
+      const gboolean rightToLeft = treeGetStrandsToggled(tree);
+      
+      GdkGC *gc = gdk_gc_new(drawData->window);
+      gdk_gc_set_foreground(gc, treeGetExonBoundaryColour(tree));
+      gdk_gc_set_line_attributes(gc, treeGetExonBoundaryWidth(tree), treeGetExonBoundaryStyle(tree), GDK_CAP_BUTT, GDK_JOIN_MITER);
+
+      const int minIdx = min(msp->displayStart, msp->displayEnd);
+      const int maxIdx = max(msp->displayStart, msp->displayEnd);
+      
+      if (minIdx >= displayRange->min && minIdx <= displayRange->max)
+	{
+	  const int idx = rightToLeft ? displayRange->max - minIdx + 1 : minIdx - displayRange->min;
+
+	  int x, y;
+	  getCoordsForBaseIdx(idx, displayRange, displayRange, treeGetStrandsToggled(tree), charWidth, cellXPadding, cellYPadding, drawData->cell_area, &x, &y);
+	  
+	  gdk_draw_line(drawData->window, gc, x, y, x, y + charHeight);
+	  gdk_draw_line(widgetGetDrawable(tree), gc, x, y, x, y + charHeight);
+	}
+      
+      if (maxIdx >= displayRange->min && maxIdx <= displayRange->max)
+	{
+	  const int idx = rightToLeft ? displayRange->max - maxIdx : maxIdx - displayRange->min + 1;
+
+	  int x, y;
+	  getCoordsForBaseIdx(idx, displayRange, displayRange, treeGetStrandsToggled(tree), charWidth, cellXPadding, cellYPadding, drawData->cell_area, &x, &y);
+
+	  gdk_draw_line(drawData->window, gc, x, y, x, y + charHeight);
+	  gdk_draw_line(widgetGetDrawable(tree), gc, x, y, x, y + charHeight);
+	}
+    }
+
+  return FALSE;
+}
+
+
+/* Draw the boundaries of all exons within the current display range */
+void drawVisibleExonBoundaries(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell_area)
+{
+  /* Loop through all visible MSPs that are exons and add the coords to the list if they are within range. */
+  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+  DrawExonBoundariesData drawData = {tree, window, cell_area};
+  gtk_tree_model_foreach(model, drawExonBoundary, &drawData);
 }
 
 
@@ -1032,6 +1104,8 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
     {
       highlightSelectedBase(selectedBaseIdx, treeGetGapColour(tree, TRUE), displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, widgetGetDrawable(tree), cell_area);
     }
+  
+  drawVisibleExonBoundaries(tree, window, cell_area);
 }    
 
 

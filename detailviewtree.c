@@ -240,6 +240,23 @@ GdkColor* treeGetGapColour(GtkWidget *tree, const gboolean selected)
   return detailViewGetGapColour(detailView, selected);
 }
 
+GdkColor* treeGetExonBoundaryColour(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetExonBoundaryColour(detailView);
+}
+
+int treeGetExonBoundaryWidth(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetExonBoundaryWidth(detailView);
+}
+
+GdkLineStyle treeGetExonBoundaryStyle(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetExonBoundaryStyle(detailView);
+}
 
 
 /* Call the given function on all trees in the detail view */
@@ -1288,15 +1305,16 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
   GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
   
   /* Find the segment of the ref sequence to display (complemented if this tree is
-   * displaying the reverse strand, and reversed if the display is toggled */
+   * displaying the reverse strand, and reversed if the display is toggled) */
   IntRange *displayRange = treeGetDisplayRange(tree);
+  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
 
   gchar *segmentToDisplay = getSequenceSegment(mainWindow, 
 					       mainWindowGetRefSeq(mainWindow),
-					       mainWindowGetRefSeqRange(mainWindow),
-					       displayRange->min, 
-					       displayRange->max, 
+					       refSeqRange,
+					       displayRange->min < refSeqRange->min ? refSeqRange->min : displayRange->min, 
+					       displayRange->max > refSeqRange->max ? refSeqRange->max : displayRange->max, 
 					       treeGetStrand(tree), 
 					       mainWindowGetSeqType(mainWindow),
 					       treeGetFrame(tree), 

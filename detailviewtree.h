@@ -69,6 +69,9 @@ GdkColor*	  treeGetMatchColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetMismatchColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetExonColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetGapColour(GtkWidget *tree, const gboolean selected);
+GdkColor*	  treeGetExonBoundaryColour(GtkWidget *tree);
+int		  treeGetExonBoundaryWidth(GtkWidget *tree);
+GdkLineStyle	  treeGetExonBoundaryStyle(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 

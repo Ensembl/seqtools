@@ -1105,6 +1105,25 @@ GdkColor* detailViewGetGapColour(GtkWidget *detailView, const gboolean selected)
   return selected ? &properties->gapColourSelected : &properties->gapColour;
 }
 
+GdkColor* detailViewGetExonBoundaryColour(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return &properties->exonBoundaryColour;
+}
+
+int detailViewGetExonBoundaryWidth(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties->exonBoundaryLineWidth;
+}
+
+GdkLineStyle detailViewGetExonBoundaryStyle(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties->exonBoundaryLineStyle;
+}
+
+
 GList *detailViewGetStrandTrees(GtkWidget *detailView, const Strand strand)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1359,6 +1378,9 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->exonColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->gapColour		  = getGdkColor(GDK_GREY);
       properties->gapColourSelected	  = getGdkColor(GDK_DARK_GREY);
+      properties->exonBoundaryColour	  = getGdkColor(GDK_BLUE);
+      properties->exonBoundaryLineWidth	  = 1;
+      properties->exonBoundaryLineStyle	  = GDK_LINE_ON_OFF_DASH;
       
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
