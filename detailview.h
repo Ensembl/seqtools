@@ -104,10 +104,12 @@ typedef struct _DetailViewProperties
     GdkColor exonColourSelected;      /* background colour for exon base (when base selected) */
     GdkColor gapColour;		      /* background colour for gap in match sequence */
     GdkColor gapColourSelected;       /* background colour for gap in match sequence (when position selected) */
-    GdkColor exonBoundaryColour;      /* line colour for exon boundaries */
+    GdkColor exonBoundaryColourStart; /* line colour for exon boundaries (marking the start of an exon) */
+    GdkColor exonBoundaryColourEnd;   /* line colour for exon boundaries (marking the end of an exon) */
     
     int exonBoundaryLineWidth;	      /* line width for exon boundaries */
-    GdkLineStyle exonBoundaryLineStyle; /* line style for exon boundaries */
+    GdkLineStyle exonBoundaryLineStyleStart; /* line style for exon boundaries (marking the start of an exon) */
+    GdkLineStyle exonBoundaryLineStyleEnd;   /* line style for exon boundaries (marking the end of the exon) */
   } DetailViewProperties;
 
 
@@ -146,9 +148,9 @@ GdkColor*		detailViewGetMatchColour(GtkWidget *detailView, const gboolean select
 GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetExonColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetGapColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView);
+GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart);
 int			detailViewGetExonBoundaryWidth(GtkWidget *detailView);
-GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView);
+GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart);
 
 void			goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
 void			setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);

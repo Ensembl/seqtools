@@ -124,7 +124,9 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       
       if (bigPictureGetSeqType(bigPicture) == BLXSEQ_PEPTIDE)
 	{
-	  baseIdx = convertPeptideToDna(baseIdx, 1, bigPictureGetNumReadingFrames(bigPicture));
+	  /* Convert the peptide coord to a DNA coord. Probably doesn't matter what frame we show it for */
+	  const int numFrames = bigPictureGetNumReadingFrames(bigPicture);
+	  baseIdx = convertPeptideToDna(baseIdx, 1, 1, numFrames);
 	}
       
       gdk_gc_set_foreground(gc, textColour);

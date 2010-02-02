@@ -288,8 +288,8 @@ void calculateMspLineDimensions(GtkWidget *grid,
   if (bigPictureGetSeqType(gridProperties->bigPicture) == BLXSEQ_PEPTIDE)
     {
       int numFrames = bigPictureGetNumReadingFrames(gridProperties->bigPicture);
-      dnaDisplayRange.min = convertPeptideToDna(bigPictureProperties->displayRange.min, 1, numFrames);
-      dnaDisplayRange.max = convertPeptideToDna(bigPictureProperties->displayRange.max, 3, numFrames);
+      dnaDisplayRange.min = convertPeptideToDna(bigPictureProperties->displayRange.min, 1, 1, numFrames); /* 1st base in 1st frame */
+      dnaDisplayRange.max = convertPeptideToDna(bigPictureProperties->displayRange.max, numFrames, numFrames, numFrames); /* last base in last frame */
     }
 
   int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);

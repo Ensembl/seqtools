@@ -255,11 +255,11 @@ char getRefSeqBase(char *refSeq,
 }
 
 
-/* Given an index into a peptide sequence and a reading frame number, return
- * the index into the DNA sequence that will give the equivalent DNA base */
-int convertPeptideToDna(const int peptideIdx, const int frame, const int numFrames)
+/* Given an index into a peptide sequence, a reading frame, and the base number within that
+ * reading frame, return the index into the DNA sequence that will give the equivalent DNA base */
+int convertPeptideToDna(const int peptideIdx, const int frame, const int baseNum, const int numFrames)
 {
-  return (peptideIdx * numFrames) - numFrames + frame;
+  return (peptideIdx * numFrames) - numFrames + frame + baseNum - 1;
 }
 
 
@@ -283,6 +283,7 @@ gboolean indexWithinRange(const int idx, const IntRange const *range)
  * Result is a coord in the DNA sequence - converts as necessary if the display range is in terms
  * of peptide coords */
 int getStartDnaCoord(const IntRange const *displayRange, 
+		     const int frame,
 		     const BlxSeqType displaySeqType, 
 		     const gboolean reverse, 
 		     const int numReadingFrames)
@@ -291,9 +292,9 @@ int getStartDnaCoord(const IntRange const *displayRange,
   
   if (displaySeqType == BLXSEQ_PEPTIDE)
     {
-      /* Take the first reading frame to get the first DNA coord for this peptide (or the last frame if reversed) */
-      int frame = reverse ? numReadingFrames : 1;
-      result = convertPeptideToDna(result, frame, numReadingFrames);
+      /* Take the 1st base in this reading frame to get the 1st DNA coord for this peptide (or the last frame if reversed) */
+      const int baseNum = reverse ? numReadingFrames : 1;
+      result = convertPeptideToDna(result, frame, baseNum, numReadingFrames);
     }
   
   return result;
@@ -304,6 +305,7 @@ int getStartDnaCoord(const IntRange const *displayRange,
  * Result is a coord in the DNA sequence - converts as necessary if the display range is in terms
  * of peptide coords */
 int getEndDnaCoord(const IntRange const *displayRange, 
+		   const int frame,
 		   const BlxSeqType displaySeqType, 
 		   const gboolean reverse, 
 		   const int numReadingFrames)
@@ -312,9 +314,9 @@ int getEndDnaCoord(const IntRange const *displayRange,
   
   if (displaySeqType == BLXSEQ_PEPTIDE)
     {
-      /* Take the last reading frame to get the last DNA coord for this peptide (or the first frame if reversed) */
-      int frame = reverse ? 1 : numReadingFrames;
-      result = convertPeptideToDna(result, frame, numReadingFrames);
+      /* Take the last base in this reading frame to get the last DNA coord for this peptide (or the first frame if reversed) */
+      const int baseNum = reverse ? 1 : numReadingFrames;
+      result = convertPeptideToDna(result, frame, baseNum, numReadingFrames);
     }
   
   return result;

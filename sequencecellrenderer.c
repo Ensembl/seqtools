@@ -746,7 +746,7 @@ static int getMatchIdxFromRefIdx(MSP *msp,
 
   if (seqType == BLXSEQ_PEPTIDE)
     {
-      qIdx = convertPeptideToDna(qIdx, qFrame, numFrames);
+      qIdx = convertPeptideToDna(qIdx, qFrame, 1, numFrames); /* 1st base in frame */
     }
   
   /* Find the s index */
@@ -874,16 +874,17 @@ static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTree
       const int cellXPadding = treeGetCellXPadding(tree);
       const int cellYPadding = treeGetCellYPadding(tree);
       const gboolean rightToLeft = treeGetStrandsToggled(tree);
-      
       GdkGC *gc = gdk_gc_new(drawData->window);
-      gdk_gc_set_foreground(gc, treeGetExonBoundaryColour(tree));
-      gdk_gc_set_line_attributes(gc, treeGetExonBoundaryWidth(tree), treeGetExonBoundaryStyle(tree), GDK_CAP_BUTT, GDK_JOIN_MITER);
 
       const int minIdx = min(msp->displayStart, msp->displayEnd);
       const int maxIdx = max(msp->displayStart, msp->displayEnd);
       
       if (minIdx >= displayRange->min && minIdx <= displayRange->max)
 	{
+	  /* Draw the lower index. The colour and line style depend on whether it's the start or end index. */
+	  gdk_gc_set_foreground(gc, treeGetExonBoundaryColour(tree, TRUE));
+	  gdk_gc_set_line_attributes(gc, treeGetExonBoundaryWidth(tree), treeGetExonBoundaryStyle(tree, TRUE), GDK_CAP_BUTT, GDK_JOIN_MITER);
+
 	  const int idx = rightToLeft ? displayRange->max - minIdx + 1 : minIdx - displayRange->min;
 
 	  int x, y;
@@ -895,6 +896,10 @@ static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTree
       
       if (maxIdx >= displayRange->min && maxIdx <= displayRange->max)
 	{
+	  /* Draw the lower index. The colour and line style depend on whether it's the start or end index. */
+	  gdk_gc_set_foreground(gc, treeGetExonBoundaryColour(tree, FALSE));
+	  gdk_gc_set_line_attributes(gc, treeGetExonBoundaryWidth(tree), treeGetExonBoundaryStyle(tree, FALSE), GDK_CAP_BUTT, GDK_JOIN_MITER);
+	  
 	  const int idx = rightToLeft ? displayRange->max - maxIdx : maxIdx - displayRange->min + 1;
 
 	  int x, y;

@@ -240,10 +240,10 @@ GdkColor* treeGetGapColour(GtkWidget *tree, const gboolean selected)
   return detailViewGetGapColour(detailView, selected);
 }
 
-GdkColor* treeGetExonBoundaryColour(GtkWidget *tree)
+GdkColor* treeGetExonBoundaryColour(GtkWidget *tree, const gboolean isStart)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetExonBoundaryColour(detailView);
+  return detailViewGetExonBoundaryColour(detailView, isStart);
 }
 
 int treeGetExonBoundaryWidth(GtkWidget *tree)
@@ -252,10 +252,10 @@ int treeGetExonBoundaryWidth(GtkWidget *tree)
   return detailViewGetExonBoundaryWidth(detailView);
 }
 
-GdkLineStyle treeGetExonBoundaryStyle(GtkWidget *tree)
+GdkLineStyle treeGetExonBoundaryStyle(GtkWidget *tree, const gboolean isStart)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetExonBoundaryStyle(detailView);
+  return detailViewGetExonBoundaryStyle(detailView, isStart);
 }
 
 
@@ -1313,8 +1313,8 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
   gchar *segmentToDisplay = getSequenceSegment(mainWindow, 
 					       mainWindowGetRefSeq(mainWindow),
 					       refSeqRange,
-					       displayRange->min < refSeqRange->min ? refSeqRange->min : displayRange->min, 
-					       displayRange->max > refSeqRange->max ? refSeqRange->max : displayRange->max, 
+					       displayRange->min, 
+					       displayRange->max, 
 					       treeGetStrand(tree), 
 					       mainWindowGetSeqType(mainWindow),
 					       treeGetFrame(tree), 
@@ -1383,7 +1383,12 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
   
   if (GTK_IS_LABEL(headerWidget))
     {
-      int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), treeGetSeqType(tree), treeGetStrandsToggled(tree), treeGetNumReadingFrames(tree));
+      int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), 
+					treeGetFrame(tree),
+					treeGetSeqType(tree), 
+					treeGetStrandsToggled(tree), 
+					treeGetNumReadingFrames(tree));
+      
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
       gchar displayText[displayTextLen];
@@ -1406,7 +1411,12 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
   
   if (GTK_IS_LABEL(headerWidget))
     {
-      int displayVal = getEndDnaCoord(treeGetDisplayRange(tree), treeGetSeqType(tree), treeGetStrandsToggled(tree), treeGetNumReadingFrames(tree));
+      int displayVal = getEndDnaCoord(treeGetDisplayRange(tree),
+				      treeGetFrame(tree),
+				      treeGetSeqType(tree), 
+				      treeGetStrandsToggled(tree), 
+				      treeGetNumReadingFrames(tree));
+      
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
       gchar displayText[displayTextLen];

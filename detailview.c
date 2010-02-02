@@ -536,7 +536,7 @@ static void refreshTreeOrder(GtkWidget *detailView)
 /* Refresh a specific line in the sequence column header */
 static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 					 GtkWidget *lineWidget, 
-					 const int frame, 
+					 int frame, /* local copy */
 					 char *refSeq)
 {
   if (!GTK_IS_LABEL(lineWidget))
@@ -544,24 +544,30 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
       messcrash("Unexpected widget type in detail view header: expected label");
     }
 
-  
   GtkLabel *label = GTK_LABEL(lineWidget);
-  
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  char displayText[displayRange->max - displayRange->min + 1 + 10];
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+
+  /* We need to switch the order in which frames are displayed if the display is toggled.
+   * Rather than bother moving widgets around, we'll just locally change the frame number 
+   * here to pretend we're a different frame. */
+  if (rightToLeft)
+    {
+      frame = numFrames - frame + 1;
+    }
   
   /* Loop forward/backward through the display range depending on which strand we're viewing.
    * The display range is the range for the peptides. We have to adjust by the number of reading
    * frames to get the index into the reference sequence (which is DNA bases). */
-  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
 
   IntRange qRange;
-  qRange.min = convertPeptideToDna(displayRange->min, frame, numFrames);
-  qRange.max = convertPeptideToDna(displayRange->max, frame, numFrames);
+  qRange.min = convertPeptideToDna(displayRange->min, frame, 1, numFrames);		/* 1st base in frame */
+  qRange.max = convertPeptideToDna(displayRange->max, frame, numFrames, numFrames); /* last base in frame */
   
   int qIdx = rightToLeft ? qRange.max : qRange.min;
 
+  char displayText[displayRange->max - displayRange->min + 1 + 10];
   int incrementValue = numFrames;
   int displayTextPos = 0;
   gboolean done = FALSE;
@@ -586,14 +592,6 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
       if (qIdx < qRange.min || qIdx > qRange.max)
 	done = TRUE;
     }
-
-  /* to do: temp for testing to fill up seq col header while it's the wrong size (otherwise
-   * it doesn't align left)... Need to fix the header size really. */
-  displayText[displayTextPos++] = ' ';
-  displayText[displayTextPos++] = ' ';
-  displayText[displayTextPos++] = ' ';
-  displayText[displayTextPos++] = ' ';
-  displayText[displayTextPos++] = ' ';
 
   /* Make sure the string is terminated properly */
   displayText[displayTextPos] = '\0';
@@ -785,7 +783,8 @@ static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
   
   if (selectedBaseIdx != UNSET_INT && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
     {
-      qIdx = convertPeptideToDna(selectedBaseIdx, 1, detailViewGetNumReadingFrames(detailView)); /* to do: determine frame based on click pos? */
+      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      qIdx = convertPeptideToDna(selectedBaseIdx, 1, 1, numFrames); /* to do: determine which frame to show based on click pos? */
     }
   
   /* Make sure we have enough space for all the bits to go in the result text */
@@ -1105,10 +1104,10 @@ GdkColor* detailViewGetGapColour(GtkWidget *detailView, const gboolean selected)
   return selected ? &properties->gapColourSelected : &properties->gapColour;
 }
 
-GdkColor* detailViewGetExonBoundaryColour(GtkWidget *detailView)
+GdkColor* detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->exonBoundaryColour;
+  return isStart ? &properties->exonBoundaryColourStart : &properties->exonBoundaryColourEnd;
 }
 
 int detailViewGetExonBoundaryWidth(GtkWidget *detailView)
@@ -1117,10 +1116,10 @@ int detailViewGetExonBoundaryWidth(GtkWidget *detailView)
   return properties->exonBoundaryLineWidth;
 }
 
-GdkLineStyle detailViewGetExonBoundaryStyle(GtkWidget *detailView)
+GdkLineStyle detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties->exonBoundaryLineStyle;
+  return isStart ? properties->exonBoundaryLineStyleStart : properties->exonBoundaryLineStyleEnd;
 }
 
 
@@ -1378,9 +1377,11 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->exonColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->gapColour		  = getGdkColor(GDK_GREY);
       properties->gapColourSelected	  = getGdkColor(GDK_DARK_GREY);
-      properties->exonBoundaryColour	  = getGdkColor(GDK_BLUE);
+      properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
+      properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_RED);
       properties->exonBoundaryLineWidth	  = 1;
-      properties->exonBoundaryLineStyle	  = GDK_LINE_ON_OFF_DASH;
+      properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
+      properties->exonBoundaryLineStyleEnd   = GDK_LINE_SOLID;
       
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
@@ -1956,10 +1957,11 @@ static void createTwoPanedTrees(GtkWidget *detailView,
 				BlxSeqType seqType,
 				GList *columnList,
 				const char const *refSeqName,
-				const int firstFrame)
+				const int frame1,
+				const int frame2)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, refSeqName, firstFrame);
-  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, refSeqName, firstFrame + 1);
+  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, refSeqName, frame1);
+  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, refSeqName, frame2);
   
   if (container)
     {
@@ -1981,12 +1983,19 @@ static void createThreePanedTrees(GtkWidget *detailView,
 				  GList *columnList,
 				  const char const *refSeqName)
 {
+  /* Add the frames in increasing order for the forward strand, decreasing order for
+   * the reverse strand. This is the order they'll be added to the list, and they
+   * are currently placed in the display in the same order. */
+  const gboolean forward = gridGetStrand(grid) == FORWARD_STRAND;
+  const int frame1 = forward ? 1 : 3;
+  const int frame2 = 2;
+  const int frame3 = forward ? 3 : 1;
+  
   /* Create a tree for pane1 (but only add it to the detailView if instructed to).
    * The first tree has headers. */
-  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, refSeqName, 1);
-  
+  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, refSeqName, frame1);
+
   GtkWidget *nestedPanedWidget = NULL;
-  
   if (addToDetailView)
     {
       gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
@@ -1998,7 +2007,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
   
   /* Create two more trees (and place them in the nested paned widget, if it is not null). 
    * Neither of these trees should have headers. */
-  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, refSeqName, 2);
+  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, refSeqName, frame2, frame3);
 }
 
 
@@ -2028,6 +2037,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
 			  seqType,
 			  columnList,
 			  refSeqName,
+			  1,
 			  1);
     }
   else if (numReadingFrames == 3)

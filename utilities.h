@@ -24,7 +24,10 @@
 #define GDK_DARK_GREY	    4210752
 #define GDK_BLACK	    0
 #define GDK_WHITE	    16777215
-
+#define GDK_RED		    16711680
+#define GDK_DARK_RED	    8388608
+#define GDK_GREEN	    65280
+#define GDK_DARK_GREEN	    47872
 
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
 void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
@@ -47,7 +50,7 @@ int		      getRangeLength(const IntRange const *range);
 int		      getRangeCentre(const IntRange const *range);
 gboolean	      indexWithinRange(const int idx, const IntRange const *range);
 
-int		      convertPeptideToDna(const int peptideIdx, const int frame, const int numFrames);
+int		      convertPeptideToDna(const int peptideIdx, const int frame, const int baseNum, const int numFrames);
 int		      convertDnaToPeptide(const int dnaIdx, const int numFrames);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
@@ -58,11 +61,13 @@ char		      getRefSeqBase(char *refSeq,
 				    const BlxSeqType seqType);
 
 int		      getStartDnaCoord(const IntRange const *displayRange, 
+				       const int frame,
 				       const BlxSeqType displaySeqType, 
 				       const gboolean reverse, 
 				       const int numReadingFrames);
 
 int		      getEndDnaCoord(const IntRange const *displayRange, 
+				     const int frame,
 				     const BlxSeqType displaySeqType, 
 				     const gboolean reverse, 
 				     const int numReadingFrames);
