@@ -62,10 +62,12 @@ int		  treeGetCellYPadding(GtkWidget *tree);
 int		  treeGetCharWidth(GtkWidget *tree);
 int		  treeGetCharHeight(GtkWidget *tree);
 int		  treeGetFrame(GtkWidget *tree);
-int		  treeGetSeqType(GtkWidget *tree);
+BlxSeqType	  treeGetSeqType(GtkWidget *tree);
+BlxBlastMode	  treeGetBlastMode(GtkWidget *tree);
 
 GdkColor*	  treeGetRefSeqColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetMatchColour(GtkWidget *tree, const gboolean selected);
+GdkColor*	  treeGetConsColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetMismatchColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetExonColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetGapColour(GtkWidget *tree, const gboolean selected);
@@ -87,6 +89,7 @@ void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
 void		  selectRowsForSelectedMsps(GtkWidget *tree, gpointer data);
+gboolean	  treeIsMspSelected(GtkWidget *tree, MSP *msp);
 
 void		  addMspToTreeModel(GtkTreeModel *model, 
 				    MSP *msp,

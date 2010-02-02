@@ -14,20 +14,23 @@
 
 /* These colours are decimal version of, e.g. "ffff00" for yellow, i.e. R=255, G=255, B=0.
  * They can be used to define a GdkColor */
-#define GDK_YELLOW	    16776960 
-#define GDK_DARK_YELLOW	    8421376
-#define GDK_CYAN	    65535
-#define GDK_DARK_CYAN	    32896
-#define GDK_BLUE	    255
-#define GDK_DARK_BLUE	    128
-#define GDK_GREY	    12500670
-#define GDK_DARK_GREY	    4210752
-#define GDK_BLACK	    0
-#define GDK_WHITE	    16777215
-#define GDK_RED		    16711680
-#define GDK_DARK_RED	    8388608
-#define GDK_GREEN	    65280
-#define GDK_DARK_GREEN	    47872
+#define GDK_YELLOW	      16776960 
+#define GDK_DARK_YELLOW	      8421376
+#define GDK_CYAN	      65535
+#define GDK_DARK_CYAN	      32896
+#define GDK_BLUE	      255
+#define GDK_DARK_BLUE	      128
+#define GDK_LIGHT_STEEL_BLUE  7255270
+#define GDK_STEEL_BLUE	      4620980
+#define GDK_ROYAL_BLUE	      4286945
+#define GDK_GREY	      12500670
+#define GDK_DARK_GREY	      8421504
+#define GDK_BLACK	      0
+#define GDK_WHITE	      16777215
+#define GDK_RED		      11674146
+#define GDK_DARK_RED	      8388608
+#define GDK_GREEN	      65280
+#define GDK_DARK_GREEN	      47872
 
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
 void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);

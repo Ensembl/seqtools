@@ -100,6 +100,8 @@ typedef struct _DetailViewProperties
     GdkColor matchColourSelected;     /* background colour for base that matches (when base selected) */
     GdkColor mismatchColour;	      /* background colour for base that does not match */
     GdkColor mismatchColourSelected;  /* background colour for base that does not match (when base selected) */
+    GdkColor consColour;	      /* background colour for peptide that matches similar type */
+    GdkColor consColourSelected;      /* background colour for peptide that matches similar type (when base selected) */
     GdkColor exonColour;	      /* background colour for exon base */
     GdkColor exonColourSelected;      /* background colour for exon base (when base selected) */
     GdkColor gapColour;		      /* background colour for gap in match sequence */
@@ -146,6 +148,7 @@ int			getDetailViewColumnWidth(GtkWidget *detailView, const ColumnId columnId);
 GdkColor*		detailViewGetRefSeqColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetMatchColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView, const gboolean selected);
+GdkColor*		detailViewGetConsColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetExonColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetGapColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart);

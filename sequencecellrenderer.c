@@ -681,8 +681,7 @@ static void drawExon(SequenceCellRenderer *renderer,
   gdk_gc_set_foreground(gc, baseBgColour);
   drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, x, y, width, charHeight);
   
-  /* If a base is selected, highlight it. The colour depends on whether it is within our exon range
-   * or not. */
+  /* If a base is selected, highlight it. Its colour depends on whether it the base is within the exon range or not. */
   const int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
   if (selectedBaseIdx != UNSET_INT)
     {
@@ -767,6 +766,7 @@ static int drawBase(MSP *msp,
 		    const int qFrame,
 		    const Strand qStrand,
 		    const BlxSeqType seqType,
+		    const BlxBlastMode blastMode,
 		    const gboolean rightToLeft,
 		    const int numFrames,
 		    const int charWidth,
@@ -781,29 +781,34 @@ static int drawBase(MSP *msp,
 		    const int y,
 		    gchar *displayText)
 {
-  char charToDisplay = '\0';
+  char sBase = '\0';
   GdkColor *baseBgColour;
   
   const int refSeqIdx = getRefSeqIndexFromSegment(segmentIdx, segmentRange, rightToLeft);
   const int sIdx = getMatchIdxFromRefIdx(msp, refSeqIdx, qFrame, qStrand, rightToLeft, seqType, numFrames);
   
+  /* Highlight the base if its base index is selected */
   gboolean selected = (refSeqIdx == selectedBaseIdx);
   
   if (sIdx == UNSET_INT)
     {
       /* There is no equivalent base in the match sequence so draw a gap */
-      charToDisplay = '.';
+      sBase = '.';
       baseBgColour = treeGetGapColour(tree, selected);
     }
   else
     {
       /* There is a base in the match sequence. See if it matches the ref sequence */
-      charToDisplay = getMatchSeqBase(msp->sseq, sIdx, seqType);
+      sBase = getMatchSeqBase(msp->sseq, sIdx, seqType);
       char qBase = refSeqSegment[segmentIdx];
 
-      if (charToDisplay == qBase)
+      if (sBase == qBase)
 	{
 	  baseBgColour = treeGetMatchColour(tree, selected); 
+	}
+      else if (blastMode != BLXMODE_BLASTN && PAM120[aa_atob[(unsigned int)qBase]-1 ][aa_atob[(unsigned int)sBase]-1 ] > 0)
+	{
+	  baseBgColour = treeGetConsColour(tree, selected);
 	}
       else
 	{
@@ -816,7 +821,7 @@ static int drawBase(MSP *msp,
   drawRectangle2(window, drawable, gc, TRUE, x, y, charWidth, charHeight);
 
   /* Add this character into the display text */
-  displayText[segmentIdx] = charToDisplay;
+  displayText[segmentIdx] = sBase;
 
   return sIdx;
 }
@@ -1053,9 +1058,9 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   const int charWidth = treeGetCharWidth(tree);
   const int charHeight = treeGetCharHeight(tree);
   const BlxSeqType seqType = treeGetSeqType(tree);
+  const BlxBlastMode blastMode = treeGetBlastMode(tree);
   const IntRange const *displayRange = treeGetDisplayRange(tree);
   GdkDrawable *drawable = widgetGetDrawable(tree);
-  
   GtkWidget *mainWindow = treeGetMainWindow(tree);
   
   gchar *refSeqSegment = getSequenceSegment(mainWindow, 
@@ -1084,7 +1089,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 	  getCoordsForBaseIdx(segmentIdx, &segmentRange, displayRange, rightToLeft, charWidth, cellXPadding, cellYPadding, cell_area, &x, &y);
 	  
 	  /* Find the base in the match sequence and draw the background colour according to how well it matches */
-	  int sIdx = drawBase(renderer->msp, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, qFrame, qStrand, seqType, rightToLeft, numFrames, charWidth, charHeight, tree, window, drawable, gc, x, y, displayText);
+	  int sIdx = drawBase(renderer->msp, segmentIdx, &segmentRange, refSeqSegment, selectedBaseIdx, qFrame, qStrand, seqType, blastMode, rightToLeft, numFrames, charWidth, charHeight, tree, window, drawable, gc, x, y, displayText);
 	  
 	  /* If there is an insertion/deletion between this and the previous match, draw it now */
 	  drawGap(sIdx, lastFoundSIdx, x, y, charWidth, charHeight, window, drawable, gc);

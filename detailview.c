@@ -1092,6 +1092,12 @@ GdkColor* detailViewGetMismatchColour(GtkWidget *detailView, const gboolean sele
   return selected ? &properties->mismatchColourSelected : &properties->mismatchColour;
 }
 
+GdkColor* detailViewGetConsColour(GtkWidget *detailView, const gboolean selected)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return selected ? &properties->consColourSelected : &properties->consColour;
+}
+
 GdkColor* detailViewGetExonColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1373,6 +1379,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->matchColourSelected	  = getGdkColor(GDK_DARK_CYAN);
       properties->mismatchColour	  = getGdkColor(GDK_GREY);
       properties->mismatchColourSelected  = getGdkColor(GDK_DARK_GREY);
+      properties->consColour		  = getGdkColor(GDK_LIGHT_STEEL_BLUE);
+      properties->consColourSelected	  = getGdkColor(GDK_ROYAL_BLUE);
       properties->exonColour		  = getGdkColor(GDK_YELLOW);
       properties->exonColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->gapColour		  = getGdkColor(GDK_GREY);

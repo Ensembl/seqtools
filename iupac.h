@@ -27,9 +27,13 @@
  * HISTORY:
  * Last edited: Aug 25 12:39 2009 (edgrif)
  * Created: Thu Aug 26 17:28:40 1999 (fw)
- * CVS info:   $Id: iupac.h,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: iupac.h,v 1.2 2010-02-02 14:32:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
+
+#ifndef _iupac_h_included_
+#define _iupac_h_included_
+
 
 int PAM120[23][23] =
   {
@@ -285,3 +289,6 @@ char *stdcode3[65] = {
   "Trp",			/* UUU */
   "XXX",			/* unknown */
 };
+
+
+#endif /* _iupac_h_included_ */

@@ -116,7 +116,7 @@ int treeGetFrame(GtkWidget *tree)
   return properties ? properties->readingFrame : UNSET_INT;
 }
 
-int treeGetSeqType(GtkWidget *tree)
+BlxSeqType treeGetSeqType(GtkWidget *tree)
 {
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
@@ -226,6 +226,12 @@ GdkColor* treeGetMismatchColour(GtkWidget *tree, const gboolean selected)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetMismatchColour(detailView, selected);
+}
+
+GdkColor* treeGetConsColour(GtkWidget *tree, const gboolean selected)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetConsColour(detailView, selected);
 }
 
 GdkColor* treeGetExonColour(GtkWidget *tree, const gboolean selected)
@@ -540,14 +546,20 @@ void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 }
 
 
+gboolean treeIsMspSelected(GtkWidget *tree, MSP *msp)
+{
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  return mainWindowIsMspSelected(mainWindow, msp);
+}
+
+
 /* Select the given row if its MSP is marked as selected. */
 static gboolean selectRowIfMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *mainWindow = treeGetMainWindow(tree);
   MSP *msp = treeGetMsp(model, iter);
   
-  if (mainWindowIsMspSelected(mainWindow, msp))
+  if (treeIsMspSelected(tree, msp))
     {
       GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
       gtk_tree_selection_select_path(selection, path);
@@ -1701,7 +1713,15 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_SINGLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
+  
+  /* Set the background colour for the rows to be the same as the widget's background colour */
+  gtk_widget_modify_base(GTK_WIDGET(tree), GTK_STATE_NORMAL, GTK_WIDGET(tree)->style->bg);
 
+  /* The default text colour when rows are selected is white. This doesn't work 
+   * well against our default background colour of cyan, so use the same text colour
+   * as unselected rows. */
+  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_SELECTED, GTK_WIDGET(tree)->style->text);
+  
   /* Set the expander size to 0 so that we can have tiny rows (otherwise the min is 12pt).
    * Also set the vertical separator to 0 so that we can have the option of the smallest
    * fonts possible. (The vertical separator causes gaps between rows. We want rows to be
