@@ -853,7 +853,7 @@ GtkWidget* gridGetBigPicture(GtkWidget *grid)
 static GtkWidget* gridGetTree(GtkWidget *grid, const int frame)
 {
   GtkWidget *detailView = gridGetDetailView(grid);
-  return detailViewGetFrameTree(detailView, gridGetStrand(grid), frame);
+  return detailViewGetTree(detailView, gridGetStrand(grid), frame);
 }
 
 static IntRange* gridGetDisplayRange(GtkWidget *grid)
@@ -900,8 +900,10 @@ static GdkColor *gridGetMspLineHighlightColour(GtkWidget *grid)
 
 GtkWidget* createBigPictureGrid(GtkWidget *bigPicture, Strand strand)
 {
-  /* Create a layout area for the big picture */
+  /* Create a layout area for the grid */
   GtkWidget *grid = gtk_layout_new(NULL, NULL);
+  
+  /* Grid style properties */
   gtk_widget_set_redraw_on_allocate(grid, FALSE);
   gtk_widget_set_name(grid, BIG_PICTURE_GRID_NAME);
   

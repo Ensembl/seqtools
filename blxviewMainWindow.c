@@ -19,8 +19,13 @@
 
 
 /* Local function declarations */
-static void			  onShowStatistics(GtkAction *action, gpointer data);
-static void			  onPrint(GtkAction *action, gpointer data);
+static void			  onHelpMenu(GtkAction *action, gpointer data);
+static void			  onPrintMenu(GtkAction *action, gpointer data);
+static void			  onViewMenu(GtkAction *action, gpointer data);
+static void			  onSettingsMenu(GtkAction *action, gpointer data);
+static void			  onDotterMenu(GtkAction *action, gpointer data);
+static void			  onStatisticsMenu(GtkAction *action, gpointer data);
+
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 
@@ -30,20 +35,38 @@ static MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",	      NULL, "_Quit",	    "<control>Q",	"Quit the program",	  gtk_main_quit},
-  { "Help",	      NULL, "_Help",	    "<control>H",	"Display help",		  onDisplayHelp},
-  { "Print",	      NULL, "_Print",	    "<control>P",	"Print",		  G_CALLBACK(onPrint)},
-  { "Settings",	      NULL, "_Settings",    "<control>S",	"Settings",		  NULL},
-  { "Dotter",	      NULL, "_Dotter",	    NULL,		"Start Dotter",		  NULL},
-  { "Statistics",     NULL, "S_tatistics",  "<control>T",	"Show memory statistics", G_CALLBACK(onShowStatistics)}
+  { "Help",	      NULL, "_Help",	    "<control>H",	"Display help",		  G_CALLBACK(onHelpMenu)},
+  { "Print",	      NULL, "_Print",	    "<control>P",	"Print",		  G_CALLBACK(onPrintMenu)},
+  { "View",	      NULL, "_View",	    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
+  { "Settings",	      NULL, "_Settings",    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
+  { "Dotter",	      NULL, "_Dotter",	    NULL,		"Start Dotter",		  G_CALLBACK(onDotterMenu)},
+  { "Statistics",     NULL, "S_tatistics",  "<control>T",	"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
 };
 
 
-static const char *mainMenuDescription =
+/* This defines the layout of the menu for a standard user */
+static const char *standardMenuDescription =
 "<ui>"
 "  <popup name='MainMenu'>"
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='Print'/>"
+"      <menuitem action='View'/>"
+"      <menuitem action='Settings'/>"
+"      <separator/>"
+"      <menuitem action='Dotter'/>"
+"  </popup>"
+"</ui>";
+
+
+/* This defines the layout of the menu for a developer user */
+static const char *developerMenuDescription =
+"<ui>"
+"  <popup name='MainMenu'>"
+"      <menuitem action='Quit'/>"
+"      <menuitem action='Help'/>"
+"      <menuitem action='Print'/>"
+"      <menuitem action='View'/>"
 "      <menuitem action='Settings'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
@@ -57,6 +80,29 @@ static const char *mainMenuDescription =
 /***********************************************************
  *			   Utilities			   *
  ***********************************************************/
+
+/* Return true if the current user is in our list of developers. */
+static gboolean userIsDeveloper()
+{
+  gchar* developers[] = {"edgrif", "gb10"};
+
+  gboolean result = FALSE;
+  const gchar *user = g_get_user_name();
+  int numDevelopers = sizeof(developers) / sizeof(gchar*);
+  
+  int i = 0;
+  for (i = 0; i < numDevelopers; ++i)
+    {
+      if (strcmp(user, developers[i]) == 0)
+        {
+          result = TRUE;
+          break;
+        }
+    }
+
+  return result;
+}
+
 
 /* Copy a segment of the given sequence into a new string. The result must be
  * free'd with g_free by the caller. The given indices are 1-based. */
@@ -260,10 +306,113 @@ static void zoomMainWindow(GtkWidget *window, const gboolean zoomIn, const gbool
  *			   Menu Utilities                  *
  ***********************************************************/
 
-static void showModalDialog(char *title, char *messageText)
+/* Called when the state of a check button is toggled */
+static void onCheckButtonToggled(GtkWidget *button, gpointer data)
+{
+  GtkWidget *widgetToToggle = GTK_WIDGET(data);
+  gboolean visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  widgetSetHidden(widgetToToggle, !visible);
+}
+
+
+/* Create a check button to control visibility of the given widget */
+static void createCheckButton(GtkWidget *widgetToToggle, const char *mnemonic, GtkWidget *container)
+{
+  GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
+  gtk_container_add(GTK_CONTAINER(container), button);
+
+  /* Set the state depending on the widget's current visibility */
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), GTK_WIDGET_VISIBLE(widgetToToggle));
+  
+  g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onCheckButtonToggled), widgetToToggle);
+}
+
+
+/* Create a check button to control visibility of the given tree. */
+static void createCheckButtonTree(GtkWidget *detailView, const Strand strand, const int frame, GtkWidget *container)
+{
+  /* Some trees may have been removed from the main window if they are not on the active 
+   * strand, so only show check boxes for those that are in the window (i.e. have a parent). 
+   * Note that we get the tree container here, which consists of the tree itself plus any headers etc. */
+  GtkWidget *tree = detailViewGetTreeContainer(detailView, strand, frame);
+  
+  if (gtk_widget_get_parent(tree))
+    {
+      char formatStr[] = "Alignment list (%s%d)";
+      char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
+      sprintf(displayText, formatStr, (strand == FORWARD_STRAND ? "+" : "-"), frame);
+
+      createCheckButton(tree, displayText, container);
+    }
+}
+
+
+/* Shows the "View panes" dialog. This dialog allows the user to show/hide certain portions of the window. */
+static void showViewPanesDialog(GtkWidget *mainWindow)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("View sections", 
+						  GTK_WINDOW(mainWindow), 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  
+  int borderWidth = 12;
+  
+  /* Big picture */
+  GtkWidget *bigPictureBox = gtk_vbox_new(FALSE, 0);
+  gtk_container_set_border_width(GTK_CONTAINER(bigPictureBox), borderWidth);
+  gtk_container_add(GTK_CONTAINER(contentArea), bigPictureBox);
+  
+  GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+  createCheckButton(bigPicture, "_Big picture", bigPictureBox);
+  
+  /* Big picture sub-items */
+  GtkWidget *bigPictureSubBox = gtk_vbox_new(FALSE, 0);
+  gtk_container_set_border_width(GTK_CONTAINER(bigPictureSubBox), borderWidth);
+  gtk_container_add(GTK_CONTAINER(bigPictureBox), bigPictureSubBox);
+  
+  createCheckButton(bigPictureGetFwdGrid(bigPicture), "_Forward strand grid", bigPictureSubBox);
+  createCheckButton(bigPictureGetExonView(bigPicture), "_Exon view", bigPictureSubBox);
+  createCheckButton(bigPictureGetRevGrid(bigPicture), "_Reverse strand grid", bigPictureSubBox);
+  
+  /* Detail view */
+  GtkWidget *detailViewBox = gtk_vbox_new(FALSE, 0);
+  gtk_container_set_border_width(GTK_CONTAINER(detailViewBox), borderWidth);
+  gtk_container_add(GTK_CONTAINER(contentArea), detailViewBox);
+
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  createCheckButton(detailView, "_Detail view", detailViewBox);
+  
+  /* Detail view sub-items */
+  GtkWidget *detailViewSubBox = gtk_vbox_new(FALSE, 0);
+  gtk_container_set_border_width(GTK_CONTAINER(detailViewSubBox), borderWidth);
+  gtk_container_add(GTK_CONTAINER(detailViewBox), detailViewSubBox);
+  
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  int frame = 1;
+  for ( ; frame <= numFrames; ++frame)
+    {
+      createCheckButtonTree(detailView, FORWARD_STRAND, frame, detailViewSubBox);
+      createCheckButtonTree(detailView, REVERSE_STRAND, frame, detailViewSubBox);
+    }
+  
+  /* Ensure dialog is destroyed when user responds */
+  g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+  
+  gtk_widget_show_all(dialog);
+  
+}
+
+
+/* Utility to pop up a simple modal dialog with the given title and text, with just an "OK" button. */
+static void showModalDialog(GtkWidget *mainWindow, char *title, char *messageText)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-						  NULL, 
+						  GTK_WINDOW(mainWindow), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
@@ -325,7 +474,7 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
 {
   /* Create a modal dialog widget with an OK button */
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Statistics", 
-                                                  GTK_WINDOW(blixemWindow),
+                                                  GTK_WINDOW(mainWindow),
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
@@ -350,60 +499,7 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
   gtk_widget_show(dialog);
 }
 
-/***********************************************************
- *			  Menu actions                     *
- ***********************************************************/
-
-
-/* Called when the user selects the Print menu option, or hits the Print shortcut key */
-static void onPrint(GtkAction *action, gpointer data)
-{
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  
-  /* Create a print operation, using the same settings as the last print, if there was one */
-  GtkPrintOperation *print = gtk_print_operation_new();
-  
-  if (properties->printSettings != NULL)
-    {
-      gtk_print_operation_set_print_settings(print, properties->printSettings);
-    }
-  
-  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
-  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
-  
-  /* Pop up the print dialog */
-  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
-								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-								 GTK_WINDOW(mainWindow),
-								 NULL);
-  
-  /* If the user hit ok, remember the print settings for next time */
-  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
-    {
-      if (properties->printSettings != NULL)
-	{
-	  g_object_unref(properties->printSettings);
-	}
-      
-      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
-    }
-
-  g_object_unref(print);
-}
-
-
-/* Pop up a dialog reporting on various statistics about the process */
-static void onShowStatistics(GtkAction *action, gpointer data)
-{
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MSP *mspList = mainWindowGetMspList(mainWindow);
-  showStatsDialog(mainWindow, mspList);
-}
-
-
-/* Pop up a dialog showing help information */
-void onDisplayHelp()
+void displayHelp(GtkWidget *mainWindow)
 {
   char *messageText = (messprintf("\
 				  \
@@ -444,7 +540,90 @@ void onDisplayHelp()
 				  version %s\n\
 				  (c) Erik Sonnhammer", blixemVersion));
   
-  showModalDialog("Help", messageText);
+  showModalDialog(mainWindow, "Help", messageText);
+}
+
+/***********************************************************
+ *			  Menu actions                     *
+ ***********************************************************/
+
+/* Called when the user selects the Statistics menu option, or hits the Statistics shortcut key.
+ * Pops up a dialog showing user help information */
+static void onHelpMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  displayHelp(mainWindow);
+}
+
+
+/* Called when the user selects the View menu option, or hits the Settings shortcut key */
+static void onViewMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  showViewPanesDialog(mainWindow);
+}
+
+
+/* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
+static void onSettingsMenu(GtkAction *action, gpointer data)
+{
+//  GtkWidget *mainWindow = GTK_WIDGET(data);
+}
+
+
+/* Called when the user selects the View menu option, or hits the Settings shortcut key */
+static void onDotterMenu(GtkAction *action, gpointer data)
+{
+//  GtkWidget *mainWindow = GTK_WIDGET(data);
+//  showViewPanesDialog(mainWindow);
+}
+
+
+/* Called when the user selects the Statistics menu option, or hits the Statistics shortcut key.
+ * Pops up a dialog showing memory usage statistics. */
+static void onStatisticsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MSP *mspList = mainWindowGetMspList(mainWindow);
+  showStatsDialog(mainWindow, mspList);
+}
+
+
+/* Called when the user selects the Print menu option, or hits the Print shortcut key */
+static void onPrintMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  
+  /* Create a print operation, using the same settings as the last print, if there was one */
+  GtkPrintOperation *print = gtk_print_operation_new();
+  
+  if (properties->printSettings != NULL)
+    {
+      gtk_print_operation_set_print_settings(print, properties->printSettings);
+    }
+  
+  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
+  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
+  
+  /* Pop up the print dialog */
+  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
+								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
+								 GTK_WINDOW(mainWindow),
+								 NULL);
+  
+  /* If the user hit ok, remember the print settings for next time */
+  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
+    {
+      if (properties->printSettings != NULL)
+	{
+	  g_object_unref(properties->printSettings);
+	}
+      
+      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
+    }
+
+  g_object_unref(print);
 }
 
 
@@ -831,7 +1010,8 @@ gboolean mainWindowIsMspSelected(GtkWidget *mainWindow, MSP *msp)
 static void setStyleProperties(GtkWidget *widget)
 {
   gtk_container_set_border_width (GTK_CONTAINER(widget), DEFAULT_WINDOW_BORDER_WIDTH); 
-
+//  gtk_window_set_mnemonic_modifier(GTK_WINDOW(widget), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
+  
   /* Set the default font size to be a bit smaller than usual */
   int origSize = pango_font_description_get_size(widget->style->font_desc) / PANGO_SCALE;
   const char *origFamily = pango_font_description_get_family(widget->style->font_desc);
@@ -855,7 +1035,9 @@ static GtkWidget* createMainMenu(GtkWidget *window)
   gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
   
   GError *error = NULL;
-  if (!gtk_ui_manager_add_ui_from_string (ui_manager, mainMenuDescription, -1, &error))
+  const char *menuDescription = userIsDeveloper() ? developerMenuDescription : standardMenuDescription;
+  
+  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
     {
       g_message ("building menus failed: %s", error->message);
       g_error_free (error);
@@ -902,9 +1084,9 @@ GtkWidget* createMainWindow(char *refSeq,
   /* Create the main menu */
   GtkWidget *mainmenu = createMainMenu(window);
   
-  /* Create a vertical-paned widget to put our two main frames in */
-  GtkWidget *panedWidget = gtk_vpaned_new();
-  gtk_box_pack_start(GTK_BOX(vbox), panedWidget, TRUE, TRUE, 0);
+//  /* Create a container for our two main frames in */
+//  GtkWidget *panedWidget = gtk_vpaned_new();
+//  gtk_box_pack_start(GTK_BOX(vbox), panedWidget, TRUE, TRUE, 0);
   
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
@@ -919,7 +1101,7 @@ GtkWidget* createMainWindow(char *refSeq,
   
   printf("Creating big picture...\n");
   GtkWidget *bigPicture = createBigPicture(window,
-					   panedWidget, 
+					   vbox, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid, 
 					   &fullDisplayRange);
@@ -927,7 +1109,7 @@ GtkWidget* createMainWindow(char *refSeq,
   
   printf("Creating detail view...\n");
   GtkWidget *detailView = createDetailView(window,
-					   panedWidget, 
+					   vbox, 
 					   detailAdjustment, 
 					   fwdStrandGrid, 
 					   revStrandGrid,

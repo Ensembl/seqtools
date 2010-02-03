@@ -25,7 +25,6 @@
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
 static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
 static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
-static GtkWidget*		    bigPictureGetExonView(GtkWidget *bigPicture);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 
 /***********************************************************
@@ -519,7 +518,7 @@ GtkWidget* bigPictureGetRevGrid(GtkWidget *bigPicture)
   return properties ? properties->revStrandGrid : NULL;
 }
 
-static GtkWidget* bigPictureGetExonView(GtkWidget *bigPicture)
+GtkWidget* bigPictureGetExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   return properties ? properties->exonView : NULL;
@@ -683,7 +682,7 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 
 
 GtkWidget* createBigPicture(GtkWidget *mainWindow, 
-			    GtkWidget *panedWidget,
+			    GtkWidget *container,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid, 
 			    const IntRange const *initDisplayRange)
@@ -691,7 +690,7 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
   /* Create the main big picture widget, which will contain all of the 
    * individual big-picture grids, plus a header. */
   GtkWidget *bigPicture = gtk_vbox_new(FALSE, 0);
-  gtk_paned_pack1(GTK_PANED(panedWidget), bigPicture, FALSE, TRUE);
+  gtk_box_pack_start(GTK_BOX(container), bigPicture, FALSE, TRUE, 0);
   
   /* Our big picture needs to have a header plus 3 panes:
    * 1. the top grid (fwd strand);

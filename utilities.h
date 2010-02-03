@@ -34,6 +34,8 @@
 
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
 void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
+gboolean	      widgetGetHidden(GtkWidget *widget);
+void		      widgetSetHidden(GtkWidget *widget, const gboolean hidden);
 
 gboolean	      onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointer data);
 GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);

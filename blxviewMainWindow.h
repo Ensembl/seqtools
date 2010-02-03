@@ -40,8 +40,6 @@ typedef struct _MainWindowProperties
 
 
 /* Public function declarations */
-void onDisplayHelp();
-
 MainWindowProperties*	  mainWindowGetProperties(GtkWidget *widget);
 gboolean		  mainWindowGetStrandsToggled(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetBigPicture(GtkWidget *mainWindow);
@@ -60,6 +58,8 @@ void			  mainWindowSelectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean upd
 void			  mainWindowDeselectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees);
 void			  mainWindowDeselectAllMsps(GtkWidget *mainWindow, const gboolean updateTrees);
 gboolean		  mainWindowIsMspSelected(GtkWidget *mainWindow, MSP *msp);
+
+void			  displayHelp(GtkWidget *mainWindow);
 
 gchar*			  getSequenceSegment(GtkWidget *mainWindow, 
 					   const char const *sequence,

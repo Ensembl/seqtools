@@ -126,7 +126,8 @@ int			detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*		detailViewGetAdjustment(GtkWidget *detailView);
 GList*			detailViewGetFwdStrandTrees(GtkWidget *detailView);
 GList*			detailViewGetRevStrandTrees(GtkWidget *detailView);
-GtkWidget*		detailViewGetFrameTree(GtkWidget *detailView, const Strand strand, const int frame);
+GtkWidget*		detailViewGetTree(GtkWidget *detailView, const Strand strand, const int frame);
+GtkWidget*		detailViewGetTreeContainer(GtkWidget *detailView, const Strand strand, const int frame);
 GList*			detailViewGetStrandTrees(GtkWidget *detailView, const Strand strand);
 gboolean		detailViewGetStrandsToggled(GtkWidget *detailView);
 BlxBlastMode		detailViewGetBlastMode(GtkWidget *detailView);
@@ -172,7 +173,7 @@ void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
-					 GtkWidget *panedWidget,
+					 GtkWidget *container,
 					 GtkAdjustment *adjustment, 
 					 GtkWidget *fwdStrandGrid, 
 					 GtkWidget *revStrandGrid,

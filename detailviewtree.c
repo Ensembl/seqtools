@@ -276,8 +276,8 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
   int frame = 1;
   for ( ; frame <= numReadingFrames; ++frame)
     {
-      GtkWidget *fwdTree = detailViewGetFrameTree(detailView, FORWARD_STRAND, frame);
-      GtkWidget *revTree = detailViewGetFrameTree(detailView, REVERSE_STRAND, frame);
+      GtkWidget *fwdTree = detailViewGetTree(detailView, FORWARD_STRAND, frame);
+      GtkWidget *revTree = detailViewGetTree(detailView, REVERSE_STRAND, frame);
       
       if (fwdTree)
 	{
@@ -1760,14 +1760,15 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   /* Create a tree view for the list of match sequences */
   GtkWidget *tree = gtk_tree_view_new();
   setTreeStyle(GTK_TREE_VIEW(tree));
-  
+
   /* Put it in a scrolled window for vertical scrolling only (hoz scrolling will be via our
    * custom adjustment). Always display the scrollbars because we assume the column widths 
    * are the same for all trees and they won't be if one shows a scrollbar and another doesn't. */
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_widget_set_name(scrollWin, DETAIL_VIEW_TREE_CONTAINER_NAME);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
   gtk_container_add(GTK_CONTAINER(scrollWin), tree);
-  
+
   /* Create a header, and put the tree and header in a vbox */
   GtkWidget *treeHeader = createDetailViewTreeHeader();
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);

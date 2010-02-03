@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.12 2010-01-29 16:24:42 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.13 2010-02-03 10:49:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1870,31 +1870,6 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
 //  return ;
 //}
 #endif
-
-
-/* Return true if the current user is in our list of developers. */
-//static BOOL userIsDeveloper()
-//{
-//  gchar* developers[] = {"edgrif", "gb10"};
-//
-//  BOOL result = FALSE;
-//  const gchar *user = g_get_user_name();
-//  int numDevelopers = sizeof(developers) / sizeof(gchar*);
-//  
-//  int i = 0;
-//  for (i = 0; i < numDevelopers; ++i)
-//    {
-//      if (strcmp(user, developers[i]) == 0)
-//        {
-//          result = TRUE;
-//          break;
-//        }
-//    }
-//
-//  return result;
-//}
-
-
 
 
 /* Initialize the display and the buttons */

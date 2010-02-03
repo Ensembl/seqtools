@@ -350,6 +350,29 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
 }
 
 
+/* Hides the given widget if it has been set as hidden by the user */
+static void hideUserHiddenWidget(GtkWidget *widget, gpointer data)
+{
+  if (widgetGetHidden(widget))
+    {
+      gtk_widget_hide(widget);
+    }
+  
+  if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), hideUserHiddenWidget, NULL);
+    }
+}
+
+
+/* Loop through all children of the given container and show/hide them according to
+ * the user-hidden status */
+static void hideUserHiddenChildWidgets(GtkContainer *container)
+{
+  gtk_container_foreach(container, hideUserHiddenWidget, NULL);
+}
+
+
 /* Add all trees in the given list to the detail view. Note that the treeList may not contain
  * actual trees, it may contain their containers (e.g. if they live in scrolled windows). 'first'
  * indicates that this is the first (set of) tree(s) added. This information is used to determine
@@ -371,7 +394,7 @@ static void addTreesToDetailView(GtkContainer *detailView,
 	  
 	  if (first)
 	    {
-	      gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
+	      gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
 	    }
 	  else
 	    {
@@ -384,7 +407,7 @@ static void addTreesToDetailView(GtkContainer *detailView,
 	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
 	  GtkWidget *tree2 = GTK_WIDGET(treeList->next->data);
 	  
-	  gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
+	  gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
 	  gtk_paned_pack2(GTK_PANED(detailView), tree2, TRUE, TRUE);
 	}
       else if (numTrees > 2)
@@ -392,8 +415,8 @@ static void addTreesToDetailView(GtkContainer *detailView,
 	  /* Two panes, three trees. Put one tree in pane 1. There should be a
 	   * nested widget in pane 2 that we can put the remaining trees in. */
 	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
-	  gtk_paned_pack1(GTK_PANED(detailView), tree1, FALSE, TRUE);
-	  
+	  gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
+
 	  GtkWidget *nestedPanedWidget = findNestedPanedWidget(detailView);
 	  
 	  if (nestedPanedWidget)
@@ -529,7 +552,11 @@ static void refreshTreeOrder(GtkWidget *detailView)
       addTreesToDetailView(GTK_CONTAINER(detailView), treeList, TRUE);
     }
   
+  /* Must show all child widgets because some of them may not have been in this parent before.
+   * (Just calling gtk_widget_show on the individual trees doesn't seem to work.)
+   * However, we then need to re-hide any that may have been previously hidden by the user. */
   gtk_widget_show_all(detailView);
+  hideUserHiddenChildWidgets(GTK_CONTAINER(detailView));
 }
 
 
@@ -1168,17 +1195,17 @@ static void detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int ch
 }
 
 
-/* Extract the tree view for the given frame on the given strand */
-GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, const Strand strand, const int frame)
+/* Get the outermost container for the GtkTreeView for the given frame on the given strand */
+GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const Strand strand, const int frame)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GtkWidget *result = NULL;
   
-  /* Get the list of trees for the forward or reverse strand, as per the input argument */
+  /* Get the list of trees for the relevant strand */
   GList *list = (strand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
 
-  /* Extract the tree for this given frame number. The list should be sorted in order of frame
-   * number, and we should not be requesting a frame number greater than the number of items in the list */
+  /* The list should be sorted in order of frame number, and we should not be requesting a frame number
+   * greater than the number of items in the list */
   if (frame <= g_list_length(list))
     {
       GList *listItem = list;
@@ -1188,25 +1215,37 @@ GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, const Strand strand, co
 	{
 	  listItem = listItem->next;
 	}
-      
-      if (count == frame && GTK_IS_WIDGET(listItem->data))
+
+      if (count == frame && 
+	  GTK_IS_WIDGET(listItem->data) && 
+	  (widgetIsTree(GTK_WIDGET(listItem->data)) || widgetIsTreeContainer(GTK_WIDGET(listItem->data))))
 	{
-	  GtkWidget *widget = GTK_WIDGET(listItem->data);
-	  
-	  if(widgetIsTree(widget))
-	    {
-	      result = widget;
-	    }
-	  else if (widgetIsTreeContainer(widget))
-	    {
-	      result = treeContainerGetTree(GTK_CONTAINER(widget));
-	    }
+	  result = GTK_WIDGET(listItem->data);
 	}
     }
+  
+  return result;
+}
 
+
+/* Extract the actual GtkTreeView for the given frame on the given strand */
+GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand strand, const int frame)
+{
+  GtkWidget *result = NULL;
+  GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, strand, frame);
+  
+  if (treeContainer && widgetIsTree(treeContainer))
+    {
+      result = treeContainer;
+    }
+  else if (treeContainer)
+    {
+      result = treeContainerGetTree(GTK_CONTAINER(treeContainer));
+    }
+  
   if (!result)
     {
-      messerror("Tree not found for '%s' strand, frame '%d'. Number of trees = '%d'. Returning NULL.", ((strand == FORWARD_STRAND) ? "forward" : "reverse"), frame, g_list_length(list));
+      messerror("Tree not found for '%s' strand, frame '%d'. Returning NULL.", ((strand == FORWARD_STRAND) ? "forward" : "reverse"), frame);
     }
   
   return result;
@@ -1217,7 +1256,7 @@ GtkWidget* detailViewGetFrameTree(GtkWidget *detailView, const Strand strand, co
 static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 {
   const Strand strand = detailViewGetStrandsToggled(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
-  return detailViewGetFrameTree(detailView, strand, 1);
+  return detailViewGetTree(detailView, strand, 1);
 }
 
 GList* detailViewGetFwdStrandTrees(GtkWidget *detailView)
@@ -1554,7 +1593,7 @@ static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
     {
       /* Loop through all the MSPs in this tree and find the smallest offset
        * in the direction we're searching. */
-      GtkWidget *tree = detailViewGetFrameTree(detailView, activeStrand, frame);
+      GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
       gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
     }
@@ -1603,7 +1642,8 @@ static void comboChange(GtkEditable *editBox, gpointer data)
 
 static void GHelp(GtkButton *button, gpointer data)
 {
-  onDisplayHelp();
+  GtkWidget *detailView = GTK_WIDGET(data);
+  displayHelp(detailViewGetMainWindow(detailView));
 }
 
 static void GSettings(GtkButton *button, gpointer data)
@@ -1924,7 +1964,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "-", "Zoom out", (GtkSignalFunc)onZoomOutDetailView, detailView);
   
   /* Help button */
-  makeToolbarButton(toolbar, "Help",	 "Don't Panic",			 (GtkSignalFunc)GHelp,		  NULL);
+  makeToolbarButton(toolbar, "Help",	 "Don't Panic",			 (GtkSignalFunc)GHelp,		  detailView);
 
   /* Combo box for sorting */
   createSortBox(toolbar, detailView);
@@ -2093,7 +2133,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
       Strand strand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
       const int frame = mspGetFrame(msp, seqType);
       
-      GtkWidget *tree = detailViewGetFrameTree(detailView, strand, frame);
+      GtkWidget *tree = detailViewGetTree(detailView, strand, frame);
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
       
       addMspToTreeModel(model, msp, tree);
@@ -2125,7 +2165,7 @@ static const char* findDetailViewFont(GtkWidget *detailView)
 
 
 GtkWidget* createDetailView(GtkWidget *mainWindow,
-			    GtkWidget *panedWidget,
+			    GtkWidget *container,
 			    GtkAdjustment *adjustment, 
 			    GtkWidget *fwdStrandGrid, 
 			    GtkWidget *revStrandGrid,
@@ -2172,7 +2212,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), detailView, TRUE, TRUE, 0);
 
-  gtk_paned_pack2(GTK_PANED(panedWidget), vbox, TRUE, TRUE);
+  gtk_box_pack_start(GTK_BOX(container), vbox, TRUE, TRUE, 0);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);

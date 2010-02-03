@@ -67,6 +67,7 @@ BigPictureProperties*	      bigPictureGetProperties(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetMainWindow(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetFwdGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevGrid(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetExonView(GtkWidget *bigPicture);
 gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
@@ -98,7 +99,7 @@ int			      getRightCoordFromCentre(const int centreCoord,
 void			      refreshGridOrder(GtkWidget *bigPicture);
 
 GtkWidget*		      createBigPicture(GtkWidget *mainWindow,
-					       GtkWidget *panedWidget,
+					       GtkWidget *container,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid, 
 					       const IntRange const *initDisplayRange);

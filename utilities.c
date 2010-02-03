@@ -9,23 +9,24 @@
 #include "SeqTools/utilities.h"
 
 
-/* Functions to get/set a GdkDrawable in a widget property, if a different drawable
+/* Functions to get/set/destroy a GdkDrawable in a widget property, if a different drawable
  * than the window is required to be drawn to. The main purpose of this is for printing
  * (and only widgets that have this drawable set are printed) */
-GdkDrawable* widgetGetDrawable(GtkWidget *widget)
-{
-  return widget ? (GdkDrawable*)(g_object_get_data(G_OBJECT(widget), "drawable")) : NULL;
-}
-
-static void onDestroyWidget(GtkWidget *widget)
+static void onDestroyCustomWidget(GtkWidget *widget)
 {
   GdkDrawable *drawable = widgetGetDrawable(widget);
+  
   if (drawable)
     {
       g_free(drawable);
       drawable = NULL;
       g_object_set_data(G_OBJECT(widget), "drawable", NULL);
     }
+}
+
+GdkDrawable* widgetGetDrawable(GtkWidget *widget)
+{
+  return widget ? (GdkDrawable*)(g_object_get_data(G_OBJECT(widget), "drawable")) : NULL;
 }
 
 void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
@@ -40,7 +41,44 @@ void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
 	}
 
       g_object_set_data(G_OBJECT(widget), "drawable", drawable);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyWidget), NULL);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCustomWidget), NULL);
+    }
+}
+
+
+/* Functions to get/set a boolean property that is set to true if this widget has
+ * been hidden by the user. (We can't just use gtk_widget_hide because we do a 
+ * show_all when we remove and re-add widgets to the parent when we toggle strands. 
+ * Note that if the property is not set the result is FALSE, so by default widgets
+ * are not hidden. */
+gboolean widgetGetHidden(GtkWidget *widget)
+{
+  gboolean result = FALSE;
+  
+  if (widget)
+    {	
+      result = (gboolean)GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "hidden"));
+    }
+  
+  return result;
+}
+
+void widgetSetHidden(GtkWidget *widget, const gboolean hidden)
+{
+  if (widget)
+    {
+      /* Set the property */
+      g_object_set_data(G_OBJECT(widget), "hidden", GINT_TO_POINTER((gint)hidden));
+      
+      /* Show/hide the widget */
+      if (hidden)
+	{
+	  gtk_widget_hide(widget);
+	}
+      else
+	{
+	  gtk_widget_show(widget);
+	}	
     }
 }
 
