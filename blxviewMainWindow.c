@@ -403,10 +403,9 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
     }
   
   /* Ensure dialog is destroyed when user responds */
-  g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   
   gtk_widget_show_all(dialog);
-  
 }
 
 
@@ -427,7 +426,7 @@ static void showModalDialog(GtkWidget *mainWindow, char *title, char *messageTex
   gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
   
   /* Ensure dialog is destroyed when user responds */
-  g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   
   gtk_widget_show_all(dialog);
 }
@@ -483,7 +482,7 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
 						  NULL);
   
   /* Ensure that the dialog box (along with any children) is destroyed when the user responds. */
-  g_signal_connect_swapped (dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+  g_signal_connect (dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   
   /* Create a text buffer containing the required text*/
   GString *displayText = g_string_sized_new(200); //will be extended if we need more space
@@ -573,11 +572,11 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
 }
 
 
-/* Called when the user selects the View menu option, or hits the Settings shortcut key */
+/* Called when the user selects the Dotter menu option, or hits the Dotter shortcut key */
 static void onDotterMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
-  blxCallDotter(mainWindow, FALSE);
+  showDotterDialog(mainWindow);
 }
 
 
@@ -863,8 +862,11 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       
       properties->strandsToggled = FALSE;
       properties->selectedMsps = NULL;
+      
+      properties->autoDotterParams = TRUE;
       properties->dotterStart = UNSET_INT;
       properties->dotterEnd = UNSET_INT;
+      properties->dotterZoom = 0;
 
       properties->drawable = NULL;
       properties->printSettings = gtk_print_settings_new();
@@ -955,6 +957,12 @@ int mainWindowGetNumReadingFrames(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->numReadingFrames : UNSET_INT;
+}
+
+int mainWindowGetAutoDotter(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->autoDotterParams : TRUE;
 }
 
 int mainWindowGetDotterStart(GtkWidget *mainWindow)

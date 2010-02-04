@@ -89,7 +89,7 @@ typedef struct _DetailViewProperties
     int selectedBaseIdx;	  /* The currently-selected base in the reference sequence */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
 
-    /* Cached font sizes, needed often for calculations */
+    /* Cached font sizes, needed often for calculations. */
     int charHeight;
     int charWidth;
     

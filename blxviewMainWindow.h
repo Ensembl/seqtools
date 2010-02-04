@@ -32,8 +32,11 @@ typedef struct _MainWindowProperties
 
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
     GList *selectedMsps;	    /* List of MSPs that are selected */
+    
+    gboolean autoDotterParams;	    /* Whether to use automatic dotter params */
     int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
     int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
+    int dotterZoom;		    /* Zoom param to call dotter with */
 
     GdkDrawable *drawable;	    /* A bitmap where we'll draw the contents we want to print */
     GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
@@ -59,6 +62,7 @@ char*			  mainWindowGetDisplaySeq(GtkWidget *mainWindow);
 int			  mainWindowGetNumReadingFrames(GtkWidget *mainWindow);
 int			  mainWindowGetDotterStart(GtkWidget *mainWindow);
 int			  mainWindowGetDotterEnd(GtkWidget *mainWindow);
+int			  mainWindowGetAutoDotter(GtkWidget *mainWindow);
 gboolean		  mainWindowGetGappedHsp(GtkWidget *mainWindow);
 GList*			  mainWindowGetSelectedMsps(GtkWidget *mainWindow);
 MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);

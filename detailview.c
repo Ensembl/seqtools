@@ -1175,6 +1175,7 @@ int detailViewGetCellYPadding(GtkWidget *detailView)
   return properties ? properties->cellYPadding : 0;
 }
 
+/* Get the character width. */
 int detailViewGetCharWidth(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
