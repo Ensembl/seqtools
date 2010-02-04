@@ -18,7 +18,7 @@ static void onDestroyCustomWidget(GtkWidget *widget)
   
   if (drawable)
     {
-      g_free(drawable);
+      g_object_unref(drawable);
       drawable = NULL;
       g_object_set_data(G_OBJECT(widget), "drawable", NULL);
     }

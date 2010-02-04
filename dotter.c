@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.3 2010-02-04 11:43:13 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.4 2010-02-04 17:52:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -3714,7 +3714,7 @@ static void dotterDestroy(void)
     {
       for (i = 0; i < 3; i++)
 	{
-	  messfree(pepqseq[i]);
+	  g_free(pepqseq[i]);
 	}
     }
 

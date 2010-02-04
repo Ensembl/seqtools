@@ -717,7 +717,7 @@ static void blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 						 dotterStart,
 						 dotterEnd, 
 						 strand,
-						 mainWindowGetSeqType(blxWindow),
+						 BLXSEQ_DNA, /* calculated dotter coords are always in terms of DNA seq */
 						 frame,
 						 mainWindowGetNumReadingFrames(blxWindow),
 						 TRUE,  /* allow sequence to be reversed if reverse strand */
