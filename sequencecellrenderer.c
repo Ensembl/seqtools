@@ -638,7 +638,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
 				  GdkDrawable *drawable,
 				  GdkRectangle *cell_area)
 {
-  if (selectedBaseIdx != UNSET_INT && indexWithinRange(selectedBaseIdx, displayRange))
+  if (selectedBaseIdx != UNSET_INT && valueWithinRange(selectedBaseIdx, displayRange))
     {
       /* Convert the display-range index to a 0-based index for the section of sequence displayed */
       const int segmentIdx = rightToLeft ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
@@ -685,7 +685,7 @@ static void drawExon(SequenceCellRenderer *renderer,
   const int selectedBaseIdx = treeGetSelectedBaseIdx(tree);
   if (selectedBaseIdx != UNSET_INT)
     {
-      GdkColor *bgColour = indexWithinRange(selectedBaseIdx, &segmentRange) 
+      GdkColor *bgColour = valueWithinRange(selectedBaseIdx, &segmentRange) 
 	? treeGetExonColour(tree, TRUE) 
 	: treeGetGapColour(tree, TRUE);
       
@@ -1062,8 +1062,8 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   const IntRange const *displayRange = treeGetDisplayRange(tree);
   GdkDrawable *drawable = widgetGetDrawable(tree);
   GtkWidget *mainWindow = treeGetMainWindow(tree);
-  
-  gchar *refSeqSegment = getSequenceSegment(mainWindow, 
+
+  gchar *refSeqSegment = getSequenceSegment(mainWindow,
 					    mainWindowGetRefSeq(mainWindow),
 					    mainWindowGetRefSeqRange(mainWindow),
 					    segmentRange.min, 
@@ -1072,7 +1072,8 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 					    seqType,
 					    qFrame, 
 					    numFrames,
-					    rightToLeft);
+					    rightToLeft,
+					    TRUE);
 
   if (refSeqSegment)
     {
@@ -1110,7 +1111,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
     }
     
   /* If a base is selected and we've not already processed it, highlight it now */
-  if (selectedBaseIdx != UNSET_INT && !indexWithinRange(selectedBaseIdx, &segmentRange))
+  if (selectedBaseIdx != UNSET_INT && !valueWithinRange(selectedBaseIdx, &segmentRange))
     {
       highlightSelectedBase(selectedBaseIdx, treeGetGapColour(tree, TRUE), displayRange, rightToLeft, charWidth, charHeight, cellXPadding, cellYPadding, gc, window, widgetGetDrawable(tree), cell_area);
     }

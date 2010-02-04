@@ -26,11 +26,14 @@
  * HISTORY:
  * Last edited: Sep 15 08:36 2006 (edgrif)
  * Created: Thu Aug 26 17:17:58 1999 (fw)
- * CVS info:   $Id: dotter_.h,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: dotter_.h,v 1.2 2010-02-04 11:43:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include "dotter.h"
+#ifndef _dotter_p_h_included_
+#define _dotter_p_h_included_
+
+#include <SeqTools/dotter.h>
 
 #define AAID_MIN	1	/* Smallest letter value in binary alphabet */
 #define AAID_MAX	24	/* Maximum letter value in binary alphabet */
@@ -67,3 +70,5 @@ void fatal(char *format, ...);
 
 void argvAdd(int *argc, char ***argv, char *s);
 
+
+#endif /* _dotter_p_h_included_ */

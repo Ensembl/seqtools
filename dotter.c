@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.2 2009-12-08 10:16:59 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.3 2010-02-04 11:43:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -145,7 +145,7 @@
 #include <wh/key.h>
 #include <wh/menu.h>
 #include <SeqTools/blixem_.h>
-#include <wh/dotter_.h>
+#include <SeqTools/dotter_.h>
 
 
 /* tint stuff used to be in graph.h, now local - rd 960524
@@ -510,7 +510,7 @@ Array fsArr = 0;  /* Stores Feature Series - the actual segments are stored
 
 void dotter (char  type,
 	     char *opts,
-	     char *queryname,
+	     const char *queryname,
 	     char *queryseq,
 	     int   qoff,
 	     char *subjectname,
@@ -3049,24 +3049,32 @@ void selectFeatures(void)
 float fsTotalHeight(MSP *msplist)
 {
     int i;
-    float
-	maxy=0;
+    float maxy = 0;
 	
-    if (!fsArr || !arrayMax(fsArr)) return 0.0;
+    if (!fsArr || !arrayMax(fsArr))
+      {
+	return 0.0;
+      }
 
     for (i = 0; i < arrayMax(fsArr); i++) 
+      {
 	arrp(fsArr, i, FEATURESERIES)->y = arrp(fsArr, i, FEATURESERIES)->x = 0;
+      }
 	
-    for (msp = msplist; msp; msp = msp->next) {
-	if (FS(msp) && arrp(fsArr, msp->fs, FEATURESERIES)->on) {
-	    if (msp->type == XY) {
+    for (msp = msplist; msp; msp = msp->next) 
+      {
+	if (FS(msp) && arrp(fsArr, msp->fs, FEATURESERIES)->on) 
+	  {
+	    if (msp->type == XY) 
+	      {
 		fs2y(msp, &maxy, fsPlotHeight+1);
-	    }
-	    else if (msp->type == FSSEG) {
+	      }
+	    else if (msp->type == FSSEG) 
+	      {
 		fs2y(msp, &maxy, 1+1);
-	    }
-	}
-    }
+	      }
+	  }
+      }
     
     return maxy + 2;
 }

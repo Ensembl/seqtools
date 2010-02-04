@@ -153,6 +153,29 @@ int getRangeCentre(const IntRange const *range)
 }
 
 
+/* Simple utility to determine whether the given value is within the given range.
+ * Returns false if the given value is an unset int or the given range is null */
+gboolean valueWithinRange(const int value, const IntRange const *range)
+{
+  return (value != UNSET_INT && range != NULL && value >= range->min && value <= range->max);
+}
+
+
+/* Utility to bounds-limit the given value to within the given range */
+void boundsLimitValue(int *value, const IntRange const *range)
+{
+  if (*value < range->min)
+    {
+      *value = range->min;
+    }
+  
+  if (*value > range->max)
+    {
+      *value = range->max;
+    }
+}
+
+
 /* Utility to calculate how many digits are in an integer */
 int numDigitsInInt(int val)
 {
@@ -309,14 +332,6 @@ int convertDnaToPeptide(const int dnaIdx, const int numFrames)
 }
 
 
-/* Simple utility to determine whether the given index is within the given range.
- * Returns false if the given index is an unset int or the given range is null */
-gboolean indexWithinRange(const int idx, const IntRange const *range)
-{
-  return (idx != UNSET_INT && range != NULL && idx >= range->min && idx <= range->max);
-}
-
-
 /* Get the start coord in the given display range, reversed as necessary if 'reverse' is true.
  * Result is a coord in the DNA sequence - converts as necessary if the display range is in terms
  * of peptide coords */
@@ -359,5 +374,4 @@ int getEndDnaCoord(const IntRange const *displayRange,
   
   return result;
 }
-
 

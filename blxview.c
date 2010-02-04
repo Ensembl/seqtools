@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.13 2010-02-03 10:49:48 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.14 2010-02-04 11:43:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -233,14 +233,13 @@ static void blviewDestroy(GtkWidget *unused) ;
 #endif
 
 //static void toggleColors (void);
-static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset) ;
+static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const gboolean gappedHsp) ;
 
 #if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q);
 #endif
 
 static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
-//static char *fetchSeqRaw(char *seqname) ;
 //static void getsseq(MSP *msp, MSP *msplist) ;
 //static char *getSeq(char *seqname, char *fetch_prog) ;
 
@@ -259,28 +258,12 @@ static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
  *                 Local globals....sigh....
  */
 
-static void//     BigPictToggle(void),
+//static void//     BigPictToggle(void),
 //            entropytoggle(void),
 //            BigPictToggleRev(void),
-//            zoomIn(void),
-//            zoomOut(void),
-//            zoomWhole(void),
-#if OLD_BLIXEM
-            MiddleDragBP(double x, double y),
-            MiddleUpBP(double x, double y),
-            MiddleDownBP(double x, double y),
-	    MiddleDownQ(double x, double y),
-            MiddleDragQ(double x, double y),
-            MiddleUpQ(double x, double y),
-#endif
 //            setHighlight(void),
  //           clrHighlight(void),
-            callDotter(const MSP const *msplist);
-//            callDotterHSPs(const MSP const *msplist),
-//            callDotterSelf(const MSP const *msplist),
   /*             dotterPanel(void), */
-//            setDotterParams(void),
-//            autoDotterParams(void),
 //            allocAuxseqs(int len),
 //            settingsRedraw(void),
 //            menuCheck(MENU menu, int mode, int thismode, char *str),
@@ -1830,7 +1813,7 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
-    blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset) ;
+    blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, HSPgaps) ;
 
 //  /* Sort the MSPs according to mode chosen. */
 //  MSPsort(sortMode) ;
@@ -1873,11 +1856,17 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
 
 
 /* Initialize the display and the buttons */
-static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset)
+static void blviewCreate(char *opts, 
+			 char *align_types, 
+			 MSP *msplist, 
+			 char *refSeq, 
+			 char *refSeqName, 
+			 const int qOffset,
+			 const gboolean gappedHsp)
 {
   if (!blixemWindow)
     {
-      blixemWindow = createMainWindow(refSeq, refSeqName, msplist, getBlastMode(), getSeqType(), getNumReadingFrames(), stdcode1, qOffset);
+      blixemWindow = createMainWindow(refSeq, refSeqName, msplist, getBlastMode(), getSeqType(), getNumReadingFrames(), stdcode1, qOffset, gappedHsp);
       
       if (!oldWidth)
 	gtk_window_set_default_size(GTK_WINDOW(blixemWindow),
@@ -1941,7 +1930,7 @@ static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refS
   if (dotter_first && msplist && msplist->sname && (msplist->type == HSP || msplist->type == GSP))
     {
       strcpy(HighlightSeq, msplist->sname);
-      callDotter(msplist);
+//      callDotter(msplist);
     }
 
 //  if (start_nextMatch)
@@ -3407,139 +3396,6 @@ char *getqseq(int start, int end, const char const *refSeq)
 //}
 
 
-/* Get a sequence entry using either efetch or pfetch. */
-//static char *fetchSeqRaw(char *seqname)
-//{
-//  char *result = NULL ;
-  //char *fetch_prog = NULL ;
-//  char *seq_buf = NULL ;
-//
-//  if (!*seqname)
-//    {
-//      messout ( "Nameless sequence - skipping Efetch\n");
-//      return NULL ;
-//    }
-//
-//  fetch_prog = blxGetFetchProg() ;
-//
-//  if ((seq_buf = getSeq(seqname, fetch_prog)))
-//    {
-//      result = g_malloc(strlen(seq_buf)+1) ;
-//      strcpy(result, seq_buf) ;
-//    }
-//  else
-//    {
-//      messout("Unable to %s %s \n", fetch_prog, seqname);
-//      result = 0;
-//    }
-//
-//  return result ;
-//
-//}
-
-/* Common routine to call efetch or pfetch to retrieve a sequence entry. */
-//static char *getSeq(char *seqname, char *fetch_prog)
-//{
-//  char *result = NULL ;
-//  static char *fetchstr = NULL ;
-//  FILE *pipe ;
-//  FILE *fp ;
-//
-//  /* I have no idea why blixem trys to open this file, it doesn't work unless you are in
-//   * a directory that you have write access to anyway....I await an answer from Eric.
-//   * Meanwhile at least now we record the error rather than crashing later in this
-//   * routine when we can't open the file. */
-//  if (!(fp = fopen("myoutput","w")))
-//    {
-//      messerror("%s", "Cannot open blixem sequence output file: \"myoutput\"") ;
-//    }
-//
-//  if (!strcmp(fetch_prog, "pfetch"))
-//    {
-//      /* --client gives logging information to pfetch server,
-//       * -q  Sequence only output (one line) */
-//      fetchstr = hprintf(0, "%s --client=acedb_%s_%s -q '%s' &",
-//			 fetch_prog, getSystemName(), getLogin(TRUE), seqname) ;
-//    }
-//  else
-//    {
-//      fetchstr = hprintf(0, "%s -q '%s'", fetch_prog, seqname) ;
-//    }
-//
-//  printf("%sing %s...\n", fetch_prog, seqname);
-//
-//  /* Try and get the sequence, if we overrun the buffer then we need to try again. */
-//  if (!(pipe = (FILE*)popen(fetchstr, "r")))
-//    {
-//      messcrash("Failed to open pipe %s\n", fetchstr);
-//    }
-//  
-//  int len = 0;
-//  char *auxSeqPtr = auxseq ;
-//  
-//  while (!feof(pipe))
-//    {
-//      if (len < auxseqlen)
-//	{
-//	  *auxSeqPtr++ = fgetc(pipe);
-//	}
-//      else
-//	{
-//	  fgetc(pipe);
-//	}
-//      
-//      len++;
-//
-//      if (fp)						    /* n.b. file may not have been opened. */
-//	{
-//	  fprintf(fp, "%s", auxSeqPtr);
-//	}
-//    }
-//  
-//  pclose(pipe);
-//
-//
-//  /* Check if auxseq was long enough */
-//  if (len > auxseqlen)
-//    {
-//      allocAuxseqs(len);
-//      auxSeqPtr = auxseq;
-//
-//      if (!(pipe = (FILE*)popen(fetchstr, "r")))
-//	messcrash("Failed to open pipe %s\n", fetchstr);
-//
-//      while (!feof(pipe))
-//	{
-//	  *auxSeqPtr++ = fgetc(pipe);
-//	}
-//      pclose(pipe);
-//    }
-//
-//  *auxSeqPtr = 0;
-//
-//  if (len > 1) /* Otherwise failed */
-//    {
-//      if ((auxSeqPtr = (char *)strchr(auxseq, '\n')))
-//	{
-//	  *auxSeqPtr = 0;
-//	}
-//      
-//      result = auxseq ;
-//    }
-//  else
-//    {
-//      result = NULL ;
-//    }
-//
-//  if (fetchstr)
-//    g_free(fetchstr) ;
-//
-//  if (fp)
-//    fclose(fp);
-//
-//  return result ;
-//}
-
 
 /********************************************************************************
 **                            BIG PICTURE ROUTINES                            ***
@@ -3866,468 +3722,6 @@ static void MiddleUpQ (double x, double y)
 //    blviewRedraw();
 //}
 
-
-
-/* Attempts to set the range of dotter in some sort of sensible way. The problem is that
- * hits can occur over a much wider range than the user is looking at, so the function
- * attempts to find the range of hits that corresponds to what the user can see.
- * Returns TRUE if it managed to find sequences and set a sensible range, FALSE otherwise. */
-//static BOOL smartDotterRange(char *selected_sequence, const MSP const *msp_list, int blastn,
-//			     int strand_sign, int view_start, int view_end,
-//			     char **dottersseq_out, int *dotter_start_out, int *dotter_end_out)
-//{//
-//  BOOL result = FALSE ;
-//  char strand ;
-//  int qstart, qend, sstart, send, extend, len, mid ;
-//  const MSP *msp ;
-//  int start, end ;
-//
-//  if (strand_sign > 0)
-//    {
-//      start = view_start ;
-//      end = view_end ;
-//    }
-//  else
-//    {
-//      start = view_end ;
-//      end = view_start ;
-//    }
-//
-//  strand = (strand_sign > 0 ? '+' : '-') ;
-//
-//  /* Estimate wanted query region from extent of HSP's that are completely within view. */
-//  for (qstart = 0, qend=0, sstart=0, send=0, msp = msp_list ; msp ; msp = msp->next)
-//    {
-//      if (strcmp(msp->sname, selected_sequence) == 0 && (msp->qframe[1] == strand || blastn))
-//	{
-//	  /* If you alter this code remember that you need to allow for strand. */
-//	  if (msp->qstart >= start && msp->qend <= end)
-//	    {
-//	      if (!qstart)
-//		{
-//		  qstart = msp->qstart;
-//		  qend = msp->qend;
-//		  sstart = msp->sstart;
-//		  send = msp->send;
-//		}
-//	      else
-//		{
-//		  if (msp->qframe[1] == '+')
-//		    {
-//		      if (msp->qstart < qstart)
-//			{
-//			  qstart = msp->qstart;
-//			  sstart = msp->sstart;
-//			}
-//		      if (msp->qend > qend)
-//			{
-//			  qend = msp->qend;
-//			  send = msp->send;
-//			}
-//		    }
-//		  else
-//		    {
-//		      if (msp->qstart > qstart)
-//			{
-//			  qstart = msp->qstart;
-//			  sstart = msp->sstart;
-//			}
-//		      if (msp->qend < qend)
-//			{
-//			  qend = msp->qend;
-//			  send = msp->send;
-//			}
-//		    }
-//		}
-//	    }
-//	}
-//    }
-//
-//
-//
-//  if (!qstart)
-//    {
-//      messout("Could not find any matches on the '%c' strand to %s.",
-//	      strand, selected_sequence) ;
-//      result = FALSE ;
-//    }
-//  else
-//    {
-//      /* MSP's hold both query and subject positions as always forward and hold the strand
-//       * for both separately, this means we can do all these calculations with forward
-//       * coords and then reverse the start/end when we've finished. */
-//
-//      /* Extrapolate start to start of vertical sequence */
-//      extend = sstart;
-//      if (blastx || tblastx)
-//	extend *= 3;
-//
-//      qstart -= extend ;
-//
-//      /* Extrapolate end to end of vertical sequence */
-//      if (!tblastn && (*dottersseq_out = fetchSeqRaw(selected_sequence)))
-//	{
-//	  extend = strlen(*dottersseq_out) - send;
-//	}
-//      else
-//	{
-//	  extend = 200;
-//	}
-//      if (blastx || tblastx)
-//	extend *= 3;
-//      qend += extend;
-//
-//
-//      /* Due to gaps, we might miss the ends - add some more */
-//      extend = 0.1 * (qend - qstart) ;
-//      qstart -= extend ;
-//      qend += extend ;
-//
-//      if (blastx || tblastx)
-//	{
-//	  /* If sstart and send weren't in the end exons, we'll miss those - add some more */
-//	  extend = 0.2 * (qend - qstart) ;
-//	  qstart -= extend ;
-//	  qend += extend ;
-//	}
-//
-//      /* Keep it within bounds */
-//      if (qstart < 1)
-//	qstart = 1;
-//      if (qend > qlen)
-//	qend = qlen;
-//      if (qstart > qlen)
-//	qstart = qlen;
-//      if (qend < 1)
-//	qend = 1;
-//
-//      /* Apply min and max limits:  min 500 residues, max 10 Mb dots */
-//      len = (qend - qstart) ;
-//      mid = qstart + len/2 ;
-//
-//      if (len < 500)
-//	len = 500 ;
-//      if (len * (send-sstart) > 1e7)
-//	len = 1e7/(send - sstart) ;
-//
-//      qstart = mid - (len / 2) ;
-//      qend = mid + (len / 2) ;
-//
-//      /* Keep it within bounds */
-//      if (qstart < 1)
-//	qstart = 1;
-//      if (qend > qlen)
-//	qend = qlen;
-//      if (qstart > qlen)
-//	qstart = qlen;
-//      if (qend < 1)
-//	qend = 1;
-//
-//      /* Return the start/end, now we do need to do something about strand... */
-//      if (strand_sign > 0)
-//	{
-//	  *dotter_start_out = qstart ;
-//	  *dotter_end_out = qend ;
-//	}
-//      else
-//	{
-//	  *dotter_start_out = qend ;
-//	  *dotter_end_out = qstart ;
-//	}
-//
-//      result = TRUE ;
-//    }
-//
-//  return result ;
-//  return FALSE;
-//}
-
-
-static void callDotter(const MSP const *msplist)
-{//
-//  static char opts[] = "     ";
-//  char type, *queryseq, *sname;
-//  int offset;
-//  const MSP *msp;
-//
-//  if (!*HighlightSeq)
-//    {
-//      messout("Select a sequence first");
-//      return;
-//    }
-//
-//  if (smartDotter)
-//    {
-//      int end ;
-//
-//      if (plusmin == 1)
-//	end = (BigPictStart + BigPictLen - 1) ;
-//      else
-//	end = (BigPictStart - BigPictLen + 1) ;
-//
-//
-//      if (!smartDotterRange(HighlightSeq, msplist, blastn,
-//			    plusmin, BigPictStart, end,
-//			    &dottersseq, &dotterStart, &dotterEnd))
-//	return ;
-//    }
-//  else
-//    dottersseq = fetchSeqRaw(HighlightSeq);
-//
-//  type = ' ' ;
-//  if (blastp || tblastn)
-//    type = 'P';
-//  else if (blastx)
-//    type = 'X';
-//  else if (blastn || tblastx)
-//    type = 'N';
-//
-//  /* Try to get the subject sequence, in case we're in seqbl mode (only part of seq in MSP) */
-//  if (!dottersseq || tblastn)
-//    {
-//    /* Check if sequence is passed from acedb */
-//    if (!tblastx)
-//      {
-//	printf("Looking for sequence stored internally ... ");
-//	for (msp = msplist; msp ; msp = msp->next)
-//	  {
-//	    if (!strcmp(msp->sname, HighlightSeq) && msp->sseq != padseq)
-//	      {
-//		dottersseq = g_malloc(strlen(msp->sseq)+1);
-//		strcpy(dottersseq, msp->sseq);
-//		break;
-//	      }
-//	  }
-//	if (!dottersseq) printf("not ");
-//	printf("found\n");
-//      }
-//
-//    if (!dottersseq)
-//      {
-//	printf("Can't fetch subject sequence for dotter - aborting\n");
-//	messout("Can't fetch subject sequence for dotter - aborting\n");
-//	return;
-//      }
-//    }
-//
-//  if (strchr(dottersseq, '-') || tblastn )
-//    messout("Note: the sequence passed to dotter is incomplete");
-//
-//  if (!*dotterqname)
-//    {
-//      if (!*qname_G)
-//	strcpy(dotterqname, "Blixem-seq");
-//      else
-//	strncpy(dotterqname, qname_G, LONG_NAMESIZE);
-//      dotterqname[LONG_NAMESIZE] = 0;
-//    }
-//
-//  /* Get query sequence */
-//  /* Avoid translating queryseq by pretending to be blastn - very sneaky and dangerous */
-//  if (blastx || tblastx)
-//    blastn = 1;
-//  if (!(queryseq = getqseq(dotterStart, dotterEnd, q)))
-//    {
-//      if (blastx || tblastx)
-//	blastn = 0;	/* if blastn was set, reset it */
-//      return;
-//    }
-//  if (blastx || tblastx)
-//    blastn = 0;
-//
-//  if (plusmin > 0)
-//    {
-//      offset = dotterStart-1 + qoffset;
-//      opts[0] = ' ';
-//    }
-//  else
-//    {
-//      offset = dotterEnd-1 + qoffset;
-//      opts[0] = 'R';
-//    }
-//
-//  if ((sname = strchr(HighlightSeq, ':')))
-//    sname++;
-//  else
-//    sname = HighlightSeq;
-//
-//  opts[1] = (dotterHSPs ? 'H' : ' ');
-//
-//  opts[2] = (HSPgaps ? 'G' : ' ');
-//
-//  printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
-//
-//  printf("  query sequence: name -  %s, offset - %d\n"
-//	 "subject sequence: name -  %s, offset - %d\n", dotterqname, offset, sname, 0) ;
-//
-//  dotter(type, opts, dotterqname, queryseq, offset, sname, dottersseq, 0,
-//	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, msplist, qoffset, 0, 0);
-//
-//  return ;
-}
-
-
-//static void callDotterHSPs(const MSP const *msplist)
-//{
-//    dotterHSPs = 1;
-//    callDotter(msplist);
-//    dotterHSPs = 0;
-//}
-
-
-//static int smartDotterRangeSelf(void)
-//{
-//    int len, mid;
-//
-//    len = 2000;
-//    mid = dispstart + plusmin*displen/2;
-//
-//    dotterStart = mid - plusmin*len/2;
-//    dotterEnd = mid + plusmin*len/2;
-//
-//    /* Keep it within bounds */
-//    if (dotterStart < 1) dotterStart = 1;
-//    if (dotterStart > qlen) dotterStart = qlen;
-//    if (dotterEnd > qlen) dotterEnd = qlen;
-//    if (dotterEnd < 1) dotterEnd = 1;
-
-//    return 1;
-//}
-
-
-//static void callDotterSelf(const MSP const *msplist)
-//{//
-//    static char opts[] = "     ";
-//    char type, *queryseq;
-//    int  offset;
-//
-//    type = ' ';
-//    if (blastp || tblastn || tblastx)
-//      type = 'P';
-//    else if (blastx || blastn)
-//      type = 'N';
-//
-//    if (smartDotter)
-//	if (!smartDotterRangeSelf())
-//	  return;
-//
-//    if (!*dotterqname)
-//      {
-//	if (!*qname_G)
-//	  strcpy(dotterqname, "Blixem-seq");
-//	else
-//	  strncpy(dotterqname, qname_G, LONG_NAMESIZE);
-//	dotterqname[LONG_NAMESIZE] = 0;
-//      }
-//
-//    /* Get query sequence */
-//    /* Can't do reversed strand since Dotter can't reverse vertical scale */
-//    /* Avoid translating queryseq by pretending to be blastn - very sneaky and dangerous */
-//    if (blastx || tblastx)
-//      blastn = 1;
-//
-//    if (!(queryseq = getqseq(min(dotterStart, dotterEnd), max(dotterStart, dotterEnd), q)))
-//      return;
-//
-//    if (blastx || tblastx)
-//      blastn = 0;
-//
-//    dottersseq = g_malloc(strlen(queryseq)+1);
-//    strcpy(dottersseq, queryseq);
-//
-//    offset = min(dotterStart, dotterEnd)-1 + qoffset;
-//
-//    printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
-//
-//    dotter(type, opts, dotterqname, queryseq, offset, dotterqname, dottersseq, offset,
-//	   0, 0, NULL, NULL, NULL, 0.0, dotterZoom, msplist, qoffset, 0, 0);
-//}
-
-
-/* Allows user to set coord range for dotter.
- *
- * NOTE that currently the coord range is stored for the life of the blixem window
- * and must be flipped if the user flips the strand.
- *  */
-//static void setDotterParams(void)
-//{//
-//  ACEIN params_in ;
-//
-//  if (!*dotterqname)
-//    {
-//      if (!*qname_G)
-//	strcpy(dotterqname, "Blixem-seq");
-//      else
-//	strncpy(dotterqname, qname_G, LONG_NAMESIZE);
-//
-//      dotterqname[LONG_NAMESIZE] = 0;
-//    }
-//
-//  if (dotterStart == 0)
-//    dotterStart = dispstart - 100 ;
-//  if (dotterEnd == 0)
-//    dotterEnd = dispstart + 100 ;
-//
-//  /* Flip coords to match strand setting if necessary. */
-//  if ((plusmin == 1 && dotterEnd < dotterStart)
-//      || (plusmin == -1 && dotterEnd > dotterStart))
-//    {
-//      int tmp ;
-//      
-//      tmp = dotterStart ;
-//      dotterStart = dotterEnd ;
-//      dotterEnd = tmp ;
-//    }
-//
-//  if ((params_in = messPrompt ("Dotter parameters: zoom (compression) factor, "
-//			       "start, end, Queryname",
-//			       messprintf("%d %d %d %s", dotterZoom,
-//					  dotterStart+qoffset,
-//					  dotterEnd+qoffset,
-//					  dotterqname),
-//			       "iiiw", 0)))
-//    {
-//      aceInInt(params_in, &dotterZoom);
-//
-//      aceInInt(params_in, &dotterStart);
-//      dotterStart -= qoffset;
-//      aceInInt(params_in, &dotterEnd);
-//      dotterEnd -= qoffset;
-//
-//      /* Flip coords to match strand setting if necessary. */
-//      if ((plusmin == 1 && dotterEnd < dotterStart)
-//	  || (plusmin == -1 && dotterEnd > dotterStart))
-//	{
-//	  int tmp ;
-//
-//	  tmp = dotterStart ;
-//	  dotterStart = dotterEnd ;
-//	  dotterEnd = tmp ;
-//	}
-//
-//      strncpy(dotterqname, aceInWord(params_in), LONG_NAMESIZE);
-//      dotterqname[LONG_NAMESIZE] = '\0';
-//
-//      aceInDestroy(params_in);
-//
-//      smartDotter = 0;
-//
-////      menuUnsetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
-////      graphNewMenu(blixemMenu);
-//
-//      blviewRedraw();
-//    }
-//
-//  return ;
-//}
-
-
-//static void autoDotterParams(void)
-//{
-//    smartDotter = 1;
-////    menuSetFlags(menuItem(blixemMenu, autoDotterParamsStr), MENUFLAG_DISABLED);
-////    graphNewMenu(blixemMenu);
-//}
 
 
 

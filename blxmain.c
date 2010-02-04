@@ -27,12 +27,14 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.5 2010-01-20 18:16:55 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.6 2010-02-04 11:43:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <wh/regular.h>
 #include <SeqTools/blixem_.h>
+#include <wh/regular.h>
+#include <wh/graph.h>
+#include <wh/gex.h>
 
 
 /*                                                                           */
@@ -44,16 +46,7 @@ static const char *ut_copyright_string = UT_COPYRIGHT_STRING(BLIXEM_TITLE, BLIXE
 /* scrolled message window max messages. */
 enum {BLIXEM_MESG_NUM = 50} ;
 
-
-
-
-
-
-//static void msgPopupsCB(BOOL msg_list) ;
-
-
-
-
+static void msgPopupsCB(BOOL msg_list) ;
 
 
 /* Some globals.... */
@@ -279,11 +272,11 @@ int main(int argc, char **argv)
     argvAdd(&argc, &argv, "-install");
 
   gtk_init(&argc, &argv);
-#ifdef OLD_BLIXEM
-//  graphInit(&argc, argv) ;
-//  gexInit(&argc, argv);
-//  gexSetMessPrefs(FALSE, BLIXEM_MESG_NUM, msgPopupsCB) ;  /* for control of popup or mesglist */
-#endif
+
+  /* Old style graph init is still required for calling dotter from blixem */
+  graphInit(&argc, argv) ;
+  gexInit(&argc, argv);
+  gexSetMessPrefs(FALSE, BLIXEM_MESG_NUM, msgPopupsCB) ;  /* for control of popup or mesglist */
 
   /* Set up program configuration. */
   if (!blxInitConfig(config_file, &error))
@@ -451,19 +444,19 @@ char *blxVersion(void)
 
 /* Enables user to switch between seeing informational messages in popups
  * or in a scrolled window. */
-//static void msgPopupsCB(BOOL msg_list)
-//{
-//  int list_length ;
-//
-//  if (msg_list)
-//    list_length = BLIXEM_MESG_NUM ;
-//  else
-//    list_length = 0 ;
-//
-////  gexSetMessPopUps(msg_list, list_length) ;
-//
-//  return ;
-//}
+static void msgPopupsCB(BOOL msg_list)
+{
+  int list_length ;
+
+  if (msg_list)
+    list_length = BLIXEM_MESG_NUM ;
+  else
+    list_length = 0 ;
+
+//  gexSetMessPopUps(msg_list, list_length) ;
+
+  return ;
+}
 
 
 

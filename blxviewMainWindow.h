@@ -18,9 +18,11 @@ typedef struct _MainWindowProperties
     GtkWidget *detailView;
     
     char *refSeq;		    /* The reference sequence (always forward strand, always DNA sequence) */
+    const char *refSeqName;	    /* The name of the reference sequence */
     char *displaySeq;		    /* The displayed sequence (same as ref seq or converted to peptide sequence) */
     IntRange refSeqRange;	    /* The range of the reference sequence */
     IntRange fullDisplayRange;	    /* The range of the displayed sequence */
+    const gboolean gappedHsp;	    
     
     MSP *mspList;		    /* Linked list of match sequences */
     char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
@@ -30,12 +32,14 @@ typedef struct _MainWindowProperties
 
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
     GList *selectedMsps;	    /* List of MSPs that are selected */
-    
-    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
+    int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
+    int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
+
     GdkDrawable *drawable;	    /* A bitmap where we'll draw the contents we want to print */
+    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
     int lastYEnd;		    /* Keeps track of where the last item ended so we can draw the next one flush to it */
     int lastYStart;		    /* Where the last item started (for drawing multiple items at same y pos) */
-    int lastYCoord;		    /* Y coord of last item (so we can check if current item should be at same Y pos) */
+    int lastYCoord;		    /* Y coord of last item (so we can check if current item should be at same Y pos) */    
   } MainWindowProperties;
 
 
@@ -47,12 +51,17 @@ GtkWidget*		  mainWindowGetDetailView(GtkWidget *mainWindow);
 BlxBlastMode		  mainWindowGetBlastMode(GtkWidget *mainWindow);
 IntRange*		  mainWindowGetFullRange(GtkWidget *mainWindow);
 IntRange*		  mainWindowGetRefSeqRange(GtkWidget *mainWindow);
+const char*		  mainWindowGetRefSeqName(GtkWidget *mainWindow);
 BlxSeqType		  mainWindowGetSeqType(GtkWidget *mainWindow);
 char**			  mainWindowGetGeneticCode(GtkWidget *mainWindow);
 char*			  mainWindowGetRefSeq(GtkWidget *mainWindow);
 char*			  mainWindowGetDisplaySeq(GtkWidget *mainWindow);
 int			  mainWindowGetNumReadingFrames(GtkWidget *mainWindow);
+int			  mainWindowGetDotterStart(GtkWidget *mainWindow);
+int			  mainWindowGetDotterEnd(GtkWidget *mainWindow);
+gboolean		  mainWindowGetGappedHsp(GtkWidget *mainWindow);
 GList*			  mainWindowGetSelectedMsps(GtkWidget *mainWindow);
+MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
 
 void			  mainWindowSelectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees);
 void			  mainWindowDeselectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees);
@@ -62,15 +71,16 @@ gboolean		  mainWindowIsMspSelected(GtkWidget *mainWindow, MSP *msp);
 void			  displayHelp(GtkWidget *mainWindow);
 
 gchar*			  getSequenceSegment(GtkWidget *mainWindow, 
-					   const char const *sequence,
-					   const IntRange const *sequenceRange,
-					   const int coord1, 
-					   const int coord2,
-					   const Strand strand,
-					   const BlxSeqType seqType,
-					   const int frame,
-					   const int numReadingFrames,
-					   const gboolean reverse);
+					     const char const *sequence,
+					     const IntRange const *sequenceRange,
+					     const int coord1, 
+					     const int coord2,
+					     const Strand strand,
+					     const BlxSeqType seqType,
+					     const int frame,
+					     const int numReadingFrames,
+					     const gboolean reverse,
+					     const gboolean translate);
   
 GtkWidget*		  createMainWindow(char *refSeq, 
 					   const char const *refSeqName,
@@ -79,7 +89,8 @@ GtkWidget*		  createMainWindow(char *refSeq,
 					   BlxSeqType seqType, 
 					   int numReadingFrames,
 					   char **geneticCode,
-					   const int refSeqOffset);
+					   const int refSeqOffset,
+					   const gboolean gappedHsp);
 
 
 #endif /* _blxview_main_window_included_ */

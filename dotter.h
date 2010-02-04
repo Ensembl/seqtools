@@ -34,7 +34,7 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.3 2009-12-08 10:16:59 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.4 2010-02-04 11:43:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
@@ -51,8 +51,8 @@ void dotter(
 	char *opts,        /* Optional, may be NULL 
 			      Various options for display features */
 
-	char *queryname,   /* Optional, may be NULL 
-			      Name of Horizontal sequence */
+	const char *queryname,   /* Optional, may be NULL 
+				    Name of Horizontal sequence */
 	
 	char *queryseq,	   /* Mandatory, NULL terminated string
 			      Horisontal sequence - messfree'd by Dotter */
@@ -91,10 +91,10 @@ void dotter(
 			      Compression of dotplot {1, 2, 3, ... }
 			      Automatically calculated if NULL */
 
-	const MSP const *MSPlist, /* Optional, may be NULL
+	MSP *MSPs,	   /* Optional, may be NULL
 			      List of MSPs containing genes and blast matches */
 
-	int   MSPoffset,   /* Optional, may be NULL
+	int   MSPoff,	   /* Optional, may be NULL
 			      Coordinate offset of MSPs */
 
 	char *winsize,	   /* String determining the window size */

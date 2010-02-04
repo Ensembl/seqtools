@@ -986,8 +986,8 @@ static void calcID(MSP *msp, GtkWidget *tree)
   
   if (msp->sseq /* to do: is this required? && msp->sseq != padseq */)
     {
-      /* Note that getSequenceSegment will reverse complement the ref seq if it is the rev
-       * reverse strand. This means that where there is no gaps array the comparison is trivial 
+      /* Note that this will reverse complement the ref seq if it is the reverse 
+       * strand. This means that where there is no gaps array the comparison is trivial
        * as coordinates can be ignored and the two sequences just whipped through. */
       GtkWidget *detailView = treeGetDetailView(tree);
       char *refSeqSegment = getSequenceSegment(detailViewGetMainWindow(detailView),
@@ -999,8 +999,9 @@ static void calcID(MSP *msp, GtkWidget *tree)
 					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
 					       treeGetFrame(tree),
 					       treeGetNumReadingFrames(tree),
-					       !qForward);
-      
+					       !qForward,
+					       TRUE);
+
       if (!refSeqSegment)
 	{
 	  messout ( "calcID failed: Don't have genomic sequence %d - %d, requested for match sequence '%s' (match coords = %d - %d)\n", msp->qstart, msp->qend, msp->sname, msp->sstart, msp->send);
@@ -1322,7 +1323,7 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
   IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
 
-  gchar *segmentToDisplay = getSequenceSegment(mainWindow, 
+  gchar *segmentToDisplay = getSequenceSegment(mainWindow,
 					       mainWindowGetRefSeq(mainWindow),
 					       refSeqRange,
 					       displayRange->min, 
@@ -1331,7 +1332,8 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
 					       mainWindowGetSeqType(mainWindow),
 					       treeGetFrame(tree), 
 					       mainWindowGetNumReadingFrames(mainWindow),
-					       rightToLeft);
+					       rightToLeft,
+					       TRUE);
   
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
   if (selectedBaseIdx == UNSET_INT)
@@ -1721,6 +1723,7 @@ static void setTreeStyle(GtkTreeView *tree)
    * well against our default background colour of cyan, so use the same text colour
    * as unselected rows. */
   gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_SELECTED, GTK_WIDGET(tree)->style->text);
+  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_ACTIVE, GTK_WIDGET(tree)->style->text);
   
   /* Set the expander size to 0 so that we can have tiny rows (otherwise the min is 12pt).
    * Also set the vertical separator to 0 so that we can have the option of the smallest
@@ -1804,8 +1807,6 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
    * without worrying about it being destroyed. */
   *treeList = g_list_append(*treeList, vbox);
   g_object_ref(vbox);
-  
-  messout("Created detail-view tree [%x] in container [%x]", tree, vbox);
   
   return vbox;
 }

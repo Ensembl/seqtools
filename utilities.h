@@ -5,6 +5,9 @@
  *  Created by Gemma Barson on 05/01/2010.
  *
  */
+ 
+#ifndef _utilities_h_included_
+#define _utilities_h_included_
 
 #include <gtk/gtk.h>
 #include <SeqTools/blixem_.h>
@@ -53,7 +56,8 @@ void		      getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMa
 
 int		      getRangeLength(const IntRange const *range);
 int		      getRangeCentre(const IntRange const *range);
-gboolean	      indexWithinRange(const int idx, const IntRange const *range);
+gboolean	      valueWithinRange(const int value, const IntRange const *range);
+void		      boundsLimitValue(int *value, const IntRange const *range);
 
 int		      convertPeptideToDna(const int peptideIdx, const int frame, const int baseNum, const int numFrames);
 int		      convertDnaToPeptide(const int dnaIdx, const int numFrames);
@@ -78,3 +82,4 @@ int		      getEndDnaCoord(const IntRange const *displayRange,
 				     const int numReadingFrames);
 
 
+#endif /* _utilities_h_included_ */

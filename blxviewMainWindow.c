@@ -10,12 +10,13 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/bigpicture.h>
+#include <SeqTools/blxdotter.h>
 #include <SeqTools/utilities.h>
 #include <gdk/gdkkeysyms.h>
 
-#define DEFAULT_WINDOW_BORDER_WIDTH      4
-#define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2
-#define DEFAULT_SCROLL_STEP_INCREMENT	 5
+#define DEFAULT_WINDOW_BORDER_WIDTH      10   /* used to change the default border width around the main window */
+#define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
+#define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
 
 
 /* Local function declarations */
@@ -29,7 +30,7 @@ static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 
-static MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
+
 
 
 /* Menu builders */
@@ -39,7 +40,7 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Print",	      NULL, "_Print",	    "<control>P",	"Print",		  G_CALLBACK(onPrintMenu)},
   { "View",	      NULL, "_View",	    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
   { "Settings",	      NULL, "_Settings",    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
-  { "Dotter",	      NULL, "_Dotter",	    NULL,		"Start Dotter",		  G_CALLBACK(onDotterMenu)},
+  { "Dotter",	      NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
   { "Statistics",     NULL, "S_tatistics",  "<control>T",	"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
 };
 
@@ -125,17 +126,18 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
  * always the forward strand) and reverse/complement it as required for the given
  * strand and reading frame (note that the sequence will only actually be reversed
  * if the 'reverse' argument is true). This function also translates it to a peptide
- * sequence if relevant. */
-gchar *getSequenceSegment(GtkWidget *mainWindow, 
-			const char const *sequence,
-			const IntRange const *sequenceRange,
-		        const int coord1, 
-		        const int coord2,
-		        const Strand strand,
-			const BlxSeqType inputSeqType,
-		        const int frame,
-			const int numReadingFrames,
-		        const gboolean reverse)
+ * sequence if relevant (if the 'translate' flag allows it). */
+gchar *getSequenceSegment(GtkWidget *mainWindow,
+			  const char const *sequence,
+			  const IntRange const *sequenceRange,
+			  const int coord1, 
+			  const int coord2,
+			  const Strand strand,
+			  const BlxSeqType inputSeqType,
+			  const int frame,
+			  const int numReadingFrames,
+			  const gboolean reverse,
+			  const gboolean translate)
 {
   gchar *result = NULL;
   
@@ -158,8 +160,8 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
     }
   
   /* Copy the portion of interest from the reference sequence and translate as necessary */
-  BlxBlastMode mode = mainWindowGetBlastMode(mainWindow);
-			    
+  const BlxBlastMode mode = mainWindowGetBlastMode(mainWindow);
+  
   if (mode == BLXMODE_BLASTP || mode == BLXMODE_TBLASTN)
     {
       /* Just get a straight copy of this segment from the ref seq */
@@ -197,7 +199,7 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 	  g_strreverse(segment);
 	}
       
-      if (mode == BLXMODE_BLASTN) 
+      if (mode == BLXMODE_BLASTN || !translate)
 	{
 	  /* Just return the segment of DNA sequence */
 	  result = segment;
@@ -574,8 +576,8 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
 /* Called when the user selects the View menu option, or hits the Settings shortcut key */
 static void onDotterMenu(GtkAction *action, gpointer data)
 {
-//  GtkWidget *mainWindow = GTK_WIDGET(data);
-//  showViewPanesDialog(mainWindow);
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  blxCallDotter(mainWindow, FALSE);
 }
 
 
@@ -829,12 +831,14 @@ static void mainWindowCreateProperties(GtkWidget *widget,
 				       MSP *mspList,
 				       const BlxBlastMode blastMode,
 				       char *refSeq,
+				       const char *refSeqName,
 				       char *displaySeq,
 				       const IntRange const *refSeqRange,
 				       const IntRange const *fullDisplayRange,
 				       const BlxSeqType seqType,
 				       char **geneticCode,
-				       int numReadingFrames)
+				       int numReadingFrames,
+				       const gboolean gappedHsp)
 {
   if (widget)
     {
@@ -842,24 +846,34 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
-      properties->mspList = mspList;
-      properties->blastMode = blastMode;
+      
       properties->refSeq = refSeq;
+      properties->refSeqName = refSeqName ? g_strdup(refSeqName) : g_strdup("Blixem-seq");
       properties->displaySeq = displaySeq;
       properties->refSeqRange.min = refSeqRange->min;
       properties->refSeqRange.max = refSeqRange->max;
       properties->fullDisplayRange.min = fullDisplayRange->min;
       properties->fullDisplayRange.max = fullDisplayRange->max;
-      properties->strandsToggled = FALSE;
-      properties->seqType = seqType;
-      properties->geneticCode = geneticCode;
-      properties->numReadingFrames = numReadingFrames;
-      properties->selectedMsps = NULL;
       
+      properties->mspList = mspList;
+      properties->geneticCode = geneticCode;
+      properties->blastMode = blastMode;
+      properties->seqType = seqType;
+      properties->numReadingFrames = numReadingFrames;
+      
+      properties->strandsToggled = FALSE;
+      properties->selectedMsps = NULL;
+      properties->dotterStart = UNSET_INT;
+      properties->dotterEnd = UNSET_INT;
+
+      properties->drawable = NULL;
       properties->printSettings = gtk_print_settings_new();
       gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
       gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
-      
+      properties->lastYEnd = UNSET_INT;
+      properties->lastYStart = UNSET_INT;
+      properties->lastYCoord = UNSET_INT;
+
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyMainWindow), NULL); 
     }
@@ -895,6 +909,12 @@ char * mainWindowGetRefSeq(GtkWidget *mainWindow)
   return properties ? properties->refSeq : NULL;
 }
 
+const char * mainWindowGetRefSeqName(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->refSeqName : NULL;
+}
+
 char* mainWindowGetDisplaySeq(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
@@ -907,7 +927,7 @@ char** mainWindowGetGeneticCode(GtkWidget *mainWindow)
   return properties ? properties->geneticCode : NULL;
 }
 
-static MSP* mainWindowGetMspList(GtkWidget *mainWindow)
+MSP* mainWindowGetMspList(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->mspList : FALSE;
@@ -936,6 +956,25 @@ int mainWindowGetNumReadingFrames(GtkWidget *mainWindow)
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->numReadingFrames : UNSET_INT;
 }
+
+int mainWindowGetDotterStart(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->dotterStart : UNSET_INT;
+}
+
+int mainWindowGetDotterEnd(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->dotterEnd : UNSET_INT;
+}
+
+gboolean mainWindowGetGappedHsp(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->gappedHsp : UNSET_INT;
+}
+
 
 GList* mainWindowGetSelectedMsps(GtkWidget *mainWindow)
 {
@@ -1056,7 +1095,8 @@ GtkWidget* createMainWindow(char *refSeq,
 			    BlxSeqType seqType, 
 			    int numReadingFrames,
 			    char **geneticCode,
-			    const int refSeqOffset)
+			    const int refSeqOffset,
+			    const gboolean gappedHsp)
 {
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
@@ -1131,12 +1171,14 @@ GtkWidget* createMainWindow(char *refSeq,
 			     mspList, 
 			     blastMode, 
 			     refSeq, 
+			     refSeqName,
 			     displaySeq,
 			     &refSeqRange, 
 			     &fullDisplayRange, 
 			     seqType, 
 			     geneticCode,
-			     numReadingFrames);
+			     numReadingFrames,
+			     gappedHsp);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK (gtk_main_quit), NULL);
