@@ -41,7 +41,7 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "View",	      NULL, "_View",	    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
   { "Settings",	      NULL, "_Settings",    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
   { "Dotter",	      NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
-  { "Statistics",     NULL, "S_tatistics",  "<control>T",	"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
+  { "Statistics",     NULL, "Statistics",   NULL,		"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
 };
 
 
@@ -319,15 +319,19 @@ static void toggleTreeVisibility(GtkWidget *mainWindow, const int number)
   Strand strand = activeStrand;
   
   /* For DNA matches, the frame is always 1, but the strand depends on which number
-   * was pressed: 1 for forward strand, 2 for reverse strand */
+   * was pressed: use 1 to toggle active strand, 2 for other strand */
   if (mainWindowGetSeqType(mainWindow) == BLXSEQ_DNA)
     {
       frame = 1;
 
       if (number == 1)
-	strand = FORWARD_STRAND;
+	{
+	  strand = activeStrand;
+	}
       else if (number == 2)
-	strand = REVERSE_STRAND;
+	{
+	  strand = toggled ? FORWARD_STRAND : REVERSE_STRAND;
+	}
     }
   
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
@@ -337,6 +341,31 @@ static void toggleTreeVisibility(GtkWidget *mainWindow, const int number)
     {
       widgetSetHidden(tree, !widgetGetHidden(tree));
     }
+}
+
+
+/* Toggle visibility of the active (1) or other (2) strand grid depending on the number pressed */
+static void toggleGridVisibility(GtkWidget *mainWindow, const int number)
+{
+  if (number == 1 || number == 2)
+    {
+      GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+      const gboolean useFwdGrid = (number == 1) != mainWindowGetStrandsToggled(mainWindow);
+
+      GtkWidget *grid = useFwdGrid ? bigPictureGetFwdGrid(bigPicture) : bigPictureGetRevGrid(bigPicture);
+      widgetSetHidden(grid, !widgetGetHidden(grid));
+    }
+}
+
+
+/* Toggle the visibility of tree/grid panes following a number key press */
+static void togglePaneVisibility(GtkWidget *mainWindow, const int number, const gboolean modifier)
+{
+  /* Affects grids if ctrl was pressed, trees otherwise */
+  if (modifier)
+    toggleGridVisibility(mainWindow, number);
+  else
+    toggleTreeVisibility(mainWindow, number);
 }
 
 
@@ -376,11 +405,25 @@ static void createCheckButtonTree(GtkWidget *detailView, const Strand strand, co
   
   if (gtk_widget_get_parent(tree))
     {
-      char formatStr[] = "Alignment list (%s%d)";
-      char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
-      sprintf(displayText, formatStr, (strand == FORWARD_STRAND ? "+" : "-"), frame);
+      if (detailViewGetSeqType(detailView) == BLXSEQ_DNA)
+	{
+	  /* We only have 1 frame, but trees are from both strands, so distinguish between strands */
+	  const gboolean toggled = detailViewGetStrandsToggled(detailView);
+	  gboolean isActiveStrand = ((strand == FORWARD_STRAND) != toggled);
+	  
+	  char text1[] = "Act_ive strand alignments";
+	  char text2[] = "O_ther strand alignments";
+	  createCheckButton(tree, isActiveStrand ? text1 : text2, container);
+	}
+      else
+	{
+	  /* All the visible trees should be in the same strand, so just distinguish by frame number */
+	  char formatStr[] = "Alignment list %d";
+	  char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
+	  sprintf(displayText, formatStr, (strand == FORWARD_STRAND ? "+" : "-"), frame);
 
-      createCheckButton(tree, displayText, container);
+	  createCheckButton(tree, displayText, container);
+	}
     }
 }
 
@@ -412,10 +455,14 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
   GtkWidget *bigPictureSubBox = gtk_vbox_new(FALSE, 0);
   gtk_container_set_border_width(GTK_CONTAINER(bigPictureSubBox), borderWidth);
   gtk_container_add(GTK_CONTAINER(bigPictureBox), bigPictureSubBox);
+
+  const gboolean toggled = mainWindowGetStrandsToggled(mainWindow);
+  GtkWidget *activeGrid = toggled ? bigPictureGetRevGrid(bigPicture) : bigPictureGetFwdGrid(bigPicture);
+  GtkWidget *otherGrid = toggled ? bigPictureGetFwdGrid(bigPicture) : bigPictureGetRevGrid(bigPicture);
   
-  createCheckButton(bigPictureGetFwdGrid(bigPicture), "_Forward strand grid", bigPictureSubBox);
+  createCheckButton(activeGrid, "_Active strand grid", bigPictureSubBox);
   createCheckButton(bigPictureGetExonView(bigPicture), "_Exon view", bigPictureSubBox);
-  createCheckButton(bigPictureGetRevGrid(bigPicture), "_Reverse strand grid", bigPictureSubBox);
+  createCheckButton(otherGrid, "_Other strand grid", bigPictureSubBox);
   
   /* Detail view */
   GtkWidget *detailViewBox = gtk_vbox_new(FALSE, 0);
@@ -434,8 +481,9 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
   int frame = 1;
   for ( ; frame <= numFrames; ++frame)
     {
-      createCheckButtonTree(detailView, FORWARD_STRAND, frame, detailViewSubBox);
-      createCheckButtonTree(detailView, REVERSE_STRAND, frame, detailViewSubBox);
+      /* Active strand is the reverse strand if display is toggled */
+      createCheckButtonTree(detailView, toggled ? REVERSE_STRAND : FORWARD_STRAND, frame, detailViewSubBox);
+      createCheckButtonTree(detailView, toggled ? FORWARD_STRAND : REVERSE_STRAND, frame, detailViewSubBox);
     }
   
   /* Ensure dialog is destroyed when user responds */
@@ -817,7 +865,6 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  break;
 	}
 	
-      case GDK_plus:  /* fall through */
       case GDK_equal: /* fall through */
       case GDK_minus:
 	{
@@ -833,18 +880,24 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	result = TRUE;
 	break;
 	
+      case GDK_t:
+      case GDK_T:
+	ToggleStrand(mainWindowGetDetailView(window));
+	result = TRUE;
+	break;
+	
       case GDK_1:
-	toggleTreeVisibility(window, 1);
+	togglePaneVisibility(window, 1, ctrlModifier);
 	result = TRUE;
 	break;
 
       case GDK_2:
-	toggleTreeVisibility(window, 2);
+	togglePaneVisibility(window, 2, ctrlModifier);
 	result = TRUE;
 	break;
 	
       case GDK_3:
-	toggleTreeVisibility(window, 3);
+	togglePaneVisibility(window, 3, ctrlModifier);
 	result = TRUE;
 	break;
     };

@@ -1476,12 +1476,49 @@ static void blixemSettings(void)
   //    else graphPop();
 }
 
-static void ToggleStrand(GtkWidget *detailView)
+
+/* If there are two trees and one is visible and the other hidden, toggle their hidden states */
+static void swapTreeVisibility(GtkWidget *detailView)
+{
+  /* Only do anything for DNA matches, where we have 1 frame and both strands are visible. */
+  if (detailViewGetSeqType(detailView) == BLXSEQ_DNA)
+    {
+      GtkWidget *tree1 = detailViewGetTreeContainer(detailView, FORWARD_STRAND, 1);
+      GtkWidget *tree2 = detailViewGetTreeContainer(detailView, REVERSE_STRAND, 1);
+      
+      if (widgetGetHidden(tree1) != widgetGetHidden(tree2))
+	{
+	  widgetSetHidden(tree1, !widgetGetHidden(tree1));
+	  widgetSetHidden(tree2, !widgetGetHidden(tree2));
+	}
+    }
+}
+
+
+/* If one grid is visible and the other hidden, toggle their hidden states */
+static void swapGridVisibility(GtkWidget *bigPicture)
+{
+  GtkWidget *grid1 = bigPictureGetFwdGrid(bigPicture);
+  GtkWidget *grid2 = bigPictureGetRevGrid(bigPicture);
+  
+  if (widgetGetHidden(grid1) != widgetGetHidden(grid2))
+    {
+      widgetSetHidden(grid1, !widgetGetHidden(grid1));
+      widgetSetHidden(grid2, !widgetGetHidden(grid2));
+    }
+}
+
+
+void ToggleStrand(GtkWidget *detailView)
 {
   MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewGetMainWindow(detailView));
   
   /* Toggle the flag */
   mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
+  
+  /* If one grid/tree is hidden and the other visile, toggle which is hidden */
+  swapTreeVisibility(detailView);
+  swapGridVisibility(mainWindowProperties->bigPicture);
   
   /* Refresh the tree and grid order (i.e. switch them based on the new toggle status) */
   refreshTreeOrder(detailView);
