@@ -304,6 +304,42 @@ static void zoomMainWindow(GtkWidget *window, const gboolean zoomIn, const gbool
 }
 
 
+/* Toggle visibility the n'th tree. This is the active strand's frame n if displaying
+ * protein matches (where we only display one strand), or the forward or reverse
+ * strand tree if displaying DNA matches (where both strands are displayed). */
+static void toggleTreeVisibility(GtkWidget *mainWindow, const int number)
+{
+  const gboolean toggled = mainWindowGetStrandsToggled(mainWindow);
+  const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
+  
+  /* For protein matches, trees are always displayed in frame order (i.e. 1, 2, 3), 
+   * so just use the number pressed for the frame, and the active strand for the
+   * strand. */
+  int frame = number;
+  Strand strand = activeStrand;
+  
+  /* For DNA matches, the frame is always 1, but the strand depends on which number
+   * was pressed: 1 for forward strand, 2 for reverse strand */
+  if (mainWindowGetSeqType(mainWindow) == BLXSEQ_DNA)
+    {
+      frame = 1;
+
+      if (number == 1)
+	strand = FORWARD_STRAND;
+      else if (number == 2)
+	strand = REVERSE_STRAND;
+    }
+  
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *tree = detailViewGetTreeContainer(detailView, strand, frame);
+  
+  if (tree && gtk_widget_get_parent(tree))
+    {
+      widgetSetHidden(tree, !widgetGetHidden(tree));
+    }
+}
+
+
 /***********************************************************
  *			   Menu Utilities                  *
  ***********************************************************/
@@ -757,7 +793,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
   gboolean result = FALSE;
   
   guint modifiers = gtk_accelerator_get_default_mod_mask();
-  const gboolean ctrlModifier = (event->state & modifiers) & GDK_CONTROL_MASK;
+  const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
   
   switch (event->keyval)
     {
@@ -780,25 +816,37 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  result = TRUE;
 	  break;
 	}
-
+	
       case GDK_plus:  /* fall through */
       case GDK_equal: /* fall through */
       case GDK_minus:
 	{
-	  /* If ctrl is pressed, zoom the big picture; otherwise zoom the detail view */
 	  const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
-	  zoomMainWindow(window, zoomIn, ctrlModifier);
+	  zoomMainWindow(window, zoomIn, ctrlModifier); /* if ctrl pressed, zoom big picture - else zoom detail view */
 	  result = TRUE;
 	  break;
 	}
 	
       case GDK_g: /* fall through */
       case GDK_G:
-	{
-	  goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
-	  result = TRUE;
-	  break;
-	}
+	goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
+	result = TRUE;
+	break;
+	
+      case GDK_1:
+	toggleTreeVisibility(window, 1);
+	result = TRUE;
+	break;
+
+      case GDK_2:
+	toggleTreeVisibility(window, 2);
+	result = TRUE;
+	break;
+	
+      case GDK_3:
+	toggleTreeVisibility(window, 3);
+	result = TRUE;
+	break;
     };
   
   return result;

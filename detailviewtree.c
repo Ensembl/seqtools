@@ -1169,9 +1169,11 @@ void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
    * DNA ref sequence if we're displaying protein matches). */
   calcID(msp, tree);
   
+  const int frame = treeGetFrame(tree);
   const int numReadingFrames = treeGetNumReadingFrames(tree);
-  msp->displayStart = convertDnaToPeptide(msp->qstart, numReadingFrames);
-  msp->displayEnd = convertDnaToPeptide(msp->qend, numReadingFrames);
+  
+  msp->displayStart = convertDnaToPeptide(msp->qstart, frame, numReadingFrames, NULL); 
+  msp->displayEnd = convertDnaToPeptide(msp->qend, frame, numReadingFrames, NULL);
   
   /* Add it to the tree's data store */
   GtkListStore *store = GTK_LIST_STORE(model);

@@ -446,116 +446,6 @@ sequence_cell_renderer_get_property (GObject      *object,
 }
 
 
-/* Given a base index on the query sequence, find the corresonding base 
- * in subject sequence. The return value is always UNSET_INT if there is not
- * a corresponding base at this position. However, in this case the start/end
- * of the sequence (or nearest gap) is returned in the nearestIdx argument. If
- * the base exists then the return idx and nearestIdx will be the same. 
- * nearestIdx can be null if not required. */
-int gapCoord(const MSP *msp, 
-	     const int qIdx, 
-	     const int numFrames, 
-	     const Strand strand, 
-	     const gboolean rightToLeft, 
-	     int *nearestIdx)
-{
-  int result = UNSET_INT;
-  
-  int qSeqMin = UNSET_INT, qSeqMax = UNSET_INT, sSeqMin = UNSET_INT, sSeqMax = UNSET_INT;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
-  
-  BOOL qForward = ((strchr(msp->qframe, '+'))) ? TRUE : FALSE ;
-  BOOL sForward = ((strchr(msp->sframe, '+'))) ? TRUE : FALSE ;
-  BOOL sameDirection = (qForward == sForward);
-  
-  Array gaps = msp->gaps ;
-  if (!gaps || arrayMax(gaps) < 1)
-    {
-      /* If strands are in the same direction, find the offset from qSeqMin and add it to sSeqMin.
-       * If strands are in opposite directions, find the offset from qSeqMin and subtract it from sSeqMax. */
-      int offset = (qIdx - qSeqMin)/numFrames ;
-      result = (sameDirection) ? sSeqMin + offset : sSeqMax - offset ;
-      
-      if (result < sSeqMin)
-	{
-	  result = UNSET_INT;
-	  
-	  if (nearestIdx)
-	    {
-	      *nearestIdx = sSeqMin;
-	    }
-	}
-      else if (result > sSeqMax)
-	{
-	  result = UNSET_INT;
-	  
-	  if (nearestIdx)
-	    {
-	      *nearestIdx = sSeqMax;
-	    }
-	}
-      else if (nearestIdx)
-	{
-	  *nearestIdx = result;
-	}
-    }
-  else
-    {
-      gboolean gapsReversedWrtDisplay = (rightToLeft == qForward);
-      
-      /* Look to see if x lies inside one of the reference sequence ranges. */
-      int i = 0;
-      for ( ; i < arrayMax(gaps) ; ++i)
-	{
-	  SMapMap *curRange = arrp(gaps, i, SMapMap) ;
-	  
-	  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-	  getSMapMapRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-	  
-	  /* We've "found" the value if it's in or before this range. Note that the
-	   * the range values are in decreasing order if the q strand is reversed. */
-	  BOOL found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
-	  
-	  if (found)
-	    {
-	      BOOL inRange = qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax;
-	      
-	      if (inRange)
-		{
-		  /* It's inside this range. Calculate the actual index. */
-		  int offset = (qIdx - qRangeMin) / numFrames;
-		  result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
-		  
-		  if (nearestIdx)
-		    {
-		      *nearestIdx = result;
-		    }
-		}
-		else if (nearestIdx && (i == 0 || gapsReversedWrtDisplay))
-		  {
-		    /* Remember the start of the current range. This will be the value we
-		     * return if the index is before of the first range, or if we're in a gap
-		     * and gaps are ordered in the opposite direction to the display (i.e. gap
-		     * coords go from low to high and display shows high to low or v.v.) */
-		    *nearestIdx = curRange->s1;
-		  }
-	      
-	      break;
-	    }
-	  else if (nearestIdx && !gapsReversedWrtDisplay)
-	    {
-	      /* Remember the end of the current range (which is the result we will return
-	       * if qIdx lies after this range but before the next - unless gaps are reversed
-	       * with respect to the display). */
-	      *nearestIdx = curRange->s2;
-	    }
-	}
-    }
-  
-  return result ;
-}
-
-
 static void
 get_size (GtkCellRenderer *cell,
 	  GtkWidget       *widget,
@@ -729,30 +619,6 @@ static int getRefSeqIndexFromSegment(const int segmentIdx,
 }
 
 
-/* Given an index into the full displayed reference sequence, find the equivalent base
- * in the match sequence (converting the ref sequence coord from peptide to dna if
- * necessary). */
-static int getMatchIdxFromRefIdx(MSP *msp,
-				 const int refSeqIdx,
-				 const int qFrame,
-				 const Strand qStrand,
-				 const gboolean rightToLeft,
-				 const BlxSeqType seqType,
-				 const int numFrames)
-{
-  /* If we have a peptide sequence we must convert the ref seq coord to the DNA sequence coord */
-  int qIdx = refSeqIdx;
-
-  if (seqType == BLXSEQ_PEPTIDE)
-    {
-      qIdx = convertPeptideToDna(qIdx, qFrame, 1, numFrames); /* 1st base in frame */
-    }
-  
-  /* Find the s index */
-  return gapCoord(msp, qIdx, numFrames, qStrand, rightToLeft, NULL);
-}
-	   
-
 /* Colour in the background of a particular base in the given match sequence. Returns
  * the calculated index into the match sequence (for effiency, so that we don't have to
  * recalculate it later on). Returns the equivalent index in the subject sequence, or 
@@ -785,7 +651,7 @@ static int drawBase(MSP *msp,
   GdkColor *baseBgColour;
   
   const int refSeqIdx = getRefSeqIndexFromSegment(segmentIdx, segmentRange, rightToLeft);
-  const int sIdx = getMatchIdxFromRefIdx(msp, refSeqIdx, qFrame, qStrand, rightToLeft, seqType, numFrames);
+  const int sIdx = getMatchIdxFromDisplayIdx(msp, refSeqIdx, qFrame, qStrand, rightToLeft, seqType, numFrames);
   
   /* Highlight the base if its base index is selected */
   gboolean selected = (refSeqIdx == selectedBaseIdx);
@@ -901,7 +767,7 @@ static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTree
       
       if (maxIdx >= displayRange->min && maxIdx <= displayRange->max)
 	{
-	  /* Draw the lower index. The colour and line style depend on whether it's the start or end index. */
+	  /* Draw the upper index. The colour and line style depend on whether it's the start or end index. */
 	  gdk_gc_set_foreground(gc, treeGetExonBoundaryColour(tree, FALSE));
 	  gdk_gc_set_line_attributes(gc, treeGetExonBoundaryWidth(tree), treeGetExonBoundaryStyle(tree, FALSE), GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  

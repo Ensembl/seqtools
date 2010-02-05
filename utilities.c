@@ -73,11 +73,11 @@ void widgetSetHidden(GtkWidget *widget, const gboolean hidden)
       /* Show/hide the widget */
       if (hidden)
 	{
-	  gtk_widget_hide(widget);
+	  gtk_widget_hide_all(widget);
 	}
       else
 	{
-	  gtk_widget_show(widget);
+	  gtk_widget_show_all(widget);
 	}	
     }
 }
@@ -324,11 +324,22 @@ int convertPeptideToDna(const int peptideIdx, const int frame, const int baseNum
 }
 
 
-/* Given an index into a dna sequence and a reading frame number, return
- * the index into the protein sequence that will give the equivalent peptide */
-int convertDnaToPeptide(const int dnaIdx, const int numFrames)
+/* Given an index into a dna sequence and the reading frame, find the index into 
+ * the protein sequence that will give the equivalent peptide. Also returns the
+ * base number of the DNA base within the reading frame (i.e. whether it's the 1st,
+ * 2nd or 3rd out of the triplet). */
+int convertDnaToPeptide(const int dnaIdx, const int frame, const int numFrames, int *baseNum)
 {
-  return ceil((double)dnaIdx / (double)numFrames);
+  gdouble fraction = ((gdouble)(dnaIdx - frame + 1) / (gdouble)numFrames) ;
+  
+  int peptideIdx = ceil(fraction);
+  
+  if (baseNum)
+    {
+      *baseNum = round((fraction - trunc(fraction)) * numFrames);
+    }
+  
+  return peptideIdx;
 }
 
 
@@ -374,4 +385,163 @@ int getEndDnaCoord(const IntRange const *displayRange,
   
   return result;
 }
+
+
+/* Given an index into the display range, find the equivalent base in the match
+ * sequence (converting the ref sequence coord from peptide to dna if necessary). */
+int getMatchIdxFromDisplayIdx(MSP *msp,
+			      const int displayIdx,
+			      const int qFrame,
+			      const Strand qStrand,
+			      const gboolean rightToLeft,
+			      const BlxSeqType seqType,
+			      const int numFrames)
+{
+  /* If we have a peptide sequence we must convert the ref seq coord to the DNA sequence coord */
+  int qIdx = displayIdx;
+  
+  if (seqType == BLXSEQ_PEPTIDE)
+    {
+      qIdx = convertPeptideToDna(qIdx, qFrame, 1, numFrames); /* 1st base in frame */
+    }
+  
+  /* Find the s index */
+  return gapCoord(msp, qIdx, numFrames, qStrand, rightToLeft, NULL);
+}
+
+
+/* Given a base index on the query sequence, find the corresonding base 
+ * in subject sequence. The return value is always UNSET_INT if there is not
+ * a corresponding base at this position. However, in this case the start/end
+ * of the sequence (or nearest gap) is returned in the nearestIdx argument. If
+ * the base exists then the return idx and nearestIdx will be the same. 
+ * nearestIdx can be null if not required. */
+int gapCoord(const MSP *msp, 
+	     const int qIdx, 
+	     const int numFrames, 
+	     const Strand strand, 
+	     const gboolean rightToLeft, 
+	     int *nearestIdx)
+{
+  int result = UNSET_INT;
+  
+  int qSeqMin = UNSET_INT, qSeqMax = UNSET_INT, sSeqMin = UNSET_INT, sSeqMax = UNSET_INT;
+  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
+  
+  BOOL qForward = ((strchr(msp->qframe, '+'))) ? TRUE : FALSE ;
+  BOOL sForward = ((strchr(msp->sframe, '+'))) ? TRUE : FALSE ;
+  BOOL sameDirection = (qForward == sForward);
+  
+  Array gaps = msp->gaps ;
+  if (!gaps || arrayMax(gaps) < 1)
+    {
+      /* If strands are in the same direction, find the offset from qSeqMin and add it to sSeqMin.
+       * If strands are in opposite directions, find the offset from qSeqMin and subtract it from sSeqMax. */
+      int offset = (qIdx - qSeqMin)/numFrames ;
+      result = (sameDirection) ? sSeqMin + offset : sSeqMax - offset ;
+      
+      if (result < sSeqMin)
+	{
+	  result = UNSET_INT;
+	  
+	  if (nearestIdx)
+	    {
+	      *nearestIdx = sSeqMin;
+	    }
+	}
+      else if (result > sSeqMax)
+	{
+	  result = UNSET_INT;
+	  
+	  if (nearestIdx)
+	    {
+	      *nearestIdx = sSeqMax;
+	    }
+	}
+      else if (nearestIdx)
+	{
+	  *nearestIdx = result;
+	}
+    }
+  else
+    {
+      gboolean gapsReversedWrtDisplay = (rightToLeft == qForward);
+      
+      /* Look to see if x lies inside one of the reference sequence ranges. */
+      int i = 0;
+      for ( ; i < arrayMax(gaps) ; ++i)
+	{
+	  SMapMap *curRange = arrp(gaps, i, SMapMap) ;
+	  
+	  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+	  getSMapMapRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+	  
+	  /* We've "found" the value if it's in or before this range. Note that the
+	   * the range values are in decreasing order if the q strand is reversed. */
+	  BOOL found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
+	  	  if (found)
+	    {
+	      BOOL inRange = qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax;
+	      
+	      if (inRange)
+		{
+		  /* It's inside this range. Calculate the actual index. */
+		  int offset = (qIdx - qRangeMin) / numFrames;
+		  result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
+		  
+		  if (nearestIdx)
+		    {
+		      *nearestIdx = result;
+		    }
+		}
+	      else if (nearestIdx && (i == 0 || gapsReversedWrtDisplay))
+		{
+		  /* Remember the start of the current range. This will be the value we
+		   * return if the index is before of the first range, or if we're in a gap
+		   * and gaps are ordered in the opposite direction to the display (i.e. gap
+		   * coords go from low to high and display shows high to low or v.v.) */
+		  *nearestIdx = curRange->s1;
+		}
+	      
+	      break;
+	    }
+	  else if (nearestIdx && !gapsReversedWrtDisplay)
+	    {
+	      /* Remember the end of the current range (which is the result we will return
+	       * if qIdx lies after this range but before the next - unless gaps are reversed
+	       * with respect to the display). */
+	      *nearestIdx = curRange->s2;
+	    }
+	}
+    }
+  
+  return result;
+}
+
+
+/* Return the reading frame of the ref sequence that the given MSP is a match against */
+int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
+{
+  if (seqType == BLXSEQ_DNA)
+    {
+      /* Ignore the frame in  the msp. For DNA matches we only have one frame on each strand. */
+      return 1;
+    }
+  else
+    {
+      return atoi(&msp->qframe[2]);
+    }
+}
+
+
+/* Return the strant of the ref sequence that the given MSP is a match against */
+Strand mspGetRefStrand(const MSP const *msp)
+{
+  return msp->qframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
+}
+
+
+
+
+
 

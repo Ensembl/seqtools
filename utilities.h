@@ -60,8 +60,11 @@ gboolean	      valueWithinRange(const int value, const IntRange const *range);
 void		      boundsLimitValue(int *value, const IntRange const *range);
 
 int		      convertPeptideToDna(const int peptideIdx, const int frame, const int baseNum, const int numFrames);
-int		      convertDnaToPeptide(const int dnaIdx, const int numFrames);
+int		      convertDnaToPeptide(const int dnaIdx, const int frame, const int numFrames, int *baseNum);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
+
+int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
+Strand		      mspGetRefStrand(const MSP const *msp);
 
 char		      getRefSeqBase(char *refSeq, 
 				    const int qIdx, 
@@ -80,6 +83,21 @@ int		      getEndDnaCoord(const IntRange const *displayRange,
 				     const BlxSeqType displaySeqType, 
 				     const gboolean reverse, 
 				     const int numReadingFrames);
+
+int		      getMatchIdxFromDisplayIdx(MSP *msp,
+						const int displayIdx,
+						const int qFrame,
+						const Strand qStrand,
+						const gboolean rightToLeft,
+						const BlxSeqType seqType,
+						const int numFrames);
+
+int		      gapCoord(const MSP *msp, 
+			       const int qIdx, 
+			       const int numFrames, 
+			       const Strand strand, 
+			       const gboolean rightToLeft, 
+			       int *nearestIdx);
 
 
 #endif /* _utilities_h_included_ */

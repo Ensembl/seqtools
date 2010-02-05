@@ -274,26 +274,15 @@ void calculateMspLineDimensions(GtkWidget *grid,
 				int *height)
 {
   GridProperties *gridProperties = gridGetProperties(grid);
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(gridProperties->bigPicture);
-
+  const IntRange const *displayRange = bigPictureGetDisplayRange(gridProperties->bigPicture);
   gboolean rightToLeft = bigPictureGetStrandsToggled(gridProperties->bigPicture);
-  
+
   /* Find the coordinates of the start and end base in this match sequence */
   int qSeqMin = min(msp->displayStart, msp->displayEnd);
   int qSeqMax = max(msp->displayStart, msp->displayEnd);
   
-  /* If we've got a peptide sequence, convert the display range to coords on the DNA sequence. (The MSP q coords
-   * are already coords on the DNA sequence) */
-  IntRange dnaDisplayRange = {bigPictureProperties->displayRange.min, bigPictureProperties->displayRange.max};
-  if (bigPictureGetSeqType(gridProperties->bigPicture) == BLXSEQ_PEPTIDE)
-    {
-      int numFrames = bigPictureGetNumReadingFrames(gridProperties->bigPicture);
-      dnaDisplayRange.min = convertPeptideToDna(bigPictureProperties->displayRange.min, 1, 1, numFrames); /* 1st base in 1st frame */
-      dnaDisplayRange.max = convertPeptideToDna(bigPictureProperties->displayRange.max, numFrames, numFrames, numFrames); /* last base in last frame */
-    }
-
-  int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
-  int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, &bigPictureProperties->displayRange, rightToLeft);
+  int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, displayRange, rightToLeft);
+  int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, displayRange, rightToLeft);
 
   /* We'll start drawing at the lowest x coord, so set x to the min of x1 and x2 */
   if (x)

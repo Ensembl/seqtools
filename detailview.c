@@ -49,7 +49,6 @@ static void		    updateCellRendererFont(GtkWidget *detailView, PangoFontDescript
 static void		    refreshDetailViewHeaders(GtkWidget *detailView);
 static GtkWidget*	    createSequenceColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
 static const char*	    findDetailViewFont(GtkWidget *detailView);
-static Strand		    mspGetStrand(const MSP const *msp);
 static void		    setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 
 /***********************************************************
@@ -166,7 +165,7 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
   /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
   if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
     {
-      coord = convertDnaToPeptide(coord, detailViewGetNumReadingFrames(detailView));
+      coord = convertDnaToPeptide(coord, 1, detailViewGetNumReadingFrames(detailView), NULL);
     }
 
   /* Adjust to a 0-based value */
@@ -802,16 +801,18 @@ static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
   char *sname = NULL;
   
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+  
   /* See if a base is selected. If we're displaying peptide matches, this will be a coord in
    * the peptide reference sequence, so we'll need to convert it to a coord into the DNA ref seq.
    * We'll display the coord for the DNA base relevant for this tree's reading frame. */
-  int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
   qIdx = selectedBaseIdx;
-  
-  if (selectedBaseIdx != UNSET_INT && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+  if (qIdx != UNSET_INT && seqType == BLXSEQ_PEPTIDE)
     {
-      const int numFrames = detailViewGetNumReadingFrames(detailView);
-      qIdx = convertPeptideToDna(selectedBaseIdx, 1, 1, numFrames); /* to do: determine which frame to show based on click pos? */
+      qIdx = convertPeptideToDna(selectedBaseIdx, 1, 1, numFrames); /* to do: determine which frame/base to show based on click pos? */
     }
   
   /* Make sure we have enough space for all the bits to go in the result text */
@@ -823,18 +824,10 @@ static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
       sname = msp->sname;
       msgLen += strlen(sname);
       
-      /* If a ref sequence base is selected, find the corresponding base in the match sequence */
-      sIdx = UNSET_INT;
-      if (msp && qIdx != UNSET_INT)
+      /* If a base index is selected, find the corresponding base in the match sequence */
+      if (msp && selectedBaseIdx != UNSET_INT)
 	{
-	  /* If the base doesn't exist in the match sequence, just get the "nearest" value */
-	  gapCoord(msp, 
-		   qIdx, 
-		   detailViewGetNumReadingFrames(detailView), 
-		   mspGetStrand(msp),
-		   detailViewGetStrandsToggled(detailView), 
-		   &sIdx);
-	  
+	  sIdx = getMatchIdxFromDisplayIdx(msp, selectedBaseIdx, mspGetRefFrame(msp, seqType), mspGetRefStrand(msp), rightToLeft, seqType, numFrames);
 	  msgLen += numDigitsInInt(sIdx);
 	}
     }
@@ -1156,10 +1149,10 @@ GdkLineStyle detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolea
 }
 
 
-GList *detailViewGetStrandTrees(GtkWidget *detailView, const Strand strand)
+GList *detailViewGetStrandTrees(GtkWidget *detailView, const Strand activeStrand)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return (strand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
+  return (activeStrand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
 }
 
 
@@ -1197,13 +1190,13 @@ static void detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int ch
 
 
 /* Get the outermost container for the GtkTreeView for the given frame on the given strand */
-GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const Strand strand, const int frame)
+GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const Strand activeStrand, const int frame)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GtkWidget *result = NULL;
   
   /* Get the list of trees for the relevant strand */
-  GList *list = (strand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
+  GList *list = (activeStrand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
 
   /* The list should be sorted in order of frame number, and we should not be requesting a frame number
    * greater than the number of items in the list */
@@ -1230,10 +1223,10 @@ GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const Strand strand
 
 
 /* Extract the actual GtkTreeView for the given frame on the given strand */
-GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand strand, const int frame)
+GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand activeStrand, const int frame)
 {
   GtkWidget *result = NULL;
-  GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, strand, frame);
+  GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, activeStrand, frame);
   
   if (treeContainer && widgetIsTree(treeContainer))
     {
@@ -1246,18 +1239,50 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand strand, const i
   
   if (!result)
     {
-      messerror("Tree not found for '%s' strand, frame '%d'. Returning NULL.", ((strand == FORWARD_STRAND) ? "forward" : "reverse"), frame);
+      printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.", ((activeStrand == FORWARD_STRAND) ? "forward" : "reverse"), frame);
     }
   
   return result;
 }
 
-/* Get the first tree in the 'current' list of trees (i.e. the forward strand
- * list by default, or the reverse strand list if strands are toggled). */
+/* Get the first visible tree in the 'current' list of trees (i.e. the forward 
+ * strand list by default, or the reverse strand list if strands are toggled). */
 static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 {
-  const Strand strand = detailViewGetStrandsToggled(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
-  return detailViewGetTree(detailView, strand, 1);
+  const gboolean toggled = detailViewGetStrandsToggled(detailView);
+  const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  
+  GtkWidget *result = NULL;
+  
+  if (detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+    {
+      /* First tree might be hidden, so loop until we find a visible one */
+      int frame = 1;
+      
+      for ( ; frame <= numFrames; ++frame)
+	{
+	  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
+	  
+	  if (tree && GTK_WIDGET_VISIBLE(tree))
+	    {
+	      result = tree;
+	      break;
+	    }
+	}
+    }
+  else
+    {
+      /* Try the active strand, and if that's hidden try the other strand */
+      result = detailViewGetTree(detailView, activeStrand, 1);
+      
+      if (!result || !GTK_WIDGET_VISIBLE(result))
+	{
+	  result = detailViewGetTree(detailView, toggled ? FORWARD_STRAND : REVERSE_STRAND, 1);
+	}
+    }
+  
+  return result;
 }
 
 GList* detailViewGetFwdStrandTrees(GtkWidget *detailView)
@@ -2099,26 +2124,6 @@ static void createDetailViewPanes(GtkWidget *detailView,
 }
 
 
-static int mspGetFrame(const MSP const *msp, const BlxSeqType seqType)
-{
-  if (seqType == BLXSEQ_DNA)
-    {
-      /* Ignore the frame in  the msp. For DNA matches we only have one frame on each strand. */
-      return 1;
-    }
-  else
-    {
-      return atoi(&msp->qframe[2]);
-    }
-}
-
-
-static Strand mspGetStrand(const MSP const *msp)
-{
-  return msp->qframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
-}
-
-
 /* Add the MSPs to the detail-view trees */
 void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 {
@@ -2131,10 +2136,10 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   
   for ( ; msp; msp = msp->next)
     {
-      Strand strand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
-      const int frame = mspGetFrame(msp, seqType);
+      Strand activeStrand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
+      const int frame = mspGetRefFrame(msp, seqType);
       
-      GtkWidget *tree = detailViewGetTree(detailView, strand, frame);
+      GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
       
       addMspToTreeModel(model, msp, tree);
