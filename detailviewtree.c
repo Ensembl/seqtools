@@ -867,21 +867,27 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
       handled = TRUE;
     }
   
-  /* Middle button: scrolls */
+  /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
   if (event->button == 2)
     {
-      /* Move the scrollbar so that the currently-selected base index is at the centre */
-      GtkWidget *detailView = GTK_WIDGET(data);
-      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-      
-      if (selectedBaseIdx != UNSET_INT)
+      guint modifiers = gtk_accelerator_get_default_mod_mask();
+      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+
+      if (!ctrlModifier)
 	{
-	  /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
-	  const BlxSeqType seqType = detailViewGetSeqType(detailView);
-	  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	  /* Move the scrollbar so that the currently-selected base index is at the centre */
+	  GtkWidget *detailView = GTK_WIDGET(data);
+	  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
 	  
-	  int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
-	  setDetailViewStartIdx(detailView, newStart, seqType);
+	  if (selectedBaseIdx != UNSET_INT)
+	    {
+	      /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
+	      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+	      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	      
+	      int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+	      setDetailViewStartIdx(detailView, newStart, seqType);
+	    }
 	}
       
       handled = TRUE;
