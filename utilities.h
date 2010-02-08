@@ -30,8 +30,9 @@
 #define GDK_DARK_GREY	      8421504
 #define GDK_BLACK	      0
 #define GDK_WHITE	      16777215
-#define GDK_RED		      11674146
+#define GDK_RED		      16711680
 #define GDK_DARK_RED	      8388608
+#define GDK_ORANGE	      16753920
 #define GDK_GREEN	      65280
 #define GDK_DARK_GREEN	      47872
 

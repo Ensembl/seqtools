@@ -86,7 +86,10 @@ typedef struct _DetailViewProperties
     int cellYPadding;		  /* The y padding between the tree cell background area and their drawing area */
         
     IntRange displayRange;	  /* The currently-displayed range of bases in the reference sequence */
-    int selectedBaseIdx;	  /* The currently-selected base in the reference sequence */
+    int selectedBaseIdx;	  /* The currently-selected index in the display range */
+    int selectedFrame;		  /* The reading frame to display selected bases for */
+    int selectedBaseNum;	  /* The currently-selected base within the selected reading frame */
+    int selectedDnaBaseIdx;	  /* The currently-selected index in terms of the DNA sequence */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
 
     /* Cached font sizes, needed often for calculations. */
@@ -108,6 +111,8 @@ typedef struct _DetailViewProperties
     GdkColor gapColourSelected;       /* background colour for gap in match sequence (when position selected) */
     GdkColor exonBoundaryColourStart; /* line colour for exon boundaries (marking the start of an exon) */
     GdkColor exonBoundaryColourEnd;   /* line colour for exon boundaries (marking the end of an exon) */
+    GdkColor highlightTripletColour;  /* For protein matches, highlight all the bases in the selected triplet in this colour */
+    GdkColor highlightDnaBaseColour;  /* For protein matches, highlight the specific selected DNA base in this colour */
     
     int exonBoundaryLineWidth;	      /* line width for exon boundaries */
     GdkLineStyle exonBoundaryLineStyleStart; /* line style for exon boundaries (marking the start of an exon) */
@@ -166,7 +171,7 @@ void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
-void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx);
+void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum);
 void			updateFeedbackBox(GtkWidget *detailView);
 void			ToggleStrand(GtkWidget *detailView);
 

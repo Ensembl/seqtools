@@ -40,6 +40,9 @@ static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
 static GList*		    detailViewGetColumnList(GtkWidget *detailView);
 static GtkWidget*	    detailViewGetFeedbackBox(GtkWidget *detailView);
+static int		    detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
+static int		    detailViewGetSelectedFrame(GtkWidget *detailView);
+static GdkColor*	    detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
 
 static void		    detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
 static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
@@ -559,6 +562,58 @@ static void refreshTreeOrder(GtkWidget *detailView)
 }
 
 
+/* Set the markup in the given label, so that the label displays the given sequence
+ * segment, with the given base index is highlighted in the given colour. If the given
+ * base index is UNSET_INT, or is out of the current display range, then the label 
+ * is just given the plain, non-marked-up sequence. */
+static void createMarkupForLabel(GtkLabel *label, 
+				 const char *segmentToDisplay, 
+				 const int selectedCharIdx,
+				 GdkColor *colour)
+{
+  const int segLen = strlen(segmentToDisplay);
+
+  if (selectedCharIdx >= 0 && selectedCharIdx < segLen)
+    {
+      /* Cut the sequence into 4 sections: the text before the selected bases,
+       * the text after them, the selected bases themselves. */
+      char textBefore[selectedCharIdx];
+      char textAfter[segLen - selectedCharIdx + 200];
+      char selectedBaseText[2];
+      
+      int i = 0;
+      for ( ; i < selectedCharIdx; ++i)
+	{
+	  textBefore[i] = segmentToDisplay[i];
+	}
+      textBefore[i] = '\0';
+      
+      selectedBaseText[0] = segmentToDisplay[i];
+      selectedBaseText[1] = '\0';
+      ++i;
+
+      int j = 0;
+      for ( ; i < segLen; ++i, ++j)
+	{
+	  textAfter[j] = segmentToDisplay[i];
+	}
+      textAfter[j] = '\0';
+      
+      /* Create the marked-up text */
+      char markupText[segLen + 200];
+      sprintf(markupText, "%s<span bgcolor='#%06x'>%s</span>%s", 
+	      textBefore, colour->pixel, selectedBaseText, textAfter);
+      
+      gtk_label_set_markup(label, markupText);
+    }
+  else
+    {
+      /* Selected index is out of range, so no markup required */
+      gtk_label_set_markup(label, segmentToDisplay);
+    }
+}
+
+
 /* Refresh a specific line in the sequence column header */
 static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 					 GtkWidget *lineWidget, 
@@ -570,9 +625,11 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
       messcrash("Unexpected widget type in detail view header: expected label");
     }
 
-  GtkLabel *label = GTK_LABEL(lineWidget);
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
+  const int selectedFrame = detailViewGetSelectedFrame(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
 
   /* We need to switch the order in which frames are displayed if the display is toggled.
@@ -588,17 +645,18 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
    * frames to get the index into the reference sequence (which is DNA bases). */
 
   IntRange qRange;
-  qRange.min = convertPeptideToDna(displayRange->min, frame, 1, numFrames);		/* 1st base in frame */
+  qRange.min = convertPeptideToDna(displayRange->min, frame, 1, numFrames);	    /* 1st base in frame */
   qRange.max = convertPeptideToDna(displayRange->max, frame, numFrames, numFrames); /* last base in frame */
   
-  int qIdx = rightToLeft ? qRange.max : qRange.min;
-
   char displayText[displayRange->max - displayRange->min + 1 + 10];
   int incrementValue = numFrames;
   int displayTextPos = 0;
-  gboolean done = FALSE;
-  
-  while (!done)
+  int selectedCharIdx = UNSET_INT;
+  GdkColor *highlightColour = NULL;
+
+  int qIdx = rightToLeft ? qRange.max : qRange.min;
+
+  while (qIdx >= qRange.min && qIdx <= qRange.max)
     {
       /* Get the base at this index */
       displayText[displayTextPos] = getRefSeqBase(refSeq,
@@ -607,22 +665,29 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 						  &qRange, 
 						  BLXSEQ_DNA /* header always shows DNA bases */
 						 );
+
+      /* If the base (or its peptide) is selected, we need to highlight it */
+      if (convertDnaToPeptide(qIdx, selectedFrame, numFrames, NULL) == selectedBaseIdx)
+	{
+	  /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
+	  highlightColour = detailViewGetTripletHighlightColour(detailView, qIdx == selectedDnaBaseIdx);
+	  selectedCharIdx = displayTextPos;
+	}
+      
+      /* Increment indices */
       ++displayTextPos;
 
-      /* Get the next index and check if we've finished */
       if (rightToLeft)
 	qIdx -= incrementValue;
       else
 	qIdx += incrementValue;
-      
-      if (qIdx < qRange.min || qIdx > qRange.max)
-	done = TRUE;
     }
 
   /* Make sure the string is terminated properly */
   displayText[displayTextPos] = '\0';
   
-  gtk_label_set_text(label, displayText);
+  /* Mark up the text to highlight the selected base, if there is one */
+  createMarkupForLabel(GTK_LABEL(lineWidget), displayText, selectedCharIdx, highlightColour);
 }
 
 
@@ -803,17 +868,11 @@ static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
   
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
   const int numFrames = detailViewGetNumReadingFrames(detailView);
-  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
   
-  /* See if a base is selected. If we're displaying peptide matches, this will be a coord in
-   * the peptide reference sequence, so we'll need to convert it to a coord into the DNA ref seq.
-   * We'll display the coord for the DNA base relevant for this tree's reading frame. */
-  qIdx = selectedBaseIdx;
-  if (qIdx != UNSET_INT && seqType == BLXSEQ_PEPTIDE)
-    {
-      qIdx = convertPeptideToDna(selectedBaseIdx, 1, 1, numFrames); /* to do: determine which frame/base to show based on click pos? */
-    }
+  /* See if a base is selected. */
+  qIdx = selectedDnaBaseIdx;
   
   /* Make sure we have enough space for all the bits to go in the result text */
   int msgLen = numDigitsInInt(qIdx);
@@ -824,10 +883,10 @@ static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
       sname = msp->sname;
       msgLen += strlen(sname);
       
-      /* If a base index is selected, find the corresponding base in the match sequence */
-      if (msp && selectedBaseIdx != UNSET_INT)
+      /* If a q index is selected, find the corresponding base in the match sequence */
+      if (msp && qIdx != UNSET_INT)
 	{
-	  sIdx = getMatchIdxFromDisplayIdx(msp, selectedBaseIdx, mspGetRefFrame(msp, seqType), mspGetRefStrand(msp), rightToLeft, seqType, numFrames);
+	  sIdx = getMatchIdxFromDisplayIdx(msp, qIdx, mspGetRefFrame(msp, seqType), mspGetRefStrand(msp), rightToLeft, seqType, numFrames);
 	  msgLen += numDigitsInInt(sIdx);
 	}
     }
@@ -889,6 +948,23 @@ void updateFeedbackBox(GtkWidget *detailView)
   
   g_free(messageText);
 }
+
+
+/* If the selected base index is outside the current display range, scroll to keep it in range. */
+static void scrollToKeepSelectionInRange(GtkWidget *detailView)
+{
+  /* (This should probably also jump to the the selected base if it was previously
+   * out of view - at the moment it just scrolls by 1, which is usually not enough 
+   * to bring it into view.) */
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  
+  if (selectedBaseIdx < displayRange->min || selectedBaseIdx > displayRange->max)
+    {
+      goToDetailViewCoord(detailView, detailViewGetSeqType(detailView));
+    }
+}
+
 
 /***********************************************************
  *                    Detail view events                   *
@@ -1130,6 +1206,12 @@ GdkColor* detailViewGetGapColour(GtkWidget *detailView, const gboolean selected)
   return selected ? &properties->gapColourSelected : &properties->gapColour;
 }
 
+static GdkColor* detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return isSelectedDnaBase ? &properties->highlightDnaBaseColour : &properties->highlightTripletColour;
+}
+
 GdkColor* detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1339,12 +1421,33 @@ int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
   return properties ? properties->selectedBaseIdx : UNSET_INT;
 }
 
-void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx)
+static int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->selectedDnaBaseIdx : UNSET_INT;
+}
+
+static int detailViewGetSelectedFrame(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->selectedFrame : UNSET_INT;
+}
+
+void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
   properties->selectedBaseIdx = selectedBaseIdx;
+  properties->selectedFrame = frame;
+  properties->selectedBaseNum = baseNum;
   
+  /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
+  properties->selectedDnaBaseIdx = convertPeptideToDna(selectedBaseIdx, frame, baseNum, detailViewGetNumReadingFrames(detailView));
+
+  scrollToKeepSelectionInRange(detailView);
+
   updateFeedbackBox(detailView);
+  refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
   gtk_widget_queue_draw(detailView);
 }
@@ -1412,6 +1515,9 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->displayRange.min = 1;
       properties->displayRange.max = 1;
       properties->selectedBaseIdx = UNSET_INT;
+      properties->selectedBaseNum = UNSET_INT;
+      properties->selectedFrame = UNSET_INT;
+      properties->selectedDnaBaseIdx = UNSET_INT;
       properties->fontDesc = fontDesc;
       properties->charWidth = 0;
       properties->charHeight = 0;
@@ -1452,6 +1558,9 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->gapColourSelected	  = getGdkColor(GDK_DARK_GREY);
       properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
       properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_RED);
+      properties->highlightTripletColour  = getGdkColor(GDK_GREEN);
+      properties->highlightDnaBaseColour  = getGdkColor(GDK_RED);
+
       properties->exonBoundaryLineWidth	  = 1;
       properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
       properties->exonBoundaryLineStyleEnd   = GDK_LINE_SOLID;
@@ -1866,7 +1975,7 @@ static GtkWidget* createSequenceColHeader(GtkWidget *detailView,
       int frame = 0;
       for ( ; frame < numReadingFrames; ++frame)
 	{
-	  GtkWidget *line = createLabel("", 0.0, 0.0, TRUE, TRUE);
+	  GtkWidget *line = createLabel(NULL, 0.0, 0.0, TRUE, TRUE);
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
 	}
     }

@@ -239,52 +239,84 @@ static void scrollDetailViewBy1(GtkWidget *window, const gboolean moveLeft)
 }
 
 
-/* Move the selected base index 1 base to the left/right. Scrolls the detail view
- * if necessary to keep the new base in view. */
+/* Move the selected base index 1 base to the left/right. Moves by individual
+ * DNA bases (i.e. you have to move 3 bases in order to scroll a full peptide
+ * if viewing protein matches). Scrolls the detail view if necessary to keep 
+ * the new base in view. */
 static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
   MainWindowProperties *properties = mainWindowGetProperties(window);
   GtkWidget *detailView = properties->detailView;
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
-  IntRange *fullRange = mainWindowGetFullRange(window);
-  IntRange *displayRange = &detailViewProperties->displayRange;
+  if (detailViewProperties->selectedBaseIdx != UNSET_INT)
+    {
+      /* Decrement the index if moving left decrease and increment it if moving right, 
+       * unless the display is toggled, in which case do the opposite */
+      const int numFrames = properties->numReadingFrames;
+      const int minBaseNum = 1;
+      const int maxBaseNum = numFrames;
+
+      int newBaseNum = detailViewProperties->selectedBaseNum;
+      int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
+      
+      if (moveLeft != properties->strandsToggled)
+	{
+	  --newBaseNum;
+	  
+	  if (newBaseNum < minBaseNum)
+	    {
+	      newBaseNum = maxBaseNum;
+	      --newSelectedBaseIdx;
+	    }
+	}
+      else
+	{
+	  ++newBaseNum;
+	  
+	  if (newBaseNum > maxBaseNum)
+	    {
+	      newBaseNum = minBaseNum;
+	      ++newSelectedBaseIdx;
+	    }
+	}
+
+      IntRange *fullRange = mainWindowGetFullRange(window);
+      boundsLimitValue(&newSelectedBaseIdx, fullRange);
+
+      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, newBaseNum);
+    }
+}
+
+
+/* Move the selected display index 1 value to the left/right. Moves by full peptides
+ * if viewing protein matches. Scrolls the detail view if necessary to keep the new 
+ * index in view. */
+static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(window);
+  GtkWidget *detailView = properties->detailView;
+  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
   if (detailViewProperties->selectedBaseIdx != UNSET_INT)
     {
       /* Decrement the index if moving left decrease and increment it if moving right, 
        * unless the display is toggled, in which case do the opposite */
+      int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
+      
       if (moveLeft != properties->strandsToggled)
 	{
-	  detailViewSetSelectedBaseIdx(detailView, detailViewProperties->selectedBaseIdx - 1);
+	  --newSelectedBaseIdx;
 	}
       else
 	{
-	  detailViewSetSelectedBaseIdx(detailView, detailViewProperties->selectedBaseIdx + 1);
+	  ++newSelectedBaseIdx;
 	}
       
-      /* Limit it to within the reference sequence range */
-      if (detailViewProperties->selectedBaseIdx < fullRange->min)
-	{
-	  detailViewSetSelectedBaseIdx(detailView, fullRange->min);
-	}
-      else if (detailViewProperties->selectedBaseIdx > fullRange->max)
-	{
-	  detailViewSetSelectedBaseIdx(detailView, fullRange->max);
-	}
+      IntRange *fullRange = mainWindowGetFullRange(window);
+      boundsLimitValue(&newSelectedBaseIdx, fullRange);
       
-      /* If we've moved outside the current display range, scroll by 1 base.
-       * (This should probably also jump to the the selected base if it was previously
-       * out of view - at the moment it just scrolls by 1, which is usually not enough 
-       * to bring it into view.) */
-      if (detailViewProperties->selectedBaseIdx > displayRange->max)
-	{
-	  scrollDetailViewRight1(detailView);
-	}
-      else if (detailViewProperties->selectedBaseIdx < displayRange->min)
-	{
-	  scrollDetailViewLeft1(detailView);
-	}
+      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum);
     }
 }
 
@@ -831,7 +863,7 @@ static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event
       return TRUE;
   }
   
-  return FALSE;
+  return TRUE;
 }
 
 
@@ -849,7 +881,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
       case GDK_Right:
 	{
 	  if (ctrlModifier)
-	    scrollDetailViewBy1(window, event->keyval == GDK_Left);
+	    moveSelectedDisplayIdxBy1(window, event->keyval == GDK_Left);
 	  else
 	    moveSelectedBaseIdxBy1(window, event->keyval == GDK_Left);
 	  

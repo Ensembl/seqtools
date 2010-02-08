@@ -130,7 +130,7 @@ int treeGetSelectedBaseIdx(GtkWidget *tree)
   return properties ? detailViewGetSelectedBaseIdx(properties->detailView) : UNSET_INT;
 }
 
-static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
+static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx, const int frame, const int baseNum)
 {
   assertTree(tree);
 
@@ -140,9 +140,11 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx)
       DetailViewProperties *detailViewProperties = detailViewGetProperties(properties->detailView);
       
       /* Only update if things have changed */
-      if (detailViewProperties && detailViewProperties->selectedBaseIdx != selectedBaseIdx)
+      if (detailViewProperties->selectedBaseIdx != selectedBaseIdx ||
+	  detailViewProperties->selectedBaseNum != baseNum ||
+	  detailViewProperties->selectedFrame != frame)
 	{
-	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx);
+	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx, frame, baseNum);
 	}
     }
 }
@@ -372,7 +374,7 @@ void treeUpdateFontSize(GtkWidget *tree, gpointer data)
 
 
 /* Get the character index at the given x coordinate in the given tree view column. */
-static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, const int x)
+static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, const int x, int *baseNum)
 {
   int result = UNSET_INT;
   
@@ -393,8 +395,17 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
     {
       /* Calculate the number of bases from the left edge */
       gint charWidth = treeGetCharWidth(tree);
-      double distFromLeft = (double)x - leftEdge;
-      int numBasesFromLeft = trunc(distFromLeft / (double)charWidth);
+      
+      const double numBasesFromLeftDbl = ((double)x - leftEdge) / (double)charWidth;
+      const int numBasesFromLeft = trunc(numBasesFromLeftDbl);
+      
+      /* If requested, also calculate the base number within the frame */
+      if (baseNum)
+	{
+	  const int distFromCharStart = round((numBasesFromLeftDbl - numBasesFromLeft) * (double)charWidth);
+	  const double frameWidth = charWidth / treeGetNumReadingFrames(tree);
+	  *baseNum = (distFromCharStart / frameWidth) + 1;
+	}
       
       if (rightToLeft)
 	{
@@ -423,7 +434,7 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
 
 
 /* In the detail view, get the base index at the given coords */
-static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
+static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y, int *baseNum)
 {
   int baseIdx = UNSET_INT;
   
@@ -436,7 +447,7 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
   if (col == gtk_tree_view_get_column(GTK_TREE_VIEW(tree), MSP_COL))
     {
       /* Get the base index at the clicked position */
-      int charIdx = getCharIndexAtTreeCoord(tree, col, cell_x);
+      int charIdx = getCharIndexAtTreeCoord(tree, col, cell_x, baseNum);
       
       if (charIdx != UNSET_INT)
 	{
@@ -758,11 +769,16 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     
     case 1:
       {
-	/* Left button: select row */
-	
+	/* Left button: selects a row */
 	mainWindowDeselectAllMsps(treeGetMainWindow(tree), FALSE);
 	deselectAllSiblingTrees(tree, FALSE);
-
+	
+	/* If we've clicked a different tree to the previously selected one, make this tree's 
+	 * reading frame the active one. Select the first base in the triplet (or the last
+	 * if the display is reversed). */
+	const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
+	treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), firstBaseNum);
+	
 	/* Let the default handler select the row */
 	handled = FALSE;
 	break;
@@ -770,14 +786,12 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 
     case 2:
       {
-	/* Middle button: scroll to centre on clicked base */
-	/* Select the base index at the clicked coords */
-	int baseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y);
+	/* Middle button: select the base index at the clicked coords */
+	int baseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y, NULL);
 	
-	if (baseIdx != UNSET_INT)
-	  {
-	    treeSetSelectedBaseIdx(tree, baseIdx);
-	  }
+	/* Select the first base in this peptide's triplet (or the last if the display is reversed) */
+	const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
+	treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum);
 	
 	handled = TRUE;
 	break;
@@ -918,7 +932,10 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
     {
       /* Moving mouse with middle mouse button down. Update the currently-selected base
        * (but don't re-centre on the selected base until the mouse button is released). */
-      treeSetSelectedBaseIdx(tree, getBaseIndexAtTreeCoords(tree, event->x, event->y));
+      const int selectedBaseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y, NULL);
+      const int frame = treeGetFrame(tree);
+      
+      treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, 1); /* always select 1st base in peptide */
     }
   
   return TRUE;
@@ -1310,6 +1327,61 @@ static void initColumn(GtkWidget *tree,
 }
 
 
+/* Set the markup in the given label, so that the label displays the given sequence
+ * segment, with the given base index is highlighted in the given colour. If the given
+ * base index is UNSET_INT, or is out of the current display range, then the label 
+ * is just given the plain, non-marked-up sequence. */
+static void createMarkupForLabel(GtkLabel *label, 
+				 const char *segmentToDisplay, 
+				 const int selectedBaseIdx,
+				 GdkColor *colour,
+				 const gboolean rightToLeft,
+				 const IntRange const *displayRange)
+{
+  int charIdx = rightToLeft ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
+  const int segLen = strlen(segmentToDisplay);
+  
+  if (charIdx >= 0 && charIdx < segLen)
+    {
+      /* Cut the sequence into 3 sections: the text before the selected base,
+       * the text after it, and the selected base itself. */
+      char textBefore[charIdx];
+      char textAfter[segLen - charIdx + 200];
+      char textSelection[2];
+      
+      int i = 0;
+      for ( ; i < charIdx; ++i)
+	{
+	  textBefore[i] = segmentToDisplay[i];
+	}
+      textBefore[i] = '\0';
+      
+      textSelection[0] = segmentToDisplay[i];
+      textSelection[1] = '\0';
+
+      int j = 0;
+      ++i;
+      for ( ; i < segLen; ++i, ++j)
+	{
+	  textAfter[j] = segmentToDisplay[i];
+	}
+      textAfter[j] = '\0';
+
+      /* Create the marked-up text */
+      char markupText[segLen + 200];
+      sprintf(markupText, "%s<span bgcolor='#%x'>%s</span>%s", 
+	      textBefore, colour->pixel, textSelection, textAfter);
+
+      gtk_label_set_markup(label, markupText);
+    }
+  else
+    {
+      /* Selected index is out of range, so no markup required */
+      gtk_label_set_markup(label, segmentToDisplay);
+    }
+}
+
+
 /* Refresh the sequence column header. This header shows the section of reference
  * sequence for the current display range, so it needs to be refreshed after
  * scrolling, zooming etc. */
@@ -1345,48 +1417,9 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      /* Markup the text so the selected base is highlighted in a different colour */
-      int charIdx = rightToLeft ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
-      const int segLen = strlen(segmentToDisplay);
-      
-      if (charIdx >= 0 && charIdx < segLen)
-	{
-	  char text1[charIdx];
-	  char text2[segLen - charIdx + 200];
-	  char text3[2];
-	  
-	  int i = 0;
-	  for ( ; i < charIdx; ++i)
-	    {
-	      text1[i] = segmentToDisplay[i];
-	    }
-	  text1[i] = '\0';
-	  
-	  text3[0] = segmentToDisplay[i];
-	  text3[1] = '\0';
-
-	  int j = 0;
-	  ++i;
-	  for ( ; i < segLen; ++i, ++j)
-	    {
-	      text2[j] = segmentToDisplay[i];
-	    }
-	  text2[j] = '\0';
-
-	  GdkColor *selectedColour = treeGetRefSeqColour(tree, TRUE);
-
-	  char markupText[segLen + 200];
-	  sprintf(markupText, "%s<span bgcolor='#%x'>%s</span>%s", 
-		  text1, selectedColour->pixel, text3, text2);
-
-	  gtk_label_set_markup(GTK_LABEL(headerWidget), markupText);
-	}
-      else
-	{
-	  gtk_label_set_markup(GTK_LABEL(headerWidget), segmentToDisplay);
-	}
+      GdkColor *selectedColour = treeGetRefSeqColour(tree, TRUE);
+      createMarkupForLabel(GTK_LABEL(headerWidget), segmentToDisplay, selectedBaseIdx, selectedColour, rightToLeft, displayRange);
     }
-  
   
   g_free(segmentToDisplay);
 }
