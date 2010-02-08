@@ -45,7 +45,7 @@ typedef enum
     SCORE_COL,
     ID_COL,
     START_COL,
-    MSP_COL,
+    SEQUENCE_COL,
     END_COL,
     
     N_COLUMNS

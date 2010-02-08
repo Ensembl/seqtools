@@ -294,12 +294,12 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 }
 
 
-/* Return the msp in a given tree row */
-MSP* treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter)
+/* Return the MSP(s) in a given tree row */
+GList* treeGetMsps(GtkTreeModel *model, GtkTreeIter *iter)
 {
-  MSP *msp = NULL;
-  gtk_tree_model_get(model, iter, MSP_COL, &msp, -1);
-  return msp;
+  GList *mspGList = NULL;
+  gtk_tree_model_get(model, iter, SEQUENCE_COL, &mspGList, -1);
+  return mspGList;
 }
 
 
@@ -444,7 +444,7 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y, i
   gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(tree), x, y, &path, &col, &cell_x, &cell_y);
   
   /* See if we clicked in the sequence column */
-  if (col == gtk_tree_view_get_column(GTK_TREE_VIEW(tree), MSP_COL))
+  if (col == gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL))
     {
       /* Get the base index at the clicked position */
       int charIdx = getCharIndexAtTreeCoord(tree, col, cell_x, baseNum);
@@ -557,20 +557,20 @@ void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 }
 
 
-gboolean treeIsMspSelected(GtkWidget *tree, MSP *msp)
+gboolean treeIsMspSelected(GtkWidget *tree, GList *mspGList)
 {
   GtkWidget *mainWindow = treeGetMainWindow(tree);
-  return mainWindowIsMspSelected(mainWindow, msp);
+  return mainWindowIsMspSelected(mainWindow, mspGList);
 }
 
 
-/* Select the given row if its MSP is marked as selected. */
+/* Select the given row if its MSP list is marked as selected. */
 static gboolean selectRowIfMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  MSP *msp = treeGetMsp(model, iter);
+  GList *mspGList = treeGetMsps(model, iter);
   
-  if (treeIsMspSelected(tree, msp))
+  if (treeIsMspSelected(tree, mspGList))
     {
       GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
       gtk_tree_selection_select_path(selection, path);
@@ -595,9 +595,9 @@ static void markRowMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *mainWindow = treeGetMainWindow(tree);
   
-  MSP *msp = treeGetMsp(model, iter);
+  GList *mspGList = treeGetMsps(model, iter);
   
-  mainWindowSelectMsp(mainWindow, msp, FALSE);
+  mainWindowSelectMsp(mainWindow, mspGList, FALSE);
   
   gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
 }
@@ -635,24 +635,32 @@ gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
   
   gboolean bDisplay = FALSE;
   
-  /* Find the MSP in this row */
-  const MSP *msp = NULL;
-  gtk_tree_model_get(model, iter, MSP_COL, &msp, -1);
+  /* Loop through all MSPs in this row */
+  GList *mspListItem = treeGetMsps(model, iter);
   
-  /* Don't show introns */
-  if (msp && !mspIsIntron(msp))
+  for ( ; mspListItem; mspListItem = mspListItem->next)
     {
-      /* Only show this row if part of the MSP's range is inside the displayed range */
-      GtkAdjustment *adjustment = treeGetAdjustment(tree);
-      if (adjustment)
+      MSP* msp = (MSP*)(mspListItem->data);
+      
+      /* Don't show introns */
+      if (msp && !mspIsIntron(msp))
 	{
-	  int displayStart = adjustment->value + 1;
-	  int displayEnd = displayStart + adjustment->page_size;
+	  /* Only show this row if part of the MSP's range is inside the displayed range */
+	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
+	  if (adjustment)
+	    {
+	      int displayStart = adjustment->value + 1;
+	      int displayEnd = displayStart + adjustment->page_size;
 
-	  int qSeqMin = min(msp->displayStart, msp->displayEnd);
-	  int qSeqMax = max(msp->displayStart, msp->displayEnd);
-	  
-	  bDisplay = !(qSeqMin > displayEnd || qSeqMax < displayStart);
+	      int qSeqMin = min(msp->displayStart, msp->displayEnd);
+	      int qSeqMax = max(msp->displayStart, msp->displayEnd);
+	      
+	      if (!(qSeqMin > displayEnd || qSeqMax < displayStart))
+		{
+		  bDisplay = TRUE;
+		  break;
+		}
+	    }
 	}
     }
   
@@ -685,7 +693,7 @@ void treeSortByPos(GtkWidget *tree, gpointer data)
   /* Sort ascending if the reference sequence is displayed in the normal left-to-right
    * direction, otherwise sort descending. */
 //  gboolean rightToLeft = treeGetStrandsToggled(tree);
-  gtk_tree_sortable_set_sort_column_id(model, MSP_COL, GTK_SORT_ASCENDING);
+  gtk_tree_sortable_set_sort_column_id(model, SEQUENCE_COL, GTK_SORT_ASCENDING);
 }
 
 
@@ -1130,58 +1138,6 @@ static void calcID(MSP *msp, GtkWidget *tree)
   return ;
 }
 
-
-/* Create a dummy MSP for the reference sequence so that we can display it in the
- * detail-view tree along with all the other sequences. Note that the q coords are
- * in the DNA sequence and the s coords are in the actual displayed sequence (which
- * may be a peptide sequence if we're doing protein matches). */
-//static MSP* createRefSeqMsp(GtkWidget *tree, 
-//			    gboolean fwd, 
-//			    char *displaySeq, 
-//			    const IntRange const *refSeqRange,
-//			    const IntRange *displaySeqRange,
-//			    const int frame)
-//{
-//  MSP *msp = g_malloc(sizeof(MSP));
-//  
-//  /* Convert the frame number to a char. It should only be one digit long. */
-//  int frameCharLen = numDigitsInInt(frame);
-//  char frameChar[frameCharLen];
-//  sprintf(frameChar, "%d", frame);
-//  
-//  if (frameCharLen > 1)
-//    messerror("Frame should only be one digit but frame = '%d'. Frame may be incorrect.", frame);
-//
-//  msp->next = NULL;
-//  msp->type = BLX_MSP_INVALID;
-//  msp->score = 0;
-//  msp->id = -1;
-//
-//  msp->qname = REFERENCE_SEQUENCE_NAME;
-//  msp->qframe[0] = '(';
-//  msp->qframe[1] = fwd ? '+' : '-';
-//  msp->qframe[2] = frameChar[0];
-//  msp->qframe[3] = ')';
-//  msp->qstart = refSeqRange->min;
-//  msp->qend = refSeqRange->max;
-//  
-//  msp->displayStart = displaySeqRange->min;
-//  msp->displayEnd = displaySeqRange->max;
-//  
-//  msp->sname = REFERENCE_SEQUENCE_NAME;
-//  msp->sframe[0] = '(';
-//  msp->sframe[1] = fwd ? '+' : '-';
-//  msp->sframe[2] = frameChar[0];
-//  msp->sframe[3] = ')';
-//  msp->slength = displaySeqRange->max - displaySeqRange->min + 1;
-//  msp->sstart = displaySeqRange->min;
-//  msp->send = displaySeqRange->max;
-//  msp->sseq = displaySeq;
-//
-//  return msp;
-//}
-//
-
 /* Add the given msp as a row in the given model in the given tree. If the sequence
  * column header is supplied, it indicates that that widget should also point to the
  * row for this msp. */
@@ -1204,27 +1160,17 @@ void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
   GtkTreeIter iter;
   gtk_list_store_append(store, &iter);
   
+  GList *mspGList = g_list_append(NULL, msp); /* renderer expects a list of MSPs */
+
   gtk_list_store_set(store, &iter,
 		     S_NAME_COL, msp->sname,
 		     SCORE_COL, msp->score,
 		     ID_COL, msp->id,
 		     START_COL, msp->sstart,
-		     MSP_COL, msp,
+		     SEQUENCE_COL, mspGList,
 		     END_COL, msp->send,
 		     -1);
 }
-
-
-///* Cell data function for the custom sequence-column header, if there is one. This is used
-// * in protein matches to display the DNA triplets for each codon. */
-//static void sequenceColHeaderDataFunc(GtkCellLayout *cellLayout,
-//				      GtkCellRenderer *renderer, 
-//				      GtkTreeModel *model, 
-//				      GtkTreeIter *iter, 
-//				      gpointer data)
-//{
-////  g_object_set(renderer, "msp", "test text", NULL);
-//}
 
 
 /* Cell data function for the "start" column. This displays the start coord of the match 
@@ -1238,15 +1184,24 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
   GtkWidget *tree = GTK_WIDGET(data);
   gboolean rightToLeft = treeGetStrandsToggled(tree);
   
-  /* Get the msp for this row */
-  const MSP *msp = treeGetMsp(model, iter);
+  /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
+  GList	*mspGList = treeGetMsps(model, iter);
   
-  /* We want to display the start coord, unless the display is reversed, in which case display the end */
-  int coord = rightToLeft ? msp->send : msp->sstart;
+  if (g_list_length(mspGList) == 1)
+    {
+      MSP *msp = (MSP*)(mspGList->data);
+      
+      /* We want to display the start coord, unless the display is reversed, in which case display the end */
+      int coord = rightToLeft ? msp->send : msp->sstart;
 
-  char displayText[numDigitsInInt(coord) + 1];
-  sprintf(displayText, "%d", coord);
-  g_object_set(renderer, START_COLUMN_PROPERTY_NAME, displayText, NULL);
+      char displayText[numDigitsInInt(coord) + 1];
+      sprintf(displayText, "%d", coord);
+      g_object_set(renderer, START_COLUMN_PROPERTY_NAME, displayText, NULL);
+    }
+  else
+    {
+      g_object_set(renderer, START_COLUMN_PROPERTY_NAME, "", NULL);
+    }
 }
 
 
@@ -1261,15 +1216,24 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
   GtkWidget *tree = GTK_WIDGET(data);
   gboolean rightToLeft = treeGetStrandsToggled(tree);
   
-  /* Get the msp for this row */
-  const MSP *msp = treeGetMsp(model, iter);
+  /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
+  GList	*mspGList = treeGetMsps(model, iter);
   
-  /* We want to display the end coord, unless the display is reversed, in which case display the start */
-  int coord = rightToLeft ? msp->sstart : msp->send;
-  
-  char displayText[numDigitsInInt(coord) + 1];
-  sprintf(displayText, "%d", coord);
-  g_object_set(renderer, END_COLUMN_PROPERTY_NAME, displayText, NULL);
+  if (g_list_length(mspGList) == 1)
+    {
+      MSP *msp = (MSP*)(mspGList->data);
+      
+      /* We want to display the end coord, unless the display is reversed, in which case display the start */
+      int coord = rightToLeft ? msp->sstart : msp->send;
+      
+      char displayText[numDigitsInInt(coord) + 1];
+      sprintf(displayText, "%d", coord);
+      g_object_set(renderer, END_COLUMN_PROPERTY_NAME, displayText, NULL);
+    }
+  else
+    {
+      g_object_set(renderer, START_COLUMN_PROPERTY_NAME, "", NULL);
+    }
 }
 
 
@@ -1282,7 +1246,7 @@ static void initColumn(GtkWidget *tree,
   GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(columnInfo->title, 
 								       renderer, 
 								       columnInfo->propertyName, columnInfo->columnId, 
-								       "data", MSP_COL, /* always set msp so each column has access to all the data */
+								       "data", SEQUENCE_COL, /* always set msp so each column has access to all the data */
 								       NULL);
 
   /* Reduce the width of the end col by the scrollbar width. (This is so it matches the width
@@ -1313,7 +1277,7 @@ static void initColumn(GtkWidget *tree,
   /* Special treatment for specific columns */
   switch (columnInfo->columnId)
   {
-    case MSP_COL:
+    case SEQUENCE_COL:
       gtk_tree_view_column_set_expand(column, TRUE);
       break;
       
@@ -1540,7 +1504,7 @@ static void createTreeColHeader(GList **headerWidgets,
 	  break;
 	}
 	
-      case MSP_COL:
+      case SEQUENCE_COL:
 	{
 	  /* The sequence column header displays the reference sequence. This needs a custom
 	   * refresh callback function because it needs to be updated after scrolling etc. */
@@ -1583,7 +1547,7 @@ static void createTreeColHeader(GList **headerWidgets,
       gtk_container_add(GTK_CONTAINER(parent), headerWidget);
       
       /* Put the event box into the header bar */
-      gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == MSP_COL), TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == SEQUENCE_COL), TRUE, 0);
       
       /* Create the header info */
       TreeColumnHeaderInfo *headerInfo = g_malloc(sizeof(TreeColumnHeaderInfo));
@@ -1643,43 +1607,58 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, &sortOrder);
 //  gboolean ascending = (sortOrder == GTK_SORT_ASCENDING);
 
-  /* Extract the MSPs from the tree rows */
-  const MSP *msp1 = treeGetMsp(model, iter1);
-  const MSP *msp2 = treeGetMsp(model, iter2);
+  /* Extract the MSP lists from the tree rows */
+  GList *mspGList1 = treeGetMsps(model, iter1);
+  GList *mspGList2 = treeGetMsps(model, iter2);
+
+  /* Get the first MSP in each list. */
+  MSP *msp1 = (MSP*)(mspGList1->data);
+  MSP *msp2 = (MSP*)(mspGList2->data);
+
+  const gboolean multipleMsps = g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1;
 
   gint sortType = (gint)data;
   
-  /* Otherwise, use standard string/int comparison */
   switch (sortType)
     {
       case SORT_BY_NAME:
 	{
+	  MSP *msp1 = (MSP*)(mspGList1->data);
+	  MSP *msp2 = (MSP*)(mspGList2->data);
 	  result = strcmp(msp1->sname, msp2->sname);
 	  break;
 	}
 	
       case SORT_BY_SCORE:
-	{ 
-	  result = msp1->score - msp2->score;
+	{
+	  result = multipleMsps ? 0 : msp1->score - msp2->score;
 	  break;
 	}
 	
       case SORT_BY_ID:
 	{
-	  result = msp1->id - msp2->id;
+	  result = multipleMsps ? 0 : msp1->id - msp2->id;
 	  break;
 	}
 	
       case SORT_BY_POS:
 	{
-	  /* Use the low end of the reference sequence range */
-	  int qMin1, qMin2;
-	  getMspRangeExtents(msp1, &qMin1, NULL, NULL, NULL);
-	  getMspRangeExtents(msp2, &qMin2, NULL, NULL, NULL);
-	  result = qMin1 - qMin2;
+	  if (multipleMsps)
+	    {
+	      result = 0;
+	    }
+	  else
+	    {
+	      /* Use the low end of the reference sequence range */
+	      int qMin1, qMin2;
+	      getMspRangeExtents(msp1, &qMin1, NULL, NULL, NULL);
+	      getMspRangeExtents(msp2, &qMin2, NULL, NULL, NULL);
+	      result = qMin1 - qMin2;
+	    }
+	  
 	  break;
 	}
-	
+
       default:
 	break;
     };
@@ -1690,7 +1669,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
       result = strcmp(msp1->sname, msp2->sname);
     }
   
-  if (!result && sortType != SORT_BY_POS)
+  if (!multipleMsps && !result && sortType != SORT_BY_POS)
     {
       int sMin1, sMin2;
       getMspRangeExtents(msp1, NULL, NULL, &sMin1, NULL);
@@ -1698,7 +1677,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
       result = sMin1 - sMin2;
     }
   
-  if (!result)
+  if (!multipleMsps && !result)
     {
       result = msp1->slength - msp2->slength;
     }
@@ -1723,7 +1702,7 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL, sortColumnCompareFunc, (gpointer)SORT_BY_NAME, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL, sortColumnCompareFunc, (gpointer)SORT_BY_ID, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), MSP_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
   
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
   g_object_unref(G_OBJECT(store));

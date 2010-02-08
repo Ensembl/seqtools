@@ -1143,22 +1143,22 @@ static void selectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
 }
 
 
-void mainWindowSelectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees)
+void mainWindowSelectMsp(GtkWidget *mainWindow, GList *mspGList, const gboolean updateTrees)
 {
-  if (!mainWindowIsMspSelected(mainWindow, msp))
+  if (!mainWindowIsMspSelected(mainWindow, mspGList))
     {
       MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-      properties->selectedMsps = g_list_prepend(properties->selectedMsps, msp);
+      properties->selectedMsps = g_list_prepend(properties->selectedMsps, mspGList);
       selectionChanged(mainWindow, updateTrees);
     }
 }
 
-void mainWindowDeselectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees)
+void mainWindowDeselectMsp(GtkWidget *mainWindow, GList *mspGList, const gboolean updateTrees)
 {
-  if (mainWindowIsMspSelected(mainWindow, msp))
+  if (mainWindowIsMspSelected(mainWindow, mspGList))
     {
       MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-      properties->selectedMsps = g_list_remove(properties->selectedMsps, msp);
+      properties->selectedMsps = g_list_remove(properties->selectedMsps, mspGList);
       selectionChanged(mainWindow, updateTrees);
     }
 }
@@ -1175,10 +1175,10 @@ void mainWindowDeselectAllMsps(GtkWidget *mainWindow, const gboolean updateTrees
     }
 }
 
-gboolean mainWindowIsMspSelected(GtkWidget *mainWindow, MSP *msp)
+gboolean mainWindowIsMspSelected(GtkWidget *mainWindow, GList *mspGList)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  return (g_list_find(properties->selectedMsps, msp) != NULL);
+  return (g_list_find(properties->selectedMsps, mspGList) != NULL);
 }
 
 

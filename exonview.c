@@ -67,37 +67,43 @@ static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width
  * if this row does not contain an exon/intron.) */
 static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-  const MSP *msp = treeGetMsp(model, iter);
+  /* One row can contain multiple MSPs. Draw them all. */
+  const GList *mspListItem = treeGetMsps(model, iter);
   
-  if (mspIsExon(msp) || mspIsIntron(msp))
+  for ( ; mspListItem; mspListItem = mspListItem->next)
     {
-      GtkWidget *exonView = GTK_WIDGET(data);
-      ExonViewProperties *properties = exonViewGetProperties(exonView);
-      IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
-      gboolean rightToLeft = bigPictureGetStrandsToggled(properties->bigPicture);
+      MSP *msp = (MSP*)(mspListItem->data);
       
-      int x1 = convertBaseIdxToGridPos(msp->displayStart, &properties->exonViewRect, displayRange, rightToLeft);
-      int x2 = convertBaseIdxToGridPos(msp->displayEnd, &properties->exonViewRect, displayRange, rightToLeft);
-      int x = min(x1, x2);
-      int width = abs(x2 - x1);
-      
-      int y = properties->exonViewRect.y;
-      int height = properties->exonViewRect.height;
-      
-      GdkDrawable *drawable = widgetGetDrawable(exonView);
-      GdkGC *gc = gdk_gc_new(drawable);
-      gdk_gc_set_foreground(gc, &properties->exonColour);
+      if (mspIsExon(msp) || mspIsIntron(msp))
+	{
+	  GtkWidget *exonView = GTK_WIDGET(data);
+	  ExonViewProperties *properties = exonViewGetProperties(exonView);
+	  IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+	  gboolean rightToLeft = bigPictureGetStrandsToggled(properties->bigPicture);
+	  
+	  int x1 = convertBaseIdxToGridPos(msp->displayStart, &properties->exonViewRect, displayRange, rightToLeft);
+	  int x2 = convertBaseIdxToGridPos(msp->displayEnd, &properties->exonViewRect, displayRange, rightToLeft);
+	  int x = min(x1, x2);
+	  int width = abs(x2 - x1);
+	  
+	  int y = properties->exonViewRect.y;
+	  int height = properties->exonViewRect.height;
+	  
+	  GdkDrawable *drawable = widgetGetDrawable(exonView);
+	  GdkGC *gc = gdk_gc_new(drawable);
+	  gdk_gc_set_foreground(gc, &properties->exonColour);
 
-      if (mspIsExon(msp))
-	{
-	  drawExon(drawable, gc, x, y, width, height);
+	  if (mspIsExon(msp))
+	    {
+	      drawExon(drawable, gc, x, y, width, height);
+	    }
+	  else if (mspIsIntron(msp))
+	    {
+	      drawIntron(drawable, gc, x, y, width, height);
+	    }
+	    
+	  g_object_unref(gc);
 	}
-      else if (mspIsIntron(msp))
-	{
-	  drawIntron(drawable, gc, x, y, width, height);
-	}
-	
-      g_object_unref(gc);
     }
   
   return FALSE;

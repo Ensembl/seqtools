@@ -52,7 +52,7 @@ int		  treeGetNumReadingFrames(GtkWidget *tree);
 int		  treeGetSelectedBaseIdx(GtkWidget *tree);
 char*		  treeGetRefSeq(GtkWidget *tree);
 IntRange*	  treeGetDisplayRange(GtkWidget *tree);
-MSP*		  treeGetMsp(GtkTreeModel *model, GtkTreeIter *iter);
+GList*		  treeGetMsps(GtkTreeModel *model, GtkTreeIter *iter);
 GtkTreeModel*	  treeGetVisibleDataModel(GtkTreeView *tree);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 GtkWidget*	  treeGetMainWindow(GtkWidget *tree);
@@ -89,7 +89,7 @@ void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
 void		  selectRowsForSelectedMsps(GtkWidget *tree, gpointer data);
-gboolean	  treeIsMspSelected(GtkWidget *tree, MSP *msp);
+gboolean	  treeIsMspSelected(GtkWidget *tree, GList *msp);
 
 void		  addMspToTreeModel(GtkTreeModel *model, 
 				    MSP *msp,

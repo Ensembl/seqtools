@@ -342,12 +342,18 @@ static gboolean drawUnselectedMspLine(GtkTreeModel *model, GtkTreePath *path, Gt
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *mainWindow = treeGetMainWindow(tree);
   
-  MSP* msp = treeGetMsp(model, iter);
-
-  if (!mainWindowIsMspSelected(mainWindow, msp))
+  /* A tree row can contain multiple MSPs. Process all of them */
+  GList* mspListItem = treeGetMsps(model, iter);
+  
+  for ( ; mspListItem; mspListItem = mspListItem->next)
     {
-      GtkWidget *grid = treeGetGrid(tree);
-      drawMspLine(grid, gridGetMspLineColour(grid), msp);
+      MSP *msp = (MSP*)(mspListItem->data);
+      
+      if (!mainWindowIsMspSelected(mainWindow, msp))
+	{
+	  GtkWidget *grid = treeGetGrid(tree);
+	  drawMspLine(grid, gridGetMspLineColour(grid), msp);
+	}
     }
   
   return FALSE;
@@ -360,12 +366,18 @@ static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkT
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *mainWindow = treeGetMainWindow(tree);
   
-  MSP* msp = treeGetMsp(model, iter);
+  /* A tree row can contain multiple MSPs. Process all of them */
+  GList* mspListItem = treeGetMsps(model, iter);
   
-  if (mainWindowIsMspSelected(mainWindow, msp))
+  for ( ; mspListItem; mspListItem = mspListItem->next)
     {
-      GtkWidget *grid = treeGetGrid(tree);
-      drawMspLine(grid, gridGetMspLineHighlightColour(grid), msp);
+      MSP *msp = (MSP*)(mspListItem->data);
+      
+      if (mainWindowIsMspSelected(mainWindow, msp))
+	{
+	  GtkWidget *grid = treeGetGrid(tree);
+	  drawMspLine(grid, gridGetMspLineHighlightColour(grid), msp);
+	}
     }
   
   return FALSE;
@@ -618,21 +630,28 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 {
   gboolean wasSelected = FALSE;
   
-  MSP *msp = treeGetMsp(model, iter);
+  /* The tree row can contain multiple MSPs. Check all of them until we find a match. */
+  GList* mspListItem = treeGetMsps(model, iter);
   
-  if (mspShownInGrid(msp))
+  for ( ; mspListItem; mspListItem = mspListItem->next)
     {
-      int mspX, mspY, mspWidth, mspHeight;
-      calculateMspLineDimensions(grid, msp, &mspX, &mspY, &mspWidth, &mspHeight);
+      MSP *msp = (MSP*)(mspListItem->data);
       
-      if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
+      if (mspShownInGrid(msp))
 	{
-	  /* It's a hit */
-	  wasSelected = TRUE;
+	  int mspX, mspY, mspWidth, mspHeight;
+	  calculateMspLineDimensions(grid, msp, &mspX, &mspY, &mspWidth, &mspHeight);
 	  
-	  GtkWidget *mainWindow = gridGetMainWindow(grid);
-	  mainWindowDeselectAllMsps(mainWindow, TRUE);
-	  mainWindowSelectMsp(mainWindow, msp, TRUE);
+	  if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
+	    {
+	      /* It's a hit. Select this row. */
+	      GtkWidget *mainWindow = gridGetMainWindow(grid);
+	      mainWindowDeselectAllMsps(mainWindow, TRUE);
+	      mainWindowSelectMsp(mainWindow, msp, TRUE);
+
+	      wasSelected = TRUE;
+	      break;
+	    }
 	}
     }
   

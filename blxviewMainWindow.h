@@ -31,7 +31,7 @@ typedef struct _MainWindowProperties
     int numReadingFrames;	    /* The number of reading frames */
 
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
-    GList *selectedMsps;	    /* List of MSPs that are selected */
+    GList *selectedMsps;	    /* A list of MSP GList's that are selected (each tree row corresponds to a GList of MSPs) */
     
     gboolean autoDotterParams;	    /* Whether to use automatic dotter params */
     int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
@@ -67,10 +67,10 @@ gboolean		  mainWindowGetGappedHsp(GtkWidget *mainWindow);
 GList*			  mainWindowGetSelectedMsps(GtkWidget *mainWindow);
 MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
 
-void			  mainWindowSelectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees);
-void			  mainWindowDeselectMsp(GtkWidget *mainWindow, MSP *msp, const gboolean updateTrees);
+void			  mainWindowSelectMsp(GtkWidget *mainWindow, GList *msp, const gboolean updateTrees);
+void			  mainWindowDeselectMsp(GtkWidget *mainWindow, GList *msp, const gboolean updateTrees);
 void			  mainWindowDeselectAllMsps(GtkWidget *mainWindow, const gboolean updateTrees);
-gboolean		  mainWindowIsMspSelected(GtkWidget *mainWindow, MSP *msp);
+gboolean		  mainWindowIsMspSelected(GtkWidget *mainWindow, GList *msp);
 
 void			  displayHelp(GtkWidget *mainWindow);
 

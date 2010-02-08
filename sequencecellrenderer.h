@@ -35,14 +35,14 @@ typedef struct _SequenceCellRenderer
   GtkCellRenderer   parent;
   
   /* The cell renderer can be used to render a match sequence or plain text */
-  MSP *msp;      /* property for the sequence column */
+  GList *mspGList;  /* property for the sequence column. Contains the MSP(s) to be displayed in this row */
   char *name;    /* property for the name column */
   char *score;   /* property for the score column */
   char *id;	 /* property for the id column */
   char *start;   /* property for the start column */
   char *end;	 /* property for the end column */
   
-  MSP *data; /* property that is set for every column */
+  GList *data; /* property that is set for every column */
 } SequenceCellRenderer;
 
 

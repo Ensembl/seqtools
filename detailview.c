@@ -274,7 +274,7 @@ static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
   /* Find the width of the sequence column (if we weren't already passed it) */
   if (colWidth == UNSET_INT)
     {
-      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), MSP_COL);
+      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
       colWidth = gtk_tree_view_column_get_width(sequenceCol);
     }
   
@@ -836,7 +836,7 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
   int colWidth = UNSET_INT;  
   if (firstTree)
     {
-      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), MSP_COL);
+      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), SEQUENCE_COL);
       colWidth = gtk_tree_view_column_get_width(sequenceCol);
     }
   
@@ -1557,7 +1557,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->gapColour		  = getGdkColor(GDK_GREY);
       properties->gapColourSelected	  = getGdkColor(GDK_DARK_GREY);
       properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
-      properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_RED);
+      properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_BLUE);
       properties->highlightTripletColour  = getGdkColor(GDK_GREEN);
       properties->highlightDnaBaseColour  = getGdkColor(GDK_RED);
 
@@ -1711,32 +1711,40 @@ static void sortById(GtkWidget *detailView)
 }
 
 
-
-
+/* Find the next MSP (out the MSPs in this tree) whose start is the next closest to the
+ * current start position of the display, searching only in the direction specified by 
+ * the search criteria passed in the user data. */
 static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-  const MSP *msp = treeGetMsp(model, iter);
+  /* Loop through all MSPs in this tree row. */
+  GList* mspListItem = treeGetMsps(model, iter);
   
-  if (mspIsBlastMatch(msp) || mspIsExon(msp))
+  for ( ; mspListItem; mspListItem = mspListItem->next)
     {
-      MatchSearchData *searchData = (MatchSearchData*)data;
+      MSP *msp = (MSP*)(mspListItem->data);
 
-      int qSeqMin, qSeqMax;
-      getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
-      
-      int curOffset = UNSET_INT;
-      if (searchData->rightToLeft)
+      if (mspIsBlastMatch(msp) || mspIsExon(msp))
 	{
-	  curOffset = (qSeqMax - searchData->displayRange->max) * searchData->searchDirection;
-	}
-      else
-	{
-	  curOffset = (qSeqMin - searchData->displayRange->min) * searchData->searchDirection;
-	}
-      
-      if (curOffset > 0 && (curOffset < searchData->smallestOffset || searchData->smallestOffset == UNSET_INT))
-	{
-	  searchData->smallestOffset = curOffset;
+	  MatchSearchData *searchData = (MatchSearchData*)data;
+
+	  int qSeqMin, qSeqMax;
+	  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+	  
+	  /* Get the offset of this MSP from the current display start position */
+	  int curOffset = UNSET_INT;
+	  if (searchData->rightToLeft) /* display reversed */
+	    {
+	      curOffset = (qSeqMax - searchData->displayRange->max) * searchData->searchDirection;
+	    }
+	  else
+	    {
+	      curOffset = (qSeqMin - searchData->displayRange->min) * searchData->searchDirection;
+	    }
+	  
+	  if (curOffset > 0 && (curOffset < searchData->smallestOffset || searchData->smallestOffset == UNSET_INT))
+	    {
+	      searchData->smallestOffset = curOffset;
+	    }
 	}
     }
   
@@ -1875,21 +1883,6 @@ static void GToggleStrand(GtkButton *button, gpointer data)
  *                     Initialization                      *
  ***********************************************************/
 
-//static GtkWidget *createTripletCell(GtkCellRenderer *renderer)
-//{
-//  GtkWidget *cellView = gtk_cell_view_new();
-//  
-//  GtkCellLayout *layout = GTK_CELL_LAYOUT(cellView);
-//  gtk_cell_layout_pack_start(layout, renderer, TRUE);
-//  gtk_cell_layout_add_attribute(layout, renderer, "header", MSP_COL);
-//  gtk_cell_layout_add_attribute(layout, renderer, "msp", MSP_COL);
-//  gtk_cell_layout_add_attribute(layout, renderer, "data", MSP_COL);
-//  //      gtk_cell_layout_set_cell_data_func(layout, renderer, sequenceColHeaderDataFunc, NULL, NULL);  
-//  
-//  return cellView;
-//}
-
-
 /* Adds the given column-header widget to the container, and adds its column info
  * to the columnList. Also sets the default width of the widget and the alignment. */
 static void addHeaderColumn(GtkBox *container, 
@@ -1903,7 +1896,7 @@ static void addHeaderColumn(GtkBox *container,
 			    GList **columnList)
 {
   /* Create a simple label for the header (unless already passed a special header widget) */
-  GtkWidget *headerWidget = specialWidget ? specialWidget : gtk_label_new(title); //createLabel(title, 0.0, 1.0, (columnId==MSP_COL), TRUE);
+  GtkWidget *headerWidget = specialWidget ? specialWidget : gtk_label_new(title);
   gtk_box_pack_start(container, headerWidget, expand, TRUE, 0);
   gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
   
@@ -1952,7 +1945,7 @@ static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
   addHeaderColumn(header, SCORE_COL,  NULL,	  NULL,		 SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
   addHeaderColumn(header, ID_COL,     NULL,	  NULL,		 ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    FALSE, columnList);
   addHeaderColumn(header, START_COL,  NULL,	  startCallback, START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
-  addHeaderColumn(header, MSP_COL,    seqHeader,  seqCallback,	 SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
+  addHeaderColumn(header, SEQUENCE_COL, seqHeader, seqCallback,	 SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
   addHeaderColumn(header, END_COL,    NULL,	  endCallback,	 END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   endColWidth,		  FALSE, columnList);
 
   return GTK_WIDGET(header);
