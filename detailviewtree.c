@@ -21,7 +21,7 @@ enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
 
 /* Local function declarations */
 static void		onSelectionChangedTree(GObject *selection, gpointer data);
-//static GtkTreePath*	treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath);
+static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 
 /***********************************************************
@@ -79,6 +79,13 @@ GtkWidget *treeGetMainWindow(GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetMainWindow(detailView);
+}
+
+static GHashTable *treeGetSequenceTable(GtkWidget *tree)
+{
+  assertTree(tree);
+  TreeProperties *properties = treeGetProperties(tree);
+  return properties->sequenceTable;
 }
 
 Strand treeGetStrand(GtkWidget *tree)
@@ -291,6 +298,53 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 	  func(revTree, NULL);
 	}
     }
+}
+
+
+static void addSequenceToTree(gpointer key, gpointer value, gpointer data)
+{
+  char *sequenceName = (char*)key;
+  GList *mspGList = (GList*)value;
+  GtkWidget *tree = GTK_WIDGET(data);
+
+  GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+  
+  GtkTreeIter iter;
+  gtk_list_store_append(store, &iter);
+  
+  gtk_list_store_set(store, &iter,
+		     S_NAME_COL, sequenceName,
+		     SCORE_COL, NULL,
+		     ID_COL, NULL,
+		     START_COL, NULL,
+		     SEQUENCE_COL, mspGList,
+		     END_COL, NULL,
+		     -1);
+}
+
+
+void addSequencesToTree(GtkWidget *tree, gpointer data)
+{
+  GtkListStore *store = gtk_list_store_new(N_COLUMNS,
+					   G_TYPE_STRING, 
+					   G_TYPE_INT, 
+					   G_TYPE_INT, 
+					   G_TYPE_INT, 
+					   G_TYPE_POINTER, 
+					   G_TYPE_INT);
+  
+  /* Set the sort functions for each column */
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL, sortColumnCompareFunc, (gpointer)SORT_BY_NAME, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL, sortColumnCompareFunc, (gpointer)SORT_BY_ID, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
+  
+  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
+  g_object_unref(G_OBJECT(store));
+
+  /* Add the rows */
+  GHashTable *sequenceTable = treeGetSequenceTable(tree);
+  g_hash_table_foreach(sequenceTable, addSequenceToTree, tree);
 }
 
 
@@ -717,7 +771,6 @@ static void onDestroyTree(GtkWidget *widget)
     }
 }
 
-
 static void treeCreateProperties(GtkWidget *widget, 
 				 GtkWidget *grid, 
 				 GtkWidget *detailView, 
@@ -734,6 +787,7 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->renderer = renderer;
       properties->readingFrame = frame;
       properties->treeColumnHeaderList = treeColumnHeaderList;
+      properties->sequenceTable = g_hash_table_new(g_str_hash, g_str_equal);
 
       g_object_set_data(G_OBJECT(widget), "TreeProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyTree), NULL); 
@@ -1138,30 +1192,33 @@ static void calcID(MSP *msp, GtkWidget *tree)
   return ;
 }
 
-/* Add the given msp as a row in the given model in the given tree. If the sequence
- * column header is supplied, it indicates that that widget should also point to the
- * row for this msp. */
-void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
+
+/* Calculate the display coordinates for the given MSP and store them in the
+ * MSP struct. Reference sequence (q) coords are always in terms of the DNA
+ * sequence, whereas the display may be in terms of the peptide sequence if
+ * we are viewing protein matches. */
+static void calcDisplayCoords(MSP *msp, GtkWidget *tree)
 {
-  /* First, calculate the id and set the "real" reference sequence coords (the
-   * ones relative to the ref seq that is actually displayed - different to the
-   * DNA ref sequence if we're displaying protein matches). */
-  calcID(msp, tree);
-  
   const int frame = treeGetFrame(tree);
   const int numReadingFrames = treeGetNumReadingFrames(tree);
-  
+
   msp->displayStart = convertDnaToPeptide(msp->qstart, frame, numReadingFrames, NULL); 
   msp->displayEnd = convertDnaToPeptide(msp->qend, frame, numReadingFrames, NULL);
-  
-  /* Add it to the tree's data store */
-  GtkListStore *store = GTK_LIST_STORE(model);
+}
+
+
+/* Add a row to the given tree containing the given MSP */
+static void addTreeRow(MSP *msp, GtkWidget *tree)
+{
+  GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   
   GtkTreeIter iter;
   gtk_list_store_append(store, &iter);
   
-  GList *mspGList = g_list_append(NULL, msp); /* renderer expects a list of MSPs */
-
+  /* The SequenceCellRenderer expects a GList of MSPs, so put our MSP in a list */
+  GList *mspGList = NULL;
+  mspGList = g_list_append(NULL, msp);
+  
   gtk_list_store_set(store, &iter,
 		     S_NAME_COL, msp->sname,
 		     SCORE_COL, msp->score,
@@ -1170,6 +1227,27 @@ void addMspToTreeModel(GtkTreeModel *model, MSP *msp, GtkWidget *tree)
 		     SEQUENCE_COL, mspGList,
 		     END_COL, msp->send,
 		     -1);
+}
+
+
+/* Add the given msp as a row in the given tree view. */
+void addMspToTree(GtkWidget *tree, MSP *msp)
+{
+  /* First calculate the ID and display coords and update them in the MSP */
+  calcID(msp, tree);
+  calcDisplayCoords(msp, tree);
+
+  /* Add the MSP as an individual row */
+  addTreeRow(msp, tree);
+  
+  /* Add the MSP to the tree's hash table of sequence names */
+  GHashTable *sequenceTable = treeGetSequenceTable(tree);
+  
+  /* Get the current list of MSPs, if one exists. If it doesn't, we can still
+   * append to the null list and the list will be created for us. */
+  GList *mspGList = (GList*)g_hash_table_lookup(sequenceTable, msp->sname);
+  mspGList = g_list_append(mspGList, msp);
+  g_hash_table_insert(sequenceTable, msp->sname, mspGList);
 }
 
 

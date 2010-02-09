@@ -180,6 +180,31 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
 }
 
 
+/* Scroll the detail view so that the given coord is at the end of the display
+ * range (within bounds). coordSeqType specifies the type of sequence that the coord
+ * is an index into. */
+static void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
+{
+  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
+  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+    {
+      coord = convertDnaToPeptide(coord, 1, detailViewGetNumReadingFrames(detailView), NULL);
+    }
+
+  /* Get the new start coord */
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const int displayLen = getRangeLength(displayRange);
+  int newStart = coord - displayLen + 1;
+
+  /* Convert to 0-based value for the scrollbar */
+  const IntRange const *fullRange = detailViewGetFullRange(detailView);
+  newStart = newStart - fullRange->min;
+  
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+  setDetailViewScrollPos(adjustment, newStart);
+}
+
+
 /* Update the scroll position of the adjustment to the given (0-based) value. Does
  * bounds checking. */
 static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
@@ -932,8 +957,11 @@ void updateFeedbackBox(GtkWidget *detailView)
   
   if (g_list_length(selectedMsps) > 0)
     {
-      /* We currently only handle single-selection, so only process the first selected MSP */
-      MSP *selectedMsp = (MSP*)selectedMsps->data;
+      /* We currently only handle single-selection, so just get the first 
+       * sequence in the selection list. The sequence has a GList of MSPs.
+       * We just need the sequence name, so just get any MSP from that list. */
+      GList *selectedSequence = (GList*)(selectedMsps->data);
+      MSP *selectedMsp = (MSP*)(selectedSequence->data);
       messageText = getFeedbackText(detailView, selectedMsp);
     }
   else
@@ -953,15 +981,19 @@ void updateFeedbackBox(GtkWidget *detailView)
 /* If the selected base index is outside the current display range, scroll to keep it in range. */
 static void scrollToKeepSelectionInRange(GtkWidget *detailView)
 {
-  /* (This should probably also jump to the the selected base if it was previously
-   * out of view - at the moment it just scrolls by 1, which is usually not enough 
-   * to bring it into view.) */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
   
-  if (selectedBaseIdx < displayRange->min || selectedBaseIdx > displayRange->max)
+  if (selectedBaseIdx != UNSET_INT)
     {
-      goToDetailViewCoord(detailView, detailViewGetSeqType(detailView));
+      if (selectedBaseIdx < displayRange->min)
+	{
+	  setDetailViewStartIdx(detailView, selectedBaseIdx, detailViewGetSeqType(detailView));
+	}
+      else if (selectedBaseIdx > displayRange->max)
+	{
+	  setDetailViewEndIdx(detailView, selectedBaseIdx, detailViewGetSeqType(detailView));
+	}
     }
 }
 
@@ -2275,13 +2307,12 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   
   for ( ; msp; msp = msp->next)
     {
+      /* Find the tree that this MSP should belong to based on its reading frame and strand */
       Strand activeStrand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
       const int frame = mspGetRefFrame(msp, seqType);
-      
       GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
-      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-      
-      addMspToTreeModel(model, msp, tree);
+
+      addMspToTree(tree, msp);
     }
   
   /* Finally, create a custom-filtered version of the data store for each tree. We do 

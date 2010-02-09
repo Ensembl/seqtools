@@ -36,6 +36,7 @@ typedef struct _TreeProperties
 
     int readingFrame;		    /* Which reading frame this tree displays */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
+    GHashTable *sequenceTable;	    /* Hash table of sequence names, each with a list of MSPs for that sequence */
   } TreeProperties;
 GdkColor exonColour;
 
@@ -91,9 +92,7 @@ void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 void		  selectRowsForSelectedMsps(GtkWidget *tree, gpointer data);
 gboolean	  treeIsMspSelected(GtkWidget *tree, GList *msp);
 
-void		  addMspToTreeModel(GtkTreeModel *model, 
-				    MSP *msp,
-				    GtkWidget *tree);
+void		  addMspToTree(GtkWidget *tree, MSP *msp);
 
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,
