@@ -22,6 +22,9 @@
 
 typedef struct _RenderData
   {
+    GdkRectangle *cell_area;
+    GdkWindow *window;
+    GtkStateType state;
     GdkGC *gc;
     const gboolean rightToLeft;
     const Strand qStrand;
@@ -47,6 +50,11 @@ typedef struct _RenderData
     GdkColor *consColourSelected;
     GdkColor *mismatchColour;
     GdkColor *mismatchColourSelected;
+    GdkColor *exonBoundaryColourStart;
+    GdkColor *exonBoundaryColourEnd;
+    int exonBoundaryWidth;
+    GdkLineStyle exonBoundaryStyleStart;
+    GdkLineStyle exonBoundaryStyleEnd;
   } RenderData;
 
 
@@ -82,26 +90,18 @@ static void     sequence_cell_renderer_init       (SequenceCellRenderer      *ce
 static void     sequence_cell_renderer_class_init (SequenceCellRendererClass *klass);
 static void     sequence_cell_renderer_finalize (GObject *gobject);
 
-static IntRange getVisibleMspRange(MSP *msp, GtkWidget *tree);
-void		drawVisibleExonBoundaries(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell_area);
+static IntRange getVisibleMspRange(MSP *msp, RenderData *data);
+void		drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data);
 
 static void drawSequenceText(GtkWidget *tree,
 			     gchar *displayText, 
 			     const IntRange const *segmentRange,
-			     GdkRectangle *cell_area, 
-			     GdkWindow *window, 
-			     GtkStateType state,
-			     GdkGC *gc);
+			     RenderData *data);
 
 
 static void getCoordsForBaseIdx(const int segmentIdx, 
 				const IntRange const *segmentRange,
-				const IntRange const *displayRange,
-				const gboolean rightToLeft,
-				const int charWidth,
-				const int cellXPadding,
-				const int cellYPadding,
-				GdkRectangle *cell_area, 
+				RenderData *data,
 				int *x, 
 				int* y);
 
@@ -548,22 +548,18 @@ static void drawText(SequenceCellRenderer *renderer,
  * selected and, if so, colours the background for that base with the given colour. */
 static void highlightSelectedBase(const int selectedBaseIdx,
 				  GdkColor *highlightColour,
-				  const IntRange const *displayRange,
-				  RenderData *data,
-				  GdkWindow *window,
-				  GdkDrawable *drawable,
-				  GdkRectangle *cell_area)
+				  RenderData *data)
 {
-  if (selectedBaseIdx != UNSET_INT && valueWithinRange(selectedBaseIdx, displayRange))
+  if (selectedBaseIdx != UNSET_INT && valueWithinRange(selectedBaseIdx, data->displayRange))
     {
       /* Convert the display-range index to a 0-based index for the section of sequence displayed */
-      const int segmentIdx = data->rightToLeft ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
+      const int segmentIdx = data->rightToLeft ? data->displayRange->max - selectedBaseIdx : selectedBaseIdx - data->displayRange->min;
       
       int x, y;
-      getCoordsForBaseIdx(segmentIdx, displayRange, displayRange, data->rightToLeft, data->charWidth, data->cellXPadding, data->cellYPadding, cell_area, &x, &y);
+      getCoordsForBaseIdx(segmentIdx, data->displayRange, data, &x, &y);
 
       gdk_gc_set_foreground(data->gc, highlightColour);
-      drawRectangle2(window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
     }
 }
 
@@ -573,29 +569,26 @@ static void highlightSelectedBase(const int selectedBaseIdx,
 static void drawExon(SequenceCellRenderer *renderer,
 		     MSP *msp,
 		     GtkWidget *tree,
-		     GdkWindow *window, 
-		     GtkStateType state,
-		     GdkRectangle *cell_area,
 		     RenderData *data)
 {
-  IntRange segmentRange = getVisibleMspRange(msp, tree);
+  IntRange segmentRange = getVisibleMspRange(msp, data);
   const int segmentLen = segmentRange.max - segmentRange.min + 1;
 
   int x, y;
-  getCoordsForBaseIdx(0, &segmentRange, data->displayRange, data->rightToLeft, data->charWidth, data->cellXPadding, data->cellYPadding, cell_area, &x, &y);
+  getCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
   const int width = segmentLen * data->charWidth;
 
   /* Just draw one big rectangle the same colour for the whole thing */
   gdk_gc_set_foreground(data->gc, data->exonColour);
-  drawRectangle2(window, widgetGetDrawable(tree), data->gc, TRUE, x, y, width, data->charHeight);
+  drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, data->charHeight);
   
   /* If a base is selected, highlight it. Its colour depends on whether it the base is within the exon range or not. */
   if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
     {
-      highlightSelectedBase(data->selectedBaseIdx, data->exonColourSelected, data->displayRange, data, window, widgetGetDrawable(tree), cell_area);
+      highlightSelectedBase(data->selectedBaseIdx, data->exonColourSelected, data);
     }
   
-  drawVisibleExonBoundaries(tree, window, cell_area);
+  drawVisibleExonBoundaries(tree, data);
 } 
 
 
@@ -640,11 +633,7 @@ static int drawBase(MSP *msp,
 		    const int segmentIdx, 
 		    const IntRange const *segmentRange,
 		    char *refSeqSegment, 
-
 		    RenderData *data,
-		    GtkWidget *tree,
-		    GdkWindow *window,
-		    GdkDrawable *drawable,
 		    
 		    const int x,
 		    const int y,
@@ -687,7 +676,7 @@ static int drawBase(MSP *msp,
 
   /* Draw the background colour */
   gdk_gc_set_foreground(data->gc, baseBgColour);
-  drawRectangle2(window, drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
+  drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
 
   /* Add this character into the display text */
   displayText[segmentIdx] = sBase;
@@ -709,26 +698,21 @@ static PangoLayout* getLayoutFromText(gchar *displayText, GtkWidget *tree, Pango
  * index in the display. */
 static void getCoordsForBaseIdx(const int segmentIdx, 
 				const IntRange const *segmentRange,
-				const IntRange const *displayRange,
-				const gboolean rightToLeft,
-				const int charWidth,
-				const int cellXPadding,
-				const int cellYPadding,
-				GdkRectangle *cell_area, 
+				RenderData *data,
 				int *x, 
 				int* y)
 {
   /* Find the start of the segment with respect to the display range */
-  const int startPos = rightToLeft 
-    ? displayRange->max - segmentRange->max
-    : segmentRange->min - displayRange->min;
+  const int startPos = data->rightToLeft 
+    ? data->displayRange->max - segmentRange->max
+    : segmentRange->min - data->displayRange->min;
   
   /* Find the position of the character within the segment */
   int charIdx = startPos + segmentIdx;
 
   /* Calculate the coords */
-  *x = cell_area->x - cellXPadding + (charIdx * charWidth);
-  *y = cell_area->y - cellYPadding;
+  *x = data->cell_area->x - data->cellXPadding + (charIdx * data->charWidth);
+  *y = data->cell_area->y - data->cellYPadding;
 }
 
 
@@ -744,48 +728,39 @@ static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTree
       
       if (msp && mspIsExon(msp))
 	{
-	  DrawExonBoundariesData *drawData = (DrawExonBoundariesData*)data;
+	  RenderData *rd = (RenderData*)data;
 	  
-	  GtkWidget *tree = drawData->tree;
-	  const IntRange const *displayRange = treeGetDisplayRange(tree);
-	  const int charWidth = treeGetCharWidth(tree);
-	  const int charHeight = treeGetCharHeight(tree);
-	  const int cellXPadding = treeGetCellXPadding(tree);
-	  const int cellYPadding = treeGetCellYPadding(tree);
-	  const gboolean rightToLeft = treeGetStrandsToggled(tree);
-	  GdkGC *gc = gdk_gc_new(drawData->window);
-
 	  const int minIdx = min(msp->displayStart, msp->displayEnd);
 	  const int maxIdx = max(msp->displayStart, msp->displayEnd);
 	  
-	  if (minIdx >= displayRange->min && minIdx <= displayRange->max)
+	  if (minIdx >= rd->displayRange->min && minIdx <= rd->displayRange->max)
 	    {
 	      /* Draw the lower index. The colour and line style depend on whether it's the start or end index. */
-	      gdk_gc_set_foreground(gc, treeGetExonBoundaryColour(tree, TRUE));
-	      gdk_gc_set_line_attributes(gc, treeGetExonBoundaryWidth(tree), treeGetExonBoundaryStyle(tree, TRUE), GDK_CAP_BUTT, GDK_JOIN_MITER);
+	      gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourStart);
+	      gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleStart, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-	      const int idx = rightToLeft ? displayRange->max - minIdx + 1 : minIdx - displayRange->min;
+	      const int idx = rd->rightToLeft ? rd->displayRange->max - minIdx + 1 : minIdx - rd->displayRange->min;
 
 	      int x, y;
-	      getCoordsForBaseIdx(idx, displayRange, displayRange, treeGetStrandsToggled(tree), charWidth, cellXPadding, cellYPadding, drawData->cell_area, &x, &y);
+	      getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 	      
-	      gdk_draw_line(drawData->window, gc, x, y, x, y + charHeight);
-	      gdk_draw_line(widgetGetDrawable(tree), gc, x, y, x, y + charHeight);
+	      gdk_draw_line(rd->window, rd->gc, x, y, x, y + rd->charHeight);
+	      gdk_draw_line(rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
 	    }
 	  
-	  if (maxIdx >= displayRange->min && maxIdx <= displayRange->max)
+	  if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
 	    {
 	      /* Draw the upper index. The colour and line style depend on whether it's the start or end index. */
-	      gdk_gc_set_foreground(gc, treeGetExonBoundaryColour(tree, FALSE));
-	      gdk_gc_set_line_attributes(gc, treeGetExonBoundaryWidth(tree), treeGetExonBoundaryStyle(tree, FALSE), GDK_CAP_BUTT, GDK_JOIN_MITER);
+	      gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourEnd);
+	      gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleEnd, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	      
-	      const int idx = rightToLeft ? displayRange->max - maxIdx : maxIdx - displayRange->min + 1;
+	      const int idx = rd->rightToLeft ? rd->displayRange->max - maxIdx : maxIdx - rd->displayRange->min + 1;
 
 	      int x, y;
-	      getCoordsForBaseIdx(idx, displayRange, displayRange, treeGetStrandsToggled(tree), charWidth, cellXPadding, cellYPadding, drawData->cell_area, &x, &y);
+	      getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 
-	      gdk_draw_line(drawData->window, gc, x, y, x, y + charHeight);
-	      gdk_draw_line(widgetGetDrawable(tree), gc, x, y, x, y + charHeight);
+	      gdk_draw_line(rd->window, rd->gc, x, y, x, y + rd->charHeight);
+	      gdk_draw_line(rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
 	    }
 	}
     }
@@ -795,41 +770,37 @@ static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTree
 
 
 /* Draw the boundaries of all exons within the current display range */
-void drawVisibleExonBoundaries(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell_area)
+void drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data)
 {
   /* Loop through all visible MSPs that are exons and add the coords to the list if they are within range. */
   GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
-  DrawExonBoundariesData drawData = {tree, window, cell_area};
-  gtk_tree_model_foreach(model, drawExonBoundary, &drawData);
+  gtk_tree_model_foreach(model, drawExonBoundary, data);
 }
 
 
-static void drawGap(int sIdx, 
-		    int sIdxLastFound, 
-		    int x, 
-		    int y, 
-		    const int charWidth,
-		    const int charHeight,
-		    GdkWindow *window, 
-		    GdkDrawable *drawable,
-		    GdkGC *gc)
+/* Draw a vertical yellow line to indicate an insertion between two bases in the match sequence */
+static void drawInsertionMarker(int sIdx, 
+				int sIdxLastFound, 
+				int x, 
+				int y, 
+				RenderData *data)
 {
   if (sIdx != UNSET_INT && sIdxLastFound != UNSET_INT && abs(sIdx - sIdxLastFound) > 1)
     {
       /* There is a gap between this index and the previous one (in a left-to-right sense) */
       GdkColor col = {GDK_YELLOW};
-      gdk_gc_set_foreground(gc, &col);
+      gdk_gc_set_foreground(data->gc, &col);
       
       /* This is not very sophisticated - just uses a fudge factor to find a suitable width and
        * draws it half over the current base and half over the previous one. */
-      int gapWidth = round((gdouble)charWidth * GAP_WIDTH_AS_FRACTION);
+      int gapWidth = round((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
 
       if (gapWidth < MIN_GAP_WIDTH)
 	{
 	  gapWidth = MIN_GAP_WIDTH;
         }
       
-      drawRectangle2(window, drawable, gc, TRUE, x - gapWidth/2, y, gapWidth, charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x - gapWidth/2, y, gapWidth, data->charHeight);
     }
 }
 
@@ -837,17 +808,14 @@ static void drawGap(int sIdx,
 static void drawSequenceText(GtkWidget *tree,
 			     gchar *displayText, 
 			     const IntRange const *segmentRange,
-			     GdkRectangle *cell_area, 
-			     GdkWindow *window, 
-			     GtkStateType state,
-			     GdkGC *gc)
+			     RenderData *data)
 {
   if (g_utf8_validate(displayText, -1, NULL))
     {
       /* Get the coords for the first base. The display text should have been
        * was constructed such that everything else will line up from here. */
       int x, y;
-      getCoordsForBaseIdx(0, segmentRange, treeGetDisplayRange(tree), treeGetStrandsToggled(tree), treeGetCharWidth(tree), treeGetCellXPadding(tree), treeGetCellYPadding(tree), cell_area, &x, &y);
+      getCoordsForBaseIdx(0, segmentRange, data, &x, &y);
       
       PangoFontDescription *font_desc = pango_font_description_copy(tree->style->font_desc);
       PangoLayout *layout = getLayoutFromText(displayText, tree, font_desc);
@@ -855,7 +823,7 @@ static void drawSequenceText(GtkWidget *tree,
 
       if (layout)
 	{
-	  paintLayout2(tree->style, window, widgetGetDrawable(tree), state, TRUE, NULL, tree, NULL, x, y, layout);
+	  paintLayout2(tree->style, data->window, data->drawable, data->state, TRUE, NULL, tree, NULL, x, y, layout);
 	  g_object_unref(layout);
 	}
       else
@@ -873,7 +841,7 @@ static void drawSequenceText(GtkWidget *tree,
 
 /* Get the range of the msp that is inside the currently displayed range. The returned
  * range has UNSET_INTs if no part of the msp is visible. */
-static IntRange getVisibleMspRange(MSP *msp, GtkWidget *tree)
+static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
 {
   IntRange result = {UNSET_INT, UNSET_INT};
   
@@ -881,21 +849,19 @@ static IntRange getVisibleMspRange(MSP *msp, GtkWidget *tree)
   int minIdx = min(msp->displayStart, msp->displayEnd);
   int maxIdx = max(msp->displayStart, msp->displayEnd);
 
-  IntRange *displayRange = treeGetDisplayRange(tree);
-
   /* Check it's in the visible range. */
-  if (maxIdx > displayRange->min && minIdx < displayRange->max)
+  if (maxIdx > data->displayRange->min && minIdx < data->displayRange->max)
     {
       /* Limit the range of indices in the match sequence to those within the display range. */
 
-      if (minIdx < displayRange->min)
+      if (minIdx < data->displayRange->min)
 	{
-	  minIdx = displayRange->min;
+	  minIdx = data->displayRange->min;
 	}
       
-      if (maxIdx > displayRange->max)
+      if (maxIdx > data->displayRange->max)
 	{
-	  maxIdx = displayRange->max;
+	  maxIdx = data->displayRange->max;
 	}
       
       result.min = minIdx;
@@ -909,13 +875,10 @@ static IntRange getVisibleMspRange(MSP *msp, GtkWidget *tree)
 static void drawDnaSequence(SequenceCellRenderer *renderer,
 			    MSP *msp,
 			    GtkWidget *tree,
-			    GdkWindow *window, 
-			    GtkStateType state,
-			    GdkRectangle *cell_area,
 			    RenderData *data)
 {
   /* Extract the section of the reference sequence that we're interested in. */
-  IntRange segmentRange = getVisibleMspRange(msp, tree);
+  IntRange segmentRange = getVisibleMspRange(msp, data);
   
   /* Nothing to do if this msp is not in the visible range */
   if (segmentRange.min == UNSET_INT)
@@ -947,13 +910,14 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       for ( ; segmentIdx < segmentLen; ++segmentIdx)
 	{
 	  int x, y;
-	  getCoordsForBaseIdx(segmentIdx, &segmentRange, data->displayRange, data->rightToLeft, data->charWidth, data->cellXPadding, data->cellYPadding, cell_area, &x, &y);
+	  getCoordsForBaseIdx(segmentIdx, &segmentRange, data, &x, &y);
 	  
 	  /* Find the base in the match sequence and draw the background colour according to how well it matches */
-	  int sIdx = drawBase(msp, segmentIdx, &segmentRange, refSeqSegment, data, tree, window, data->drawable, x, y, displayText);
+	  int sIdx = drawBase(msp, segmentIdx, &segmentRange, refSeqSegment, data, x, y, displayText);
 	  
-	  /* If there is an insertion/deletion between this and the previous match, draw it now */
-	  drawGap(sIdx, lastFoundSIdx, x, y, data->charWidth, data->charHeight, window, data->drawable, data->gc);
+	  /* If there is an insertion (i.e. extra bases on the match sequence) between this 
+	   * and the previous coord, draw a marker */
+	  drawInsertionMarker(sIdx, lastFoundSIdx, x, y, data);
 
 	  if (sIdx != UNSET_INT)
 	    {
@@ -965,7 +929,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       insertChar(displayText, &segmentIdx, '\0', msp);
 
       /* Draw the sequence text */
-      drawSequenceText(tree, displayText, &segmentRange, cell_area, window, state, data->gc);
+      drawSequenceText(tree, displayText, &segmentRange, data);
       
       g_free(refSeqSegment);
     }
@@ -981,6 +945,9 @@ static void drawMsps(SequenceCellRenderer *renderer,
 		     GdkRectangle *cell_area)
 {
   RenderData data = {
+    cell_area,
+    window,
+    state,
     gdk_gc_new(window),
     treeGetStrandsToggled(tree),
     treeGetStrand(tree),
@@ -1005,18 +972,16 @@ static void drawMsps(SequenceCellRenderer *renderer,
     treeGetConsColour(tree, FALSE),
     treeGetConsColour(tree, TRUE),
     treeGetMismatchColour(tree, FALSE),
-    treeGetMismatchColour(tree, TRUE)
+    treeGetMismatchColour(tree, TRUE),
+    treeGetExonBoundaryColour(tree, TRUE),
+    treeGetExonBoundaryColour(tree, FALSE),
+    treeGetExonBoundaryWidth(tree),
+    treeGetExonBoundaryStyle(tree, TRUE),
+    treeGetExonBoundaryStyle(tree, FALSE)
   };  
   
   /* If a base is selected and we've not already processed it, highlight it now */
-  highlightSelectedBase(treeGetSelectedBaseIdx(tree), 
-			treeGetGapColour(tree, TRUE), 
-			treeGetDisplayRange(tree), 
-			&data,
-			window, 
-			widgetGetDrawable(tree), 
-			cell_area);
-  
+  highlightSelectedBase(data.selectedBaseIdx, data.gapColourSelected, &data);  
   
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;
@@ -1026,15 +991,15 @@ static void drawMsps(SequenceCellRenderer *renderer,
       
       if (mspIsExon(msp))
 	{
-	  drawExon(renderer, msp, tree, window, state, cell_area, &data);
+	  drawExon(renderer, msp, tree, &data);
 	}
       else if (mspIsBlastMatch(msp))
 	{
-	  drawDnaSequence(renderer, msp, tree, window, state, cell_area, &data);
+	  drawDnaSequence(renderer, msp, tree, &data);
 	}
     }
   
-  drawVisibleExonBoundaries(tree, window, cell_area);
+  drawVisibleExonBoundaries(tree, &data);
 }
 
 
