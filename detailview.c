@@ -2318,6 +2318,8 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   /* Finally, create a custom-filtered version of the data store for each tree. We do 
    * this AFTER adding the data so that it doesn't try to re-filter every time we add a row. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel);
+  
+//  callFuncOnAllDetailViewTrees(detailView, addSequencesToTree);
 }
 
 

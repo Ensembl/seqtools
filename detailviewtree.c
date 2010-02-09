@@ -23,6 +23,7 @@ enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
 static void		onSelectionChangedTree(GObject *selection, gpointer data);
 static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
+static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -338,13 +339,20 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL, sortColumnCompareFunc, (gpointer)SORT_BY_ID, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
-  
+
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
   g_object_unref(G_OBJECT(store));
-
+  
   /* Add the rows */
   GHashTable *sequenceTable = treeGetSequenceTable(tree);
   g_hash_table_foreach(sequenceTable, addSequenceToTree, tree);
+
+  /* Create a filtered version which will only show sequences that are in the display range */
+  GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
+  gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(filter), (GtkTreeModelFilterVisibleFunc)isTreeRowVisible, tree, NULL);
+  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(filter));
+  
+  g_object_unref(G_OBJECT(filter));
 }
 
 
@@ -683,11 +691,12 @@ void refilterTree(GtkWidget *tree, gpointer data)
 
 
 /* Filter function. Returns true if the given row in the given tree model should be visible. */
-gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
-  GtkWidget *tree = GTK_WIDGET(data);
-  
   gboolean bDisplay = FALSE;
+
+  GtkWidget *tree = GTK_WIDGET(data);
+  const IntRange const *displayRange = treeGetDisplayRange(tree);
   
   /* Loop through all MSPs in this row */
   GList *mspListItem = treeGetMsps(model, iter);
@@ -703,13 +712,10 @@ gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
 	  if (adjustment)
 	    {
-	      int displayStart = adjustment->value + 1;
-	      int displayEnd = displayStart + adjustment->page_size;
-
 	      int qSeqMin = min(msp->displayStart, msp->displayEnd);
 	      int qSeqMax = max(msp->displayStart, msp->displayEnd);
 	      
-	      if (!(qSeqMin > displayEnd || qSeqMax < displayStart))
+	      if (!(qSeqMin > displayRange->max || qSeqMax < displayRange->min))
 		{
 		  bDisplay = TRUE;
 		  break;

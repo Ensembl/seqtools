@@ -93,6 +93,7 @@ void		  selectRowsForSelectedMsps(GtkWidget *tree, gpointer data);
 gboolean	  treeIsMspSelected(GtkWidget *tree, GList *msp);
 
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
+void		  addSequencesToTree(GtkWidget *tree, gpointer data);
 
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,
