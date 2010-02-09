@@ -67,6 +67,8 @@ BigPictureProperties*	      bigPictureGetProperties(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetMainWindow(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetFwdGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevGrid(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetActiveGrid(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetInactiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetExonView(GtkWidget *bigPicture);
 gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);

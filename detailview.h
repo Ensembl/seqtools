@@ -178,6 +178,9 @@ void			ToggleStrand(GtkWidget *detailView);
 void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 
+void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
+gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
+
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 GtkWidget *container,
 					 GtkAdjustment *adjustment, 

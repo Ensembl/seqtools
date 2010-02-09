@@ -30,7 +30,8 @@ static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 
-
+static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
+static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 
 
 /* Menu builders */
@@ -406,7 +407,7 @@ static void togglePaneVisibility(GtkWidget *mainWindow, const int number, const 
  ***********************************************************/
 
 /* Called when the state of a check button is toggled */
-static void onCheckButtonToggled(GtkWidget *button, gpointer data)
+static void onVisibilityButtonToggled(GtkWidget *button, gpointer data)
 {
   GtkWidget *widgetToToggle = GTK_WIDGET(data);
   gboolean visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
@@ -415,7 +416,7 @@ static void onCheckButtonToggled(GtkWidget *button, gpointer data)
 
 
 /* Create a check button to control visibility of the given widget */
-static void createCheckButton(GtkWidget *widgetToToggle, const char *mnemonic, GtkWidget *container)
+static void createVisibilityButton(GtkWidget *widgetToToggle, const char *mnemonic, GtkWidget *container)
 {
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
   gtk_container_add(GTK_CONTAINER(container), button);
@@ -423,12 +424,12 @@ static void createCheckButton(GtkWidget *widgetToToggle, const char *mnemonic, G
   /* Set the state depending on the widget's current visibility */
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), GTK_WIDGET_VISIBLE(widgetToToggle));
   
-  g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onCheckButtonToggled), widgetToToggle);
+  g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onVisibilityButtonToggled), widgetToToggle);
 }
 
 
 /* Create a check button to control visibility of the given tree. */
-static void createCheckButtonTree(GtkWidget *detailView, const Strand strand, const int frame, GtkWidget *container)
+static void createTreeVisibilityButton(GtkWidget *detailView, const Strand strand, const int frame, GtkWidget *container)
 {
   /* Some trees may have been removed from the main window if they are not on the active 
    * strand, so only show check boxes for those that are in the window (i.e. have a parent). 
@@ -445,25 +446,35 @@ static void createCheckButtonTree(GtkWidget *detailView, const Strand strand, co
 	  
 	  char text1[] = "Act_ive strand alignments";
 	  char text2[] = "O_ther strand alignments";
-	  createCheckButton(tree, isActiveStrand ? text1 : text2, container);
+	  createVisibilityButton(tree, isActiveStrand ? text1 : text2, container);
 	}
       else
 	{
 	  /* All the visible trees should be in the same strand, so just distinguish by frame number */
 	  char formatStr[] = "Alignment list %d";
 	  char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
-	  sprintf(displayText, formatStr, (strand == FORWARD_STRAND ? "+" : "-"), frame);
+	  sprintf(displayText, formatStr, frame);
 
-	  createCheckButton(tree, displayText, container);
+	  createVisibilityButton(tree, displayText, container);
 	}
     }
+}
+
+
+/* Utility to create a vbox with the given border and pack it into the given container */
+static GtkWidget* createVBoxWithBorder(GtkWidget *parent, const int borderWidth)
+{
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_set_border_width(GTK_CONTAINER(vbox), borderWidth);
+  gtk_container_add(GTK_CONTAINER(parent), vbox);
+  return vbox;
 }
 
 
 /* Shows the "View panes" dialog. This dialog allows the user to show/hide certain portions of the window. */
 static void showViewPanesDialog(GtkWidget *mainWindow)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("View sections", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("View panes", 
 						  GTK_WINDOW(mainWindow), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
@@ -476,51 +487,82 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
   int borderWidth = 12;
   
   /* Big picture */
-  GtkWidget *bigPictureBox = gtk_vbox_new(FALSE, 0);
-  gtk_container_set_border_width(GTK_CONTAINER(bigPictureBox), borderWidth);
-  gtk_container_add(GTK_CONTAINER(contentArea), bigPictureBox);
-  
   GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
-  createCheckButton(bigPicture, "_Big picture", bigPictureBox);
+  createVisibilityButton(bigPicture, "_Big picture", contentArea);
   
-  /* Big picture sub-items */
-  GtkWidget *bigPictureSubBox = gtk_vbox_new(FALSE, 0);
-  gtk_container_set_border_width(GTK_CONTAINER(bigPictureSubBox), borderWidth);
-  gtk_container_add(GTK_CONTAINER(bigPictureBox), bigPictureSubBox);
-
-  const gboolean toggled = mainWindowGetStrandsToggled(mainWindow);
-  GtkWidget *activeGrid = toggled ? bigPictureGetRevGrid(bigPicture) : bigPictureGetFwdGrid(bigPicture);
-  GtkWidget *otherGrid = toggled ? bigPictureGetFwdGrid(bigPicture) : bigPictureGetRevGrid(bigPicture);
-  
-  createCheckButton(activeGrid, "_Active strand grid", bigPictureSubBox);
-  createCheckButton(bigPictureGetExonView(bigPicture), "_Exon view", bigPictureSubBox);
-  createCheckButton(otherGrid, "_Other strand grid", bigPictureSubBox);
+  GtkWidget *bigPictureSubBox = createVBoxWithBorder(contentArea, borderWidth);
+  createVisibilityButton(bigPictureGetActiveGrid(bigPicture), "_Active strand grid", bigPictureSubBox);
+  createVisibilityButton(bigPictureGetExonView(bigPicture), "_Exon view", bigPictureSubBox);
+  createVisibilityButton(bigPictureGetInactiveGrid(bigPicture), "_Other strand grid", bigPictureSubBox);
   
   /* Detail view */
-  GtkWidget *detailViewBox = gtk_vbox_new(FALSE, 0);
-  gtk_container_set_border_width(GTK_CONTAINER(detailViewBox), borderWidth);
-  gtk_container_add(GTK_CONTAINER(contentArea), detailViewBox);
-
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
-  createCheckButton(detailView, "_Detail view", detailViewBox);
+  createVisibilityButton(detailView, "_Detail view", contentArea);
   
-  /* Detail view sub-items */
-  GtkWidget *detailViewSubBox = gtk_vbox_new(FALSE, 0);
-  gtk_container_set_border_width(GTK_CONTAINER(detailViewSubBox), borderWidth);
-  gtk_container_add(GTK_CONTAINER(detailViewBox), detailViewSubBox);
-  
+  GtkWidget *detailViewSubBox = createVBoxWithBorder(contentArea, borderWidth);
   const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
   int frame = 1;
   for ( ; frame <= numFrames; ++frame)
     {
-      /* Active strand is the reverse strand if display is toggled */
-      createCheckButtonTree(detailView, toggled ? REVERSE_STRAND : FORWARD_STRAND, frame, detailViewSubBox);
-      createCheckButtonTree(detailView, toggled ? FORWARD_STRAND : REVERSE_STRAND, frame, detailViewSubBox);
+      createTreeVisibilityButton(detailView, mainWindowGetActiveStrand(mainWindow), frame, detailViewSubBox);
+      createTreeVisibilityButton(detailView, mainWindowGetInactiveStrand(mainWindow), frame, detailViewSubBox);
     }
   
-  /* Ensure dialog is destroyed when user responds */
+  /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
+  gtk_widget_show_all(dialog);
+}
+
+
+/* Callback function called when the 'squash matches' button is toggled */
+static void onSquashMatches(GtkWidget *button, gpointer data)
+{
+  const gboolean squash = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
   
+  detailViewSquashMatches(detailView, squash);
+}
+
+
+/* Utility to create a check button with certain given properties, and to pack it into the parent */
+static void createCheckButton(GtkWidget *parent, 
+			      const char *mnemonic, 
+			      const gboolean isActive, 
+			      GCallback callback, 
+			      GtkWidget *mainWindow)
+{
+  GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
+  gtk_container_add(GTK_CONTAINER(parent), button);
+  
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
+  
+  g_signal_connect(G_OBJECT(button), "toggled", callback, mainWindow);
+}
+
+
+/* Shows the "Settings" dialog. */
+static void showSettingsDialog(GtkWidget *mainWindow)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("View panes", 
+						  GTK_WINDOW(mainWindow), 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  
+  int borderWidth = 12;
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  
+  GtkWidget *vbox = createVBoxWithBorder(contentArea, borderWidth);
+  
+  createCheckButton(vbox, "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), mainWindow);
+    
+  /* Connect signals and show */
+  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   gtk_widget_show_all(dialog);
 }
 
@@ -684,7 +726,8 @@ static void onViewMenu(GtkAction *action, gpointer data)
 /* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
 static void onSettingsMenu(GtkAction *action, gpointer data)
 {
-//  GtkWidget *mainWindow = GTK_WIDGET(data);
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  showSettingsDialog(mainWindow);
 }
 
 
@@ -1116,11 +1159,22 @@ gboolean mainWindowGetGappedHsp(GtkWidget *mainWindow)
   return properties ? properties->gappedHsp : UNSET_INT;
 }
 
-
 GList* mainWindowGetSelectedMsps(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->selectedMsps : NULL;
+}
+
+/* Return the active strand - forward strand by default, reverse strand if display toggled */
+static Strand mainWindowGetActiveStrand(GtkWidget *mainWindow)
+{
+  return mainWindowGetStrandsToggled(mainWindow) ? REVERSE_STRAND : FORWARD_STRAND;
+}
+
+/* Return the inactive strand - reverse strand by default, forward strand if display toggled */
+static Strand mainWindowGetInactiveStrand(GtkWidget *mainWindow)
+{
+  return mainWindowGetStrandsToggled(mainWindow) ? FORWARD_STRAND : REVERSE_STRAND;
 }
 
 

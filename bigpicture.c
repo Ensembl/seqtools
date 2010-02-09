@@ -518,6 +518,20 @@ GtkWidget* bigPictureGetRevGrid(GtkWidget *bigPicture)
   return properties ? properties->revStrandGrid : NULL;
 }
 
+/* Get the active grid (forward strand grid by default, reverse strand grid if display toggled) */
+GtkWidget* bigPictureGetActiveGrid(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return bigPictureGetStrandsToggled(bigPicture) ? properties->revStrandGrid : properties->fwdStrandGrid;
+}
+
+/* Get the in-active grid (reverse strand grid by default, forward strand grid if display toggled) */
+GtkWidget* bigPictureGetInactiveGrid(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return bigPictureGetStrandsToggled(bigPicture) ? properties->fwdStrandGrid : properties->revStrandGrid;
+}
+
 GtkWidget* bigPictureGetExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);

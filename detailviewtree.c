@@ -306,10 +306,8 @@ static void addSequenceToTree(gpointer key, gpointer value, gpointer data)
 {
   char *sequenceName = (char*)key;
   GList *mspGList = (GList*)value;
-  GtkWidget *tree = GTK_WIDGET(data);
+  GtkListStore *store = GTK_LIST_STORE(data);
 
-  GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  
   GtkTreeIter iter;
   gtk_list_store_append(store, &iter);
   
@@ -340,19 +338,18 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
 
-  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
-  g_object_unref(G_OBJECT(store));
-  
   /* Add the rows */
   GHashTable *sequenceTable = treeGetSequenceTable(tree);
-  g_hash_table_foreach(sequenceTable, addSequenceToTree, tree);
+  g_hash_table_foreach(sequenceTable, addSequenceToTree, store);
 
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
   gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(filter), (GtkTreeModelFilterVisibleFunc)isTreeRowVisible, tree, NULL);
-  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(filter));
+  g_object_unref(G_OBJECT(store));
   
-  g_object_unref(G_OBJECT(filter));
+  /* Remember the tree store in the properties so we can switch between this and the 'unsquashed' tree model */
+  TreeProperties *properties = treeGetProperties(tree);
+  properties->seqTreeModel = GTK_TREE_MODEL(filter);
 }
 
 
@@ -521,6 +518,47 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y, i
   return baseIdx;
 }
 
+
+/* This function makes multiple MSPs in the same sequence appear in the same row in the tree. */
+void treeSquashMatches(GtkWidget *tree, gpointer data)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->seqTreeModel);
+}
+
+
+/* This function makes all MSPs appear in their own individual rows in the tree. */
+void treeUnsquashMatches(GtkWidget *tree, gpointer data)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->mspTreeModel);
+}
+
+
+/* Returns true if the matches are squashed */
+gboolean treeGetMatchesSquashed(GtkWidget *tree)
+{
+  gboolean result = FALSE;
+  
+  /* Check which stored model the tree view is currently looking at */
+  GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
+  TreeProperties *properties = treeGetProperties(tree);
+  
+  if (model == properties->mspTreeModel)
+    {
+      result = FALSE;
+    }
+  else if (model == properties->seqTreeModel)
+    {
+      result = TRUE;
+    }
+  else
+    {
+      messerror("Unexpected tree data store [%x]. Expected either [%x] (normal data) or [%x] (condensed data)", model, properties->mspTreeModel, properties->seqTreeModel);
+    }
+  
+  return result;
+}
 
 /***********************************************************
  *			      Updates			   *
@@ -794,6 +832,8 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->readingFrame = frame;
       properties->treeColumnHeaderList = treeColumnHeaderList;
       properties->sequenceTable = g_hash_table_new(g_str_hash, g_str_equal);
+      properties->mspTreeModel = NULL;
+      properties->seqTreeModel = NULL;
 
       g_object_set_data(G_OBJECT(widget), "TreeProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyTree), NULL); 
@@ -1806,7 +1846,10 @@ void treeCreateFilteredDataModel(GtkWidget *tree, gpointer data)
   
   /* Add the filtered store to the tree view */
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(filter));
-  g_object_unref (G_OBJECT (filter));
+
+  /* Keep a reference to the model in the properties so we can switch between this and the 'squashed' model */
+  TreeProperties *properties = treeGetProperties(tree);
+  properties->mspTreeModel = GTK_TREE_MODEL(filter);
 }
 
 

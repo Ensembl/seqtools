@@ -998,6 +998,29 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView)
 }
 
 
+/* Squash matches switches to the condensed view of the trees (where multiple
+* MSPs in the same sequence appear on the same row) if squash is true, or reverts
+* to the expanded version (where each MSP has its own row) if squash is false. */
+void detailViewSquashMatches(GtkWidget *detailView, const gboolean squash)
+{
+  if (squash)
+    {
+      callFuncOnAllDetailViewTrees(detailView, treeSquashMatches);
+    }
+  else
+    {
+      callFuncOnAllDetailViewTrees(detailView, treeUnsquashMatches);
+    }
+}
+
+
+/* Returns true if the matches are squashed */
+gboolean detailViewGetMatchesSquashed(GtkWidget *detailView)
+{
+  /* Just check the state of any one of the trees */
+  return treeGetMatchesSquashed(detailViewGetFirstTree(detailView));
+}
+
 /***********************************************************
  *                    Detail view events                   *
  ***********************************************************/
@@ -2178,11 +2201,13 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  detailView);
   makeToolbarButton(toolbar, ">",	 "Scroll rightward one base",	 (GtkSignalFunc)GscrollRight1,	  detailView);
   
+  /* Strand toggle button */
   if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)
     {
       makeToolbarButton(toolbar, "Strand^v", "Toggle strand", (GtkSignalFunc)GToggleStrand, detailView);
     }
   
+  /* Feedback box */
   *feedbackBox = createFeedbackBox(toolbar);
   
   return toolbarContainer;
@@ -2319,7 +2344,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
    * this AFTER adding the data so that it doesn't try to re-filter every time we add a row. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel);
   
-//  callFuncOnAllDetailViewTrees(detailView, addSequencesToTree);
+  callFuncOnAllDetailViewTrees(detailView, addSequencesToTree);
 }
 
 
