@@ -82,18 +82,11 @@ GtkWidget *treeGetMainWindow(GtkWidget *tree)
   return detailViewGetMainWindow(detailView);
 }
 
-static GHashTable *treeGetHashSeq(GtkWidget *tree)
+GHashTable *treeGetSeqTable(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
-  return properties->hashSeq;
-}
-
-static GHashTable *treeGetHashSeqAndFrame(GtkWidget *tree)
-{
-  assertTree(tree);
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties->hashSeqAndFrame;
+  return properties->seqTable;
 }
 
 Strand treeGetStrand(GtkWidget *tree)
@@ -145,7 +138,10 @@ int treeGetSelectedBaseIdx(GtkWidget *tree)
   return properties ? detailViewGetSelectedBaseIdx(properties->detailView) : UNSET_INT;
 }
 
-static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx, const int frame, const int baseNum)
+/* Sets the currently-selected base index (and the base number within the reading frame
+ * for protein matches). If allowScroll is TRUE, the display range will be scrolled if
+ * necessary to keep the selected base index in view. */
+static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll)
 {
   assertTree(tree);
 
@@ -159,7 +155,7 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx, c
 	  detailViewProperties->selectedBaseNum != baseNum ||
 	  detailViewProperties->selectedFrame != frame)
 	{
-	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx, frame, baseNum);
+	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx, frame, baseNum, allowScroll);
 	}
     }
 }
@@ -368,8 +364,8 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
 
   /* Add the rows. Use the hash table that groups MSPs by sequence name and qFrame/qStrand */
-  GHashTable *hashSeqAndFrame = treeGetHashSeq(tree);
-  g_hash_table_foreach(hashSeqAndFrame, addMspListToTreeRow, store);
+  GHashTable *seqTable = treeGetSeqTable(tree);
+  g_hash_table_foreach(seqTable, addMspListToTreeRow, store);
 
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
@@ -692,38 +688,44 @@ void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 }
 
 
-gboolean treeIsMspSelected(GtkWidget *tree, GList *mspGList)
+gboolean treeIsSeqSelected(GtkWidget *tree, const char *seqName)
 {
   GtkWidget *mainWindow = treeGetMainWindow(tree);
-  return mainWindowIsMspSelected(mainWindow, mspGList);
+  return mainWindowIsSeqSelected(mainWindow, seqName);
 }
 
 
-/* Select the given row if its MSP list is marked as selected. */
-static gboolean selectRowIfMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Select the given row if its sequence is marked as selected. */
+static gboolean selectRowIfSeqSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
   GList *mspGList = treeGetMsps(model, iter);
   
-  if (treeIsMspSelected(tree, mspGList))
+  if (g_list_length(mspGList) > 0)
     {
-      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-      gtk_tree_selection_select_path(selection, path);
+      /* Check any MSP in this row to see if it's seq is selected (they should all have the same seq name) */
+      MSP *msp = (MSP*)(mspGList->data);
+  
+      if (treeIsSeqSelected(tree, msp->sname))
+      {
+	GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+	gtk_tree_selection_select_path(selection, path);
+      }
     }
   
   return FALSE;
 }
 
 
-/* Select all rows in this tree whose MSPs are marked as selected */
-void selectRowsForSelectedMsps(GtkWidget *tree, gpointer data)
+/* Select all rows in this tree whose sequences are marked as selected */
+void selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data)
 {
   GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_model_foreach(model, selectRowIfMspSelected, tree);
+  gtk_tree_model_foreach(model, selectRowIfSeqSelected, tree);
 }
 
 
-/* Mark the given row's MSP as selected in the main window's list of selected MSPs.
+/* Mark the given row's sequence as selected in the main window's list of selected seqs.
  * Does not allow the main window to re-update the tree selection */
 static void markRowMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
@@ -732,11 +734,15 @@ static void markRowMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
   
   GList *mspGList = treeGetMsps(model, iter);
   
-  mainWindowSelectMsp(mainWindow, mspGList, FALSE);
-  
-  gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
+  if (g_list_length(mspGList) > 0)
+    {
+      /* Get the sequence name for any MSP in this row (they should all have the same seq) */
+      MSP *msp = (MSP*)(mspGList->data);
+      
+      mainWindowSelectSeq(mainWindow, msp->sname, FALSE);
+      gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
+    }
 }
-
 
 static void onSelectionChangedTree(GObject *selection, gpointer data)
 {
@@ -759,7 +765,7 @@ void refilterTree(GtkWidget *tree, gpointer data)
   GtkTreeModelFilter *filter = GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(GTK_TREE_VIEW(tree)));
   gtk_tree_model_filter_refilter(filter);
 
-  selectRowsForSelectedMsps(tree, NULL);
+  selectRowsForSelectedSeqs(tree, NULL);
 }
 
 
@@ -866,8 +872,7 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->renderer = renderer;
       properties->readingFrame = frame;
       properties->treeColumnHeaderList = treeColumnHeaderList;
-      properties->hashSeq = g_hash_table_new(g_str_hash, g_str_equal);
-      properties->hashSeqAndFrame = g_hash_table_new(g_str_hash, g_str_equal);
+      properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
       properties->mspTreeModel = NULL;
       properties->seqTreeModel = NULL;
 
@@ -914,14 +919,14 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     case 1:
       {
 	/* Left button: selects a row */
-	mainWindowDeselectAllMsps(treeGetMainWindow(tree), FALSE);
+	mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
 	deselectAllSiblingTrees(tree, FALSE);
 	
 	/* If we've clicked a different tree to the previously selected one, make this tree's 
 	 * reading frame the active one. Select the first base in the triplet (or the last
 	 * if the display is reversed). */
 	const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-	treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), firstBaseNum);
+	treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), firstBaseNum, FALSE);
 	
 	/* Let the default handler select the row */
 	handled = FALSE;
@@ -935,7 +940,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	
 	/* Select the first base in this peptide's triplet (or the last if the display is reversed) */
 	const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-	treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum);
+	treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum, TRUE);
 	
 	handled = TRUE;
 	break;
@@ -974,7 +979,7 @@ static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer dat
 	    {
 	      if (gtk_tree_path_prev(path))
 		{
-		  mainWindowDeselectAllMsps(treeGetMainWindow(tree), FALSE);
+		  mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
 		}
 	    }
 	  else
@@ -985,7 +990,7 @@ static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer dat
 	      
 	      if (gtk_tree_model_iter_next(model, &iter))
 		{
-		  mainWindowDeselectAllMsps(treeGetMainWindow(tree), FALSE);
+		  mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
 		}
 	    }
 	}
@@ -1085,7 +1090,7 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
       const int selectedBaseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y, NULL);
       const int frame = treeGetFrame(tree);
       
-      treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, 1); /* always select 1st base in peptide */
+      treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, 1, TRUE); /* always select 1st base in peptide */
     }
   
   return TRUE;
@@ -1312,19 +1317,6 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
 }
 
 
-/* Add the given MSP to the given hash table */
-static void addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey)
-{
-  /* Get the current list of MSPs, if there is one. */
-  GList *mspGList = (GList*)g_hash_table_lookup(hashTable, hashKey);
-  
-  /* Append the new MSP. This will create the GList if it was previously null */
-  mspGList = g_list_append(mspGList, msp);
-  
-  g_hash_table_insert(hashTable, hashKey, mspGList);  
-}
-
-
 /* Add the given msp as a row in the given tree view, and also adds it to the
  * tree's hash tables. */
 void addMspToTree(GtkWidget *tree, MSP *msp)
@@ -1336,15 +1328,9 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
   /* Add the MSP as an individual row */
   addMspToTreeRow(msp, tree);
   
-  /* Add the MSP to the hash table that will group by sequence name. */
-  GHashTable *hashSeq = treeGetHashSeq(tree);
-  addMspToHashTable(hashSeq, msp, msp->sname);
-  
-  /* Add the MSP to the hash table that will group by sequence name and qFrame/qStrand */
-  GHashTable *hashSeqAndFrame = treeGetHashSeqAndFrame(tree);
-  char hashKey[strlen(msp->sname) + strlen(msp->qframe) + 1];
-  sprintf(hashKey, "%s %s", msp->sname, msp->qframe);
-  addMspToHashTable(hashSeqAndFrame, msp, hashKey);
+  /* Add the MSP to the hash table that will group this tree's MSPs by sequence name */
+  GHashTable *seqTable = treeGetSeqTable(tree);
+  addMspToHashTable(seqTable, msp, msp->sname);
 }
 
 
@@ -1930,7 +1916,7 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_widget_set_redraw_on_allocate(GTK_WIDGET(tree), FALSE);
   
   gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
-  gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_SINGLE);
+  gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
   

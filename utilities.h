@@ -67,6 +67,8 @@ char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 Strand		      mspGetRefStrand(const MSP const *msp);
 
+void		      addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey);
+
 char		      getRefSeqBase(char *refSeq, 
 				    const int qIdx, 
 				    const gboolean complement, 

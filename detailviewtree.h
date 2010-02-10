@@ -37,8 +37,7 @@ typedef struct _TreeProperties
     int readingFrame;		    /* Which reading frame this tree displays */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
     
-    GHashTable *hashSeq;	    /* Hash table to group MSPs by sequence name. */
-    GHashTable *hashSeqAndFrame;    /* Hash table to group MSPs by sequence name and frame/strand. */
+    GHashTable *seqTable;	    /* Hash table to group this tree's MSPs by sequence name. */
     
     GtkTreeModel *mspTreeModel;	    /* Default tree data store, in which each MSP has its own row */
     GtkTreeModel *seqTreeModel;     /* Condensed tree data store, in which multiple MSPs on the same sequence appear in the same row */
@@ -70,6 +69,7 @@ int		  treeGetCharHeight(GtkWidget *tree);
 int		  treeGetFrame(GtkWidget *tree);
 BlxSeqType	  treeGetSeqType(GtkWidget *tree);
 BlxBlastMode	  treeGetBlastMode(GtkWidget *tree);
+GHashTable*	  treeGetSeqTable(GtkWidget *tree);
 
 GdkColor*	  treeGetRefSeqColour(GtkWidget *tree, const gboolean selected);
 GdkColor*	  treeGetMatchColour(GtkWidget *tree, const gboolean selected);
@@ -98,8 +98,8 @@ void		  treeSquashMatches(GtkWidget *tree, gpointer data);
 void		  treeUnsquashMatches(GtkWidget *tree, gpointer data);
 gboolean	  treeGetMatchesSquashed(GtkWidget *tree);
 
-void		  selectRowsForSelectedMsps(GtkWidget *tree, gpointer data);
-gboolean	  treeIsMspSelected(GtkWidget *tree, GList *msp);
+void		  selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data);
+gboolean	  treeIsSeqSelected(GtkWidget *tree, const char *seqName);
 
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);

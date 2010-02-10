@@ -884,12 +884,11 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
 /* Get the text displayed in the user feedback box based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). 
  * The string returned by this function must be free'd with g_free. */
-static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
+static char* getFeedbackText(GtkWidget *detailView, const char *seqName)
 {
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
-  char *sname = NULL;
   
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
   const int numFrames = detailViewGetNumReadingFrames(detailView);
@@ -902,36 +901,46 @@ static char* getFeedbackText(GtkWidget *detailView, MSP *msp)
   /* Make sure we have enough space for all the bits to go in the result text */
   int msgLen = numDigitsInInt(qIdx);
   
-  /* If an MSP is given, set the sequence name to that MSP's match sequence */
-  if (msp)
-    {
-      sname = msp->sname;
-      msgLen += strlen(sname);
-      
-      /* If a q index is selected, find the corresponding base in the match sequence */
-      if (msp && qIdx != UNSET_INT)
-	{
-	  sIdx = getMatchIdxFromDisplayIdx(msp, qIdx, mspGetRefFrame(msp, seqType), mspGetRefStrand(msp), rightToLeft, seqType, numFrames);
-	  msgLen += numDigitsInInt(sIdx);
-	}
-    }
-  
-  if (!sname)
+  /* Find the sequence name text */
+  if (!seqName)
     {
       msgLen += strlen(NO_SUBJECT_SELECTED_TEXT);
+    }
+  else
+    {
+      msgLen += strlen(seqName);
+      
+      /* If a q index is selected, see if there is a valid base at that index 
+       * for any of the MSPs for the selected sequence. */
+      if (qIdx != UNSET_INT)
+	{
+	  GList *mspListItem = detailViewGetSequenceMsps(detailView, seqName);
+	  
+	  for ( ; mspListItem; mspListItem = mspListItem->next)
+	    {
+	      MSP *msp = (MSP*)(mspListItem->data);
+	      sIdx = getMatchIdxFromDisplayIdx(msp, qIdx, mspGetRefFrame(msp, seqType), mspGetRefStrand(msp), rightToLeft, seqType, numFrames);
+	      
+	      if (sIdx != UNSET_INT)
+		{
+		  msgLen += numDigitsInInt(sIdx);
+		  break;
+		}
+	    }
+	}
     }
   
   msgLen += 10; /* for format text */
   char *messageText = g_malloc(sizeof(char) * msgLen);
   
   /* Create the message text. */
-  if (sname != NULL && qIdx != UNSET_INT)
+  if (seqName != NULL && qIdx != UNSET_INT)
     {
-      sprintf(messageText, "%d   %s: %d", qIdx, sname, sIdx);		/* display all */
+      sprintf(messageText, "%d   %s: %d", qIdx, seqName, sIdx);		/* display all */
     }
-  else if (sname != NULL)
+  else if (seqName != NULL)
     {
-      sprintf(messageText, "%s", sname);				/* just the name */
+      sprintf(messageText, "%s", seqName);				/* just the name */
     }
   else if (qIdx != UNSET_INT)
     {
@@ -953,16 +962,12 @@ void updateFeedbackBox(GtkWidget *detailView)
 {
   char *messageText = NULL;
 
-  GList *selectedMsps = mainWindowGetSelectedMsps(detailViewGetMainWindow(detailView));
+  GList *selectedSeqs = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
   
-  if (g_list_length(selectedMsps) > 0)
+  if (g_list_length(selectedSeqs) == 1) /* currently only handle single sequence selection */
     {
-      /* We currently only handle single-selection, so just get the first 
-       * sequence in the selection list. The sequence has a GList of MSPs.
-       * We just need the sequence name, so just get any MSP from that list. */
-      GList *selectedSequence = (GList*)(selectedMsps->data);
-      MSP *selectedMsp = (MSP*)(selectedSequence->data);
-      messageText = getFeedbackText(detailView, selectedMsp);
+      const char *seqName = (const char*)(selectedSeqs->data);
+      messageText = getFeedbackText(detailView, seqName);
     }
   else
     {
@@ -1184,6 +1189,13 @@ GtkCellRenderer* detailViewGetRenderer(GtkWidget *detailView)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->renderer : NULL;
 }
+
+static GHashTable *detailViewGetSeqTable(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->seqTable : NULL;
+}
+
 
 /* Get the reference sequence (always the forward strand and always the DNA seq) */
 char* detailViewGetRefSeq(GtkWidget *detailView)
@@ -1490,7 +1502,21 @@ static int detailViewGetSelectedFrame(GtkWidget *detailView)
   return properties ? properties->selectedFrame : UNSET_INT;
 }
 
-void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum)
+/* Return a list of all MSPs that have the given match sequence name */
+GList *detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName)
+{
+  GList *result = NULL;
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  if (properties)
+    {
+      result = (GList*)(g_hash_table_lookup(properties->seqTable, seqName));
+    }
+  
+  return result;
+}
+
+void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
@@ -1501,7 +1527,10 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseI
   /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
   properties->selectedDnaBaseIdx = convertPeptideToDna(selectedBaseIdx, frame, baseNum, detailViewGetNumReadingFrames(detailView));
 
-  scrollToKeepSelectionInRange(detailView);
+  if (allowScroll)
+    {
+      scrollToKeepSelectionInRange(detailView);
+    }
 
   updateFeedbackBox(detailView);
   refreshDetailViewHeaders(detailView);
@@ -1578,6 +1607,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->fontDesc = fontDesc;
       properties->charWidth = 0;
       properties->charHeight = 0;
+      properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
 
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
@@ -2340,12 +2370,18 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
       GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
 
       addMspToTree(tree, msp);
+      
+      /* Add the MSP to the hash table that will group MSPs by sequence name. */
+      GHashTable *seqTable = detailViewGetSeqTable(detailView);
+      addMspToHashTable(seqTable, msp, msp->sname);
     }
   
   /* Finally, create a custom-filtered version of the data store for each tree. We do 
    * this AFTER adding the data so that it doesn't try to re-filter every time we add a row. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel);
   
+  /* Also create a second data store that will store one sequence per row (as opposed to one
+   * MSP per row). This data store will be switched in when the user selects 'squash matches'. */
   callFuncOnAllDetailViewTrees(detailView, addSequencesToTree);
 }
 

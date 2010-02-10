@@ -541,7 +541,17 @@ Strand mspGetRefStrand(const MSP const *msp)
 }
 
 
-
+/* Add the given MSP to the given hash table */
+void addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey)
+{
+  /* Get the current list of MSPs, if there is one. */
+  GList *mspGList = (GList*)g_hash_table_lookup(hashTable, hashKey);
+  
+  /* Append the new MSP. This will create the GList if it was previously null */
+  mspGList = g_list_append(mspGList, msp);
+  
+  g_hash_table_insert(hashTable, hashKey, mspGList);  
+}
 
 
 

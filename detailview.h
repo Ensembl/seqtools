@@ -76,6 +76,7 @@ typedef struct _DetailViewProperties
 
     GtkWidget *feedbackBox;	  /* A text box that feeds back info to the user about the currently selected items */
     GList *columnList;		  /* A list of details about all the columns in the detail view */
+    GHashTable *seqTable;	  /* Hash table that will group MSPs by sequence name. */
     
     GList *fwdStrandTrees;	  /* A list of all the trees that show the forward strand of the ref seq */
     GList *revStrandTrees;	  /* A list of all the trees that show the reverse strand of the ref seq */
@@ -146,6 +147,7 @@ IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);
 GtkWidget*	        detailViewGetMainWindow(GtkWidget *detailView);
 int			detailViewGetCharWidth(GtkWidget *detailView);
 int			detailViewGetCharHeight(GtkWidget *detailView);
+GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -171,7 +173,7 @@ void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
-void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum);
+void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll);
 void			updateFeedbackBox(GtkWidget *detailView);
 void			ToggleStrand(GtkWidget *detailView);
 

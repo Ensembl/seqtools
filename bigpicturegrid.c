@@ -309,10 +309,31 @@ void calculateMspLineDimensions(GtkWidget *grid,
 
 
 /* Returns true if the given msp is displayed in the grid, i.e. is not
- * an intron or something */
-static gboolean mspShownInGrid(const MSP const *msp)
+ * an intron and is not out of range */
+static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 {
-  return !mspIsIntron(msp) && !mspIsExon(msp);
+  gboolean result = FALSE;
+  
+  if (!mspIsIntron(msp) && !mspIsExon(msp))
+    {
+      const IntRange const *displayRange = gridGetDisplayRange(grid);
+
+      int mspStart = msp->qstart;
+      int mspEnd = msp->qend;
+
+      if (bigPictureGetSeqType(gridGetBigPicture(grid)) == BLXSEQ_PEPTIDE)
+	{
+	  mspStart = convertDnaToPeptide(mspStart, 1, gridGetNumReadingFrames(grid), NULL);
+	  mspEnd = convertDnaToPeptide(mspEnd, 1, gridGetNumReadingFrames(grid), NULL);
+	}
+
+      if (valueWithinRange(mspStart, displayRange) || valueWithinRange(mspEnd, displayRange))
+	{
+	  result = TRUE;
+	}
+    }
+  
+  return result;
 }
 
 
@@ -320,7 +341,7 @@ static gboolean mspShownInGrid(const MSP const *msp)
 static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 {
   /* Ignore introns. */
-  if (mspShownInGrid(msp))
+  if (mspShownInGrid(msp, grid))
     {
       GdkGC *gc = gridGetGraphicsContext(grid);
       gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
@@ -336,51 +357,49 @@ static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp)
 }
 
 
-/* Wrapper function around drawMspLine that only draws unselected MSPs. */
-static gboolean drawUnselectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Draw the MSPs for the given sequence if the sequence is unselected */
+static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
 {
-  GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  const char *seqName = (const char *)key;
+  GtkWidget *grid = GTK_WIDGET(data);
   
-  /* A tree row can contain multiple MSPs. Process all of them */
-  GList* mspListItem = treeGetMsps(model, iter);
-  
-  for ( ; mspListItem; mspListItem = mspListItem->next)
+  if (!mainWindowIsSeqSelected(gridGetMainWindow(grid), seqName))
     {
-      MSP *msp = (MSP*)(mspListItem->data);
+      GList *mspListItem = (GList*)value;
       
-      if (!mainWindowIsMspSelected(mainWindow, msp))
+      for ( ; mspListItem; mspListItem = mspListItem->next)
 	{
-	  GtkWidget *grid = treeGetGrid(tree);
-	  drawMspLine(grid, gridGetMspLineColour(grid), msp);
+	  MSP *msp = (MSP*)(mspListItem->data);
+	  
+	  if (mspShownInGrid(msp, grid))
+	    {
+	      drawMspLine(grid, gridGetMspLineColour(grid), msp);
+	    }
 	}
     }
-  
-  return FALSE;
 }
 
 
-/* Wrapper function around drawMspLine that only draws selected MSPs. */
-static gboolean drawSelectedMspLine(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Draw the MSPs for the given sequence if the sequence is selected */
+static void drawSelectedMspLines(gpointer key, gpointer value, gpointer data)
 {
-  GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  const char *seqName = (const char*)key;
+  GtkWidget *grid = GTK_WIDGET(data);
   
-  /* A tree row can contain multiple MSPs. Process all of them */
-  GList* mspListItem = treeGetMsps(model, iter);
-  
-  for ( ; mspListItem; mspListItem = mspListItem->next)
+  if (mainWindowIsSeqSelected(gridGetMainWindow(grid), seqName))
     {
-      MSP *msp = (MSP*)(mspListItem->data);
+      GList *mspListItem = (GList*)value;
       
-      if (mainWindowIsMspSelected(mainWindow, msp))
+      for ( ; mspListItem; mspListItem = mspListItem->next)
 	{
-	  GtkWidget *grid = treeGetGrid(tree);
-	  drawMspLine(grid, gridGetMspLineHighlightColour(grid), msp);
+	  MSP *msp = (MSP*)(mspListItem->data);
+	  
+	  if (mspShownInGrid(msp, grid))
+	    {
+	      drawMspLine(grid, gridGetMspLineHighlightColour(grid), msp);
+	    }
 	}
     }
-  
-  return FALSE;
 }
 
 
@@ -396,15 +415,17 @@ static void drawMspLines(GtkWidget *grid)
   for (frame = 1 ; frame <= numFrames; ++frame)
     {
       GtkWidget *tree = gridGetTree(grid, frame);
-      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-      gtk_tree_model_foreach(model, drawUnselectedMspLine, tree);
+
+      /* Get all of the MSPs for the tree, grouped by sequence name */
+      GHashTable *seqTable = treeGetSeqTable(tree);
+      g_hash_table_foreach(seqTable, drawUnselectedMspLines, grid);
     }
 
   for (frame = 1 ; frame <= numFrames; ++frame)
     {
       GtkWidget *tree = gridGetTree(grid, frame);
-      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-      gtk_tree_model_foreach(model, drawSelectedMspLine, tree);
+      GHashTable *seqTable = treeGetSeqTable(tree);
+      g_hash_table_foreach(seqTable, drawSelectedMspLines, grid);
     }
 }
 
@@ -637,7 +658,7 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      if (mspShownInGrid(msp))
+      if (mspShownInGrid(msp, grid))
 	{
 	  int mspX, mspY, mspWidth, mspHeight;
 	  calculateMspLineDimensions(grid, msp, &mspX, &mspY, &mspWidth, &mspHeight);
@@ -646,8 +667,8 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 	    {
 	      /* It's a hit. Select this row. */
 	      GtkWidget *mainWindow = gridGetMainWindow(grid);
-	      mainWindowDeselectAllMsps(mainWindow, TRUE);
-	      mainWindowSelectMsp(mainWindow, msp, TRUE);
+	      mainWindowDeselectAllSeqs(mainWindow, TRUE);
+	      mainWindowSelectSeq(mainWindow, msp->sname, TRUE);
 
 	      wasSelected = TRUE;
 	      break;
@@ -855,7 +876,7 @@ static int gridGetNumReadingFrames(GtkWidget *grid)
 GtkWidget* gridGetBigPicture(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
-  return properties->bigPicture;
+  return properties ? properties->bigPicture : NULL;
 }
 
 static GtkWidget* gridGetTree(GtkWidget *grid, const int frame)

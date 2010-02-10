@@ -33,6 +33,7 @@ static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *contex
 static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 
+static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -285,7 +286,7 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
       IntRange *fullRange = mainWindowGetFullRange(window);
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
 
-      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, newBaseNum);
+      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, newBaseNum, TRUE);
     }
 }
 
@@ -317,7 +318,7 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
       IntRange *fullRange = mainWindowGetFullRange(window);
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
       
-      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum);
+      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE);
     }
 }
 
@@ -1037,7 +1038,7 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->numReadingFrames = numReadingFrames;
       
       properties->strandsToggled = FALSE;
-      properties->selectedMsps = NULL;
+      properties->selectedSeqs = NULL;
       
       properties->autoDotterParams = TRUE;
       properties->dotterStart = UNSET_INT;
@@ -1159,12 +1160,6 @@ gboolean mainWindowGetGappedHsp(GtkWidget *mainWindow)
   return properties ? properties->gappedHsp : UNSET_INT;
 }
 
-GList* mainWindowGetSelectedMsps(GtkWidget *mainWindow)
-{
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  return properties ? properties->selectedMsps : NULL;
-}
-
 /* Return the active strand - forward strand by default, reverse strand if display toggled */
 static Strand mainWindowGetActiveStrand(GtkWidget *mainWindow)
 {
@@ -1177,6 +1172,22 @@ static Strand mainWindowGetInactiveStrand(GtkWidget *mainWindow)
   return mainWindowGetStrandsToggled(mainWindow) ? FORWARD_STRAND : REVERSE_STRAND;
 }
 
+/* Returns a list of all the MSPs with the given sequence name */
+GList *mainWindowGetSequenceMsps(GtkWidget *mainWindow, const char *seqName)
+{
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  return detailViewGetSequenceMsps(detailView, seqName);
+}
+
+/***********************************************************
+ *                        Selections                       *
+ ***********************************************************/
+
+GList* mainWindowGetSelectedSeqs(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->selectedSeqs : NULL;
+}
 
 /* Update function to be called whenever the MSP selection has changed */
 static void selectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
@@ -1186,7 +1197,7 @@ static void selectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
   if (updateTrees)
     {
       callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
-      callFuncOnAllDetailViewTrees(detailView, selectRowsForSelectedMsps);
+      callFuncOnAllDetailViewTrees(detailView, selectRowsForSelectedSeqs);
     }
   
   /* Update the feedback box to tell the user which sequence is selected. */
@@ -1197,42 +1208,85 @@ static void selectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
 }
 
 
-void mainWindowSelectMsp(GtkWidget *mainWindow, GList *mspGList, const gboolean updateTrees)
+/* Call this function to select the given match sequence */
+void mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees)
 {
-  if (!mainWindowIsMspSelected(mainWindow, mspGList))
+  if (!mainWindowIsSeqSelected(mainWindow, seqName))
     {
+      mainWindowDeselectAllSeqs(mainWindow, updateTrees);
       MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-      properties->selectedMsps = g_list_prepend(properties->selectedMsps, mspGList);
+      properties->selectedSeqs = g_list_prepend(properties->selectedSeqs, seqName);
       selectionChanged(mainWindow, updateTrees);
     }
 }
 
-void mainWindowDeselectMsp(GtkWidget *mainWindow, GList *mspGList, const gboolean updateTrees)
-{
-  if (mainWindowIsMspSelected(mainWindow, mspGList))
-    {
-      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-      properties->selectedMsps = g_list_remove(properties->selectedMsps, mspGList);
-      selectionChanged(mainWindow, updateTrees);
-    }
-}
-
-void mainWindowDeselectAllMsps(GtkWidget *mainWindow, const gboolean updateTrees)
+/* Call this function to deselect the given sequence */
+void mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
 
-  if (g_list_length(properties->selectedMsps) > 0)
+  /* See if it's in the list and, if so, get a pointer to the list element */
+  GList *foundSeq = findSelectedSeqInList(properties->selectedSeqs, seqName);
+
+  if (foundSeq)
     {
-      g_list_free(properties->selectedMsps);
-      properties->selectedMsps = NULL;
+      properties->selectedSeqs = g_list_remove(properties->selectedSeqs, foundSeq->data);
       selectionChanged(mainWindow, updateTrees);
     }
 }
 
-gboolean mainWindowIsMspSelected(GtkWidget *mainWindow, GList *mspGList)
+/* Call this function to deselect all sequences */
+void mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateTrees)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  return (g_list_find(properties->selectedMsps, mspGList) != NULL);
+
+  if (g_list_length(properties->selectedSeqs) > 0)
+    {
+      g_list_free(properties->selectedSeqs);
+      properties->selectedSeqs = NULL;
+      selectionChanged(mainWindow, updateTrees);
+    }
+}
+
+
+/* Returns the pointer to the GList element that contains the given sequence, if the
+ * sequence is in the list. */
+static GList *findSelectedSeqInList(GList *list, const char *seqName)
+{
+  GList *result = NULL;
+  
+  /* We can't use g_list_find because that checks if the pointer value
+   * is the same, which it might not be, because the same seq name could 
+   * come from any one of several different MSPs. */
+  GList *listItem = list;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      const char *listName = (const char*)(listItem->data);
+      
+      if (strcmp(listName, seqName) == 0)
+	{
+	  result = listItem;
+	  break;
+	}
+    }
+  
+  return result;
+}
+
+
+/* Returns true if the given sequence is selected */
+gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
+{
+  gboolean result = FALSE;
+  
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  if (properties)
+    {
+      result = (findSelectedSeqInList(properties->selectedSeqs, seqName) != NULL);
+    }
+  
+  return result;
 }
 
 

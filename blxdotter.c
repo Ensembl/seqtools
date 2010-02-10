@@ -36,8 +36,8 @@ typedef struct _DotterDialogData
 
 /* Local function declarations */
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out);
-static char*	      fetchSeqRaw(char *seqname);
-static char*	      fetchSequence(char *seqname, char *fetch_prog);
+static char*	      fetchSeqRaw(const char *seqname);
+static char*	      fetchSequence(const char *seqname, char *fetch_prog);
 static void	      blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly);
 static char*	      getDotterSSeq(GtkWidget *blxWindow);
 
@@ -354,17 +354,23 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 {
   char *dotterSSeq = NULL;
   
-  /* Get the sequence name from the first selected MSP. */
-  GList *selectedMspList = mainWindowGetSelectedMsps(blxWindow);
-   
-  if (g_list_length(selectedMspList) > 0)
+  /* Get the selected sequence name */
+  GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
+
+  if (g_list_length(selectedSeqs) > 0)
     {
-      /* If we're in seqbl mode, only part of the sequence is in in the MSP. */
+      const char *seqName = (const char*)(selectedSeqs->data);
+
+      if (g_list_length(selectedSeqs) > 1)
+	{
+	  messout("Warning: multiple sequences are selected; calling dotter on the first one found (%s)", seqName);
+	}
+
+      /* If we're in seqbl mode, only part of the sequence is in the MSP. */
       const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
       if (blastMode != BLXMODE_TBLASTN)
 	{
-	  MSP *msp = (MSP*)(selectedMspList->data);
-	  dotterSSeq = fetchSeqRaw(msp->sname);
+	  dotterSSeq = fetchSeqRaw(seqName);
 	}
 
       if (!dotterSSeq)
@@ -374,10 +380,12 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	    {
 	      printf("Looking for sequence stored internally ... ");
 	      
-	      GList *listItem = selectedMspList;
-	      for ( ; listItem ; listItem = listItem->next)
+	      /* Loop through all MSPs in the selected sequence */
+	      GList *mspListItem = mainWindowGetSequenceMsps(blxWindow, seqName);
+	      
+	      for ( ; mspListItem ; mspListItem = mspListItem->next)
 		{
-		  const MSP *msp = (MSP*)listItem->data;
+		  MSP *msp = (MSP*)(mspListItem->data);
 		  
 		  //	      if (msp->sseq != padseq) //to do: implement this, if still required.
 		  {
@@ -438,6 +446,13 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 {
   gboolean result = FALSE;
 
+  /* Check that a sequence is selected */
+  GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
+  if (g_list_length(selectedSeqs) < 1)
+    {
+      return result;
+    }
+  
   GtkWidget *bigPicture = mainWindowGetBigPicture(blxWindow);
   const IntRange const *bigPicRange = bigPictureGetDisplayRange(bigPicture);
   const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
@@ -446,16 +461,15 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
   char activeStrand = (rightToLeft ? '-' : '+') ;
 
-  
-  /* Loop through all selected MSPs. We'll estimate the wanted query region from 
-   * the extent of the HSP's that are completely within view. */
-  GList *listItem = mainWindowGetSelectedMsps(blxWindow);
+  /* Loop through all MSPs in the selected sequence. We'll estimate the wanted
+   * query region from the extent of the HSP's that are completely within view. */
+  const char *selectedSeqName = (const char*)(selectedSeqs->data);
   int qMin = UNSET_INT, qMax = UNSET_INT;
-  const char *selectedSeqName = NULL;
   
-  for ( ; listItem; listItem = listItem->next)
+  GList *mspListItem = mainWindowGetSequenceMsps(blxWindow, selectedSeqName);
+  for ( ; mspListItem ; mspListItem = mspListItem->next)
     {
-      const MSP *msp = (MSP*)listItem->data;
+      const MSP *msp = (MSP*)(mspListItem->data);
       const int minMspCoord = min(msp->displayStart, msp->displayEnd);
       const int maxMspCoord = max(msp->displayStart, msp->displayEnd);
 
@@ -466,11 +480,6 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
 	  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
 	  
-	  if (!selectedSeqName)
-	    {
-	      selectedSeqName = msp->sname;
-	    }
-
 	  /* Extrapolate qMin backwards to the start of the match sequence (i.e. where
 	   * s==0) and qMax forwards to the end of the match sequence (i.e. where s==sLength). */
 	  int distToSMin = sSeqMin - 1;
@@ -569,7 +578,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
 
 /* Get a sequence entry using either efetch or pfetch. */
-static char *fetchSeqRaw(char *seqname)
+static char *fetchSeqRaw(const char *seqname)
 {
   char *result = NULL ;
 
@@ -593,7 +602,7 @@ static char *fetchSeqRaw(char *seqname)
 
 
 /* Common routine to call efetch or pfetch to retrieve a sequence entry. */
-static char *fetchSequence(char *seqname, char *fetch_prog)
+static char *fetchSequence(const char *seqname, char *fetch_prog)
 {
   char *result = NULL;
   
@@ -680,8 +689,8 @@ static char *fetchSequence(char *seqname, char *fetch_prog)
 
 static void blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 {
-  GList *selectedMsps = mainWindowGetSelectedMsps(blxWindow);
-  if (g_list_length(selectedMsps) < 1)
+  GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
+  if (g_list_length(selectedSeqs) < 1)
     {
       messout("Select a sequence first");
       return;
@@ -703,7 +712,10 @@ static void blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   const char *dotterQName = mainWindowGetRefSeqName(blxWindow);
   
   /* Get the section of reference sequence that we're interested in */
-  const MSP *msp = (MSP*)selectedMsps->data;
+  const char *selectedSeqName = (const char*)(selectedSeqs->data);
+  GList *selectedMsps = mainWindowGetSequenceMsps(blxWindow, selectedSeqName);
+
+  const MSP *msp = (MSP*)selectedMsps->data; /* extract info from any of the selected MSPs */
   const Strand strand = msp->qframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
   
   char frameStr[2];
