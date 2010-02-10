@@ -82,11 +82,18 @@ GtkWidget *treeGetMainWindow(GtkWidget *tree)
   return detailViewGetMainWindow(detailView);
 }
 
-static GHashTable *treeGetSequenceTable(GtkWidget *tree)
+static GHashTable *treeGetHashSeq(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
-  return properties->sequenceTable;
+  return properties->hashSeq;
+}
+
+static GHashTable *treeGetHashSeqAndFrame(GtkWidget *tree)
+{
+  assertTree(tree);
+  TreeProperties *properties = treeGetProperties(tree);
+  return properties->hashSeqAndFrame;
 }
 
 Strand treeGetStrand(GtkWidget *tree)
@@ -302,23 +309,45 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 }
 
 
-static void addSequenceToTree(gpointer key, gpointer value, gpointer data)
+/* Add the list of MSPs in the hash table under the given key to the tree. */
+static void addMspListToTreeRow(gpointer key, gpointer value, gpointer data)
 {
-  char *sequenceName = (char*)key;
   GList *mspGList = (GList*)value;
-  GtkListStore *store = GTK_LIST_STORE(data);
-
-  GtkTreeIter iter;
-  gtk_list_store_append(store, &iter);
   
-  gtk_list_store_set(store, &iter,
-		     S_NAME_COL, sequenceName,
-		     SCORE_COL, NULL,
-		     ID_COL, NULL,
-		     START_COL, NULL,
-		     SEQUENCE_COL, mspGList,
-		     END_COL, NULL,
-		     -1);
+  if (g_list_length(mspGList) > 0)
+    {
+      /* Get the first msp in the list */
+      MSP *msp = (MSP*)(mspGList->data);
+      
+      /* Add a row to the tree store */
+      GtkListStore *store = GTK_LIST_STORE(data);
+      GtkTreeIter iter;
+      gtk_list_store_append(store, &iter);
+      
+      /* Populate the row. If there are multiple MSPs, most of the column info is not applicable */
+      if (g_list_length(mspGList) == 1)
+	{
+	  gtk_list_store_set(store, &iter,
+			     S_NAME_COL, msp->sname,
+			     SCORE_COL, msp->score,
+			     ID_COL, msp->id,
+			     START_COL, msp->sstart,
+			     SEQUENCE_COL, mspGList,
+			     END_COL, msp->send,
+			     -1);
+	}
+      else
+	{
+	  gtk_list_store_set(store, &iter,
+			     S_NAME_COL, msp->sname,
+			     SCORE_COL, NULL,
+			     ID_COL, NULL,
+			     START_COL, NULL,
+			     SEQUENCE_COL, mspGList,
+			     END_COL, NULL,
+			     -1);
+	}
+    }
 }
 
 
@@ -338,9 +367,9 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
 
-  /* Add the rows */
-  GHashTable *sequenceTable = treeGetSequenceTable(tree);
-  g_hash_table_foreach(sequenceTable, addSequenceToTree, store);
+  /* Add the rows. Use the hash table that groups MSPs by sequence name and qFrame/qStrand */
+  GHashTable *hashSeqAndFrame = treeGetHashSeq(tree);
+  g_hash_table_foreach(hashSeqAndFrame, addMspListToTreeRow, store);
 
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
@@ -524,6 +553,9 @@ void treeSquashMatches(GtkWidget *tree, gpointer data)
 {
   TreeProperties *properties = treeGetProperties(tree);
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->seqTreeModel);
+
+  /* Refilter the new data store, because it might not be up to date */
+  refilterTree(tree, NULL);
 }
 
 
@@ -532,6 +564,9 @@ void treeUnsquashMatches(GtkWidget *tree, gpointer data)
 {
   TreeProperties *properties = treeGetProperties(tree);
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->mspTreeModel);
+  
+  /* Refilter the new data store, because it might not be up to date */
+  refilterTree(tree, NULL);
 }
 
 
@@ -831,7 +866,8 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->renderer = renderer;
       properties->readingFrame = frame;
       properties->treeColumnHeaderList = treeColumnHeaderList;
-      properties->sequenceTable = g_hash_table_new(g_str_hash, g_str_equal);
+      properties->hashSeq = g_hash_table_new(g_str_hash, g_str_equal);
+      properties->hashSeqAndFrame = g_hash_table_new(g_str_hash, g_str_equal);
       properties->mspTreeModel = NULL;
       properties->seqTreeModel = NULL;
 
@@ -1254,7 +1290,7 @@ static void calcDisplayCoords(MSP *msp, GtkWidget *tree)
 
 
 /* Add a row to the given tree containing the given MSP */
-static void addTreeRow(MSP *msp, GtkWidget *tree)
+static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
 {
   GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   
@@ -1276,7 +1312,21 @@ static void addTreeRow(MSP *msp, GtkWidget *tree)
 }
 
 
-/* Add the given msp as a row in the given tree view. */
+/* Add the given MSP to the given hash table */
+static void addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey)
+{
+  /* Get the current list of MSPs, if there is one. */
+  GList *mspGList = (GList*)g_hash_table_lookup(hashTable, hashKey);
+  
+  /* Append the new MSP. This will create the GList if it was previously null */
+  mspGList = g_list_append(mspGList, msp);
+  
+  g_hash_table_insert(hashTable, hashKey, mspGList);  
+}
+
+
+/* Add the given msp as a row in the given tree view, and also adds it to the
+ * tree's hash tables. */
 void addMspToTree(GtkWidget *tree, MSP *msp)
 {
   /* First calculate the ID and display coords and update them in the MSP */
@@ -1284,16 +1334,17 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
   calcDisplayCoords(msp, tree);
 
   /* Add the MSP as an individual row */
-  addTreeRow(msp, tree);
+  addMspToTreeRow(msp, tree);
   
-  /* Add the MSP to the tree's hash table of sequence names */
-  GHashTable *sequenceTable = treeGetSequenceTable(tree);
+  /* Add the MSP to the hash table that will group by sequence name. */
+  GHashTable *hashSeq = treeGetHashSeq(tree);
+  addMspToHashTable(hashSeq, msp, msp->sname);
   
-  /* Get the current list of MSPs, if one exists. If it doesn't, we can still
-   * append to the null list and the list will be created for us. */
-  GList *mspGList = (GList*)g_hash_table_lookup(sequenceTable, msp->sname);
-  mspGList = g_list_append(mspGList, msp);
-  g_hash_table_insert(sequenceTable, msp->sname, mspGList);
+  /* Add the MSP to the hash table that will group by sequence name and qFrame/qStrand */
+  GHashTable *hashSeqAndFrame = treeGetHashSeqAndFrame(tree);
+  char hashKey[strlen(msp->sname) + strlen(msp->qframe) + 1];
+  sprintf(hashKey, "%s %s", msp->sname, msp->qframe);
+  addMspToHashTable(hashSeqAndFrame, msp, hashKey);
 }
 
 
@@ -1361,6 +1412,23 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
 }
 
 
+/* Cell data function for a generic integer column. */
+static void cellDataFunctionIntCol(GtkTreeViewColumn *column, 
+				   GtkCellRenderer *renderer, 
+				   GtkTreeModel *model, 
+				   GtkTreeIter *iter, 
+				   gpointer data)
+{
+  /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
+  GList	*mspGList = treeGetMsps(model, iter);
+  
+  if (g_list_length(mspGList) != 1)
+    {
+      g_object_set(renderer, START_COLUMN_PROPERTY_NAME, "", NULL);
+    }
+}
+
+
 /* Create a single column in the tree. */
 static void initColumn(GtkWidget *tree, 
 		       GtkCellRenderer *renderer, 
@@ -1406,13 +1474,16 @@ static void initColumn(GtkWidget *tree,
       break;
       
     case START_COL:
-      /* Set custom data function for start col (so that coords flip when display is reversed) */
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionStartCol, tree, NULL);
       break;
       
     case END_COL:
-      /* Set custom data function for end col (so that coords flip when display is reversed) */
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionEndCol, tree, NULL);
+      break;
+      
+    case SCORE_COL: /* fall through */
+    case ID_COL:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionIntCol, tree, NULL);
       break;
       
     default:

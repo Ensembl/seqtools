@@ -1011,6 +1011,8 @@ void detailViewSquashMatches(GtkWidget *detailView, const gboolean squash)
     {
       callFuncOnAllDetailViewTrees(detailView, treeUnsquashMatches);
     }
+
+  gtk_widget_queue_draw(detailView);
 }
 
 

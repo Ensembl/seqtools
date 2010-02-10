@@ -36,7 +36,9 @@ typedef struct _TreeProperties
 
     int readingFrame;		    /* Which reading frame this tree displays */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
-    GHashTable *sequenceTable;	    /* Hash table of sequence names, each with a list of MSPs for that sequence */
+    
+    GHashTable *hashSeq;	    /* Hash table to group MSPs by sequence name. */
+    GHashTable *hashSeqAndFrame;    /* Hash table to group MSPs by sequence name and frame/strand. */
     
     GtkTreeModel *mspTreeModel;	    /* Default tree data store, in which each MSP has its own row */
     GtkTreeModel *seqTreeModel;     /* Condensed tree data store, in which multiple MSPs on the same sequence appear in the same row */
