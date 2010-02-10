@@ -919,7 +919,13 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName)
 	  for ( ; mspListItem; mspListItem = mspListItem->next)
 	    {
 	      MSP *msp = (MSP*)(mspListItem->data);
-	      sIdx = getMatchIdxFromDisplayIdx(msp, qIdx, mspGetRefFrame(msp, seqType), mspGetRefStrand(msp), rightToLeft, seqType, numFrames);
+	      sIdx = getMatchIdxFromDisplayIdx(msp, 
+					       qIdx, 
+					       mspGetRefFrame(msp, seqType), 
+					       mspGetRefStrand(msp), 
+					       rightToLeft, 
+					       BLXSEQ_DNA, /* q index has already been converted to DNA coords */ 
+					       numFrames);
 	      
 	      if (sIdx != UNSET_INT)
 		{
