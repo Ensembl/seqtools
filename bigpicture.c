@@ -69,7 +69,7 @@ gint convertBaseIdxToGridPos(const gint baseIdx,
       numBasesFromEdge = 0;
     }
   
-  gint pixelsFromEdge = trunc(numBasesFromEdge * pixelsPerBase(rect->width, displayRange));
+  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rect->width, displayRange));
   
   if (rightToLeft)
     {
@@ -96,6 +96,7 @@ gint convertBaseIdxToGridPos(const gint baseIdx,
 
 static void drawVerticalGridLineHeaders(GtkWidget *header, 
 					GtkWidget *bigPicture, 
+                                        GdkDrawable *drawable,
 					GdkGC *gc, 
 					const GdkColor const *textColour, 
 					const GdkColor const *lineColour)
@@ -133,18 +134,18 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       sprintf(text, "%d", baseIdx);
 
       PangoLayout *layout = gtk_widget_create_pango_layout(header, text);
-      gdk_draw_layout(GTK_LAYOUT(header)->bin_window, gc, x, 0, layout);
+      gdk_draw_layout(drawable, gc, x, 0, layout);
       g_object_unref(layout);
       
       /* Draw the marker line */
       gdk_gc_set_foreground(gc, lineColour);
-      gdk_draw_line (GTK_LAYOUT(header)->bin_window, gc, x, topBorder, x, bottomBorder);
+      gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
     }
 }
 
 
 /* Draw a big picture header */
-static void drawBigPictureGridHeader(GtkWidget *header)
+static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
@@ -156,6 +157,7 @@ static void drawBigPictureGridHeader(GtkWidget *header)
   /* Draw the grid headers */
   drawVerticalGridLineHeaders(header, 
 			      properties->bigPicture, 
+                              drawable,
 			      gc,
 			      &bigPictureProperties->gridTextColour, 
 			      &bigPictureProperties->gridLineColour);
@@ -299,7 +301,7 @@ void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width)
       int newcentre = getRangeCentre(detailViewRange);
 
       /* Try to display an equal amount either side of the centre */
-      int offset = round((double)width / 2.0);
+      int offset = roundNearest((double)width / 2.0);
 
       displayRange->min = newcentre - offset;
       displayRange->max = newcentre + offset;
@@ -340,7 +342,7 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture)
  * rectangle lies entirely within the outer rect. */
 int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRectangle *outerRect)
 {
-  int leftCoord = centreCoord - round((double)width / 2.0);
+  int leftCoord = centreCoord - roundNearest((double)width / 2.0);
   
   if (outerRect)
     {
@@ -366,7 +368,7 @@ int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRect
  * rectangle lies entirely within the outer rect. */
 int getRightCoordFromCentre(const int centreCoord, const int width, const GdkRectangle *outerRect)
 {
-  int rightCoord = centreCoord + round((double)width / 2.0);
+  int rightCoord = centreCoord + roundNearest((double)width / 2.0);
   
   if (outerRect)
     {
@@ -395,7 +397,7 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
   
   if (zoomIn)
     {
-      newWidth = round(((double)(displayRange->max - displayRange->min)) / 2.0);
+      newWidth = roundNearest(((double)(displayRange->max - displayRange->min)) / 2.0);
     }
   else
     {
@@ -438,14 +440,14 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
   gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
   widgetSetDrawable(header, drawable);
 
-  GdkGC *gc = gdk_gc_new(GTK_LAYOUT(header)->bin_window);
+  GdkGC *gc = gdk_gc_new(drawable);
   GtkStyle *style = gtk_widget_get_style(header);
   GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(gc, bgColour);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, header->allocation.width, header->allocation.height);
 
   /* Draw the header onto the pixmap */
-  drawBigPictureGridHeader(header);
+  drawBigPictureGridHeader(header, drawable);
   
   /* Push the pixmap onto the screen */
   gdk_draw_drawable(GTK_LAYOUT(header)->bin_window, gc, drawable, 0, 0, 0, 0, -1, -1);

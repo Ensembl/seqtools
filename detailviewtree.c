@@ -15,7 +15,6 @@
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 
-
 enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
 
 
@@ -481,12 +480,12 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
       gint charWidth = treeGetCharWidth(tree);
       
       const double numBasesFromLeftDbl = ((double)x - leftEdge) / (double)charWidth;
-      const int numBasesFromLeft = trunc(numBasesFromLeftDbl);
+      const int numBasesFromLeft = (int)numBasesFromLeftDbl;
       
       /* If requested, also calculate the base number within the frame */
       if (baseNum)
 	{
-	  const int distFromCharStart = round((numBasesFromLeftDbl - numBasesFromLeft) * (double)charWidth);
+	  const int distFromCharStart = roundNearest((numBasesFromLeftDbl - numBasesFromLeft) * (double)charWidth);
 	  const double frameWidth = charWidth / treeGetNumReadingFrames(tree);
 	  *baseNum = (distFromCharStart / frameWidth) + 1;
 	}
@@ -1083,14 +1082,17 @@ static gboolean onScrollTree(GtkWidget *tree, GdkEventScroll *event, gpointer da
 
 static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer data)
 {
-  if (event->state == GDK_BUTTON2_MASK)
+  if (event->state & GDK_BUTTON2_MASK)
     {
       /* Moving mouse with middle mouse button down. Update the currently-selected base
        * (but don't re-centre on the selected base until the mouse button is released). */
       const int selectedBaseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y, NULL);
       const int frame = treeGetFrame(tree);
+
+      /* For protein matches, get the 1st base in the peptide (or last base if display reversed) */
+      int baseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
       
-      treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, 1, TRUE); /* always select 1st base in peptide */
+      treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, baseNum, TRUE);
     }
   
   return TRUE;
@@ -1520,7 +1522,7 @@ static void createMarkupForLabel(GtkLabel *label,
 
       /* Create the marked-up text */
       char markupText[segLen + 200];
-      sprintf(markupText, "%s<span bgcolor='#%x'>%s</span>%s", 
+      sprintf(markupText, "%s<span background='#%x'>%s</span>%s", 
 	      textBefore, colour->pixel, textSelection, textAfter);
 
       gtk_label_set_markup(label, markupText);
@@ -1559,20 +1561,24 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
 					       mainWindowGetNumReadingFrames(mainWindow),
 					       rightToLeft,
 					       TRUE);
-  
-  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-  if (selectedBaseIdx == UNSET_INT)
+
+  if (segmentToDisplay)
     {
-      /* Just draw plain text */
-      gtk_label_set_markup(GTK_LABEL(headerWidget), segmentToDisplay);
-    }
-  else
-    {
-      GdkColor *selectedColour = treeGetRefSeqColour(tree, TRUE);
-      createMarkupForLabel(GTK_LABEL(headerWidget), segmentToDisplay, selectedBaseIdx, selectedColour, rightToLeft, displayRange);
-    }
-  
-  g_free(segmentToDisplay);
+      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+
+      if (selectedBaseIdx == UNSET_INT)
+        {
+          /* Just draw plain text */
+          gtk_label_set_markup(GTK_LABEL(headerWidget), segmentToDisplay);
+        }
+      else
+        {
+          GdkColor *selectedColour = treeGetRefSeqColour(tree, TRUE);
+          createMarkupForLabel(GTK_LABEL(headerWidget), segmentToDisplay, selectedBaseIdx, selectedColour, rightToLeft, displayRange);
+        }
+      
+      g_free(segmentToDisplay);
+  }
 }
 
 

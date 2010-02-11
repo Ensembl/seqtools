@@ -12,7 +12,6 @@
 #include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/utilities.h>
-#include <math.h>
 
 #define EXON_VIEW_DEFAULT_COMPRESSED_HEIGHT      10
 #define EXON_VIEW_DEFAULT_EXPANDED_HEIGHT        20
@@ -54,9 +53,9 @@ static void drawExon(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width, 
 /* Draw an intron */
 static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width, int height)
 {
-  int xMid = x + round((double)width / 2.0);
+  int xMid = x + roundNearest((double)width / 2.0);
   int xEnd = x + width;
-  int yMid = y + round((double)height / 2.0);
+  int yMid = y + roundNearest((double)height / 2.0);
   
   gdk_draw_line(drawable, gc, x, yMid, xMid, y);
   gdk_draw_line(drawable, gc, xMid, y, xEnd, yMid);

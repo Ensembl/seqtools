@@ -446,13 +446,13 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const Strand stran
 	  gboolean isActiveStrand = ((strand == FORWARD_STRAND) != toggled);
 	  
 	  char text1[] = "Act_ive strand alignments";
-	  char text2[] = "O_ther strand alignments";
+	  char text2[] = "Othe_r strand alignments";
 	  createVisibilityButton(tree, isActiveStrand ? text1 : text2, container);
 	}
       else
 	{
 	  /* All the visible trees should be in the same strand, so just distinguish by frame number */
-	  char formatStr[] = "Alignment list %d";
+	  char formatStr[] = "Alignment list _%d";
 	  char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
 	  sprintf(displayText, formatStr, frame);
 
@@ -483,8 +483,8 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
 						  NULL);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+
   int borderWidth = 12;
   
   /* Big picture */
@@ -494,7 +494,7 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
   GtkWidget *bigPictureSubBox = createVBoxWithBorder(contentArea, borderWidth);
   createVisibilityButton(bigPictureGetActiveGrid(bigPicture), "_Active strand grid", bigPictureSubBox);
   createVisibilityButton(bigPictureGetExonView(bigPicture), "_Exon view", bigPictureSubBox);
-  createVisibilityButton(bigPictureGetInactiveGrid(bigPicture), "_Other strand grid", bigPictureSubBox);
+  createVisibilityButton(bigPictureGetInactiveGrid(bigPicture), "O_ther strand grid", bigPictureSubBox);
   
   /* Detail view */
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
@@ -553,8 +553,8 @@ static void showSettingsDialog(GtkWidget *mainWindow)
 						  NULL);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+
   int borderWidth = 12;
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
   
@@ -579,7 +579,6 @@ static void showModalDialog(GtkWidget *mainWindow, char *title, char *messageTex
 						  NULL);
   
   /* Add the message */
-  //  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog)); //not in pre 2.14 versions
   GtkWidget *vbox = GTK_DIALOG(dialog)->vbox;
   GtkWidget *label = gtk_label_new(messageText);
   gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
@@ -1298,7 +1297,7 @@ gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
 static void setStyleProperties(GtkWidget *widget)
 {
   gtk_container_set_border_width (GTK_CONTAINER(widget), DEFAULT_WINDOW_BORDER_WIDTH); 
-//  gtk_window_set_mnemonic_modifier(GTK_WINDOW(widget), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
+  gtk_window_set_mnemonic_modifier(GTK_WINDOW(widget), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
   
   /* Set the default font size to be a bit smaller than usual */
   int origSize = pango_font_description_get_size(widget->style->font_desc) / PANGO_SCALE;

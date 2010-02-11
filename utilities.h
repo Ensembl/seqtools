@@ -69,6 +69,8 @@ Strand		      mspGetRefStrand(const MSP const *msp);
 
 void		      addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey);
 
+int                   roundNearest(const double val);
+
 char		      getRefSeqBase(char *refSeq, 
 				    const int qIdx, 
 				    const gboolean complement, 

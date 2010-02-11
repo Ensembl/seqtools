@@ -142,9 +142,9 @@ static void paintLayout2(GtkStyle *style,
 			 GdkDrawable *drawable2,
 			 GtkStateType state_type,
 			 gboolean use_text,
-			 const GdkRectangle *area,
+			 GdkRectangle *area,
 			 GtkWidget *widget,
-			 const gchar *detail,
+			 gchar *detail,
 			 gint x,
 			 gint y,
 			 PangoLayout *layout)
@@ -793,7 +793,7 @@ static void drawInsertionMarker(int sIdx,
       
       /* This is not very sophisticated - just uses a fudge factor to find a suitable width and
        * draws it half over the current base and half over the previous one. */
-      int gapWidth = round((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
+      int gapWidth = roundNearest((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
 
       if (gapWidth < MIN_GAP_WIDTH)
 	{

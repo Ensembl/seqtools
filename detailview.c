@@ -343,7 +343,7 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 	  const BlxSeqType seqType = detailViewGetSeqType(detailView);
 
 	  int centre = getRangeCentre(displayRange);
-	  int offset = round((double)adjustment->page_size / 2.0);
+	  int offset = roundNearest((double)adjustment->page_size / 2.0);
 	  setDetailViewStartIdx(detailView, centre - offset, seqType);
 	  
 	  gtk_adjustment_changed(adjustment); /* signal that the scroll range has changed */
@@ -626,7 +626,7 @@ static void createMarkupForLabel(GtkLabel *label,
       
       /* Create the marked-up text */
       char markupText[segLen + 200];
-      sprintf(markupText, "%s<span bgcolor='#%06x'>%s</span>%s", 
+      sprintf(markupText, "%s<span background='#%06x'>%s</span>%s", 
 	      textBefore, colour->pixel, selectedBaseText, textAfter);
       
       gtk_label_set_markup(label, markupText);
@@ -1751,15 +1751,16 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 						  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
 						  NULL);
 
-  GtkWidget *entry = gtk_entry_new();
-  gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
-  gtk_widget_show(entry);
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
 
+  GtkWidget *entry = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(contentArea), entry, TRUE, TRUE, 0);
+
+  gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  gtk_widget_show(entry);
   
-  GtkWidget *contentArea = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  gtk_box_pack_start(GTK_BOX(contentArea), entry, TRUE, TRUE, 0);
 
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -1820,8 +1821,8 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 	{
 	  MatchSearchData *searchData = (MatchSearchData*)data;
 
-	  int qSeqMin, qSeqMax;
-	  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, NULL, NULL);
+          int qSeqMin = min(msp->displayStart, msp->displayEnd);
+          int qSeqMax = max(msp->displayStart, msp->displayEnd);
 	  
 	  /* Get the offset of this MSP from the current display start position */
 	  int curOffset = UNSET_INT;
@@ -1873,9 +1874,12 @@ static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
   
   if (searchData.smallestOffset != UNSET_INT)
     {
-      /* Scroll the detail by this offset */
+      /* Scroll the detail view by this offset amount. The offset coords are of
+       * the same type as the display sequence type. */
       const int newStart = displayRange->min + (searchData.smallestOffset * searchDirection);
-      setDetailViewStartIdx(detailView, newStart, BLXSEQ_DNA);
+      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+
+      setDetailViewStartIdx(detailView, newStart, seqType);
     }
 }
 
@@ -2428,14 +2432,14 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
    * to look at all children recursively and check if they're the correct type. (We'll give 
    * all of our detail-view trees the same name so that we can identify them.) */
   GtkWidget *detailView = gtk_vpaned_new();
-  
+
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
 
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, &feedbackBox);
-  
+
   /* Create the header, and compile a list of columns */
   GList *columnList = NULL;
   GtkWidget *header = createDetailViewHeader(detailView, seqType, numReadingFrames, &columnList);

@@ -8,7 +8,6 @@
 
 #include "SeqTools/utilities.h"
 
-
 /* Functions to get/set/destroy a GdkDrawable in a widget property, if a different drawable
  * than the window is required to be drawn to. The main purpose of this is for printing
  * (and only widgets that have this drawable set are printed) */
@@ -91,14 +90,27 @@ GtkWidget* createLabel(const char *text,
 		       const gboolean enableCopyPaste,
 		       const gboolean showWhenPrinting)
 {
-  GtkWidget *label = gtk_widget_new(GTK_TYPE_LABEL, 
-				    "label", text, 
-				    "xalign", xalign, 
-				    "yalign", yalign, 
-				    "selectable", enableCopyPaste,
-				    NULL);
+  GtkWidget *label = NULL;
   
-  if (showWhenPrinting)
+  if (text)
+    {
+      label = gtk_widget_new(GTK_TYPE_LABEL, 
+                             "label", text, 
+                             "xalign", xalign,
+                             "yalign", yalign,
+                             "selectable", enableCopyPaste,
+                             NULL);
+    }
+  else
+    {
+      label = gtk_widget_new(GTK_TYPE_LABEL, 
+                             "xalign", xalign, 
+                             "yalign", yalign, 
+                             "selectable", enableCopyPaste,
+                             NULL);
+    }
+  
+  if (label && showWhenPrinting)
     {
       /* Connect to the expose event handler that will create the drawable object required for printing */
       g_signal_connect(G_OBJECT(label), "expose-event", G_CALLBACK(onExposePrintableLabel), NULL);
@@ -149,7 +161,7 @@ int getRangeLength(const IntRange const *range)
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
 int getRangeCentre(const IntRange const *range)
 {
-  return range->min + round(((double)(range->max - range->min)) / 2.0);
+  return range->min + roundNearest(((double)(range->max - range->min)) / 2.0);
 }
 
 
@@ -336,7 +348,7 @@ int convertDnaToPeptide(const int dnaIdx, const int frame, const int numFrames, 
   
   if (baseNum)
     {
-      *baseNum = round((fraction - trunc(fraction)) * numFrames);
+      *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
     }
   
   return peptideIdx;
@@ -554,4 +566,22 @@ void addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey)
 }
 
 
+/* Round to nearest int (needed because there is no  round() function in ISO C90) */
+int roundNearest(const double val)
+{
+  int truncated = (int)val;
+  double remainder = val - truncated;
+  int result = truncated;
+
+  if (remainder > 0.5)
+    {
+      result = truncated + 1;
+    }
+  else if (remainder < -0.5)
+    {
+      result = truncated - 1;
+    }
+    
+  return result;
+}
 

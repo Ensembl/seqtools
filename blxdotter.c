@@ -174,12 +174,12 @@ void showDotterDialog(GtkWidget *blxWindow)
 						  GTK_RESPONSE_REJECT,
 						  NULL);
   
-  GtkContainer *contentArea = GTK_CONTAINER(gtk_dialog_get_content_area(GTK_DIALOG(dialog)));
+  GtkContainer *contentArea = GTK_DIALOG(dialog)->vbox;
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  int spacing = 4;
 
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+  const int spacing = 4;
 
   /* Find the various possibilities for start/end coords */
   char *lastSavedStart = convertIntToString(mainWindowGetDotterStart(blxWindow));
