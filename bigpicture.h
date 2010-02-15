@@ -78,8 +78,7 @@ BlxSeqType		      bigPictureGetSeqType(GtkWidget *bigPicture);
 int			      bigPictureGetNumReadingFrames(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
-void			      setBigPictureDisplayWidth(GtkWidget *bigPicture, int width);
-void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture);
+void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 
 gdouble			      pixelsPerBase(const gint displayWidth, 

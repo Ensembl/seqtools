@@ -27,6 +27,8 @@ static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
 static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 
+static void                         drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, GdkGC *gc);
+
 /***********************************************************
  *                     Utility functions	           *
  ***********************************************************/
@@ -144,14 +146,39 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 }
 
 
-/* Draw a big picture header */
-static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable)
+/* Refresh the header - clears and redraws its bitmap */
+static void redrawBigPictureGridHeader(GtkWidget *header)
+{
+  /* Check that the header is shown on screen */
+  if (GTK_LAYOUT(header)->bin_window)
+    {
+      /* Create a new bitmap to draw on to and set it in the widget. (This automatically
+       * deletes the old one, if there is one.) */
+      GdkDrawable *bitmap = gdk_pixmap_new(GTK_LAYOUT(header)->bin_window, header->allocation.width, header->allocation.height, -1);
+      gdk_drawable_set_colormap(bitmap, gdk_colormap_get_system());
+      widgetSetDrawable(header, bitmap);
+
+      /* Clear the bitmap to the background colour */
+      GdkGC *gc = gdk_gc_new(bitmap);
+      GtkStyle *style = gtk_widget_get_style(header);
+      GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
+      gdk_gc_set_foreground(gc, bgColour);
+      gdk_draw_rectangle(bitmap, gc, TRUE, 0, 0, header->allocation.width, header->allocation.height);
+
+      /* Draw the header */
+      drawBigPictureGridHeader(header, bitmap, gc);
+    }
+}
+
+
+
+/* Draw the big picture header onto the given drawable */
+static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, GdkGC *gc)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   /* Set the drawing properties */
-  GdkGC *gc = gdk_gc_new(header->window);
   gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
   
   /* Draw the grid headers */
@@ -236,6 +263,12 @@ void refreshGridOrder(GtkWidget *bigPicture)
   g_object_unref(fwdStrandGrid);
   g_object_unref(exonView);
   g_object_unref(revStrandGrid);
+  
+  /* Must show all child widgets because some of them may not have been in this parent before.
+   * (Just calling gtk_widget_show on the individual trees doesn't seem to work.)
+   * However, we then need to re-hide any that may have been previously hidden by the user. */
+  gtk_widget_show_all(bigPicture);
+  gtk_container_foreach(GTK_CONTAINER(bigPicture), hideUserHiddenWidget, NULL);  
 }
 
 
@@ -265,8 +298,9 @@ static void boundRange(IntRange *range, IntRange *bounds)
 
 
 /* Set the display range for the big picture, based on the given width (i.e. number of
- * bases wide). Keeps the display centred on the same range that is shown in the detail view. */
-void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width)
+ * bases wide). Keeps the display centred on the same range that is shown in the detail view.
+ * If recalcHighlightBox is true, the highlight box borders are recalculated. */
+static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gboolean recalcHighlightBox)
 {
   GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
 
@@ -308,17 +342,26 @@ void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width)
       boundRange(displayRange, fullRange);
     }
   
-  /* Recalculate highlight box position and redraw */
-  callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
-//  callFuncOnAllBigPictureGrids(bigPicture, redrawBigPictureGrid);
+  /* Since we're keeping the highlight box centred, it should stay in the same place
+   * if we're just scrolling. We therefore only need to recalculate its position if
+   * its size has changed. */
+  if (recalcHighlightBox)
+    {
+      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
+    }
+
+  /* Recreate the grids and grid header */
+  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
+  widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
   gtk_widget_queue_draw(bigPicture);
 }
 
 
 /* This function makes sure the big picture remains centred on the highlight box:
  * it scrolls the big picture display range if necessary to keep the highlight box
- * (i.e. the range that is displayed in the detail-view) centred. */
-void refreshBigPictureDisplayRange(GtkWidget *bigPicture)
+ * (i.e. the range that is displayed in the detail-view) centred. If recalcHighlightBox
+ * is true, the highlight box has changed size, and its boundaries need to be recalculated. */
+void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcHighlightBox)
 {
   GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
   IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
@@ -327,12 +370,7 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture)
   if (getRangeCentre(displayRange) != getRangeCentre(detailViewRange))
     {
       int width = displayRange->max - displayRange->min;
-      setBigPictureDisplayWidth(bigPicture, width);
-      
-      /* Move the highlight box and redraw the grids */
-      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
-//      callFuncOnAllBigPictureGrids(bigPicture, redrawBigPictureGrid);
-      gtk_widget_queue_draw(bigPicture);
+      setBigPictureDisplayWidth(bigPicture, width, recalcHighlightBox);
     }
 }
 
@@ -404,7 +442,7 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
       newWidth = (displayRange->max - displayRange->min) * 2;
     }
 
-  setBigPictureDisplayWidth(bigPicture, newWidth);
+  setBigPictureDisplayWidth(bigPicture, newWidth, TRUE);
 }
 
 /***********************************************************
@@ -428,29 +466,39 @@ static void onZoomOutBigPicture(GtkButton *button, gpointer data)
 static void onZoomWholeBigPicture(GtkButton *button, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);
-  
+  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
   IntRange *fullRange = bigPictureGetFullRange(bigPicture);
-  setBigPictureDisplayWidth(bigPicture, fullRange->max - fullRange->min);
+
+  /* Check we're not already showing the whole range */
+  if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
+    {
+      setBigPictureDisplayWidth(bigPicture, fullRange->max - fullRange->min, TRUE);
+    }
 }
 
 
 static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpointer data)
 {
-  GdkDrawable *drawable = gdk_pixmap_new(GTK_LAYOUT(header)->bin_window, header->allocation.width, header->allocation.height, -1);
-  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(header, drawable);
-
-  GdkGC *gc = gdk_gc_new(drawable);
-  GtkStyle *style = gtk_widget_get_style(header);
-  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
-  gdk_gc_set_foreground(gc, bgColour);
-  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, header->allocation.width, header->allocation.height);
-
-  /* Draw the header onto the pixmap */
-  drawBigPictureGridHeader(header, drawable);
+  GdkDrawable *window = GTK_LAYOUT(header)->bin_window;
   
-  /* Push the pixmap onto the screen */
-  gdk_draw_drawable(GTK_LAYOUT(header)->bin_window, gc, drawable, 0, 0, 0, 0, -1, -1);
+  if (window)
+    {
+      /* Just push the stored bitmap onto the screen */
+      GdkDrawable *bitmap = widgetGetDrawable(header);
+
+      if (!bitmap)
+        {
+          /* If the cache is empty, create it now. */
+	  redrawBigPictureGridHeader(header);
+	  bitmap = widgetGetDrawable(header);
+        }
+      
+      if (bitmap)
+        {
+          GdkGC *gc = gdk_gc_new(window);
+          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+        }
+    }
   
   return TRUE;
 }

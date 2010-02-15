@@ -175,7 +175,7 @@ void			scrollDetailViewRightPage(GtkWidget *detailView);
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll);
 void			updateFeedbackBox(GtkWidget *detailView);
-void			ToggleStrand(GtkWidget *detailView);
+void			toggleStrand(GtkWidget *detailView);
 
 void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
 void			updateDetailViewFontDesc(GtkWidget *detailView);

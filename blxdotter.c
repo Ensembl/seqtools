@@ -174,7 +174,7 @@ void showDotterDialog(GtkWidget *blxWindow)
 						  GTK_RESPONSE_REJECT,
 						  NULL);
   
-  GtkContainer *contentArea = GTK_DIALOG(dialog)->vbox;
+  GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);

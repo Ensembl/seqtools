@@ -23,7 +23,6 @@
 typedef struct _GridProperties
   {
     GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
-    GdkGC *gc;		     /* Graphics context for the bitmap */
     
     Strand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
     
@@ -60,8 +59,6 @@ gint		    convertValueToGridPos(GtkWidget *grid,
 
 void		    showPreviewBox(GtkWidget *grid, const int x);
 void		    acceptAndClearPreviewBox(GtkWidget *grid, const int x);
-
-void		    redrawBigPictureGrid(GtkWidget *grid);
 
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
 					 Strand strand);

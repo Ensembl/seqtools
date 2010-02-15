@@ -914,21 +914,38 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
   
   switch (event->button)
     {
-    
     case 1:
       {
-	/* Left button: selects a row */
-	mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
-	deselectAllSiblingTrees(tree, FALSE);
-	
-	/* If we've clicked a different tree to the previously selected one, make this tree's 
-	 * reading frame the active one. Select the first base in the triplet (or the last
-	 * if the display is reversed). */
-	const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-	treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), firstBaseNum, FALSE);
-	
-	/* Let the default handler select the row */
-	handled = FALSE;
+	/* Left button: selects a row, or shows the pfetch window if this was a double-click. */
+	if (event->type == GDK_BUTTON_PRESS)
+	  {
+	    mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
+	    deselectAllSiblingTrees(tree, FALSE);
+	    
+	    /* If we've clicked a different tree to the previously selected one, make this tree's 
+	     * reading frame the active one. Select the first base in the triplet (or the last
+	     * if the display is reversed). */
+	    const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
+	    treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), firstBaseNum, FALSE);
+	    
+	    /* Let the default handler select the row */
+	    handled = FALSE;
+	  }
+	else if (event->type == GDK_2BUTTON_PRESS)
+	  {
+	    /* Get the selected sequence (assumes that only one is selected) */
+	    GtkWidget *mainWindow = treeGetMainWindow(tree);
+	    GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
+	    
+	    if (selectedSeqs)
+	      {
+		const char *seqName = (const char*)selectedSeqs->data;
+		blxDisplayMSP(seqName, 0, mainWindow);
+	      }
+	      
+	    handled = TRUE;
+	  }
+	  
 	break;
       }
 
@@ -947,7 +964,9 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
       
     case 3:
       {
-	/* Right button: show context menu (to do) */
+	/* Right button: show context menu. */
+	GtkWidget *mainmenu = mainWindowGetMainMenu(treeGetMainWindow(tree));
+	gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
 	handled = TRUE;
 	break;
       }

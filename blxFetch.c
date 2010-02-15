@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.4 2010-01-20 18:16:55 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.5 2010-02-15 14:27:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -51,6 +51,11 @@
 #include <libpfetch/libpfetch.h>
 #endif
 #include <SeqTools/blixem_.h>
+#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/detailview.h>
+
+
+#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      100
 
 
 /* 
@@ -230,17 +235,14 @@ static GKeyFile *blx_config_G = NULL ;
  * 
  * If this proves to be a problem I expect there is a way to feed the text to the
  * text widget a line a time. */
-static void externalCommand (char *command)
+static void externalCommand (char *command, GtkWidget *mainWindow)
 {
 #if !defined(MACINTOSH)
   FILE *pipe ;
   char text[MAXLINE+1], *cp ;
   int line=0, len, maxlen=0;
   static Stack stack ;
-//  Graph old ;
   GString *str_text ;
-  
-//  old = graphActive() ;
   
   str_text = g_string_new(NULL) ;
   
@@ -272,14 +274,45 @@ static void externalCommand (char *command)
       g_string_append_printf(str_text, "%s\n", cp) ;
     }
   
-//  gexTextEditorNew(command, str_text->str, 0,
-//		   NULL, NULL, NULL,
-//		   FALSE, FALSE, TRUE) ;
+  /* Pop up a dialog to display the sequence text */
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(command, 
+						  GTK_WINDOW(mainWindow), 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
   
-  g_string_free(str_text, TRUE) ;
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  /* Create a text buffer and copy the text in */
+  GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
+  gtk_text_buffer_set_text(textBuffer, str_text->str, -1);
+  g_string_free(str_text, TRUE);
+
+  /* Create a text view to display the buffer */
+  GtkWidget *textView = gtk_text_view_new();
+  gtk_text_view_set_buffer(GTK_TEXT_VIEW(textView), textBuffer);
+
+  /* Make the text view scrollable */
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(contentArea), scrollWin);
+  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
+
+  /* Set the initial size. The height is the minimum of the main window height (because we don't want
+   * to display it bigger than this - also subtract a bit to allow for the button bar and scrollbar height)
+   * or the height required for the number of lines of text we want to display. */
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  int width = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * detailViewGetCharWidth(detailView);
+  int height = min(mainWindow->allocation.height - 80,
+		   gtk_text_buffer_get_line_count(textBuffer) * detailViewGetCharHeight(detailView));
   
-//  graphActivate (old) ;
+  gtk_widget_set_size_request(textView, width, height);
+  gtk_widget_modify_font(textView, detailViewGetFontDesc(detailView)); /* gets a fixed-width font */
   
+  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
+  gtk_widget_show_all(dialog);
+
 #endif
   return ;
 }
@@ -354,32 +387,32 @@ static int findCommand (char *command, char **retp)
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void blxDisplayMSP(MSP *msp)
+void blxDisplayMSP(const char *seqName, const KEY key, GtkWidget *mainWindow)
 {
 
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
     {
       /* --client gives logging information to pfetch server,
        * -F makes sure we get a full sequence entry returned. */
-      externalCommand(messprintf("pfetch --client=acedb_%s_%s -F '%s' &",
-				 getSystemName(), getLogin(TRUE), msp->sname));
+      externalCommand(messprintf("pfetch --client=acedb_%s_%s -F '%s' &", getSystemName(), getLogin(TRUE), seqName),
+		      mainWindow);
 
       /* currently unused... pfetchWindow(msp); */
     }
 #ifdef PFETCH_HTML 
   else if (!strcmp(fetchMode, BLX_FETCH_PFETCH_HTML))
     {
-      blxPfetchEntry(msp->sname) ;
+      blxPfetchEntry(seqName) ;
     }
 #endif
   else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
     {
-      externalCommand(messprintf("efetch '%s' &", msp->sname));
+      externalCommand(messprintf("efetch '%s' &", seqName), mainWindow);
     }
   else if (!strcmp(fetchMode, BLX_FETCH_WWW_EFETCH))
     {
 #ifdef ACEDB
-      graphWebBrowser (messprintf ("%s%s", URL, msp->sname));
+      graphWebBrowser (messprintf ("%s%s", URL, seqName));
 #else
       {
 	char *browser = NULL ;
@@ -401,18 +434,18 @@ void blxDisplayMSP(MSP *msp)
 	  }
 	printf("Using WWW browser %s\n", browser);
 	fflush(stdout);
-	system(messprintf("%s %s%s&", browser, URL, msp->sname));
+	system(messprintf("%s %s%s&", browser, URL, seqName));
       }
 #endif
     }
 #ifdef ACEDB
   else if (!strcmp(fetchMode, BLX_FETCH_ACEDB))
     {
-      display(msp->key, 0, 0);
+      display(key, 0, 0);
     }
   else if (!strcmp(fetchMode, BLX_FETCH_ACEDB_TEXT))
     {
-      display(msp->key, 0, "TREE");
+      display(key, 0, "TREE");
     }
 #endif
   else

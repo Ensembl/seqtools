@@ -957,7 +957,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	
       case GDK_t:
       case GDK_T:
-	ToggleStrand(mainWindowGetDetailView(window));
+	toggleStrand(mainWindowGetDetailView(window));
 	result = TRUE;
 	break;
 	
@@ -1003,6 +1003,7 @@ static void onDestroyMainWindow(GtkWidget *widget)
 static void mainWindowCreateProperties(GtkWidget *widget, 
 				       GtkWidget *bigPicture, 
 				       GtkWidget *detailView,
+				       GtkWidget *mainmenu,
 				       MSP *mspList,
 				       const BlxBlastMode blastMode,
 				       char *refSeq,
@@ -1021,6 +1022,7 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
+      properties->mainmenu = mainmenu;
       
       properties->refSeq = refSeq;
       properties->refSeqName = refSeqName ? g_strdup(refSeqName) : g_strdup("Blixem-seq");
@@ -1073,6 +1075,12 @@ GtkWidget* mainWindowGetDetailView(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->detailView : FALSE;
+}
+
+GtkWidget* mainWindowGetMainMenu(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->mainmenu : FALSE;
 }
 
 BlxBlastMode mainWindowGetBlastMode(GtkWidget *mainWindow)
@@ -1202,8 +1210,10 @@ static void selectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
   /* Update the feedback box to tell the user which sequence is selected. */
   updateFeedbackBox(detailView);
   
-  /* Redraw the grids */
-  gtk_widget_queue_draw(mainWindowGetBigPicture(mainWindow));
+  /* Recreate the grids (because the MSP lines will change colour with highlighting) */
+  GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
+  gtk_widget_queue_draw(bigPicture);
 }
 
 
@@ -1416,6 +1426,7 @@ GtkWidget* createMainWindow(char *refSeq,
   mainWindowCreateProperties(window, 
 			     bigPicture, 
 			     detailView, 
+			     mainmenu,
 			     mspList, 
 			     blastMode, 
 			     refSeq, 

@@ -377,29 +377,6 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
 }
 
 
-/* Hides the given widget if it has been set as hidden by the user */
-static void hideUserHiddenWidget(GtkWidget *widget, gpointer data)
-{
-  if (widgetGetHidden(widget))
-    {
-      gtk_widget_hide(widget);
-    }
-  
-  if (GTK_IS_CONTAINER(widget))
-    {
-      gtk_container_foreach(GTK_CONTAINER(widget), hideUserHiddenWidget, NULL);
-    }
-}
-
-
-/* Loop through all children of the given container and show/hide them according to
- * the user-hidden status */
-static void hideUserHiddenChildWidgets(GtkContainer *container)
-{
-  gtk_container_foreach(container, hideUserHiddenWidget, NULL);
-}
-
-
 /* Add all trees in the given list to the detail view. Note that the treeList may not contain
  * actual trees, it may contain their containers (e.g. if they live in scrolled windows). 'first'
  * indicates that this is the first (set of) tree(s) added. This information is used to determine
@@ -583,7 +560,7 @@ static void refreshTreeOrder(GtkWidget *detailView)
    * (Just calling gtk_widget_show on the individual trees doesn't seem to work.)
    * However, we then need to re-hide any that may have been previously hidden by the user. */
   gtk_widget_show_all(detailView);
-  hideUserHiddenChildWidgets(GTK_CONTAINER(detailView));
+  gtk_container_foreach(GTK_CONTAINER(detailView), hideUserHiddenWidget, NULL);
 }
 
 
@@ -822,6 +799,7 @@ void updateDetailViewFontDesc(GtkWidget *detailView)
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
   callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize);
+  gtk_widget_queue_draw(detailView);
 }
 
 
@@ -1074,10 +1052,11 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+      gtk_widget_queue_draw(detailView);
 
-      /* Update the big picture because the highlight box has moved */
+      /* Update the big picture because the highlight box has moved (and changed size) */
       GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
-      refreshBigPictureDisplayRange(bigPicture);
+      refreshBigPictureDisplayRange(bigPicture, TRUE);
     }
 }
 
@@ -1105,10 +1084,11 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+      gtk_widget_queue_draw(detailView);
 
       /* Update the big picture because the highlight box has moved */
       GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
-      refreshBigPictureDisplayRange(bigPicture);
+      refreshBigPictureDisplayRange(bigPicture, TRUE);
     }
 }
 
@@ -1538,7 +1518,10 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseI
       scrollToKeepSelectionInRange(detailView);
     }
 
+  /* Update the feedback box */
   updateFeedbackBox(detailView);
+
+  /* Update the headers so that the newly-selected index is highlighted */
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
   gtk_widget_queue_draw(detailView);
@@ -1711,29 +1694,32 @@ static void swapGridVisibility(GtkWidget *bigPicture)
 }
 
 
-void ToggleStrand(GtkWidget *detailView)
+void toggleStrand(GtkWidget *detailView)
 {
   MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewGetMainWindow(detailView));
-  
-  /* Toggle the flag */
+  GtkWidget *bigPicture = mainWindowProperties->bigPicture;
+
+  /* Update the flag */
   mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
-  
-  /* If one grid/tree is hidden and the other visile, toggle which is hidden */
+
+  /* If one grid/tree is hidden and the other visible, toggle which is hidden */
   swapTreeVisibility(detailView);
-  swapGridVisibility(mainWindowProperties->bigPicture);
+  swapGridVisibility(bigPicture);
   
-  /* Refresh the tree and grid order (i.e. switch them based on the new toggle status) */
+  /* Toggle the order of the trees and grids. */
   refreshTreeOrder(detailView);
-  refreshGridOrder(mainWindowProperties->bigPicture);
-  
-  /* Redraw all grids */
-  gtk_widget_queue_draw(mainWindowProperties->bigPicture);
-//  callFuncOnAllBigPictureGrids(mainWindowProperties->bigPicture, redrawBigPictureGrid);
-  
-  /* Redraw the grid header and detail view header */
-//  gtk_widget_queue_draw(bigPictureGetGridHeader(mainWindowProperties->bigPicture));
+  refreshGridOrder(bigPicture);
+
+  /* Redraw the tree and detail-view headers */
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+  gtk_widget_queue_draw(detailView);
+  
+  /* Redraw the grids and grid headers */
+  callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders); /* must recalculate the highlight box first */
+  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
+  widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
+  gtk_widget_queue_draw(bigPicture);
 }
 
 
@@ -1973,7 +1959,7 @@ static void GscrollRight1(GtkButton *button, gpointer data)
 static void GToggleStrand(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  ToggleStrand(detailView);
+  toggleStrand(detailView);
 }
 
 /***********************************************************

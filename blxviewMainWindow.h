@@ -16,6 +16,7 @@ typedef struct _MainWindowProperties
   {
     GtkWidget *bigPicture;
     GtkWidget *detailView;
+    GtkWidget *mainmenu;
     
     char *refSeq;		    /* The reference sequence (always forward strand, always DNA sequence) */
     const char *refSeqName;	    /* The name of the reference sequence */
@@ -51,6 +52,7 @@ MainWindowProperties*	  mainWindowGetProperties(GtkWidget *widget);
 gboolean		  mainWindowGetStrandsToggled(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetBigPicture(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetDetailView(GtkWidget *mainWindow);
+GtkWidget*		  mainWindowGetMainMenu(GtkWidget *mainWindow);
 BlxBlastMode		  mainWindowGetBlastMode(GtkWidget *mainWindow);
 IntRange*		  mainWindowGetFullRange(GtkWidget *mainWindow);
 IntRange*		  mainWindowGetRefSeqRange(GtkWidget *mainWindow);

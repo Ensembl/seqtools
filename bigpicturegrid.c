@@ -24,7 +24,7 @@
 #define DEFAULT_GRID_Y_PADDING		5	  /* this provides space between the grid and the edge of the widget */
 #define DEFAULT_GRID_CELL_Y_PADDING	-2	  /* this controls the vertical space between the labels on the y axis */
 #define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2	  /* this provides space between highlight box and the top/bottom of the grid */
-#define MIN_MSP_LINE_WIDTH		1	  /* used to make sure the MSP lines never get so narrow that they are not invisible */
+#define MIN_MSP_LINE_WIDTH		1	  /* used to make sure that MSP lines never shrink to nothing */
 
 typedef struct _DrawGridData
 {
@@ -45,6 +45,7 @@ static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static GtkWidget*	    gridGetMainWindow(GtkWidget *grid);
 static int		    gridGetNumReadingFrames(GtkWidget *grid);
+static void                 drawBigPictureGrid(GtkWidget *grid);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -173,7 +174,7 @@ static void drawHighlightBox(GtkWidget *grid,
 /* Draw the preview box. This is drawn directly onto the grid window (not onto the
  * cached bitmap that the rest of the grid is drawn onto). Only does anything if the
  * preview box centre is set. */
-static void drawPreviewBox(GtkWidget *grid)
+static void drawPreviewBox(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 {
   int previewBoxCentre = gridGetPreviewBoxCentre(grid);
   
@@ -208,8 +209,7 @@ static void drawPreviewBox(GtkWidget *grid)
   /* The other dimensions of the preview box are the same as the current highlight box. */
   GdkRectangle previewRect = {xRounded, properties->highlightRect.y, properties->highlightRect.width, properties->highlightRect.height};
 
-  GdkGC *gc = gdk_gc_new(GTK_LAYOUT(grid)->bin_window);
-  drawHighlightBox(grid, GTK_LAYOUT(grid)->bin_window, gc, &previewRect, bigPictureProperties->previewBoxLineWidth, &bigPictureProperties->previewBoxColour);
+  drawHighlightBox(grid, drawable, gc, &previewRect, bigPictureProperties->previewBoxLineWidth, &bigPictureProperties->previewBoxColour);
 }
 
 
@@ -442,50 +442,32 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 }
 
 
-/* Clears the grid's current bitmap so we have a clean slate to draw on.
- * Returns the new, blank drawable */
-static GdkDrawable* clearGridBitmap(GtkWidget *grid)
+/* Main function to do the drawing for the grid. Drawing is done onto a pixmap
+ * which is then stored in the grid properties */
+static void drawBigPictureGrid(GtkWidget *grid)
 {
+  /* First create and cache the bitmap */
   GdkDrawable *drawable = gdk_pixmap_new(GTK_LAYOUT(grid)->bin_window, grid->allocation.width, grid->allocation.height, -1);
   gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(grid, drawable);
-
-  /* Paint a rectangle to give us a blank slate the same colour as the widget's background colour setting */
+  widgetSetDrawable(grid, drawable); /* deletes the old drawable, if there is one */
+  
+  /* Paint a blank rectangle for the background, the same colour as the widget's background */
   GdkGC *gc = gdk_gc_new(drawable);
   GtkStyle *style = gtk_widget_get_style(grid);
   GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(gc, bgColour);
-
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, grid->allocation.width, grid->allocation.height);
 
-  return drawable;
-}
-
-
-/* Main function to do the drawing for the grid. Drawing is done onto a pixmap
- * which is then stored in the grid properties, and can be painted to screen
- * etc. as required. */
-void redrawBigPictureGrid(GtkWidget *grid)
-{
-  if (!GTK_LAYOUT(grid)->bin_window)
-    {
-      /* Grid is not displayed yet. Just return. */
-      return;
-    }
   
+  /* Calculate some factors for scaling */
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
 
-  GdkDrawable *drawable = clearGridBitmap(grid);
-  
-  /* Calculate some factors for scaling */
   const gint percentPerCell = 
     (properties->percentIdRange.max - properties->percentIdRange.min) / 
     (properties->numVCells > 0 ? properties->numVCells : 1);
   
-  /* Draw the grid */
-  GdkGC *gc = gdk_gc_new(drawable);
-  
+  /* Draw the grid lines */
   drawVerticalGridLines(grid, 
                         drawable,
                         gc,
@@ -619,18 +601,39 @@ void acceptAndClearPreviewBox(GtkWidget *grid, const int xCentre)
  *			    Events			   *
  ***********************************************************/
 
+/* Expose handler for the grid. If the grid has a bitmap cached from the previous
+ * call, this function just pushes that back to screen and then (optionally) draws
+ * the preview box directly to the window over the top of it. If the cached bitmap
+ * is null, this function first calls drawBigPictureGrid to create and cache
+ * the bitmap first. */
 static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer data)
 {
-  /* Redraw the grid's bitmap */
-  redrawBigPictureGrid(grid);
-  
-  /* Push the bitmap onto the screen */
-  GdkDrawable *srcDrawable = widgetGetDrawable(grid);
-  GdkGC *gc = gdk_gc_new(GTK_LAYOUT(grid)->bin_window);
-  gdk_draw_drawable(GTK_LAYOUT(grid)->bin_window, gc, srcDrawable, 0, 0, 0, 0, -1, -1);
-  
-  /* Draw the preview box on top, if it is set */
-  drawPreviewBox(grid);
+  GdkDrawable *window = GTK_LAYOUT(grid)->bin_window;
+
+  if (window)
+    {
+      GdkDrawable *bitmap = widgetGetDrawable(grid);
+      if (!bitmap)
+        {
+          /* There isn't a bitmap yet. Create it now. */
+          drawBigPictureGrid(grid);
+	  bitmap = widgetGetDrawable(grid);
+        }
+      
+      if (bitmap)
+        {
+          /* Push the bitmap onto the window */
+          GdkGC *gc2 = gdk_gc_new(window);
+          gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+
+          /* Draw the preview box on top, if it is set */
+          drawPreviewBox(grid, window, gc2);
+        }
+      else
+	{
+	  messerror("Failed to draw grid [%x] - could not create bitmap", grid);
+	}
+    }
   
   return TRUE;
 }

@@ -37,11 +37,20 @@ void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
       if (oldDrawable)
 	{
 	  g_object_unref(oldDrawable);
+	  oldDrawable = NULL;
 	}
 
       g_object_set_data(G_OBJECT(widget), "drawable", drawable);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCustomWidget), NULL);
     }
+}
+
+
+/* Call this function to clear the cached drawable for the widget. This means that the
+ * next time that expose is called, the bitmap will be redrawn from scratch. */
+void widgetClearCachedDrawable(GtkWidget *widget)
+{  
+  widgetSetDrawable(widget, NULL);
 }
 
 
@@ -78,6 +87,22 @@ void widgetSetHidden(GtkWidget *widget, const gboolean hidden)
 	{
 	  gtk_widget_show_all(widget);
 	}	
+    }
+}
+
+
+/* Hides the given widget if it has been set as hidden by the user. Recurses
+ * over all children. */
+void hideUserHiddenWidget(GtkWidget *widget, gpointer data)
+{
+  if (widgetGetHidden(widget))
+    {
+      gtk_widget_hide_all(widget);
+    }
+  
+  if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), hideUserHiddenWidget, NULL);
     }
 }
 
@@ -584,4 +609,3 @@ int roundNearest(const double val)
     
   return result;
 }
-
