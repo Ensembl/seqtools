@@ -112,8 +112,9 @@ typedef struct _DetailViewProperties
     GdkColor gapColourSelected;       /* background colour for gap in match sequence (when position selected) */
     GdkColor exonBoundaryColourStart; /* line colour for exon boundaries (marking the start of an exon) */
     GdkColor exonBoundaryColourEnd;   /* line colour for exon boundaries (marking the end of an exon) */
-    GdkColor highlightTripletColour;  /* For protein matches, highlight all the bases in the selected triplet in this colour */
-    GdkColor highlightDnaBaseColour;  /* For protein matches, highlight the specific selected DNA base in this colour */
+    GdkColor highlightTripletColour;  /* For codon triplets, highlight all the bases in the selected triplet in this colour */
+    GdkColor highlightDnaBaseColour;  /* For codon triplets, highlight the specific selected DNA base in this colour */
+    GdkColor highlightedRowColour;    /* Background colour for rows that have been grouped for highlighting */
     
     int exonBoundaryLineWidth;	      /* line width for exon boundaries */
     GdkLineStyle exonBoundaryLineStyleStart; /* line style for exon boundaries (marking the start of an exon) */

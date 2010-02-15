@@ -38,8 +38,21 @@ typedef struct _DotterDialogData
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out);
 static char*	      fetchSeqRaw(const char *seqname);
 static char*	      fetchSequence(const char *seqname, char *fetch_prog);
-static void	      blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly);
+static gboolean	      blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly);
 static char*	      getDotterSSeq(GtkWidget *blxWindow);
+
+
+/*******************************************************************
+ *                        Utility functions                        *
+ *******************************************************************/
+
+/* Converts the given integer to a string. The result must be free'd with g_free */
+static char* convertIntToString(const int value)
+{
+  char result[numDigitsInInt(value) + 1];
+  sprintf(result, "%d", value);
+  return g_strdup(result);
+}
 
 
 /*******************************************************************
@@ -59,6 +72,11 @@ static void dotterDialogSaveSettings(DotterDialogData *dialogData)
       /* Save the manual parameters entered */
       properties->dotterStart = atoi(gtk_entry_get_text(startEntry));
       properties->dotterEnd = atoi(gtk_entry_get_text(endEntry));
+      
+      /* Enable the "last-saved" button so the user can revert to these values */
+      gtk_widget_set_sensitive(dialogData->lastSavedButton, TRUE);
+      dialogData->lastSavedStart = convertIntToString(properties->dotterStart);
+      dialogData->lastSavedEnd = convertIntToString(properties->dotterEnd);
     }  
 }
 
@@ -73,7 +91,7 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
     {
       case GTK_RESPONSE_ACCEPT:
 	dotterDialogSaveSettings(dialogData);
-	blxCallDotter(dialogData->blxWindow, FALSE);
+	destroy = blxCallDotter(dialogData->blxWindow, FALSE);
 	break;
 	
       case GTK_RESPONSE_APPLY:
@@ -148,15 +166,6 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
       gtk_widget_set_sensitive(GTK_WIDGET(startEntry), TRUE);
       gtk_widget_set_sensitive(GTK_WIDGET(endEntry), TRUE);
     }
-}
-
-
-/* Converts the given integer to a string. The result must be free'd with g_free */
-static char* convertIntToString(const int value)
-{
-  char result[numDigitsInInt(value) + 1];
-  sprintf(result, "%d", value);
-  return g_strdup(result);
 }
 
 
@@ -360,11 +369,6 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
   if (g_list_length(selectedSeqs) > 0)
     {
       const char *seqName = (const char*)(selectedSeqs->data);
-
-      if (g_list_length(selectedSeqs) > 1)
-	{
-	  messout("Warning: multiple sequences are selected; calling dotter on the first one found (%s)", seqName);
-	}
 
       /* If we're in seqbl mode, only part of the sequence is in the MSP. */
       const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
@@ -687,15 +691,23 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
  *		      Functions to call dotter                     *
  *******************************************************************/
 
-static void blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
+/* Call dotter. Returns true if dotter was called; false if we quit trying. */
+static gboolean blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 {
   GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
-  if (g_list_length(selectedSeqs) < 1)
+  const int numSeqsSelected = g_list_length(selectedSeqs);
+  
+  if (numSeqsSelected < 1)
     {
       messout("Select a sequence first");
-      return;
+      return FALSE;
     }
-  
+  else if (numSeqsSelected > 1)
+    {
+      messout("Dotter cannot be called on multiple sequences. Select a single sequence and try again.");
+      return FALSE;
+    }
+
   /* Get the match sequence. Blixem uses g_malloc consistently now to allocate 
    * strings but unfortunately dotter will free this string with messfree, so 
    * we need to copy the result into a string allocated with messalloc. */
@@ -738,7 +750,7 @@ static void blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   if (!querySeqSegmentTemp)
     {
       messerror("Cannot start dotter - failed to get query sequence.");
-      return;
+      return FALSE;
     }
   
   
@@ -785,6 +797,8 @@ static void blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   
   dotter(type, opts, dotterQName, querySeqSegment, offset, dotterSName, dotterSSeq, 0,
 	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, mspList, refSeqRange->min - 1, 0, 0);
+  
+  return TRUE;
 }
 
 

@@ -22,6 +22,7 @@
 #define MIN_FONT_SIZE			2
 #define MAX_FONT_SIZE			20
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
+#define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
 
 
 typedef struct 
@@ -862,7 +863,7 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
 /* Get the text displayed in the user feedback box based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). 
  * The string returned by this function must be free'd with g_free. */
-static char* getFeedbackText(GtkWidget *detailView, const char *seqName)
+static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const int numSeqsSelected)
 {
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
@@ -879,10 +880,12 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName)
   /* Make sure we have enough space for all the bits to go in the result text */
   int msgLen = numDigitsInInt(qIdx);
   
-  /* Find the sequence name text */
+  /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
+  const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
+  
   if (!seqName)
     {
-      msgLen += strlen(NO_SUBJECT_SELECTED_TEXT);
+      msgLen += strlen(noSeqText);
     }
   else
     {
@@ -928,7 +931,7 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName)
     }
   else if (qIdx != UNSET_INT)
     {
-      sprintf(messageText, "%d   %s", qIdx, NO_SUBJECT_SELECTED_TEXT);  /* just the index */
+      sprintf(messageText, "%d   %s", qIdx, noSeqText);  /* just the index */
     }
   else
     {
@@ -947,16 +950,17 @@ void updateFeedbackBox(GtkWidget *detailView)
   char *messageText = NULL;
 
   GList *selectedSeqs = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  const int numSeqsSelected = g_list_length(selectedSeqs);
   
-  if (g_list_length(selectedSeqs) == 1) /* currently only handle single sequence selection */
+  if (numSeqsSelected == 1) /* currently we only properly handle single sequence selection */
     {
       const char *seqName = (const char*)(selectedSeqs->data);
-      messageText = getFeedbackText(detailView, seqName);
+      messageText = getFeedbackText(detailView, seqName, numSeqsSelected);
     }
   else
     {
-      /* No MSPs selected. Just see if a base index is selected. */
-      messageText = getFeedbackText(detailView, NULL);
+      /* 0 or multiple MSPs selected. Just see if a base index is selected. */
+      messageText = getFeedbackText(detailView, NULL, numSeqsSelected);
     }
   
   GtkWidget *feedbackBox = detailViewGetFeedbackBox(detailView);

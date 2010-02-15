@@ -31,6 +31,7 @@ typedef struct _DrawGridData
   GtkWidget *grid;
   GdkDrawable *drawable;
   GdkGC *gc;
+  GdkColor *colour;
 } DrawGridData;
 
   
@@ -319,13 +320,13 @@ void calculateMspLineDimensions(GtkWidget *grid,
 }
 
 
-/* Returns true if the given msp is displayed in the grid, i.e. is not
- * an intron and is not out of range */
+/* Returns true if the given msp is displayed in the given grid, i.e. is the 
+ * correct strand, is not an intron or exon, and is not out of range */
 static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 {
   gboolean result = FALSE;
   
-  if (!mspIsIntron(msp) && !mspIsExon(msp))
+  if (!mspIsIntron(msp) && !mspIsExon(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
       const IntRange const *displayRange = gridGetDisplayRange(grid);
 
@@ -367,7 +368,8 @@ static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp,
 }
 
 
-/* Draw the MSPs for the given sequence if the sequence is unselected */
+/* Draw the MSPs for the given sequence in the given colour, but only if the 
+ * sequence is NOT selected */
 static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
 {
   const char *seqName = (const char *)key;
@@ -383,31 +385,29 @@ static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
 	  
 	  if (mspShownInGrid(msp, drawData->grid))
 	    {
-	      drawMspLine(drawData->grid, gridGetMspLineColour(drawData->grid), msp, drawData->drawable, drawData->gc);
+	      drawMspLine(drawData->grid, drawData->colour, msp, drawData->drawable, drawData->gc);
 	    }
 	}
     }
 }
 
 
-/* Draw the MSPs for the given sequence if the sequence is selected */
-static void drawSelectedMspLines(gpointer key, gpointer value, gpointer data)
+/* Draw the MSPs for the given sequence in the given colour. */
+static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 {
-  const char *seqName = (const char*)key;
+  const char *seqName = (const char*)listItemData;
   DrawGridData *drawData = (DrawGridData*)data;
+  GtkWidget *detailView = gridGetDetailView(drawData->grid);
   
-  if (mainWindowIsSeqSelected(gridGetMainWindow(drawData->grid), seqName))
-    {
-      GList *mspListItem = (GList*)value;
+  GList *mspListItem = detailViewGetSequenceMsps(detailView, seqName);
 
-      for ( ; mspListItem; mspListItem = mspListItem->next)
+  for ( ; mspListItem; mspListItem = mspListItem->next)
+    {
+      MSP *msp = (MSP*)(mspListItem->data);
+
+      if (mspShownInGrid(msp, drawData->grid))
 	{
-	  MSP *msp = (MSP*)(mspListItem->data);
-	  
-	  if (mspShownInGrid(msp, drawData->grid))
-	    {
-	      drawMspLine(drawData->grid, gridGetMspLineHighlightColour(drawData->grid), msp, drawData->drawable, drawData->gc);
-	    }
+	  drawMspLine(drawData->grid, drawData->colour, msp, drawData->drawable, drawData->gc);
 	}
     }
 }
@@ -416,29 +416,31 @@ static void drawSelectedMspLines(gpointer key, gpointer value, gpointer data)
 /* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 {
-  DrawGridData drawData = {grid, drawable, gc};
+  DrawGridData drawData = {grid, drawable, gc, NULL};
+  GtkWidget *mainWindow = gridGetMainWindow(grid);
 
-  /* The MSP data lives in the detail-view trees. There is one tree for each reading frame.
-   * Loop through all the MSPs in each tree twice - first drawing unselected MSPs and then 
-   * selected MSPs, so that selected lines appear on top. */
+  /* The MSP data lives in the detail-view trees. Loop through all trees (i.e. all frames) */
   const int numFrames = gridGetNumReadingFrames(grid);
   int frame = 1;
   
+  /* Draw unselected MSPs first */
+  drawData.colour = gridGetMspLineColour(grid);
+
   for (frame = 1 ; frame <= numFrames; ++frame)
     {
-      GtkWidget *tree = gridGetTree(grid, frame);
-
       /* Get all of the MSPs for the tree, grouped by sequence name */
+      GtkWidget *tree = gridGetTree(grid, frame);
       GHashTable *seqTable = treeGetSeqTable(tree);
       g_hash_table_foreach(seqTable, drawUnselectedMspLines, &drawData);
     }
 
-  for (frame = 1 ; frame <= numFrames; ++frame)
-    {
-      GtkWidget *tree = gridGetTree(grid, frame);
-      GHashTable *seqTable = treeGetSeqTable(tree);
-      g_hash_table_foreach(seqTable, drawSelectedMspLines, &drawData);
-    }
+  /* Now draw selected MSPs. The list of selected seqs lives in the main window */
+  drawData.colour = gridGetMspLineHighlightColour(drawData.grid);
+  GList *seqTable = mainWindowGetSelectedSeqs(mainWindow);
+  drawData.colour = gridGetMspLineHighlightColour(grid);
+  g_list_foreach(seqTable, drawSequenceMspLines, &drawData);
+  
+  
 }
 
 

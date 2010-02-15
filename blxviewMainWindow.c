@@ -25,6 +25,7 @@ static void			  onPrintMenu(GtkAction *action, gpointer data);
 static void			  onViewMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
 static void			  onDotterMenu(GtkAction *action, gpointer data);
+static void			  onClearHighlightedMenu(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
@@ -37,13 +38,14 @@ static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",	      NULL, "_Quit",	    "<control>Q",	"Quit the program",	  gtk_main_quit},
-  { "Help",	      NULL, "_Help",	    "<control>H",	"Display help",		  G_CALLBACK(onHelpMenu)},
-  { "Print",	      NULL, "_Print",	    "<control>P",	"Print",		  G_CALLBACK(onPrintMenu)},
-  { "View",	      NULL, "_View",	    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
-  { "Settings",	      NULL, "_Settings",    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
-  { "Dotter",	      NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
-  { "Statistics",     NULL, "Statistics",   NULL,		"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
+  { "Quit",		NULL, "_Quit",		    "<control>Q",	"Quit the program",	  gtk_main_quit},
+  { "Help",		NULL, "_Help",		    "<control>H",	"Display help",		  G_CALLBACK(onHelpMenu)},
+  { "Print",		NULL, "_Print",		    "<control>P",	"Print",		  G_CALLBACK(onPrintMenu)},
+  { "View",		NULL, "_View",		    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
+  { "Settings",		NULL, "_Settings",	    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
+  { "Dotter",		NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
+  { "ClearHighlighted", NULL, "_Clear Highlighted", "<control>C",	"Clear Highlighted",	  G_CALLBACK(onClearHighlightedMenu)},
+  { "Statistics",	NULL, "Statistics",   NULL,			"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
 };
 
 
@@ -58,6 +60,8 @@ static const char *standardMenuDescription =
 "      <menuitem action='Settings'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
+"      <separator/>"
+"      <menuitem action='ClearHighlighted'/>"
 "  </popup>"
 "</ui>";
 
@@ -73,6 +77,8 @@ static const char *developerMenuDescription =
 "      <menuitem action='Settings'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
+"      <separator/>"
+"      <menuitem action='ClearHighlighted'/>"
 "      <separator/>"
 "      <menuitem action='Statistics'/>"
 "  </popup>"
@@ -545,7 +551,7 @@ static void createCheckButton(GtkWidget *parent,
 /* Shows the "Settings" dialog. */
 static void showSettingsDialog(GtkWidget *mainWindow)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("View panes", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
 						  GTK_WINDOW(mainWindow), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
@@ -702,6 +708,13 @@ void displayHelp(GtkWidget *mainWindow)
   showModalDialog(mainWindow, "Help", messageText);
 }
 
+
+/* This function clears all current row selections */
+void clearHighlightedSeqs(GtkWidget *mainWindow)
+{
+  mainWindowDeselectAllSeqs(mainWindow, TRUE);
+}
+
 /***********************************************************
  *			  Menu actions                     *
  ***********************************************************/
@@ -736,6 +749,14 @@ static void onDotterMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
   showDotterDialog(mainWindow);
+}
+
+
+/* Called when the user selects the 'Clear Highlighted' menu option, or hits the relevant shortcut key */
+static void onClearHighlightedMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  clearHighlightedSeqs(mainWindow);
 }
 
 
@@ -1222,7 +1243,6 @@ void mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean up
 {
   if (!mainWindowIsSeqSelected(mainWindow, seqName))
     {
-      mainWindowDeselectAllSeqs(mainWindow, updateTrees);
       MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
       properties->selectedSeqs = g_list_prepend(properties->selectedSeqs, seqName);
       selectionChanged(mainWindow, updateTrees);
