@@ -1638,7 +1638,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       
       properties->refSeqColour		  = getGdkColor(GDK_YELLOW);
       properties->refSeqColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
-      properties->matchColour		  = getGdkColor(GDK_CYAN);
+      properties->matchColour		  = getGdkColor(GDK_TURQUOISE);
       properties->matchColourSelected	  = getGdkColor(GDK_DARK_CYAN);
       properties->mismatchColour	  = getGdkColor(GDK_GREY);
       properties->mismatchColourSelected  = getGdkColor(GDK_DARK_GREY);

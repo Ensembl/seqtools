@@ -35,6 +35,8 @@
 #define GDK_ORANGE	      16753920
 #define GDK_GREEN	      65280
 #define GDK_DARK_GREEN	      47872
+#define GDK_TURQUOISE	      4251856
+
 
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
 void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
