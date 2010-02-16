@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.10 2010-02-15 14:27:32 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.11 2010-02-16 10:46:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -110,6 +110,13 @@ typedef struct
   } data ;
 } BlxPasteDataStruct, *BlxPasteData ;
 
+
+/* Structure that contains information about an entire subject sequence */
+typedef struct _SubjectSequence
+  {
+    const char *seqName;	/* name of the sequence */
+    GList *mspList;		/* all MSPs in this sequence */
+  } SubjectSequence;
 
 
 /* remove ?? */

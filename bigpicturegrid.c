@@ -377,8 +377,10 @@ static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
   
   if (!mainWindowIsSeqSelected(gridGetMainWindow(drawData->grid), seqName))
     {
-      GList *mspListItem = (GList*)value;
-      
+      /* Get the list of MSPs for this sequence */
+      SubjectSequence *subjectSeq = (SubjectSequence*)value;
+      GList *mspListItem = subjectSeq->mspList;
+
       for ( ; mspListItem; mspListItem = mspListItem->next)
 	{
 	  MSP *msp = (MSP*)(mspListItem->data);
@@ -436,11 +438,9 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 
   /* Now draw selected MSPs. The list of selected seqs lives in the main window */
   drawData.colour = gridGetMspLineHighlightColour(drawData.grid);
-  GList *seqTable = mainWindowGetSelectedSeqs(mainWindow);
+  GList *seqList = mainWindowGetSelectedSeqs(mainWindow);
   drawData.colour = gridGetMspLineHighlightColour(grid);
-  g_list_foreach(seqTable, drawSequenceMspLines, &drawData);
-  
-  
+  g_list_foreach(seqList, drawSequenceMspLines, &drawData);
 }
 
 

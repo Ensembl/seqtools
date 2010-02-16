@@ -1500,7 +1500,8 @@ GList *detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName)
 
   if (properties)
     {
-      result = (GList*)(g_hash_table_lookup(properties->seqTable, seqName));
+      SubjectSequence *subjectSeq = (SubjectSequence*)(g_hash_table_lookup(properties->seqTable, seqName));
+      result = subjectSeq->mspList;
     }
   
   return result;

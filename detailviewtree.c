@@ -304,41 +304,43 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 }
 
 
-/* Add the list of MSPs in the hash table under the given key to the tree. */
-static void addMspListToTreeRow(gpointer key, gpointer value, gpointer data)
+/* Add subject sequence from the given hash table entry as a row in the given tree
+ * store (passed as the user data). */
+static void addSubjectSequenceToRow(gpointer key, gpointer value, gpointer data)
 {
-  GList *mspGList = (GList*)value;
+  const char *seqName = (const char*)key;
+  SubjectSequence *subjectSeq = (SubjectSequence*)value;
   
-  if (g_list_length(mspGList) > 0)
+  if (subjectSeq && subjectSeq->mspList && g_list_length(subjectSeq->mspList) > 0)
     {
-      /* Get the first msp in the list */
-      MSP *msp = (MSP*)(mspGList->data);
-      
       /* Add a row to the tree store */
       GtkListStore *store = GTK_LIST_STORE(data);
       GtkTreeIter iter;
       gtk_list_store_append(store, &iter);
       
-      /* Populate the row. If there are multiple MSPs, most of the column info is not applicable */
-      if (g_list_length(mspGList) == 1)
+      if (g_list_length(subjectSeq->mspList) == 1)
 	{
+	  /* Only one MSP - get specific info about this MSP. */
+	  MSP *msp = (MSP*)(subjectSeq->mspList->data);
+
 	  gtk_list_store_set(store, &iter,
-			     S_NAME_COL, msp->sname,
+			     S_NAME_COL, seqName,
 			     SCORE_COL, msp->score,
 			     ID_COL, msp->id,
 			     START_COL, msp->sstart,
-			     SEQUENCE_COL, mspGList,
+			     SEQUENCE_COL, subjectSeq->mspList,
 			     END_COL, msp->send,
 			     -1);
 	}
       else
 	{
+	  /* Add generic info about the sequence */
 	  gtk_list_store_set(store, &iter,
-			     S_NAME_COL, msp->sname,
+			     S_NAME_COL, seqName,
 			     SCORE_COL, NULL,
 			     ID_COL, NULL,
 			     START_COL, NULL,
-			     SEQUENCE_COL, mspGList,
+			     SEQUENCE_COL, subjectSeq->mspList,
 			     END_COL, NULL,
 			     -1);
 	}
@@ -364,7 +366,7 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
 
   /* Add the rows. Use the hash table that groups MSPs by sequence name and qFrame/qStrand */
   GHashTable *seqTable = treeGetSeqTable(tree);
-  g_hash_table_foreach(seqTable, addMspListToTreeRow, store);
+  g_hash_table_foreach(seqTable, addSubjectSequenceToRow, store);
 
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);

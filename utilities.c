@@ -581,13 +581,23 @@ Strand mspGetRefStrand(const MSP const *msp)
 /* Add the given MSP to the given hash table */
 void addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey)
 {
-  /* Get the current list of MSPs, if there is one. */
-  GList *mspGList = (GList*)g_hash_table_lookup(hashTable, hashKey);
+  /* See if this MSP's sequence already exists in the hash table */
+  SubjectSequence *subjectSeq = (SubjectSequence*)g_hash_table_lookup(hashTable, hashKey);
   
-  /* Append the new MSP. This will create the GList if it was previously null */
-  mspGList = g_list_append(mspGList, msp);
-  
-  g_hash_table_insert(hashTable, hashKey, mspGList);  
+  if (subjectSeq)
+    {
+      /* Append the MSP to the existing sequence's list */
+      subjectSeq->mspList = g_list_append(subjectSeq->mspList, msp);
+    }
+  else
+    {
+      /* Create a new SubjectSequence struct containing this MSP, and add it to the hash table */
+      subjectSeq = g_malloc(sizeof(SubjectSequence));
+      subjectSeq->seqName = msp->sname;
+      subjectSeq->mspList = g_list_append(NULL, msp);
+      
+      g_hash_table_insert(hashTable, hashKey, subjectSeq);  
+    }
 }
 
 
