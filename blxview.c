@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.14 2010-02-04 11:43:13 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.15 2010-02-16 18:58:46 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -148,7 +148,7 @@ char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 /* get rid of these...ugh.....horrible.....horrific.... */
 extern void externalCommand (char *command);
-extern int pickMatch (char *cp, char *tp);
+//extern int pickMatch (char *cp, char *tp);
 
 
 typedef struct _BPMSP
@@ -771,17 +771,17 @@ static double oldx, DNAstep;
 /* Find the expression 'query' in the string 'text'
  * Return 1 if found, 0 otherwise
  */
-int strMatch(char *text, char *query)
-{
-    /* Non-ANSI bsd way: * /
-       if (re_exec(text) == 1) return 1;
-       else return 0;
-    */
-
-    /* ANSI way: */
-    return pickMatch(text, query);
-}
-
+//int strMatch(char *text, char *query)
+//{
+//    /* Non-ANSI bsd way: * /
+//       if (re_exec(text) == 1) return 1;
+//       else return 0;
+//    */
+//
+//    /* ANSI way: */
+//    return pickMatch(text, query);
+//}
+//
 void highlightProteinboxes(BOOL warpScroll)
 {//
 //  MSP *msp;
@@ -866,9 +866,9 @@ void highlightProteinboxes(BOOL warpScroll)
  * for that sequence. The method of retrieving the sequence can be changed
  * via environment variables.
  *                                                                           */
-#if OLD_BLIXEM
-static void blviewPick(int box, double x_unused, double y_unused, int modifier_unused)
-{
+//#if OLD_BLIXEM
+//static void blviewPick(int box, double x_unused, double y_unused, int modifier_unused)/
+//{
   //MSP *msp;
 ////  Graph origGraph = graphActive();
 //
@@ -983,8 +983,8 @@ static void blviewPick(int box, double x_unused, double y_unused, int modifier_u
 //    }
 //
 //  return ;
-}
-#endif
+//}
+//#endif
 
 
 //static void mspcpy(MSP *dest, MSP *src)

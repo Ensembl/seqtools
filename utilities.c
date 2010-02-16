@@ -619,3 +619,73 @@ int roundNearest(const double val)
     
   return result;
 }
+
+
+
+/* match to template with wildcards.   Authorized wildchars are * ? #
+     ? represents any single char
+     * represents any set of chars
+   case-insensitive.   Example: *Nc*DE# fits abcaNchjDE23
+
+   returns 0 if not found
+           1 + pos of first sigificant match (i.e. not a *) if found
+*/
+int wildcardSearch(const char *textToSearch, const char *searchStr)
+{
+  char *textChar = (char*)textToSearch; /* to do: don't cast away const! */
+  char *searchChar = (char*)searchStr;	/* to do: don't cast away const! */
+  char *ts, *cs, *s = 0 ;
+  int star=0;
+
+  while (1)
+    {
+      switch(*searchChar)
+	{
+	case '\0':
+	  /*
+	    return (!*c ? ( s ? 1 + (s - cp) : 1) : 0) ;
+	  */
+	  if(!*textChar)
+	    return  ( s ? 1 + (s - textToSearch) : 1) ;
+	  if (!star)
+	    return 0 ;
+	  /* else not success yet go back in template */
+	  searchChar=ts; textChar=cs+1;
+	  if(ts == searchStr) s = 0 ;
+	  break ;
+	case '?' :
+	  if (!*textChar)
+	    return 0 ;
+	  if(!s) s = textChar ;
+	  searchChar++ ;  textChar++ ;
+	  break;
+	case '*' :
+	  ts=searchChar;
+	  while( *searchChar == '?' || *searchChar == '*')
+	    searchChar++;
+	  if (!*searchChar)
+	    return s ? 1 + (s-textToSearch) : 1 ;
+	  while (freeupper(*textChar) != freeupper(*searchChar))
+	    if(*textChar)
+	      textChar++;
+	    else
+	      return 0 ;
+	  star=1;
+	  cs=textChar;
+	  if(!s) s = textChar ;
+	  break;
+	default  :
+	  if (freeupper(*searchChar++) != freeupper(*textChar++))
+	    { if(!star)
+		return 0 ;
+	      searchChar=ts; textChar=cs+1;
+	      if(ts == searchStr) s = 0 ;
+	    }
+	  else
+	    if(!s) s = textChar - 1 ;
+	  break;
+	}
+    }
+
+  return 0;
+}

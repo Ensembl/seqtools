@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.6 2010-01-20 18:16:55 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.7 2010-02-16 18:58:46 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -106,81 +106,6 @@ static char **readseq;
 
 static int HSPgaps=0, type=FSSEG ;
 static char sname[MAXLINE+1], seq[MAXLINE+1] ;
-
-
-
-/* THIS SURELY BELONGS ELSEWHERE..... */
-/* match to template with wildcards.   Authorized wildchars are * ? #
-     ? represents any single char
-     * represents any set of chars
-   case-insensitive.   Example: *Nc*DE# fits abcaNchjDE23
-
-   returns 0 if not found
-           1 + pos of first sigificant match (i.e. not a *) if found
-*/
-int pickMatch (char *cp, char *tp)
-{
-  /* cp = Text to search in 
-   * tp = Search string 
-   */
-
-  char *c=cp, *t=tp;
-  char *ts, *cs, *s = 0 ;
-  int star=0;
-
-  while (1)
-    {
-      switch(*t)
-	{
-	case '\0':
-	  /*
-	    return (!*c ? ( s ? 1 + (s - cp) : 1) : 0) ;
-	  */
-	  if(!*c)
-	    return  ( s ? 1 + (s - cp) : 1) ;
-	  if (!star)
-	    return 0 ;
-	  /* else not success yet go back in template */
-	  t=ts; c=cs+1;
-	  if(ts == tp) s = 0 ;
-	  break ;
-	case '?' :
-	  if (!*c)
-	    return 0 ;
-	  if(!s) s = c ;
-	  t++ ;  c++ ;
-	  break;
-	case '*' :
-	  ts=t;
-	  while( *t == '?' || *t == '*')
-	    t++;
-	  if (!*t)
-	    return s ? 1 + (s-cp) : 1 ;
-	  while (freeupper(*c) != freeupper(*t))
-	    if(*c)
-	      c++;
-	    else
-	      return 0 ;
-	  star=1;
-	  cs=c;
-	  if(!s) s = c ;
-	  break;
-	default  :
-	  if (freeupper(*t++) != freeupper(*c++))
-	    { if(!star)
-		return 0 ;
-	      t=ts; c=cs+1;
-	      if(ts == tp) s = 0 ;
-	    }
-	  else
-	    if(!s) s = c - 1 ;
-	  break;
-	}
-    }
-
-
-  /* ummmm, no return here ???? is the above water tight ????? */
-}
 
 
 /* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values */

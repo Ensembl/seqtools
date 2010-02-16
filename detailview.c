@@ -1180,7 +1180,7 @@ GtkCellRenderer* detailViewGetRenderer(GtkWidget *detailView)
   return properties ? properties->renderer : NULL;
 }
 
-static GHashTable *detailViewGetSeqTable(GtkWidget *detailView)
+GHashTable *detailViewGetSeqTable(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->seqTable : NULL;

@@ -108,5 +108,6 @@ int		      gapCoord(const MSP *msp,
 			       const gboolean rightToLeft, 
 			       int *nearestIdx);
 
+int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 
 #endif /* _utilities_h_included_ */

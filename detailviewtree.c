@@ -801,6 +801,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 
   GtkWidget *tree = GTK_WIDGET(data);
   const IntRange const *displayRange = treeGetDisplayRange(tree);
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
   
   /* Loop through all MSPs in this row */
   GList *mspListItem = treeGetMsps(model, iter);
@@ -812,6 +813,14 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       /* Don't show introns */
       if (msp && !mspIsIntron(msp))
 	{
+	  /* Don't show this row if it is in a group that is hidden */
+	  SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, msp->sname);
+	  if (group && group->hidden)
+	    {
+	      bDisplay = FALSE;
+	      break;
+	    }
+	    
 	  /* Only show this row if part of the MSP's range is inside the displayed range */
 	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
 	  if (adjustment)

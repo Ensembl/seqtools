@@ -150,6 +150,7 @@ int			detailViewGetCharWidth(GtkWidget *detailView);
 int			detailViewGetCharHeight(GtkWidget *detailView);
 GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
 SubjectSequence*	detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName);
+GHashTable*		detailViewGetSeqTable(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
