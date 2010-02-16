@@ -22,10 +22,11 @@
 /* Local function declarations */
 static void			  onHelpMenu(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
-static void			  onViewMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
+static void			  onViewMenu(GtkAction *action, gpointer data);
+static void			  onGroupSequencesMenu(GtkAction *action, gpointer data);
 static void			  onDotterMenu(GtkAction *action, gpointer data);
-static void			  onClearHighlightedMenu(GtkAction *action, gpointer data);
+static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
@@ -41,10 +42,13 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		NULL, "_Quit",		    "<control>Q",	"Quit the program",	  gtk_main_quit},
   { "Help",		NULL, "_Help",		    "<control>H",	"Display help",		  G_CALLBACK(onHelpMenu)},
   { "Print",		NULL, "_Print",		    "<control>P",	"Print",		  G_CALLBACK(onPrintMenu)},
-  { "View",		NULL, "_View",		    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
   { "Settings",		NULL, "_Settings",	    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
+
+  { "View",		NULL, "_View",		    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
+  { "GroupSeqs",	NULL, "_Group Sequences",   "<control>G",	"Group Sequences",	  G_CALLBACK(onGroupSequencesMenu)},
+  { "DeselectAllRows",	NULL, "Deselect _all",	    "<shift><control>A","Deselect all",		  G_CALLBACK(onDeselectAllRows)},
+
   { "Dotter",		NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
-  { "ClearHighlighted", NULL, "_Clear Highlighted", "<control>C",	"Clear Highlighted",	  G_CALLBACK(onClearHighlightedMenu)},
   { "Statistics",	NULL, "Statistics",   NULL,			"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
 };
 
@@ -56,12 +60,13 @@ static const char *standardMenuDescription =
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='Print'/>"
-"      <menuitem action='View'/>"
 "      <menuitem action='Settings'/>"
 "      <separator/>"
-"      <menuitem action='Dotter'/>"
+"      <menuitem action='View'/>"
+"      <menuitem action='GroupSeqs'/>"
+"      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
-"      <menuitem action='ClearHighlighted'/>"
+"      <menuitem action='Dotter'/>"
 "  </popup>"
 "</ui>";
 
@@ -73,12 +78,13 @@ static const char *developerMenuDescription =
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='Print'/>"
-"      <menuitem action='View'/>"
 "      <menuitem action='Settings'/>"
 "      <separator/>"
-"      <menuitem action='Dotter'/>"
+"      <menuitem action='View'/>"
+"      <menuitem action='GroupSeqs'/>"
+"      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
-"      <menuitem action='ClearHighlighted'/>"
+"      <menuitem action='Dotter'/>"
 "      <separator/>"
 "      <menuitem action='Statistics'/>"
 "  </popup>"
@@ -521,6 +527,132 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
 }
 
 
+/* Free the memory used by the given sequence group and its members. */
+static void destroySequenceGroup(SequenceGroup *seqGroup)
+{
+  if (seqGroup->groupName)
+    g_free(seqGroup->groupName);
+  
+  if (seqGroup->seqList)
+    g_list_free(seqGroup->seqList);
+  
+  g_free(seqGroup);
+}
+
+
+/* Create a new, empty sequence group with a unique ID and name (unique from all
+ * others in the given list - does not actually add it to the list though). The result 
+ * should be destroyed with destroySequenceGroup. */
+static SequenceGroup* createSequenceGroup(GList *groupList)
+{
+  /* Create the new group */
+  SequenceGroup *seqGroup = g_malloc(sizeof(SequenceGroup));
+  
+  seqGroup->seqList = NULL;
+  seqGroup->hidden = FALSE;
+  
+  /* Find a unique ID */
+  GList *lastItem = g_list_last(groupList);
+  if (lastItem)
+    {
+      SequenceGroup *lastGroup = (SequenceGroup*)(lastItem->data);
+      seqGroup->groupId = lastGroup->groupId + 1;
+    }
+  else
+    {
+      seqGroup->groupId = 1;
+    }
+
+  /* Create a default name based on the unique ID */
+  char formatStr[] = "Group%d";
+  const int nameLen = strlen(formatStr) + numDigitsInInt(seqGroup->groupId);
+  seqGroup->groupName = g_malloc(nameLen * sizeof(*seqGroup->groupName));
+  sprintf(seqGroup->groupName, formatStr, seqGroup->groupId);
+
+  /* Set the default priority. For now, set priority in reverse order that they're
+   * added, by setting it to the negative of the ID number */
+  seqGroup->priority = -seqGroup->groupId;
+
+  /* Set the default highlight colour. */
+  seqGroup->highlighted = TRUE;
+  seqGroup->highlightColour = getGdkColor(GDK_RED);
+
+  return seqGroup;
+}
+
+
+/* Make a group from the currently selection. Does nothing except give a warning
+ * if no sequences are currently selected. */
+static void makeGroupFromSelection(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  
+  if (g_list_length(properties->selectedSeqs) > 0)
+    {
+      /* Create the group */
+      SequenceGroup *seqGroup = createSequenceGroup(properties->sequenceGroups);
+      seqGroup->seqList = g_list_copy(properties->selectedSeqs);
+      
+      /* Add it to the list of groups */
+      properties->sequenceGroups = g_list_append(properties->sequenceGroups, seqGroup);
+    }
+  else
+    {
+      messout("Warning: cannot create group; no sequences are currently selected");
+    }
+}
+
+
+/* Called when the user has hit a response button on the Group Sequences dialog */
+static void onResponseGroupSequences(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      makeGroupFromSelection(mainWindow);
+      break;
+      
+    case GTK_RESPONSE_REJECT:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
+}
+
+
+/* Shows the "Group sequences" dialog. This dialog allows the user to group sequences together. */
+static void showGroupSequencesDialog(GtkWidget *mainWindow)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Group sequences", 
+						  GTK_WINDOW(mainWindow), 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  GTK_STOCK_CANCEL,
+						  GTK_RESPONSE_REJECT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+  
+  int borderWidth = 12;
+  
+  /* Connect signals and show */
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseGroupSequences), mainWindow);
+  gtk_widget_show_all(dialog);
+}
+
+
 /* Callback function called when the 'squash matches' button is toggled */
 static void onSquashMatches(GtkWidget *button, gpointer data)
 {
@@ -736,6 +868,14 @@ static void onViewMenu(GtkAction *action, gpointer data)
 }
 
 
+/* Called when the user selects the 'Group Sequences' menu option, or hits the relevant shortcut key */
+static void onGroupSequencesMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  showGroupSequencesDialog(mainWindow);
+}
+
+
 /* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
 static void onSettingsMenu(GtkAction *action, gpointer data)
 {
@@ -752,8 +892,8 @@ static void onDotterMenu(GtkAction *action, gpointer data)
 }
 
 
-/* Called when the user selects the 'Clear Highlighted' menu option, or hits the relevant shortcut key */
-static void onClearHighlightedMenu(GtkAction *action, gpointer data)
+/* Called when the user selects the 'Deselect all' menu option, or hits the relevant shortcut key */
+static void onDeselectAllRows(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
   clearHighlightedSeqs(mainWindow);
@@ -972,8 +1112,11 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	
       case GDK_g: /* fall through */
       case GDK_G:
-	goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
-	result = TRUE;
+	if (!ctrlModifier)
+	  {
+	    goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
+	    result = TRUE;
+	  }
 	break;
 	
       case GDK_t:
@@ -1061,6 +1204,7 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       
       properties->strandsToggled = FALSE;
       properties->selectedSeqs = NULL;
+      properties->sequenceGroups = NULL;
       
       properties->autoDotterParams = TRUE;
       properties->dotterStart = UNSET_INT;
@@ -1207,6 +1351,41 @@ GList *mainWindowGetSequenceMsps(GtkWidget *mainWindow, const char *seqName)
   return detailViewGetSequenceMsps(detailView, seqName);
 }
 
+/* Returns the list of all sequence groups */
+GList *mainWindowGetSequenceGroups(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties->sequenceGroups;
+}
+
+/* Returns the group that the given sequence belongs to, if any */
+SequenceGroup *mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seqName)
+{
+  SequenceGroup *result = NULL;
+  
+  /* Loop through all the groups until we find this sequence in one */
+  GList *groupItem = mainWindowGetSequenceGroups(mainWindow);
+  for ( ; groupItem; groupItem = groupItem->next)
+    {
+      /* Loop through all sequences in the group and compare the name */
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      GList *seqItem = group->seqList;
+      
+      for ( ; seqItem; seqItem = seqItem->next)
+	{
+	  const char *compareName = (const char*)(seqItem->data);
+	  if (strcmp(compareName, seqName) == 0)
+	    {
+	      result = group;
+	      break;
+	    }
+	}
+    }
+  
+  return result;
+}
+
+
 /***********************************************************
  *                        Selections                       *
  ***********************************************************/
@@ -1218,7 +1397,7 @@ GList* mainWindowGetSelectedSeqs(GtkWidget *mainWindow)
 }
 
 /* Update function to be called whenever the MSP selection has changed */
-static void selectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
+void mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
 {
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
   
@@ -1244,8 +1423,8 @@ void mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean up
   if (!mainWindowIsSeqSelected(mainWindow, seqName))
     {
       MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-      properties->selectedSeqs = g_list_prepend(properties->selectedSeqs, seqName);
-      selectionChanged(mainWindow, updateTrees);
+      properties->selectedSeqs = g_list_append(properties->selectedSeqs, seqName);
+      mainWindowSelectionChanged(mainWindow, updateTrees);
     }
 }
 
@@ -1260,7 +1439,7 @@ void mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean 
   if (foundSeq)
     {
       properties->selectedSeqs = g_list_remove(properties->selectedSeqs, foundSeq->data);
-      selectionChanged(mainWindow, updateTrees);
+      mainWindowSelectionChanged(mainWindow, updateTrees);
     }
 }
 
@@ -1273,7 +1452,7 @@ void mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateTrees
     {
       g_list_free(properties->selectedSeqs);
       properties->selectedSeqs = NULL;
-      selectionChanged(mainWindow, updateTrees);
+      mainWindowSelectionChanged(mainWindow, updateTrees);
     }
 }
 

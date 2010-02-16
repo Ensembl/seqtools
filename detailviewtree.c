@@ -723,12 +723,27 @@ void selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data)
 {
   GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
   gtk_tree_model_foreach(model, selectRowIfSeqSelected, tree);
+  
+  /* Scroll the selection into view */
+  GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+  GList *selectedRows = gtk_tree_selection_get_selected_rows(selection, &model);
+  
+  if (g_list_length(selectedRows) >  0)
+    {
+      /* To make sure we show as much of the selection as possible, first scroll
+       * the end of the selection into view, then scroll the start into view. */
+      GtkTreePath *path = (GtkTreePath*)(g_list_last(selectedRows)->data);
+      gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
+      
+      path = (GtkTreePath*)(g_list_first(selectedRows)->data);
+      gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
+    }
 }
 
 
 /* Mark the given row's sequence as selected in the main window's list of selected seqs.
  * Does not allow the main window to re-update the tree selection */
-static void markRowMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+static void markSequenceSelectedForRow(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *mainWindow = treeGetMainWindow(tree);
@@ -740,15 +755,24 @@ static void markRowMspSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
       /* Get the sequence name for any MSP in this row (they should all have the same seq) */
       MSP *msp = (MSP*)(mspGList->data);
       
+      /* Update the mainWindow's list of selected sequences. Tell it that it doens't need to update tree rows. */
       mainWindowSelectSeq(mainWindow, msp->sname, FALSE);
-      gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
     }
 }
 
 static void onSelectionChangedTree(GObject *selection, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(selection), markRowMspSelected, tree);
+  gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(selection), markSequenceSelectedForRow, tree);
+  
+  /* Update the selection again based on the selected sequence. MSPs in different rows
+   * may have the same sequence, and all of them need to be selected after the user
+   * clicks on any one of them. Unfortunately this causes another selection-changed event, 
+   * so we recurse back here unnecessarily, but that won't cause any harm because the 2nd
+   * call here will do nothing (since no changes need to be made - it is therefore important
+   * to make sure updates only happen when changes DO need to be made, otherwise we risk
+   * infinite recursion). */
+  selectRowsForSelectedSeqs(tree, NULL);
 }
 
 
@@ -1953,8 +1977,8 @@ static void setTreeStyle(GtkTreeView *tree)
   /* The default text colour when rows are selected is white. This doesn't work 
    * well against our default background colour of cyan, so use the same text colour
    * as unselected rows. */
-  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_SELECTED, GTK_WIDGET(tree)->style->text);
-  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_ACTIVE, GTK_WIDGET(tree)->style->text);
+//  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_SELECTED, GTK_WIDGET(tree)->style->text);
+//  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_ACTIVE, GTK_WIDGET(tree)->style->text);
   
   /* Set the expander size to 0 so that we can have tiny rows (otherwise the min is 12pt).
    * Also set the vertical separator to 0 so that we can have the option of the smallest

@@ -33,6 +33,7 @@ typedef struct _MainWindowProperties
 
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
     GList *selectedSeqs;	    /* A list of sequence names that are selected */
+    GList *sequenceGroups;	    /* A list of SequenceGroups */
     
     gboolean autoDotterParams;	    /* Whether to use automatic dotter params */
     int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
@@ -68,12 +69,15 @@ int			  mainWindowGetAutoDotter(GtkWidget *mainWindow);
 gboolean		  mainWindowGetGappedHsp(GtkWidget *mainWindow);
 MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
 GList*			  mainWindowGetSequenceMsps(GtkWidget *mainWindow, const char *seqName);
+GList*			  mainWindowGetSequenceGroups(GtkWidget *mainWindow);
+SequenceGroup*		  mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seqName);
 
 GList*			  mainWindowGetSelectedSeqs(GtkWidget *mainWindow);
 void			  mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees);
 void			  mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees);
 void			  mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateTrees);
 gboolean		  mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *msp);
+void			  mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTrees);
 
 void			  displayHelp(GtkWidget *mainWindow);
 

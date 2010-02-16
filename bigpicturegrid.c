@@ -415,6 +415,27 @@ static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 }
 
 
+/* Draw MSP lines that are in groups. Use the highlight colour of the group if one is set */
+static void drawGroupedMspLines(gpointer listItemData, gpointer data)
+{
+  SequenceGroup *seqGroup = (SequenceGroup*)listItemData;
+  DrawGridData *drawData = (DrawGridData*)data;
+  GdkColor *origColour = drawData->colour;
+
+  /* Use the group's highlight colour, if this sequence should be highlighted */
+  if (seqGroup->highlighted)
+    {
+      drawData->colour = &seqGroup->highlightColour;
+    }
+  
+  /* Draw all of the sequences in this group */
+  g_list_foreach(seqGroup->seqList, drawSequenceMspLines, drawData);
+  
+  /* Set the draw data back to its original values */
+  drawData->colour = origColour;
+}
+
+
 /* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 {
@@ -427,7 +448,6 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   
   /* Draw unselected MSPs first */
   drawData.colour = gridGetMspLineColour(grid);
-
   for (frame = 1 ; frame <= numFrames; ++frame)
     {
       /* Get all of the MSPs for the tree, grouped by sequence name */
@@ -436,6 +456,10 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
       g_hash_table_foreach(seqTable, drawUnselectedMspLines, &drawData);
     }
 
+  /* Now draw MSPs that are in groups (to do: in reverse priority order so highest priority appear on top) */
+  GList *groupList = mainWindowGetSequenceGroups(mainWindow);
+  g_list_foreach(groupList, drawGroupedMspLines, &drawData);
+  
   /* Now draw selected MSPs. The list of selected seqs lives in the main window */
   drawData.colour = gridGetMspLineHighlightColour(drawData.grid);
   GList *seqList = mainWindowGetSelectedSeqs(mainWindow);

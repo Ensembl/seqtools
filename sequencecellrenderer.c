@@ -1032,6 +1032,30 @@ static GtkStateType getState(GtkWidget *widget, guint flags)
   return state;
 }
 
+
+/* This function checks whether the cell is in a group that should be higlighted
+ * and, if so, sets the cell background colour accordingly. */
+static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow *window, GdkRectangle *background_area)
+{
+  SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
+  
+  if (renderer->data)
+    {
+      /* Find out whether the MSP(s) that this cell is displaying are in 
+       * a grouped sequence. */
+      MSP *msp = (MSP*)(renderer->data->data);
+      GtkWidget *mainWindow = treeGetMainWindow(tree);
+      SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, msp->sname);
+      
+      if (group && group->highlighted)
+	{
+	  GdkGC *gc = gdk_gc_new(window);
+	  gdk_gc_set_foreground(gc, &group->highlightColour);
+	  drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, background_area->x, background_area->y, background_area->width, background_area->height);
+	}
+    }
+}
+
 /***************************************************************************
  *
  *  sequence_cell_renderer_get_size: crucial - calculate the size
@@ -1069,6 +1093,8 @@ sequence_cell_renderer_render (GtkCellRenderer *cell,
 			       GdkRectangle    *expose_area,
 			       guint            flags)
 {
+  setBackgroundColour(cell, tree, window, background_area);
+  
   SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
   
   MSP *msp = renderer->mspGList ? (MSP*)(renderer->mspGList->data) : NULL;

@@ -1492,21 +1492,32 @@ static int detailViewGetSelectedFrame(GtkWidget *detailView)
   return properties ? properties->selectedFrame : UNSET_INT;
 }
 
+
 /* Return a list of all MSPs that have the given match sequence name */
 GList *detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName)
 {
-  GList *result = NULL;
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  SubjectSequence *subjectSeq = detailViewGetSequenceFromName(detailView, seqName);
+  GList *result = subjectSeq ? subjectSeq->mspList : NULL;
+  return result;
+}
 
+
+/* Return the SubjectSequence struct for the sequence with the given name */
+SubjectSequence* detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName)
+{
+  SubjectSequence *result = NULL;
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  
   if (properties)
     {
-      SubjectSequence *subjectSeq = (SubjectSequence*)(g_hash_table_lookup(properties->seqTable, seqName));
-      result = subjectSeq->mspList;
+      result = (SubjectSequence*)(g_hash_table_lookup(properties->seqTable, seqName));
     }
   
   return result;
 }
 
+
+/* Set the selected base index. Performs any required refreshes */
 void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
