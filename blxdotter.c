@@ -43,19 +43,6 @@ static char*	      getDotterSSeq(GtkWidget *blxWindow);
 
 
 /*******************************************************************
- *                        Utility functions                        *
- *******************************************************************/
-
-/* Converts the given integer to a string. The result must be free'd with g_free */
-static char* convertIntToString(const int value)
-{
-  char result[numDigitsInInt(value) + 1];
-  sprintf(result, "%d", value);
-  return g_strdup(result);
-}
-
-
-/*******************************************************************
  *                      Dotter settings dialog                     *
  *******************************************************************/
 

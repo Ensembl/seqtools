@@ -621,6 +621,22 @@ int roundNearest(const double val)
 }
 
 
+/* Converts the given integer to a string. The result must be free'd with g_free */
+char* convertIntToString(const int value)
+{
+  char result[numDigitsInInt(value) + 1];
+  sprintf(result, "%d", value);
+  return g_strdup(result);
+}
+
+
+/* Converts the given string to an integer. */
+int convertStringToInt(const char *inputStr)
+{
+  return atoi(inputStr);
+}
+
+
 
 /* match to template with wildcards.   Authorized wildchars are * ? #
      ? represents any single char

@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.12 2010-02-16 15:40:46 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.13 2010-02-17 13:35:16 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -124,7 +124,7 @@ typedef struct _SequenceGroup
   {
     char *groupName;		/* user-friendly name for the group (should be unique to save confusion) */
     int groupId;		/* unique ID number for the group */
-    int priority;		/* lower number indicates higher priority (i.e. displayed first when sorting, displayed on top in grid etc. */
+    int order;			/* field for sorting - lower numbers will be listed first */
     GList *seqList;		/* the SubjectSequences in this group */
     gboolean hidden;		/* true if the group should be hidden from the detail view */
     gboolean highlighted;	/* true if the group should be highlighted */

@@ -110,4 +110,7 @@ int		      gapCoord(const MSP *msp,
 
 int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 
+char*		      convertIntToString(const int value);
+int		      convertStringToInt(const char *inputStr);
+
 #endif /* _utilities_h_included_ */

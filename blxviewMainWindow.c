@@ -31,7 +31,8 @@ static void			  onHelpMenu(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
 static void			  onViewMenu(GtkAction *action, gpointer data);
-static void			  onGroupSequencesMenu(GtkAction *action, gpointer data);
+static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
+static void			  onEditGroupsMenu(GtkAction *action, gpointer data);
 static void			  onDotterMenu(GtkAction *action, gpointer data);
 static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
@@ -52,7 +53,8 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Settings",		NULL, "_Settings",	    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
 
   { "View",		NULL, "_View",		    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
-  { "GroupSeqs",	NULL, "_Group Sequences",   "<control>G",	"Group Sequences",	  G_CALLBACK(onGroupSequencesMenu)},
+  { "CreateGroup",	NULL, "Create _Group",	    "<control>G",	"Group Sequences",	  G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",	NULL, "Edit Groups",	    "<shift><control>G","Groups",		  G_CALLBACK(onEditGroupsMenu)},
   { "DeselectAllRows",	NULL, "Deselect _all",	    "<shift><control>A","Deselect all",		  G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",		NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
@@ -70,7 +72,8 @@ static const char *standardMenuDescription =
 "      <menuitem action='Settings'/>"
 "      <separator/>"
 "      <menuitem action='View'/>"
-"      <menuitem action='GroupSeqs'/>"
+"      <menuitem action='CreateGroup'/>"
+"      <menuitem action='EditGroups'/>"
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
@@ -88,7 +91,8 @@ static const char *developerMenuDescription =
 "      <menuitem action='Settings'/>"
 "      <separator/>"
 "      <menuitem action='View'/>"
-"      <menuitem action='GroupSeqs'/>"
+"      <menuitem action='CreateGroup'/>"
+"      <menuitem action='EditGroups'/>"
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
@@ -549,17 +553,44 @@ static void showViewPanesDialog(GtkWidget *mainWindow)
  *		      Group sequences menu                 *
  ***********************************************************/
 
-///* Free the memory used by the given sequence group and its members. */
-//static void destroySequenceGroup(SequenceGroup *seqGroup)
-//{
-//  if (seqGroup->groupName)
-//    g_free(seqGroup->groupName);
-//  
-//  if (seqGroup->seqList)
-//    g_list_free(seqGroup->seqList);
-//  
-//  g_free(seqGroup);
-//}
+/* Free the memory used by the given sequence group and its members. */
+static void destroySequenceGroup(SequenceGroup *seqGroup)
+{
+  if (seqGroup->groupName)
+    g_free(seqGroup->groupName);
+  
+  if (seqGroup->seqList)
+    g_list_free(seqGroup->seqList);
+  
+  g_free(seqGroup);
+}
+
+
+/* Delete all groups */
+static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  GList *groupItem = properties->sequenceGroups;
+  
+  for ( ; groupItem; groupItem = groupItem->next)
+    {
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      destroySequenceGroup(group);
+    }
+  
+  g_list_free(properties->sequenceGroups);
+  properties->sequenceGroups = NULL;
+  
+  mainWindowRedrawAll(mainWindow);
+}
+
+
+/* Called for each element in a group list. Increments the group's order number */
+static void incrementGroupOrderNumber(gpointer listItemData, gpointer data)
+{
+  SequenceGroup *group = (SequenceGroup*)listItemData;
+  group->order = group->order + 1;
+}
 
 
 /* Create a new, empty sequence group with a unique ID and name (unique from all
@@ -591,9 +622,11 @@ static SequenceGroup* createSequenceGroup(GList *groupList)
   seqGroup->groupName = g_malloc(nameLen * sizeof(*seqGroup->groupName));
   sprintf(seqGroup->groupName, formatStr, seqGroup->groupId);
 
-  /* Set the default priority. For now, set priority in reverse order that they're
-   * added, by setting it to the negative of the ID number */
-  seqGroup->priority = -seqGroup->groupId;
+  /* Set the default order number. New groups are ordered first, so they get order
+   * number 1 - which means the other groups' order numbers all have to be incremented
+   * so that they are distinct. */
+  seqGroup->order = 1;
+  g_list_foreach(groupList, incrementGroupOrderNumber, NULL);
 
   /* Set the default highlight colour. */
   seqGroup->highlighted = TRUE;
@@ -625,74 +658,6 @@ static void makeGroupFromSelection(GtkWidget *mainWindow)
 }
 
 
-/* Called when the user has hit a response button on the Group Sequences dialog */
-static void onResponseGroupSequences(GtkDialog *dialog, gint responseId, gpointer data)
-{
-  gboolean destroy = TRUE;
-  
-  GroupDialogData *dialogData = (GroupDialogData*)data;
-  
-  switch (responseId)
-  {
-    case GTK_RESPONSE_ACCEPT:
-      {
-	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->searchToggleButton)))
-	  {
-	    /* Get the text from the search box and select sequences based on that */
-	    const char *searchStr = gtk_entry_get_text(GTK_ENTRY(dialogData->searchTextBox));
-	    GList *resultList = NULL;
-	    
-	    /* Loop through all the sequences and see if the name matches the search string */
-	    GHashTable *seqTable = detailViewGetSeqTable(mainWindowGetDetailView(dialogData->mainWindow));
-	    GList *seqNameItem = g_hash_table_get_keys(seqTable);
-	    
-	    for ( ; seqNameItem; seqNameItem = seqNameItem->next)
-	      {
-		char *compareName = (char *)(seqNameItem->data);
-		
-		if (wildcardSearch(compareName, searchStr))
-		  {
-		    resultList = g_list_append(resultList, compareName);
-		  }
-	      }
-
-	    /* If we found anything, create a group */
-	    if (g_list_length(resultList) > 0)
-	      {
-		MainWindowProperties *properties = mainWindowGetProperties(dialogData->mainWindow);
-		SequenceGroup *group = createSequenceGroup(properties->sequenceGroups);
-		group->seqList = resultList;
-		properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
-	      }
-	    else
-	      {
-		messout("No sequences found");
-	      }
-	  }
-	else
-	  {
-	    /* Select sequences in the current selection */
-	    makeGroupFromSelection(dialogData->mainWindow);
-	  }
-	break;
-      }
-      
-    case GTK_RESPONSE_REJECT:
-      destroy = TRUE;
-      break;
-      
-    default:
-      break;
-  };
-  
-  if (destroy)
-    {
-      g_free(dialogData);
-      gtk_widget_destroy(GTK_WIDGET(dialog));
-    }
-}
-
-
 /* This function is called when the sequence-group-name text entry widget's
  * value has changed. It sets the new group name in the group. */
 static gboolean onGroupNameChanged(GtkWidget *widget, GdkEventFocus *event, gpointer data)
@@ -713,6 +678,31 @@ static gboolean onGroupNameChanged(GtkWidget *widget, GdkEventFocus *event, gpoi
 	g_free(group->groupName);
       
       group->groupName = g_strdup(newName);
+    }
+  
+  return FALSE;
+}
+
+
+/* This function is called when the sequence-group-order text entry widget's
+ * value has changed. It sets the new order number in the group. */
+static gboolean onGroupOrderChanged(GtkWidget *widget, GdkEventFocus *event, gpointer data)
+{
+  GtkEntry *entry = GTK_ENTRY(widget);
+  SequenceGroup *group = (SequenceGroup*)data;
+  
+  const gchar *newOrder = gtk_entry_get_text(entry);
+  
+  if (!newOrder || strlen(newOrder) < 1)
+    {
+      messout("Invalid order number '%s' entered; reverting to previous order number '%d'.", newOrder, group->order);
+      char *orderStr = convertIntToString(group->order);
+      gtk_entry_set_text(entry, orderStr);
+      g_free(orderStr);
+    }
+  else
+    {
+      group->order = convertStringToInt(newOrder);
     }
   
   return FALSE;
@@ -770,6 +760,13 @@ static void createEditGroupWidget(SequenceGroup *group, GtkTable *table, const i
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
   g_signal_connect(G_OBJECT(isHighlightedWidget), "toggled", G_CALLBACK(onGroupHighlightedToggled), group);
   
+  /* Show the groups 'order' in an editable text box */
+  GtkWidget *orderWidget = gtk_entry_new();
+  char *orderStr = convertIntToString(group->order);
+  gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
+  g_free(orderStr);
+  g_signal_connect(G_OBJECT(nameWidget), "focus-out-event", G_CALLBACK(onGroupOrderChanged), group);
+
   /* Put everything in the table */
   gtk_table_attach(table, nameWidget,		1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, isHiddenWidget,	2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
@@ -794,27 +791,94 @@ static void onGroupSourceButtonToggled(GtkWidget *button, gpointer data)
 }
 
 
-/* Shows the "Group sequences" dialog. This dialog allows the user to group sequences together. */
-static void showGroupSequencesDialog(GtkWidget *mainWindow)
+/* Called when the user has clicked "add group" on the "group sequences" dialog. */
+void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Group sequences", 
+  /* The text entry box was passed as the user data */
+  GtkEntry *entry = GTK_ENTRY(data);
+  
+  /* Extract the main window from our parent window. */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
+  /* If the entry box is enabled, that means the user has selected the option to
+   * use a search string. */
+  if (gtk_widget_get_sensitive(GTK_WIDGET(entry)))
+    {
+      const char *searchStr = gtk_entry_get_text(entry);
+      GList *resultList = NULL;
+
+      /* Loop through all the sequences and see if the name matches the search string */
+      GHashTable *seqTable = detailViewGetSeqTable(mainWindowGetDetailView(mainWindow));
+      GList *seqNameItem = g_hash_table_get_keys(seqTable);
+      
+      for ( ; seqNameItem; seqNameItem = seqNameItem->next)
+	{
+	  char *compareName = (char *)(seqNameItem->data);
+	  
+	  if (wildcardSearch(compareName, searchStr))
+	    {
+	      resultList = g_list_append(resultList, compareName);
+	    }
+	}
+      
+      /* If we found anything, create a group */
+      if (g_list_length(resultList) > 0)
+	{
+	  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+	  SequenceGroup *group = createSequenceGroup(properties->sequenceGroups);
+	  group->seqList = resultList;
+	  properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
+	}
+      else
+	{
+	  messout("No sequences found");
+	}
+    }
+  else
+    {
+      /* Currently the only other option is to use the current selection */
+      makeGroupFromSelection(mainWindow);
+    }
+  
+  gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+}
+
+
+/* Called when the user has clicked "delete groups" buttong on the "group sequences" dialog. */
+static void onButtonClickedDeleteGroups(GtkWidget *button, gpointer data)
+{
+  /* To do: ask the user if they're sure */
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
+  mainWindowDeleteAllSequenceGroups(mainWindow);
+  
+  gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+}
+
+
+/* Shows the "Group sequences" dialog. This dialog allows the user to group sequences together.
+ * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
+ * 'create group' argument is true, the 'create group' tab is displayed by default; otherwise
+ * the 'edit groups' tab is shown. */
+static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean createGroup)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
 						  GTK_WINDOW(mainWindow), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_ADD,
-						  GTK_RESPONSE_ACCEPT,
 						  GTK_STOCK_CLOSE,
 						  GTK_RESPONSE_REJECT,
 						  NULL);
   
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_REJECT);
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
   
-  //const int borderWidth = 12;
   GtkWidget *notebook = gtk_notebook_new();
   gtk_box_pack_start(GTK_BOX(contentArea), notebook, TRUE, TRUE, 0);
   
   
-  /* "Create group" section. */
+  /* "CREATE GROUP" SECTION. */
   GtkWidget *section1 = gtk_vbox_new(FALSE, 0);
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section1, gtk_label_new("Create group"));
 
@@ -830,17 +894,26 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow)
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fromNameButton), !seqsSelected);
   gtk_box_pack_start(GTK_BOX(section1), fromNameButton, FALSE, FALSE, 0);
   
-  /* Text box for user to enter sequence names to search for. Greyed out if relevant radio button is not selected */
+  /* Text box for user to enter sequence names to search for. Greyed out if relevant
+   * radio button is not selected. Activates the dialog's default widget when enter is pressed. */
   GtkWidget *fromNameEntry = gtk_entry_new();
   gtk_widget_set_sensitive(fromNameEntry, !seqsSelected);
+  gtk_entry_set_activates_default(GTK_ENTRY(fromNameEntry), TRUE);
   gtk_box_pack_start(GTK_BOX(section1), fromNameEntry, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(fromNameButton), "toggled", G_CALLBACK(onGroupSourceButtonToggled), fromNameEntry);
   
-  /* "Edit group" section. (Only relevant if groups exist) */
+  /* Add the "add group" button here, because it is only relevant to this tab. */
+  GtkWidget *addGroupButton = gtk_button_new_with_label("Create group");
+  gtk_box_pack_end(GTK_BOX(section1), addGroupButton, FALSE, FALSE, 0);
+  g_signal_connect(G_OBJECT(addGroupButton), "clicked", G_CALLBACK(onButtonClickedAddGroup), fromNameEntry);
+  
+  
+  /* "EDIT GROUP" SECTION. (Only relevant if some groups actually exist) */
   GList *groupList = mainWindowGetSequenceGroups(mainWindow);
   const int numRows = g_list_length(groupList) + 1; /* +1 for headers */
+  const gboolean groupsExist = numRows > 1;
   
-  if (numRows > 1)
+  if (groupsExist)
     {
       GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
       gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section2, gtk_label_new("Edit groups"));
@@ -854,8 +927,8 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow)
 
       /* Add labels */
       int row = 1;
-      gtk_table_attach(table, gtk_label_new("Hide"),	2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, gtk_label_new("Highlight"),	3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       ++row;
       
       /* Add a set of widgets for each group */
@@ -866,16 +939,46 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow)
 	  createEditGroupWidget(group, table, row, xpad, ypad);
 	  ++row;
 	}
+      
+      /* Add a button to delete all groups */
+      GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
+      gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
+      g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroups), NULL);
     }
-  
+  else if (!createGroup)
+    {
+      /* User has asked to edit groups but there aren't any. Warn them. */
+      messout("Cannot edit groups; none exist. Create some first.");
+    }
+
   /* Connect signals and show */
-  GroupDialogData *dialogData = g_malloc(sizeof(*dialogData));
-  dialogData->mainWindow = mainWindow;
-  dialogData->searchTextBox = fromNameEntry;
-  dialogData->searchToggleButton = fromNameButton;
-  
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseGroupSequences), dialogData);
+  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   gtk_widget_show_all(dialog);
+  
+  /* If user has asked to edit groups, make the second tab the default and the 'close'
+   * button the default action. (Must do this after showing the child widgets due
+   * to a GTK legacy whereby the notebook won't change tabs otherwise.) */
+  if (!createGroup)
+    {
+      gtk_notebook_next_page(GTK_NOTEBOOK(notebook));
+      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_REJECT);
+    }
+  else
+    {
+      /* Make the add group button the default widget and focus it if rows
+       * are selected - otherwise focus the text entry box. */
+      gtk_widget_set_can_default(addGroupButton, TRUE);
+      gtk_window_set_default(GTK_WINDOW(dialog), addGroupButton);
+
+      if (seqsSelected)
+	{
+	  gtk_window_set_focus(GTK_WINDOW(dialog), addGroupButton);
+	}
+      else
+	{
+	  gtk_window_set_focus(GTK_WINDOW(dialog), fromNameEntry);
+	}
+    }
 }
 
 
@@ -1102,10 +1205,18 @@ static void onViewMenu(GtkAction *action, gpointer data)
 
 
 /* Called when the user selects the 'Group Sequences' menu option, or hits the relevant shortcut key */
-static void onGroupSequencesMenu(GtkAction *action, gpointer data)
+static void onCreateGroupMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
-  showGroupSequencesDialog(mainWindow);
+  showGroupSequencesDialog(mainWindow, TRUE);
+}
+
+
+/* Called when the user selects the 'Groups' menu option, or hits the relevant shortcut key */
+static void onEditGroupsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  showGroupSequencesDialog(mainWindow, FALSE);
 }
 
 
@@ -1309,8 +1420,8 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 {
   gboolean result = FALSE;
   
-  guint modifiers = gtk_accelerator_get_default_mod_mask();
-  const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+//  guint modifiers = gtk_accelerator_get_default_mod_mask();
+  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK);
   
   switch (event->keyval)
     {
