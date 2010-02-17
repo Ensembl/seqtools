@@ -34,6 +34,7 @@ static void			  onViewMenu(GtkAction *action, gpointer data);
 static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
 static void			  onEditGroupsMenu(GtkAction *action, gpointer data);
 static void			  onDotterMenu(GtkAction *action, gpointer data);
+static void			  onSelectFeaturesMenu(GtkAction *action, gpointer data);
 static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
@@ -44,20 +45,23 @@ static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 
 static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
+static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		NULL, "_Quit",		    "<control>Q",	"Quit the program",	  gtk_main_quit},
-  { "Help",		NULL, "_Help",		    "<control>H",	"Display help",		  G_CALLBACK(onHelpMenu)},
+  { "Help",		NULL, "_Help",		    "<control>H",	"Display Blixem help",	  G_CALLBACK(onHelpMenu)},
   { "Print",		NULL, "_Print",		    "<control>P",	"Print",		  G_CALLBACK(onPrintMenu)},
-  { "Settings",		NULL, "_Settings",	    "<control>S",	"Settings",		  G_CALLBACK(onSettingsMenu)},
+  { "Settings",		NULL, "_Settings",	    "<control>S",	"Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
 
-  { "View",		NULL, "_View",		    "<control>V",	"View",			  G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL, "Create _Group",	    "<control>G",	"Group Sequences",	  G_CALLBACK(onCreateGroupMenu)},
+  { "View",		NULL, "_View",		    "<control>V",	"Edit view settings",	  G_CALLBACK(onViewMenu)},
+  { "CreateGroup",	NULL, "Create _Group",	    "<control>G",	"Group sequences together", G_CALLBACK(onCreateGroupMenu)},
   { "EditGroups",	NULL, "Edit Groups",	    "<shift><control>G","Groups",		  G_CALLBACK(onEditGroupsMenu)},
   { "DeselectAllRows",	NULL, "Deselect _all",	    "<shift><control>A","Deselect all",		  G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",		NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
+  { "SelectFeatures",	NULL, "Feature series selection tool",	NULL,	"Feature series selection tool", G_CALLBACK(onSelectFeaturesMenu)},
+
   { "Statistics",	NULL, "Statistics",   NULL,			"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
 };
 
@@ -77,6 +81,7 @@ static const char *standardMenuDescription =
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
+"      <menuitem action='SelectFeatures'/>"
 "  </popup>"
 "</ui>";
 
@@ -96,6 +101,7 @@ static const char *developerMenuDescription =
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
+"      <menuitem action='SelectFeatures'/>"
 "      <separator/>"
 "      <menuitem action='Statistics'/>"
 "  </popup>"
@@ -362,7 +368,7 @@ static void zoomMainWindow(GtkWidget *window, const gboolean zoomIn, const gbool
 
 
 /* Force a redraw of all widgets. Clears cached bitmaps etc. first */
-static void mainWindowRedrawAll(GtkWidget *mainWindow)
+void mainWindowRedrawAll(GtkWidget *mainWindow)
 {
   GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
   widgetClearCachedDrawable(bigPictureGetFwdGrid(bigPicture));
@@ -581,6 +587,8 @@ static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
   g_list_free(properties->sequenceGroups);
   properties->sequenceGroups = NULL;
   
+  /* Refilter the trees (because hidden rows may now be visible again), and redraw */
+  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), refilterTree);
   mainWindowRedrawAll(mainWindow);
 }
 
@@ -848,14 +856,17 @@ void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
 /* Called when the user has clicked "delete groups" buttong on the "group sequences" dialog. */
 static void onButtonClickedDeleteGroups(GtkWidget *button, gpointer data)
 {
-  /* To do: ask the user if they're sure */
-  
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-  mainWindowDeleteAllSequenceGroups(mainWindow);
+  /* Ask the user if they're sure */
+  gint response = runConfirmationBox(mainWindow, "Delete groups", "Are you sure you wish to delete all groups?");
   
-  gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+  if (response == GTK_RESPONSE_ACCEPT)
+    {
+      mainWindowDeleteAllSequenceGroups(mainWindow);
+      gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+    }
 }
 
 
@@ -1138,6 +1149,36 @@ static void showModalDialog(GtkWidget *mainWindow, char *title, char *messageTex
 }
 
 
+/* Utility to pop up a simple confirmation dialog box with the given title and text, 
+ * with just an "OK" and "Cancel" button. Blocks until the user responds, and returns
+ * their response ID. */
+static gint runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
+						  GTK_WINDOW(mainWindow), 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  GTK_STOCK_CANCEL,
+						  GTK_RESPONSE_REJECT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  /* Add the message */
+  GtkWidget *vbox = GTK_DIALOG(dialog)->vbox;
+  GtkWidget *label = gtk_label_new(messageText);
+  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+  gtk_widget_show(label);
+  
+  gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+  
+  gtk_widget_destroy(dialog);
+  
+  return response;
+}
+
+
 void displayHelp(GtkWidget *mainWindow)
 {
   char *messageText = (messprintf("\
@@ -1233,6 +1274,13 @@ static void onDotterMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
   showDotterDialog(mainWindow);
+}
+
+
+/* Called when the user selects the 'Select Features' menu option, or hits the relevant shortcut key */
+static void onSelectFeaturesMenu(GtkAction *action, gpointer data)
+{
+  selectFeatures();
 }
 
 

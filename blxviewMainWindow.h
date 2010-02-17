@@ -81,6 +81,8 @@ void			  mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean update
 
 void			  displayHelp(GtkWidget *mainWindow);
 
+void			  mainWindowRedrawAll(GtkWidget *mainWindow);
+
 gchar*			  getSequenceSegment(GtkWidget *mainWindow, 
 					     const char const *sequence,
 					     const IntRange const *sequenceRange,
