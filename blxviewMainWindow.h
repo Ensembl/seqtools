@@ -79,6 +79,8 @@ void			  mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateT
 gboolean		  mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *msp);
 void			  mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTrees);
 
+int			  sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName);
+
 void			  displayHelp(GtkWidget *mainWindow);
 
 void			  mainWindowRedrawAll(GtkWidget *mainWindow);

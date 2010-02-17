@@ -46,6 +46,8 @@ static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 
 static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
+static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
+static void			  showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean createGroup);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -251,6 +253,15 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
     }
   
   return result;
+}
+
+
+/* Returns the order number of the group that this sequence belongs to, or
+ * UNSET_INT if it does not belong to a group. */
+int sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName)
+{
+  SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, seqName);
+  return group ? group->order : UNSET_INT;
 }
 
 
@@ -572,6 +583,18 @@ static void destroySequenceGroup(SequenceGroup *seqGroup)
 }
 
 
+/* Delete a single group */
+static void mainWindowDeleteSequenceGroup(GtkWidget *mainWindow, SequenceGroup *group)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  
+  if (properties->sequenceGroups)
+    {
+      properties->sequenceGroups = g_list_remove(properties->sequenceGroups, group);
+    }	    
+}
+
+
 /* Delete all groups */
 static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
 {
@@ -711,6 +734,13 @@ static gboolean onGroupOrderChanged(GtkWidget *widget, GdkEventFocus *event, gpo
   else
     {
       group->order = convertStringToInt(newOrder);
+      
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      
+      /* Re-sort the trees and re-draw */
+      callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), resortTree);
+      mainWindowRedrawAll(mainWindow);
     }
   
   return FALSE;
@@ -748,6 +778,20 @@ static void onGroupHighlightedToggled(GtkWidget *button, gpointer data)
 }
 
 
+/* Called when the user has changed the colour of a group in the 'edit groups' dialog */
+static void onGroupColourChanged(GtkColorButton *button, gpointer data)
+{
+  SequenceGroup *group = (SequenceGroup*)data;
+  gtk_color_button_get_color(button, &group->highlightColour);
+  gdk_colormap_alloc_color(gdk_colormap_get_system(), &group->highlightColour, TRUE, TRUE);
+  
+  /* Redraw everything in the new colours */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(button)));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  mainWindowRedrawAll(mainWindow);
+}
+
+
 /* This function creates a widget that allows the user to edit the group
  * pointed to by the given list item, and adds it to the table container
  * widget at the given row. */
@@ -768,17 +812,29 @@ static void createEditGroupWidget(SequenceGroup *group, GtkTable *table, const i
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
   g_signal_connect(G_OBJECT(isHighlightedWidget), "toggled", G_CALLBACK(onGroupHighlightedToggled), group);
   
-  /* Show the groups 'order' in an editable text box */
+  /* Show the group's order number in an editable text box */
   GtkWidget *orderWidget = gtk_entry_new();
   char *orderStr = convertIntToString(group->order);
   gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
   g_free(orderStr);
-  g_signal_connect(G_OBJECT(nameWidget), "focus-out-event", G_CALLBACK(onGroupOrderChanged), group);
+  gtk_widget_set_size_request(orderWidget, 20, -1);
+  g_signal_connect(G_OBJECT(orderWidget), "focus-out-event", G_CALLBACK(onGroupOrderChanged), group);
 
+  /* Show the group's highlight colour in a button that will also launch a colour-picker */
+  GtkWidget *colourButton = gtk_color_button_new_with_color(&group->highlightColour);
+  g_signal_connect(G_OBJECT(colourButton), "color-set", G_CALLBACK(onGroupColourChanged), group);
+  
+  /* Create a button that will delete this group */
+  GtkWidget *deleteButton = gtk_button_new_with_label("Delete");
+  g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
+  
   /* Put everything in the table */
   gtk_table_attach(table, nameWidget,		1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, isHiddenWidget,	2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, isHighlightedWidget,	3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, orderWidget,		4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, colourButton,		5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, deleteButton,		6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
 }
 
 
@@ -808,6 +864,7 @@ void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
   /* Extract the main window from our parent window. */
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
 
   /* If the entry box is enabled, that means the user has selected the option to
    * use a search string. */
@@ -817,7 +874,7 @@ void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
       GList *resultList = NULL;
 
       /* Loop through all the sequences and see if the name matches the search string */
-      GHashTable *seqTable = detailViewGetSeqTable(mainWindowGetDetailView(mainWindow));
+      GHashTable *seqTable = detailViewGetSeqTable(detailView);
       GList *seqNameItem = g_hash_table_get_keys(seqTable);
       
       for ( ; seqNameItem; seqNameItem = seqNameItem->next)
@@ -849,23 +906,60 @@ void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
       makeGroupFromSelection(mainWindow);
     }
   
+  /* Re-sort the trees, because the group ordering has changed, which may affect the sort order */
+  callFuncOnAllDetailViewTrees(detailView, resortTree);
+  
+  /* Refresh dialog by closing and re-opening. Open it on the 'edit groups' page,
+   * to display the group that we've just created. */
   gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+  showGroupSequencesDialog(mainWindow, FALSE);
 }
 
 
-/* Called when the user has clicked "delete groups" buttong on the "group sequences" dialog. */
-static void onButtonClickedDeleteGroups(GtkWidget *button, gpointer data)
+/* Called when the user has clicked the "delete all groups" button on the "group sequences" dialog. */
+static void onButtonClickedDeleteAllGroups(GtkWidget *button, gpointer data)
 {
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
   /* Ask the user if they're sure */
-  gint response = runConfirmationBox(mainWindow, "Delete groups", "Are you sure you wish to delete all groups?");
+  gint response = runConfirmationBox(mainWindow, "Delete groups", "This will delete ALL groups. Are you sure?");
   
   if (response == GTK_RESPONSE_ACCEPT)
     {
       mainWindowDeleteAllSequenceGroups(mainWindow);
+      
+      /* Close the dialog, because there are no groups left to display. */
       gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+    }
+}
+
+
+/* Called when the user has clicked the "delete group" button on the "group sequences" dialog. */
+static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
+{
+  SequenceGroup *group = (SequenceGroup*)data;
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  
+  /* Ask the user if they're sure */
+  char formatStr[] = "Are you sure you wish to delete group '%s'?";
+  char messageText[strlen(formatStr) + strlen(group->groupName)];
+  sprintf(messageText, formatStr, group->groupName);
+  
+  gint response = runConfirmationBox(mainWindow, "Delete group", messageText);
+  
+  if (response == GTK_RESPONSE_ACCEPT)
+    {
+      mainWindowDeleteSequenceGroup(mainWindow, group);
+      
+      /* Refresh the dialog by closing and re-opening. Only re-open if there are groups left. */
+      gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+      if (g_list_length(mainWindowGetSequenceGroups(mainWindow)) > 0)
+	{
+	  showGroupSequencesDialog(mainWindow, FALSE);
+	}
     }
 }
 
@@ -929,7 +1023,7 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean creat
       GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
       gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section2, gtk_label_new("Edit groups"));
 
-      const int numCols = 3;
+      const int numCols = 6;
       GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
       gtk_box_pack_start(GTK_BOX(section2), GTK_WIDGET(table), FALSE, FALSE, 0);
 
@@ -940,6 +1034,9 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean creat
       int row = 1;
       gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, gtk_label_new("Colour"),	  4, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, gtk_label_new("Delete"),	  6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       ++row;
       
       /* Add a set of widgets for each group */
@@ -954,7 +1051,7 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean creat
       /* Add a button to delete all groups */
       GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
       gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
-      g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroups), NULL);
+      g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
     }
   else if (!createGroup)
     {

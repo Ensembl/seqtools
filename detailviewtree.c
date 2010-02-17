@@ -15,8 +15,6 @@
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 
-enum {SORT_BY_NAME, SORT_BY_ID, SORT_BY_SCORE, SORT_BY_POS} SortType;
-
 
 /* Local function declarations */
 static void		onSelectionChangedTree(GObject *selection, gpointer data);
@@ -121,6 +119,12 @@ int treeGetFrame(GtkWidget *tree)
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
   return properties ? properties->readingFrame : UNSET_INT;
+}
+
+static GtkSortType treeGetSortType(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  return detailViewGetSortType(detailView);
 }
 
 BlxSeqType treeGetSeqType(GtkWidget *tree)
@@ -359,10 +363,11 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
 					   G_TYPE_INT);
   
   /* Set the sort functions for each column */
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL, sortColumnCompareFunc, (gpointer)SORT_BY_NAME, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL, sortColumnCompareFunc, (gpointer)SORT_BY_ID, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), START_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, tree, NULL);
 
   /* Add the rows. Use the hash table that groups MSPs by sequence name and qFrame/qStrand */
   GHashTable *seqTable = treeGetSeqTable(tree);
@@ -781,7 +786,6 @@ static void onSelectionChangedTree(GObject *selection, gpointer data)
  ***********************************************************/
 
 
-
 /* Refilter the data for the given tree */
 void refilterTree(GtkWidget *tree, gpointer data)
 {
@@ -790,9 +794,24 @@ void refilterTree(GtkWidget *tree, gpointer data)
   GtkTreeModelFilter *filter = GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(GTK_TREE_VIEW(tree)));
   gtk_tree_model_filter_refilter(filter);
 
+  /* Select any rows whose sequences are marked as selected */
   selectRowsForSelectedSeqs(tree, NULL);
 }
 
+
+/* Re-sort the data for the given tree */
+void resortTree(GtkWidget *tree, gpointer data)
+{
+  /* Not sure if there's a better way to do this, but we can force a re-sort by 
+   * setting the sort column to something else and then back again. */
+  gint sortColumn;
+  GtkSortType sortOrder;
+  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, &sortOrder);
+  
+  gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, sortOrder);
+  gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumn, sortOrder);
+}
 
 /* Filter function. Returns true if the given row in the given tree model should be visible. */
 static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
@@ -844,31 +863,33 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 void treeSortByName(GtkWidget *tree, gpointer data)
 {
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, S_NAME_COL, GTK_SORT_ASCENDING);
+  gtk_tree_sortable_set_sort_column_id(model, S_NAME_COL, treeGetSortType(tree));
 }
 
 void treeSortById(GtkWidget *tree, gpointer data)
 {
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, ID_COL, GTK_SORT_ASCENDING);
+  gtk_tree_sortable_set_sort_column_id(model, ID_COL, treeGetSortType(tree));
 }
 
 void treeSortByScore(GtkWidget *tree, gpointer data)
 {
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, SCORE_COL, GTK_SORT_ASCENDING);
+  gtk_tree_sortable_set_sort_column_id(model, SCORE_COL, treeGetSortType(tree));
 }
 
 void treeSortByPos(GtkWidget *tree, gpointer data)
 {
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  
-  /* Sort ascending if the reference sequence is displayed in the normal left-to-right
-   * direction, otherwise sort descending. */
-//  gboolean rightToLeft = treeGetStrandsToggled(tree);
-  gtk_tree_sortable_set_sort_column_id(model, SEQUENCE_COL, GTK_SORT_ASCENDING);
+  gtk_tree_sortable_set_sort_column_id(model, START_COL, treeGetSortType(tree));
 }
 
+/* Sort by the order number in the sequence's group, if it has one. */
+void treeSortByGroupOrder(GtkWidget *tree, gpointer data)
+{
+  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+  gtk_tree_sortable_set_sort_column_id(model, SEQUENCE_COL, treeGetSortType(tree));
+}
 
 /***********************************************************
  *                       Properties                        *
@@ -1838,6 +1859,9 @@ static GList* addTreeColumns(GtkWidget *tree,
 }
 
 
+/* Sort comparison function.  Returns a negative value if the first row appears before the second,
+ * positive if the second appears before the first, or 0 if they are equivalent according to
+ * the current search criteria. */
 static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data)
 {
   gint result = UNSET_INT;
@@ -1846,7 +1870,6 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   gint sortColumn;
   GtkSortType sortOrder;
   gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, &sortOrder);
-//  gboolean ascending = (sortOrder == GTK_SORT_ASCENDING);
 
   /* Extract the MSP lists from the tree rows */
   GList *mspGList1 = treeGetMsps(model, iter1);
@@ -1857,12 +1880,11 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   MSP *msp2 = (MSP*)(mspGList2->data);
 
   const gboolean multipleMsps = g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1;
-
-  gint sortType = (gint)data;
+  GtkWidget *tree = GTK_WIDGET(data);
   
-  switch (sortType)
+  switch (sortColumn)
     {
-      case SORT_BY_NAME:
+      case S_NAME_COL:
 	{
 	  MSP *msp1 = (MSP*)(mspGList1->data);
 	  MSP *msp2 = (MSP*)(mspGList2->data);
@@ -1870,19 +1892,19 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 	  break;
 	}
 	
-      case SORT_BY_SCORE:
+      case SCORE_COL:
 	{
 	  result = multipleMsps ? 0 : msp1->score - msp2->score;
 	  break;
 	}
 	
-      case SORT_BY_ID:
+      case ID_COL:
 	{
 	  result = multipleMsps ? 0 : msp1->id - msp2->id;
 	  break;
 	}
 	
-      case SORT_BY_POS:
+      case START_COL:
 	{
 	  if (multipleMsps)
 	    {
@@ -1900,17 +1922,48 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 	  break;
 	}
 
+      case SEQUENCE_COL:
+	{
+	  /* Get the order number out of the group and sort on that. If the sequence
+	   * is not in a group, its order number is UNSET_INT, and it gets sorted after
+	   * any sequences that are in groups. */
+	  GtkWidget *mainWindow = treeGetMainWindow(tree);
+	  const int msp1Order = sequenceGetGroupOrder(mainWindow, msp1->sname);
+	  const int msp2Order = sequenceGetGroupOrder(mainWindow, msp2->sname);
+	  
+	  if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
+	    result = 1;
+	  else if (msp1Order != UNSET_INT && msp2Order == UNSET_INT)
+	    result = -1;
+	  else
+	    result = msp1Order - msp2Order;
+	}
+
       default:
 	break;
     };
   
-  /* If values are the same, further sort by name, then position, then length */
-  if (!result && sortType != SORT_BY_NAME)
+  /* If values are the same, further sort by group, name, position, length */
+  if (!result && sortColumn != SEQUENCE_COL)
+    {
+      GtkWidget *mainWindow = treeGetMainWindow(tree);
+      const int msp1Order = sequenceGetGroupOrder(mainWindow, msp1->sname);
+      const int msp2Order = sequenceGetGroupOrder(mainWindow, msp2->sname);
+      
+      if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
+	result = -1;
+      else if (msp1Order != UNSET_INT && msp2Order == UNSET_INT)
+	result = 1;
+      else
+	result = msp1Order - msp2Order;
+    }
+
+  if (!result && sortColumn != S_NAME_COL)
     {
       result = strcmp(msp1->sname, msp2->sname);
     }
   
-  if (!multipleMsps && !result && sortType != SORT_BY_POS)
+  if (!multipleMsps && !result && sortColumn != START_COL)
     {
       int sMin1, sMin2;
       getMspRangeExtents(msp1, NULL, NULL, &sMin1, NULL);
@@ -1921,6 +1974,12 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   if (!multipleMsps && !result)
     {
       result = msp1->slength - msp2->slength;
+    }
+  
+  /* Reverse order if sort is descending */
+  if (sortOrder == GTK_SORT_DESCENDING)
+    {
+      result *= -1;
     }
   
   return result;
@@ -1940,10 +1999,11 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 					   G_TYPE_INT);
   
   /* Set the sort functions for each column */
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL, sortColumnCompareFunc, (gpointer)SORT_BY_NAME, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL, sortColumnCompareFunc, (gpointer)SORT_BY_ID, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_SCORE, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, (gpointer)SORT_BY_POS, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), S_NAME_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), ID_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SCORE_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), START_COL,	  sortColumnCompareFunc, tree, NULL);
+  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, tree, NULL);
   
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
   g_object_unref(G_OBJECT(store));

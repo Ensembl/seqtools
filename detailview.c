@@ -18,6 +18,7 @@
 #define SORT_BY_ID_STRING		"Identity"
 #define SORT_BY_NAME_STRING		"Name"
 #define SORT_BY_POSITION_STRING		"Position"
+#define SORT_BY_GROUP_ORDER_STRING	"Group"
 #define FONT_INCREMENT_SIZE		1
 #define MIN_FONT_SIZE			2
 #define MAX_FONT_SIZE			20
@@ -1492,6 +1493,11 @@ static int detailViewGetSelectedFrame(GtkWidget *detailView)
   return properties ? properties->selectedFrame : UNSET_INT;
 }
 
+GtkSortType detailViewGetSortType(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->sortType : GTK_SORT_ASCENDING;
+}
 
 /* Return a list of all MSPs that have the given match sequence name */
 GList *detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName)
@@ -1613,6 +1619,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->charWidth = 0;
       properties->charHeight = 0;
       properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
+      properties->sortType = GTK_SORT_ASCENDING;
 
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
@@ -1806,6 +1813,10 @@ static void sortById(GtkWidget *detailView)
   callFuncOnAllDetailViewTrees(detailView, treeSortById);
 }
 
+static void sortByGroupOrder(GtkWidget *detailView)
+{
+  callFuncOnAllDetailViewTrees(detailView, treeSortByGroupOrder);
+}
 
 /* Find the next MSP (out the MSPs in this tree) whose start is the next closest to the
  * current start position of the display, searching only in the direction specified by 
@@ -1913,6 +1924,8 @@ static void comboChange(GtkEditable *editBox, gpointer data)
 	sortByName(detailView);
       else if (strcmp(val, SORT_BY_POSITION_STRING) == 0)
 	sortByPos(detailView);
+      else if (strcmp(val, SORT_BY_GROUP_ORDER_STRING) == 0)
+	sortByGroupOrder(detailView);
     }
   
   g_free(val);
@@ -2161,6 +2174,7 @@ static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView)
   sortList = g_list_append(sortList, SORT_BY_ID_STRING);
   sortList = g_list_append(sortList, SORT_BY_NAME_STRING);
   sortList = g_list_append(sortList, SORT_BY_POSITION_STRING);
+  sortList = g_list_append(sortList, SORT_BY_GROUP_ORDER_STRING);
   gtk_combo_set_popdown_strings(GTK_COMBO(combo), sortList);
   
   /* Set the identity field as the default */

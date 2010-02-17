@@ -92,6 +92,7 @@ typedef struct _DetailViewProperties
     int selectedBaseNum;	  /* The currently-selected base within the selected reading frame */
     int selectedDnaBaseIdx;	  /* The currently-selected index in terms of the DNA sequence */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
+    GtkSortType sortType;	  /* Whether the sort operations operate ascending or descending sorting */
 
     /* Cached font sizes, needed often for calculations. */
     int charHeight;
@@ -151,6 +152,7 @@ int			detailViewGetCharHeight(GtkWidget *detailView);
 GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
 SubjectSequence*	detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName);
 GHashTable*		detailViewGetSeqTable(GtkWidget *detailView);
+GtkSortType		detailViewGetSortType(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
