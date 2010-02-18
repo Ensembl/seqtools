@@ -316,7 +316,7 @@ sequence_cell_renderer_class_init (SequenceCellRendererClass *klass)
                                                         END_COLUMN_HEADER_TEXT,
                                                         "End index of match",
 							NULL,
-
+                                                        G_PARAM_WRITABLE));  
 }
 
 
