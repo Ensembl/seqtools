@@ -227,10 +227,28 @@ int numDigitsInInt(int val)
 }
 
 
-/* Create a GdkColor from a pixel value (e.g. GDK_YELLOW) */
-GdkColor getGdkColor(gulong colour)
+/* Create a GdkColor from one of our internally-defined colours, e.g. GDK_YELLOW.
+ * At the moment this is just a wrapper around gdk_color_parse. */
+GdkColor getGdkColor(const char *colour)
 {
-  GdkColor result = {colour};
+  GdkColor result;
+  
+  gboolean ok = gdk_color_parse(colour, &result);
+
+  if (ok)
+    {
+      gboolean failures[1];
+      gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), &result, 1, TRUE, TRUE, failures);
+      
+      if (numFailures > 0)
+	ok = FALSE;
+    }
+
+  if (!ok)
+    {
+      messerror("Error parsing colour string '%s'", colour);
+    }
+  
   return result;
 }
 

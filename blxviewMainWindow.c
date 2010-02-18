@@ -616,14 +616,6 @@ static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
 }
 
 
-/* Called for each element in a group list. Increments the group's order number */
-static void incrementGroupOrderNumber(gpointer listItemData, gpointer data)
-{
-  SequenceGroup *group = (SequenceGroup*)listItemData;
-  group->order = group->order + 1;
-}
-
-
 /* Create a new, empty sequence group with a unique ID and name (unique from all
  * others in the given list - does not actually add it to the list though). The result 
  * should be destroyed with destroySequenceGroup. */
@@ -653,11 +645,9 @@ static SequenceGroup* createSequenceGroup(GList *groupList)
   seqGroup->groupName = g_malloc(nameLen * sizeof(*seqGroup->groupName));
   sprintf(seqGroup->groupName, formatStr, seqGroup->groupId);
 
-  /* Set the default order number. New groups are ordered first, so they get order
-   * number 1 - which means the other groups' order numbers all have to be incremented
-   * so that they are distinct. */
-  seqGroup->order = 1;
-  g_list_foreach(groupList, incrementGroupOrderNumber, NULL);
+  /* Set the order number. For simplicity, set the default order to be the same
+   * as the ID number, so groups are sorted in the order they were added */
+  seqGroup->order = seqGroup->groupId;
 
   /* Set the default highlight colour. */
   seqGroup->highlighted = TRUE;

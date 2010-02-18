@@ -613,13 +613,11 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
       if (headerInfo && headerInfo->headerWidget)
 	{
 	  /* Set the background colour. Set it in the parent too seeing as labels don't have a window themselves. */
-//	  GdkColor *bgColour = treeGetRefSeqColour(tree, FALSE); //to do: should use this but doesn't work - comes out black for some reason
-	  GdkColor bgColour2;
-	  gdk_color_parse("yellow", &bgColour2);
-	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, &bgColour2);
+	  GdkColor *bgColour = treeGetRefSeqColour(tree, FALSE);
+	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, bgColour);
 
 	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
-	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour2);
+	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, bgColour);
 	  
 	  /* Update the font and widget size */
 	  gtk_widget_modify_font(headerInfo->headerWidget, treeGetFontDesc(tree));
@@ -1090,7 +1088,8 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
       handled = FALSE;
     }
 
-  /* Right button: show context menu (to do) */
+  /* Right button: show context menu (to do: it would be good to add specific options
+   * for the current tree/selection, but for now just show the main menu) */
   if (event->button == 3)
     {
       handled = TRUE;

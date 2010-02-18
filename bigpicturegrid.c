@@ -456,11 +456,12 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
       g_hash_table_foreach(seqTable, drawUnselectedMspLines, &drawData);
     }
 
-  /* Now draw MSPs that are in groups (to do: in reverse priority order so highest priority appear on top) */
+  /* Now draw MSPs that are in groups (to do: it would be good to do this in reverse
+   * Sort Order, so that those ordered first get drawn last and therefore appear on top) */
   GList *groupList = mainWindowGetSequenceGroups(mainWindow);
   g_list_foreach(groupList, drawGroupedMspLines, &drawData);
   
-  /* Now draw selected MSPs. The list of selected seqs lives in the main window */
+  /* Finally, draw selected sequences. These will appear on top of everything else. */
   drawData.colour = gridGetMspLineHighlightColour(drawData.grid);
   GList *seqList = mainWindowGetSelectedSeqs(mainWindow);
   drawData.colour = gridGetMspLineHighlightColour(grid);
@@ -468,7 +469,7 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 }
 
 
-/* Main function to do the drawing for the grid. Drawing is done onto a pixmap
+/* Main function that does the drawing for the grid. Drawing is done onto a pixmap
  * which is then stored in the grid properties */
 static void drawBigPictureGrid(GtkWidget *grid)
 {

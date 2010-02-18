@@ -15,27 +15,26 @@
 
 #define UNSET_INT  -1
 
-/* These colours are decimal version of, e.g. "ffff00" for yellow, i.e. R=255, G=255, B=0.
- * They can be used to define a GdkColor */
-#define GDK_YELLOW	      16776960 
-#define GDK_DARK_YELLOW	      8421376
-#define GDK_CYAN	      65535
-#define GDK_DARK_CYAN	      32896
-#define GDK_BLUE	      255
-#define GDK_DARK_BLUE	      128
-#define GDK_LIGHT_STEEL_BLUE  7255270
-#define GDK_STEEL_BLUE	      4620980
-#define GDK_ROYAL_BLUE	      4286945
-#define GDK_GREY	      12500670
-#define GDK_DARK_GREY	      8421504
-#define GDK_BLACK	      0
-#define GDK_WHITE	      16777215
-#define GDK_RED		      16711680
-#define GDK_DARK_RED	      8388608
-#define GDK_ORANGE	      16753920
-#define GDK_GREEN	      65280
-#define GDK_DARK_GREEN	      47872
-#define GDK_TURQUOISE	      4251856
+/* Colour strings that can be passed to gdk_color_parse to create a GdkColor */
+#define GDK_YELLOW	      "#FFFF00" 
+#define GDK_DARK_YELLOW	      "#808000"
+#define GDK_CYAN	      "#00FFFF"
+#define GDK_DARK_CYAN	      "#008080"
+#define GDK_BLUE	      "#0000FF"
+#define GDK_DARK_BLUE	      "#000080"
+#define GDK_LIGHT_STEEL_BLUE  "#6EB4E6"
+#define GDK_STEEL_BLUE	      "#4682B4"
+#define GDK_ROYAL_BLUE	      "#4169E1"
+#define GDK_GREY	      "#BEBEBE"
+#define GDK_DARK_GREY	      "#808080"
+#define GDK_BLACK	      "#000000"
+#define GDK_WHITE	      "#FFFFFF"
+#define GDK_RED		      "#FF0000"
+#define GDK_DARK_RED	      "#800000"
+#define GDK_ORANGE	      "#FFA500"
+#define GDK_GREEN	      "#00FF00"
+#define GDK_DARK_GREEN	      "#00BB00"
+#define GDK_TURQUOISE	      "#40E0D0"
 
 
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
@@ -50,7 +49,7 @@ GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdoub
 
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
-GdkColor	      getGdkColor(gulong colour);
+GdkColor	      getGdkColor(const char *colour);
 
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);

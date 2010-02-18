@@ -788,7 +788,7 @@ static void drawInsertionMarker(int sIdx,
   if (sIdx != UNSET_INT && sIdxLastFound != UNSET_INT && abs(sIdx - sIdxLastFound) > 1)
     {
       /* There is a gap between this index and the previous one (in a left-to-right sense) */
-      GdkColor col = {GDK_YELLOW};
+      GdkColor col = getGdkColor(GDK_YELLOW); /* to-do: make this colour a setting in the detail view rather than a hard-coded value */
       gdk_gc_set_foreground(data->gc, &col);
       
       /* This is not very sophisticated - just uses a fudge factor to find a suitable width and
