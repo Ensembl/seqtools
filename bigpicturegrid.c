@@ -703,10 +703,15 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 	  
 	  if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
 	    {
-	      /* It's a hit. Select this row. */
+	      /* It's a hit. Select this sequence. */
 	      GtkWidget *mainWindow = gridGetMainWindow(grid);
 	      mainWindowDeselectAllSeqs(mainWindow, TRUE);
 	      mainWindowSelectSeq(mainWindow, msp->sname, TRUE);
+
+	      /* The relevant row will be selected in the detail view (if it is in the
+	       * detail view's display range). Scroll the tree vertically to bring the
+	       * row into view, if necessary. */
+	      treeScrollSelectionIntoView(tree, NULL);
 
 	      wasSelected = TRUE;
 	      break;

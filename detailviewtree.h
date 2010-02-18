@@ -100,6 +100,7 @@ void		  treeSquashMatches(GtkWidget *tree, gpointer data);
 void		  treeUnsquashMatches(GtkWidget *tree, gpointer data);
 gboolean	  treeGetMatchesSquashed(GtkWidget *tree);
 
+void		  treeScrollSelectionIntoView(GtkWidget *tree, gpointer data);
 void		  selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data);
 gboolean	  treeIsSeqSelected(GtkWidget *tree, const char *seqName);
 

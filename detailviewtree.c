@@ -723,15 +723,13 @@ static gboolean selectRowIfSeqSelected(GtkTreeModel *model, GtkTreePath *path, G
 }
 
 
-/* Select all rows in this tree whose sequences are marked as selected */
-void selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data)
+/* Scrolls the currently-selected row(s) into view */
+void treeScrollSelectionIntoView(GtkWidget *tree, gpointer data)
 {
-  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_model_foreach(model, selectRowIfSeqSelected, tree);
+  assertTree(tree);
   
-  /* Scroll the selection into view */
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-  GList *selectedRows = gtk_tree_selection_get_selected_rows(selection, &model);
+  GList *selectedRows = gtk_tree_selection_get_selected_rows(selection, NULL);
   
   if (g_list_length(selectedRows) >  0)
     {
@@ -743,6 +741,14 @@ void selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data)
       path = (GtkTreePath*)(g_list_first(selectedRows)->data);
       gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
     }
+}
+
+
+/* Select all rows in this tree whose sequences are marked as selected */
+void selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data)
+{
+  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+  gtk_tree_model_foreach(model, selectRowIfSeqSelected, tree);
 }
 
 
