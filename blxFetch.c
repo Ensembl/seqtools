@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.5 2010-02-15 14:27:32 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.6 2010-02-18 16:10:07 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1742,7 +1742,7 @@ BOOL readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
     {
       ConfigGroup config ;
       char **groups, **group ;
-      unsigned int num_groups ;
+      gsize num_groups ;
       int i ;
       gboolean config_loaded = FALSE ;
 
