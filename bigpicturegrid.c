@@ -121,15 +121,6 @@ static gint convertGridPosToBaseIdx(const gint gridPos,
 }
 
 
-///* Convert a y coord on the given grid to an ID% value */
-//static gint convertGridPosToValue(GtkWidget *grid, const gint gridPos)
-//{
-//  GridProperties *properties = gridGetProperties(grid);
-//  IntRange *valRange = &properties->percentIdRange;
-//  return ((gridPos - properties->gridRect.y) / (properties->gridRect.height * (valRange->max - valRange->min)));
-//}
-
-
 /* Convert an ID% value to the y coord on the given grid */
 gint convertValueToGridPos(GtkWidget *grid, const gint value)
 {

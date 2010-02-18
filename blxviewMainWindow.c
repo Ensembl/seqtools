@@ -591,7 +591,11 @@ static void mainWindowDeleteSequenceGroup(GtkWidget *mainWindow, SequenceGroup *
   if (properties->sequenceGroups)
     {
       properties->sequenceGroups = g_list_remove(properties->sequenceGroups, group);
-    }	    
+    }	 
+  
+  /* Refilter the trees (because hidden rows may now be visible again), and redraw */
+  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), refilterTree);
+  mainWindowRedrawAll(mainWindow);
 }
 
 
@@ -858,18 +862,21 @@ void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
 
   /* If the entry box is enabled, that means the user has selected the option to
    * use a search string. */
-  if (gtk_widget_get_sensitive(GTK_WIDGET(entry)))
+  if (GTK_WIDGET_SENSITIVE(entry))
     {
       const char *searchStr = gtk_entry_get_text(entry);
       GList *resultList = NULL;
 
       /* Loop through all the sequences and see if the name matches the search string */
       GHashTable *seqTable = detailViewGetSeqTable(detailView);
-      GList *seqNameItem = g_hash_table_get_keys(seqTable);
+
+      GHashTableIter iter;
+      gpointer key;
+      g_hash_table_iter_init(&iter, seqTable);
       
-      for ( ; seqNameItem; seqNameItem = seqNameItem->next)
+      while (g_hash_table_iter_next(&iter, &key, NULL))
 	{
-	  char *compareName = (char *)(seqNameItem->data);
+	  char *compareName = (char *)(key);
 	  
 	  if (wildcardSearch(compareName, searchStr))
 	    {
@@ -1065,7 +1072,7 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean creat
     {
       /* Make the add group button the default widget and focus it if rows
        * are selected - otherwise focus the text entry box. */
-      gtk_widget_set_can_default(addGroupButton, TRUE);
+      GTK_WIDGET_SET_FLAGS(addGroupButton, GTK_CAN_DEFAULT);
       gtk_window_set_default(GTK_WINDOW(dialog), addGroupButton);
 
       if (seqsSelected)
@@ -1143,10 +1150,10 @@ static void showSettingsDialog(GtkWidget *mainWindow)
 
 static void getStats(GtkWidget *mainWindow, GString *result, MSP *MSPlist)
 {
-  int numMSPs = 0;          //count of MSPs
-  int numSeqs = 0;          //count of sequences (excluding duplicates)
-  gint32 totalSeqSize = 0;  //total memory used by the sequences
-  GHashTable *sequences = g_hash_table_new(NULL, NULL); //remembers which sequences we've already seen
+  int numMSPs = 0;          /* count of MSPs */
+  int numSeqs = 0;          /* count of sequences (excluding duplicates) */
+  gint32 totalSeqSize = 0;  /* total memory used by the sequences */
+  GHashTable *sequences = g_hash_table_new(NULL, NULL); /* remembers which sequences we've already seen */
   
   MSP *msp = NULL;
   for (msp = MSPlist; msp ; msp = msp->next)
@@ -1194,7 +1201,7 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
   g_signal_connect (dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   
   /* Create a text buffer containing the required text*/
-  GString *displayText = g_string_sized_new(200); //will be extended if we need more space
+  GString *displayText = g_string_sized_new(200); /* will be extended if we need more space */
   getStats(mainWindow, displayText, MSPlist);
   GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
   gtk_text_buffer_set_text(GTK_TEXT_BUFFER(textBuffer), displayText->str, -1);
@@ -1443,25 +1450,6 @@ static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpo
   GtkPrintSettings *printSettings = gtk_print_operation_get_print_settings(print);
   gtk_print_settings_set_orientation(printSettings, gtk_print_settings_get_orientation(properties->printSettings));
 
-//  //gdouble scale = gtk_print_settings_get_scale(printSettings);
-//  
-//  gdouble windowWidth = (mainWindow->allocation.width);
-//  gdouble windowHeight = (mainWindow->allocation.height);
-//
-//  gboolean landscape = 0;//gtk_print_settings_get_orientation(printSettings) == GTK_PAGE_ORIENTATION_LANDSCAPE;
-//  gdouble pageWidth = landscape ? gtk_print_context_get_height(context) : gtk_print_context_get_width(context);
-//  gdouble pageHeight = landscape ? gtk_print_context_get_width(context) : gtk_print_context_get_height(context);
-//
-//  gdouble hScale = (pageWidth * 100) / windowWidth;
-//  gdouble vScale = (pageHeight * 100) / windowHeight;
-//  gdouble scale = min(hScale, vScale);
-//  scale = min(scale, 100); /* don't print bigger than 100% */
-//  gtk_print_settings_set_scale(printSettings, scale);
-//  gtk_print_operation_set_print_settings(print, printSettings);
-
-//  int numWide = ceil(windowWidth / pageWidth);
-//  int numHigh = ceil(windowHeight / pageHeight);
-
   gtk_print_operation_set_n_pages(print, 1);
 }
 
@@ -1555,7 +1543,6 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 {
   gboolean result = FALSE;
   
-//  guint modifiers = gtk_accelerator_get_default_mod_mask();
   const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK);
   
   switch (event->keyval)
@@ -2059,10 +2046,6 @@ GtkWidget* createMainWindow(char *refSeq,
   
   /* Create the main menu */
   GtkWidget *mainmenu = createMainMenu(window);
-  
-//  /* Create a container for our two main frames in */
-//  GtkWidget *panedWidget = gtk_vpaned_new();
-//  gtk_box_pack_start(GTK_BOX(vbox), panedWidget, TRUE, TRUE, 0);
   
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */

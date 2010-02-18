@@ -71,9 +71,6 @@ enum
   PROP_MSP,
   PROP_END,
   PROP_DATA
-  
-//  PROP_DATA,
-//  PROP_TEXT
 };
 
 
@@ -319,15 +316,7 @@ sequence_cell_renderer_class_init (SequenceCellRendererClass *klass)
                                                         END_COLUMN_HEADER_TEXT,
                                                         "End index of match",
 							NULL,
-                                                        G_PARAM_WRITABLE));  
-//  g_object_class_install_property (object_class,
-//                                   PROP_TEXT,
-//                                   g_param_spec_string ("text",
-//                                                        "Text",
-//                                                        "Text to display",
-//							NULL,
-//                                                        G_PARAM_WRITABLE));
-  
+
 }
 
 
@@ -535,7 +524,7 @@ static void drawText(SequenceCellRenderer *renderer,
 	       TRUE,
 	       NULL,
 	       tree,
-	       NULL, //"cellrenderertext",
+	       NULL, 
 	       cell_area->x - treeGetCellXPadding(tree),
 	       cell_area->y - treeGetCellYPadding(tree),
 	       layout);
