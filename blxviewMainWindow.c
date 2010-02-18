@@ -26,6 +26,13 @@ typedef struct _GroupDialogData
     GtkWidget *searchToggleButton;
   } GroupDialogData;
 
+typedef struct _CompareSeqData
+  {
+    const char *searchStr;
+    GList *matchList;
+  } CompareSeqData;
+
+
 /* Local function declarations */
 static void			  onHelpMenu(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
@@ -849,6 +856,21 @@ static void onGroupSourceButtonToggled(GtkWidget *button, gpointer data)
 }
 
 
+/* Called for each entry in a hash table. Compares the key of the table, which is
+ * a sequence name, to the search string given in the user data. If it matches, it
+ * appends the sequence name to the result list in the user data. */
+static void getSequencesThatMatch(gpointer key, gpointer value, gpointer data)
+{
+  CompareSeqData *searchData = (CompareSeqData*)data;
+  char *seqName = (char *)(key);
+  
+  if (wildcardSearch(seqName, searchData->searchStr))
+    {
+      searchData->matchList = g_list_append(searchData->matchList, seqName);
+    }
+}
+
+
 /* Called when the user has clicked "add group" on the "group sequences" dialog. */
 void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
 {
@@ -865,31 +887,19 @@ void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
   if (GTK_WIDGET_SENSITIVE(entry))
     {
       const char *searchStr = gtk_entry_get_text(entry);
-      GList *resultList = NULL;
 
       /* Loop through all the sequences and see if the name matches the search string */
       GHashTable *seqTable = detailViewGetSeqTable(detailView);
+      CompareSeqData searchData = {searchStr, NULL};
 
-      GHashTableIter iter;
-      gpointer key;
-      g_hash_table_iter_init(&iter, seqTable);
-      
-      while (g_hash_table_iter_next(&iter, &key, NULL))
-	{
-	  char *compareName = (char *)(key);
-	  
-	  if (wildcardSearch(compareName, searchStr))
-	    {
-	      resultList = g_list_append(resultList, compareName);
-	    }
-	}
+      g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
       
       /* If we found anything, create a group */
-      if (g_list_length(resultList) > 0)
+      if (g_list_length(searchData.matchList) > 0)
 	{
 	  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
 	  SequenceGroup *group = createSequenceGroup(properties->sequenceGroups);
-	  group->seqList = resultList;
+	  group->seqList = searchData.matchList;
 	  properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
 	}
       else
