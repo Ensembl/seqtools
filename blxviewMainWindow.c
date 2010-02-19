@@ -146,7 +146,7 @@ static gboolean userIsDeveloper()
 
 
 /* Copy a segment of the given sequence into a new string. The result must be
- * free'd with g_free by the caller. The given indices are 1-based. */
+ * free'd with g_free by the caller. The given indices must be 0-based. */
 static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const int idx2)
 {
   const int minIdx = min(idx1, idx2);
@@ -155,7 +155,7 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
   const int segmentLen = maxIdx - minIdx + 1;
   gchar *segment = g_malloc(sizeof(gchar) * segmentLen + 1);
   
-  strncpy(segment, inputSeq + minIdx - 1, segmentLen);
+  strncpy(segment, inputSeq + minIdx, segmentLen);
   segment[segmentLen] = '\0';
   
   return segment;
@@ -194,18 +194,25 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
   /* Check that the requested segment is within the sequence's range */
   if (qMin < sequenceRange->min || qMax > sequenceRange->max)
     {
-      messout ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max);
-      if (inputSeqType == BLXSEQ_PEPTIDE) messout("Input coords on peptide sequence were %d - %d", coord1, coord2);
+      if (inputSeqType == BLXSEQ_PEPTIDE)
+	messout ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max, coord1, coord2);
+      else
+	messout ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max);
       return NULL;
     }
+  
+  /* Get 0-based indices into the sequence */
+  const int idx1 = qMin - sequenceRange->min;
+  const int idx2 = qMax - sequenceRange->min;
   
   /* Copy the portion of interest from the reference sequence and translate as necessary */
   const BlxBlastMode mode = mainWindowGetBlastMode(mainWindow);
   
   if (mode == BLXMODE_BLASTP || mode == BLXMODE_TBLASTN)
     {
-      /* Just get a straight copy of this segment from the ref seq */
-      result = copySeqSegment(sequence, qMin, qMax);
+      /* Just get a straight copy of this segment from the ref seq. Must pass 0-based
+       * indices into the sequence */
+      result = copySeqSegment(sequence, idx1, idx2);
       
       if (reverse)
 	{
@@ -220,12 +227,12 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
       if (strand == FORWARD_STRAND)
 	{
 	  /* Straight copy of the ref seq segment */
-	  segment = copySeqSegment(sequence, qMin, qMax);
+	  segment = copySeqSegment(sequence, idx1, idx2);
 	}
       else
 	{
 	  /* Get the segment of the ref seq and then complement it */
-	  segment = copySeqSegment(sequence, qMin, qMax);
+	  segment = copySeqSegment(sequence, idx1, idx2);
 	  blxComplement(segment);
 	  
 	  if (!segment)
@@ -254,7 +261,7 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 	  
 	  if (!result)
 	    {
-	      messcrash ("Error getting the reference sequence segment: Failed to translate the DNA sequence for the reference range %d - %d/\n", coord1, coord2) ;
+	      messcrash ("Error getting the reference sequence segment: Failed to translate the DNA sequence for the reference sequence range %d - %d/\n", qMin, qMax) ;
 	    }
 	}
     }
@@ -2029,8 +2036,14 @@ GtkWidget* createMainWindow(char *refSeq,
 			    int numReadingFrames,
 			    char **geneticCode,
 			    const int refSeqOffset,
+			    const int startCoord1Based,
+			    const SortByType sortByType,
+			    const gboolean sortInverted,
 			    const gboolean gappedHsp)
 {
+  /* Convert the start coord (which is 1-based) to real coords by adding the offset */
+  const int startCoord = startCoord1Based + refSeqOffset;
+  
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
   const int refSeqLen = (int)strlen(refSeq);
@@ -2041,9 +2054,9 @@ GtkWidget* createMainWindow(char *refSeq,
   if (seqType == BLXSEQ_PEPTIDE)
     {
       displaySeq = blxTranslate(refSeq, geneticCode);
-      fullDisplayRange.min = 1;
-      fullDisplayRange.max = strlen(displaySeq);
-      printf("Converted DNA sequence (len=%d) to peptide sequence (len=%d).\n",  refSeqLen, fullDisplayRange.max);
+      fullDisplayRange.min = convertDnaToPeptide(refSeqRange.min, 1, numReadingFrames, NULL);
+      fullDisplayRange.max = convertDnaToPeptide(refSeqRange.max, 3, numReadingFrames, NULL);
+      printf("Converted DNA sequence (%d-%d) to peptide sequence (%d-%d).\n",  refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
     }
   
   /* Create the main window */
@@ -2060,8 +2073,8 @@ GtkWidget* createMainWindow(char *refSeq,
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
   GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, /* initial value = 0 */
-								      0, /* lower = 0 */
-								      fullDisplayRange.max - fullDisplayRange.min + 1, /* upper = lenght of ref seq */
+								      fullDisplayRange.min, /* lower value */
+								      fullDisplayRange.max, /* upper value */
 								      DEFAULT_SCROLL_STEP_INCREMENT, /* step increment used for mouse wheel scrolling */
 								      0,   /* page increment dynamically set based on display range */
 								      0)); /* page size dunamically set based on display range */
@@ -2086,7 +2099,10 @@ GtkWidget* createMainWindow(char *refSeq,
 					   blastMode,
 					   seqType,
 					   numReadingFrames,
-					   refSeqName);
+					   refSeqName,
+					   startCoord,
+					   sortInverted,
+					   sortByType);
   printf("Done.\n");
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
@@ -2115,8 +2131,9 @@ GtkWidget* createMainWindow(char *refSeq,
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
   
-  /* Add the MSP's to the trees */
+  /* Add the MSP's to the trees and sort them by the initial sort mode */
   detailViewAddMspData(detailView, mspList);
+  detailViewSortByType(detailView, sortByType);
 
   /* Initial update to set the detail view font */
   updateDetailViewFontDesc(detailView);

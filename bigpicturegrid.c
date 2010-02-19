@@ -526,7 +526,7 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
     {
       IntRange *displayRange = gridGetDisplayRange(grid);
       gboolean rightToLeft = gridGetStrandsToggled(grid);
-      int firstBaseIdx = rightToLeft ? adjustment->value + adjustment->page_size + 1 : adjustment->value + 1;
+      int firstBaseIdx = rightToLeft ? adjustment->value + adjustment->page_size : adjustment->value;
 
       properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->gridRect, displayRange, rightToLeft);
       properties->highlightRect.y = properties->gridRect.y - properties->highlightBoxYPad;

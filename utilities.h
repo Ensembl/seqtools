@@ -69,6 +69,7 @@ char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType 
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 Strand		      mspGetRefStrand(const MSP const *msp);
+Strand		      mspGetSubjectStrand(const MSP const *msp);
 
 void		      addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey);
 
@@ -77,7 +78,7 @@ int                   roundNearest(const double val);
 char		      getRefSeqBase(char *refSeq, 
 				    const int qIdx, 
 				    const gboolean complement, 
-				    IntRange *refSeqRange,
+				    const IntRange const *refSeqRange,
 				    const BlxSeqType seqType);
 
 int		      getStartDnaCoord(const IntRange const *displayRange, 

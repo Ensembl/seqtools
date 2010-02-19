@@ -330,14 +330,14 @@ char convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType
 char getRefSeqBase(char *refSeq,
 		   const int qIdx, 
 		   const gboolean complement, 
-		   IntRange *refSeqRange,
+		   const IntRange const *refSeqRange,
 		   const BlxSeqType seqType)
 {
   char result = ' ';
   
-  if (!refSeqRange || (qIdx >= refSeqRange->min && qIdx <= refSeqRange->max))
+  if (qIdx >= refSeqRange->min && qIdx <= refSeqRange->max)
     {
-      char base = refSeq[qIdx - 1];
+      char base = refSeq[qIdx - refSeqRange->min];
       base = convertBaseToCorrectCase(base, seqType);
       
       if (!complement)
@@ -589,10 +589,17 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
 }
 
 
-/* Return the strant of the ref sequence that the given MSP is a match against */
+/* Return the strand of the ref sequence that the given MSP is a match against */
 Strand mspGetRefStrand(const MSP const *msp)
 {
   return msp->qframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
+}
+
+
+/* Return the strand of the subject sequence that the given MSP is a match on */
+Strand mspGetSubjectStrand(const MSP const *msp)
+{
+  return msp->sframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
 }
 
 

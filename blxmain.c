@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.6 2010-02-04 11:43:13 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.7 2010-02-19 16:22:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -384,9 +384,13 @@ int main(int argc, char **argv)
     {
       messcrash("Cannot open %s\n", FSfilename);
     }
-  parseFS(&mspList, FSfile, opts, &refSeq, refSeqName, &dummyseq, dummyseqname) ;
+  
+  parseFS(&mspList, FSfile, opts, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+  
   if (FSfile != stdin)
-    fclose(FSfile) ;
+    {
+      fclose(FSfile) ;
+    }
 
   /* There may an additional file containing homol data in an alternative format. */
   if (xtra_data)
@@ -395,7 +399,8 @@ int main(int argc, char **argv)
 	{
 	  messcrash("Cannot open %s\n", xtra_filename) ;
 	}
-      parseFS(&mspList, xtra_file, opts, &refSeq, refSeqName, &dummyseq, dummyseqname) ;
+      
+      parseFS(&mspList, xtra_file, opts, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
       fclose(xtra_file) ;
     }
 

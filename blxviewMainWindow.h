@@ -105,6 +105,9 @@ GtkWidget*		  createMainWindow(char *refSeq,
 					   int numReadingFrames,
 					   char **geneticCode,
 					   const int refSeqOffset,
+					   const int startCoord,
+					   const SortByType sortByType,
+					   const gboolean sortInverted,
 					   const gboolean gappedHsp);
 
 

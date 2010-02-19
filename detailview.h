@@ -92,7 +92,7 @@ typedef struct _DetailViewProperties
     int selectedBaseNum;	  /* The currently-selected base within the selected reading frame */
     int selectedDnaBaseIdx;	  /* The currently-selected index in terms of the DNA sequence */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
-    GtkSortType sortType;	  /* Whether the sort operations operate ascending or descending sorting */
+    gboolean sortInverted;	  /* Whether the sort operations operate in the reverse direction to their default */
 
     /* Cached font sizes, needed often for calculations. */
     int charHeight;
@@ -152,7 +152,7 @@ int			detailViewGetCharHeight(GtkWidget *detailView);
 GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
 SubjectSequence*	detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName);
 GHashTable*		detailViewGetSeqTable(GtkWidget *detailView);
-GtkSortType		detailViewGetSortType(GtkWidget *detailView);
+gboolean		detailViewGetSortInverted(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -177,6 +177,8 @@ void			scrollDetailViewRightStep(GtkWidget *detailView);
 void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
+void			detailViewSortByType(GtkWidget *detailView, const SortByType sortByType);
+
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll);
 void			updateFeedbackBox(GtkWidget *detailView);
@@ -197,7 +199,10 @@ GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 BlxBlastMode mode,
 					 BlxSeqType seqType,
 					 int numReadingFrames,
-					 const char const *refSeqName);
+					 const char const *refSeqName,
+					 const int startCoord,
+					 const gboolean sortInverted,
+					 const SortByType sortByType);
 
 GtkWidget*		createDetailViewScrollBar(GtkAdjustment *adjustment, 
 						  GtkWidget *mainWindow);

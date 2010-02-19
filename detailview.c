@@ -17,7 +17,7 @@
 #define SORT_BY_SCORE_STRING		"Score"
 #define SORT_BY_ID_STRING		"Identity"
 #define SORT_BY_NAME_STRING		"Name"
-#define SORT_BY_POSITION_STRING		"Position"
+#define SORT_BY_POS_STRING		"Position"
 #define SORT_BY_GROUP_ORDER_STRING	"Group"
 #define FONT_INCREMENT_SIZE		1
 #define MIN_FONT_SIZE			2
@@ -173,10 +173,6 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
       coord = convertDnaToPeptide(coord, 1, detailViewGetNumReadingFrames(detailView), NULL);
     }
 
-  /* Adjust to a 0-based value */
-  const IntRange const *fullRange = detailViewGetFullRange(detailView);
-  coord = coord - fullRange->min;
-  
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, coord);
 }
@@ -198,17 +194,12 @@ static void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqTy
   const int displayLen = getRangeLength(displayRange);
   int newStart = coord - displayLen + 1;
 
-  /* Convert to 0-based value for the scrollbar */
-  const IntRange const *fullRange = detailViewGetFullRange(detailView);
-  newStart = newStart - fullRange->min;
-  
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, newStart);
 }
 
 
-/* Update the scroll position of the adjustment to the given (0-based) value. Does
- * bounds checking. */
+/* Update the scroll position of the adjustment to the given value. Does bounds checking. */
 static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
 {  
   /* bounds checking */
@@ -629,7 +620,8 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
       messcrash("Unexpected widget type in detail view header: expected label");
     }
 
-  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const int numFrames = detailViewGetNumReadingFrames(detailView);
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
   const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
@@ -666,7 +658,7 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
       displayText[displayTextPos] = getRefSeqBase(refSeq,
 						  qIdx, 
 						  rightToLeft, /* we've got the reverse strand if display is toggled */
-						  &qRange, 
+						  refSeqRange, 
 						  BLXSEQ_DNA /* header always shows DNA bases */
 						 );
 
@@ -1039,8 +1031,8 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *detailView = GTK_WIDGET(data);
   
-  int newStart = adjustment->value + 1;
-  int newEnd = adjustment->value + adjustment->page_size;
+  int newStart = adjustment->value;
+  int newEnd = adjustment->value + adjustment->page_size - 1;
   
   /* Only update if something has changed */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
@@ -1072,8 +1064,8 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
   GtkWidget *detailView = GTK_WIDGET(data);
   
   /* Set the display range so that it starts at the new scroll pos */
-  int newStart = adjustment->value + 1;
-  int newEnd = adjustment->value + adjustment->page_size;
+  int newStart = adjustment->value;
+  int newEnd = adjustment->value + adjustment->page_size - 1;
 
   /* Only update if something has changed */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
@@ -1493,10 +1485,10 @@ static int detailViewGetSelectedFrame(GtkWidget *detailView)
   return properties ? properties->selectedFrame : UNSET_INT;
 }
 
-GtkSortType detailViewGetSortType(GtkWidget *detailView)
+gboolean detailViewGetSortInverted(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->sortType : GTK_SORT_ASCENDING;
+  return properties ? properties->sortInverted : GTK_SORT_ASCENDING;
 }
 
 /* Return a list of all MSPs that have the given match sequence name */
@@ -1589,7 +1581,9 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GList *columnList,
 				       GtkAdjustment *adjustment, 
 				       BlxSeqType seqType,
-				       int numReadingFrames)
+				       int numReadingFrames,
+				       const int startCoord,
+				       const gboolean sortInverted)
 {
   if (detailView)
     { 
@@ -1609,8 +1603,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->adjustment = adjustment;
       properties->seqType = seqType;
       properties->numReadingFrames = numReadingFrames;
-      properties->displayRange.min = 1;
-      properties->displayRange.max = 1;
       properties->selectedBaseIdx = UNSET_INT;
       properties->selectedBaseNum = UNSET_INT;
       properties->selectedFrame = UNSET_INT;
@@ -1619,7 +1611,12 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->charWidth = 0;
       properties->charHeight = 0;
       properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
-      properties->sortType = GTK_SORT_ASCENDING;
+      properties->sortInverted = sortInverted;
+
+      /* Set initial display range to something valid but only 1 base wide. Then if we try to do any 
+       * calculations on the range before it gets set properly, it won't have much work to do. */
+      properties->displayRange.min = startCoord;
+      properties->displayRange.max = startCoord;
 
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
@@ -1793,30 +1790,60 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 
 /* Sort the match entries by..... */
 
-static void sortByName(GtkWidget *detailView)
+static void detailViewSortByName(GtkWidget *detailView)
 {
   callFuncOnAllDetailViewTrees(detailView, treeSortByName);
 }
 
-static void sortByScore(GtkWidget *detailView)
+static void detailViewSortByScore(GtkWidget *detailView)
 {
   callFuncOnAllDetailViewTrees(detailView, treeSortByScore);
 }
 
-static void sortByPos(GtkWidget *detailView)
+static void detailViewSortByPos(GtkWidget *detailView)
 {
   callFuncOnAllDetailViewTrees(detailView, treeSortByPos);
 }
 
-static void sortById(GtkWidget *detailView)
+static void detailViewSortById(GtkWidget *detailView)
 {
   callFuncOnAllDetailViewTrees(detailView, treeSortById);
 }
 
-static void sortByGroupOrder(GtkWidget *detailView)
+static void detailViewSortByGroupOrder(GtkWidget *detailView)
 {
   callFuncOnAllDetailViewTrees(detailView, treeSortByGroupOrder);
 }
+
+void detailViewSortByType(GtkWidget *detailView, const SortByType sortByType)
+{
+  switch (sortByType)
+    {
+      case SORTBYNAME:
+	detailViewSortByName(detailView);
+	break;
+    
+      case SORTBYSCORE:
+	detailViewSortByScore(detailView);
+	break;
+
+      case SORTBYID:
+	detailViewSortById(detailView);
+	break;
+
+      case SORTBYPOS:
+	detailViewSortByPos(detailView);
+	break;
+
+      case SORTBYGROUPORDER:
+	detailViewSortByGroupOrder(detailView);
+	break;
+	
+      default:
+	break;
+    };
+}
+
 
 /* Find the next MSP (out the MSPs in this tree) whose start is the next closest to the
  * current start position of the display, searching only in the direction specified by 
@@ -1917,15 +1944,15 @@ static void comboChange(GtkEditable *editBox, gpointer data)
   if (GTK_WIDGET_REALIZED(detailView))
     {
       if (strcmp(val, SORT_BY_SCORE_STRING) == 0)
-	sortByScore(detailView);
+	detailViewSortByScore(detailView);
       else if (strcmp(val, SORT_BY_ID_STRING) == 0)
-	sortById(detailView);
+	detailViewSortById(detailView);
       else if (strcmp(val, SORT_BY_NAME_STRING) == 0)
-	sortByName(detailView);
-      else if (strcmp(val, SORT_BY_POSITION_STRING) == 0)
-	sortByPos(detailView);
+	detailViewSortByName(detailView);
+      else if (strcmp(val, SORT_BY_POS_STRING) == 0)
+	detailViewSortByPos(detailView);
       else if (strcmp(val, SORT_BY_GROUP_ORDER_STRING) == 0)
-	sortByGroupOrder(detailView);
+	detailViewSortByGroupOrder(detailView);
     }
   
   g_free(val);
@@ -2153,7 +2180,7 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 
 
 /* Create the combo box used for selecting sort criteria */
-static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView)
+static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const SortByType sortByType)
 {
   /* Add a label, to make it obvious what the combo box is for */
   GtkWidget *label = gtk_label_new(" <i>Sort HSPs by:</i>");
@@ -2173,12 +2200,36 @@ static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView)
   sortList = g_list_append(sortList, SORT_BY_SCORE_STRING);
   sortList = g_list_append(sortList, SORT_BY_ID_STRING);
   sortList = g_list_append(sortList, SORT_BY_NAME_STRING);
-  sortList = g_list_append(sortList, SORT_BY_POSITION_STRING);
+  sortList = g_list_append(sortList, SORT_BY_POS_STRING);
   sortList = g_list_append(sortList, SORT_BY_GROUP_ORDER_STRING);
   gtk_combo_set_popdown_strings(GTK_COMBO(combo), sortList);
   
-  /* Set the identity field as the default */
-  gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_ID_STRING);
+  /* Set the initial value based on the requested initial sort mode (if any) */
+  switch (sortByType)
+    {
+      case SORTBYNAME:
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_NAME_STRING);
+	break;
+	
+      case SORTBYSCORE:
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_SCORE_STRING);
+	break;
+
+      case SORTBYID:
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_ID_STRING);
+	break;
+
+      case SORTBYPOS:
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_POS_STRING);
+	break;
+
+      case SORTBYGROUPORDER:
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_GROUP_ORDER_STRING);
+	break;
+
+      default:
+	break;
+    };
 }
 
 
@@ -2232,6 +2283,7 @@ static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
 /* Create the detail view toolbar */
 static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
 					    BlxBlastMode mode,
+					    const SortByType sortByType,
 					    GtkWidget **feedbackBox)
 {
   GtkToolbar *toolbar = NULL;
@@ -2245,7 +2297,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "Help",	 "Don't Panic",			 (GtkSignalFunc)GHelp,		  detailView);
 
   /* Combo box for sorting */
-  createSortBox(toolbar, detailView);
+  createSortBox(toolbar, detailView, sortByType);
   
   /* Settings button */
   makeToolbarButton(toolbar, "Settings", "Open the Preferences Window",  (GtkSignalFunc)GSettings,	  NULL);
@@ -2440,7 +2492,10 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			    BlxBlastMode mode,
 			    BlxSeqType seqType,
 			    int numReadingFrames,
-			    const char const *refSeqName)
+			    const char const *refSeqName,
+			    const int startCoord,
+			    const gboolean sortInverted,
+			    const SortByType sortByType)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -2454,7 +2509,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, &feedbackBox);
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortByType, &feedbackBox);
 
   /* Create the header, and compile a list of columns */
   GList *columnList = NULL;
@@ -2493,7 +2548,9 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			     columnList,
 			     adjustment, 
 			     seqType,
-			     numReadingFrames);
+			     numReadingFrames,
+			     startCoord,
+			     sortInverted);
   
   return detailView;
 }

@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.7 2010-02-16 18:58:46 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.8 2010-02-19 16:22:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -152,7 +152,7 @@ static MSP* createEmptyMsp()
  *
  */
 void parseFS(MSP **MSPlist, FILE *file, char *opts,
-	     char **seq1, char *seq1name, char **seq2, char *seq2name)
+	     char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset)
 {
   GString *line_string ;
   char *line ;

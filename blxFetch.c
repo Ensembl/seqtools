@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.6 2010-02-18 16:10:07 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.7 2010-02-19 16:22:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -374,7 +374,7 @@ static int findCommand (char *command, char **retp)
     retval = 1;
   }
   else {
-    strcpy(retstr, "Can't find executable 'dotter' in path");
+    strcpy(retstr, "Can't find executable in path");
     retval = 0;
   }
   
@@ -424,10 +424,12 @@ void blxDisplayMSP(const char *seqName, const KEY key, GtkWidget *mainWindow)
 		!findCommand("Netscape", &browser) &&
 		!findCommand("Mosaic", &browser) &&
 		!findCommand("mosaic", &browser) &&
-		!findCommand("xmosaic", &browser))
+		!findCommand("xmosaic", &browser) &&
+		!findCommand("firefox", &browser) &&
+		!findCommand("Safari", &browser))
 	      {
 		messout("Couldn't find any WWW browser.  Looked for "
-			"netscape, Netscape, Mosaic, xmosaic & mosaic. "
+			"netscape, Netscape, Mosaic, xmosaic, mosaic, firefox & Safari. "
 			"System message: \"%s\"", browser);
 		return;
 	      }

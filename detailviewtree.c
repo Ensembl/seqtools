@@ -121,10 +121,10 @@ int treeGetFrame(GtkWidget *tree)
   return properties ? properties->readingFrame : UNSET_INT;
 }
 
-static GtkSortType treeGetSortType(GtkWidget *tree)
+static gboolean treeGetSortInverted(GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetSortType(detailView);
+  return detailViewGetSortInverted(detailView);
 }
 
 BlxSeqType treeGetSeqType(GtkWidget *tree)
@@ -506,7 +506,8 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
 	  result = displayLen - numBasesFromLeft;
 	  
 	  /* x could be in an empty gap at the end, so bounds check the result.
-	   * Note that our index is 0-based but the display range is 1-based. */
+	   * Note that our index is 0-based but the display range will start at 
+	   * 1 (or another positive value if there is an offset). */
 	  if (result < 0)
 	    {
 	      result = UNSET_INT;
@@ -542,7 +543,7 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y, i
       if (charIdx != UNSET_INT)
 	{
 	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
-	  baseIdx = charIdx + adjustment->value + 1; /* Adjustment is 0-based, display range is 1-based */
+	  baseIdx = charIdx + adjustment->value;
 	}
     }
   
@@ -866,33 +867,43 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 
 void treeSortByName(GtkWidget *tree, gpointer data)
 {
+  /* Default sort order for name column is ASCENDING. */
+  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, S_NAME_COL, treeGetSortType(tree));
+  gtk_tree_sortable_set_sort_column_id(model, S_NAME_COL, sortOrder);
 }
 
 void treeSortById(GtkWidget *tree, gpointer data)
 {
+  /* Default sort order for id column is DESCENDING. */
+  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_ASCENDING : GTK_SORT_DESCENDING;
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, ID_COL, treeGetSortType(tree));
+  gtk_tree_sortable_set_sort_column_id(model, ID_COL, sortOrder);
 }
 
 void treeSortByScore(GtkWidget *tree, gpointer data)
 {
+  /* Default sort order for score column is DESCENDING. */
+  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_ASCENDING : GTK_SORT_DESCENDING;
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, SCORE_COL, treeGetSortType(tree));
+  gtk_tree_sortable_set_sort_column_id(model, SCORE_COL, sortOrder);
 }
 
 void treeSortByPos(GtkWidget *tree, gpointer data)
 {
+  /* Default sort order for pos column is ASCENDING. */
+  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, START_COL, treeGetSortType(tree));
+  gtk_tree_sortable_set_sort_column_id(model, START_COL, sortOrder);
 }
 
 /* Sort by the order number in the sequence's group, if it has one. */
 void treeSortByGroupOrder(GtkWidget *tree, gpointer data)
 {
+  /* Default sort order for group-order is ASCENDING. */
+  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, SEQUENCE_COL, treeGetSortType(tree));
+  gtk_tree_sortable_set_sort_column_id(model, SEQUENCE_COL, sortOrder);
 }
 
 /***********************************************************
@@ -1368,9 +1379,30 @@ static void calcID(MSP *msp, GtkWidget *tree)
  * we are viewing protein matches. */
 static void calcDisplayCoords(MSP *msp, GtkWidget *tree)
 {
+  /* Convert the input coords (which are 1-based within the ref sequence section
+   * that we're dealing with) to coords on the actual reference sequence (i.e.
+   * the coords that will be displayed for the DNA sequence). */
+  const IntRange const *refSeqRange = treeGetRefSeqRange(tree);
+  int offset = refSeqRange->min - 1;
+  msp->qstart = msp->qstart + offset;
+  msp->qend = msp->qend + offset;
+
+  /* Gap coords are also 1-based, so convert those too */
+  if (msp->gaps && arrayMax(msp->gaps) > 0)
+    {
+      int i = 0;
+      for ( ; i < arrayMax(msp->gaps) ; i++)
+	{
+	  SMapMap *curRange = arrp(msp->gaps, i, SMapMap);
+	  curRange->r1 = curRange->r1 + offset;
+	  curRange->r2 = curRange->r2 + offset;
+	}
+    }
+  
+  /* Above coords are all with respect to the DNA sequence. Also find the peptide
+   * coords, if relevant. These are the coords that will be displayed in the tree. */
   const int frame = treeGetFrame(tree);
   const int numReadingFrames = treeGetNumReadingFrames(tree);
-
   msp->displayStart = convertDnaToPeptide(msp->qstart, frame, numReadingFrames, NULL); 
   msp->displayEnd = convertDnaToPeptide(msp->qend, frame, numReadingFrames, NULL);
 }
@@ -1404,8 +1436,8 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
 void addMspToTree(GtkWidget *tree, MSP *msp)
 {
   /* First calculate the ID and display coords and update them in the MSP */
-  calcID(msp, tree);
   calcDisplayCoords(msp, tree);
+  calcID(msp, tree);
 
   /* Add the MSP as an individual row */
   addMspToTreeRow(msp, tree);
@@ -1434,8 +1466,13 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
     {
       MSP *msp = (MSP*)(mspGList->data);
       
-      /* We want to display the start coord, unless the display is reversed, in which case display the end */
-      int coord = rightToLeft ? msp->send : msp->sstart;
+      /* We want to display the min coord if we're in the same direction as the q strand,
+       * or the max coord if we're in the opposite direction (unless the display is reversed,
+       * in which case it's vice versa). */
+      int sSeqMin, sSeqMax;
+      getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
+      const gboolean sameDirection = (treeGetStrand(tree) == mspGetSubjectStrand(msp));
+      int coord = (rightToLeft != sameDirection) ? sSeqMin : sSeqMax;
 
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -1466,8 +1503,13 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
     {
       MSP *msp = (MSP*)(mspGList->data);
       
-      /* We want to display the end coord, unless the display is reversed, in which case display the start */
-      int coord = rightToLeft ? msp->sstart : msp->send;
+      /* We want to display the max coord if we're in the same direction as the q strand,
+       * or the min coord if we're in the opposite direction (unless the display is reversed,
+       * in which case it's vice versa). */
+      int sSeqMin, sSeqMax;
+      getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
+      const gboolean sameDirection = (treeGetStrand(tree) == mspGetSubjectStrand(msp));
+      int coord = (rightToLeft != sameDirection) ? sSeqMax : sSeqMin;
       
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);

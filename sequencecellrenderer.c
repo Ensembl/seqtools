@@ -728,7 +728,7 @@ static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTree
 	      gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourStart);
 	      gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleStart, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-	      const int idx = rd->rightToLeft ? rd->displayRange->max - minIdx + 1 : minIdx - rd->displayRange->min;
+	      const int idx = rd->rightToLeft ? rd->displayRange->max - minIdx : minIdx - rd->displayRange->min;
 
 	      int x, y;
 	      getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -743,7 +743,7 @@ static gboolean drawExonBoundary(GtkTreeModel *model, GtkTreePath *path, GtkTree
 	      gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourEnd);
 	      gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleEnd, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	      
-	      const int idx = rd->rightToLeft ? rd->displayRange->max - maxIdx : maxIdx - rd->displayRange->min + 1;
+	      const int idx = rd->rightToLeft ? rd->displayRange->max - maxIdx : maxIdx - rd->displayRange->min;
 
 	      int x, y;
 	      getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -839,7 +839,7 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
   int maxIdx = max(msp->displayStart, msp->displayEnd);
 
   /* Check it's in the visible range. */
-  if (maxIdx > data->displayRange->min && minIdx < data->displayRange->max)
+  if (maxIdx >= data->displayRange->min && minIdx <= data->displayRange->max)
     {
       /* Limit the range of indices in the match sequence to those within the display range. */
 

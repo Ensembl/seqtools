@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.13 2010-02-17 13:35:16 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.14 2010-02-19 16:22:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -51,6 +51,12 @@
 #define BLIXEM_VERSION_COMPILE BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
 
 #define REFERENCE_SEQUENCE_NAME "Reference"
+
+
+/* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
+typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS, SORTBYGROUPORDER} SortByType ;
+
+
 
 /* This will probably never be completed but I want to start creating a blixem context....which
  * will require the following steps:
@@ -197,8 +203,6 @@ typedef struct featureSeries_ {
 
 
 
-
-
 /* Dotter/Blixem Package-wide functions */
 void blxreadhsp(FILE *seqfile, FILE *exblxfile, char *featurefile, char *qname, 
 		 int dispstart, int qoffset, char *opts, int *argc, char **argv);
@@ -213,7 +217,7 @@ void  blviewRedraw(void);
 void  selectFeatures(void);
 float fsTotalHeight(MSP *msplist);
 void  parseFS(MSP **MSPlist, FILE *file, char *opts,
-	      char **seq1, char *seq1name, char **seq2, char *seq2name) ;
+	      char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset) ;
 void insertFS(MSP *msp, char *series);
 char *readFastaSeq(FILE *seqfile, char *qname);
 

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.16 2010-02-17 15:05:48 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.17 2010-02-19 16:22:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -191,9 +191,6 @@ typedef struct _BPMSP
 #define toggleMatchPasteStr  "Paste Match Set\t\t\t\tm"
 #define toggleMatchClearStr  "Clear Match Set\t\t\t\tm"
 
-/* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
-typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS} SortByType ;
-
 //static void blxDestroy(void) ;
 //static void blxPrint(void) ;
 //static void wholePrint(void) ;
@@ -233,7 +230,7 @@ static void blviewDestroy(GtkWidget *unused) ;
 #endif
 
 //static void toggleColors (void);
-static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const gboolean gappedHsp) ;
+static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const int startCoord, const SortByType sortByType, const gboolean sortInverted, const gboolean gappedHsp) ;
 
 #if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q);
@@ -1720,11 +1717,9 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
-    blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, HSPgaps) ;
-
-//  /* Sort the MSPs according to mode chosen. */
-//  MSPsort(sortMode) ;
-
+    {
+      blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, start, sortMode, sortInvOn, HSPgaps) ;
+    }
 
   return 0;
 }
@@ -1769,11 +1764,25 @@ static void blviewCreate(char *opts,
 			 char *refSeq, 
 			 char *refSeqName, 
 			 const int qOffset,
+			 const int startCoord,
+			 const SortByType sortByType,
+			 const gboolean sortInverted,
 			 const gboolean gappedHsp)
 {
   if (!blixemWindow)
     {
-      blixemWindow = createMainWindow(refSeq, refSeqName, msplist, getBlastMode(), getSeqType(), getNumReadingFrames(), stdcode1, qOffset, gappedHsp);
+      blixemWindow = createMainWindow(refSeq, 
+				      refSeqName, 
+				      msplist, 
+				      getBlastMode(), 
+				      getSeqType(), 
+				      getNumReadingFrames(), 
+				      stdcode1, 
+				      qOffset, 
+				      startCoord,
+				      sortByType,
+				      sortInverted, 
+				      gappedHsp);
       
       if (!oldWidth)
 	gtk_window_set_default_size(GTK_WINDOW(blixemWindow),

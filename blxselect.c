@@ -1,6 +1,6 @@
 /*  Last edited: Feb 14 10:47 2008 (edgrif) */
 
-/* $Id: blxselect.c,v 1.3 2010-01-20 18:16:55 gb10 Exp $ */
+/* $Id: blxselect.c,v 1.4 2010-02-19 16:22:03 gb10 Exp $ */
 
 /* BLXSELECT - select seqbl/exblx files for blixem in a user-friendly way
  *
@@ -136,10 +136,11 @@ static void callBlixem(box)
     fclose(seqfile);
 
     MSPlist = 0;		/* The list is freed in blxview.c */
-    parseFS(&MSPlist, HSPfile, opts, &qseq, qname, &dummyseq, dummyseqname);
+    const int qOffset = 0;
+    parseFS(&MSPlist, HSPfile, opts, &qseq, qname, &dummyseq, dummyseqname, qOffset);
     fclose(HSPfile);
 
-    blxview (qseq, qname, 1, 0, MSPlist, opts, NULL, NULL, FALSE);
+    blxview (qseq, qname, 1, qOffset, MSPlist, opts, NULL, NULL, FALSE);
 			/* FALSE means it's not an external call */
 }
 
