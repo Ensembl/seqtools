@@ -790,17 +790,44 @@ static void onSelectionChangedTree(GObject *selection, gpointer data)
  *                   Sorting and filtering                 *
  ***********************************************************/
 
-
 /* Refilter the data for the given tree */
 void refilterTree(GtkWidget *tree, gpointer data)
 {
   assertTree(tree);
   
-  GtkTreeModelFilter *filter = GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(GTK_TREE_VIEW(tree)));
-  gtk_tree_model_filter_refilter(filter);
+  GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
+  gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(model));
 
   /* Select any rows whose sequences are marked as selected */
   selectRowsForSelectedSeqs(tree, NULL);
+}
+
+
+/* Determine the sort order for this column. Columns may have a different default
+ * sort order (e.g. name is sorted ascending, but score is sorted descending.)
+ * However, the opposite sort order is returned if the detail view's invert-sort-
+ * order flag is set. */
+static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId)
+{
+  GtkSortType result = GTK_SORT_ASCENDING;
+  
+  switch (columnId)
+    {
+      case SCORE_COL: /* fall through */
+      case ID_COL:
+	result = GTK_SORT_DESCENDING;
+	break;
+	
+      default: /* all others ascending */
+	break;
+    };
+
+  if (treeGetSortInverted(tree))
+    {
+      result = (result == GTK_SORT_ASCENDING) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
+    }
+
+  return result;
 }
 
 
@@ -810,10 +837,11 @@ void resortTree(GtkWidget *tree, gpointer data)
   /* Not sure if there's a better way to do this, but we can force a re-sort by 
    * setting the sort column to something else and then back again. */
   gint sortColumn;
-  GtkSortType sortOrder;
   GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, &sortOrder);
+  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, NULL);
   
+  /* Set it to unsorted */
+  GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
   gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, sortOrder);
   gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumn, sortOrder);
 }
@@ -867,32 +895,28 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 
 void treeSortByName(GtkWidget *tree, gpointer data)
 {
-  /* Default sort order for name column is ASCENDING. */
-  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
+  GtkSortType sortOrder = treeGetColumnSortOrder(tree, S_NAME_COL);
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   gtk_tree_sortable_set_sort_column_id(model, S_NAME_COL, sortOrder);
 }
 
 void treeSortById(GtkWidget *tree, gpointer data)
 {
-  /* Default sort order for id column is DESCENDING. */
-  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_ASCENDING : GTK_SORT_DESCENDING;
+  GtkSortType sortOrder = treeGetColumnSortOrder(tree, ID_COL);
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   gtk_tree_sortable_set_sort_column_id(model, ID_COL, sortOrder);
 }
 
 void treeSortByScore(GtkWidget *tree, gpointer data)
 {
-  /* Default sort order for score column is DESCENDING. */
-  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_ASCENDING : GTK_SORT_DESCENDING;
+  GtkSortType sortOrder = treeGetColumnSortOrder(tree, SCORE_COL);
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   gtk_tree_sortable_set_sort_column_id(model, SCORE_COL, sortOrder);
 }
 
 void treeSortByPos(GtkWidget *tree, gpointer data)
 {
-  /* Default sort order for pos column is ASCENDING. */
-  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
+  GtkSortType sortOrder = treeGetColumnSortOrder(tree, START_COL);
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   gtk_tree_sortable_set_sort_column_id(model, START_COL, sortOrder);
 }
@@ -900,8 +924,7 @@ void treeSortByPos(GtkWidget *tree, gpointer data)
 /* Sort by the order number in the sequence's group, if it has one. */
 void treeSortByGroupOrder(GtkWidget *tree, gpointer data)
 {
-  /* Default sort order for group-order is ASCENDING. */
-  GtkSortType sortOrder = treeGetSortInverted(tree) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
+  GtkSortType sortOrder = treeGetColumnSortOrder(tree, SEQUENCE_COL);
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   gtk_tree_sortable_set_sort_column_id(model, SEQUENCE_COL, sortOrder);
 }
@@ -1915,8 +1938,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 
   /* Extract the sort column and sort order */
   gint sortColumn;
-  GtkSortType sortOrder;
-  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, &sortOrder);
+  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, NULL);
 
   /* Extract the MSP lists from the tree rows */
   GList *mspGList1 = treeGetMsps(model, iter1);
@@ -2021,12 +2043,6 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   if (!multipleMsps && !result)
     {
       result = msp1->slength - msp2->slength;
-    }
-  
-  /* Reverse order if sort is descending */
-  if (sortOrder == GTK_SORT_DESCENDING)
-    {
-      result *= -1;
     }
   
   return result;

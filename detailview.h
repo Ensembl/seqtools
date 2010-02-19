@@ -189,6 +189,7 @@ void			updateDetailViewFontDesc(GtkWidget *detailView);
 
 void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
 gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
+void			detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert);
 
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 GtkWidget *container,

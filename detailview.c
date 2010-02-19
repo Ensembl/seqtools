@@ -1009,6 +1009,17 @@ gboolean detailViewGetMatchesSquashed(GtkWidget *detailView)
   return treeGetMatchesSquashed(detailViewGetFirstTree(detailView));
 }
 
+
+/* Set the value of the 'invert sort order' flag */
+void detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->sortInverted = invert;
+
+  callFuncOnAllDetailViewTrees(detailView, resortTree);
+}
+
+
 /***********************************************************
  *                    Detail view events                   *
  ***********************************************************/
@@ -2228,6 +2239,7 @@ static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const Sort
 	break;
 
       default:
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), "");
 	break;
     };
 }

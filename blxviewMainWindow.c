@@ -17,7 +17,8 @@
 #define DEFAULT_WINDOW_BORDER_WIDTH      10   /* used to change the default border width around the main window */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
-
+#define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
+#define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.8  /* what fraction of the screen size the blixem window height defaults to */
 
 typedef struct _GroupDialogData
   {
@@ -1112,10 +1113,19 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean creat
 static void onSquashMatches(GtkWidget *button, gpointer data)
 {
   const gboolean squash = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = GTK_WIDGET(data);
   
   detailViewSquashMatches(detailView, squash);
+}
+
+
+/* Callback function called when the 'invert sort order' button is toggled */
+static void onSortOrderToggled(GtkWidget *button, gpointer data)
+{
+  const gboolean invert = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  GtkWidget *detailView = GTK_WIDGET(data);
+  
+  detailViewSetSortInverted(detailView, invert);
 }
 
 
@@ -1153,7 +1163,11 @@ static void showSettingsDialog(GtkWidget *mainWindow)
   
   GtkWidget *vbox = createVBoxWithBorder(contentArea, borderWidth);
   
-  createCheckButton(vbox, "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), mainWindow);
+  /* Squash matches */
+  createCheckButton(vbox, "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
+  
+  /* Invert sort order */
+  createCheckButton(vbox, "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
     
   /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
@@ -1988,6 +2002,13 @@ gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
 /* Set various properties for the main window widget */
 static void setStyleProperties(GtkWidget *widget)
 {
+  /* Set the initial window size based on some fraction of the screen size */
+  GdkScreen *screen = gtk_widget_get_screen(widget);
+  const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
+  const int height = gdk_screen_get_height(screen) * DEFAULT_WINDOW_HEIGHT_FRACTION;
+  
+  gtk_window_set_default_size(GTK_WINDOW(widget), width, height);
+  
   gtk_container_set_border_width (GTK_CONTAINER(widget), DEFAULT_WINDOW_BORDER_WIDTH); 
   gtk_window_set_mnemonic_modifier(GTK_WINDOW(widget), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
   
@@ -2037,12 +2058,20 @@ GtkWidget* createMainWindow(char *refSeq,
 			    char **geneticCode,
 			    const int refSeqOffset,
 			    const int startCoord1Based,
-			    const SortByType sortByType,
+			    const SortByType sortByTypeInput,
 			    const gboolean sortInverted,
 			    const gboolean gappedHsp)
 {
-  /* Convert the start coord (which is 1-based) to real coords by adding the offset */
-  const int startCoord = startCoord1Based + refSeqOffset;
+  /* If no sort type was specified, sort by ID by default */
+  SortByType sortByType = (sortByTypeInput == SORTBYUNSORTED) ? SORTBYID : sortByTypeInput;
+
+  /* Convert the start coord (which is 1-based and on the DNA sequence) to display
+   * coords (which take into account the offset and may also be peptide coords) */
+  int startCoord = startCoord1Based + refSeqOffset;
+  if (seqType == BLXSEQ_PEPTIDE)
+    {
+      startCoord = convertDnaToPeptide(startCoord, 1, numReadingFrames, NULL);
+    }
   
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
