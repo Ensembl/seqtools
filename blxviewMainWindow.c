@@ -1261,11 +1261,29 @@ static void showModalDialog(GtkWidget *mainWindow, char *title, char *messageTex
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
-  
-  /* Add the message */
+
   GtkWidget *vbox = GTK_DIALOG(dialog)->vbox;
-  GtkWidget *label = gtk_label_new(messageText);
-  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  /* We'll put the message in a scrolled window with just a vertical scrollbar */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
+  
+  /* Create the text buffer and set the text */
+  GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
+  gtk_text_buffer_set_text(textBuffer, messageText, -1);
+  
+  /* Create a text view to display the buffer */
+  GtkWidget *textView = gtk_text_view_new();
+  gtk_text_view_set_buffer(GTK_TEXT_VIEW(textView), textBuffer);
+  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
+
+  gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), TRUE);
+  gtk_text_view_set_editable(GTK_TEXT_VIEW(textView), FALSE);
+  
+  /* Set a pretty big initial size */
+  gtk_widget_set_size_request(dialog, mainWindow->allocation.width * 0.7, mainWindow->allocation.height * 0.9);
   
   /* Ensure dialog is destroyed when user responds */
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
@@ -1307,44 +1325,143 @@ static gint runConfirmationBox(GtkWidget *mainWindow, char *title, char *message
 void displayHelp(GtkWidget *mainWindow)
 {
   char *messageText = (messprintf("\
-				  \
-				  BLIXEM - BLast matches\n\
-				  In an\n\
-				  X-windows\n\
-				  Embedded\n\
-				  Multiple alignment\n\
-				  \n\
-				  LEFT MOUSE BUTTON:\n\
-				  Pick on boxes and sequences.\n\
-				  Fetch annotation by double clicking on sequence (Requires 'efetch' to be installed.)\n\
-				  \n\
-				  MIDDLE MOUSE BUTTON:\n\
-				  Scroll horizontally.\n\
-				  \n\
-				  RIGHT MOUSE BUTTON:\n\
-				  Menu.  Note that the buttons Settings and Goto have their own menus.\n\
-				  \n\
-				  \n\
-				  Keyboard shortcuts:\n\
-				  \n\
-				  Cntl-Q          quit application\n\
-				  Cntl-P          print\n\
-				  Cntl-H          help\n\
-				  \n\
-				  \n\
-				  m/M             for mark/unmark a set of matches from the cut buffer\n\
-				  \n\
-				  g/G             go to the match in the cut buffer\n\
-				  \n\
-				  \n\
-				  \n\
-				  RESIDUE COLOURS:\n\
-				  Yellow = Query.\n\
-				  See Settings Panel for matching residues (click on Settings button).\n\
-				  \n\
-				  version %s\n\
-				  (c) Erik Sonnhammer", blixemVersion));
-  
+BLIXEM\n\
+BLast matches In an X-windows Embedded Multiple alignment\n\
+\n\
+\n\
+pfetch\n\
+	•	Double-click a row to pfetch a sequence.\n\
+\n\
+\n\
+MAIN MENU\n\
+Right-click anywhere in the Blixem window to pop up the main menu.  The menu options are:\n\
+	•	Quit: Quit Blixem.\n\
+	•	Help: Display this help.\n\
+	•	Print: Print the display\n\
+	•	Settings: Edit settings.\n\
+	•	View: Display the View dialog box. This allows you to show/hide parts of the display.\n\
+	•	Create Group: Create a group of sequences.\n\
+	•	Edit Groups: Edit properties for groups.\n\
+	•	Deselect all: Deselect all sequences.\n\
+	•	Dotter: Run Dotter and/or set Dotter parameters.\n\
+	•	Feature series selection tool: ???\n\
+\n\
+\n\
+SCROLLING\n\
+	•	Middle-click in the big picture to scroll to an area.\n\
+	•	Middle-click in the detail view to centre on a base.\n\
+	•	Use the horizontal scrollbar at the bottom of the window to scroll the detail view.\n\
+	•	Use the mouse-wheel to scroll up/down and left/right in the detail view (if your mouse has a horizontal scroll-wheel).\n\
+	•	Use the mouse-wheel to scroll the display area left/right from the big picture.\n\
+	•	The left/right arrow keys move the selection one nucleotide to the left/right.\n\
+	•	When viewing protein matches, holding CTRL while using the left/right arrow keys moves the selection one full codon to the left/right.\n\
+	•	The ',' and '.' keys scroll the screen one nucleotide to the left/right.\n\
+\n\
+\n\
+SELECTIONS\n\
+	•	You can select a sequence by left-clicking on its row in the detail view.  Selected sequences are highlighted in cyan in the big picture.\n\
+	•	The name of the sequence you selected is displayed in the feedback box on the toolbar.  If multiple alignments for this sequence are currently within the display range, all of their rows will be selected.\n\
+	•	You can select multiple sequences by holding down the CTRL or SHIFT keys while selecting rows.\n\
+	•	You can deselect a single sequence by CTRL-clicking on its row.\n\
+	•	You can deselect all sequences by right-clicking and selecting 'Deselect all', or with the SHIFT-CTRL-A keyboard shortcut.\n\
+	•	You can move the selection up/down a row using the up/down arrow keys.\n\
+\n\
+	•	You can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
+	•	For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green and red.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The red highlighting indicates the specific nucleotide that is currently selected and whose coordinate is displayed in the feedback box.\n\
+	•	You can move the selection to the previous/next nucleotide using the left and right arrow keys.\n\
+	•	You can move the selection to the previous/next peptide by holding CTRL while using the left and right arrow keys.\n\
+	•	Middle-clicking also scrolls the display to centre on the clicked coordinate.  To select a coordinate without the display scrolling, hold down CTRL as you middle-click.\n\
+\n\
+\n\
+ZOOMING\n\
+	•	Zoom in to the currently-selected region in the big picture using the +/- buttons in the top-left corner of the window, or using the CTRL '=' and CTRL '-' shortcut keys.  The 'Whole' button zooms out to show the full length of the query sequence.\n\
+	•	Zoom in/out of the detail view using the +/- buttons on the toolbar, or using the '=' and '-' shortcut keys.\n\
+\n\
+\n\
+SORTING\n\
+	•	The alignments can be sorted by selecting the column you wish to sort by from the drop-down box on the toolbar.  To reverse the sort order, select the relevant option under the Settings menu.\n\
+	•	The alignments can also be sorted by group by selecting the Group option from the drop-down box.  See the Groups section.\n\
+\n\
+\n\
+GROUPS\n\
+Alignments can be grouped together so that they can be sorted/highlighted/hidden etc.\n\
+\n\
+Creating a group from a selection:\n\
+	•	Select the sequences you wish to include in the group by left-clicking their rows in the detail view.  Multiple rows can be selected by holding the CTRL or SHIFT keys while clicking.\n\
+	•	Right-click and select 'Create Group', or use the CTRL-G shortcut key.\n\
+	•	Ensure that the 'From selection' radio button is selected, and click 'Create group'.\n\
+\n\
+Creating a group from a sequence name:\n\
+	•	Right-click and select 'Create Group', or use the CTRL-G shortcut key.\n\
+	•	Select the 'From sequence name(s)' radio button and enter the name of the sequence in the box below.  You may use the following wildcards to search for sequences: '*' for any number of characters; '?' for a single character.  For example, searching for '*X' will find all sequences whose name ends in 'X' (i.e. all exons).\n\
+	•	Click 'Create group'.\n\
+\n\
+Editing groups:\n\
+	•	After creating a group, your group is highlighted in the display and the 'Edit Groups' tab is displayed.  Make any changes necessary (e.g. if you want to give it a more meaningful name or a different colour), and then click 'Close'.\n\
+	•	You can open the 'Edit Groups' tab by right-clicking and selecting 'Edit Groups' in the menu, or by using the SHIFT-CTRL-G keyboard shortcut.\n\
+	•	To delete a group, open the 'Edit Groups' dialog box and click on the 'Delete' button next to the group you wish to delete.\n\
+	•	To delete all groups, open the 'Edit Groups' dialog box and click on the 'Delete all groups' button.\n\
+\n\
+Group Properties\n\
+	•	To edit a group's properties, right-click and select 'Edit Groups', or use the SHIFT-CTRL-G shortcut key.\n\
+	•	Name: a name to help identify the group.\n\
+	•	Hide: tick this box to hide the alignments in the group from the detail view.\n\
+	•	Highlight: tick this box to highlight the alignments in this group in both the big picture view and detail view.\n\
+	•	Order: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (when sorting ascending).  Alignments in a group will always appear before alignments that are not in a group.  Therefore, to make an alignment always appear at the top of the list in the detail view, put it in a group with Order number 1, and enable sorting by Group (see the Sorting section).\n\
+	•	Colour: the colour the group will be highlighted in, if 'Highlight' is enabled.  The default colour for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colours.\n\
+\n\
+\n\
+DOTTER\n\
+	•	To start Dotter, or to edit the Dotter parameters, right-click and select 'Dotter' or use the CTRL-D keyboard shortcut.	The Dotter settings dialog will pop up.\n\
+	•	To run Dotter with the default (automatic) parameters, just hit RETURN, or click the 'Execute' button.\n\
+	•	To enter manual parameters, click the 'Manual' radio button and enter the values in the 'Start' and 'End' boxes.\n\
+	•	To revert to the last-saved manual parameters, click the 'Last saved' button.\n\
+	•	To revert back to automatic parameters, click the 'Auto' radio button.\n\
+	•	To save the parameters without running Dotter, click Save and then Cancel'.\n\
+	•	To save the parameters and run Dotter, click 'Execute'.\n\
+\n\
+\n\
+KEYBOARD SHORTCUTS\n\
+	•	CTRL Q: Quit\n\
+	•	CTRL H: Help\n\
+	•	CTRL P: Print\n\
+	•	CTRL S: Settings menu\n\
+	•	CTRL V: View menu\n\
+	•	CTRL G: Create group\n\
+	•	SHIFT CTRL G: Edit groups\n\
+	•	CTRL A: Select all visible sequences\n\
+	•	SHIFT CTRL A: Deselect all sequences\n\
+	•	CTRL D: Dotter\n\
+	•	Left/right arrow keys: Move the currently-selected coordinate one nucleotide to the left/right\n\
+	•	CTRL and left/right arrow keys: Move the currently-selected coordinate one peptide to the left/right\n\
+	•	'=' : zoom in detail view\n\
+	•	'-' : zoom out detail view\n\
+	•	CTRL '=' : zoom in big picture\n\
+	•	CTRL '-' :  zoom out big picture\n\
+	•	, (comma): scroll left one coordinate\n\
+	•	. (full-stop): scroll right one coordinate\n\
+	•	g: Go to coordinate\n\
+\n\
+\n\
+SETTINGS\n\
+	•	The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut CTRL-S.\n\
+	•	Squash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
+\n\
+\n\
+KEY\n\
+In the detail view, the following colours and symbols have the following meanings:\n\
+	•	Yellow background: query sequence\n\
+	•	Cyan: identical residues\n\
+	•	Violet: conserved residues\n\
+	•	Grey: mismatch\n\
+	•	Grey with a '.': deletion\n\
+	•	Yellow vertical line: insertion\n\
+	•	Thin blue vertical line: start of an exon\n\
+	•	Thin dark-blue vertical line: end of an exon\n\
+	•	Green background (protein matches only): the three nucleotides for the currently-selected coordinate.\n\
+	•	Red background (protein matches only): the nucleotide for the currently selected query coordinate.\n\
+", blixemVersion));
+
   showModalDialog(mainWindow, "Help", messageText);
 }
 
