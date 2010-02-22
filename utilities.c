@@ -786,3 +786,39 @@ int wildcardSearch(const char *textToSearch, const char *searchStr)
 
   return 0;
 }
+
+
+/* Given a string, returns the string if is less than a fudge factor or returns
+ * the string abbreviated in the form "xxxxx...yyyyy". The result should be 
+ * free'd with g_free. */
+gchar *abbreviateText(const char *inputStr, const int max_len)
+{
+  gchar *result = NULL;
+
+  if (max_len > 0) 
+    { 
+      char abbrev[] = "<>";
+      int inputStrLen = strlen(inputStr);
+      
+      if (inputStrLen <= max_len)
+	{
+	  result = g_strdup(inputStr);
+	}
+      else
+	{
+	  /* Get the first len/2 chars */
+	  const int headChars = (max_len / 2) - 1 ;
+	  char *headStr = headChars > 0 ? g_strndup(inputStr, headChars) : NULL;
+
+	  const int tailChars = max_len - ((max_len / 2) + 1) ;
+	  char *tailStr = g_strndup(inputStr + inputStrLen - tailChars, tailChars); /* trailing null fudged in here. */
+	  
+	  result = g_strconcat(headStr, abbrev, tailStr, NULL);
+	  
+	  g_free(headStr);
+	  g_free(tailStr);
+	}
+    }
+    
+  return (result) ;
+}

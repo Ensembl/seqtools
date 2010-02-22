@@ -112,5 +112,6 @@ int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 
 char*		      convertIntToString(const int value);
 int		      convertStringToInt(const char *inputStr);
+char*		      abbreviateText(const char *inputStr, const int maxLen);
 
 #endif /* _utilities_h_included_ */

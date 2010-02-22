@@ -1574,6 +1574,66 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
 }
 
 
+/* Cell data function for the "name" column. This displays the sequence name, but
+ * abbreviated to fit the cell, and with a symbol appended to indicate the s strand */
+static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
+				     GtkCellRenderer *renderer, 
+				     GtkTreeModel *model, 
+				     GtkTreeIter *iter, 
+				     gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  
+  /* Get the MSP(s) for this row. They should all have the same sequence name. */
+  GList	*mspGList = treeGetMsps(model, iter);
+
+  if (g_list_length(mspGList) > 0)
+    {
+      MSP *msp = (MSP*)(mspGList->data);
+
+      const int colWidth = gtk_tree_view_column_get_width(column);
+      const int charWidth = treeGetCharWidth(tree);
+      const int maxLen = (int)(colWidth / charWidth);
+
+      if (maxLen > 2)
+	{
+	  /* Ignore any text before the colon (if there is one) */
+	  char *name = strchr(msp->sname, ':');
+	  if (name)
+	    {
+	      name++; /* start from the char after the colon */
+	    }
+	  else
+	    {
+	      name = msp->sname; /* use the full name */
+	    }
+
+	  /* Abbreviate the name to fit the column */
+	  char *displayName = abbreviateText(name, maxLen - 2);
+	  char displayText[maxLen + 1];
+	  sprintf(displayText, "%s", displayName);
+	  
+	  int i = strlen(displayName);
+	  for ( ; i < maxLen - 1; ++i)
+	    {
+	      displayText[i] = ' ';
+	    }
+
+	  displayText[maxLen - 1] = msp->sframe[1];
+	  displayText[maxLen] = 0;
+	  
+	  g_object_set(renderer, NAME_COLUMN_PROPERTY_NAME, displayText, NULL);
+	  
+	  g_free(displayName);
+	}
+      else
+	{
+	  g_object_set(renderer, NAME_COLUMN_PROPERTY_NAME, "", NULL);
+	}
+    }
+}
+
+
 /* Cell data function for the "start" column. This displays the start coord of the match 
  * sequence in normal left-to-right display, but the end coord if the display is reversed */
 static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
@@ -1643,24 +1703,41 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
     }
   else
     {
-      g_object_set(renderer, START_COLUMN_PROPERTY_NAME, "", NULL);
+      g_object_set(renderer, END_COLUMN_PROPERTY_NAME, "", NULL);
     }
 }
 
 
-/* Cell data function for a generic integer column. */
-static void cellDataFunctionIntCol(GtkTreeViewColumn *column, 
-				   GtkCellRenderer *renderer, 
-				   GtkTreeModel *model, 
-				   GtkTreeIter *iter, 
-				   gpointer data)
+/* Cell data function for the score column. */
+static void cellDataFunctionScoreCol(GtkTreeViewColumn *column, 
+				    GtkCellRenderer *renderer, 
+				    GtkTreeModel *model, 
+				    GtkTreeIter *iter, 
+				    gpointer data)
 {
   /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
   GList	*mspGList = treeGetMsps(model, iter);
   
   if (g_list_length(mspGList) != 1)
     {
-      g_object_set(renderer, START_COLUMN_PROPERTY_NAME, "", NULL);
+      g_object_set(renderer, SCORE_COLUMN_PROPERTY_NAME, "", NULL);
+    }
+}
+
+
+/* Cell data function for the id column. */
+static void cellDataFunctionIdCol(GtkTreeViewColumn *column, 
+				  GtkCellRenderer *renderer, 
+				  GtkTreeModel *model, 
+				  GtkTreeIter *iter, 
+				  gpointer data)
+{
+  /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
+  GList	*mspGList = treeGetMsps(model, iter);
+  
+  if (g_list_length(mspGList) != 1)
+    {
+      g_object_set(renderer, ID_COLUMN_PROPERTY_NAME, "", NULL);
     }
 }
 
@@ -1709,6 +1786,10 @@ static void initColumn(GtkWidget *tree,
       gtk_tree_view_column_set_expand(column, TRUE);
       break;
       
+    case S_NAME_COL:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionNameCol, tree, NULL);
+      break;
+
     case START_COL:
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionStartCol, tree, NULL);
       break;
@@ -1717,9 +1798,12 @@ static void initColumn(GtkWidget *tree,
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionEndCol, tree, NULL);
       break;
       
-    case SCORE_COL: /* fall through */
+    case SCORE_COL:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionScoreCol, tree, NULL);
+      break;
+
     case ID_COL:
-      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionIntCol, tree, NULL);
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionIdCol, tree, NULL);
       break;
       
     default:
@@ -1830,6 +1914,52 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
 }
 
 
+/* Refresh the name column header. This displays an abbreviated version of the
+ * reference sequence name. It needs refreshing when the columns change size,
+ * so we can re-abbreviate with more/less text as required. */
+static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  
+  if (GTK_IS_LABEL(headerWidget))
+    {
+      /* Abbreviate the name */
+      const char *refSeqName = mainWindowGetRefSeqName(treeGetMainWindow(tree));
+      const int maxLen = (headerWidget->allocation.width / treeGetCharWidth(tree));
+      
+      char stringToAppend[] = "(+0)";
+      stringToAppend[1] = (treeGetStrand(tree) == FORWARD_STRAND ? '+' : '-');
+      stringToAppend[2] = *convertIntToString(treeGetFrame(tree));
+      const int numCharsToAppend = strlen(stringToAppend);
+
+      gchar *displayText = NULL;
+      
+      if (maxLen > numCharsToAppend)
+	{
+	  /* Abbreviate the name and then append the strand/frame */
+	  gchar *displayName = abbreviateText(refSeqName, maxLen - numCharsToAppend);
+	  displayText = g_strconcat(displayName, stringToAppend, NULL);
+	  g_free(displayName);
+	}
+      else
+	{
+	  /* No space to concatenate the frame and strand. Just include whatever of the name we can */
+	  displayText = abbreviateText(refSeqName, maxLen);
+	}
+
+      if (displayText)
+	{
+	  gtk_label_set_text(GTK_LABEL(headerWidget), displayText);
+	  g_free(displayText);
+	}
+    }
+  else
+    {
+      messerror("refreshNameColHeader: Column header is an unexpected widget type");
+    }
+}
+
+
 /* Refresh the start column header. This displays the start index of the current display range */
 static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 {
@@ -1881,7 +2011,7 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      messerror("refreshStartColHeader: Column header is an unexpected widget type");
+      messerror("refreshEndColHeader: Column header is an unexpected widget type");
     }
 }
 
@@ -1927,11 +2057,9 @@ static void createTreeColHeader(GList **headerWidgets,
 	  /* The header above the name column will display the reference sequence name.
 	   * This header will also span the score and id columns, seeing as we don't need
 	   * to show any info in those columns. */
-	  int textLen = strlen(refSeqName) + numDigitsInInt(frame) + 5;
-	  char displayText[textLen];
-	  sprintf(displayText, "%s (%s%d)", refSeqName, (strand == FORWARD_STRAND ? "+" : "-"), frame);
+	  headerWidget = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  
-	  headerWidget = createLabel(displayText, 0.0, 1.0, TRUE, TRUE);
+	  refreshFunc = refreshNameColHeader;
 	  
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(S_NAME_COL));
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(SCORE_COL));
@@ -2027,7 +2155,7 @@ static GList* addTreeColumns(GtkWidget *tree,
 	  messerror("addTreeColumns: error creating column - invalid column info in detail-view column-list.");
 	}
     }
-  
+
   return headerWidgets;
 }
 

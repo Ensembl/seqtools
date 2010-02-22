@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.17 2010-02-19 16:22:03 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.18 2010-02-22 16:49:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -244,7 +244,6 @@ static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
 //			     int strand_sign, int view_start, int view_end,
 //			     char **dottersseq_out, int *dotter_start_out, int *dotter_end_out) ;
 
-//static char *abbrevTxt(char *text, int max_len) ;
 
 //static void printMSPs(void) ;
 
@@ -2206,18 +2205,6 @@ int frame2graphno(int frame)
 }
 
 
-/* Draw the given sequence name at the given coordinates. The name is formatted so that
- * it includes the direction of the strand and does not exceed the given length. */
-void drawStrandName(char *name, char *frame, int max_len, int x, int y)
-{
-//  gchar *displayName = g_strconcat(abbrevTxt(name, max_len - 2), 
-//                                  (strchr(frame, '+') ? " +" : " -"),
-//                                   NULL);
-//  graphText(displayName, x, y);
-//  g_free(displayName);
-}
-
-
 /* Redraw the entire blixem window. (Call mainWindowRedrawAll directly where possible,
  * rather than this function, which relies on the global variable 'blixemWindow'). */
 void blviewRedraw(void)
@@ -3133,60 +3120,6 @@ static void pfetchWindow (MSP *msp)
   handleDestroy(handle);
 }
 #endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-/* Given a string, returns the string if is less than a fudge factor or returns
- * the string abbreviated in the form "xxxxx...yyyyy". The string is a pointer
- * to a static buffer, caller should make a copy of it if they wish to retain
- * it or alter it. */
-//static char *abbrevTxt(char *text, int max_len)
-//{
-//  char *result ;
-//  char *abbrev = "<>" ;
-//  static char *abbrev_buf = NULL ;
-//  static int buf_len, text_len, head_bytes, tail_bytes ;
-//
-//  /* First time through allocate the reusable buffer, allocate larger one if required. */
-//  if (abbrev_buf == NULL)
-//    {
-//      buf_len = 50 ;					    /* not many sequence names this long. */
-//      abbrev_buf = (char *)g_malloc(buf_len) ;
-//    }
-//  else if (max_len > (buf_len - 1))
-//    {
-//      g_free(abbrev_buf) ;
-//      buf_len = (max_len * 1.5) ;
-//      abbrev_buf = (char *)g_malloc(buf_len) ;
-//    }
-//
-//
-//  result = abbrev_buf ;
-//
-//  text_len = strlen(text) ;
-//  if (text_len <= max_len)
-//    {
-//      result = strcpy(result, text) ;
-//    }
-//  else
-//    {
-//      char *tail_ptr ;
-//
-//      /* don't really need to calculate these each time... */
-//      head_bytes = (max_len / 2) - 1 ;
-//      tail_bytes = max_len - ((max_len / 2) + 1) ;
-//
-//      tail_ptr = text + text_len - tail_bytes ;		    /* trailing null fudged in here. */
-//
-//      result = strncpy(result, text, head_bytes) ;
-//
-//      strcpy((result + head_bytes), "") ;
-//
-//      result = strcat(result, abbrev) ;
-//
-//      result = strcat(result, tail_ptr) ;
-//    }
-//
-//  return (result) ;
-//}
 
 
 /* Print out MSP's, probably for debugging.... */
