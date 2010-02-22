@@ -1129,6 +1129,16 @@ static void onSortOrderToggled(GtkWidget *button, gpointer data)
 }
 
 
+/* Callback function called when the 'highlight differences' button is toggled */
+static void onHighlightDiffsToggled(GtkWidget *button, gpointer data)
+{
+  const gboolean highlightDiffs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  GtkWidget *detailView = GTK_WIDGET(data);
+  
+  detailViewSetHighlightDiffs(detailView, highlightDiffs);
+}
+
+
 /* Utility to create a check button with certain given properties, and to pack it into the parent */
 static void createCheckButton(GtkWidget *parent, 
 			      const char *mnemonic, 
@@ -1168,7 +1178,10 @@ static void showSettingsDialog(GtkWidget *mainWindow)
   
   /* Invert sort order */
   createCheckButton(vbox, "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
-    
+  
+  /* Highlight differences */
+  createCheckButton(vbox, "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
+  
   /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   gtk_widget_show_all(dialog);

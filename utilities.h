@@ -17,7 +17,7 @@
 
 /* Colour strings that can be passed to gdk_color_parse to create a GdkColor */
 #define GDK_YELLOW	      "#FFFF00" 
-#define GDK_DARK_YELLOW	      "#808000"
+#define GDK_DARK_YELLOW	      "#C0C000"
 #define GDK_CYAN	      "#00FFFF"
 #define GDK_DARK_CYAN	      "#008080"
 #define GDK_BLUE	      "#0000FF"

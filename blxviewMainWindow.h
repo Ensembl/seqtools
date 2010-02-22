@@ -25,7 +25,7 @@ typedef struct _MainWindowProperties
     IntRange fullDisplayRange;	    /* The range of the displayed sequence */
     const gboolean gappedHsp;	    
     
-    MSP *mspList;		    /* Linked list of match sequences */
+    MSP *mspList;		    /* List of all MSPs. */
     char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
     BlxBlastMode blastMode;	    /* The type of blast matching that was used */
     BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */

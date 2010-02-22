@@ -1015,6 +1015,17 @@ void detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert)
 }
 
 
+/* Set the value of the 'highlight differences' flag */
+void detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlightDiffs)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->highlightDiffs = highlightDiffs;
+
+  /* No data to recalculate, but we need to make all the trees redraw themselves */
+  gtk_widget_queue_draw(detailView);
+}
+
+
 /***********************************************************
  *                    Detail view events                   *
  ***********************************************************/
@@ -1279,10 +1290,10 @@ GdkColor* detailViewGetExonColour(GtkWidget *detailView, const gboolean selected
   return selected ? &properties->exonColourSelected : &properties->exonColour;
 }
 
-GdkColor* detailViewGetGapColour(GtkWidget *detailView, const gboolean selected)
+GdkColor* detailViewGetInsertionColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->gapColourSelected : &properties->gapColour;
+  return selected ? &properties->insertionColourSelected : &properties->insertionColour;
 }
 
 static GdkColor* detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase)
@@ -1515,7 +1526,13 @@ static int detailViewGetSelectedFrame(GtkWidget *detailView)
 gboolean detailViewGetSortInverted(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->sortInverted : GTK_SORT_ASCENDING;
+  return properties ? properties->sortInverted : FALSE;
+}
+
+gboolean detailViewGetHighlightDiffs(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->highlightDiffs : FALSE;
 }
 
 /* Return a list of all MSPs that have the given match sequence name */
@@ -1677,8 +1694,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->consColourSelected	  = getGdkColor(GDK_ROYAL_BLUE);
       properties->exonColour		  = getGdkColor(GDK_YELLOW);
       properties->exonColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
-      properties->gapColour		  = getGdkColor(GDK_GREY);
-      properties->gapColourSelected	  = getGdkColor(GDK_DARK_GREY);
+      properties->insertionColour	  = getGdkColor(GDK_YELLOW);
+      properties->insertionColourSelected = getGdkColor(GDK_DARK_YELLOW);
       properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
       properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_BLUE);
       properties->highlightTripletColour  = getGdkColor(GDK_GREEN);

@@ -92,7 +92,9 @@ typedef struct _DetailViewProperties
     int selectedBaseNum;	  /* The currently-selected base within the selected reading frame */
     int selectedDnaBaseIdx;	  /* The currently-selected index in terms of the DNA sequence */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
+
     gboolean sortInverted;	  /* Whether the sort operations operate in the reverse direction to their default */
+    gboolean highlightDiffs;	  /* Whether the 'highlight differences' option is enabled */
 
     /* Cached font sizes, needed often for calculations. */
     int charHeight;
@@ -109,8 +111,8 @@ typedef struct _DetailViewProperties
     GdkColor consColourSelected;      /* background colour for peptide that matches similar type (when base selected) */
     GdkColor exonColour;	      /* background colour for exon base */
     GdkColor exonColourSelected;      /* background colour for exon base (when base selected) */
-    GdkColor gapColour;		      /* background colour for gap in match sequence */
-    GdkColor gapColourSelected;       /* background colour for gap in match sequence (when position selected) */
+    GdkColor insertionColour;	      /* background colour for insertion marker in match sequence */
+    GdkColor insertionColourSelected; /* background colour for insertion marker in match sequence (when position selected) */
     GdkColor exonBoundaryColourStart; /* line colour for exon boundaries (marking the start of an exon) */
     GdkColor exonBoundaryColourEnd;   /* line colour for exon boundaries (marking the end of an exon) */
     GdkColor highlightTripletColour;  /* For codon triplets, highlight all the bases in the selected triplet in this colour */
@@ -152,7 +154,9 @@ int			detailViewGetCharHeight(GtkWidget *detailView);
 GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
 SubjectSequence*	detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName);
 GHashTable*		detailViewGetSeqTable(GtkWidget *detailView);
+gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
 gboolean		detailViewGetSortInverted(GtkWidget *detailView);
+gboolean		detailViewGetHighlightDiffs(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -163,7 +167,7 @@ GdkColor*		detailViewGetMatchColour(GtkWidget *detailView, const gboolean select
 GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetConsColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetExonColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetGapColour(GtkWidget *detailView, const gboolean selected);
+GdkColor*		detailViewGetInsertionColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart);
 int			detailViewGetExonBoundaryWidth(GtkWidget *detailView);
 GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart);
@@ -188,8 +192,8 @@ void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 
 void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
-gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
 void			detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert);
+void			detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlightDiffs);
 
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 GtkWidget *container,

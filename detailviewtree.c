@@ -256,10 +256,10 @@ GdkColor* treeGetExonColour(GtkWidget *tree, const gboolean selected)
   return detailViewGetExonColour(detailView, selected);
 }
 
-GdkColor* treeGetGapColour(GtkWidget *tree, const gboolean selected)
+GdkColor* treeGetInsertionColour(GtkWidget *tree, const gboolean selected)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetGapColour(detailView, selected);
+  return detailViewGetInsertionColour(detailView, selected);
 }
 
 GdkColor* treeGetExonBoundaryColour(GtkWidget *tree, const gboolean isStart)
