@@ -38,43 +38,38 @@ typedef struct
 
 
 /* Local function declarations */
-static GtkWidget*	    detailViewGetFirstTree(GtkWidget *detailView);
-static GtkWidget*	    detailViewGetBigPicture(GtkWidget *detailView);
-static GList*		    detailViewGetColumnList(GtkWidget *detailView);
-static GtkWidget*	    detailViewGetFeedbackBox(GtkWidget *detailView);
-static int		    detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
-static int		    detailViewGetSelectedFrame(GtkWidget *detailView);
-static GdkColor*	    detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
+static GtkWidget*	      detailViewGetFirstTree(GtkWidget *detailView);
+static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
+static GList*		      detailViewGetColumnList(GtkWidget *detailView);
+static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
+static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
+static int		      detailViewGetSelectedFrame(GtkWidget *detailView);
+static GdkColor*	      detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
+static DetailViewColumnInfo*  detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
 
-static void		    detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
-static GtkToolItem*	    addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
-static gboolean		    widgetIsTree(GtkWidget *widget);
-static gboolean		    widgetIsTreeContainer(GtkWidget *widget);
-static void		    updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
-static void		    refreshDetailViewHeaders(GtkWidget *detailView);
-static GtkWidget*	    createSequenceColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
-static const char*	    findDetailViewFont(GtkWidget *detailView);
-static void		    setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
+static void		      detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
+static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
+static gboolean		      widgetIsTree(GtkWidget *widget);
+static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
+static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
+static void		      refreshDetailViewHeaders(GtkWidget *detailView);
+static GtkWidget*	      createSequenceColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
+static const char*	      findDetailViewFont(GtkWidget *detailView);
+static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 
 /***********************************************************
  *		       Utility functions                   *
  ***********************************************************/
 
 /* Return the width of the column with the given column id */
-int getDetailViewColumnWidth(GtkWidget *detailView, const ColumnId columnId)
+int detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId)
 {
-  GList *listItem = detailViewGetColumnList(detailView);
-  int result = UNSET_INT;
-  
-  for ( ; listItem; listItem = listItem->next)
+  int result = 0;
+
+  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
+  if (columnInfo)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)listItem->data;
-      
-      if (columnInfo && columnInfo->columnId == columnId)
-	{
-	  result = columnInfo->width;
-	  break;
-	}
+      result = columnInfo->width;
     }
   
   return result;
@@ -1216,11 +1211,32 @@ char** detailViewGetGeneticCode(GtkWidget *detailView)
   return mainWindowGetGeneticCode(mainWindow);
 }
 
+/* Get the list of columns */
 static GList* detailViewGetColumnList(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->columnList : NULL;
 }
+
+/* Get the column info for a particular column */
+static DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId)
+{
+  DetailViewColumnInfo *result = NULL;
+  
+  GList *listItem = detailViewGetColumnList(detailView);
+  for ( ; listItem; listItem = listItem->next)
+  {
+    DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+    if (columnInfo && columnInfo->columnId == columnId)
+      {
+	result = columnInfo;
+	break;
+      }
+  }
+  
+  return result;
+}
+
 
 gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
 {

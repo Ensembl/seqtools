@@ -156,7 +156,7 @@ gboolean		detailViewGetSortInverted(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
-int			getDetailViewColumnWidth(GtkWidget *detailView, const ColumnId columnId);
+int			detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId);
 
 GdkColor*		detailViewGetRefSeqColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetMatchColour(GtkWidget *detailView, const gboolean selected);

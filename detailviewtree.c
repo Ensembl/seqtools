@@ -464,12 +464,11 @@ void treeUpdateFontSize(GtkWidget *tree, gpointer data)
 
 
 /* Get the character index at the given x coordinate in the given tree view column. */
-static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, const int x, int *baseNum)
+static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, const int x)
 {
   int result = UNSET_INT;
   
-  /* Get the cell dimensions */
-  int colWidth, startPos;
+  int startPos, colWidth;
   GtkCellRenderer *renderer = treeGetRenderer(tree);
   gtk_tree_view_column_cell_get_position(col, renderer, &startPos, &colWidth);
   
@@ -488,14 +487,6 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
       
       const double numBasesFromLeftDbl = ((double)x - leftEdge) / (double)charWidth;
       const int numBasesFromLeft = (int)numBasesFromLeftDbl;
-      
-      /* If requested, also calculate the base number within the frame */
-      if (baseNum)
-	{
-	  const int distFromCharStart = roundNearest((numBasesFromLeftDbl - numBasesFromLeft) * (double)charWidth);
-	  const double frameWidth = charWidth / treeGetNumReadingFrames(tree);
-	  *baseNum = (distFromCharStart / frameWidth) + 1;
-	}
       
       if (rightToLeft)
 	{
@@ -525,7 +516,7 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
 
 
 /* In the detail view, get the base index at the given coords */
-static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y, int *baseNum)
+static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
 {
   int baseIdx = UNSET_INT;
   
@@ -538,7 +529,7 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y, i
   if (col == gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL))
     {
       /* Get the base index at the clicked position */
-      int charIdx = getCharIndexAtTreeCoord(tree, col, cell_x, baseNum);
+      int charIdx = getCharIndexAtTreeCoord(tree, col, cell_x);
       
       if (charIdx != UNSET_INT)
 	{
@@ -1046,7 +1037,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     case 2:
       {
 	/* Middle button: select the base index at the clicked coords */
-	int baseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y, NULL);
+	int baseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y);
 	
 	/* Select the first base in this peptide's triplet (or the last if the display is reversed) */
 	const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
@@ -1059,6 +1050,51 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     case 3:
       {
 	/* Right button: show context menu. */
+	GtkWidget *mainmenu = mainWindowGetMainMenu(treeGetMainWindow(tree));
+	gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
+	handled = TRUE;
+	break;
+      }
+      
+    default:
+      break;
+    };
+  
+  return handled;
+}
+
+
+static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->button)
+    {
+    case 2:
+      {
+	/* Middle button: select the base index at the clicked coords */
+	GtkWidget *tree = GTK_WIDGET(data);
+	GtkTreeViewColumn *col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
+	const int charIdx = getCharIndexAtTreeCoord(tree, col, event->x);
+	
+	if (charIdx != UNSET_INT)
+	  {
+	    GtkAdjustment *adjustment = treeGetAdjustment(tree);
+	    const int baseIdx = charIdx + adjustment->value;
+	
+	    /* Select the first base in this peptide's triplet (or the last if the display is reversed) */
+	    const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
+	    treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum, TRUE);
+	  }
+	  
+	handled = TRUE;
+	break;
+      }
+      
+    case 3:
+      {
+	/* Right button: show context menu. */
+	GtkWidget *tree = GTK_WIDGET(data);
 	GtkWidget *mainmenu = mainWindowGetMainMenu(treeGetMainWindow(tree));
 	gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
 	handled = TRUE;
@@ -1159,6 +1195,48 @@ static gboolean onButtonReleaseTree(GtkWidget *tree, GdkEventButton *event, gpoi
 }
 
 
+static gboolean onButtonReleaseTreeHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  /* Right button: show context menu (to do: it would be good to add specific options
+   * for the current tree/selection, but for now just show the main menu) */
+  if (event->button == 3)
+    {
+      handled = TRUE;
+    }
+  
+  /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
+  if (event->button == 2)
+    {
+      guint modifiers = gtk_accelerator_get_default_mod_mask();
+      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+
+      if (!ctrlModifier)
+	{
+	  /* Move the scrollbar so that the currently-selected base index is at the centre */
+	  GtkWidget *tree = GTK_WIDGET(data);
+	  GtkWidget *detailView = treeGetDetailView(tree);
+	  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+	  
+	  if (selectedBaseIdx != UNSET_INT)
+	    {
+	      /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
+	      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+	      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	      
+	      int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+	      setDetailViewStartIdx(detailView, newStart, seqType);
+	    }
+	}
+      
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+
 /* Implement custom scrolling for horizontal mouse wheel movements over the tree.
  * This scrolls our custom horizontal scrollbar for the whole Detail View. Leaves
  * vertical scrolling to the default handler. */
@@ -1200,13 +1278,38 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
     {
       /* Moving mouse with middle mouse button down. Update the currently-selected base
        * (but don't re-centre on the selected base until the mouse button is released). */
-      const int selectedBaseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y, NULL);
+      const int selectedBaseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y);
       const int frame = treeGetFrame(tree);
 
       /* For protein matches, get the 1st base in the peptide (or last base if display reversed) */
       int baseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
       
       treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, baseNum, TRUE);
+    }
+  
+  return TRUE;
+}
+
+
+static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, gpointer data)
+{
+  if (event->state & GDK_BUTTON2_MASK)
+    {
+      /* Moving mouse with middle mouse button down. Update the currently-selected base
+       * (but don't re-centre on the selected base until the mouse button is released). */
+      GtkWidget *tree = GTK_WIDGET(data);
+      GtkTreeViewColumn *col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
+      const int charIdx = getCharIndexAtTreeCoord(tree, col, event->x);
+      
+      if (charIdx != UNSET_INT)
+	{
+	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
+	  const int baseIdx = charIdx + adjustment->value;
+      
+	  /* Select the first base in this peptide's triplet (or the last if the display is reversed) */
+	  const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
+	  treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum, TRUE);
+	}
     }
   
   return TRUE;
@@ -1794,7 +1897,7 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
   for ( ; listItem; listItem = listItem->next)
     {
       int columnId = GPOINTER_TO_INT(listItem->data);
-      width = width + getDetailViewColumnWidth(detailView, columnId);
+      width = width + detailViewGetColumnWidth(detailView, columnId);
     }
   
   return width;
@@ -2174,10 +2277,13 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
-  g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	detailView);
+  g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	NULL);
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
+  g_signal_connect(G_OBJECT(treeHeader), "button-press-event",    G_CALLBACK(onButtonPressTreeHeader),	 tree);
+  g_signal_connect(G_OBJECT(treeHeader), "button-release-event",  G_CALLBACK(onButtonReleaseTreeHeader), tree);
   g_signal_connect(G_OBJECT(tree), "key-press-event",	    G_CALLBACK(onKeyPressTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "motion-notify-event",   G_CALLBACK(onMouseMoveTree),	detailView);
+  g_signal_connect(G_OBJECT(treeHeader), "motion-notify-event",   G_CALLBACK(onMouseMoveTreeHeader),	tree);
   g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
   g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "leave-notify-event",    G_CALLBACK(onLeaveTree),		NULL);
