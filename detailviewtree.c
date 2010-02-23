@@ -21,6 +21,7 @@ static void		onSelectionChangedTree(GObject *selection, gpointer data);
 static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -542,25 +543,51 @@ static int getBaseIndexAtTreeCoords(GtkWidget *tree, const int x, const int y)
 }
 
 
+/* This function does the work to squash/unsquash tree rows */
+static void treeSetSquashMatches(GtkWidget *tree, const gboolean squash)
+{
+  /* Get the current model (and find which column it is currently sorted by) */
+  gint sortColumn;
+  GtkTreeModel *origModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(origModel), &sortColumn, NULL);
+  
+  /* Replace it with the squashed/unsquashed model as requested (if not already set to that) */
+  TreeProperties *properties = treeGetProperties(tree);
+  gboolean changed = FALSE;
+  
+  if (squash && origModel != properties->seqTreeModel)
+    {
+      gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->seqTreeModel);
+      changed = TRUE;
+    }
+  else if (!squash && origModel != properties->mspTreeModel)
+    {
+      gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->mspTreeModel);
+      changed = TRUE;
+    }
+  
+  /* If we changed the model, sort the new one by the existing criteria */
+  if (changed)
+    {  
+      /* We sort the base data model (not the filtered one, which is what gets set in the tree view) */
+      GtkTreeModel *newModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+      GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
+      gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(newModel), sortColumn, sortOrder);
+    }
+}
+
+
 /* This function makes multiple MSPs in the same sequence appear in the same row in the tree. */
 void treeSquashMatches(GtkWidget *tree, gpointer data)
 {
-  TreeProperties *properties = treeGetProperties(tree);
-  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->seqTreeModel);
-
-  /* Refilter the new data store, because it might not be up to date */
-  refilterTree(tree, NULL);
+  treeSetSquashMatches(tree, TRUE);
 }
 
 
 /* This function makes all MSPs appear in their own individual rows in the tree. */
 void treeUnsquashMatches(GtkWidget *tree, gpointer data)
 {
-  TreeProperties *properties = treeGetProperties(tree);
-  gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->mspTreeModel);
-  
-  /* Refilter the new data store, because it might not be up to date */
-  refilterTree(tree, NULL);
+  treeSetSquashMatches(tree, FALSE);
 }
 
 
@@ -2156,6 +2183,11 @@ static GList* addTreeColumns(GtkWidget *tree,
 	}
     }
 
+  /* Set a tooltip to display the sequence name. To do: at the moment this shows
+   * the tooltip when hovering anywhere over the tree: ideally we probably just
+   * want to show it when hovering over the name column. */
+  gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree), S_NAME_COL);
+  
   return headerWidgets;
 }
 

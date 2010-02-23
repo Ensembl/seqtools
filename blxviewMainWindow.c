@@ -55,24 +55,24 @@ static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
-static void			  showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean createGroup);
+static void			  showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",		NULL, "_Quit",		    "<control>Q",	"Quit the program",	  gtk_main_quit},
-  { "Help",		NULL, "_Help",		    "<control>H",	"Display Blixem help",	  G_CALLBACK(onHelpMenu)},
-  { "Print",		NULL, "_Print",		    "<control>P",	"Print",		  G_CALLBACK(onPrintMenu)},
-  { "Settings",		NULL, "_Settings",	    "<control>S",	"Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
+  { "Quit",		NULL, "_Quit\tCtrl-Q",	    "<control>Q",	 "Quit the program",		  gtk_main_quit},
+  { "Help",		NULL, "_Help",		    "<control>H",	 "Display Blixem help",		  G_CALLBACK(onHelpMenu)},
+  { "Print",		NULL, "_Print",		    "<control>P",	 "Print",			  G_CALLBACK(onPrintMenu)},
+  { "Settings",		NULL, "_Settings",	    "<control>S",	 "Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
 
-  { "View",		NULL, "_View",		    "<control>V",	"Edit view settings",	  G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL, "Create _Group",	    "<control>G",	"Group sequences together", G_CALLBACK(onCreateGroupMenu)},
-  { "EditGroups",	NULL, "Edit Groups",	    "<shift><control>G","Groups",		  G_CALLBACK(onEditGroupsMenu)},
-  { "DeselectAllRows",	NULL, "Deselect _all",	    "<shift><control>A","Deselect all",		  G_CALLBACK(onDeselectAllRows)},
+  { "View",		NULL, "_View",		    "<control>V",	 "Edit view settings",		  G_CALLBACK(onViewMenu)},
+  { "CreateGroup",	NULL, "Create Group",	    "<shift><control>G", "Group sequences together",	  G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",	NULL, "Edit _Groups",	    "<control>G",	 "Groups",			  G_CALLBACK(onEditGroupsMenu)},
+  { "DeselectAllRows",	NULL, "Deselect _all",	    "<shift><control>A", "Deselect all",		  G_CALLBACK(onDeselectAllRows)},
 
-  { "Dotter",		NULL, "_Dotter",	    "<control>D",	"Start Dotter",		  G_CALLBACK(onDotterMenu)},
-  { "SelectFeatures",	NULL, "Feature series selection tool",	NULL,	"Feature series selection tool", G_CALLBACK(onSelectFeaturesMenu)},
+  { "Dotter",		NULL, "_Dotter",	    "<control>D",	 "Start Dotter",		  G_CALLBACK(onDotterMenu)},
+  { "SelectFeatures",	NULL, "Feature series selection tool",	NULL,	 "Feature series selection tool", G_CALLBACK(onSelectFeaturesMenu)},
 
-  { "Statistics",	NULL, "Statistics",   NULL,			"Show memory statistics", G_CALLBACK(onStatisticsMenu)}
+  { "Statistics",	NULL, "Statistics",   NULL,			 "Show memory statistics",	  G_CALLBACK(onStatisticsMenu)}
 };
 
 
@@ -927,7 +927,7 @@ void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
   /* Refresh dialog by closing and re-opening. Open it on the 'edit groups' page,
    * to display the group that we've just created. */
   gtk_widget_destroy(GTK_WIDGET(dialogWindow));
-  showGroupSequencesDialog(mainWindow, FALSE);
+  showGroupSequencesDialog(mainWindow, TRUE);
 }
 
 
@@ -973,7 +973,7 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
       gtk_widget_destroy(GTK_WIDGET(dialogWindow));
       if (g_list_length(mainWindowGetSequenceGroups(mainWindow)) > 0)
 	{
-	  showGroupSequencesDialog(mainWindow, FALSE);
+	  showGroupSequencesDialog(mainWindow, TRUE);
 	}
     }
 }
@@ -981,9 +981,9 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
 
 /* Shows the "Group sequences" dialog. This dialog allows the user to group sequences together.
  * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
- * 'create group' argument is true, the 'create group' tab is displayed by default; otherwise
- * the 'edit groups' tab is shown. */
-static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean createGroup)
+ * 'editGroups' argument is true and groups exist, the 'Edit Groups' tab is displayed by default;
+ * otherwise the 'Create Groups' tab is shown. */
+static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
 						  GTK_WINDOW(mainWindow), 
@@ -1068,27 +1068,22 @@ static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean creat
       gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
       g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
     }
-  else if (!createGroup)
-    {
-      /* User has asked to edit groups but there aren't any. Warn them. */
-      messout("Cannot edit groups; none exist. Create some first.");
-    }
 
   /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   gtk_widget_show_all(dialog);
   
-  /* If user has asked to edit groups, make the second tab the default and the 'close'
-   * button the default action. (Must do this after showing the child widgets due
-   * to a GTK legacy whereby the notebook won't change tabs otherwise.) */
-  if (!createGroup)
+  /* If user has asked to edit groups (and some groups exist), make the second tab
+   * the default and the 'close' button the default action. (Must do this after showing
+   * the child widgets due to a GTK legacy whereby the notebook won't change tabs otherwise.) */
+  if (editGroups && groupsExist)
     {
       gtk_notebook_next_page(GTK_NOTEBOOK(notebook));
       gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_REJECT);
     }
   else
     {
-      /* Make the add group button the default widget and focus it if rows
+      /* Make the 'create group' button the default widget and focus it if rows
        * are selected - otherwise focus the text entry box. */
       GTK_WIDGET_SET_FLAGS(addGroupButton, GTK_CAN_DEFAULT);
       gtk_window_set_default(GTK_WINDOW(dialog), addGroupButton);
@@ -1401,27 +1396,23 @@ Alignments can be grouped together so that they can be sorted/highlighted/hidden
 \n\
 Creating a group from a selection:\n\
 	•	Select the sequences you wish to include in the group by left-clicking their rows in the detail view.  Multiple rows can be selected by holding the CTRL or SHIFT keys while clicking.\n\
-	•	Right-click and select 'Create Group', or use the CTRL-G shortcut key.\n\
+	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Note that CTRL-G will also shortcut to here if no groups currently exist.)\n\
 	•	Ensure that the 'From selection' radio button is selected, and click 'Create group'.\n\
 \n\
 Creating a group from a sequence name:\n\
-	•	Right-click and select 'Create Group', or use the CTRL-G shortcut key.\n\
+	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Or CTRL-G if no groups currently exist.)\n\
 	•	Select the 'From sequence name(s)' radio button and enter the name of the sequence in the box below.  You may use the following wildcards to search for sequences: '*' for any number of characters; '?' for a single character.  For example, searching for '*X' will find all sequences whose name ends in 'X' (i.e. all exons).\n\
 	•	Click 'Create group'.\n\
 \n\
 Editing groups:\n\
-	•	After creating a group, your group is highlighted in the display and the 'Edit Groups' tab is displayed.  Make any changes necessary (e.g. if you want to give it a more meaningful name or a different colour), and then click 'Close'.\n\
-	•	You can open the 'Edit Groups' tab by right-clicking and selecting 'Edit Groups' in the menu, or by using the SHIFT-CTRL-G keyboard shortcut.\n\
-	•	To delete a group, open the 'Edit Groups' dialog box and click on the 'Delete' button next to the group you wish to delete.\n\
-	•	To delete all groups, open the 'Edit Groups' dialog box and click on the 'Delete all groups' button.\n\
-\n\
-Group Properties\n\
-	•	To edit a group's properties, right-click and select 'Edit Groups', or use the SHIFT-CTRL-G shortcut key.\n\
-	•	Name: a name to help identify the group.\n\
+To edit a group, right-click and select 'Edit Groups', or use the CTRL-G shortcut key. You can change the following properties for a group:\n\
+	•	Name: you can specify a more meaningful name to help identify the group.\n\
 	•	Hide: tick this box to hide the alignments in the group from the detail view.\n\
-	•	Highlight: tick this box to highlight the alignments in this group in both the big picture view and detail view.\n\
-	•	Order: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (when sorting ascending).  Alignments in a group will always appear before alignments that are not in a group.  Therefore, to make an alignment always appear at the top of the list in the detail view, put it in a group with Order number 1, and enable sorting by Group (see the Sorting section).\n\
+	•	Highlight: tick this box to highlight the alignments in this group.\n\
+	•	Order: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (or vice versa if sort order is inverted). Alignments in a group will appear before alignments that are not in a group.\n\
 	•	Colour: the colour the group will be highlighted in, if 'Highlight' is enabled.  The default colour for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colours.\n\
+	•	To delete a single group, click on the 'Delete' button next to the group you wish to delete.\n\
+	•	To delete all groups, click on the 'Delete all groups' button.\n\
 \n\
 \n\
 DOTTER\n\
@@ -1440,9 +1431,9 @@ KEYBOARD SHORTCUTS\n\
 	•	CTRL P: Print\n\
 	•	CTRL S: Settings menu\n\
 	•	CTRL V: View menu\n\
-	•	CTRL G: Create group\n\
-	•	SHIFT CTRL G: Edit groups\n\
-	•	CTRL A: Select all visible sequences\n\
+	•	SHIFT CTRL G: Create group\n\
+	•	CTRL G: Edit groups (or create a group if none currently exist)\n\
+	•	SHIFT CTRL A: Select all visible sequences\n\
 	•	SHIFT CTRL A: Deselect all sequences\n\
 	•	CTRL D: Dotter\n\
 	•	Left/right arrow keys: Move the currently-selected coordinate one nucleotide to the left/right\n\
@@ -1504,7 +1495,7 @@ static void onViewMenu(GtkAction *action, gpointer data)
 static void onCreateGroupMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
-  showGroupSequencesDialog(mainWindow, TRUE);
+  showGroupSequencesDialog(mainWindow, FALSE);
 }
 
 
@@ -1512,7 +1503,7 @@ static void onCreateGroupMenu(GtkAction *action, gpointer data)
 static void onEditGroupsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
-  showGroupSequencesDialog(mainWindow, FALSE);
+  showGroupSequencesDialog(mainWindow, TRUE);
 }
 
 
