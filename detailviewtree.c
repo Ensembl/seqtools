@@ -791,16 +791,20 @@ static void markSequenceSelectedForRow(GtkTreeModel *model, GtkTreePath *path, G
 static void onSelectionChangedTree(GObject *selection, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(selection), markSequenceSelectedForRow, tree);
+
+  if (GTK_WIDGET_VISIBLE(tree))
+    {
+      gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(selection), markSequenceSelectedForRow, tree);
   
-  /* Update the selection again based on the selected sequence. MSPs in different rows
-   * may have the same sequence, and all of them need to be selected after the user
-   * clicks on any one of them. Unfortunately this causes another selection-changed event, 
-   * so we recurse back here unnecessarily, but that won't cause any harm because the 2nd
-   * call here will do nothing (since no changes need to be made - it is therefore important
-   * to make sure updates only happen when changes DO need to be made, otherwise we risk
-   * infinite recursion). */
-  selectRowsForSelectedSeqs(tree, NULL);
+      /* Update the selection again based on the selected sequence. MSPs in different rows
+       * may have the same sequence, and all of them need to be selected after the user
+       * clicks on any one of them. Unfortunately this causes another selection-changed event, 
+       * so we recurse back here unnecessarily, but that won't cause any harm because the 2nd
+       * call here will do nothing (since no changes need to be made - it is therefore important
+       * to make sure updates only happen when changes DO need to be made, otherwise we risk
+       * infinite recursion). */
+      callFuncOnAllDetailViewTrees(treeGetDetailView(tree), selectRowsForSelectedSeqs);
+    }
 }
 
 

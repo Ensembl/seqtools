@@ -11,6 +11,7 @@
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/detailview.h>
+#include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/utilities.h>
 
 #define EXON_VIEW_DEFAULT_COMPRESSED_HEIGHT      10
@@ -28,12 +29,14 @@ typedef struct _ExonViewProperties
     int yPad;			      /* y padding */
     
     GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
-    GdkColor exonColour;	      /* The colour to draw the exons */
+    GdkColor exonColour;	      /* The colour to draw normal exons */
+    GdkColor exonColourSelected;      /* The colour to draw selected exons */
   } ExonViewProperties;
 
 
 /* Local function declarations */
 static GtkWidget*		exonViewGetBigPicture(GtkWidget *exonView);
+static GtkWidget*		exonViewGetMainWindow(GtkWidget *exonView);
 static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
 static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
 
@@ -62,9 +65,76 @@ static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width
 }
 
 
-/* Draw the specific exon/intron in the given tree row. (Does nothing
- * if this row does not contain an exon/intron.) */
-static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Draw the given exon/intron */
+static void drawExonIntron(const MSP *msp, GtkWidget *exonView, const gboolean isSelected)
+{
+  ExonViewProperties *properties = exonViewGetProperties(exonView);
+  IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+  gboolean rightToLeft = bigPictureGetStrandsToggled(properties->bigPicture);
+  
+  int x1 = convertBaseIdxToGridPos(msp->displayStart, &properties->exonViewRect, displayRange, rightToLeft);
+  int x2 = convertBaseIdxToGridPos(msp->displayEnd, &properties->exonViewRect, displayRange, rightToLeft);
+  int x = min(x1, x2);
+  int width = abs(x2 - x1);
+  
+  int y = properties->exonViewRect.y;
+  int height = properties->exonViewRect.height;
+  
+  GdkDrawable *drawable = widgetGetDrawable(exonView);
+  GdkGC *gc = gdk_gc_new(drawable);
+  
+//  /* to do: If this msp is in a group, use the group's colour. Otherwise use the standard exon colour. */
+//  SequenceGroup *group = mainWindowGetSequenceGroup(bigPictureGetMainWindow(properties->bigPicture), msp->sname);
+//  if (group)
+//    {
+//      gdk_gc_set_foreground(gc, &group->highlightColour);
+//    }
+//  else
+    {
+      gdk_gc_set_foreground(gc, isSelected ? &properties->exonColourSelected : &properties->exonColour);
+    }
+
+  if (mspIsExon(msp))
+    {
+      drawExon(drawable, gc, x, y, width, height);
+    }
+  else if (mspIsIntron(msp))
+    {
+      drawIntron(drawable, gc, x, y, width, height);
+    }
+    
+  g_object_unref(gc);
+}
+
+
+/* Draw the msp in the given row if it is an exon/intron and is unselected */
+static gboolean drawUnselectedExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  /* One row can contain multiple MSPs. Draw them all. */
+  const GList *mspListItem = treeGetMsps(model, iter);
+  
+  for ( ; mspListItem; mspListItem = mspListItem->next)
+    {
+      MSP *msp = (MSP*)(mspListItem->data);
+
+      if (msp && (mspIsExon(msp) || mspIsIntron(msp)))
+	{
+	  GtkWidget *exonView = GTK_WIDGET(data);
+	  const gboolean isSelected = mainWindowIsSeqSelected(exonViewGetMainWindow(exonView), msp->sname);
+	  
+	  if (!isSelected)
+	    {
+	      drawExonIntron(msp, exonView, isSelected);
+	    }
+	}
+    }
+
+  return FALSE;
+}
+
+
+/* Draw the msp in the given row if it is an exon/intron and is selected */
+static gboolean drawSelectedExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   /* One row can contain multiple MSPs. Draw them all. */
   const GList *mspListItem = treeGetMsps(model, iter);
@@ -73,35 +143,15 @@ static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      if (mspIsExon(msp) || mspIsIntron(msp))
+      if (msp && (mspIsExon(msp) || mspIsIntron(msp)))
 	{
 	  GtkWidget *exonView = GTK_WIDGET(data);
-	  ExonViewProperties *properties = exonViewGetProperties(exonView);
-	  IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
-	  gboolean rightToLeft = bigPictureGetStrandsToggled(properties->bigPicture);
+	  const gboolean isSelected = mainWindowIsSeqSelected(exonViewGetMainWindow(exonView), msp->sname);
 	  
-	  int x1 = convertBaseIdxToGridPos(msp->displayStart, &properties->exonViewRect, displayRange, rightToLeft);
-	  int x2 = convertBaseIdxToGridPos(msp->displayEnd, &properties->exonViewRect, displayRange, rightToLeft);
-	  int x = min(x1, x2);
-	  int width = abs(x2 - x1);
-	  
-	  int y = properties->exonViewRect.y;
-	  int height = properties->exonViewRect.height;
-	  
-	  GdkDrawable *drawable = widgetGetDrawable(exonView);
-	  GdkGC *gc = gdk_gc_new(drawable);
-	  gdk_gc_set_foreground(gc, &properties->exonColour);
-
-	  if (mspIsExon(msp))
+	  if (isSelected)
 	    {
-	      drawExon(drawable, gc, x, y, width, height);
+	      drawExonIntron(msp, exonView, isSelected);
 	    }
-	  else if (mspIsIntron(msp))
-	    {
-	      drawIntron(drawable, gc, x, y, width, height);
-	    }
-	    
-	  g_object_unref(gc);
 	}
     }
   
@@ -112,9 +162,13 @@ static gboolean drawExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
 /* Draw all of the exons/introns in the given tree */
 static void drawExonsIntronsForTree(GtkWidget *exonView, GtkWidget *tree)
 {
-  /* Loop through all of the (unfiltered) rows in the tree */
+  /* Loop through all of the (unfiltered) rows in the tree. Loop twice, first
+   * drawing unselected msp then selected ones, so that the selected ones
+   * are drawn on top */
   GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_model_foreach(model, drawExonIntron, exonView);
+  
+  gtk_tree_model_foreach(model, drawUnselectedExonIntron, exonView);
+  gtk_tree_model_foreach(model, drawSelectedExonIntron, exonView);
 }
 
 
@@ -188,6 +242,7 @@ static void exonViewCreateProperties(GtkWidget *exonView, GtkWidget *bigPicture)
       properties->exonViewRect.height = EXON_VIEW_DEFAULT_COMPRESSED_HEIGHT;
       
       properties->exonColour = getGdkColor(GDK_BLUE);
+      properties->exonColourSelected = getGdkColor(GDK_CYAN);
       
       gtk_widget_set_size_request(exonView, 0, properties->compressedHeight);
 
@@ -200,6 +255,12 @@ static GtkWidget* exonViewGetBigPicture(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   return properties->bigPicture;
+}
+
+static GtkWidget* exonViewGetMainWindow(GtkWidget *exonView)
+{
+  GtkWidget *bigPicture = exonViewGetBigPicture(exonView);
+  return bigPictureGetMainWindow(bigPicture);
 }
 
 static GtkWidget* exonViewGetTopGrid(GtkWidget *exonView)
