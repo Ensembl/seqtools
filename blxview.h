@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.6 2010-01-25 18:27:11 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.7 2010-02-24 16:06:30 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -121,10 +121,6 @@ typedef struct _MSP
   int      send;
   char    *sseq;
   
-  /* Coords on the displayed ref sequence (different to ref sequence if displaying peptide sequences) */
-  int	  displayStart;
-  int	  displayEnd;
-
   char    *desc;
   int      box ;
 

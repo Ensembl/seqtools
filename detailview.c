@@ -32,7 +32,11 @@ typedef struct
     const gboolean searchRight;
     const int searchDirection;
     const gboolean rightToLeft;
-    
+    const BlxSeqType seqType;
+    const int numFrames;
+    const IntRange const *refSeqRange;
+
+    int frame;
     int smallestOffset;
   } MatchSearchData;
 
@@ -168,8 +172,9 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
       const int numFrames = detailViewGetNumReadingFrames(detailView);
       const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
       const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+      const BlxSeqType seqType = detailViewGetSeqType(detailView);
       
-      coord = convertDnaToPeptide(coord, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
     }
 
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
@@ -188,8 +193,9 @@ static void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqTy
       const int numFrames = detailViewGetNumReadingFrames(detailView);
       const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
       const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+      const BlxSeqType seqType = detailViewGetSeqType(detailView);
       
-      coord = convertDnaToPeptide(coord, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
     }
 
   /* Get the new start coord */
@@ -605,17 +611,16 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
   const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
   const int selectedFrame = detailViewGetSelectedFrame(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);
 
   /* Loop forward/backward through the display range depending on which strand we're viewing.
-   * The display range is the range for the peptides. We have to adjust by the number of reading
-   * frames to get the index into the reference sequence (which is DNA bases). */
-
-  const int dnaIdx1 = convertPeptideToDna(displayRange->min, frame, 1, numFrames, rightToLeft, refSeqRange);	      /* 1st base in frame */
-  const int dnaIdx2 = convertPeptideToDna(displayRange->max, frame, numFrames, numFrames, rightToLeft, refSeqRange); /* last base in frame */
+   * We need to convert display coords to actual coords on the ref sequence */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, seqType, frame, 1, numFrames, rightToLeft, refSeqRange);	      /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, seqType, frame, numFrames, numFrames, rightToLeft, refSeqRange); /* last base in frame */
   
   IntRange qRange;
-  qRange.min = min(dnaIdx1, dnaIdx2);
-  qRange.max = max(dnaIdx1, dnaIdx2);
+  qRange.min = min(qIdx1, qIdx2);
+  qRange.max = max(qIdx1, qIdx2);
   
   char displayText[displayRange->max - displayRange->min + 1 + 10];
   int incrementValue = numFrames;
@@ -636,7 +641,7 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 						 );
 
       /* If the base (or its peptide) is selected, we need to highlight it */
-      const int peptideIdx = convertDnaToPeptide(qIdx, selectedFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      const int peptideIdx = convertDnaIdxToDisplayIdx(qIdx, seqType, selectedFrame, numFrames, rightToLeft, refSeqRange, NULL);
       if (peptideIdx == selectedBaseIdx)
 	{
 	  /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
@@ -1186,16 +1191,6 @@ char* detailViewGetRefSeq(GtkWidget *detailView)
   return mainWindowGetRefSeq(mainWindow);
 }
 
-/* Get the actual displayed reference sequence (may be the DNA sequence or peptide 
- * sequence - whichever we're displaying according to the BlxSeqType). Always the
- * forward strand.) */
-char* detailViewGetDisplaySeq(GtkWidget *detailView)
-{
-  assertDetailView(detailView);
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetDisplaySeq(mainWindow);
-}
-
 char** detailViewGetGeneticCode(GtkWidget *detailView)
 {
   assertDetailView(detailView);
@@ -1557,8 +1552,9 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
   const int numFrames = detailViewGetNumReadingFrames(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);
   
-  properties->selectedDnaBaseIdx = convertPeptideToDna(selectedBaseIdx, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  properties->selectedDnaBaseIdx = convertDisplayIdxToDnaIdx(selectedBaseIdx, seqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
 
   if (allowScroll)
     {
@@ -1676,11 +1672,11 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->refSeqColour		  = getGdkColor(GDK_YELLOW);
       properties->refSeqColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->matchColour		  = getGdkColor(GDK_TURQUOISE);
-      properties->matchColourSelected	  = getGdkColor(GDK_DARK_CYAN);
+      properties->matchColourSelected	  = getGdkColor(GDK_DARK_TURQUOISE);
       properties->mismatchColour	  = getGdkColor(GDK_GREY);
       properties->mismatchColourSelected  = getGdkColor(GDK_DARK_GREY);
       properties->consColour		  = getGdkColor(GDK_LIGHT_STEEL_BLUE);
-      properties->consColourSelected	  = getGdkColor(GDK_ROYAL_BLUE);
+      properties->consColourSelected	  = getGdkColor(GDK_STEEL_BLUE);
       properties->exonColour		  = getGdkColor(GDK_YELLOW);
       properties->exonColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->insertionColour	  = getGdkColor(GDK_YELLOW);
@@ -1761,6 +1757,15 @@ void toggleStrand(GtkWidget *detailView)
   const int newStart = fullRange->max - displayRange->max + fullRange->min;
   setDetailViewStartIdx(detailView, newStart, mainWindowProperties->seqType);
 
+  /* Invert the currently-selected index, if there is one. We want to select
+   * the same index but counting from the other end. */
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  if (properties->selectedBaseIdx != UNSET_INT)
+    {
+      const int newIdx = fullRange->max - properties->selectedBaseIdx + fullRange->min;
+      detailViewSetSelectedBaseIdx(detailView, newIdx, properties->selectedFrame, properties->selectedBaseNum, FALSE);
+    }
+  
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
   swapTreeVisibility(detailView);
   swapGridVisibility(bigPicture);
@@ -1900,8 +1905,11 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 	{
 	  MatchSearchData *searchData = (MatchSearchData*)data;
 
-          int qSeqMin = min(msp->displayStart, msp->displayEnd);
-          int qSeqMax = max(msp->displayStart, msp->displayEnd);
+	  /* Get the msp start/end in terms of the display coords */
+	  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
+	  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
+	  const int qSeqMin = min(coord1, coord2);
+	  const int qSeqMax = max(coord1, coord2);
 	  
 	  /* Get the offset of this MSP from the current display start position */
 	  int curOffset = UNSET_INT;
@@ -1935,18 +1943,24 @@ static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
   const Strand activeStrand = rightToLeft ? REVERSE_STRAND : FORWARD_STRAND;
   const int searchDirection = (searchRight != rightToLeft) ? 1 : -1;
   
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-  
-  /* Loop through each tree associated with this strand */
-  MatchSearchData searchData = {displayRange, searchRight, searchDirection, rightToLeft, UNSET_INT};
+  MatchSearchData searchData = {detailViewGetDisplayRange(detailView), 
+				searchRight, 
+				searchDirection, 
+				rightToLeft, 
+				detailViewGetSeqType(detailView),
+				detailViewGetNumReadingFrames(detailView),
+				detailViewGetRefSeqRange(detailView),
+				UNSET_INT,
+				UNSET_INT};
 
-  int frame = 1;
-  for (  ; frame <= numFrames; ++frame)
+  /* Loop through each tree associated with this strand */
+  searchData.frame = 1;
+  
+  for (  ; searchData.frame <= searchData.numFrames; ++searchData.frame)
     {
       /* Loop through all the MSPs in this tree and find the smallest offset
        * in the direction we're searching. */
-      GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
+      GtkWidget *tree = detailViewGetTree(detailView, activeStrand, searchData.frame);
       GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
       gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
     }
@@ -1955,7 +1969,7 @@ static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
     {
       /* Scroll the detail view by this offset amount. The offset coords are of
        * the same type as the display sequence type. */
-      const int newStart = displayRange->min + (searchData.smallestOffset * searchDirection);
+      const int newStart = searchData.displayRange->min + (searchData.smallestOffset * searchDirection);
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
 
       setDetailViewStartIdx(detailView, newStart, seqType);

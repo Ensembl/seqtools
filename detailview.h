@@ -127,7 +127,6 @@ typedef struct _DetailViewProperties
 
 /* Public function declarations */
 char*			detailViewGetRefSeq(GtkWidget *detailView);
-char*			detailViewGetDisplaySeq(GtkWidget *detailView);
 int			detailViewGetNumReadingFrames(GtkWidget *detailView);
 IntRange*		detailViewGetDisplayRange(GtkWidget *detailView);
 IntRange*		detailViewGetFullRange(GtkWidget *detailView);

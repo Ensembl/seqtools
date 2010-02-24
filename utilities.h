@@ -16,25 +16,26 @@
 #define UNSET_INT  -1
 
 /* Colour strings that can be passed to gdk_color_parse to create a GdkColor */
-#define GDK_YELLOW	      "#FFFF00" 
-#define GDK_DARK_YELLOW	      "#C0C000"
-#define GDK_CYAN	      "#00FFFF"
+#define GDK_YELLOW	      "#ffff00" 
+#define GDK_DARK_YELLOW	      "#c0c000"
+#define GDK_CYAN	      "#00ffff"
 #define GDK_DARK_CYAN	      "#008080"
-#define GDK_BLUE	      "#0000FF"
+#define GDK_BLUE	      "#0000ff"
 #define GDK_DARK_BLUE	      "#000080"
-#define GDK_LIGHT_STEEL_BLUE  "#6EB4E6"
-#define GDK_STEEL_BLUE	      "#4682B4"
-#define GDK_ROYAL_BLUE	      "#4169E1"
-#define GDK_GREY	      "#BEBEBE"
-#define GDK_DARK_GREY	      "#808080"
+#define GDK_LIGHT_STEEL_BLUE  "#78b4f0"
+#define GDK_STEEL_BLUE	      "#5e76bb"
+#define GDK_ROYAL_BLUE	      "#4169e1"
+#define GDK_GREY	      "#bebebe"
+#define GDK_DARK_GREY	      "#929292"
 #define GDK_BLACK	      "#000000"
-#define GDK_WHITE	      "#FFFFFF"
-#define GDK_RED		      "#FF0000"
+#define GDK_WHITE	      "#ffffff"
+#define GDK_RED		      "#ff0000"
 #define GDK_DARK_RED	      "#800000"
-#define GDK_ORANGE	      "#FFA500"
-#define GDK_GREEN	      "#00FF00"
-#define GDK_DARK_GREEN	      "#00BB00"
-#define GDK_TURQUOISE	      "#40E0D0"
+#define GDK_ORANGE	      "#ffa500"
+#define GDK_GREEN	      "#00ff00"
+#define GDK_DARK_GREEN	      "#00bb00"
+#define GDK_TURQUOISE	      "#40e0d0"
+#define GDK_DARK_TURQUOISE    "#32aca0"
 
 
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
@@ -64,19 +65,21 @@ gboolean	      valueWithinRange(const int value, const IntRange const *range);
 void		      boundsLimitValue(int *value, const IntRange const *range);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
-int		      convertPeptideToDna(const int peptideIdx, 
-					  const int frame, 
-					  const int baseNum, 
-					  const int numFrames,
-					  const gboolean rightToLeft,
-					  const IntRange const *dnaIdxRange);
+int		      convertDisplayIdxToDnaIdx(const int inputIdx, 
+						const BlxSeqType inputIdxType,
+						const int frame, 
+						const int baseNum, 
+						const int numFrames,
+						const gboolean rightToLeft,
+						const IntRange const *dnaIdxRange);
 
-int		      convertDnaToPeptide(const int dnaIdx, 
-					  const int frame,
-					  const int numFrames, 
-					  const gboolean rightToLeft,
-					  const IntRange const *dnaIdxRange,
-					  int *baseNum);
+int		      convertDnaIdxToDisplayIdx(const int dnaIdx, 
+						const BlxSeqType displaySeqType,
+						const int frame,
+						const int numFrames, 
+						const gboolean rightToLeft,
+						const IntRange const *dnaIdxRange,
+						int *baseNum);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 Strand		      mspGetRefStrand(const MSP const *msp);

@@ -97,6 +97,8 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const int numFrames = bigPictureGetNumReadingFrames(bigPicture);
 
   const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
   int numCells = bigPictureGetNumHCells(bigPicture);
@@ -114,14 +116,8 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       int numBasesFromLeft = basesPerCell * hCell;
       int baseIdx = rightToLeft ? displayRange->max - numBasesFromLeft : displayRange->min + numBasesFromLeft;
       
-      if (bigPictureGetSeqType(bigPicture) == BLXSEQ_PEPTIDE)
-	{
-	  /* Convert the peptide coord to a DNA coord. Probably doesn't matter what frame we show it for */
-	  const int numFrames = bigPictureGetNumReadingFrames(bigPicture);
-	  
-	  
-	  baseIdx = convertPeptideToDna(baseIdx, 1, 1, numFrames, rightToLeft, refSeqRange);
-	}
+      /* Convert the display coord to a ref seq coord */
+      baseIdx = convertDisplayIdxToDnaIdx(baseIdx, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
       
       gdk_gc_set_foreground(gc, textColour);
       gchar text[numDigitsInInt(baseIdx) + 1];

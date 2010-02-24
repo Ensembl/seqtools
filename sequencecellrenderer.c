@@ -32,6 +32,7 @@ typedef struct _RenderData
     const int selectedBaseIdx;
     const int cellXPadding;
     const int cellYPadding;
+    const int frame;
     const int numFrames;
     const int charWidth;
     const int charHeight;
@@ -716,8 +717,11 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 {
   if (msp && mspIsExon(msp))
     {
-      const int minIdx = min(msp->displayStart, msp->displayEnd);
-      const int maxIdx = max(msp->displayStart, msp->displayEnd);
+      /* Get the msp's start/end in terms of the display coords */
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, NULL);
+      const int minIdx = min(coord1, coord2);
+      const int maxIdx = max(coord1, coord2);
       
       if (minIdx >= rd->displayRange->min && minIdx <= rd->displayRange->max)
 	{
@@ -725,7 +729,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourStart);
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleStart, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-	  const int idx = rd->rightToLeft ? rd->displayRange->max - minIdx + 1 : minIdx - rd->displayRange->min;
+	  const int idx = minIdx - rd->displayRange->min;
 
 	  int x, y;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -740,7 +744,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourEnd);
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleEnd, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
-	  const int idx = rd->rightToLeft ? rd->displayRange->max - maxIdx : maxIdx + 1 - rd->displayRange->min;
+	  const int idx = maxIdx + 1 - rd->displayRange->min;
 
 	  int x, y;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -861,8 +865,8 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
   IntRange result = {UNSET_INT, UNSET_INT};
   
   /* Find the start/end of the MSP in terms of the display coords */
-  const int coord1 = convertDnaToPeptide(msp->qstart, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
-  const int coord2 = convertDnaToPeptide(msp->qend, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
   
   int minIdx = min(coord1, coord2);
   int maxIdx = max(coord1, coord2);
@@ -984,6 +988,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->selectedBaseIdx,
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
+    treeProperties->readingFrame,
     mainWindowProperties->numReadingFrames,
     detailViewProperties->charWidth,
     detailViewProperties->charHeight,

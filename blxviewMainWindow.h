@@ -20,7 +20,6 @@ typedef struct _MainWindowProperties
     
     char *refSeq;		    /* The reference sequence (always forward strand, always DNA sequence) */
     const char *refSeqName;	    /* The name of the reference sequence */
-    char *displaySeq;		    /* The displayed sequence (same as ref seq or converted to peptide sequence) */
     IntRange refSeqRange;	    /* The range of the reference sequence */
     IntRange fullDisplayRange;	    /* The range of the displayed sequence */
     const gboolean gappedHsp;	    
@@ -61,7 +60,6 @@ const char*		  mainWindowGetRefSeqName(GtkWidget *mainWindow);
 BlxSeqType		  mainWindowGetSeqType(GtkWidget *mainWindow);
 char**			  mainWindowGetGeneticCode(GtkWidget *mainWindow);
 char*			  mainWindowGetRefSeq(GtkWidget *mainWindow);
-char*			  mainWindowGetDisplaySeq(GtkWidget *mainWindow);
 int			  mainWindowGetNumReadingFrames(GtkWidget *mainWindow);
 int			  mainWindowGetDotterStart(GtkWidget *mainWindow);
 int			  mainWindowGetDotterEnd(GtkWidget *mainWindow);

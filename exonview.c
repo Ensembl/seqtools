@@ -82,8 +82,8 @@ static void drawExonIntron(const MSP *msp, GtkWidget *exonView, const gboolean i
   int qSeqMax = max(msp->qstart, msp->qend);
   
   /* Convert msp coords to display coords. */
-  qSeqMin = convertDnaToPeptide(qSeqMin, frame, numFrames, rightToLeft, refSeqRange, NULL);
-  qSeqMax = convertDnaToPeptide(qSeqMax, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  qSeqMin = convertDnaIdxToDisplayIdx(qSeqMin, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  qSeqMax = convertDnaIdxToDisplayIdx(qSeqMax, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
   
   int x1 = convertBaseIdxToGridPos(qSeqMin, &properties->exonViewRect, displayRange);
   int x2 = convertBaseIdxToGridPos(qSeqMax, &properties->exonViewRect, displayRange);

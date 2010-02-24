@@ -263,14 +263,15 @@ void calculateMspLineDimensions(GtkWidget *grid,
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
   const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
 
   /* Find the coordinates of the start and end base in this match sequence */
   int qSeqMin = min(msp->qstart, msp->qend);
   int qSeqMax = max(msp->qstart, msp->qend);
   
   /* Convert to display coords. Doesn't really matter which frame - pass frame 1 */
-  qSeqMin = convertDnaToPeptide(qSeqMin, 1, numFrames, rightToLeft, refSeqRange, NULL);
-  qSeqMax = convertDnaToPeptide(qSeqMax, 1, numFrames, rightToLeft, refSeqRange, NULL);
+  qSeqMin = convertDnaIdxToDisplayIdx(qSeqMin, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+  qSeqMax = convertDnaIdxToDisplayIdx(qSeqMax, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
   
   /* Convert sequence coords to a grid position */
   int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, displayRange);
@@ -311,18 +312,14 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
       const IntRange const *displayRange = gridGetDisplayRange(grid);
       GtkWidget *mainWindow = bigPictureGetMainWindow(gridGetBigPicture(grid));
 
-      int mspStart = msp->qstart;
-      int mspEnd = msp->qend;
-
-      if (mainWindowGetSeqType(mainWindow) == BLXSEQ_PEPTIDE)
-	{
-	  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-	  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-	  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+      /* Convert the msp's dna coords to display coords */
+      const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+      const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+      const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+      const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
 	  
-	  mspStart = convertDnaToPeptide(mspStart, 1, numFrames, rightToLeft, refSeqRange, NULL);
-	  mspEnd = convertDnaToPeptide(mspEnd, 1, numFrames, rightToLeft, refSeqRange, NULL);
-	}
+      const int mspStart = convertDnaIdxToDisplayIdx(msp->qstart, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      const int mspEnd = convertDnaIdxToDisplayIdx(msp->qend, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
 
       if (valueWithinRange(mspStart, displayRange) || valueWithinRange(mspEnd, displayRange))
 	{

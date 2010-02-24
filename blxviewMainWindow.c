@@ -182,16 +182,12 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 			  const gboolean translateResult)
 {
   gchar *result = NULL;
-  
-  int qMin = min(coord1, coord2); 
-  int qMax = max(coord1, coord2);
 
-  /* If the input coords are on a peptide sequence, convert them to DNA sequence coords. */
-  if (inputCoordType == BLXSEQ_PEPTIDE)
-    {
-      qMin = convertPeptideToDna(qMin, frame, 1, numFrames, rightToLeft, dnaSequenceRange);	 /* 1st base in frame */
-      qMax = convertPeptideToDna(qMax, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange); /* last base in frame */
-    }
+  /* Convert input coord to ref seq coords and find the min/max */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, numFrames, rightToLeft, dnaSequenceRange);	 /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange); /* last base in frame */
+  int qMin = min(qIdx1, qIdx2);
+  int qMax = max(qIdx1, qIdx2);
   
   /* Check that the requested segment is within the sequence's range */
   if (qMin < dnaSequenceRange->min || qMax > dnaSequenceRange->max)
@@ -1796,7 +1792,6 @@ static void mainWindowCreateProperties(GtkWidget *widget,
 				       const BlxBlastMode blastMode,
 				       char *refSeq,
 				       const char *refSeqName,
-				       char *displaySeq,
 				       const IntRange const *refSeqRange,
 				       const IntRange const *fullDisplayRange,
 				       const BlxSeqType seqType,
@@ -1814,7 +1809,6 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       
       properties->refSeq = refSeq;
       properties->refSeqName = refSeqName ? g_strdup(refSeqName) : g_strdup("Blixem-seq");
-      properties->displaySeq = displaySeq;
       properties->refSeqRange.min = refSeqRange->min;
       properties->refSeqRange.max = refSeqRange->max;
       properties->fullDisplayRange.min = fullDisplayRange->min;
@@ -1888,12 +1882,6 @@ const char * mainWindowGetRefSeqName(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->refSeqName : NULL;
-}
-
-char* mainWindowGetDisplaySeq(GtkWidget *mainWindow)
-{
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  return properties ? properties->displaySeq : NULL;
 }
 
 char** mainWindowGetGeneticCode(GtkWidget *mainWindow)
@@ -2197,15 +2185,13 @@ GtkWidget* createMainWindow(char *refSeq,
   const int refSeqLen = (int)strlen(refSeq);
   IntRange refSeqRange = {refSeqOffset + 1, refSeqOffset + refSeqLen};
   IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
-  char *displaySeq = refSeq;
   
   if (seqType == BLXSEQ_PEPTIDE)
     {
-      displaySeq = blxTranslate(refSeq, geneticCode);
-      fullDisplayRange.min = convertDnaToPeptide(refSeqRange.min, 1, numFrames, FALSE, &refSeqRange, NULL);
+      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, seqType, 1, numFrames, FALSE, &refSeqRange, NULL);
       
       int baseNum = UNSET_INT;
-      fullDisplayRange.max = convertDnaToPeptide(refSeqRange.max, 3, numFrames, FALSE, &refSeqRange, &baseNum);
+      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, seqType, 3, numFrames, FALSE, &refSeqRange, &baseNum);
       
       if (baseNum < numFrames)
 	{
@@ -2221,7 +2207,7 @@ GtkWidget* createMainWindow(char *refSeq,
   int startCoord = startCoord1Based + refSeqOffset;
   if (seqType == BLXSEQ_PEPTIDE)
     {
-      startCoord = convertDnaToPeptide(startCoord, 1, numFrames, FALSE, &refSeqRange, NULL);
+      startCoord = convertDnaIdxToDisplayIdx(startCoord, seqType, 1, numFrames, FALSE, &refSeqRange, NULL);
     }
   
   
@@ -2284,7 +2270,6 @@ GtkWidget* createMainWindow(char *refSeq,
 			     blastMode, 
 			     refSeq, 
 			     refSeqName,
-			     displaySeq,
 			     &refSeqRange, 
 			     &fullDisplayRange, 
 			     seqType, 

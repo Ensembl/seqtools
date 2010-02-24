@@ -446,10 +446,12 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   
   GtkWidget *bigPicture = mainWindowGetBigPicture(blxWindow);
   const IntRange const *bigPicRange = bigPictureGetDisplayRange(bigPicture);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
   const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
   const BlxSeqType seqType = mainWindowGetSeqType(blxWindow);
   const int numFrames = mainWindowGetNumReadingFrames(blxWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+  
   char activeStrand = (rightToLeft ? '-' : '+') ;
 
   /* Loop through all MSPs in the selected sequence. We'll estimate the wanted
@@ -461,8 +463,13 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   for ( ; mspListItem ; mspListItem = mspListItem->next)
     {
       const MSP *msp = (MSP*)(mspListItem->data);
-      const int minMspCoord = min(msp->displayStart, msp->displayEnd);
-      const int maxMspCoord = max(msp->displayStart, msp->displayEnd);
+      const int qFrame = mspGetRefFrame(msp, seqType);
+      
+      /* Get the msp start/end in terms of display coords, and find the min/max */
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->sstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->send, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      const int minMspCoord = min(coord1, coord2);
+      const int maxMspCoord = max(coord1, coord2);
 
       /* Check if the MSP is in a visible tree row and is entirely within the big picture range */
       if ((msp->qframe[1] == activeStrand || (blastMode == BLXMODE_BLASTN)) &&
