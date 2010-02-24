@@ -392,6 +392,9 @@ int convertDnaToPeptide(const int dnaIdx, const int frame, const int numFrames, 
   if (baseNum)
     {
       *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
+      
+      if (*baseNum == 0)
+	*baseNum = 3;
     }
   
   return peptideIdx;

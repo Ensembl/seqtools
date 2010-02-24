@@ -196,10 +196,15 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
   if (qMin < sequenceRange->min || qMax > sequenceRange->max)
     {
       if (inputSeqType == BLXSEQ_PEPTIDE)
-	messout ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max, coord1, coord2);
+	printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max, coord1, coord2);
       else
-	messout ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max);
-      return NULL;
+	printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max);
+	
+      if (qMax > sequenceRange->max)
+	qMax = sequenceRange->max;
+	
+      if (qMin < sequenceRange->min)
+	qMin = sequenceRange->min;
     }
   
   /* Get 0-based indices into the sequence */
@@ -2205,7 +2210,16 @@ GtkWidget* createMainWindow(char *refSeq,
     {
       displaySeq = blxTranslate(refSeq, geneticCode);
       fullDisplayRange.min = convertDnaToPeptide(refSeqRange.min, 1, numReadingFrames, NULL);
-      fullDisplayRange.max = convertDnaToPeptide(refSeqRange.max, 3, numReadingFrames, NULL);
+      
+      int baseNum = UNSET_INT;
+      fullDisplayRange.max = convertDnaToPeptide(refSeqRange.max, 3, numReadingFrames, &baseNum);
+      
+      if (baseNum < numReadingFrames)
+	{
+	  /* The last peptide does not have a full triplet, so cut off the range at the last full triplet */
+	  fullDisplayRange.max -= 1;
+	}
+      
       printf("Converted DNA sequence (%d-%d) to peptide sequence (%d-%d).\n",  refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
     }
   

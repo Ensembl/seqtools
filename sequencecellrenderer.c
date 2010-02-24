@@ -591,8 +591,14 @@ static void insertChar(char *text1, int *i, char charToAdd, MSP *msp)
  * assumed to be 1-based. */
 static char getMatchSeqBase(char *matchSeq, const int sIdx, const BlxSeqType seqType)
 {
-  char result = matchSeq[sIdx - 1];
-  result = convertBaseToCorrectCase(result, seqType);
+  char result = '-';
+  
+  if (matchSeq)
+  {
+    result = matchSeq[sIdx - 1];
+    result = convertBaseToCorrectCase(result, seqType);
+  }
+
   return result;
 }
 
@@ -750,7 +756,8 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 }
 
 
-/* Draw the boundaries of all exons within the current display range */
+/* Draw the boundaries of all exons in the given tree that are within the current
+ * display range */
 void drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data)
 {
   /* Loop through all MSPs. */
@@ -758,7 +765,10 @@ void drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data)
 
   for ( ; msp; msp = msp->next)
     {
-      drawExonBoundary(msp, data);
+      if (mspGetRefFrame(msp, data->seqType) == data->qFrame && mspGetRefStrand(msp) == data->qStrand)
+	{
+	  drawExonBoundary(msp, data);
+	}
     }
 }
 

@@ -198,7 +198,7 @@ static void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqTy
 static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
 {  
   /* bounds checking */
-  int maxValue = adjustment->upper - adjustment->page_size;
+  int maxValue = adjustment->upper - adjustment->page_size + 1;
   
   if (value > maxValue)
     {
@@ -380,8 +380,7 @@ static void addTreesToDetailView(GtkContainer *detailView,
       
       if (numTrees == 1)
 	{
-	  /* Two panes, one tree. Use 'first' flags to decide which pane to put it in and
-	   * whether to show headers. */
+	  /* Two panes, one tree. Use 'first' flags to decide which pane to put it in */
 	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
 	  
 	  if (first)
@@ -2408,13 +2407,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
 				  GList *columnList,
 				  const char const *refSeqName)
 {
-  /* Add the frames in increasing order for the forward strand, decreasing order for
-   * the reverse strand. This is the order they'll be added to the list, and they
-   * are currently placed in the display in the same order. */
-  const gboolean forward = gridGetStrand(grid) == FORWARD_STRAND;
-  const int frame1 = forward ? 1 : 3;
-  const int frame2 = 2;
-  const int frame3 = forward ? 3 : 1;
+  const int frame1 = 1, frame2 = 2, frame3 = 3;
   
   /* Create a tree for pane1 (but only add it to the detailView if instructed to).
    * The first tree has headers. */

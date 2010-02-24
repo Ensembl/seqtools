@@ -66,7 +66,6 @@ int		  treeGetCellXPadding(GtkWidget *tree);
 int		  treeGetCellYPadding(GtkWidget *tree);
 int		  treeGetCharWidth(GtkWidget *tree);
 int		  treeGetCharHeight(GtkWidget *tree);
-int		  treeGetFrame(GtkWidget *tree);
 BlxSeqType	  treeGetSeqType(GtkWidget *tree);
 BlxBlastMode	  treeGetBlastMode(GtkWidget *tree);
 GHashTable*	  treeGetSeqTable(GtkWidget *tree);
