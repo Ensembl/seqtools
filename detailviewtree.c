@@ -22,6 +22,8 @@ static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkT
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
+static int		treeGetFrame(GtkWidget *tree);
+static IntRange*	treeGetRefSeqRange(GtkWidget *tree);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -115,11 +117,11 @@ int treeGetNumReadingFrames(GtkWidget *tree)
   return properties ? detailViewGetNumReadingFrames(properties->detailView) : UNSET_INT;
 }
 
-int treeGetFrame(GtkWidget *tree)
+static int treeGetFrame(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
-  return properties ? properties->readingFrame : UNSET_INT;
+  return properties->readingFrame;
 }
 
 static gboolean treeGetSortInverted(GtkWidget *tree)
@@ -190,7 +192,7 @@ IntRange* treeGetFullRange(GtkWidget *tree)
 
 /* Returns the range of the reference sequence (as a DNA sequence, regardless of
  * whether it is shown as a peptide sequence in reality) */
-IntRange* treeGetRefSeqRange(GtkWidget *tree)
+static IntRange* treeGetRefSeqRange(GtkWidget *tree)
 {
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
@@ -473,10 +475,6 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
   GtkCellRenderer *renderer = treeGetRenderer(tree);
   gtk_tree_view_column_cell_get_position(col, renderer, &startPos, &colWidth);
   
-  /* Find the direction of the display. If strands are toggled, the reference
-   * sequence is shown right-to-left (i.e. lowest value on the right). */
-  gboolean rightToLeft = treeGetStrandsToggled(tree);
-  
   /* Check that the given coord is within the cell's display area */
   double leftEdge = (double)renderer->xpad + renderer->xalign;
   double rightEdge = colWidth - renderer->xpad;
@@ -485,31 +483,7 @@ static int getCharIndexAtTreeCoord(GtkWidget *tree, GtkTreeViewColumn *col, cons
     {
       /* Calculate the number of bases from the left edge */
       gint charWidth = treeGetCharWidth(tree);
-      
-      const double numBasesFromLeftDbl = ((double)x - leftEdge) / (double)charWidth;
-      const int numBasesFromLeft = (int)numBasesFromLeftDbl;
-      
-      if (rightToLeft)
-	{
-	  /* Numbers are displayed increasing from right-to-left. Subtract the 
-	   * number of bases from the total number of bases displayed. */
-	  IntRange *displayRange = treeGetDisplayRange(tree);
-	  int displayLen = displayRange->max - displayRange->min;
-	  result = displayLen - numBasesFromLeft;
-	  
-	  /* x could be in an empty gap at the end, so bounds check the result.
-	   * Note that our index is 0-based but the display range will start at 
-	   * 1 (or another positive value if there is an offset). */
-	  if (result < 0)
-	    {
-	      result = UNSET_INT;
-	    }
-	}
-      else
-	{
-	  /* Normal left-to-right display. */
-	  result = numBasesFromLeft;
-	}
+      result = (int)(((double)x - leftEdge) / (double)charWidth);
     }
   
   return result;
@@ -872,42 +846,48 @@ void resortTree(GtkWidget *tree, gpointer data)
 static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
   gboolean bDisplay = FALSE;
-
-  GtkWidget *tree = GTK_WIDGET(data);
-  const IntRange const *displayRange = treeGetDisplayRange(tree);
-  GtkWidget *mainWindow = treeGetMainWindow(tree);
   
-  /* Loop through all MSPs in this row */
-  GList *mspListItem = treeGetMsps(model, iter);
+  GList *mspList = treeGetMsps(model, iter);
   
-  for ( ; mspListItem; mspListItem = mspListItem->next)
+  if (g_list_length(mspList) > 0)
     {
-      MSP* msp = (MSP*)(mspListItem->data);
+      GtkWidget *tree = GTK_WIDGET(data);
+      GtkWidget *mainWindow = treeGetMainWindow(tree);
+
+      /* Check the first msp to see if this sequence is in a group that's hidden */
+      const MSP *firstMsp = (const MSP*)(mspList->data);
+      SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, firstMsp->sname);
       
-      /* Don't show introns */
-      if (msp && !mspIsIntron(msp))
+      if (!group || !group->hidden)
 	{
-	  /* Don't show this row if it is in a group that is hidden */
-	  SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, msp->sname);
-	  if (group && group->hidden)
+	  const int frame = treeGetFrame(tree);
+	  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+	  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+	  const IntRange const *displayRange = treeGetDisplayRange(tree);
+	  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+
+	  /* Show the row if any MSP in the list is an exon or blast match within the display range */
+	  GList *mspListItem = mspList;
+	  for ( ; mspListItem; mspListItem = mspListItem->next)
 	    {
-	      bDisplay = FALSE;
-	      break;
-	    }
-	    
-	  /* Only show this row if part of the MSP's range is inside the displayed range */
-	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
-	  if (adjustment)
-	    {
-	      int qSeqMin = min(msp->displayStart, msp->displayEnd);
-	      int qSeqMax = max(msp->displayStart, msp->displayEnd);
+	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-	      if (!(qSeqMin > displayRange->max || qSeqMax < displayRange->min))
+	      if (mspIsBlastMatch(msp) || mspIsExon(msp))
 		{
-		  bDisplay = TRUE;
-		  break;
+		  /* Convert the MSP's dna coords to display coords, and find the min and max */
+		  const int coord1 = convertDnaToPeptide(msp->qstart, frame, numFrames, rightToLeft, refSeqRange, NULL);
+		  const int coord2 = convertDnaToPeptide(msp->qend, frame, numFrames, rightToLeft, refSeqRange, NULL);
+		  
+		  const int minCoord = min(coord1, coord2);
+		  const int maxCoord = max(coord1, coord2);
+
+		  if (!(minCoord >= displayRange->max || maxCoord < displayRange->min))
+		    {
+		      bDisplay = TRUE;
+		      break;
+		    }
 		}
-	    }
+	    }	  
 	}
     }
   
@@ -1039,10 +1019,8 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	    deselectAllSiblingTrees(tree, FALSE);
 	    
 	    /* If we've clicked a different tree to the previously selected one, make this tree's 
-	     * reading frame the active one. Select the first base in the triplet (or the last
-	     * if the display is reversed). */
-	    const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-	    treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), firstBaseNum, FALSE);
+	     * reading frame the active one. Select the first base in the triplet */
+	    treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), 1, FALSE);
 	    
 	    /* Let the default handler select the row */
 	    handled = FALSE;
@@ -1070,9 +1048,8 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	/* Middle button: select the base index at the clicked coords */
 	int baseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y);
 	
-	/* Select the first base in this peptide's triplet (or the last if the display is reversed) */
-	const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-	treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum, TRUE);
+	/* Select the first base in this peptide's triplet */
+	treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), 1, TRUE);
 	
 	handled = TRUE;
 	break;
@@ -1113,9 +1090,8 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	    GtkAdjustment *adjustment = treeGetAdjustment(tree);
 	    const int baseIdx = charIdx + adjustment->value;
 	
-	    /* Select the first base in this peptide's triplet (or the last if the display is reversed) */
-	    const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-	    treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum, TRUE);
+	    /* Select the first base in this peptide's triplet */
+	    treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), 1, TRUE);
 	  }
 	  
 	handled = TRUE;
@@ -1312,10 +1288,8 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
       const int selectedBaseIdx = getBaseIndexAtTreeCoords(tree, event->x, event->y);
       const int frame = treeGetFrame(tree);
 
-      /* For protein matches, get the 1st base in the peptide (or last base if display reversed) */
-      int baseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-      
-      treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, baseNum, TRUE);
+      /* For protein matches, get the 1st base in the peptide */
+      treeSetSelectedBaseIdx(tree, selectedBaseIdx, frame, 1, TRUE);
     }
   
   return TRUE;
@@ -1337,9 +1311,8 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
 	  GtkAdjustment *adjustment = treeGetAdjustment(tree);
 	  const int baseIdx = charIdx + adjustment->value;
       
-	  /* Select the first base in this peptide's triplet (or the last if the display is reversed) */
-	  const int firstBaseNum = treeGetStrandsToggled(tree) ? treeGetNumReadingFrames(tree) : 1;
-	  treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), firstBaseNum, TRUE);
+	  /* Select the first base in this peptide's triplet */
+	  treeSetSelectedBaseIdx(tree, baseIdx, treeGetFrame(tree), 1, TRUE);
 	}
     }
   
@@ -1412,6 +1385,7 @@ static void calcID(MSP *msp, GtkWidget *tree)
        * strand. This means that where there is no gaps array the comparison is trivial
        * as coordinates can be ignored and the two sequences just whipped through. */
       GtkWidget *detailView = treeGetDetailView(tree);
+      
       char *refSeqSegment = getSequenceSegment(detailViewGetMainWindow(detailView),
 					       detailViewGetRefSeq(detailView),
 					       detailViewGetRefSeqRange(detailView),
@@ -1420,7 +1394,8 @@ static void calcID(MSP *msp, GtkWidget *tree)
 					       treeGetStrand(tree), 
 					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
 					       treeGetFrame(tree),
-					       treeGetNumReadingFrames(tree),
+					       numFrames,
+					       treeGetStrandsToggled(tree),
 					       !qForward,
 					       TRUE);
 
@@ -1559,9 +1534,11 @@ static void calcDisplayCoords(MSP *msp, GtkWidget *tree)
   /* Above coords are all with respect to the DNA sequence. Also find the peptide
    * coords, if relevant. These are the coords that will be displayed in the tree. */
   const int frame = treeGetFrame(tree);
-  const int numReadingFrames = treeGetNumReadingFrames(tree);
-  msp->displayStart = convertDnaToPeptide(msp->qstart, frame, numReadingFrames, NULL); 
-  msp->displayEnd = convertDnaToPeptide(msp->qend, frame, numReadingFrames, NULL);
+  const int numFrames = treeGetNumReadingFrames(tree);
+  const gboolean rightToLeft = treeGetStrandsToggled(tree);
+  
+  msp->displayStart = convertDnaToPeptide(msp->qstart, frame, numFrames, rightToLeft, refSeqRange, NULL); 
+  msp->displayEnd = convertDnaToPeptide(msp->qend, frame, numFrames, rightToLeft, refSeqRange, NULL);
 }
 
 
@@ -1851,10 +1828,9 @@ static void createMarkupForLabel(GtkLabel *label,
 				 const char *segmentToDisplay, 
 				 const int selectedBaseIdx,
 				 GdkColor *colour,
-				 const gboolean rightToLeft,
 				 const IntRange const *displayRange)
 {
-  int charIdx = rightToLeft ? displayRange->max - selectedBaseIdx : selectedBaseIdx - displayRange->min;
+  int charIdx = selectedBaseIdx - displayRange->min;
   const int segLen = strlen(segmentToDisplay);
   
   if (charIdx >= 0 && charIdx < segLen)
@@ -1923,6 +1899,7 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
 					       treeGetFrame(tree), 
 					       mainWindowGetNumReadingFrames(mainWindow),
 					       rightToLeft,
+					       rightToLeft,
 					       TRUE);
 
   if (segmentToDisplay)
@@ -1937,7 +1914,7 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
       else
         {
           GdkColor *selectedColour = treeGetRefSeqColour(tree, TRUE);
-          createMarkupForLabel(GTK_LABEL(headerWidget), segmentToDisplay, selectedBaseIdx, selectedColour, rightToLeft, displayRange);
+          createMarkupForLabel(GTK_LABEL(headerWidget), segmentToDisplay, selectedBaseIdx, selectedColour, displayRange);
         }
       
       g_free(segmentToDisplay);
@@ -2002,7 +1979,8 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 					treeGetFrame(tree),
 					treeGetSeqType(tree), 
 					treeGetStrandsToggled(tree), 
-					treeGetNumReadingFrames(tree));
+					treeGetNumReadingFrames(tree),
+					treeGetRefSeqRange(tree));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
@@ -2030,7 +2008,8 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
 				      treeGetFrame(tree),
 				      treeGetSeqType(tree), 
 				      treeGetStrandsToggled(tree), 
-				      treeGetNumReadingFrames(tree));
+				      treeGetNumReadingFrames(tree),
+				      treeGetRefSeqRange(tree));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
@@ -2187,10 +2166,10 @@ static GList* addTreeColumns(GtkWidget *tree,
 	}
     }
 
-  /* Set a tooltip to display the sequence name. To do: at the moment this shows
-   * the tooltip when hovering anywhere over the tree: ideally we probably just
-   * want to show it when hovering over the name column. */
-  gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree), S_NAME_COL);
+  /* Set a tooltip to display the sequence name. To do: at the moment this would
+   * show the tooltip when hovering anywhere over the tree: really we probably just
+   * want to show it when hovering over the name column. This is also only in GTK 2.12 and above */
+  /* gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree), S_NAME_COL); */
   
   return headerWidgets;
 }

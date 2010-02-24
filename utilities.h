@@ -62,10 +62,21 @@ int		      getRangeLength(const IntRange const *range);
 int		      getRangeCentre(const IntRange const *range);
 gboolean	      valueWithinRange(const int value, const IntRange const *range);
 void		      boundsLimitValue(int *value, const IntRange const *range);
-
-int		      convertPeptideToDna(const int peptideIdx, const int frame, const int baseNum, const int numFrames);
-int		      convertDnaToPeptide(const int dnaIdx, const int frame, const int numFrames, int *baseNum);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
+
+int		      convertPeptideToDna(const int peptideIdx, 
+					  const int frame, 
+					  const int baseNum, 
+					  const int numFrames,
+					  const gboolean rightToLeft,
+					  const IntRange const *dnaIdxRange);
+
+int		      convertDnaToPeptide(const int dnaIdx, 
+					  const int frame,
+					  const int numFrames, 
+					  const gboolean rightToLeft,
+					  const IntRange const *dnaIdxRange,
+					  int *baseNum);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 Strand		      mspGetRefStrand(const MSP const *msp);
@@ -84,14 +95,16 @@ char		      getRefSeqBase(char *refSeq,
 int		      getStartDnaCoord(const IntRange const *displayRange, 
 				       const int frame,
 				       const BlxSeqType displaySeqType, 
-				       const gboolean reverse, 
-				       const int numReadingFrames);
+				       const gboolean rightToLeft, 
+				       const int numFrames,
+				       const IntRange const *refSeqRange);
 
 int		      getEndDnaCoord(const IntRange const *displayRange, 
 				     const int frame,
 				     const BlxSeqType displaySeqType, 
-				     const gboolean reverse, 
-				     const int numReadingFrames);
+				     const gboolean rightToLeft, 
+				     const int numFrames,
+				     const IntRange const *refSeqRange);
 
 int		      getMatchIdxFromDisplayIdx(MSP *msp,
 						const int displayIdx,
@@ -99,7 +112,8 @@ int		      getMatchIdxFromDisplayIdx(MSP *msp,
 						const Strand qStrand,
 						const gboolean rightToLeft,
 						const BlxSeqType seqType,
-						const int numFrames);
+						const int numFrames,
+						const IntRange const *refSeqRange);
 
 int		      gapCoord(const MSP *msp, 
 			       const int qIdx, 

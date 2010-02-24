@@ -38,6 +38,7 @@ typedef struct _RenderData
     const BlxSeqType seqType;
     const BlxBlastMode blastMode;
     const IntRange const *displayRange;
+    const IntRange const *refSeqRange;
     const gboolean highlightDiffs;
     GdkDrawable *drawable;
     GtkWidget *mainWindow;
@@ -535,7 +536,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
   if (selectedBaseIdx != UNSET_INT && valueWithinRange(selectedBaseIdx, data->displayRange))
     {
       /* Convert the display-range index to a 0-based index for the section of sequence displayed */
-      const int segmentIdx = data->rightToLeft ? data->displayRange->max - selectedBaseIdx : selectedBaseIdx - data->displayRange->min;
+      const int segmentIdx = selectedBaseIdx - data->displayRange->min;
       
       int x, y;
       getCoordsForBaseIdx(segmentIdx, data->displayRange, data, &x, &y);
@@ -606,10 +607,9 @@ static char getMatchSeqBase(char *matchSeq, const int sIdx, const BlxSeqType seq
 /* Given a 0-based index into a segment of the reference sequence, find the
  * index into the full reference sequence. */
 static int getRefSeqIndexFromSegment(const int segmentIdx,
-				     const IntRange const *segmentRange,
-				     const gboolean rightToLeft)
+				     const IntRange const *segmentRange)
 {
-  return (rightToLeft ? segmentRange->max - segmentIdx : segmentRange->min + segmentIdx);
+  return (segmentRange->min + segmentIdx);
 }
 
 
@@ -631,8 +631,8 @@ static void drawBase(MSP *msp,
   char sBase = '\0';
   GdkColor *baseBgColour;
   
-  *qIdx = getRefSeqIndexFromSegment(segmentIdx, segmentRange, data->rightToLeft);
-  *sIdx = getMatchIdxFromDisplayIdx(msp, *qIdx, data->qFrame, data->qStrand, data->rightToLeft, data->seqType, data->numFrames);
+  *qIdx = getRefSeqIndexFromSegment(segmentIdx, segmentRange);
+  *sIdx = getMatchIdxFromDisplayIdx(msp, *qIdx, data->qFrame, data->qStrand, data->rightToLeft, data->seqType, data->numFrames, data->refSeqRange);
   
   /* Highlight the base if its base index is selected */
   gboolean selected = (*qIdx == data->selectedBaseIdx);
@@ -699,9 +699,7 @@ static void getCoordsForBaseIdx(const int segmentIdx,
 				int* y)
 {
   /* Find the start of the segment with respect to the display range */
-  const int startPos = data->rightToLeft 
-    ? data->displayRange->max - segmentRange->max
-    : segmentRange->min - data->displayRange->min;
+  const int startPos = segmentRange->min - data->displayRange->min;
   
   /* Find the position of the character within the segment */
   int charIdx = startPos + segmentIdx;
@@ -863,8 +861,11 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
   IntRange result = {UNSET_INT, UNSET_INT};
   
   /* Find the start/end of the MSP in terms of the display coords */
-  int minIdx = min(msp->displayStart, msp->displayEnd);
-  int maxIdx = max(msp->displayStart, msp->displayEnd);
+  const int coord1 = convertDnaToPeptide(msp->qstart, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  const int coord2 = convertDnaToPeptide(msp->qend, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  
+  int minIdx = min(coord1, coord2);
+  int maxIdx = max(coord1, coord2);
 
   /* Check it's in the visible range. */
   if (maxIdx >= data->displayRange->min && minIdx <= data->displayRange->max)
@@ -912,6 +913,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 					    data->seqType,
 					    data->qFrame, 
 					    data->numFrames,
+					    data->rightToLeft,
 					    data->rightToLeft,
 					    TRUE);
 
@@ -988,6 +990,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
     mainWindowProperties->seqType,
     mainWindowProperties->blastMode,
     &detailViewProperties->displayRange,
+    &mainWindowProperties->refSeqRange,
     highlightDiffs,
     widgetGetDrawable(tree),
     detailViewProperties->mainWindow,

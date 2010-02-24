@@ -60,8 +60,7 @@ gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRang
  * values on the left). */
 gint convertBaseIdxToGridPos(const gint baseIdx, 
 			     const GdkRectangle const *rect, 
-			     const IntRange const *displayRange,
-			     const gboolean rightToLeft)
+			     const IntRange const *displayRange)
 {
   gint result = UNSET_INT;
   
@@ -73,23 +72,11 @@ gint convertBaseIdxToGridPos(const gint baseIdx,
   
   gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rect->width, displayRange));
   
-  if (rightToLeft)
+  result = rect->x + pixelsFromEdge;
+  
+  if (result > rect->x + rect->width)
     {
-      result = rect->x + rect->width - pixelsFromEdge;
-      
-      if (result < rect->x)
-	{
-	  result = rect->x;
-	}
-    }
-  else
-    {
-      result = rect->x + pixelsFromEdge;
-      
-      if (result > rect->x + rect->width)
-	{
-	  result = rect->x + rect->width;
-	}
+      result = rect->x + rect->width;
     }
   
   return result;
@@ -106,9 +93,12 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
   const gint bottomBorder = properties->headerRect.y + properties->headerRect.height;
   const gint topBorder = bottomBorder - properties->markerHeight;
-  
-  gboolean rightToLeft = bigPictureGetStrandsToggled(bigPicture);
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+
+  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+
+  const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
   int numCells = bigPictureGetNumHCells(bigPicture);
   int cellWidth = bigPictureGetCellWidth(bigPicture);
   
@@ -128,7 +118,9 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 	{
 	  /* Convert the peptide coord to a DNA coord. Probably doesn't matter what frame we show it for */
 	  const int numFrames = bigPictureGetNumReadingFrames(bigPicture);
-	  baseIdx = convertPeptideToDna(baseIdx, 1, 1, numFrames);
+	  
+	  
+	  baseIdx = convertPeptideToDna(baseIdx, 1, 1, numFrames, rightToLeft, refSeqRange);
 	}
       
       gdk_gc_set_foreground(gc, textColour);

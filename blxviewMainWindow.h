@@ -86,23 +86,24 @@ void			  displayHelp(GtkWidget *mainWindow);
 void			  mainWindowRedrawAll(GtkWidget *mainWindow);
 
 gchar*			  getSequenceSegment(GtkWidget *mainWindow, 
-					     const char const *sequence,
-					     const IntRange const *sequenceRange,
+					     const char const *dnaSequence,
+					     const IntRange const *dnaSequenceRange,
 					     const int coord1, 
 					     const int coord2,
 					     const Strand strand,
-					     const BlxSeqType seqType,
+					     const BlxSeqType inputCoordType,
 					     const int frame,
-					     const int numReadingFrames,
-					     const gboolean reverse,
-					     const gboolean translate);
+					     const int numFrames,
+					     const gboolean rightToLeft,
+					     const gboolean reverseResult,
+					     const gboolean translateResult);
   
 GtkWidget*		  createMainWindow(char *refSeq, 
 					   const char const *refSeqName,
 					   MSP *mspList, 
 					   BlxBlastMode blastMode,
 					   BlxSeqType seqType, 
-					   int numReadingFrames,
+					   int numFrames,
 					   char **geneticCode,
 					   const int refSeqOffset,
 					   const int startCoord,

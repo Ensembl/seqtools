@@ -169,16 +169,17 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
  * if the 'reverse' argument is true). This function also translates it to a peptide
  * sequence if relevant (if the 'translate' flag allows it). */
 gchar *getSequenceSegment(GtkWidget *mainWindow,
-			  const char const *sequence,
-			  const IntRange const *sequenceRange,
+			  const char const *dnaSequence,
+			  const IntRange const *dnaSequenceRange,
 			  const int coord1, 
 			  const int coord2,
 			  const Strand strand,
-			  const BlxSeqType inputSeqType,
+			  const BlxSeqType inputCoordType,
 			  const int frame,
-			  const int numReadingFrames,
-			  const gboolean reverse,
-			  const gboolean translate)
+			  const int numFrames,
+			  const gboolean rightToLeft,
+			  const gboolean reverseResult,
+			  const gboolean translateResult)
 {
   gchar *result = NULL;
   
@@ -186,30 +187,30 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
   int qMax = max(coord1, coord2);
 
   /* If the input coords are on a peptide sequence, convert them to DNA sequence coords. */
-  if (inputSeqType == BLXSEQ_PEPTIDE)
+  if (inputCoordType == BLXSEQ_PEPTIDE)
     {
-      qMin = convertPeptideToDna(qMin, frame, 1, numReadingFrames);		   /* 1st base in frame */
-      qMax = convertPeptideToDna(qMax, frame, numReadingFrames, numReadingFrames); /* last base in frame */
+      qMin = convertPeptideToDna(qMin, frame, 1, numFrames, rightToLeft, dnaSequenceRange);	 /* 1st base in frame */
+      qMax = convertPeptideToDna(qMax, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange); /* last base in frame */
     }
   
   /* Check that the requested segment is within the sequence's range */
-  if (qMin < sequenceRange->min || qMax > sequenceRange->max)
+  if (qMin < dnaSequenceRange->min || qMax > dnaSequenceRange->max)
     {
-      if (inputSeqType == BLXSEQ_PEPTIDE)
-	printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max, coord1, coord2);
+      if (inputCoordType == BLXSEQ_PEPTIDE)
+	printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max, coord1, coord2);
       else
-	printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, sequenceRange->min, sequenceRange->max);
+	printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max);
 	
-      if (qMax > sequenceRange->max)
-	qMax = sequenceRange->max;
+      if (qMax > dnaSequenceRange->max)
+	qMax = dnaSequenceRange->max;
 	
-      if (qMin < sequenceRange->min)
-	qMin = sequenceRange->min;
+      if (qMin < dnaSequenceRange->min)
+	qMin = dnaSequenceRange->min;
     }
   
   /* Get 0-based indices into the sequence */
-  const int idx1 = qMin - sequenceRange->min;
-  const int idx2 = qMax - sequenceRange->min;
+  const int idx1 = qMin - dnaSequenceRange->min;
+  const int idx2 = qMax - dnaSequenceRange->min;
   
   /* Copy the portion of interest from the reference sequence and translate as necessary */
   const BlxBlastMode mode = mainWindowGetBlastMode(mainWindow);
@@ -218,9 +219,9 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
     {
       /* Just get a straight copy of this segment from the ref seq. Must pass 0-based
        * indices into the sequence */
-      result = copySeqSegment(sequence, idx1, idx2);
+      result = copySeqSegment(dnaSequence, idx1, idx2);
       
-      if (reverse)
+      if (reverseResult)
 	{
 	  g_strreverse(result);
 	}
@@ -233,12 +234,12 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
       if (strand == FORWARD_STRAND)
 	{
 	  /* Straight copy of the ref seq segment */
-	  segment = copySeqSegment(sequence, idx1, idx2);
+	  segment = copySeqSegment(dnaSequence, idx1, idx2);
 	}
       else
 	{
 	  /* Get the segment of the ref seq and then complement it */
-	  segment = copySeqSegment(sequence, idx1, idx2);
+	  segment = copySeqSegment(dnaSequence, idx1, idx2);
 	  blxComplement(segment);
 	  
 	  if (!segment)
@@ -247,12 +248,12 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 	    }
 	}
       
-      if (reverse)
+      if (reverseResult)
 	{
 	  g_strreverse(segment);
 	}
       
-      if (mode == BLXMODE_BLASTN || !translate)
+      if (mode == BLXMODE_BLASTN || !translateResult)
 	{
 	  /* Just return the segment of DNA sequence */
 	  result = segment;
@@ -322,7 +323,7 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
       int newBaseNum = detailViewProperties->selectedBaseNum;
       int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
       
-      if (moveLeft != properties->strandsToggled)
+      if (moveLeft)
 	{
 	  --newBaseNum;
 	  
@@ -366,7 +367,7 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
        * unless the display is toggled, in which case do the opposite */
       int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
       
-      if (moveLeft != properties->strandsToggled)
+      if (moveLeft)
 	{
 	  --newSelectedBaseIdx;
 	}
@@ -2180,7 +2181,7 @@ GtkWidget* createMainWindow(char *refSeq,
 			    MSP *mspList, 
 			    BlxBlastMode blastMode,
 			    BlxSeqType seqType, 
-			    int numReadingFrames,
+			    int numFrames,
 			    char **geneticCode,
 			    const int refSeqOffset,
 			    const int startCoord1Based,
@@ -2191,14 +2192,6 @@ GtkWidget* createMainWindow(char *refSeq,
   /* If no sort type was specified, sort by ID by default */
   SortByType sortByType = (sortByTypeInput == SORTBYUNSORTED) ? SORTBYID : sortByTypeInput;
 
-  /* Convert the start coord (which is 1-based and on the DNA sequence) to display
-   * coords (which take into account the offset and may also be peptide coords) */
-  int startCoord = startCoord1Based + refSeqOffset;
-  if (seqType == BLXSEQ_PEPTIDE)
-    {
-      startCoord = convertDnaToPeptide(startCoord, 1, numReadingFrames, NULL);
-    }
-  
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
   const int refSeqLen = (int)strlen(refSeq);
@@ -2209,12 +2202,12 @@ GtkWidget* createMainWindow(char *refSeq,
   if (seqType == BLXSEQ_PEPTIDE)
     {
       displaySeq = blxTranslate(refSeq, geneticCode);
-      fullDisplayRange.min = convertDnaToPeptide(refSeqRange.min, 1, numReadingFrames, NULL);
+      fullDisplayRange.min = convertDnaToPeptide(refSeqRange.min, 1, numFrames, FALSE, &refSeqRange, NULL);
       
       int baseNum = UNSET_INT;
-      fullDisplayRange.max = convertDnaToPeptide(refSeqRange.max, 3, numReadingFrames, &baseNum);
+      fullDisplayRange.max = convertDnaToPeptide(refSeqRange.max, 3, numFrames, FALSE, &refSeqRange, &baseNum);
       
-      if (baseNum < numReadingFrames)
+      if (baseNum < numFrames)
 	{
 	  /* The last peptide does not have a full triplet, so cut off the range at the last full triplet */
 	  fullDisplayRange.max -= 1;
@@ -2222,6 +2215,15 @@ GtkWidget* createMainWindow(char *refSeq,
       
       printf("Converted DNA sequence (%d-%d) to peptide sequence (%d-%d).\n",  refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
     }
+  
+  /* Convert the start coord (which is 1-based and on the DNA sequence) to display
+   * coords (which take into account the offset and may also be peptide coords) */
+  int startCoord = startCoord1Based + refSeqOffset;
+  if (seqType == BLXSEQ_PEPTIDE)
+    {
+      startCoord = convertDnaToPeptide(startCoord, 1, numFrames, FALSE, &refSeqRange, NULL);
+    }
+  
   
   /* Create the main window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -2262,7 +2264,7 @@ GtkWidget* createMainWindow(char *refSeq,
 					   mspList,
 					   blastMode,
 					   seqType,
-					   numReadingFrames,
+					   numFrames,
 					   refSeqName,
 					   startCoord,
 					   sortInverted,
@@ -2287,7 +2289,7 @@ GtkWidget* createMainWindow(char *refSeq,
 			     &fullDisplayRange, 
 			     seqType, 
 			     geneticCode,
-			     numReadingFrames,
+			     numFrames,
 			     gappedHsp);
   
   /* Connect signals */

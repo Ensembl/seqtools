@@ -69,11 +69,25 @@ static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width
 static void drawExonIntron(const MSP *msp, GtkWidget *exonView, const gboolean isSelected)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
-  gboolean rightToLeft = bigPictureGetStrandsToggled(properties->bigPicture);
+  GtkWidget *mainWindow = bigPictureGetMainWindow(properties->bigPicture);
+  const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const int frame = mspGetRefFrame(msp, seqType);
+
+  /* Find the coordinates of the start and end base in this msp */
+  int qSeqMin = min(msp->qstart, msp->qend);
+  int qSeqMax = max(msp->qstart, msp->qend);
   
-  int x1 = convertBaseIdxToGridPos(msp->displayStart, &properties->exonViewRect, displayRange, rightToLeft);
-  int x2 = convertBaseIdxToGridPos(msp->displayEnd, &properties->exonViewRect, displayRange, rightToLeft);
+  /* Convert msp coords to display coords. */
+  qSeqMin = convertDnaToPeptide(qSeqMin, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  qSeqMax = convertDnaToPeptide(qSeqMax, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  
+  int x1 = convertBaseIdxToGridPos(qSeqMin, &properties->exonViewRect, displayRange);
+  int x2 = convertBaseIdxToGridPos(qSeqMax, &properties->exonViewRect, displayRange);
+  
   int x = min(x1, x2);
   int width = abs(x2 - x1);
   

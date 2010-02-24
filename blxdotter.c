@@ -722,15 +722,20 @@ static gboolean blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   frameStr[1] = 0;
   int frame = atoi(frameStr);
   
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+  const char *refSeq = mainWindowGetRefSeq(blxWindow);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
+  
   char *querySeqSegmentTemp = getSequenceSegment(blxWindow, 
-						 mainWindowGetRefSeq(blxWindow),
-						 mainWindowGetRefSeqRange(blxWindow),
+						 refSeq,
+						 refSeqRange,
 						 dotterStart,
 						 dotterEnd, 
 						 strand,
 						 BLXSEQ_DNA, /* calculated dotter coords are always in terms of DNA seq */
 						 frame,
 						 mainWindowGetNumReadingFrames(blxWindow),
+						 rightToLeft,
 						 TRUE,  /* allow sequence to be reversed if reverse strand */
 						 FALSE); /* don't allow translation to a peptide seq */
   
@@ -759,12 +764,11 @@ static gboolean blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
     }
   
   /* Get the offset */
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
   int offset = min(dotterStart, dotterEnd) - 1 + refSeqRange->min - 1;
   
   /* Get the options */
   static char opts[] = "     ";
-  opts[0] = mainWindowGetStrandsToggled(blxWindow) ? 'R' : ' ';
+  opts[0] = rightToLeft ? 'R' : ' ';
   opts[1] = hspsOnly ? 'H' : ' ';
   opts[2] = mainWindowGetGappedHsp(blxWindow) ? 'G' : ' ';
   

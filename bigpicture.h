@@ -86,8 +86,7 @@ gdouble			      pixelsPerBase(const gint displayWidth,
 
 gint			      convertBaseIdxToGridPos(const gint baseIdx, 
 						      const GdkRectangle const *gridRect, 
-						      const IntRange const *displayRange,
-						      const gboolean rightToLeft);
+						      const IntRange const *displayRange);
 
 int			      getLeftCoordFromCentre(const int centreCoord, 
 						     const int width, 

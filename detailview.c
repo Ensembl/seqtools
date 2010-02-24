@@ -165,7 +165,11 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
   /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
   if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
     {
-      coord = convertDnaToPeptide(coord, 1, detailViewGetNumReadingFrames(detailView), NULL);
+      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+      
+      coord = convertDnaToPeptide(coord, 1, numFrames, rightToLeft, refSeqRange, NULL);
     }
 
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
@@ -181,7 +185,11 @@ static void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqTy
   /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
   if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
     {
-      coord = convertDnaToPeptide(coord, 1, detailViewGetNumReadingFrames(detailView), NULL);
+      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+      
+      coord = convertDnaToPeptide(coord, 1, numFrames, rightToLeft, refSeqRange, NULL);
     }
 
   /* Get the new start coord */
@@ -221,63 +229,39 @@ static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
 void scrollDetailViewLeft1(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-  
-  if (detailViewGetStrandsToggled(detailView))
-    setDetailViewScrollPos(adjustment, adjustment->value + 1);
-  else
-    setDetailViewScrollPos(adjustment, adjustment->value - 1);
+  setDetailViewScrollPos(adjustment, adjustment->value - 1);
 }
 
 void scrollDetailViewRight1(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-
-  if (detailViewGetStrandsToggled(detailView))
-    setDetailViewScrollPos(adjustment, adjustment->value - 1);
-  else
-    setDetailViewScrollPos(adjustment, adjustment->value + 1);
+  setDetailViewScrollPos(adjustment, adjustment->value + 1);
 }
 
 /* Scroll by one step increment */
 void scrollDetailViewLeftStep(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-
-  if (detailViewGetStrandsToggled(detailView))
-    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->step_increment);
-  else
-    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->step_increment);
+  setDetailViewScrollPos(adjustment, adjustment->value - adjustment->step_increment);
 }
 
 void scrollDetailViewRightStep(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-
-  if (detailViewGetStrandsToggled(detailView))
-    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->step_increment);
-  else
-    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->step_increment);
+  setDetailViewScrollPos(adjustment, adjustment->value + adjustment->step_increment);
 }
 
 /* Scroll by one page size */
 void scrollDetailViewLeftPage(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-
-  if (detailViewGetStrandsToggled(detailView))
-    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->page_increment);
-  else
-    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->page_increment);
+  setDetailViewScrollPos(adjustment, adjustment->value - adjustment->page_increment);
 }
 
 void scrollDetailViewRightPage(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-
-  if (detailViewGetStrandsToggled(detailView))
-    setDetailViewScrollPos(adjustment, adjustment->value - adjustment->page_increment);
-  else
-    setDetailViewScrollPos(adjustment, adjustment->value + adjustment->page_increment);
+  setDetailViewScrollPos(adjustment, adjustment->value + adjustment->page_increment);
 }
 
 
@@ -622,21 +606,16 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
   const int selectedFrame = detailViewGetSelectedFrame(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
 
-  /* We need to switch the order in which frames are displayed if the display is toggled.
-   * Rather than bother moving widgets around, we'll just locally change the frame number 
-   * here to pretend we're a different frame. */
-  if (rightToLeft)
-    {
-      frame = numFrames - frame + 1;
-    }
-  
   /* Loop forward/backward through the display range depending on which strand we're viewing.
    * The display range is the range for the peptides. We have to adjust by the number of reading
    * frames to get the index into the reference sequence (which is DNA bases). */
 
+  const int dnaIdx1 = convertPeptideToDna(displayRange->min, frame, 1, numFrames, rightToLeft, refSeqRange);	      /* 1st base in frame */
+  const int dnaIdx2 = convertPeptideToDna(displayRange->max, frame, numFrames, numFrames, rightToLeft, refSeqRange); /* last base in frame */
+  
   IntRange qRange;
-  qRange.min = convertPeptideToDna(displayRange->min, frame, 1, numFrames);	    /* 1st base in frame */
-  qRange.max = convertPeptideToDna(displayRange->max, frame, numFrames, numFrames); /* last base in frame */
+  qRange.min = min(dnaIdx1, dnaIdx2);
+  qRange.max = max(dnaIdx1, dnaIdx2);
   
   char displayText[displayRange->max - displayRange->min + 1 + 10];
   int incrementValue = numFrames;
@@ -657,7 +636,8 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 						 );
 
       /* If the base (or its peptide) is selected, we need to highlight it */
-      if (convertDnaToPeptide(qIdx, selectedFrame, numFrames, NULL) == selectedBaseIdx)
+      const int peptideIdx = convertDnaToPeptide(qIdx, selectedFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      if (peptideIdx == selectedBaseIdx)
 	{
 	  /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
 	  highlightColour = detailViewGetTripletHighlightColour(detailView, qIdx == selectedDnaBaseIdx);
@@ -860,6 +840,7 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   const int numFrames = detailViewGetNumReadingFrames(detailView);
   const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   
   /* See if a base is selected. */
   qIdx = selectedDnaBaseIdx;
@@ -893,7 +874,8 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
 					       mspGetRefStrand(msp), 
 					       rightToLeft, 
 					       BLXSEQ_DNA, /* q index has already been converted to DNA coords */ 
-					       numFrames);
+					       numFrames,
+					       refSeqRange);
 	      
 	      if (sIdx != UNSET_INT)
 		{
@@ -1559,7 +1541,11 @@ SubjectSequence* detailViewGetSequenceFromName(GtkWidget *detailView, const char
 
 
 /* Set the selected base index. Performs any required refreshes */
-void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll)
+void detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
+				  const int selectedBaseIdx, 
+				  const int frame, 
+				  const int baseNum, 
+				  const gboolean allowScroll)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
@@ -1568,7 +1554,11 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseI
   properties->selectedBaseNum = baseNum;
   
   /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
-  properties->selectedDnaBaseIdx = convertPeptideToDna(selectedBaseIdx, frame, baseNum, detailViewGetNumReadingFrames(detailView));
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+  
+  properties->selectedDnaBaseIdx = convertPeptideToDna(selectedBaseIdx, frame, baseNum, numFrames, rightToLeft, refSeqRange);
 
   if (allowScroll)
     {
@@ -1698,7 +1688,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
       properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_BLUE);
       properties->highlightTripletColour  = getGdkColor(GDK_GREEN);
-      properties->highlightDnaBaseColour  = getGdkColor(GDK_RED);
+      properties->highlightDnaBaseColour  = getGdkColor(GDK_DARK_GREEN);
 
       properties->exonBoundaryLineWidth	  = 1;
       properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
@@ -1764,6 +1754,12 @@ void toggleStrand(GtkWidget *detailView)
 
   /* Update the flag */
   mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
+  
+  /* Invert the display range */
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  const IntRange const *fullRange = &mainWindowProperties->fullDisplayRange;
+  const int newStart = fullRange->max - displayRange->max + fullRange->min;
+  setDetailViewStartIdx(detailView, newStart, mainWindowProperties->seqType);
 
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
   swapTreeVisibility(detailView);

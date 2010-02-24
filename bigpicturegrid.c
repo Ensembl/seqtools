@@ -39,7 +39,6 @@ typedef struct _DrawGridData
 /* Local function declarations */
 static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
-static gboolean		    gridGetStrandsToggled(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineHighlightColour(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColour(GtkWidget *grid);
 static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
@@ -99,23 +98,13 @@ static int gridGetPreviewBoxCentre(GtkWidget *grid)
 /* Convert an x coord on the given grid to a base index */
 static gint convertGridPosToBaseIdx(const gint gridPos, 
 				    const GdkRectangle const *gridRect,  
-				    const IntRange const *displayRange,
-				    gboolean rightToLeft)
+				    const IntRange const *displayRange)
 {
   gint result = UNSET_INT;
   
-  if (rightToLeft)
-    {
-      int distFromEdge = ceil((gdouble)gridPos - (gdouble)gridRect->x);
-      int basesFromEdge = distFromEdge / pixelsPerBase(gridRect->width, displayRange);
-      result = displayRange->max - basesFromEdge;
-    }
-  else
-    {
-      int distFromEdge = (int)((gdouble)gridPos - (gdouble)gridRect->x);
-      int basesFromEdge = distFromEdge / pixelsPerBase(gridRect->width, displayRange);
-      result = displayRange->min + basesFromEdge;
-    }
+  int distFromEdge = (int)((gdouble)gridPos - (gdouble)gridRect->x);
+  int basesFromEdge = distFromEdge / pixelsPerBase(gridRect->width, displayRange);
+  result = displayRange->min + basesFromEdge;
   
   return result;
 }
@@ -179,24 +168,15 @@ static void drawPreviewBox(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   IntRange *displayRange = gridGetDisplayRange(grid);
-  gboolean rightToLeft = gridGetStrandsToggled(grid);
 
   /* Find the x coord for the left edge of the preview box (or the right edge, if
    * the display is right-to-left). */
-  int x = rightToLeft
-    ? getRightCoordFromCentre(previewBoxCentre, properties->highlightRect.width, &properties->gridRect)
-    : getLeftCoordFromCentre(previewBoxCentre, properties->highlightRect.width, &properties->gridRect);
+  int x = getLeftCoordFromCentre(previewBoxCentre, properties->highlightRect.width, &properties->gridRect);
   
   /* Convert it to the base index and back again so that we get it rounded to the position of
    * the nearest base. */
-  int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange, rightToLeft);
-  int xRounded = convertBaseIdxToGridPos(baseIdx, &properties->gridRect, displayRange, rightToLeft);
-  
-  if (rightToLeft)
-    {
-      /* Adjust to get the left edge */
-      xRounded = xRounded - properties->highlightRect.width - 1;
-    }
+  int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange);
+  int xRounded = convertBaseIdxToGridPos(baseIdx, &properties->gridRect, displayRange);
   
   /* The other dimensions of the preview box are the same as the current highlight box. */
   GdkRectangle previewRect = {xRounded, properties->highlightRect.y, properties->highlightRect.width, properties->highlightRect.height};
@@ -277,15 +257,24 @@ void calculateMspLineDimensions(GtkWidget *grid,
 				int *height)
 {
   GridProperties *gridProperties = gridGetProperties(grid);
+  GtkWidget *mainWindow = bigPictureGetMainWindow(gridProperties->bigPicture);
+
   const IntRange const *displayRange = bigPictureGetDisplayRange(gridProperties->bigPicture);
-  gboolean rightToLeft = bigPictureGetStrandsToggled(gridProperties->bigPicture);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
 
   /* Find the coordinates of the start and end base in this match sequence */
-  int qSeqMin = min(msp->displayStart, msp->displayEnd);
-  int qSeqMax = max(msp->displayStart, msp->displayEnd);
+  int qSeqMin = min(msp->qstart, msp->qend);
+  int qSeqMax = max(msp->qstart, msp->qend);
   
-  int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, displayRange, rightToLeft);
-  int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, displayRange, rightToLeft);
+  /* Convert to display coords. Doesn't really matter which frame - pass frame 1 */
+  qSeqMin = convertDnaToPeptide(qSeqMin, 1, numFrames, rightToLeft, refSeqRange, NULL);
+  qSeqMax = convertDnaToPeptide(qSeqMax, 1, numFrames, rightToLeft, refSeqRange, NULL);
+  
+  /* Convert sequence coords to a grid position */
+  int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, displayRange);
+  int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, displayRange);
 
   /* We'll start drawing at the lowest x coord, so set x to the min of x1 and x2 */
   if (x)
@@ -320,14 +309,19 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
   if (!mspIsIntron(msp) && !mspIsExon(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
       const IntRange const *displayRange = gridGetDisplayRange(grid);
+      GtkWidget *mainWindow = bigPictureGetMainWindow(gridGetBigPicture(grid));
 
       int mspStart = msp->qstart;
       int mspEnd = msp->qend;
 
-      if (bigPictureGetSeqType(gridGetBigPicture(grid)) == BLXSEQ_PEPTIDE)
+      if (mainWindowGetSeqType(mainWindow) == BLXSEQ_PEPTIDE)
 	{
-	  mspStart = convertDnaToPeptide(mspStart, 1, gridGetNumReadingFrames(grid), NULL);
-	  mspEnd = convertDnaToPeptide(mspEnd, 1, gridGetNumReadingFrames(grid), NULL);
+	  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+	  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+	  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+	  
+	  mspStart = convertDnaToPeptide(mspStart, 1, numFrames, rightToLeft, refSeqRange, NULL);
+	  mspEnd = convertDnaToPeptide(mspEnd, 1, numFrames, rightToLeft, refSeqRange, NULL);
 	}
 
       if (valueWithinRange(mspStart, displayRange) || valueWithinRange(mspEnd, displayRange))
@@ -525,10 +519,9 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
   if (adjustment)
     {
       IntRange *displayRange = gridGetDisplayRange(grid);
-      gboolean rightToLeft = gridGetStrandsToggled(grid);
-      int firstBaseIdx = rightToLeft ? adjustment->value + adjustment->page_size : adjustment->value;
+      int firstBaseIdx = adjustment->value;
 
-      properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->gridRect, displayRange, rightToLeft);
+      properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->gridRect, displayRange);
       properties->highlightRect.y = properties->gridRect.y - properties->highlightBoxYPad;
       
       properties->highlightRect.width = (gint)((gdouble)adjustment->page_size * pixelsPerBase(properties->gridRect.width, displayRange));
@@ -591,16 +584,12 @@ void acceptAndClearPreviewBox(GtkWidget *grid, const int xCentre)
 {
   GridProperties *properties = gridGetProperties(grid);
   IntRange *displayRange = gridGetDisplayRange(grid);
-  gboolean rightToLeft = gridGetStrandsToggled(grid);
   
   /* Find the base index where the new scroll range will start. This is the leftmost
    * edge of the preview box if numbers increase in the normal left-to-right direction, 
    * or the rightmost edge if the display is reversed. */
-  int x = rightToLeft
-    ? getRightCoordFromCentre(xCentre, properties->highlightRect.width, &properties->gridRect)
-    : getLeftCoordFromCentre(xCentre, properties->highlightRect.width, &properties->gridRect);
-  
-  int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange, rightToLeft);
+  int x = getLeftCoordFromCentre(xCentre, properties->highlightRect.width, &properties->gridRect);
+  int baseIdx = convertGridPosToBaseIdx(x, &properties->gridRect, displayRange);
   
   /* Clear the preview box */
   gridSetPreviewBoxCentre(grid, UNSET_INT);
@@ -916,12 +905,6 @@ static IntRange* gridGetDisplayRange(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   return bigPictureGetDisplayRange(bigPicture);
-}
-
-static gboolean gridGetStrandsToggled(GtkWidget *grid)
-{
-  GtkWidget *bigPicture = gridGetBigPicture(grid);
-  return bigPictureGetStrandsToggled(bigPicture);
 }
 
 static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
