@@ -496,25 +496,6 @@ int getEndDnaCoord(const IntRange const *displayRange,
 }
 
 
-/* Given an index into the display range, find the equivalent base in the match
- * sequence (converting the ref sequence coord from peptide to dna if necessary). */
-int getMatchIdxFromDisplayIdx(MSP *msp,
-			      const int displayIdx,
-			      const int qFrame,
-			      const Strand qStrand,
-			      const gboolean rightToLeft,
-			      const BlxSeqType seqType,
-			      const int numFrames,
-			      const IntRange const *refSeqRange)
-{
-  /* Convert the display coord to ref seq coords. Get the first base in the reading frame */
-  const int qIdx = convertDisplayIdxToDnaIdx(displayIdx, seqType, qFrame, 1, numFrames, rightToLeft, refSeqRange);
-
-  /* Find the s index */
-  return gapCoord(msp, qIdx, numFrames, qStrand, rightToLeft, NULL);
-}
-
-
 /* Given a base index on the query sequence, find the corresonding base 
  * in subject sequence. The return value is always UNSET_INT if there is not
  * a corresponding base at this position. However, in this case the start/end

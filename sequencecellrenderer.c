@@ -605,15 +605,6 @@ static char getMatchSeqBase(char *matchSeq, const int sIdx, const BlxSeqType seq
 }
 
 
-/* Given a 0-based index into a segment of the reference sequence, find the
- * index into the full reference sequence. */
-static int getRefSeqIndexFromSegment(const int segmentIdx,
-				     const IntRange const *segmentRange)
-{
-  return (segmentRange->min + segmentIdx);
-}
-
-
 /* Colour in the background of a particular base in the given match sequence. Returns
  * the calculated index into the match sequence (for effiency, so that we don't have to
  * recalculate it later on). Returns the equivalent index in the subject sequence, or 
@@ -632,11 +623,13 @@ static void drawBase(MSP *msp,
   char sBase = '\0';
   GdkColor *baseBgColour;
   
-  *qIdx = getRefSeqIndexFromSegment(segmentIdx, segmentRange);
-  *sIdx = getMatchIdxFromDisplayIdx(msp, *qIdx, data->qFrame, data->qStrand, data->rightToLeft, data->seqType, data->numFrames, data->refSeqRange);
+  /* From the segment index, find the display index and the ref seq index */
+  const int displayIdx = segmentRange->min + segmentIdx;
+  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->seqType, data->qFrame, 1, data->numFrames, data->rightToLeft, data->refSeqRange);
+  *sIdx = gapCoord(msp, *qIdx, data->numFrames, data->qStrand, data->rightToLeft, NULL);
   
   /* Highlight the base if its base index is selected */
-  gboolean selected = (*qIdx == data->selectedBaseIdx);
+  gboolean selected = (displayIdx == data->selectedBaseIdx);
   
   if (*sIdx == UNSET_INT)
     {

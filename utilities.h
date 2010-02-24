@@ -109,15 +109,6 @@ int		      getEndDnaCoord(const IntRange const *displayRange,
 				     const int numFrames,
 				     const IntRange const *refSeqRange);
 
-int		      getMatchIdxFromDisplayIdx(MSP *msp,
-						const int displayIdx,
-						const int qFrame,
-						const Strand qStrand,
-						const gboolean rightToLeft,
-						const BlxSeqType seqType,
-						const int numFrames,
-						const IntRange const *refSeqRange);
-
 int		      gapCoord(const MSP *msp, 
 			       const int qIdx, 
 			       const int numFrames, 

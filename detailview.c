@@ -845,7 +845,6 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   const int numFrames = detailViewGetNumReadingFrames(detailView);
   const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   
   /* See if a base is selected. */
   qIdx = selectedDnaBaseIdx;
@@ -873,15 +872,9 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
 	  for ( ; mspListItem; mspListItem = mspListItem->next)
 	    {
 	      MSP *msp = (MSP*)(mspListItem->data);
-	      sIdx = getMatchIdxFromDisplayIdx(msp, 
-					       qIdx, 
-					       mspGetRefFrame(msp, seqType), 
-					       mspGetRefStrand(msp), 
-					       rightToLeft, 
-					       BLXSEQ_DNA, /* q index has already been converted to DNA coords */ 
-					       numFrames,
-					       refSeqRange);
 	      
+	      sIdx = gapCoord(msp, qIdx, numFrames, mspGetRefFrame(msp, seqType), rightToLeft, NULL);
+
 	      if (sIdx != UNSET_INT)
 		{
 		  msgLen += numDigitsInInt(sIdx);
@@ -1763,7 +1756,9 @@ void toggleStrand(GtkWidget *detailView)
   if (properties->selectedBaseIdx != UNSET_INT)
     {
       const int newIdx = fullRange->max - properties->selectedBaseIdx + fullRange->min;
-      detailViewSetSelectedBaseIdx(detailView, newIdx, properties->selectedFrame, properties->selectedBaseNum, FALSE);
+      const int newBaseNum = mainWindowProperties->numReadingFrames - properties->selectedBaseNum + 1;
+      
+      detailViewSetSelectedBaseIdx(detailView, newIdx, properties->selectedFrame, newBaseNum, FALSE);
     }
   
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
