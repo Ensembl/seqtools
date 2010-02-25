@@ -719,8 +719,11 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
       if (minIdx >= rd->displayRange->min && minIdx <= rd->displayRange->max)
 	{
 	  /* Draw the lower index. The colour and line style depend on whether it's the start or end index. */
-	  gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourStart);
-	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleStart, GDK_CAP_BUTT, GDK_JOIN_MITER);
+	  GdkColor *colour = rd->rightToLeft ? rd->exonBoundaryColourEnd : rd->exonBoundaryColourStart;
+	  gdk_gc_set_foreground(rd->gc, colour);
+	  
+	  GdkLineStyle lineStyle = rd->rightToLeft ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
+	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
 	  const int idx = minIdx - rd->displayRange->min;
 
@@ -734,8 +737,11 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
       if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
 	{
 	  /* Draw the upper index. The colour and line style depend on whether it's the start or end index. */
-	  gdk_gc_set_foreground(rd->gc, rd->exonBoundaryColourEnd);
-	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, rd->exonBoundaryStyleEnd, GDK_CAP_BUTT, GDK_JOIN_MITER);
+	  GdkColor *colour = rd->rightToLeft ? rd->exonBoundaryColourStart : rd->exonBoundaryColourEnd;
+	  gdk_gc_set_foreground(rd->gc, colour);
+	  
+	  GdkLineStyle lineStyle = rd->rightToLeft ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
+	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
 	  const int idx = maxIdx + 1 - rd->displayRange->min;
 
