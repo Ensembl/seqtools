@@ -30,6 +30,7 @@ typedef struct _RenderData
     const Strand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
+    const gboolean seqSelected;
     const int cellXPadding;
     const int cellYPadding;
     const int frame;
@@ -628,8 +629,9 @@ static void drawBase(MSP *msp,
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->seqType, data->qFrame, 1, data->numFrames, data->rightToLeft, data->refSeqRange);
   *sIdx = gapCoord(msp, *qIdx, data->numFrames, data->qStrand, data->rightToLeft, NULL);
   
-  /* Highlight the base if its base index is selected */
-  gboolean selected = (displayIdx == data->selectedBaseIdx);
+  /* Highlight the base if its base index is selected, or if its sequence is selected.
+   * (If it is selected in both, show it in the normal colour) */
+  gboolean selected = (displayIdx == data->selectedBaseIdx) != data->seqSelected;
   
   if (*sIdx == UNSET_INT)
     {
@@ -797,28 +799,9 @@ static void drawInsertionMarker(int sIdx,
 	  gapWidth = MIN_GAP_WIDTH;
         }
 
-      /* See if either of the bases is selected */
-      if ((qIdx == data->selectedBaseIdx && qIdx != UNSET_INT) ||
-	  (lastFoundQIdx == data->selectedBaseIdx && lastFoundQIdx != UNSET_INT))
-	{
-	  /* Draw the two halves separately, so we can colour them in the selected/unselected 
-	   * colour as necessary to match the base they are lying over. */
-	  GdkColor *colour1 = (lastFoundQIdx == data->selectedBaseIdx) ? data->insertionColourSelected : data->insertionColour;
-	  gdk_gc_set_foreground(data->gc, colour1);
-	  const int offset1 = gapWidth / 2;
-	  drawRectangle2(data->window, data->drawable, data->gc, TRUE, x - offset1, y, offset1, data->charHeight);
-
-	  GdkColor *colour2 = (qIdx == data->selectedBaseIdx) ? data->insertionColourSelected : data->insertionColour;
-	  gdk_gc_set_foreground(data->gc, colour2);
-	  const int offset2 = gapWidth - offset1; /* may not be the same as offset1 if gapWidth is an odd number */
-	  drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, offset2, data->charHeight);
-	}
-      else
-	{
-	  /* No selections to worry about. Draw the whole thing in the normal colour */
-	  gdk_gc_set_foreground(data->gc, data->insertionColour);
-	  drawRectangle2(data->window, data->drawable, data->gc, TRUE, x - gapWidth/2, y, gapWidth, data->charHeight);
-	}
+      /* No selections to worry about. Draw the whole thing in the normal colour */
+      gdk_gc_set_foreground(data->gc, data->insertionColour);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x - gapWidth/2, y, gapWidth, data->charHeight);
     }
 }
 
@@ -975,6 +958,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
   MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewProperties->mainWindow);
   
   const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colours if this is true */
+  const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
+  const char *seqName = firstMsp ? firstMsp->sname : NULL;
   
   RenderData data = {
     cell_area,
@@ -985,6 +970,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
     treeGetStrand(tree),
     treeProperties->readingFrame,
     detailViewProperties->selectedBaseIdx,
+    mainWindowIsSeqSelected(detailViewProperties->mainWindow, seqName),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
     treeProperties->readingFrame,

@@ -2347,8 +2347,8 @@ static void setTreeStyle(GtkTreeView *tree)
   /* The default text colour when rows are selected is white. This doesn't work 
    * well against our default background colour of cyan, so use the same text colour
    * as unselected rows. */
-//  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_SELECTED, GTK_WIDGET(tree)->style->text);
-//  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_ACTIVE, GTK_WIDGET(tree)->style->text);
+  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_SELECTED, GTK_WIDGET(tree)->style->text);
+  gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_ACTIVE, GTK_WIDGET(tree)->style->text);
   
   /* Set the expander size to 0 so that we can have tiny rows (otherwise the min is 12pt).
    * Also set the vertical separator to 0 so that we can have the option of the smallest

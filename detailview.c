@@ -1904,18 +1904,9 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 	  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
 	  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
 	  const int qSeqMin = min(coord1, coord2);
-	  const int qSeqMax = max(coord1, coord2);
 	  
 	  /* Get the offset of this MSP from the current display start position */
-	  int curOffset = UNSET_INT;
-	  if (searchData->rightToLeft) /* display reversed */
-	    {
-	      curOffset = (qSeqMax - searchData->displayRange->max) * searchData->searchDirection;
-	    }
-	  else
-	    {
-	      curOffset = (qSeqMin - searchData->displayRange->min) * searchData->searchDirection;
-	    }
+	  int curOffset = (qSeqMin - searchData->displayRange->min) * searchData->searchDirection;
 	  
 	  if (curOffset > 0 && (curOffset < searchData->smallestOffset || searchData->smallestOffset == UNSET_INT))
 	    {
@@ -1936,7 +1927,7 @@ static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
    * MSPs in the active strand. */
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
   const Strand activeStrand = rightToLeft ? REVERSE_STRAND : FORWARD_STRAND;
-  const int searchDirection = (searchRight != rightToLeft) ? 1 : -1;
+  const int searchDirection = searchRight ? 1 : -1;
   
   MatchSearchData searchData = {detailViewGetDisplayRange(detailView), 
 				searchRight, 
@@ -2512,11 +2503,14 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 static const char* findDetailViewFont(GtkWidget *detailView)
 {
   GList *fixed_font_list = NULL ;
-  
-  fixed_font_list = g_list_append(fixed_font_list, "Monaco");
+
+  fixed_font_list = g_list_append(fixed_font_list, "monaco");
+  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
+  fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
+  fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera");
   fixed_font_list = g_list_append(fixed_font_list, "Courier");
   fixed_font_list = g_list_append(fixed_font_list, "Courier New");
-  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
+  fixed_font_list = g_list_append(fixed_font_list, "mono");
   fixed_font_list = g_list_append(fixed_font_list, "fixed");
   
   const char *fontFamily = findFixedWidthFontFamily(detailView, fixed_font_list);
