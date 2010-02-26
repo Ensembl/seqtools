@@ -16,12 +16,12 @@
 /* Define the columns. Specify a default width, the display text for the
  * column header, and also a name for the property that will be set in the
  * cell renderer. (The latter cannot contain special characters.) */
-#define NAME_COLUMN_DEFAULT_WIDTH	100
-#define SCORE_COLUMN_DEFAULT_WIDTH	30
-#define ID_COLUMN_DEFAULT_WIDTH		30
+#define NAME_COLUMN_DEFAULT_WIDTH	120
+#define SCORE_COLUMN_DEFAULT_WIDTH	40
+#define ID_COLUMN_DEFAULT_WIDTH		40
 #define START_COLUMN_DEFAULT_WIDTH	50
 #define SEQ_COLUMN_DEFAULT_WIDTH	40
-#define END_COLUMN_DEFAULT_WIDTH	70
+#define END_COLUMN_DEFAULT_WIDTH	80
 
 #define NAME_COLUMN_HEADER_TEXT		"Name"
 #define SCORE_COLUMN_HEADER_TEXT	"Score"

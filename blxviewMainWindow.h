@@ -80,6 +80,9 @@ void			  mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean update
 int			  sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName);
 
 void			  displayHelp(GtkWidget *mainWindow);
+void			  showSettingsDialog(GtkWidget *mainWindow);
+void			  showViewPanesDialog(GtkWidget *mainWindow);
+void			  showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups);
 
 void			  mainWindowRedrawAll(GtkWidget *mainWindow);
 

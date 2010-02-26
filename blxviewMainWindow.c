@@ -55,24 +55,23 @@ static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
-static void			  showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",		NULL, "_Quit\tCtrl-Q",	    "<control>Q",	 "Quit the program",		  gtk_main_quit},
-  { "Help",		NULL, "_Help",		    "<control>H",	 "Display Blixem help",		  G_CALLBACK(onHelpMenu)},
-  { "Print",		NULL, "_Print",		    "<control>P",	 "Print",			  G_CALLBACK(onPrintMenu)},
-  { "Settings",		NULL, "_Settings",	    "<control>S",	 "Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
+  { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",	      "<control>Q",	    "Quit the program",		  gtk_main_quit},
+  { "Help",		NULL, "_Help\t\t\t\tCtrl-H",	      "<control>H",	    "Display Blixem help",	  G_CALLBACK(onHelpMenu)},
+  { "Print",		NULL, "_Print\t\t\t\tCtrl-P",	      "<control>P",	    "Print",			  G_CALLBACK(onPrintMenu)},
+  { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	      "<control>S",	    "Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
 
-  { "View",		NULL, "_View",		    "<control>V",	 "Edit view settings",		  G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL, "Create Group",	    "<shift><control>G", "Group sequences together",	  G_CALLBACK(onCreateGroupMenu)},
-  { "EditGroups",	NULL, "Edit _Groups",	    "<control>G",	 "Groups",			  G_CALLBACK(onEditGroupsMenu)},
-  { "DeselectAllRows",	NULL, "Deselect _all",	    "<shift><control>A", "Deselect all",		  G_CALLBACK(onDeselectAllRows)},
+  { "View",		NULL, "_View\t\t\t\tCtrl-V",	      "<control>V",	    "Edit view settings",	  G_CALLBACK(onViewMenu)},
+  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",   "<shift><control>G",  "Group sequences together",	  G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	      "<control>G",	 "Groups",			  G_CALLBACK(onEditGroupsMenu)},
+  { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<shift><control>A", "Deselect all",		  G_CALLBACK(onDeselectAllRows)},
 
-  { "Dotter",		NULL, "_Dotter",	    "<control>D",	 "Start Dotter",		  G_CALLBACK(onDotterMenu)},
-  { "SelectFeatures",	NULL, "Feature series selection tool",	NULL,	 "Feature series selection tool", G_CALLBACK(onSelectFeaturesMenu)},
+  { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		      "<control>D",	 "Start Dotter",	  G_CALLBACK(onDotterMenu)},
+  { "SelectFeatures",	NULL, "Feature series selection tool",	NULL, "Feature series selection tool",		  G_CALLBACK(onSelectFeaturesMenu)},
 
-  { "Statistics",	NULL, "Statistics",   NULL,			 "Show memory statistics",	  G_CALLBACK(onStatisticsMenu)}
+  { "Statistics",	NULL, "Statistics",   NULL,		      "Show memory statistics",			  G_CALLBACK(onStatisticsMenu)}
 };
 
 
@@ -541,7 +540,7 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const Strand stran
 
 
 /* Shows the "View panes" dialog. This dialog allows the user to show/hide certain portions of the window. */
-static void showViewPanesDialog(GtkWidget *mainWindow)
+void showViewPanesDialog(GtkWidget *mainWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("View panes", 
 						  GTK_WINDOW(mainWindow), 
@@ -985,7 +984,7 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
  * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
  * 'editGroups' argument is true and groups exist, the 'Edit Groups' tab is displayed by default;
  * otherwise the 'Create Groups' tab is shown. */
-static void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
+void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
 						  GTK_WINDOW(mainWindow), 
@@ -1153,7 +1152,7 @@ static void createCheckButton(GtkWidget *parent,
 
 
 /* Shows the "Settings" dialog. */
-static void showSettingsDialog(GtkWidget *mainWindow)
+void showSettingsDialog(GtkWidget *mainWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
 						  GTK_WINDOW(mainWindow), 
@@ -1727,6 +1726,16 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
 	  zoomMainWindow(window, zoomIn, ctrlModifier); /* if ctrl pressed, zoom big picture - else zoom detail view */
 	  result = TRUE;
+	  break;
+	}
+	
+      case GDK_w: /* fall through */
+      case GDK_W: /* fall through */
+	{
+	  if (ctrlModifier)
+	    {
+	      zoomWholeBigPicture(mainWindowGetBigPicture(window));
+	    }
 	  break;
 	}
 	

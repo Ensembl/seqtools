@@ -433,6 +433,19 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
   setBigPictureDisplayWidth(bigPicture, newWidth, TRUE);
 }
 
+/* Zoom the big picture out to view the whole reference sequence */
+void zoomWholeBigPicture(GtkWidget *bigPicture)
+{
+  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  IntRange *fullRange = bigPictureGetFullRange(bigPicture);
+  
+  /* Check we're not already showing the whole range */
+  if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
+    {
+      setBigPictureDisplayWidth(bigPicture, fullRange->max - fullRange->min, TRUE);
+    }
+}
+
 /***********************************************************
  *			    Events			   *
  ***********************************************************/
@@ -454,14 +467,7 @@ static void onZoomOutBigPicture(GtkButton *button, gpointer data)
 static void onZoomWholeBigPicture(GtkButton *button, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
-  IntRange *fullRange = bigPictureGetFullRange(bigPicture);
-
-  /* Check we're not already showing the whole range */
-  if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
-    {
-      setBigPictureDisplayWidth(bigPicture, fullRange->max - fullRange->min, TRUE);
-    }
+  zoomWholeBigPicture(bigPicture);
 }
 
 
@@ -691,13 +697,15 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
  ***********************************************************/
 
 /* Create a tool button for the big picture header */
-static GtkWidget* createButton(GtkWidget *container, char *label, GtkSignalFunc callback_func, gpointer data)
+static GtkWidget* createButton(GtkWidget *container, char *label, char *tooltip, GtkSignalFunc callback_func, gpointer data)
 {
   GtkWidget *eventBox = gtk_event_box_new();
   gtk_box_pack_start(GTK_BOX(container), eventBox, FALSE, FALSE, 0);
   
   GtkWidget *button = gtk_button_new_with_label(label);
   gtk_container_add(GTK_CONTAINER(eventBox), button);
+  
+  gtk_widget_set_tooltip_text(button, tooltip);
   
   g_signal_connect(GTK_OBJECT(button), "clicked", callback_func, data);
   
@@ -719,9 +727,9 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
   
   /* Store a ref to the first button so we can find out the height of the
    * buttons when we come to calculate the grid borders */
-  GtkWidget *refButton = createButton(hbox, "+", (GtkSignalFunc)onZoomInBigPicture, bigPicture);
-  createButton(hbox, "-", (GtkSignalFunc)onZoomOutBigPicture, bigPicture);
-  createButton(hbox, "Whole", (GtkSignalFunc)onZoomWholeBigPicture, bigPicture);
+  GtkWidget *refButton = createButton(hbox, "+", "Zoom in\tCtrl =", (GtkSignalFunc)onZoomInBigPicture, bigPicture);
+  createButton(hbox, "-", "Zoom out\tCtrl -", (GtkSignalFunc)onZoomOutBigPicture, bigPicture);
+  createButton(hbox, "Whole", "Zoom out to whole width\tCtrl-W", (GtkSignalFunc)onZoomWholeBigPicture, bigPicture);
   
   /* Create the header properties */
   gridHeaderCreateProperties(header, bigPicture, refButton);

@@ -563,14 +563,17 @@ static void drawExon(SequenceCellRenderer *renderer,
   getCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
   const int width = segmentLen * data->charWidth;
 
-  /* Just draw one big rectangle the same colour for the whole thing */
-  gdk_gc_set_foreground(data->gc, data->exonColour);
+  /* Just draw one big rectangle the same colour for the whole thing. Colour depends if row selected. */
+  GdkColor *colour = data->seqSelected ? data->exonColourSelected : data->exonColour;
+  gdk_gc_set_foreground(data->gc, colour);
   drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, data->charHeight);
   
   /* If a base is selected, highlight it. Its colour depends on whether it the base is within the exon range or not. */
   if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
     {
-      highlightSelectedBase(data->selectedBaseIdx, data->exonColourSelected, data);
+      /* Negate the colour if double-selected (i.e. if the row is selected as well) */
+      GdkColor *colour = data->seqSelected ? data->exonColour : data->exonColourSelected;
+      highlightSelectedBase(data->selectedBaseIdx, colour, data);
     }
   
   drawVisibleExonBoundaries(tree, data);

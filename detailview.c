@@ -108,10 +108,14 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
   gint most_preferred = g_list_length(pref_families);
   PangoFontFamily *match_family = NULL;
 
-  gint displayTextPos;
-  for (displayTextPos = 0 ; (displayTextPos < n_families && !found_most_preferred) ; displayTextPos++)
+  gint family;
+  for (family = 0 ; (family < n_families && !found_most_preferred) ; family++)
     {
-      const gchar *name = pango_font_family_get_name(families[displayTextPos]) ;
+      const gchar *name = pango_font_family_get_name(families[family]) ;
+      
+      
+      if(pango_font_family_is_monospace(families[family]))
+	printf("%s\n", name);
 
       /* Look for this font family in our list of preferred families */
       GList *pref = g_list_first(pref_families) ;
@@ -122,8 +126,8 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
 	  char *pref_font = (char *)pref->data ;
 	  
 	  if (g_ascii_strncasecmp(name, pref_font, strlen(pref_font)) == 0
-#if GLIB_MAJOR_VERSION == 2 && GLIB_MINOR_VERSION >= 6
-	      && pango_font_family_is_monospace(families[displayTextPos])
+#if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 6
+	      && pango_font_family_is_monospace(families[family])
 #endif
 	      )
 	    {
@@ -131,7 +135,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
               if(current <= most_preferred)
                 {
 		  most_preferred = current;
-		  match_family = families[displayTextPos];
+		  match_family = families[family];
 
                   if(most_preferred == 1)
 		    {
@@ -166,15 +170,15 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
  * is an index into. */
 void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
-  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
-  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+  /* Convert the given coord to display coords */
+  if (coordSeqType == BLXSEQ_DNA)
     {
       const int numFrames = detailViewGetNumReadingFrames(detailView);
       const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
       const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      
-      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      const BlxSeqType displaySeqType = detailViewGetSeqType(detailView);
+
+      coord = convertDnaIdxToDisplayIdx(coord, displaySeqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
     }
 
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
@@ -1693,17 +1697,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
  *                     Callbacks                           *
  ***********************************************************/
 
-static void blixemSettings(void)
-{
-  //    if (!graphActivate(settingsGraph)) {
-  //	settingsGraph = graphCreate(TEXT_FIT, "Blixem Settings", 0, 0, .6, .3);
-  //	graphRegister(PICK, settingsPick);
-  //	settingsRedraw();
-  //    }
-  //    else graphPop();
-}
-
-
 /* If there are two trees and one is visible and the other hidden, toggle their hidden states */
 static void swapTreeVisibility(GtkWidget *detailView)
 {
@@ -1782,8 +1775,8 @@ void toggleStrand(GtkWidget *detailView)
 }
 
 
-/* Go to a user-specified coord (in terms of the DNA or peptide sequence as specified
- * by coordSeqType). */
+/* Go to a user-specified coord on the reference sequence (in terms of the DNA
+ * or peptide sequence as specified by coordSeqType). */
 void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 {
   static gchar defaultInput[32] = "";
@@ -2006,13 +1999,30 @@ static void GHelp(GtkButton *button, gpointer data)
 
 static void GSettings(GtkButton *button, gpointer data)
 {
-  blixemSettings();
+  GtkWidget *detailView = GTK_WIDGET(data);
+  showSettingsDialog(detailViewGetMainWindow(detailView));
+}
+
+static void GGroups(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  showGroupSequencesDialog(detailViewGetMainWindow(detailView), TRUE);
+}
+
+static void GView(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  showViewPanesDialog(detailViewGetMainWindow(detailView));
 }
 
 static void GGoto(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  goToDetailViewCoord(detailView, BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
+  
+  /* We currently only accept input in terms of DNA coords on the ref seq */
+  const BlxSeqType seqType = BLXSEQ_DNA;
+  
+  goToDetailViewCoord(detailView, seqType);
 }
 
 static void GprevMatch(GtkButton *button, gpointer data)
@@ -2222,7 +2232,7 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const SortByType sortByType)
 {
   /* Add a label, to make it obvious what the combo box is for */
-  GtkWidget *label = gtk_label_new(" <i>Sort HSPs by:</i>");
+  GtkWidget *label = gtk_label_new(" <i>Sort by:</i>");
   gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
   addToolbarWidget(toolbar, label);
 
@@ -2330,31 +2340,31 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   GtkWidget *toolbarContainer = createEmptyButtonBar(detailView, &toolbar);
   
   /* Zoom buttons */
-  makeToolbarButton(toolbar, "+", "Zoom in", (GtkSignalFunc)onZoomInDetailView, detailView);
-  makeToolbarButton(toolbar, "-", "Zoom out", (GtkSignalFunc)onZoomOutDetailView, detailView);
+  makeToolbarButton(toolbar, "+", "Zoom in\t=", (GtkSignalFunc)onZoomInDetailView, detailView);
+  makeToolbarButton(toolbar, "-", "Zoom out\t-", (GtkSignalFunc)onZoomOutDetailView, detailView);
   
-  /* Help button */
-  makeToolbarButton(toolbar, "Help",	 "Don't Panic",			 (GtkSignalFunc)GHelp,		  detailView);
-
   /* Combo box for sorting */
   createSortBox(toolbar, detailView, sortByType);
-  
-  /* Settings button */
-  makeToolbarButton(toolbar, "Settings", "Open the Preferences Window",  (GtkSignalFunc)GSettings,	  NULL);
-  
+
+  /* buttons */
+  makeToolbarButton(toolbar, "Help",	 "Display usage help\tCtrl-H",	 (GtkSignalFunc)GHelp,		  detailView);
+  makeToolbarButton(toolbar, "Settings", "Edit settings\tCtrl-S",	 (GtkSignalFunc)GSettings,	  detailView);
+  makeToolbarButton(toolbar, "View",	 "View/hide panes\tCtrl-V",	 (GtkSignalFunc)GView,		  detailView);
+  makeToolbarButton(toolbar, "Groups",	 "Edit/create groups\tCtrl-G",	 (GtkSignalFunc)GGroups,	  detailView);
+
   /* Navigation buttons */
-  makeToolbarButton(toolbar, "Goto",	 "Go to specified co-ordinates", (GtkSignalFunc)GGoto,		  detailView);
+  makeToolbarButton(toolbar, "Goto",	 "Go to specific coordinate\tG", (GtkSignalFunc)GGoto,		  detailView);
   makeToolbarButton(toolbar, "< match",  "Next (leftward) match",	 (GtkSignalFunc)GprevMatch,	  detailView);
   makeToolbarButton(toolbar, "match >",  "Next (rightward) match",	 (GtkSignalFunc)GnextMatch,	  detailView);
   makeToolbarButton(toolbar, "<<",	 "Scroll leftward lots",	 (GtkSignalFunc)GscrollLeftBig,	  detailView);
   makeToolbarButton(toolbar, ">>",       "Scroll rightward lots",	 (GtkSignalFunc)GscrollRightBig,  detailView);
-  makeToolbarButton(toolbar, "<",	 "Scroll leftward one base",	 (GtkSignalFunc)GscrollLeft1,	  detailView);
-  makeToolbarButton(toolbar, ">",	 "Scroll rightward one base",	 (GtkSignalFunc)GscrollRight1,	  detailView);
+  makeToolbarButton(toolbar, "<",	 "Scroll leftward one base\t,",	 (GtkSignalFunc)GscrollLeft1,	  detailView);
+  makeToolbarButton(toolbar, ">",	 "Scroll rightward one base\t.", (GtkSignalFunc)GscrollRight1,	  detailView);
   
   /* Strand toggle button */
   if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)
     {
-      makeToolbarButton(toolbar, "Strand^v", "Toggle strand", (GtkSignalFunc)GToggleStrand, detailView);
+      makeToolbarButton(toolbar, "Strand^v", "Toggle strand\tT", (GtkSignalFunc)GToggleStrand, detailView);
     }
   
   /* Feedback box */
@@ -2504,13 +2514,13 @@ static const char* findDetailViewFont(GtkWidget *detailView)
 {
   GList *fixed_font_list = NULL ;
 
-  fixed_font_list = g_list_append(fixed_font_list, "monaco");
-  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
-  fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
+  fixed_font_list = g_list_append(fixed_font_list, "andale");
+  fixed_font_list = g_list_append(fixed_font_list, "Lucida sans typewriter");
   fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera");
+  fixed_font_list = g_list_append(fixed_font_list, "monaco");
+  fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
   fixed_font_list = g_list_append(fixed_font_list, "Courier");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier New");
-  fixed_font_list = g_list_append(fixed_font_list, "mono");
+  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
   fixed_font_list = g_list_append(fixed_font_list, "fixed");
   
   const char *fontFamily = findFixedWidthFontFamily(detailView, fixed_font_list);

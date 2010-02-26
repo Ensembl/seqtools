@@ -80,6 +80,7 @@ int			      bigPictureGetNumReadingFrames(GtkWidget *bigPicture);
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
+void			      zoomWholeBigPicture(GtkWidget *bigPicture);
 
 gdouble			      pixelsPerBase(const gint displayWidth, 
 					    const IntRange const *displayRange);
