@@ -705,7 +705,7 @@ static GtkWidget* createButton(GtkWidget *container, char *label, char *tooltip,
   GtkWidget *button = gtk_button_new_with_label(label);
   gtk_container_add(GTK_CONTAINER(eventBox), button);
   
-  gtk_widget_set_tooltip_text(button, tooltip);
+  /* gtk_widget_set_tooltip_text(button, tooltip); */ /* not in pre-GTK-2.12 */
   
   g_signal_connect(GTK_OBJECT(button), "clicked", callback_func, data);
   
