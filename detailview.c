@@ -166,20 +166,19 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
 
 
 /* Scroll the detail view so that the given coord is at the start of the display
- * range (within bounds). coordSeqType specifies the type of sequence that the coord
- * is an index into. */
+ * range (within bounds). the coord should be in terms of display coords */
 void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
-  /* Convert the given coord to display coords */
-  if (coordSeqType == BLXSEQ_DNA)
-    {
-      const int numFrames = detailViewGetNumReadingFrames(detailView);
-      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-      const BlxSeqType displaySeqType = detailViewGetSeqType(detailView);
-
-      coord = convertDnaIdxToDisplayIdx(coord, displaySeqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
-    }
+//  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
+//  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+//    {
+//      const int numFrames = detailViewGetNumReadingFrames(detailView);
+//      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+//      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+//      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+//      
+//      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+//    }
 
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, coord);
@@ -187,20 +186,19 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
 
 
 /* Scroll the detail view so that the given coord is at the end of the display
- * range (within bounds). coordSeqType specifies the type of sequence that the coord
- * is an index into. */
+ * range (within bounds). the coord should be in terms of display coords */
 static void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
-  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
-  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
-    {
-      const int numFrames = detailViewGetNumReadingFrames(detailView);
-      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      
-      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
-    }
+//  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
+//  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+//    {
+//      const int numFrames = detailViewGetNumReadingFrames(detailView);
+//      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+//      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+//      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+//      
+//      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+//    }
 
   /* Get the new start coord */
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
@@ -1812,7 +1810,16 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 	  /* Remember this input for next time */
 	  sprintf(defaultInput, "%d", requestedCoord);
 
-	  setDetailViewStartIdx(detailView, requestedCoord, coordSeqType);
+	  /* Convert to display coords. currently assumes input is a dna coord */
+	  const int displayIdx = convertDnaIdxToDisplayIdx(requestedCoord, 
+							   detailViewGetSeqType(detailView), 
+							   1,
+							   detailViewGetNumReadingFrames(detailView), 
+							   detailViewGetStrandsToggled(detailView), 
+							   detailViewGetRefSeqRange(detailView),
+							   NULL);
+	  
+	  setDetailViewStartIdx(detailView, displayIdx, coordSeqType);
 	}
     }
 
