@@ -213,10 +213,19 @@ void boundsLimitValue(int *value, const IntRange const *range)
 }
 
 
-/* Utility to calculate how many digits are in an integer */
+/* Utility to calculate how many digits are in an integer (including the '-'
+ * sign if the integer is negative) */
 int numDigitsInInt(int val)
 {
   int count = 0;
+
+  if (val < 0)
+    {
+      /* Add one for the '-' sign, then treat it as a positive number */
+      ++count;
+      val *= -1;
+    }
+
   while (val > 0)
     {
       ++count;
