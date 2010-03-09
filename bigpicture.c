@@ -220,37 +220,43 @@ void refreshGridOrder(GtkWidget *bigPicture)
 {
   GtkWidget *fwdStrandGrid = bigPictureGetFwdGrid(bigPicture);
   GtkWidget *revStrandGrid = bigPictureGetRevGrid(bigPicture);
-  GtkWidget *exonView = bigPictureGetExonView(bigPicture);
+  GtkWidget *fwdExonView = bigPictureGetFwdExonView(bigPicture);
+  GtkWidget *revExonView = bigPictureGetRevExonView(bigPicture);
   
   /* Increase the reference count to make sure the widgets aren't destroyed when we remove them. */
   g_object_ref(fwdStrandGrid);
-  g_object_ref(exonView);
   g_object_ref(revStrandGrid);
+  g_object_ref(fwdExonView);
+  g_object_ref(revExonView);
   
   /* Remove them */
   gtk_container_remove(GTK_CONTAINER(bigPicture), fwdStrandGrid);
-  gtk_container_remove(GTK_CONTAINER(bigPicture), exonView);
   gtk_container_remove(GTK_CONTAINER(bigPicture), revStrandGrid);
+  gtk_container_remove(GTK_CONTAINER(bigPicture), fwdExonView);
+  gtk_container_remove(GTK_CONTAINER(bigPicture), revExonView);
   
   /* Add them back, with the forward-strand grid at the top and the reverse-strand grid
    * at the bottom, or vice versa if the strands are toggled. */
   if (bigPictureGetStrandsToggled(bigPicture))
     {
       addChildToBigPicture(bigPicture, revStrandGrid, FALSE);
-      addChildToBigPicture(bigPicture, exonView, FALSE);
+      addChildToBigPicture(bigPicture, revExonView, FALSE);
+      addChildToBigPicture(bigPicture, fwdExonView, FALSE);
       addChildToBigPicture(bigPicture, fwdStrandGrid, TRUE);
     }
   else
     {
       addChildToBigPicture(bigPicture, fwdStrandGrid, FALSE);
-      addChildToBigPicture(bigPicture, exonView, FALSE);
+      addChildToBigPicture(bigPicture, fwdExonView, FALSE);
+      addChildToBigPicture(bigPicture, revExonView, FALSE);
       addChildToBigPicture(bigPicture, revStrandGrid, TRUE);
     }
   
   /* Decrease the ref count again */
   g_object_unref(fwdStrandGrid);
-  g_object_unref(exonView);
   g_object_unref(revStrandGrid);
+  g_object_unref(fwdExonView);
+  g_object_unref(revExonView);
   
   /* Must show all child widgets because some of them may not have been in this parent before.
    * (Just calling gtk_widget_show on the individual trees doesn't seem to work.)
@@ -576,10 +582,28 @@ GtkWidget* bigPictureGetInactiveGrid(GtkWidget *bigPicture)
   return bigPictureGetStrandsToggled(bigPicture) ? properties->fwdStrandGrid : properties->revStrandGrid;
 }
 
-GtkWidget* bigPictureGetExonView(GtkWidget *bigPicture)
+GtkWidget* bigPictureGetFwdExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return properties ? properties->exonView : NULL;
+  return properties ? properties->fwdExonView : NULL;
+}
+
+GtkWidget* bigPictureGetRevExonView(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties ? properties->revExonView : NULL;
+}
+
+GtkWidget* bigPictureGetActiveExonView(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return bigPictureGetStrandsToggled(bigPicture) ? properties->revExonView : properties->fwdExonView;
+}
+
+GtkWidget* bigPictureGetInactiveExonView(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return bigPictureGetStrandsToggled(bigPicture) ? properties->fwdExonView : properties->revExonView;
 }
 
 gboolean bigPictureGetStrandsToggled(GtkWidget *bigPicture)
@@ -635,7 +659,8 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 				       GtkWidget *header, 
 				       GtkWidget *fwdStrandGrid,
 				       GtkWidget *revStrandGrid,
-				       GtkWidget *exonView,
+				       GtkWidget *fwdExonView,
+				       GtkWidget *revExonView,
 				       const IntRange const *initDisplayRange, 
 				       int cellWidth, 
 				       int numHCells, 
@@ -649,7 +674,8 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->header = header;
       properties->fwdStrandGrid = fwdStrandGrid;
       properties->revStrandGrid = revStrandGrid;
-      properties->exonView = exonView;
+      properties->fwdExonView = fwdExonView;
+      properties->revExonView = revExonView;
       properties->displayRange.min = initDisplayRange->min;
       properties->displayRange.max = initDisplayRange->max;
       properties->cellWidth = cellWidth;
@@ -763,11 +789,13 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
   *fwdStrandGrid = createBigPictureGrid(bigPicture, FORWARD_STRAND);
   *revStrandGrid = createBigPictureGrid(bigPicture, REVERSE_STRAND);
 
-  GtkWidget *exonView = createExonView(bigPicture);
+  GtkWidget *fwdExonView = createExonView(bigPicture, FORWARD_STRAND);
+  GtkWidget *revExonView = createExonView(bigPicture, REVERSE_STRAND);
   
   /* By default, make the forward strand the top grid */
   addChildToBigPicture(bigPicture, *fwdStrandGrid, FALSE);
-  addChildToBigPicture(bigPicture, exonView, FALSE);
+  addChildToBigPicture(bigPicture, fwdExonView, FALSE);
+  addChildToBigPicture(bigPicture, revExonView, FALSE);
   addChildToBigPicture(bigPicture, *revStrandGrid, TRUE);
 
   /* Set the big picture properties */
@@ -776,7 +804,8 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
 			     header, 
 			     *fwdStrandGrid,
 			     *revStrandGrid,
-			     exonView,
+			     fwdExonView,
+			     revExonView,
 			     initDisplayRange, 
 			     DEFAULT_GRID_CELL_WIDTH, 
 			     DEFAULT_GRID_NUM_HOZ_CELLS, 

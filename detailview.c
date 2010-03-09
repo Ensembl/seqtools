@@ -113,10 +113,6 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
     {
       const gchar *name = pango_font_family_get_name(families[family]) ;
       
-      
-      if(pango_font_family_is_monospace(families[family]))
-	printf("%s\n", name);
-
       /* Look for this font family in our list of preferred families */
       GList *pref = g_list_first(pref_families) ;
       gint current = 1;
@@ -1727,6 +1723,20 @@ static void swapGridVisibility(GtkWidget *bigPicture)
 }
 
 
+/* If one exon view is visible and the other hidden, toggle their hidden states */
+static void swapExonViewVisibility(GtkWidget *bigPicture)
+{
+  GtkWidget *exonView1 = bigPictureGetFwdExonView(bigPicture);
+  GtkWidget *exonView2 = bigPictureGetRevExonView(bigPicture);
+  
+  if (widgetGetHidden(exonView1) != widgetGetHidden(exonView2))
+    {
+      widgetSetHidden(exonView1, !widgetGetHidden(exonView1));
+      widgetSetHidden(exonView2, !widgetGetHidden(exonView2));
+    }
+}
+
+
 void toggleStrand(GtkWidget *detailView)
 {
   MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewGetMainWindow(detailView));
@@ -1755,6 +1765,7 @@ void toggleStrand(GtkWidget *detailView)
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
   swapTreeVisibility(detailView);
   swapGridVisibility(bigPicture);
+  swapExonViewVisibility(bigPicture);
   
   /* Toggle the order of the trees and grids. */
   refreshTreeOrder(detailView);

@@ -473,14 +473,40 @@ static void toggleGridVisibility(GtkWidget *mainWindow, const int number)
 }
 
 
-/* Toggle the visibility of tree/grid panes following a number key press */
-static void togglePaneVisibility(GtkWidget *mainWindow, const int number, const gboolean modifier)
+/* Toggle visibility of the active (1) or other (2) strand exon view depending on the number pressed */
+static void toggleExonViewVisibility(GtkWidget *mainWindow, const int number)
 {
-  /* Affects grids if ctrl was pressed, trees otherwise */
-  if (modifier)
-    toggleGridVisibility(mainWindow, number);
+  if (number == 1 || number == 2)
+    {
+      GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+      const gboolean useFwdExonView = (number == 1) != mainWindowGetStrandsToggled(mainWindow);
+      
+      GtkWidget *exonView = useFwdExonView ? bigPictureGetFwdExonView(bigPicture) : bigPictureGetRevExonView(bigPicture);
+      widgetSetHidden(exonView, !widgetGetHidden(exonView));
+    }
+}
+
+
+/* Toggle the visibility of tree/grid panes following a number key press */
+static void togglePaneVisibility(GtkWidget *mainWindow, const int number, const gboolean modifier1, const gboolean modifier2)
+{
+  /* Affects big picture if modifier1 was pressed, the detail view otherwise */
+  if (modifier1)
+    {
+      /* If modifier 2 was also pressed, affects the exon views; otherwise the grids */
+      if (modifier2)
+	{
+	  toggleExonViewVisibility(mainWindow, number);
+	}
+      else
+	{
+	  toggleGridVisibility(mainWindow, number);
+	}
+    }
   else
-    toggleTreeVisibility(mainWindow, number);
+    {
+      toggleTreeVisibility(mainWindow, number);
+    }
 }
 
 
@@ -560,7 +586,8 @@ void showViewPanesDialog(GtkWidget *mainWindow)
   
   GtkWidget *bigPictureSubBox = createVBoxWithBorder(contentArea, borderWidth);
   createVisibilityButton(bigPictureGetActiveGrid(bigPicture), "_Active strand grid", bigPictureSubBox);
-  createVisibilityButton(bigPictureGetExonView(bigPicture), "_Exon view", bigPictureSubBox);
+  createVisibilityButton(bigPictureGetActiveExonView(bigPicture), "Active strand _exons", bigPictureSubBox);
+  createVisibilityButton(bigPictureGetInactiveExonView(bigPicture), "Other strand e_xons", bigPictureSubBox);
   createVisibilityButton(bigPictureGetInactiveGrid(bigPicture), "O_ther strand grid", bigPictureSubBox);
   
   /* Detail view */
@@ -1659,7 +1686,11 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 {
   gboolean result = FALSE;
   
-  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK);
+  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
+  const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
+  const gboolean altModifier = (event->state & GDK_MOD1_MASK) == GDK_MOD1_MASK;
+  
+  guint32 keycode = gdk_keyval_to_unicode(event->keyval);
   
   switch (event->keyval)
     {
@@ -1698,6 +1729,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  if (ctrlModifier)
 	    {
 	      zoomWholeBigPicture(mainWindowGetBigPicture(window));
+	      result = TRUE;
 	    }
 	  break;
 	}
@@ -1711,24 +1743,28 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  }
 	break;
 	
-      case GDK_t:
+      case GDK_t: /* fall through */
       case GDK_T:
 	toggleStrand(mainWindowGetDetailView(window));
 	result = TRUE;
 	break;
 	
-      case GDK_1:
-	togglePaneVisibility(window, 1, ctrlModifier);
+      case GDK_1: /* fall through */
+      case GDK_exclam:
+	togglePaneVisibility(window, 1, ctrlModifier, shiftModifier);
 	result = TRUE;
 	break;
 
-      case GDK_2:
-	togglePaneVisibility(window, 2, ctrlModifier);
+      case GDK_2:	  /* fall through */
+      case GDK_quotedbl:  /* fall through */
+      case GDK_at:
+	togglePaneVisibility(window, 2, ctrlModifier, shiftModifier);
 	result = TRUE;
 	break;
 	
-      case GDK_3:
-	togglePaneVisibility(window, 3, ctrlModifier);
+      case GDK_3: /* fall through */
+      case GDK_currency:
+	togglePaneVisibility(window, 3, ctrlModifier, shiftModifier);
 	result = TRUE;
 	break;
     };

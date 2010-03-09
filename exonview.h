@@ -6,7 +6,8 @@
  *
  */
 
-#include <gtk/gtk.h>  
+#include <gtk/gtk.h>
+#include <SeqTools/blxview.h>
 
 /* Public function declarations */
-GtkWidget *createExonView(GtkWidget *bigPicture);
+GtkWidget *createExonView(GtkWidget *bigPicture, const Strand strand);

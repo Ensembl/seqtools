@@ -16,22 +16,23 @@
 
 typedef struct _BigPictureProperties
   {
-    GtkWidget *mainWindow;  /* The main window widget that this grid belongs to */
-    GtkWidget *header;	    /* The grid header */
-    GtkWidget *fwdStrandGrid; /* The grid that displays the forward ref seq strand */
-    GtkWidget *revStrandGrid; /* The grid that displays the reverse ref seq strand */
-    GtkWidget *exonView;    /* The section showing the exons */
+    GtkWidget *mainWindow;	/* The main window widget that this grid belongs to */
+    GtkWidget *header;		/* The grid header */
+    GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
+    GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
+    GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
+    GtkWidget *revExonView;	/* The section showing the exons for the reverse ref seq strand */
     
-    IntRange displayRange;  /* The currently-displayed range in the big picture */
+    IntRange displayRange;	/* The currently-displayed range in the big picture */
     
-    int cellWidth;	    /* The width of the grid cells (same for all grids) */
-    int numHCells;	    /* The number of cells in the grid horizontally */
+    int cellWidth;		/* The width of the grid cells (same for all grids) */
+    int numHCells;		/* The number of cells in the grid horizontally */
     
-    int previewBoxCentre;   /* The base that the preview box is centered on (or UNSET_INT if no preview box) */
+    int previewBoxCentre;	/* The base that the preview box is centered on (or UNSET_INT if no preview box) */
     
-    int leftBorderChars;    /* The number of characters in the left border of the big picture grids */
-    int charWidth;	    /* The width of the characters in the big picture grids */
-    int charHeight;	    /* The height of the characters in the big picture grids */
+    int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
+    int charWidth;		/* The width of the characters in the big picture grids */
+    int charHeight;		/* The height of the characters in the big picture grids */
     
     /* Colour settings */
     GdkColor gridLineColour;
@@ -69,7 +70,10 @@ GtkWidget*		      bigPictureGetFwdGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetActiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetInactiveGrid(GtkWidget *bigPicture);
-GtkWidget*		      bigPictureGetExonView(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetFwdExonView(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetRevExonView(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetActiveExonView(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetInactiveExonView(GtkWidget *bigPicture);
 gboolean		      bigPictureGetStrandsToggled(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
