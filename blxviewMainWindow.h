@@ -40,7 +40,7 @@ typedef struct _MainWindowProperties
     int dotterZoom;		    /* Zoom param to call dotter with */
 
     GdkDrawable *drawable;	    /* A bitmap where we'll draw the contents we want to print */
-    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
+//    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
     int lastYEnd;		    /* Keeps track of where the last item ended so we can draw the next one flush to it */
     int lastYStart;		    /* Where the last item started (for drawing multiple items at same y pos) */
     int lastYCoord;		    /* Y coord of last item (so we can check if current item should be at same Y pos) */    

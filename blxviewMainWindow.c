@@ -46,8 +46,8 @@ static void			  onSelectFeaturesMenu(GtkAction *action, gpointer data);
 static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
-static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
-static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
+//static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
+//static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 
 static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
@@ -1552,38 +1552,38 @@ static void onStatisticsMenu(GtkAction *action, gpointer data)
 /* Called when the user selects the Print menu option, or hits the Print shortcut key */
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  
-  /* Create a print operation, using the same settings as the last print, if there was one */
-  GtkPrintOperation *print = gtk_print_operation_new();
-  
-  if (properties->printSettings != NULL)
-    {
-      gtk_print_operation_set_print_settings(print, properties->printSettings);
-    }
-  
-  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
-  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
-  
-  /* Pop up the print dialog */
-  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
-								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-								 GTK_WINDOW(mainWindow),
-								 NULL);
-  
-  /* If the user hit ok, remember the print settings for next time */
-  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
-    {
-      if (properties->printSettings != NULL)
-	{
-	  g_object_unref(properties->printSettings);
-	}
-      
-      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
-    }
-
-  g_object_unref(print);
+//  GtkWidget *mainWindow = GTK_WIDGET(data);
+//  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+//  
+//  /* Create a print operation, using the same settings as the last print, if there was one */
+//  GtkPrintOperation *print = gtk_print_operation_new();
+//  
+////  if (properties->printSettings != NULL)
+////    {
+////      gtk_print_operation_set_print_settings(print, properties->printSettings);
+////    }
+//  
+////  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
+////  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
+//  
+//  /* Pop up the print dialog */
+//  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
+//								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
+//								 GTK_WINDOW(mainWindow),
+//								 NULL);
+//  
+//  /* If the user hit ok, remember the print settings for next time */
+//  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
+//    {
+////      if (properties->printSettings != NULL)
+////	{
+////	  g_object_unref(properties->printSettings);
+////	}
+////      
+////      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
+//    }
+//
+//  g_object_unref(print);
 }
 
 
@@ -1593,18 +1593,18 @@ static void onPrintMenu(GtkAction *action, gpointer data)
 
 /* Called after the user clicks ok in the print dialog. For now just scales the 
  * whole output to fit on a single page. */
-static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
-{
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-
-  /* Set the orientation based on the stored print settings (not sure why this doesn't
-   * already get set when the settings are set in the print operation...). */
-  GtkPrintSettings *printSettings = gtk_print_operation_get_print_settings(print);
-  gtk_print_settings_set_orientation(printSettings, gtk_print_settings_get_orientation(properties->printSettings));
-
-  gtk_print_operation_set_n_pages(print, 1);
-}
+//static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
+//{
+//  GtkWidget *mainWindow = GTK_WIDGET(data);
+//  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+//
+//  /* Set the orientation based on the stored print settings (not sure why this doesn't
+//   * already get set when the settings are set in the print operation...). */
+////  GtkPrintSettings *printSettings = gtk_print_operation_get_print_settings(print);
+////  gtk_print_settings_set_orientation(printSettings, gtk_print_settings_get_orientation(properties->printSettings));
+//
+//  gtk_print_operation_set_n_pages(print, 1);
+//}
 
 
 static void collatePixmaps(GtkWidget *widget, gpointer data)
@@ -1653,29 +1653,29 @@ static void collatePixmaps(GtkWidget *widget, gpointer data)
 
 
 /* Print handler - renders a specific page */
-static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
-{
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  
-  /* Create a blank white pixmap to draw on to */
-  properties->drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
-  
-  GdkGC *gc = gdk_gc_new(properties->drawable);
-  GdkColor fgColour = getGdkColor(GDK_WHITE);
-  gdk_gc_set_foreground(gc, &fgColour);
-  gdk_draw_rectangle(properties->drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
-
-  /* For each child widget that has a drawable set, draw this onto the main pixmap */
-  properties->lastYStart = 0;
-  properties->lastYEnd = 0;
-  properties->lastYCoord = -1;
-  gtk_container_foreach(GTK_CONTAINER(mainWindow), collatePixmaps, mainWindow);
-  
-  cairo_t *cr = gtk_print_context_get_cairo_context (context);
-  gdk_cairo_set_source_pixmap(cr, properties->drawable, 0, 0);
-  cairo_paint(cr);
-}
+//static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
+//{
+//  GtkWidget *mainWindow = GTK_WIDGET(data);
+//  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+//  
+//  /* Create a blank white pixmap to draw on to */
+//  properties->drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
+//  
+//  GdkGC *gc = gdk_gc_new(properties->drawable);
+//  GdkColor fgColour = getGdkColor(GDK_WHITE);
+//  gdk_gc_set_foreground(gc, &fgColour);
+//  gdk_draw_rectangle(properties->drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
+//
+//  /* For each child widget that has a drawable set, draw this onto the main pixmap */
+//  properties->lastYStart = 0;
+//  properties->lastYEnd = 0;
+//  properties->lastYCoord = -1;
+//  gtk_container_foreach(GTK_CONTAINER(mainWindow), collatePixmaps, mainWindow);
+//  
+//  cairo_t *cr = gtk_print_context_get_cairo_context (context);
+//  gdk_cairo_set_source_pixmap(cr, properties->drawable, 0, 0);
+//  cairo_paint(cr);
+//}
 
 
 /* Mouse button handler */
@@ -1839,9 +1839,9 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->dotterZoom = 0;
 
       properties->drawable = NULL;
-      properties->printSettings = gtk_print_settings_new();
-      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
-      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
+//      properties->printSettings = gtk_print_settings_new();
+//      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+//      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
       properties->lastYEnd = UNSET_INT;
       properties->lastYStart = UNSET_INT;
       properties->lastYCoord = UNSET_INT;

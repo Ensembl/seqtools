@@ -1762,9 +1762,9 @@ static void initColumn(GtkWidget *tree,
       /* Create a temp scrollbar to find the default width from the style properties. */
       GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
       
-      gint sliderWidth, separatorWidth, troughBorder, stepperSpacing;
+      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
       gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
-      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
+//      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
       gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
       gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
 
@@ -2336,7 +2336,7 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_widget_set_name(GTK_WIDGET(tree), DETAIL_VIEW_TREE_NAME);
   gtk_widget_set_redraw_on_allocate(GTK_WIDGET(tree), FALSE);
   
-  gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
+//  gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
@@ -2361,6 +2361,7 @@ static void setTreeStyle(GtkTreeView *tree)
 	  "GtkTreeView::expander-size	      = 0\n"
 	  "GtkTreeView::vertical-separator    = 0\n"
 	  "GtkTreeView::horizontal-separator  = 0\n"
+	  "GtkTreeView::enable-grid-lines     = GTK_TREE_VIEW_GRID_LINES_VERTICAL\n"
 	  "}"
 	  "widget \"*%s*\" style \"packedTree\"", DETAIL_VIEW_TREE_NAME);
   gtk_rc_parse_string(parseString);

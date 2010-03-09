@@ -114,7 +114,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       
       /* Draw the label, showing which base index is at this x coord */
       int numBasesFromLeft = basesPerCell * hCell;
-      int baseIdx = rightToLeft ? displayRange->max - numBasesFromLeft : displayRange->min + numBasesFromLeft;
+      int baseIdx = displayRange->min + numBasesFromLeft;
       
       /* Convert the display coord to a ref seq coord */
       baseIdx = convertDisplayIdxToDnaIdx(baseIdx, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
