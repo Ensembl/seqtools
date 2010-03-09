@@ -122,4 +122,13 @@ char*		      convertIntToString(const int value);
 int		      convertStringToInt(const char *inputStr);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
 
+void		      showMessageDialog(const char *title,  
+					const char *messageText,
+					GtkWidget *parent,
+					const int initWidth,
+					const int maxHeight,
+					const gboolean wrapText,
+					PangoFontDescription *fontDesc);
+
+
 #endif /* _utilities_h_included_ */

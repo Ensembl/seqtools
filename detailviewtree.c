@@ -1035,7 +1035,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	    if (selectedSeqs)
 	      {
 		const char *seqName = (const char*)selectedSeqs->data;
-		blxDisplayMSP(seqName, 0, mainWindow);
+		displaySequence(seqName, 0, mainWindow);
 	      }
 	      
 	    handled = TRUE;

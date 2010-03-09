@@ -544,7 +544,7 @@ void showViewPanesDialog(GtkWidget *mainWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("View panes", 
 						  GTK_WINDOW(mainWindow), 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
@@ -988,7 +988,7 @@ void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
 						  GTK_WINDOW(mainWindow), 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CLOSE,
 						  GTK_RESPONSE_REJECT,
 						  NULL);
@@ -1156,7 +1156,7 @@ void showSettingsDialog(GtkWidget *mainWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
 						  GTK_WINDOW(mainWindow), 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
@@ -1229,10 +1229,10 @@ static void getStats(GtkWidget *mainWindow, GString *result, MSP *MSPlist)
 
 static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
 {
-  /* Create a modal dialog widget with an OK button */
+  /* Create a dialog widget with an OK button */
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Statistics", 
                                                   GTK_WINDOW(mainWindow),
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
@@ -1260,46 +1260,6 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
 /***********************************************************
  *			Help menu			   *
  ***********************************************************/
-
-/* Utility to pop up a simple modal dialog with the given title and text, with just an "OK" button. */
-static void showModalDialog(GtkWidget *mainWindow, char *title, char *messageText)
-{
-  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-						  GTK_WINDOW(mainWindow), 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
-
-  GtkWidget *vbox = GTK_DIALOG(dialog)->vbox;
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
-  /* We'll put the message in a scrolled window with just a vertical scrollbar */
-  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-  gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
-  
-  /* Create the text buffer and set the text */
-  GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
-  gtk_text_buffer_set_text(textBuffer, messageText, -1);
-  
-  /* Create a text view to display the buffer */
-  GtkWidget *textView = gtk_text_view_new();
-  gtk_text_view_set_buffer(GTK_TEXT_VIEW(textView), textBuffer);
-  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
-
-  gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), TRUE);
-  gtk_text_view_set_editable(GTK_TEXT_VIEW(textView), FALSE);
-  
-  /* Set a pretty big initial size */
-  gtk_widget_set_size_request(dialog, mainWindow->allocation.width * 0.7, mainWindow->allocation.height * 0.9);
-  
-  /* Ensure dialog is destroyed when user responds */
-  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
-  
-  gtk_widget_show_all(dialog);
-}
-
 
 /* Utility to pop up a simple confirmation dialog box with the given title and text, 
  * with just an "OK" and "Cancel" button. Blocks until the user responds, and returns
@@ -1463,11 +1423,14 @@ In the detail view, the following colours and symbols have the following meaning
 	•	Yellow vertical line: insertion\n\
 	•	Thin blue vertical line: start of an exon\n\
 	•	Thin dark-blue vertical line: end of an exon\n\
-	•	Green background (protein matches only): the three nucleotides for the currently-selected coordinate.\n\
-	•	Red background (protein matches only): the nucleotide for the currently selected query coordinate.\n\
+	•	Green background (protein matches only): the three nucleotides for the currently-selected codon. Dark green indicates the specific nucleotide that is currently displayed in the feedback box.\n\
 ", blixemVersion));
 
-  showModalDialog(mainWindow, "Help", messageText);
+  /* Set a pretty big initial size */
+  const int initWidth = mainWindow->allocation.width * 0.7;
+  const int maxHeight = mainWindow->allocation.height * 0.7;
+  
+  showMessageDialog("Help", messageText, NULL, initWidth, maxHeight, TRUE, mainWindow->style->font_desc);
 }
 
 

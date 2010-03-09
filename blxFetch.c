@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.7 2010-02-19 16:22:03 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.8 2010-03-09 13:14:19 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -50,12 +50,12 @@
 #include <wh/gex.h>
 #include <libpfetch/libpfetch.h>
 #endif
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 #include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/detailview.h>
 
 
-#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      100
+#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
 
 
 /* 
@@ -274,44 +274,26 @@ static void externalCommand (char *command, GtkWidget *mainWindow)
       g_string_append_printf(str_text, "%s\n", cp) ;
     }
   
-  /* Pop up a dialog to display the sequence text */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons(command, 
-						  GTK_WINDOW(mainWindow), 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
-  
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-
-  /* Create a text buffer and copy the text in */
-  GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
-  gtk_text_buffer_set_text(textBuffer, str_text->str, -1);
-  g_string_free(str_text, TRUE);
-
-  /* Create a text view to display the buffer */
-  GtkWidget *textView = gtk_text_view_new();
-  gtk_text_view_set_buffer(GTK_TEXT_VIEW(textView), textBuffer);
-
-  /* Make the text view scrollable */
-  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
-  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_container_add(GTK_CONTAINER(contentArea), scrollWin);
-  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
-
-  /* Set the initial size. The height is the minimum of the main window height (because we don't want
-   * to display it bigger than this - also subtract a bit to allow for the button bar and scrollbar height)
-   * or the height required for the number of lines of text we want to display. */
+  /* Show the dialog. Use the same fixed-width font that the detail view uses, but
+   * don't use the detail view's font size, because it may be zoomed in/out. */
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
-  int width = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * detailViewGetCharWidth(detailView);
-  int height = min(mainWindow->allocation.height - 80,
-		   gtk_text_buffer_get_line_count(textBuffer) * detailViewGetCharHeight(detailView));
-  
-  gtk_widget_set_size_request(textView, width, height);
-  gtk_widget_modify_font(textView, detailViewGetFontDesc(detailView)); /* gets a fixed-width font */
-  
-  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
-  gtk_widget_show_all(dialog);
+  PangoFontDescription *fontDesc = pango_font_description_copy(detailViewGetFontDesc(detailView));
+  pango_font_description_set_size(fontDesc, pango_font_description_get_size(mainWindow->style->font_desc));
+
+  /* Set the initial width based on the default number of characters wide */
+  PangoContext *context = gtk_widget_get_pango_context(detailView);
+  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+  gint charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
+
+  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
+  const int maxHeight = mainWindow->allocation.height * 0.5;
+
+  showMessageDialog(command, str_text->str, NULL, initWidth, maxHeight, FALSE, fontDesc);
+
+  /* Clean up */
+  pango_font_metrics_unref(metrics);
+  pango_font_description_free(fontDesc);
+  g_string_free(str_text, TRUE);
 
 #endif
   return ;
@@ -387,7 +369,7 @@ static int findCommand (char *command, char **retp)
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void blxDisplayMSP(const char *seqName, const KEY key, GtkWidget *mainWindow)
+void displaySequence(const char *seqName, const KEY key, GtkWidget *mainWindow)
 {
 
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
