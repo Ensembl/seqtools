@@ -2243,6 +2243,7 @@ GtkWidget* createMainWindow(char *refSeq,
 			    char **geneticCode,
 			    const int refSeqOffset,
 			    const int startCoord1Based,
+			    const int bigPictZoom,
 			    const SortByType sortByTypeInput,
 			    const gboolean sortInverted,
 			    const gboolean gappedHsp)
@@ -2306,8 +2307,8 @@ GtkWidget* createMainWindow(char *refSeq,
   GtkWidget *bigPicture = createBigPicture(window,
 					   vbox, 
 					   &fwdStrandGrid, 
-					   &revStrandGrid, 
-					   &fullDisplayRange);
+					   &revStrandGrid,
+					   bigPictZoom);
 
   GtkWidget *detailView = createDetailView(window,
 					   vbox, 

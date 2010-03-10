@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.19 2010-03-09 13:14:19 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.20 2010-03-10 17:17:45 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -230,7 +230,7 @@ static void blviewDestroy(GtkWidget *unused) ;
 #endif
 
 //static void toggleColors (void);
-static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const int startCoord, const SortByType sortByType, const gboolean sortInverted, const gboolean gappedHsp) ;
+static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const int startCoord, const int bigPictZoom, const SortByType sortByType, const gboolean sortInverted, const gboolean gappedHsp) ;
 
 #if OLD_BLIXEM
 static char *get3rd_base(int start, int end, char *q);
@@ -1580,7 +1580,7 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, start, sortMode, sortInvOn, HSPgaps) ;
+      blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, start, BigPictZoom, sortMode, sortInvOn, HSPgaps) ;
     }
 
   return 0;
@@ -1627,6 +1627,7 @@ static void blviewCreate(char *opts,
 			 char *refSeqName, 
 			 const int qOffset,
 			 const int startCoord,
+			 const int bigPictZoom,
 			 const SortByType sortByType,
 			 const gboolean sortInverted,
 			 const gboolean gappedHsp)
@@ -1642,6 +1643,7 @@ static void blviewCreate(char *opts,
 				      stdcode1, 
 				      qOffset, 
 				      startCoord,
+				      bigPictZoom,
 				      sortByType,
 				      sortInverted, 
 				      gappedHsp);

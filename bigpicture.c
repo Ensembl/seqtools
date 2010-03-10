@@ -26,6 +26,7 @@ static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
 static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
 static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
+static int			    bigPictureGetInitialZoom(GtkWidget *bigPicture);
 
 static void                         drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, GdkGC *gc);
 
@@ -351,7 +352,8 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
 }
 
 
-/* This function makes sure the big picture remains centred on the highlight box:
+/* This function should be called every time the detail view display range has 
+ * changed. It makes sure the big picture remains centred on the highlight box:
  * it scrolls the big picture display range if necessary to keep the highlight box
  * (i.e. the range that is displayed in the detail-view) centred. If recalcHighlightBox
  * is true, the highlight box has changed size, and its boundaries need to be recalculated. */
@@ -361,9 +363,17 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcH
   IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
   IntRange *detailViewRange = detailViewGetDisplayRange(detailView);
   
-  if (getRangeCentre(displayRange) != getRangeCentre(detailViewRange))
+  if (displayRange->min == UNSET_INT && displayRange->max == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
     {
-      int width = displayRange->max - displayRange->min;
+      /* This is the first time we've refreshed the detail view range. Set the
+       * initial big picture range width to be a ratio of the detail view range width. */
+      const int width = (detailViewRange->max - detailViewRange->min) * bigPictureGetInitialZoom(bigPicture);
+      setBigPictureDisplayWidth(bigPicture, width, recalcHighlightBox);
+    }
+  else if (getRangeCentre(displayRange) != getRangeCentre(detailViewRange))
+    {
+      /* Call set-width (but just use the existing width) to force the required updates. */
+      const int width = displayRange->max - displayRange->min;
       setBigPictureDisplayWidth(bigPicture, width, recalcHighlightBox);
     }
 }
@@ -618,6 +628,12 @@ IntRange* bigPictureGetDisplayRange(GtkWidget *bigPicture)
   return &properties->displayRange;
 }
 
+static int bigPictureGetInitialZoom(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties->initialZoom;
+}
+
 static IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
 {
   GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
@@ -661,10 +677,10 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 				       GtkWidget *revStrandGrid,
 				       GtkWidget *fwdExonView,
 				       GtkWidget *revExonView,
-				       const IntRange const *initDisplayRange, 
 				       int cellWidth, 
 				       int numHCells, 
-				       int previewBoxCentre)
+				       int previewBoxCentre,
+				       const int initialZoom)
 {
   if (bigPicture)
     { 
@@ -676,14 +692,18 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->revStrandGrid = revStrandGrid;
       properties->fwdExonView = fwdExonView;
       properties->revExonView = revExonView;
-      properties->displayRange.min = initDisplayRange->min;
-      properties->displayRange.max = initDisplayRange->max;
       properties->cellWidth = cellWidth;
       properties->numHCells = numHCells;
       properties->previewBoxCentre = previewBoxCentre;
       properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
       properties->highlightBoxLineWidth = DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH;
       properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
+      properties->initialZoom = initialZoom;
+      
+      /* These will be initialized when the detail view size is first allocated,
+       * because the big picture range is a ratio of the detail view range. */
+      properties->displayRange.min = UNSET_INT;
+      properties->displayRange.max = UNSET_INT;
       
       properties->gridLineColour = getGdkColor(GDK_YELLOW);
       properties->gridTextColour = getGdkColor(GDK_BLACK);
@@ -770,8 +790,8 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 GtkWidget* createBigPicture(GtkWidget *mainWindow, 
 			    GtkWidget *container,
 			    GtkWidget **fwdStrandGrid, 
-			    GtkWidget **revStrandGrid, 
-			    const IntRange const *initDisplayRange)
+			    GtkWidget **revStrandGrid,
+			    const int initialZoom)
 {
   /* Create the main big picture widget, which will contain all of the 
    * individual big-picture grids, plus a header. */
@@ -806,10 +826,10 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
 			     *revStrandGrid,
 			     fwdExonView,
 			     revExonView,
-			     initDisplayRange, 
 			     DEFAULT_GRID_CELL_WIDTH, 
 			     DEFAULT_GRID_NUM_HOZ_CELLS, 
-			     UNSET_INT);
+			     UNSET_INT,
+			     initialZoom);
   
   
   return bigPicture;

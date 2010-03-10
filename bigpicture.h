@@ -22,6 +22,7 @@ typedef struct _BigPictureProperties
     GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
     GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
     GtkWidget *revExonView;	/* The section showing the exons for the reverse ref seq strand */
+    int initialZoom;		/* Multiple to multiply the detail view display range by to get the initial big picture display range */
     
     IntRange displayRange;	/* The currently-displayed range in the big picture */
     
@@ -106,8 +107,8 @@ void			      refreshGridOrder(GtkWidget *bigPicture);
 GtkWidget*		      createBigPicture(GtkWidget *mainWindow,
 					       GtkWidget *container,
 					       GtkWidget **fwdStrandGrid, 
-					       GtkWidget **revStrandGrid, 
-					       const IntRange const *initDisplayRange);
+					       GtkWidget **revStrandGrid,
+					       const int bigPictZoom);
 
 
 #endif /* _big_picture_included_ */

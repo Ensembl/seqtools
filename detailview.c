@@ -316,11 +316,20 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 	   * so the sequence type of the coord is whatever the display sequence type is. */
 	  GtkWidget *detailView = treeGetDetailView(tree);
 	  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-	  const BlxSeqType seqType = detailViewGetSeqType(detailView);
 
-	  int centre = getRangeCentre(displayRange);
-	  int offset = roundNearest((double)adjustment->page_size / 2.0);
-	  setDetailViewStartIdx(detailView, centre - offset, seqType);
+	  /* First time through, both coords are set to the initial start coord. So, if
+	   * they are the same, just use that coord as the start coord */
+	  int newStart = displayRange->min;
+	  
+	  if (displayRange->min != displayRange->max)
+	    {
+	      int centre = getRangeCentre(displayRange);
+	      int offset = roundNearest((double)adjustment->page_size / 2.0);
+	      newStart = centre - offset;
+	    }
+	      
+	  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+	  setDetailViewStartIdx(detailView, newStart, seqType);
 	  
 	  gtk_adjustment_changed(adjustment); /* signal that the scroll range has changed */
 	}
@@ -1032,7 +1041,6 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   if (displayRange->min != newStart || displayRange->max != newEnd)
     {
-      /* Adjustment is zero-based but display range is 1-based */
       displayRange->min = newStart;
       displayRange->max = newEnd;
       
