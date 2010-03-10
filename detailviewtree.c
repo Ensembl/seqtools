@@ -540,13 +540,16 @@ static void treeSetSquashMatches(GtkWidget *tree, const gboolean squash)
       changed = TRUE;
     }
   
-  /* If we changed the model, sort the new one by the existing criteria */
+  /* If we changed the model, re-sort and re-filter it */
   if (changed)
     {  
-      /* We sort the base data model (not the filtered one, which is what gets set in the tree view) */
+      /* We sort the base data model, not the filtered one (i.e. sort all rows, not just visible ones) */
       GtkTreeModel *newModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
       GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
       gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(newModel), sortColumn, sortOrder);
+      
+      /* Re-filter, because this model may not be up to date for the current display range */
+      refilterTree(tree, NULL);
     }
 }
 
