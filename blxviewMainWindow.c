@@ -55,17 +55,19 @@ static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
+static void			  copySelectionToClipboard(GtkWidget *mainWindow);
+
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",	      "<control>Q",	    "Quit the program",		  gtk_main_quit},
   { "Help",		NULL, "_Help\t\t\t\tCtrl-H",	      "<control>H",	    "Display Blixem help",	  G_CALLBACK(onHelpMenu)},
   { "Print",		NULL, "_Print\t\t\t\tCtrl-P",	      "<control>P",	    "Print",			  G_CALLBACK(onPrintMenu)},
-  { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	      "<control>S",	    "Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
+  { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",      "<control>S",	    "Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
 
-  { "View",		NULL, "_View\t\t\t\tCtrl-V",	      "<control>V",	    "Edit view settings",	  G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",   "<shift><control>G",  "Group sequences together",	  G_CALLBACK(onCreateGroupMenu)},
-  { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	      "<control>G",	 "Groups",			  G_CALLBACK(onEditGroupsMenu)},
+  { "View",		NULL, "_View\t\t\t\tCtrl-V",		  "<control>V",	    "Edit view settings",	  G_CALLBACK(onViewMenu)},
+  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",	  "<shift><control>G",  "Group sequences together",	  G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	  "<control>G",	 "Groups",			  G_CALLBACK(onEditGroupsMenu)},
   { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<shift><control>A", "Deselect all",		  G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		      "<control>D",	 "Start Dotter",	  G_CALLBACK(onDotterMenu)},
@@ -1688,9 +1690,6 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
   
   const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
   const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
-  const gboolean altModifier = (event->state & GDK_MOD1_MASK) == GDK_MOD1_MASK;
-  
-  guint32 keycode = gdk_keyval_to_unicode(event->keyval);
   
   switch (event->keyval)
     {
@@ -1733,6 +1732,15 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	    }
 	  break;
 	}
+	
+      case GDK_c: /* fall through */
+      case GDK_C:
+	if (ctrlModifier)
+	  {
+	    copySelectionToClipboard(window);
+	    result = TRUE;
+	  }
+	break;
 	
       case GDK_g: /* fall through */
       case GDK_G:
@@ -2016,11 +2024,52 @@ GList* mainWindowGetSelectedSeqs(GtkWidget *mainWindow)
   return properties ? properties->selectedSeqs : NULL;
 }
 
+
+/* Get the selected sequences as a list of sequence names. The returned list
+ * is formatted as comma-separated values. */
+static GString* mainWindowGetSelectedSeqNames(GtkWidget *mainWindow)
+{
+  GList *listItem = mainWindowGetSelectedSeqs(mainWindow);
+  GString *result = g_string_new_len(NULL, 50);
+  gboolean first = TRUE;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      /* Add a separator before the name, unless it's the first one */
+      if (!first)
+	{
+	  g_string_append(result, ", ");
+	}
+      else
+	{
+	  first = FALSE;
+	}
+
+      const char *seqName = (const char*)(listItem->data);
+      g_string_append(result, seqName);
+    }
+
+  return result;
+}
+
+
+/* This function copys the currently-selected sequences' names to the default
+ * clipboard. */
+static void copySelectionToClipboard(GtkWidget *mainWindow)
+{
+  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+  GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
+  gtk_clipboard_set_text(clipboard, displayText->str, -1);
+  g_string_free(displayText, TRUE);
+}
+
+
 /* Update function to be called whenever the MSP selection has changed */
 void mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
 {
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
   
+  /* Unless requested not to, update the tree row selections to match our new selections */
   if (updateTrees)
     {
       callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
@@ -2034,6 +2083,17 @@ void mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTree
   GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
   callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
   gtk_widget_queue_draw(bigPicture);
+  
+  /* Copy the selected sequence names to the "PRIMARY" clipboard, as per common
+   * behaviour for X. (Not applicable for Windows.) */
+#ifndef __CYGWIN__
+  
+  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_PRIMARY);
+  GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
+  gtk_clipboard_set_text(clipboard, displayText->str, -1);
+  g_string_free(displayText, TRUE);
+  
+#endif
 }
 
 
@@ -2047,6 +2107,7 @@ void mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean up
       mainWindowSelectionChanged(mainWindow, updateTrees);
     }
 }
+
 
 /* Call this function to deselect the given sequence */
 void mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees)
@@ -2062,6 +2123,7 @@ void mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean 
       mainWindowSelectionChanged(mainWindow, updateTrees);
     }
 }
+
 
 /* Call this function to deselect all sequences */
 void mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateTrees)
