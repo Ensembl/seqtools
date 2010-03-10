@@ -2269,7 +2269,7 @@ GtkWidget* createMainWindow(char *refSeq,
 	  fullDisplayRange.max -= 1;
 	}
       
-      printf("Converted DNA sequence (%d-%d) to peptide sequence (%d-%d).\n",  refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
+//      printf("Converted DNA sequence (%d-%d) to peptide sequence (%d-%d).\n",  refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
     }
   
   /* Convert the start coord (which is 1-based and on the DNA sequence) to display
@@ -2303,15 +2303,12 @@ GtkWidget* createMainWindow(char *refSeq,
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
   
-  printf("Creating big picture...\n");
   GtkWidget *bigPicture = createBigPicture(window,
 					   vbox, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid, 
 					   &fullDisplayRange);
-  printf("Done.\n");
-  
-  printf("Creating detail view...\n");
+
   GtkWidget *detailView = createDetailView(window,
 					   vbox, 
 					   detailAdjustment, 
@@ -2325,7 +2322,6 @@ GtkWidget* createMainWindow(char *refSeq,
 					   startCoord,
 					   sortInverted,
 					   sortByType);
-  printf("Done.\n");
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
@@ -2360,9 +2356,8 @@ GtkWidget* createMainWindow(char *refSeq,
   updateDetailViewFontDesc(detailView);
 
   /* Show the window */
-  printf("realizing widgets...\n");
+  printf("Starting Blixem\n");
   gtk_widget_show_all(window);
-  printf("Done.\n");
   
   return window;
 }
