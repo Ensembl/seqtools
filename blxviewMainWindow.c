@@ -17,6 +17,8 @@
 #define DEFAULT_WINDOW_BORDER_WIDTH      10   /* used to change the default border width around the main window */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
+#define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
+#define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
 
 typedef struct _GroupDialogData
   {
@@ -2185,6 +2187,13 @@ gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
 /* Set various properties for the main window widget */
 static void setStyleProperties(GtkWidget *widget)
 {
+  /* Set the initial window size based on some fraction of the screen size */
+  GdkScreen *screen = gtk_widget_get_screen(widget);
+  const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
+  const int height = gdk_screen_get_height(screen) * DEFAULT_WINDOW_HEIGHT_FRACTION;
+  
+  gtk_window_set_default_size(GTK_WINDOW(widget), width, height);
+  
   gtk_container_set_border_width (GTK_CONTAINER(widget), DEFAULT_WINDOW_BORDER_WIDTH); 
   gtk_window_set_mnemonic_modifier(GTK_WINDOW(widget), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
   

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.21 2010-03-11 11:17:14 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.22 2010-03-11 11:48:08 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -202,47 +202,15 @@ static BOOL parseFeatureLine(char *line,
 //static BOOL setMatchSet(char **matches) ;
 //static void clearMatchSet(void) ;
 
-//static void sortToggleInv(void) ;
-
-//static void squashMatches(void) ;
-//static void squashFSdo(void) ;
-
-//static void toggleIDdots (void) ;
 //static void toggleVerbose(void) ;
 //static void toggleHiliteSins(void) ;
 //static void toggleHiliteUpper(void) ;
 //static void toggleHiliteLower(void) ;
-//static void toggleDESC(void) ;
-//static void ToggleStrand(void) ;
 //static void printColors (void) ;
-
-//static BOOL gotoMatchPosition(char *match, int q_start, int q_end) ;
-
-#if OLD_BLIXEM
-static void keyboard(int key, int modifier) ;
-static void blviewPick (int box, double x_unused, double y_unused, int modifier_unused);
-static void blviewDestroy(GtkWidget *unused) ;
-#endif
-
 //static void toggleColors (void);
+
 static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const int startCoord, const int bigPictZoom, const SortByType sortByType, const gboolean sortInverted, const gboolean gappedHsp) ;
-
-#if OLD_BLIXEM
-static char *get3rd_base(int start, int end, char *q);
-#endif
-
 static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
-//static void getsseq(MSP *msp, MSP *msplist) ;
-//static char *getSeq(char *seqname, char *fetch_prog) ;
-
-//static BOOL smartDotterRange(char *selected_sequence, const MSP const *msp_list, int blastn,
-//			     int strand_sign, int view_start, int view_end,
-//			     char **dottersseq_out, int *dotter_start_out, int *dotter_end_out) ;
-
-
-//static void printMSPs(void) ;
-
-//static void toggleMatchSet(void) ;
 
 
 /*
@@ -373,11 +341,6 @@ static int   BigPictON = 1,
 
 static SortByType sortMode = SORTBYUNSORTED ;
 
-static int oldWidth = 0, oldHeight = 0;
-
-#if OLD_BLIXEM
-static double oldx, DNAstep;
-#endif
 
 /* A stepping stone to having a blixem view context is this global struct. */
 //static BlixemViewStruct blixem_context_G = {FALSE} ;
@@ -552,20 +515,6 @@ static double oldx, DNAstep;
 //}
 
 
-//static void sortToggleInv(void)
-//{
-//  sortInvOn = !sortInvOn;
-//  switch (sortMode)
-//    {
-//    case SORTBYNAME : sortByName(); break;
-//    case SORTBYSCORE : sortByScore(); break;
-//    case SORTBYPOS : sortByPos(); break;
-//    case SORTBYID : sortById(); break;
-//    default: blviewRedraw(); break;
-//    }
-//
-//  return ;
-//}
 
 /*
 static void incBack(void) {
@@ -587,37 +536,6 @@ static void decGrid(void) {
     blviewRedraw();
 }
 */
-
-//static void squashMatches(void)
-//{
-//    static int oldSortMode;
-//
-//    if (!squash) {
-//      oldSortMode = sortMode;
-//      sortByName();
-//      squash = 1;
-//    }
-//    else {
-//	switch (oldSortMode) {
-//	case SORTBYNAME : sortByName(); break;
-//	case SORTBYSCORE : sortByScore(); break;
-//	case SORTBYPOS : sortByPos(); break;
-//	case SORTBYID : sortById(); break;
-//	}
-//	squash = 0;
-//    }
-//
-//    blviewRedraw();
-//
-//    return ;
-//}
-
-
-//static void squashFSdo(void)
-//{
-//    squashFS = !squashFS;
-//    blviewRedraw();
-//}
 
 
 //static void wholePrint(void)
@@ -712,81 +630,6 @@ static void decGrid(void) {
 //  return ;
 //}
 
-
-
-/* 
- *       Set of functions to handle getting data from the clipboard following user actions.
- */
-
-/* Called by menu/keyboard code. */
-//static void blxPaste(BlxPasteType paste_type)
-//{
-//  paste_type_G = paste_type ;				    /* acedb callbacks force us to have a global. */
-//
-//  graphPasteBuffer(pasteCB) ;				    /* get clipboard data. */
-//
-//  return ;
-//}
-
-
-/* Called by graph asynchronously (when it gets the "select" signal) with data
- * taken from the windowing systems clipboard. */
-//static void pasteCB(char *text)
-//{
-//  BlixemView blxview = getBlxViewContext() ;
-//  BlxPasteDataStruct paste_data = {BLXPASTE_INVALID} ;
-//
-//  paste_data.type = paste_type_G ;
-//
-//  if (!parsePasteText(text, &paste_data))
-//    {
-//      messerror("Could not paste from clipboard, unknown format: \"%s\"", (text ? text : "no data on clipboard")) ;
-//    }
-//  else
-//    {
-//      if (paste_type_G && (paste_type_G != paste_data.type))
-//	{
-//	  messerror("Wrong type of clipboard data, expected %d but got %d", paste_type_G, paste_data.type) ;
-//	}
-//      else
-//	{
-//	  switch (paste_data.type)
-//	    {
-//	    case BLXPASTE_MATCHSET:
-//	      {
-//		if ((blxview->match_set = setMatchSet(paste_data.data.match_set)))
-//		  {
-//		    menuSetLabel(menuItem(blixemMenu, toggleMatchPasteStr), toggleMatchClearStr) ;
-//		  }
-//
-//		blviewRedraw() ;
-//		break ;
-//	      }
-//	    case BLXPASTE_MOVETO:
-//	      {
-//		if (!gotoMatchPosition(paste_data.data.move_to.match,
-//				       paste_data.data.move_to.start,
-//				       paste_data.data.move_to.end))
-//		  messerror("Failed to find/move to match \"%s\" at %d %d",
-//			    paste_data.data.move_to.match,
-//			    paste_data.data.move_to.start, paste_data.data.move_to.end) ;
-//		break ;
-//	      }
-//	    default:
-//	      {
-//		printf("debug: data unrecognised !!\n") ;
-//		break ;
-//	      }
-//	    }
-//	}
-//
-//      freePasteData(&paste_data) ;
-//    }
-//
-//  paste_type_G = BLXPASTE_INVALID ;			    /* Be sure to reset. */
-//
-//  return ;
-//}
 
 
 /* Parses clipboard text looking for one of several formats. */
@@ -1311,6 +1154,7 @@ static void blviewCreate(char *opts,
 {
   if (!blixemWindow)
     {
+      /* Create the window */
       blixemWindow = createMainWindow(refSeq, 
 				      refSeqName, 
 				      msplist, 
@@ -1324,13 +1168,6 @@ static void blviewCreate(char *opts,
 				      sortByType,
 				      sortInverted, 
 				      gappedHsp);
-
-      /* Set the initial window size */
-      GdkScreen *screen = gtk_widget_get_screen(blixemWindow);
-      const int initWidth = oldWidth ? oldWidth : gdk_screen_get_width(screen) * 0.9;
-      const int initHeight = oldHeight ? oldHeight : gdk_screen_get_height(screen) * 0.6;
-      gtk_window_set_default_size(GTK_WINDOW(blixemWindow), initWidth, initHeight);
-
 
       BOOL pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       gtk_window_set_title(GTK_WINDOW(blixemWindow),
