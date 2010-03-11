@@ -1401,6 +1401,7 @@ static void calcID(MSP *msp, GtkWidget *tree)
 					       numFrames,
 					       treeGetStrandsToggled(tree),
 					       !qForward,
+					       TRUE,
 					       TRUE);
 
       if (!refSeqSegment)
@@ -1895,6 +1896,7 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
 					       mainWindowGetNumReadingFrames(mainWindow),
 					       rightToLeft,
 					       rightToLeft,
+					       TRUE,
 					       TRUE);
 
   if (segmentToDisplay)

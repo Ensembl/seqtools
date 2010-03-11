@@ -97,6 +97,7 @@ gchar*			  getSequenceSegment(GtkWidget *mainWindow,
 					     const int numFrames,
 					     const gboolean rightToLeft,
 					     const gboolean reverseResult,
+					     const gboolean allowComplement,
 					     const gboolean translateResult);
   
 GtkWidget*		  createMainWindow(char *refSeq, 

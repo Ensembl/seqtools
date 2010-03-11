@@ -904,6 +904,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 					    data->numFrames,
 					    data->rightToLeft,
 					    data->rightToLeft,
+					    TRUE,
 					    TRUE);
 
   if (refSeqSegment)

@@ -466,8 +466,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       const int qFrame = mspGetRefFrame(msp, seqType);
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->sstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->send, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
       const int minMspCoord = min(coord1, coord2);
       const int maxMspCoord = max(coord1, coord2);
 
@@ -743,7 +743,8 @@ static gboolean blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 						 frame,
 						 mainWindowGetNumReadingFrames(blxWindow),
 						 rightToLeft,
-						 TRUE,  /* allow sequence to be reversed if reverse strand */
+						 FALSE,  /* don't reverse - dotter expects it always to be forwards */
+						 FALSE,  /* don't complement */
 						 FALSE); /* don't allow translation to a peptide seq */
   
   if (!querySeqSegmentTemp)

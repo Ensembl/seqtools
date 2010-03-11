@@ -164,11 +164,20 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
 }
 
 
-/* Get a segment of the given sequence (which is always the DNA sequence and
- * always the forward strand) and reverse/complement it as required for the given
- * strand and reading frame (note that the sequence will only actually be reversed
- * if the 'reverse' argument is true). This function also translates it to a peptide
- * sequence if relevant (if the 'translate' flag allows it). */
+/* Copy a segment of the given sequence (which is always the DNA sequence and
+ * always the forward strand).
+ *
+ * The result is complemented if the reverse strand is requested, but only if
+ * the allowComplement flag allows it.
+ * 
+ * The result is translated to a peptide sequence if the blast mode is protein 
+ * matches, but only if the allowTranslate flag allows it.
+ *
+ * The result is reversed if the reverseResult flag is true (regardless of the
+ * strand requested - this is because the caller often wants the result in the
+ * opposite direction to that indicated by the strand, because the display may be
+ * reversed, so we leave it up to the caller to decide).
+ */
 gchar *getSequenceSegment(GtkWidget *mainWindow,
 			  const char const *dnaSequence,
 			  const IntRange const *dnaSequenceRange,
@@ -180,7 +189,8 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 			  const int numFrames,
 			  const gboolean rightToLeft,
 			  const gboolean reverseResult,
-			  const gboolean translateResult)
+			  const gboolean allowComplement,
+			  const gboolean allowTranslate)
 {
   gchar *result = NULL;
 
@@ -237,11 +247,15 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 	{
 	  /* Get the segment of the ref seq and then complement it */
 	  segment = copySeqSegment(dnaSequence, idx1, idx2);
-	  blxComplement(segment);
 	  
-	  if (!segment)
+	  if (allowComplement)
 	    {
-	      messcrash ("Error getting the reference sequence segment: Failed to complement the reference sequence for the range %d - %d.", qMin, qMax);
+	      blxComplement(segment);
+	  
+	      if (!segment)
+		{
+		  messcrash ("Error getting the reference sequence segment: Failed to complement the reference sequence for the range %d - %d.", qMin, qMax);
+		}
 	    }
 	}
       
@@ -250,7 +264,7 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 	  g_strreverse(segment);
 	}
       
-      if (mode == BLXMODE_BLASTN || !translateResult)
+      if (mode == BLXMODE_BLASTN || !allowTranslate)
 	{
 	  /* Just return the segment of DNA sequence */
 	  result = segment;
