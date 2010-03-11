@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.9 2010-02-24 16:06:30 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.10 2010-03-11 15:20:16 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -117,25 +117,34 @@ static MSP* createEmptyMsp()
   msp->type = BLX_MSP_INVALID;
   msp->score = 0;
   msp->id = 0;
+  
   msp->qname = NULL;
   msp->qframe[0] = 0;
   msp->qstart = 0;
   msp->qend = 0;
+  
   msp->sname = NULL;
   msp->sframe[0] = 0;
   msp->slength = 0;
   msp->sstart = 0;
   msp->send = 0;
   msp->sseq = NULL;
+  
   msp->desc = NULL;
   msp->box = 0;
   msp->in_match_set = FALSE;
+  
   msp->color = 0;
   msp->shape = 0;
   msp->fs = 0;
+  
   msp->xy = NULL;
   msp->gaps = NULL;
   
+#ifdef ACEDB
+  msp->key = 0;
+#endif
+
   return msp;
 }
 

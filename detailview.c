@@ -1640,6 +1640,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->charHeight = 0;
       properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
       properties->sortInverted = sortInverted;
+      properties->highlightDiffs = FALSE;
 
       /* Set initial display range to something valid but only 1 base wide. Then if we try to do any 
        * calculations on the range before it gets set properly, it won't have much work to do. */
