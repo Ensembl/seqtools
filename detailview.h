@@ -171,6 +171,7 @@ GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean
 int			detailViewGetExonBoundaryWidth(GtkWidget *detailView);
 GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart);
 
+void			nextMatch(GtkWidget *detailView);
 void			goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
 void			setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
 void			scrollDetailViewLeft1(GtkWidget *detailView);

@@ -1986,7 +1986,7 @@ static void prevMatch(GtkWidget *detailView)
   goToNextMatch(detailView, FALSE);
 }
 
-static void nextMatch(GtkWidget *detailView)
+void nextMatch(GtkWidget *detailView)
 {
   goToNextMatch(detailView, TRUE);
 }
