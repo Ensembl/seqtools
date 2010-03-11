@@ -320,8 +320,10 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 	  
       const int mspStart = convertDnaIdxToDisplayIdx(msp->qstart, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
       const int mspEnd = convertDnaIdxToDisplayIdx(msp->qend, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
-
-      if (valueWithinRange(mspStart, displayRange) || valueWithinRange(mspEnd, displayRange))
+      const int qMin = min(mspStart, mspEnd);
+      const int qMax = max(mspStart, mspEnd);
+      
+      if (qMin < displayRange->max && qMax > displayRange->min)
 	{
 	  result = TRUE;
 	}
