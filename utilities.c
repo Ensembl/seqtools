@@ -686,6 +686,13 @@ int roundNearest(const double val)
 }
 
 
+/* Round to the nearest multiple of the given value */
+int roundToValue(const int inputVal, const int roundTo)
+{
+  return roundNearest((double)inputVal / (double)roundTo) * roundTo;
+}
+
+
 /* Converts the given integer to a string. The result must be free'd with g_free */
 char* convertIntToString(const int value)
 {
@@ -923,3 +930,7 @@ void showMessageDialog(const char *title,
   
   gtk_widget_show_all(dialog);
 }
+
+
+
+

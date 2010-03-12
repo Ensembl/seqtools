@@ -1786,10 +1786,10 @@ void toggleStrand(GtkWidget *detailView)
   gtk_widget_queue_draw(detailView);
   
   /* Redraw the grids and grid headers */
-  callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders); /* must recalculate the highlight box first */
-  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
-  widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
-  gtk_widget_queue_draw(bigPicture);
+  refreshBigPictureDisplayRange(bigPicture, TRUE);
+//  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
+//  widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
+//  gtk_widget_queue_draw(bigPicture);
 }
 
 

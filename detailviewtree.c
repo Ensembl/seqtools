@@ -885,7 +885,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 		  const int minCoord = min(coord1, coord2);
 		  const int maxCoord = max(coord1, coord2);
 
-		  if (!(minCoord >= displayRange->max || maxCoord < displayRange->min))
+		  if (minCoord <= displayRange->max && maxCoord >= displayRange->min)
 		    {
 		      bDisplay = TRUE;
 		      break;

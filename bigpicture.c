@@ -23,8 +23,6 @@
 
 /* Local function declarations */
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
-static int			    bigPictureGetNumHCells(GtkWidget *bigPicture);
-static int			    bigPictureGetCellWidth(GtkWidget *bigPicture);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 static int			    bigPictureGetInitialZoom(GtkWidget *bigPicture);
 
@@ -84,6 +82,68 @@ gint convertBaseIdxToGridPos(const gint baseIdx,
 }
 
 
+/* Function to round the given value to the nearest "nice" value, from the given
+ * list of values to round by. Returns the value it rounded to the nearest of. */
+static int roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo)
+{
+  /* Decide what amount to round to the nearest number of, out of a list of possible
+   * "nice" values. Find the nearest value in this list to our result. The list 
+   * shouldn't be long, so this doesn't worry about efficiency */
+  GSList *listItem = roundValues;
+  int roundTo = UNSET_INT;
+  int smallestDiff = inputVal - roundTo;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      int val = GPOINTER_TO_INT(listItem->data);
+      int thisDiff = inputVal - val;
+      
+      if (roundTo == UNSET_INT || (val > 0 && abs(thisDiff) < smallestDiff))
+	{
+	  roundTo = val;
+	  smallestDiff = abs(thisDiff);
+	}
+    }
+  
+  /* Round the input to the nearest multiple of 'roundTo'. */
+  int result = roundNearest((double)inputVal / (double)roundTo) * roundTo;
+  
+  if (roundedTo)
+    {
+      *roundedTo = roundTo;
+    }
+  
+  return result;
+}
+
+
+/* This function calculates the cell size and number of cells for the big picture grids.
+ * It should be called whenever the big picture is resized or its display range changes. */
+static void calculateBigPictureCellSize(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  GtkWidget *header = bigPictureGetGridHeader(bigPicture);
+  GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
+  const BlxSeqType seqType = mainWindowGetSeqType(properties->mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(properties->mainWindow);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(properties->mainWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(properties->mainWindow);
+  
+  /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
+  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int displayWidth = abs(displayEnd - displayStart); /* use abs because can be negative if display reversed */
+  
+  const int defaultBasesPerCell = ceil((double)(displayWidth) / DEFAULT_GRID_NUM_HOZ_CELLS);
+  properties->basesPerCell = roundToValueFromList(defaultBasesPerCell, properties->roundValues, &properties->roundTo);
+
+  /* Adjust the cell width (and hence number of cells) proportionally wrt the rounded number of bases per cell */
+  const double defaultCellWidth = (double)(headerProperties->headerRect.width) / DEFAULT_GRID_NUM_HOZ_CELLS;
+  const double actualCellWidth = (defaultCellWidth * properties->basesPerCell) / defaultBasesPerCell;
+  properties->numHCells = ceil((double)headerProperties->headerRect.width / actualCellWidth);
+}
+
+
 static void drawVerticalGridLineHeaders(GtkWidget *header, 
 					GtkWidget *bigPicture, 
                                         GdkDrawable *drawable,
@@ -91,46 +151,53 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 					const GdkColor const *textColour, 
 					const GdkColor const *lineColour)
 {
-  GridHeaderProperties *properties = gridHeaderGetProperties(header);
-  const gint bottomBorder = properties->headerRect.y + properties->headerRect.height;
-  const gint topBorder = bottomBorder - properties->markerHeight;
+  GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
 
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(bpProperties->mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(bpProperties->mainWindow);
   const int numFrames = bigPictureGetNumReadingFrames(bigPicture);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(bpProperties->mainWindow);
+  
+  const int direction = rightToLeft ? -1 : 1; /* to subtract instead of add when display reversed */
+  
+  /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
+   * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
+  
+  /* Calculate the top and bottom heights for the lines. */
+  const gint bottomBorder = headerProperties->headerRect.y + headerProperties->headerRect.height;
+  const gint topBorder = bottomBorder - headerProperties->markerHeight;
 
-  const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
-  int numCells = bigPictureGetNumHCells(bigPicture);
-  int cellWidth = bigPictureGetCellWidth(bigPicture);
-  
-  gint basesPerCell = ceil((double)(displayRange->max - displayRange->min) / numCells);
-  
-  /* Omit the first and last lines */
-  gint hCell = 1;
-  for ( ; hCell < numCells; ++hCell)
+  const int minX = headerProperties->headerRect.x;
+  const int maxX = headerProperties->headerRect.x + headerProperties->headerRect.width;
+
+  /* Loop through each grid cell */
+  gint hCell = 0;
+  for ( ; hCell <= bpProperties->numHCells; ++hCell)
     {
-      gint x = properties->headerRect.x + (gint)((gdouble)hCell * cellWidth);
-      
       /* Draw the label, showing which base index is at this x coord */
-      int numBasesFromLeft = basesPerCell * hCell;
-      int baseIdx = displayRange->min + numBasesFromLeft;
-      
-      /* Convert the display coord to a ref seq coord */
-      baseIdx = convertDisplayIdxToDnaIdx(baseIdx, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
-      
-      gdk_gc_set_foreground(gc, textColour);
-      gchar text[numDigitsInInt(baseIdx) + 1];
-      sprintf(text, "%d", baseIdx);
+      int numBasesFromLeft = bpProperties->basesPerCell * hCell;
+      int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      PangoLayout *layout = gtk_widget_create_pango_layout(header, text);
-      gdk_draw_layout(drawable, gc, x, 0, layout);
-      g_object_unref(layout);
+      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      const int x = convertBaseIdxToGridPos(displayIdx, &headerProperties->headerRect, &bpProperties->displayRange);
       
-      /* Draw the marker line */
-      gdk_gc_set_foreground(gc, lineColour);
-      gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
+      if (x > minX && x < maxX)
+	{
+	  gdk_gc_set_foreground(gc, textColour);
+	  gchar text[numDigitsInInt(baseIdx) + 1];
+	  sprintf(text, "%d", baseIdx);
+
+	  PangoLayout *layout = gtk_widget_create_pango_layout(header, text);
+	  gdk_draw_layout(drawable, gc, x, 0, layout);
+	  g_object_unref(layout);
+	  
+	  /* Draw a marker line (small cosmetic touch to better join the label to the grid below) */
+	  gdk_gc_set_foreground(gc, lineColour);
+	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
+	}
     }
 }
 
@@ -182,6 +249,7 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
 }
 
 
+/* Recalculate the borders for the grid header. Should be called after a resize */
 void calculateGridHeaderBorders(GtkWidget *header)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
@@ -327,16 +395,19 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
   if (!done)
     {
       /* Keep the view centred on what's visible in the detail view */
-      int newcentre = getRangeCentre(detailViewRange);
+      const int newcentre = getRangeCentre(detailViewRange);
 
       /* Try to display an equal amount either side of the centre */
-      int offset = roundNearest((double)width / 2.0);
+      const int offset = roundNearest((double)width / 2.0);
 
       displayRange->min = newcentre - offset;
-      displayRange->max = newcentre + offset;
+      displayRange->max = displayRange->min + width;
       boundRange(displayRange, fullRange);
     }
   
+  /* Recalculate the grid cell size */
+  calculateBigPictureCellSize(bigPicture);
+
   /* Since we're keeping the highlight box centred, it should stay in the same place
    * if we're just scrolling. We therefore only need to recalculate its position if
    * its size has changed. */
@@ -345,7 +416,7 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
       callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
     }
 
-  /* Recreate the grids and grid header */
+  /* Redraw */
   callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
   widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
   gtk_widget_queue_draw(bigPicture);
@@ -370,7 +441,7 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcH
       const int width = (detailViewRange->max - detailViewRange->min) * bigPictureGetInitialZoom(bigPicture);
       setBigPictureDisplayWidth(bigPicture, width, recalcHighlightBox);
     }
-  else if (getRangeCentre(displayRange) != getRangeCentre(detailViewRange))
+  else
     {
       /* Call set-width (but just use the existing width) to force the required updates. */
       const int width = displayRange->max - displayRange->min;
@@ -640,18 +711,6 @@ static IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
   return mainWindowGetFullRange(mainWindow);
 }
 
-static int bigPictureGetNumHCells(GtkWidget *bigPicture)
-{
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return properties->numHCells;
-}
-
-int bigPictureGetCellWidth(GtkWidget *bigPicture)
-{
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return properties->cellWidth;
-}
-
 GtkWidget* bigPictureGetGridHeader(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
@@ -677,8 +736,6 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 				       GtkWidget *revStrandGrid,
 				       GtkWidget *fwdExonView,
 				       GtkWidget *revExonView,
-				       int cellWidth, 
-				       int numHCells, 
 				       int previewBoxCentre,
 				       const int initialZoom)
 {
@@ -692,8 +749,9 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->revStrandGrid = revStrandGrid;
       properties->fwdExonView = fwdExonView;
       properties->revExonView = revExonView;
-      properties->cellWidth = cellWidth;
-      properties->numHCells = numHCells;
+      properties->numHCells = UNSET_INT;
+      properties->basesPerCell = UNSET_INT;
+      properties->roundTo = 25;
       properties->previewBoxCentre = previewBoxCentre;
       properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
       properties->highlightBoxLineWidth = DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH;
@@ -705,15 +763,32 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->displayRange.min = UNSET_INT;
       properties->displayRange.max = UNSET_INT;
       
+      /* Calculate the font size */
+      getFontCharSize(bigPicture, &properties->charWidth, &properties->charHeight);
+
+      /* Create the list of "nice round values" to round the grid header values to.
+       * Create the list in reverse order (i.e. highest values first). */
+      properties->roundValues = NULL;
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(50));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(100));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(125));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(150));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(250));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(500));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(1000));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(2500));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(5000));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(10000));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25000));
+      
+      /* Set default colours */
       properties->gridLineColour = getGdkColor(GDK_YELLOW);
       properties->gridTextColour = getGdkColor(GDK_BLACK);
       properties->highlightBoxColour = getGdkColor(GDK_BLUE);
       properties->previewBoxColour = getGdkColor(GDK_DARK_GREY);
       properties->mspLineHighlightColour = getGdkColor(GDK_CYAN);
       properties->mspLineColour = getGdkColor(GDK_BLACK);
-      
-      /* Calculate the font size */
-      getFontCharSize(bigPicture, &properties->charWidth, &properties->charHeight);
       
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", properties);
       g_signal_connect(G_OBJECT(bigPicture), "destroy", G_CALLBACK(onDestroyBigPicture), NULL); 
@@ -826,8 +901,6 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
 			     *revStrandGrid,
 			     fwdExonView,
 			     revExonView,
-			     DEFAULT_GRID_CELL_WIDTH, 
-			     DEFAULT_GRID_NUM_HOZ_CELLS, 
 			     UNSET_INT,
 			     initialZoom);
   

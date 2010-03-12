@@ -79,19 +79,19 @@ static void drawExonIntron(const MSP *msp, GtkWidget *exonView, const gboolean i
   const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
   const int frame = mspGetRefFrame(msp, seqType);
 
-  /* Find the coordinates of the start and end base in this msp */
-  int qSeqMin = min(msp->qstart, msp->qend);
-  int qSeqMax = max(msp->qstart, msp->qend);
+  /* Find the coordinates of the start and end base in this msp, converting to display coords */
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
   
-  /* Convert msp coords to display coords. */
-  qSeqMin = convertDnaIdxToDisplayIdx(qSeqMin, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
-  qSeqMax = convertDnaIdxToDisplayIdx(qSeqMax, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the max coord + 1 */
+  const int minCoord = min(coord1, coord2);
+  const int maxCoord = max(coord1, coord2) + 1;
   
-  int x1 = convertBaseIdxToGridPos(qSeqMin, &properties->exonViewRect, displayRange);
-  int x2 = convertBaseIdxToGridPos(qSeqMax, &properties->exonViewRect, displayRange);
+  int xMin = convertBaseIdxToGridPos(minCoord, &properties->exonViewRect, displayRange);
+  int xMax = convertBaseIdxToGridPos(maxCoord, &properties->exonViewRect, displayRange);
   
-  int x = min(x1, x2);
-  int width = abs(x2 - x1);
+  int x = xMin;
+  int width = xMax - xMin;
   
   int y = properties->exonViewRect.y;
   int height = properties->exonViewRect.height;

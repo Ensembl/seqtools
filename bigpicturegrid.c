@@ -189,22 +189,44 @@ static void drawPreviewBox(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 static void drawVerticalGridLines(GtkWidget *grid, 
                                   GdkDrawable *drawable,
                                   GdkGC *gc,
-				  const gint numCells, 
-				  const gdouble cellWidth, 
 				  const GdkColor const *lineColour)
 {
   GridProperties *properties = gridGetProperties(grid);
-
+  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(bpProperties->mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(bpProperties->mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(bpProperties->mainWindow);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(bpProperties->mainWindow);
+  
+  const int direction = rightToLeft ? -1 : 1; /* to subtract instead of add when display reversed */
+  
+  /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
+   * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
+  
+  /* Calculate the top and bottom heights for the lines. */
   const gint topBorder = properties->highlightRect.y - properties->gridYPadding;
   const gint bottomBorder = properties->gridRect.y + properties->gridRect.height;
   
-  /* Omit the first and last lines */
-  gint hCell = 1;
-  for ( ; hCell < numCells; ++hCell)
+  const int minX = properties->gridRect.x;
+  const int maxX = properties->gridRect.x + properties->gridRect.width;
+
+  gint hCell = 0;
+  for ( ; hCell <= bpProperties->numHCells; ++hCell)
     {
-      gint x = properties->gridRect.x + (gint)((gdouble)hCell * cellWidth);
-      gdk_gc_set_foreground(gc, lineColour);
-      gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
+      /* Get the base index for this grid line and calc its x coord */
+      int numBasesFromLeft = bpProperties->basesPerCell * hCell;
+      int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
+
+      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      const int x = convertBaseIdxToGridPos(displayIdx, &properties->gridRect, &bpProperties->displayRange);
+
+      if (x > minX && x < maxX)
+	{
+	  gdk_gc_set_foreground(gc, lineColour);
+	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
+	}
     }
 }
 
@@ -264,28 +286,28 @@ void calculateMspLineDimensions(GtkWidget *grid,
   const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
   const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const int frame = mspGetRefFrame(msp, seqType);
 
-  /* Find the coordinates of the start and end base in this match sequence */
-  int qSeqMin = min(msp->qstart, msp->qend);
-  int qSeqMax = max(msp->qstart, msp->qend);
+  /* Find the coordinates of the start and end base in this match sequence, and convert to display coords */
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
   
-  /* Convert to display coords. Doesn't really matter which frame - pass frame 1 */
-  qSeqMin = convertDnaIdxToDisplayIdx(qSeqMin, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
-  qSeqMax = convertDnaIdxToDisplayIdx(qSeqMax, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+  /* Convert the coords to grid positions. The grid positions we use are for the left edge
+   * of the coord, so to draw the end coord inclusively we need to increase the max coord by 1 */
+  const int minCoord = min(coord1, coord2);
+  const int maxCoord = max(coord1, coord2) + 1;
   
-  /* Convert sequence coords to a grid position */
-  int x1 = convertBaseIdxToGridPos(qSeqMin, &gridProperties->gridRect, displayRange);
-  int x2 = convertBaseIdxToGridPos(qSeqMax + 1, &gridProperties->gridRect, displayRange);
+  int xMin = convertBaseIdxToGridPos(minCoord, &gridProperties->gridRect, displayRange);
+  int xMax = convertBaseIdxToGridPos(maxCoord, &gridProperties->gridRect, displayRange);
 
-  /* We'll start drawing at the lowest x coord, so set x to the min of x1 and x2 */
   if (x)
     {
-      *x = min(x1, x2);
+      *x = xMin;
     }
     
   if (width)
     {
-      *width = max(abs(x1 - x2), MIN_MSP_LINE_WIDTH);
+      *width = max((xMax - xMin), MIN_MSP_LINE_WIDTH);
     }
   
   /* Find where in the y axis we should draw the line, based on the %ID value */
@@ -323,7 +345,7 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
       const int qMin = min(mspStart, mspEnd);
       const int qMax = max(mspStart, mspEnd);
       
-      if (qMin < displayRange->max && qMax > displayRange->min)
+      if (qMin <= displayRange->max && qMax >= displayRange->min)
 	{
 	  result = TRUE;
 	}
@@ -482,8 +504,6 @@ static void drawBigPictureGrid(GtkWidget *grid)
   drawVerticalGridLines(grid, 
                         drawable,
                         gc,
-			bigPictureProperties->numHCells, 
-			bigPictureProperties->cellWidth,
 			&bigPictureProperties->gridLineColour);
   
   drawHorizontalGridLines(grid, 
@@ -523,7 +543,7 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
       properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->gridRect, displayRange);
       properties->highlightRect.y = properties->gridRect.y - properties->highlightBoxYPad;
       
-      properties->highlightRect.width = (gint)((gdouble)adjustment->page_size * pixelsPerBase(properties->gridRect.width, displayRange));
+      properties->highlightRect.width = roundNearest((gdouble)adjustment->page_size * pixelsPerBase(properties->gridRect.width, displayRange));
       properties->highlightRect.height = properties->gridRect.height + properties->mspLineHeight + (2 * properties->highlightBoxYPad);
     }
 }
@@ -559,9 +579,6 @@ void calculateGridBorders(GtkWidget *grid)
   /* Set the size request to our desired height. We want a fixed heigh but don't set the
    * width, because we want the user to be able to resize that. */
   gtk_widget_set_size_request(grid, 0, properties->displayRect.height);
-  
-  /* Update the cell width dynamically with the grid width */
-  bigPictureProperties->cellWidth = properties->gridRect.width / bigPictureProperties->numHCells;
 }
 
 

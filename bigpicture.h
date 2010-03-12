@@ -22,13 +22,15 @@ typedef struct _BigPictureProperties
     GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
     GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
     GtkWidget *revExonView;	/* The section showing the exons for the reverse ref seq strand */
+    GSList *roundValues;	/* List of "nice" values to round to, for the display values in the grid header */
     int initialZoom;		/* Multiple to multiply the detail view display range by to get the initial big picture display range */
     
     IntRange displayRange;	/* The currently-displayed range in the big picture */
     
-    int cellWidth;		/* The width of the grid cells (same for all grids) */
     int numHCells;		/* The number of cells in the grid horizontally */
-    
+    int basesPerCell;		/* The number of bases show per cell */
+    int roundTo;		/* The number of bases to round grid lines to the nearest multiple of */
+
     int previewBoxCentre;	/* The base that the preview box is centered on (or UNSET_INT if no preview box) */
     
     int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
@@ -84,6 +86,7 @@ int			      bigPictureGetNumReadingFrames(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
+
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
 
