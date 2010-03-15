@@ -51,13 +51,15 @@ static int		      detailViewGetSelectedFrame(GtkWidget *detailView);
 static GdkColor*	      detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
 static DetailViewColumnInfo*  detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
 
+static int		      seqColHeaderGetFrameNumber(GtkWidget *header);
+
 static void		      detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
 static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		      widgetIsTree(GtkWidget *widget);
 static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
 static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
 static void		      refreshDetailViewHeaders(GtkWidget *detailView);
-static GtkWidget*	      createSequenceColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
+static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
 static const char*	      findDetailViewFont(GtkWidget *detailView);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 
@@ -601,7 +603,7 @@ static void createMarkupForLabel(GtkLabel *label,
 
 
 /* Refresh a specific line in the sequence column header */
-static void refreshSequenceColHeaderLine(GtkWidget *detailView,
+static void refreshSeqColHeaderLine(GtkWidget *detailView,
 					 GtkWidget *lineWidget, 
 					 int frame, /* local copy */
 					 char *refSeq)
@@ -675,7 +677,7 @@ static void refreshSequenceColHeaderLine(GtkWidget *detailView,
 
 /* Refresh the header label for the start-coord column. It shows 'Start' for normal
  * orientation or 'End' if the display is reversed. */
-static void refreshDetailViewStartColHeader(GtkWidget *header, gpointer data)
+static void refreshStartColHeader(GtkWidget *header, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
 
@@ -692,7 +694,7 @@ static void refreshDetailViewStartColHeader(GtkWidget *header, gpointer data)
 
 /* Refresh the header label for the end-coord column. It shows 'End' for normal
  * orientation or 'Start' if the display is reversed. */
-static void refreshDetailViewEndColHeader(GtkWidget *header, gpointer data)
+static void refreshEndColHeader(GtkWidget *header, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
 
@@ -711,7 +713,7 @@ static void refreshDetailViewEndColHeader(GtkWidget *header, gpointer data)
  * contains the DNA sequence for the currently displayed section of peptide 
  * sequence for protein matches. It currently displays nothing for DNA matches, 
  * so this callback is not required in that case. */
-static void refreshDetailViewSequenceColHeader(GtkWidget *header, gpointer data)
+static void refreshSeqColHeader(GtkWidget *header, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
@@ -734,7 +736,7 @@ static void refreshDetailViewSequenceColHeader(GtkWidget *header, gpointer data)
 	  gtk_widget_modify_font(lineWidget, fontDesc);
 
 	  /* refresh the displayed text */
-	  refreshSequenceColHeaderLine(detailView, lineWidget, frame, refSeq);
+	  refreshSeqColHeaderLine(detailView, lineWidget, frame, refSeq);
 	  
 	  ++frame;
 	  line = line->next;
@@ -1696,6 +1698,167 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 }
 
 
+/* Get/set functions for the sequence column header frame number. (There is only
+ * one property to set, so it's not worth having a struct for the properties.) */
+static void seqColHeaderSetFrameNumber(GtkWidget *header, const int frame)
+{
+  g_object_set_data(G_OBJECT(header), "seqColHeaderFrameNumber", GINT_TO_POINTER(frame));
+}
+
+static int seqColHeaderGetFrameNumber(GtkWidget *header)
+{
+  return header ? GPOINTER_TO_INT(g_object_get_data(G_OBJECT(header), "seqColHeaderFrameNumber")) : UNSET_INT;
+}
+
+
+/***********************************************************
+ *                     Events                              *
+ ***********************************************************/
+
+static int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange)
+{
+  int result = UNSET_INT;
+  
+  const int leftEdge = 0; /* to do: allow for padding? check upper bound? */
+  
+  if (x > leftEdge)
+    {
+      result = (int)(((double)x - leftEdge) / (double)charWidth);
+    }
+  
+  result += displayRange->min;
+  
+  return result;
+}
+
+
+/* Select the nucleotide at the given x/y position in the given header (protein
+ * matches only). */
+static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
+{
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  
+  int coord = getBaseIndexAtColCoords(x, y, detailViewGetCharWidth(detailView), detailViewGetDisplayRange(detailView));
+  
+  if (coord != UNSET_INT)
+    {	
+      /* Get the active (i.e. currently-selected) frame. Use frame 1 if none selected. */
+      int frame = detailViewGetSelectedFrame(detailView);
+      if (frame == UNSET_INT)
+	{
+	  frame = 1;
+	}
+      
+      /* Get the base number of the clicked base within the active frame. The
+       * base number is determined by which row in the header the mouse pointer 
+       * is over: for frame 1, row 1 will give base 1; for frame 2, row 2 will
+       * give base 1, etc. Start by getting the frame number for the clicked row: */
+      int row = seqColHeaderGetFrameNumber(header);
+      
+      /* The header widget passed to this function is the originally-clicked widget.
+       * If the pointer has dragged onto another row in the header, we can work out
+       * which one based on the y coord. If it is outside altogether, take the 
+       * topmost/bottommost row. (NB this assumes all rows in the header have the 
+       * same height as this one - should be true because they're just simple labels). */
+      if (y < 0 || y > header->allocation.height)
+	{
+	  const int offsetRows = floor((double)y / (double)header->allocation.height); /* can be negative */
+	  row += offsetRows;
+	  
+	  if (row < 1)
+	    {
+	      row = 1;
+	    }
+	  else if (row > numFrames)
+	    {
+	      row = numFrames;
+	    }
+	}
+      
+      /* Calculate the base number based on the row and the currently-active frame */
+      int baseNum = row - frame + 1;
+      
+      if (baseNum < 1)
+	{
+	  /* Cycle round if gone below the min base number */
+	  baseNum += numFrames;
+	  --coord;
+	}
+      
+      detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE);
+    }
+}
+
+
+/* Handler for when a mouse button is pressed on a sequence column header widget.
+ * This signal only gets connected for protein matches, where there are 3 header
+ * widgets, each showing the DNA nucleotides for a specific reading frame. */
+static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->button)
+  {
+    case 2:
+      {
+	/* Middle button: select the nucleotide that was clicked on. */
+	GtkWidget *detailView = GTK_WIDGET(data);
+	selectClickedNucleotide(header, detailView, event->x, event->y);
+	handled = TRUE;
+      }
+  }
+  
+  return handled;
+}
+
+
+static gboolean onButtonReleaseSeqColHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
+  if (event->button == 2)
+    {
+      guint modifiers = gtk_accelerator_get_default_mod_mask();
+      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+      
+      if (!ctrlModifier)
+	{
+	  /* Move the scrollbar so that the currently-selected base index is at the centre */
+	  GtkWidget *detailView = GTK_WIDGET(data);
+	  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+	  
+	  if (selectedBaseIdx != UNSET_INT)
+	    {
+	      /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
+	      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+	      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	      
+	      int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+	      setDetailViewStartIdx(detailView, newStart, seqType);
+	    }
+	}
+      
+      handled = TRUE;
+    }
+
+  return handled;
+}
+
+
+static gboolean onMouseMoveSeqColHeader(GtkWidget *header, GdkEventMotion *event, gpointer data)
+{
+  if (event->state & GDK_BUTTON2_MASK)
+    {
+      /* Moving mouse with middle mouse button down. Update the currently-selected base */
+      GtkWidget *detailView = GTK_WIDGET(data);
+      selectClickedNucleotide(header, detailView, event->x, event->y);
+    }
+  
+  return TRUE;
+}
+
+
 /***********************************************************
  *                     Callbacks                           *
  ***********************************************************/
@@ -2147,12 +2310,12 @@ static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
   GtkBox *header = GTK_BOX(gtk_hbox_new(FALSE, 0));
 
   /* The sequence column has a special header and callback when we're dealing with peptide sequences */
-  GtkWidget *seqHeader = createSequenceColHeader(detailView, seqType, numReadingFrames);
-  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshDetailViewSequenceColHeader : NULL;
+  GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numReadingFrames);
+  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshSeqColHeader : NULL;
   
   /* The start and end columns have callbacks to switch the start/end text when display is toggled */
-  GtkCallback startCallback = refreshDetailViewStartColHeader;
-  GtkCallback endCallback = refreshDetailViewEndColHeader;
+  GtkCallback startCallback = refreshStartColHeader;
+  GtkCallback endCallback = refreshEndColHeader;
   
   const int endColWidth = END_COLUMN_DEFAULT_WIDTH;
   
@@ -2169,9 +2332,9 @@ static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
 
 /* Create a custom header widget for the sequence column for protein matches (this is where
  * we will display the triplets that make up the codons.) Returns NULL for DNA matches. */
-static GtkWidget* createSequenceColHeader(GtkWidget *detailView,
-				 	  const BlxSeqType seqType,
-					  const int numReadingFrames)
+static GtkWidget* createSeqColHeader(GtkWidget *detailView,
+				     const BlxSeqType seqType,
+				     const int numReadingFrames)
 {
   GtkWidget *header = NULL;
   
@@ -2185,6 +2348,16 @@ static GtkWidget* createSequenceColHeader(GtkWidget *detailView,
 	{
 	  GtkWidget *line = createLabel(NULL, 0.0, 0.0, TRUE, TRUE);
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
+	  
+	  seqColHeaderSetFrameNumber(line, frame + 1);
+	  
+	  gtk_drag_dest_set(line, GTK_DEST_DEFAULT_MOTION, NULL, 0, GDK_ACTION_PRIVATE);
+	  
+	  gtk_widget_add_events(line, GDK_ENTER_NOTIFY_MASK);
+	  gtk_widget_add_events(line, GDK_LEAVE_NOTIFY_MASK);
+	  g_signal_connect(G_OBJECT(line), "button-press-event", G_CALLBACK(onButtonPressSeqColHeader), detailView);
+	  g_signal_connect(G_OBJECT(line), "button-release-event", G_CALLBACK(onButtonReleaseSeqColHeader), detailView);
+	  g_signal_connect(G_OBJECT(line), "motion-notify-event", G_CALLBACK(onMouseMoveSeqColHeader), detailView);
 	}
     }
   
