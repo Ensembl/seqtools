@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.7 2010-02-19 16:22:03 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.8 2010-03-17 11:52:40 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -458,7 +458,7 @@ static void msgPopupsCB(BOOL msg_list)
   else
     list_length = 0 ;
 
-//  gexSetMessPopUps(msg_list, list_length) ;
+  gexSetMessPopUps(msg_list, list_length) ;
 
   return ;
 }

@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.15 2010-03-09 13:14:19 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.16 2010-03-17 11:52:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -56,7 +56,34 @@
 /* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
 typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS, SORTBYGROUPORDER} SortByType ;
 
+/* Fundamental type of sequence. */
+typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
 
+/* Struct to contain the arguements to pass to the main blixem window for initialisation */
+typedef struct _MainWindowArgs
+  {
+    char *refSeq;
+    const char const *refSeqName;
+    const int refSeqOffset;
+    
+    MSP *mspList;
+    BlxBlastMode blastMode;
+    const char *fetchMode;
+    BlxSeqType seqType; 
+    char **geneticCode;
+    int numReadingFrames;
+    const gboolean gappedHsp;
+    const char *paddingSeq;
+    
+    const int bigPictZoom;
+    const int startCoord1Based;
+    
+    const SortByType initialSortType;
+    const gboolean sortInverted;
+    
+  } MainWindowArgs;
+
+  
 
 /* This will probably never be completed but I want to start creating a blixem context....which
  * will require the following steps:
@@ -91,8 +118,6 @@ typedef struct BlixemViewStructName
 
 #define MAXLINE 10000
 
-/* Fundamental type of sequence. */
-typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
 
 /* Types and struct to support retrieving data from the window systems clipboard. */
 typedef enum
@@ -222,10 +247,8 @@ void insertFS(MSP *msp, char *series);
 char *readFastaSeq(FILE *seqfile, char *qname);
 
 void blxPfetchEntry(char *sequence_name) ;
-void displaySequence(const char *seqName, const KEY key, GtkWidget *mainWindow) ;
-char *blxFindFetchMode(void) ;
-void blxSetFetchMode(char *fetch_mode) ;
-char *blxGetFetchMode(void) ;
+void displaySequence(char *seqName, const KEY key, GtkWidget *mainWindow) ;
+char *blxSetInitialFetchMode(void) ;
 void blxPfetchMenu(void) ;
 char *blxGetFetchProg(void) ;
 

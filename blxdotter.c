@@ -390,12 +390,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	    }
 	}
 
-      if (!dotterSSeq)
-	{
-	  printf("Can't fetch subject sequence for dotter - aborting\n");
-	  messout("Can't fetch subject sequence for dotter - aborting\n");
-	}
-      else if (strchr(dotterSSeq, '-') || blastMode == BLXMODE_TBLASTN)
+      if (dotterSSeq && (strchr(dotterSSeq, '-') || blastMode == BLXMODE_TBLASTN))
 	{
 	  messout("Note: the sequence passed to dotter is incomplete");
 	}
@@ -646,10 +641,14 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
   while (!feof(pipe))
     {
       unsigned char inputChar = fgetc(pipe);
-      g_string_append_c(resultString, inputChar);
+      
+      if (!feof(pipe))
+	{
+	  g_string_append_c(resultString, inputChar);
+	}
     }
 
-  if (ferror(pipe))
+  if (ferror(pipe) || resultString->len < 1)
     {
       g_string_free(resultString, TRUE);
     }
@@ -706,6 +705,13 @@ static gboolean blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
    * strings but unfortunately dotter will free this string with messfree, so 
    * we need to copy the result into a string allocated with messalloc. */
   char *dotterSSeqTemp = getDotterSSeq(blxWindow);
+  if (!dotterSSeqTemp)
+    {
+      printf("Error starting Dotter: failed to fetch subject sequence\n");
+      messout("Error starting Dotter: failed to fetch subject sequence\n");
+      return FALSE;
+    }
+  
   char *dotterSSeq = messalloc(strlen(dotterSSeqTemp) + 1);
   strcpy(dotterSSeq, dotterSSeqTemp);
   g_free(dotterSSeqTemp);

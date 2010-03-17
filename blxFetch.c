@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.8 2010-03-09 13:14:19 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.9 2010-03-17 11:52:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -162,17 +162,6 @@ typedef struct
   || (PEPTIDE) == 'W' || (PEPTIDE) == 'X'|| (PEPTIDE) == 'Y' || (PEPTIDE) == 'Z'    \
   || (PEPTIDE) == '*' || (PEPTIDE) == '.' || (PEPTIDE) == '-'))
 
-
-//static void fetchBypfetch(void) ;
-#ifdef PFETCH_HTML 
-static void fetchBypfetchhtml(void) ;
-#endif
-//static void fetchByefetch(void) ;
-//static void fetchByWWWefetch(void) ;
-#ifdef ACEDB
-static void fetchByacedb(void) ;
-static void fetchByacedbtext(void) ;
-#endif
 
 #ifdef PFETCH_HTML 
 static gboolean getPFetchUserPrefs(PFetchUserPrefsStruct *pfetch) ;
@@ -369,7 +358,7 @@ static int findCommand (char *command, char **retp)
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void displaySequence(const char *seqName, const KEY key, GtkWidget *mainWindow)
+void displaySequence(char *seqName, const KEY key, GtkWidget *mainWindow)
 {
 
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
@@ -446,7 +435,7 @@ void displaySequence(const char *seqName, const KEY key, GtkWidget *mainWindow)
 
 
 /* Needs a better name really, sets the fetch mode by looking at env. vars etc. */
-char *blxFindFetchMode(void)
+char *blxSetInitialFetchMode(void)
 {
   char *tmp_mode ;
 
@@ -493,42 +482,6 @@ char *blxGetFetchProg(void)
 
   return fetch_prog ;
 }
-
-
-void blxSetFetchMode(char *fetch_mode)
-{
-  strcpy(fetchMode, fetch_mode) ;
-
-  return ;
-}
-
-
-char *blxGetFetchMode(void)
-{
-  return fetchMode ;
-}
-
-
-
-
-void blxPfetchMenu(void)
-{
-//  static MENUOPT fetchMenu[] =
-//    {
-//      {fetchBypfetch,     BLX_FETCH_PFETCH},
-//#ifdef PFETCH_HTML 
-//      {fetchBypfetchhtml, BLX_FETCH_PFETCH_HTML},
-//#endif
-//      {fetchByefetch,     BLX_FETCH_EFETCH},
-//      {fetchByWWWefetch,  BLX_FETCH_WWW_EFETCH},
-//#ifdef ACEDB
-//      {fetchByacedb,      BLX_FETCH_ACEDB},
-//      {fetchByacedbtext,  BLX_FETCH_ACEDB_TEXT},
-//#endif
-//      {0, 0}
-//    };
-}
-
 
 
 #ifdef PFETCH_HTML 
@@ -1148,72 +1101,6 @@ static BOOL socketSend (int sock, char *text)
 
   return status ;
 }
-
-
-
-/* Set of callbacks to set up different methods of fetching EMBL entry for a */
-/* sequence.                                                                 */
-/*                                                                           */
-//static void fetchBypfetch(void)
-//{
-//  strcpy(fetchMode, BLX_FETCH_PFETCH);
-//
-//  blviewRedraw();
-//
-//  return ;
-//}
-
-#ifdef PFETCH_HTML 
-static void fetchBypfetchhtml(void)
-{
-  strcpy(fetchMode, BLX_FETCH_PFETCH_HTML);
-
-  blviewRedraw();
-
-  return ;
-}
-#endif
-
-//static void fetchByefetch(void)
-//{
-//  strcpy(fetchMode, BLX_FETCH_EFETCH);
-//
-//  blviewRedraw();
-//
-//  return ;
-//}
-
-//static void fetchByWWWefetch(void)
-//{
-//  strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
-//
-//  blviewRedraw();
-//
-//  return ;
-//}
-
-
-#ifdef ACEDB
-static void fetchByacedb(void)
-{
-  strcpy(fetchMode, BLX_FETCH_ACEDB);
-
-  blviewRedraw();
-
-  return ;
-}
-
-
-static void fetchByacedbtext(void)
-{
-  strcpy(fetchMode, BLX_FETCH_ACEDB_TEXT);
-
-  blviewRedraw();
-
-  return ;
-}
-#endif
-
 
 
 #ifdef PFETCH_HTML 

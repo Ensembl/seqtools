@@ -46,8 +46,8 @@ static void			  onSelectFeaturesMenu(GtkAction *action, gpointer data);
 static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
-//static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
-//static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
+static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
+static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 
 static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
@@ -1563,38 +1563,38 @@ static void onStatisticsMenu(GtkAction *action, gpointer data)
 /* Called when the user selects the Print menu option, or hits the Print shortcut key */
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
-//  GtkWidget *mainWindow = GTK_WIDGET(data);
-//  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-//  
-//  /* Create a print operation, using the same settings as the last print, if there was one */
-//  GtkPrintOperation *print = gtk_print_operation_new();
-//  
-////  if (properties->printSettings != NULL)
-////    {
-////      gtk_print_operation_set_print_settings(print, properties->printSettings);
-////    }
-//  
-////  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
-////  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
-//  
-//  /* Pop up the print dialog */
-//  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
-//								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-//								 GTK_WINDOW(mainWindow),
-//								 NULL);
-//  
-//  /* If the user hit ok, remember the print settings for next time */
-//  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
-//    {
-////      if (properties->printSettings != NULL)
-////	{
-////	  g_object_unref(properties->printSettings);
-////	}
-////      
-////      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
-//    }
-//
-//  g_object_unref(print);
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  
+  /* Create a print operation, using the same settings as the last print, if there was one */
+  GtkPrintOperation *print = gtk_print_operation_new();
+  
+  if (properties->printSettings != NULL)
+    {
+      gtk_print_operation_set_print_settings(print, properties->printSettings);
+    }
+  
+  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
+  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
+  
+  /* Pop up the print dialog */
+  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
+								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
+								 GTK_WINDOW(mainWindow),
+								 NULL);
+  
+  /* If the user hit ok, remember the print settings for next time */
+  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
+    {
+      if (properties->printSettings != NULL)
+	{
+	  g_object_unref(properties->printSettings);
+	}
+      
+      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
+    }
+
+  g_object_unref(print);
 }
 
 
@@ -1604,18 +1604,18 @@ static void onPrintMenu(GtkAction *action, gpointer data)
 
 /* Called after the user clicks ok in the print dialog. For now just scales the 
  * whole output to fit on a single page. */
-//static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
-//{
-//  GtkWidget *mainWindow = GTK_WIDGET(data);
-//  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-//
-//  /* Set the orientation based on the stored print settings (not sure why this doesn't
-//   * already get set when the settings are set in the print operation...). */
-////  GtkPrintSettings *printSettings = gtk_print_operation_get_print_settings(print);
-////  gtk_print_settings_set_orientation(printSettings, gtk_print_settings_get_orientation(properties->printSettings));
-//
-//  gtk_print_operation_set_n_pages(print, 1);
-//}
+static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+
+  /* Set the orientation based on the stored print settings (not sure why this doesn't
+   * already get set when the settings are set in the print operation...). */
+  GtkPrintSettings *printSettings = gtk_print_operation_get_print_settings(print);
+  gtk_print_settings_set_orientation(printSettings, gtk_print_settings_get_orientation(properties->printSettings));
+
+  gtk_print_operation_set_n_pages(print, 1);
+}
 
 
 static void collatePixmaps(GtkWidget *widget, gpointer data)
@@ -1664,29 +1664,29 @@ static void collatePixmaps(GtkWidget *widget, gpointer data)
 
 
 /* Print handler - renders a specific page */
-//static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
-//{
-//  GtkWidget *mainWindow = GTK_WIDGET(data);
-//  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-//  
-//  /* Create a blank white pixmap to draw on to */
-//  properties->drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
-//  
-//  GdkGC *gc = gdk_gc_new(properties->drawable);
-//  GdkColor fgColour = getGdkColor(GDK_WHITE);
-//  gdk_gc_set_foreground(gc, &fgColour);
-//  gdk_draw_rectangle(properties->drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
-//
-//  /* For each child widget that has a drawable set, draw this onto the main pixmap */
-//  properties->lastYStart = 0;
-//  properties->lastYEnd = 0;
-//  properties->lastYCoord = -1;
-//  gtk_container_foreach(GTK_CONTAINER(mainWindow), collatePixmaps, mainWindow);
-//  
-//  cairo_t *cr = gtk_print_context_get_cairo_context (context);
-//  gdk_cairo_set_source_pixmap(cr, properties->drawable, 0, 0);
-//  cairo_paint(cr);
-//}
+static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  
+  /* Create a blank white pixmap to draw on to */
+  properties->drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
+  
+  GdkGC *gc = gdk_gc_new(properties->drawable);
+  GdkColor fgColour = getGdkColor(GDK_WHITE);
+  gdk_gc_set_foreground(gc, &fgColour);
+  gdk_draw_rectangle(properties->drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
+
+  /* For each child widget that has a drawable set, draw this onto the main pixmap */
+  properties->lastYStart = 0;
+  properties->lastYEnd = 0;
+  properties->lastYCoord = -1;
+  gtk_container_foreach(GTK_CONTAINER(mainWindow), collatePixmaps, mainWindow);
+  
+  cairo_t *cr = gtk_print_context_get_cairo_context (context);
+  gdk_cairo_set_source_pixmap(cr, properties->drawable, 0, 0);
+  cairo_paint(cr);
+}
 
 
 /* Mouse button handler */
@@ -1819,20 +1819,13 @@ static void onDestroyMainWindow(GtkWidget *widget)
     }
 }
 
-static void mainWindowCreateProperties(GtkWidget *widget, 
+static void mainWindowCreateProperties(MainWindowArgs *args,
+				       GtkWidget *widget, 
 				       GtkWidget *bigPicture, 
 				       GtkWidget *detailView,
 				       GtkWidget *mainmenu,
-				       MSP *mspList,
-				       const BlxBlastMode blastMode,
-				       char *refSeq,
-				       const char *refSeqName,
 				       const IntRange const *refSeqRange,
-				       const IntRange const *fullDisplayRange,
-				       const BlxSeqType seqType,
-				       char **geneticCode,
-				       int numReadingFrames,
-				       const gboolean gappedHsp)
+				       const IntRange const *fullDisplayRange)
 {
   if (widget)
     {
@@ -1842,19 +1835,23 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->detailView = detailView;
       properties->mainmenu = mainmenu;
       
-      properties->refSeq = refSeq;
-      properties->refSeqName = refSeqName ? g_strdup(refSeqName) : g_strdup("Blixem-seq");
+      properties->refSeq = args->refSeq;
+      properties->refSeqName = args->refSeqName ? g_strdup(args->refSeqName) : g_strdup("Blixem-seq");
       properties->refSeqRange.min = refSeqRange->min;
       properties->refSeqRange.max = refSeqRange->max;
       properties->fullDisplayRange.min = fullDisplayRange->min;
       properties->fullDisplayRange.max = fullDisplayRange->max;
       
-      properties->mspList = mspList;
-      properties->geneticCode = geneticCode;
-      properties->blastMode = blastMode;
-      properties->seqType = seqType;
-      properties->numReadingFrames = numReadingFrames;
+      properties->mspList = args->mspList;
+      properties->geneticCode = args->geneticCode;
+      properties->blastMode = args->blastMode;
+      properties->seqType = args->seqType;
+      properties->numReadingFrames = args->numReadingFrames;
+      properties->gappedHsp = args->gappedHsp;
+      properties->paddingSeq = args->paddingSeq;
+      properties->fetchMode = args->fetchMode;
       
+      /* Set default values for dynamic properties: */
       properties->strandsToggled = FALSE;
       properties->selectedSeqs = NULL;
       properties->sequenceGroups = NULL;
@@ -1865,9 +1862,9 @@ static void mainWindowCreateProperties(GtkWidget *widget,
       properties->dotterZoom = 0;
 
       properties->drawable = NULL;
-//      properties->printSettings = gtk_print_settings_new();
-//      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
-//      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
+      properties->printSettings = gtk_print_settings_new();
+      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
       properties->lastYEnd = UNSET_INT;
       properties->lastYStart = UNSET_INT;
       properties->lastYCoord = UNSET_INT;
@@ -2253,51 +2250,34 @@ static GtkWidget* createMainMenu(GtkWidget *window)
 
 
 /* Create the main window */
-GtkWidget* createMainWindow(char *refSeq, 
-			    const char const *refSeqName,
-			    MSP *mspList, 
-			    BlxBlastMode blastMode,
-			    BlxSeqType seqType, 
-			    int numFrames,
-			    char **geneticCode,
-			    const int refSeqOffset,
-			    const int startCoord1Based,
-			    const int bigPictZoom,
-			    const SortByType sortByTypeInput,
-			    const gboolean sortInverted,
-			    const gboolean gappedHsp)
+GtkWidget* createMainWindow(MainWindowArgs *args)
 {
-  /* If no sort type was specified, sort by ID by default */
-  SortByType sortByType = (sortByTypeInput == SORTBYUNSORTED) ? SORTBYID : sortByTypeInput;
-
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
-  const int refSeqLen = (int)strlen(refSeq);
-  IntRange refSeqRange = {refSeqOffset + 1, refSeqOffset + refSeqLen};
+  const int refSeqLen = (int)strlen(args->refSeq);
+  IntRange refSeqRange = {args->refSeqOffset + 1, args->refSeqOffset + refSeqLen};
   IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
   
-  if (seqType == BLXSEQ_PEPTIDE)
+  if (args->seqType == BLXSEQ_PEPTIDE)
     {
-      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, seqType, 1, numFrames, FALSE, &refSeqRange, NULL);
+      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, args->seqType, 1, args->numReadingFrames, FALSE, &refSeqRange, NULL);
       
       int baseNum = UNSET_INT;
-      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, seqType, 3, numFrames, FALSE, &refSeqRange, &baseNum);
+      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, args->seqType, 3, args->numReadingFrames, FALSE, &refSeqRange, &baseNum);
       
-      if (baseNum < numFrames)
+      if (baseNum < args->numReadingFrames)
 	{
 	  /* The last peptide does not have a full triplet, so cut off the range at the last full triplet */
 	  fullDisplayRange.max -= 1;
 	}
-      
-//      printf("Converted DNA sequence (%d-%d) to peptide sequence (%d-%d).\n",  refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
     }
   
   /* Convert the start coord (which is 1-based and on the DNA sequence) to display
    * coords (which take into account the offset and may also be peptide coords) */
-  int startCoord = startCoord1Based + refSeqOffset;
-  if (seqType == BLXSEQ_PEPTIDE)
+  int startCoord = args->startCoord1Based + args->refSeqOffset;
+  if (args->seqType == BLXSEQ_PEPTIDE)
     {
-      startCoord = convertDnaIdxToDisplayIdx(startCoord, seqType, 1, numFrames, FALSE, &refSeqRange, NULL);
+      startCoord = convertDnaIdxToDisplayIdx(startCoord, args->seqType, 1, args->numReadingFrames, FALSE, &refSeqRange, NULL);
     }
   
   
@@ -2327,41 +2307,34 @@ GtkWidget* createMainWindow(char *refSeq,
 					   vbox, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid,
-					   bigPictZoom);
+					   args->bigPictZoom);
 
   GtkWidget *detailView = createDetailView(window,
 					   vbox, 
 					   detailAdjustment, 
 					   fwdStrandGrid, 
 					   revStrandGrid,
-					   mspList,
-					   blastMode,
-					   seqType,
-					   numFrames,
-					   refSeqName,
+					   args->mspList,
+					   args->blastMode,
+					   args->seqType,
+					   args->numReadingFrames,
+					   args->refSeqName,
 					   startCoord,
-					   sortInverted,
-					   sortByType);
+					   args->sortInverted,
+					   args->initialSortType);
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
   
   /* Set required data in the main window widget */
-  mainWindowCreateProperties(window, 
+  mainWindowCreateProperties(args,
+			     window, 
 			     bigPicture, 
 			     detailView, 
 			     mainmenu,
-			     mspList, 
-			     blastMode, 
-			     refSeq, 
-			     refSeqName,
 			     &refSeqRange, 
-			     &fullDisplayRange, 
-			     seqType, 
-			     geneticCode,
-			     numFrames,
-			     gappedHsp);
+			     &fullDisplayRange);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK (gtk_main_quit), NULL);
@@ -2369,8 +2342,8 @@ GtkWidget* createMainWindow(char *refSeq,
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
   
   /* Add the MSP's to the trees and sort them by the initial sort mode */
-  detailViewAddMspData(detailView, mspList);
-  detailViewSortByType(detailView, sortByType);
+  detailViewAddMspData(detailView, args->mspList);
+  detailViewSortByType(detailView, args->initialSortType);
 
   /* Initial update to set the detail view font */
   updateDetailViewFontDesc(detailView);

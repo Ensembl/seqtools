@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.22 2010-03-11 11:48:08 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.23 2010-03-17 11:52:40 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -209,7 +209,7 @@ static BOOL parseFeatureLine(char *line,
 //static void printColors (void) ;
 //static void toggleColors (void);
 
-static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const int startCoord, const int bigPictZoom, const SortByType sortByType, const gboolean sortInverted, const gboolean gappedHsp) ;
+static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const int startCoord, const int bigPictZoom, const SortByType sortByType, const gboolean sortInverted, const gboolean gappedHsp, const char *paddingSeq, const char *fetchMode) ;
 static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
 
 
@@ -1015,9 +1015,9 @@ static int getNumReadingFrames()
 
 /* Find out if we need to fetch any sequences (they may all be contained in the input
  * files), if we do need to, then fetch them by the appropriate method. */
-static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, MSP *msplist)
+static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, MSP *msplist, const char **fetchMode)
 {
-  gboolean status = TRUE;
+  gboolean success = TRUE;
 
   /* First, set the fetch mode */
   if (pfetch)
@@ -1025,11 +1025,13 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
       /* If pfetch struct then this sets fetch mode to pfetch. */
       
       if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
-	blxSetFetchMode(BLX_FETCH_PFETCH) ;
+	{
+	  *fetchMode = BLX_FETCH_PFETCH;
+	}
     }
   else
     {
-      blxFindFetchMode() ;
+      *fetchMode = blxSetInitialFetchMode();
     }
   
   
@@ -1037,7 +1039,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
   DICT *dict = dictCreate(128) ;
   if (!haveAllSequences(msplist, dict))
     {
-      if (strcmp(blxGetFetchMode(), BLX_FETCH_PFETCH) == 0)
+      if (strcmp(*fetchMode, BLX_FETCH_PFETCH) == 0)
 	{
 	  /* Fill msp->sseq fast by pfetch if possible
 	   * two ways to use this:
@@ -1076,18 +1078,20 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
 	    }
 	  
 	  if (net_id)
-	    status = blxGetSseqsPfetch(msplist, dict, net_id, port, External) ;
+	    {
+	      success = blxGetSseqsPfetch(msplist, dict, net_id, port, External) ;
+	    }
 	}
 #ifdef PFETCH_HTML 
-      else if (strcmp(blxGetFetchMode(), BLX_FETCH_PFETCH_HTML) == 0)
+      else if (strcmp(*fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
 	{
-	  status = blxGetSseqsPfetchHtml(msplist, dict, getSeqType()) ;
+	  success = blxGetSseqsPfetchHtml(msplist, dict, getSeqType()) ;
 	}
 #endif
     }
   messfree(dict) ;
   
-  return status;
+  return success;
 }
 
 
@@ -1125,14 +1129,16 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
 
   blxviewInitGlobals(refSeq, refSeqName, start, qOffset, msplist);
   blxviewGetOpts(opts, refSeq);
-  gboolean status = blxviewFetchSequences(pfetch, External, msplist);
+  
+  const char *fetchMode = NULL;
+  gboolean status = blxviewFetchSequences(pfetch, External, msplist, &fetchMode);
   
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, start, BigPictZoom, sortMode, sortInvOn, HSPgaps) ;
+      blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, start, BigPictZoom, sortMode, sortInvOn, HSPgaps, padseq, fetchMode) ;
     }
 
   return 0;
@@ -1150,24 +1156,19 @@ static void blviewCreate(char *opts,
 			 const int bigPictZoom,
 			 const SortByType sortByType,
 			 const gboolean sortInverted,
-			 const gboolean gappedHsp)
+			 const gboolean gappedHsp,
+			 const char *paddingSeq,
+			 const char *fetchMode)
 {
   if (!blixemWindow)
     {
+      SortByType initialSortType = sortByType == SORTBYUNSORTED ? SORTBYID : sortByType; /* sort by ID by default, if none specified */
+      
+      MainWindowArgs args = {refSeq, refSeqName, qOffset, msplist, getBlastMode(), fetchMode, getSeqType(), stdcode1, 
+			     getNumReadingFrames(), gappedHsp, paddingSeq, bigPictZoom, startCoord, initialSortType, sortInverted};
+      
       /* Create the window */
-      blixemWindow = createMainWindow(refSeq, 
-				      refSeqName, 
-				      msplist, 
-				      getBlastMode(), 
-				      getSeqType(), 
-				      getNumReadingFrames(), 
-				      stdcode1, 
-				      qOffset, 
-				      startCoord,
-				      bigPictZoom,
-				      sortByType,
-				      sortInverted, 
-				      gappedHsp);
+      blixemWindow = createMainWindow(&args);
 
       BOOL pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       gtk_window_set_title(GTK_WINDOW(blixemWindow),

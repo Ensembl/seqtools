@@ -12,6 +12,7 @@
 #include <gtk/gtk.h>
 #include <SeqTools/blixem_.h>
 
+
 typedef struct _MainWindowProperties
   {
     GtkWidget *bigPicture;
@@ -22,14 +23,19 @@ typedef struct _MainWindowProperties
     const char *refSeqName;	    /* The name of the reference sequence */
     IntRange refSeqRange;	    /* The range of the reference sequence */
     IntRange fullDisplayRange;	    /* The range of the displayed sequence */
-    const gboolean gappedHsp;	    
-    
-    MSP *mspList;		    /* List of all MSPs. */
-    char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
-    BlxBlastMode blastMode;	    /* The type of blast matching that was used */
-    BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */
-    int numReadingFrames;	    /* The number of reading frames */
 
+    MSP *mspList;		    /* List of all MSPs. */
+    BlxBlastMode blastMode;	    /* The type of blast matching that was used */
+    const char* fetchMode;	    /* The fetch method to use */
+    BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */
+    char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
+    int numReadingFrames;	    /* The number of reading frames */
+    gboolean gappedHsp;		    
+    const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
+				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
+    
+    /* DYNAMIC PROPERTIES (these can be changed by the user): */
+    
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
     GList *selectedSeqs;	    /* A list of sequence names that are selected */
     GList *sequenceGroups;	    /* A list of SequenceGroups */
@@ -40,10 +46,10 @@ typedef struct _MainWindowProperties
     int dotterZoom;		    /* Zoom param to call dotter with */
 
     GdkDrawable *drawable;	    /* A bitmap where we'll draw the contents we want to print */
-//    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
+    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
     int lastYEnd;		    /* Keeps track of where the last item ended so we can draw the next one flush to it */
     int lastYStart;		    /* Where the last item started (for drawing multiple items at same y pos) */
-    int lastYCoord;		    /* Y coord of last item (so we can check if current item should be at same Y pos) */    
+    int lastYCoord;		    /* Y coord of last item (so we can check if current item should be at same Y pos) */
   } MainWindowProperties;
 
 
@@ -100,19 +106,7 @@ gchar*			  getSequenceSegment(GtkWidget *mainWindow,
 					     const gboolean allowComplement,
 					     const gboolean translateResult);
   
-GtkWidget*		  createMainWindow(char *refSeq, 
-					   const char const *refSeqName,
-					   MSP *mspList, 
-					   BlxBlastMode blastMode,
-					   BlxSeqType seqType, 
-					   int numFrames,
-					   char **geneticCode,
-					   const int refSeqOffset,
-					   const int startCoord1Based,
-					   const int bigPictZoom,
-					   const SortByType sortByType,
-					   const gboolean sortInverted,
-					   const gboolean gappedHsp);
+GtkWidget*		  createMainWindow(MainWindowArgs *args);
 
 
 #endif /* _blxview_main_window_included_ */

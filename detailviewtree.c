@@ -433,31 +433,6 @@ GtkTreeModel* treeGetBaseDataModel(GtkTreeView *tree)
 }
 
 
-/* Get the path in the tree view's filtered (visible) model that corresponds to the given
- * path in the base (unfiltered) model */
-//static GtkTreePath *treeConvertBasePathToVisiblePath(GtkTreeView *tree, GtkTreePath *basePath)
-//{
-//  GtkTreePath *result = NULL;
-//  
-//  if (tree && basePath)
-//    {
-//      /* Convert the child path to the equivalent path in the filtered model. The
-//       * result may be null if the child row does not appear in the filtered model. */
-//      GtkTreeModel *filter = treeGetVisibleDataModel(tree);
-//      if (GTK_IS_TREE_MODEL_FILTER(filter))
-//	{
-//	  result = gtk_tree_model_filter_convert_child_path_to_path(GTK_TREE_MODEL_FILTER(filter), basePath);
-//	}
-//      else
-//	{
-//	  result = basePath;
-//	}
-//    }
-//  
-//  return result;
-//}
-
-
 /* Decrease the font size in the detail view trees (i.e. effectively zoom out) */
 void treeUpdateFontSize(GtkWidget *tree, gpointer data)
 {
@@ -997,9 +972,8 @@ static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, g
 
   /* Draw a blank rectangle of the required widget background colour */
   GdkGC *gc = gdk_gc_new(drawable);
-  //GtkStyle *style = gtk_widget_get_style(tree);
-  GdkColor bgColour = getGdkColor(GDK_WHITE);
-  gdk_gc_set_foreground(gc, &bgColour);
+  GdkColor *bgColour = tree->style->bg;
+  gdk_gc_set_foreground(gc, bgColour);
   
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, tree->allocation.width, tree->allocation.height);
   
@@ -1037,7 +1011,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	    
 	    if (selectedSeqs)
 	      {
-		const char *seqName = (const char*)selectedSeqs->data;
+		char *seqName = (char*)selectedSeqs->data;
 		displaySequence(seqName, 0, mainWindow);
 	      }
 	      
@@ -1768,7 +1742,7 @@ static void initColumn(GtkWidget *tree,
       
       gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
       gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
-//      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
+      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
       gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
       gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
 
