@@ -1363,26 +1363,28 @@ SCROLLING\n\
 	•	Middle-click in the big picture to scroll to an area.\n\
 	•	Middle-click in the detail view to centre on a base.\n\
 	•	Use the horizontal scrollbar at the bottom of the window to scroll the detail view.\n\
-	•	Use the mouse-wheel to scroll up/down and left/right in the detail view (if your mouse has a horizontal scroll-wheel).\n\
-	•	Use the mouse-wheel to scroll the display area left/right from the big picture.\n\
+	•	Use the mouse-wheel to scroll up/down in the list of alignments.\n\
+	•	Use the mouse-wheel to scroll the alignments left/right (if your mouse has a horizontal scroll-wheel).\n\
 	•	The left/right arrow keys move the selection one nucleotide to the left/right.\n\
 	•	When viewing protein matches, holding CTRL while using the left/right arrow keys moves the selection one full codon to the left/right.\n\
-	•	The ',' and '.' keys scroll the screen one nucleotide to the left/right.\n\
+	•	The ',' (comma) and '.' (full-stop) keys scroll the display one nucleotide to the left/right.\n\
+	•	You can scroll to a specific base using the Goto button on the toolbar, or by pressing the 'G' shortcut key.\n\
 \n\
 \n\
 SELECTIONS\n\
-	•	You can select a sequence by left-clicking on its row in the detail view.  Selected sequences are highlighted in cyan in the big picture.\n\
-	•	The name of the sequence you selected is displayed in the feedback box on the toolbar.  If multiple alignments for this sequence are currently within the display range, all of their rows will be selected.\n\
+	•	You can select a sequence by clicking on its row in the alignment list.  Selected sequences are highlighted in cyan in the big picture.\n\
+	•	You can select a sequence by clicking on it in the big picture.\n\
+	•	The name of the sequence you selected is displayed in the feedback box on the toolbar.  If there are multiple alignments for the same sequence, all of them will be selected.\n\
 	•	You can select multiple sequences by holding down the CTRL or SHIFT keys while selecting rows.\n\
 	•	You can deselect a single sequence by CTRL-clicking on its row.\n\
 	•	You can deselect all sequences by right-clicking and selecting 'Deselect all', or with the SHIFT-CTRL-A keyboard shortcut.\n\
 	•	You can move the selection up/down a row using the up/down arrow keys.\n\
 \n\
 	•	You can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
-	•	For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green and red.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The red highlighting indicates the specific nucleotide that is currently selected and whose coordinate is displayed in the feedback box.\n\
+	•	For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green and red.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
 	•	You can move the selection to the previous/next nucleotide using the left and right arrow keys.\n\
 	•	You can move the selection to the previous/next peptide by holding CTRL while using the left and right arrow keys.\n\
-	•	Middle-clicking also scrolls the display to centre on the clicked coordinate.  To select a coordinate without the display scrolling, hold down CTRL as you middle-click.\n\
+	•	To select a coordinate without the display re-centering on it, hold down CTRL as you middle-click.\n\
 \n\
 \n\
 ZOOMING\n\
@@ -1411,10 +1413,10 @@ Creating a group from a sequence name:\n\
 Editing groups:\n\
 To edit a group, right-click and select 'Edit Groups', or use the CTRL-G shortcut key. You can change the following properties for a group:\n\
 	•	Name: you can specify a more meaningful name to help identify the group.\n\
-	•	Hide: tick this box to hide the alignments in the group from the detail view.\n\
-	•	Highlight: tick this box to highlight the alignments in this group.\n\
-	•	Order: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (or vice versa if sort order is inverted). Alignments in a group will appear before alignments that are not in a group.\n\
+	•	Hide: tick this box to hide the alignments in the alignment lists.\n\
+	•	Highlight: tick this box to highlight the alignments.\n\
 	•	Colour: the colour the group will be highlighted in, if 'Highlight' is enabled.  The default colour for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colours.\n\
+	•	Order: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (or vice versa if sort order is inverted). Alignments in a group will appear before alignments that are not in a group.\n\
 	•	To delete a single group, click on the 'Delete' button next to the group you wish to delete.\n\
 	•	To delete all groups, click on the 'Delete all groups' button.\n\
 \n\
@@ -1448,12 +1450,15 @@ KEYBOARD SHORTCUTS\n\
 	•	CTRL '-' :  zoom out big picture\n\
 	•	, (comma): scroll left one coordinate\n\
 	•	. (full-stop): scroll right one coordinate\n\
-	•	g: Go to coordinate\n\
+	•	G: Go to coordinate\n\
+	•	T: Toggle the active strand\n\
 \n\
 \n\
 SETTINGS\n\
 	•	The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut CTRL-S.\n\
 	•	Squash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
+	•	Invert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
+	•	Highlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
 \n\
 \n\
 KEY\n\
@@ -1464,8 +1469,8 @@ In the detail view, the following colours and symbols have the following meaning
 	•	Grey: mismatch\n\
 	•	Grey with a '.': deletion\n\
 	•	Yellow vertical line: insertion\n\
-	•	Thin blue vertical line: start of an exon\n\
-	•	Thin dark-blue vertical line: end of an exon\n\
+	•	Thin blue vertical line: start boundary of an exon\n\
+	•	Thin dark-blue vertical line: end boundary of an exon\n\
 	•	Green background (protein matches only): the three nucleotides for the currently-selected codon. Dark green indicates the specific nucleotide that is currently displayed in the feedback box.\n\
 ", blixemVersion));
 
