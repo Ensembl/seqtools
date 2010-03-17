@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.16 2010-03-17 11:52:39 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.17 2010-03-17 12:20:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -247,10 +247,10 @@ void insertFS(MSP *msp, char *series);
 char *readFastaSeq(FILE *seqfile, char *qname);
 
 void blxPfetchEntry(char *sequence_name) ;
-void displaySequence(char *seqName, const KEY key, GtkWidget *mainWindow) ;
-char *blxSetInitialFetchMode(void) ;
+void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *mainWindow) ;
+char *blxFindInitialFetchMode() ;
 void blxPfetchMenu(void) ;
-char *blxGetFetchProg(void) ;
+char *blxGetFetchProg(const char *fetchMode) ;
 
 BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType) ;
 BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char* pfetchIP, int port, BOOL External) ;

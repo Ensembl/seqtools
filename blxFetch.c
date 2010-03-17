@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.9 2010-03-17 11:52:39 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.10 2010-03-17 12:20:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -205,7 +205,6 @@ static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
 
 /* Some local globals.... */
-static char fetchMode[32] = BLX_FETCH_EFETCH ; /* Not done with enum to get menu-strings for free */
 static char *URL = NULL ;
 
 
@@ -358,9 +357,10 @@ static int findCommand (char *command, char **retp)
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void displaySequence(char *seqName, const KEY key, GtkWidget *mainWindow)
+void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *mainWindow)
 {
-
+  const char *fetchMode = mainWindowGetFetchMode(mainWindow);
+  
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
     {
       /* --client gives logging information to pfetch server,
@@ -435,8 +435,9 @@ void displaySequence(char *seqName, const KEY key, GtkWidget *mainWindow)
 
 
 /* Needs a better name really, sets the fetch mode by looking at env. vars etc. */
-char *blxSetInitialFetchMode(void)
+char *blxFindInitialFetchMode()
 {
+  char *fetchMode = NULL;
   char *tmp_mode ;
 
   /* Check env. vars to see how to fetch EMBL entries for sequences.         */
@@ -471,7 +472,7 @@ char *blxSetInitialFetchMode(void)
 
 /* Set program to be used for fetching sequences depending on setting
  * of fetchmode: if fetchmode is pfetch we use pfetch, _otherwise_ efetch. */
-char *blxGetFetchProg(void)
+char *blxGetFetchProg(const char *fetchMode)
 {
   char *fetch_prog = NULL ;
 

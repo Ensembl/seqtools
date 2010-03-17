@@ -60,6 +60,7 @@ GtkWidget*		  mainWindowGetBigPicture(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetDetailView(GtkWidget *mainWindow);
 GtkWidget*		  mainWindowGetMainMenu(GtkWidget *mainWindow);
 BlxBlastMode		  mainWindowGetBlastMode(GtkWidget *mainWindow);
+const char*		  mainWindowGetFetchMode(GtkWidget *mainWindow);
 IntRange*		  mainWindowGetFullRange(GtkWidget *mainWindow);
 IntRange*		  mainWindowGetRefSeqRange(GtkWidget *mainWindow);
 const char*		  mainWindowGetRefSeqName(GtkWidget *mainWindow);

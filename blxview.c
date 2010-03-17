@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.23 2010-03-17 11:52:40 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.24 2010-03-17 12:20:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1031,7 +1031,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
     }
   else
     {
-      *fetchMode = blxSetInitialFetchMode();
+      *fetchMode = blxFindInitialFetchMode();
     }
   
   

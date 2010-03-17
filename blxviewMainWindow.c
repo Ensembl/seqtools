@@ -1904,6 +1904,12 @@ BlxBlastMode mainWindowGetBlastMode(GtkWidget *mainWindow)
   return properties ? properties->blastMode : FALSE;
 }
 
+const char* mainWindowGetFetchMode(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->fetchMode : FALSE;
+}
+
 char * mainWindowGetRefSeq(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);

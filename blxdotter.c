@@ -36,7 +36,7 @@ typedef struct _DotterDialogData
 
 /* Local function declarations */
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out);
-static char*	      fetchSeqRaw(const char *seqname);
+static char*	      fetchSeqRaw(const char *seqname, const char *fetchMode);
 static char*	      fetchSequence(const char *seqname, char *fetch_prog);
 static gboolean	      blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly);
 static char*	      getDotterSSeq(GtkWidget *blxWindow);
@@ -361,7 +361,8 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
       const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
       if (blastMode != BLXMODE_TBLASTN)
 	{
-	  dotterSSeq = fetchSeqRaw(seqName);
+	  const char *fetchMode = mainWindowGetFetchMode(blxWindow);
+	  dotterSSeq = fetchSeqRaw(seqName, fetchMode);
 	}
 
       if (!dotterSSeq)
@@ -571,7 +572,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
 
 /* Get a sequence entry using either efetch or pfetch. */
-static char *fetchSeqRaw(const char *seqname)
+static char *fetchSeqRaw(const char *seqname, const char *fetchMode)
 {
   char *result = NULL ;
 
@@ -581,7 +582,7 @@ static char *fetchSeqRaw(const char *seqname)
     }
   else
     {
-      char *fetch_prog = blxGetFetchProg();
+      char *fetch_prog = blxGetFetchProg(fetchMode);
       char *seq_buf = fetchSequence(seqname, fetch_prog);
       
       if (seq_buf)
