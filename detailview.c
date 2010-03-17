@@ -1020,9 +1020,22 @@ void detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlight
 
 static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *allocation, gpointer data)
 {
-  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
-  if (firstTree)
-    updateSeqColumnSize(firstTree, UNSET_INT);
+  /* Set our cached value for the sequence col width. Use any tree - they should
+   * all resize by the same rules, so their sequence columns will be the same size */
+  GtkWidget *tree = detailViewGetFirstTree(detailView);
+  
+  if (tree)
+    {
+      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+      GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
+//      columnInfo->width = gtk_tree_view_column_get_width(column) - 1;
+
+      /* Update the width of the headers for each tree */
+//      callFuncOnAllDetailViewTrees(detailView, resizeTreeHeaders);
+      
+      /* Perform updates required on the sequence col after its size has changed */
+      updateSeqColumnSize(tree, UNSET_INT);
+    }
 }
 
 
@@ -1671,7 +1684,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 	  properties->cellYPadding = (vertical_separator / 2) + 1;
 	}
       
-      properties->refSeqColour		  = getGdkColor(GDK_YELLOW);
+      properties->refSeqColour		  = getGdkColor(DEFAULT_REF_SEQ_BG_COLOUR);
       properties->refSeqColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
       properties->matchColour		  = getGdkColor(GDK_TURQUOISE);
       properties->matchColourSelected	  = getGdkColor(GDK_DARK_TURQUOISE);

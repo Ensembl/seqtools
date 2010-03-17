@@ -93,6 +93,7 @@ void		  treeSortByGroupOrder(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  resortTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
+void		  resizeTreeHeaders(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
 void		  treeSquashMatches(GtkWidget *tree, gpointer data);

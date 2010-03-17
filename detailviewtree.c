@@ -581,24 +581,15 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
   for ( ; header; header = header->next)
     {
       TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)header->data;
+      
       if (headerInfo && headerInfo->headerWidget)
 	{
-	  /* Set the background colour. Set it in the parent too seeing as labels don't have a window themselves. */
-	  GdkColor *bgColour = treeGetRefSeqColour(tree, FALSE);
-	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, bgColour);
-
-	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
-	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, bgColour);
-	  
-	  /* Update the font and widget size */
+	  /* Update the font */
 	  gtk_widget_modify_font(headerInfo->headerWidget, treeGetFontDesc(tree));
-	  int width = calculateColumnWidth(headerInfo, tree);
-	  gtk_widget_set_size_request(headerInfo->headerWidget, width, -1);
-	  gtk_widget_queue_resize(headerInfo->headerWidget);
-	  
+
+	  /* Call the refresh function, if there is one */
 	  if (headerInfo->refreshFunc)
 	    {
-	      /* Refresh the contents */
 	      headerInfo->refreshFunc(headerInfo->headerWidget, tree);
 	    }
 	}
@@ -609,6 +600,42 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
     }
 }
 
+
+/* Resize tree header widgets (should be called after the column width has changed) */
+void resizeTreeHeaders(GtkWidget *tree, gpointer data)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  GList *header = properties->treeColumnHeaderList;
+  
+  for ( ; header; header = header->next)
+    {
+      TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)header->data;
+      
+      if (headerInfo && headerInfo->headerWidget && g_list_length(headerInfo->columnIds) > 0)
+	{
+	  int firstColId = GPOINTER_TO_INT(headerInfo->columnIds->data);
+
+	  if (firstColId == SEQUENCE_COL)
+	    {
+	      /* For the sequence column, don't set the size request, or we won't be
+	       * able to shrink the window. The sequence col header will be resized
+	       * dynamically to fit its text, which is the width that we want anyway. */
+	      gtk_widget_set_size_request(headerInfo->headerWidget, SEQ_COLUMN_DEFAULT_WIDTH, -1);
+	    }
+	  else
+	    {
+	      /* For other columns, we can set the size request: they're small enough
+	       * that we can live without the need to shrink below their sum widths. */
+	      const int width = calculateColumnWidth(headerInfo, tree);
+	      gtk_widget_set_size_request(headerInfo->headerWidget, width, -1);
+	    }
+	}
+      else
+	{
+	  messerror("refreshTreeHeaders: Warning - Invalid tree header info. Tree header may not refresh properly.");
+	}
+    }
+}
 
 /***********************************************************
  *			  Selections			   *
@@ -1720,10 +1747,35 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
 }
 
 
+/* Utility function to calculate the width of a vertical scrollbar */
+static int scrollBarWidth()
+{
+  static int result = UNSET_INT;
+  
+  if (result == UNSET_INT)
+    {
+      /* Create a temp scrollbar and find the default width from the style properties. */
+      GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
+      
+      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
+      gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
+      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
+      gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
+      gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
+      
+      gtk_widget_destroy(scrollbar);
+
+      result = sliderWidth + separatorWidth*2 + troughBorder*2 + stepperSpacing*2 + 4; /* to do: find out why the extra fudge factor is needed here */
+    }
+  
+  return result;
+}
+
+
 /* Create a single column in the tree. */
-static void initColumn(GtkWidget *tree, 
-		       GtkCellRenderer *renderer, 
-		       DetailViewColumnInfo *columnInfo)
+static GtkTreeViewColumn* initColumn(GtkWidget *tree, 
+				     GtkCellRenderer *renderer, 
+				      DetailViewColumnInfo *columnInfo)
 {
   /* Create the column */
   GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(columnInfo->title, 
@@ -1737,18 +1789,7 @@ static void initColumn(GtkWidget *tree,
   int width = columnInfo->width;
   if (columnInfo->columnId == END_COL)
     {
-      /* Create a temp scrollbar to find the default width from the style properties. */
-      GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
-      
-      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
-      gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
-      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
-      gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
-      gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
-
-      gtk_widget_destroy(scrollbar);
-      
-      width = width - sliderWidth - separatorWidth*2 - troughBorder*2 - stepperSpacing*2 - 4; /* to do: find out why the extra fudge factor is needed here */
+      width = width - scrollBarWidth();
     }
   
   /* Set the column properties and add the column to the tree */
@@ -1787,6 +1828,8 @@ static void initColumn(GtkWidget *tree,
     default:
       break;
   }
+  
+  return column;
 }
 
 
@@ -1889,7 +1932,7 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
         }
       
       g_free(segmentToDisplay);
-  }
+    }
 }
 
 
@@ -2018,6 +2061,7 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
 /* Create the header widget for the given column in the tree header. The tree
  * header bar shows information about the reference sequence. */
 static void createTreeColHeader(GList **headerWidgets, 
+				GtkTreeViewColumn *treeColumn,
 				DetailViewColumnInfo *columnInfo,
 				GtkWidget *headerBar,
 				GtkWidget *tree,
@@ -2080,7 +2124,7 @@ static void createTreeColHeader(GList **headerWidgets,
       case SCORE_COL: /* fall through */
       case ID_COL:    /* fall through */
       default:
-	break;        /* do nothing */
+	break;
     };
 
   
@@ -2092,6 +2136,13 @@ static void createTreeColHeader(GList **headerWidgets,
       
       /* Put the event box into the header bar */
       gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == SEQUENCE_COL), TRUE, 0);
+
+//      gtk_tree_view_column_set_widget(treeColumn, parent);
+//      gtk_widget_show_all(parent);
+
+      /* Set the default background colour (in the parent, seeing as the label doesn't have a window) */
+      GdkColor bgColour = getGdkColor(DEFAULT_REF_SEQ_BG_COLOUR);
+      gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour);
       
       /* Create the header info */
       TreeColumnHeaderInfo *headerInfo = g_malloc(sizeof(TreeColumnHeaderInfo));
@@ -2128,8 +2179,8 @@ static GList* addTreeColumns(GtkWidget *tree,
       
       if (columnInfo)
 	{
-	  initColumn(tree, renderer, columnInfo);
-	  createTreeColHeader(&headerWidgets, columnInfo, headerBar, tree, refSeqName, frame, strand);
+	  GtkTreeViewColumn *treeColumn = initColumn(tree, renderer, columnInfo);
+	  createTreeColHeader(&headerWidgets, treeColumn, columnInfo, headerBar, tree, refSeqName, frame, strand);
 	}
       else
 	{

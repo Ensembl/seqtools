@@ -13,6 +13,8 @@
 #include <SeqTools/blixem_.h>
 
 
+#define	DEFAULT_REF_SEQ_BG_COLOUR     GDK_YELLOW
+
 /* Define the columns. Specify a default width, the display text for the
  * column header, and also a name for the property that will be set in the
  * cell renderer. (The latter cannot contain special characters.) */
