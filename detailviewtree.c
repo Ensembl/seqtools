@@ -2341,7 +2341,7 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_widget_set_name(GTK_WIDGET(tree), DETAIL_VIEW_TREE_NAME);
   gtk_widget_set_redraw_on_allocate(GTK_WIDGET(tree), FALSE);
   
-//  gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
+  gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
