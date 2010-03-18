@@ -24,6 +24,7 @@ static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpoint
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
 static int		treeGetFrame(GtkWidget *tree);
 static IntRange*	treeGetRefSeqRange(GtkWidget *tree);
+static int		scrollBarWidth();
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -283,6 +284,35 @@ GdkLineStyle treeGetExonBoundaryStyle(GtkWidget *tree, const gboolean isStart)
   return detailViewGetExonBoundaryStyle(detailView, isStart);
 }
 
+static TreeColumnHeaderInfo* treeColumnGetHeaderInfo(GtkWidget *tree, ColumnId columnId)
+{
+  /* Loop through each headerinfo item until we find the one that contains this column id */
+  TreeProperties *properties = treeGetProperties(tree);
+  GList *headerInfoItem = properties->treeColumnHeaderList;
+  TreeColumnHeaderInfo *result = NULL;
+  
+  for ( ; headerInfoItem && !result; headerInfoItem = headerInfoItem->next)
+    {
+      TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)(headerInfoItem->data);
+      
+      /* Loop through each column id included under this header */
+      GList *columnIdItem = headerInfo->columnIds;
+      
+      for ( ; columnIdItem && !result; columnIdItem = columnIdItem->next)
+	{
+	  if (GPOINTER_TO_INT(columnIdItem->data) == columnId)
+	    {
+	      result = headerInfo;
+	    }
+	}
+    }
+  
+  return result;
+}
+
+/***********************************************************
+ *			utility functions		   *
+ ***********************************************************/
 
 /* Call the given function on all trees in the detail view */
 void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
@@ -572,6 +602,7 @@ gboolean treeGetMatchesSquashed(GtkWidget *tree)
  *			      Updates			   *
  ***********************************************************/
 
+
 /* Refresh the tree header widgets */
 void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 {
@@ -602,7 +633,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 
 
 /* Resize tree header widgets (should be called after the column width has changed) */
-void resizeTreeHeaders(GtkWidget *tree, gpointer data)
+static void resizeTreeHeaders(GtkWidget *tree, gpointer data)
 {
   TreeProperties *properties = treeGetProperties(tree);
   GList *header = properties->treeColumnHeaderList;
@@ -635,7 +666,55 @@ void resizeTreeHeaders(GtkWidget *tree, gpointer data)
 	  messerror("refreshTreeHeaders: Warning - Invalid tree header info. Tree header may not refresh properly.");
 	}
     }
+  
+  refreshTreeHeaders(tree, NULL);
 }
+
+
+/* Resize the columns for this tree. Should be called after the column width
+ * is changed manually. */
+void resizeTreeColumns(GtkWidget *tree, gpointer data)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  
+  GList *listItem = detailViewGetColumnList(detailView);
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      
+      if (columnInfo->columnId != SEQUENCE_COL)
+	{
+	  GtkTreeViewColumn *treeColumn = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), columnInfo->columnId);
+      
+	  int width = columnInfo->width;
+	  if (columnInfo->columnId == END_COL)
+	    {
+	      width -= scrollBarWidth();
+	    }
+      
+	  if (width > 0)
+	    {
+	      gtk_tree_view_column_set_visible(treeColumn, TRUE);
+	      gtk_tree_view_column_set_fixed_width(treeColumn, width);
+	    }
+	  else
+	    {
+	      /* Can't have 0 width, so hide the column instead */
+	      gtk_tree_view_column_set_visible(treeColumn, FALSE);
+	    }
+	}
+    }
+  
+  /* The sequence column size should have adjusted dynamically. Get its new size. */
+  DetailViewColumnInfo *seqColumnInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+  GtkTreeViewColumn *seqColumn = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
+  seqColumnInfo->width = gtk_tree_view_column_get_width(seqColumn);
+  
+  updateSeqColumnSize(treeGetDetailView(tree));
+  resizeTreeHeaders(tree, NULL);
+}
+
 
 /***********************************************************
  *			  Selections			   *
@@ -1941,13 +2020,15 @@ static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
  * so we can re-abbreviate with more/less text as required. */
 static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 {
-  GtkWidget *tree = GTK_WIDGET(data);
-  
   if (GTK_IS_LABEL(headerWidget))
     {
+      GtkWidget *tree = GTK_WIDGET(data);
+      TreeColumnHeaderInfo *headerInfo = treeColumnGetHeaderInfo(tree, S_NAME_COL);
+      const int colWidth = calculateColumnWidth(headerInfo, tree);
+
       /* Abbreviate the name */
       const char *refSeqName = mainWindowGetRefSeqName(treeGetMainWindow(tree));
-      const int maxLen = (headerWidget->allocation.width / treeGetCharWidth(tree));
+      const int maxLen = (colWidth / treeGetCharWidth(tree));
       
       char stringToAppend[] = "(+0)";
       stringToAppend[1] = (treeGetStrand(tree) == FORWARD_STRAND ? '+' : '-');
@@ -2058,6 +2139,23 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
 }
 
 
+/* Utility function to create a TreeColumnHeaderInfo struct and initialise its values */
+static TreeColumnHeaderInfo* createTreeColumnHeaderInfo(GtkWidget *headerWidget, 
+							GtkWidget *tree, 
+							GList *columnIds, 
+							GtkCallback refreshFunc)
+{
+  TreeColumnHeaderInfo *headerInfo = g_malloc(sizeof(TreeColumnHeaderInfo));
+  
+  headerInfo->headerWidget = headerWidget;
+  headerInfo->tree = tree;
+  headerInfo->columnIds = columnIds;
+  headerInfo->refreshFunc = refreshFunc;
+  
+  return headerInfo;
+}
+
+
 /* Create the header widget for the given column in the tree header. The tree
  * header bar shows information about the reference sequence. */
 static void createTreeColHeader(GList **headerWidgets, 
@@ -2137,20 +2235,12 @@ static void createTreeColHeader(GList **headerWidgets,
       /* Put the event box into the header bar */
       gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == SEQUENCE_COL), TRUE, 0);
 
-//      gtk_tree_view_column_set_widget(treeColumn, parent);
-//      gtk_widget_show_all(parent);
-
       /* Set the default background colour (in the parent, seeing as the label doesn't have a window) */
       GdkColor bgColour = getGdkColor(DEFAULT_REF_SEQ_BG_COLOUR);
       gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour);
       
-      /* Create the header info */
-      TreeColumnHeaderInfo *headerInfo = g_malloc(sizeof(TreeColumnHeaderInfo));
-      
-      headerInfo->columnIds = columnIds;
-      headerInfo->headerWidget = headerWidget;
-      headerInfo->refreshFunc = refreshFunc;
-
+      /* Create the header info and add it to the list */
+      TreeColumnHeaderInfo *headerInfo = createTreeColumnHeaderInfo(headerWidget, tree, columnIds, refreshFunc);
       *headerWidgets = g_list_append(*headerWidgets, headerInfo);
     }
 }

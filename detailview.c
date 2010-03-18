@@ -44,12 +44,10 @@ typedef struct
 /* Local function declarations */
 static GtkWidget*	      detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
-static GList*		      detailViewGetColumnList(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
 static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 static int		      detailViewGetSelectedFrame(GtkWidget *detailView);
 static GdkColor*	      detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
-static DetailViewColumnInfo*  detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
 
 static int		      seqColHeaderGetFrameNumber(GtkWidget *header);
 
@@ -272,21 +270,17 @@ void scrollDetailViewRightPage(GtkWidget *detailView)
 
 
 /* Calculate the number of bases that can be displayed in the sequence column */
-static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
+static int calcNumBasesInSequenceColumn(GtkWidget *detailView)
 {
-  /* Find the width of the sequence column (if we weren't already passed it) */
-  if (colWidth == UNSET_INT)
-    {
-      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
-      colWidth = gtk_tree_view_column_get_width(sequenceCol);
-    }
+  /* Find the width of the sequence column */
+  int colWidth = detailViewGetColumnWidth(detailView, SEQUENCE_COL);
   
   /* Don't include the cell padding area */
-  GtkCellRenderer *renderer = treeGetRenderer(tree);
+  GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
   colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
   
   /* Return the number of whole characters that fit in the column. */
-  gint charWidth = treeGetCharWidth(tree);
+  gint charWidth = detailViewGetCharWidth(detailView);
   int numChars = (int)((double)colWidth / (double)charWidth);
   
   return numChars;
@@ -294,18 +288,16 @@ static int calcNumBasesInSequenceColumn(GtkWidget *tree, int colWidth)
 
 
 /* This should be called when the width of the sequence column has changed (or the
- * size of the font has changed). The given tree can be any of the trees in the 
- * detail view - they all have the same column sizes, so this function only needs 
- * to be called once. This function will adjust the scroll range of our custom scroll
- * adjustment so that it represents the range that can be displayed in the new column 
- * width. */
-static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
+ * size of the font has changed). This function will adjust the scroll range of our
+ * custom scroll adjustment so that it represents the range that can be displayed 
+ * in the new column width. */
+void updateSeqColumnSize(GtkWidget *detailView)
 {
-  GtkAdjustment *adjustment = treeGetAdjustment(tree);
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   
   if (adjustment)
     {
-      int newPageSize = calcNumBasesInSequenceColumn(tree, colWidth);
+      int newPageSize = calcNumBasesInSequenceColumn(detailView);
       
       /* Only trigger updates if things have actually changed */
       if (newPageSize != adjustment->page_size)
@@ -316,7 +308,6 @@ static void updateSeqColumnSize(GtkWidget *tree, int colWidth)
 	  /* Reset the display range so that it is between the scrollbar min and max. Try to keep
 	   * it centred on the same base. The base index is in terms of the display range coords, 
 	   * so the sequence type of the coord is whatever the display sequence type is. */
-	  GtkWidget *detailView = treeGetDetailView(tree);
 	  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
 
 	  /* First time through, both coords are set to the initial start coord. So, if
@@ -772,6 +763,32 @@ static void refreshDetailViewHeaders(GtkWidget *detailView)
 }
 
 
+/* Resize the detail view header widgets. Should be called whenever a column is resized. */
+void resizeDetailViewHeaders(GtkWidget *detailView)
+{
+  GList *listItem = detailViewGetColumnList(detailView);
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)listItem->data;
+
+      if (columnInfo->columnId == SEQUENCE_COL)
+	{
+	  /* For the sequence column, don't set the size request, or we won't be
+	   * able to shrink the window. The sequence col header will be resized
+	   * dynamically to fit its text, which is the width that we want anyway. */
+	  gtk_widget_set_size_request(columnInfo->headerWidget, SEQ_COLUMN_DEFAULT_WIDTH, -1);
+	}
+      else
+	{
+	  /* For other columns, we can set the size request: they're small enough
+	   * that we can live without the need to shrink below their sum widths. */
+	  gtk_widget_set_size_request(columnInfo->headerWidget, columnInfo->width, -1);
+	}
+    }
+}
+
+
 /* Update the font description for all relevant components of the detail view */
 void updateDetailViewFontDesc(GtkWidget *detailView)
 {
@@ -816,15 +833,6 @@ static void decrementFontSize(GtkWidget *detailView)
 /* Zoom the detail view in/out */
 void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
 {
-  /* Remember the size of the sequence column. This gets reset to 0 when we change the font. */
-  GtkWidget *firstTree = detailViewGetFirstTree(detailView);
-  int colWidth = UNSET_INT;  
-  if (firstTree)
-    {
-      GtkTreeViewColumn *sequenceCol = gtk_tree_view_get_column(GTK_TREE_VIEW(firstTree), SEQUENCE_COL);
-      colWidth = gtk_tree_view_column_get_width(sequenceCol);
-    }
-  
   if (zoomIn)
     {
       incrementFontSize(detailView);
@@ -834,10 +842,7 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
       decrementFontSize(detailView);
     }
   
-  if (firstTree && colWidth != UNSET_INT)
-    {
-      updateSeqColumnSize(firstTree, colWidth);
-    }  
+  updateSeqColumnSize(detailView);
 }
 
 
@@ -1020,22 +1025,17 @@ void detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlight
 
 static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *allocation, gpointer data)
 {
-  /* Set our cached value for the sequence col width. Use any tree - they should
-   * all resize by the same rules, so their sequence columns will be the same size */
+  /* The sequence column should be the only one that dynamically resizes as the window
+   * window size changes. Find its new width and cache it. All trees should resize
+   * in the same manner, so their columns should be the same size. */
   GtkWidget *tree = detailViewGetFirstTree(detailView);
-  
-  if (tree)
-    {
-      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
-      GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
-//      columnInfo->width = gtk_tree_view_column_get_width(column) - 1;
+  GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
 
-      /* Update the width of the headers for each tree */
-//      callFuncOnAllDetailViewTrees(detailView, resizeTreeHeaders);
+  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+  columnInfo->width = gtk_tree_view_column_get_width(column);
       
-      /* Perform updates required on the sequence col after its size has changed */
-      updateSeqColumnSize(tree, UNSET_INT);
-    }
+  /* Perform updates required on the sequence col after its size has changed */
+  updateSeqColumnSize(detailView);
 }
 
 
@@ -1213,14 +1213,14 @@ char** detailViewGetGeneticCode(GtkWidget *detailView)
 }
 
 /* Get the list of columns */
-static GList* detailViewGetColumnList(GtkWidget *detailView)
+GList* detailViewGetColumnList(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->columnList : NULL;
 }
 
 /* Get the column info for a particular column */
-static DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId)
+DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId)
 {
   DetailViewColumnInfo *result = NULL;
   

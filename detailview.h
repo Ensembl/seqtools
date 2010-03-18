@@ -158,6 +158,8 @@ GHashTable*		detailViewGetSeqTable(GtkWidget *detailView);
 gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
 gboolean		detailViewGetSortInverted(GtkWidget *detailView);
 gboolean		detailViewGetHighlightDiffs(GtkWidget *detailView);
+GList*			detailViewGetColumnList(GtkWidget *detailView);
+DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -192,6 +194,8 @@ void			toggleStrand(GtkWidget *detailView);
 
 void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
 void			updateDetailViewFontDesc(GtkWidget *detailView);
+void			updateSeqColumnSize(GtkWidget *detailView);
+void			resizeDetailViewHeaders(GtkWidget *detailView);
 
 void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert);

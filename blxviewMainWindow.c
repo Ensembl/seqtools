@@ -1194,6 +1194,53 @@ static void createCheckButton(GtkWidget *parent,
 }
 
 
+/* Callback to be called when the user has entered a new column size */
+static gboolean onColumnSizeChanged(GtkWidget *widget, GdkEventFocus *event, gpointer data)
+{
+  GtkEntry *entry = GTK_ENTRY(widget);
+  DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
+  
+  const gchar *newSizeText = gtk_entry_get_text(entry);
+  columnInfo->width = convertStringToInt(newSizeText);
+
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  
+  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
+  resizeDetailViewHeaders(detailView);
+  
+  return FALSE;
+}
+
+
+/* Create a set of widgets that allow columns to be resized */
+static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
+{
+  /* Loop through each column in the detail view and create a text box showing the
+   * current width. */
+  GList *listItem = detailViewGetColumnList(detailView);
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      
+      /* Exclude the sequence column, because that resizes dynamically */
+      if (columnInfo->columnId != SEQUENCE_COL)
+	{
+	  GtkWidget *entry = gtk_entry_new();
+	  gtk_box_pack_start(GTK_BOX(parent), entry, TRUE, TRUE, 0);
+	  
+	  char *displayText = convertIntToString(columnInfo->width);
+	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+	  g_free(displayText);
+	  
+	  g_signal_connect(G_OBJECT(entry), "focus-out-event", G_CALLBACK(onColumnSizeChanged), columnInfo);
+	}
+    }
+}
+
+
 /* Shows the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *mainWindow)
 {
@@ -1220,6 +1267,9 @@ void showSettingsDialog(GtkWidget *mainWindow)
   
   /* Highlight differences */
   createCheckButton(vbox, "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
+  
+  /* Column sizes */
+  createColumnSizeButtons(vbox, detailView);
   
   /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
@@ -2347,16 +2397,25 @@ GtkWidget* createMainWindow(MainWindowArgs *args)
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
   
-  /* Add the MSP's to the trees and sort them by the initial sort mode */
+  /* Add the MSP's to the trees and sort them by the initial sort mode. This must
+   * be done after all widgets have been created, because it accesses their properties.*/
   detailViewAddMspData(detailView, args->mspList);
   detailViewSortByType(detailView, args->initialSortType);
 
-  /* Initial update to set the detail view font */
+  /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
 
-  /* Show the window */
+  /* Realise the widgets */
   printf("Starting Blixem\n");
   gtk_widget_show_all(window);
-  
+
+  /* Set the initial column widths. (This must be called after the widgets are 
+   * realised because it causes the scroll range to be updated, which in turn causes
+   * the big picture range to be set. The widgets must be realised before this because
+   * the initial big picture range depends on the detail view range, which is calculated
+   * from its window's width, and this will be incorrect if it has not been realised.) */
+  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
+  resizeDetailViewHeaders(detailView);
+
   return window;
 }

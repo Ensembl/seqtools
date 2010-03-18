@@ -20,9 +20,10 @@
 /* This struct holds info about a tree header widget. */
 typedef struct _TreeColumnHeaderInfo
   {
-    GtkWidget *headerWidget;	/* the actual header */
-    GList *columnIds;		/* a list of columns spanned by this header. columns must be next to each other */
-    GtkCallback refreshFunc;   /* function to be called when a refresh is requested */
+    GtkWidget *headerWidget;	/* The actual header widget */
+    GtkWidget *tree;		/* The tree view that this header belongs to */
+    GList *columnIds;		/* A list of columns spanned by this header. (Columns must be adjacent to each other.) */
+    GtkCallback refreshFunc;    /* Function to be called when a refresh is requested */
   } TreeColumnHeaderInfo;
 
 
@@ -93,7 +94,7 @@ void		  treeSortByGroupOrder(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  resortTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
-void		  resizeTreeHeaders(GtkWidget *tree, gpointer data);
+void		  resizeTreeColumns(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
 void		  treeSquashMatches(GtkWidget *tree, gpointer data);
