@@ -8,18 +8,27 @@
 
 #include "SeqTools/utilities.h"
 
+static CallbackData* widgetGetCallbackData(GtkWidget *widget);
+
+
 /* Functions to get/set/destroy a GdkDrawable in a widget property, if a different drawable
  * than the window is required to be drawn to. The main purpose of this is for printing
  * (and only widgets that have this drawable set are printed) */
 static void onDestroyCustomWidget(GtkWidget *widget)
 {
   GdkDrawable *drawable = widgetGetDrawable(widget);
-  
   if (drawable)
     {
       g_object_unref(drawable);
       drawable = NULL;
       g_object_set_data(G_OBJECT(widget), "drawable", NULL);
+    }
+  
+  CallbackData *callbackData = widgetGetCallbackData(widget);
+  if (callbackData)
+    {
+      g_free(callbackData);
+      g_object_set_data(G_OBJECT(widget), "callbackData", NULL);
     }
 }
 
@@ -93,7 +102,7 @@ void widgetSetHidden(GtkWidget *widget, const gboolean hidden)
 
 /* Hides the given widget if it has been set as hidden by the user. Recurses
  * over all children. */
-void hideUserHiddenWidget(GtkWidget *widget, gpointer data)
+void hideUserHiddenWidget(GtkWidget *widget, gpointer callbackData)
 {
   if (widgetGetHidden(widget))
     {
@@ -147,7 +156,7 @@ GtkWidget* createLabel(const char *text,
 
 
 /* Expose-event handler for labels that are required to be shown during printing. */
-gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointer data)
+gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointer callbackData)
 {
   if (!label || !GTK_IS_LABEL(label))
     {
@@ -929,6 +938,49 @@ void showMessageDialog(const char *title,
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   
   gtk_widget_show_all(dialog);
+}
+
+
+/* Get/set a CallbackData struct for this widget */
+static CallbackData* widgetGetCallbackData(GtkWidget *widget)
+{
+  return widget ? (CallbackData*)(g_object_get_data(G_OBJECT(widget), "callbackData")) : NULL;
+}
+
+void widgetSetCallbackData(GtkWidget *widget, GtkCallback func, gpointer data)
+{
+  if (widget)
+    { 
+      CallbackData *callbackData = g_malloc(sizeof *callbackData);
+      callbackData->func = func;
+      callbackData->data = data;
+      
+      g_object_set_data(G_OBJECT(widget), "callbackData", callbackData);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCustomWidget), NULL);
+    }
+}
+
+/* Get the CallbackData struct for this widget, if it has one, and call it. */
+void widgetCallCallback(GtkWidget *widget)
+{
+  CallbackData *callbackData = widgetGetCallbackData(widget);
+  
+  if (callbackData && callbackData->func)
+    {
+      callbackData->func(widget, callbackData->data);
+    }
+}
+
+/* Call the stored CallbackData callbacks (if any exist) for this widget and
+ * all of its children. */
+void widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
+{
+  widgetCallCallback(widget);
+  
+  if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, NULL);
+    }
 }
 
 

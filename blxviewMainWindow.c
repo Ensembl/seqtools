@@ -1204,7 +1204,7 @@ static void createCheckButton(GtkBox *box,
 
 
 /* Callback to be called when the user has entered a new column size */
-static gboolean onColumnSizeChanged(GtkWidget *widget, GdkEventFocus *event, gpointer data)
+static void onColumnSizeChanged(GtkWidget *widget, gpointer data)
 {
   GtkEntry *entry = GTK_ENTRY(widget);
   DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
@@ -1218,8 +1218,6 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, GdkEventFocus *event, gpo
   
   callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
   resizeDetailViewHeaders(detailView);
-  
-  return FALSE;
 }
 
 
@@ -1262,11 +1260,45 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 	{
 	  char *displayText = convertIntToString(columnInfo->width);
 	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
 	  g_free(displayText);
-      
-	  g_signal_connect(G_OBJECT(entry), "focus-out-event", G_CALLBACK(onColumnSizeChanged), columnInfo);
+
+	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
+	  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+
+	  widgetSetCallbackData(entry, onColumnSizeChanged, (gpointer)columnInfo);
 	}
+    }
+}
+
+
+/* Called when the settings dialog receives a user response */
+static void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      destroy = TRUE;
+      break;
+      
+    case GTK_RESPONSE_APPLY:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      destroy = FALSE;
+      break;
+
+    case GTK_RESPONSE_CANCEL:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_destroy(GTK_WIDGET(dialog));
     }
 }
 
@@ -1277,11 +1309,13 @@ void showSettingsDialog(GtkWidget *mainWindow)
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
 						  GTK_WINDOW(mainWindow), 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
+						  GTK_STOCK_CANCEL,
+						  GTK_RESPONSE_REJECT,
+						  GTK_STOCK_APPLY,
+						  GTK_RESPONSE_APPLY,
 						  NULL);
   
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
 
   int borderWidth = 12;
@@ -1303,7 +1337,7 @@ void showSettingsDialog(GtkWidget *mainWindow)
   createColumnSizeButtons(mainVBox, detailView);
   
   /* Connect signals and show */
-  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseSettingsDialog), NULL);
   gtk_widget_show_all(dialog);
 }
 
@@ -1393,10 +1427,10 @@ static gint runConfirmationBox(GtkWidget *mainWindow, char *title, char *message
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
 						  GTK_WINDOW(mainWindow), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);

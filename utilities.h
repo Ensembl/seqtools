@@ -38,6 +38,16 @@
 #define GDK_DARK_TURQUOISE    "#32aca0"
 
 
+/* This struct holds callback information for an entry widget on a dialog. The
+ * specified callback function will be called on the entry widget, passing
+ * the specified user-data, when the dialog tells that widget to apply its changes. */
+typedef struct _CallbackData
+  {
+    GtkCallback func;	  /* Callback function to be called */
+    gpointer data;	  /* User data to pass to the callback function */
+  } CallbackData;
+
+
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
 void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
 gboolean	      widgetGetHidden(GtkWidget *widget);
@@ -130,6 +140,10 @@ void		      showMessageDialog(const char *title,
 					const int maxHeight,
 					const gboolean wrapText,
 					PangoFontDescription *fontDesc);
+
+void		      widgetSetCallbackData(GtkWidget *widget, GtkCallback callbackFunc, gpointer callbackData);
+void		      widgetCallCallback(GtkWidget *widget);
+void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 
 
 #endif /* _utilities_h_included_ */
