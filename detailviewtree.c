@@ -678,6 +678,7 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
   GtkWidget *detailView = treeGetDetailView(tree);
   
   GList *listItem = detailViewGetColumnList(detailView);
+  int sumWidth = 0;
   
   for ( ; listItem; listItem = listItem->next)
     {
@@ -692,7 +693,9 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
 	    {
 	      width -= scrollBarWidth();
 	    }
-      
+
+	  sumWidth += width;
+
 	  if (width > 0)
 	    {
 	      gtk_tree_view_column_set_visible(treeColumn, TRUE);
@@ -705,12 +708,13 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
 	    }
 	}
     }
-  
-  /* The sequence column size should have adjusted dynamically. Get its new size. */
+
+  /* The sequence column width is the full width minus the other columns' widths. 
+   * (Can't use gtk_tree_view_column_get_width here because it is not up to date yet) */
   DetailViewColumnInfo *seqColumnInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
-  GtkTreeViewColumn *seqColumn = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
-  seqColumnInfo->width = gtk_tree_view_column_get_width(seqColumn);
+  seqColumnInfo->width = tree->allocation.width - sumWidth;
   
+
   updateSeqColumnSize(treeGetDetailView(tree));
   resizeTreeHeaders(tree, NULL);
 }
@@ -1851,6 +1855,20 @@ static int scrollBarWidth()
 }
 
 
+/* Callback called when the width of the sequence column has changed */
+static void onSeqColWidthChanged(GtkTreeViewColumn *column, GParamSpec *paramSpec, gpointer data)
+{
+//  GtkWidget *tree = GTK_WIDGET(data);
+//  GtkWidget *detailView = treeGetDetailView(tree);
+//  
+//  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+//  columnInfo->width = gtk_tree_view_column_get_width(column);
+//  printf ("set seq col w = %d\n", columnInfo->width);
+//  
+//  updateSeqColumnSize(treeGetDetailView(tree));
+}
+
+
 /* Create a single column in the tree. */
 static GtkTreeViewColumn* initColumn(GtkWidget *tree, 
 				     GtkCellRenderer *renderer, 
@@ -1870,6 +1888,11 @@ static GtkTreeViewColumn* initColumn(GtkWidget *tree,
     {
       width = width - scrollBarWidth();
     }
+  
+  if (columnInfo->columnId == SEQUENCE_COL)
+  {
+    g_signal_connect(G_OBJECT(column), "notify::width", G_CALLBACK(onSeqColWidthChanged), tree);
+  }
   
   /* Set the column properties and add the column to the tree */
   gtk_tree_view_column_set_fixed_width(column, width);

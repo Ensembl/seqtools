@@ -430,6 +430,15 @@ static GtkWidget* createVBoxWithBorder(GtkWidget *parent, const int borderWidth)
   return vbox;
 }
 
+/* Utility to create an hbox with the given border and pack it into the given container */
+static GtkWidget* createHBoxWithBorder(GtkWidget *parent, const int borderWidth)
+{
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_container_set_border_width(GTK_CONTAINER(hbox), borderWidth);
+  gtk_container_add(GTK_CONTAINER(parent), hbox);
+  return hbox;
+}
+
 
 /***********************************************************
  *			   View panes menu                 *
@@ -1179,14 +1188,14 @@ static void onHighlightDiffsToggled(GtkWidget *button, gpointer data)
 
 
 /* Utility to create a check button with certain given properties, and to pack it into the parent */
-static void createCheckButton(GtkWidget *parent, 
+static void createCheckButton(GtkBox *box, 
 			      const char *mnemonic, 
 			      const gboolean isActive, 
 			      GCallback callback, 
 			      GtkWidget *mainWindow)
 {
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
-  gtk_container_add(GTK_CONTAINER(parent), button);
+  gtk_box_pack_start(box, button, FALSE, FALSE, 0);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   
@@ -1217,24 +1226,45 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, GdkEventFocus *event, gpo
 /* Create a set of widgets that allow columns to be resized */
 static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 {
+  /* Group these buttons in a frame */
+  GtkWidget *frame = gtk_frame_new("Column sizes");
+  gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
+
+  /* Arrange the widgets horizontally */
+  GtkWidget *hbox = createHBoxWithBorder(frame, 12);
+  
   /* Loop through each column in the detail view and create a text box showing the
    * current width. */
   GList *listItem = detailViewGetColumnList(detailView);
-  
+
   for ( ; listItem; listItem = listItem->next)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
       
-      /* Exclude the sequence column, because that resizes dynamically */
-      if (columnInfo->columnId != SEQUENCE_COL)
+      /* Create a label and a text entry box, arranged vertically in a vbox */
+      GtkWidget *vbox = createVBoxWithBorder(hbox, 4);
+      
+      GtkWidget *label = gtk_label_new(columnInfo->title);
+      gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
+      
+      GtkWidget *entry = gtk_entry_new();
+      gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
+      
+      if (columnInfo->columnId == SEQUENCE_COL)
 	{
-	  GtkWidget *entry = gtk_entry_new();
-	  gtk_box_pack_start(GTK_BOX(parent), entry, TRUE, TRUE, 0);
-	  
+	  /* The sequence column updates dynamically, so don't allow the user to edit it */
+	  char displayText[] = "<dynamic>";
+	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+	  gtk_widget_set_sensitive(entry, FALSE);
+	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
+	}
+      else
+	{
 	  char *displayText = convertIntToString(columnInfo->width);
 	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
 	  g_free(displayText);
-	  
+      
 	  g_signal_connect(G_OBJECT(entry), "focus-out-event", G_CALLBACK(onColumnSizeChanged), columnInfo);
 	}
     }
@@ -1257,19 +1287,20 @@ void showSettingsDialog(GtkWidget *mainWindow)
   int borderWidth = 12;
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
   
-  GtkWidget *vbox = createVBoxWithBorder(contentArea, borderWidth);
+  GtkWidget *mainVBox = createVBoxWithBorder(contentArea, borderWidth);
+
+  /* Display options */
+  GtkWidget *frame1 = gtk_frame_new("Display options");
+  gtk_box_pack_start(GTK_BOX(mainVBox), frame1, FALSE, FALSE, 0);
+
+  GtkWidget *vbox1 = createVBoxWithBorder(frame1, borderWidth);
   
-  /* Squash matches */
-  createCheckButton(vbox, "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
-  
-  /* Invert sort order */
-  createCheckButton(vbox, "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
-  
-  /* Highlight differences */
-  createCheckButton(vbox, "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
+  createCheckButton(GTK_BOX(vbox1), "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
+  createCheckButton(GTK_BOX(vbox1), "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
+  createCheckButton(GTK_BOX(vbox1), "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
   
   /* Column sizes */
-  createColumnSizeButtons(vbox, detailView);
+  createColumnSizeButtons(mainVBox, detailView);
   
   /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
