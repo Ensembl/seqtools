@@ -947,6 +947,8 @@ static CallbackData* widgetGetCallbackData(GtkWidget *widget)
   return widget ? (CallbackData*)(g_object_get_data(G_OBJECT(widget), "callbackData")) : NULL;
 }
 
+
+/* Set callback function and user-data for the given widget */
 void widgetSetCallbackData(GtkWidget *widget, GtkCallback func, gpointer data)
 {
   if (widget)
@@ -975,14 +977,49 @@ void widgetCallCallback(GtkWidget *widget)
  * all of its children. */
 void widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
 {
-  widgetCallCallback(widget);
-  
-  if (GTK_IS_CONTAINER(widget))
+  if (widget && GTK_IS_WIDGET(widget))
     {
-      gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, NULL);
+      widgetCallCallback(widget);
+  
+      if (GTK_IS_CONTAINER(widget))
+	{
+	  gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, NULL);
+	}
     }
 }
 
-
+/* Generic callback to call all user-specified callbacks for all child widgets of
+ * the given dialog if ACCEPT or APPLY responses received. Also closes the dialog 
+ * if ACCEPT or REJECT responses received. */
+void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      destroy = TRUE;
+      break;
+      
+    case GTK_RESPONSE_APPLY:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      destroy = FALSE;
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
+}
 
 

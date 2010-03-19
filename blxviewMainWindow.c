@@ -751,9 +751,8 @@ static void makeGroupFromSelection(GtkWidget *mainWindow)
 }
 
 
-/* This function is called when the sequence-group-name text entry widget's
- * value has changed. It sets the new group name in the group. */
-static gboolean onGroupNameChanged(GtkWidget *widget, GdkEventFocus *event, gpointer data)
+/* This function sets the sequence-group-name text based on the given text entry widget */
+static void onGroupNameChanged(GtkWidget *widget, gpointer data)
 {
   GtkEntry *entry = GTK_ENTRY(widget);
   SequenceGroup *group = (SequenceGroup*)data;
@@ -772,14 +771,12 @@ static gboolean onGroupNameChanged(GtkWidget *widget, GdkEventFocus *event, gpoi
       
       group->groupName = g_strdup(newName);
     }
-  
-  return FALSE;
 }
 
 
 /* This function is called when the sequence-group-order text entry widget's
  * value has changed. It sets the new order number in the group. */
-static gboolean onGroupOrderChanged(GtkWidget *widget, GdkEventFocus *event, gpointer data)
+static void onGroupOrderChanged(GtkWidget *widget, gpointer data)
 {
   GtkEntry *entry = GTK_ENTRY(widget);
   SequenceGroup *group = (SequenceGroup*)data;
@@ -804,13 +801,11 @@ static gboolean onGroupOrderChanged(GtkWidget *widget, GdkEventFocus *event, gpo
       callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), resortTree);
       mainWindowRedrawAll(mainWindow);
     }
-  
-  return FALSE;
 }
 
 
-/* This callback is called when the toggle button for a group's "hidden" flag is toggled.
- * It updates the group's hidden flag according to the button's new status. */
+/* This callback is called when the dialog settings are applied. It sets the hidden
+ * status of the passed groupo based on the toggle button's state */
 static void onGroupHiddenToggled(GtkWidget *button, gpointer data)
 {
   SequenceGroup *group = (SequenceGroup*)data;
@@ -841,10 +836,10 @@ static void onGroupHighlightedToggled(GtkWidget *button, gpointer data)
 
 
 /* Called when the user has changed the colour of a group in the 'edit groups' dialog */
-static void onGroupColourChanged(GtkColorButton *button, gpointer data)
+static void onGroupColourChanged(GtkWidget *button, gpointer data)
 {
   SequenceGroup *group = (SequenceGroup*)data;
-  gtk_color_button_get_color(button, &group->highlightColour);
+  gtk_color_button_get_color(GTK_COLOR_BUTTON(button), &group->highlightColour);
   gdk_colormap_alloc_color(gdk_colormap_get_system(), &group->highlightColour, TRUE, TRUE);
   
   /* Redraw everything in the new colours */
@@ -862,29 +857,33 @@ static void createEditGroupWidget(SequenceGroup *group, GtkTable *table, const i
   /* Show the group's name in a text box that the user can edit */
   GtkWidget *nameWidget = gtk_entry_new();
   gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
-  g_signal_connect(G_OBJECT(nameWidget), "focus-out-event", G_CALLBACK(onGroupNameChanged), group);
+  gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
+  widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
   
   /* Add a check box for the 'hidden' flag */
   GtkWidget *isHiddenWidget = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
-  g_signal_connect(G_OBJECT(isHiddenWidget), "toggled", G_CALLBACK(onGroupHiddenToggled), group);
+  widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
 
   /* Add a check box for the 'highlighted' flag */
   GtkWidget *isHighlightedWidget = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
-  g_signal_connect(G_OBJECT(isHighlightedWidget), "toggled", G_CALLBACK(onGroupHighlightedToggled), group);
+  widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
   
   /* Show the group's order number in an editable text box */
   GtkWidget *orderWidget = gtk_entry_new();
+
   char *orderStr = convertIntToString(group->order);
   gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
   g_free(orderStr);
-  gtk_widget_set_size_request(orderWidget, 20, -1);
-  g_signal_connect(G_OBJECT(orderWidget), "focus-out-event", G_CALLBACK(onGroupOrderChanged), group);
+  
+  gtk_entry_set_activates_default(GTK_ENTRY(orderWidget), TRUE);
+  gtk_widget_set_size_request(orderWidget, 30, -1);
+  widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
 
   /* Show the group's highlight colour in a button that will also launch a colour-picker */
   GtkWidget *colourButton = gtk_color_button_new_with_color(&group->highlightColour);
-  g_signal_connect(G_OBJECT(colourButton), "color-set", G_CALLBACK(onGroupColourChanged), group);
+  widgetSetCallbackData(colourButton, onGroupColourChanged, group);
   
   /* Create a button that will delete this group */
   GtkWidget *deleteButton = gtk_button_new_with_label("Delete");
@@ -897,23 +896,6 @@ static void createEditGroupWidget(SequenceGroup *group, GtkTable *table, const i
   gtk_table_attach(table, orderWidget,		4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, colourButton,		5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, deleteButton,		6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-}
-
-
-/* Called when the "from-name" radio button in the "create group" section of the
- * group sequences dialog box is toggled. It enables/disables the "from-name"
- * text entry box according to the state of the toggle button. */
-static void onGroupSourceButtonToggled(GtkWidget *button, gpointer data)
-{
-  GtkWidget *widget = GTK_WIDGET(data);
-  const gboolean enable = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  gtk_widget_set_sensitive(widget, enable);
-  
-  if (enable)
-    {
-      GtkWindow *window = GTK_WINDOW(gtk_widget_get_toplevel(button));
-      gtk_window_set_focus(window, widget);
-    }
 }
 
 
@@ -932,55 +914,88 @@ static void getSequencesThatMatch(gpointer key, gpointer value, gpointer data)
 }
 
 
-/* Called when the user has clicked "add group" on the "group sequences" dialog. */
-void onButtonClickedAddGroup(GtkWidget *button, gpointer data)
+/* If the given radio button is enabled, add a group based on the currently-
+ * selected sequences. */
+static void addGroupFromSelection(GtkWidget *button, gpointer data)
 {
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {  
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
+      makeGroupFromSelection(mainWindow);
+    }
+}
+
+
+/* If the given radio button is enabled, add a group based on the search text
+ * in the given text entry. */
+static void addGroupFromName(GtkWidget *button, gpointer data)
+{
+  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      return;
+    }
+
   /* The text entry box was passed as the user data */
   GtkEntry *entry = GTK_ENTRY(data);
+
+  if (!entry || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(entry)))
+    {
+      messout("Could not set search string: invalid text entry box [%x]\n", entry);
+      return;
+    }
   
   /* Extract the main window from our parent window. */
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
 
-  /* If the entry box is enabled, that means the user has selected the option to
-   * use a search string. */
-  if (GTK_WIDGET_SENSITIVE(entry))
+  const char *searchStr = gtk_entry_get_text(entry);
+
+  /* Loop through all the sequences and see if the name matches the search string */
+  GHashTable *seqTable = detailViewGetSeqTable(detailView);
+  CompareSeqData searchData = {searchStr, NULL};
+
+  g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
+  
+  /* If we found anything, create a group */
+  if (g_list_length(searchData.matchList) > 0)
     {
-      const char *searchStr = gtk_entry_get_text(entry);
+      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      SequenceGroup *group = createSequenceGroup(properties->sequenceGroups);
+      group->seqList = searchData.matchList;
+      properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
 
-      /* Loop through all the sequences and see if the name matches the search string */
-      GHashTable *seqTable = detailViewGetSeqTable(detailView);
-      CompareSeqData searchData = {searchStr, NULL};
-
-      g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
-      
-      /* If we found anything, create a group */
-      if (g_list_length(searchData.matchList) > 0)
-	{
-	  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-	  SequenceGroup *group = createSequenceGroup(properties->sequenceGroups);
-	  group->seqList = searchData.matchList;
-	  properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
-	}
-      else
-	{
-	  messout("No sequences found");
-	}
+      /* Re-sort the trees, because the group ordering has changed, which may affect the sort order */
+      callFuncOnAllDetailViewTrees(detailView, resortTree);
     }
   else
     {
-      /* Currently the only other option is to use the current selection */
-      makeGroupFromSelection(mainWindow);
+      messout("No sequences found");
+    }
+}
+
+
+/* If the given radio button is enabled, add a group based on the list of sequence
+ * names in the given text entry. */
+static void addGroupFromList(GtkWidget *button, gpointer data)
+{
+  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      return;
     }
   
-  /* Re-sort the trees, because the group ordering has changed, which may affect the sort order */
-  callFuncOnAllDetailViewTrees(detailView, resortTree);
+  /* The text entry box was passed as the user data */
+  GtkTextView *textView = GTK_TEXT_VIEW(data);
   
-  /* Refresh dialog by closing and re-opening. Open it on the 'edit groups' page,
-   * to display the group that we've just created. */
-  gtk_widget_destroy(GTK_WIDGET(dialogWindow));
-  showGroupSequencesDialog(mainWindow, TRUE);
+  if (!textView || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(textView)))
+    {
+      messout("Could not set search string: invalid text entry box [%x]\n", textView);
+      return;
+    }
+  
+  /* to do: finish this */
 }
 
 
@@ -1032,6 +1047,149 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
 }
 
 
+/* Callback for when a radio button with a secondary widget (passed as the user
+ * data) is toggled. It enables/disables the other widget according to whether
+ * the radio button is active or not. */
+static void onRadioButtonToggled(GtkWidget *button, gpointer data)
+{
+  GtkWidget *otherWidget = GTK_WIDGET(data);
+  
+  if (otherWidget)
+    {
+      const gboolean isActive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+      gtk_widget_set_sensitive(otherWidget, isActive); 
+    }
+}
+
+
+/* Utility to create a radio button with certain given properties, and to pack it
+ * into the given container widget. Returns the radio button (so that further
+ * buttons can be created in the same group by passing it as 'existingButton') */
+static GtkRadioButton* createRadioButton(GtkBox *box, 
+					 GtkRadioButton *existingButton,
+					 const char *mnemonic, 
+					 const gboolean isActive, 
+					 const gboolean createTextEntry,
+					 const gboolean multiline,
+					 GtkCallback callbackFunc,
+					 GtkWidget *mainWindow)
+{
+  GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
+  
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
+  gtk_box_pack_start(box, button, FALSE, FALSE, 0);
+  
+  GtkWidget *entry = NULL;
+  
+  if (createTextEntry && multiline)
+    {
+      /* Multi-line text buffer */
+      GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
+      entry = gtk_text_view_new_with_buffer(GTK_TEXT_BUFFER(textBuffer));
+
+      /* Specify a min height */
+      const int numLines = 4;
+      const int charHeight = detailViewGetCharHeight(mainWindowGetDetailView(mainWindow));
+      gtk_widget_set_size_request(entry, -1, charHeight * numLines);
+
+      GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+      GtkWidget *frame = gtk_frame_new(NULL);
+      gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+
+      gtk_container_add(GTK_CONTAINER(scrollWin), entry);
+      gtk_container_add(GTK_CONTAINER(frame), scrollWin);
+      gtk_box_pack_start(box, frame, TRUE, TRUE, 0);
+    }
+  else if (createTextEntry)
+    {
+      /* Single line text buffer */
+      entry = gtk_entry_new();
+      gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+      gtk_box_pack_start(box, entry, TRUE, TRUE, 0);
+    }
+
+  if (entry)
+    {
+      gtk_widget_set_sensitive(entry, isActive);
+      
+      /* Add a callback to enable/disable the text entry widget when the button is toggled */
+      g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onRadioButtonToggled), entry);
+    }
+
+  /* Add the callback data. This specifies what callback to use when the dialog is ok'd. */
+  widgetSetCallbackData(button, callbackFunc, entry);
+
+  return GTK_RADIO_BUTTON(button);
+}
+
+
+/* Called when the user chooses a different tabe on the groups dialog */
+static gboolean onSwitchPageGroupsDialog(GtkNotebook *notebook, GtkNotebookPage *page, guint pageNum, gpointer data)
+{
+  GtkDialog *dialog = GTK_DIALOG(data);
+
+  if (pageNum == 0)
+    {
+      /* For the create-groups page, set the default response to be 'accept' */
+      gtk_dialog_set_default_response(dialog, GTK_RESPONSE_ACCEPT);
+    }
+  else
+    {
+      /* For other pages, set default response to be 'apply' */
+      gtk_dialog_set_default_response(dialog, GTK_RESPONSE_APPLY);
+    }
+    
+  return FALSE;
+}
+
+
+/* Callback called when user responds to groups dialog */
+void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  
+  /* If a notebook was passed, only call callbacks for widgets in the active tab */
+  GtkNotebook *notebook = GTK_NOTEBOOK(data);
+  GtkWidget *currentPage = gtk_notebook_get_nth_page(notebook, gtk_notebook_get_current_page(notebook));
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      widgetCallAllCallbacks(currentPage, NULL);
+      destroy = TRUE;
+      break;
+
+    case GTK_RESPONSE_APPLY:
+      widgetCallAllCallbacks(currentPage, NULL);
+      destroy = FALSE;
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
+  else
+    {
+      /* Re-create the dialog, opening it on the Edit Groups page */
+      GtkWindow *dialogWindow = GTK_WINDOW(dialog);
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+      showGroupSequencesDialog(mainWindow, TRUE);
+    }
+}
+
+
 /* Shows the "Group sequences" dialog. This dialog allows the user to group sequences together.
  * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
  * 'editGroups' argument is true and groups exist, the 'Edit Groups' tab is displayed by default;
@@ -1041,51 +1199,36 @@ void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
 						  GTK_WINDOW(mainWindow), 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_CLOSE,
+						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
+						  GTK_STOCK_APPLY,
+						  GTK_RESPONSE_APPLY,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
-  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
-  
-  GtkWidget *notebook = gtk_notebook_new();
-  gtk_box_pack_start(GTK_BOX(contentArea), notebook, TRUE, TRUE, 0);
-  
-  
-  /* "CREATE GROUP" SECTION. */
-  GtkWidget *section1 = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section1, gtk_label_new("Create group"));
-
   GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
   const gboolean seqsSelected = g_list_length(selectedSeqs) > 0;
-  
-  /* Radio buttons for user to specify whether to create group from current selection or from sequence names */
-  GtkWidget *fromSelectionButton = gtk_radio_button_new_with_label(NULL, "From selection");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fromSelectionButton), seqsSelected);
-  gtk_box_pack_start(GTK_BOX(section1), fromSelectionButton, FALSE, FALSE, 0);
 
-  GtkWidget *fromNameButton = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(fromSelectionButton), "From sequence name(s)");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fromNameButton), !seqsSelected);
-  gtk_box_pack_start(GTK_BOX(section1), fromNameButton, FALSE, FALSE, 0);
-  
-  /* Text box for user to enter sequence names to search for. Greyed out if relevant
-   * radio button is not selected. Activates the dialog's default widget when enter is pressed. */
-  GtkWidget *fromNameEntry = gtk_entry_new();
-  gtk_widget_set_sensitive(fromNameEntry, !seqsSelected);
-  gtk_entry_set_activates_default(GTK_ENTRY(fromNameEntry), TRUE);
-  gtk_box_pack_start(GTK_BOX(section1), fromNameEntry, FALSE, FALSE, 0);
-  g_signal_connect(G_OBJECT(fromNameButton), "toggled", G_CALLBACK(onGroupSourceButtonToggled), fromNameEntry);
-  
-  /* Add the "add group" button here, because it is only relevant to this tab. */
-  GtkWidget *addGroupButton = gtk_button_new_with_label("Create group");
-  gtk_box_pack_end(GTK_BOX(section1), addGroupButton, FALSE, FALSE, 0);
-  g_signal_connect(G_OBJECT(addGroupButton), "clicked", G_CALLBACK(onButtonClickedAddGroup), fromNameEntry);
-  
-  
-  /* "EDIT GROUP" SECTION. (Only relevant if some groups actually exist) */
   GList *groupList = mainWindowGetSequenceGroups(mainWindow);
   const int numRows = g_list_length(groupList) + 1; /* +1 for headers */
   const gboolean groupsExist = numRows > 1;
   
+
+  /* Create tabbed pages */
+  GtkWidget *notebook = gtk_notebook_new();
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), notebook, TRUE, TRUE, 0);
+
+
+  /* "CREATE GROUP" SECTION. */
+  GtkBox *section1 = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(section1), gtk_label_new("Create group"));
+
+  GtkRadioButton *button1 = createRadioButton(section1, NULL, "From _selection", seqsSelected, FALSE, FALSE, addGroupFromSelection, mainWindow);
+  createRadioButton(section1, button1, "From _name (wildcards * and ?)", !seqsSelected, TRUE, FALSE, addGroupFromName, mainWindow);
+  createRadioButton(section1, button1, "From _list", FALSE, TRUE, TRUE, addGroupFromList, mainWindow);
+
+  /* "EDIT GROUP" SECTION. (Only relevant if some groups actually exist) */
   if (groupsExist)
     {
       GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
@@ -1123,7 +1266,10 @@ void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
     }
 
   /* Connect signals and show */
-  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
+  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(mainWindow));
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseGroupsDialog), notebook);
+  g_signal_connect(notebook, "switch-page", G_CALLBACK(onSwitchPageGroupsDialog), dialog);
+  
   gtk_widget_show_all(dialog);
   
   /* If user has asked to edit groups (and some groups exist), make the second tab
@@ -1132,23 +1278,6 @@ void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
   if (editGroups && groupsExist)
     {
       gtk_notebook_next_page(GTK_NOTEBOOK(notebook));
-      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_REJECT);
-    }
-  else
-    {
-      /* Make the 'create group' button the default widget and focus it if rows
-       * are selected - otherwise focus the text entry box. */
-      GTK_WIDGET_SET_FLAGS(addGroupButton, GTK_CAN_DEFAULT);
-      gtk_window_set_default(GTK_WINDOW(dialog), addGroupButton);
-
-      if (seqsSelected)
-	{
-	  gtk_window_set_focus(GTK_WINDOW(dialog), addGroupButton);
-	}
-      else
-	{
-	  gtk_window_set_focus(GTK_WINDOW(dialog), fromNameEntry);
-	}
     }
 }
 
@@ -1271,38 +1400,6 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 }
 
 
-/* Called when the settings dialog receives a user response */
-static void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
-{
-  gboolean destroy = TRUE;
-  
-  switch (responseId)
-  {
-    case GTK_RESPONSE_ACCEPT:
-      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
-      destroy = TRUE;
-      break;
-      
-    case GTK_RESPONSE_APPLY:
-      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
-      destroy = FALSE;
-      break;
-
-    case GTK_RESPONSE_CANCEL:
-      destroy = TRUE;
-      break;
-      
-    default:
-      break;
-  };
-  
-  if (destroy)
-    {
-      gtk_widget_destroy(GTK_WIDGET(dialog));
-    }
-}
-
-
 /* Shows the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *mainWindow)
 {
@@ -1337,7 +1434,7 @@ void showSettingsDialog(GtkWidget *mainWindow)
   createColumnSizeButtons(mainVBox, detailView);
   
   /* Connect signals and show */
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseSettingsDialog), NULL);
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
   gtk_widget_show_all(dialog);
 }
 

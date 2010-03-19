@@ -162,12 +162,12 @@ void showDotterDialog(GtkWidget *blxWindow)
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Dotter settings", 
 						  GTK_WINDOW(blxWindow), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_EXECUTE,
-						  GTK_RESPONSE_ACCEPT,
-						  GTK_STOCK_SAVE,
-						  GTK_RESPONSE_APPLY,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
+						  GTK_STOCK_SAVE,
+						  GTK_RESPONSE_APPLY,
+						  GTK_STOCK_EXECUTE,
+						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);

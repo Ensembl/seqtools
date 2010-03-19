@@ -38,9 +38,8 @@
 #define GDK_DARK_TURQUOISE    "#32aca0"
 
 
-/* This struct holds callback information for an entry widget on a dialog. The
- * specified callback function will be called on the entry widget, passing
- * the specified user-data, when the dialog tells that widget to apply its changes. */
+/* This struct holds generic callback information. It can be stored as a widget
+ * property and called on the widget on request (e.g. by a dialog when it applies changes). */
 typedef struct _CallbackData
   {
     GtkCallback func;	  /* Callback function to be called */
@@ -144,6 +143,6 @@ void		      showMessageDialog(const char *title,
 void		      widgetSetCallbackData(GtkWidget *widget, GtkCallback callbackFunc, gpointer callbackData);
 void		      widgetCallCallback(GtkWidget *widget);
 void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
-
+void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
 
 #endif /* _utilities_h_included_ */
