@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.17 2010-03-17 12:20:36 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.18 2010-03-19 16:44:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -156,7 +156,8 @@ typedef struct _SequenceGroup
     char *groupName;		/* user-friendly name for the group (should be unique to save confusion) */
     int groupId;		/* unique ID number for the group */
     int order;			/* field for sorting - lower numbers will be listed first */
-    GList *seqList;		/* the SubjectSequences in this group */
+    GList *seqNameList;		/* list of sequence names */
+    gboolean ownsSeqNames;	/* If true, the group will free the sequence names when it is destroyed */
     gboolean hidden;		/* true if the group should be hidden from the detail view */
     gboolean highlighted;	/* true if the group should be highlighted */
     GdkColor highlightColour;	/* the colour to highlight the group's sequences in (in both the big picture and the detail view) */

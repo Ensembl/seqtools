@@ -145,4 +145,15 @@ void		      widgetCallCallback(GtkWidget *widget);
 void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
 
+void		      setPrimaryClipboardText(const char *text);
+void		      requestPrimaryClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data);
+
+int		      parseMatchLine(const char *inputText,
+				     char **matchNameOut,
+				     int *matchStartOut, 
+				     int *matchEndOut, 
+				     int *matchLenOut);
+			
+GList*		      parseMatchList(const char *inputText);
+
 #endif /* _utilities_h_included_ */

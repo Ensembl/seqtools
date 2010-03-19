@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.7 2010-02-24 16:06:30 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.8 2010-03-19 16:44:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -123,9 +123,6 @@ typedef struct _MSP
   
   char    *desc;
   int      box ;
-
-  BOOL     in_match_set ;				    /* MSP's in the match set are shown
-							       with different colour. */
 
   int      color;   
   int      shape;   /* For SFS data, e.g. XY type PARTIAL or INTERPOLATE shapes */

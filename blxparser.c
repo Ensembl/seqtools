@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.10 2010-03-11 15:20:16 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.11 2010-03-19 16:44:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -132,7 +132,6 @@ static MSP* createEmptyMsp()
   
   msp->desc = NULL;
   msp->box = 0;
-  msp->in_match_set = FALSE;
   
   msp->color = 0;
   msp->shape = 0;

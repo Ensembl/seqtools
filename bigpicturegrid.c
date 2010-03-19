@@ -435,7 +435,7 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
     }
   
   /* Draw all of the sequences in this group */
-  g_list_foreach(seqGroup->seqList, drawSequenceMspLines, drawData);
+  g_list_foreach(seqGroup->seqNameList, drawSequenceMspLines, drawData);
   
   /* Set the draw data back to its original values */
   drawData->colour = origColour;

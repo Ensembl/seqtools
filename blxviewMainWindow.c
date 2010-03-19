@@ -20,18 +20,13 @@
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
 
-typedef struct _GroupDialogData
-  {
-    GtkWidget *mainWindow;
-    GtkWidget *searchTextBox;
-    GtkWidget *searchToggleButton;
-  } GroupDialogData;
 
+/* Utility struct used when comparing sequence names */
 typedef struct _CompareSeqData
   {
     const char *searchStr;
     GList *matchList;
-  } CompareSeqData;
+  } SeqSearchData;
 
 
 /* Local function declarations */
@@ -638,14 +633,36 @@ void showViewPanesDialog(GtkWidget *mainWindow)
  *		      Group sequences menu                 *
  ***********************************************************/
 
+/* Utility to free the given list of  strings and (if the option is true) all
+ * of its data items as well. */
+static void freeStringList(GList *stringList, const gboolean freeDataItems)
+{
+  if (freeDataItems)
+    {
+      GList *item = stringList;
+      for ( ; item; item = item->next)
+	{
+	  char *strData = (char*)(item->data);
+	  g_free(strData);
+	  item->data = NULL;
+	}
+    }
+  
+  g_list_free(stringList);
+}
+
+
 /* Free the memory used by the given sequence group and its members. */
 static void destroySequenceGroup(SequenceGroup *seqGroup)
 {
   if (seqGroup->groupName)
     g_free(seqGroup->groupName);
   
-  if (seqGroup->seqList)
-    g_list_free(seqGroup->seqList);
+  if (seqGroup->seqNameList)
+    {
+      /* Free the list of names (and all its data too, if we own it) */
+      freeStringList(seqGroup->seqNameList, seqGroup->ownsSeqNames);
+    }
   
   g_free(seqGroup);
 }
@@ -659,7 +676,8 @@ static void mainWindowDeleteSequenceGroup(GtkWidget *mainWindow, SequenceGroup *
   if (properties->sequenceGroups)
     {
       properties->sequenceGroups = g_list_remove(properties->sequenceGroups, group);
-    }	 
+      destroySequenceGroup(group);
+    }
   
   /* Refilter the trees (because hidden rows may now be visible again), and redraw */
   callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), refilterTree);
@@ -688,66 +706,53 @@ static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
 }
 
 
-/* Create a new, empty sequence group with a unique ID and name (unique from all
- * others in the given list - does not actually add it to the list though). The result 
- * should be destroyed with destroySequenceGroup. */
-static SequenceGroup* createSequenceGroup(GList *groupList)
+/* Create a new sequence group from the given list of sequence names, with a
+ * unique ID and name, and add it to the mainWindow's list of groups. The group 
+ * should be destroyed with destroySequenceGroup. If ownSeqNames is true, the group
+ * will take ownership of the sequence names and free them when it is destroyed. */
+static void createSequenceGroup(GtkWidget *mainWindow, GList *seqNameList, const gboolean ownSeqNames)
 {
-  /* Create the new group */
-  SequenceGroup *seqGroup = g_malloc(sizeof(SequenceGroup));
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   
-  seqGroup->seqList = NULL;
-  seqGroup->hidden = FALSE;
+  /* Create the new group */
+  SequenceGroup *group = g_malloc(sizeof(SequenceGroup));
+  
+  group->seqNameList = seqNameList;
+  group->ownsSeqNames = ownSeqNames;
+  group->hidden = FALSE;
   
   /* Find a unique ID */
-  GList *lastItem = g_list_last(groupList);
+  GList *lastItem = g_list_last(properties->sequenceGroups);
+  
   if (lastItem)
     {
       SequenceGroup *lastGroup = (SequenceGroup*)(lastItem->data);
-      seqGroup->groupId = lastGroup->groupId + 1;
+      group->groupId = lastGroup->groupId + 1;
     }
   else
     {
-      seqGroup->groupId = 1;
+      group->groupId = 1;
     }
 
   /* Create a default name based on the unique ID */
   char formatStr[] = "Group%d";
-  const int nameLen = strlen(formatStr) + numDigitsInInt(seqGroup->groupId);
-  seqGroup->groupName = g_malloc(nameLen * sizeof(*seqGroup->groupName));
-  sprintf(seqGroup->groupName, formatStr, seqGroup->groupId);
+  const int nameLen = strlen(formatStr) + numDigitsInInt(group->groupId);
+  group->groupName = g_malloc(nameLen * sizeof(*group->groupName));
+  sprintf(group->groupName, formatStr, group->groupId);
 
   /* Set the order number. For simplicity, set the default order to be the same
    * as the ID number, so groups are sorted in the order they were added */
-  seqGroup->order = seqGroup->groupId;
+  group->order = group->groupId;
 
   /* Set the default highlight colour. */
-  seqGroup->highlighted = TRUE;
-  seqGroup->highlightColour = getGdkColor(GDK_RED);
+  group->highlighted = TRUE;
+  group->highlightColour = getGdkColor(GDK_RED);
 
-  return seqGroup;
-}
+  properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
 
-
-/* Make a group from the currently selection. Does nothing except give a warning
- * if no sequences are currently selected. */
-static void makeGroupFromSelection(GtkWidget *mainWindow)
-{
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  
-  if (g_list_length(properties->selectedSeqs) > 0)
-    {
-      /* Create the group */
-      SequenceGroup *seqGroup = createSequenceGroup(properties->sequenceGroups);
-      seqGroup->seqList = g_list_copy(properties->selectedSeqs);
-      
-      /* Add it to the list of groups */
-      properties->sequenceGroups = g_list_append(properties->sequenceGroups, seqGroup);
-    }
-  else
-    {
-      messout("Warning: cannot create group; no sequences are currently selected");
-    }
+  /* Re-sort all trees, because grouping affects sort order */
+  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), resortTree);
+  mainWindowRedrawAll(mainWindow);
 }
 
 
@@ -899,15 +904,34 @@ static void createEditGroupWidget(SequenceGroup *group, GtkTable *table, const i
 }
 
 
+/* Utility function to extract the short sequence name from a long name (of the
+ * form LL:LLdddddd.d, where L means letter and d means digit). The result is a
+ * pointer into the original string, so should not be free'd. */
+static const char* getShortSeqName(const char *longName)
+{
+  /* Ignore the text before the colon */
+  char *cutPoint = strchr(longName, ':');
+
+  if (cutPoint)
+    ++cutPoint;
+  
+  const char *result = cutPoint ? cutPoint : longName;
+  
+  return result;
+}
+
+
 /* Called for each entry in a hash table. Compares the key of the table, which is
  * a sequence name, to the search string given in the user data. If it matches, it
  * appends the sequence name to the result list in the user data. */
 static void getSequencesThatMatch(gpointer key, gpointer value, gpointer data)
 {
-  CompareSeqData *searchData = (CompareSeqData*)data;
+  SeqSearchData *searchData = (SeqSearchData*)data;
   char *seqName = (char *)(key);
   
-  if (wildcardSearch(seqName, searchData->searchStr))
+  /* Cut both down to the short versions of the name, in case one is the short
+   * version and the other one isn't. */
+  if (wildcardSearch(getShortSeqName(seqName), getShortSeqName(searchData->searchStr)))
     {
       searchData->matchList = g_list_append(searchData->matchList, seqName);
     }
@@ -923,7 +947,17 @@ static void addGroupFromSelection(GtkWidget *button, gpointer data)
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
       GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      makeGroupFromSelection(mainWindow);
+      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      
+      if (g_list_length(properties->selectedSeqs) > 0)
+	{
+	  GList *list = g_list_copy(properties->selectedSeqs); /* group takes ownership of this */
+	  createSequenceGroup(mainWindow, list, FALSE);
+	}
+      else
+	{
+	  messout("Warning: cannot create group; no sequences are currently selected");
+	}
     }
 }
 
@@ -955,25 +989,41 @@ static void addGroupFromName(GtkWidget *button, gpointer data)
 
   /* Loop through all the sequences and see if the name matches the search string */
   GHashTable *seqTable = detailViewGetSeqTable(detailView);
-  CompareSeqData searchData = {searchStr, NULL};
+  SeqSearchData searchData = {searchStr, NULL};
 
   g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
   
   /* If we found anything, create a group */
   if (g_list_length(searchData.matchList) > 0)
     {
-      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-      SequenceGroup *group = createSequenceGroup(properties->sequenceGroups);
-      group->seqList = searchData.matchList;
-      properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
-
-      /* Re-sort the trees, because the group ordering has changed, which may affect the sort order */
-      callFuncOnAllDetailViewTrees(detailView, resortTree);
+      createSequenceGroup(mainWindow, searchData.matchList, FALSE);
     }
   else
     {
-      messout("No sequences found");
+      messout("No sequences found matching text %s", searchStr);
     }
+}
+
+
+/* Utility function to take a list of names, and return a list of those that
+ * that are valid sequence names existing in the current blixem session. */
+static GList* getValidSeqsFromList(GtkWidget *mainWindow, GList *inputList)
+{
+  SeqSearchData searchData = {NULL, NULL};
+  
+  GHashTable *seqTable = detailViewGetSeqTable(mainWindowGetDetailView(mainWindow));
+
+  /* Loop through all the names in the input list */
+  GList *listItem = inputList;
+  for ( ; listItem; listItem = listItem->next)
+    {
+      /* Compare this name to all names in the sequence table. If it matches,
+       * this adds it to the result list. */
+      searchData.searchStr = (const char*)(listItem->data);
+      g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
+    }
+    
+  return searchData.matchList;
 }
 
 
@@ -986,7 +1036,7 @@ static void addGroupFromList(GtkWidget *button, gpointer data)
       return;
     }
   
-  /* The text entry box was passed as the user data */
+  /* The text entry box was passed as the user data. We should have a (multi-line) text view */
   GtkTextView *textView = GTK_TEXT_VIEW(data);
   
   if (!textView || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(textView)))
@@ -995,7 +1045,33 @@ static void addGroupFromList(GtkWidget *button, gpointer data)
       return;
     }
   
-  /* to do: finish this */
+  /* Parse the input text to get a list of sequence names */
+  GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(textView);
+  
+  GtkTextIter start, end;
+  gtk_text_buffer_get_bounds(textBuffer, &start, &end);
+  const char *inputText = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
+  
+  GList *nameList = parseMatchList(inputText);
+  
+  /* Extract the entries from the list that are sequences that blixem knows about */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  
+  GList *seqNameList = getValidSeqsFromList(mainWindow, nameList);
+  
+  /* Must free the original name list and all its data. */
+  freeStringList(nameList, TRUE);
+  
+  /* Create a group from the list of names */
+  if (g_list_length(seqNameList) > 0)
+    {
+      createSequenceGroup(mainWindow, seqNameList, FALSE);
+    }
+  else
+    {
+      messout("No valid sequence names found");
+    }
 }
 
 
@@ -1037,12 +1113,9 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
     {
       mainWindowDeleteSequenceGroup(mainWindow, group);
       
-      /* Refresh the dialog by closing and re-opening. Only re-open if there are groups left. */
+      /* Refresh the dialog by closing and re-opening. (Not ideal because it doesn't remember the position) */
       gtk_widget_destroy(GTK_WIDGET(dialogWindow));
-      if (g_list_length(mainWindowGetSequenceGroups(mainWindow)) > 0)
-	{
-	  showGroupSequencesDialog(mainWindow, TRUE);
-	}
+      showGroupSequencesDialog(mainWindow, TRUE);
     }
 }
 
@@ -1057,8 +1130,26 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
   if (otherWidget)
     {
       const gboolean isActive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-      gtk_widget_set_sensitive(otherWidget, isActive); 
+      //      gtk_widget_set_sensitive(otherWidget, isActive); 
+      
+      if (isActive)
+	{
+	  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+	  GtkWindow *mainWin = gtk_window_get_transient_for(dialogWindow);
+
+	  gtk_window_set_focus(mainWin, otherWidget);
+	}
     }
+}
+
+
+/* Callback when a text entry box in the groups dialog is clicked (for text that
+ * is associated with a radio button). Clicking the text box activates its radio button */
+static gboolean onRadioButtonTextClicked(GtkWidget *textWidget, GdkEventButton *event, gpointer data)
+{
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(data), TRUE);
+  
+  return FALSE;
 }
 
 
@@ -1112,10 +1203,17 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 
   if (entry)
     {
-      gtk_widget_set_sensitive(entry, isActive);
-      
-      /* Add a callback to enable/disable the text entry widget when the button is toggled */
+      /* to do: don't want to set insensitive because want to receive clicks on text
+       * box to activate it; however, it would be good to grey out the background */
+//      gtk_widget_set_sensitive(entry, isActive);
+
+      if (isActive)
+	{
+	  gtk_window_set_focus(GTK_WINDOW(mainWindow), entry);
+	}
+
       g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onRadioButtonToggled), entry);
+      g_signal_connect(G_OBJECT(entry), "button-press-event", G_CALLBACK(onRadioButtonTextClicked), button);
     }
 
   /* Add the callback data. This specifies what callback to use when the dialog is ok'd. */
@@ -1148,26 +1246,32 @@ static gboolean onSwitchPageGroupsDialog(GtkNotebook *notebook, GtkNotebookPage 
 /* Callback called when user responds to groups dialog */
 void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
-  gboolean destroy = TRUE;
+  gboolean destroy = FALSE;
+  gboolean refresh = FALSE;
   
   /* If a notebook was passed, only call callbacks for widgets in the active tab */
   GtkNotebook *notebook = GTK_NOTEBOOK(data);
-  GtkWidget *currentPage = gtk_notebook_get_nth_page(notebook, gtk_notebook_get_current_page(notebook));
+  guint pageNo = gtk_notebook_get_current_page(notebook);
+  GtkWidget *page = gtk_notebook_get_nth_page(notebook, pageNo);
   
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
-      widgetCallAllCallbacks(currentPage, NULL);
+      widgetCallAllCallbacks(page, NULL);
       destroy = TRUE;
+      refresh = FALSE;
       break;
 
     case GTK_RESPONSE_APPLY:
-      widgetCallAllCallbacks(currentPage, NULL);
+      widgetCallAllCallbacks(page, NULL);
       destroy = FALSE;
+      refresh = (pageNo == 0); /* if created a new group, Edit Groups section must be refreshed */
       break;
       
     case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
       destroy = TRUE;
+      refresh = FALSE;
       break;
       
     default:
@@ -1178,7 +1282,7 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
     {
       gtk_widget_destroy(GTK_WIDGET(dialog));
     }
-  else
+  else if (refresh)
     {
       /* Re-create the dialog, opening it on the Edit Groups page */
       GtkWindow *dialogWindow = GTK_WINDOW(dialog);
@@ -1615,12 +1719,21 @@ Alignments can be grouped together so that they can be sorted/highlighted/hidden
 Creating a group from a selection:\n\
 	•	Select the sequences you wish to include in the group by left-clicking their rows in the detail view.  Multiple rows can be selected by holding the CTRL or SHIFT keys while clicking.\n\
 	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Note that CTRL-G will also shortcut to here if no groups currently exist.)\n\
-	•	Ensure that the 'From selection' radio button is selected, and click 'Create group'.\n\
+	•	Ensure that the 'From selection' radio button is selected, and click 'OK'.\n\
 \n\
 Creating a group from a sequence name:\n\
 	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Or CTRL-G if no groups currently exist.)\n\
-	•	Select the 'From sequence name(s)' radio button and enter the name of the sequence in the box below.  You may use the following wildcards to search for sequences: '*' for any number of characters; '?' for a single character.  For example, searching for '*X' will find all sequences whose name ends in 'X' (i.e. all exons).\n\
-	•	Click 'Create group'.\n\
+	•	Select the 'From name' radio button and enter the name of the sequence in the box below.  You may use the following wildcards to search for sequences: '*' for any number of characters; '?' for a single character.  For example, searching for '*X' will find all sequences whose name ends in 'X' (i.e. all exons).\n\
+	•	Click 'OK'.\n\
+\n\
+Creating a group from sequence name(s):\n\
+	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Or CTRL-G if no groups currently exist.)\n\
+	•	Select the 'From name(s)' radio button.\n\
+        •       Enter the sequence name(s) in the text box.\n\
+        •       You may use the following wildcards in a sequence name: '*' for any number of characters; '?' for a single character.  (For example, searching for '*X' will find all sequences whose name ends in 'X', i.e. all exons).\n\
+        •       You may search for multiple sequence names by separating them with the following delimiters: newline, comma or semi-colon.\n\
+        •       You may paste sequence names directly from ZMap: click on the feature in ZMap and then middle-click in the text box on the Groups dialog.  Grouping in Blixem works on the sequence name alone, so the feature coords will be ignored.\n\
+	•	Click 'OK'.\n\
 \n\
 Editing groups:\n\
 To edit a group, right-click and select 'Edit Groups', or use the CTRL-G shortcut key. You can change the following properties for a group:\n\
@@ -2231,7 +2344,7 @@ SequenceGroup *mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seq
     {
       /* Loop through all sequences in the group and compare the name */
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      GList *seqItem = group->seqList;
+      GList *seqItem = group->seqNameList;
       
       for ( ; seqItem; seqItem = seqItem->next)
 	{
@@ -2260,7 +2373,7 @@ GList* mainWindowGetSelectedSeqs(GtkWidget *mainWindow)
 
 
 /* Get the selected sequences as a list of sequence names. The returned list
- * is formatted as comma-separated values. */
+ * is formatted as newline-separated values. */
 static GString* mainWindowGetSelectedSeqNames(GtkWidget *mainWindow)
 {
   GList *listItem = mainWindowGetSelectedSeqs(mainWindow);
@@ -2272,7 +2385,7 @@ static GString* mainWindowGetSelectedSeqNames(GtkWidget *mainWindow)
       /* Add a separator before the name, unless it's the first one */
       if (!first)
 	{
-	  g_string_append(result, ", ");
+	  g_string_append(result, "\n");
 	}
       else
 	{
@@ -2318,16 +2431,10 @@ void mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTree
   callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
   gtk_widget_queue_draw(bigPicture);
   
-  /* Copy the selected sequence names to the "PRIMARY" clipboard, as per common
-   * behaviour for X. (Not applicable for Windows.) */
-#ifndef __CYGWIN__
-  
-  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_PRIMARY);
+  /* Copy the selected sequence names to the PRIMARY clipboard */
   GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
-  gtk_clipboard_set_text(clipboard, displayText->str, -1);
+  setPrimaryClipboardText(displayText->str);
   g_string_free(displayText, TRUE);
-  
-#endif
 }
 
 

@@ -718,6 +718,157 @@ int convertStringToInt(const char *inputStr)
 }
 
 
+/***********************************************************
+ *			   Dialogs			   *
+ ***********************************************************/
+
+/* Utility to pop up a simple dialog with the given title and text, with just an "OK" button. */
+void showMessageDialog(const char *title,  
+		       const char *messageText,
+		       GtkWidget *parent,
+		       const int initWidth,
+		       const int maxHeight,
+		       const gboolean wrapText,
+		       PangoFontDescription *fontDesc)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
+						  GTK_WINDOW(parent), 
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  /* Create the text buffer and copy the text in */
+  GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
+  gtk_text_buffer_set_text(textBuffer, messageText, -1);
+  
+  /* Create a text view to display the buffer */
+  GtkWidget *textView = gtk_text_view_new();
+  gtk_text_view_set_buffer(GTK_TEXT_VIEW(textView), textBuffer);
+  gtk_text_view_set_editable(GTK_TEXT_VIEW(textView), FALSE);
+  gtk_widget_modify_font(textView, fontDesc);
+  
+  if (wrapText)
+    {
+      gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), TRUE);
+    }
+  
+  
+  /* Put the text view in a scrollable window, and add it to the dialog */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
+  
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+  gtk_box_pack_start(GTK_BOX(contentArea), scrollWin, TRUE, TRUE, 0);
+  
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  
+  /* Set the initial height based on the number of lines (but don't make it bigger than the parent window) */
+  PangoContext *context = gtk_widget_get_pango_context(textView);
+  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
+  
+  int initHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight) + 100; /* fudge to allow space for buttons */
+  initHeight = min(maxHeight, initHeight);
+  gtk_window_set_default_size(GTK_WINDOW(dialog), initWidth, initHeight);
+  
+  pango_font_metrics_unref(metrics);
+
+  /* Ensure dialog is destroyed when user responds */
+  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
+  
+  gtk_widget_show_all(dialog);
+}
+
+
+/* Get/set a CallbackData struct for this widget */
+static CallbackData* widgetGetCallbackData(GtkWidget *widget)
+{
+  return widget ? (CallbackData*)(g_object_get_data(G_OBJECT(widget), "callbackData")) : NULL;
+}
+
+
+/* Set callback function and user-data for the given widget */
+void widgetSetCallbackData(GtkWidget *widget, GtkCallback func, gpointer data)
+{
+  if (widget)
+    { 
+      CallbackData *callbackData = g_malloc(sizeof *callbackData);
+      callbackData->func = func;
+      callbackData->data = data;
+      
+      g_object_set_data(G_OBJECT(widget), "callbackData", callbackData);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCustomWidget), NULL);
+    }
+}
+
+/* Get the CallbackData struct for this widget, if it has one, and call it. */
+void widgetCallCallback(GtkWidget *widget)
+{
+  CallbackData *callbackData = widgetGetCallbackData(widget);
+  
+  if (callbackData && callbackData->func)
+    {
+      callbackData->func(widget, callbackData->data);
+    }
+}
+
+/* Call the stored CallbackData callbacks (if any exist) for this widget and
+ * all of its children. */
+void widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
+{
+  if (widget && GTK_IS_WIDGET(widget))
+    {
+      widgetCallCallback(widget);
+  
+      if (GTK_IS_CONTAINER(widget))
+	{
+	  gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, NULL);
+	}
+    }
+}
+
+/* Generic callback to call all user-specified callbacks for all child widgets of
+ * the given dialog if ACCEPT or APPLY responses received. Also closes the dialog 
+ * if ACCEPT or REJECT responses received. */
+void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      destroy = TRUE;
+      break;
+      
+    case GTK_RESPONSE_APPLY:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      destroy = FALSE;
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
+}
+
+
+/***********************************************************
+ *			   Text parsing                    *
+ ***********************************************************/
 
 /* match to template with wildcards.   Authorized wildchars are * ? #
      ? represents any single char
@@ -880,146 +1031,141 @@ gchar *abbreviateText(const char *inputStr, const int max_len)
 }
 
 
-/* Utility to pop up a simple dialog with the given title and text, with just an "OK" button. */
-void showMessageDialog(const char *title,  
-		       const char *messageText,
-		       GtkWidget *parent,
-		       const int initWidth,
-		       const int maxHeight,
-		       const gboolean wrapText,
-		       PangoFontDescription *fontDesc)
+/* Parses a line of text containing a match description, which is of the form:
+ * 
+ *                       "\"name\" start end (length)"
+ * or:			 "name start end (length)"
+ *
+ * Returns the number of valid fields that were found.
+ * 
+ * We could verify "name" more but it's probably not worth it - in fact, being
+ * more flexible here allows us to use wildcards, because we can verify it 
+ * with wildcard matching later.
+ */
+int parseMatchLine(const char *inputText,
+		   char **matchNameOut,
+		   int *matchStartOut, 
+		   int *matchEndOut, 
+		   int *matchLenOut)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-						  GTK_WINDOW(parent), 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
+  char sequence_name[1000] = {'\0'};
+  int start = 0, end = 0, length = 0;
+  char *format_str = "\"%[^\"]\"%d%d (%d)";
+
+  int fields = sscanf(inputText, format_str, &sequence_name[0], &start, &end, &length);
   
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
-  /* Create the text buffer and copy the text in */
-  GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
-  gtk_text_buffer_set_text(textBuffer, messageText, -1);
-  
-  /* Create a text view to display the buffer */
-  GtkWidget *textView = gtk_text_view_new();
-  gtk_text_view_set_buffer(GTK_TEXT_VIEW(textView), textBuffer);
-  gtk_text_view_set_editable(GTK_TEXT_VIEW(textView), FALSE);
-  gtk_widget_modify_font(textView, fontDesc);
-  
-  if (wrapText)
+  if (fields < 1)
     {
-      gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), TRUE);
+      /* Try again but without the quotes */
+      format_str = "%[^\"]%d%d (%d)";
+      fields = sscanf(inputText, format_str, &sequence_name[0], &start, &end, &length);
     }
   
-  
-  /* Put the text view in a scrollable window, and add it to the dialog */
-  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
-  
-  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
-  gtk_box_pack_start(GTK_BOX(contentArea), scrollWin, TRUE, TRUE, 0);
-  
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  
-  /* Set the initial height based on the number of lines (but don't make it bigger than the parent window) */
-  PangoContext *context = gtk_widget_get_pango_context(textView);
-  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  
-  int initHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight) + 100; /* fudge to allow space for buttons */
-  initHeight = min(maxHeight, initHeight);
-  gtk_window_set_default_size(GTK_WINDOW(dialog), initWidth, initHeight);
-  
-  pango_font_metrics_unref(metrics);
+  gboolean foundError = (fields < 1);
+  int validFields = 0;
 
-  /* Ensure dialog is destroyed when user responds */
-  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
-  
-  gtk_widget_show_all(dialog);
-}
-
-
-/* Get/set a CallbackData struct for this widget */
-static CallbackData* widgetGetCallbackData(GtkWidget *widget)
-{
-  return widget ? (CallbackData*)(g_object_get_data(G_OBJECT(widget), "callbackData")) : NULL;
-}
-
-
-/* Set callback function and user-data for the given widget */
-void widgetSetCallbackData(GtkWidget *widget, GtkCallback func, gpointer data)
-{
-  if (widget)
-    { 
-      CallbackData *callbackData = g_malloc(sizeof *callbackData);
-      callbackData->func = func;
-      callbackData->data = data;
+  if (fields > 0)
+    {
+      *matchNameOut = g_strdup(sequence_name);
+      foundError = (sequence_name == NULL);
       
-      g_object_set_data(G_OBJECT(widget), "callbackData", callbackData);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCustomWidget), NULL);
+      if (!foundError)
+	++validFields;
     }
+    
+  if (fields > 1)
+    {
+      *matchStartOut = start;
+      foundError = (start < 1);
+      
+      if (!foundError)
+	++validFields;
+    }
+
+  if (fields > 2)
+    {
+      *matchEndOut = end;
+      foundError = (start >= end);
+      
+      if (!foundError)
+	++validFields;
+    }
+
+  if (fields > 3)
+    {
+      *matchLenOut = length;
+      foundError = (length < 1);
+      
+      if (!foundError)
+	++validFields;
+    }
+
+  return fields;
 }
 
-/* Get the CallbackData struct for this widget, if it has one, and call it. */
-void widgetCallCallback(GtkWidget *widget)
-{
-  CallbackData *callbackData = widgetGetCallbackData(widget);
-  
-  if (callbackData && callbackData->func)
-    {
-      callbackData->func(widget, callbackData->data);
-    }
-}
 
-/* Call the stored CallbackData callbacks (if any exist) for this widget and
- * all of its children. */
-void widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
+/* Parse a list of matches using parseMatchLine(), and extract the names. Returns
+ * a GList of sequence names. Both the list and all its entries should be free'd 
+ * by the caller. */
+GList* parseMatchList(const char *inputText)
 {
-  if (widget && GTK_IS_WIDGET(widget))
+  GList *matchList = NULL ;
+
+  /* Split the input text into separate strings based on the following delimiters: */
+  char *delimiters = "\n,;";
+  char **tokens = g_strsplit_set(inputText, delimiters, -1);   /* -1 means do all tokens. */
+
+  if (tokens)
     {
-      widgetCallCallback(widget);
-  
-      if (GTK_IS_CONTAINER(widget))
+      char *match = *tokens;
+
+      while (tokens && match)
 	{
-	  gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, NULL);
+	  char *match_name ;
+	  int start = 0, end = 0, length = 0 ;
+
+	  if (parseMatchLine(match, &match_name, &start, &end, &length) > 0)
+	    {
+	      matchList = g_list_append(matchList, match_name);
+	    }
+
+	  tokens++ ;
+	  match = *tokens ? *tokens : 0; /* token may be empty string if two delimiters next to each other */
 	}
     }
+
+//  g_strfreev(tokens);
+
+  return matchList ;
 }
 
-/* Generic callback to call all user-specified callbacks for all child widgets of
- * the given dialog if ACCEPT or APPLY responses received. Also closes the dialog 
- * if ACCEPT or REJECT responses received. */
-void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
+
+/* Request the text in the PRIMARY clipboard and pass it to the given callback function */
+void requestPrimaryClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data)
 {
-  gboolean destroy = TRUE;
+#ifndef __CYGWIN__  /* Not applicable for Windows */
+
+  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_PRIMARY);
+  gtk_clipboard_request_text(clipboard, callback, data);
   
-  
-  switch (responseId)
-  {
-    case GTK_RESPONSE_ACCEPT:
-      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
-      destroy = TRUE;
-      break;
-      
-    case GTK_RESPONSE_APPLY:
-      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
-      destroy = FALSE;
-      break;
-      
-    case GTK_RESPONSE_CANCEL:
-      destroy = TRUE;
-      break;
-      
-    default:
-      break;
-  };
-  
-  if (destroy)
-    {
-      gtk_widget_destroy(GTK_WIDGET(dialog));
-    }
+#endif
 }
+
+
+/* Set the text in the PRIMARY clipboard */
+void setPrimaryClipboardText(const char *text)
+{
+#ifndef __CYGWIN__   /* Not applicable for Windows */
+
+  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_PRIMARY);
+  gtk_clipboard_set_text(clipboard, text, -1);
+  
+#endif
+}
+
+
+
+
+
 
 
