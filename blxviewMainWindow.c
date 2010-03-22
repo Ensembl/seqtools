@@ -36,6 +36,7 @@ static void			  onSettingsMenu(GtkAction *action, gpointer data);
 static void			  onViewMenu(GtkAction *action, gpointer data);
 static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
 static void			  onEditGroupsMenu(GtkAction *action, gpointer data);
+static void			  onToggleMatchSet(GtkAction *action, gpointer data);
 static void			  onDotterMenu(GtkAction *action, gpointer data);
 static void			  onSelectFeaturesMenu(GtkAction *action, gpointer data);
 static void			  onDeselectAllRows(GtkAction *action, gpointer data);
@@ -51,24 +52,26 @@ static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  copySelectionToClipboard(GtkWidget *mainWindow);
+static void			  mainWindowGroupsChanged(GtkWidget *mainWindow);
 
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",	      "<control>Q",	    "Quit the program",		  gtk_main_quit},
-  { "Help",		NULL, "_Help\t\t\t\tCtrl-H",	      "<control>H",	    "Display Blixem help",	  G_CALLBACK(onHelpMenu)},
-  { "Print",		NULL, "_Print\t\t\t\tCtrl-P",	      "<control>P",	    "Print",			  G_CALLBACK(onPrintMenu)},
-  { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",      "<control>S",	    "Edit Blixem settings",	  G_CALLBACK(onSettingsMenu)},
+  { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    gtk_main_quit},
+  { "Help",		NULL, "_Help\t\t\t\tCtrl-H",		  "<control>H",		"Display Blixem help",		    G_CALLBACK(onHelpMenu)},
+  { "Print",		NULL, "_Print\t\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
+  { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	  "<control>S",		"Edit Blixem settings",		    G_CALLBACK(onSettingsMenu)},
 
-  { "View",		NULL, "_View\t\t\t\tCtrl-V",		  "<control>V",	    "Edit view settings",	  G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",	  "<shift><control>G",  "Group sequences together",	  G_CALLBACK(onCreateGroupMenu)},
-  { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	  "<control>G",	 "Groups",			  G_CALLBACK(onEditGroupsMenu)},
-  { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<shift><control>A", "Deselect all",		  G_CALLBACK(onDeselectAllRows)},
+  { "View",		NULL, "_View\t\t\t\tV",			  "V",			"Edit view settings",		    G_CALLBACK(onViewMenu)},
+  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",	  "<shift><control>G",  "Group sequences together",	    G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	  "<control>G",		"Groups",			    G_CALLBACK(onEditGroupsMenu)},
+  { "ToggleMatchSet",	NULL, "Toggle _match set\t\tM",		  "M",			"Create/clear the match set group", G_CALLBACK(onToggleMatchSet)},
+  { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<shift><control>A",	"Deselect all",			    G_CALLBACK(onDeselectAllRows)},
 
-  { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		      "<control>D",	 "Start Dotter",	  G_CALLBACK(onDotterMenu)},
-  { "SelectFeatures",	NULL, "Feature series selection tool",	NULL, "Feature series selection tool",		  G_CALLBACK(onSelectFeaturesMenu)},
+  { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		  "<control>D",		"Start Dotter",			    G_CALLBACK(onDotterMenu)},
+  { "SelectFeatures",	NULL, "Feature series selection tool",	  NULL,			"Feature series selection tool",    G_CALLBACK(onSelectFeaturesMenu)},
 
-  { "Statistics",	NULL, "Statistics",   NULL,		      "Show memory statistics",			  G_CALLBACK(onStatisticsMenu)}
+  { "Statistics",	NULL, "Statistics",   NULL,					"Show memory statistics",	    G_CALLBACK(onStatisticsMenu)}
 };
 
 
@@ -84,6 +87,7 @@ static const char *standardMenuDescription =
 "      <menuitem action='View'/>"
 "      <menuitem action='CreateGroup'/>"
 "      <menuitem action='EditGroups'/>"
+"      <menuitem action='ToggleMatchSet'/>"
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
@@ -104,6 +108,7 @@ static const char *developerMenuDescription =
 "      <menuitem action='View'/>"
 "      <menuitem action='CreateGroup'/>"
 "      <menuitem action='EditGroups'/>"
+"      <menuitem action='ToggleMatchSet'/>"
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
@@ -435,6 +440,34 @@ static GtkWidget* createHBoxWithBorder(GtkWidget *parent, const int borderWidth)
 }
 
 
+/* Utility to return true if any groups exist. Ignores the 'match set' group
+ * if it doesn't have any sequences. */
+static gboolean mainWindowGroupsExist(GtkWidget *mainWindow)
+{
+  gboolean result = FALSE;
+  
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  GList *groupList = properties->sequenceGroups;
+  
+  if (g_list_length(groupList) > 1)
+    {
+      result = TRUE;
+    }
+  else if (g_list_length(groupList) == 1)
+    {
+      /* Only one group. If it's the match set group, check it has sequences */
+      SequenceGroup *group = (SequenceGroup*)(groupList->data);
+      
+      if (group != properties->matchSetGroup || g_list_length(group->seqNameList) > 0)
+	{
+	  result = TRUE;
+	}
+    }
+  
+  return result;
+}
+
+
 /***********************************************************
  *			   View panes menu                 *
  ***********************************************************/
@@ -635,36 +668,57 @@ void showViewPanesDialog(GtkWidget *mainWindow)
 
 /* Utility to free the given list of  strings and (if the option is true) all
  * of its data items as well. */
-static void freeStringList(GList *stringList, const gboolean freeDataItems)
+static void freeStringList(GList **stringList, const gboolean freeDataItems)
 {
-  if (freeDataItems)
+  if (stringList && *stringList)
     {
-      GList *item = stringList;
-      for ( ; item; item = item->next)
+      if (freeDataItems)
 	{
-	  char *strData = (char*)(item->data);
-	  g_free(strData);
-	  item->data = NULL;
+	  GList *item = *stringList;
+	  for ( ; item; item = item->next)
+	    {
+	      char *strData = (char*)(item->data);
+	      g_free(strData);
+	      item->data = NULL;
+	    }
 	}
+      
+      g_list_free(*stringList);
+      *stringList = NULL;
     }
-  
-  g_list_free(stringList);
 }
 
 
 /* Free the memory used by the given sequence group and its members. */
-static void destroySequenceGroup(SequenceGroup *seqGroup)
+static void destroySequenceGroup(GtkWidget *mainWindow, SequenceGroup **seqGroup)
 {
-  if (seqGroup->groupName)
-    g_free(seqGroup->groupName);
-  
-  if (seqGroup->seqNameList)
+  if (seqGroup && *seqGroup)
     {
-      /* Free the list of names (and all its data too, if we own it) */
-      freeStringList(seqGroup->seqNameList, seqGroup->ownsSeqNames);
+      /* Remove it from the main window's list of groups */
+      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      properties->sequenceGroups = g_list_remove(properties->sequenceGroups, *seqGroup);
+      
+      /* If this is pointed to by the match-set pointer, null it */
+      if (*seqGroup == properties->matchSetGroup)
+	{
+	  properties->matchSetGroup = NULL;
+	}
+      
+      /* Free the memory used by the group name */
+      if ((*seqGroup)->groupName)
+	{
+	  g_free((*seqGroup)->groupName);
+	}
+      
+      /* Free the list of names (and the names themselves too, if we own them) */
+      if ((*seqGroup)->seqNameList)
+	{
+	  freeStringList(&(*seqGroup)->seqNameList, (*seqGroup)->ownsSeqNames);
+	}
+      
+      g_free(*seqGroup);
+      *seqGroup = NULL;
     }
-  
-  g_free(seqGroup);
 }
 
 
@@ -675,13 +729,9 @@ static void mainWindowDeleteSequenceGroup(GtkWidget *mainWindow, SequenceGroup *
   
   if (properties->sequenceGroups)
     {
-      properties->sequenceGroups = g_list_remove(properties->sequenceGroups, group);
-      destroySequenceGroup(group);
+      destroySequenceGroup(mainWindow, &group);
+      mainWindowGroupsChanged(mainWindow);
     }
-  
-  /* Refilter the trees (because hidden rows may now be visible again), and redraw */
-  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), refilterTree);
-  mainWindowRedrawAll(mainWindow);
 }
 
 
@@ -694,14 +744,27 @@ static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      destroySequenceGroup(group);
+      destroySequenceGroup(mainWindow, &group);
     }
   
   g_list_free(properties->sequenceGroups);
   properties->sequenceGroups = NULL;
   
-  /* Refilter the trees (because hidden rows may now be visible again), and redraw */
+  mainWindowGroupsChanged(mainWindow);
+}
+
+
+/* Update function to be called whenever groups have been added or deleted,
+ * or sequences have been added to or removed from a group */
+static void mainWindowGroupsChanged(GtkWidget *mainWindow)
+{
+  /* Re-sort all trees, because grouping affects sort order */
+  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), resortTree);
+  
+  /* Refilter the trees (because groups affect whether sequences are visible) */
   callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), refilterTree);
+
+  /* Redraw all (because highlighting affects both big picture and detail view) */
   mainWindowRedrawAll(mainWindow);
 }
 
@@ -709,8 +772,10 @@ static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
 /* Create a new sequence group from the given list of sequence names, with a
  * unique ID and name, and add it to the mainWindow's list of groups. The group 
  * should be destroyed with destroySequenceGroup. If ownSeqNames is true, the group
- * will take ownership of the sequence names and free them when it is destroyed. */
-static void createSequenceGroup(GtkWidget *mainWindow, GList *seqNameList, const gboolean ownSeqNames)
+ * will take ownership of the sequence names and free them when it is destroyed. 
+ * Caller can optionally provide the group name; if not provided, a default name
+ * will be allocated. */
+static SequenceGroup* createSequenceGroup(GtkWidget *mainWindow, GList *seqNameList, const gboolean ownSeqNames, const char *groupName)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   
@@ -734,12 +799,19 @@ static void createSequenceGroup(GtkWidget *mainWindow, GList *seqNameList, const
       group->groupId = 1;
     }
 
-  /* Create a default name based on the unique ID */
-  char formatStr[] = "Group%d";
-  const int nameLen = strlen(formatStr) + numDigitsInInt(group->groupId);
-  group->groupName = g_malloc(nameLen * sizeof(*group->groupName));
-  sprintf(group->groupName, formatStr, group->groupId);
-
+  if (groupName)
+    {
+      group->groupName = g_strdup(groupName);
+    }
+  else
+    {
+      /* Create a default name based on the unique ID */
+      char formatStr[] = "Group%d";
+      const int nameLen = strlen(formatStr) + numDigitsInInt(group->groupId);
+      group->groupName = g_malloc(nameLen * sizeof(*group->groupName));
+      sprintf(group->groupName, formatStr, group->groupId);
+    }
+  
   /* Set the order number. For simplicity, set the default order to be the same
    * as the ID number, so groups are sorted in the order they were added */
   group->order = group->groupId;
@@ -750,9 +822,9 @@ static void createSequenceGroup(GtkWidget *mainWindow, GList *seqNameList, const
 
   properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
 
-  /* Re-sort all trees, because grouping affects sort order */
-  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), resortTree);
-  mainWindowRedrawAll(mainWindow);
+  mainWindowGroupsChanged(mainWindow);
+  
+  return group;
 }
 
 
@@ -801,10 +873,8 @@ static void onGroupOrderChanged(GtkWidget *widget, gpointer data)
       
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
       GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-      
-      /* Re-sort the trees and re-draw */
-      callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), resortTree);
-      mainWindowRedrawAll(mainWindow);
+
+      mainWindowGroupsChanged(mainWindow);
     }
 }
 
@@ -819,8 +889,8 @@ static void onGroupHiddenToggled(GtkWidget *button, gpointer data)
   /* Refilter trees and redraw all immediately show the new status */
   GtkWidget *dialog = gtk_widget_get_toplevel(button);
   GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
-  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), refilterTree);
-  mainWindowRedrawAll(mainWindow);
+
+  mainWindowGroupsChanged(mainWindow);
 }
 
 
@@ -836,6 +906,7 @@ static void onGroupHighlightedToggled(GtkWidget *button, gpointer data)
    * parent of the dialog. */
   GtkWidget *dialog = gtk_widget_get_toplevel(button);
   GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+  
   mainWindowRedrawAll(mainWindow);
 }
 
@@ -857,50 +928,56 @@ static void onGroupColourChanged(GtkWidget *button, gpointer data)
 /* This function creates a widget that allows the user to edit the group
  * pointed to by the given list item, and adds it to the table container
  * widget at the given row. */
-static void createEditGroupWidget(SequenceGroup *group, GtkTable *table, const int row, const int xpad, const int ypad)
+static void createEditGroupWidget(GtkWidget *mainWindow, SequenceGroup *group, GtkTable *table, const int row, const int xpad, const int ypad)
 {
-  /* Show the group's name in a text box that the user can edit */
-  GtkWidget *nameWidget = gtk_entry_new();
-  gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
-  gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
-  widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   
-  /* Add a check box for the 'hidden' flag */
-  GtkWidget *isHiddenWidget = gtk_check_button_new();
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
-  widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
+  /* Only show the special 'match set' group if it has some sequences */
+  if (group != properties->matchSetGroup || g_list_length(group->seqNameList) > 0)
+    {
+      /* Show the group's name in a text box that the user can edit */
+      GtkWidget *nameWidget = gtk_entry_new();
+      gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
+      gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
+      widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
+      
+      /* Add a check box for the 'hidden' flag */
+      GtkWidget *isHiddenWidget = gtk_check_button_new();
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
+      widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
 
-  /* Add a check box for the 'highlighted' flag */
-  GtkWidget *isHighlightedWidget = gtk_check_button_new();
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
-  widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
-  
-  /* Show the group's order number in an editable text box */
-  GtkWidget *orderWidget = gtk_entry_new();
+      /* Add a check box for the 'highlighted' flag */
+      GtkWidget *isHighlightedWidget = gtk_check_button_new();
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
+      widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
+      
+      /* Show the group's order number in an editable text box */
+      GtkWidget *orderWidget = gtk_entry_new();
 
-  char *orderStr = convertIntToString(group->order);
-  gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
-  g_free(orderStr);
-  
-  gtk_entry_set_activates_default(GTK_ENTRY(orderWidget), TRUE);
-  gtk_widget_set_size_request(orderWidget, 30, -1);
-  widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
+      char *orderStr = convertIntToString(group->order);
+      gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
+      g_free(orderStr);
+      
+      gtk_entry_set_activates_default(GTK_ENTRY(orderWidget), TRUE);
+      gtk_widget_set_size_request(orderWidget, 30, -1);
+      widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
 
-  /* Show the group's highlight colour in a button that will also launch a colour-picker */
-  GtkWidget *colourButton = gtk_color_button_new_with_color(&group->highlightColour);
-  widgetSetCallbackData(colourButton, onGroupColourChanged, group);
-  
-  /* Create a button that will delete this group */
-  GtkWidget *deleteButton = gtk_button_new_with_label("Delete");
-  g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
-  
-  /* Put everything in the table */
-  gtk_table_attach(table, nameWidget,		1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, isHiddenWidget,	2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, isHighlightedWidget,	3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, orderWidget,		4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, colourButton,		5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, deleteButton,		6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      /* Show the group's highlight colour in a button that will also launch a colour-picker */
+      GtkWidget *colourButton = gtk_color_button_new_with_color(&group->highlightColour);
+      widgetSetCallbackData(colourButton, onGroupColourChanged, group);
+      
+      /* Create a button that will delete this group */
+      GtkWidget *deleteButton = gtk_button_new_with_label("Delete");
+      g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
+      
+      /* Put everything in the table */
+      gtk_table_attach(table, nameWidget,		1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, isHiddenWidget,	2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, isHighlightedWidget,	3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, orderWidget,		4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, colourButton,		5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, deleteButton,		6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+    }
 }
 
 
@@ -952,7 +1029,7 @@ static void addGroupFromSelection(GtkWidget *button, gpointer data)
       if (g_list_length(properties->selectedSeqs) > 0)
 	{
 	  GList *list = g_list_copy(properties->selectedSeqs); /* group takes ownership of this */
-	  createSequenceGroup(mainWindow, list, FALSE);
+	  createSequenceGroup(mainWindow, list, FALSE, NULL);
 	}
       else
 	{
@@ -996,7 +1073,7 @@ static void addGroupFromName(GtkWidget *button, gpointer data)
   /* If we found anything, create a group */
   if (g_list_length(searchData.matchList) > 0)
     {
-      createSequenceGroup(mainWindow, searchData.matchList, FALSE);
+      createSequenceGroup(mainWindow, searchData.matchList, FALSE, NULL);
     }
   else
     {
@@ -1027,6 +1104,82 @@ static GList* getValidSeqsFromList(GtkWidget *mainWindow, GList *inputList)
 }
 
 
+/* Utility to create a GList of sequence names from a textual list of sequences.
+ * Returns only valid sequences that blixem knows about. */
+static GList* getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText)
+{
+  GList *nameList = parseMatchList(inputText);
+  
+  /* Extract the entries from the list that are sequences that blixem knows about */
+  GList *seqNameList = getValidSeqsFromList(mainWindow, nameList);
+  
+  /* Must free the original name list and all its data. */
+  freeStringList(&nameList, TRUE);
+  
+  /* Create a group from the list of names */
+  if (g_list_length(seqNameList) < 1)
+    {
+      g_list_free(seqNameList);
+      seqNameList = NULL;
+      messout("No valid sequence names in search text\n");
+    }
+  
+  return seqNameList;
+}
+
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to create the 'match set' group from the paste text */
+static void createMatchSet(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  /* Get the list of sequences to include */
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  GList *seqNameList = getSeqNamesFromText(mainWindow, clipboardText);
+  
+  /* If a group already exists, replace its list. Otherwise create the group. */
+  if (seqNameList)
+    {
+      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      
+      if (!properties->matchSetGroup)
+	{
+	  properties->matchSetGroup = createSequenceGroup(mainWindow, seqNameList, FALSE, "Match Set");
+	}
+      else
+	{
+	  freeStringList(&properties->matchSetGroup->seqNameList, properties->matchSetGroup->ownsSeqNames);
+	  properties->matchSetGroup->seqNameList = seqNameList;
+	  mainWindowGroupsChanged(mainWindow);
+	}
+      
+      /* Reset the highlighted/hidden properties to make sure the group is initially visible */
+      properties->matchSetGroup->highlighted = TRUE;
+      properties->matchSetGroup->hidden = FALSE;
+    }
+}
+
+
+/* This function toggles the match set.  That is, if the match set (a special 
+ * group) exists then it deletes it; if it does not exist, then it creates it
+ * from the current clipboard text (which should contain valid sequence name(s)). */
+static void toggleMatchSet(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  
+  if (properties->matchSetGroup && properties->matchSetGroup->seqNameList)
+    {
+      /* Clear the list of names only (don't delete the group, because we want to
+       * keep any changes the user made (e.g. to the group colour etc.) for next time. */
+      freeStringList(&(properties->matchSetGroup->seqNameList), properties->matchSetGroup->ownsSeqNames);
+      mainWindowGroupsChanged(mainWindow);
+    }
+  else
+    {
+      requestPrimaryClipboardText(createMatchSet, mainWindow);
+    }
+}
+
+
 /* If the given radio button is enabled, add a group based on the list of sequence
  * names in the given text entry. */
 static void addGroupFromList(GtkWidget *button, gpointer data)
@@ -1045,32 +1198,22 @@ static void addGroupFromList(GtkWidget *button, gpointer data)
       return;
     }
   
-  /* Parse the input text to get a list of sequence names */
+  /* Get the input text from the text buffer and create the group */
   GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(textView);
   
   GtkTextIter start, end;
   gtk_text_buffer_get_bounds(textBuffer, &start, &end);
+  
   const char *inputText = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
   
-  GList *nameList = parseMatchList(inputText);
-  
-  /* Extract the entries from the list that are sequences that blixem knows about */
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
+  GList *seqNameList = getSeqNamesFromText(mainWindow, inputText);
   
-  GList *seqNameList = getValidSeqsFromList(mainWindow, nameList);
-  
-  /* Must free the original name list and all its data. */
-  freeStringList(nameList, TRUE);
-  
-  /* Create a group from the list of names */
-  if (g_list_length(seqNameList) > 0)
+  if (seqNameList)
     {
-      createSequenceGroup(mainWindow, seqNameList, FALSE);
-    }
-  else
-    {
-      messout("No valid sequence names found");
+      createSequenceGroup(mainWindow, seqNameList, FALSE, NULL);
     }
 }
 
@@ -1113,9 +1256,14 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
     {
       mainWindowDeleteSequenceGroup(mainWindow, group);
       
-      /* Refresh the dialog by closing and re-opening. (Not ideal because it doesn't remember the position) */
+      /* Refresh the dialog by closing and re-opening. (Not ideal because it doesn't
+       * remember the position). Only re-open if there are still some groups existing. */
       gtk_widget_destroy(GTK_WIDGET(dialogWindow));
-      showGroupSequencesDialog(mainWindow, TRUE);
+      
+      if (mainWindowGroupsExist(mainWindow))
+	{
+	  showGroupsDialog(mainWindow, TRUE);
+	}
     }
 }
 
@@ -1289,7 +1437,7 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
       GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   
       gtk_widget_destroy(GTK_WIDGET(dialog));
-      showGroupSequencesDialog(mainWindow, TRUE);
+      showGroupsDialog(mainWindow, TRUE);
     }
 }
 
@@ -1298,7 +1446,7 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
  * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
  * 'editGroups' argument is true and groups exist, the 'Edit Groups' tab is displayed by default;
  * otherwise the 'Create Groups' tab is shown. */
-void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
+void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
 						  GTK_WINDOW(mainWindow), 
@@ -1311,12 +1459,11 @@ void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
-  GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
-  const gboolean seqsSelected = g_list_length(selectedSeqs) > 0;
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  const gboolean seqsSelected = g_list_length(properties->selectedSeqs) > 0;
 
-  GList *groupList = mainWindowGetSequenceGroups(mainWindow);
-  const int numRows = g_list_length(groupList) + 1; /* +1 for headers */
-  const gboolean groupsExist = numRows > 1;
+  const int numRows = g_list_length(properties->sequenceGroups) + 1; /* +1 for header labels */
+  const gboolean groupsExist = mainWindowGroupsExist(mainWindow);
   
 
   /* Create tabbed pages */
@@ -1332,43 +1479,42 @@ void showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups)
   createRadioButton(section1, button1, "From _name (wildcards * and ?)", !seqsSelected, TRUE, FALSE, addGroupFromName, mainWindow);
   createRadioButton(section1, button1, "From _list", FALSE, TRUE, TRUE, addGroupFromList, mainWindow);
 
-  /* "EDIT GROUP" SECTION. (Only relevant if some groups actually exist) */
-  if (groupsExist)
+  /* "EDIT GROUP" SECTION. */
+  GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section2, gtk_label_new("Edit groups"));
+
+  const int numCols = 6;
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_box_pack_start(GTK_BOX(section2), GTK_WIDGET(table), FALSE, FALSE, 0);
+
+  const int xpad = 2;
+  const int ypad = 2;
+
+  /* Add labels */
+  int row = 1;
+  gtk_table_attach(table, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Colour"),	  4, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Delete"),	  6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  ++row;
+  
+  /* Add a set of widgets for each group */
+  GList *groupItem = mainWindowGetSequenceGroups(mainWindow);
+  for ( ; groupItem; groupItem = groupItem->next)
     {
-      GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
-      gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section2, gtk_label_new("Edit groups"));
-
-      const int numCols = 6;
-      GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-      gtk_box_pack_start(GTK_BOX(section2), GTK_WIDGET(table), FALSE, FALSE, 0);
-
-      const int xpad = 2;
-      const int ypad = 2;
-
-      /* Add labels */
-      int row = 1;
-      gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, gtk_label_new("Colour"),	  4, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, gtk_label_new("Delete"),	  6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      createEditGroupWidget(mainWindow, group, table, row, xpad, ypad);
       ++row;
-      
-      /* Add a set of widgets for each group */
-      GList *groupItem = mainWindowGetSequenceGroups(mainWindow);
-      for ( ; groupItem; groupItem = groupItem->next)
-	{
-	  SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-	  createEditGroupWidget(group, table, row, xpad, ypad);
-	  ++row;
-	}
-      
-      /* Add a button to delete all groups */
-      GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
-      gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
-      g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
     }
+  
+  /* Add a button to delete all groups */
+  GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
+  gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
+  g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
 
+  
   /* Connect signals and show */
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(mainWindow));
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseGroupsDialog), notebook);
@@ -1514,6 +1660,8 @@ void showSettingsDialog(GtkWidget *mainWindow)
 						  GTK_RESPONSE_REJECT,
 						  GTK_STOCK_APPLY,
 						  GTK_RESPONSE_APPLY,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
@@ -1708,6 +1856,13 @@ ZOOMING\n\
 	•	Zoom in/out of the detail view using the +/- buttons on the toolbar, or using the '=' and '-' shortcut keys.\n\
 \n\
 \n\
+COPY AND PASTE\n\
+	•	To copy sequence name(s) to the clipboard, select the sequence(s) in the big picture or alignment list and hit CTRL-C.\n\
+	•	Note that text from the feedback box and some text labels (e.g. the reference sequence start/end coords) can be copied by selecting it with the mouse and then hitting CTRL-C.\n\
+	•	Paste text using CTRL-V. Clipboard text can be pasted into text entry boxes on most dialogs (e.g. the 'From name' or 'From list' boxes on the Groups dialog).\n\
+	•	Hitting CTRL-V on the main window will create a match-set group from the clipboard text, if it contains a valid list of sequence names.\n\
+\n\
+\n\
 SORTING\n\
 	•	The alignments can be sorted by selecting the column you wish to sort by from the drop-down box on the toolbar.  To reverse the sort order, select the relevant option under the Settings menu.\n\
 	•	The alignments can also be sorted by group by selecting the Group option from the drop-down box.  See the Groups section.\n\
@@ -1735,6 +1890,14 @@ Creating a group from sequence name(s):\n\
         •       You may paste sequence names directly from ZMap: click on the feature in ZMap and then middle-click in the text box on the Groups dialog.  Grouping in Blixem works on the sequence name alone, so the feature coords will be ignored.\n\
 	•	Click 'OK'.\n\
 \n\
+Creating a temporary 'match-set' group from the current selection:\n\
+        •       You can quickly create a group from a current selection (e.g. selected features in ZMap) using the 'Toggle match set' option.\n\
+        •       To create a match-set group, select the required items (e.g. in ZMap) and then select 'Toggle match set' from the right-click menu in Blixem, or hit the 'M' shortcut key.\n\
+        •       To clear the match-set group, choose the 'Toggle match set' option again, or hit the 'M' shortcut key again.\n\
+        •       While it exists, the match-set group can be edited like any other group, via the 'Edit Groups' dialog.\n\
+        •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight colour) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'M' shortcut key) instead.\n\
+        •       A match set can also be created by pasting from the clipboard using the CTRL-V keyboard shortcut. If there is an existing match set it will be replaced by the new one.\n\
+\n\
 Editing groups:\n\
 To edit a group, right-click and select 'Edit Groups', or use the CTRL-G shortcut key. You can change the following properties for a group:\n\
 	•	Name: you can specify a more meaningful name to help identify the group.\n\
@@ -1760,8 +1923,8 @@ KEYBOARD SHORTCUTS\n\
 	•	CTRL Q: Quit\n\
 	•	CTRL H: Help\n\
 	•	CTRL P: Print\n\
-	•	CTRL S: Settings menu\n\
-	•	CTRL V: View menu\n\
+	•	CTRL S: 'Settings' menu\n\
+	•	V: 'View' menu\n\
 	•	SHIFT CTRL G: Create group\n\
 	•	CTRL G: Edit groups (or create a group if none currently exist)\n\
 	•	SHIFT CTRL A: Select all visible sequences\n\
@@ -1832,7 +1995,7 @@ static void onViewMenu(GtkAction *action, gpointer data)
 static void onCreateGroupMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
-  showGroupSequencesDialog(mainWindow, FALSE);
+  showGroupsDialog(mainWindow, FALSE);
 }
 
 
@@ -1840,9 +2003,15 @@ static void onCreateGroupMenu(GtkAction *action, gpointer data)
 static void onEditGroupsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
-  showGroupSequencesDialog(mainWindow, TRUE);
+  showGroupsDialog(mainWindow, TRUE);
 }
 
+/* Called when the user selects the 'Toggle match set' option, or hits the relevant shortcut key */
+static void onToggleMatchSet(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  toggleMatchSet(mainWindow);
+}
 
 /* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
 static void onSettingsMenu(GtkAction *action, gpointer data)
@@ -1914,6 +2083,7 @@ static void onPrintMenu(GtkAction *action, gpointer data)
       if (properties->printSettings != NULL)
 	{
 	  g_object_unref(properties->printSettings);
+	  properties->printSettings = NULL;
 	}
       
       properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
@@ -1977,7 +2147,7 @@ static void collatePixmaps(GtkWidget *widget, gpointer data)
 	}
       
       GdkGC *gc = gdk_gc_new(widget->window);
-      gdk_draw_drawable(properties->drawable, gc, drawable, xSrc, ySrc, x, y, -1, -1); /* -1 means full width/height */
+      gdk_draw_drawable(widgetGetDrawable(mainWindow), gc, drawable, xSrc, ySrc, x, y, -1, -1); /* -1 means full width/height */
     }
   
   /* If this widget is a container, recurse over its children */
@@ -1995,12 +2165,13 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   
   /* Create a blank white pixmap to draw on to */
-  properties->drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
+  GdkDrawable *drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
+  widgetSetDrawable(mainWindow, drawable);
   
-  GdkGC *gc = gdk_gc_new(properties->drawable);
+  GdkGC *gc = gdk_gc_new(drawable);
   GdkColor fgColour = getGdkColor(GDK_WHITE);
   gdk_gc_set_foreground(gc, &fgColour);
-  gdk_draw_rectangle(properties->drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
 
   /* For each child widget that has a drawable set, draw this onto the main pixmap */
   properties->lastYStart = 0;
@@ -2009,7 +2180,7 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
   gtk_container_foreach(GTK_CONTAINER(mainWindow), collatePixmaps, mainWindow);
   
   cairo_t *cr = gtk_print_context_get_cairo_context (context);
-  gdk_cairo_set_source_pixmap(cr, properties->drawable, 0, 0);
+  gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
   cairo_paint(cr);
 }
 
@@ -2085,6 +2256,16 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	    result = TRUE;
 	  }
 	break;
+
+      case GDK_v: /* fall through */
+      case GDK_V:
+	if (ctrlModifier)
+	  {
+	    /* Paste from the default clipboard */
+	    requestDefaultClipboardText(createMatchSet, window);
+	    result = TRUE;
+	  }
+	break;
 	
       case GDK_g: /* fall through */
       case GDK_G:
@@ -2093,6 +2274,12 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	    goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
 	    result = TRUE;
 	  }
+	break;
+
+      case GDK_m: /* fall through */
+      case GDK_M:
+	toggleMatchSet(window);
+	result = TRUE;
 	break;
 	
       case GDK_t: /* fall through */
@@ -2136,14 +2323,38 @@ MainWindowProperties* mainWindowGetProperties(GtkWidget *widget)
 static void onDestroyMainWindow(GtkWidget *widget)
 {
   MainWindowProperties *properties = mainWindowGetProperties(widget);
+  
   if (properties)
     {
+      /* Free the list of selected sequence names (not the names themselves
+       * because we don't own them). */
+      if (properties->selectedSeqs)
+	{
+	  g_list_free(properties->selectedSeqs);
+	  properties->selectedSeqs = NULL;
+	}
+      
+      /* Free the list of sequence groups (and all the data they own) */
+      mainWindowDeleteAllSequenceGroups(widget);
+
+      /* Destroy the stored drawable */
+      widgetSetDrawable(widget, NULL);
+
+      /* Destroy the print settings */
+      if (properties->printSettings)
+	{
+	  g_object_unref(properties->printSettings);
+	  properties->printSettings = NULL;
+	}
+      
+      /* Free the properties struct itself */
       g_free(properties);
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", NULL);
     }
 }
 
+/* Create the properties struct and initialise all values. */
 static void mainWindowCreateProperties(MainWindowArgs *args,
 				       GtkWidget *widget, 
 				       GtkWidget *bigPicture, 
@@ -2180,13 +2391,13 @@ static void mainWindowCreateProperties(MainWindowArgs *args,
       properties->strandsToggled = FALSE;
       properties->selectedSeqs = NULL;
       properties->sequenceGroups = NULL;
+      properties->matchSetGroup = NULL;
       
       properties->autoDotterParams = TRUE;
       properties->dotterStart = UNSET_INT;
       properties->dotterEnd = UNSET_INT;
       properties->dotterZoom = 0;
 
-      properties->drawable = NULL;
       properties->printSettings = gtk_print_settings_new();
       gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
       gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
@@ -2195,7 +2406,6 @@ static void mainWindowCreateProperties(MainWindowArgs *args,
       properties->lastYCoord = UNSET_INT;
 
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyMainWindow), NULL); 
     }
 }
 
@@ -2404,9 +2614,8 @@ static GString* mainWindowGetSelectedSeqNames(GtkWidget *mainWindow)
  * clipboard. */
 static void copySelectionToClipboard(GtkWidget *mainWindow)
 {
-  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
   GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
-  gtk_clipboard_set_text(clipboard, displayText->str, -1);
+  setDefaultClipboardText(displayText->str);
   g_string_free(displayText, TRUE);
 }
 
@@ -2662,7 +2871,7 @@ GtkWidget* createMainWindow(MainWindowArgs *args)
 			     &fullDisplayRange);
   
   /* Connect signals */
-  g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK (gtk_main_quit), NULL);
+  g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK (onDestroyMainWindow), NULL);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
   

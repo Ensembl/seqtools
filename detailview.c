@@ -2209,7 +2209,7 @@ static void GSettings(GtkButton *button, gpointer data)
 static void GGroups(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  showGroupSequencesDialog(detailViewGetMainWindow(detailView), TRUE);
+  showGroupsDialog(detailViewGetMainWindow(detailView), TRUE);
 }
 
 static void GView(GtkButton *button, gpointer data)

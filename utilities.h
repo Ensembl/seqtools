@@ -146,7 +146,9 @@ void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
 
 void		      setPrimaryClipboardText(const char *text);
+void		      setDefaultClipboardText(const char *text);
 void		      requestPrimaryClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data);
+void		      requestDefaultClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data);
 
 int		      parseMatchLine(const char *inputText,
 				     char **matchNameOut,

@@ -39,13 +39,13 @@ typedef struct _MainWindowProperties
     gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
     GList *selectedSeqs;	    /* A list of sequence names that are selected */
     GList *sequenceGroups;	    /* A list of SequenceGroups */
-    
+    SequenceGroup *matchSetGroup;   /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
+
     gboolean autoDotterParams;	    /* Whether to use automatic dotter params */
     int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
     int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
     int dotterZoom;		    /* Zoom param to call dotter with */
 
-    GdkDrawable *drawable;	    /* A bitmap where we'll draw the contents we want to print */
     GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
     int lastYEnd;		    /* Keeps track of where the last item ended so we can draw the next one flush to it */
     int lastYStart;		    /* Where the last item started (for drawing multiple items at same y pos) */
@@ -89,7 +89,7 @@ int			  sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName);
 void			  displayHelp(GtkWidget *mainWindow);
 void			  showSettingsDialog(GtkWidget *mainWindow);
 void			  showViewPanesDialog(GtkWidget *mainWindow);
-void			  showGroupSequencesDialog(GtkWidget *mainWindow, const gboolean editGroups);
+void			  showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups);
 
 void			  mainWindowRedrawAll(GtkWidget *mainWindow);
 

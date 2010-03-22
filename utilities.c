@@ -1111,31 +1111,32 @@ GList* parseMatchList(const char *inputText)
 {
   GList *matchList = NULL ;
 
-  /* Split the input text into separate strings based on the following delimiters: */
-  char *delimiters = "\n,;";
-  char **tokens = g_strsplit_set(inputText, delimiters, -1);   /* -1 means do all tokens. */
-
-  if (tokens)
+  if (inputText)
     {
-      char *match = *tokens;
+      /* Split the input text into separate strings based on the following delimiters: */
+      char *delimiters = "\n\r,;";
+      char **tokens = g_strsplit_set(inputText, delimiters, -1);   /* -1 means do all tokens. */
 
-      while (tokens && match)
+      if (tokens)
 	{
-	  char *match_name ;
-	  int start = 0, end = 0, length = 0 ;
+	  char *match = *tokens;
 
-	  if (parseMatchLine(match, &match_name, &start, &end, &length) > 0)
+	  while (tokens && match)
 	    {
-	      matchList = g_list_append(matchList, match_name);
-	    }
+	      char *match_name ;
+	      int start = 0, end = 0, length = 0 ;
 
-	  tokens++ ;
-	  match = *tokens ? *tokens : 0; /* token may be empty string if two delimiters next to each other */
+	      if (parseMatchLine(match, &match_name, &start, &end, &length) > 0)
+		{
+		  matchList = g_list_append(matchList, match_name);
+		}
+
+	      tokens++ ;
+	      match = *tokens ? *tokens : 0; /* token may be empty string if two delimiters next to each other */
+	    }
 	}
     }
-
-//  g_strfreev(tokens);
-
+  
   return matchList ;
 }
 
@@ -1164,6 +1165,20 @@ void setPrimaryClipboardText(const char *text)
 }
 
 
+/* Request the text in the DEFAULT clipboard and pass it to the given callback function */
+void requestDefaultClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data)
+{
+  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+  gtk_clipboard_request_text(clipboard, callback, data);
+}
+
+
+/* Set the text in the DEFAULT clipboard */
+void setDefaultClipboardText(const char *text)
+{
+  GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+  gtk_clipboard_set_text(clipboard, text, -1);
+}
 
 
 
