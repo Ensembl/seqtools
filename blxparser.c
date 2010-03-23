@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.11 2010-03-19 16:44:13 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.12 2010-03-23 15:57:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -605,7 +605,7 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 	sscanf(line, "%s", qname);
 
 	while ((ch = fgetc(seqfile)) != '\n') {
-	    if (isalpha(ch) || ch == '.' || ch == '*') 
+	    if (isalpha(ch) || ch == SEQUENCE_CHAR_GAP || ch == SEQUENCE_CHAR_RES) 
 		array(arr, i++, char) = ch;
 	}
 	q = g_malloc(arrayMax(arr)+1);
@@ -632,7 +632,14 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 		  break;
 	    }
 	    
-	    for (cp = line; *cp; cp++) if (isalpha(*cp) || *cp == '*') *cq++ = *cp;
+	    for (cp = line; *cp; cp++)
+	      {
+		if (isalpha(*cp) || *cp == SEQUENCE_CHAR_RES)
+		  {
+		    *cq++ = *cp;
+		  }
+	      }
+	  
 	    /* Allow stops in query sequence */
 	    *cq = 0;
 	}
@@ -644,7 +651,7 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 
 int isAlnRes (char ch)
 {
-    if (isalpha(ch) || ch == '*' || (HSPgaps && isdigit(ch)) )
+    if (isalpha(ch) || ch == SEQUENCE_CHAR_RES || (HSPgaps && isdigit(ch)) )
 	return 1;
     else
 	return 0;
@@ -652,7 +659,7 @@ int isAlnRes (char ch)
 
 int isAlnNonres (char ch)
 {
-    if (ch == '.')
+    if (ch == SEQUENCE_CHAR_GAP)
 	return 1;
     else
 	return 0;
@@ -756,7 +763,7 @@ static void prepSeq(MSP *msp, char *seq, char *opts)
       /* I think this is a mistake in the code, we get the whole sequence so shouldn't be
        * prepending the '-'s */
       msp->sseq = g_malloc(msp->sstart+strlen(seq)+1);
-      memset(msp->sseq, '-', msp->sstart); /* Fill up with dashes */
+      memset(msp->sseq, SEQUENCE_CHAR_PAD, msp->sstart); /* Fill up with dashes */
       strcpy(msp->sseq + msp->sstart - 1, seq);
     }
 

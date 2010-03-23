@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.11 2010-03-23 13:12:40 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.12 2010-03-23 15:57:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -151,7 +151,7 @@ typedef struct
   || (BASE) == 'u' || (BASE) == 'r'|| (BASE) == 'y' || (BASE) == 'm'    \
   || (BASE) == 'k' || (BASE) == 'w'|| (BASE) == 's' || (BASE) == 'b'    \
   || (BASE) == 'd' || (BASE) == 'h'|| (BASE) == 'v'                     \
-  || (BASE) == 'n' || (BASE) == '.' || (BASE) == '-'))
+  || (BASE) == 'n' || (BASE) == SEQUENCE_CHAR_GAP || (BASE) == SEQUENCE_CHAR_PAD))
 
 #define ISIUPACPEPTIDE(PEPTIDE) \
 (((PEPTIDE) == 'A' || (PEPTIDE) == 'B'|| (PEPTIDE) == 'C' || (PEPTIDE) == 'D'       \
@@ -160,7 +160,7 @@ typedef struct
   || (PEPTIDE) == 'N' || (PEPTIDE) == 'P'|| (PEPTIDE) == 'Q' || (PEPTIDE) == 'R'    \
   || (PEPTIDE) == 'S' || (PEPTIDE) == 'T'|| (PEPTIDE) == 'U' || (PEPTIDE) == 'V'    \
   || (PEPTIDE) == 'W' || (PEPTIDE) == 'X'|| (PEPTIDE) == 'Y' || (PEPTIDE) == 'Z'    \
-  || (PEPTIDE) == '*' || (PEPTIDE) == '.' || (PEPTIDE) == '-'))
+  || (PEPTIDE) == SEQUENCE_CHAR_RES || (PEPTIDE) == SEQUENCE_CHAR_GAP || (PEPTIDE) == SEQUENCE_CHAR_PAD))
 
 
 #ifdef PFETCH_HTML 

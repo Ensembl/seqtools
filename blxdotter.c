@@ -390,7 +390,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	    }
 	}
 
-      if (dotterSSeq && (strchr(dotterSSeq, '-') || blastMode == BLXMODE_TBLASTN))
+      if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
 	{
 	  messout("Note: the sequence passed to dotter is incomplete");
 	}

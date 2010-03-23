@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.26 2010-03-23 13:12:40 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.27 2010-03-23 15:57:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -790,7 +790,7 @@ void blxAssignPadseq(MSP *msp, MSP *msplist)
 
     if (!padseq) {
 	padseq = g_malloc(INITDBSEQLEN+1);
-	memset(padseq, '-', INITDBSEQLEN);
+	memset(padseq, SEQUENCE_CHAR_PAD, INITDBSEQLEN);
 	padseqlen = INITDBSEQLEN;
     }
 
@@ -799,7 +799,7 @@ void blxAssignPadseq(MSP *msp, MSP *msplist)
 	g_free(padseq);
 
 	padseq = g_malloc(len+1);
-	memset(padseq, '-', len);
+	memset(padseq, SEQUENCE_CHAR_PAD, len);
 	padseqlen = len;
 
 	/* Change all old padseqs to new */

@@ -597,7 +597,7 @@ static void insertChar(char *text1, int *i, char charToAdd, MSP *msp)
  * assumed to be 1-based. */
 static char getMatchSeqBase(char *matchSeq, const int sIdx, const BlxSeqType seqType)
 {
-  char result = '-';
+  char result = SEQUENCE_CHAR_PAD;
   
   if (matchSeq)
   {
@@ -639,7 +639,7 @@ static void drawBase(MSP *msp,
   if (*sIdx == UNSET_INT)
     {
       /* There is no equivalent base in the match sequence so draw a gap */
-      sBase = '.';
+      sBase = SEQUENCE_CHAR_GAP;
       baseBgColour = selected ? data->mismatchColourSelected : data->mismatchColour;
     }
   else
@@ -656,7 +656,7 @@ static void drawBase(MSP *msp,
 	  /* If we're highlighting differences, don't show this base (show a dash instead) */
 	  if (data->highlightDiffs)
 	    {
-	      sBase = '-';
+	      sBase = SEQUENCE_CHAR_BLANK;
 	    }
 	}
       else if (data->blastMode != BLXMODE_BLASTN && PAM120[aa_atob[(unsigned int)qBase]-1 ][aa_atob[(unsigned int)sBase]-1 ] > 0)

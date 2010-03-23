@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.19 2010-03-23 13:12:40 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.20 2010-03-23 15:57:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -51,6 +51,12 @@
 #define BLIXEM_VERSION_COMPILE BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
 
 #define REFERENCE_SEQUENCE_NAME "Reference"
+
+/* Special characters for displaying in sequences */
+#define SEQUENCE_CHAR_GAP	'.'   /* represents a gap in the match sequence */
+#define SEQUENCE_CHAR_PAD	'-'   /* used for padding when the sequence is unavailable */
+#define SEQUENCE_CHAR_BLANK	'-'   /* used to display a blank when we're not interested in what the actual base is */
+#define SEQUENCE_CHAR_RES	'*'   /* not sure what this should be called, technically - residue? */
 
 
 /* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
