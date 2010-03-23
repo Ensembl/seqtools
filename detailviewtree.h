@@ -32,8 +32,6 @@ typedef struct _TreeProperties
   {
     GtkWidget *grid;		    /* The grid that this tree corresponds to */
     GtkWidget *detailView;	    /* The detail view that this tree belongs to */
-    GtkCellRenderer *renderer;	    /* The custom cell renderer to render this tree's match sequences */
-    GtkWidget *sequenceColHeader;   /* The custom header for the sequence column, or NULL if N/A */
 
     int readingFrame;		    /* Which reading frame this tree displays */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */

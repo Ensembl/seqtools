@@ -1606,6 +1606,40 @@ DetailViewProperties* detailViewGetProperties(GtkWidget *widget)
 static void onDestroyDetailView(GtkWidget *widget)
 {
   DetailViewProperties *properties = detailViewGetProperties(widget);
+
+  /* N.B. Don't free the cell renderer, or it causes memory corruption. I'm not
+   * sure what owns it - the columns it is added to? */
+  
+  if (properties->columnList > 0)
+    {
+      g_list_free(properties->columnList);
+      properties->columnList = NULL;
+    }
+    
+  if (properties->seqTable)
+    {
+      g_hash_table_unref(properties->seqTable);
+      properties->seqTable = NULL;
+    }
+  
+  if (properties->fwdStrandTrees)
+    {
+      g_list_free(properties->fwdStrandTrees);
+      properties->fwdStrandTrees = NULL;
+    }
+  
+  if (properties->revStrandTrees)
+    {
+      g_list_free(properties->revStrandTrees);
+      properties->revStrandTrees = NULL;
+    }
+
+  if (properties->fontDesc)
+    {
+      pango_font_description_free(properties->fontDesc);
+      properties->fontDesc = NULL;
+    }
+  
   if (properties)
     {
       g_free(properties);
@@ -2378,6 +2412,8 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 }
 
 
+/* Create the horizontal scrollbar for custom scrolling. This takes ownership of
+ * the GtkAdjustment. */
  GtkWidget* createDetailViewScrollBar(GtkAdjustment *adjustment, GtkWidget *detailView)
 {
   GtkWidget *scrollBar = gtk_hscrollbar_new(adjustment);

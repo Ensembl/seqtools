@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.8 2010-03-19 16:44:13 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.9 2010-03-23 13:12:40 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -43,7 +43,7 @@
 
 
 /* The type of blast matching used */
-typedef enum {BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BLXMODE_TBLASTN, BLXMODE_BLASTP} BlxBlastMode ;
+typedef enum {BLXMODE_UNSET, BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BLXMODE_TBLASTN, BLXMODE_BLASTP} BlxBlastMode ;
 
 
 /* blixem can use either efetch (default) or a pfetch server to get

@@ -31,6 +31,7 @@ typedef struct _CompareSeqData
 
 /* Local function declarations */
 static void			  onHelpMenu(GtkAction *action, gpointer data);
+static void			  onQuit(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
 static void			  onViewMenu(GtkAction *action, gpointer data);
@@ -44,6 +45,7 @@ static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
+static void			  onDestroyMainWindow(GtkWidget *widget);
 
 static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
@@ -57,7 +59,7 @@ static void			  mainWindowGroupsChanged(GtkWidget *mainWindow);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    gtk_main_quit},
+  { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    G_CALLBACK(onQuit)},
   { "Help",		NULL, "_Help\t\t\t\tCtrl-H",		  "<control>H",		"Display Blixem help",		    G_CALLBACK(onHelpMenu)},
   { "Print",		NULL, "_Print\t\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
   { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	  "<control>S",		"Edit Blixem settings",		    G_CALLBACK(onSettingsMenu)},
@@ -76,7 +78,7 @@ static const GtkActionEntry mainMenuEntries[] = {
 
 
 /* This defines the layout of the menu for a standard user */
-static const char *standardMenuDescription =
+static const char standardMenuDescription[] =
 "<ui>"
 "  <popup name='MainMenu'>"
 "      <menuitem action='Quit'/>"
@@ -97,7 +99,7 @@ static const char *standardMenuDescription =
 
 
 /* This defines the layout of the menu for a developer user */
-static const char *developerMenuDescription =
+static const char developerMenuDescription[] =
 "<ui>"
 "  <popup name='MainMenu'>"
 "      <menuitem action='Quit'/>"
@@ -1974,8 +1976,16 @@ In the detail view, the following colours and symbols have the following meaning
  *			  Menu actions                     *
  ***********************************************************/
 
-/* Called when the user selects the Statistics menu option, or hits the Statistics shortcut key.
+/* Called when the user selects the quit menu option, or hits the Quit shortcut key.
  * Pops up a dialog showing user help information */
+static void onQuit(GtkAction *action, gpointer data)
+{
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  gtk_widget_destroy(mainWindow);
+}
+
+
+/* Called when the user selects the Help menu option, or hits the Help shortcut key. */
 static void onHelpMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *mainWindow = GTK_WIDGET(data);
@@ -2326,6 +2336,12 @@ static void onDestroyMainWindow(GtkWidget *widget)
   
   if (properties)
     {
+      if (properties->mainmenu)
+	{
+	  gtk_widget_destroy(properties->mainmenu);
+	  properties->mainmenu = NULL;
+	}
+      
       /* Free the list of selected sequence names (not the names themselves
        * because we don't own them). */
       if (properties->selectedSeqs)
@@ -2336,9 +2352,6 @@ static void onDestroyMainWindow(GtkWidget *widget)
       
       /* Free the list of sequence groups (and all the data they own) */
       mainWindowDeleteAllSequenceGroups(widget);
-
-      /* Destroy the stored drawable */
-      widgetSetDrawable(widget, NULL);
 
       /* Destroy the print settings */
       if (properties->printSettings)
@@ -2352,16 +2365,22 @@ static void onDestroyMainWindow(GtkWidget *widget)
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", NULL);
     }
+    
+  /* Destroy variables created by the main program */
+  blviewDestroy(widget);
+  
+  gtk_main_quit();
 }
 
 /* Create the properties struct and initialise all values. */
-static void mainWindowCreateProperties(MainWindowArgs *args,
+static void mainWindowCreateProperties(CommandLineOptions *options,
 				       GtkWidget *widget, 
 				       GtkWidget *bigPicture, 
 				       GtkWidget *detailView,
 				       GtkWidget *mainmenu,
 				       const IntRange const *refSeqRange,
-				       const IntRange const *fullDisplayRange)
+				       const IntRange const *fullDisplayRange,
+				       const char *paddingSeq)
 {
   if (widget)
     {
@@ -2371,21 +2390,21 @@ static void mainWindowCreateProperties(MainWindowArgs *args,
       properties->detailView = detailView;
       properties->mainmenu = mainmenu;
       
-      properties->refSeq = args->refSeq;
-      properties->refSeqName = args->refSeqName ? g_strdup(args->refSeqName) : g_strdup("Blixem-seq");
+      properties->refSeq = options->refSeq;
+      properties->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
       properties->refSeqRange.min = refSeqRange->min;
       properties->refSeqRange.max = refSeqRange->max;
       properties->fullDisplayRange.min = fullDisplayRange->min;
       properties->fullDisplayRange.max = fullDisplayRange->max;
       
-      properties->mspList = args->mspList;
-      properties->geneticCode = args->geneticCode;
-      properties->blastMode = args->blastMode;
-      properties->seqType = args->seqType;
-      properties->numReadingFrames = args->numReadingFrames;
-      properties->gappedHsp = args->gappedHsp;
-      properties->paddingSeq = args->paddingSeq;
-      properties->fetchMode = args->fetchMode;
+      properties->mspList = options->mspList;
+      properties->geneticCode = options->geneticCode;
+      properties->blastMode = options->blastMode;
+      properties->seqType = options->seqType;
+      properties->numReadingFrames = options->numReadingFrames;
+      properties->gappedHsp = options->gappedHsp;
+      properties->paddingSeq = paddingSeq;
+      properties->fetchMode = options->fetchMode;
       
       /* Set default values for dynamic properties: */
       properties->strandsToggled = FALSE;
@@ -2406,6 +2425,7 @@ static void mainWindowCreateProperties(MainWindowArgs *args,
       properties->lastYCoord = UNSET_INT;
 
       g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK (onDestroyMainWindow), NULL);
     }
 }
 
@@ -2784,22 +2804,22 @@ static GtkWidget* createMainMenu(GtkWidget *window)
 
 
 /* Create the main window */
-GtkWidget* createMainWindow(MainWindowArgs *args)
+GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
 {
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
-  const int refSeqLen = (int)strlen(args->refSeq);
-  IntRange refSeqRange = {args->refSeqOffset + 1, args->refSeqOffset + refSeqLen};
+  const int refSeqLen = (int)strlen(options->refSeq);
+  IntRange refSeqRange = {options->refSeqOffset + 1, options->refSeqOffset + refSeqLen};
   IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
   
-  if (args->seqType == BLXSEQ_PEPTIDE)
+  if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, args->seqType, 1, args->numReadingFrames, FALSE, &refSeqRange, NULL);
+      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
       
       int baseNum = UNSET_INT;
-      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, args->seqType, 3, args->numReadingFrames, FALSE, &refSeqRange, &baseNum);
+      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 3, options->numReadingFrames, FALSE, &refSeqRange, &baseNum);
       
-      if (baseNum < args->numReadingFrames)
+      if (baseNum < options->numReadingFrames)
 	{
 	  /* The last peptide does not have a full triplet, so cut off the range at the last full triplet */
 	  fullDisplayRange.max -= 1;
@@ -2808,10 +2828,10 @@ GtkWidget* createMainWindow(MainWindowArgs *args)
   
   /* Convert the start coord (which is 1-based and on the DNA sequence) to display
    * coords (which take into account the offset and may also be peptide coords) */
-  int startCoord = args->startCoord1Based + args->refSeqOffset;
-  if (args->seqType == BLXSEQ_PEPTIDE)
+  int startCoord = options->startCoord + options->refSeqOffset;
+  if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      startCoord = convertDnaIdxToDisplayIdx(startCoord, args->seqType, 1, args->numReadingFrames, FALSE, &refSeqRange, NULL);
+      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
     }
   
   
@@ -2841,44 +2861,44 @@ GtkWidget* createMainWindow(MainWindowArgs *args)
 					   vbox, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid,
-					   args->bigPictZoom);
+					   options->bigPictZoom);
 
   GtkWidget *detailView = createDetailView(window,
 					   vbox, 
 					   detailAdjustment, 
 					   fwdStrandGrid, 
 					   revStrandGrid,
-					   args->mspList,
-					   args->blastMode,
-					   args->seqType,
-					   args->numReadingFrames,
-					   args->refSeqName,
+					   options->mspList,
+					   options->blastMode,
+					   options->seqType,
+					   options->numReadingFrames,
+					   options->refSeqName,
 					   startCoord,
-					   args->sortInverted,
-					   args->initialSortType);
+					   options->sortInverted,
+					   options->initSortMode);
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
   
   /* Set required data in the main window widget */
-  mainWindowCreateProperties(args,
+  mainWindowCreateProperties(options,
 			     window, 
 			     bigPicture, 
 			     detailView, 
 			     mainmenu,
 			     &refSeqRange, 
-			     &fullDisplayRange);
+			     &fullDisplayRange,
+			     paddingSeq);
   
   /* Connect signals */
-  g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK (onDestroyMainWindow), NULL);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
   
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
-  detailViewAddMspData(detailView, args->mspList);
-  detailViewSortByType(detailView, args->initialSortType);
+  detailViewAddMspData(detailView, options->mspList);
+  detailViewSortByType(detailView, options->initSortMode);
 
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);

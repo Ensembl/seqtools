@@ -22,6 +22,7 @@ typedef struct _BigPictureProperties
     GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
     GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
     GtkWidget *revExonView;	/* The section showing the exons for the reverse ref seq strand */
+    
     GSList *roundValues;	/* List of "nice" values to round to, for the display values in the grid header */
     int initialZoom;		/* Multiple to multiply the detail view display range by to get the initial big picture display range */
     

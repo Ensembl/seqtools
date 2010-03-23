@@ -1032,8 +1032,21 @@ TreeProperties* treeGetProperties(GtkWidget *widget)
 static void onDestroyTree(GtkWidget *widget)
 {
   TreeProperties *properties = treeGetProperties(widget);
+  
   if (properties)
     {
+      if (properties->treeColumnHeaderList)
+	{
+	  g_list_free(properties->treeColumnHeaderList);
+	  properties->treeColumnHeaderList = NULL;
+	}
+    
+      if (properties->seqTable)
+	{
+	  g_hash_table_unref(properties->seqTable);
+	  properties->seqTable = NULL;
+	}
+    
       g_free(properties);
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "TreeProperties", NULL);
@@ -1043,7 +1056,6 @@ static void onDestroyTree(GtkWidget *widget)
 static void treeCreateProperties(GtkWidget *widget, 
 				 GtkWidget *grid, 
 				 GtkWidget *detailView, 
-				 GtkCellRenderer *renderer,
 				 const int frame,
 				 GList *treeColumnHeaderList)
 {
@@ -1053,7 +1065,6 @@ static void treeCreateProperties(GtkWidget *widget,
       
       properties->grid = grid;
       properties->detailView = detailView;
-      properties->renderer = renderer;
       properties->readingFrame = frame;
       properties->treeColumnHeaderList = treeColumnHeaderList;
       properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
@@ -1855,7 +1866,10 @@ static int scrollBarWidth()
 }
 
 
-/* Callback called when the width of the sequence column has changed */
+/* Callback called when the width of the sequence column has changed. (To do: this
+ * will be needed if we come to do drag-resizing of columns. At the moment it is
+ * not needed because column resizing only happens when the window is resized, so it
+ * is handed by the detail view's onSizeAllocate function.) */
 static void onSeqColWidthChanged(GtkTreeViewColumn *column, GParamSpec *paramSpec, gpointer data)
 {
 //  GtkWidget *tree = GTK_WIDGET(data);
@@ -2552,7 +2566,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   GList *treeColumnHeaderList = addTreeColumns(tree, renderer, seqType, columnList, treeHeader, refSeqName, frame, gridGetStrand(grid));
   
   /* Set the essential tree properties */
-  treeCreateProperties(tree, grid, detailView, renderer, frame, treeColumnHeaderList);
+  treeCreateProperties(tree, grid, detailView, frame, treeColumnHeaderList);
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);

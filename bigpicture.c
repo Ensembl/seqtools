@@ -604,17 +604,93 @@ static GridHeaderProperties* gridHeaderGetProperties(GtkWidget *gridHeader)
 static void onDestroyBigPicture(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  
   if (properties)
     {
+      if (properties->roundValues)
+	{
+	  g_slist_free(properties->roundValues);
+	  properties->roundValues = NULL;
+	}
+      
       g_free(properties);
       properties = NULL;
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", NULL);
     }
 }
 
+
+static void bigPictureCreateProperties(GtkWidget *bigPicture, 
+				       GtkWidget *mainWindow, 
+				       GtkWidget *header, 
+				       GtkWidget *fwdStrandGrid,
+				       GtkWidget *revStrandGrid,
+				       GtkWidget *fwdExonView,
+				       GtkWidget *revExonView,
+				       int previewBoxCentre,
+				       const int initialZoom)
+{
+  if (bigPicture)
+    { 
+      BigPictureProperties *properties = g_malloc(sizeof *properties);
+      
+      properties->mainWindow = mainWindow;
+      properties->header = header;
+      properties->fwdStrandGrid = fwdStrandGrid;
+      properties->revStrandGrid = revStrandGrid;
+      properties->fwdExonView = fwdExonView;
+      properties->revExonView = revExonView;
+      properties->numHCells = UNSET_INT;
+      properties->basesPerCell = UNSET_INT;
+      properties->roundTo = 25;
+      properties->previewBoxCentre = previewBoxCentre;
+      properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
+      properties->highlightBoxLineWidth = DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH;
+      properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
+      properties->initialZoom = initialZoom;
+      
+      /* These will be initialized when the detail view size is first allocated,
+       * because the big picture range is a ratio of the detail view range. */
+      properties->displayRange.min = UNSET_INT;
+      properties->displayRange.max = UNSET_INT;
+      
+      /* Calculate the font size */
+      getFontCharSize(bigPicture, &properties->charWidth, &properties->charHeight);
+      
+      /* Create the list of "nice round values" to round the grid header values to.
+       * Create the list in reverse order (i.e. highest values first). */
+      properties->roundValues = NULL;
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(50));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(100));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(125));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(150));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(250));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(500));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(1000));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(2500));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(5000));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(10000));
+      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25000));
+      
+      /* Set default colours */
+      properties->gridLineColour = getGdkColor(GDK_YELLOW);
+      properties->gridTextColour = getGdkColor(GDK_BLACK);
+      properties->highlightBoxColour = getGdkColor(GDK_BLUE);
+      properties->previewBoxColour = getGdkColor(GDK_DARK_GREY);
+      properties->mspLineHighlightColour = getGdkColor(GDK_CYAN);
+      properties->mspLineColour = getGdkColor(GDK_BLACK);
+      
+      g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", properties);
+      g_signal_connect(G_OBJECT(bigPicture), "destroy", G_CALLBACK(onDestroyBigPicture), NULL); 
+    }
+}
+
+
 static void onDestroyGridHeader(GtkWidget *bigPicture)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(bigPicture);
+  
   if (properties)
     {
       g_free(properties);
@@ -622,6 +698,24 @@ static void onDestroyGridHeader(GtkWidget *bigPicture)
       g_object_set_data(G_OBJECT(bigPicture), "GridHeaderProperties", NULL);
     }
 }
+
+static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPicture, GtkWidget *refButton)
+{
+  if (gridHeader)
+    {
+      GridHeaderProperties *properties = g_malloc(sizeof *properties);
+      
+      properties->bigPicture = bigPicture;
+      properties->refButton = refButton;
+      properties->numHeaderLines = DEFAULT_GRID_NUM_HEADER_LINES;
+      properties->headerYPad = DEFAULT_GRID_HEADER_Y_PAD;
+      
+      g_object_set_data(G_OBJECT(gridHeader), "GridHeaderProperties", properties);
+      g_signal_connect(G_OBJECT(gridHeader), "destroy", G_CALLBACK(onDestroyGridHeader), NULL);
+    }
+}
+
+
 
 
 GtkWidget* bigPictureGetMainWindow(GtkWidget *bigPicture)
@@ -727,89 +821,6 @@ int bigPictureGetNumReadingFrames(GtkWidget *bigPicture)
 {
   GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
   return mainWindowGetNumReadingFrames(mainWindow);
-}
-
-static void bigPictureCreateProperties(GtkWidget *bigPicture, 
-				       GtkWidget *mainWindow, 
-				       GtkWidget *header, 
-				       GtkWidget *fwdStrandGrid,
-				       GtkWidget *revStrandGrid,
-				       GtkWidget *fwdExonView,
-				       GtkWidget *revExonView,
-				       int previewBoxCentre,
-				       const int initialZoom)
-{
-  if (bigPicture)
-    { 
-      BigPictureProperties *properties = g_malloc(sizeof *properties);
-      
-      properties->mainWindow = mainWindow;
-      properties->header = header;
-      properties->fwdStrandGrid = fwdStrandGrid;
-      properties->revStrandGrid = revStrandGrid;
-      properties->fwdExonView = fwdExonView;
-      properties->revExonView = revExonView;
-      properties->numHCells = UNSET_INT;
-      properties->basesPerCell = UNSET_INT;
-      properties->roundTo = 25;
-      properties->previewBoxCentre = previewBoxCentre;
-      properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
-      properties->highlightBoxLineWidth = DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH;
-      properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
-      properties->initialZoom = initialZoom;
-      
-      /* These will be initialized when the detail view size is first allocated,
-       * because the big picture range is a ratio of the detail view range. */
-      properties->displayRange.min = UNSET_INT;
-      properties->displayRange.max = UNSET_INT;
-      
-      /* Calculate the font size */
-      getFontCharSize(bigPicture, &properties->charWidth, &properties->charHeight);
-
-      /* Create the list of "nice round values" to round the grid header values to.
-       * Create the list in reverse order (i.e. highest values first). */
-      properties->roundValues = NULL;
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(50));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(100));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(125));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(150));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(250));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(500));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(1000));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(2500));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(5000));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(10000));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25000));
-      
-      /* Set default colours */
-      properties->gridLineColour = getGdkColor(GDK_YELLOW);
-      properties->gridTextColour = getGdkColor(GDK_BLACK);
-      properties->highlightBoxColour = getGdkColor(GDK_BLUE);
-      properties->previewBoxColour = getGdkColor(GDK_DARK_GREY);
-      properties->mspLineHighlightColour = getGdkColor(GDK_CYAN);
-      properties->mspLineColour = getGdkColor(GDK_BLACK);
-      
-      g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", properties);
-      g_signal_connect(G_OBJECT(bigPicture), "destroy", G_CALLBACK(onDestroyBigPicture), NULL); 
-    }
-}
-
-
-static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPicture, GtkWidget *refButton)
-{
-  if (gridHeader)
-    {
-      GridHeaderProperties *properties = g_malloc(sizeof *properties);
-      
-      properties->bigPicture = bigPicture;
-      properties->refButton = refButton;
-      properties->numHeaderLines = DEFAULT_GRID_NUM_HEADER_LINES;
-      properties->headerYPad = DEFAULT_GRID_HEADER_Y_PAD;
-      
-      g_object_set_data(G_OBJECT(gridHeader), "GridHeaderProperties", properties);
-      g_signal_connect(G_OBJECT(gridHeader), "destroy", G_CALLBACK(onDestroyGridHeader), NULL);
-    }
 }
 
 

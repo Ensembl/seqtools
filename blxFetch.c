@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.10 2010-03-17 12:20:36 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.11 2010-03-23 13:12:40 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1527,9 +1527,9 @@ static ProgressBar makeProgressBar(int seq_total)
   gtk_container_border_width(GTK_CONTAINER(hbox), 5);
 
   cancel_button = gtk_button_new_with_label("Cancel") ;
-  gtk_signal_connect(GTK_OBJECT(cancel_button), "clicked",
-		     GTK_SIGNAL_FUNC(cancelCB), (gpointer)bar) ;
   gtk_box_pack_start(GTK_BOX(hbox), cancel_button, TRUE, TRUE, 0) ;
+
+  gtk_signal_connect(GTK_OBJECT(cancel_button), "clicked", GTK_SIGNAL_FUNC(cancelCB), (gpointer)bar) ;
 
   gtk_widget_show_all(toplevel) ;
   while (gtk_events_pending())

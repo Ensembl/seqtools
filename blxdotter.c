@@ -38,7 +38,6 @@ typedef struct _DotterDialogData
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out);
 static char*	      fetchSeqRaw(const char *seqname, const char *fetchMode);
 static char*	      fetchSequence(const char *seqname, char *fetch_prog);
-static gboolean	      blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly);
 static char*	      getDotterSSeq(GtkWidget *blxWindow);
 
 
@@ -78,7 +77,7 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
     {
       case GTK_RESPONSE_ACCEPT:
 	dotterDialogSaveSettings(dialogData);
-	destroy = blxCallDotter(dialogData->blxWindow, FALSE);
+	destroy = callDotter(dialogData->blxWindow, FALSE);
 	break;
 	
       case GTK_RESPONSE_APPLY:
@@ -686,7 +685,7 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
  *******************************************************************/
 
 /* Call dotter. Returns true if dotter was called; false if we quit trying. */
-static gboolean blxCallDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
+gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 {
   GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
   const int numSeqsSelected = g_list_length(selectedSeqs);

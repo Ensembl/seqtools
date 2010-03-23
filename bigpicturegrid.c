@@ -843,6 +843,7 @@ GridProperties* gridGetProperties(GtkWidget *widget)
 static void onDestroyGrid(GtkWidget *widget)
 {
   GridProperties *properties = gridGetProperties(widget);
+  
   if (properties)
     {
       g_free(properties);

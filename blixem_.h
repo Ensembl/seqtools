@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.18 2010-03-19 16:44:13 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.19 2010-03-23 13:12:40 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -59,31 +59,6 @@ typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS, SORT
 /* Fundamental type of sequence. */
 typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
 
-/* Struct to contain the arguements to pass to the main blixem window for initialisation */
-typedef struct _MainWindowArgs
-  {
-    char *refSeq;
-    const char const *refSeqName;
-    const int refSeqOffset;
-    
-    MSP *mspList;
-    BlxBlastMode blastMode;
-    const char *fetchMode;
-    BlxSeqType seqType; 
-    char **geneticCode;
-    int numReadingFrames;
-    const gboolean gappedHsp;
-    const char *paddingSeq;
-    
-    const int bigPictZoom;
-    const int startCoord1Based;
-    
-    const SortByType initialSortType;
-    const gboolean sortInverted;
-    
-  } MainWindowArgs;
-
-  
 
 /* This will probably never be completed but I want to start creating a blixem context....which
  * will require the following steps:
@@ -272,6 +247,7 @@ void blxComplement(char *seq) ;
 
 char *getqseq(int start, int end, const char const *refSeq);
 
+void blviewDestroy(GtkWidget *mainWindow);
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char *blixemVersion ;

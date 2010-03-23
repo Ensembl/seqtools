@@ -13,6 +13,34 @@
 #include <SeqTools/blixem_.h>
 
 
+/* Struct to hold all the settings that come from the command line options */
+typedef struct _CommandLineOptions
+{
+  char *refSeq;			  /* the section of reference sequence we're viewing */
+  const char const *refSeqName;	  /* the name of the reference sequence */
+  const int refSeqOffset;	  /* how much to offset the first ref seq coord by */
+  const int startCoord;	    /* which coord to start the initial display range at */
+  MSP *mspList;		    /* the list of alignments */
+  char **geneticCode;	    /* the genetic code */
+  
+  Strand activeStrand;	    /* which strand will initially be the active one */
+  int bigPictZoom;	    /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
+  gboolean bigPictON;	    
+  gboolean bigPictRev;	    
+  SortByType initSortMode;  /* initial field to sort by */
+  gboolean sortInverted;    /* whether initial sort order should be inverted */
+  gboolean gappedHsp;	    /* whether this is a gapped hsp */
+  gboolean hiliteSins;	    
+  gboolean dotterFirst;	    /* open dotter when blixem starts */
+  gboolean startNextMatch;  /* start at the coord of the next match from the default start coord */
+  BlxBlastMode blastMode;   /* the blast match mode */
+  BlxSeqType seqType;	    /* the type of sequence i.e. DNA or peptide */
+  int numReadingFrames;	    /* the number of reading frames */
+  const char *fetchMode;    /* the default method for fetching sequences */
+} CommandLineOptions;
+
+
+
 typedef struct _MainWindowProperties
   {
     GtkWidget *bigPicture;
@@ -107,7 +135,7 @@ gchar*			  getSequenceSegment(GtkWidget *mainWindow,
 					     const gboolean allowComplement,
 					     const gboolean translateResult);
   
-GtkWidget*		  createMainWindow(MainWindowArgs *args);
+GtkWidget*		  createMainWindow(CommandLineOptions *options, const char *paddingSeq);
 
 
 #endif /* _blxview_main_window_included_ */

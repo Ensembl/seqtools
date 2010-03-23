@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.25 2010-03-19 16:44:13 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.26 2010-03-23 13:12:40 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -135,10 +135,16 @@ MSP score codes:
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxviewMainWindow.h>
 #include <SeqTools/detailview.h>
+#include <SeqTools/blxdotter.h>
 
 #ifdef ACEDB
 #include <wh/display.h>
 #endif
+
+
+
+#define MAXALIGNLEN 10000
+
 
 
 /* This is the only place this is set so that you get the same version/compile whether this is
@@ -146,188 +152,14 @@ MSP score codes:
 char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
-
-typedef struct _BPMSP
-{
-  char sname[FULLNAMESIZE+1];
-  char *desc;
-  int box;
-  struct _BPMSP *next;
-} BPMSP;
-
-
-
-#define max(a,b) (((a) > (b)) ? (a) : (b))
-#define BPoffset 4
-#define NAMESPACE 12
-#define SEQ2BP(i) (float)plusmin*(i-BigPictStart-qoffset)*BPx/BigPictLen + BPoffset
-#define MAXALIGNLEN 10000
-#define separatorwidth 0.5
-
-#define autoDotterParamsStr "Automatic Dotter parameters"
-#define SortByScoreStr      "Sort by score"
-#define SortByIdStr         "Sort by identity"
-#define SortByNameStr       "Sort by name"
-#define SortByPosStr        "Sort by position"
-#define SortInvStr          "Inverted sorting order"
-#define BigPictToggleStr    "Big Picture"
-#define BigPictToggleRevStr "Big Picture Other Strand"
-#define toggleIDdotsStr     "Highlight differences"
-#define squashMatchesStr    "Squash matches"
-#define squashFSStr         "Squash features"
-#define entropytoggleStr    "Complexity curves"
-#define printColorsStr      "B/W Print colours"
-#define toggleColorsStr     "No colours"
-#define toggleVerboseStr    "Verbose mode"
-#define toggleHiliteSinsStr  "Highlight subject insertions"
-#define toggleHiliteUpperStr "Highlight upper case"
-#define toggleHiliteLowerStr "Highlight lower case"
-#define toggleDESCStr        "Show sequence descriptions"
-#define toggleMatchPasteStr  "Paste Match Set\t\t\t\tm"
-#define toggleMatchClearStr  "Clear Match Set\t\t\t\tm"
-
-//static void blxDestroy(void) ;
-//static void blxPrint(void) ;
-//static void wholePrint(void) ;
-
-//static void toggleVerbose(void) ;
-//static void toggleHiliteSins(void) ;
-//static void toggleHiliteUpper(void) ;
-//static void toggleHiliteLower(void) ;
-//static void printColors (void) ;
-//static void toggleColors (void);
-
-static void blviewCreate(char *opts, char *align_types, MSP *msplist, char *refSeq, char *refSeqName, const int qOffset, const int startCoord, const int bigPictZoom, const SortByType sortByType, const gboolean sortInverted, const gboolean gappedHsp, const char *paddingSeq, const char *fetchMode) ;
+static void blviewCreate(char *opts, char *align_types, const char *paddingSeq, CommandLineOptions *options) ;
 static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
 
 
-/*
- *                 Local globals....sigh....
- */
+/* GLOBAL VARIABLES... sigh... */
 
-//static void//     BigPictToggle(void),
-//            entropytoggle(void),
-//            BigPictToggleRev(void),
-//            setHighlight(void),
- //           clrHighlight(void),
-  /*             dotterPanel(void), */
-//            allocAuxseqs(int len),
-//            settingsRedraw(void),
-//            menuCheck(MENU menu, int mode, int thismode, char *str),
-//	    hidePicked(void),
-//            setMenuCheckmarks(void);
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-/* currently unused... */
-static void pfetchWindow (MSP *msp);
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-
-
-/* GLOBAL VARIABLES...really its hard to beat this for a list of globals,
- * one for the Guinness Book of Records perhaps... */
-
-static BPMSP BPMSPlist;// *bpmsp;
 GtkWidget *blixemWindow = NULL ;
-
-
-
-static int   actstart,        /* Active region coordinates relative to query in BASES */
-//             actend,
-             dispstart;       /* Displayed region relative to query in BASES */
-//             displen=240;     /* Displayed sequence length in BASES */
-static char  actframe[16]="(+1)";    /* Active frame */
-static int   plusmin = 1 ;       /* +1 for top strand, -1 */
-static float //queryy,          /* Screen coords of genome seq */
-             //separator_y,	/* y coord of previous panel separator */
-             //lastExonx,
-             //BPboxheight = 5.7,
-             //BPboxstart,
-             //BPboxwidth,
-             BigPictZoom = 10;
-//  oldLinew;
-
-
-//static char *q;    /* The genomic sequence (query=the translated seq) */
-//static int   qlen;
-//static int   qoffset;         /* Offset to the 'real' DNA start */
-//static char *qname_G = NULL ;
-//       MSP  *MSPlist,          /* List of MSP's */
-//            *msp;
-//static MSP  *pickedMSP = NULL ;	      /* Last picked MSP */
-static char 
-//	    message[1024],
-             HighlightSeq[LONG_NAMESIZE+4] = "",
-//             searchSeq[NAMESIZE+4] = "",
-//            *cp,
-            *padseq = 0;
-//            *auxseq = 0,
-//            *auxseq2 = 0,
-//            *dottersseq = NULL,
-//  dotterqname[LONG_NAMESIZE] = "",
-//             stringentEntropytx[10],
-//             mediumEntropytx[10],
-//             nonglobularEntropytx[10],
-//  sortModeStr[32] = "Identity" ;
-
-
-//static BlxPasteType paste_type_G = BLXPASTE_INVALID ;
-
-//static int   lastbox = 0;
-//static int   colortoggle = 0;
-//static int   backgColor = LIGHTGRAY,
-//             IDcolor = CYAN,
-//             consColor = MIDBLUE,
-//             geneColor = BLUE,
-//             hiColor = YELLOW,
-//             matchSetColor = CERISE,
-//	       gridColor = YELLOW,
-//             oldcolor;
-static int   BigPictON = 1,
-             BigPictRev = 0,	/* Draw other strand in Big picture */
-//             BigPictStart, BigPictLen, BPbox, BPx,
-//             nx, ny,
-
-             blastx = 1, blastp = 0, blastn = 0, tblastn = 0, tblastx = 0,
-
-             symbfact = 3,
-//             i,
-             start_nextMatch = 0,
-             dotter_first = 0,
-//             IDdots = 0,
-//             squash = 0,
-//             squashFS = 1,
-//             verbose = 0,
-             HiliteSins = 0,
-//             HiliteUpperOn = 0,
-//             HiliteLowerOn = 0,
-//             DESCon = 0,
-//             dotterZoom = 0,
-//             dotterStart = 0,
-//             dotterEnd = 0,
-//             dotterHSPs = 0,
-//             auxseqlen = 0,
-//             smartDotter = 1,
-//             entropyOn = 0,
-//             stringentEntropycolor = LIGHTGREEN,
-//             stringentEntropybox,
-//             mediumEntropycolor = GREEN,
-//             mediumEntropybox,
-//             nonglobularEntropycolor = DARKGREEN,
-//             nonglobularEntropybox,
-             alphabetsize,
-//             stringentEntropywin = 12,
-//             mediumEntropywin = 25,
-//             nonglobularEntropywin = 45,
-//             printColorsOn,
-//             wholePrintOn,
-//             oneGraph,
-//             settingsButton,
-             sortInvOn = 0,
-             HSPgaps = 0;
-
-static SortByType sortMode = SORTBYUNSORTED ;
+static char *padseq = 0;
 
 
 /* A stepping stone to having a blixem view context is this global struct. */
@@ -357,32 +189,6 @@ static SortByType sortMode = SORTBYUNSORTED ;
 //{
 //  return &blixem_context_G ;
 //}
-
-
-//static void toggleMatchSet(void)
-//{
-//  BlixemView blxview = getBlxViewContext() ;
-//  BOOL result ;
-//
-//  if (blxview->match_set)
-//    {
-//      clearMatchSet() ;
-//      blxview->match_set = FALSE ;
-//
-//      result = menuSetLabel(menuItem(blixemMenu, toggleMatchClearStr), toggleMatchPasteStr) ;
-//    }      
-//  else
-//    {
-//      /* We cannot reset the menu yet because blxPaste() is asynchronous so we don't know if it worked. */
-//      blxPaste(BLXPASTE_MATCHSET) ;
-//    }
-//
-//
-//
-//  return ;
-//}
-
-
 
 //static void toggleVerbose(void)
 //{
@@ -611,73 +417,39 @@ static void decGrid(void) {
 //}
 
 
-//static void blxDestroy(void)
-//{
-//  gtk_widget_destroy(blixemWindow) ;
-//
-//  return ;
-//}
 
-
-
-static void setModeP(void)
+static void setModeP(CommandLineOptions *options)
 {
-  blastp = 1;
-  blastx = blastn = tblastn = tblastx = 0;
-  alphabetsize = 24;
-  symbfact = 1;
-  BigPictZoom = 10;
+  options->blastMode = BLXMODE_BLASTP;
+  options->bigPictZoom = 10;
 }
 
-static void setModeN(void)
+static void setModeN(CommandLineOptions *options)
 {
-  blastn = 1;
-  blastp = blastx = tblastn = tblastx = 0;
-  alphabetsize = 4;
-  symbfact = 1;
-  BigPictZoom = 30;
+  options->blastMode = BLXMODE_BLASTN;
+  options->bigPictZoom = 30;
 }
 
-static void setModeX(void) {
-    blastx = 1;
-    blastp = blastn = tblastn = tblastx = 0;
-    alphabetsize = 4;
-    symbfact = 3;
-    BigPictZoom = 10;
-}
-static void setModeT(void) {
-    tblastn = 1;
-    blastp = blastx = blastn = tblastx = 0;
-    alphabetsize = 24;
-    symbfact = 1;
-}
-static void setModeL(void) {
-    tblastx = 1;
-    blastp = blastx = blastn = tblastn = 0;
-    alphabetsize = 24;
-    symbfact = 3;
-    BigPictZoom = 10;
-}
-
-
-static void blxviewInitGlobals(char *seq, char *seqname, int start, int offset, const MSP *msplist)
+static void setModeX(CommandLineOptions *options)
 {
-//  q = seq;
-//  qlen = actend = strlen(q) ;
-//  qname_G = g_strdup(seqname) ;
-  
-  dispstart = start;
-  actstart=1;
-//  qoffset = offset;
-//  MSPlist = msplist;
-  BPMSPlist.next = 0;
-  *HighlightSeq = 0;
-  blastx = blastp =  blastn = tblastn = tblastx = 0 ;
-  sortMode = SORTBYUNSORTED ;
+  options->blastMode = BLXMODE_BLASTX;
+  options->bigPictZoom = 10;
+}
+
+static void setModeT(CommandLineOptions *options)
+{
+  options->blastMode = BLXMODE_TBLASTN;
+  options->bigPictZoom = 10;
+}
+
+static void setModeL(CommandLineOptions *options)
+{
+  options->blastMode = BLXMODE_TBLASTX;
+  options->bigPictZoom = 10;
 }
 
 
-static void blxviewGetOpts(char *opts, char *refSeq)
+static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options)
 {
   char *opt = opts;
   while (*opt)
@@ -687,103 +459,79 @@ static void blxviewGetOpts(char *opts, char *refSeq)
       switch (*opt)
       {
 	case 'I':
-	  sortInvOn = 1;                         break;
+	  options->sortInverted = TRUE;             break;
 	case 'G':
 	  /* Gapped HSPs */
-	  HiliteSins = HSPgaps = 1;                 break;
-	case 'P': setModeP();                       break;
-	case 'N': setModeN();                       break;
-	case 'X': setModeX();                       break;
-	case 'T': setModeT();                       break;
-	case 'L': setModeL();                       break;
+	  options->hiliteSins = options->gappedHsp = TRUE;    break;
+	case 'P': setModeP(options);                break;
+	case 'N': setModeN(options);                break;
+	case 'X': setModeX(options);                break;
+	case 'T': setModeT(options);                break;
+	case 'L': setModeL(options);                break;
 	case '-':
-	  strcpy(actframe, "(-1)");
-	  plusmin = -1;                           break;
+	  options->activeStrand = REVERSE_STRAND;   break;
 	case '+':
-	  strcpy(actframe, "(+1)");
-	  plusmin = 1;                            break;
+	  options->activeStrand = FORWARD_STRAND;   break;
 	case 'B':
-	  BigPictON = 1;                          break;
+	  options->bigPictON = TRUE;              break;
 	case 'b':
-	  BigPictON = 0;                          break;
+	  options->bigPictON = FALSE;             break;
 	case 'd':
-	  dotter_first = 1;                       break;
+	  options->dotterFirst = TRUE;            break;
 	case 'i':
-	  sortMode = SORTBYID ;                   break;
+	  options->initSortMode = SORTBYID ;      break;
 	case 'M':
-	  start_nextMatch = 1;                    break;
+	  options->startNextMatch = 1;            break;
 	case 'n':
-	  sortMode = SORTBYNAME ;                 break;
+	  options->initSortMode = SORTBYNAME ;    break;
 	case 'p':
-	  sortMode = SORTBYPOS ;                  break;
+	  options->initSortMode = SORTBYPOS ;     break;
 	case 'R':
-	  BigPictRev = 1;                         break;
+	  options->bigPictRev = 1;                break;
 	case 'r':
-	  BigPictRev = 0;                         break;
+	  options->bigPictRev = 0;                break;
 	case 's':
-	  sortMode = SORTBYSCORE ;                break ;
+	  options->initSortMode = SORTBYSCORE ;   break;
 	case 'Z':
-	  BigPictZoom = strlen(refSeq);              break;
+	  options->bigPictZoom = strlen(refSeq);  break;
       }
       
       opt++;
     }
   
-  if (blastx + blastn + blastp + tblastn + tblastx == 0)
+  if (options->blastMode == BLXMODE_UNSET)
     {
       printf("\nNo blast type specified. Detected ");
       
       if (Seqtype(refSeq) == 'P')
 	{
 	  printf("protein sequence. Will try to run Blixem in blastp mode\n");
-	  setModeP();
+	  setModeP(options);
 	}
       else
 	{
 	  printf("nucleotide sequence. Will try to run Blixem in blastn mode\n");
-	  setModeN();
+	  setModeN(options);
 	}
     }
-}
-
-
-/* Returns the blast mode, i.e. blastx, blastn etc. */
-static BlxBlastMode getBlastMode()
-{
-  BlxBlastMode mode;
   
-  if (blastx)
-    mode = BLXMODE_BLASTX;
-  else if (tblastx)
-    mode = BLXMODE_TBLASTX;
-  else if (blastn)
-    mode = BLXMODE_BLASTN;
-  else if (tblastn)
-    mode = BLXMODE_TBLASTN;
-  else if (blastp)
-    mode = BLXMODE_BLASTP;
-  
-  return mode;
-}
-
-
-/* Returns the type of sequence we're dealing with */
-static BlxSeqType getSeqType()
-{
-  return blastx || tblastx ? BLXSEQ_PEPTIDE : BLXSEQ_DNA;
-}
-
-
-/* Returns the number of reading frames */
-static int getNumReadingFrames()
-{
-  return getSeqType() == BLXSEQ_PEPTIDE ? 3 : 1;
+  /* Determine the sequence type and number of reading frames based on the blast mode */
+  if (options->blastMode == BLXMODE_BLASTX || options->blastMode == BLXMODE_TBLASTX)
+    {
+      options->seqType = BLXSEQ_PEPTIDE;
+      options->numReadingFrames = 3;
+    }
+  else
+    {
+      options->seqType = BLXSEQ_DNA;
+      options->numReadingFrames = 1;
+    }
 }
 
 
 /* Find out if we need to fetch any sequences (they may all be contained in the input
  * files), if we do need to, then fetch them by the appropriate method. */
-static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, MSP *msplist, const char **fetchMode)
+static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, MSP *msplist, CommandLineOptions *options)
 {
   gboolean success = TRUE;
 
@@ -794,12 +542,12 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
       
       if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
 	{
-	  *fetchMode = BLX_FETCH_PFETCH;
+	  options->fetchMode = BLX_FETCH_PFETCH;
 	}
     }
   else
     {
-      *fetchMode = blxFindInitialFetchMode();
+      options->fetchMode = blxFindInitialFetchMode();
     }
   
   
@@ -807,7 +555,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
   DICT *dict = dictCreate(128) ;
   if (!haveAllSequences(msplist, dict))
     {
-      if (strcmp(*fetchMode, BLX_FETCH_PFETCH) == 0)
+      if (strcmp(options->fetchMode, BLX_FETCH_PFETCH) == 0)
 	{
 	  /* Fill msp->sseq fast by pfetch if possible
 	   * two ways to use this:
@@ -851,9 +599,9 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
 	    }
 	}
 #ifdef PFETCH_HTML 
-      else if (strcmp(*fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
+      else if (strcmp(options->fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
 	{
-	  success = blxGetSseqsPfetchHtml(msplist, dict, getSeqType()) ;
+	  success = blxGetSseqsPfetchHtml(msplist, dict, options->seqType) ;
 	}
 #endif
     }
@@ -895,18 +643,19 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
     }
 
 
-  blxviewInitGlobals(refSeq, refSeqName, start, qOffset, msplist);
-  blxviewGetOpts(opts, refSeq);
+  CommandLineOptions options = {refSeq, refSeqName, qOffset, start, msplist, stdcode1,
+				FORWARD_STRAND, 10, TRUE, FALSE, SORTBYID, FALSE, FALSE, FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, NULL};
   
-  const char *fetchMode = NULL;
-  gboolean status = blxviewFetchSequences(pfetch, External, msplist, &fetchMode);
+  blxviewGetOpts(opts, refSeq, &options);
+  
+  gboolean status = blxviewFetchSequences(pfetch, External, msplist, &options);
   
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, msplist, refSeq, refSeqName, qOffset, start, BigPictZoom, sortMode, sortInvOn, HSPgaps, padseq, fetchMode) ;
+      blviewCreate(opts, align_types, padseq, &options) ;
     }
 
   return 0;
@@ -916,27 +665,13 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
 /* Initialize the display and the buttons */
 static void blviewCreate(char *opts, 
 			 char *align_types, 
-			 MSP *msplist, 
-			 char *refSeq, 
-			 char *refSeqName, 
-			 const int qOffset,
-			 const int startCoord,
-			 const int bigPictZoom,
-			 const SortByType sortByType,
-			 const gboolean sortInverted,
-			 const gboolean gappedHsp,
 			 const char *paddingSeq,
-			 const char *fetchMode)
+			 CommandLineOptions *options)
 {
   if (!blixemWindow)
     {
-      SortByType initialSortType = sortByType == SORTBYUNSORTED ? SORTBYID : sortByType; /* sort by ID by default, if none specified */
-      
-      MainWindowArgs args = {refSeq, refSeqName, qOffset, msplist, getBlastMode(), fetchMode, getSeqType(), stdcode1, 
-			     getNumReadingFrames(), gappedHsp, paddingSeq, bigPictZoom, startCoord, initialSortType, sortInverted};
-      
       /* Create the window */
-      blixemWindow = createMainWindow(&args);
+      blixemWindow = createMainWindow(options, paddingSeq);
 
       BOOL pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       gtk_window_set_title(GTK_WINDOW(blixemWindow),
@@ -945,22 +680,22 @@ static void blviewCreate(char *opts,
 				      (align_types ? align_types : (*opts == 'X' ? "peptide" :
 								    (*opts == 'N' ? "nucleotide" : ""))),
 				      (pep_nuc_align ? " alignment)" : ""),
-				      refSeqName));
+				      options->refSeqName));
     }
 
-  char *nameSeparatorPos = (char *)strrchr(refSeqName, '/');
+  char *nameSeparatorPos = (char *)strrchr(options->refSeqName, '/');
   if (nameSeparatorPos)
     {
-      refSeqName = nameSeparatorPos + 1;
+      options->refSeqName = nameSeparatorPos + 1;
     }
   
-  if (dotter_first && msplist && msplist->sname && (msplist->type == HSP || msplist->type == GSP))
+  if (options->dotterFirst && options->mspList && options->mspList->sname && (options->mspList->type == HSP || options->mspList->type == GSP))
     {
-      strcpy(HighlightSeq, msplist->sname);
-//      callDotter(msplist);
+      mainWindowSelectSeq(blixemWindow, options->mspList->sname, TRUE);
+      callDotter(blixemWindow, FALSE);
     }
 
-  if (start_nextMatch)
+  if (options->startNextMatch)
     {
       /* Set the start coord to be the start of the next MSP on from the default start coord */
       nextMatch(mainWindowGetDetailView(blixemWindow));
@@ -981,67 +716,52 @@ static void blviewCreate(char *opts,
    Could free auxseq, auxseq2 and padseq too, but they'd have to be remalloc'ed
    next time then.
 */
-//static void blviewDestroy(GtkWidget *unused)
-//{
-//  MSP *msp, *fmsp;
-//  BPMSP *tmsp;
-//
-//  g_free(qname_G) ;
-//
-//  g_free(q);
-//
-//  /* Free the allocated sequences and names */
-//  for (msp = MSPlist; msp; msp = msp->next)
-//    {
-//      if (msp->sseq && msp->sseq != padseq)
-//	{
-//	  for (fmsp = msp->next; fmsp; fmsp = fmsp->next)
-//	    {
-//	      if (fmsp->sseq == msp->sseq)
-//		fmsp->sseq = 0;
-//	    }
-//
-//	/* Bug in fmapfeatures.c causes introns to have stale sseq's */
-//	if (msp->score >= 0)
-//	  {
-//	    g_free(msp->sseq);
-//	    g_free(msp->qname);
-//	    g_free(msp->sname);
-//	    g_free(msp->desc);
-//	    arrayDestroy(msp->gaps);
-//	    arrayDestroy(msp->xy);
-//	  }
-//	}
-//    }
-//
-//  for (msp = MSPlist; msp; )
-//    {
-//      fmsp = msp;
-//      msp = msp->next;
-//      g_free(fmsp);
-//    }
-//
-//  for (bpmsp = BPMSPlist.next; bpmsp; )
-//    {
-//      tmsp = bpmsp;
-//      bpmsp = bpmsp->next;
-//      g_free(tmsp);
-//    }
-//
-//  arrayDestroy(stringentEntropyarr);
-//  arrayDestroy(mediumEntropyarr);
-//  arrayDestroy(nonglobularEntropyarr);
-//
-//  blixemWindow = NULL ;
-//  pickedMSP = NULL ;
-//
-//
-//  /* Need to start trying to reset some state.... */
-//  dotterStart = dotterEnd = 0 ;
-//
-//
-//  return ;
-//}
+void blviewDestroy(GtkWidget *mainWindow)
+{
+  MSP *mspList = mainWindowGetMspList(mainWindow);
+  
+  /* Free the allocated sequences and names */
+  MSP *msp = NULL, *fmsp = NULL;
+  for (msp = mspList; msp; msp = msp->next)
+    {
+      if (msp->sseq && msp->sseq != padseq)
+	{
+	  /* Loop forward through all next MSPs and NULL the sseq pointer
+	   * if its the same as this one, so we don't try to delete it twice. */
+	  for (fmsp = msp->next; fmsp; fmsp = fmsp->next)
+	    {
+	      if (fmsp->sseq == msp->sseq)
+		{
+		  fmsp->sseq = NULL;
+		}
+	    }
+
+	  /* Free the MSP data. (Bug in fmapfeatures.c causes introns to have stale sseq's) */
+	  if (msp->score >= 0)
+	    {
+	      g_free(msp->sseq);
+	      g_free(msp->qname);
+	      g_free(msp->sname);
+	      g_free(msp->desc);
+	      arrayDestroy(msp->gaps);
+	      arrayDestroy(msp->xy);
+	    }
+	}
+    }
+
+  /* Now free the MSPs themselves. */
+  for (msp = mspList; msp; )
+    {
+      fmsp = msp;
+      msp = msp->next;
+      g_free(fmsp);
+    }
+
+  /* Reset the globals */
+  blixemWindow = NULL ;
+
+  return ;
+}
 
 
 
