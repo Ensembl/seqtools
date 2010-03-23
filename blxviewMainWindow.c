@@ -55,7 +55,10 @@ static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *mes
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  copySelectionToClipboard(GtkWidget *mainWindow);
 static void			  mainWindowGroupsChanged(GtkWidget *mainWindow);
-
+static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *mainWindow);
+static void			  getSequencesThatMatch(gpointer key, gpointer value, gpointer data);
+static GList*			  getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText);
+static void			  mainWindowSetSelectedSeqList(GtkWidget *mainWindow, GList *seqNameList);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -664,6 +667,145 @@ void showViewPanesDialog(GtkWidget *mainWindow)
 }
 
 
+
+/***********************************************************
+ *			    Find menu			   *
+ ***********************************************************/
+
+static GList* findSeqsFromName(GtkWidget *button, gpointer data)
+{
+  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      return NULL;
+    }
+  
+  /* The text entry box was passed as the user data */
+  GtkEntry *entry = GTK_ENTRY(data);
+  
+  if (!entry || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(entry)))
+    {
+      messout("Could not set search string: invalid text entry box [%x]\n", entry);
+      return NULL;
+    }
+  
+  /* Extract the main window from our parent window. */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  
+  const char *searchStr = gtk_entry_get_text(entry);
+  
+  /* Loop through all the sequences and see if the name matches the search string */
+  GHashTable *seqTable = detailViewGetSeqTable(detailView);
+  SeqSearchData searchData = {searchStr, NULL};
+  
+  g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
+  
+  if (g_list_length(searchData.matchList) < 1)
+    {
+      messout("No sequences found matching text %s", searchStr);
+    }
+  
+  return searchData.matchList;
+}
+
+
+/* Finds all the valid sequences blixem knows about whose names are in the given
+ * text entry box (passed as the user data), and returns them in a GList. Only
+ * does anything if the given radio button is active. */
+static GList* findSeqsFromList(GtkWidget *button, gpointer data)
+{
+  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      return NULL;
+    }
+  
+  /* The text entry box was passed as the user data. We should have a (multi-line) text view */
+  GtkTextView *textView = GTK_TEXT_VIEW(data);
+  
+  if (!textView || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(textView)))
+    {
+      messout("Could not set search string: invalid text entry box [%x]\n", textView);
+      return NULL;
+    }
+  
+  /* Get the input text from the text buffer and create the group */
+  GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(textView);
+  
+  GtkTextIter start, end;
+  gtk_text_buffer_get_bounds(textBuffer, &start, &end);
+  
+  const char *inputText = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  
+  GList *seqNameList = getSeqNamesFromText(mainWindow, inputText);
+  
+  if (g_list_length(seqNameList) < 1)
+    {
+      messout("No valid sequence names in search list\n");
+    }
+    
+  return seqNameList;
+}
+
+
+/* Callback called when requested to select sequences from a sequence name.
+ * Selects the sequences and scrolls the start of the first selected match into view */
+static void onFindSeqsFromName(GtkWidget *button, gpointer data)
+{
+  GList *seqList = findSeqsFromName(button, data);
+  
+  if (seqList)
+    {
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
+      mainWindowSetSelectedSeqList(mainWindow, seqList);
+    }
+}
+
+
+static void onFindSeqsFromList(GtkWidget *button, gpointer data)
+{
+  GList *seqList = findSeqsFromList(button, data);
+  
+  if (seqList)
+    {
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      
+      mainWindowSetSelectedSeqList(mainWindow, seqList);
+    }
+}
+
+
+void showFindDialog(GtkWidget *mainWindow)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Find sequences", 
+						  GTK_WINDOW(mainWindow), 
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_CANCEL,
+						  GTK_RESPONSE_REJECT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+  
+  GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "From _name (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, mainWindow);
+  createRadioButton(contentArea, button1, "From _list", FALSE, TRUE, TRUE, onFindSeqsFromList, mainWindow);
+  
+  /* Connect signals and show */
+  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(mainWindow));
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
+  
+  gtk_widget_show_all(dialog);
+}
+
 /***********************************************************
  *		      Group sequences menu                 *
  ***********************************************************/
@@ -1045,41 +1187,14 @@ static void addGroupFromSelection(GtkWidget *button, gpointer data)
  * in the given text entry. */
 static void addGroupFromName(GtkWidget *button, gpointer data)
 {
-  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+  GList *seqList = findSeqsFromName(button, data);
+
+  if (seqList)
     {
-      return;
-    }
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-  /* The text entry box was passed as the user data */
-  GtkEntry *entry = GTK_ENTRY(data);
-
-  if (!entry || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(entry)))
-    {
-      messout("Could not set search string: invalid text entry box [%x]\n", entry);
-      return;
-    }
-  
-  /* Extract the main window from our parent window. */
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
-
-  const char *searchStr = gtk_entry_get_text(entry);
-
-  /* Loop through all the sequences and see if the name matches the search string */
-  GHashTable *seqTable = detailViewGetSeqTable(detailView);
-  SeqSearchData searchData = {searchStr, NULL};
-
-  g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
-  
-  /* If we found anything, create a group */
-  if (g_list_length(searchData.matchList) > 0)
-    {
-      createSequenceGroup(mainWindow, searchData.matchList, FALSE, NULL);
-    }
-  else
-    {
-      messout("No sequences found matching text %s", searchStr);
+      createSequenceGroup(mainWindow, seqList, FALSE, NULL);
     }
 }
 
@@ -1132,7 +1247,7 @@ static GList* getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText)
 
 /* Callback function to be used when requesting text from the clipboard to be used
  * to create the 'match set' group from the paste text */
-static void createMatchSet(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
 {
   /* Get the list of sequences to include */
   GtkWidget *mainWindow = GTK_WIDGET(data);
@@ -1151,12 +1266,28 @@ static void createMatchSet(GtkClipboard *clipboard, const char *clipboardText, g
 	{
 	  freeStringList(&properties->matchSetGroup->seqNameList, properties->matchSetGroup->ownsSeqNames);
 	  properties->matchSetGroup->seqNameList = seqNameList;
-	  mainWindowGroupsChanged(mainWindow);
 	}
       
       /* Reset the highlighted/hidden properties to make sure the group is initially visible */
       properties->matchSetGroup->highlighted = TRUE;
       properties->matchSetGroup->hidden = FALSE;
+
+      mainWindowGroupsChanged(mainWindow);
+    }
+}
+
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to find and select sequences based on the paste text */
+static void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  /* Get the list of sequences to include */
+  GtkWidget *mainWindow = GTK_WIDGET(data);
+  GList *seqNameList = getSeqNamesFromText(mainWindow, clipboardText);
+  
+  if (seqNameList)
+    {
+      mainWindowSetSelectedSeqList(mainWindow, seqNameList);
     }
 }
 
@@ -1177,7 +1308,7 @@ static void toggleMatchSet(GtkWidget *mainWindow)
     }
   else
     {
-      requestPrimaryClipboardText(createMatchSet, mainWindow);
+      requestPrimaryClipboardText(createMatchSetFromClipboard, mainWindow);
     }
 }
 
@@ -1186,35 +1317,13 @@ static void toggleMatchSet(GtkWidget *mainWindow)
  * names in the given text entry. */
 static void addGroupFromList(GtkWidget *button, gpointer data)
 {
-  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
-    {
-      return;
-    }
-  
-  /* The text entry box was passed as the user data. We should have a (multi-line) text view */
-  GtkTextView *textView = GTK_TEXT_VIEW(data);
-  
-  if (!textView || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(textView)))
-    {
-      messout("Could not set search string: invalid text entry box [%x]\n", textView);
-      return;
-    }
-  
-  /* Get the input text from the text buffer and create the group */
-  GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(textView);
-  
-  GtkTextIter start, end;
-  gtk_text_buffer_get_bounds(textBuffer, &start, &end);
-  
-  const char *inputText = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
-  
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-
-  GList *seqNameList = getSeqNamesFromText(mainWindow, inputText);
+  GList *seqNameList = findSeqsFromList(button, data);
   
   if (seqNameList)
     {
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
       createSequenceGroup(mainWindow, seqNameList, FALSE, NULL);
     }
 }
@@ -2272,11 +2381,20 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	if (ctrlModifier)
 	  {
 	    /* Paste from the default clipboard */
-	    requestDefaultClipboardText(createMatchSet, window);
+	    requestDefaultClipboardText(findSeqsFromClipboard, window);
 	    result = TRUE;
 	  }
 	break;
 	
+      case GDK_f: /* fall through */
+      case GDK_F:
+	if (ctrlModifier)
+	  {
+	    showFindDialog(window);
+	    result = TRUE;
+	  }
+	break;
+
       case GDK_g: /* fall through */
       case GDK_G:
 	if (!ctrlModifier)
@@ -2676,6 +2794,18 @@ void mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean up
       properties->selectedSeqs = g_list_append(properties->selectedSeqs, seqName);
       mainWindowSelectionChanged(mainWindow, updateTrees);
     }
+}
+
+
+/* Utility function to set the list of selected sequences to that given */
+static void mainWindowSetSelectedSeqList(GtkWidget *mainWindow, GList *seqNameList)
+{
+  mainWindowDeselectAllSeqs(mainWindow, FALSE);
+
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  properties->selectedSeqs = seqNameList;
+
+  mainWindowSelectionChanged(mainWindow, TRUE);
 }
 
 
