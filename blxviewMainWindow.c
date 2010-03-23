@@ -50,7 +50,6 @@ static void			  onDestroyMainWindow(GtkWidget *widget);
 static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 
-static GList*			  findSelectedSeqInList(GList *list, const char *seqName);
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  copySelectionToClipboard(GtkWidget *mainWindow);
@@ -2815,7 +2814,7 @@ void mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean 
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
 
   /* See if it's in the list and, if so, get a pointer to the list element */
-  GList *foundSeq = findSelectedSeqInList(properties->selectedSeqs, seqName);
+  GList *foundSeq = findStringInList(properties->selectedSeqs, seqName);
 
   if (foundSeq)
     {
@@ -2839,32 +2838,6 @@ void mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateTrees
 }
 
 
-/* Returns the pointer to the GList element that contains the given sequence, if the
- * sequence is in the list. */
-static GList *findSelectedSeqInList(GList *list, const char *seqName)
-{
-  GList *result = NULL;
-  
-  /* We can't use g_list_find because that checks if the pointer value
-   * is the same, which it might not be, because the same seq name could 
-   * come from any one of several different MSPs. */
-  GList *listItem = list;
-  
-  for ( ; listItem; listItem = listItem->next)
-    {
-      const char *listName = (const char*)(listItem->data);
-      
-      if (strcmp(listName, seqName) == 0)
-	{
-	  result = listItem;
-	  break;
-	}
-    }
-  
-  return result;
-}
-
-
 /* Returns true if the given sequence is selected */
 gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
 {
@@ -2873,7 +2846,7 @@ gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   if (properties)
     {
-      result = (findSelectedSeqInList(properties->selectedSeqs, seqName) != NULL);
+      result = (findStringInList(properties->selectedSeqs, seqName) != NULL);
     }
   
   return result;

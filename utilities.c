@@ -1181,6 +1181,27 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-
+/* Returns the pointer to the GList element that contains the given string, if the
+ * string is in the list. Checks by string comparison, not pointer comparison. */
+GList *findStringInList(GList *list, const char *seqName)
+{
+  GList *result = NULL;
+  
+  /* We can't use g_list_find because that checks if the pointer value is the same */
+  GList *listItem = list;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      const char *listName = (const char*)(listItem->data);
+      
+      if (strcmp(listName, seqName) == 0)
+	{
+	  result = listItem;
+	  break;
+	}
+    }
+  
+  return result;
+}
 
 

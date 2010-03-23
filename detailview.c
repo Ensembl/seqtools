@@ -30,13 +30,14 @@ typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
 
 typedef struct 
   {
-    const IntRange const *displayRange; 
-    const gboolean searchRight;
-    const int searchDirection;
-    const gboolean rightToLeft;
-    const BlxSeqType seqType;
-    const int numFrames;
-    const IntRange const *refSeqRange;
+    const int startCoord;		/* the display coord to start searching from */
+    const gboolean searchRight;		/* search towards the right or left */
+    const int searchDirection;		/* multiplier to add/subtract depending on whether searching right/left */
+    const gboolean rightToLeft;		/* true if the display is reversed */
+    const BlxSeqType seqType;		/* whether viewing DNA or peptide seqs */
+    const int numFrames;		/* number of reading frames */
+    const IntRange const *refSeqRange;	/* the full range of the reference sequence */
+    GList *seqNameList;			/* only search matches in these sequences */
 
     int frame;
     int smallestOffset;
@@ -1999,9 +2000,6 @@ void toggleStrand(GtkWidget *detailView)
   
   /* Redraw the grids and grid headers */
   refreshBigPictureDisplayRange(bigPicture, TRUE);
-//  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
-//  widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
-//  gtk_widget_queue_draw(bigPicture);
 }
 
 
@@ -2012,7 +2010,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
   static gchar defaultInput[32] = "";
   
   /* Pop up a dialog to request a coord from the user */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Goto which position: ", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Go to position: ", 
 						  NULL, 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
 						  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
@@ -2121,6 +2119,8 @@ void detailViewSortByType(GtkWidget *detailView, const SortByType sortByType)
  * the search criteria passed in the user data. */
 static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
+  MatchSearchData *searchData = (MatchSearchData*)data;
+
   /* Loop through all MSPs in this tree row. */
   GList* mspListItem = treeGetMsps(model, iter);
   
@@ -2128,17 +2128,16 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
     {
       MSP *msp = (MSP*)(mspListItem->data);
 
-      if (mspIsBlastMatch(msp) || mspIsExon(msp))
+      /* Check its in the sequence list (if given), and is not an intron */
+      if (!mspIsIntron(msp) && (!searchData->seqNameList || findStringInList(searchData->seqNameList, msp->sname)))
 	{
-	  MatchSearchData *searchData = (MatchSearchData*)data;
-
 	  /* Get the msp start/end in terms of the display coords */
 	  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
 	  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
 	  const int qSeqMin = min(coord1, coord2);
 	  
 	  /* Get the offset of this MSP from the current display start position */
-	  int curOffset = (qSeqMin - searchData->displayRange->min) * searchData->searchDirection;
+	  int curOffset = (qSeqMin - searchData->startCoord) * searchData->searchDirection;
 	  
 	  if (curOffset > 0 && (curOffset < searchData->smallestOffset || searchData->smallestOffset == UNSET_INT))
 	    {
@@ -2151,8 +2150,10 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 }
 
 
-/* Find and go to the next match (either left or right depending on the search flag) */
-static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
+/* Find and go to the next match (either left or right depending on the search flag).
+ * If a list of sequence names is given, only look at matches in those sequences.
+ * startCoord determines where to start searching from. */
+static void goToNextMatch(GtkWidget *detailView, const int startCoord, const gboolean searchRight, GList *seqNameList)
 {
   /* If the display is toggled (i.e. showing right-to-left), then the active
    * strand is the reverse strand. This function currently only searchs for 
@@ -2161,13 +2162,14 @@ static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
   const Strand activeStrand = rightToLeft ? REVERSE_STRAND : FORWARD_STRAND;
   const int searchDirection = searchRight ? 1 : -1;
   
-  MatchSearchData searchData = {detailViewGetDisplayRange(detailView), 
+  MatchSearchData searchData = {startCoord, 
 				searchRight, 
 				searchDirection, 
 				rightToLeft, 
 				detailViewGetSeqType(detailView),
 				detailViewGetNumReadingFrames(detailView),
 				detailViewGetRefSeqRange(detailView),
+				seqNameList,
 				UNSET_INT,
 				UNSET_INT};
 
@@ -2187,21 +2189,33 @@ static void goToNextMatch(GtkWidget *detailView, const gboolean searchRight)
     {
       /* Scroll the detail view by this offset amount. The offset coords are of
        * the same type as the display sequence type. */
-      const int newStart = searchData.displayRange->min + (searchData.smallestOffset * searchDirection);
+      const int newStart = searchData.startCoord + (searchData.smallestOffset * searchDirection);
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
 
       setDetailViewStartIdx(detailView, newStart, seqType);
     }
 }
 
+
+/* Go to the previous match out of the currently selected sequence(s) */
 static void prevMatch(GtkWidget *detailView)
 {
-  goToNextMatch(detailView, FALSE);
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+
+  /* Jump to the nearest match to the current display start */
+  goToNextMatch(detailView, displayRange->min, FALSE, seqNameList);
 }
 
+
+/* Go to the next match out of the currently selected sequence(s) */
 void nextMatch(GtkWidget *detailView)
 {
-  goToNextMatch(detailView, TRUE);
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  
+  /* Jump to the nearest match to the current display start */
+  goToNextMatch(detailView, displayRange->min, TRUE, seqNameList);
 }
 
 

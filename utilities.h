@@ -158,4 +158,7 @@ int		      parseMatchLine(const char *inputText,
 			
 GList*		      parseMatchList(const char *inputText);
 
+GList*		      findStringInList(GList *list, const char *seqName);
+
+
 #endif /* _utilities_h_included_ */
