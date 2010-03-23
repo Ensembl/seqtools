@@ -25,6 +25,8 @@
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
 
+typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
+
 
 typedef struct 
   {
@@ -2203,28 +2205,48 @@ void nextMatch(GtkWidget *detailView)
 }
 
 
-static void comboChange(GtkEditable *editBox, gpointer data)
+/* Callback called when the sort order has been changed in the drop-down box */
+static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
+
+  GtkTreeIter iter;
   
-  /* Get the value to sort by from the combo box */
-  gchar *val = gtk_editable_get_chars(editBox, 0, -1);
-  
-  if (GTK_WIDGET_REALIZED(detailView))
+  if (GTK_WIDGET_REALIZED(detailView) && gtk_combo_box_get_active_iter(combo, &iter))
     {
-      if (strcmp(val, SORT_BY_SCORE_STRING) == 0)
-	detailViewSortByScore(detailView);
-      else if (strcmp(val, SORT_BY_ID_STRING) == 0)
-	detailViewSortById(detailView);
-      else if (strcmp(val, SORT_BY_NAME_STRING) == 0)
-	detailViewSortByName(detailView);
-      else if (strcmp(val, SORT_BY_POS_STRING) == 0)
-	detailViewSortByPos(detailView);
-      else if (strcmp(val, SORT_BY_GROUP_ORDER_STRING) == 0)
-	detailViewSortByGroupOrder(detailView);
+      GtkTreeModel *model = gtk_combo_box_get_model(combo);
+      
+      GValue val = {0};
+      gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
+      
+      SortByType sortType = g_value_get_int(&val);
+      
+      switch (sortType)
+	{
+	  case SORTBYSCORE:
+	    detailViewSortByScore(detailView);
+	    break;
+	    
+	  case SORTBYID:
+	    detailViewSortById(detailView);
+	    break;
+	    
+	  case SORTBYNAME:
+	    detailViewSortByName(detailView);
+	    break;
+	    
+	  case SORTBYPOS:
+	    detailViewSortByPos(detailView);
+	    break;
+	    
+	  case SORTBYGROUPORDER:
+	    detailViewSortByGroupOrder(detailView);
+	    break;
+	    
+	  default:
+	    break;
+	};
     }
-  
-  g_free(val);
 }
 
 
@@ -2477,58 +2499,57 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 }
 
 
+/* Add an option for the sorting drop-down box */
+static GtkTreeIter* addSortBoxItem(GtkTreeStore *store, 
+				  GtkTreeIter *parent, 
+				  SortByType sortType, 
+				  const char *sortName,
+				  SortByType initSortType,
+				  GtkComboBox *combo)
+{
+  GtkTreeIter iter;
+  gtk_tree_store_append(store, &iter, parent);
+
+  gtk_tree_store_set(store, &iter, SORT_TYPE_COL, sortType, SORT_TEXT_COL, sortName, -1);
+
+  if (sortType == initSortType)
+    {
+      gtk_combo_box_set_active_iter(combo, &iter);
+    }
+  
+  return NULL;
+}
+
+
 /* Create the combo box used for selecting sort criteria */
-static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const SortByType sortByType)
+static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const SortByType initSortType)
 {
   /* Add a label, to make it obvious what the combo box is for */
   GtkWidget *label = gtk_label_new(" <i>Sort by:</i>");
   gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
   addToolbarWidget(toolbar, label);
 
-  /* Create the combo box */
-  GtkWidget *combo = gtk_combo_new();
-  addToolbarWidget(toolbar, combo);
+  /* Create the data for the drop-down box. Use a tree so that we can sort by
+   * multiple criteria. */
+  GtkTreeStore *store = gtk_tree_store_new(N_SORT_COLUMNS, G_TYPE_INT, G_TYPE_STRING);
+  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
+  g_object_unref(store);
+  addToolbarWidget(toolbar, GTK_WIDGET(combo));
 
-  gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
-  gtk_widget_set_usize(GTK_COMBO(combo)->entry, 80, -2);
-  gtk_signal_connect(GTK_OBJECT(GTK_COMBO(combo)->entry), "changed", (GtkSignalFunc)comboChange, detailView);
-  
-  /* Create the list of strings the user can choose to sort by */
-  GList *sortList = NULL;
-  sortList = g_list_append(sortList, SORT_BY_SCORE_STRING);
-  sortList = g_list_append(sortList, SORT_BY_ID_STRING);
-  sortList = g_list_append(sortList, SORT_BY_NAME_STRING);
-  sortList = g_list_append(sortList, SORT_BY_POS_STRING);
-  sortList = g_list_append(sortList, SORT_BY_GROUP_ORDER_STRING);
-  gtk_combo_set_popdown_strings(GTK_COMBO(combo), sortList);
-  
-  /* Set the initial value based on the requested initial sort mode (if any) */
-  switch (sortByType)
-    {
-      case SORTBYNAME:
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_NAME_STRING);
-	break;
-	
-      case SORTBYSCORE:
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_SCORE_STRING);
-	break;
+  /* Create a cell renderer to display the sort text. */
+  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
+  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", SORT_TEXT_COL, NULL);
 
-      case SORTBYID:
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_ID_STRING);
-	break;
+  /* Add the options */
+  GtkTreeIter *iter = NULL;
+  iter = addSortBoxItem(store, iter, SORTBYNAME, SORT_BY_NAME_STRING, initSortType, combo);
+  iter = addSortBoxItem(store, iter, SORTBYSCORE, SORT_BY_SCORE_STRING, initSortType, combo);
+  iter = addSortBoxItem(store, iter, SORTBYID, SORT_BY_ID_STRING, initSortType, combo);
+  iter = addSortBoxItem(store, iter, SORTBYPOS, SORT_BY_POS_STRING, initSortType, combo);
+  iter = addSortBoxItem(store, iter, SORTBYGROUPORDER, SORT_BY_GROUP_ORDER_STRING, initSortType, combo);
 
-      case SORTBYPOS:
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_POS_STRING);
-	break;
-
-      case SORTBYGROUPORDER:
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), SORT_BY_GROUP_ORDER_STRING);
-	break;
-
-      default:
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), "");
-	break;
-    };
+  g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(onSortOrderChanged), detailView);
 }
 
 
