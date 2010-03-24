@@ -52,7 +52,6 @@ static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
-static void			  copySelectionToClipboard(GtkWidget *mainWindow);
 static void			  mainWindowGroupsChanged(GtkWidget *mainWindow);
 static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *mainWindow);
 static void			  getSequencesThatMatch(gpointer key, gpointer value, gpointer data);
@@ -67,10 +66,10 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	  "<control>S",		"Edit Blixem settings",		    G_CALLBACK(onSettingsMenu)},
 
   { "View",		NULL, "_View\t\t\t\tV",			  "V",			"Edit view settings",		    G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",	  "<shift><control>G",  "Group sequences together",	    G_CALLBACK(onCreateGroupMenu)},
+  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",	  "<Shift><control>G",  "Group sequences together",	    G_CALLBACK(onCreateGroupMenu)},
   { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	  "<control>G",		"Groups",			    G_CALLBACK(onEditGroupsMenu)},
   { "ToggleMatchSet",	NULL, "Toggle _match set\t\tM",		  "M",			"Create/clear the match set group", G_CALLBACK(onToggleMatchSet)},
-  { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<shift><control>A",	"Deselect all",			    G_CALLBACK(onDeselectAllRows)},
+  { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<Shift><control>A",	"Deselect all",			    G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		  "<control>D",		"Start Dotter",			    G_CALLBACK(onDotterMenu)},
   { "SelectFeatures",	NULL, "Feature series selection tool",	  NULL,			"Feature series selection tool",    G_CALLBACK(onSelectFeaturesMenu)},
@@ -373,7 +372,6 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 static void scrollToExtremity(GtkWidget *mainWindow, const gboolean moveLeft, const gboolean modifier)
 {
   GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
-  const gboolean leftToRight = !mainWindowGetStrandsToggled(mainWindow);
   
   if (modifier)
     {
@@ -446,13 +444,15 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
 }
 
 
-/* Zooms the display in/out. if zoomOverview is true it zooms the big-picture section of
- * the display; otherwise it zooms the detail-view section. */
-static void zoomMainWindow(GtkWidget *window, const gboolean zoomIn, const gboolean zoomOverview)
+/* Zooms the display in/out. The modifiers control which section is zoomed */
+static void zoomMainWindow(GtkWidget *window, const gboolean zoomIn, const gboolean ctrl, const gboolean shift)
 {
-  if (zoomOverview)
+  if (ctrl)
     {
-      zoomBigPicture(mainWindowGetBigPicture(window), zoomIn);
+      if (shift)
+	zoomWholeBigPicture(mainWindowGetBigPicture(window));
+      else
+	zoomBigPicture(mainWindowGetBigPicture(window), zoomIn);
     }
   else
     {
@@ -797,8 +797,8 @@ static GList* findSeqsFromList(GtkWidget *button, gpointer data)
 }
 
 
-/* Callback called when requested to select sequences from a sequence name.
- * Selects the sequences and scrolls the start of the first selected match into view */
+/* Callback called when requested to find sequences from a sequence name. Selects
+ * the sequences and scrolls to the start of the first match in the selection */
 static void onFindSeqsFromName(GtkWidget *button, gpointer data)
 {
   GList *seqList = findSeqsFromName(button, data);
@@ -809,10 +809,13 @@ static void onFindSeqsFromName(GtkWidget *button, gpointer data)
       GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
       mainWindowSetSelectedSeqList(mainWindow, seqList);
+      firstMatch(mainWindowGetDetailView(mainWindow), seqList);
     }
 }
 
 
+/* Callback called when requested to find sequences from a given list. Selects
+ * the sequences ands scrolls to the start of the first match in the selection. */
 static void onFindSeqsFromList(GtkWidget *button, gpointer data)
 {
   GList *seqList = findSeqsFromList(button, data);
@@ -823,6 +826,7 @@ static void onFindSeqsFromList(GtkWidget *button, gpointer data)
       GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
       
       mainWindowSetSelectedSeqList(mainWindow, seqList);
+      firstMatch(mainWindowGetDetailView(mainWindow), seqList);
     }
 }
 
@@ -1157,7 +1161,7 @@ static void createEditGroupWidget(GtkWidget *mainWindow, SequenceGroup *group, G
       widgetSetCallbackData(colourButton, onGroupColourChanged, group);
       
       /* Create a button that will delete this group */
-      GtkWidget *deleteButton = gtk_button_new_with_label("Delete");
+      GtkWidget *deleteButton = gtk_button_new_from_stock(GTK_STOCK_DELETE);
       g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
       
       /* Put everything in the table */
@@ -1324,8 +1328,9 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
 
 
 /* Callback function to be used when requesting text from the clipboard to be used
- * to find and select sequences based on the paste text */
-static void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+ * to find and select sequences based on the paste text. Scrolls the first selected
+ * match into view. */
+void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
 {
   /* Get the list of sequences to include */
   GtkWidget *mainWindow = GTK_WIDGET(data);
@@ -1334,6 +1339,7 @@ static void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboard
   if (seqNameList)
     {
       mainWindowSetSelectedSeqList(mainWindow, seqNameList);
+      firstMatch(mainWindowGetDetailView(mainWindow), seqNameList);
     }
 }
 
@@ -1619,7 +1625,7 @@ void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   const gboolean seqsSelected = g_list_length(properties->selectedSeqs) > 0;
 
-  const int numRows = g_list_length(properties->sequenceGroups) + 1; /* +1 for header labels */
+  const int numRows = g_list_length(properties->sequenceGroups) + 2; /* +2 for header row and delete-all button */
   const gboolean groupsExist = mainWindowGroupsExist(mainWindow);
   
 
@@ -1653,8 +1659,6 @@ void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
   gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Colour"),	  4, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Delete"),	  6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add a set of widgets for each group */
@@ -1668,9 +1672,10 @@ void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
   
   /* Add a button to delete all groups */
   GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
-  gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
+  gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
   g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
-
+//  gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
+  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   
   /* Connect signals and show */
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(mainWindow));
@@ -1941,11 +1946,16 @@ static gint runConfirmationBox(GtkWidget *mainWindow, char *title, char *message
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
-  /* Add the message */
-  GtkWidget *vbox = GTK_DIALOG(dialog)->vbox;
+  /* Put message and icon into an hbox */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
+  
+  GtkWidget *image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_QUESTION, GTK_ICON_SIZE_DIALOG);
+  gtk_box_pack_start(GTK_BOX(hbox), image, TRUE, TRUE, 0);
+  
   GtkWidget *label = gtk_label_new(messageText);
-  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
-  gtk_widget_show(label);
+  gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
+  gtk_widget_show_all(hbox);
   
   gint response = gtk_dialog_run(GTK_DIALOG(dialog));
   
@@ -1986,8 +1996,9 @@ SCROLLING\n\
 	•	Use the horizontal scrollbar at the bottom of the window to scroll the detail view.\n\
 	•	Use the mouse-wheel to scroll up/down in the list of alignments.\n\
 	•	Use the mouse-wheel to scroll the alignments left/right (if your mouse has a horizontal scroll-wheel).\n\
-	•	The left/right arrow keys move the selection one nucleotide to the left/right.\n\
-	•	When viewing protein matches, holding CTRL while using the left/right arrow keys moves the selection one full codon to the left/right.\n\
+	•	Ctrl-left and Ctrl-right arrow keys scroll to the start/end of the previous/next match (limited to currently-selected sequences, if any are selected).\n\
+	•	The Home/End keys scroll to the start/end of the display.\n\
+	•	Ctrl-Home and Ctrl-End scroll to the start/end of the currently-selected alignments (or to the first/last alignment if none are selected).\n\
 	•	The ',' (comma) and '.' (full-stop) keys scroll the display one nucleotide to the left/right.\n\
 	•	You can scroll to a specific base using the Goto button on the toolbar, or by pressing the 'G' shortcut key.\n\
 \n\
@@ -1996,28 +2007,29 @@ SELECTIONS\n\
 	•	You can select a sequence by clicking on its row in the alignment list.  Selected sequences are highlighted in cyan in the big picture.\n\
 	•	You can select a sequence by clicking on it in the big picture.\n\
 	•	The name of the sequence you selected is displayed in the feedback box on the toolbar.  If there are multiple alignments for the same sequence, all of them will be selected.\n\
-	•	You can select multiple sequences by holding down the CTRL or SHIFT keys while selecting rows.\n\
-	•	You can deselect a single sequence by CTRL-clicking on its row.\n\
-	•	You can deselect all sequences by right-clicking and selecting 'Deselect all', or with the SHIFT-CTRL-A keyboard shortcut.\n\
+	•	You can select multiple sequences by holding down the Ctrl or Shift keys while selecting rows.\n\
+	•	You can deselect a single sequence by Ctrl-clicking on its row.\n\
+	•	You can deselect all sequences by right-clicking and selecting 'Deselect all', or with the Shift-Ctrl-A keyboard shortcut.\n\
 	•	You can move the selection up/down a row using the up/down arrow keys.\n\
 \n\
 	•	You can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
 	•	For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green and red.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
 	•	You can move the selection to the previous/next nucleotide using the left and right arrow keys.\n\
-	•	You can move the selection to the previous/next peptide by holding CTRL while using the left and right arrow keys.\n\
-	•	To select a coordinate without the display re-centering on it, hold down CTRL as you middle-click.\n\
+	•	You can move the selection to the previous/next peptide by holding Shift while using the left and right arrow keys.\n\
+	•	You can move the selection to the start/end of the previous/next matchb by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected).\n\
+	•	To select a coordinate without the display re-centering on it, hold down Ctrl as you middle-click.\n\
 \n\
 \n\
 ZOOMING\n\
-	•	Zoom in to the currently-selected region in the big picture using the +/- buttons in the top-left corner of the window, or using the CTRL '=' and CTRL '-' shortcut keys.  The 'Whole' button zooms out to show the full length of the query sequence.\n\
+	•	Zoom in to the currently-selected region in the big picture using the +/- buttons in the top-left corner of the window, or using the Ctrl '=' and Ctrl '-' shortcut keys.  The 'Whole' button zooms out to show the full length of the query sequence.\n\
 	•	Zoom in/out of the detail view using the +/- buttons on the toolbar, or using the '=' and '-' shortcut keys.\n\
 \n\
 \n\
 COPY AND PASTE\n\
-	•	To copy sequence name(s) to the clipboard, select the sequence(s) in the big picture or alignment list and hit CTRL-C.\n\
-	•	Note that text from the feedback box and some text labels (e.g. the reference sequence start/end coords) can be copied by selecting it with the mouse and then hitting CTRL-C.\n\
-	•	Paste text using CTRL-V. Clipboard text can be pasted into text entry boxes on most dialogs (e.g. the 'From name' or 'From list' boxes on the Groups dialog).\n\
-	•	Hitting CTRL-V on the main window will create a match-set group from the clipboard text, if it contains a valid list of sequence names.\n\
+	•	To copy sequence name(s) to the clipboard, select the sequence(s) in the big picture or alignment list and hit Ctrl-C.\n\
+	•	Note that text from the feedback box and some text labels (e.g. the reference sequence start/end coords) can be copied by selecting it with the mouse and then hitting Ctrl-C.\n\
+	•	Paste text using Ctrl-V. Clipboard text can be pasted into text entry boxes on most dialogs (e.g. the 'From name' or 'From list' boxes on the Groups dialog).\n\
+	•	Hitting Ctrl-V on the main window will create a match-set group from the clipboard text, if it contains a valid list of sequence names.\n\
 \n\
 \n\
 SORTING\n\
@@ -2029,17 +2041,17 @@ GROUPS\n\
 Alignments can be grouped together so that they can be sorted/highlighted/hidden etc.\n\
 \n\
 Creating a group from a selection:\n\
-	•	Select the sequences you wish to include in the group by left-clicking their rows in the detail view.  Multiple rows can be selected by holding the CTRL or SHIFT keys while clicking.\n\
-	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Note that CTRL-G will also shortcut to here if no groups currently exist.)\n\
+	•	Select the sequences you wish to include in the group by left-clicking their rows in the detail view.  Multiple rows can be selected by holding the Ctrl or Shift keys while clicking.\n\
+	•	Right-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also shortcut to here if no groups currently exist.)\n\
 	•	Ensure that the 'From selection' radio button is selected, and click 'OK'.\n\
 \n\
 Creating a group from a sequence name:\n\
-	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Or CTRL-G if no groups currently exist.)\n\
+	•	Right-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Or Ctrl-G if no groups currently exist.)\n\
 	•	Select the 'From name' radio button and enter the name of the sequence in the box below.  You may use the following wildcards to search for sequences: '*' for any number of characters; '?' for a single character.  For example, searching for '*X' will find all sequences whose name ends in 'X' (i.e. all exons).\n\
 	•	Click 'OK'.\n\
 \n\
 Creating a group from sequence name(s):\n\
-	•	Right-click and select 'Create Group', or use the SHIFT-CTRL-G shortcut key. (Or CTRL-G if no groups currently exist.)\n\
+	•	Right-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Or Ctrl-G if no groups currently exist.)\n\
 	•	Select the 'From name(s)' radio button.\n\
         •       Enter the sequence name(s) in the text box.\n\
         •       You may use the following wildcards in a sequence name: '*' for any number of characters; '?' for a single character.  (For example, searching for '*X' will find all sequences whose name ends in 'X', i.e. all exons).\n\
@@ -2053,10 +2065,10 @@ Creating a temporary 'match-set' group from the current selection:\n\
         •       To clear the match-set group, choose the 'Toggle match set' option again, or hit the 'M' shortcut key again.\n\
         •       While it exists, the match-set group can be edited like any other group, via the 'Edit Groups' dialog.\n\
         •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight colour) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'M' shortcut key) instead.\n\
-        •       A match set can also be created by pasting from the clipboard using the CTRL-V keyboard shortcut. If there is an existing match set it will be replaced by the new one.\n\
+        •       A match set can also be created by pasting from the clipboard using the Ctrl-V keyboard shortcut. If there is an existing match set it will be replaced by the new one.\n\
 \n\
 Editing groups:\n\
-To edit a group, right-click and select 'Edit Groups', or use the CTRL-G shortcut key. You can change the following properties for a group:\n\
+To edit a group, right-click and select 'Edit Groups', or use the Ctrl-G shortcut key. You can change the following properties for a group:\n\
 	•	Name: you can specify a more meaningful name to help identify the group.\n\
 	•	Hide: tick this box to hide the alignments in the alignment lists.\n\
 	•	Highlight: tick this box to highlight the alignments.\n\
@@ -2067,7 +2079,7 @@ To edit a group, right-click and select 'Edit Groups', or use the CTRL-G shortcu
 \n\
 \n\
 DOTTER\n\
-	•	To start Dotter, or to edit the Dotter parameters, right-click and select 'Dotter' or use the CTRL-D keyboard shortcut.	The Dotter settings dialog will pop up.\n\
+	•	To start Dotter, or to edit the Dotter parameters, right-click and select 'Dotter' or use the Ctrl-D keyboard shortcut.	The Dotter settings dialog will pop up.\n\
 	•	To run Dotter with the default (automatic) parameters, just hit RETURN, or click the 'Execute' button.\n\
 	•	To enter manual parameters, click the 'Manual' radio button and enter the values in the 'Start' and 'End' boxes.\n\
 	•	To revert to the last-saved manual parameters, click the 'Last saved' button.\n\
@@ -2077,30 +2089,35 @@ DOTTER\n\
 \n\
 \n\
 KEYBOARD SHORTCUTS\n\
-	•	CTRL Q: Quit\n\
-	•	CTRL H: Help\n\
-	•	CTRL P: Print\n\
-	•	CTRL S: 'Settings' menu\n\
+	•	Ctrl-Q: Quit\n\
+	•	Ctrl-H: Help\n\
+	•	Ctrl-P: Print\n\
+	•	Ctrl-S: 'Settings' menu\n\
 	•	V: 'View' menu\n\
-	•	SHIFT CTRL G: Create group\n\
-	•	CTRL G: Edit groups (or create a group if none currently exist)\n\
-	•	SHIFT CTRL A: Select all visible sequences\n\
-	•	SHIFT CTRL A: Deselect all sequences\n\
-	•	CTRL D: Dotter\n\
-	•	Left/right arrow keys: Move the currently-selected coordinate one nucleotide to the left/right\n\
-	•	CTRL and left/right arrow keys: Move the currently-selected coordinate one peptide to the left/right\n\
-	•	'=' : zoom in detail view\n\
-	•	'-' : zoom out detail view\n\
-	•	CTRL '=' : zoom in big picture\n\
-	•	CTRL '-' :  zoom out big picture\n\
-	•	, (comma): scroll left one coordinate\n\
-	•	. (full-stop): scroll right one coordinate\n\
+	•	Shift-Ctrl-G: Create group\n\
+	•	Ctrl-G: Edit groups (or create a group if none currently exist)\n\
+	•	Shift-Ctrl-A: Select all visible sequences\n\
+	•	Shift-Ctrl-A: Deselect all sequences\n\
+	•	Ctrl-D: Dotter\n\
+	•	Left/right arrow keys: Move the currently-selected coordinate one place to the left/right\n\
+	•	Shift-Left/right: Same as left/right arrow keys, but for proteins it scrolls by a single nucleotide, rather than an entire codon.\n\
+	•	Ctrl-Left/right: Scroll to the start/end of the previous/next alignment (limited to just the selected sequences, if any are selected).\n\
+	•	Home/End: Scroll to the start/end of the display.\n\
+	•	Ctrl-Home/End: Scroll to the first/last alignment (limited to just the selected sequences, if any are selected).\n\
+	•	=: zoom in detail view\n\
+	•	-: zoom out detail view\n\
+	•	Ctrl-= : zoom in big picture\n\
+	•	Ctrl-- :  zoom out big picture\n\
+	•	Shift-Ctrl-- :  zoom out big picture to whole width\n\
+	•	,: scroll left one coordinate\n\
+	•	.: scroll right one coordinate\n\
 	•	G: Go to coordinate\n\
 	•	T: Toggle the active strand\n\
+	•	M: Toggle Match Set\n\
 \n\
 \n\
 SETTINGS\n\
-	•	The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut CTRL-S.\n\
+	•	The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.\n\
 	•	Squash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
 	•	Invert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
 	•	Highlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
@@ -2395,31 +2412,17 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 
       case GDK_comma:  /* fall through */
       case GDK_period:
-	{
-	  scrollDetailViewBy1(window, event->keyval == GDK_comma);
-	  result = TRUE;
-	  break;
-	}
+	scrollDetailViewBy1(window, event->keyval == GDK_comma);
+	result = TRUE;
+	break;
 	
-      case GDK_equal: /* fall through */
+      case GDK_underscore: /* fall through */
+      case GDK_equal:	   /* fall through */
       case GDK_minus:
-	{
-	  const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
-	  zoomMainWindow(window, zoomIn, ctrlModifier); /* if ctrl pressed, zoom big picture - else zoom detail view */
-	  result = TRUE;
-	  break;
-	}
-	
-      case GDK_w: /* fall through */
-      case GDK_W: /* fall through */
-	{
-	  if (ctrlModifier)
-	    {
-	      zoomWholeBigPicture(mainWindowGetBigPicture(window));
-	      result = TRUE;
-	    }
-	  break;
-	}
+	const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
+	zoomMainWindow(window, zoomIn, ctrlModifier, shiftModifier);
+	result = TRUE;
+	break;
 	
       case GDK_c: /* fall through */
       case GDK_C:
@@ -2442,27 +2445,37 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	
       case GDK_f: /* fall through */
       case GDK_F:
-	if (ctrlModifier)
-	  {
+	{
+	  if (ctrlModifier)
 	    showFindDialog(window);
-	    result = TRUE;
-	  }
-	break;
-
+	  else
+	    requestPrimaryClipboardText(findSeqsFromClipboard, window);
+	  
+	  result = TRUE;
+	  break;
+	}
+	
+      case GDK_p: /* fall through */
+      case GDK_P:
+	{
+	  if (!ctrlModifier)
+	    {
+	      goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
+	      result = TRUE;
+	    }
+	  break;
+	}
+	
       case GDK_g: /* fall through */
       case GDK_G:
-	if (!ctrlModifier)
-	  {
-	    goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
-	    result = TRUE;
-	  }
-	break;
-
-      case GDK_m: /* fall through */
-      case GDK_M:
-	toggleMatchSet(window);
-	result = TRUE;
-	break;
+	{
+	  if (!ctrlModifier)
+	    {	    
+	      toggleMatchSet(window);
+	      result = TRUE;
+	    }
+	  break;
+	}
 	
       case GDK_t: /* fall through */
       case GDK_T:
@@ -2804,11 +2817,18 @@ static GString* mainWindowGetSelectedSeqNames(GtkWidget *mainWindow)
 
 /* This function copys the currently-selected sequences' names to the default
  * clipboard. */
-static void copySelectionToClipboard(GtkWidget *mainWindow)
+void copySelectionToClipboard(GtkWidget *mainWindow)
 {
-  GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
-  setDefaultClipboardText(displayText->str);
-  g_string_free(displayText, TRUE);
+  if (g_list_length(mainWindowGetSelectedSeqs(mainWindow)) < 1)
+    {
+      messout("No sequences selected.");
+    }
+  else
+    {
+      GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
+      setDefaultClipboardText(displayText->str);
+      g_string_free(displayText, TRUE);
+    }
 }
 
 

@@ -113,11 +113,14 @@ gboolean		  mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *msp);
 void			  mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTrees);
 
 int			  sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName);
+void			  copySelectionToClipboard(GtkWidget *mainWindow);
+void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
 
 void			  displayHelp(GtkWidget *mainWindow);
 void			  showSettingsDialog(GtkWidget *mainWindow);
 void			  showViewPanesDialog(GtkWidget *mainWindow);
 void			  showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups);
+void			  showFindDialog(GtkWidget *mainWindow);
 
 void			  mainWindowRedrawAll(GtkWidget *mainWindow);
 

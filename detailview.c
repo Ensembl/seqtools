@@ -2342,17 +2342,29 @@ static void GSettings(GtkButton *button, gpointer data)
   showSettingsDialog(detailViewGetMainWindow(detailView));
 }
 
-static void GGroups(GtkButton *button, gpointer data)
+static void GFind(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  showFindDialog(detailViewGetMainWindow(detailView));
+}
+
+static void GGroup(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   showGroupsDialog(detailViewGetMainWindow(detailView), TRUE);
 }
 
-static void GView(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showViewPanesDialog(detailViewGetMainWindow(detailView));
-}
+//static void GCopy(GtkButton *button, gpointer data)
+//{
+//  GtkWidget *detailView = GTK_WIDGET(data);
+//  copySelectionToClipboard(detailViewGetMainWindow(detailView));
+//}
+//
+//static void GPaste(GtkButton *button, gpointer data)
+//{
+//  GtkWidget *detailView = GTK_WIDGET(data);
+//  requestDefaultClipboardText(findSeqsFromClipboard, detailViewGetMainWindow(detailView));
+//}
 
 static void GGoto(GtkButton *button, gpointer data)
 {
@@ -2367,21 +2379,29 @@ static void GGoto(GtkButton *button, gpointer data)
 static void GprevMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  
-  /* If sequences are selected, limit it to work on selected matches only */
   GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
-  
   prevMatch(detailView, seqNameList);
 }
 
 static void GnextMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  
-    /* If sequences are selected, limit it to work on selected matches only */
   GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
-
   nextMatch(detailView, seqNameList);
+}
+
+static void GfirstMatch(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  firstMatch(detailView, seqNameList);
+}
+
+static void GlastMatch(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  lastMatch(detailView, seqNameList);
 }
 
 static void GscrollLeftBig(GtkButton *button, gpointer data)
@@ -2561,7 +2581,8 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
   *toolbar = GTK_TOOLBAR(gtk_toolbar_new());
   gtk_toolbar_set_tooltips(*toolbar, TRUE);
   gtk_toolbar_set_show_arrow(*toolbar, TRUE);
-  gtk_toolbar_set_icon_size(*toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
+  gtk_toolbar_set_icon_size(*toolbar, GTK_ICON_SIZE_MENU);
+  gtk_toolbar_set_style(*toolbar, GTK_TOOLBAR_ICONS);
 
   /* Set the style property that controls the spacing */
   gtk_widget_set_name(GTK_WIDGET(*toolbar), DETAIL_VIEW_TOOLBAR_NAME);
@@ -2660,14 +2681,27 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
 }
 
 
-/* Creates a single button for the detail-view toolbar */
+/* Creates a single button for the detail-view toolbar. */
 static void makeToolbarButton(GtkToolbar *toolbar,
-				 char *label,
-				 char *tooltip,
-				 GtkSignalFunc callback_func,
-				 gpointer data)
+			      char *label,
+			      char *stockId,
+			      char *tooltip,
+			      GtkSignalFunc callback_func,
+			      gpointer data)
 {
-  GtkToolItem *tool_button = gtk_tool_button_new(NULL, label);
+  GtkStockItem stockItem;
+  GtkToolItem *tool_button = NULL;
+  
+  if (stockId && gtk_stock_lookup(stockId, &stockItem))
+    {
+      tool_button = gtk_tool_button_new_from_stock(stockId);
+      gtk_tool_button_set_label(GTK_TOOL_BUTTON(tool_button), label);
+    }
+  else
+    {
+      tool_button = gtk_tool_button_new(NULL, label);
+    }
+  
   gtk_toolbar_insert(toolbar, tool_button, -1);	    /* -1 means "append" to the toolbar. */
 
   gtk_tool_item_set_homogeneous(tool_button, FALSE);
@@ -2688,6 +2722,14 @@ static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
 }
 
 
+static void insertToolbarSeparator(GtkToolbar *toolbar)
+{
+  GtkToolItem *separator = gtk_separator_tool_item_new();
+  gtk_separator_tool_item_set_draw(GTK_SEPARATOR_TOOL_ITEM(separator), TRUE);
+  gtk_toolbar_insert(toolbar, separator, -1);
+}
+
+
 /* Create the detail view toolbar */
 static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
 					    BlxBlastMode mode,
@@ -2697,37 +2739,46 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   GtkToolbar *toolbar = NULL;
   GtkWidget *toolbarContainer = createEmptyButtonBar(detailView, &toolbar);
   
-  /* Zoom buttons */
-  makeToolbarButton(toolbar, "+", "Zoom in\t=", (GtkSignalFunc)onZoomInDetailView, detailView);
-  makeToolbarButton(toolbar, "-", "Zoom out\t-", (GtkSignalFunc)onZoomOutDetailView, detailView);
-  
+  /* Help */
+  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",	 (GtkSignalFunc)GHelp,		  detailView);
+
   /* Combo box for sorting */
   createSortBox(toolbar, detailView, sortByType);
 
-  /* buttons */
-  makeToolbarButton(toolbar, "Help",	 "Display usage help\tCtrl-H",	 (GtkSignalFunc)GHelp,		  detailView);
-  makeToolbarButton(toolbar, "Settings", "Edit settings\tCtrl-S",	 (GtkSignalFunc)GSettings,	  detailView);
-  makeToolbarButton(toolbar, "View",	 "View/hide panes\tCtrl-V",	 (GtkSignalFunc)GView,		  detailView);
-  makeToolbarButton(toolbar, "Groups",	 "Edit/create groups\tCtrl-G",	 (GtkSignalFunc)GGroups,	  detailView);
+  /* Settings button */
+  makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",		 (GtkSignalFunc)GSettings,	  detailView);
 
-  /* Navigation buttons */
-  makeToolbarButton(toolbar, "Goto",	 "Go to specific coordinate\tG", (GtkSignalFunc)GGoto,		  detailView);
-  makeToolbarButton(toolbar, "< match",  "Next (leftward) match",	 (GtkSignalFunc)GprevMatch,	  detailView);
-  makeToolbarButton(toolbar, "match >",  "Next (rightward) match",	 (GtkSignalFunc)GnextMatch,	  detailView);
-  makeToolbarButton(toolbar, "<<",	 "Scroll leftward lots",	 (GtkSignalFunc)GscrollLeftBig,	  detailView);
-  makeToolbarButton(toolbar, ">>",       "Scroll rightward lots",	 (GtkSignalFunc)GscrollRightBig,  detailView);
-  makeToolbarButton(toolbar, "<",	 "Scroll leftward one base\t,",	 (GtkSignalFunc)GscrollLeft1,	  detailView);
-  makeToolbarButton(toolbar, ">",	 "Scroll rightward one base\t.", (GtkSignalFunc)GscrollRight1,	  detailView);
+  /* Zoom buttons */
+  makeToolbarButton(toolbar, "Zoom in",		GTK_STOCK_ZOOM_IN,  "Zoom in (=)",  (GtkSignalFunc)onZoomInDetailView, detailView);
+  makeToolbarButton(toolbar, "Zoom out",	GTK_STOCK_ZOOM_OUT, "Zoom out (-)", (GtkSignalFunc)onZoomOutDetailView, detailView);
   
+  /* Navigation buttons */
+  makeToolbarButton(toolbar, "Go to",		GTK_STOCK_JUMP_TO,    "Go to position (p)",		  (GtkSignalFunc)GGoto,		  detailView);
+
+  makeToolbarButton(toolbar, "First match",	GTK_STOCK_GOTO_FIRST, "First match (Ctrl-Home)",	  (GtkSignalFunc)GfirstMatch,	  detailView);
+  makeToolbarButton(toolbar, "Previous match",	GTK_STOCK_GO_BACK,    "Previous match (Ctrl-left)",	  (GtkSignalFunc)GprevMatch,	  detailView);
+  makeToolbarButton(toolbar, "Next match",	GTK_STOCK_GO_FORWARD, "Next match (Ctrl-right)",	  (GtkSignalFunc)GnextMatch,	  detailView);
+  makeToolbarButton(toolbar, "Last match",	GTK_STOCK_GOTO_LAST,  "Last match (Ctrl-End)",		  (GtkSignalFunc)GlastMatch,	  detailView);
+  insertToolbarSeparator(toolbar);
+  
+  makeToolbarButton(toolbar, "<<", NULL,	"Scroll back lots",	  (GtkSignalFunc)GscrollLeftBig,	  detailView);
+  makeToolbarButton(toolbar, "<",  NULL,	"Scroll back one (,)",	  (GtkSignalFunc)GscrollLeft1,	  detailView);
+  makeToolbarButton(toolbar, ">",  NULL,	"Scroll forward one (.)", (GtkSignalFunc)GscrollRight1,  detailView);
+  makeToolbarButton(toolbar, ">>", NULL,	"Scroll forward lots",	  (GtkSignalFunc)GscrollRightBig,  detailView);
+  
+  /* Find/copy/paste */
+  makeToolbarButton(toolbar, "Find", GTK_STOCK_FIND,    "Find sequences (f, Ctrl-F)",		  (GtkSignalFunc)GFind,  detailView);
+//  makeToolbarButton(toolbar, "Groups", NULL,  "Group sequences (g, Ctrl-G)",		  (GtkSignalFunc)GGroup,  detailView);
+
   /* Strand toggle button */
   if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)
     {
-      makeToolbarButton(toolbar, "Strand^v", "Toggle strand\tT", (GtkSignalFunc)GToggleStrand, detailView);
+      makeToolbarButton(toolbar, "Toggle strand", GTK_STOCK_REFRESH, "Toggle strand (t)", (GtkSignalFunc)GToggleStrand, detailView);
     }
-  
+
   /* Feedback box */
   *feedbackBox = createFeedbackBox(toolbar);
-  
+
   return toolbarContainer;
 }
 

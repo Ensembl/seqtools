@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.12 2010-03-23 15:57:58 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.13 2010-03-24 18:02:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1352,15 +1352,22 @@ static BOOL parseSequence(char **text, MSP *msp)
 {
   BOOL result = FALSE ;
   char *cp = *text ;
-  size_t length ;
 
   cp = strtok(NULL, "\t ") ;				    /* skip "Sequence" */
 
-  if ((length = strspn(cp, "acgtACGT")))
+  size_t origLen = strlen(cp);
+  size_t validLen = strspn(cp, "acgtnACGTN"); 
+  
+  if (validLen < 1 || validLen < strlen(cp))
+    {
+      messcrash("Error parsing %s, coords are %d -> %d (%d), but valid length sequence is only %d (out of total length supplied = %d).",
+		msp->sname, msp->sstart, msp->send, msp->send - msp->sstart, validLen, origLen) ;
+    }
+  else
     {
       char *seq ;
 
-      seq = g_malloc(length + 1) ;
+      seq = g_malloc(validLen + 1) ;
 	  
       if (sscanf(cp, "%s", seq) != 1)
 	{
