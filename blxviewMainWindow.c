@@ -65,10 +65,10 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Print",		NULL, "_Print\t\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
   { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	  "<control>S",		"Edit Blixem settings",		    G_CALLBACK(onSettingsMenu)},
 
-  { "View",		NULL, "_View\t\t\t\tV",			  "V",			"Edit view settings",		    G_CALLBACK(onViewMenu)},
+  { "View",		NULL, "_View\t\t\t\tv",			  "V",			"Edit view settings",		    G_CALLBACK(onViewMenu)},
   { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",	  "<Shift><control>G",  "Group sequences together",	    G_CALLBACK(onCreateGroupMenu)},
   { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	  "<control>G",		"Groups",			    G_CALLBACK(onEditGroupsMenu)},
-  { "ToggleMatchSet",	NULL, "Toggle _match set\t\tM",		  "M",			"Create/clear the match set group", G_CALLBACK(onToggleMatchSet)},
+  { "ToggleMatchSet",	NULL, "Toggle _match set group\t\tg",     "G",			"Create/clear the match set group", G_CALLBACK(onToggleMatchSet)},
   { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<Shift><control>A",	"Deselect all",			    G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		  "<control>D",		"Start Dotter",			    G_CALLBACK(onDotterMenu)},
@@ -2000,7 +2000,7 @@ SCROLLING\n\
 	•	The Home/End keys scroll to the start/end of the display.\n\
 	•	Ctrl-Home and Ctrl-End scroll to the start/end of the currently-selected alignments (or to the first/last alignment if none are selected).\n\
 	•	The ',' (comma) and '.' (full-stop) keys scroll the display one nucleotide to the left/right.\n\
-	•	You can scroll to a specific base using the Goto button on the toolbar, or by pressing the 'G' shortcut key.\n\
+	•	You can scroll to a specific position using the Go-to button on the toolbar, or by pressing the 'p' shortcut key.\n\
 \n\
 \n\
 SELECTIONS\n\
@@ -2061,10 +2061,10 @@ Creating a group from sequence name(s):\n\
 \n\
 Creating a temporary 'match-set' group from the current selection:\n\
         •       You can quickly create a group from a current selection (e.g. selected features in ZMap) using the 'Toggle match set' option.\n\
-        •       To create a match-set group, select the required items (e.g. in ZMap) and then select 'Toggle match set' from the right-click menu in Blixem, or hit the 'M' shortcut key.\n\
-        •       To clear the match-set group, choose the 'Toggle match set' option again, or hit the 'M' shortcut key again.\n\
+        •       To create a match-set group, select the required items (e.g. in ZMap) and then select 'Toggle match set' from the right-click menu in Blixem, or hit the 'g' shortcut key.\n\
+        •       To clear the match-set group, choose the 'Toggle match set' option again, or hit the 'g' shortcut key again.\n\
         •       While it exists, the match-set group can be edited like any other group, via the 'Edit Groups' dialog.\n\
-        •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight colour) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'M' shortcut key) instead.\n\
+        •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight colour) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'g' shortcut key) instead.\n\
         •       A match set can also be created by pasting from the clipboard using the Ctrl-V keyboard shortcut. If there is an existing match set it will be replaced by the new one.\n\
 \n\
 Editing groups:\n\
@@ -2096,7 +2096,7 @@ KEYBOARD SHORTCUTS\n\
 	•	V: 'View' menu\n\
 	•	Shift-Ctrl-G: Create group\n\
 	•	Ctrl-G: Edit groups (or create a group if none currently exist)\n\
-	•	Shift-Ctrl-A: Select all visible sequences\n\
+	•	Ctrl-A: Select all sequences in the current list\n\
 	•	Shift-Ctrl-A: Deselect all sequences\n\
 	•	Ctrl-D: Dotter\n\
 	•	Left/right arrow keys: Move the currently-selected coordinate one place to the left/right\n\
@@ -2111,9 +2111,9 @@ KEYBOARD SHORTCUTS\n\
 	•	Shift-Ctrl-- :  zoom out big picture to whole width\n\
 	•	,: scroll left one coordinate\n\
 	•	.: scroll right one coordinate\n\
-	•	G: Go to coordinate\n\
-	•	T: Toggle the active strand\n\
-	•	M: Toggle Match Set\n\
+	•	p: Go to position\n\
+	•	t: Toggle the active strand\n\
+	•	g: Toggle the 'match set' Group\n\
 \n\
 \n\
 SETTINGS\n\
@@ -2392,17 +2392,17 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
     {
       case GDK_Left: /* fall through */
       case GDK_Right:
-	{
-	  if (ctrlModifier)
-	    goToMatch(window, event->keyval == GDK_Left);
-	  else if (shiftModifier)
-	    moveSelectedBaseIdxBy1(window, event->keyval == GDK_Left);
-	  else
-	    moveSelectedDisplayIdxBy1(window, event->keyval == GDK_Left);
-	  
-	  result = TRUE;
-	  break;
-	}
+      {
+	if (ctrlModifier)
+	  goToMatch(window, event->keyval == GDK_Left);
+	else if (shiftModifier)
+	  moveSelectedBaseIdxBy1(window, event->keyval == GDK_Left);
+	else
+	  moveSelectedDisplayIdxBy1(window, event->keyval == GDK_Left);
+	
+	result = TRUE;
+	break;
+      }
 	
       case GDK_Home:
       case GDK_End:
@@ -2419,11 +2419,13 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
       case GDK_underscore: /* fall through */
       case GDK_equal:	   /* fall through */
       case GDK_minus:
+      {
 	const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
 	zoomMainWindow(window, zoomIn, ctrlModifier, shiftModifier);
 	result = TRUE;
 	break;
-	
+      }
+      
       case GDK_c: /* fall through */
       case GDK_C:
 	if (ctrlModifier)
@@ -2445,37 +2447,33 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	
       case GDK_f: /* fall through */
       case GDK_F:
-	{
-	  if (ctrlModifier)
-	    showFindDialog(window);
-	  else
-	    requestPrimaryClipboardText(findSeqsFromClipboard, window);
-	  
-	  result = TRUE;
-	  break;
-	}
+      {
+	if (ctrlModifier)
+	  showFindDialog(window);
+	else
+	  requestPrimaryClipboardText(findSeqsFromClipboard, window);
+	
+	result = TRUE;
+	break;
+      }
 	
       case GDK_p: /* fall through */
       case GDK_P:
-	{
-	  if (!ctrlModifier)
-	    {
-	      goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
-	      result = TRUE;
-	    }
-	  break;
-	}
+	if (!ctrlModifier)
+	  {
+	    goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
+	    result = TRUE;
+	  }
+	break;
 	
       case GDK_g: /* fall through */
       case GDK_G:
-	{
-	  if (!ctrlModifier)
-	    {	    
-	      toggleMatchSet(window);
-	      result = TRUE;
-	    }
-	  break;
-	}
+	if (!ctrlModifier)
+	  {	    
+	    toggleMatchSet(window);
+	    result = TRUE;
+	  }
+	break;
 	
       case GDK_t: /* fall through */
       case GDK_T:
