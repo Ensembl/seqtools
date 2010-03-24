@@ -170,17 +170,6 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
  * range (within bounds). the coord should be in terms of display coords */
 void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
-//  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
-//  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
-//    {
-//      const int numFrames = detailViewGetNumReadingFrames(detailView);
-//      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-//      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-//      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-//      
-//      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
-//    }
-
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, coord);
 }
@@ -188,19 +177,8 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
 
 /* Scroll the detail view so that the given coord is at the end of the display
  * range (within bounds). the coord should be in terms of display coords */
-static void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
+void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
-//  /* If the given coord is on the DNA sequence but we're viewing peptide sequences, convert it */
-//  if (coordSeqType == BLXSEQ_DNA && detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
-//    {
-//      const int numFrames = detailViewGetNumReadingFrames(detailView);
-//      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-//      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-//      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-//      
-//      coord = convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
-//    }
-
   /* Get the new start coord */
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
   const int displayLen = getRangeLength(displayRange);
@@ -2221,15 +2199,19 @@ static void goToNextMatch(GtkWidget *detailView, const int startCoord, const gbo
 
   for (  ; searchData.frame <= searchData.numFrames; ++searchData.frame)
     {
-      GtkWidget *tree = detailViewGetTree(detailView, FORWARD_STRAND, searchData.frame);
-      if (GTK_WIDGET_VISIBLE(tree))
+      GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, FORWARD_STRAND, searchData.frame);
+      GtkWidget *tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
+      
+      if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */
 	{
 	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
 	  gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
 	}
 
-      tree = detailViewGetTree(detailView, REVERSE_STRAND, searchData.frame);
-      if (GTK_WIDGET_VISIBLE(tree))
+      treeContainer = detailViewGetTreeContainer(detailView, REVERSE_STRAND, searchData.frame);
+      tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
+      
+      if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */
 	{
 	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
 	  gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
@@ -2299,10 +2281,7 @@ void lastMatch(GtkWidget *detailView, GList *seqNameList)
 {
   /* Jump to the nearest match to the whole display end */
   const IntRange const *fullRange = detailViewGetFullRange(detailView);
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-  const int startCoord = fullRange->max - getRangeLength(displayRange) + 1;
-  
-  goToNextMatch(detailView, startCoord, FALSE, seqNameList);
+  goToNextMatch(detailView, fullRange->max, FALSE, seqNameList);
 }
 
 

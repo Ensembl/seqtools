@@ -177,10 +177,11 @@ GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboole
 
 void			prevMatch(GtkWidget *detailView, GList *seqNameList);
 void			nextMatch(GtkWidget *detailView, GList *seqNameList);
-void			startMatch(GtkWidget *detailView, GList *seqNameList);
-void			endMatch(GtkWidget *detailView, GList *seqNameList);
+void			firstMatch(GtkWidget *detailView, GList *seqNameList);
+void			lastMatch(GtkWidget *detailView, GList *seqNameList);
 void			goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
 void			setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
+void			setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
 void			scrollDetailViewLeft1(GtkWidget *detailView);
 void			scrollDetailViewRight1(GtkWidget *detailView);
 void			scrollDetailViewLeftStep(GtkWidget *detailView);

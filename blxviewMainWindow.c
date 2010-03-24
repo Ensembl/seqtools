@@ -367,6 +367,36 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 }
 
 
+/* Called when user pressed Home/End. If the modifier is pressed, scroll to the
+*  start/end of all matches in the current selection (or all matches, if no 
+* selection), or to the start/end of the entire display if the modifier is not pressed. */
+static void scrollToExtremity(GtkWidget *mainWindow, const gboolean moveLeft, const gboolean modifier)
+{
+  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  const gboolean leftToRight = !mainWindowGetStrandsToggled(mainWindow);
+  
+  if (modifier)
+    {
+      GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
+
+      if (moveLeft)
+	firstMatch(detailView, selectedSeqs);
+      else
+	lastMatch(detailView, selectedSeqs);
+    }
+  else
+    {
+      const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+      const IntRange const *fullRange = mainWindowGetFullRange(mainWindow);
+
+      if (moveLeft)
+	setDetailViewStartIdx(detailView, fullRange->min, seqType);
+      else
+	setDetailViewEndIdx(detailView, fullRange->max, seqType);
+    }
+}
+
+
 /* Jump left or right to the next/prev nearest match. Only include matches in the
  * current selection, if any rows are selected. */
 static void goToMatch(GtkWidget *mainWindow, const gboolean moveLeft)
@@ -2356,6 +2386,12 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	  result = TRUE;
 	  break;
 	}
+	
+      case GDK_Home:
+      case GDK_End:
+	scrollToExtremity(window, event->keyval == GDK_Home, ctrlModifier);
+	result = TRUE;
+	break;
 
       case GDK_comma:  /* fall through */
       case GDK_period:
