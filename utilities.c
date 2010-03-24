@@ -195,7 +195,7 @@ int getRangeLength(const IntRange const *range)
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
 int getRangeCentre(const IntRange const *range)
 {
-  return range->min + roundNearest(((double)(range->max - range->min)) / 2.0);
+  return range->min + ((range->max - range->min) / 2);
 }
 
 

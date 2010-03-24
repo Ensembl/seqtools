@@ -362,7 +362,24 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
       IntRange *fullRange = mainWindowGetFullRange(window);
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
 
-      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, newBaseNum, TRUE);
+      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, newBaseNum, TRUE, TRUE);
+    }
+}
+
+
+/* Jump left or right to the next/prev nearest match. Only include matches in the
+ * current selection, if any rows are selected. */
+static void goToMatch(GtkWidget *mainWindow, const gboolean moveLeft)
+{
+  GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
+  
+  if (moveLeft)
+    {
+      prevMatch(mainWindowGetDetailView(mainWindow), selectedSeqs);
+    }
+  else
+    {
+      nextMatch(mainWindowGetDetailView(mainWindow), selectedSeqs);      
     }
 }
 
@@ -394,7 +411,7 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
       IntRange *fullRange = mainWindowGetFullRange(window);
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
       
-      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE);
+      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE, TRUE);
     }
 }
 
@@ -2330,9 +2347,11 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
       case GDK_Right:
 	{
 	  if (ctrlModifier)
-	    moveSelectedDisplayIdxBy1(window, event->keyval == GDK_Left);
-	  else
+	    goToMatch(window, event->keyval == GDK_Left);
+	  else if (shiftModifier)
 	    moveSelectedBaseIdxBy1(window, event->keyval == GDK_Left);
+	  else
+	    moveSelectedDisplayIdxBy1(window, event->keyval == GDK_Left);
 	  
 	  result = TRUE;
 	  break;

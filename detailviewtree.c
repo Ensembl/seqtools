@@ -162,7 +162,7 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx, c
 	  detailViewProperties->selectedBaseNum != baseNum ||
 	  detailViewProperties->selectedFrame != frame)
 	{
-	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx, frame, baseNum, allowScroll);
+	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx, frame, baseNum, allowScroll, TRUE);
 	}
     }
 }

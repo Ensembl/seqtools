@@ -39,8 +39,10 @@ typedef struct
     const IntRange const *refSeqRange;	/* the full range of the reference sequence */
     GList *seqNameList;			/* only search matches in these sequences */
 
-    int frame;
-    int smallestOffset;
+    int frame;				/* the frame of the current tree we're looking at MSPs in */
+    int offset;				/* the offset of the found MSP */
+    int isStart;			/* whether the offset is to the start or end coord of the MSP */
+    int foundFrame;			/* the frame of the MSP we chose */
   } MatchSearchData;
 
 
@@ -955,21 +957,33 @@ void updateFeedbackBox(GtkWidget *detailView)
 }
 
 
-/* If the selected base index is outside the current display range, scroll to keep it in range. */
-static void scrollToKeepSelectionInRange(GtkWidget *detailView)
+/* If the selected base index is outside the current display range, scroll to
+ * keep it in range. We scroll by the minimum number of bases possible if 
+ * scrollMinimum is true; otherwise we re-centre on the selection. */
+static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean scrollMinimum)
 {
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
   
-  if (selectedBaseIdx != UNSET_INT)
+  if (selectedBaseIdx != UNSET_INT && !valueWithinRange(selectedBaseIdx, displayRange))
     {
-      if (selectedBaseIdx < displayRange->min)
+      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+      
+      if (scrollMinimum)
 	{
-	  setDetailViewStartIdx(detailView, selectedBaseIdx, detailViewGetSeqType(detailView));
+	  if (selectedBaseIdx < displayRange->min)
+	    {
+	      setDetailViewStartIdx(detailView, selectedBaseIdx, seqType);
+	    }
+	  else if (selectedBaseIdx > displayRange->max)
+	    {
+	      setDetailViewEndIdx(detailView, selectedBaseIdx, seqType);
+	    }
 	}
-      else if (selectedBaseIdx > displayRange->max)
+      else
 	{
-	  setDetailViewEndIdx(detailView, selectedBaseIdx, detailViewGetSeqType(detailView));
+	  const int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+	  setDetailViewStartIdx(detailView, newStart, seqType);
 	}
     }
 }
@@ -1552,12 +1566,15 @@ SubjectSequence* detailViewGetSequenceFromName(GtkWidget *detailView, const char
 }
 
 
-/* Set the selected base index. Performs any required refreshes */
+/* Set the selected base index. Performs any required refreshes. Scrolls the view to
+ * keep the selected base in view if allowScroll is true. (Such scrolling is by the minimum
+ * number of bases necessary if scrollMinimum is true.) */
 void detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
 				  const int selectedBaseIdx, 
 				  const int frame, 
 				  const int baseNum, 
-				  const gboolean allowScroll)
+				  const gboolean allowScroll,
+				  const gboolean scrollMinimum)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
@@ -1575,7 +1592,7 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
 
   if (allowScroll)
     {
-      scrollToKeepSelectionInRange(detailView);
+      scrollToKeepSelectionInRange(detailView, scrollMinimum);
     }
 
   /* Update the feedback box */
@@ -1835,7 +1852,7 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
 	  --coord;
 	}
       
-      detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE);
+      detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE, TRUE);
     }
 }
 
@@ -1981,7 +1998,7 @@ void toggleStrand(GtkWidget *detailView)
       const int newIdx = fullRange->max - properties->selectedBaseIdx + fullRange->min;
       const int newBaseNum = mainWindowProperties->numReadingFrames - properties->selectedBaseNum + 1;
       
-      detailViewSetSelectedBaseIdx(detailView, newIdx, properties->selectedFrame, newBaseNum, FALSE);
+      detailViewSetSelectedBaseIdx(detailView, newIdx, properties->selectedFrame, newBaseNum, FALSE, TRUE);
     }
   
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
@@ -2114,9 +2131,9 @@ void detailViewSortByType(GtkWidget *detailView, const SortByType sortByType)
 }
 
 
-/* Find the next MSP (out the MSPs in this tree) whose start is the next closest to the
- * current start position of the display, searching only in the direction specified by 
- * the search criteria passed in the user data. */
+/* Find the next MSP (out the MSPs in this tree) whose start/end is the next closest to the
+ * current start position of the display, searching only in the direction specified by the
+ * search criteria passed in the user data. Updates the searchData with the offset found. */
 static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   MatchSearchData *searchData = (MatchSearchData*)data;
@@ -2134,14 +2151,40 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 	  /* Get the msp start/end in terms of the display coords */
 	  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
 	  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
-	  const int qSeqMin = min(coord1, coord2);
 	  
-	  /* Get the offset of this MSP from the current display start position */
-	  int curOffset = (qSeqMin - searchData->startCoord) * searchData->searchDirection;
+	  /* Get the offset of the coords from the given display range and find the smallest
+	   * ignorning zero and negative offsets: negative means its the wrong direction) */
+	  const int offset1 = (coord1 - searchData->startCoord) * searchData->searchDirection;
+	  const int offset2 = (coord2 - searchData->startCoord) * searchData->searchDirection;
 	  
-	  if (curOffset > 0 && (curOffset < searchData->smallestOffset || searchData->smallestOffset == UNSET_INT))
+	  int currentBest = UNSET_INT;
+	  gboolean isStart = TRUE;
+	  
+	  if (offset1 > 0 && (offset2 <= 0 || offset2 >= offset1))
 	    {
-	      searchData->smallestOffset = curOffset;
+	      currentBest = offset1;
+	      isStart = TRUE;
+	    }
+	  else
+	    {
+	      currentBest = offset2;
+	      isStart = FALSE;
+	    }
+
+	  if (currentBest > 0)
+	    {
+	      /* Use the new offset if it is smaller than the previous. If it is the same, give
+	       * preference to the one with the lowest frame number (i.e. so that we select the
+	       * topmost frame by preference, in the hope that this will be least confusing). */
+	      
+	      if (searchData->offset == UNSET_INT  ||
+		  currentBest < searchData->offset ||
+		  (currentBest == searchData->offset && searchData->frame < searchData->foundFrame))
+		{
+		  searchData->offset = currentBest;
+		  searchData->isStart = isStart;
+		  searchData->foundFrame = searchData->frame;
+		}
 	    }
 	}
     }
@@ -2152,14 +2195,12 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 
 /* Find and go to the next match (either left or right depending on the search flag).
  * If a list of sequence names is given, only look at matches in those sequences.
- * startCoord determines where to start searching from. */
+ * startCoord determines where to start searching from. Sets the found match coord as
+ * the currently-selected base index */
 static void goToNextMatch(GtkWidget *detailView, const int startCoord, const gboolean searchRight, GList *seqNameList)
 {
-  /* If the display is toggled (i.e. showing right-to-left), then the active
-   * strand is the reverse strand. This function currently only searchs for 
-   * MSPs in the active strand. */
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-  const Strand activeStrand = rightToLeft ? REVERSE_STRAND : FORWARD_STRAND;
+  const int numFrames = detailViewGetNumReadingFrames(detailView);
   const int searchDirection = searchRight ? 1 : -1;
   
   MatchSearchData searchData = {startCoord, 
@@ -2167,55 +2208,101 @@ static void goToNextMatch(GtkWidget *detailView, const int startCoord, const gbo
 				searchDirection, 
 				rightToLeft, 
 				detailViewGetSeqType(detailView),
-				detailViewGetNumReadingFrames(detailView),
+				numFrames,
 				detailViewGetRefSeqRange(detailView),
 				seqNameList,
 				UNSET_INT,
+				UNSET_INT,
+				TRUE,
 				UNSET_INT};
 
-  /* Loop through each tree associated with this strand */
+  /* Loop through the MSPs in all visible trees */
   searchData.frame = 1;
-  
+
   for (  ; searchData.frame <= searchData.numFrames; ++searchData.frame)
     {
-      /* Loop through all the MSPs in this tree and find the smallest offset
-       * in the direction we're searching. */
-      GtkWidget *tree = detailViewGetTree(detailView, activeStrand, searchData.frame);
-      GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-      gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
+      GtkWidget *tree = detailViewGetTree(detailView, FORWARD_STRAND, searchData.frame);
+      if (GTK_WIDGET_VISIBLE(tree))
+	{
+	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+	  gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
+	}
+
+      tree = detailViewGetTree(detailView, REVERSE_STRAND, searchData.frame);
+      if (GTK_WIDGET_VISIBLE(tree))
+	{
+	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+	  gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
+	}
     }
   
-  if (searchData.smallestOffset != UNSET_INT)
+  if (searchData.offset != UNSET_INT)
     {
-      /* Scroll the detail view by this offset amount. The offset coords are of
-       * the same type as the display sequence type. */
-      const int newStart = searchData.startCoord + (searchData.smallestOffset * searchDirection);
-      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-
-      setDetailViewStartIdx(detailView, newStart, seqType);
+      /* Offset the start coord by the found amount. */
+      const int newCoord = searchData.startCoord + (searchData.offset * searchDirection);
+      
+      /* Select the first base in the frame if moving to the start of the MSP 
+       * and the last base if moving to the end */
+      const int selectedFrame = searchData.foundFrame;
+      const int selectedBaseNum = searchData.isStart ? 1 : numFrames;
+      
+      detailViewSetSelectedBaseIdx(detailView, newCoord, selectedFrame, selectedBaseNum, TRUE, FALSE);
     }
 }
 
 
-/* Go to the previous match out of the currently selected sequence(s) */
-static void prevMatch(GtkWidget *detailView)
+/* Go to the previous match (optionally limited to matches in the given list)  */
+void prevMatch(GtkWidget *detailView, GList *seqNameList)
 {
+  /* Jump to the nearest match to the currently selected base index, if there is
+   * one and if it is currently visible. Otherwise use the current display centre. */
+  int startCoord = detailViewGetSelectedBaseIdx(detailView);
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
-
-  /* Jump to the nearest match to the current display start */
-  goToNextMatch(detailView, displayRange->min, FALSE, seqNameList);
+  
+  if (startCoord == UNSET_INT || !valueWithinRange(startCoord, displayRange))
+    {
+      startCoord = getRangeCentre(displayRange);
+    }
+  
+  goToNextMatch(detailView, startCoord, FALSE, seqNameList);
 }
 
 
-/* Go to the next match out of the currently selected sequence(s) */
-void nextMatch(GtkWidget *detailView)
+/* Go to the next match (optionally limited to matches in the given list)  */
+void nextMatch(GtkWidget *detailView, GList *seqNameList)
 {
+  /* Jump to the nearest match to the currently selected base index, if there is
+   * one and if it is currently visible. Otherwise use the current display centre. */
+  int startCoord = detailViewGetSelectedBaseIdx(detailView);
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
   
-  /* Jump to the nearest match to the current display start */
-  goToNextMatch(detailView, displayRange->min, TRUE, seqNameList);
+  if (startCoord == UNSET_INT || !valueWithinRange(startCoord, displayRange))
+    {
+      startCoord = getRangeCentre(displayRange);
+    }
+  
+  goToNextMatch(detailView, startCoord, TRUE, seqNameList);
+}
+
+
+/* Go to the first match (optionally limited to matches in the given list)  */
+void firstMatch(GtkWidget *detailView, GList *seqNameList)
+{
+  /* Jump to the nearest match to the whole display start */
+  const IntRange const *fullRange = detailViewGetFullRange(detailView);
+  goToNextMatch(detailView, fullRange->min, TRUE, seqNameList);
+}
+
+
+/* Go to the last match (optionally limited to matches in the given list)  */
+void lastMatch(GtkWidget *detailView, GList *seqNameList)
+{
+  /* Jump to the nearest match to the whole display end */
+  const IntRange const *fullRange = detailViewGetFullRange(detailView);
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const int startCoord = fullRange->max - getRangeLength(displayRange) + 1;
+  
+  goToNextMatch(detailView, startCoord, FALSE, seqNameList);
 }
 
 
@@ -2301,13 +2388,21 @@ static void GGoto(GtkButton *button, gpointer data)
 static void GprevMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  prevMatch(detailView);
+  
+  /* If sequences are selected, limit it to work on selected matches only */
+  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  
+  prevMatch(detailView, seqNameList);
 }
 
 static void GnextMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  nextMatch(detailView);
+  
+    /* If sequences are selected, limit it to work on selected matches only */
+  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+
+  nextMatch(detailView, seqNameList);
 }
 
 static void GscrollLeftBig(GtkButton *button, gpointer data)

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.27 2010-03-23 15:57:58 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.28 2010-03-24 10:43:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -698,7 +698,7 @@ static void blviewCreate(char *opts,
   if (options->startNextMatch)
     {
       /* Set the start coord to be the start of the next MSP on from the default start coord */
-      nextMatch(mainWindowGetDetailView(blixemWindow));
+      nextMatch(mainWindowGetDetailView(blixemWindow), NULL);
     }
 }
 

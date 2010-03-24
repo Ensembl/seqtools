@@ -175,7 +175,10 @@ GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean
 int			detailViewGetExonBoundaryWidth(GtkWidget *detailView);
 GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart);
 
-void			nextMatch(GtkWidget *detailView);
+void			prevMatch(GtkWidget *detailView, GList *seqNameList);
+void			nextMatch(GtkWidget *detailView, GList *seqNameList);
+void			startMatch(GtkWidget *detailView, GList *seqNameList);
+void			endMatch(GtkWidget *detailView, GList *seqNameList);
 void			goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
 void			setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
 void			scrollDetailViewLeft1(GtkWidget *detailView);
@@ -188,7 +191,7 @@ void			scrollDetailViewRightPage(GtkWidget *detailView);
 void			detailViewSortByType(GtkWidget *detailView, const SortByType sortByType);
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
-void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll);
+void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll, const gboolean scrollMinimum);
 void			updateFeedbackBox(GtkWidget *detailView);
 void			toggleStrand(GtkWidget *detailView);
 
