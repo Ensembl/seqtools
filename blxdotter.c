@@ -355,6 +355,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
   if (g_list_length(selectedSeqs) > 0)
     {
       const char *seqName = (const char*)(selectedSeqs->data);
+      GList *mspList = mainWindowGetSequenceMsps(blxWindow, seqName);
 
       /* If we're in seqbl mode, only part of the sequence is in the MSP. */
       const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
@@ -372,7 +373,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	      printf("Looking for sequence stored internally ... ");
 	      
 	      /* Loop through all MSPs in the selected sequence */
-	      GList *mspListItem = mainWindowGetSequenceMsps(blxWindow, seqName);
+	      GList *mspListItem = mspList;
 	      
 	      for ( ; mspListItem ; mspListItem = mspListItem->next)
 		{
@@ -394,7 +395,26 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	{
 	  messout("Note: the sequence passed to dotter is incomplete");
 	}
+      
+      /* If the match is on the reverse s strand, we need to modify it, because
+       * dotter does not currently handle it. */
+      if (dotterSSeq && g_list_length(mspList) > 0)
+	{
+	  const MSP *msp = (const MSP*)(mspList->data);
+	  
+	  if (mspGetSubjectStrand(msp) == REVERSE_STRAND)
+	    {
+	      /* Complementing the match sequence here maintains existing dotter behaviour.
+	       * However, I think this is wrong - the match shows agains the wrong strand
+	       * in the alignment view in dotter. I think we should reverse it here and
+	       * not complement it; however, then the dot view shows the match in the 
+	       * wrong place, because it doesn't currently handle reverse s coords. */
+	      blxComplement(dotterSSeq);
+	      //g_strreverse(dotterSSeq);
+	    }
+	}
     }
+  
   
   return dotterSSeq;
 }
@@ -545,7 +565,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	  numDnaCoords = 500;
 	}
 
-      const int numPeptideCoords = (seqType == BLXSEQ_PEPTIDE) ? numDnaCoords / 3 : numDnaCoords;
+      const int numPeptideCoords = (seqType == BLXSEQ_PEPTIDE) ? numDnaCoords / numFrames : numDnaCoords;
       if (numDnaCoords * numPeptideCoords > 1e7)
 	{
 	  numDnaCoords = 1e7 / numPeptideCoords;
@@ -777,8 +797,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
       dotterSName = msp->sname;
     }
   
-  /* Get the offset */
-  int offset = min(dotterStart, dotterEnd) - 1 + refSeqRange->min - 1;
+  const int offset = min(dotterStart, dotterEnd) - 1;
   
   /* Get the options */
   static char opts[] = "     ";
@@ -792,13 +811,13 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   /* Get the list of all MSPs */
   MSP *mspList = mainWindowGetMspList(blxWindow);
   
-  int dotterZoom = 0; /* to do: implement this */
+  const int dotterZoom = mainWindowGetDotterZoom(blxWindow);
   
   
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   
   printf("  query sequence: name -  %s, offset - %d\n"
-	 "subject sequence: name -  %s, offset - %d\n", dotterQName, refSeqRange->min - 1, dotterSName, 0);
+	 "subject sequence: name -  %s, offset - %d\n", dotterQName, offset, dotterSName, 0);
   
   dotter(type, opts, dotterQName, querySeqSegment, offset, dotterSName, dotterSSeq, 0,
 	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, mspList, refSeqRange->min - 1, 0, 0);

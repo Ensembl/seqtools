@@ -98,12 +98,14 @@ char*			  mainWindowGetRefSeq(GtkWidget *mainWindow);
 int			  mainWindowGetNumReadingFrames(GtkWidget *mainWindow);
 int			  mainWindowGetDotterStart(GtkWidget *mainWindow);
 int			  mainWindowGetDotterEnd(GtkWidget *mainWindow);
+int			  mainWindowGetDotterZoom(GtkWidget *mainWindow);
 int			  mainWindowGetAutoDotter(GtkWidget *mainWindow);
 gboolean		  mainWindowGetGappedHsp(GtkWidget *mainWindow);
 MSP*			  mainWindowGetMspList(GtkWidget *mainWindow);
 GList*			  mainWindowGetSequenceMsps(GtkWidget *mainWindow, const char *seqName);
 GList*			  mainWindowGetSequenceGroups(GtkWidget *mainWindow);
 SequenceGroup*		  mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seqName);
+const char*		  mainWindowGetPaddingSeq(GtkWidget *mainWindow);
 
 GList*			  mainWindowGetSelectedSeqs(GtkWidget *mainWindow);
 void			  mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees);

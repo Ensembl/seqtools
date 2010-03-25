@@ -881,9 +881,6 @@ void refilterTree(GtkWidget *tree, gpointer data)
   
   GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
   gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(model));
-
-  /* Select any rows whose sequences are marked as selected */
-  selectRowsForSelectedSeqs(tree, NULL);
 }
 
 

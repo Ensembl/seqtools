@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.2 2009-12-08 10:16:59 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.3 2010-03-25 15:21:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -493,7 +493,7 @@ int main(int argc, char **argv)
 	else if(!(file = fopen(FSfilename, "r")))
 	    messcrash("Cannot open %s\n", FSfilename);
 	
-	parseFS(&MSPlist, file, dummyopts, &qseq, qname, &sseq, sname);
+	parseFS(&MSPlist, file, dummyopts, &qseq, qname, &sseq, sname, qoffset);
     }
 
     /* Determine sequence types */

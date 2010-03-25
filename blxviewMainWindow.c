@@ -790,7 +790,7 @@ static GList* findSeqsFromList(GtkWidget *button, gpointer data)
   
   if (g_list_length(seqNameList) < 1)
     {
-      messout("No valid sequence names in search list\n");
+      messout("No valid sequence names in buffer\n%s\n", inputText);
     }
     
   return seqNameList;
@@ -1288,7 +1288,7 @@ static GList* getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText)
     {
       g_list_free(seqNameList);
       seqNameList = NULL;
-      messout("No valid sequence names in search text\n");
+      messout("No valid sequence names in buffer '%s'\n", inputText);
     }
   
   return seqNameList;
@@ -2714,10 +2714,22 @@ int mainWindowGetDotterEnd(GtkWidget *mainWindow)
   return properties ? properties->dotterEnd : UNSET_INT;
 }
 
+int mainWindowGetDotterZoom(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->dotterEnd : UNSET_INT;
+}
+
 gboolean mainWindowGetGappedHsp(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->gappedHsp : UNSET_INT;
+}
+
+const char* mainWindowGetPaddingSeq(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->paddingSeq : NULL;
 }
 
 /* Return the active strand - forward strand by default, reverse strand if display toggled */

@@ -837,70 +837,81 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
+  int sLen = UNSET_INT; /* the length of the match sequence */
   
-  const BlxSeqType seqType = detailViewGetSeqType(detailView);
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
   const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
   
   /* See if a base is selected. */
   qIdx = selectedDnaBaseIdx;
   
-  /* Make sure we have enough space for all the bits to go in the result text */
-  int msgLen = numDigitsInInt(qIdx);
-  
   /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
   const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
   
-  if (!seqName)
+  if (seqName)
     {
-      msgLen += strlen(noSeqText);
-    }
-  else
-    {
-      msgLen += strlen(seqName);
-      
-      /* If a q index is selected, see if there is a valid base at that index 
-       * for any of the MSPs for the selected sequence. */
-      if (qIdx != UNSET_INT)
+      GList *mspList = detailViewGetSequenceMsps(detailView, seqName);
+      if (g_list_length(mspList) > 0)
 	{
-	  GList *mspListItem = detailViewGetSequenceMsps(detailView, seqName);
+	  MSP *firstMsp = (MSP*)(mspList->data);
 	  
-	  for ( ; mspListItem; mspListItem = mspListItem->next)
+	  if (firstMsp->sseq && firstMsp->sseq != mainWindowGetPaddingSeq(mainWindow))
 	    {
-	      MSP *msp = (MSP*)(mspListItem->data);
-	      
-	      sIdx = gapCoord(msp, qIdx, numFrames, mspGetRefFrame(msp, seqType), rightToLeft, NULL);
+	      sLen = strlen(firstMsp->sseq);
+	    }
 
-	      if (sIdx != UNSET_INT)
+	  /* If a q index is selected, see if there is a valid base at that index 
+	   * for any of the MSPs for the selected sequence. */
+	  if (qIdx != UNSET_INT)
+	    {
+	      GList *mspListItem = mspList;
+	      for ( ; mspListItem; mspListItem = mspListItem->next)
 		{
-		  msgLen += numDigitsInInt(sIdx);
-		  break;
+		  MSP *msp = (MSP*)(mspListItem->data);
+		  
+		  sIdx = gapCoord(msp, qIdx, numFrames, mspGetRefFrame(msp, seqType), rightToLeft, NULL);
+
+		  if (sIdx != UNSET_INT)
+		    {
+		      break;
+		    }
 		}
 	    }
 	}
     }
+
+  /* Add all the bits into a text string */
+  GString *resultString = g_string_sized_new(200); /* will be extended if we need more space */
   
-  msgLen += 10; /* for format text */
-  char *messageText = g_malloc(sizeof(char) * msgLen);
-  
-  /* Create the message text. */
-  if (seqName != NULL && qIdx != UNSET_INT)
+  if (qIdx != UNSET_INT)
     {
-      sprintf(messageText, "%d   %s: %d", qIdx, seqName, sIdx);		/* display all */
+      g_string_printf(resultString, "%d   ", qIdx);
     }
-  else if (seqName != NULL)
-    {
-      sprintf(messageText, "%s", seqName);				/* just the name */
+  
+  if (seqName != NULL)
+    { 
+      g_string_append_printf(resultString, "%s", seqName);
     }
   else if (qIdx != UNSET_INT)
     {
-      sprintf(messageText, "%d   %s", qIdx, noSeqText);  /* just the index */
+      g_string_append_printf(resultString, "%s", noSeqText); 
     }
-  else
+    
+  if (sLen != UNSET_INT)
     {
-      sprintf(messageText, " ");
+      g_string_append_printf(resultString, "(%d)", sLen);
     }
+
+  if (sIdx != UNSET_INT)
+    {
+      g_string_append_printf(resultString, " : %d", sIdx);
+    }
+  
+  char *messageText = resultString->str;
+  g_string_free(resultString, FALSE);
   
   return messageText;
 }
@@ -1999,7 +2010,8 @@ void toggleStrand(GtkWidget *detailView)
 
 
 /* Go to a user-specified coord on the reference sequence (in terms of the DNA
- * or peptide sequence as specified by coordSeqType). */
+ * or peptide sequence as specified by coordSeqType). Selects the base index
+ * and centres on it. */
 void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 {
   static gchar defaultInput[32] = "";
@@ -2035,16 +2047,20 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 	  /* Remember this input for next time */
 	  sprintf(defaultInput, "%d", requestedCoord);
 
-	  /* Convert to display coords. currently assumes input is a dna coord */
+	  /* Convert the input coord to display coords. */
+	  const int activeFrame = detailViewGetSelectedFrame(detailView);
+	  int baseNum;
+	  
 	  const int displayIdx = convertDnaIdxToDisplayIdx(requestedCoord, 
 							   detailViewGetSeqType(detailView), 
-							   1,
+							   activeFrame,
 							   detailViewGetNumReadingFrames(detailView), 
 							   detailViewGetStrandsToggled(detailView), 
 							   detailViewGetRefSeqRange(detailView),
-							   NULL);
+							   &baseNum);
 	  
-	  setDetailViewStartIdx(detailView, displayIdx, coordSeqType);
+	  /* Select the base index. */
+	  detailViewSetSelectedBaseIdx(detailView, displayIdx, activeFrame, baseNum, TRUE, FALSE);
 	}
     }
 
@@ -2348,11 +2364,11 @@ static void GFind(GtkButton *button, gpointer data)
   showFindDialog(detailViewGetMainWindow(detailView));
 }
 
-static void GGroup(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showGroupsDialog(detailViewGetMainWindow(detailView), TRUE);
-}
+//static void GGroup(GtkButton *button, gpointer data)
+//{
+//  GtkWidget *detailView = GTK_WIDGET(data);
+//  showGroupsDialog(detailViewGetMainWindow(detailView), TRUE);
+//}
 
 //static void GCopy(GtkButton *button, gpointer data)
 //{
