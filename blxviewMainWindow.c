@@ -2717,7 +2717,7 @@ int mainWindowGetDotterEnd(GtkWidget *mainWindow)
 int mainWindowGetDotterZoom(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  return properties ? properties->dotterEnd : UNSET_INT;
+  return properties ? properties->dotterZoom : UNSET_INT;
 }
 
 gboolean mainWindowGetGappedHsp(GtkWidget *mainWindow)

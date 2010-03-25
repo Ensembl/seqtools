@@ -401,8 +401,12 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
       if (dotterSSeq && g_list_length(mspList) > 0)
 	{
 	  const MSP *msp = (const MSP*)(mspList->data);
+	  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+	  const gboolean sForward = (mspGetSubjectStrand(msp) == FORWARD_STRAND);
+	  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+	  const gboolean sameDirection = (qForward == sForward);
 	  
-	  if (mspGetSubjectStrand(msp) == REVERSE_STRAND)
+	  if ((sameDirection && rightToLeft) || (!sForward && !rightToLeft))
 	    {
 	      /* Complementing the match sequence here maintains existing dotter behaviour.
 	       * However, I think this is wrong - the match shows agains the wrong strand
@@ -755,10 +759,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   frameStr[1] = 0;
   int frame = atoi(frameStr);
   
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
   const char *refSeq = mainWindowGetRefSeq(blxWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
-  
+
   char *querySeqSegmentTemp = getSequenceSegment(blxWindow, 
 						 refSeq,
 						 refSeqRange,
@@ -768,10 +772,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 						 BLXSEQ_DNA, /* calculated dotter coords are always in terms of DNA seq */
 						 frame,
 						 mainWindowGetNumReadingFrames(blxWindow),
-						 rightToLeft,
-						 FALSE,  /* don't reverse - dotter expects it always to be forwards */
-						 FALSE,  /* don't complement */
-						 FALSE); /* don't allow translation to a peptide seq */
+						 FALSE,	      /* input coords are always left-to-right, even if display reversed */
+						 rightToLeft, /* whether to reverse */
+						 rightToLeft, /* whether to allow rev strands to be complemented */
+						 FALSE);      /* don't allow translation to a peptide seq */
   
   if (!querySeqSegmentTemp)
     {
