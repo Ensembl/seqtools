@@ -20,6 +20,7 @@ typedef struct _DotterDialogData
     
     GtkWidget *startCoordWidget;
     GtkWidget *endCoordWidget;
+    GtkWidget *zoomCoordWidget;
     
     GtkWidget *autoButton;
     GtkWidget *manualButton;
@@ -28,8 +29,10 @@ typedef struct _DotterDialogData
     
     char *autoStart;
     char *autoEnd;
+    char *autoZoom;
     char *lastSavedStart;
     char *lastSavedEnd;
+    char *lastSavedZoom;
     char *fullRangeStart;
     char *fullRangeEnd;
   } DotterDialogData;
@@ -50,6 +53,7 @@ static void dotterDialogSaveSettings(DotterDialogData *dialogData)
   MainWindowProperties *properties = mainWindowGetProperties(dialogData->blxWindow);
   GtkEntry *startEntry = GTK_ENTRY(dialogData->startCoordWidget);
   GtkEntry *endEntry = GTK_ENTRY(dialogData->endCoordWidget);
+  GtkEntry *zoomEntry = GTK_ENTRY(dialogData->zoomCoordWidget);
   
   properties->autoDotterParams = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
   
@@ -58,11 +62,13 @@ static void dotterDialogSaveSettings(DotterDialogData *dialogData)
       /* Save the manual parameters entered */
       properties->dotterStart = atoi(gtk_entry_get_text(startEntry));
       properties->dotterEnd = atoi(gtk_entry_get_text(endEntry));
+      properties->dotterZoom = atoi(gtk_entry_get_text(zoomEntry));
       
       /* Enable the "last-saved" button so the user can revert to these values */
       gtk_widget_set_sensitive(dialogData->lastSavedButton, TRUE);
       dialogData->lastSavedStart = convertIntToString(properties->dotterStart);
       dialogData->lastSavedEnd = convertIntToString(properties->dotterEnd);
+      dialogData->lastSavedZoom = convertIntToString(properties->dotterZoom);
     }  
 }
 
@@ -93,8 +99,10 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
     {
       g_free(dialogData->autoStart);
       g_free(dialogData->autoEnd);
+      g_free(dialogData->autoZoom);
       g_free(dialogData->lastSavedStart);
       g_free(dialogData->lastSavedEnd);
+      g_free(dialogData->lastSavedZoom);
       g_free(dialogData);
 
       gtk_widget_destroy(GTK_WIDGET(dialog));
@@ -124,6 +132,7 @@ static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
   
   gtk_entry_set_text(GTK_ENTRY(dialogData->startCoordWidget), dialogData->lastSavedStart);
   gtk_entry_set_text(GTK_ENTRY(dialogData->endCoordWidget), dialogData->lastSavedEnd);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->zoomCoordWidget), dialogData->lastSavedZoom);
   
   /* Change the mode to manual */
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
@@ -137,20 +146,24 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
   
   GtkEntry *startEntry = GTK_ENTRY(dialogData->startCoordWidget);
   GtkEntry *endEntry = GTK_ENTRY(dialogData->endCoordWidget);
+  GtkEntry *zoomEntry = GTK_ENTRY(dialogData->zoomCoordWidget);
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
     {
       gtk_entry_set_text(startEntry, dialogData->autoStart);
       gtk_entry_set_text(endEntry, dialogData->autoEnd);
+      gtk_entry_set_text(zoomEntry, dialogData->autoZoom);
       
       gtk_widget_set_sensitive(GTK_WIDGET(startEntry), FALSE);
       gtk_widget_set_sensitive(GTK_WIDGET(endEntry), FALSE);
+      gtk_widget_set_sensitive(GTK_WIDGET(zoomEntry), FALSE);
     }
   else
     {
       /* Manual coords. Leave values as they are but unlock the boxes so they can be edited. */
       gtk_widget_set_sensitive(GTK_WIDGET(startEntry), TRUE);
       gtk_widget_set_sensitive(GTK_WIDGET(endEntry), TRUE);
+      gtk_widget_set_sensitive(GTK_WIDGET(zoomEntry), TRUE);
     }
 }
 
@@ -179,6 +192,7 @@ void showDotterDialog(GtkWidget *blxWindow)
   /* Find the various possibilities for start/end coords */
   char *lastSavedStart = convertIntToString(mainWindowGetDotterStart(blxWindow));
   char *lastSavedEnd = convertIntToString(mainWindowGetDotterEnd(blxWindow));
+  char *lastSavedZoom = convertIntToString(mainWindowGetDotterZoom(blxWindow));
   char *fullRangeStart = convertIntToString(rightToLeft ? refSeqRange->max : refSeqRange->min);
   char *fullRangeEnd = convertIntToString(rightToLeft ? refSeqRange->min : refSeqRange->max);
 
@@ -190,6 +204,7 @@ void showDotterDialog(GtkWidget *blxWindow)
 
   char *autoStart = autoStartCoord != UNSET_INT ? convertIntToString(autoStartCoord) : fullRangeStart;
   char *autoEnd = autoEndCoord != UNSET_INT ? convertIntToString(autoEndCoord) : fullRangeEnd;
+  char *autoZoom = convertIntToString(0);
   
   /* Create a container for the child widgets */
   GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
@@ -218,44 +233,54 @@ void showDotterDialog(GtkWidget *blxWindow)
 
   
   /* coord labels */
-  GtkBox *vbox1 = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_box_pack_start(hbox, GTK_WIDGET(vbox1), FALSE, FALSE, spacing);
-
+  GtkTable *table = GTK_TABLE(gtk_table_new(3, 2, FALSE));
+  gtk_box_pack_start(hbox, GTK_WIDGET(table), FALSE, FALSE, spacing);
+  int xpad = 4, ypad = 4;
+  
   GtkWidget *label1 = gtk_label_new("<i>Start:</i>");
   gtk_label_set_use_markup(GTK_LABEL(label1), TRUE);
-  gtk_box_pack_start(vbox1, label1, FALSE, FALSE, spacing);
+  gtk_table_attach(table, label1, 1, 2, 1, 2, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
 
   GtkWidget *label2 = gtk_label_new("<i>End:</i>");
   gtk_label_set_use_markup(GTK_LABEL(label2), TRUE);
-  gtk_box_pack_start(vbox1, label2, FALSE, FALSE, spacing);
+  gtk_table_attach(table, label2, 1, 2, 2, 3, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+
+  GtkWidget *label3 = gtk_label_new("<i>Zoom:</i>");
+  gtk_label_set_use_markup(GTK_LABEL(label3), TRUE);
+  gtk_table_attach(table, label3, 1, 2, 3, 4, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   
   /* coord entry boxes */
-  GtkBox *vbox2 = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_box_pack_start(hbox, GTK_WIDGET(vbox2), FALSE, FALSE, spacing);
-  
   GtkWidget *startCoordWidget = gtk_entry_new();
-  gtk_box_pack_start(vbox2, startCoordWidget, FALSE, FALSE, spacing);
+  gtk_table_attach(table, startCoordWidget, 2, 3, 1, 2, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_entry_set_activates_default(GTK_ENTRY(startCoordWidget), TRUE);
   
   GtkWidget *endCoordWidget = gtk_entry_new();
-  gtk_box_pack_start(vbox2, endCoordWidget, FALSE, FALSE, spacing);
+  gtk_table_attach(table, endCoordWidget, 2, 3, 2, 3, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_entry_set_activates_default(GTK_ENTRY(endCoordWidget), TRUE);
+
+  GtkWidget *zoomCoordWidget = gtk_entry_new();
+  gtk_table_attach(table, zoomCoordWidget, 2, 3, 3, 4, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_entry_set_activates_default(GTK_ENTRY(zoomCoordWidget), TRUE);
   
   /* Set the initial state of the toggle buttons and entry widgets */
   if(mainWindowGetAutoDotter(blxWindow))
     {
       gtk_entry_set_text(GTK_ENTRY(startCoordWidget), autoStart);
       gtk_entry_set_text(GTK_ENTRY(endCoordWidget), autoEnd);
+      gtk_entry_set_text(GTK_ENTRY(zoomCoordWidget), autoZoom);
       gtk_widget_set_sensitive(startCoordWidget, FALSE);
       gtk_widget_set_sensitive(endCoordWidget, FALSE);
+      gtk_widget_set_sensitive(zoomCoordWidget, FALSE);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoButton), TRUE);
     }
   else
     {
       gtk_entry_set_text(GTK_ENTRY(startCoordWidget), lastSavedStart);
       gtk_entry_set_text(GTK_ENTRY(endCoordWidget), lastSavedEnd);
+      gtk_entry_set_text(GTK_ENTRY(zoomCoordWidget), lastSavedZoom);
       gtk_widget_set_sensitive(startCoordWidget, TRUE);
       gtk_widget_set_sensitive(endCoordWidget, TRUE);
+      gtk_widget_set_sensitive(zoomCoordWidget, TRUE);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(manualButton), TRUE);
     }
   
@@ -265,14 +290,17 @@ void showDotterDialog(GtkWidget *blxWindow)
   data->blxWindow = blxWindow;
   data->startCoordWidget = startCoordWidget;
   data->endCoordWidget = endCoordWidget;
+  data->zoomCoordWidget = zoomCoordWidget;
   data->autoButton = autoButton;
   data->manualButton = manualButton;
   data->lastSavedButton = lastSavedButton;
   data->fullRangeButton = fullRangeButton;
   data->autoStart = autoStart;
   data->autoEnd = autoEnd;
+  data->autoZoom = autoZoom;
   data->lastSavedStart = lastSavedStart;
   data->lastSavedEnd = lastSavedEnd;
+  data->lastSavedZoom = lastSavedZoom;
   data->fullRangeStart = fullRangeStart;
   data->fullRangeEnd = fullRangeEnd;
   
@@ -315,7 +343,7 @@ char getDotterMode(const BlxBlastMode blastMode)
 
 /* Get the start/end coords. If the autoDotterParams flag is set, calculate coords
  * automatically - otherwise use the stored manual coords */
-void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterStart, int *dotterEnd)
+void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterStart, int *dotterEnd, int *dotterZoom)
 {
   const gboolean autoDotterParams = mainWindowGetAutoDotter(blxWindow);
   
@@ -324,6 +352,7 @@ void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterSta
       /* Use manual coords */
       *dotterStart = mainWindowGetDotterStart(blxWindow);
       *dotterEnd = mainWindowGetDotterEnd(blxWindow);
+      *dotterZoom = mainWindowGetDotterZoom(blxWindow);
       
       if (*dotterStart == UNSET_INT || *dotterEnd == UNSET_INT)
 	{
@@ -485,10 +514,12 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       const int qFrame = mspGetRefFrame(msp, seqType);
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      int base1, base2;
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base1);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base2);
       const int minMspCoord = min(coord1, coord2);
       const int maxMspCoord = max(coord1, coord2);
+      printf("qstart=%d, qend=%d, pep1=%d, pep2=%d, base1=%d, base2=%d\n", msp->qstart, msp->qend, coord1, coord2, base1, base2);
 
       /* Check if the MSP is in a visible tree row and is entirely within the big picture range */
       if ((msp->qframe[1] == activeStrand || (blastMode == BLXMODE_BLASTN)) &&
@@ -534,7 +565,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	}
     }
 
-
+  printf("qMin=%d, qMax=%d\n", qMin, qMax);
   if (qMin == UNSET_INT)
     {
       messout("Could not find any matches on the '%c' strand to %s.", activeStrand, selectedSeqName);
@@ -741,8 +772,8 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   g_free(dotterSSeqTemp);
   
   /* Get the coords */
-  int dotterStart = UNSET_INT, dotterEnd = UNSET_INT;
-  getDotterRange(blxWindow, dotterSSeq, &dotterStart, &dotterEnd);
+  int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
+  getDotterRange(blxWindow, dotterSSeq, &dotterStart, &dotterEnd, &dotterZoom);
   
   /* Get the reference sequence name */
   const char *dotterQName = mainWindowGetRefSeqName(blxWindow);
@@ -814,9 +845,6 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   
   /* Get the list of all MSPs */
   MSP *mspList = mainWindowGetMspList(blxWindow);
-  
-  const int dotterZoom = mainWindowGetDotterZoom(blxWindow);
-  
   
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   

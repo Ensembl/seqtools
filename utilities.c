@@ -228,19 +228,26 @@ int numDigitsInInt(int val)
 {
   int count = 0;
 
-  if (val < 0)
+  if (val == 0)
     {
-      /* Add one for the '-' sign, then treat it as a positive number */
-      ++count;
-      val *= -1;
+      count = 1;
     }
+  else
+    {
+      if (val < 0)
+	{
+	  /* Add one for the '-' sign, then treat it as a positive number */
+	  ++count;
+	  val *= -1;
+	}
 
-  while (val > 0)
-    {
-      ++count;
-      val /= 10;
+      while (val > 0)
+	{
+	  ++count;
+	  val /= 10;
+	}
     }
-  
+      
   return count;
 }
 
