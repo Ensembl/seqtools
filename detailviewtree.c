@@ -2108,12 +2108,15 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
   
   if (GTK_IS_LABEL(headerWidget))
     {
+      GtkWidget *mainWindow = treeGetMainWindow(tree);
+      
       int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), 
 					treeGetFrame(tree),
-					treeGetSeqType(tree), 
-					treeGetStrandsToggled(tree), 
-					treeGetNumReadingFrames(tree),
-					treeGetRefSeqRange(tree));
+					mainWindowGetSeqType(mainWindow), 
+					mainWindowGetStrandsToggled(mainWindow), 
+					mainWindowGetNumReadingFrames(mainWindow),
+					mainWindowGetRefSeqRange(mainWindow),
+					mainWindowGetOffset(mainWindow));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
@@ -2137,12 +2140,15 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
   
   if (GTK_IS_LABEL(headerWidget))
     {
+      GtkWidget *mainWindow = treeGetMainWindow(tree);
+      
       int displayVal = getEndDnaCoord(treeGetDisplayRange(tree),
 				      treeGetFrame(tree),
-				      treeGetSeqType(tree), 
-				      treeGetStrandsToggled(tree), 
-				      treeGetNumReadingFrames(tree),
-				      treeGetRefSeqRange(tree));
+				      mainWindowGetSeqType(mainWindow), 
+				      mainWindowGetStrandsToggled(mainWindow), 
+				      mainWindowGetNumReadingFrames(mainWindow),
+				      mainWindowGetRefSeqRange(mainWindow),
+				      mainWindowGetOffset(mainWindow));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       

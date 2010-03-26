@@ -888,6 +888,8 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   
   if (qIdx != UNSET_INT)
     {
+      /* Adjust by the offset to give the real value for displaying */
+      qIdx += mainWindowGetOffset(mainWindow);
       g_string_printf(resultString, "%d   ", qIdx);
     }
   

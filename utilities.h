@@ -110,14 +110,16 @@ int		      getStartDnaCoord(const IntRange const *displayRange,
 				       const BlxSeqType displaySeqType, 
 				       const gboolean rightToLeft, 
 				       const int numFrames,
-				       const IntRange const *refSeqRange);
+				       const IntRange const *refSeqRange,
+				       const int offset);
 
 int		      getEndDnaCoord(const IntRange const *displayRange, 
 				     const int frame,
 				     const BlxSeqType displaySeqType, 
 				     const gboolean rightToLeft, 
 				     const int numFrames,
-				     const IntRange const *refSeqRange);
+				     const IntRange const *refSeqRange,
+				     const int offset);
 
 int		      gapCoord(const MSP *msp, 
 			       const int qIdx, 

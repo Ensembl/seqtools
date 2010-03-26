@@ -19,9 +19,9 @@ typedef struct _CommandLineOptions
   char *refSeq;			  /* the section of reference sequence we're viewing */
   const char const *refSeqName;	  /* the name of the reference sequence */
   const int refSeqOffset;	  /* how much to offset the first ref seq coord by */
-  const int startCoord;	    /* which coord to start the initial display range at */
-  MSP *mspList;		    /* the list of alignments */
-  char **geneticCode;	    /* the genetic code */
+  const int startCoord;		  /* which coord to start the initial display range at */
+  MSP *mspList;			  /* the list of alignments */
+  char **geneticCode;		  /* the genetic code */
   
   Strand activeStrand;	    /* which strand will initially be the active one */
   int bigPictZoom;	    /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
@@ -51,6 +51,7 @@ typedef struct _MainWindowProperties
     const char *refSeqName;	    /* The name of the reference sequence */
     IntRange refSeqRange;	    /* The range of the reference sequence */
     IntRange fullDisplayRange;	    /* The range of the displayed sequence */
+    int offset;			    /* offset amount so that internally the ref seq starts at a base1 coord */
 
     MSP *mspList;		    /* List of all MSPs. */
     BlxBlastMode blastMode;	    /* The type of blast matching that was used */
@@ -106,6 +107,7 @@ GList*			  mainWindowGetSequenceMsps(GtkWidget *mainWindow, const char *seqName)
 GList*			  mainWindowGetSequenceGroups(GtkWidget *mainWindow);
 SequenceGroup*		  mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seqName);
 const char*		  mainWindowGetPaddingSeq(GtkWidget *mainWindow);
+int			  mainWindowGetOffset(GtkWidget *mainWindow);
 
 GList*			  mainWindowGetSelectedSeqs(GtkWidget *mainWindow);
 void			  mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees);

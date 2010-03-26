@@ -380,8 +380,12 @@ static void drawMspLine(GtkWidget *grid, GdkColor *colour, GdkColor *shadowColou
       int yBottom = y + height - shadowHt;
       gdk_draw_line(drawable, gc, x, yBottom, x + width, yBottom);
       
-      int xRight = x + width - shadowHt;
-      gdk_draw_line(drawable, gc, xRight, y, xRight, y + height);
+      /* only draw the right-hand-side if the width is great enough to fit it and still be visible */
+      if (width > shadowHt + 1)
+      {
+	int xRight = x + width - shadowHt;
+	gdk_draw_line(drawable, gc, xRight, y, xRight, y + height);
+      }
     }
 }
 

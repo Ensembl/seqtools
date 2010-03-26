@@ -487,7 +487,8 @@ int getStartDnaCoord(const IntRange const *displayRange,
 		     const BlxSeqType displaySeqType, 
 		     const gboolean rightToLeft, 
 		     const int numFrames,
-		     const IntRange const *refSeqRange)
+		     const IntRange const *refSeqRange,
+		     const int offset)
 {
   int result = displayRange->min;
   
@@ -495,6 +496,9 @@ int getStartDnaCoord(const IntRange const *displayRange,
    * the first base in the codon, if this is a peptide sequence. */
   const int baseNum = 1;
   result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  
+  /* Adjust by the offset to give the real value for displaying */
+  result += offset;
   
   return result;
 }
@@ -508,7 +512,8 @@ int getEndDnaCoord(const IntRange const *displayRange,
 		   const BlxSeqType displaySeqType, 
 		   const gboolean rightToLeft, 
 		   const int numFrames,
-		   const IntRange const *refSeqRange)
+		   const IntRange const *refSeqRange,
+		   const int offset)
 {
   int result = displayRange->max;
   
@@ -516,6 +521,9 @@ int getEndDnaCoord(const IntRange const *displayRange,
    * the last base in the codon, if this is a peptide sequence. */
   const int baseNum = numFrames;
   result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  
+  /* Adjust by the offset to give the real value for displaying */
+  result += offset;
   
   return result;
 }

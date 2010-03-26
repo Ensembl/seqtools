@@ -2573,7 +2573,8 @@ static void mainWindowCreateProperties(CommandLineOptions *options,
 				       GtkWidget *mainmenu,
 				       const IntRange const *refSeqRange,
 				       const IntRange const *fullDisplayRange,
-				       const char *paddingSeq)
+				       const char *paddingSeq,
+				       const int offset)
 {
   if (widget)
     {
@@ -2589,6 +2590,7 @@ static void mainWindowCreateProperties(CommandLineOptions *options,
       properties->refSeqRange.max = refSeqRange->max;
       properties->fullDisplayRange.min = fullDisplayRange->min;
       properties->fullDisplayRange.max = fullDisplayRange->max;
+      properties->offset = offset;
       
       properties->mspList = options->mspList;
       properties->geneticCode = options->geneticCode;
@@ -2686,6 +2688,12 @@ BlxSeqType mainWindowGetSeqType(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->seqType : FALSE;
+}
+
+int mainWindowGetOffset(GtkWidget *mainWindow)
+{
+  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  return properties ? properties->offset : FALSE;
 }
 
 IntRange* mainWindowGetFullRange(GtkWidget *mainWindow)
@@ -3010,14 +3018,25 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
   IntRange refSeqRange = {options->refSeqOffset + 1, options->refSeqOffset + refSeqLen};
   IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
   
+  int offset = 0;
+  
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
+      int startBase = UNSET_INT;
+      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, &startBase);
+
+      if (startBase > 1)
+	{
+	  offset = startBase - 1;
+	  refSeqRange.min -= offset;
+	  refSeqRange.max -= offset;
+	  fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, &startBase);
+	}
       
-      int baseNum = UNSET_INT;
-      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 3, options->numReadingFrames, FALSE, &refSeqRange, &baseNum);
+      int endBase = UNSET_INT;
+      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 3, options->numReadingFrames, FALSE, &refSeqRange, &endBase);
       
-      if (baseNum < options->numReadingFrames)
+      if (endBase < options->numReadingFrames)
 	{
 	  /* The last peptide does not have a full triplet, so cut off the range at the last full triplet */
 	  fullDisplayRange.max -= 1;
@@ -3087,7 +3106,8 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
 			     mainmenu,
 			     &refSeqRange, 
 			     &fullDisplayRange,
-			     paddingSeq);
+			     paddingSeq,
+			     offset);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);

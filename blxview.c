@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.28 2010-03-24 10:43:55 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.29 2010-03-26 15:17:20 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -547,7 +547,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
     }
   else
     {
-      options->fetchMode = blxFindInitialFetchMode();
+      blxFindInitialFetchMode(options->fetchMode);
     }
   
   
@@ -642,9 +642,12 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
 	}
     }
 
-
-  CommandLineOptions options = {refSeq, refSeqName, qOffset, start, msplist, stdcode1,
-				FORWARD_STRAND, 10, TRUE, FALSE, SORTBYID, FALSE, FALSE, FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, NULL};
+  char fetchMode[32] = BLX_FETCH_EFETCH;
+  const int startCoord = start < 1 ? 1 : start;
+  
+  CommandLineOptions options = {refSeq, refSeqName, qOffset, startCoord, msplist, stdcode1,
+				FORWARD_STRAND, 10, TRUE, FALSE, SORTBYID, FALSE, FALSE,
+				FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, fetchMode};
   
   blxviewGetOpts(opts, refSeq, &options);
   
