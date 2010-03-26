@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.20 2010-03-23 15:57:58 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.21 2010-03-26 12:52:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -230,7 +230,7 @@ char *readFastaSeq(FILE *seqfile, char *qname);
 
 void blxPfetchEntry(char *sequence_name) ;
 void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *mainWindow) ;
-char *blxFindInitialFetchMode() ;
+void blxFindInitialFetchMode(char *fetchMode) ;
 void blxPfetchMenu(void) ;
 char *blxGetFetchProg(const char *fetchMode) ;
 

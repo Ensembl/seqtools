@@ -881,6 +881,8 @@ void refilterTree(GtkWidget *tree, gpointer data)
   
   GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
   gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(model));
+  
+  selectRowsForSelectedSeqs(tree, NULL);
 }
 
 
@@ -1230,6 +1232,7 @@ static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer dat
 	    {
 	      if (gtk_tree_path_prev(path))
 		{
+		  callFuncOnAllDetailViewTrees(treeGetDetailView(tree), deselectAllRows);
 		  mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
 		}
 	    }
@@ -1241,6 +1244,7 @@ static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer dat
 	      
 	      if (gtk_tree_model_iter_next(model, &iter))
 		{
+		  callFuncOnAllDetailViewTrees(treeGetDetailView(tree), deselectAllRows);
 		  mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
 		}
 	    }

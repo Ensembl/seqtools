@@ -1751,14 +1751,19 @@ static void onColumnSizeChanged(GtkWidget *widget, gpointer data)
   DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
   
   const gchar *newSizeText = gtk_entry_get_text(entry);
-  columnInfo->width = convertStringToInt(newSizeText);
-
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  const int newWidth = convertStringToInt(newSizeText);
   
-  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
-  resizeDetailViewHeaders(detailView);
+  if (newWidth != columnInfo->width)
+    {
+      columnInfo->width = newWidth;
+
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
+      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  
+      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
+      resizeDetailViewHeaders(detailView);
+    }
 }
 
 
@@ -2013,7 +2018,7 @@ SELECTIONS\n\
 	•	You can move the selection up/down a row using the up/down arrow keys.\n\
 \n\
 	•	You can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
-	•	For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green and red.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
+	•	For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
 	•	You can move the selection to the previous/next nucleotide using the left and right arrow keys.\n\
 	•	You can move the selection to the previous/next peptide by holding Shift while using the left and right arrow keys.\n\
 	•	You can move the selection to the start/end of the previous/next matchb by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected).\n\
@@ -2026,10 +2031,12 @@ ZOOMING\n\
 \n\
 \n\
 COPY AND PASTE\n\
-	•	To copy sequence name(s) to the clipboard, select the sequence(s) in the big picture or alignment list and hit Ctrl-C.\n\
+	•       When sequence(s) are selected, their names are copied to the selection buffer and can be pasted by middle-clicking.\n\
+	•       To paste sequence names from the selection buffer, hit the 'f' keyboard shortcut. Blixem will select the sequences and jump to the start of the selection.\n\
+        •	To copy sequence name(s) to the default clipboard, select the sequence(s) and hit Ctrl-C. Sequence names can then be pasted into other applications using Ctrl-V.\n\
+	•	The clipboard text can also be pasted into Blixem using Ctrl-V. If the clipboard contains valid sequence names, those sequences will be selected and the display will jump to the start of the selection.\n\
 	•	Note that text from the feedback box and some text labels (e.g. the reference sequence start/end coords) can be copied by selecting it with the mouse and then hitting Ctrl-C.\n\
-	•	Paste text using Ctrl-V. Clipboard text can be pasted into text entry boxes on most dialogs (e.g. the 'From name' or 'From list' boxes on the Groups dialog).\n\
-	•	Hitting Ctrl-V on the main window will create a match-set group from the clipboard text, if it contains a valid list of sequence names.\n\
+	•	Text can be pasted into dialog box text entry boxes using Ctrl-V (or middle-clicking to paste from the selection buffer).\n\
 \n\
 \n\
 SORTING\n\
@@ -2065,7 +2072,6 @@ Creating a temporary 'match-set' group from the current selection:\n\
         •       To clear the match-set group, choose the 'Toggle match set' option again, or hit the 'g' shortcut key again.\n\
         •       While it exists, the match-set group can be edited like any other group, via the 'Edit Groups' dialog.\n\
         •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight colour) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'g' shortcut key) instead.\n\
-        •       A match set can also be created by pasting from the clipboard using the Ctrl-V keyboard shortcut. If there is an existing match set it will be replaced by the new one.\n\
 \n\
 Editing groups:\n\
 To edit a group, right-click and select 'Edit Groups', or use the Ctrl-G shortcut key. You can change the following properties for a group:\n\
@@ -2093,7 +2099,7 @@ KEYBOARD SHORTCUTS\n\
 	•	Ctrl-H: Help\n\
 	•	Ctrl-P: Print\n\
 	•	Ctrl-S: 'Settings' menu\n\
-	•	V: 'View' menu\n\
+	•	V: 'View' menu (for hiding sections of the display)\n\
 	•	Shift-Ctrl-G: Create group\n\
 	•	Ctrl-G: Edit groups (or create a group if none currently exist)\n\
 	•	Ctrl-A: Select all sequences in the current list\n\
@@ -2114,6 +2120,9 @@ KEYBOARD SHORTCUTS\n\
 	•	p: Go to position\n\
 	•	t: Toggle the active strand\n\
 	•	g: Toggle the 'match set' Group\n\
+	•       1, 2, 3: These number keys toggle visibility of the 1st, 2nd (and 3rd, for protein matches) alignment list.\n\
+	•	Ctrl-1, Ctrl-2: This toggles visibility of the 1st and 2nd big picture grid.\n\
+	•       Shift-Ctrl-1, Shift-Ctrl-2: This toggles visibility of the 1st and 2nd exon views.\n\
 \n\
 \n\
 SETTINGS\n\
@@ -2121,6 +2130,7 @@ SETTINGS\n\
 	•	Squash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
 	•	Invert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
 	•	Highlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
+	•       Column sizes: use this to change the width of the columns.\n\
 \n\
 \n\
 KEY\n\

@@ -519,7 +519,6 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base2);
       const int minMspCoord = min(coord1, coord2);
       const int maxMspCoord = max(coord1, coord2);
-      printf("qstart=%d, qend=%d, pep1=%d, pep2=%d, base1=%d, base2=%d\n", msp->qstart, msp->qend, coord1, coord2, base1, base2);
 
       /* Check if the MSP is in a visible tree row and is entirely within the big picture range */
       if ((msp->qframe[1] == activeStrand || (blastMode == BLXMODE_BLASTN)) &&
@@ -565,7 +564,6 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	}
     }
 
-  printf("qMin=%d, qMax=%d\n", qMin, qMax);
   if (qMin == UNSET_INT)
     {
       messout("Could not find any matches on the '%c' strand to %s.", activeStrand, selectedSeqName);

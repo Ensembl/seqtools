@@ -463,9 +463,9 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 	{
 	  *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
       
-	  if (*baseNum == 0)
+	  if (*baseNum < 1)
 	    {
-	      *baseNum = 3;
+	      *baseNum += numFrames;
 	    }
 	}
     }

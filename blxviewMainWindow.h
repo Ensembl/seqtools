@@ -36,7 +36,7 @@ typedef struct _CommandLineOptions
   BlxBlastMode blastMode;   /* the blast match mode */
   BlxSeqType seqType;	    /* the type of sequence i.e. DNA or peptide */
   int numReadingFrames;	    /* the number of reading frames */
-  const char *fetchMode;    /* the default method for fetching sequences */
+  char *fetchMode;    /* the default method for fetching sequences */
 } CommandLineOptions;
 
 

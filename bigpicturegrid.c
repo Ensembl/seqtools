@@ -20,7 +20,7 @@
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"
 #define DEFAULT_GRID_NUM_VERT_CELLS	5	  /* the number of vertical cells to split the grid into */
 #define DEFAULT_GRID_PERCENT_ID_MIN	0	  /* the minimum value on the y-axis of the grid */
-#define DEFAULT_MSP_LINE_HEIGHT		2	  /* the height of the MSP lines in the grid */
+#define DEFAULT_MSP_LINE_HEIGHT		3	  /* the height of the MSP lines in the grid */
 #define DEFAULT_GRID_Y_PADDING		5	  /* this provides space between the grid and the edge of the widget */
 #define DEFAULT_GRID_CELL_Y_PADDING	-2	  /* this controls the vertical space between the labels on the y axis */
 #define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2	  /* this provides space between highlight box and the top/bottom of the grid */
@@ -32,6 +32,7 @@ typedef struct _DrawGridData
   GdkDrawable *drawable;
   GdkGC *gc;
   GdkColor *colour;
+  GdkColor *shadowColour;
 } DrawGridData;
 
   
@@ -356,7 +357,7 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 
 
 /* Draw a line on the given grid to represent the given match */
-static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp, GdkDrawable *drawable, GdkGC *gc)
+static void drawMspLine(GtkWidget *grid, GdkColor *colour, GdkColor *shadowColour, const MSP const *msp, GdkDrawable *drawable, GdkGC *gc)
 {
   /* Ignore introns. */
   if (mspShownInGrid(msp, grid))
@@ -368,8 +369,19 @@ static void drawMspLine(GtkWidget *grid, GdkColor *colour, const MSP const *msp,
       int x, y, width, height;
       calculateMspLineDimensions(grid, msp, &x, &y, &width, &height);
       
-      /* Draw it */
+      /* Draw a block rectangle */
       gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, height);
+      
+      /* Draw a drop-shadow, to make sure it is always visible even in the paler highlight colours */
+      const int shadowHt = 1;
+      gdk_gc_set_foreground(gc, shadowColour);
+      gdk_gc_set_line_attributes(gc, shadowHt, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+      
+      int yBottom = y + height - shadowHt;
+      gdk_draw_line(drawable, gc, x, yBottom, x + width, yBottom);
+      
+      int xRight = x + width - shadowHt;
+      gdk_draw_line(drawable, gc, xRight, y, xRight, y + height);
     }
 }
 
@@ -393,7 +405,7 @@ static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
 	  
 	  if (mspShownInGrid(msp, drawData->grid))
 	    {
-	      drawMspLine(drawData->grid, drawData->colour, msp, drawData->drawable, drawData->gc);
+	      drawMspLine(drawData->grid, drawData->colour, drawData->shadowColour, msp, drawData->drawable, drawData->gc);
 	    }
 	}
     }
@@ -415,7 +427,7 @@ static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 
       if (mspShownInGrid(msp, drawData->grid))
 	{
-	  drawMspLine(drawData->grid, drawData->colour, msp, drawData->drawable, drawData->gc);
+	  drawMspLine(drawData->grid, drawData->colour, drawData->shadowColour, msp, drawData->drawable, drawData->gc);
 	}
     }
 }
@@ -445,7 +457,7 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
 /* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 {
-  DrawGridData drawData = {grid, drawable, gc, NULL};
+  DrawGridData drawData = {grid, drawable, gc, gridGetMspLineColour(grid), gridGetMspLineColour(grid)};
   GtkWidget *mainWindow = gridGetMainWindow(grid);
 
   /* The MSP data lives in the detail-view trees. Loop through all trees (i.e. all frames) */
@@ -453,7 +465,6 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   int frame = 1;
   
   /* Draw unselected MSPs first */
-  drawData.colour = gridGetMspLineColour(grid);
   for (frame = 1 ; frame <= numFrames; ++frame)
     {
       /* Get all of the MSPs for the tree, grouped by sequence name */

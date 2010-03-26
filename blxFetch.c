@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.12 2010-03-23 15:57:58 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.13 2010-03-26 12:52:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -435,9 +435,8 @@ void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *mainWindow
 
 
 /* Needs a better name really, sets the fetch mode by looking at env. vars etc. */
-char *blxFindInitialFetchMode()
+void blxFindInitialFetchMode(char *fetchMode)
 {
-  char *fetchMode = NULL;
   char *tmp_mode ;
 
   /* Check env. vars to see how to fetch EMBL entries for sequences.         */
