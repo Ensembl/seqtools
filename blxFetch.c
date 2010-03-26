@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.13 2010-03-26 12:52:02 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.14 2010-03-26 13:03:17 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -464,8 +464,6 @@ void blxFindInitialFetchMode(char *fetchMode)
       strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
 #endif
     }
-
-  return fetchMode ;
 }
 
 
