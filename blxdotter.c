@@ -392,6 +392,23 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	{
 	  const char *fetchMode = mainWindowGetFetchMode(blxWindow);
 	  dotterSSeq = fetchSeqRaw(seqName, fetchMode);
+	  
+	  /* If the match is on the reverse s strand, we need to modify it, because
+	   * dotter does not currently handle it. */
+	  if (dotterSSeq && g_list_length(mspList) > 0)
+	    {
+	      const MSP *msp = (const MSP*)(mspList->data);
+	      const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+	      const gboolean sForward = (mspGetSubjectStrand(msp) == FORWARD_STRAND);
+	      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+	      
+	      if (qForward && rightToLeft)
+		{
+		  /* This should be consolidated with the code below */
+		  blxComplement(dotterSSeq);
+		  //g_strreverse(dotterSSeq);
+		}
+	    }
 	}
 
       if (!dotterSSeq)
@@ -416,35 +433,35 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 		}
 	      
 	      if (!dotterSSeq) printf("not ");
-	      printf("found\n");
+	      printf("found");
+	      
+	      /* If the match is on the reverse s strand, we need to modify it, because
+	       * dotter does not currently handle it. */
+	      if (dotterSSeq && g_list_length(mspList) > 0)
+		{
+		  const MSP *msp = (const MSP*)(mspList->data);
+		  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+		  const gboolean sForward = (mspGetSubjectStrand(msp) == FORWARD_STRAND);
+		  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+		  const gboolean sameDirection = (qForward == sForward);
+		  
+		  if ((sameDirection && rightToLeft) || (!sForward && !rightToLeft))
+		    {
+		      /* Complementing the match sequence here maintains existing dotter behaviour.
+		       * However, I think this is wrong - the match shows agains the wrong strand
+		       * in the alignment view in dotter. I think we should reverse it here and
+		       * not complement it; however, then the dot view shows the match in the 
+		       * wrong place, because it doesn't currently handle reverse s coords. */
+		      blxComplement(dotterSSeq);
+		      //g_strreverse(dotterSSeq);
+		    }
+		}
 	    }
 	}
 
       if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
 	{
 	  messout("Note: the sequence passed to dotter is incomplete");
-	}
-      
-      /* If the match is on the reverse s strand, we need to modify it, because
-       * dotter does not currently handle it. */
-      if (dotterSSeq && g_list_length(mspList) > 0)
-	{
-	  const MSP *msp = (const MSP*)(mspList->data);
-	  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
-	  const gboolean sForward = (mspGetSubjectStrand(msp) == FORWARD_STRAND);
-	  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
-	  const gboolean sameDirection = (qForward == sForward);
-	  
-	  if ((sameDirection && rightToLeft) || (!sForward && !rightToLeft))
-	    {
-	      /* Complementing the match sequence here maintains existing dotter behaviour.
-	       * However, I think this is wrong - the match shows agains the wrong strand
-	       * in the alignment view in dotter. I think we should reverse it here and
-	       * not complement it; however, then the dot view shows the match in the 
-	       * wrong place, because it doesn't currently handle reverse s coords. */
-	      blxComplement(dotterSSeq);
-	      //g_strreverse(dotterSSeq);
-	    }
 	}
     }
   
@@ -499,6 +516,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   const BlxSeqType seqType = mainWindowGetSeqType(blxWindow);
   const int numFrames = mainWindowGetNumReadingFrames(blxWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+  const int offset = mainWindowGetOffset(blxWindow);
   
   char activeStrand = (rightToLeft ? '-' : '+') ;
 
@@ -515,8 +533,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
       int base1, base2;
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base1);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base2);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, offset, &base1);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, offset, &base2);
       const int minMspCoord = min(coord1, coord2);
       const int maxMspCoord = max(coord1, coord2);
 

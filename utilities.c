@@ -406,7 +406,8 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
 			      const int baseNum, 
 			      const int numFrames,
 			      const gboolean rightToLeft,
-			      const IntRange const *refSeqRange)
+			      const IntRange const *refSeqRange,
+			      const int offset)
 {
   int dnaIdx = displayIdx;
   
@@ -439,6 +440,7 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 			      const int numFrames, 
 			      const gboolean rightToLeft,
 			      const IntRange const *dnaIdxRange,
+			      const int offset,
 			      int *baseNum)
 {
   int displayIdx = dnaIdx;
@@ -495,7 +497,7 @@ int getStartDnaCoord(const IntRange const *displayRange,
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the first base in the codon, if this is a peptide sequence. */
   const int baseNum = 1;
-  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange, offset);
   
   /* Adjust by the offset to give the real value for displaying */
   result += offset;
@@ -520,7 +522,7 @@ int getEndDnaCoord(const IntRange const *displayRange,
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the last base in the codon, if this is a peptide sequence. */
   const int baseNum = numFrames;
-  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange, offset);
   
   /* Adjust by the offset to give the real value for displaying */
   result += offset;

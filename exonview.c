@@ -78,10 +78,11 @@ static void drawExonIntron(const MSP *msp, GtkWidget *exonView, const gboolean i
   const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
   const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
   const int frame = mspGetRefFrame(msp, seqType);
+  const int offset = mainWindowGetOffset(mainWindow);
 
   /* Find the coordinates of the start and end base in this msp, converting to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, offset, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, offset, NULL);
   
   /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the max coord + 1 */
   const int minCoord = min(coord1, coord2);

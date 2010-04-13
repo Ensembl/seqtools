@@ -198,8 +198,10 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
   gchar *result = NULL;
 
   /* Convert input coord to ref seq coords and find the min/max */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, numFrames, rightToLeft, dnaSequenceRange);	 /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange); /* last base in frame */
+  const int offset = mainWindowGetOffset(mainWindow);
+  
+  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, numFrames, rightToLeft, dnaSequenceRange, offset);	 /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange, offset); /* last base in frame */
   int qMin = min(qIdx1, qIdx2);
   int qMax = max(qIdx1, qIdx2);
   
@@ -2553,6 +2555,12 @@ static void onDestroyMainWindow(GtkWidget *widget)
 	  properties->printSettings = NULL;
 	}
       
+      if (properties->fetchMode)
+	{
+	  g_free(properties->fetchMode);
+	  properties->fetchMode = NULL;
+	}
+      
       /* Free the properties struct itself */
       g_free(properties);
       properties = NULL;
@@ -2599,7 +2607,7 @@ static void mainWindowCreateProperties(CommandLineOptions *options,
       properties->numReadingFrames = options->numReadingFrames;
       properties->gappedHsp = options->gappedHsp;
       properties->paddingSeq = paddingSeq;
-      properties->fetchMode = options->fetchMode;
+      properties->fetchMode = g_strdup(options->fetchMode);
       
       /* Set default values for dynamic properties: */
       properties->strandsToggled = FALSE;
@@ -3023,18 +3031,18 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
       int startBase = UNSET_INT;
-      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, &startBase);
+      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, 0, &startBase);
 
       if (startBase > 1)
 	{
 	  offset = startBase - 1;
 	  refSeqRange.min -= offset;
 	  refSeqRange.max -= offset;
-	  fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, &startBase);
+	  fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, 0, &startBase);
 	}
       
       int endBase = UNSET_INT;
-      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 3, options->numReadingFrames, FALSE, &refSeqRange, &endBase);
+      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 3, options->numReadingFrames, FALSE, &refSeqRange, 0, &endBase);
       
       if (endBase < options->numReadingFrames)
 	{
@@ -3048,7 +3056,7 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
   int startCoord = options->startCoord + options->refSeqOffset;
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
+      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, offset, NULL);
     }
   
   

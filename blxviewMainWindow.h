@@ -55,7 +55,7 @@ typedef struct _MainWindowProperties
 
     MSP *mspList;		    /* List of all MSPs. */
     BlxBlastMode blastMode;	    /* The type of blast matching that was used */
-    const char* fetchMode;	    /* The fetch method to use */
+    char* fetchMode;		    /* The fetch method to use */
     BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */
     char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
     int numReadingFrames;	    /* The number of reading frames */

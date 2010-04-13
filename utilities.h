@@ -80,7 +80,8 @@ int		      convertDisplayIdxToDnaIdx(const int inputIdx,
 						const int baseNum, 
 						const int numFrames,
 						const gboolean rightToLeft,
-						const IntRange const *dnaIdxRange);
+						const IntRange const *dnaIdxRange,
+						const int offset);
 
 int		      convertDnaIdxToDisplayIdx(const int dnaIdx, 
 						const BlxSeqType displaySeqType,
@@ -88,6 +89,7 @@ int		      convertDnaIdxToDisplayIdx(const int dnaIdx,
 						const int numFrames, 
 						const gboolean rightToLeft,
 						const IntRange const *dnaIdxRange,
+						const int offset,
 						int *baseNum);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
