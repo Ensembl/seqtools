@@ -157,6 +157,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
   if (match_family)
     {
       result = pango_font_family_get_name(match_family);
+      printf("Using fixed-width font '%s'\n", result);
     }
   else
     {
@@ -2947,9 +2948,10 @@ static const char* findDetailViewFont(GtkWidget *detailView)
 {
   GList *fixed_font_list = NULL ;
 
-  fixed_font_list = g_list_append(fixed_font_list, "andale");
+  fixed_font_list = g_list_append(fixed_font_list, "andale mono");
   fixed_font_list = g_list_append(fixed_font_list, "Lucida sans typewriter");
-  fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera");
+  fixed_font_list = g_list_append(fixed_font_list, "deja vu sans mono");
+  fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera sans mono");
   fixed_font_list = g_list_append(fixed_font_list, "monaco");
   fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
   fixed_font_list = g_list_append(fixed_font_list, "Courier");
