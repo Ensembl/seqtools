@@ -1472,15 +1472,17 @@ static void calcID(MSP *msp, GtkWidget *tree)
   const gboolean sForward = (strchr(msp->sframe, '+')) ? TRUE : FALSE ;
   const gboolean qForward = (strchr(msp->qframe, '+')) ? TRUE : FALSE ;
 
-  const BlxBlastMode blastMode = treeGetBlastMode(tree);
-  const int numFrames = treeGetNumReadingFrames(tree);
+  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  const BlxBlastMode blastMode = mainWindowGetBlastMode(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  const char *paddingSeq = mainWindowGetPaddingSeq(mainWindow);
 
   int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
   getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
   
   msp->id = 0;
   
-  if (msp->sseq /* to do: is this required? && msp->sseq != padseq */)
+  if (msp->sseq && msp->sseq != paddingSeq)
     {
       /* Note that this will reverse complement the ref seq if it is the reverse 
        * strand. This means that where there is no gaps array the comparison is trivial

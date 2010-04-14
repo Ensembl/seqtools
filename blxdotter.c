@@ -399,7 +399,6 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	    {
 	      const MSP *msp = (const MSP*)(mspList->data);
 	      const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
-	      const gboolean sForward = (mspGetSubjectStrand(msp) == FORWARD_STRAND);
 	      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 	      
 	      if (qForward && rightToLeft)
@@ -425,15 +424,15 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  //	      if (msp->sseq != padseq) //to do: implement this, if still required.
-		  {
-		    dotterSSeq = g_strdup(msp->sseq);
-		    break;
-		  }
+		  if (msp->sseq != mainWindowGetPaddingSeq(blxWindow))
+		    {
+		      dotterSSeq = g_strdup(msp->sseq);
+		      break;
+		    }
 		}
 	      
 	      if (!dotterSSeq) printf("not ");
-	      printf("found");
+	      printf("found\n");
 	      
 	      /* If the match is on the reverse s strand, we need to modify it, because
 	       * dotter does not currently handle it. */

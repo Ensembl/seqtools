@@ -10,7 +10,7 @@
 #define _detail_view_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 
 
 #define	DEFAULT_REF_SEQ_BG_COLOUR     GDK_YELLOW

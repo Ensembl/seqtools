@@ -10,7 +10,7 @@
 #define _blxview_main_window_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 
 
 /* Struct to hold all the settings that come from the command line options */

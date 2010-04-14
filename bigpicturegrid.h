@@ -12,7 +12,8 @@
 
 
 #include <gtk/gtk.h>
-#include <SeqTools/blxview.h>
+#include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 
 
 #define BIG_PICTURE_GRID_NAME		"BigPictureGrid"

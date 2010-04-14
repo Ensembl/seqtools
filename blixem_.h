@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.21 2010-03-26 12:52:02 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.22 2010-04-14 12:28:44 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -62,8 +62,14 @@
 /* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
 typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS, SORTBYGROUPORDER} SortByType ;
 
+/* Fundamental strand direction. */
+typedef enum {FORWARD_STRAND, REVERSE_STRAND} Strand ;
+
 /* Fundamental type of sequence. */
 typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
+
+/* Fundamental blast match mode used */
+typedef enum {BLXMODE_UNSET, BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BLXMODE_TBLASTN, BLXMODE_BLASTP} BlxBlastMode ;
 
 
 /* This will probably never be completed but I want to start creating a blixem context....which

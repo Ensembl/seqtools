@@ -47,6 +47,14 @@ typedef struct _CallbackData
   } CallbackData;
 
 
+/* Utility struct to hold a range of integers */
+typedef struct _IntRange
+  {
+    int min;
+    int max;
+  } IntRange ;
+  
+
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
 void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
 gboolean	      widgetGetHidden(GtkWidget *widget);
