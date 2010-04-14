@@ -1073,7 +1073,17 @@ static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindo
       if (group && group->highlighted)
 	{
 	  GdkGC *gc = gdk_gc_new(window);
-	  gdk_gc_set_foreground(gc, &group->highlightColour);
+	  
+	  if (mainWindowIsSeqSelected(mainWindow, msp->sname))
+	    {
+	      GdkColor colour = getSelectionColour(&group->highlightColour);
+	      gdk_gc_set_foreground(gc, &colour);
+	    }
+	  else
+	    {
+	      gdk_gc_set_foreground(gc, &group->highlightColour);
+	    }
+	  
 	  drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, background_area->x, background_area->y, background_area->width, background_area->height);
 	}
     }

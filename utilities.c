@@ -278,6 +278,44 @@ GdkColor getGdkColor(const char *colour)
 }
 
 
+/* Reduce the brightness of a colour by the given factor (e.g. 0.5 for half brightness) */
+static GdkColor reduceColourBrightness(GdkColor *origColour, const double factor)
+{
+  GdkColor result = {0, origColour->red * factor, origColour->green * factor, origColour->blue * factor};
+  
+  gboolean failures[1];
+  gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), &result, 1, TRUE, TRUE, failures);
+  
+  if (numFailures > 0)
+    {
+      printf("Warning: error calculating highlight colour; using original colour instead (RGB=%d %d %d).", origColour->red, origColour->green, origColour->blue);
+      result.pixel = origColour->pixel;
+      result.red = origColour->red;
+      result.green = origColour->green;
+      result.blue = origColour->blue;
+    }
+  
+  return result;
+}
+
+
+/* Utility to take a gdk color and return a slightly darker shade of it, for higlighting
+ * things of that colour when they are selected. */
+GdkColor getSelectionColour(GdkColor *origColour)
+{
+  const double factor = 0.7;
+  return reduceColourBrightness(origColour, factor);
+}
+
+
+/* Utility to take a gdk color and return a much darker shade of it, for use as a drop-shadow */
+GdkColor getDropShadowColour(GdkColor *origColour)
+{
+  const double factor = 0.3;
+  return reduceColourBrightness(origColour, factor);
+}
+
+
 gboolean mspIsExon(const MSP const *msp)
 {
   return (msp && msp->score == -1);

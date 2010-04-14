@@ -60,6 +60,8 @@ GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdoub
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
 GdkColor	      getGdkColor(const char *colour);
+GdkColor	      getSelectionColour(GdkColor *origColour);
+GdkColor	      getDropShadowColour(GdkColor *origColour);
 
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);

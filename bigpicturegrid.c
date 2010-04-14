@@ -360,34 +360,34 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 
 
 /* Draw a line on the given grid to represent the given match */
-static void drawMspLine(GtkWidget *grid, GdkColor *colour, GdkColor *shadowColour, const MSP const *msp, GdkDrawable *drawable, GdkGC *gc)
+static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
 {
   /* Ignore introns. */
-  if (mspShownInGrid(msp, grid))
+  if (mspShownInGrid(msp, drawData->grid))
     {
-      gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
-      gdk_gc_set_foreground(gc, colour);
+      gdk_gc_set_subwindow(drawData->gc, GDK_INCLUDE_INFERIORS);
+      gdk_gc_set_foreground(drawData->gc, drawData->colour);
       
       /* Calculate where it should go */
       int x, y, width, height;
-      calculateMspLineDimensions(grid, msp, &x, &y, &width, &height);
+      calculateMspLineDimensions(drawData->grid, msp, &x, &y, &width, &height);
       
       /* Draw a block rectangle */
-      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, height);
+      gdk_draw_rectangle(drawData->drawable, drawData->gc, TRUE, x, y, width, height);
       
       /* Draw a drop-shadow, to make sure it is always visible even in the paler highlight colours */
       const int shadowHt = 1;
-      gdk_gc_set_foreground(gc, shadowColour);
-      gdk_gc_set_line_attributes(gc, shadowHt, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+      gdk_gc_set_foreground(drawData->gc, drawData->shadowColour);
+      gdk_gc_set_line_attributes(drawData->gc, shadowHt, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
       
       int yBottom = y + height - shadowHt;
-      gdk_draw_line(drawable, gc, x, yBottom, x + width, yBottom);
+      gdk_draw_line(drawData->drawable, drawData->gc, x, yBottom, x + width, yBottom);
       
       /* only draw the right-hand-side if the width is great enough to fit it and still be visible */
       if (width > shadowHt + 1)
       {
 	int xRight = x + width - shadowHt;
-	gdk_draw_line(drawable, gc, xRight, y, xRight, y + height);
+	gdk_draw_line(drawData->drawable, drawData->gc, xRight, y, xRight, y + height);
       }
     }
 }
@@ -412,7 +412,7 @@ static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
 	  
 	  if (mspShownInGrid(msp, drawData->grid))
 	    {
-	      drawMspLine(drawData->grid, drawData->colour, drawData->shadowColour, msp, drawData->drawable, drawData->gc);
+	      drawMspLine(msp, drawData);
 	    }
 	}
     }
@@ -434,7 +434,7 @@ static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 
       if (mspShownInGrid(msp, drawData->grid))
 	{
-	  drawMspLine(drawData->grid, drawData->colour, drawData->shadowColour, msp, drawData->drawable, drawData->gc);
+	  drawMspLine(msp, drawData);
 	}
     }
 }
@@ -446,18 +446,27 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
   SequenceGroup *seqGroup = (SequenceGroup*)listItemData;
   DrawGridData *drawData = (DrawGridData*)data;
   GdkColor *origColour = drawData->colour;
+  GdkColor *origShadowColour = drawData->shadowColour;
 
   /* Use the group's highlight colour, if this sequence should be highlighted */
   if (seqGroup->highlighted)
     {
+      /* Use the group's highlight colour */
       drawData->colour = &seqGroup->highlightColour;
+      GdkColor shadowColour = getDropShadowColour(drawData->colour);
+      drawData->shadowColour = &shadowColour;
+      
+      g_list_foreach(seqGroup->seqNameList, drawSequenceMspLines, drawData);
+
+      /* Set the draw data back to its original values */
+      drawData->colour = origColour;
+      drawData->shadowColour = origShadowColour;
+    }
+  else
+    {
+      g_list_foreach(seqGroup->seqNameList, drawSequenceMspLines, drawData);
     }
   
-  /* Draw all of the sequences in this group */
-  g_list_foreach(seqGroup->seqNameList, drawSequenceMspLines, drawData);
-  
-  /* Set the draw data back to its original values */
-  drawData->colour = origColour;
 }
 
 
@@ -488,7 +497,11 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   /* Finally, draw selected sequences. These will appear on top of everything else. */
   drawData.colour = gridGetMspLineHighlightColour(drawData.grid);
   GList *seqList = mainWindowGetSelectedSeqs(mainWindow);
+  
   drawData.colour = gridGetMspLineHighlightColour(grid);
+  GdkColor shadowColour = getDropShadowColour(drawData.colour);
+  drawData.shadowColour = &shadowColour;
+  
   g_list_foreach(seqList, drawSequenceMspLines, &drawData);
 }
 
