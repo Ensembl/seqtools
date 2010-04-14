@@ -861,8 +861,8 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
   
   /* Store a ref to the first button so we can find out the height of the
    * buttons when we come to calculate the grid borders */
-  GtkWidget *refButton = createButton(hbox, "+", "Zoom in (Ctrl-=)", (GtkSignalFunc)onZoomInBigPicture, bigPicture);
-  createButton(hbox, "-", "Zoom out (Ctrl--)", (GtkSignalFunc)onZoomOutBigPicture, bigPicture);
+  GtkWidget *refButton = createButton(hbox, "Zoom in", "Zoom in (Ctrl-=)", (GtkSignalFunc)onZoomInBigPicture, bigPicture);
+  createButton(hbox, "Zoom out", "Zoom out (Ctrl--)", (GtkSignalFunc)onZoomOutBigPicture, bigPicture);
   createButton(hbox, "Whole", "Zoom out to whole width (Shift-Ctrl--_", (GtkSignalFunc)onZoomWholeBigPicture, bigPicture);
   
   /* Create the header properties */
