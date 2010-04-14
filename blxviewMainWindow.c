@@ -302,19 +302,20 @@ int sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName)
 }
 
 
-/* Scroll the detail view left/right by 1 base */
-static void scrollDetailViewBy1(GtkWidget *window, const gboolean moveLeft)
+/* Scroll the detail view left/right by 1 base (or by 1 page, if the modifier
+ * is pressed) */
+static void scrollDetailView(GtkWidget *window, const gboolean moveLeft, const gboolean modifier)
 {
   GtkWidget *detailView = mainWindowGetDetailView(window);
   
-  if (moveLeft)
-    {
-      scrollDetailViewLeft1(detailView);
-    }
+  if (moveLeft && modifier)
+    scrollDetailViewLeftPage(detailView);
+  else if (moveLeft)
+    scrollDetailViewLeft1(detailView);
+  else if (modifier)
+    scrollDetailViewRightPage(detailView);
   else
-    {
-      scrollDetailViewRight1(detailView);
-    }
+    scrollDetailViewRight1(detailView);
 }
 
 
@@ -2424,10 +2425,10 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 
       case GDK_comma:  /* fall through */
       case GDK_period:
-	scrollDetailViewBy1(window, event->keyval == GDK_comma);
+	scrollDetailView(window, event->keyval == GDK_comma, ctrlModifier);
 	result = TRUE;
 	break;
-	
+
       case GDK_underscore: /* fall through */
       case GDK_equal:	   /* fall through */
       case GDK_minus:

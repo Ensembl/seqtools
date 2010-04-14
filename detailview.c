@@ -2788,10 +2788,10 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "Last match",	GTK_STOCK_GOTO_LAST,  "Last match (Ctrl-End)",		  (GtkSignalFunc)GlastMatch,	  detailView);
   insertToolbarSeparator(toolbar);
   
-  makeToolbarButton(toolbar, "<<", NULL,	"Scroll back lots",	  (GtkSignalFunc)GscrollLeftBig,	  detailView);
-  makeToolbarButton(toolbar, "<",  NULL,	"Scroll back one (,)",	  (GtkSignalFunc)GscrollLeft1,	  detailView);
-  makeToolbarButton(toolbar, ">",  NULL,	"Scroll forward one (.)", (GtkSignalFunc)GscrollRight1,  detailView);
-  makeToolbarButton(toolbar, ">>", NULL,	"Scroll forward lots",	  (GtkSignalFunc)GscrollRightBig,  detailView);
+  makeToolbarButton(toolbar, "<<", NULL,	"Scroll back one page (Ctrl-,)",    (GtkSignalFunc)GscrollLeftBig,  detailView);
+  makeToolbarButton(toolbar, "<",  NULL,	"Scroll back one index (,)",	    (GtkSignalFunc)GscrollLeft1,    detailView);
+  makeToolbarButton(toolbar, ">",  NULL,	"Scroll forward one index (.)",	    (GtkSignalFunc)GscrollRight1,   detailView);
+  makeToolbarButton(toolbar, ">>", NULL,	"Scroll forward one page (Ctrl-.)", (GtkSignalFunc)GscrollRightBig, detailView);
   
   /* Find/copy/paste */
   makeToolbarButton(toolbar, "Find", GTK_STOCK_FIND,    "Find sequences (f, Ctrl-F)",		  (GtkSignalFunc)GFind,  detailView);
