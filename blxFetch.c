@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.14 2010-03-26 13:03:17 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.15 2010-04-14 16:11:52 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -271,7 +271,7 @@ static void externalCommand (char *command, GtkWidget *mainWindow)
   /* Set the initial width based on the default number of characters wide */
   PangoContext *context = gtk_widget_get_pango_context(detailView);
   PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-  gint charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
+  gint charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
 
   const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
   const int maxHeight = mainWindow->allocation.height * 0.5;

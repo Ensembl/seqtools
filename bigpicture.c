@@ -40,7 +40,7 @@ static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
 							 widget->style->font_desc,
 							 pango_context_get_language (context));
   *charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  *charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
+  *charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
   pango_font_metrics_unref(metrics);
 }
 

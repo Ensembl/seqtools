@@ -128,7 +128,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
 	  char *pref_font = (char *)pref->data ;
 	  
 	  if (g_ascii_strncasecmp(name, pref_font, strlen(pref_font)) == 0
-#if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 6
+#if GLIB_MAJOR_VERSION >= 1 && GLIB_MINOR_VERSION >= 4
 	      && pango_font_family_is_monospace(families[family])
 #endif
 	      )
@@ -1146,7 +1146,7 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
   PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
   
   gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  gint charWidth = pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE;
+  gint charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
   
   pango_font_metrics_unref(metrics);
   
