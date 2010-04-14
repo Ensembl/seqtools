@@ -607,10 +607,12 @@ static void refreshSeqColHeaderLine(GtkWidget *detailView,
   IntRange qRange;
   qRange.min = min(qIdx1, qIdx2);
   qRange.max = max(qIdx1, qIdx2);
-  
-  char displayText[displayRange->max - displayRange->min + 1 + 10];
+
   int incrementValue = numFrames;
+  int displayLen = qRange.max - qRange.min + 1;
+  char displayText[displayLen + 1];
   int displayTextPos = 0;
+
   int selectedCharIdx = UNSET_INT;
   GdkColor *highlightColour = NULL;
 
@@ -2954,6 +2956,8 @@ static const char* findDetailViewFont(GtkWidget *detailView)
   fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera sans mono");
   fixed_font_list = g_list_append(fixed_font_list, "monaco");
   fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier 10 pitch");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier new");
   fixed_font_list = g_list_append(fixed_font_list, "Courier");
   fixed_font_list = g_list_append(fixed_font_list, "Monospace");
   fixed_font_list = g_list_append(fixed_font_list, "fixed");
