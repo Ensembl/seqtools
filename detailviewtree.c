@@ -953,7 +953,6 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	  const IntRange const *displayRange = treeGetDisplayRange(tree);
 	  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
 	  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-	  const int offset = mainWindowGetOffset(mainWindow);
 
 	  /* Show the row if any MSP in the list is an exon or blast match within the display range */
 	  GList *mspListItem = mspList;
@@ -964,8 +963,8 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	      if (mspIsBlastMatch(msp) || mspIsExon(msp))
 		{
 		  /* Convert the MSP's dna coords to display coords, and find the min and max */
-		  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, offset, NULL);
-		  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, offset, NULL);
+		  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+		  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
 		  
 		  const int minCoord = min(coord1, coord2);
 		  const int maxCoord = max(coord1, coord2);
@@ -2118,8 +2117,7 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 					mainWindowGetSeqType(mainWindow), 
 					mainWindowGetStrandsToggled(mainWindow), 
 					mainWindowGetNumReadingFrames(mainWindow),
-					mainWindowGetRefSeqRange(mainWindow),
-					mainWindowGetOffset(mainWindow));
+					mainWindowGetRefSeqRange(mainWindow));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
@@ -2150,8 +2148,7 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
 				      mainWindowGetSeqType(mainWindow), 
 				      mainWindowGetStrandsToggled(mainWindow), 
 				      mainWindowGetNumReadingFrames(mainWindow),
-				      mainWindowGetRefSeqRange(mainWindow),
-				      mainWindowGetOffset(mainWindow));
+				      mainWindowGetRefSeqRange(mainWindow));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       

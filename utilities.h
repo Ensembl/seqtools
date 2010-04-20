@@ -90,8 +90,7 @@ int		      convertDisplayIdxToDnaIdx(const int inputIdx,
 						const int baseNum, 
 						const int numFrames,
 						const gboolean rightToLeft,
-						const IntRange const *dnaIdxRange,
-						const int offset);
+						const IntRange const *dnaIdxRange);
 
 int		      convertDnaIdxToDisplayIdx(const int dnaIdx, 
 						const BlxSeqType displaySeqType,
@@ -99,7 +98,6 @@ int		      convertDnaIdxToDisplayIdx(const int dnaIdx,
 						const int numFrames, 
 						const gboolean rightToLeft,
 						const IntRange const *dnaIdxRange,
-						const int offset,
 						int *baseNum);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
@@ -122,16 +120,14 @@ int		      getStartDnaCoord(const IntRange const *displayRange,
 				       const BlxSeqType displaySeqType, 
 				       const gboolean rightToLeft, 
 				       const int numFrames,
-				       const IntRange const *refSeqRange,
-				       const int offset);
+				       const IntRange const *refSeqRange);
 
 int		      getEndDnaCoord(const IntRange const *displayRange, 
 				     const int frame,
 				     const BlxSeqType displaySeqType, 
 				     const gboolean rightToLeft, 
 				     const int numFrames,
-				     const IntRange const *refSeqRange,
-				     const int offset);
+				     const IntRange const *refSeqRange);
 
 int		      gapCoord(const MSP *msp, 
 			       const int qIdx, 

@@ -128,11 +128,10 @@ static void calculateBigPictureCellSize(GtkWidget *bigPicture)
   const int numFrames = mainWindowGetNumReadingFrames(properties->mainWindow);
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(properties->mainWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(properties->mainWindow);
-  const int offset = mainWindowGetOffset(properties->mainWindow);
   
   /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
-  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange, offset);
-  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, seqType, 1, 1, numFrames, rightToLeft, refSeqRange, offset);
+  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
   const int displayWidth = abs(displayEnd - displayStart); /* use abs because can be negative if display reversed */
   
   const int defaultBasesPerCell = ceil((double)(displayWidth) / DEFAULT_GRID_NUM_HOZ_CELLS);
@@ -159,13 +158,12 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   const BlxSeqType seqType = mainWindowGetSeqType(bpProperties->mainWindow);
   const int numFrames = bigPictureGetNumReadingFrames(bigPicture);
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(bpProperties->mainWindow);
-  const int offset = mainWindowGetOffset(bpProperties->mainWindow);
   
   const int direction = rightToLeft ? -1 : 1; /* to subtract instead of add when display reversed */
   
   /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
    * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange, offset);
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
   const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
@@ -183,7 +181,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, seqType, 1, numFrames, rightToLeft, refSeqRange, offset, NULL);
+      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
       const int x = convertBaseIdxToGridPos(displayIdx, &headerProperties->headerRect, &bpProperties->displayRange);
       
       if (x > minX && x < maxX)

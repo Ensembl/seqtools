@@ -444,8 +444,7 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
 			      const int baseNum, 
 			      const int numFrames,
 			      const gboolean rightToLeft,
-			      const IntRange const *refSeqRange,
-			      const int offset)
+			      const IntRange const *refSeqRange)
 {
   int dnaIdx = displayIdx;
   
@@ -453,6 +452,9 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
     {
       /* Convert the input peptide coord to a dna coord */
       dnaIdx = (displayIdx * numFrames) - numFrames + frame + baseNum - 1;
+
+      /* Convert from 1-based coord to real coords */
+      dnaIdx += refSeqRange->min - 1;
     }
   
   /* If the display is reversed, we need to invert the result. (For example, if the 
@@ -478,7 +480,6 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 			      const int numFrames, 
 			      const gboolean rightToLeft,
 			      const IntRange const *dnaIdxRange,
-			      const int offset,
 			      int *baseNum)
 {
   int displayIdx = dnaIdx;
@@ -494,6 +495,10 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
   
   if (displaySeqType == BLXSEQ_PEPTIDE)
     {
+      /* Must convert to 1-based coords to get correct reading frame (because that's
+       * the coordinate system used in blixem's input files). */
+      displayIdx -= dnaIdxRange->min - 1;
+
       /* We're displaying peptides, so convert the dna coord to a peptide coord */
       gdouble fraction = ((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames) ;
       displayIdx = ceil(fraction);
@@ -527,18 +532,14 @@ int getStartDnaCoord(const IntRange const *displayRange,
 		     const BlxSeqType displaySeqType, 
 		     const gboolean rightToLeft, 
 		     const int numFrames,
-		     const IntRange const *refSeqRange,
-		     const int offset)
+		     const IntRange const *refSeqRange)
 {
   int result = displayRange->min;
   
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the first base in the codon, if this is a peptide sequence. */
   const int baseNum = 1;
-  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange, offset);
-  
-  /* Adjust by the offset to give the real value for displaying */
-  result += offset;
+  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
   
   return result;
 }
@@ -552,18 +553,14 @@ int getEndDnaCoord(const IntRange const *displayRange,
 		   const BlxSeqType displaySeqType, 
 		   const gboolean rightToLeft, 
 		   const int numFrames,
-		   const IntRange const *refSeqRange,
-		   const int offset)
+		   const IntRange const *refSeqRange)
 {
   int result = displayRange->max;
   
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the last base in the codon, if this is a peptide sequence. */
   const int baseNum = numFrames;
-  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange, offset);
-  
-  /* Adjust by the offset to give the real value for displaying */
-  result += offset;
+  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
   
   return result;
 }

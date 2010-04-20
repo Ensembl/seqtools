@@ -198,21 +198,27 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
   gchar *result = NULL;
 
   /* Convert input coord to ref seq coords and find the min/max */
-  const int offset = mainWindowGetOffset(mainWindow);
-  
-  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, numFrames, rightToLeft, dnaSequenceRange, offset);	 /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange, offset); /* last base in frame */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, numFrames, rightToLeft, dnaSequenceRange);	 /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange); /* last base in frame */
   int qMin = min(qIdx1, qIdx2);
   int qMax = max(qIdx1, qIdx2);
   
   /* Check that the requested segment is within the sequence's range */
   if (qMin < dnaSequenceRange->min || qMax > dnaSequenceRange->max)
     {
-      if (inputCoordType == BLXSEQ_PEPTIDE)
-	printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max, coord1, coord2);
-      else
-	printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max);
-	
+      /* We might request up to 3 bases beyond the end of the range if we want to 
+       * show a partial triplet at the start/end. (It's a bit tricky for the caller to
+       * specify the exact bases they want here so we allow it but just limit it to 
+       * the actual range so that they can't index beyond the end of the range.) Any
+       * further out than one triplet is probably indicative of an error, so give a warning. */
+      if (qMin < dnaSequenceRange->min - (numFrames + 1) || qMax > dnaSequenceRange->max + (numFrames + 1))
+	{
+	  if (inputCoordType == BLXSEQ_PEPTIDE)
+	    printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max, coord1, coord2);
+	  else
+	    printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max);
+	}
+      
       if (qMax > dnaSequenceRange->max)
 	qMax = dnaSequenceRange->max;
 	
@@ -2582,8 +2588,7 @@ static void mainWindowCreateProperties(CommandLineOptions *options,
 				       GtkWidget *mainmenu,
 				       const IntRange const *refSeqRange,
 				       const IntRange const *fullDisplayRange,
-				       const char *paddingSeq,
-				       const int offset)
+				       const char *paddingSeq)
 {
   if (widget)
     {
@@ -2599,7 +2604,6 @@ static void mainWindowCreateProperties(CommandLineOptions *options,
       properties->refSeqRange.max = refSeqRange->max;
       properties->fullDisplayRange.min = fullDisplayRange->min;
       properties->fullDisplayRange.max = fullDisplayRange->max;
-      properties->offset = offset;
       
       properties->mspList = options->mspList;
       properties->geneticCode = options->geneticCode;
@@ -2697,12 +2701,6 @@ BlxSeqType mainWindowGetSeqType(GtkWidget *mainWindow)
 {
   MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
   return properties ? properties->seqType : FALSE;
-}
-
-int mainWindowGetOffset(GtkWidget *mainWindow)
-{
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
-  return properties ? properties->offset : FALSE;
 }
 
 IntRange* mainWindowGetFullRange(GtkWidget *mainWindow)
@@ -3027,37 +3025,20 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
   IntRange refSeqRange = {options->refSeqOffset + 1, options->refSeqOffset + refSeqLen};
   IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
   
-  int offset = 0;
-  
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      int startBase = UNSET_INT;
-      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, 0, &startBase);
-
-      if (startBase > 1)
-	{
-	  offset = startBase - 1;
-	  refSeqRange.min -= offset;
-	  refSeqRange.max -= offset;
-	  fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, 0, &startBase);
-	}
-      
-      int endBase = UNSET_INT;
-      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 3, options->numReadingFrames, FALSE, &refSeqRange, 0, &endBase);
-      
-      if (endBase < options->numReadingFrames)
-	{
-	  /* The last peptide does not have a full triplet, so cut off the range at the last full triplet */
-	  fullDisplayRange.max -= 1;
-	}
+      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
+      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
     }
+  
+  printf("Reference sequence [%d - %d], display range [%d - %d]\n", refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
   
   /* Convert the start coord (which is 1-based and on the DNA sequence) to display
    * coords (which take into account the offset and may also be peptide coords) */
   int startCoord = options->startCoord + options->refSeqOffset;
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, offset, NULL);
+      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
     }
   
   
@@ -3115,8 +3096,7 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
 			     mainmenu,
 			     &refSeqRange, 
 			     &fullDisplayRange,
-			     paddingSeq,
-			     offset);
+			     paddingSeq);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);

@@ -515,7 +515,6 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   const BlxSeqType seqType = mainWindowGetSeqType(blxWindow);
   const int numFrames = mainWindowGetNumReadingFrames(blxWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
-  const int offset = mainWindowGetOffset(blxWindow);
   
   char activeStrand = (rightToLeft ? '-' : '+') ;
 
@@ -532,8 +531,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
       int base1, base2;
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, offset, &base1);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, offset, &base2);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base1);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base2);
       const int minMspCoord = min(coord1, coord2);
       const int maxMspCoord = max(coord1, coord2);
 

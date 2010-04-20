@@ -27,7 +27,6 @@ typedef struct _RenderData
     GtkStateType state;
     GdkGC *gc;
     const gboolean rightToLeft;
-    const int offset;
     const Strand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
@@ -630,7 +629,7 @@ static void drawBase(MSP *msp,
   
   /* From the segment index, find the display index and the ref seq index */
   const int displayIdx = segmentRange->min + segmentIdx;
-  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->seqType, data->qFrame, 1, data->numFrames, data->rightToLeft, data->refSeqRange, data->offset);
+  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->seqType, data->qFrame, 1, data->numFrames, data->rightToLeft, data->refSeqRange);
   *sIdx = gapCoord(msp, *qIdx, data->numFrames, data->qStrand, data->rightToLeft, NULL);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
@@ -717,8 +716,8 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && mspIsExon(msp))
     {
       /* Get the msp's start/end in terms of the display coords */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, rd->offset, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, rd->offset, NULL);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, NULL);
       const int minIdx = min(coord1, coord2);
       const int maxIdx = max(coord1, coord2);
       
@@ -851,8 +850,8 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
   IntRange result = {UNSET_INT, UNSET_INT};
   
   /* Find the start/end of the MSP in terms of the display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, data->offset, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, data->offset, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
   
   int minIdx = min(coord1, coord2);
   int maxIdx = max(coord1, coord2);
@@ -972,7 +971,6 @@ static void drawMsps(SequenceCellRenderer *renderer,
     state,
     gdk_gc_new(window),
     mainWindowProperties->strandsToggled,
-    mainWindowProperties->offset,
     treeGetStrand(tree),
     treeProperties->readingFrame,
     detailViewProperties->selectedBaseIdx,

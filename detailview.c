@@ -34,7 +34,6 @@ typedef struct
     const gboolean searchRight;		/* search towards the right or left */
     const int searchDirection;		/* multiplier to add/subtract depending on whether searching right/left */
     const gboolean rightToLeft;		/* true if the display is reversed */
-    const int refSeqOffset;		/* ref seq offset */
     const BlxSeqType seqType;		/* whether viewing DNA or peptide seqs */
     const int numFrames;		/* number of reading frames */
     const IntRange const *refSeqRange;	/* the full range of the reference sequence */
@@ -597,12 +596,11 @@ static void refreshSeqColHeaderLine(GtkWidget *detailView,
   const int selectedFrame = detailViewGetSelectedFrame(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
-  const int offset = mainWindowGetOffset(detailViewGetMainWindow(detailView));
 
   /* Loop forward/backward through the display range depending on which strand we're viewing.
    * We need to convert display coords to actual coords on the ref sequence */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, seqType, frame, 1, numFrames, rightToLeft, refSeqRange, offset);	      /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, seqType, frame, numFrames, numFrames, rightToLeft, refSeqRange, offset); /* last base in frame */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, seqType, frame, 1, numFrames, rightToLeft, refSeqRange);	  /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, seqType, frame, numFrames, numFrames, rightToLeft, refSeqRange); /* last base in frame */
   
   IntRange qRange;
   qRange.min = min(qIdx1, qIdx2);
@@ -629,7 +627,7 @@ static void refreshSeqColHeaderLine(GtkWidget *detailView,
 						 );
 
       /* If the base (or its peptide) is selected, we need to highlight it */
-      const int peptideIdx = convertDnaIdxToDisplayIdx(qIdx, seqType, selectedFrame, numFrames, rightToLeft, refSeqRange, offset, NULL);
+      const int peptideIdx = convertDnaIdxToDisplayIdx(qIdx, seqType, selectedFrame, numFrames, rightToLeft, refSeqRange, NULL);
       if (peptideIdx == selectedBaseIdx)
 	{
 	  /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
@@ -893,8 +891,6 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   
   if (qIdx != UNSET_INT)
     {
-      /* Adjust by the offset to give the real value for displaying */
-      qIdx += mainWindowGetOffset(mainWindow);
       g_string_printf(resultString, "%d   ", qIdx);
     }
   
@@ -1583,9 +1579,8 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
-  const int offset = mainWindowGetOffset(detailViewGetMainWindow(detailView));
   
-  properties->selectedDnaBaseIdx = convertDisplayIdxToDnaIdx(selectedBaseIdx, seqType, frame, baseNum, numFrames, rightToLeft, refSeqRange, offset);
+  properties->selectedDnaBaseIdx = convertDisplayIdxToDnaIdx(selectedBaseIdx, seqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
 
   if (allowScroll)
     {
@@ -2065,7 +2060,6 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 							   detailViewGetNumReadingFrames(detailView), 
 							   detailViewGetStrandsToggled(detailView), 
 							   detailViewGetRefSeqRange(detailView),
-							   mainWindowGetOffset(detailViewGetMainWindow(detailView)),
 							   &baseNum);
 	  
 	  /* Select the base index. */
@@ -2152,8 +2146,8 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
       if (!mspIsIntron(msp) && (!searchData->seqNameList || findStringInList(searchData->seqNameList, msp->sname)))
 	{
 	  /* Get the msp start/end in terms of the display coords */
-	  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, searchData->refSeqOffset, NULL);
-	  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, searchData->refSeqOffset, NULL);
+	  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
+	  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, searchData->seqType, searchData->frame, searchData->numFrames, searchData->rightToLeft, searchData->refSeqRange, NULL);
 	  
 	  /* Get the offset of the coords from the given display range and find the smallest
 	   * ignorning zero and negative offsets: negative means its the wrong direction) */
@@ -2211,7 +2205,6 @@ static void goToNextMatch(GtkWidget *detailView, const int startCoord, const gbo
 				searchRight, 
 				searchDirection, 
 				rightToLeft, 
-				mainWindowGetOffset(mainWindow),
 				mainWindowGetSeqType(mainWindow),
 				numFrames,
 				mainWindowGetRefSeqRange(mainWindow),

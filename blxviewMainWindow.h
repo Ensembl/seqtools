@@ -51,7 +51,6 @@ typedef struct _MainWindowProperties
     const char *refSeqName;	    /* The name of the reference sequence */
     IntRange refSeqRange;	    /* The range of the reference sequence */
     IntRange fullDisplayRange;	    /* The range of the displayed sequence */
-    int offset;			    /* offset amount so that internally the ref seq starts at a base1 coord */
 
     MSP *mspList;		    /* List of all MSPs. */
     BlxBlastMode blastMode;	    /* The type of blast matching that was used */
