@@ -326,6 +326,11 @@ gboolean mspIsIntron(const MSP const *msp)
   return (msp && msp->score == -2);
 }
 
+gboolean mspIsSnp(const MSP const *msp)
+{
+  return (msp && msp->score == -3);
+}
+
 gboolean mspIsBlastMatch(const MSP const *msp)
 {
   return (msp && msp->score > 0);
@@ -584,9 +589,9 @@ int gapCoord(const MSP *msp,
   int qSeqMin = UNSET_INT, qSeqMax = UNSET_INT, sSeqMin = UNSET_INT, sSeqMax = UNSET_INT;
   getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
   
-  BOOL qForward = ((strchr(msp->qframe, '+'))) ? TRUE : FALSE ;
-  BOOL sForward = ((strchr(msp->sframe, '+'))) ? TRUE : FALSE ;
-  BOOL sameDirection = (qForward == sForward);
+  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
+  const gboolean sameDirection = (qForward == sForward);
   
   Array gaps = msp->gaps ;
   if (!gaps || arrayMax(gaps) < 1)
@@ -634,10 +639,11 @@ int gapCoord(const MSP *msp,
 	  
 	  /* We've "found" the value if it's in or before this range. Note that the
 	   * the range values are in decreasing order if the q strand is reversed. */
-	  BOOL found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
-	  	  if (found)
+	  gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
+	  
+	  if (found)
 	    {
-	      BOOL inRange = qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax;
+	      gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
 	      
 	      if (inRange)
 		{

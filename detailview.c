@@ -2179,8 +2179,9 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
     {
       MSP *msp = (MSP*)(mspListItem->data);
 
-      /* Check its in the sequence list (if given), and is not an intron */
-      if (!mspIsIntron(msp) && (!searchData->seqNameList || findStringInList(searchData->seqNameList, msp->sname)))
+      /* Check its in the sequence list (if given), and is a valid match or exon */
+      if ((mspIsExon(msp) || mspIsBlastMatch(msp)) &&
+	  (!searchData->seqNameList || findStringInList(searchData->seqNameList, msp->sname)))
 	{
 	  /* Get the offset of the msp coords from the given start coord and find the smallest,
 	   * ignorning zero and negative offsets (negative means its the wrong direction) */
@@ -3146,17 +3147,17 @@ static void calcMspData(MSP *msp, GtkWidget *detailView)
    * frame 1 and the required frame number is simply the same as that.) */
   /* to do: do this for exons as well; we need more info though because exons don't
    * necessarily start at base1 in their frame. */
-  if (!mspIsIntron(msp) && !mspIsExon(msp))
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+  
+  if (seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
     {
-      const BlxSeqType seqType = detailViewGetSeqType(detailView);
       const int numFrames = detailViewGetNumReadingFrames(detailView);
       const gboolean reverseStrand = (mspGetRefStrand(msp) == REVERSE_STRAND);
       
       int frame = UNSET_INT;
       convertDnaIdxToDisplayIdx(msp->qstart, seqType, 1, numFrames, reverseStrand, refSeqRange, &frame);
-      
       char *frameStr = convertIntToString(frame);
-      
+
       if (frameStr[0] != msp->qframe[2])
 	{
 	  printf("Warning: calculated match frame as %c but frame in input file is %c. Sequence %s [%d - %d]\n", frameStr[0], msp->qframe[2], msp->sname, msp->sstart, msp->send);
@@ -3164,8 +3165,11 @@ static void calcMspData(MSP *msp, GtkWidget *detailView)
       
       msp->qframe[2] = frameStr[0];
       g_free(frameStr);
-      
-      /* Calculate the ID */
+    }
+  
+  /* Calculate the ID */
+  if (mspIsBlastMatch(msp))
+    {
       calcID(msp, detailView);
     }
 }

@@ -330,7 +330,7 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 {
   gboolean result = FALSE;
   
-  if (!mspIsIntron(msp) && !mspIsExon(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
+  if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
       const IntRange const *displayRange = gridGetDisplayRange(grid);
       GtkWidget *mainWindow = bigPictureGetMainWindow(gridGetBigPicture(grid));

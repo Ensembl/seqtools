@@ -797,12 +797,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   GList *selectedMsps = mainWindowGetSequenceMsps(blxWindow, selectedSeqName);
 
   const MSP *msp = (MSP*)selectedMsps->data; /* extract info from any of the selected MSPs */
-  const Strand strand = msp->qframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
-  
-  char frameStr[2];
-  frameStr[0] = msp->qframe[2];
-  frameStr[1] = 0;
-  int frame = atoi(frameStr);
+  const BlxSeqType seqType = mainWindowGetSeqType(blxWindow);
+
+  const Strand strand = mspGetRefStrand(msp);
+  const int frame = mspGetRefFrame(msp, seqType);
   
   const char *refSeq = mainWindowGetRefSeq(blxWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);

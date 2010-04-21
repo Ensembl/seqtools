@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.13 2010-03-24 18:02:26 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.14 2010-04-21 17:23:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1140,7 +1140,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 		  if (!(result = parseDescription(&seq_pos, msp)))
 		    messcrash("Bad description data") ;
 		}
-	      else if (msp_type == SEQBL_X && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
+	      else if ((msp_type == SEQBL_X || mspIsSnp(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
 		{
                   CheckReversedSubjectAllowed(msp, opts);
                 

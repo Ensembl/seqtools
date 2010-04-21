@@ -73,6 +73,7 @@ GdkColor	      getDropShadowColour(GdkColor *origColour);
 
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
+gboolean	      mspIsSnp(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);
 
 void		      getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin, int *sSeqMax);
