@@ -697,8 +697,15 @@ Strand mspGetRefStrand(const MSP const *msp)
 }
 
 
-/* Return the strand of the subject sequence that the given MSP is a match on */
-Strand mspGetSubjectStrand(const MSP const *msp)
+/* Return the reading frame of the match sequence */
+int mspGetMatchFrame(const MSP const *msp)
+{
+  return atoi(&msp->sframe[2]);
+}
+
+
+/* Return the strand of the match sequence that the given MSP is a match on */
+Strand mspGetMatchStrand(const MSP const *msp)
 {
   return msp->sframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
 }

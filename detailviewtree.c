@@ -23,7 +23,6 @@ static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tr
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
 static int		treeGetFrame(GtkWidget *tree);
-static IntRange*	treeGetRefSeqRange(GtkWidget *tree);
 static int		scrollBarWidth();
 
 /***********************************************************
@@ -189,15 +188,6 @@ IntRange* treeGetFullRange(GtkWidget *tree)
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetFullRange(detailView);
-}
-
-/* Returns the range of the reference sequence (as a DNA sequence, regardless of
- * whether it is shown as a peptide sequence in reality) */
-static IntRange* treeGetRefSeqRange(GtkWidget *tree)
-{
-  assertTree(tree);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetRefSeqRange(detailView);
 }
 
 PangoFontDescription* treeGetFontDesc(GtkWidget *tree)
@@ -1450,192 +1440,6 @@ static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 }
 
 
-/***********************************************************
- *                     Initialization                      *
- ***********************************************************/
-
-/* calcID: caculated percent identity of an MSP
- * 
- * There seems to be a general problem with this routine for protein
- * alignments, the existing code certainly does not do the right thing.
- * I have fixed this routine for gapped sequence alignments but not for
- * protein stuff at all.
- * 
- * To be honest I think this routine is a _waste_ of time, the alignment
- * programs that feed data to blixem produce an identity anyway so why
- * not use that...why reinvent the wheel......
- * 
- * */
-static void calcID(MSP *msp, GtkWidget *tree)
-{
-  const gboolean sForward = (strchr(msp->sframe, '+')) ? TRUE : FALSE ;
-  const gboolean qForward = (strchr(msp->qframe, '+')) ? TRUE : FALSE ;
-
-  GtkWidget *mainWindow = treeGetMainWindow(tree);
-  const BlxBlastMode blastMode = mainWindowGetBlastMode(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  const char *paddingSeq = mainWindowGetPaddingSeq(mainWindow);
-
-  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
-  
-  msp->id = 0;
-  
-  if (msp->sseq && msp->sseq != paddingSeq)
-    {
-      /* Note that this will reverse complement the ref seq if it is the reverse 
-       * strand. This means that where there is no gaps array the comparison is trivial
-       * as coordinates can be ignored and the two sequences just whipped through. */
-      GtkWidget *detailView = treeGetDetailView(tree);
-      
-      char *refSeqSegment = getSequenceSegment(detailViewGetMainWindow(detailView),
-					       detailViewGetRefSeq(detailView),
-					       detailViewGetRefSeqRange(detailView),
-					       msp->qstart, 
-					       msp->qend, 
-					       treeGetStrand(tree), 
-					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
-					       treeGetFrame(tree),
-					       numFrames,
-					       treeGetStrandsToggled(tree),
-					       !qForward,
-					       TRUE,
-					       TRUE);
-
-      if (!refSeqSegment)
-	{
-	  messout ( "calcID failed: Don't have genomic sequence %d - %d, requested for match sequence '%s' (match coords = %d - %d)\n", msp->qstart, msp->qend, msp->sname, msp->sstart, msp->send);
-	  msp->id = 0;
-	  return;
-	}
-
-      /* We need to find the number of characters that match out of the total number */
-      int numMatchingChars = 0;
-      int totalNumChars = 0;
-      
-      if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
-	{
-	  /* Ungapped alignments. */
-	  totalNumChars = (qSeqMax - qSeqMin + 1) / numFrames;
-
-	  if (blastMode == BLXMODE_TBLASTN || blastMode == BLXMODE_TBLASTX)
-	    {
-	      int i = 0;
-	      for ( ; i < totalNumChars; i++)
-		{
-		  if (freeupper(msp->sseq[i]) == freeupper(refSeqSegment[i]))
-		    {
-		      numMatchingChars++;
-		    }
-		}
-	    }
-	  else						    /* blastn, blastp & blastx */
-	    {
-	      int i = 0;
-	      for ( ; i < totalNumChars; i++)
-                {
-                  int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
-		  if (freeupper(msp->sseq[sIndex]) == freeupper(refSeqSegment[i]))
-		    {
-		      numMatchingChars++;
-		    }
-                }
-	    }
-	}
-      else
-	{
-	  /* Gapped alignments. */
-	  
-	  /* To do tblastn and tblastx is not imposssible but would like to work from
-	   * examples to get it right.... */
-	  if (blastMode == BLXMODE_TBLASTN)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else if (blastMode == BLXMODE_TBLASTX)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else
-	    {
-	      /* blastn and blastp remain simple but blastx is more complex since the query
-               * coords are nucleic not protein. */
-	      
-              Array gaps = msp->gaps;
-	      
-              int i = 0;
-	      for ( ; i < arrayMax(gaps) ; i++)
-		{
-		  SMapMap *m = arrp(gaps, i, SMapMap) ;
-		  
-                  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-		  
-                  totalNumChars += sRangeMax - sRangeMin + 1;
-                  
-                  /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
-		   * We need to translate the first coord in the range (which is in terms of the full
-		   * reference sequence) into coords in the cut-down ref sequence. */
-                  int q_start = qForward ? (qRangeMin - qSeqMin) / numFrames : (qSeqMax - qRangeMax) / numFrames;
-		  
-		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
-		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
-		   * so start from the lower or upper end accordingly. */
-                  int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
-		  
-                  int sIdx = s_start, qIdx = q_start ;
-		  while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
-		    {
-		      if (freeupper(msp->sseq[sIdx]) == freeupper(refSeqSegment[qIdx]))
-			numMatchingChars++ ;
-		      
-                      /* Move to the next base. The refSeqSegment is always forward, but we might have to
-                       * traverse the s sequence in reverse. */
-                      ++qIdx ;
-                      if (sForward) ++sIdx ;
-                      else --sIdx ;
-		    }
-		}
-	    }
-	}
-      
-      msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
-      
-      g_free(refSeqSegment);
-    }
-  
-  return ;
-}
-
-
-/* Calculate the display coordinates for the given MSP and store them in the
- * MSP struct. Reference sequence (q) coords are always in terms of the DNA
- * sequence, whereas the display may be in terms of the peptide sequence if
- * we are viewing protein matches. */
-static void calcDisplayCoords(MSP *msp, GtkWidget *tree)
-{
-  /* Convert the input coords (which are 1-based within the ref sequence section
-   * that we're dealing with) to coords on the actual reference sequence (i.e.
-   * the coords that will be displayed for the DNA sequence). */
-  const IntRange const *refSeqRange = treeGetRefSeqRange(tree);
-  int offset = refSeqRange->min - 1;
-  msp->qstart = msp->qstart + offset;
-  msp->qend = msp->qend + offset;
-
-  /* Gap coords are also 1-based, so convert those too */
-  if (msp->gaps && arrayMax(msp->gaps) > 0)
-    {
-      int i = 0;
-      for ( ; i < arrayMax(msp->gaps) ; i++)
-	{
-	  SMapMap *curRange = arrp(msp->gaps, i, SMapMap);
-	  curRange->r1 = curRange->r1 + offset;
-	  curRange->r2 = curRange->r2 + offset;
-	}
-    }
-}
-
-
 /* Add a row to the given tree containing the given MSP */
 static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
 {
@@ -1663,10 +1467,6 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
  * tree's hash tables. */
 void addMspToTree(GtkWidget *tree, MSP *msp)
 {
-  /* First calculate the ID and display coords and update them in the MSP */
-  calcDisplayCoords(msp, tree);
-  calcID(msp, tree);
-
   /* Add the MSP as an individual row */
   addMspToTreeRow(msp, tree);
   
@@ -1759,7 +1559,7 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
        * in which case it's vice versa). */
       int sSeqMin, sSeqMax;
       getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
-      const gboolean sameDirection = (treeGetStrand(tree) == mspGetSubjectStrand(msp));
+      const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
       int coord = (rightToLeft != sameDirection) ? sSeqMin : sSeqMax;
 
       char displayText[numDigitsInInt(coord) + 1];
@@ -1796,7 +1596,7 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
        * in which case it's vice versa). */
       int sSeqMin, sSeqMax;
       getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
-      const gboolean sameDirection = (treeGetStrand(tree) == mspGetSubjectStrand(msp));
+      const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
       int coord = (rightToLeft != sameDirection) ? sSeqMax : sSeqMin;
       
       char displayText[numDigitsInInt(coord) + 1];

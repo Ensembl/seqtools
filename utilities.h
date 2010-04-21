@@ -102,7 +102,8 @@ int		      convertDnaIdxToDisplayIdx(const int dnaIdx,
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 Strand		      mspGetRefStrand(const MSP const *msp);
-Strand		      mspGetSubjectStrand(const MSP const *msp);
+int		      mspGetMatchFrame(const MSP const *msp);
+Strand		      mspGetMatchStrand(const MSP const *msp);
 
 void		      addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey);
 

@@ -2903,6 +2903,218 @@ static void createDetailViewPanes(GtkWidget *detailView,
 }
 
 
+
+/***********************************************************
+ *                     Initialization                      *
+ ***********************************************************/
+
+/* calcID: caculated percent identity of an MSP
+ * 
+ * There seems to be a general problem with this routine for protein
+ * alignments, the existing code certainly does not do the right thing.
+ * I have fixed this routine for gapped sequence alignments but not for
+ * protein stuff at all.
+ * 
+ * To be honest I think this routine is a _waste_ of time, the alignment
+ * programs that feed data to blixem produce an identity anyway so why
+ * not use that...why reinvent the wheel......
+ * 
+ * */
+static void calcID(MSP *msp, GtkWidget *detailView)
+{
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  const BlxBlastMode blastMode = mainWindowGetBlastMode(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  const char *paddingSeq = mainWindowGetPaddingSeq(mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  
+  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
+  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+  
+  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
+  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
+  
+  msp->id = 0;
+  
+  if (msp->sseq && msp->sseq != paddingSeq)
+    {
+      /* Note that this will reverse complement the ref seq if it is the reverse 
+       * strand. This means that where there is no gaps array the comparison is trivial
+       * as coordinates can be ignored and the two sequences just whipped through. */
+
+      char *refSeqSegment = getSequenceSegment(detailViewGetMainWindow(detailView),
+					       detailViewGetRefSeq(detailView),
+					       detailViewGetRefSeqRange(detailView),
+					       msp->qstart, 
+					       msp->qend, 
+					       mspGetRefStrand(msp), 
+					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
+					       mspGetRefFrame(msp, seqType),
+					       numFrames,
+					       mainWindowGetStrandsToggled(mainWindow),
+					       !qForward,
+					       TRUE,
+					       TRUE);
+      
+      if (!refSeqSegment)
+	{
+	  messout ( "calcID failed: Don't have genomic sequence %d - %d, requested for match sequence '%s' (match coords = %d - %d)\n", msp->qstart, msp->qend, msp->sname, msp->sstart, msp->send);
+	  msp->id = 0;
+	  return;
+	}
+      
+      /* We need to find the number of characters that match out of the total number */
+      int numMatchingChars = 0;
+      int totalNumChars = 0;
+      
+      if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
+	{
+	  /* Ungapped alignments. */
+	  totalNumChars = (qSeqMax - qSeqMin + 1) / numFrames;
+	  
+	  if (blastMode == BLXMODE_TBLASTN || blastMode == BLXMODE_TBLASTX)
+	    {
+	      int i = 0;
+	      for ( ; i < totalNumChars; i++)
+		{
+		  if (freeupper(msp->sseq[i]) == freeupper(refSeqSegment[i]))
+		    {
+		      numMatchingChars++;
+		    }
+		}
+	    }
+	  else						    /* blastn, blastp & blastx */
+	    {
+	      int i = 0;
+	      for ( ; i < totalNumChars; i++)
+                {
+                  int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
+		  if (freeupper(msp->sseq[sIndex]) == freeupper(refSeqSegment[i]))
+		    {
+		      numMatchingChars++;
+		    }
+                }
+	    }
+	}
+      else
+	{
+	  /* Gapped alignments. */
+	  
+	  /* To do tblastn and tblastx is not imposssible but would like to work from
+	   * examples to get it right.... */
+	  if (blastMode == BLXMODE_TBLASTN)
+	    {
+	      printf("not implemented yet\n") ;
+	    }
+	  else if (blastMode == BLXMODE_TBLASTX)
+	    {
+	      printf("not implemented yet\n") ;
+	    }
+	  else
+	    {
+	      /* blastn and blastp remain simple but blastx is more complex since the query
+               * coords are nucleic not protein. */
+	      
+              Array gaps = msp->gaps;
+	      
+              int i = 0;
+	      for ( ; i < arrayMax(gaps) ; i++)
+		{
+		  SMapMap *m = arrp(gaps, i, SMapMap) ;
+		  
+                  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+		  
+                  totalNumChars += sRangeMax - sRangeMin + 1;
+                  
+                  /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
+		   * We need to translate the first coord in the range (which is in terms of the full
+		   * reference sequence) into coords in the cut-down ref sequence. */
+                  int q_start = qForward ? (qRangeMin - qSeqMin) / numFrames : (qSeqMax - qRangeMax) / numFrames;
+		  
+		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
+		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
+		   * so start from the lower or upper end accordingly. */
+                  int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
+		  
+                  int sIdx = s_start, qIdx = q_start ;
+		  while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
+		    {
+		      if (freeupper(msp->sseq[sIdx]) == freeupper(refSeqSegment[qIdx]))
+			numMatchingChars++ ;
+		      
+                      /* Move to the next base. The refSeqSegment is always forward, but we might have to
+                       * traverse the s sequence in reverse. */
+                      ++qIdx ;
+                      if (sForward) ++sIdx ;
+                      else --sIdx ;
+		    }
+		}
+	    }
+	}
+      
+      msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
+      
+      g_free(refSeqSegment);
+    }
+  
+  return ;
+}
+
+
+/* Calculate the ID, q coordinates and q frame for the given MSP and store 
+ * them in the MSP struct. */
+static void calcMspData(MSP *msp, GtkWidget *detailView)
+{
+  /* Convert the input coords (which are 1-based within the ref sequence section
+   * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
+  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+  int offset = refSeqRange->min - 1;
+  msp->qstart = msp->qstart + offset;
+  msp->qend = msp->qend + offset;
+  
+  /* Gap coords are also 1-based, so convert those too */
+  if (msp->gaps && arrayMax(msp->gaps) > 0)
+    {
+      int i = 0;
+      for ( ; i < arrayMax(msp->gaps) ; i++)
+	{
+	  SMapMap *curRange = arrp(msp->gaps, i, SMapMap);
+	  curRange->r1 = curRange->r1 + offset;
+	  curRange->r2 = curRange->r2 + offset;
+	}
+    }
+  
+  /* Calculate the q frame that this MSP should appear in; that is, the frame in which
+   * the first coord of the match will be base 1. (We can find the base number within
+   * frame 1 and the required frame number is simply the same as that.) */
+  /* to do: do this for exons as well; we need more info though because exons don't
+   * necessarily start at base1 in their frame. */
+  if (!mspIsIntron(msp) && !mspIsExon(msp))
+    {
+      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      const gboolean reverseStrand = (mspGetRefStrand(msp) == REVERSE_STRAND);
+      
+      int frame = UNSET_INT;
+      convertDnaIdxToDisplayIdx(msp->qstart, seqType, 1, numFrames, reverseStrand, refSeqRange, &frame);
+      
+      char *frameStr = convertIntToString(frame);
+      
+      if (frameStr[0] != msp->qframe[2])
+	{
+	  printf("Warning: calculated match frame as %c but frame in input file is %c. Sequence %s [%d - %d]\n", frameStr[0], msp->qframe[2], msp->sname, msp->sstart, msp->send);
+	}  
+      
+      msp->qframe[2] = frameStr[0];
+      g_free(frameStr);
+      
+      /* Calculate the ID */
+      calcID(msp, detailView);
+    }
+}
+
+
 /* Add the MSPs to the detail-view trees */
 void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 {
@@ -2915,6 +3127,9 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   
   for ( ; msp; msp = msp->next)
     {
+      /* First calculate the ID, frame and display coords for the MSP */
+      calcMspData(msp, detailView);
+      
       /* Find the tree that this MSP should belong to based on its reading frame and strand */
       Strand activeStrand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
       const int frame = mspGetRefFrame(msp, seqType);

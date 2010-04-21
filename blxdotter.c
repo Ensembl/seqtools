@@ -440,7 +440,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 		{
 		  const MSP *msp = (const MSP*)(mspList->data);
 		  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
-		  const gboolean sForward = (mspGetSubjectStrand(msp) == FORWARD_STRAND);
+		  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
 		  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 		  const gboolean sameDirection = (qForward == sForward);
 		  
