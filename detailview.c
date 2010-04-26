@@ -1410,7 +1410,7 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand activeStrand, c
   
   if (!result)
     {
-      printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.", ((activeStrand == FORWARD_STRAND) ? "forward" : "reverse"), frame);
+      printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == FORWARD_STRAND) ? "forward" : "reverse"), frame);
     }
   
   return result;
@@ -3195,7 +3195,14 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
       const int frame = mspGetRefFrame(msp, seqType);
       GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
 
-      addMspToTree(tree, msp);
+      if (tree)
+	{
+	  addMspToTree(tree, msp);
+	}
+      else
+	{
+	  printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", msp->sname, msp->qstart, msp->qend, msp->sstart, msp->send, msp->qframe);
+	}
       
       /* Add the MSP to the hash table that will group MSPs by sequence name. */
       GHashTable *seqTable = detailViewGetSeqTable(detailView);

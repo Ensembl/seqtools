@@ -1443,23 +1443,26 @@ static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 /* Add a row to the given tree containing the given MSP */
 static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
 {
-  GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  
-  GtkTreeIter iter;
-  gtk_list_store_append(store, &iter);
-  
-  /* The SequenceCellRenderer expects a GList of MSPs, so put our MSP in a list */
-  GList *mspGList = NULL;
-  mspGList = g_list_append(NULL, msp);
-  
-  gtk_list_store_set(store, &iter,
-		     S_NAME_COL, msp->sname,
-		     SCORE_COL, msp->score,
-		     ID_COL, msp->id,
-		     START_COL, msp->sstart,
-		     SEQUENCE_COL, mspGList,
-		     END_COL, msp->send,
-		     -1);
+  if (tree)
+    {
+      GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+      
+      GtkTreeIter iter;
+      gtk_list_store_append(store, &iter);
+      
+      /* The SequenceCellRenderer expects a GList of MSPs, so put our MSP in a list */
+      GList *mspGList = NULL;
+      mspGList = g_list_append(NULL, msp);
+      
+      gtk_list_store_set(store, &iter,
+			 S_NAME_COL, msp->sname,
+			 SCORE_COL, msp->score,
+			 ID_COL, msp->id,
+			 START_COL, msp->sstart,
+			 SEQUENCE_COL, mspGList,
+			 END_COL, msp->send,
+			 -1);
+   }
 }
 
 

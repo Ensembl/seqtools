@@ -21,7 +21,7 @@
 typedef struct _ExonViewProperties
   {
     GtkWidget *bigPicture;	      /* The big picture that this view belongs to */
-    Strand strand;		      /* Which strand of the ref seq this view displays exons for */
+    Strand currentStrand;		      /* Which strand of the ref seq this view displays exons for */
     
     gboolean expanded;		      /* Whether the exon view is expanded or compressed */
     
@@ -33,6 +33,24 @@ typedef struct _ExonViewProperties
     GdkColor exonColour;	      /* The colour to draw normal exons */
     GdkColor exonColourSelected;      /* The colour to draw selected exons */
   } ExonViewProperties;
+
+
+/* Utility struct to pass around data required for drawing exons */
+typedef struct _DrawData
+  {
+    GdkDrawable *drawable;
+    GdkGC *gc;
+    GdkColor *colour;
+    GdkRectangle *exonViewRect;
+    GtkWidget *mainWindow;
+    const Strand strand;
+    const IntRange const *displayRange;
+    const IntRange const *refSeqRange;
+    const gboolean rightToLeft;
+    const int numFrames;
+    const BlxSeqType seqType;
+  } DrawData;
+
 
 
 /* Local function declarations */
@@ -68,149 +86,113 @@ static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width
 
 
 /* Draw the given exon/intron */
-static void drawExonIntron(const MSP *msp, GtkWidget *exonView, const gboolean isSelected)
+static void drawExonIntron(const MSP *msp, DrawData *data)
 {
-  ExonViewProperties *properties = exonViewGetProperties(exonView);
-  GtkWidget *mainWindow = bigPictureGetMainWindow(properties->bigPicture);
-  const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-  const int frame = mspGetRefFrame(msp, seqType);
+  const int frame = mspGetRefFrame(msp, data->seqType);
 
   /* Find the coordinates of the start and end base in this msp, converting to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, frame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, frame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
   
   /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the max coord + 1 */
   const int minCoord = min(coord1, coord2);
   const int maxCoord = max(coord1, coord2) + 1;
   
-  int xMin = convertBaseIdxToGridPos(minCoord, &properties->exonViewRect, displayRange);
-  int xMax = convertBaseIdxToGridPos(maxCoord, &properties->exonViewRect, displayRange);
+  int xMin = convertBaseIdxToGridPos(minCoord, data->exonViewRect, data->displayRange);
+  int xMax = convertBaseIdxToGridPos(maxCoord, data->exonViewRect, data->displayRange);
   
   int x = xMin;
   int width = xMax - xMin;
   
-  int y = properties->exonViewRect.y;
-  int height = properties->exonViewRect.height;
+  int y = data->exonViewRect->y;
+  int height = data->exonViewRect->height;
   
-  GdkDrawable *drawable = widgetGetDrawable(exonView);
-  GdkGC *gc = gdk_gc_new(drawable);
-  
-//  /* to do: If this msp is in a group, use the group's colour. Otherwise use the standard exon colour. */
-//  SequenceGroup *group = mainWindowGetSequenceGroup(bigPictureGetMainWindow(properties->bigPicture), msp->sname);
-//  if (group)
-//    {
-//      gdk_gc_set_foreground(gc, &group->highlightColour);
-//    }
-//  else
-    {
-      gdk_gc_set_foreground(gc, isSelected ? &properties->exonColourSelected : &properties->exonColour);
-    }
+  gdk_gc_set_foreground(data->gc, data->colour);
 
   if (mspIsExon(msp))
     {
-      drawExon(drawable, gc, x, y, width, height);
+      drawExon(data->drawable, data->gc, x, y, width, height);
     }
   else if (mspIsIntron(msp))
     {
-      drawIntron(drawable, gc, x, y, width, height);
+      drawIntron(data->drawable, data->gc, x, y, width, height);
     }
-    
-  g_object_unref(gc);
 }
 
 
-/* Draw the msp in the given row if it is an exon/intron in the correct strand and is unselected */
-static gboolean drawUnselectedExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/* Draw the msps in the given sequence, if they are exons/introns. Use the colour
+ * specified in the user data */
+static void drawExonIntronItem(gpointer listItemData, gpointer data)
 {
-  GtkWidget *exonView = GTK_WIDGET(data);
-  const Strand strand = exonViewGetStrand(exonView);
-
-  /* One row can contain multiple MSPs. Loop through them all. */
-  const GList *mspListItem = treeGetMsps(model, iter);
+  const char *seqName = (const char*)listItemData;
+  DrawData *drawData = (DrawData*)data;
   
-  for ( ; mspListItem; mspListItem = mspListItem->next)
-    {
-      MSP *msp = (MSP*)(mspListItem->data);
-
-      /* Check it's an exon/intron, and that it's on the same ref seq strand that we're displaying */
-      if (msp && (mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == strand)
-	{
-	  const gboolean isSelected = mainWindowIsSeqSelected(exonViewGetMainWindow(exonView), msp->sname);
-	  
-	  if (!isSelected)
-	    {
-	      drawExonIntron(msp, exonView, isSelected);
-	    }
-	}
-    }
-
-  return FALSE;
-}
-
-
-/* Draw the msp in the given row if it is an exon/intron and is selected */
-static gboolean drawSelectedExonIntron(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
-{
-  GtkWidget *exonView = GTK_WIDGET(data);
-  const Strand strand = exonViewGetStrand(exonView);
-
-  /* One row can contain multiple MSPs. Loop through them all. */
-  const GList *mspListItem = treeGetMsps(model, iter);
+  /* Loop through all msps in this sequence */
+  GList *mspListItem = mainWindowGetSequenceMsps(drawData->mainWindow, seqName);
   
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      /* Check it's an exon/intron, and that it's on the same ref seq strand that we're displaying */
-      if (msp && (mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == strand)
+      if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == drawData->strand)
 	{
-	  const gboolean isSelected = mainWindowIsSeqSelected(exonViewGetMainWindow(exonView), msp->sname);
-	  
-	  if (isSelected)
-	    {
-	      drawExonIntron(msp, exonView, isSelected);
-	    }
+	  drawExonIntron(msp, drawData);
 	}
     }
-  
-  return FALSE;
-}
-
-
-/* Draw all of the exons/introns in the given tree */
-static void drawExonsIntronsForTree(GtkWidget *exonView, GtkWidget *tree)
-{
-  /* Loop through all of the (unfiltered) rows in the tree. Loop twice, first
-   * drawing unselected msp then selected ones, so that the selected ones
-   * are drawn on top */
-  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  
-  gtk_tree_model_foreach(model, drawUnselectedExonIntron, exonView);
-  gtk_tree_model_foreach(model, drawSelectedExonIntron, exonView);
 }
 
 
 /* Draw the exon view */
 static void drawExonView(GtkWidget *exonView)
 {
-  GtkWidget *bigPicture = exonViewGetBigPicture(exonView);
-  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
+  GtkWidget *mainWindow = exonViewGetMainWindow(exonView);
+  const MSP *msp = mainWindowGetMspList(mainWindow);
+  const Strand currentStrand = exonViewGetStrand(exonView);
+  ExonViewProperties *properties = exonViewGetProperties(exonView);
 
-  int numFrames = detailViewGetNumReadingFrames(detailView);
-  int frame = 1;
+  GdkDrawable *drawable = widgetGetDrawable(exonView);
+  GdkGC *gc = gdk_gc_new(drawable);
   
-  for ( ; frame <= numFrames; ++frame)
+  DrawData drawData = {
+    drawable,
+    gc,
+    &properties->exonColour,
+    &properties->exonViewRect,
+    mainWindow,
+    currentStrand,
+    bigPictureGetDisplayRange(properties->bigPicture),
+    mainWindowGetRefSeqRange(mainWindow),
+    mainWindowGetStrandsToggled(mainWindow),
+    mainWindowGetNumReadingFrames(mainWindow),
+    mainWindowGetSeqType(mainWindow)
+  };
+  
+  /* Loop through all msps drawing only unselected ones */
+  for ( ; msp; msp = msp->next)
     {
-      GtkWidget *tree = detailViewGetTree(detailView, FORWARD_STRAND, frame);
-      drawExonsIntronsForTree(exonView, tree);
-
-      tree = detailViewGetTree(detailView, REVERSE_STRAND, frame);
-      drawExonsIntronsForTree(exonView, tree);
+      if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == currentStrand)
+	{
+	  if (!mainWindowIsSeqSelected(mainWindow, msp->sname));
+	    {
+	      drawExonIntron(msp, &drawData);
+	    }
+	}
     }
+  
+  /* Draw grouped msps */
+  GList *groupItem = mainWindowGetSequenceGroups(mainWindow);
+  for ( ; groupItem; groupItem = groupItem->next)
+    {
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      drawData.colour = group->highlighted ? &group->highlightColour : &properties->exonColour;
+      g_list_foreach(group->seqNameList, drawExonIntronItem, &drawData);
+    }
+  
+  /* Draw all selected msps */
+  drawData.colour = &properties->exonColourSelected;
+  g_list_foreach(mainWindowGetSelectedSeqs(mainWindow), drawExonIntronItem, &drawData);
+  
+  g_object_unref(gc);
 }
 
 
@@ -248,14 +230,14 @@ static void onDestroyExonView(GtkWidget *exonView)
 
 static void exonViewCreateProperties(GtkWidget *exonView, 
 				     GtkWidget *bigPicture, 
-				     const Strand strand)
+				     const Strand currentStrand)
 {
   if (exonView)
     {
       ExonViewProperties *properties = g_malloc(sizeof *properties);
       
       properties->bigPicture	      = bigPicture;
-      properties->strand	      = strand;
+      properties->currentStrand	      = currentStrand;
       
       properties->expanded	      = FALSE;      
       properties->yPad		      =	EXON_VIEW_DEFAULT_Y_PADDING;
@@ -286,7 +268,7 @@ static GtkWidget* exonViewGetBigPicture(GtkWidget *exonView)
 static Strand exonViewGetStrand(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  return properties->strand;
+  return properties->currentStrand;
 }
 
 static GtkWidget* exonViewGetMainWindow(GtkWidget *exonView)
@@ -390,7 +372,7 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
  ***********************************************************/
 
 /* Create the part of the view that will show the exons */
-GtkWidget *createExonView(GtkWidget *bigPicture, const Strand strand)
+GtkWidget *createExonView(GtkWidget *bigPicture, const Strand currentStrand)
 {
   GtkWidget *exonView = gtk_layout_new(NULL, NULL);
   
@@ -405,7 +387,7 @@ GtkWidget *createExonView(GtkWidget *bigPicture, const Strand strand)
   g_signal_connect(G_OBJECT(exonView),	"button-release-event", G_CALLBACK(onButtonReleaseExonView),  NULL);
   g_signal_connect(G_OBJECT(exonView),	"motion-notify-event",  G_CALLBACK(onMouseMoveExonView),      NULL);
 
-  exonViewCreateProperties(exonView, bigPicture, strand);
+  exonViewCreateProperties(exonView, bigPicture, currentStrand);
 
   return exonView;
 }

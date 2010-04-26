@@ -771,7 +771,7 @@ void drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data)
 
   for ( ; msp; msp = msp->next)
     {
-      if (mspGetRefFrame(msp, data->seqType) == data->qFrame && mspGetRefStrand(msp) == data->qStrand)
+      if (mspIsExon(msp) && mspGetRefFrame(msp, data->seqType) == data->qFrame && mspGetRefStrand(msp) == data->qStrand)
 	{
 	  drawExonBoundary(msp, data);
 	}

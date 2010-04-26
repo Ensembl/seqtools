@@ -684,15 +684,19 @@ int gapCoord(const MSP *msp,
 /* Return the reading frame of the ref sequence that the given MSP is a match against */
 int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
 {
+  int result = UNSET_INT;
+  
   if (seqType == BLXSEQ_DNA)
     {
       /* Ignore the frame in  the msp. For DNA matches we only have one frame on each strand. */
-      return 1;
+      result = 1;
     }
   else
     {
-      return atoi(&msp->qframe[2]);
+      result = atoi(&msp->qframe[2]);
     }
+  
+  return result;
 }
 
 
