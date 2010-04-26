@@ -3190,18 +3190,22 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
       /* First calculate the ID, frame and display coords for the MSP */
       calcMspData(msp, detailView);
       
-      /* Find the tree that this MSP should belong to based on its reading frame and strand */
-      Strand activeStrand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
-      const int frame = mspGetRefFrame(msp, seqType);
-      GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
+      /* Only add matches and exons to trees */
+      if (mspIsBlastMatch(msp) || mspIsExon(msp))
+	{
+	  /* Find the tree that this MSP should belong to based on its reading frame and strand */
+	  Strand activeStrand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
+	  const int frame = mspGetRefFrame(msp, seqType);
+	  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
 
-      if (tree)
-	{
-	  addMspToTree(tree, msp);
-	}
-      else
-	{
-	  printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", msp->sname, msp->qstart, msp->qend, msp->sstart, msp->send, msp->qframe);
+	  if (tree)
+	    {
+	      addMspToTree(tree, msp);
+	    }
+	  else
+	    {
+	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", msp->sname, msp->qstart, msp->qend, msp->sstart, msp->send, msp->qframe);
+	    }
 	}
       
       /* Add the MSP to the hash table that will group MSPs by sequence name. */
