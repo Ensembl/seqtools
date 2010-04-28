@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.8 2010-03-17 11:52:40 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.9 2010-04-28 11:13:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -61,6 +61,9 @@ static char *usageText ="\n\
 \n\
  Reference:  Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
  Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
+\n\
+ Copyright (c) 2009-2010: Genome Research Ltd.\n\
+\n\
 \n\
   Usage: blixem [options] <sequencefile> <datafile> [X options] \n\
 \n\
@@ -97,7 +100,8 @@ static char *usageText ="\n\
 \n\
  To make the datafile from blast output, run MSPcrunch with option -q.\n\n\
 \n\
- by Erik.Sonnhammer@cgr.ki.se\n\
+ original code by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>\n\
+ rewritten by Gemma Barson <gb10@sanger.ac.uk>\n\
  Version" ;
 
 static char *help_string = "\n\
