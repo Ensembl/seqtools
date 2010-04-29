@@ -1735,6 +1735,16 @@ static void onHighlightDiffsToggled(GtkWidget *button, gpointer data)
 }
 
 
+/* Callback function called when the 'Show SNP track' button is toggled */
+static void onShowSnpTrackToggled(GtkWidget *button, gpointer data)
+{
+  const gboolean showSnpTrack = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  GtkWidget *detailView = GTK_WIDGET(data);
+  
+  detailViewSetShowSnpTrack(detailView, showSnpTrack);
+}
+
+
 /* Utility to create a check button with certain given properties, and to pack it into the parent */
 static void createCheckButton(GtkBox *box, 
 			      const char *mnemonic, 
@@ -1855,6 +1865,7 @@ void showSettingsDialog(GtkWidget *mainWindow)
   createCheckButton(GTK_BOX(vbox1), "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
   createCheckButton(GTK_BOX(vbox1), "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
   createCheckButton(GTK_BOX(vbox1), "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
+  createCheckButton(GTK_BOX(vbox1), "_Show SN_P track", detailViewGetShowSnpTrack(detailView), G_CALLBACK(onShowSnpTrackToggled), detailView);
   
   /* Column sizes */
   createColumnSizeButtons(mainVBox, detailView);

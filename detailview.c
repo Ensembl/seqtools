@@ -575,22 +575,31 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       GtkWidget *detailView = GTK_WIDGET(data);
       gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
     }
-  else if (!strcmp(widgetName, TEXT_HEADER_NAME))
+  else if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME) || !strcmp(widgetName, DNA_TRACK_HEADER_NAME))
     {
       /* Clear the cached drawable so that it gets recreated on the next expose */
       widgetClearCachedDrawable(header);
 
-      /* Update the font and the widget height, in case the font-size has changed */
+      /* Update the font and the widget height, in case the font-size has changed. */
       GtkWidget *detailView = GTK_WIDGET(data);
       gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
 
       const int charHeight = detailViewGetCharHeight(detailView);
-      gtk_widget_set_size_request(header, -1, charHeight);
       
       if (GTK_IS_LAYOUT(header))
 	{
 	  /* Set the size of the drawing area */
 	  gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, charHeight);
+	}
+
+      /* If this header is the SNP track but the SNP track is hidden, set the height to 0 */
+      if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME) && !detailViewGetShowSnpTrack(detailView))
+	{
+	  gtk_widget_set_size_request(header, -1, 0);
+	}
+      else
+	{
+	  gtk_widget_set_size_request(header, -1, charHeight);
 	}
 
       gtk_widget_queue_draw(header);
@@ -914,6 +923,18 @@ void detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlight
 }
 
 
+/* Set the value of the 'Show SNP track' flag */
+void detailViewSetShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->showSnpTrack = showSnpTrack;
+
+  /* Refresh the tree/detail-view headers so that the SNP track gets shown/hidden */
+  refreshDetailViewHeaders(detailView);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+}
+
+
 static int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange)
 {
   int result = UNSET_INT;
@@ -1190,6 +1211,14 @@ static int getSnpDisplayCoord(const MSP *msp,
 /* Function that does the drawing for the SNP track */
 static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 {
+  /* Create the drawable for the widget (whether we're actually going to do any drawing or not) */
+  GdkDrawable *drawable = createBlankPixmap(snpTrack);
+
+  if (!detailViewGetShowSnpTrack(detailView))
+    {
+      return;
+    }
+  
   GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
   const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
@@ -1200,15 +1229,14 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   const int charHeight = detailViewGetCharHeight(detailView);
   const int activeFrame = detailViewGetSelectedFrame(detailView);
   PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
+  GdkColor *snpColour = detailViewGetSnpColour(detailView, FALSE);
+  GdkColor *snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
   
   Strand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
-  ? mainWindowGetActiveStrand(mainWindow)
-  : (Strand)snpTrackGetStrand(snpTrack);
+    ? mainWindowGetActiveStrand(mainWindow)
+    : (Strand)snpTrackGetStrand(snpTrack);
   
-  /* Create the drawable and a gc with the required colour for highlighting SNPs */
-  GdkDrawable *drawable = createBlankPixmap(snpTrack);
   GdkGC *gc = gdk_gc_new(drawable);
-  gdk_gc_set_foreground(gc, detailViewGetSnpColour(detailView));
   
   /* Find the left margin. It will be at the same x coord as the left edge of
    * the sequence column header. */
@@ -1235,6 +1263,8 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      const int width = strlen(msp->sseq) * charWidth;
 	      
 	      /* Draw the background */
+	      GdkColor *colour = mainWindowIsSeqSelected(mainWindow, msp->sname) ? snpColourSelected : snpColour;
+	      gdk_gc_set_foreground(gc, colour);
 	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, charHeight);
 	      
 	      /* Draw the text */
@@ -1513,10 +1543,10 @@ GdkColor* detailViewGetExonColour(GtkWidget *detailView, const gboolean selected
   return selected ? &properties->exonColourSelected : &properties->exonColour;
 }
 
-GdkColor* detailViewGetSnpColour(GtkWidget *detailView)
+GdkColor* detailViewGetSnpColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return &properties->snpColour;
+  return selected ? &properties->snpColourSelected : &properties->snpColour;
 }
 
 GdkColor* detailViewGetInsertionColour(GtkWidget *detailView, const gboolean selected)
@@ -1770,6 +1800,12 @@ gboolean detailViewGetHighlightDiffs(GtkWidget *detailView)
   return properties ? properties->highlightDiffs : FALSE;
 }
 
+gboolean detailViewGetShowSnpTrack(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->showSnpTrack : FALSE;
+}
+
 /* Return a list of all MSPs that have the given match sequence name */
 GList *detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName)
 {
@@ -1978,6 +2014,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
       properties->sortInverted = sortInverted;
       properties->highlightDiffs = FALSE;
+      properties->showSnpTrack = FALSE;
 
       /* Set initial display range to something valid but only 1 base wide. Then if we try to do any 
        * calculations on the range before it gets set properly, it won't have much work to do. */
@@ -2007,22 +2044,23 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 	}
       
       properties->refSeqColour		  = getGdkColor(DEFAULT_REF_SEQ_BG_COLOUR);
-      properties->refSeqColourSelected	  = getSelectionColour(&properties->refSeqColour); //getGdkColor(GDK_DARK_YELLOW);
+      properties->refSeqColourSelected	  = getSelectionColour(&properties->refSeqColour);
       properties->matchColour		  = getGdkColor(GDK_TURQUOISE);
-      properties->matchColourSelected	  = getSelectionColour(&properties->matchColour); //getGdkColor(GDK_DARK_TURQUOISE);
+      properties->matchColourSelected	  = getSelectionColour(&properties->matchColour);
       properties->mismatchColour	  = getGdkColor(GDK_GREY);
-      properties->mismatchColourSelected  = getSelectionColour(&properties->mismatchColour);  //getGdkColor(GDK_DARK_GREY);
+      properties->mismatchColourSelected  = getSelectionColour(&properties->mismatchColour);
       properties->consColour		  = getGdkColor(GDK_LIGHT_STEEL_BLUE);
-      properties->consColourSelected	  = getSelectionColour(&properties->consColour); //getGdkColor(GDK_STEEL_BLUE);
+      properties->consColourSelected	  = getSelectionColour(&properties->consColour);
       properties->exonColour		  = getGdkColor(GDK_YELLOW);
-      properties->exonColourSelected	  = getSelectionColour(&properties->exonColour); //getGdkColor(GDK_DARK_YELLOW);
+      properties->exonColourSelected	  = getSelectionColour(&properties->exonColour);
       properties->insertionColour	  = getGdkColor(GDK_YELLOW);
-      properties->insertionColourSelected = getSelectionColour(&properties->insertionColour); //getGdkColor(GDK_DARK_YELLOW);
+      properties->insertionColourSelected = getSelectionColour(&properties->insertionColour);
       properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
       properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_BLUE);
       properties->highlightTripletColour  = getGdkColor(GDK_GREEN);
-      properties->highlightDnaBaseColour  = getSelectionColour(&properties->highlightTripletColour);// getGdkColor(GDK_DARK_GREEN);
+      properties->highlightDnaBaseColour  = getSelectionColour(&properties->highlightTripletColour);
       properties->snpColour		  = getGdkColor(GDK_ORANGE);
+      properties->snpColourSelected	  = getSelectionColour(&properties->snpColour);
 
       properties->exonBoundaryLineWidth	  = 1;
       properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
@@ -2873,7 +2911,7 @@ GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int
 {
   GtkWidget *snpTrack = gtk_layout_new(NULL, NULL);
 
-  gtk_widget_set_name(snpTrack, TEXT_HEADER_NAME);  
+  gtk_widget_set_name(snpTrack, SNP_TRACK_HEADER_NAME);  
   gtk_box_pack_start(parent, snpTrack, FALSE, TRUE, 0);
   snpTrackSetStrand(snpTrack, strand);
 
@@ -2904,7 +2942,7 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 	  GtkWidget *line = gtk_layout_new(NULL, NULL);
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
 
-	  gtk_widget_set_name(line, TEXT_HEADER_NAME);
+	  gtk_widget_set_name(line, DNA_TRACK_HEADER_NAME);
 	  seqColHeaderSetFrame(line, frame + 1);
 	  
 	  gtk_widget_add_events(line, GDK_BUTTON_PRESS_MASK);

@@ -1132,13 +1132,13 @@ static GdkColor* getCoordColour(const int displayIdx,
 				GdkColor *normalColour,
 				GdkColor *selectedColour,
 				GdkColor *snpColour,
-				GdkColor *selectedSnpColour)
+				GdkColor *snpColourSelected)
 {
   GdkColor *result = NULL;
   
   if (snpColour && coordAffectedBySnp(displayIdx, strand, frame, mspList, seqType, numFrames, rightToLeft, refSeqRange))
     {
-      result = (displayIdx == selectedBaseIdx) && selectedSnpColour ? selectedSnpColour : snpColour;
+      result = (displayIdx == selectedBaseIdx) && snpColourSelected ? snpColourSelected : snpColour;
     }
   else if (displayIdx == selectedBaseIdx && selectedColour)
     {
@@ -1175,12 +1175,12 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   /* Set the colour to highlight SNP-affected bases in, if displaying SNPs against
    * this tree */
   GdkColor *snpColour = NULL;
-  GdkColor selectedSnpColour;
+  GdkColor *snpColourSelected = NULL;
   
   if (treeGetDisplaySnps(tree))
     {
-      snpColour = detailViewGetSnpColour(detailView);
-      selectedSnpColour = getSelectionColour(snpColour);
+      snpColour = detailViewGetSnpColour(detailView, FALSE);
+      snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
     }
   
   /* Find the segment of the ref seq to display. */
@@ -1218,7 +1218,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 	  GdkColor *colour = getCoordColour(displayIdx, strand, frame, 
 					    selectedBaseIdx, mspList, seqType, 
 					    numFrames, rightToLeft, refSeqRange,
-					    normalColour, selectedColour, snpColour, &selectedSnpColour);
+					    normalColour, selectedColour, snpColour, snpColourSelected);
 	  
 	  if (colour)
 	    {
@@ -2158,7 +2158,7 @@ static void createTreeColHeader(GList **columnHeaders,
 	  columnHeader = gtk_layout_new(NULL, NULL);
 	  
 	  seqColHeaderSetFrame(columnHeader, frame);
-	  gtk_widget_set_name(columnHeader, TEXT_HEADER_NAME);
+	  gtk_widget_set_name(columnHeader, DNA_TRACK_HEADER_NAME);
 	  g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeRefSeqHeader), tree);
 	  
 	  refreshFunc = refreshTextHeader;
