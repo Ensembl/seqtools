@@ -25,6 +25,7 @@
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
 
+
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
 
 
@@ -49,12 +50,15 @@ typedef struct
 /* Local function declarations */
 static GtkWidget*	      detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
+static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
 static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 static int		      detailViewGetSelectedFrame(GtkWidget *detailView);
 static GdkColor*	      detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
 
-static int		      seqColHeaderGetFrameNumber(GtkWidget *header);
+static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
+static int		      snpTrackGetStrand(GtkWidget *snpTrack);
+static int		      getSnpDisplayCoord(const MSP *msp, const BlxSeqType seqType, const int numFrames, const gboolean rightToLeft, const int activeFrame, const IntRange const *refSeqRange, int *snpStart, int *snpEnd, int *baseNum);
 
 static void		      detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
 static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
@@ -525,133 +529,6 @@ static void refreshTreeOrder(GtkWidget *detailView)
 }
 
 
-/* Set the markup in the given label, so that the label displays the given sequence
- * segment, with the given base index is highlighted in the given colour. If the given
- * base index is UNSET_INT, or is out of the current display range, then the label 
- * is just given the plain, non-marked-up sequence. */
-static void createMarkupForLabel(GtkLabel *label, 
-				 const char *segmentToDisplay, 
-				 const int selectedCharIdx,
-				 GdkColor *colour)
-{
-  const int segLen = strlen(segmentToDisplay);
-
-  if (selectedCharIdx >= 0 && selectedCharIdx < segLen)
-    {
-      /* Cut the sequence into 4 sections: the text before the selected bases,
-       * the text after them, the selected bases themselves. */
-      char textBefore[selectedCharIdx];
-      char textAfter[segLen - selectedCharIdx + 200];
-      char selectedBaseText[2];
-      
-      int i = 0;
-      for ( ; i < selectedCharIdx; ++i)
-	{
-	  textBefore[i] = segmentToDisplay[i];
-	}
-      textBefore[i] = '\0';
-      
-      selectedBaseText[0] = segmentToDisplay[i];
-      selectedBaseText[1] = '\0';
-      ++i;
-
-      int j = 0;
-      for ( ; i < segLen; ++i, ++j)
-	{
-	  textAfter[j] = segmentToDisplay[i];
-	}
-      textAfter[j] = '\0';
-      
-      /* Create the marked-up text */
-      char markupText[segLen + 200];
-      sprintf(markupText, "%s<span background='#%06x'>%s</span>%s", 
-	      textBefore, colour->pixel, selectedBaseText, textAfter);
-      
-      gtk_label_set_markup(label, markupText);
-    }
-  else
-    {
-      /* Selected index is out of range, so no markup required */
-      gtk_label_set_markup(label, segmentToDisplay);
-    }
-}
-
-
-/* Refresh a specific line in the sequence column header */
-static void refreshSeqColHeaderLine(GtkWidget *detailView,
-					 GtkWidget *lineWidget, 
-					 int frame, /* local copy */
-					 char *refSeq)
-{
-  if (!GTK_IS_LABEL(lineWidget))
-    {
-      messcrash("Unexpected widget type in detail view header: expected label");
-    }
-
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
-  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-  const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-  const int selectedFrame = detailViewGetSelectedFrame(detailView);
-  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-  const BlxSeqType seqType = detailViewGetSeqType(detailView);
-
-  /* Loop forward/backward through the display range depending on which strand we're viewing.
-   * We need to convert display coords to actual coords on the ref sequence */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, seqType, frame, 1, numFrames, rightToLeft, refSeqRange);	  /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, seqType, frame, numFrames, numFrames, rightToLeft, refSeqRange); /* last base in frame */
-  
-  IntRange qRange;
-  qRange.min = min(qIdx1, qIdx2);
-  qRange.max = max(qIdx1, qIdx2);
-
-  int incrementValue = numFrames;
-  int displayLen = qRange.max - qRange.min + 1;
-  char displayText[displayLen + 1];
-  int displayTextPos = 0;
-
-  int selectedCharIdx = UNSET_INT;
-  GdkColor *highlightColour = NULL;
-
-  int qIdx = rightToLeft ? qRange.max : qRange.min;
-
-  while (qIdx >= qRange.min && qIdx <= qRange.max)
-    {
-      /* Get the base at this index */
-      displayText[displayTextPos] = getRefSeqBase(refSeq,
-						  qIdx, 
-						  rightToLeft, /* we've got the reverse strand if display is toggled */
-						  refSeqRange, 
-						  BLXSEQ_DNA /* header always shows DNA bases */
-						 );
-
-      /* If the base (or its peptide) is selected, we need to highlight it */
-      const int peptideIdx = convertDnaIdxToDisplayIdx(qIdx, seqType, selectedFrame, numFrames, rightToLeft, refSeqRange, NULL);
-      if (peptideIdx == selectedBaseIdx)
-	{
-	  /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
-	  highlightColour = detailViewGetTripletHighlightColour(detailView, qIdx == selectedDnaBaseIdx);
-	  selectedCharIdx = displayTextPos;
-	}
-      
-      /* Increment indices */
-      ++displayTextPos;
-
-      if (rightToLeft)
-	qIdx -= incrementValue;
-      else
-	qIdx += incrementValue;
-    }
-
-  /* Make sure the string is terminated properly */
-  displayText[displayTextPos] = '\0';
-  
-  /* Mark up the text to highlight the selected base, if there is one */
-  createMarkupForLabel(GTK_LABEL(lineWidget), displayText, selectedCharIdx, highlightColour);
-}
-
-
 /* Refresh the header label for the start-coord column. It shows 'Start' for normal
  * orientation or 'End' if the display is reversed. */
 static void refreshStartColHeader(GtkWidget *header, gpointer data)
@@ -686,38 +563,43 @@ static void refreshEndColHeader(GtkWidget *header, gpointer data)
 }
 
 
-/* Refresh the sequence column header in the detail view. This column header
- * contains the DNA sequence for the currently displayed section of peptide 
- * sequence for protein matches. It currently displays nothing for DNA matches, 
- * so this callback is not required in that case. */
-static void refreshSeqColHeader(GtkWidget *header, gpointer data)
+/* Refresh a header that contains text; updates the height of the widget and 
+ * the font description, and clears its cached drawable, if it has one */
+void refreshTextHeader(GtkWidget *header, gpointer data)
 {
-  GtkWidget *detailView = GTK_WIDGET(data);
-  PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
+  const char *widgetName = gtk_widget_get_name(header);
   
-  /* If the header is a normal label, there is nothing to do. If it is a container
-   * containing multiple labels, then refresh each of the labels  */
-  if (GTK_IS_CONTAINER(header))
+  if (GTK_IS_LABEL(header))
     {
-      char* refSeq = detailViewGetRefSeq(detailView);
+      /* For straightforward labels, just update the font description. */
+      GtkWidget *detailView = GTK_WIDGET(data);
+      gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
+    }
+  else if (!strcmp(widgetName, TEXT_HEADER_NAME))
+    {
+      /* Clear the cached drawable so that it gets recreated on the next expose */
+      widgetClearCachedDrawable(header);
 
-      GList *lines = gtk_container_get_children(GTK_CONTAINER(header));
-      GList *line = lines;
-      int frame = 1;
+      /* Update the font and the widget height, in case the font-size has changed */
+      GtkWidget *detailView = GTK_WIDGET(data);
+      gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
+
+      const int charHeight = detailViewGetCharHeight(detailView);
+      gtk_widget_set_size_request(header, -1, charHeight);
       
-      while (line)
+      if (GTK_IS_LAYOUT(header))
 	{
-	  GtkWidget *lineWidget = GTK_WIDGET(line->data);
-	  
-	  /* update the font, in case it has changed */
-	  gtk_widget_modify_font(lineWidget, fontDesc);
-
-	  /* refresh the displayed text */
-	  refreshSeqColHeaderLine(detailView, lineWidget, frame, refSeq);
-	  
-	  ++frame;
-	  line = line->next;
+	  /* Set the size of the drawing area */
+	  gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, charHeight);
 	}
+
+      gtk_widget_queue_draw(header);
+    }
+  
+  /* If this is a container of header widgets, recurse over each child */
+  if (!strcmp(widgetName, HEADER_CONTAINER_NAME) && GTK_IS_CONTAINER(header))
+    {
+      gtk_container_foreach(GTK_CONTAINER(header), refreshTextHeader, data);
     }
 }
 
@@ -725,9 +607,13 @@ static void refreshSeqColHeader(GtkWidget *header, gpointer data)
 /* Refresh the headers for the detail view. */
 static void refreshDetailViewHeaders(GtkWidget *detailView)
 {
-  /* Loop through all columns and call the refresh callback function on each column
-   * header widget, if one exists. */
+  /* Loop through all widgets in the header and call refreshTextHeader. This
+   * updates the font etc. if it is a type of widget that requires that. */
+  GtkWidget *header = detailViewGetHeader(detailView);
+  gtk_container_foreach(GTK_CONTAINER(header), refreshTextHeader, detailView);
   
+  /* Loop through all columns and call the individual refresh callbacks for
+   * each of their headers. This updates the specific information within the header. */
   GList	*columnList = detailViewGetColumnList(detailView);
   GList *column = columnList;
   
@@ -1028,6 +914,344 @@ void detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlight
 }
 
 
+static int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange)
+{
+  int result = UNSET_INT;
+  
+  const int leftEdge = 0; /* to do: allow for padding? check upper bound? */
+  
+  if (x > leftEdge)
+    {
+      result = (int)(((double)x - leftEdge) / (double)charWidth);
+    }
+  
+  result += displayRange->min;
+  
+  return result;
+}
+
+
+
+/* Select the nucleotide at the given x/y position in the given header (protein
+ * matches only). */
+static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
+{
+  int coord = getBaseIndexAtColCoords(x, y, detailViewGetCharWidth(detailView), detailViewGetDisplayRange(detailView));
+  
+  if (coord != UNSET_INT)
+    {	
+      /* Get the active (i.e. currently-selected) frame. Use frame 1 if none selected. */
+      int frame = detailViewGetSelectedFrame(detailView);
+      if (frame == UNSET_INT)
+	{
+	  frame = 1;
+	}
+      
+      /* Get the base number of the clicked base within the active frame. The
+       * base number is determined by which row in the header the mouse pointer 
+       * is over: for frame 1, row 1 will give base 1; for frame 2, row 2 will
+       * give base 1, etc. Start by getting the frame number for the clicked row: */
+      int row = seqColHeaderGetFrame(header);
+      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      
+      /* The header widget passed to this function is the originally-clicked widget.
+       * If the pointer has dragged onto another row in the header, we can work out
+       * which one based on the y coord. If it is outside altogether, take the 
+       * topmost/bottommost row. (NB this assumes all rows in the header have the 
+       * same height as this one - should be true because they're just simple labels). */
+      if (y < 0 || y > header->allocation.height)
+	{
+	  const int offsetRows = floor((double)y / (double)header->allocation.height); /* can be negative */
+	  row += offsetRows;
+	  
+	  if (row < 1)
+	    {
+	      row = 1;
+	    }
+	  else if (row > numFrames)
+	    {
+	      row = numFrames;
+	    }
+	}
+      
+      /* Calculate the base number based on the row and the currently-active frame */
+      int baseNum = row - frame + 1;
+      
+      if (baseNum < 1)
+	{
+	  /* Cycle round if gone below the min base number */
+	  baseNum += numFrames;
+	  --coord;
+	}
+      
+      detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE, TRUE);
+    }
+}
+
+
+/* If the user clicked on a SNP in the SNP header, select it. This updates the 
+ * feedback box with the SNP name and coord, selects the SNP coord and recentres 
+ * on it (if allowScroll is true), clearing any previous selections. */
+static void selectClickedSnp(GtkWidget *snpTrack,
+			     GtkWidget *detailView, 
+			     const int xIn, 
+			     const int yIn, 
+			     const gboolean reCentre)
+{
+  /* Convert x coord to sequence-column coords */
+  int x = UNSET_INT, y = yIn;
+  DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+  gtk_widget_translate_coordinates(snpTrack, seqColInfo->headerWidget, xIn, 0, &x, NULL);
+  
+  int clickedDisplayIdx = getBaseIndexAtColCoords(x, y, detailViewGetCharWidth(detailView), detailViewGetDisplayRange(detailView));
+  
+  if (clickedDisplayIdx != UNSET_INT)
+    {
+      GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+      const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+      const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+      const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+      const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+      const int activeFrame = detailViewGetSelectedFrame(detailView);
+      
+      /* See if there are any SNPs at this displayIdx */
+      GList *snpNameList = NULL;
+      const MSP *msp = mainWindowGetMspList(mainWindow);
+      
+      for ( ; msp; msp = msp->next)
+	{
+	  if (mspIsSnp(msp))
+	    {
+	      /* Get the SNP coord, and the range of display coords where this SNP is shown */
+	      IntRange snpDisplayRange;
+	      int baseNum = UNSET_INT;
+	      const int snpIdx = getSnpDisplayCoord(msp, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &snpDisplayRange.min, &snpDisplayRange.max, &baseNum);
+
+	      if (valueWithinRange(clickedDisplayIdx, &snpDisplayRange))
+		{
+		  snpNameList = g_list_prepend(snpNameList, msp->sname);
+		  
+		  /* Select the SNP coord */
+		  detailViewSetSelectedBaseIdx(detailView, snpIdx, activeFrame, baseNum, TRUE, FALSE);
+
+		  if (reCentre)
+		    {
+		      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+		      const int newStart = snpIdx - (getRangeLength(displayRange) / 2);
+		      setDetailViewStartIdx(detailView, newStart, seqType);
+		    }
+		}
+	    }
+	}
+      
+      /* Clear any existing selections and select the new SNP(s) */
+      mainWindowSetSelectedSeqList(mainWindow, snpNameList);
+    }
+}
+
+
+/***********************************************************
+ *			    Drawing			   *
+ ***********************************************************/
+
+static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Strand strand, const int frame)
+{
+  GdkDrawable *drawable = createBlankPixmap(dnaTrack);
+  
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  
+  /* Find the segment of the ref sequence to display (complemented if this tree is
+   * displaying the reverse strand, and reversed if the display is toggled) */
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  char *refSeq = mainWindowGetRefSeq(mainWindow);
+  
+  gchar *segmentToDisplay = getSequenceSegment(mainWindow,
+					       refSeq,
+					       refSeqRange,
+					       displayRange->min, 
+					       displayRange->max, 
+					       strand, 
+					       seqType,
+					       frame, 
+					       numFrames,
+					       rightToLeft,
+					       rightToLeft,
+					       rightToLeft,
+					       FALSE);
+  
+  if (segmentToDisplay)
+    {
+      GdkGC *gc = gdk_gc_new(drawable);
+      const int charWidth = detailViewGetCharWidth(detailView);
+      const int charHeight = detailViewGetCharHeight(detailView);
+      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+      const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
+      const int activeFrame = detailViewGetSelectedFrame(detailView);
+      
+      gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, charHeight);
+      
+      /* Loop forward/backward through the display range depending on which strand we're viewing.
+       * We need to convert display coords to actual coords on the ref sequence */
+      const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, seqType, frame, 1, numFrames, rightToLeft, refSeqRange);	  /* 1st base in frame */
+      const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, seqType, frame, numFrames, numFrames, rightToLeft, refSeqRange); /* last base in frame */
+      
+      IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
+      
+      int incrementValue = rightToLeft ? -numFrames : numFrames;
+      int displayLen = qRange.max - qRange.min + 1;
+      char displayText[displayLen + 1];
+      int displayTextPos = 0;
+      
+      int qIdx = rightToLeft ? qRange.max : qRange.min;
+      int displayIdx = convertDnaIdxToDisplayIdx(qIdx, seqType, activeFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      int x = 0;
+      int y = 0;
+      
+      while (qIdx >= qRange.min && qIdx <= qRange.max)
+	{
+	  /* Get the character to display at this index */
+	  displayText[displayTextPos] = getRefSeqBase(refSeq, qIdx, rightToLeft, refSeqRange, BLXSEQ_DNA);
+	  
+	  /* If the base (or its peptide) is selected, we need to highlight it */
+	  if (displayIdx == selectedBaseIdx)
+	    {
+	      /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
+	      GdkColor *colour = detailViewGetTripletHighlightColour(detailView, qIdx == selectedDnaBaseIdx);
+	      gdk_gc_set_foreground(gc, colour);
+	      x = displayTextPos * charWidth;
+	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, charWidth, charHeight);
+	    }
+	  
+	  /* Increment indices */
+	  ++displayTextPos;
+	  ++displayIdx;
+	  qIdx += incrementValue;
+	}
+      
+      /* Make sure the string is terminated properly */
+      displayText[displayTextPos] = '\0';
+      
+      /* Draw the text */
+      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, displayText);
+      pango_layout_set_font_description(layout, detailViewGetFontDesc(detailView));
+      
+      if (layout)
+	{
+	  gtk_paint_layout(dnaTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
+	  g_object_unref(layout);
+	}
+      
+      g_free(segmentToDisplay);
+      g_object_unref(gc);
+    }
+}
+
+
+/* Utility to find the display coord that a SNP lies on. Also returns the start/end
+ * of the range where the SNP is displayed (if it contains more than one alternative,
+ * these will be displayed horizontally across the display, taking up more width 
+ * than where the actual SNP coord lies). Also returns the base number of the msp
+ * coord within the active frame, if requested. */
+static int getSnpDisplayCoord(const MSP *msp, 
+			      const BlxSeqType seqType, 
+			      const int numFrames,
+			      const gboolean rightToLeft, 
+			      const int activeFrame,
+			      const IntRange const *refSeqRange,
+			      int *snpStart,
+			      int *snpEnd,
+			      int *baseNum)
+{
+  /* Conver the SNP index to a display coord */
+  const int snpIdx = convertDnaIdxToDisplayIdx(msp->qstart, seqType, activeFrame, numFrames, rightToLeft, refSeqRange, baseNum);
+
+  /* We'll position the SNP so that the middle of its sequence lies at this coord */
+  const int numChars = strlen(msp->sseq);
+  const int startIdx = snpIdx - ceil((double)numChars / 2.0) + 1;
+  
+  if (snpStart)
+    {
+      *snpStart = startIdx;
+    }
+  
+  if (snpEnd)
+    {
+      *snpEnd = startIdx + numChars - 1;
+    }
+  
+  return snpIdx;
+}
+
+
+/* Function that does the drawing for the SNP track */
+static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
+{
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  const int charWidth = detailViewGetCharWidth(detailView);
+  const int charHeight = detailViewGetCharHeight(detailView);
+  const int activeFrame = detailViewGetSelectedFrame(detailView);
+  PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
+  
+  Strand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
+  ? mainWindowGetActiveStrand(mainWindow)
+  : (Strand)snpTrackGetStrand(snpTrack);
+  
+  /* Create the drawable and a gc with the required colour for highlighting SNPs */
+  GdkDrawable *drawable = createBlankPixmap(snpTrack);
+  GdkGC *gc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(gc, detailViewGetSnpColour(detailView));
+  
+  /* Find the left margin. It will be at the same x coord as the left edge of
+   * the sequence column header. */
+  int leftMargin = UNSET_INT;
+  DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+  gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
+  
+  /* Loop through all the MSPs looking for SNPs in the current display range */
+  const MSP* msp = mainWindowGetMspList(mainWindow);
+  const int y = 0;
+  
+  for ( ; msp; msp = msp->next)
+    {
+      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand)
+	{
+	  /* Get the range of display coords where this SNP will appear */
+	  int startIdx = UNSET_INT, endIdx = UNSET_INT;
+	  getSnpDisplayCoord(msp, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &startIdx, &endIdx, NULL);
+
+	  /* See if any of the SNP coords are in the current display range */
+	  if (valueWithinRange(startIdx, displayRange) || valueWithinRange(endIdx, displayRange))
+	    {
+	      int x = leftMargin + ((startIdx - displayRange->min) * charWidth);
+	      const int width = strlen(msp->sseq) * charWidth;
+	      
+	      /* Draw the background */
+	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, charHeight);
+	      
+	      /* Draw the text */
+	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, msp->sseq);
+	      pango_layout_set_font_description(layout, fontDesc);
+	      
+	      if (layout)
+		{
+		  gtk_paint_layout(snpTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, x, y, layout);
+		  g_object_unref(layout);
+		}	      
+	    }
+	}
+    }
+}
+
+
 /***********************************************************
  *                    Detail view events                   *
  ***********************************************************/
@@ -1289,6 +1513,12 @@ GdkColor* detailViewGetExonColour(GtkWidget *detailView, const gboolean selected
   return selected ? &properties->exonColourSelected : &properties->exonColour;
 }
 
+GdkColor* detailViewGetSnpColour(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return &properties->snpColour;
+}
+
 GdkColor* detailViewGetInsertionColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1474,6 +1704,12 @@ int detailViewGetNumReadingFrames(GtkWidget *detailView)
   return properties ? properties->numReadingFrames : UNSET_INT;
 }
 
+static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
+{
+  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
+  return detailViewProperties->header;
+}
+
 static GtkWidget* detailViewGetFeedbackBox(GtkWidget *detailView)
 {
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
@@ -1551,7 +1787,8 @@ SubjectSequence* detailViewGetSequenceFromName(GtkWidget *detailView, const char
   
   if (properties)
     {
-      result = (SubjectSequence*)(g_hash_table_lookup(properties->seqTable, seqName));
+      /* Cast away const because predicate args are not const */
+      result = (SubjectSequence*)(g_hash_table_find(properties->seqTable, stringsEqual, (char*)seqName));
     }
   
   return result;
@@ -1703,6 +1940,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GtkCellRenderer *renderer,
 				       GList *fwdStrandTrees,
 				       GList *revStrandTrees,
+				       GtkWidget *header,
 				       GtkWidget *feedbackBox,
 				       GList *columnList,
 				       GtkAdjustment *adjustment, 
@@ -1724,6 +1962,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->renderer = renderer;
       properties->fwdStrandTrees = fwdStrandTrees;
       properties->revStrandTrees = revStrandTrees;
+      properties->header = header;
       properties->feedbackBox = feedbackBox;
       properties->columnList = columnList;
       properties->adjustment = adjustment;
@@ -1768,21 +2007,22 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 	}
       
       properties->refSeqColour		  = getGdkColor(DEFAULT_REF_SEQ_BG_COLOUR);
-      properties->refSeqColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
+      properties->refSeqColourSelected	  = getSelectionColour(&properties->refSeqColour); //getGdkColor(GDK_DARK_YELLOW);
       properties->matchColour		  = getGdkColor(GDK_TURQUOISE);
-      properties->matchColourSelected	  = getGdkColor(GDK_DARK_TURQUOISE);
+      properties->matchColourSelected	  = getSelectionColour(&properties->matchColour); //getGdkColor(GDK_DARK_TURQUOISE);
       properties->mismatchColour	  = getGdkColor(GDK_GREY);
-      properties->mismatchColourSelected  = getGdkColor(GDK_DARK_GREY);
+      properties->mismatchColourSelected  = getSelectionColour(&properties->mismatchColour);  //getGdkColor(GDK_DARK_GREY);
       properties->consColour		  = getGdkColor(GDK_LIGHT_STEEL_BLUE);
-      properties->consColourSelected	  = getGdkColor(GDK_STEEL_BLUE);
+      properties->consColourSelected	  = getSelectionColour(&properties->consColour); //getGdkColor(GDK_STEEL_BLUE);
       properties->exonColour		  = getGdkColor(GDK_YELLOW);
-      properties->exonColourSelected	  = getGdkColor(GDK_DARK_YELLOW);
+      properties->exonColourSelected	  = getSelectionColour(&properties->exonColour); //getGdkColor(GDK_DARK_YELLOW);
       properties->insertionColour	  = getGdkColor(GDK_YELLOW);
-      properties->insertionColourSelected = getGdkColor(GDK_DARK_YELLOW);
+      properties->insertionColourSelected = getSelectionColour(&properties->insertionColour); //getGdkColor(GDK_DARK_YELLOW);
       properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
       properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_BLUE);
       properties->highlightTripletColour  = getGdkColor(GDK_GREEN);
-      properties->highlightDnaBaseColour  = getGdkColor(GDK_DARK_GREEN);
+      properties->highlightDnaBaseColour  = getSelectionColour(&properties->highlightTripletColour);// getGdkColor(GDK_DARK_GREEN);
+      properties->snpColour		  = getGdkColor(GDK_ORANGE);
 
       properties->exonBoundaryLineWidth	  = 1;
       properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
@@ -1796,14 +2036,27 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 
 /* Get/set functions for the sequence column header frame number. (There is only
  * one property to set, so it's not worth having a struct for the properties.) */
-static void seqColHeaderSetFrameNumber(GtkWidget *header, const int frame)
+void seqColHeaderSetFrame(GtkWidget *header, const int frame)
 {
   g_object_set_data(G_OBJECT(header), "seqColHeaderFrameNumber", GINT_TO_POINTER(frame));
 }
 
-static int seqColHeaderGetFrameNumber(GtkWidget *header)
+int seqColHeaderGetFrame(GtkWidget *header)
 {
   return header ? GPOINTER_TO_INT(g_object_get_data(G_OBJECT(header), "seqColHeaderFrameNumber")) : UNSET_INT;
+}
+
+
+/* Get/set functions for the SNP track header strand. (There is only one property
+ * to set, so it's not worth having a struct for the properties.) */
+static void snpTrackSetStrand(GtkWidget *snpTrack, const int strand)
+{
+  g_object_set_data(G_OBJECT(snpTrack), "snpTrackStrand", GINT_TO_POINTER(strand));
+}
+
+static int snpTrackGetStrand(GtkWidget *snpTrack)
+{
+  return snpTrack ? GPOINTER_TO_INT(g_object_get_data(G_OBJECT(snpTrack), "snpTrackStrand")) : UNSET_INT;
 }
 
 
@@ -1811,78 +2064,89 @@ static int seqColHeaderGetFrameNumber(GtkWidget *header)
  *                     Events                              *
  ***********************************************************/
 
-static int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange)
+/* expose function to push a cached bitmap to screen */
+gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data)
 {
-  int result = UNSET_INT;
+  GdkWindow *window = GTK_IS_LAYOUT(headerWidget) ? GTK_LAYOUT(headerWidget)->bin_window : headerWidget->window;
   
-  const int leftEdge = 0; /* to do: allow for padding? check upper bound? */
-  
-  if (x > leftEdge)
+  if (window)
     {
-      result = (int)(((double)x - leftEdge) / (double)charWidth);
+      /* See if there's a cached drawable and, if not, create it */
+      GdkDrawable *bitmap = widgetGetDrawable(headerWidget);
+
+      if (!bitmap)
+	{
+	  /* There isn't a bitmap yet. Create it now. */
+	  GtkWidget *detailView = GTK_WIDGET(data);
+	  const Strand activeStrand = detailViewGetStrandsToggled(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
+	  
+	  drawDnaTrack(headerWidget, detailView, activeStrand, seqColHeaderGetFrame(headerWidget));
+	  bitmap = widgetGetDrawable(headerWidget);
+	}
+      
+      if (bitmap)
+	{
+	  /* Push the bitmap onto the window */
+	  GdkGC *gc2 = gdk_gc_new(window);
+	  gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+	}
     }
   
-  result += displayRange->min;
-  
-  return result;
+  return FALSE;
 }
 
 
-/* Select the nucleotide at the given x/y position in the given header (protein
- * matches only). */
-static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
+/* Expose handler for the SNP track header */
+static gboolean onExposeSnpTrack(GtkWidget *snpTrack, GdkEventExpose *event, gpointer data)
 {
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  GdkDrawable *window = GTK_LAYOUT(snpTrack)->bin_window;
   
-  int coord = getBaseIndexAtColCoords(x, y, detailViewGetCharWidth(detailView), detailViewGetDisplayRange(detailView));
-  
-  if (coord != UNSET_INT)
-    {	
-      /* Get the active (i.e. currently-selected) frame. Use frame 1 if none selected. */
-      int frame = detailViewGetSelectedFrame(detailView);
-      if (frame == UNSET_INT)
-	{
-	  frame = 1;
-	}
-      
-      /* Get the base number of the clicked base within the active frame. The
-       * base number is determined by which row in the header the mouse pointer 
-       * is over: for frame 1, row 1 will give base 1; for frame 2, row 2 will
-       * give base 1, etc. Start by getting the frame number for the clicked row: */
-      int row = seqColHeaderGetFrameNumber(header);
-      
-      /* The header widget passed to this function is the originally-clicked widget.
-       * If the pointer has dragged onto another row in the header, we can work out
-       * which one based on the y coord. If it is outside altogether, take the 
-       * topmost/bottommost row. (NB this assumes all rows in the header have the 
-       * same height as this one - should be true because they're just simple labels). */
-      if (y < 0 || y > header->allocation.height)
-	{
-	  const int offsetRows = floor((double)y / (double)header->allocation.height); /* can be negative */
-	  row += offsetRows;
+  if (window)
+    {
+      GdkDrawable *bitmap = widgetGetDrawable(snpTrack);
+      if (!bitmap)
+        {
+          /* There isn't a bitmap yet. Create it now. */
+	  GtkWidget *detailView = GTK_WIDGET(data);
+          drawSnpTrack(snpTrack, detailView);
 	  
-	  if (row < 1)
-	    {
-	      row = 1;
-	    }
-	  else if (row > numFrames)
-	    {
-	      row = numFrames;
-	    }
-	}
+	  bitmap = widgetGetDrawable(snpTrack);
+        }
       
-      /* Calculate the base number based on the row and the currently-active frame */
-      int baseNum = row - frame + 1;
-      
-      if (baseNum < 1)
+      if (bitmap)
+        {
+          /* Push the bitmap onto the window */
+          GdkGC *gc2 = gdk_gc_new(window);
+          gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+        }
+      else
 	{
-	  /* Cycle round if gone below the min base number */
-	  baseNum += numFrames;
-	  --coord;
+	  messerror("Failed to draw SNP track [%x] - could not create bitmap", snpTrack);
 	}
-      
-      detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE, TRUE);
     }
+  
+  return TRUE;
+}
+
+
+/* Handler for when the mouse button is pressed in the SNP track header */
+static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+
+  switch (event->button)
+  {
+    case 1:
+    {
+      /* Select the SNP that was clicked on.  */
+      GtkWidget *detailView = GTK_WIDGET(data);
+      selectClickedSnp(snpTrack, detailView, event->x, event->y, FALSE);
+      
+      handled = TRUE;
+    }
+  }
+  
+  return handled;
 }
 
 
@@ -2349,7 +2613,9 @@ void firstMatch(GtkWidget *detailView, GList *seqNameList)
 {
   /* Jump to the nearest match to the start of the ref seq */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  goToNextMatch(detailView, refSeqRange->min, TRUE, seqNameList);
+  const int startIdx = detailViewGetStrandsToggled(detailView) ? refSeqRange->max : refSeqRange->min;
+  
+  goToNextMatch(detailView, startIdx, TRUE, seqNameList);
 }
 
 
@@ -2358,7 +2624,9 @@ void lastMatch(GtkWidget *detailView, GList *seqNameList)
 {
   /* Jump to the nearest match to the end of the reference sequence */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  goToNextMatch(detailView, refSeqRange->max, FALSE, seqNameList);
+  const int startIdx = detailViewGetStrandsToggled(detailView) ? refSeqRange->min : refSeqRange->max;
+
+  goToNextMatch(detailView, startIdx, FALSE, seqNameList);
 }
 
 
@@ -2559,28 +2827,61 @@ static void addHeaderColumn(GtkBox *container,
 static GtkWidget* createDetailViewHeader(GtkWidget *detailView, 
 					 const BlxSeqType seqType, 
 					 const int numReadingFrames,
-					 GList **columnList)
+					 GList **columnList,
+					 const gboolean includeSnpTrack)
 {
-  GtkBox *header = GTK_BOX(gtk_hbox_new(FALSE, 0));
+  GtkBox *header = NULL; /* outermost container for the header */
+  GtkBox *headerBar = GTK_BOX(gtk_hbox_new(FALSE, 0)); /* hbox for the column headers */
+  
+  /* Create a SNP track, if requested */
+  if (includeSnpTrack)
+    {
+      header = GTK_BOX(gtk_vbox_new(FALSE, 0));
+      createSnpTrackHeader(GTK_BOX(header), detailView, UNSET_INT);
+      gtk_box_pack_start(header, GTK_WIDGET(headerBar), FALSE, FALSE, 0);
+      gtk_widget_set_name(GTK_WIDGET(headerBar), HEADER_CONTAINER_NAME);
+    }
+  else
+    {
+      /* Only need the column header bar */
+      header = headerBar;
+    }
 
   /* The sequence column has a special header and callback when we're dealing with peptide sequences */
   GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numReadingFrames);
-  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshSeqColHeader : NULL;
+  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshTextHeader : NULL;
   
   /* The start and end columns have callbacks to switch the start/end text when display is toggled */
   GtkCallback startCallback = refreshStartColHeader;
   GtkCallback endCallback = refreshEndColHeader;
   
-  const int endColWidth = END_COLUMN_DEFAULT_WIDTH;
-  
-  addHeaderColumn(header, S_NAME_COL, NULL,	  NULL,		 NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  FALSE, columnList);
-  addHeaderColumn(header, SCORE_COL,  NULL,	  NULL,		 SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
-  addHeaderColumn(header, ID_COL,     NULL,	  NULL,		 ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    FALSE, columnList);
-  addHeaderColumn(header, START_COL,  NULL,	  startCallback, START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
-  addHeaderColumn(header, SEQUENCE_COL, seqHeader, seqCallback,	 SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
-  addHeaderColumn(header, END_COL,    NULL,	  endCallback,	 END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   endColWidth,		  FALSE, columnList);
+  /* Create the column headers and pack them into the column header bar */
+  addHeaderColumn(headerBar, S_NAME_COL, NULL,	  NULL,		 NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  FALSE, columnList);
+  addHeaderColumn(headerBar, SCORE_COL,  NULL,	  NULL,		 SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
+  addHeaderColumn(headerBar, ID_COL,     NULL,	  NULL,		 ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    FALSE, columnList);
+  addHeaderColumn(headerBar, START_COL,  NULL,	  startCallback, START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
+  addHeaderColumn(headerBar, SEQUENCE_COL, seqHeader, seqCallback, SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
+  addHeaderColumn(headerBar, END_COL,    NULL,	  endCallback,	 END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   END_COLUMN_DEFAULT_WIDTH,   FALSE, columnList);
 
   return GTK_WIDGET(header);
+}
+
+
+/* Create the SNP track header widget. The strand can be passed as UNSET_INT,
+ * in which case the active strand will be used. */
+GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int strand)
+{
+  GtkWidget *snpTrack = gtk_layout_new(NULL, NULL);
+
+  gtk_widget_set_name(snpTrack, TEXT_HEADER_NAME);  
+  gtk_box_pack_start(parent, snpTrack, FALSE, TRUE, 0);
+  snpTrackSetStrand(snpTrack, strand);
+
+  gtk_widget_add_events(snpTrack, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(snpTrack), "expose-event", G_CALLBACK(onExposeSnpTrack), detailView);
+  g_signal_connect(G_OBJECT(snpTrack), "button-press-event", G_CALLBACK(onButtonPressSnpTrack), detailView);
+  
+  return snpTrack;
 }
 
 
@@ -2595,20 +2896,21 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
   if (seqType == BLXSEQ_PEPTIDE)
     {
       header = gtk_vbox_new(FALSE, 0);
+      gtk_widget_set_name(header, HEADER_CONTAINER_NAME);
       
-      /* Create a line for each reading frame */
       int frame = 0;
       for ( ; frame < numReadingFrames; ++frame)
 	{
-	  GtkWidget *line = createLabel(NULL, 0.0, 0.0, TRUE, TRUE);
+	  GtkWidget *line = gtk_layout_new(NULL, NULL);
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
+
+	  gtk_widget_set_name(line, TEXT_HEADER_NAME);
+	  seqColHeaderSetFrame(line, frame + 1);
 	  
-	  seqColHeaderSetFrameNumber(line, frame + 1);
-	  
-	  gtk_drag_dest_set(line, GTK_DEST_DEFAULT_MOTION, NULL, 0, GDK_ACTION_PRIVATE);
-	  
-	  gtk_widget_add_events(line, GDK_ENTER_NOTIFY_MASK);
-	  gtk_widget_add_events(line, GDK_LEAVE_NOTIFY_MASK);
+	  gtk_widget_add_events(line, GDK_BUTTON_PRESS_MASK);
+	  gtk_widget_add_events(line, GDK_BUTTON_RELEASE_MASK);
+	  gtk_widget_add_events(line, GDK_POINTER_MOTION_MASK);
+	  g_signal_connect(G_OBJECT(line), "expose-event", G_CALLBACK(onExposeDnaTrack), detailView);
 	  g_signal_connect(G_OBJECT(line), "button-press-event", G_CALLBACK(onButtonPressSeqColHeader), detailView);
 	  g_signal_connect(G_OBJECT(line), "button-release-event", G_CALLBACK(onButtonReleaseSeqColHeader), detailView);
 	  g_signal_connect(G_OBJECT(line), "motion-notify-event", G_CALLBACK(onMouseMoveSeqColHeader), detailView);
@@ -2874,10 +3176,11 @@ static void createTwoPanedTrees(GtkWidget *detailView,
 				GList *columnList,
 				const char const *refSeqName,
 				const int frame1,
-				const int frame2)
+				const int frame2,
+				const gboolean includeSnpTrack)
 {
-  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, refSeqName, frame1);
-  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, refSeqName, frame2);
+  GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, refSeqName, frame1, includeSnpTrack);
+  GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, refSeqName, frame2, includeSnpTrack);
   
   if (container)
     {
@@ -2897,13 +3200,14 @@ static void createThreePanedTrees(GtkWidget *detailView,
 				  BlxSeqType seqType,
 				  const gboolean addToDetailView,
 				  GList *columnList,
-				  const char const *refSeqName)
+				  const char const *refSeqName,
+				  const gboolean includeSnpTrack)
 {
   const int frame1 = 1, frame2 = 2, frame3 = 3;
   
   /* Create a tree for pane1 (but only add it to the detailView if instructed to).
    * The first tree has headers. */
-  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, refSeqName, frame1);
+  GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, refSeqName, frame1, includeSnpTrack);
 
   GtkWidget *nestedPanedWidget = NULL;
   if (addToDetailView)
@@ -2917,7 +3221,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
   
   /* Create two more trees (and place them in the nested paned widget, if it is not null). 
    * Neither of these trees should have headers. */
-  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, refSeqName, frame2, frame3);
+  createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, refSeqName, frame2, frame3, includeSnpTrack);
 }
 
 
@@ -2932,11 +3236,12 @@ static void createDetailViewPanes(GtkWidget *detailView,
 				  GList **revStrandTrees,
 				  BlxSeqType seqType,
 				  GList *columnList,
-				  const char const *refSeqName)
+				  const char const *refSeqName,
+				  const gboolean includeSnpTrack)
 {
   if (numReadingFrames == 1)
     {
-      /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse */
+      /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse. */
       createTwoPanedTrees(detailView, 
 			  detailView, 
 			  renderer,
@@ -2948,14 +3253,15 @@ static void createDetailViewPanes(GtkWidget *detailView,
 			  columnList,
 			  refSeqName,
 			  1,
-			  1);
+			  1,
+			  includeSnpTrack);
     }
   else if (numReadingFrames == 3)
     {
       /* Protein matches: we need 3 trees for the 3 reading frames for EACH strand (although only
        * one set of trees will be displayed at a time). */
-      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, columnList, refSeqName);
-      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, columnList, refSeqName);
+      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, columnList, refSeqName, includeSnpTrack);
+      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, columnList, refSeqName, includeSnpTrack);
     }
 }
 
@@ -3183,6 +3489,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 
   /* Loop through each MSP, and add it to the correct tree based on its strand and reading frame */
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
+  GHashTable *seqTable = detailViewGetSeqTable(detailView);
   MSP *msp = mspList;
   
   for ( ; msp; msp = msp->next)
@@ -3209,7 +3516,6 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 	}
       
       /* Add the MSP to the hash table that will group MSPs by sequence name. */
-      GHashTable *seqTable = detailViewGetSeqTable(detailView);
       addMspToHashTable(seqTable, msp, msp->sname);
     }
   
@@ -3276,9 +3582,11 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   GtkWidget *feedbackBox = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortByType, &feedbackBox);
 
-  /* Create the header, and compile a list of columns */
+  /* Create the header, and compile a list of columns. If viewing protein matches include
+   * one SNP track in the detail view header; otherwise create SNP tracks in each tree header. */
   GList *columnList = NULL;
-  GtkWidget *header = createDetailViewHeader(detailView, seqType, numReadingFrames, &columnList);
+  const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
+  GtkWidget *header = createDetailViewHeader(detailView, seqType, numReadingFrames, &columnList, singleSnpTrack);
   
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
@@ -3291,7 +3599,8 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			&revStrandTrees,
 			seqType,
 			columnList,
-			refSeqName);
+			refSeqName,
+			!singleSnpTrack);
   
   /* Put everything in a vbox, and pack it into the main window. */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -3309,6 +3618,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			     renderer,
 			     fwdStrandTrees,
 			     revStrandTrees,
+			     header,
 			     feedbackBox, 
 			     columnList,
 			     adjustment, 

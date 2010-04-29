@@ -64,6 +64,7 @@ void		      widgetClearCachedDrawable(GtkWidget *widget);
 
 gboolean	      onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointer data);
 GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
+GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
@@ -171,6 +172,6 @@ int		      parseMatchLine(const char *inputText,
 GList*		      parseMatchList(const char *inputText);
 
 GList*		      findStringInList(GList *list, const char *seqName);
-
+gboolean	      stringsEqual(gpointer key, gpointer value, gpointer data);
 
 #endif /* _utilities_h_included_ */

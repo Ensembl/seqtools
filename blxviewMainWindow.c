@@ -47,7 +47,6 @@ static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context,
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 static void			  onDestroyMainWindow(GtkWidget *widget);
 
-static Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
 
 static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
@@ -56,7 +55,6 @@ static void			  mainWindowGroupsChanged(GtkWidget *mainWindow);
 static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *mainWindow);
 static void			  getSequencesThatMatch(gpointer key, gpointer value, gpointer data);
 static GList*			  getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText);
-static void			  mainWindowSetSelectedSeqList(GtkWidget *mainWindow, GList *seqNameList);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -2758,7 +2756,7 @@ const char* mainWindowGetPaddingSeq(GtkWidget *mainWindow)
 }
 
 /* Return the active strand - forward strand by default, reverse strand if display toggled */
-static Strand mainWindowGetActiveStrand(GtkWidget *mainWindow)
+Strand mainWindowGetActiveStrand(GtkWidget *mainWindow)
 {
   return mainWindowGetStrandsToggled(mainWindow) ? REVERSE_STRAND : FORWARD_STRAND;
 }
@@ -2907,7 +2905,7 @@ void mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean up
 
 
 /* Utility function to set the list of selected sequences to that given */
-static void mainWindowSetSelectedSeqList(GtkWidget *mainWindow, GList *seqNameList)
+void mainWindowSetSelectedSeqList(GtkWidget *mainWindow, GList *seqNameList)
 {
   mainWindowDeselectAllSeqs(mainWindow, FALSE);
 

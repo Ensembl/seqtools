@@ -303,7 +303,7 @@ static GdkColor reduceColourBrightness(GdkColor *origColour, const double factor
  * things of that colour when they are selected. */
 GdkColor getSelectionColour(GdkColor *origColour)
 {
-  const double factor = 0.7;
+  const double factor = 0.8;
   return reduceColourBrightness(origColour, factor);
 }
 
@@ -586,93 +586,96 @@ int gapCoord(const MSP *msp,
 {
   int result = UNSET_INT;
   
-  int qSeqMin = UNSET_INT, qSeqMax = UNSET_INT, sSeqMin = UNSET_INT, sSeqMax = UNSET_INT;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
-  
-  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
-  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
-  const gboolean sameDirection = (qForward == sForward);
-  
-  Array gaps = msp->gaps ;
-  if (!gaps || arrayMax(gaps) < 1)
+  if (mspIsBlastMatch(msp) || mspIsExon(msp))
     {
-      /* If strands are in the same direction, find the offset from qSeqMin and add it to sSeqMin.
-       * If strands are in opposite directions, find the offset from qSeqMin and subtract it from sSeqMax. */
-      int offset = (qIdx - qSeqMin)/numFrames ;
-      result = (sameDirection) ? sSeqMin + offset : sSeqMax - offset ;
+      int qSeqMin = UNSET_INT, qSeqMax = UNSET_INT, sSeqMin = UNSET_INT, sSeqMax = UNSET_INT;
+      getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
       
-      if (result < sSeqMin)
-	{
-	  result = UNSET_INT;
-	  
-	  if (nearestIdx)
-	    {
-	      *nearestIdx = sSeqMin;
-	    }
-	}
-      else if (result > sSeqMax)
-	{
-	  result = UNSET_INT;
-	  
-	  if (nearestIdx)
-	    {
-	      *nearestIdx = sSeqMax;
-	    }
-	}
-      else if (nearestIdx)
-	{
-	  *nearestIdx = result;
-	}
-    }
-  else
-    {
-      gboolean gapsReversedWrtDisplay = (rightToLeft == qForward);
+      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+      const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
+      const gboolean sameDirection = (qForward == sForward);
       
-      /* Look to see if x lies inside one of the reference sequence ranges. */
-      int i = 0;
-      for ( ; i < arrayMax(gaps) ; ++i)
+      Array gaps = msp->gaps ;
+      if (!gaps || arrayMax(gaps) < 1)
 	{
-	  SMapMap *curRange = arrp(gaps, i, SMapMap) ;
+	  /* If strands are in the same direction, find the offset from qSeqMin and add it to sSeqMin.
+	   * If strands are in opposite directions, find the offset from qSeqMin and subtract it from sSeqMax. */
+	  int offset = (qIdx - qSeqMin)/numFrames ;
+	  result = (sameDirection) ? sSeqMin + offset : sSeqMax - offset ;
 	  
-	  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-	  getSMapMapRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-	  
-	  /* We've "found" the value if it's in or before this range. Note that the
-	   * the range values are in decreasing order if the q strand is reversed. */
-	  gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
-	  
-	  if (found)
+	  if (result < sSeqMin)
 	    {
-	      gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
+	      result = UNSET_INT;
 	      
-	      if (inRange)
+	      if (nearestIdx)
 		{
-		  /* It's inside this range. Calculate the actual index. */
-		  int offset = (qIdx - qRangeMin) / numFrames;
-		  result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
+		  *nearestIdx = sSeqMin;
+		}
+	    }
+	  else if (result > sSeqMax)
+	    {
+	      result = UNSET_INT;
+	      
+	      if (nearestIdx)
+		{
+		  *nearestIdx = sSeqMax;
+		}
+	    }
+	  else if (nearestIdx)
+	    {
+	      *nearestIdx = result;
+	    }
+	}
+      else
+	{
+	  gboolean gapsReversedWrtDisplay = (rightToLeft == qForward);
+	  
+	  /* Look to see if x lies inside one of the reference sequence ranges. */
+	  int i = 0;
+	  for ( ; i < arrayMax(gaps) ; ++i)
+	    {
+	      SMapMap *curRange = arrp(gaps, i, SMapMap) ;
+	      
+	      int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+	      getSMapMapRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+	      
+	      /* We've "found" the value if it's in or before this range. Note that the
+	       * the range values are in decreasing order if the q strand is reversed. */
+	      gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
+	      
+	      if (found)
+		{
+		  gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
 		  
-		  if (nearestIdx)
+		  if (inRange)
 		    {
-		      *nearestIdx = result;
+		      /* It's inside this range. Calculate the actual index. */
+		      int offset = (qIdx - qRangeMin) / numFrames;
+		      result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
+		      
+		      if (nearestIdx)
+			{
+			  *nearestIdx = result;
+			}
 		    }
+		  else if (nearestIdx && (i == 0 || gapsReversedWrtDisplay))
+		    {
+		      /* Remember the start of the current range. This will be the value we
+		       * return if the index is before of the first range, or if we're in a gap
+		       * and gaps are ordered in the opposite direction to the display (i.e. gap
+		       * coords go from low to high and display shows high to low or v.v.) */
+		      *nearestIdx = curRange->s1;
+		    }
+		  
+		  break;
 		}
-	      else if (nearestIdx && (i == 0 || gapsReversedWrtDisplay))
+	      else if (nearestIdx && !gapsReversedWrtDisplay)
 		{
-		  /* Remember the start of the current range. This will be the value we
-		   * return if the index is before of the first range, or if we're in a gap
-		   * and gaps are ordered in the opposite direction to the display (i.e. gap
-		   * coords go from low to high and display shows high to low or v.v.) */
-		  *nearestIdx = curRange->s1;
+		  /* Remember the end of the current range (which is the result we will return
+		   * if qIdx lies after this range but before the next - unless gaps are reversed
+		   * with respect to the display). */
+		  *nearestIdx = curRange->s2;
 		}
-	      
-	      break;
-	    }
-	  else if (nearestIdx && !gapsReversedWrtDisplay)
-	    {
-	      /* Remember the end of the current range (which is the result we will return
-	       * if qIdx lies after this range but before the next - unless gaps are reversed
-	       * with respect to the display). */
-	      *nearestIdx = curRange->s2;
 	    }
 	}
     }
@@ -721,11 +724,22 @@ Strand mspGetMatchStrand(const MSP const *msp)
 }
 
 
+gboolean stringsEqual(gpointer key, gpointer value, gpointer data)
+{
+  const char *keyStr = (const char*)key;
+  const char *seqName = (const char*)data;
+  
+  gboolean result = !strcmp(keyStr, seqName);
+  
+  return result;
+}
+
+
 /* Add the given MSP to the given hash table */
 void addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey)
 {
   /* See if this MSP's sequence already exists in the hash table */
-  SubjectSequence *subjectSeq = (SubjectSequence*)g_hash_table_lookup(hashTable, hashKey);
+  SubjectSequence *subjectSeq = (SubjectSequence*)g_hash_table_find(hashTable, stringsEqual, hashKey);
   
   if (subjectSeq)
     {
@@ -1273,4 +1287,23 @@ GList *findStringInList(GList *list, const char *seqName)
   return result;
 }
 
+
+/* Create and cache a blank pixmap drawable in the given widget */
+GdkDrawable* createBlankPixmap(GtkWidget *widget)
+{
+  GdkWindow *window = GTK_IS_LAYOUT(widget) ? GTK_LAYOUT(widget)->bin_window : widget->window;
+  
+  GdkDrawable *drawable = gdk_pixmap_new(window, widget->allocation.width, widget->allocation.height, -1);
+  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+  widgetSetDrawable(widget, drawable); /* deletes the old drawable, if there is one */
+  
+  /* Paint a blank rectangle for the background, the same colour as the widget's background */
+  GdkGC *gc = gdk_gc_new(drawable);
+  GtkStyle *style = gtk_widget_get_style(widget);
+  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColour);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);
+  
+  return drawable;
+}
 

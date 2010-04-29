@@ -1054,8 +1054,7 @@ static GtkStateType getState(GtkWidget *widget, guint flags)
 }
 
 
-/* This function checks whether the cell is in a group that should be higlighted
- * and, if so, sets the cell background colour accordingly. */
+/* This function sets the background colour for the row. */
 static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow *window, GdkRectangle *background_area)
 {
   SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
@@ -1063,23 +1062,32 @@ static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindo
   if (renderer->data)
     {
       /* Find out whether the MSP(s) that this cell is displaying are in 
-       * a grouped sequence. */
+       * a grouped sequence or are selected. */
       MSP *msp = (MSP*)(renderer->data->data);
       GtkWidget *mainWindow = treeGetMainWindow(tree);
       SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, msp->sname);
+      const gboolean isSelected = mainWindowIsSeqSelected(mainWindow, msp->sname);
       
-      if (group && group->highlighted)
+      if (isSelected || (group && group->highlighted))
 	{
 	  GdkGC *gc = gdk_gc_new(window);
 	  
-	  if (mainWindowIsSeqSelected(mainWindow, msp->sname))
+	  if (group && group->highlighted && isSelected)
 	    {
+	      /* Use the group's highlight colour but darken it because it is also selected */
 	      GdkColor colour = getSelectionColour(&group->highlightColour);
 	      gdk_gc_set_foreground(gc, &colour);
 	    }
+	  else if (group && group->highlighted)
+	    {
+	      /* Use the group's highlight colour */
+	      gdk_gc_set_foreground(gc, &group->highlightColour);
+	    }
 	  else
 	    {
-	      gdk_gc_set_foreground(gc, &group->highlightColour);
+	      /* Not in a group but is selected. Use the background colour but darken it. */
+	      GdkColor colour = getSelectionColour(&tree->style->bg[GTK_STATE_NORMAL]);
+	      gdk_gc_set_foreground(gc, &colour);
 	    }
 	  
 	  drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, background_area->x, background_area->y, background_area->width, background_area->height);

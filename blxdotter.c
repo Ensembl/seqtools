@@ -769,7 +769,19 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
       messout("Dotter cannot be called on multiple sequences. Select a single sequence and try again.");
       return FALSE;
     }
+  
+  /* Check this sequence is a valid blast match (just check the first MSP;
+   * they must all the same type if they have the same seq name) */
+  const char *selectedSeqName = (const char*)(selectedSeqs->data);
+  GList *selectedMsps = mainWindowGetSequenceMsps(blxWindow, selectedSeqName);
+  const MSP *firstMsp = (const MSP*)(selectedMsps->data);
 
+  if (!mspIsBlastMatch(firstMsp))
+    {
+      messout("Select a valid match sequence first");
+      return FALSE;
+    }
+  
   /* Get the match sequence. Blixem uses g_malloc consistently now to allocate 
    * strings but unfortunately dotter will free this string with messfree, so 
    * we need to copy the result into a string allocated with messalloc. */
@@ -793,14 +805,9 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   const char *dotterQName = mainWindowGetRefSeqName(blxWindow);
   
   /* Get the section of reference sequence that we're interested in */
-  const char *selectedSeqName = (const char*)(selectedSeqs->data);
-  GList *selectedMsps = mainWindowGetSequenceMsps(blxWindow, selectedSeqName);
-
-  const MSP *msp = (MSP*)selectedMsps->data; /* extract info from any of the selected MSPs */
   const BlxSeqType seqType = mainWindowGetSeqType(blxWindow);
-
-  const Strand strand = mspGetRefStrand(msp);
-  const int frame = mspGetRefFrame(msp, seqType);
+  const Strand strand = mspGetRefStrand(firstMsp);
+  const int frame = mspGetRefFrame(firstMsp, seqType);
   
   const char *refSeq = mainWindowGetRefSeq(blxWindow);
   const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
@@ -834,14 +841,14 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   
   
   /* Get the match sequence name (chopping off the letters before the colon, if there is one). */
-  char *dotterSName = strchr(msp->sname, ':');
+  char *dotterSName = strchr(firstMsp->sname, ':');
   if (dotterSName)
     {
       dotterSName++;
     }
   else
     {
-      dotterSName = msp->sname;
+      dotterSName = firstMsp->sname;
     }
   
   const int offset = min(dotterStart, dotterEnd) - 1;

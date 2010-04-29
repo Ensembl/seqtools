@@ -107,9 +107,11 @@ GList*			  mainWindowGetSequenceGroups(GtkWidget *mainWindow);
 SequenceGroup*		  mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seqName);
 const char*		  mainWindowGetPaddingSeq(GtkWidget *mainWindow);
 int			  mainWindowGetOffset(GtkWidget *mainWindow);
+Strand			  mainWindowGetActiveStrand(GtkWidget *mainWindow);
 
 GList*			  mainWindowGetSelectedSeqs(GtkWidget *mainWindow);
 void			  mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees);
+void			  mainWindowSetSelectedSeqList(GtkWidget *mainWindow, GList *seqNameList);
 void			  mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees);
 void			  mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateTrees);
 gboolean		  mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *msp);

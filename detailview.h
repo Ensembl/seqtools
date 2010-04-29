@@ -13,7 +13,9 @@
 #include <SeqTools/utilities.h>
 
 
-#define	DEFAULT_REF_SEQ_BG_COLOUR     GDK_YELLOW
+#define	DEFAULT_REF_SEQ_BG_COLOUR	GDK_YELLOW
+#define TEXT_HEADER_NAME		"text header"
+#define HEADER_CONTAINER_NAME		"header container"
 
 /* Define the columns. Specify a default width, the display text for the
  * column header, and also a name for the property that will be set in the
@@ -76,6 +78,7 @@ typedef struct _DetailViewProperties
     GtkCellRenderer *renderer;	  /* The cell renderer that renders the sequences */
     GtkAdjustment *adjustment;	  /* The scroll adjustment control for the detail view */
 
+    GtkWidget *header;		  /* Contains all the widgets in the detail view header */
     GtkWidget *feedbackBox;	  /* A text box that feeds back info to the user about the currently selected items */
     GList *columnList;		  /* A list of details about all the columns in the detail view */
     GHashTable *seqTable;	  /* Hash table linking a sequence name to a SubjectSequence struct. */
@@ -120,6 +123,7 @@ typedef struct _DetailViewProperties
     GdkColor highlightTripletColour;  /* For codon triplets, highlight all the bases in the selected triplet in this colour */
     GdkColor highlightDnaBaseColour;  /* For codon triplets, highlight the specific selected DNA base in this colour */
     GdkColor highlightedRowColour;    /* Background colour for rows that have been grouped for highlighting */
+    GdkColor snpColour;		      /* Background colour for bases that have SNPs associated with them */
     
     int exonBoundaryLineWidth;	      /* line width for exon boundaries */
     GdkLineStyle exonBoundaryLineStyleStart; /* line style for exon boundaries (marking the start of an exon) */
@@ -171,6 +175,7 @@ GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView, const gboolean sel
 GdkColor*		detailViewGetConsColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetExonColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetInsertionColour(GtkWidget *detailView, const gboolean selected);
+GdkColor*		detailViewGetSnpColour(GtkWidget *detailView);
 GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart);
 int			detailViewGetExonBoundaryWidth(GtkWidget *detailView);
 GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart);
@@ -204,6 +209,13 @@ void			resizeDetailViewHeaders(GtkWidget *detailView);
 void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert);
 void			detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlightDiffs);
+
+GtkWidget*		createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int strand);
+void			refreshTextHeader(GtkWidget *widget, gpointer data);
+gboolean		onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
+
+void			seqColHeaderSetFrame(GtkWidget *header, const int frame);
+int			seqColHeaderGetFrame(GtkWidget *header);
 
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 GtkWidget *container,

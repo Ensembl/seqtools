@@ -22,8 +22,8 @@ static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkT
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
-static int		treeGetFrame(GtkWidget *tree);
 static int		scrollBarWidth();
+static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -117,7 +117,7 @@ int treeGetNumReadingFrames(GtkWidget *tree)
   return properties ? detailViewGetNumReadingFrames(properties->detailView) : UNSET_INT;
 }
 
-static int treeGetFrame(GtkWidget *tree)
+int treeGetFrame(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -135,6 +135,12 @@ BlxSeqType treeGetSeqType(GtkWidget *tree)
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetSeqType(detailView);
+}
+
+static gboolean treeGetDisplaySnps(GtkWidget *tree)
+{
+  TreeProperties *properties = treeGetProperties(tree);
+  return properties->displaySnps;
 }
 
 int treeGetSelectedBaseIdx(GtkWidget *tree)
@@ -597,17 +603,21 @@ gboolean treeGetMatchesSquashed(GtkWidget *tree)
 void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 {
   TreeProperties *properties = treeGetProperties(tree);
-  GList *header = properties->treeColumnHeaderList;
+
+  /* Loop through all widgets in the header and call refreshTextHeader. This
+   * updates the font etc. if it is a type of widget that requires that. */
+  gtk_container_foreach(GTK_CONTAINER(properties->treeHeader), refreshTextHeader, treeGetDetailView(tree));
   
-  for ( ; header; header = header->next)
+  /* Loop through all column headers and call their individual refresh functions
+   * (this sets the specific data for the column headers) */
+  GList *headerItem = properties->treeColumnHeaderList;
+  
+  for ( ; headerItem; headerItem = headerItem->next)
     {
-      TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)header->data;
+      TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)headerItem->data;
       
       if (headerInfo && headerInfo->headerWidget)
 	{
-	  /* Update the font */
-	  gtk_widget_modify_font(headerInfo->headerWidget, treeGetFontDesc(tree));
-
 	  /* Call the refresh function, if there is one */
 	  if (headerInfo->refreshFunc)
 	    {
@@ -1046,7 +1056,9 @@ static void treeCreateProperties(GtkWidget *widget,
 				 GtkWidget *grid, 
 				 GtkWidget *detailView, 
 				 const int frame,
-				 GList *treeColumnHeaderList)
+				 GtkWidget *treeHeader,
+				 GList *treeColumnHeaderList,
+				 const gboolean displaySnps)
 {
   if (widget)
     { 
@@ -1055,7 +1067,9 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->grid = grid;
       properties->detailView = detailView;
       properties->readingFrame = frame;
+      properties->treeHeader = treeHeader;
       properties->treeColumnHeaderList = treeColumnHeaderList;
+      properties->displaySnps = displaySnps;
       properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
       properties->mspTreeModel = NULL;
       properties->seqTreeModel = NULL;
@@ -1069,6 +1083,200 @@ static void treeCreateProperties(GtkWidget *widget,
 /***********************************************************
  *                       Tree events                       *
  ***********************************************************/
+
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a SNP */
+static gboolean coordAffectedBySnp(const int displayIdx, 
+				   const Strand strand, 
+				   const int frame, 
+				   const MSP *mspList, 
+				   const BlxSeqType seqType,
+				   const int numFrames,
+				   const gboolean rightToLeft,
+				   const IntRange const *refSeqRange)
+{
+  gboolean result = FALSE;
+  
+  const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  
+  /* Loop through the MSPs and check any that are SNPs */
+  const MSP *msp = mspList;
+  
+  for ( ; msp; msp = msp->next)
+    {
+      if (mspIsSnp(msp) && 
+	  msp->qstart >= dnaIdx && 
+	  msp->qstart <= dnaIdx + numFrames - 1 &&
+	  mspGetRefStrand(msp) == strand && 
+	  mspGetRefFrame(msp, seqType) == frame)
+	{
+	  result = TRUE;
+	}
+    }
+  
+  return result;
+}
+
+/* Utility to determine the background colour of a base in the given frame
+ * and strand. Pass in the colour options so we don't have to get them from the
+ * tree (which is slow if called many times) */
+static GdkColor* getCoordColour(const int displayIdx,
+				const Strand strand,
+				const int frame,
+				const int selectedBaseIdx,
+				const MSP *mspList,
+				const BlxSeqType seqType,
+				const int numFrames,
+				const gboolean rightToLeft,
+				const IntRange const *refSeqRange,
+				GdkColor *normalColour,
+				GdkColor *selectedColour,
+				GdkColor *snpColour,
+				GdkColor *selectedSnpColour)
+{
+  GdkColor *result = NULL;
+  
+  if (snpColour && coordAffectedBySnp(displayIdx, strand, frame, mspList, seqType, numFrames, rightToLeft, refSeqRange))
+    {
+      result = (displayIdx == selectedBaseIdx) && selectedSnpColour ? selectedSnpColour : snpColour;
+    }
+  else if (displayIdx == selectedBaseIdx && selectedColour)
+    {
+      result = selectedColour;
+    }
+  else if (normalColour)
+    {
+      result = normalColour;
+    }
+  
+  return result;
+}
+
+
+/* Draw the part of the tree header that shows the reference sequence (either as
+ * nucleotide sequence, or a peptide sequence if viewing protein matches) */
+static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
+{
+  GdkDrawable *drawable = createBlankPixmap(headerWidget);
+  
+  GtkWidget *detailView = treeGetDetailView(tree);
+  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  
+  const Strand strand = treeGetStrand(tree);
+  const int frame = treeGetFrame(tree);
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  char *refSeq = mainWindowGetRefSeq(mainWindow);
+  const MSP *mspList = mainWindowGetMspList(mainWindow);
+  
+  /* Set the colour to highlight SNP-affected bases in, if displaying SNPs against
+   * this tree */
+  GdkColor *snpColour = NULL;
+  GdkColor selectedSnpColour;
+  
+  if (treeGetDisplaySnps(tree))
+    {
+      snpColour = detailViewGetSnpColour(detailView);
+      selectedSnpColour = getSelectionColour(snpColour);
+    }
+  
+  /* Find the segment of the ref seq to display. */
+  gchar *segmentToDisplay = getSequenceSegment(mainWindow,
+					       refSeq,
+					       refSeqRange,
+					       displayRange->min, 
+					       displayRange->max, 
+					       strand, 
+					       seqType,
+					       frame, 
+					       numFrames,
+					       rightToLeft,
+					       rightToLeft, /* show backwards if display reversed */
+					       TRUE,	    /* always complement reverse strand */
+					       TRUE);	    /* always translate peptide sequences */
+  
+  if (segmentToDisplay)
+    {
+      GdkGC *gc = gdk_gc_new(drawable);
+      const int charWidth = detailViewGetCharWidth(detailView);
+      const int charHeight = detailViewGetCharHeight(detailView);
+      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+      GdkColor *normalColour = detailViewGetRefSeqColour(detailView, FALSE);
+      GdkColor *selectedColour = detailViewGetRefSeqColour(detailView, TRUE);
+      
+      gtk_layout_set_size(GTK_LAYOUT(headerWidget), headerWidget->allocation.width, charHeight);
+      
+      int displayIdx = displayRange->min;
+      
+      while (displayIdx >= displayRange->min && displayIdx <= displayRange->max)
+	{
+	  /* Set the background colour depending on whether this base is selected or
+	   * is affected by a SNP */
+	  GdkColor *colour = getCoordColour(displayIdx, strand, frame, 
+					    selectedBaseIdx, mspList, seqType, 
+					    numFrames, rightToLeft, refSeqRange,
+					    normalColour, selectedColour, snpColour, &selectedSnpColour);
+	  
+	  if (colour)
+	    {
+	      gdk_gc_set_foreground(gc, colour);
+	      const int x = (displayIdx - displayRange->min) * charWidth;
+	      const int y = 0;
+	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, charWidth, charHeight);
+	    }
+	  
+	  ++displayIdx;
+	}
+      
+      /* Mark up the text to highlight the selected base, if there is one */
+      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, segmentToDisplay);
+      pango_layout_set_font_description(layout, detailViewGetFontDesc(detailView));
+      
+      if (layout)
+	{
+	  gtk_paint_layout(headerWidget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
+	  g_object_unref(layout);
+	}
+      
+      g_free(segmentToDisplay);
+      g_object_unref(gc);
+    }
+}
+
+
+/* expose function to push a cached bitmap to screen */
+static gboolean onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data)
+{
+  GdkWindow *window = GTK_IS_LAYOUT(headerWidget) ? GTK_LAYOUT(headerWidget)->bin_window : headerWidget->window;
+  
+  if (window)
+    {
+      /* See if there's a cached drawable and, if not, create it */
+      GdkDrawable *bitmap = widgetGetDrawable(headerWidget);
+      
+      if (!bitmap)
+	{
+	  /* There isn't a bitmap yet. Create it now. */
+	  GtkWidget *tree = GTK_WIDGET(data);
+	  drawRefSeqHeader(headerWidget, tree);
+	  bitmap = widgetGetDrawable(headerWidget);
+	}
+      
+      if (bitmap)
+	{
+	  /* Push the bitmap onto the window */
+	  GdkGC *gc2 = gdk_gc_new(window);
+	  gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+	}
+    }
+  
+  return FALSE;
+}
+
+
 
 static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, gpointer data)
 {
@@ -1755,109 +1963,6 @@ static GtkTreeViewColumn* initColumn(GtkWidget *tree,
 }
 
 
-/* Set the markup in the given label, so that the label displays the given sequence
- * segment, with the given base index is highlighted in the given colour. If the given
- * base index is UNSET_INT, or is out of the current display range, then the label 
- * is just given the plain, non-marked-up sequence. */
-static void createMarkupForLabel(GtkLabel *label, 
-				 const char *segmentToDisplay, 
-				 const int selectedBaseIdx,
-				 GdkColor *colour,
-				 const IntRange const *displayRange)
-{
-  int charIdx = selectedBaseIdx - displayRange->min;
-  const int segLen = strlen(segmentToDisplay);
-  
-  if (charIdx >= 0 && charIdx < segLen)
-    {
-      /* Cut the sequence into 3 sections: the text before the selected base,
-       * the text after it, and the selected base itself. */
-      char textBefore[charIdx];
-      char textAfter[segLen - charIdx + 200];
-      char textSelection[2];
-      
-      int i = 0;
-      for ( ; i < charIdx; ++i)
-	{
-	  textBefore[i] = segmentToDisplay[i];
-	}
-      textBefore[i] = '\0';
-      
-      textSelection[0] = segmentToDisplay[i];
-      textSelection[1] = '\0';
-
-      int j = 0;
-      ++i;
-      for ( ; i < segLen; ++i, ++j)
-	{
-	  textAfter[j] = segmentToDisplay[i];
-	}
-      textAfter[j] = '\0';
-
-      /* Create the marked-up text */
-      char markupText[segLen + 200];
-      sprintf(markupText, "%s<span background='#%x'>%s</span>%s", 
-	      textBefore, colour->pixel, textSelection, textAfter);
-
-      gtk_label_set_markup(label, markupText);
-    }
-  else
-    {
-      /* Selected index is out of range, so no markup required */
-      gtk_label_set_markup(label, segmentToDisplay);
-    }
-}
-
-
-/* Refresh the sequence column header. This header shows the section of reference
- * sequence for the current display range, so it needs to be refreshed after
- * scrolling, zooming etc. */
-static void refreshSequenceColHeader(GtkWidget *headerWidget, gpointer data)
-{
-  GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  
-  /* Find the segment of the ref sequence to display (complemented if this tree is
-   * displaying the reverse strand, and reversed if the display is toggled) */
-  IntRange *displayRange = treeGetDisplayRange(tree);
-  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-
-  gchar *segmentToDisplay = getSequenceSegment(mainWindow,
-					       mainWindowGetRefSeq(mainWindow),
-					       refSeqRange,
-					       displayRange->min, 
-					       displayRange->max, 
-					       treeGetStrand(tree), 
-					       mainWindowGetSeqType(mainWindow),
-					       treeGetFrame(tree), 
-					       mainWindowGetNumReadingFrames(mainWindow),
-					       rightToLeft,
-					       rightToLeft,
-					       TRUE,
-					       TRUE);
-
-  if (segmentToDisplay)
-    {
-      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-
-      if (selectedBaseIdx == UNSET_INT)
-        {
-          /* Just draw plain text */
-          gtk_label_set_markup(GTK_LABEL(headerWidget), segmentToDisplay);
-        }
-      else
-        {
-          GdkColor *selectedColour = treeGetRefSeqColour(tree, TRUE);
-          createMarkupForLabel(GTK_LABEL(headerWidget), segmentToDisplay, selectedBaseIdx, selectedColour, displayRange);
-        }
-      
-      g_free(segmentToDisplay);
-    }
-}
-
-
 /* Refresh the name column header. This displays an abbreviated version of the
  * reference sequence name. It needs refreshing when the columns change size,
  * so we can re-abbreviate with more/less text as required. */
@@ -1866,6 +1971,10 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
   if (GTK_IS_LABEL(headerWidget))
     {
       GtkWidget *tree = GTK_WIDGET(data);
+      
+      /* Update the font, in case its size has changed */
+      gtk_widget_modify_font(headerWidget , treeGetFontDesc(tree));
+
       TreeColumnHeaderInfo *headerInfo = treeColumnGetHeaderInfo(tree, S_NAME_COL);
       const int colWidth = calculateColumnWidth(headerInfo, tree);
 
@@ -1913,6 +2022,9 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
   
   if (GTK_IS_LABEL(headerWidget))
     {
+      /* Update the font, in case its size has changed */
+      gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
+
       GtkWidget *mainWindow = treeGetMainWindow(tree);
       
       int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), 
@@ -1944,6 +2056,9 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
   
   if (GTK_IS_LABEL(headerWidget))
     {
+      /* Update the font, in case its size has changed */
+      gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
+
       GtkWidget *mainWindow = treeGetMainWindow(tree);
       
       int displayVal = getEndDnaCoord(treeGetDisplayRange(tree),
@@ -2005,7 +2120,7 @@ static TreeColumnHeaderInfo* createTreeColumnHeaderInfo(GtkWidget *headerWidget,
 
 /* Create the header widget for the given column in the tree header. The tree
  * header bar shows information about the reference sequence. */
-static void createTreeColHeader(GList **headerWidgets, 
+static void createTreeColHeader(GList **columnHeaders, 
 				GtkTreeViewColumn *treeColumn,
 				DetailViewColumnInfo *columnInfo,
 				GtkWidget *headerBar,
@@ -2016,7 +2131,7 @@ static void createTreeColHeader(GList **headerWidgets,
 {
   /* Create a header for this column, if required. Create a list of other 
    * columns we wish to merge under the same header. */
-  GtkWidget *headerWidget = NULL;
+  GtkWidget *columnHeader = NULL;
   GList *columnIds = NULL;
   GtkCallback refreshFunc = NULL;
   
@@ -2027,7 +2142,7 @@ static void createTreeColHeader(GList **headerWidgets,
 	  /* The header above the name column will display the reference sequence name.
 	   * This header will also span the score and id columns, seeing as we don't need
 	   * to show any info in those columns. */
-	  headerWidget = createLabel("", 0.0, 1.0, TRUE, TRUE);
+	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  
 	  refreshFunc = refreshNameColHeader;
 	  
@@ -2039,11 +2154,14 @@ static void createTreeColHeader(GList **headerWidgets,
 	
       case SEQUENCE_COL:
 	{
-	  /* The sequence column header displays the reference sequence. This needs a custom
-	   * refresh callback function because it needs to be updated after scrolling etc. */
-	  headerWidget = createLabel(NULL, 0.0, 1.0, TRUE, TRUE);
-	  gtk_label_set_use_markup(GTK_LABEL(headerWidget), TRUE);
-	  refreshFunc = refreshSequenceColHeader;
+	  /* The sequence column header contains the reference sequence. */
+	  columnHeader = gtk_layout_new(NULL, NULL);
+	  
+	  seqColHeaderSetFrame(columnHeader, frame);
+	  gtk_widget_set_name(columnHeader, TEXT_HEADER_NAME);
+	  g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeRefSeqHeader), tree);
+	  
+	  refreshFunc = refreshTextHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  break;
 	}
@@ -2051,7 +2169,7 @@ static void createTreeColHeader(GList **headerWidgets,
       case START_COL:
 	{
 	  /* The start column header displays the start index of the current display range */
-	  headerWidget = createLabel("", 0.0, 1.0, TRUE, TRUE);
+	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshStartColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  break;
@@ -2060,7 +2178,7 @@ static void createTreeColHeader(GList **headerWidgets,
       case END_COL:
 	{
 	  /* The end column header displays the start index of the current display range */
-	  headerWidget = createLabel("", 0.0, 1.0, TRUE, TRUE);
+	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshEndColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  break;
@@ -2073,11 +2191,11 @@ static void createTreeColHeader(GList **headerWidgets,
     };
 
   
-  if (headerWidget != NULL)
+  if (columnHeader != NULL)
     { 
       /* Put the widget in an event box so that we can colour its background. */
       GtkWidget *parent = gtk_event_box_new();
-      gtk_container_add(GTK_CONTAINER(parent), headerWidget);
+      gtk_container_add(GTK_CONTAINER(parent), columnHeader);
       
       /* Put the event box into the header bar */
       gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == SEQUENCE_COL), TRUE, 0);
@@ -2087,8 +2205,8 @@ static void createTreeColHeader(GList **headerWidgets,
       gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour);
       
       /* Create the header info and add it to the list */
-      TreeColumnHeaderInfo *headerInfo = createTreeColumnHeaderInfo(headerWidget, tree, columnIds, refreshFunc);
-      *headerWidgets = g_list_append(*headerWidgets, headerInfo);
+      TreeColumnHeaderInfo *headerInfo = createTreeColumnHeaderInfo(columnHeader, tree, columnIds, refreshFunc);
+      *columnHeaders = g_list_append(*columnHeaders, headerInfo);
     }
 }
 
@@ -2098,13 +2216,13 @@ static GList* addTreeColumns(GtkWidget *tree,
 			     GtkCellRenderer *renderer, 
 			     const BlxSeqType seqType,
 			     GList *columnList,
-			     GtkWidget *headerBar,
+			     GtkWidget *columnHeaderBar,
 			     const char const *refSeqName,
 			     const int frame,
 			     const Strand strand)
 {
   /* We'll create the headers as we create the columns */
-  GList *headerWidgets = NULL;
+  GList *columnHeaders = NULL;
 
   /* The columns are defined by the columnList from the detail view. This list contains the
    * info such as the column width and title for each column. */
@@ -2117,7 +2235,7 @@ static GList* addTreeColumns(GtkWidget *tree,
       if (columnInfo)
 	{
 	  GtkTreeViewColumn *treeColumn = initColumn(tree, renderer, columnInfo);
-	  createTreeColHeader(&headerWidgets, treeColumn, columnInfo, headerBar, tree, refSeqName, frame, strand);
+	  createTreeColHeader(&columnHeaders, treeColumn, columnInfo, columnHeaderBar, tree, refSeqName, frame, strand);
 	}
       else
 	{
@@ -2130,7 +2248,7 @@ static GList* addTreeColumns(GtkWidget *tree,
    * want to show it when hovering over the name column. */
   /* gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree), S_NAME_COL); */ /* only in GTK 2.12 and higher */
 
-  return headerWidgets;
+  return columnHeaders;
 }
 
 
@@ -2335,12 +2453,30 @@ static void setTreeStyle(GtkTreeView *tree)
 }
 
 
-/* Create the widget that will contain the header labels. Not much to do here
- * because the labels are added when the columns are added. */
-static GtkWidget *createDetailViewTreeHeader()
+/* Create the widget that will contain all the header widgets. */
+static GtkWidget *createDetailViewTreeHeader(GtkWidget *detailView, 
+					     const gboolean includeSnpTrack,
+					     const Strand strand,
+					     GtkWidget *columnHeaderBar)
 {
-  GtkWidget *header = gtk_hbox_new(FALSE, 0);
-  return header;
+  GtkWidget *treeHeader = NULL; /* the outermost container for the header widgets */
+  
+  if (includeSnpTrack)
+    {
+      /* Pack the snp track and the column header bar into a vbox */
+      treeHeader = gtk_vbox_new(FALSE, 0);
+      gtk_widget_set_name(treeHeader, HEADER_CONTAINER_NAME);
+      
+      createSnpTrackHeader(GTK_BOX(treeHeader), detailView, strand);
+      gtk_box_pack_start(GTK_BOX(treeHeader), columnHeaderBar, FALSE, FALSE, 0);
+    }
+  else
+    {
+      /* Only include the column headers */
+      treeHeader = columnHeaderBar;
+    }
+  
+  return treeHeader;
 }
 
 
@@ -2351,8 +2487,12 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
 				GList *columnList,
 				BlxSeqType seqType,
 				const char const *refSeqName,
-				const int frame)
+				const int frame,
+				const gboolean includeSnpTrack)
 {
+  /* Find the strand the tree belongs to from the grid */
+  const Strand strand = gridGetStrand(grid);
+  
   /* Create a tree view for the list of match sequences */
   GtkWidget *tree = gtk_tree_view_new();
   setTreeStyle(GTK_TREE_VIEW(tree));
@@ -2365,28 +2505,31 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
   gtk_container_add(GTK_CONTAINER(scrollWin), tree);
 
-  /* Create a header, and put the tree and header in a vbox */
-  GtkWidget *treeHeader = createDetailViewTreeHeader();
+  /* Create a header, and put the tree and header in a vbox. This vbox is the outermost
+   * container for the tree */
+  GtkWidget *columnHeaderBar = gtk_hbox_new(FALSE, 0);
+  GtkWidget *treeHeader = createDetailViewTreeHeader(detailView, includeSnpTrack, strand, columnHeaderBar);
+  
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_widget_set_name(vbox, DETAIL_VIEW_TREE_CONTAINER_NAME);
   gtk_box_pack_start(GTK_BOX(vbox), treeHeader, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
   
   /* Add the columns */
-  GList *treeColumnHeaderList = addTreeColumns(tree, renderer, seqType, columnList, treeHeader, refSeqName, frame, gridGetStrand(grid));
+  GList *treeColumnHeaderList = addTreeColumns(tree, renderer, seqType, columnList, columnHeaderBar, refSeqName, frame, strand);
   
   /* Set the essential tree properties */
-  treeCreateProperties(tree, grid, detailView, frame, treeColumnHeaderList);
+  treeCreateProperties(tree, grid, detailView, frame, treeHeader, treeColumnHeaderList, includeSnpTrack);
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
   g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	NULL);
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
-  g_signal_connect(G_OBJECT(treeHeader), "button-press-event",    G_CALLBACK(onButtonPressTreeHeader),	 tree);
-  g_signal_connect(G_OBJECT(treeHeader), "button-release-event",  G_CALLBACK(onButtonReleaseTreeHeader), tree);
+  g_signal_connect(G_OBJECT(columnHeaderBar), "button-press-event",    G_CALLBACK(onButtonPressTreeHeader),	 tree);
+  g_signal_connect(G_OBJECT(columnHeaderBar), "button-release-event",  G_CALLBACK(onButtonReleaseTreeHeader), tree);
   g_signal_connect(G_OBJECT(tree), "key-press-event",	    G_CALLBACK(onKeyPressTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "motion-notify-event",   G_CALLBACK(onMouseMoveTree),	detailView);
-  g_signal_connect(G_OBJECT(treeHeader), "motion-notify-event",   G_CALLBACK(onMouseMoveTreeHeader),	tree);
+  g_signal_connect(G_OBJECT(columnHeaderBar), "motion-notify-event",   G_CALLBACK(onMouseMoveTreeHeader),	tree);
   g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
   g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "leave-notify-event",    G_CALLBACK(onLeaveTree),		NULL);

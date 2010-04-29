@@ -34,14 +34,15 @@ typedef struct _TreeProperties
     GtkWidget *detailView;	    /* The detail view that this tree belongs to */
 
     int readingFrame;		    /* Which reading frame this tree displays */
+    GtkWidget *treeHeader;	    /* The container that contains all the widgets for the tree header */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
+    gboolean displaySnps;	    /* Whether a SNP track is shown above this tree */
     
     GHashTable *seqTable;	    /* Hash table to group this tree's MSPs by sequence name. */
     
     GtkTreeModel *mspTreeModel;	    /* Default tree data store, in which each MSP has its own row */
     GtkTreeModel *seqTreeModel;     /* Condensed tree data store, in which multiple MSPs on the same sequence appear in the same row */
   } TreeProperties;
-GdkColor exonColour;
 
 
 /* Public function declarations */
@@ -50,6 +51,7 @@ GtkAdjustment*	  treeGetAdjustment(GtkWidget *tree);
 GtkCellRenderer*  treeGetRenderer(GtkWidget *tree);
 int		  treeGetCharWidth(GtkWidget *tree);
 GtkWidget*	  treeGetGrid(GtkWidget *tree);
+int		  treeGetFrame(GtkWidget *tree);
 Strand		  treeGetStrand(GtkWidget *tree);
 gboolean	  treeGetStrandsToggled(GtkWidget *tree);
 int		  treeGetNumReadingFrames(GtkWidget *tree);
@@ -113,7 +115,8 @@ GtkWidget*	  createDetailViewTree(GtkWidget *grid,
 				       GList *columnList,
 				       BlxSeqType seqType,
 				       const char const *refSeqName,
-				       const int frame);
+				       const int frame,
+				       const gboolean includeSnpTrack);
 
 void		   treeCreateBaseDataModel(GtkWidget *tree, gpointer data);
 void		   treeCreateFilteredDataModel(GtkWidget *tree, gpointer data);
