@@ -1,12 +1,12 @@
 /*
- *  blxviewMainWindow.c
+ *  blxWindow.c
  *  acedb
  *
  *  Created by Gemma Barson on 24/11/2009.
  *
  */
 
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/bigpicture.h>
@@ -14,7 +14,7 @@
 #include <SeqTools/utilities.h>
 #include <gdk/gdkkeysyms.h>
 
-#define DEFAULT_WINDOW_BORDER_WIDTH      10   /* used to change the default border width around the main window */
+#define DEFAULT_WINDOW_BORDER_WIDTH      10   /* used to change the default border width around the blixem window */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
@@ -45,16 +45,16 @@ static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
-static void			  onDestroyMainWindow(GtkWidget *widget);
+static void			  onDestroyBlxWindow(GtkWidget *widget);
 
-static Strand			  mainWindowGetInactiveStrand(GtkWidget *mainWindow);
+static Strand			  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
-static gint			  runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText);
+static gint			  runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
-static void			  mainWindowGroupsChanged(GtkWidget *mainWindow);
-static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *mainWindow);
+static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
+static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *blxWindow);
 static void			  getSequencesThatMatch(gpointer key, gpointer value, gpointer data);
-static GList*			  getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText);
+static GList*			  getSeqNamesFromText(GtkWidget *blxWindow, const char *inputText);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -179,7 +179,7 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
  * opposite direction to that indicated by the strand, because the display may be
  * reversed, so we leave it up to the caller to decide).
  */
-gchar *getSequenceSegment(GtkWidget *mainWindow,
+gchar *getSequenceSegment(GtkWidget *blxWindow,
 			  const char const *dnaSequence,
 			  const IntRange const *dnaSequenceRange,
 			  const int coord1, 
@@ -229,7 +229,7 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
   const int idx2 = qMax - dnaSequenceRange->min;
   
   /* Copy the portion of interest from the reference sequence and translate as necessary */
-  const BlxBlastMode mode = mainWindowGetBlastMode(mainWindow);
+  const BlxBlastMode mode = blxWindowGetBlastMode(blxWindow);
   
   if (mode == BLXMODE_BLASTP || mode == BLXMODE_TBLASTN)
     {
@@ -281,7 +281,7 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
       else
 	{
 	  /* Translate the DNA sequence to a peptide sequence */
-	  result = blxTranslate(segment, mainWindowGetGeneticCode(mainWindow));
+	  result = blxTranslate(segment, blxWindowGetGeneticCode(blxWindow));
 	  
 	  g_free(segment); /* delete this because we're not returning it */
 	  segment = NULL;
@@ -299,9 +299,9 @@ gchar *getSequenceSegment(GtkWidget *mainWindow,
 
 /* Returns the order number of the group that this sequence belongs to, or
  * UNSET_INT if it does not belong to a group. */
-int sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName)
+int sequenceGetGroupOrder(GtkWidget *blxWindow, const char *seqName)
 {
-  SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, seqName);
+  SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, seqName);
   return group ? group->order : UNSET_INT;
 }
 
@@ -310,7 +310,7 @@ int sequenceGetGroupOrder(GtkWidget *mainWindow, const char *seqName)
  * is pressed) */
 static void scrollDetailView(GtkWidget *window, const gboolean moveLeft, const gboolean modifier)
 {
-  GtkWidget *detailView = mainWindowGetDetailView(window);
+  GtkWidget *detailView = blxWindowGetDetailView(window);
   
   if (moveLeft && modifier)
     scrollDetailViewLeftPage(detailView);
@@ -329,7 +329,7 @@ static void scrollDetailView(GtkWidget *window, const gboolean moveLeft, const g
  * the new base in view. */
 static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(window);
+  BlxWindowProperties *properties = blxWindowGetProperties(window);
   GtkWidget *detailView = properties->detailView;
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
@@ -365,7 +365,7 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 	    }
 	}
 
-      IntRange *fullRange = mainWindowGetFullRange(window);
+      IntRange *fullRange = blxWindowGetFullRange(window);
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
 
       detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, newBaseNum, TRUE, TRUE);
@@ -376,13 +376,13 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 /* Called when user pressed Home/End. If the modifier is pressed, scroll to the
 *  start/end of all matches in the current selection (or all matches, if no 
 * selection), or to the start/end of the entire display if the modifier is not pressed. */
-static void scrollToExtremity(GtkWidget *mainWindow, const gboolean moveLeft, const gboolean modifier)
+static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, const gboolean modifier)
 {
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   if (modifier)
     {
-      GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
+      GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
 
       if (moveLeft)
 	firstMatch(detailView, selectedSeqs);
@@ -391,8 +391,8 @@ static void scrollToExtremity(GtkWidget *mainWindow, const gboolean moveLeft, co
     }
   else
     {
-      const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-      const IntRange const *fullRange = mainWindowGetFullRange(mainWindow);
+      const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+      const IntRange const *fullRange = blxWindowGetFullRange(blxWindow);
 
       if (moveLeft)
 	setDetailViewStartIdx(detailView, fullRange->min, seqType);
@@ -404,17 +404,17 @@ static void scrollToExtremity(GtkWidget *mainWindow, const gboolean moveLeft, co
 
 /* Jump left or right to the next/prev nearest match. Only include matches in the
  * current selection, if any rows are selected. */
-static void goToMatch(GtkWidget *mainWindow, const gboolean moveLeft)
+static void goToMatch(GtkWidget *blxWindow, const gboolean moveLeft)
 {
-  GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
+  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   
   if (moveLeft)
     {
-      prevMatch(mainWindowGetDetailView(mainWindow), selectedSeqs);
+      prevMatch(blxWindowGetDetailView(blxWindow), selectedSeqs);
     }
   else
     {
-      nextMatch(mainWindowGetDetailView(mainWindow), selectedSeqs);      
+      nextMatch(blxWindowGetDetailView(blxWindow), selectedSeqs);      
     }
 }
 
@@ -424,7 +424,7 @@ static void goToMatch(GtkWidget *mainWindow, const gboolean moveLeft)
  * index in view. */
 static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(window);
+  BlxWindowProperties *properties = blxWindowGetProperties(window);
   GtkWidget *detailView = properties->detailView;
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
@@ -443,7 +443,7 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
 	  ++newSelectedBaseIdx;
 	}
       
-      IntRange *fullRange = mainWindowGetFullRange(window);
+      IntRange *fullRange = blxWindowGetFullRange(window);
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
       
       detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE, TRUE);
@@ -452,30 +452,30 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
 
 
 /* Zooms the display in/out. The modifiers control which section is zoomed */
-static void zoomMainWindow(GtkWidget *window, const gboolean zoomIn, const gboolean ctrl, const gboolean shift)
+static void zoomBlxWindow(GtkWidget *window, const gboolean zoomIn, const gboolean ctrl, const gboolean shift)
 {
   if (ctrl)
     {
       if (shift)
-	zoomWholeBigPicture(mainWindowGetBigPicture(window));
+	zoomWholeBigPicture(blxWindowGetBigPicture(window));
       else
-	zoomBigPicture(mainWindowGetBigPicture(window), zoomIn);
+	zoomBigPicture(blxWindowGetBigPicture(window), zoomIn);
     }
   else
     {
-      zoomDetailView(mainWindowGetDetailView(window), zoomIn);
+      zoomDetailView(blxWindowGetDetailView(window), zoomIn);
     }
 }
 
 
 /* Force a redraw of all widgets. Clears cached bitmaps etc. first */
-void mainWindowRedrawAll(GtkWidget *mainWindow)
+void blxWindowRedrawAll(GtkWidget *blxWindow)
 {
-  GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   widgetClearCachedDrawable(bigPictureGetFwdGrid(bigPicture));
   widgetClearCachedDrawable(bigPictureGetRevGrid(bigPicture));
   
-  gtk_widget_queue_draw(mainWindow);
+  gtk_widget_queue_draw(blxWindow);
 }
 
 
@@ -500,11 +500,11 @@ static GtkWidget* createHBoxWithBorder(GtkWidget *parent, const int borderWidth)
 
 /* Utility to return true if any groups exist. Ignores the 'match set' group
  * if it doesn't have any sequences. */
-static gboolean mainWindowGroupsExist(GtkWidget *mainWindow)
+static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
 {
   gboolean result = FALSE;
   
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   GList *groupList = properties->sequenceGroups;
   
   if (g_list_length(groupList) > 1)
@@ -533,9 +533,9 @@ static gboolean mainWindowGroupsExist(GtkWidget *mainWindow)
 /* Toggle visibility the n'th tree. This is the active strand's frame n if displaying
  * protein matches (where we only display one strand), or the forward or reverse
  * strand tree if displaying DNA matches (where both strands are displayed). */
-static void toggleTreeVisibility(GtkWidget *mainWindow, const int number)
+static void toggleTreeVisibility(GtkWidget *blxWindow, const int number)
 {
-  const gboolean toggled = mainWindowGetStrandsToggled(mainWindow);
+  const gboolean toggled = blxWindowGetStrandsToggled(blxWindow);
   const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
   
   /* For protein matches, trees are always displayed in frame order (i.e. 1, 2, 3), 
@@ -546,7 +546,7 @@ static void toggleTreeVisibility(GtkWidget *mainWindow, const int number)
   
   /* For DNA matches, the frame is always 1, but the strand depends on which number
    * was pressed: use 1 to toggle active strand, 2 for other strand */
-  if (mainWindowGetSeqType(mainWindow) == BLXSEQ_DNA)
+  if (blxWindowGetSeqType(blxWindow) == BLXSEQ_DNA)
     {
       frame = 1;
       
@@ -560,7 +560,7 @@ static void toggleTreeVisibility(GtkWidget *mainWindow, const int number)
 	}
     }
   
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   GtkWidget *tree = detailViewGetTreeContainer(detailView, strand, frame);
   
   if (tree && gtk_widget_get_parent(tree))
@@ -571,12 +571,12 @@ static void toggleTreeVisibility(GtkWidget *mainWindow, const int number)
 
 
 /* Toggle visibility of the active (1) or other (2) strand grid depending on the number pressed */
-static void toggleGridVisibility(GtkWidget *mainWindow, const int number)
+static void toggleGridVisibility(GtkWidget *blxWindow, const int number)
 {
   if (number == 1 || number == 2)
     {
-      GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
-      const gboolean useFwdGrid = (number == 1) != mainWindowGetStrandsToggled(mainWindow);
+      GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+      const gboolean useFwdGrid = (number == 1) != blxWindowGetStrandsToggled(blxWindow);
       
       GtkWidget *grid = useFwdGrid ? bigPictureGetFwdGrid(bigPicture) : bigPictureGetRevGrid(bigPicture);
       widgetSetHidden(grid, !widgetGetHidden(grid));
@@ -585,12 +585,12 @@ static void toggleGridVisibility(GtkWidget *mainWindow, const int number)
 
 
 /* Toggle visibility of the active (1) or other (2) strand exon view depending on the number pressed */
-static void toggleExonViewVisibility(GtkWidget *mainWindow, const int number)
+static void toggleExonViewVisibility(GtkWidget *blxWindow, const int number)
 {
   if (number == 1 || number == 2)
     {
-      GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
-      const gboolean useFwdExonView = (number == 1) != mainWindowGetStrandsToggled(mainWindow);
+      GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+      const gboolean useFwdExonView = (number == 1) != blxWindowGetStrandsToggled(blxWindow);
       
       GtkWidget *exonView = useFwdExonView ? bigPictureGetFwdExonView(bigPicture) : bigPictureGetRevExonView(bigPicture);
       widgetSetHidden(exonView, !widgetGetHidden(exonView));
@@ -599,7 +599,7 @@ static void toggleExonViewVisibility(GtkWidget *mainWindow, const int number)
 
 
 /* Toggle the visibility of tree/grid panes following a number key press */
-static void togglePaneVisibility(GtkWidget *mainWindow, const int number, const gboolean modifier1, const gboolean modifier2)
+static void togglePaneVisibility(GtkWidget *blxWindow, const int number, const gboolean modifier1, const gboolean modifier2)
 {
   /* Affects big picture if modifier1 was pressed, the detail view otherwise */
   if (modifier1)
@@ -607,16 +607,16 @@ static void togglePaneVisibility(GtkWidget *mainWindow, const int number, const 
       /* If modifier 2 was also pressed, affects the exon views; otherwise the grids */
       if (modifier2)
 	{
-	  toggleExonViewVisibility(mainWindow, number);
+	  toggleExonViewVisibility(blxWindow, number);
 	}
       else
 	{
-	  toggleGridVisibility(mainWindow, number);
+	  toggleGridVisibility(blxWindow, number);
 	}
     }
   else
     {
-      toggleTreeVisibility(mainWindow, number);
+      toggleTreeVisibility(blxWindow, number);
     }
 }
 
@@ -646,7 +646,7 @@ static void createVisibilityButton(GtkWidget *widgetToToggle, const char *mnemon
 /* Create a check button to control visibility of the given tree. */
 static void createTreeVisibilityButton(GtkWidget *detailView, const Strand strand, const int frame, GtkWidget *container)
 {
-  /* Some trees may have been removed from the main window if they are not on the active 
+  /* Some trees may have been removed from the blixem window if they are not on the active 
    * strand, so only show check boxes for those that are in the window (i.e. have a parent). 
    * Note that we get the tree container here, which consists of the tree itself plus any headers etc. */
   GtkWidget *tree = detailViewGetTreeContainer(detailView, strand, frame);
@@ -677,10 +677,10 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const Strand stran
 
 
 /* Shows the "View panes" dialog. This dialog allows the user to show/hide certain portions of the window. */
-void showViewPanesDialog(GtkWidget *mainWindow)
+void showViewPanesDialog(GtkWidget *blxWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("View panes", 
-						  GTK_WINDOW(mainWindow), 
+						  GTK_WINDOW(blxWindow), 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
@@ -692,7 +692,7 @@ void showViewPanesDialog(GtkWidget *mainWindow)
   int borderWidth = 12;
   
   /* Big picture */
-  GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   createVisibilityButton(bigPicture, "_Big picture", contentArea);
   
   GtkWidget *bigPictureSubBox = createVBoxWithBorder(contentArea, borderWidth);
@@ -702,16 +702,16 @@ void showViewPanesDialog(GtkWidget *mainWindow)
   createVisibilityButton(bigPictureGetInactiveGrid(bigPicture), "O_ther strand grid", bigPictureSubBox);
   
   /* Detail view */
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   createVisibilityButton(detailView, "_Detail view", contentArea);
   
   GtkWidget *detailViewSubBox = createVBoxWithBorder(contentArea, borderWidth);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  const int numFrames = blxWindowGetNumReadingFrames(blxWindow);
   int frame = 1;
   for ( ; frame <= numFrames; ++frame)
     {
-      createTreeVisibilityButton(detailView, mainWindowGetActiveStrand(mainWindow), frame, detailViewSubBox);
-      createTreeVisibilityButton(detailView, mainWindowGetInactiveStrand(mainWindow), frame, detailViewSubBox);
+      createTreeVisibilityButton(detailView, blxWindowGetActiveStrand(blxWindow), frame, detailViewSubBox);
+      createTreeVisibilityButton(detailView, blxWindowGetInactiveStrand(blxWindow), frame, detailViewSubBox);
     }
   
   /* Connect signals and show */
@@ -741,10 +741,10 @@ static GList* findSeqsFromName(GtkWidget *button, gpointer data)
       return NULL;
     }
   
-  /* Extract the main window from our parent window. */
+  /* Extract the main blixem window from our parent window. */
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   const char *searchStr = gtk_entry_get_text(entry);
   
@@ -791,9 +791,9 @@ static GList* findSeqsFromList(GtkWidget *button, gpointer data)
   const char *inputText = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
   
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   
-  GList *seqNameList = getSeqNamesFromText(mainWindow, inputText);
+  GList *seqNameList = getSeqNamesFromText(blxWindow, inputText);
   
   if (g_list_length(seqNameList) < 1)
     {
@@ -813,10 +813,10 @@ static void onFindSeqsFromName(GtkWidget *button, gpointer data)
   if (seqList)
     {
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      mainWindowSetSelectedSeqList(mainWindow, seqList);
-      firstMatch(mainWindowGetDetailView(mainWindow), seqList);
+      blxWindowSetSelectedSeqList(blxWindow, seqList);
+      firstMatch(blxWindowGetDetailView(blxWindow), seqList);
     }
 }
 
@@ -830,18 +830,18 @@ static void onFindSeqsFromList(GtkWidget *button, gpointer data)
   if (seqList)
     {
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
       
-      mainWindowSetSelectedSeqList(mainWindow, seqList);
-      firstMatch(mainWindowGetDetailView(mainWindow), seqList);
+      blxWindowSetSelectedSeqList(blxWindow, seqList);
+      firstMatch(blxWindowGetDetailView(blxWindow), seqList);
     }
 }
 
 
-void showFindDialog(GtkWidget *mainWindow)
+void showFindDialog(GtkWidget *blxWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Find sequences", 
-						  GTK_WINDOW(mainWindow), 
+						  GTK_WINDOW(blxWindow), 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
@@ -853,11 +853,11 @@ void showFindDialog(GtkWidget *mainWindow)
 
   GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
   
-  GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "From _name (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, mainWindow);
-  createRadioButton(contentArea, button1, "From _list", FALSE, TRUE, TRUE, onFindSeqsFromList, mainWindow);
+  GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "From _name (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
+  createRadioButton(contentArea, button1, "From _list", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
   
   /* Connect signals and show */
-  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(mainWindow));
+  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
   
   gtk_widget_show_all(dialog);
@@ -891,12 +891,12 @@ static void freeStringList(GList **stringList, const gboolean freeDataItems)
 
 
 /* Free the memory used by the given sequence group and its members. */
-static void destroySequenceGroup(GtkWidget *mainWindow, SequenceGroup **seqGroup)
+static void destroySequenceGroup(GtkWidget *blxWindow, SequenceGroup **seqGroup)
 {
   if (seqGroup && *seqGroup)
     {
-      /* Remove it from the main window's list of groups */
-      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      /* Remove it from the list of groups */
+      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
       properties->sequenceGroups = g_list_remove(properties->sequenceGroups, *seqGroup);
       
       /* If this is pointed to by the match-set pointer, null it */
@@ -924,61 +924,61 @@ static void destroySequenceGroup(GtkWidget *mainWindow, SequenceGroup **seqGroup
 
 
 /* Delete a single group */
-static void mainWindowDeleteSequenceGroup(GtkWidget *mainWindow, SequenceGroup *group)
+static void blxWindowDeleteSequenceGroup(GtkWidget *blxWindow, SequenceGroup *group)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
   if (properties->sequenceGroups)
     {
-      destroySequenceGroup(mainWindow, &group);
-      mainWindowGroupsChanged(mainWindow);
+      destroySequenceGroup(blxWindow, &group);
+      blxWindowGroupsChanged(blxWindow);
     }
 }
 
 
 /* Delete all groups */
-static void mainWindowDeleteAllSequenceGroups(GtkWidget *mainWindow)
+static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   GList *groupItem = properties->sequenceGroups;
   
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      destroySequenceGroup(mainWindow, &group);
+      destroySequenceGroup(blxWindow, &group);
     }
   
   g_list_free(properties->sequenceGroups);
   properties->sequenceGroups = NULL;
   
-  mainWindowGroupsChanged(mainWindow);
+  blxWindowGroupsChanged(blxWindow);
 }
 
 
 /* Update function to be called whenever groups have been added or deleted,
  * or sequences have been added to or removed from a group */
-static void mainWindowGroupsChanged(GtkWidget *mainWindow)
+static void blxWindowGroupsChanged(GtkWidget *blxWindow)
 {
   /* Re-sort all trees, because grouping affects sort order */
-  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), resortTree);
+  callFuncOnAllDetailViewTrees(blxWindowGetDetailView(blxWindow), resortTree);
   
   /* Refilter the trees (because groups affect whether sequences are visible) */
-  callFuncOnAllDetailViewTrees(mainWindowGetDetailView(mainWindow), refilterTree);
+  callFuncOnAllDetailViewTrees(blxWindowGetDetailView(blxWindow), refilterTree);
 
   /* Redraw all (because highlighting affects both big picture and detail view) */
-  mainWindowRedrawAll(mainWindow);
+  blxWindowRedrawAll(blxWindow);
 }
 
 
 /* Create a new sequence group from the given list of sequence names, with a
- * unique ID and name, and add it to the mainWindow's list of groups. The group 
+ * unique ID and name, and add it to the blxWindow's list of groups. The group 
  * should be destroyed with destroySequenceGroup. If ownSeqNames is true, the group
  * will take ownership of the sequence names and free them when it is destroyed. 
  * Caller can optionally provide the group name; if not provided, a default name
  * will be allocated. */
-static SequenceGroup* createSequenceGroup(GtkWidget *mainWindow, GList *seqNameList, const gboolean ownSeqNames, const char *groupName)
+static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqNameList, const gboolean ownSeqNames, const char *groupName)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
   /* Create the new group */
   SequenceGroup *group = g_malloc(sizeof(SequenceGroup));
@@ -1023,7 +1023,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *mainWindow, GList *seqNameL
 
   properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
 
-  mainWindowGroupsChanged(mainWindow);
+  blxWindowGroupsChanged(blxWindow);
   
   return group;
 }
@@ -1073,9 +1073,9 @@ static void onGroupOrderChanged(GtkWidget *widget, gpointer data)
       group->order = convertStringToInt(newOrder);
       
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      mainWindowGroupsChanged(mainWindow);
+      blxWindowGroupsChanged(blxWindow);
     }
 }
 
@@ -1089,9 +1089,9 @@ static void onGroupHiddenToggled(GtkWidget *button, gpointer data)
 
   /* Refilter trees and redraw all immediately show the new status */
   GtkWidget *dialog = gtk_widget_get_toplevel(button);
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
 
-  mainWindowGroupsChanged(mainWindow);
+  blxWindowGroupsChanged(blxWindow);
 }
 
 
@@ -1102,13 +1102,13 @@ static void onGroupHighlightedToggled(GtkWidget *button, gpointer data)
   SequenceGroup *group = (SequenceGroup*)data;
   group->highlighted = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   
-  /* Redraw the main window to immediately show the new status. The toplevel
-   * parent of the button is the dialog, and the main window is the transient
+  /* Redraw the blixem window to immediately show the new status. The toplevel
+   * parent of the button is the dialog, and the blixem window is the transient
    * parent of the dialog. */
   GtkWidget *dialog = gtk_widget_get_toplevel(button);
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
   
-  mainWindowRedrawAll(mainWindow);
+  blxWindowRedrawAll(blxWindow);
 }
 
 
@@ -1121,17 +1121,17 @@ static void onGroupColourChanged(GtkWidget *button, gpointer data)
   
   /* Redraw everything in the new colours */
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(button)));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-  mainWindowRedrawAll(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  blxWindowRedrawAll(blxWindow);
 }
 
 
 /* This function creates a widget that allows the user to edit the group
  * pointed to by the given list item, and adds it to the table container
  * widget at the given row. */
-static void createEditGroupWidget(GtkWidget *mainWindow, SequenceGroup *group, GtkTable *table, const int row, const int xpad, const int ypad)
+static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, GtkTable *table, const int row, const int xpad, const int ypad)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
   /* Only show the special 'match set' group if it has some sequences */
   if (group != properties->matchSetGroup || g_list_length(group->seqNameList) > 0)
@@ -1223,14 +1223,14 @@ static void addGroupFromSelection(GtkWidget *button, gpointer data)
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     {  
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
       
       if (g_list_length(properties->selectedSeqs) > 0)
 	{
 	  GList *list = g_list_copy(properties->selectedSeqs); /* group takes ownership of this */
-	  createSequenceGroup(mainWindow, list, FALSE, NULL);
+	  createSequenceGroup(blxWindow, list, FALSE, NULL);
 	}
       else
 	{
@@ -1249,20 +1249,20 @@ static void addGroupFromName(GtkWidget *button, gpointer data)
   if (seqList)
     {
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      createSequenceGroup(mainWindow, seqList, FALSE, NULL);
+      createSequenceGroup(blxWindow, seqList, FALSE, NULL);
     }
 }
 
 
 /* Utility function to take a list of names, and return a list of those that
  * that are valid sequence names existing in the current blixem session. */
-static GList* getValidSeqsFromList(GtkWidget *mainWindow, GList *inputList)
+static GList* getValidSeqsFromList(GtkWidget *blxWindow, GList *inputList)
 {
   SeqSearchData searchData = {NULL, NULL};
   
-  GHashTable *seqTable = detailViewGetSeqTable(mainWindowGetDetailView(mainWindow));
+  GHashTable *seqTable = detailViewGetSeqTable(blxWindowGetDetailView(blxWindow));
 
   /* Loop through all the names in the input list */
   GList *listItem = inputList;
@@ -1280,12 +1280,12 @@ static GList* getValidSeqsFromList(GtkWidget *mainWindow, GList *inputList)
 
 /* Utility to create a GList of sequence names from a textual list of sequences.
  * Returns only valid sequences that blixem knows about. */
-static GList* getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText)
+static GList* getSeqNamesFromText(GtkWidget *blxWindow, const char *inputText)
 {
   GList *nameList = parseMatchList(inputText);
   
   /* Extract the entries from the list that are sequences that blixem knows about */
-  GList *seqNameList = getValidSeqsFromList(mainWindow, nameList);
+  GList *seqNameList = getValidSeqsFromList(blxWindow, nameList);
   
   /* Must free the original name list and all its data. */
   freeStringList(&nameList, TRUE);
@@ -1307,17 +1307,17 @@ static GList* getSeqNamesFromText(GtkWidget *mainWindow, const char *inputText)
 static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
 {
   /* Get the list of sequences to include */
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  GList *seqNameList = getSeqNamesFromText(mainWindow, clipboardText);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqNameList = getSeqNamesFromText(blxWindow, clipboardText);
   
   /* If a group already exists, replace its list. Otherwise create the group. */
   if (seqNameList)
     {
-      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
       
       if (!properties->matchSetGroup)
 	{
-	  properties->matchSetGroup = createSequenceGroup(mainWindow, seqNameList, FALSE, "Match Set");
+	  properties->matchSetGroup = createSequenceGroup(blxWindow, seqNameList, FALSE, "Match Set");
 	}
       else
 	{
@@ -1329,7 +1329,7 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
       properties->matchSetGroup->highlighted = TRUE;
       properties->matchSetGroup->hidden = FALSE;
 
-      mainWindowGroupsChanged(mainWindow);
+      blxWindowGroupsChanged(blxWindow);
     }
 }
 
@@ -1340,13 +1340,13 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
 void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
 {
   /* Get the list of sequences to include */
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  GList *seqNameList = getSeqNamesFromText(mainWindow, clipboardText);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqNameList = getSeqNamesFromText(blxWindow, clipboardText);
   
   if (seqNameList)
     {
-      mainWindowSetSelectedSeqList(mainWindow, seqNameList);
-      firstMatch(mainWindowGetDetailView(mainWindow), seqNameList);
+      blxWindowSetSelectedSeqList(blxWindow, seqNameList);
+      firstMatch(blxWindowGetDetailView(blxWindow), seqNameList);
     }
 }
 
@@ -1354,20 +1354,20 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
 /* This function toggles the match set.  That is, if the match set (a special 
  * group) exists then it deletes it; if it does not exist, then it creates it
  * from the current clipboard text (which should contain valid sequence name(s)). */
-static void toggleMatchSet(GtkWidget *mainWindow)
+static void toggleMatchSet(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
   if (properties->matchSetGroup && properties->matchSetGroup->seqNameList)
     {
       /* Clear the list of names only (don't delete the group, because we want to
        * keep any changes the user made (e.g. to the group colour etc.) for next time. */
       freeStringList(&(properties->matchSetGroup->seqNameList), properties->matchSetGroup->ownsSeqNames);
-      mainWindowGroupsChanged(mainWindow);
+      blxWindowGroupsChanged(blxWindow);
     }
   else
     {
-      requestPrimaryClipboardText(createMatchSetFromClipboard, mainWindow);
+      requestPrimaryClipboardText(createMatchSetFromClipboard, blxWindow);
     }
 }
 
@@ -1381,9 +1381,9 @@ static void addGroupFromList(GtkWidget *button, gpointer data)
   if (seqNameList)
     {
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      createSequenceGroup(mainWindow, seqNameList, FALSE, NULL);
+      createSequenceGroup(blxWindow, seqNameList, FALSE, NULL);
     }
 }
 
@@ -1392,14 +1392,14 @@ static void addGroupFromList(GtkWidget *button, gpointer data)
 static void onButtonClickedDeleteAllGroups(GtkWidget *button, gpointer data)
 {
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
   /* Ask the user if they're sure */
-  gint response = runConfirmationBox(mainWindow, "Delete groups", "This will delete ALL groups. Are you sure?");
+  gint response = runConfirmationBox(blxWindow, "Delete groups", "This will delete ALL groups. Are you sure?");
   
   if (response == GTK_RESPONSE_ACCEPT)
     {
-      mainWindowDeleteAllSequenceGroups(mainWindow);
+      blxWindowDeleteAllSequenceGroups(blxWindow);
       
       /* Close the dialog, because there are no groups left to display. */
       gtk_widget_destroy(GTK_WIDGET(dialogWindow));
@@ -1413,26 +1413,26 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
   SequenceGroup *group = (SequenceGroup*)data;
   
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   
   /* Ask the user if they're sure */
   char formatStr[] = "Are you sure you wish to delete group '%s'?";
   char messageText[strlen(formatStr) + strlen(group->groupName)];
   sprintf(messageText, formatStr, group->groupName);
   
-  gint response = runConfirmationBox(mainWindow, "Delete group", messageText);
+  gint response = runConfirmationBox(blxWindow, "Delete group", messageText);
   
   if (response == GTK_RESPONSE_ACCEPT)
     {
-      mainWindowDeleteSequenceGroup(mainWindow, group);
+      blxWindowDeleteSequenceGroup(blxWindow, group);
       
       /* Refresh the dialog by closing and re-opening. (Not ideal because it doesn't
        * remember the position). Only re-open if there are still some groups existing. */
       gtk_widget_destroy(GTK_WIDGET(dialogWindow));
       
-      if (mainWindowGroupsExist(mainWindow))
+      if (blxWindowGroupsExist(blxWindow))
 	{
-	  showGroupsDialog(mainWindow, TRUE);
+	  showGroupsDialog(blxWindow, TRUE);
 	}
     }
 }
@@ -1481,7 +1481,7 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 					 const gboolean createTextEntry,
 					 const gboolean multiline,
 					 GtkCallback callbackFunc,
-					 GtkWidget *mainWindow)
+					 GtkWidget *blxWindow)
 {
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
   
@@ -1498,7 +1498,7 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 
       /* Specify a min height */
       const int numLines = 4;
-      const int charHeight = detailViewGetCharHeight(mainWindowGetDetailView(mainWindow));
+      const int charHeight = detailViewGetCharHeight(blxWindowGetDetailView(blxWindow));
       gtk_widget_set_size_request(entry, -1, charHeight * numLines);
 
       GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
@@ -1527,7 +1527,7 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 
       if (isActive)
 	{
-	  gtk_window_set_focus(GTK_WINDOW(mainWindow), entry);
+	  gtk_window_set_focus(GTK_WINDOW(blxWindow), entry);
 	}
 
       g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onRadioButtonToggled), entry);
@@ -1604,10 +1604,10 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
     {
       /* Re-create the dialog, opening it on the Edit Groups page */
       GtkWindow *dialogWindow = GTK_WINDOW(dialog);
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   
       gtk_widget_destroy(GTK_WIDGET(dialog));
-      showGroupsDialog(mainWindow, TRUE);
+      showGroupsDialog(blxWindow, TRUE);
     }
 }
 
@@ -1616,10 +1616,10 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
  * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
  * 'editGroups' argument is true and groups exist, the 'Edit Groups' tab is displayed by default;
  * otherwise the 'Create Groups' tab is shown. */
-void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
+void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
-						  GTK_WINDOW(mainWindow), 
+						  GTK_WINDOW(blxWindow), 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
@@ -1629,11 +1629,11 @@ void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   const gboolean seqsSelected = g_list_length(properties->selectedSeqs) > 0;
 
   const int numRows = g_list_length(properties->sequenceGroups) + 2; /* +2 for header row and delete-all button */
-  const gboolean groupsExist = mainWindowGroupsExist(mainWindow);
+  const gboolean groupsExist = blxWindowGroupsExist(blxWindow);
   
 
   /* Create tabbed pages */
@@ -1645,9 +1645,9 @@ void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
   GtkBox *section1 = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(section1), gtk_label_new("Create group"));
 
-  GtkRadioButton *button1 = createRadioButton(section1, NULL, "From _selection", seqsSelected, FALSE, FALSE, addGroupFromSelection, mainWindow);
-  createRadioButton(section1, button1, "From _name (wildcards * and ?)", !seqsSelected, TRUE, FALSE, addGroupFromName, mainWindow);
-  createRadioButton(section1, button1, "From _list", FALSE, TRUE, TRUE, addGroupFromList, mainWindow);
+  GtkRadioButton *button1 = createRadioButton(section1, NULL, "From _selection", seqsSelected, FALSE, FALSE, addGroupFromSelection, blxWindow);
+  createRadioButton(section1, button1, "From _name (wildcards * and ?)", !seqsSelected, TRUE, FALSE, addGroupFromName, blxWindow);
+  createRadioButton(section1, button1, "From _list", FALSE, TRUE, TRUE, addGroupFromList, blxWindow);
 
   /* "EDIT GROUP" SECTION. */
   GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
@@ -1669,11 +1669,11 @@ void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
   ++row;
   
   /* Add a set of widgets for each group */
-  GList *groupItem = mainWindowGetSequenceGroups(mainWindow);
+  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      createEditGroupWidget(mainWindow, group, table, row, xpad, ypad);
+      createEditGroupWidget(blxWindow, group, table, row, xpad, ypad);
       ++row;
     }
   
@@ -1685,7 +1685,7 @@ void showGroupsDialog(GtkWidget *mainWindow, const gboolean editGroups)
   gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   
   /* Connect signals and show */
-  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(mainWindow));
+  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseGroupsDialog), notebook);
   g_signal_connect(notebook, "switch-page", G_CALLBACK(onSwitchPageGroupsDialog), dialog);
   
@@ -1750,14 +1750,14 @@ static void createCheckButton(GtkBox *box,
 			      const char *mnemonic, 
 			      const gboolean isActive, 
 			      GCallback callback, 
-			      GtkWidget *mainWindow)
+			      GtkWidget *blxWindow)
 {
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   
-  g_signal_connect(G_OBJECT(button), "toggled", callback, mainWindow);
+  g_signal_connect(G_OBJECT(button), "toggled", callback, blxWindow);
 }
 
 
@@ -1775,8 +1775,8 @@ static void onColumnSizeChanged(GtkWidget *widget, gpointer data)
       columnInfo->width = newWidth;
 
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-      GtkWidget *mainWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-      GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
       callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
       resizeDetailViewHeaders(detailView);
@@ -1835,10 +1835,10 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 
 
 /* Shows the "Settings" dialog. */
-void showSettingsDialog(GtkWidget *mainWindow)
+void showSettingsDialog(GtkWidget *blxWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
-						  GTK_WINDOW(mainWindow), 
+						  GTK_WINDOW(blxWindow), 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
@@ -1852,7 +1852,7 @@ void showSettingsDialog(GtkWidget *mainWindow)
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
 
   int borderWidth = 12;
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   GtkWidget *mainVBox = createVBoxWithBorder(contentArea, borderWidth);
 
@@ -1880,7 +1880,7 @@ void showSettingsDialog(GtkWidget *mainWindow)
  *		    Statistics menu			   *
  ***********************************************************/
 
-static void getStats(GtkWidget *mainWindow, GString *result, MSP *MSPlist)
+static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
 {
   int numMSPs = 0;          /* count of MSPs */
   int numSeqs = 0;          /* count of sequences (excluding duplicates) */
@@ -1906,7 +1906,7 @@ static void getStats(GtkWidget *mainWindow, GString *result, MSP *MSPlist)
   
   g_hash_table_destroy(sequences);
   
-  int refSeqLen = strlen(mainWindowGetRefSeq(mainWindow));
+  int refSeqLen = strlen(blxWindowGetRefSeq(blxWindow));
   
   /* Create the text based on the results */
   g_string_printf(result, "%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s",
@@ -1919,11 +1919,11 @@ static void getStats(GtkWidget *mainWindow, GString *result, MSP *MSPlist)
 }
 
 
-static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
+static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 {
   /* Create a dialog widget with an OK button */
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Statistics", 
-                                                  GTK_WINDOW(mainWindow),
+                                                  GTK_WINDOW(blxWindow),
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
@@ -1934,7 +1934,7 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
   
   /* Create a text buffer containing the required text*/
   GString *displayText = g_string_sized_new(200); /* will be extended if we need more space */
-  getStats(mainWindow, displayText, MSPlist);
+  getStats(blxWindow, displayText, MSPlist);
   GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
   gtk_text_buffer_set_text(GTK_TEXT_BUFFER(textBuffer), displayText->str, -1);
   g_string_free(displayText, TRUE);
@@ -1956,10 +1956,10 @@ static void showStatsDialog(GtkWidget *mainWindow, MSP *MSPlist)
 /* Utility to pop up a simple confirmation dialog box with the given title and text, 
  * with just an "OK" and "Cancel" button. Blocks until the user responds, and returns
  * their response ID. */
-static gint runConfirmationBox(GtkWidget *mainWindow, char *title, char *messageText)
+static gint runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-						  GTK_WINDOW(mainWindow), 
+						  GTK_WINDOW(blxWindow), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
@@ -1988,7 +1988,7 @@ static gint runConfirmationBox(GtkWidget *mainWindow, char *title, char *message
 }
 
 
-void displayHelp(GtkWidget *mainWindow)
+void displayHelp(GtkWidget *blxWindow)
 {
   char *messageText = (messprintf("\
 BLIXEM\n\
@@ -2165,10 +2165,10 @@ In the detail view, the following colours and symbols have the following meaning
 ", blixemVersion));
 
   /* Set a pretty big initial size */
-  const int initWidth = mainWindow->allocation.width * 0.7;
-  const int maxHeight = mainWindow->allocation.height * 0.7;
+  const int initWidth = blxWindow->allocation.width * 0.7;
+  const int maxHeight = blxWindow->allocation.height * 0.7;
   
-  showMessageDialog("Help", messageText, NULL, initWidth, maxHeight, TRUE, mainWindow->style->font_desc);
+  showMessageDialog("Help", messageText, NULL, initWidth, maxHeight, TRUE, blxWindow->style->font_desc);
 }
 
 
@@ -2180,62 +2180,62 @@ In the detail view, the following colours and symbols have the following meaning
  * Pops up a dialog showing user help information */
 static void onQuit(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  gtk_widget_destroy(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  gtk_widget_destroy(blxWindow);
 }
 
 
 /* Called when the user selects the Help menu option, or hits the Help shortcut key. */
 static void onHelpMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  displayHelp(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  displayHelp(blxWindow);
 }
 
 
 /* Called when the user selects the View menu option, or hits the Settings shortcut key */
 static void onViewMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  showViewPanesDialog(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showViewPanesDialog(blxWindow);
 }
 
 
 /* Called when the user selects the 'Group Sequences' menu option, or hits the relevant shortcut key */
 static void onCreateGroupMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  showGroupsDialog(mainWindow, FALSE);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showGroupsDialog(blxWindow, FALSE);
 }
 
 
 /* Called when the user selects the 'Groups' menu option, or hits the relevant shortcut key */
 static void onEditGroupsMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  showGroupsDialog(mainWindow, TRUE);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showGroupsDialog(blxWindow, TRUE);
 }
 
 /* Called when the user selects the 'Toggle match set' option, or hits the relevant shortcut key */
 static void onToggleMatchSet(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  toggleMatchSet(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  toggleMatchSet(blxWindow);
 }
 
 /* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
 static void onSettingsMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  showSettingsDialog(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showSettingsDialog(blxWindow);
 }
 
 
 /* Called when the user selects the Dotter menu option, or hits the Dotter shortcut key */
 static void onDotterMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  showDotterDialog(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showDotterDialog(blxWindow);
 }
 
 
@@ -2249,8 +2249,8 @@ static void onSelectFeaturesMenu(GtkAction *action, gpointer data)
 /* Called when the user selects the 'Deselect all' menu option, or hits the relevant shortcut key */
 static void onDeselectAllRows(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  mainWindowDeselectAllSeqs(mainWindow, TRUE);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  blxWindowDeselectAllSeqs(blxWindow, TRUE);
 }
 
 
@@ -2258,17 +2258,17 @@ static void onDeselectAllRows(GtkAction *action, gpointer data)
  * Pops up a dialog showing memory usage statistics. */
 static void onStatisticsMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MSP *mspList = mainWindowGetMspList(mainWindow);
-  showStatsDialog(mainWindow, mspList);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  MSP *mspList = blxWindowGetMspList(blxWindow);
+  showStatsDialog(blxWindow, mspList);
 }
 
 
 /* Called when the user selects the Print menu option, or hits the Print shortcut key */
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
   /* Create a print operation, using the same settings as the last print, if there was one */
   GtkPrintOperation *print = gtk_print_operation_new();
@@ -2278,13 +2278,13 @@ static void onPrintMenu(GtkAction *action, gpointer data)
       gtk_print_operation_set_print_settings(print, properties->printSettings);
     }
   
-  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), mainWindow);
-  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), mainWindow);
+  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), blxWindow);
+  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), blxWindow);
   
   /* Pop up the print dialog */
   GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
 								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-								 GTK_WINDOW(mainWindow),
+								 GTK_WINDOW(blxWindow),
 								 NULL);
   
   /* If the user hit ok, remember the print settings for next time */
@@ -2311,8 +2311,8 @@ static void onPrintMenu(GtkAction *action, gpointer data)
  * whole output to fit on a single page. */
 static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
 
   /* Set the orientation based on the stored print settings (not sure why this doesn't
    * already get set when the settings are set in the print operation...). */
@@ -2325,17 +2325,17 @@ static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpo
 
 static void collatePixmaps(GtkWidget *widget, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   GdkDrawable *drawable = widgetGetDrawable(widget);
 
-  /* If this widget is visible and has a drawable set, draw it onto the main window's drawable */
+  /* If this widget is visible and has a drawable set, draw it onto the window's drawable */
   if (drawable && GTK_WIDGET_VISIBLE(widget))
     {
-      /* Get the left edge of the widget in terms of the main window's coordinates */
+      /* Get the left edge of the widget in terms of the blixem window's coordinates */
       int xSrc = 0, ySrc = 0;
       int xDest, yDest;
-      gtk_widget_translate_coordinates(widget, mainWindow, xSrc, ySrc, &xDest, &yDest);
+      gtk_widget_translate_coordinates(widget, blxWindow, xSrc, ySrc, &xDest, &yDest);
 
       /* Get the coords where to draw */
       int x = xDest; /* this is a bit too simplified really but works ok for our mainly-vertical layout */
@@ -2357,13 +2357,13 @@ static void collatePixmaps(GtkWidget *widget, gpointer data)
 	}
       
       GdkGC *gc = gdk_gc_new(widget->window);
-      gdk_draw_drawable(widgetGetDrawable(mainWindow), gc, drawable, xSrc, ySrc, x, y, -1, -1); /* -1 means full width/height */
+      gdk_draw_drawable(widgetGetDrawable(blxWindow), gc, drawable, xSrc, ySrc, x, y, -1, -1); /* -1 means full width/height */
     }
   
   /* If this widget is a container, recurse over its children */
   if (GTK_IS_CONTAINER(widget))
     {
-      gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, mainWindow);
+      gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, blxWindow);
     }
 }
 
@@ -2371,23 +2371,23 @@ static void collatePixmaps(GtkWidget *widget, gpointer data)
 /* Print handler - renders a specific page */
 static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
 {
-  GtkWidget *mainWindow = GTK_WIDGET(data);
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
   /* Create a blank white pixmap to draw on to */
-  GdkDrawable *drawable = gdk_pixmap_new(mainWindow->window, mainWindow->allocation.width, mainWindow->allocation.height, -1);
-  widgetSetDrawable(mainWindow, drawable);
+  GdkDrawable *drawable = gdk_pixmap_new(blxWindow->window, blxWindow->allocation.width, blxWindow->allocation.height, -1);
+  widgetSetDrawable(blxWindow, drawable);
   
   GdkGC *gc = gdk_gc_new(drawable);
   GdkColor fgColour = getGdkColor(GDK_WHITE);
   gdk_gc_set_foreground(gc, &fgColour);
-  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, mainWindow->allocation.width, mainWindow->allocation.height);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, blxWindow->allocation.width, blxWindow->allocation.height);
 
   /* For each child widget that has a drawable set, draw this onto the main pixmap */
   properties->lastYStart = 0;
   properties->lastYEnd = 0;
   properties->lastYCoord = -1;
-  gtk_container_foreach(GTK_CONTAINER(mainWindow), collatePixmaps, mainWindow);
+  gtk_container_foreach(GTK_CONTAINER(blxWindow), collatePixmaps, blxWindow);
   
   cairo_t *cr = gtk_print_context_get_cairo_context (context);
   gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
@@ -2396,7 +2396,7 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
 
 
 /* Mouse button handler */
-static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event, gpointer data)
+static gboolean onButtonPressBlxWindow(GtkWidget *window, GdkEventButton *event, gpointer data)
 {
   if (event->type == GDK_BUTTON_PRESS && event->button == 3)
     {
@@ -2409,7 +2409,7 @@ static gboolean onButtonPressMainWindow(GtkWidget *window, GdkEventButton *event
 
 
 /* Key press handler */
-static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpointer data)
+static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpointer data)
 {
   gboolean result = FALSE;
   
@@ -2449,7 +2449,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
       case GDK_minus:
       {
 	const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
-	zoomMainWindow(window, zoomIn, ctrlModifier, shiftModifier);
+	zoomBlxWindow(window, zoomIn, ctrlModifier, shiftModifier);
 	result = TRUE;
 	break;
       }
@@ -2489,7 +2489,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
       case GDK_P:
 	if (!ctrlModifier)
 	  {
-	    goToDetailViewCoord(mainWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
+	    goToDetailViewCoord(blxWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
 	    result = TRUE;
 	  }
 	break;
@@ -2505,7 +2505,7 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
 	
       case GDK_t: /* fall through */
       case GDK_T:
-	toggleStrand(mainWindowGetDetailView(window));
+	toggleStrand(blxWindowGetDetailView(window));
 	result = TRUE;
 	break;
 	
@@ -2536,14 +2536,14 @@ static gboolean onKeyPressMainWindow(GtkWidget *window, GdkEventKey *event, gpoi
  *			   Properties                      *
  ***********************************************************/
 
-MainWindowProperties* mainWindowGetProperties(GtkWidget *widget)
+BlxWindowProperties* blxWindowGetProperties(GtkWidget *widget)
 {
-  return widget ? (MainWindowProperties*)(g_object_get_data(G_OBJECT(widget), "MainWindowProperties")) : NULL;
+  return widget ? (BlxWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BlxWindowProperties")) : NULL;
 }
 
-static void onDestroyMainWindow(GtkWidget *widget)
+static void onDestroyBlxWindow(GtkWidget *widget)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(widget);
+  BlxWindowProperties *properties = blxWindowGetProperties(widget);
   
   if (properties)
     {
@@ -2562,7 +2562,7 @@ static void onDestroyMainWindow(GtkWidget *widget)
 	}
       
       /* Free the list of sequence groups (and all the data they own) */
-      mainWindowDeleteAllSequenceGroups(widget);
+      blxWindowDeleteAllSequenceGroups(widget);
 
       /* Destroy the print settings */
       if (properties->printSettings)
@@ -2580,7 +2580,7 @@ static void onDestroyMainWindow(GtkWidget *widget)
       /* Free the properties struct itself */
       g_free(properties);
       properties = NULL;
-      g_object_set_data(G_OBJECT(widget), "MainWindowProperties", NULL);
+      g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", NULL);
     }
     
   /* Destroy variables created by the main program */
@@ -2590,7 +2590,7 @@ static void onDestroyMainWindow(GtkWidget *widget)
 }
 
 /* Create the properties struct and initialise all values. */
-static void mainWindowCreateProperties(CommandLineOptions *options,
+static void blxWindowCreateProperties(CommandLineOptions *options,
 				       GtkWidget *widget, 
 				       GtkWidget *bigPicture, 
 				       GtkWidget *detailView,
@@ -2601,7 +2601,7 @@ static void mainWindowCreateProperties(CommandLineOptions *options,
 {
   if (widget)
     {
-      MainWindowProperties *properties = g_malloc(sizeof *properties);
+      BlxWindowProperties *properties = g_malloc(sizeof *properties);
       
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
@@ -2641,164 +2641,164 @@ static void mainWindowCreateProperties(CommandLineOptions *options,
       properties->lastYStart = UNSET_INT;
       properties->lastYCoord = UNSET_INT;
 
-      g_object_set_data(G_OBJECT(widget), "MainWindowProperties", properties);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK (onDestroyMainWindow), NULL);
+      g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", properties);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK (onDestroyBlxWindow), NULL);
     }
 }
 
-gboolean mainWindowGetStrandsToggled(GtkWidget *mainWindow)
+gboolean blxWindowGetStrandsToggled(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->strandsToggled : FALSE;
 }
 
-GtkWidget* mainWindowGetBigPicture(GtkWidget *mainWindow)
+GtkWidget* blxWindowGetBigPicture(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->bigPicture : FALSE;
 }
 
-GtkWidget* mainWindowGetDetailView(GtkWidget *mainWindow)
+GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->detailView : FALSE;
 }
 
-GtkWidget* mainWindowGetMainMenu(GtkWidget *mainWindow)
+GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->mainmenu : FALSE;
 }
 
-BlxBlastMode mainWindowGetBlastMode(GtkWidget *mainWindow)
+BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->blastMode : FALSE;
 }
 
-const char* mainWindowGetFetchMode(GtkWidget *mainWindow)
+const char* blxWindowGetFetchMode(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->fetchMode : FALSE;
 }
 
-char * mainWindowGetRefSeq(GtkWidget *mainWindow)
+char * blxWindowGetRefSeq(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->refSeq : NULL;
 }
 
-const char * mainWindowGetRefSeqName(GtkWidget *mainWindow)
+const char * blxWindowGetRefSeqName(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->refSeqName : NULL;
 }
 
-char** mainWindowGetGeneticCode(GtkWidget *mainWindow)
+char** blxWindowGetGeneticCode(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->geneticCode : NULL;
 }
 
-MSP* mainWindowGetMspList(GtkWidget *mainWindow)
+MSP* blxWindowGetMspList(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->mspList : FALSE;
 }
 
-BlxSeqType mainWindowGetSeqType(GtkWidget *mainWindow)
+BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->seqType : FALSE;
 }
 
-IntRange* mainWindowGetFullRange(GtkWidget *mainWindow)
+IntRange* blxWindowGetFullRange(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? &properties->fullDisplayRange : NULL;
 }
 
-IntRange* mainWindowGetRefSeqRange(GtkWidget *mainWindow)
+IntRange* blxWindowGetRefSeqRange(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? &properties->refSeqRange : NULL;
 }
 
-int mainWindowGetNumReadingFrames(GtkWidget *mainWindow)
+int blxWindowGetNumReadingFrames(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->numReadingFrames : UNSET_INT;
 }
 
-int mainWindowGetAutoDotter(GtkWidget *mainWindow)
+int blxWindowGetAutoDotter(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->autoDotterParams : TRUE;
 }
 
-int mainWindowGetDotterStart(GtkWidget *mainWindow)
+int blxWindowGetDotterStart(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->dotterStart : UNSET_INT;
 }
 
-int mainWindowGetDotterEnd(GtkWidget *mainWindow)
+int blxWindowGetDotterEnd(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->dotterEnd : UNSET_INT;
 }
 
-int mainWindowGetDotterZoom(GtkWidget *mainWindow)
+int blxWindowGetDotterZoom(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->dotterZoom : UNSET_INT;
 }
 
-gboolean mainWindowGetGappedHsp(GtkWidget *mainWindow)
+gboolean blxWindowGetGappedHsp(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->gappedHsp : UNSET_INT;
 }
 
-const char* mainWindowGetPaddingSeq(GtkWidget *mainWindow)
+const char* blxWindowGetPaddingSeq(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->paddingSeq : NULL;
 }
 
 /* Return the active strand - forward strand by default, reverse strand if display toggled */
-Strand mainWindowGetActiveStrand(GtkWidget *mainWindow)
+Strand blxWindowGetActiveStrand(GtkWidget *blxWindow)
 {
-  return mainWindowGetStrandsToggled(mainWindow) ? REVERSE_STRAND : FORWARD_STRAND;
+  return blxWindowGetStrandsToggled(blxWindow) ? REVERSE_STRAND : FORWARD_STRAND;
 }
 
 /* Return the inactive strand - reverse strand by default, forward strand if display toggled */
-static Strand mainWindowGetInactiveStrand(GtkWidget *mainWindow)
+static Strand blxWindowGetInactiveStrand(GtkWidget *blxWindow)
 {
-  return mainWindowGetStrandsToggled(mainWindow) ? FORWARD_STRAND : REVERSE_STRAND;
+  return blxWindowGetStrandsToggled(blxWindow) ? FORWARD_STRAND : REVERSE_STRAND;
 }
 
 /* Returns a list of all the MSPs with the given sequence name */
-GList *mainWindowGetSequenceMsps(GtkWidget *mainWindow, const char *seqName)
+GList *blxWindowGetSequenceMsps(GtkWidget *blxWindow, const char *seqName)
 {
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   return detailViewGetSequenceMsps(detailView, seqName);
 }
 
 /* Returns the list of all sequence groups */
-GList *mainWindowGetSequenceGroups(GtkWidget *mainWindow)
+GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties->sequenceGroups;
 }
 
 /* Returns the group that the given sequence belongs to, if any */
-SequenceGroup *mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seqName)
+SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const char *seqName)
 {
   SequenceGroup *result = NULL;
   
   /* Loop through all the groups until we find this sequence in one */
-  GList *groupItem = mainWindowGetSequenceGroups(mainWindow);
+  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
   for ( ; groupItem; groupItem = groupItem->next)
     {
       /* Loop through all sequences in the group and compare the name */
@@ -2824,18 +2824,18 @@ SequenceGroup *mainWindowGetSequenceGroup(GtkWidget *mainWindow, const char *seq
  *                        Selections                       *
  ***********************************************************/
 
-GList* mainWindowGetSelectedSeqs(GtkWidget *mainWindow)
+GList* blxWindowGetSelectedSeqs(GtkWidget *blxWindow)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->selectedSeqs : NULL;
 }
 
 
 /* Get the selected sequences as a list of sequence names. The returned list
  * is formatted as newline-separated values. */
-static GString* mainWindowGetSelectedSeqNames(GtkWidget *mainWindow)
+static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 {
-  GList *listItem = mainWindowGetSelectedSeqs(mainWindow);
+  GList *listItem = blxWindowGetSelectedSeqs(blxWindow);
   GString *result = g_string_new_len(NULL, 50);
   gboolean first = TRUE;
   
@@ -2861,15 +2861,15 @@ static GString* mainWindowGetSelectedSeqNames(GtkWidget *mainWindow)
 
 /* This function copys the currently-selected sequences' names to the default
  * clipboard. */
-void copySelectionToClipboard(GtkWidget *mainWindow)
+void copySelectionToClipboard(GtkWidget *blxWindow)
 {
-  if (g_list_length(mainWindowGetSelectedSeqs(mainWindow)) < 1)
+  if (g_list_length(blxWindowGetSelectedSeqs(blxWindow)) < 1)
     {
       messout("No sequences selected.");
     }
   else
     {
-      GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
+      GString *displayText = blxWindowGetSelectedSeqNames(blxWindow);
       setDefaultClipboardText(displayText->str);
       g_string_free(displayText, TRUE);
     }
@@ -2877,9 +2877,9 @@ void copySelectionToClipboard(GtkWidget *mainWindow)
 
 
 /* Update function to be called whenever the MSP selection has changed */
-void mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTrees)
+void blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees)
 {
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   /* Unless requested not to, update the tree row selections to match our new selections */
   if (updateTrees)
@@ -2892,45 +2892,45 @@ void mainWindowSelectionChanged(GtkWidget *mainWindow, const gboolean updateTree
   updateFeedbackBox(detailView);
   
   /* Recreate the grids (because the MSP lines will change colour with highlighting) */
-  GtkWidget *bigPicture = mainWindowGetBigPicture(mainWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
   gtk_widget_queue_draw(bigPicture);
   
   /* Copy the selected sequence names to the PRIMARY clipboard */
-  GString *displayText = mainWindowGetSelectedSeqNames(mainWindow);
+  GString *displayText = blxWindowGetSelectedSeqNames(blxWindow);
   setPrimaryClipboardText(displayText->str);
   g_string_free(displayText, TRUE);
 }
 
 
 /* Call this function to select the given match sequence */
-void mainWindowSelectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees)
+void blxWindowSelectSeq(GtkWidget *blxWindow, char *seqName, const gboolean updateTrees)
 {
-  if (!mainWindowIsSeqSelected(mainWindow, seqName))
+  if (!blxWindowIsSeqSelected(blxWindow, seqName))
     {
-      MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
       properties->selectedSeqs = g_list_append(properties->selectedSeqs, seqName);
-      mainWindowSelectionChanged(mainWindow, updateTrees);
+      blxWindowSelectionChanged(blxWindow, updateTrees);
     }
 }
 
 
 /* Utility function to set the list of selected sequences to that given */
-void mainWindowSetSelectedSeqList(GtkWidget *mainWindow, GList *seqNameList)
+void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqNameList)
 {
-  mainWindowDeselectAllSeqs(mainWindow, FALSE);
+  blxWindowDeselectAllSeqs(blxWindow, FALSE);
 
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   properties->selectedSeqs = seqNameList;
 
-  mainWindowSelectionChanged(mainWindow, TRUE);
+  blxWindowSelectionChanged(blxWindow, TRUE);
 }
 
 
 /* Call this function to deselect the given sequence */
-void mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean updateTrees)
+void blxWindowDeselectSeq(GtkWidget *blxWindow, char *seqName, const gboolean updateTrees)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
 
   /* See if it's in the list and, if so, get a pointer to the list element */
   GList *foundSeq = findStringInList(properties->selectedSeqs, seqName);
@@ -2938,31 +2938,31 @@ void mainWindowDeselectSeq(GtkWidget *mainWindow, char *seqName, const gboolean 
   if (foundSeq)
     {
       properties->selectedSeqs = g_list_remove(properties->selectedSeqs, foundSeq->data);
-      mainWindowSelectionChanged(mainWindow, updateTrees);
+      blxWindowSelectionChanged(blxWindow, updateTrees);
     }
 }
 
 
 /* Call this function to deselect all sequences */
-void mainWindowDeselectAllSeqs(GtkWidget *mainWindow, const gboolean updateTrees)
+void blxWindowDeselectAllSeqs(GtkWidget *blxWindow, const gboolean updateTrees)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
 
   if (g_list_length(properties->selectedSeqs) > 0)
     {
       g_list_free(properties->selectedSeqs);
       properties->selectedSeqs = NULL;
-      mainWindowSelectionChanged(mainWindow, updateTrees);
+      blxWindowSelectionChanged(blxWindow, updateTrees);
     }
 }
 
 
 /* Returns true if the given sequence is selected */
-gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
+gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const char *seqName)
 {
   gboolean result = FALSE;
   
-  MainWindowProperties *properties = mainWindowGetProperties(mainWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   if (properties)
     {
       result = (findStringInList(properties->selectedSeqs, seqName) != NULL);
@@ -2976,7 +2976,7 @@ gboolean mainWindowIsSeqSelected(GtkWidget *mainWindow, const char *seqName)
  *                      Initialisation                     *
  ***********************************************************/
 
-/* Set various properties for the main window widget */
+/* Set various properties for the blixem window */
 static void setStyleProperties(GtkWidget *widget)
 {
   /* Set the initial window size based on some fraction of the screen size */
@@ -3025,8 +3025,8 @@ static GtkWidget* createMainMenu(GtkWidget *window)
 }
 
 
-/* Create the main window */
-GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
+/* Create the main blixem window */
+GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
 {
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
@@ -3051,7 +3051,7 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
     }
   
   
-  /* Create the main window */
+  /* Create the main blixem window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setStyleProperties(window);
   
@@ -3097,8 +3097,8 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
   
-  /* Set required data in the main window widget */
-  mainWindowCreateProperties(options,
+  /* Set required data for the blixem window */
+  blxWindowCreateProperties(options,
 			     window, 
 			     bigPicture, 
 			     detailView, 
@@ -3108,8 +3108,8 @@ GtkWidget* createMainWindow(CommandLineOptions *options, const char *paddingSeq)
 			     paddingSeq);
   
   /* Connect signals */
-  g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressMainWindow), mainmenu);
-  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressMainWindow), mainmenu);
+  g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBlxWindow), mainmenu);
+  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBlxWindow), mainmenu);
   
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
