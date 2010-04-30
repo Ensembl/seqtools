@@ -36,7 +36,7 @@ typedef struct _TreeProperties
     int readingFrame;		    /* Which reading frame this tree displays */
     GtkWidget *treeHeader;	    /* The container that contains all the widgets for the tree header */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
-    gboolean displaySnps;	    /* Whether a SNP track is shown above this tree */
+    gboolean hasSnpHeader;	    /* Whether a SNP track is shown above this tree */
     
     GHashTable *seqTable;	    /* Hash table to group this tree's MSPs by sequence name. */
     
@@ -107,6 +107,10 @@ gboolean	  treeIsSeqSelected(GtkWidget *tree, const char *seqName);
 
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);
+
+GdkColor*	  getCoordColour(const int displayIdx, const Strand strand, const gboolean displayIdxSelected, const gboolean dnaIdxSelected, const MSP *mspList,
+				 GdkColor *normalColour, GdkColor *selectedColour, GdkColor *snpColour, GdkColor *snpColourSelected, 
+				 GdkColor *tripletColour, GdkColor *tripletColourSelected);
 
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,

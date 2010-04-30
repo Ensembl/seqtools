@@ -137,10 +137,10 @@ BlxSeqType treeGetSeqType(GtkWidget *tree)
   return detailViewGetSeqType(detailView);
 }
 
-static gboolean treeGetDisplaySnps(GtkWidget *tree)
+static gboolean treeHasSnpHeader(GtkWidget *tree)
 {
   TreeProperties *properties = treeGetProperties(tree);
-  return properties->displaySnps;
+  return properties->hasSnpHeader;
 }
 
 int treeGetSelectedBaseIdx(GtkWidget *tree)
@@ -1058,7 +1058,7 @@ static void treeCreateProperties(GtkWidget *widget,
 				 const int frame,
 				 GtkWidget *treeHeader,
 				 GList *treeColumnHeaderList,
-				 const gboolean displaySnps)
+				 const gboolean hasSnpHeader)
 {
   if (widget)
     { 
@@ -1069,7 +1069,7 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->readingFrame = frame;
       properties->treeHeader = treeHeader;
       properties->treeColumnHeaderList = treeColumnHeaderList;
-      properties->displaySnps = displaySnps;
+      properties->hasSnpHeader = hasSnpHeader;
       properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
       properties->mspTreeModel = NULL;
       properties->seqTreeModel = NULL;
@@ -1086,31 +1086,22 @@ static void treeCreateProperties(GtkWidget *widget,
 
 /* Determine whether the given coord in the given frame/strand is affected by
  * a SNP */
-static gboolean coordAffectedBySnp(const int displayIdx, 
-				   const Strand strand, 
-				   const int frame, 
-				   const MSP *mspList, 
-				   const BlxSeqType seqType,
-				   const int numFrames,
-				   const gboolean rightToLeft,
-				   const IntRange const *refSeqRange)
+static gboolean coordAffectedBySnp(const int dnaIdx, const Strand strand, const MSP *mspList)
 {
   gboolean result = FALSE;
-  
-  const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
   
   /* Loop through the MSPs and check any that are SNPs */
   const MSP *msp = mspList;
   
   for ( ; msp; msp = msp->next)
     {
-      if (mspIsSnp(msp) && 
-	  msp->qstart >= dnaIdx && 
-	  msp->qstart <= dnaIdx + numFrames - 1 &&
-	  mspGetRefStrand(msp) == strand && 
-	  mspGetRefFrame(msp, seqType) == frame)
+      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand)
 	{
-	  result = TRUE;
+	  if (msp->qstart == dnaIdx)
+	    {
+	      result = TRUE;
+	      break;
+	    }
 	}
     }
   
@@ -1120,27 +1111,33 @@ static gboolean coordAffectedBySnp(const int displayIdx,
 /* Utility to determine the background colour of a base in the given frame
  * and strand. Pass in the colour options so we don't have to get them from the
  * tree (which is slow if called many times) */
-static GdkColor* getCoordColour(const int displayIdx,
-				const Strand strand,
-				const int frame,
-				const int selectedBaseIdx,
-				const MSP *mspList,
-				const BlxSeqType seqType,
-				const int numFrames,
-				const gboolean rightToLeft,
-				const IntRange const *refSeqRange,
-				GdkColor *normalColour,
-				GdkColor *selectedColour,
-				GdkColor *snpColour,
-				GdkColor *snpColourSelected)
+GdkColor* getCoordColour(const int dnaIdx,
+			 const Strand strand,
+			 const gboolean displayIdxSelected,
+			 const gboolean dnaIdxSelected,
+			 const MSP *mspList,
+			 GdkColor *normalColour,
+			 GdkColor *selectedColour,
+			 GdkColor *snpColour,
+			 GdkColor *snpColourSelected,
+			 GdkColor *tripletColour,
+			 GdkColor *tripletColourSelected)
 {
   GdkColor *result = NULL;
   
-  if (snpColour && coordAffectedBySnp(displayIdx, strand, frame, mspList, seqType, numFrames, rightToLeft, refSeqRange))
+  if (snpColour && snpColourSelected && coordAffectedBySnp(dnaIdx, strand, mspList))
     {
-      result = (displayIdx == selectedBaseIdx) && snpColourSelected ? snpColourSelected : snpColour;
+      result = (dnaIdxSelected && snpColourSelected) ? snpColourSelected : snpColour;
     }
-  else if (displayIdx == selectedBaseIdx && selectedColour)
+  else if (dnaIdxSelected && tripletColourSelected)
+    {
+      result = tripletColourSelected;
+    }
+  else if (displayIdxSelected && tripletColour)
+    {
+      result = tripletColour;
+    }
+  else if (displayIdxSelected && selectedColour)
     {
       result = selectedColour;
     }
@@ -1177,7 +1174,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GdkColor *snpColour = NULL;
   GdkColor *snpColourSelected = NULL;
   
-  if (treeGetDisplaySnps(tree))
+  if (treeHasSnpHeader(tree))
     {
       snpColour = detailViewGetSnpColour(detailView, FALSE);
       snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
@@ -1215,10 +1212,10 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 	{
 	  /* Set the background colour depending on whether this base is selected or
 	   * is affected by a SNP */
-	  GdkColor *colour = getCoordColour(displayIdx, strand, frame, 
-					    selectedBaseIdx, mspList, seqType, 
-					    numFrames, rightToLeft, refSeqRange,
-					    normalColour, selectedColour, snpColour, snpColourSelected);
+	   const gboolean displayIdxSelected = (displayIdx == selectedBaseIdx);
+	   
+	  GdkColor *colour = getCoordColour(displayIdx, strand, displayIdxSelected, displayIdxSelected, mspList,
+					    normalColour, selectedColour, snpColour, snpColourSelected, NULL, NULL);
 	  
 	  if (colour)
 	    {
@@ -1371,13 +1368,36 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+  GtkWidget *tree = GTK_WIDGET(data);
+
   switch (event->button)
     {
+      case 1:
+      {
+	GtkWidget *detailView = treeGetDetailView(tree);
+	
+	if (event->type == GDK_BUTTON_PRESS)
+	  {
+	    /* Select the SNP that was clicked on.  */
+	    mainWindowDeselectAllSeqs(detailViewGetMainWindow(detailView), TRUE);
+	    
+	    selectClickedSnp(header, detailView, event->x, event->y, FALSE, FALSE, UNSET_INT); /* SNPs are always un-expanded in the DNA track */
+	    
+	    refreshDetailViewHeaders(detailView);
+	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+	  }
+	else if (event->type == GDK_2BUTTON_PRESS)
+	  {
+	    detailViewToggleSnpTrack(detailView);
+	  }
+	
+	handled = TRUE;
+	break;
+      }
+	
     case 2:
       {
 	/* Middle button: select the base index at the clicked coords */
-	GtkWidget *tree = GTK_WIDGET(data);
 	GtkTreeViewColumn *col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
 	const int charIdx = getCharIndexAtTreeCoord(tree, col, event->x);
 	
@@ -1397,7 +1417,6 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
     case 3:
       {
 	/* Right button: show context menu. */
-	GtkWidget *tree = GTK_WIDGET(data);
 	GtkWidget *mainmenu = mainWindowGetMainMenu(treeGetMainWindow(tree));
 	gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
 	handled = TRUE;
@@ -2157,7 +2176,7 @@ static void createTreeColHeader(GList **columnHeaders,
 	  /* The sequence column header contains the reference sequence. */
 	  columnHeader = gtk_layout_new(NULL, NULL);
 	  
-	  seqColHeaderSetFrame(columnHeader, frame);
+	  seqColHeaderSetRow(columnHeader, frame);
 	  gtk_widget_set_name(columnHeader, DNA_TRACK_HEADER_NAME);
 	  g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeRefSeqHeader), tree);
 	  

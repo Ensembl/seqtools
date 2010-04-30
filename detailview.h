@@ -168,10 +168,13 @@ gboolean		detailViewGetHighlightDiffs(GtkWidget *detailView);
 gboolean		detailViewGetShowSnpTrack(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
 DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
+int			detailViewGetActiveFrame(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
 int			detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId);
+
+int			getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange);
 
 GdkColor*		detailViewGetRefSeqColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetMatchColour(GtkWidget *detailView, const gboolean selected);
@@ -209,18 +212,29 @@ void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 void			updateSeqColumnSize(GtkWidget *detailView);
 void			resizeDetailViewHeaders(GtkWidget *detailView);
+void			refreshDetailViewHeaders(GtkWidget *detailView);
 
 void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert);
 void			detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlightDiffs);
 void			detailViewSetShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack);
+void			detailViewToggleSnpTrack(GtkWidget *detailView);
 
 GtkWidget*		createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int strand);
 void			refreshTextHeader(GtkWidget *widget, gpointer data);
 gboolean		onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
-void			seqColHeaderSetFrame(GtkWidget *header, const int frame);
-int			seqColHeaderGetFrame(GtkWidget *header);
+void			selectClickedSnp(GtkWidget *snpTrack,
+					 GtkWidget *detailView, 
+					 const int xIn, 
+					 const int yIn, 
+					 const gboolean reCentre,
+					 const gboolean expandSnps,
+					 const int clickedBase);
+
+void			seqColHeaderSetRow(GtkWidget *header, const int frame);
+int			seqColHeaderGetRow(GtkWidget *header);
+int			seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames);
 
 GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 GtkWidget *container,

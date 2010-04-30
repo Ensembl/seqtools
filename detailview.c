@@ -53,19 +53,17 @@ static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
 static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
-static int		      detailViewGetSelectedFrame(GtkWidget *detailView);
 static GdkColor*	      detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
 
 static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
 static int		      snpTrackGetStrand(GtkWidget *snpTrack);
-static int		      getSnpDisplayCoord(const MSP *msp, const BlxSeqType seqType, const int numFrames, const gboolean rightToLeft, const int activeFrame, const IntRange const *refSeqRange, int *snpStart, int *snpEnd, int *baseNum);
+static int		      getSnpDisplayCoord(const MSP *msp, const gboolean expandSnps, const BlxSeqType seqType, const int numFrames, const gboolean rightToLeft, const int activeFrame, const IntRange const *refSeqRange, int *snpStart, int *snpEnd, int *baseNum);
 
 static void		      detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
 static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		      widgetIsTree(GtkWidget *widget);
 static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
 static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
-static void		      refreshDetailViewHeaders(GtkWidget *detailView);
 static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
 static const char*	      findDetailViewFont(GtkWidget *detailView);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
@@ -614,7 +612,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
 
 
 /* Refresh the headers for the detail view. */
-static void refreshDetailViewHeaders(GtkWidget *detailView)
+void refreshDetailViewHeaders(GtkWidget *detailView)
 {
   /* Loop through all widgets in the header and call refreshTextHeader. This
    * updates the font etc. if it is a type of widget that requires that. */
@@ -928,14 +926,22 @@ void detailViewSetShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrac
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   properties->showSnpTrack = showSnpTrack;
-
-  /* Refresh the tree/detail-view headers so that the SNP track gets shown/hidden */
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
 }
 
 
-static int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange)
+/* Toggle visibility of the SNP track */
+void detailViewToggleSnpTrack(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->showSnpTrack = !properties->showSnpTrack;
+  refreshDetailViewHeaders(detailView);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+}
+
+
+int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange)
 {
   int result = UNSET_INT;
   
@@ -961,18 +967,12 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
   
   if (coord != UNSET_INT)
     {	
-      /* Get the active (i.e. currently-selected) frame. Use frame 1 if none selected. */
-      int frame = detailViewGetSelectedFrame(detailView);
-      if (frame == UNSET_INT)
-	{
-	  frame = 1;
-	}
-      
       /* Get the base number of the clicked base within the active frame. The
        * base number is determined by which row in the header the mouse pointer 
        * is over: for frame 1, row 1 will give base 1; for frame 2, row 2 will
        * give base 1, etc. Start by getting the frame number for the clicked row: */
-      int row = seqColHeaderGetFrame(header);
+      int frame = detailViewGetActiveFrame(detailView);
+      int row = seqColHeaderGetRow(header);
       const int numFrames = detailViewGetNumReadingFrames(detailView);
       
       /* The header widget passed to this function is the originally-clicked widget.
@@ -1012,12 +1012,18 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
 
 /* If the user clicked on a SNP in the SNP header, select it. This updates the 
  * feedback box with the SNP name and coord, selects the SNP coord and recentres 
- * on it (if allowScroll is true), clearing any previous selections. */
-static void selectClickedSnp(GtkWidget *snpTrack,
-			     GtkWidget *detailView, 
-			     const int xIn, 
-			     const int yIn, 
-			     const gboolean reCentre)
+ * on it (if allowScroll is true), clearing any previous selections. If expandSnps
+ * is true it means that the SNPs are drawn full-width (i.e. showing all the sequence
+ * in the MSP) and we should take into account when clicking; otherwise, the SNP
+ * is just shown as a marker at its actual coord, and we only need to check the
+ * position of that coord to see if the user clicked there. */
+void selectClickedSnp(GtkWidget *snpTrack,
+		      GtkWidget *detailView, 
+		      const int xIn, 
+		      const int yIn, 
+		      const gboolean reCentre,
+		      const gboolean expandSnps,
+		      const int clickedBase)
 {
   /* Convert x coord to sequence-column coords */
   int x = UNSET_INT, y = yIn;
@@ -1033,7 +1039,7 @@ static void selectClickedSnp(GtkWidget *snpTrack,
       const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
       const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
       const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-      const int activeFrame = detailViewGetSelectedFrame(detailView);
+      const int activeFrame = detailViewGetActiveFrame(detailView);
       
       /* See if there are any SNPs at this displayIdx */
       GList *snpNameList = NULL;
@@ -1046,19 +1052,23 @@ static void selectClickedSnp(GtkWidget *snpTrack,
 	      /* Get the SNP coord, and the range of display coords where this SNP is shown */
 	      IntRange snpDisplayRange;
 	      int baseNum = UNSET_INT;
-	      const int snpIdx = getSnpDisplayCoord(msp, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &snpDisplayRange.min, &snpDisplayRange.max, &baseNum);
-
-	      if (valueWithinRange(clickedDisplayIdx, &snpDisplayRange))
+	      const int snpDisplayIdx = getSnpDisplayCoord(msp, expandSnps, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &snpDisplayRange.min, &snpDisplayRange.max, &baseNum);
+	      
+	      gboolean found = expandSnps
+		? valueWithinRange(clickedDisplayIdx, &snpDisplayRange)
+	        : (snpDisplayRange.min == clickedDisplayIdx && baseNum == clickedBase);
+	      
+	      if (found)
 		{
 		  snpNameList = g_list_prepend(snpNameList, msp->sname);
 		  
 		  /* Select the SNP coord */
-		  detailViewSetSelectedBaseIdx(detailView, snpIdx, activeFrame, baseNum, TRUE, FALSE);
+		  detailViewSetSelectedBaseIdx(detailView, snpDisplayIdx, activeFrame, baseNum, TRUE, FALSE);
 
 		  if (reCentre)
 		    {
 		      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-		      const int newStart = snpIdx - (getRangeLength(displayRange) / 2);
+		      const int newStart = snpDisplayIdx - (getRangeLength(displayRange) / 2);
 		      setDetailViewStartIdx(detailView, newStart, seqType);
 		    }
 		}
@@ -1111,8 +1121,12 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
       const int charHeight = detailViewGetCharHeight(detailView);
       const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
       const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-      const int activeFrame = detailViewGetSelectedFrame(detailView);
-      
+      const int activeFrame = detailViewGetActiveFrame(detailView);
+      GdkColor *snpColour = detailViewGetSnpColour(detailView, FALSE);
+      GdkColor *snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
+      GdkColor *tripletColour = detailViewGetTripletHighlightColour(detailView, FALSE);
+      GdkColor *tripletColourSelected = detailViewGetTripletHighlightColour(detailView, TRUE);
+
       gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, charHeight);
       
       /* Loop forward/backward through the display range depending on which strand we're viewing.
@@ -1137,11 +1151,18 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 	  /* Get the character to display at this index */
 	  displayText[displayTextPos] = getRefSeqBase(refSeq, qIdx, rightToLeft, refSeqRange, BLXSEQ_DNA);
 	  
-	  /* If the base (or its peptide) is selected, we need to highlight it */
-	  if (displayIdx == selectedBaseIdx)
+	  /* Colour the base depending on whether it is selected or affected by a SNP */
+	  const gboolean displayIdxSelected = (displayIdx == selectedBaseIdx);
+	  const gboolean dnaIdxSelected = (qIdx == selectedDnaBaseIdx);
+	  const MSP *mspList = mainWindowGetMspList(mainWindow);
+	  
+	  GdkColor *colour = getCoordColour(qIdx, strand, displayIdxSelected, dnaIdxSelected,
+					    mspList, NULL, NULL, snpColour, snpColourSelected,
+					    tripletColour, tripletColourSelected);
+	  
+	  if (colour)
 	    {
 	      /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
-	      GdkColor *colour = detailViewGetTripletHighlightColour(detailView, qIdx == selectedDnaBaseIdx);
 	      gdk_gc_set_foreground(gc, colour);
 	      x = displayTextPos * charWidth;
 	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, charWidth, charHeight);
@@ -1172,12 +1193,14 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 }
 
 
-/* Utility to find the display coord that a SNP lies on. Also returns the start/end
- * of the range where the SNP is displayed (if it contains more than one alternative,
- * these will be displayed horizontally across the display, taking up more width 
- * than where the actual SNP coord lies). Also returns the base number of the msp
- * coord within the active frame, if requested. */
+/* Utility to find the display coord that a SNP lies on. If expandSnps is true, 
+ * it means that if the SNP contains more than one alternative, these will be 
+ * displayed horizontally across the display, taking up more width than where 
+ * the actual SNP coord lies). The start/end display range will take this into 
+ * account. If expandSnps is false, the range will just be the actual SNP coord.
+ * We also return the base number of the msp coord within the active frame, if requested.*/
 static int getSnpDisplayCoord(const MSP *msp, 
+			      const gboolean expandSnps,
 			      const BlxSeqType seqType, 
 			      const int numFrames,
 			      const gboolean rightToLeft, 
@@ -1188,12 +1211,37 @@ static int getSnpDisplayCoord(const MSP *msp,
 			      int *baseNum)
 {
   /* Conver the SNP index to a display coord */
-  const int snpIdx = convertDnaIdxToDisplayIdx(msp->qstart, seqType, activeFrame, numFrames, rightToLeft, refSeqRange, baseNum);
+  int base = UNSET_INT;
+  const int displayIdx = convertDnaIdxToDisplayIdx(msp->qstart, seqType, activeFrame, numFrames, rightToLeft, refSeqRange, &base);
 
-  /* We'll position the SNP so that the middle of its sequence lies at this coord */
-  const int numChars = strlen(msp->sseq);
-  const int startIdx = snpIdx - ceil((double)numChars / 2.0) + 1;
+  /* The calculated display index will be different depending on which reading frame is 
+   * active. However, we always want to display the SNP in the same position, so adjust 
+   * the display range so that we have coords in terms of frame 1. Return the real SNP display
+   * index too, though - we need this so that we can highlight the selected display index and
+   * still have the correct frame and base highlighted. */
+  int adjustedIdx = displayIdx;
+  if (base > (numFrames - activeFrame + 1))
+    {
+      ++adjustedIdx;
+    }
   
+  if (baseNum)
+    {
+      *baseNum = base;
+    }
+
+  int startIdx = adjustedIdx;
+  int endIdx = adjustedIdx; /* currently we only deal with substitutions, i.e. length==1 */
+  
+  if (expandSnps)
+    {
+      /* Expand the SNP range so that we display its entire sequence. We'll position 
+       * the SNP so that the middle of its sequence lies at this coord */
+      const int numChars = strlen(msp->sseq);
+      startIdx = adjustedIdx - ceil((double)numChars / 2.0) + 1;
+      endIdx = startIdx + numChars - 1;
+    }
+
   if (snpStart)
     {
       *snpStart = startIdx;
@@ -1201,10 +1249,10 @@ static int getSnpDisplayCoord(const MSP *msp,
   
   if (snpEnd)
     {
-      *snpEnd = startIdx + numChars - 1;
+      *snpEnd = endIdx;
     }
   
-  return snpIdx;
+  return displayIdx;
 }
 
 
@@ -1227,7 +1275,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
   const int charWidth = detailViewGetCharWidth(detailView);
   const int charHeight = detailViewGetCharHeight(detailView);
-  const int activeFrame = detailViewGetSelectedFrame(detailView);
+  const int activeFrame = detailViewGetActiveFrame(detailView);
   PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
   GdkColor *snpColour = detailViewGetSnpColour(detailView, FALSE);
   GdkColor *snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
@@ -1254,7 +1302,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	{
 	  /* Get the range of display coords where this SNP will appear */
 	  int startIdx = UNSET_INT, endIdx = UNSET_INT;
-	  getSnpDisplayCoord(msp, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &startIdx, &endIdx, NULL);
+	  getSnpDisplayCoord(msp, TRUE, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &startIdx, &endIdx, NULL);
 
 	  /* See if any of the SNP coords are in the current display range */
 	  if (valueWithinRange(startIdx, displayRange) || valueWithinRange(endIdx, displayRange))
@@ -1782,10 +1830,11 @@ static int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
   return properties ? properties->selectedDnaBaseIdx : UNSET_INT;
 }
 
-static int detailViewGetSelectedFrame(GtkWidget *detailView)
+/* Get the active frame. Returns the last-selected frame, or 1 if no frame is selected. */
+int detailViewGetActiveFrame(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->selectedFrame : UNSET_INT;
+  return (!properties || properties->selectedFrame == UNSET_INT) ? 1 : properties->selectedFrame;
 }
 
 gboolean detailViewGetSortInverted(GtkWidget *detailView)
@@ -2072,16 +2121,37 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 }
 
 
-/* Get/set functions for the sequence column header frame number. (There is only
+/* Get/set functions for the sequence column header's row number. (There is only
  * one property to set, so it's not worth having a struct for the properties.) */
-void seqColHeaderSetFrame(GtkWidget *header, const int frame)
+void seqColHeaderSetRow(GtkWidget *header, const int frame)
 {
   g_object_set_data(G_OBJECT(header), "seqColHeaderFrameNumber", GINT_TO_POINTER(frame));
 }
 
-int seqColHeaderGetFrame(GtkWidget *header)
+int seqColHeaderGetRow(GtkWidget *header)
 {
   return header ? GPOINTER_TO_INT(g_object_get_data(G_OBJECT(header), "seqColHeaderFrameNumber")) : UNSET_INT;
+}
+
+/* Gets the base number within the given reading frame that this header row corresponds to*/
+int seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames)
+{
+  const int row = seqColHeaderGetRow(header);
+  
+  int baseNum = UNSET_INT;
+  
+  if (row != UNSET_INT)
+    {
+      baseNum = row - (frame - 1);
+
+      /* Cyclic decrement */
+      if (baseNum < 1)
+	{
+	  baseNum += numFrames;
+	}
+    }
+  
+  return baseNum;
 }
 
 
@@ -2118,7 +2188,7 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
 	  GtkWidget *detailView = GTK_WIDGET(data);
 	  const Strand activeStrand = detailViewGetStrandsToggled(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
 	  
-	  drawDnaTrack(headerWidget, detailView, activeStrand, seqColHeaderGetFrame(headerWidget));
+	  drawDnaTrack(headerWidget, detailView, activeStrand, seqColHeaderGetRow(headerWidget));
 	  bitmap = widgetGetDrawable(headerWidget);
 	}
       
@@ -2178,9 +2248,15 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
     {
       /* Select the SNP that was clicked on.  */
       GtkWidget *detailView = GTK_WIDGET(data);
-      selectClickedSnp(snpTrack, detailView, event->x, event->y, FALSE);
+      mainWindowDeselectAllSeqs(detailViewGetMainWindow(detailView), TRUE);
+      
+      selectClickedSnp(snpTrack, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
+      
+      refreshDetailViewHeaders(detailView);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
       
       handled = TRUE;
+      break;
     }
   }
   
@@ -2197,13 +2273,42 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
   
   switch (event->button)
   {
+    case 1:
+      {
+	GtkWidget *detailView = GTK_WIDGET(data);
+
+	if (event->type == GDK_BUTTON_PRESS)
+	  {
+	    /* Select the SNP that was clicked on.  */
+	    mainWindowDeselectAllSeqs(detailViewGetMainWindow(detailView), TRUE);
+	    const int clickedBase = seqColHeaderGetBase(header, detailViewGetActiveFrame(detailView), detailViewGetNumReadingFrames(detailView));
+
+	    selectClickedSnp(header, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
+	    
+	    refreshDetailViewHeaders(detailView);
+	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+	  }
+	else if (event->type == GDK_2BUTTON_PRESS)
+	  {
+	    /* Double-click: toggle SNP track visibility */
+	    detailViewToggleSnpTrack(detailView);
+	  }
+
+	handled = TRUE;
+	break;
+      }
+      
     case 2:
       {
 	/* Middle button: select the nucleotide that was clicked on. */
 	GtkWidget *detailView = GTK_WIDGET(data);
 	selectClickedNucleotide(header, detailView, event->x, event->y);
 	handled = TRUE;
+	break;
       }
+      
+    default:
+      break;
   }
   
   return handled;
@@ -2390,7 +2495,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 	  sprintf(defaultInput, "%d", requestedCoord);
 
 	  /* Convert the input coord to display coords. */
-	  const int activeFrame = detailViewGetSelectedFrame(detailView);
+	  const int activeFrame = detailViewGetActiveFrame(detailView);
 	  int baseNum;
 	  
 	  const int displayIdx = convertDnaIdxToDisplayIdx(requestedCoord, 
@@ -2604,7 +2709,7 @@ void prevMatch(GtkWidget *detailView, GList *seqNameList)
       startCoord = getRangeCentre(displayRange);
       
       /* Use base 1 within the currently selected frame for this display coord */
-      int frame = detailViewGetSelectedFrame(detailView);
+      int frame = detailViewGetActiveFrame(detailView);
       
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
       const int numFrames = detailViewGetNumReadingFrames(detailView);
@@ -2632,7 +2737,7 @@ void nextMatch(GtkWidget *detailView, GList *seqNameList)
       startCoord = getRangeCentre(displayRange);
       
       /* Use base 1 within the currently selected frame for this display coord */
-      int frame = detailViewGetSelectedFrame(detailView);
+      int frame = detailViewGetActiveFrame(detailView);
       
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
       const int numFrames = detailViewGetNumReadingFrames(detailView);
@@ -2943,7 +3048,7 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
 
 	  gtk_widget_set_name(line, DNA_TRACK_HEADER_NAME);
-	  seqColHeaderSetFrame(line, frame + 1);
+	  seqColHeaderSetRow(line, frame + 1);
 	  
 	  gtk_widget_add_events(line, GDK_BUTTON_PRESS_MASK);
 	  gtk_widget_add_events(line, GDK_BUTTON_RELEASE_MASK);
