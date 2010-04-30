@@ -16,7 +16,7 @@
 
 typedef struct _BigPictureProperties
   {
-    GtkWidget *mainWindow;	/* The main window widget that this grid belongs to */
+    GtkWidget *blxWindow;	/* The main blixem window that this grid belongs to */
     GtkWidget *header;		/* The grid header */
     GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
     GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
@@ -69,7 +69,7 @@ void			      setGdkColorYellow(GdkColor *color);
 void			      setGdkColorCyan(GdkColor *color);
 
 BigPictureProperties*	      bigPictureGetProperties(GtkWidget *bigPicture);
-GtkWidget*		      bigPictureGetMainWindow(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetBlxWindow(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetFwdGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetActiveGrid(GtkWidget *bigPicture);
@@ -83,7 +83,7 @@ IntRange*		      bigPictureGetDisplayRange(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetDetailView(GtkWidget *bigPicture);
 BlxSeqType		      bigPictureGetSeqType(GtkWidget *bigPicture);
-int			      bigPictureGetNumReadingFrames(GtkWidget *bigPicture);
+int			      bigPictureGetNumFrames(GtkWidget *bigPicture);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
@@ -108,7 +108,7 @@ int			      getRightCoordFromCentre(const int centreCoord,
 
 void			      refreshGridOrder(GtkWidget *bigPicture);
 
-GtkWidget*		      createBigPicture(GtkWidget *mainWindow,
+GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
 					       GtkWidget *container,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,

@@ -8,7 +8,7 @@
 
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/utilities.h>
 #include <gtk/gtk.h>
@@ -64,7 +64,7 @@ static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widge
 static gboolean		      widgetIsTree(GtkWidget *widget);
 static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
 static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
-static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numReadingFrames);
+static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
 static const char*	      findDetailViewFont(GtkWidget *detailView);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 
@@ -735,11 +735,11 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
   int sLen = UNSET_INT; /* the length of the match sequence */
   
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
   const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
   
   /* See if a base is selected. */
   qIdx = selectedDnaBaseIdx;
@@ -754,7 +754,7 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
 	{
 	  MSP *firstMsp = (MSP*)(mspList->data);
 	  
-	  if (firstMsp->sseq && firstMsp->sseq != mainWindowGetPaddingSeq(mainWindow))
+	  if (firstMsp->sseq && firstMsp->sseq != blxWindowGetPaddingSeq(blxWindow))
 	    {
 	      sLen = strlen(firstMsp->sseq);
 	    }
@@ -820,7 +820,7 @@ void updateFeedbackBox(GtkWidget *detailView)
 {
   char *messageText = NULL;
 
-  GList *selectedSeqs = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  GList *selectedSeqs = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
   const int numSeqsSelected = g_list_length(selectedSeqs);
   
   if (numSeqsSelected == 1) /* currently we only properly handle single sequence selection */
@@ -973,7 +973,7 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
        * give base 1, etc. Start by getting the frame number for the clicked row: */
       int frame = detailViewGetActiveFrame(detailView);
       int row = seqColHeaderGetRow(header);
-      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      const int numFrames = detailViewGetNumFrames(detailView);
       
       /* The header widget passed to this function is the originally-clicked widget.
        * If the pointer has dragged onto another row in the header, we can work out
@@ -1034,16 +1034,16 @@ void selectClickedSnp(GtkWidget *snpTrack,
   
   if (clickedDisplayIdx != UNSET_INT)
     {
-      GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-      const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-      const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-      const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-      const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+      GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+      const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+      const int numFrames = blxWindowGetNumFrames(blxWindow);
+      const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+      const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
       const int activeFrame = detailViewGetActiveFrame(detailView);
       
       /* See if there are any SNPs at this displayIdx */
       GList *snpNameList = NULL;
-      const MSP *msp = mainWindowGetMspList(mainWindow);
+      const MSP *msp = blxWindowGetMspList(blxWindow);
       
       for ( ; msp; msp = msp->next)
 	{
@@ -1076,7 +1076,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
 	}
       
       /* Clear any existing selections and select the new SNP(s) */
-      mainWindowSetSelectedSeqList(mainWindow, snpNameList);
+      blxWindowSetSelectedSeqList(blxWindow, snpNameList);
     }
 }
 
@@ -1089,18 +1089,18 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 {
   GdkDrawable *drawable = createBlankPixmap(dnaTrack);
   
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   
   /* Find the segment of the ref sequence to display (complemented if this tree is
    * displaying the reverse strand, and reversed if the display is toggled) */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  char *refSeq = mainWindowGetRefSeq(mainWindow);
+  IntRange *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
+  char *refSeq = blxWindowGetRefSeq(blxWindow);
   
-  gchar *segmentToDisplay = getSequenceSegment(mainWindow,
+  gchar *segmentToDisplay = getSequenceSegment(blxWindow,
 					       refSeq,
 					       refSeqRange,
 					       displayRange->min, 
@@ -1154,7 +1154,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 	  /* Colour the base depending on whether it is selected or affected by a SNP */
 	  const gboolean displayIdxSelected = (displayIdx == selectedBaseIdx);
 	  const gboolean dnaIdxSelected = (qIdx == selectedDnaBaseIdx);
-	  const MSP *mspList = mainWindowGetMspList(mainWindow);
+	  const MSP *mspList = blxWindowGetMspList(blxWindow);
 	  
 	  GdkColor *colour = getCoordColour(qIdx, strand, displayIdxSelected, dnaIdxSelected,
 					    mspList, NULL, NULL, snpColour, snpColourSelected,
@@ -1267,12 +1267,12 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
       return;
     }
   
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
   const int charWidth = detailViewGetCharWidth(detailView);
   const int charHeight = detailViewGetCharHeight(detailView);
   const int activeFrame = detailViewGetActiveFrame(detailView);
@@ -1281,7 +1281,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   GdkColor *snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
   
   Strand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
-    ? mainWindowGetActiveStrand(mainWindow)
+    ? blxWindowGetActiveStrand(blxWindow)
     : (Strand)snpTrackGetStrand(snpTrack);
   
   GdkGC *gc = gdk_gc_new(drawable);
@@ -1293,7 +1293,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
   
   /* Loop through all the MSPs looking for SNPs in the current display range */
-  const MSP* msp = mainWindowGetMspList(mainWindow);
+  const MSP* msp = blxWindowGetMspList(blxWindow);
   const int y = 0;
   
   for ( ; msp; msp = msp->next)
@@ -1311,7 +1311,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      const int width = strlen(msp->sseq) * charWidth;
 	      
 	      /* Draw the background */
-	      GdkColor *colour = mainWindowIsSeqSelected(mainWindow, msp->sname) ? snpColourSelected : snpColour;
+	      GdkColor *colour = blxWindowIsSeqSelected(blxWindow, msp->sname) ? snpColourSelected : snpColour;
 	      gdk_gc_set_foreground(gc, colour);
 	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, charHeight);
 	      
@@ -1481,10 +1481,10 @@ static void assertDetailView(GtkWidget *detailView)
     messcrash("Tree properties not set [widget=%x]", detailView);
 }
 
-GtkWidget* detailViewGetMainWindow(GtkWidget *detailView)
+GtkWidget* detailViewGetBlxWindow(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->mainWindow : NULL;
+  return properties ? properties->blxWindow : NULL;
 }
 
 GtkAdjustment* detailViewGetAdjustment(GtkWidget *detailView)
@@ -1512,15 +1512,15 @@ GHashTable *detailViewGetSeqTable(GtkWidget *detailView)
 char* detailViewGetRefSeq(GtkWidget *detailView)
 {
   assertDetailView(detailView);
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetRefSeq(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetRefSeq(blxWindow);
 }
 
 char** detailViewGetGeneticCode(GtkWidget *detailView)
 {
   assertDetailView(detailView);
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetGeneticCode(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetGeneticCode(blxWindow);
 }
 
 /* Get the list of columns */
@@ -1552,7 +1552,7 @@ DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const Colum
 
 gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
 {
-  return mainWindowGetStrandsToggled(detailViewGetMainWindow(detailView));
+  return blxWindowGetStrandsToggled(detailViewGetBlxWindow(detailView));
 }
 
 PangoFontDescription *detailViewGetFontDesc(GtkWidget *detailView)
@@ -1730,7 +1730,7 @@ static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 {
   const gboolean toggled = detailViewGetStrandsToggled(detailView);
   const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const int numFrames = detailViewGetNumFrames(detailView);
   
   GtkWidget *result = NULL;
   
@@ -1776,10 +1776,10 @@ GList* detailViewGetRevStrandTrees(GtkWidget *detailView)
   return properties->revStrandTrees;
 }
 
-int detailViewGetNumReadingFrames(GtkWidget *detailView)
+int detailViewGetNumFrames(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->numReadingFrames : UNSET_INT;
+  return properties ? properties->numFrames : UNSET_INT;
 }
 
 static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
@@ -1802,20 +1802,20 @@ IntRange* detailViewGetDisplayRange(GtkWidget *detailView)
 
 IntRange* detailViewGetFullRange(GtkWidget *detailView)
 {
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetFullRange(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetFullRange(blxWindow);
 }
 
 IntRange* detailViewGetRefSeqRange(GtkWidget *detailView)
 {
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetRefSeqRange(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetRefSeqRange(blxWindow);
 }
 
 BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
 {
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetSeqType(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetSeqType(blxWindow);
 }
 
 int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
@@ -1916,7 +1916,7 @@ static void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
   properties->selectedFrame = frame;
   
   /* For protein matches, calculate the display index and base number of this dna idx */
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const int numFrames = detailViewGetNumFrames(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
@@ -1945,7 +1945,7 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
   properties->selectedBaseNum = baseNum;
   
   /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
-  const int numFrames = detailViewGetNumReadingFrames(detailView);
+  const int numFrames = detailViewGetNumFrames(detailView);
   const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
@@ -1957,14 +1957,14 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
 
 BlxBlastMode detailViewGetBlastMode(GtkWidget *detailView)
 {
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetBlastMode(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetBlastMode(blxWindow);
 }
 
 static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
 {
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  return mainWindowGetBigPicture(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetBigPicture(blxWindow);
 }
 
 
@@ -1973,6 +1973,11 @@ DetailViewProperties* detailViewGetProperties(GtkWidget *widget)
   return widget ? (DetailViewProperties*)(g_object_get_data(G_OBJECT(widget), "DetailViewProperties")) : NULL;
 }
 
+static BlxViewContext* detailViewGetContext(GtkWidget *detailView)
+{
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  return blxWindowGetContext(blxWindow);
+}
 
 static void onDestroyDetailView(GtkWidget *widget)
 {
@@ -2021,7 +2026,7 @@ static void onDestroyDetailView(GtkWidget *widget)
 
 
 static void detailViewCreateProperties(GtkWidget *detailView,
-				       GtkWidget *mainWindow,
+				       GtkWidget *blxWindow,
 				       GtkCellRenderer *renderer,
 				       GList *fwdStrandTrees,
 				       GList *revStrandTrees,
@@ -2030,7 +2035,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GList *columnList,
 				       GtkAdjustment *adjustment, 
 				       BlxSeqType seqType,
-				       int numReadingFrames,
+				       int numFrames,
 				       const int startCoord,
 				       const gboolean sortInverted)
 {
@@ -2043,7 +2048,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       PangoFontDescription *fontDesc = pango_font_description_copy(detailView->style->font_desc);
       pango_font_description_set_family(fontDesc, fontFamily);
       
-      properties->mainWindow = mainWindow;
+      properties->blxWindow = blxWindow;
       properties->renderer = renderer;
       properties->fwdStrandTrees = fwdStrandTrees;
       properties->revStrandTrees = revStrandTrees;
@@ -2052,7 +2057,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->columnList = columnList;
       properties->adjustment = adjustment;
       properties->seqType = seqType;
-      properties->numReadingFrames = numReadingFrames;
+      properties->numFrames = numFrames;
       properties->selectedBaseIdx = UNSET_INT;
       properties->selectedBaseNum = UNSET_INT;
       properties->selectedFrame = UNSET_INT;
@@ -2248,7 +2253,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
     {
       /* Select the SNP that was clicked on.  */
       GtkWidget *detailView = GTK_WIDGET(data);
-      mainWindowDeselectAllSeqs(detailViewGetMainWindow(detailView), TRUE);
+      blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
       
       selectClickedSnp(snpTrack, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
       
@@ -2280,8 +2285,8 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
 	    /* Select the SNP that was clicked on.  */
-	    mainWindowDeselectAllSeqs(detailViewGetMainWindow(detailView), TRUE);
-	    const int clickedBase = seqColHeaderGetBase(header, detailViewGetActiveFrame(detailView), detailViewGetNumReadingFrames(detailView));
+	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
+	    const int clickedBase = seqColHeaderGetBase(header, detailViewGetActiveFrame(detailView), detailViewGetNumFrames(detailView));
 
 	    selectClickedSnp(header, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
@@ -2414,17 +2419,17 @@ static void swapExonViewVisibility(GtkWidget *bigPicture)
 
 void toggleStrand(GtkWidget *detailView)
 {
-  MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewGetMainWindow(detailView));
-  GtkWidget *bigPicture = mainWindowProperties->bigPicture;
+  BlxViewContext *blxContext = detailViewGetContext(detailView);
+  GtkWidget *bigPicture = blxContext->bigPicture;
 
   /* Update the flag */
-  mainWindowProperties->strandsToggled = !mainWindowProperties->strandsToggled;
+  blxContext->strandsToggled = !blxContext->strandsToggled;
   
   /* Invert the display range */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  const IntRange const *fullRange = &mainWindowProperties->fullDisplayRange;
+  const IntRange const *fullRange = &blxContext->fullDisplayRange;
   const int newStart = fullRange->max - displayRange->max + fullRange->min;
-  setDetailViewStartIdx(detailView, newStart, mainWindowProperties->seqType);
+  setDetailViewStartIdx(detailView, newStart, blxContext->seqType);
 
   /* Invert the currently-selected index, if there is one. We want to select
    * the same index but counting from the other end. */
@@ -2432,7 +2437,7 @@ void toggleStrand(GtkWidget *detailView)
   if (properties->selectedBaseIdx != UNSET_INT)
     {
       const int newIdx = fullRange->max - properties->selectedBaseIdx + fullRange->min;
-      const int newBaseNum = mainWindowProperties->numReadingFrames - properties->selectedBaseNum + 1;
+      const int newBaseNum = blxContext->numFrames - properties->selectedBaseNum + 1;
       
       detailViewSetSelectedBaseIdx(detailView, newIdx, properties->selectedFrame, newBaseNum, FALSE, TRUE);
     }
@@ -2501,7 +2506,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 	  const int displayIdx = convertDnaIdxToDisplayIdx(requestedCoord, 
 							   detailViewGetSeqType(detailView), 
 							   activeFrame,
-							   detailViewGetNumReadingFrames(detailView), 
+							   detailViewGetNumFrames(detailView), 
 							   detailViewGetStrandsToggled(detailView), 
 							   detailViewGetRefSeqRange(detailView),
 							   &baseNum);
@@ -2641,11 +2646,11 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
  * the currently-selected base index */
 static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gboolean searchRight, GList *seqNameList)
 {
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
   
   const int searchDirection = (searchRight != rightToLeft) ? 1 : -1;
   
@@ -2712,7 +2717,7 @@ void prevMatch(GtkWidget *detailView, GList *seqNameList)
       int frame = detailViewGetActiveFrame(detailView);
       
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      const int numFrames = detailViewGetNumFrames(detailView);
       const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
       const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
       
@@ -2740,7 +2745,7 @@ void nextMatch(GtkWidget *detailView, GList *seqNameList)
       int frame = detailViewGetActiveFrame(detailView);
       
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      const int numFrames = detailViewGetNumFrames(detailView);
       const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
       const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
       
@@ -2821,37 +2826,37 @@ static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
 static void GHelp(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  displayHelp(detailViewGetMainWindow(detailView));
+  displayHelp(detailViewGetBlxWindow(detailView));
 }
 
 static void GSettings(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  showSettingsDialog(detailViewGetMainWindow(detailView));
+  showSettingsDialog(detailViewGetBlxWindow(detailView));
 }
 
 static void GFind(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  showFindDialog(detailViewGetMainWindow(detailView));
+  showFindDialog(detailViewGetBlxWindow(detailView));
 }
 
 //static void GGroup(GtkButton *button, gpointer data)
 //{
 //  GtkWidget *detailView = GTK_WIDGET(data);
-//  showGroupsDialog(detailViewGetMainWindow(detailView), TRUE);
+//  showGroupsDialog(detailViewGetBlxWindow(detailView), TRUE);
 //}
 
 //static void GCopy(GtkButton *button, gpointer data)
 //{
 //  GtkWidget *detailView = GTK_WIDGET(data);
-//  copySelectionToClipboard(detailViewGetMainWindow(detailView));
+//  copySelectionToClipboard(detailViewGetBlxWindow(detailView));
 //}
 //
 //static void GPaste(GtkButton *button, gpointer data)
 //{
 //  GtkWidget *detailView = GTK_WIDGET(data);
-//  requestDefaultClipboardText(findSeqsFromClipboard, detailViewGetMainWindow(detailView));
+//  requestDefaultClipboardText(findSeqsFromClipboard, detailViewGetBlxWindow(detailView));
 //}
 
 static void GGoto(GtkButton *button, gpointer data)
@@ -2867,28 +2872,28 @@ static void GGoto(GtkButton *button, gpointer data)
 static void GprevMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
   prevMatch(detailView, seqNameList);
 }
 
 static void GnextMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
   nextMatch(detailView, seqNameList);
 }
 
 static void GfirstMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
   firstMatch(detailView, seqNameList);
 }
 
 static void GlastMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = mainWindowGetSelectedSeqs(detailViewGetMainWindow(detailView));
+  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
   lastMatch(detailView, seqNameList);
 }
 
@@ -2969,7 +2974,7 @@ static void addHeaderColumn(GtkBox *container,
  * Column data is compiled into the detailViewColumns return argument. */
 static GtkWidget* createDetailViewHeader(GtkWidget *detailView, 
 					 const BlxSeqType seqType, 
-					 const int numReadingFrames,
+					 const int numFrames,
 					 GList **columnList,
 					 const gboolean includeSnpTrack)
 {
@@ -2991,7 +2996,7 @@ static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
     }
 
   /* The sequence column has a special header and callback when we're dealing with peptide sequences */
-  GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numReadingFrames);
+  GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numFrames);
   GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshTextHeader : NULL;
   
   /* The start and end columns have callbacks to switch the start/end text when display is toggled */
@@ -3032,7 +3037,7 @@ GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int
  * we will display the triplets that make up the codons.) Returns NULL for DNA matches. */
 static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 				     const BlxSeqType seqType,
-				     const int numReadingFrames)
+				     const int numFrames)
 {
   GtkWidget *header = NULL;
   
@@ -3042,7 +3047,7 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
       gtk_widget_set_name(header, HEADER_CONTAINER_NAME);
       
       int frame = 0;
-      for ( ; frame < numReadingFrames; ++frame)
+      for ( ; frame < numFrames; ++frame)
 	{
 	  GtkWidget *line = gtk_layout_new(NULL, NULL);
 	  gtk_box_pack_start(GTK_BOX(header), line, FALSE, TRUE, 0);
@@ -3374,7 +3379,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
 				  GtkCellRenderer *renderer,
 				  GtkWidget *fwdStrandGrid, 
 				  GtkWidget *revStrandGrid, 
-				  const int numReadingFrames,
+				  const int numFrames,
 				  GList **fwdStrandTrees,
 				  GList **revStrandTrees,
 				  BlxSeqType seqType,
@@ -3382,7 +3387,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
 				  const char const *refSeqName,
 				  const gboolean includeSnpTrack)
 {
-  if (numReadingFrames == 1)
+  if (numFrames == 1)
     {
       /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse. */
       createTwoPanedTrees(detailView, 
@@ -3399,7 +3404,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
 			  1,
 			  includeSnpTrack);
     }
-  else if (numReadingFrames == 3)
+  else if (numFrames == 3)
     {
       /* Protein matches: we need 3 trees for the 3 reading frames for EACH strand (although only
        * one set of trees will be displayed at a time). */
@@ -3428,11 +3433,11 @@ static void createDetailViewPanes(GtkWidget *detailView,
  * */
 static void calcID(MSP *msp, GtkWidget *detailView)
 {
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
-  const BlxBlastMode blastMode = mainWindowGetBlastMode(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  const char *paddingSeq = mainWindowGetPaddingSeq(mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  const BlxBlastMode blastMode = blxWindowGetBlastMode(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
+  const char *paddingSeq = blxWindowGetPaddingSeq(blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
   
   const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
   const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
@@ -3448,7 +3453,7 @@ static void calcID(MSP *msp, GtkWidget *detailView)
        * strand. This means that where there is no gaps array the comparison is trivial
        * as coordinates can be ignored and the two sequences just whipped through. */
 
-      char *refSeqSegment = getSequenceSegment(detailViewGetMainWindow(detailView),
+      char *refSeqSegment = getSequenceSegment(detailViewGetBlxWindow(detailView),
 					       detailViewGetRefSeq(detailView),
 					       detailViewGetRefSeqRange(detailView),
 					       msp->qstart, 
@@ -3457,7 +3462,7 @@ static void calcID(MSP *msp, GtkWidget *detailView)
 					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
 					       mspGetRefFrame(msp, seqType),
 					       numFrames,
-					       mainWindowGetStrandsToggled(mainWindow),
+					       blxWindowGetStrandsToggled(blxWindow),
 					       !qForward,
 					       TRUE,
 					       TRUE);
@@ -3600,7 +3605,7 @@ static void calcMspData(MSP *msp, GtkWidget *detailView)
   
   if (seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
     {
-      const int numFrames = detailViewGetNumReadingFrames(detailView);
+      const int numFrames = detailViewGetNumFrames(detailView);
       const gboolean reverseStrand = (mspGetRefStrand(msp) == REVERSE_STRAND);
       
       int frame = UNSET_INT;
@@ -3697,7 +3702,7 @@ static const char* findDetailViewFont(GtkWidget *detailView)
 }
 
 
-GtkWidget* createDetailView(GtkWidget *mainWindow,
+GtkWidget* createDetailView(GtkWidget *blxWindow,
 			    GtkWidget *container,
 			    GtkAdjustment *adjustment, 
 			    GtkWidget *fwdStrandGrid, 
@@ -3705,7 +3710,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			    MSP *mspList,
 			    BlxBlastMode mode,
 			    BlxSeqType seqType,
-			    int numReadingFrames,
+			    int numFrames,
 			    const char const *refSeqName,
 			    const int startCoord,
 			    const gboolean sortInverted,
@@ -3729,7 +3734,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
    * one SNP track in the detail view header; otherwise create SNP tracks in each tree header. */
   GList *columnList = NULL;
   const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
-  GtkWidget *header = createDetailViewHeader(detailView, seqType, numReadingFrames, &columnList, singleSnpTrack);
+  GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, &columnList, singleSnpTrack);
   
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
@@ -3737,7 +3742,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			renderer,
 			fwdStrandGrid, 
 			revStrandGrid, 
-			numReadingFrames, 
+			numFrames, 
 			&fwdStrandTrees,
 			&revStrandTrees,
 			seqType,
@@ -3745,7 +3750,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			refSeqName,
 			!singleSnpTrack);
   
-  /* Put everything in a vbox, and pack it into the main window. */
+  /* Put everything in a vbox, and pack it into the blixem window. */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), buttonBar, FALSE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
@@ -3757,7 +3762,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
   
   detailViewCreateProperties(detailView, 
-			     mainWindow, 
+			     blxWindow, 
 			     renderer,
 			     fwdStrandTrees,
 			     revStrandTrees,
@@ -3766,7 +3771,7 @@ GtkWidget* createDetailView(GtkWidget *mainWindow,
 			     columnList,
 			     adjustment, 
 			     seqType,
-			     numReadingFrames,
+			     numFrames,
 			     startCoord,
 			     sortInverted);
   

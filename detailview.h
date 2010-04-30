@@ -75,7 +75,7 @@ typedef struct _DetailViewColumnInfo
 /* Essential info required by the the detail view */
 typedef struct _DetailViewProperties
   {
-    GtkWidget *mainWindow;	  /* The main window that this view belongs to */
+    GtkWidget *blxWindow;	  /* The main blixem window that this view belongs to */
     GtkCellRenderer *renderer;	  /* The cell renderer that renders the sequences */
     GtkAdjustment *adjustment;	  /* The scroll adjustment control for the detail view */
 
@@ -88,7 +88,7 @@ typedef struct _DetailViewProperties
     GList *revStrandTrees;	  /* A list of all the trees that show the reverse strand of the ref seq */
     
     BlxSeqType seqType;		  /* The match type, i.e. dna or peptide */
-    int numReadingFrames;	  /* The number of reading frames */
+    int numFrames;	  /* The number of reading frames */
     int cellXPadding;		  /* The x padding between the tree cell background area and their drawing area */
     int cellYPadding;		  /* The y padding between the tree cell background area and their drawing area */
         
@@ -136,7 +136,7 @@ typedef struct _DetailViewProperties
 
 /* Public function declarations */
 char*			detailViewGetRefSeq(GtkWidget *detailView);
-int			detailViewGetNumReadingFrames(GtkWidget *detailView);
+int			detailViewGetNumFrames(GtkWidget *detailView);
 IntRange*		detailViewGetDisplayRange(GtkWidget *detailView);
 IntRange*		detailViewGetFullRange(GtkWidget *detailView);
 int			detailViewGetSelectedBaseIdx(GtkWidget *detailView);
@@ -156,7 +156,7 @@ int			detailViewGetCellYPadding(GtkWidget *detailView);
 BlxSeqType		detailViewGetSeqType(GtkWidget *detailView);
 char**			detailViewGetGeneticCode(GtkWidget *detailView);
 IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);
-GtkWidget*	        detailViewGetMainWindow(GtkWidget *detailView);
+GtkWidget*	        detailViewGetBlxWindow(GtkWidget *detailView);
 int			detailViewGetCharWidth(GtkWidget *detailView);
 int			detailViewGetCharHeight(GtkWidget *detailView);
 GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
@@ -236,7 +236,7 @@ void			seqColHeaderSetRow(GtkWidget *header, const int frame);
 int			seqColHeaderGetRow(GtkWidget *header);
 int			seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames);
 
-GtkWidget*		createDetailView(GtkWidget *mainWindow,
+GtkWidget*		createDetailView(GtkWidget *blxWindow,
 					 GtkWidget *container,
 					 GtkAdjustment *adjustment, 
 					 GtkWidget *fwdStrandGrid, 
@@ -244,14 +244,14 @@ GtkWidget*		createDetailView(GtkWidget *mainWindow,
 					 MSP *mspList,
 					 BlxBlastMode mode,
 					 BlxSeqType seqType,
-					 int numReadingFrames,
+					 int numFrames,
 					 const char const *refSeqName,
 					 const int startCoord,
 					 const gboolean sortInverted,
 					 const SortByType sortByType);
 
 GtkWidget*		createDetailViewScrollBar(GtkAdjustment *adjustment, 
-						  GtkWidget *mainWindow);
+						  GtkWidget *blxWindow);
 
 
 #endif /* _detail_view_included_ */

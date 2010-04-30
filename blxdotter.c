@@ -7,7 +7,7 @@
  */
 
 #include <SeqTools/blxdotter.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/dotter.h>
@@ -50,25 +50,25 @@ static char*	      getDotterSSeq(GtkWidget *blxWindow);
 
 static void dotterDialogSaveSettings(DotterDialogData *dialogData)
 {
-  MainWindowProperties *properties = mainWindowGetProperties(dialogData->blxWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
   GtkEntry *startEntry = GTK_ENTRY(dialogData->startCoordWidget);
   GtkEntry *endEntry = GTK_ENTRY(dialogData->endCoordWidget);
   GtkEntry *zoomEntry = GTK_ENTRY(dialogData->zoomCoordWidget);
   
-  properties->autoDotterParams = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
+  blxContext->autoDotterParams = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
   
-  if (!properties->autoDotterParams)
+  if (!blxContext->autoDotterParams)
     {
       /* Save the manual parameters entered */
-      properties->dotterStart = atoi(gtk_entry_get_text(startEntry));
-      properties->dotterEnd = atoi(gtk_entry_get_text(endEntry));
-      properties->dotterZoom = atoi(gtk_entry_get_text(zoomEntry));
+      blxContext->dotterStart = atoi(gtk_entry_get_text(startEntry));
+      blxContext->dotterEnd = atoi(gtk_entry_get_text(endEntry));
+      blxContext->dotterZoom = atoi(gtk_entry_get_text(zoomEntry));
       
       /* Enable the "last-saved" button so the user can revert to these values */
       gtk_widget_set_sensitive(dialogData->lastSavedButton, TRUE);
-      dialogData->lastSavedStart = convertIntToString(properties->dotterStart);
-      dialogData->lastSavedEnd = convertIntToString(properties->dotterEnd);
-      dialogData->lastSavedZoom = convertIntToString(properties->dotterZoom);
+      dialogData->lastSavedStart = convertIntToString(blxContext->dotterStart);
+      dialogData->lastSavedEnd = convertIntToString(blxContext->dotterEnd);
+      dialogData->lastSavedZoom = convertIntToString(blxContext->dotterZoom);
     }  
 }
 
@@ -185,14 +185,14 @@ void showDotterDialog(GtkWidget *blxWindow)
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
   const int spacing = 4;
 
   /* Find the various possibilities for start/end coords */
-  char *lastSavedStart = convertIntToString(mainWindowGetDotterStart(blxWindow));
-  char *lastSavedEnd = convertIntToString(mainWindowGetDotterEnd(blxWindow));
-  char *lastSavedZoom = convertIntToString(mainWindowGetDotterZoom(blxWindow));
+  char *lastSavedStart = convertIntToString(blxWindowGetDotterStart(blxWindow));
+  char *lastSavedEnd = convertIntToString(blxWindowGetDotterEnd(blxWindow));
+  char *lastSavedZoom = convertIntToString(blxWindowGetDotterZoom(blxWindow));
   char *fullRangeStart = convertIntToString(rightToLeft ? refSeqRange->max : refSeqRange->min);
   char *fullRangeEnd = convertIntToString(rightToLeft ? refSeqRange->min : refSeqRange->max);
 
@@ -226,7 +226,7 @@ void showDotterDialog(GtkWidget *blxWindow)
   gtk_box_pack_start(vbox3, fullRangeButton, FALSE, FALSE, spacing);
 
   /* Disable last-saved button if no saved values exist */
-  if (mainWindowGetDotterStart(blxWindow) == UNSET_INT)
+  if (blxWindowGetDotterStart(blxWindow) == UNSET_INT)
     {
       gtk_widget_set_sensitive(lastSavedButton, FALSE);
     }
@@ -263,7 +263,7 @@ void showDotterDialog(GtkWidget *blxWindow)
   gtk_entry_set_activates_default(GTK_ENTRY(zoomCoordWidget), TRUE);
   
   /* Set the initial state of the toggle buttons and entry widgets */
-  if(mainWindowGetAutoDotter(blxWindow))
+  if(blxWindowGetAutoDotter(blxWindow))
     {
       gtk_entry_set_text(GTK_ENTRY(startCoordWidget), autoStart);
       gtk_entry_set_text(GTK_ENTRY(endCoordWidget), autoEnd);
@@ -345,14 +345,14 @@ char getDotterMode(const BlxBlastMode blastMode)
  * automatically - otherwise use the stored manual coords */
 void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterStart, int *dotterEnd, int *dotterZoom)
 {
-  const gboolean autoDotterParams = mainWindowGetAutoDotter(blxWindow);
+  const gboolean autoDotterParams = blxWindowGetAutoDotter(blxWindow);
   
   if (!autoDotterParams)
     {
       /* Use manual coords */
-      *dotterStart = mainWindowGetDotterStart(blxWindow);
-      *dotterEnd = mainWindowGetDotterEnd(blxWindow);
-      *dotterZoom = mainWindowGetDotterZoom(blxWindow);
+      *dotterStart = blxWindowGetDotterStart(blxWindow);
+      *dotterEnd = blxWindowGetDotterEnd(blxWindow);
+      *dotterZoom = blxWindowGetDotterZoom(blxWindow);
       
       if (*dotterStart == UNSET_INT || *dotterEnd == UNSET_INT)
 	{
@@ -379,18 +379,18 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
   char *dotterSSeq = NULL;
   
   /* Get the selected sequence name */
-  GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
+  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
 
   if (g_list_length(selectedSeqs) > 0)
     {
       const char *seqName = (const char*)(selectedSeqs->data);
-      GList *mspList = mainWindowGetSequenceMsps(blxWindow, seqName);
+      GList *mspList = blxWindowGetSequenceMsps(blxWindow, seqName);
 
       /* If we're in seqbl mode, only part of the sequence is in the MSP. */
-      const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
+      const BlxBlastMode blastMode = blxWindowGetBlastMode(blxWindow);
       if (blastMode != BLXMODE_TBLASTN)
 	{
-	  const char *fetchMode = mainWindowGetFetchMode(blxWindow);
+	  const char *fetchMode = blxWindowGetFetchMode(blxWindow);
 	  dotterSSeq = fetchSeqRaw(seqName, fetchMode);
 	  
 	  /* If the match is on the reverse s strand, we need to modify it, because
@@ -398,7 +398,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	  if (dotterSSeq && g_list_length(mspList) > 0)
 	    {
 	      const MSP *msp = (const MSP*)(mspList->data);
-	      const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+	      const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
 	      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 	      
 	      if (qForward && rightToLeft)
@@ -424,7 +424,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  if (msp->sseq != mainWindowGetPaddingSeq(blxWindow))
+		  if (msp->sseq != blxWindowGetPaddingSeq(blxWindow))
 		    {
 		      dotterSSeq = g_strdup(msp->sseq);
 		      break;
@@ -439,7 +439,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	      if (dotterSSeq && g_list_length(mspList) > 0)
 		{
 		  const MSP *msp = (const MSP*)(mspList->data);
-		  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+		  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
 		  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
 		  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 		  const gboolean sameDirection = (qForward == sForward);
@@ -502,19 +502,19 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   gboolean result = FALSE;
 
   /* Check that a sequence is selected */
-  GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
+  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   if (g_list_length(selectedSeqs) < 1)
     {
       return result;
     }
   
-  GtkWidget *bigPicture = mainWindowGetBigPicture(blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   const IntRange const *bigPicRange = bigPictureGetDisplayRange(bigPicture);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
-  const BlxBlastMode blastMode = mainWindowGetBlastMode(blxWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(blxWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(blxWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+  const BlxBlastMode blastMode = blxWindowGetBlastMode(blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
   
   char activeStrand = (rightToLeft ? '-' : '+') ;
 
@@ -523,7 +523,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   const char *selectedSeqName = (const char*)(selectedSeqs->data);
   int qMin = UNSET_INT, qMax = UNSET_INT;
   
-  GList *mspListItem = mainWindowGetSequenceMsps(blxWindow, selectedSeqName);
+  GList *mspListItem = blxWindowGetSequenceMsps(blxWindow, selectedSeqName);
   for ( ; mspListItem ; mspListItem = mspListItem->next)
     {
       const MSP *msp = (MSP*)(mspListItem->data);
@@ -601,7 +601,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	}
 
       /* Keep it within bounds */
-      const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
+      const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
       boundsLimitValue(&qMin, refSeqRange);
       boundsLimitValue(&qMax, refSeqRange);
 
@@ -756,7 +756,7 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
 /* Call dotter. Returns true if dotter was called; false if we quit trying. */
 gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 {
-  GList *selectedSeqs = mainWindowGetSelectedSeqs(blxWindow);
+  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   const int numSeqsSelected = g_list_length(selectedSeqs);
   
   if (numSeqsSelected < 1)
@@ -773,7 +773,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
   const char *selectedSeqName = (const char*)(selectedSeqs->data);
-  GList *selectedMsps = mainWindowGetSequenceMsps(blxWindow, selectedSeqName);
+  GList *selectedMsps = blxWindowGetSequenceMsps(blxWindow, selectedSeqName);
   const MSP *firstMsp = (const MSP*)(selectedMsps->data);
 
   if (!mspIsBlastMatch(firstMsp))
@@ -802,16 +802,16 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   getDotterRange(blxWindow, dotterSSeq, &dotterStart, &dotterEnd, &dotterZoom);
   
   /* Get the reference sequence name */
-  const char *dotterQName = mainWindowGetRefSeqName(blxWindow);
+  const char *dotterQName = blxWindowGetRefSeqName(blxWindow);
   
   /* Get the section of reference sequence that we're interested in */
-  const BlxSeqType seqType = mainWindowGetSeqType(blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
   const Strand strand = mspGetRefStrand(firstMsp);
   const int frame = mspGetRefFrame(firstMsp, seqType);
   
-  const char *refSeq = mainWindowGetRefSeq(blxWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(blxWindow);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(blxWindow);
+  const char *refSeq = blxWindowGetRefSeq(blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
 
   char *querySeqSegmentTemp = getSequenceSegment(blxWindow, 
 						 refSeq,
@@ -821,7 +821,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 						 strand,
 						 BLXSEQ_DNA, /* calculated dotter coords are always in terms of DNA seq */
 						 frame,
-						 mainWindowGetNumReadingFrames(blxWindow),
+						 blxWindowGetNumFrames(blxWindow),
 						 FALSE,	      /* input coords are always left-to-right, even if display reversed */
 						 rightToLeft, /* whether to reverse */
 						 rightToLeft, /* whether to allow rev strands to be complemented */
@@ -857,13 +857,13 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   static char opts[] = "     ";
   opts[0] = rightToLeft ? 'R' : ' ';
   opts[1] = hspsOnly ? 'H' : ' ';
-  opts[2] = mainWindowGetGappedHsp(blxWindow) ? 'G' : ' ';
+  opts[2] = blxWindowGetGappedHsp(blxWindow) ? 'G' : ' ';
   
   /* Get the mode */
-  char type = getDotterMode(mainWindowGetBlastMode(blxWindow));
+  char type = getDotterMode(blxWindowGetBlastMode(blxWindow));
   
   /* Get the list of all MSPs */
-  MSP *mspList = mainWindowGetMspList(blxWindow);
+  MSP *mspList = blxWindowGetMspList(blxWindow);
   
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   

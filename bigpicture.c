@@ -7,7 +7,7 @@
  */
 
 #include <SeqTools/bigpicture.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
@@ -124,10 +124,10 @@ static void calculateBigPictureCellSize(GtkWidget *bigPicture)
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   GtkWidget *header = bigPictureGetGridHeader(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
-  const BlxSeqType seqType = mainWindowGetSeqType(properties->mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(properties->mainWindow);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(properties->mainWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(properties->mainWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow);
+  const int numFrames = blxWindowGetNumFrames(properties->blxWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(properties->blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(properties->blxWindow);
   
   /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
   const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
@@ -154,10 +154,10 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
 
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(bpProperties->mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(bpProperties->mainWindow);
-  const int numFrames = bigPictureGetNumReadingFrames(bigPicture);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(bpProperties->mainWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(bpProperties->blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(bpProperties->blxWindow);
+  const int numFrames = bigPictureGetNumFrames(bigPicture);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(bpProperties->blxWindow);
   
   const int direction = rightToLeft ? -1 : 1; /* to subtract instead of add when display reversed */
   
@@ -621,7 +621,7 @@ static void onDestroyBigPicture(GtkWidget *bigPicture)
 
 
 static void bigPictureCreateProperties(GtkWidget *bigPicture, 
-				       GtkWidget *mainWindow, 
+				       GtkWidget *blxWindow, 
 				       GtkWidget *header, 
 				       GtkWidget *fwdStrandGrid,
 				       GtkWidget *revStrandGrid,
@@ -634,7 +634,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
     { 
       BigPictureProperties *properties = g_malloc(sizeof *properties);
       
-      properties->mainWindow = mainWindow;
+      properties->blxWindow = blxWindow;
       properties->header = header;
       properties->fwdStrandGrid = fwdStrandGrid;
       properties->revStrandGrid = revStrandGrid;
@@ -718,16 +718,16 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
 
 
 
-GtkWidget* bigPictureGetMainWindow(GtkWidget *bigPicture)
+GtkWidget* bigPictureGetBlxWindow(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return properties ? properties->mainWindow : NULL;
+  return properties ? properties->blxWindow : NULL;
 }
 
 GtkWidget* bigPictureGetDetailView(GtkWidget *bigPicture)
 {
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
-  return mainWindowGetDetailView(mainWindow);
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+  return blxWindowGetDetailView(blxWindow);
 }
 
 
@@ -783,8 +783,8 @@ GtkWidget* bigPictureGetInactiveExonView(GtkWidget *bigPicture)
 
 gboolean bigPictureGetStrandsToggled(GtkWidget *bigPicture)
 {
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
-  return mainWindow ? mainWindowGetStrandsToggled(mainWindow) : FALSE;
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+  return blxWindow ? blxWindowGetStrandsToggled(blxWindow) : FALSE;
 }
 
 IntRange* bigPictureGetDisplayRange(GtkWidget *bigPicture)
@@ -801,8 +801,8 @@ static int bigPictureGetInitialZoom(GtkWidget *bigPicture)
 
 static IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
 {
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
-  return mainWindowGetFullRange(mainWindow);
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+  return blxWindowGetFullRange(blxWindow);
 }
 
 GtkWidget* bigPictureGetGridHeader(GtkWidget *bigPicture)
@@ -813,14 +813,14 @@ GtkWidget* bigPictureGetGridHeader(GtkWidget *bigPicture)
 
 BlxSeqType bigPictureGetSeqType(GtkWidget *bigPicture)
 {
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
-  return mainWindowGetSeqType(mainWindow);
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+  return blxWindowGetSeqType(blxWindow);
 }
 
-int bigPictureGetNumReadingFrames(GtkWidget *bigPicture)
+int bigPictureGetNumFrames(GtkWidget *bigPicture)
 {
-  GtkWidget *mainWindow = bigPictureGetMainWindow(bigPicture);
-  return mainWindowGetNumReadingFrames(mainWindow);
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+  return blxWindowGetNumFrames(blxWindow);
 }
 
 
@@ -873,7 +873,7 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 }
 
 
-GtkWidget* createBigPicture(GtkWidget *mainWindow, 
+GtkWidget* createBigPicture(GtkWidget *blxWindow, 
 			    GtkWidget *container,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
@@ -906,7 +906,7 @@ GtkWidget* createBigPicture(GtkWidget *mainWindow,
 
   /* Set the big picture properties */
   bigPictureCreateProperties(bigPicture, 
-			     mainWindow,
+			     blxWindow,
 			     header, 
 			     *fwdStrandGrid,
 			     *revStrandGrid,

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.29 2010-03-26 15:17:20 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.30 2010-04-30 12:06:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -133,7 +133,7 @@ MSP score codes:
 
 #include <SeqTools/blixem_.h>
 #include <SeqTools/utilities.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/blxdotter.h>
 
@@ -519,12 +519,12 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
   if (options->blastMode == BLXMODE_BLASTX || options->blastMode == BLXMODE_TBLASTX)
     {
       options->seqType = BLXSEQ_PEPTIDE;
-      options->numReadingFrames = 3;
+      options->numFrames = 3;
     }
   else
     {
       options->seqType = BLXSEQ_DNA;
-      options->numReadingFrames = 1;
+      options->numFrames = 1;
     }
 }
 
@@ -674,7 +674,7 @@ static void blviewCreate(char *opts,
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createMainWindow(options, paddingSeq);
+      blixemWindow = createBlxWindow(options, paddingSeq);
 
       BOOL pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       gtk_window_set_title(GTK_WINDOW(blixemWindow),
@@ -694,14 +694,14 @@ static void blviewCreate(char *opts,
   
   if (options->dotterFirst && options->mspList && options->mspList->sname && (options->mspList->type == HSP || options->mspList->type == GSP))
     {
-      mainWindowSelectSeq(blixemWindow, options->mspList->sname, TRUE);
+      blxWindowSelectSeq(blixemWindow, options->mspList->sname, TRUE);
       callDotter(blixemWindow, FALSE);
     }
 
   if (options->startNextMatch)
     {
       /* Set the start coord to be the start of the next MSP on from the default start coord */
-      nextMatch(mainWindowGetDetailView(blixemWindow), NULL);
+      nextMatch(blxWindowGetDetailView(blixemWindow), NULL);
     }
 }
 
@@ -719,9 +719,9 @@ static void blviewCreate(char *opts,
    Could free auxseq, auxseq2 and padseq too, but they'd have to be remalloc'ed
    next time then.
 */
-void blviewDestroy(GtkWidget *mainWindow)
+void blviewDestroy(GtkWidget *blxWindow)
 {
-  MSP *mspList = mainWindowGetMspList(mainWindow);
+  MSP *mspList = blxWindowGetMspList(blxWindow);
   
   /* Free the allocated sequences and names */
   MSP *msp = NULL, *fmsp = NULL;
@@ -768,13 +768,13 @@ void blviewDestroy(GtkWidget *mainWindow)
 
 
 
-/* Redraw the entire blixem window. (Call mainWindowRedrawAll directly where possible,
+/* Redraw the entire blixem window. (Call blxWindowRedrawAll directly where possible,
  * rather than this function, which relies on the global variable 'blixemWindow'). */
 void blviewRedraw(void)
 {
   if (blixemWindow)
     {
-      mainWindowRedrawAll(blixemWindow);
+      blxWindowRedrawAll(blixemWindow);
     }
 }
 

@@ -35,54 +35,48 @@ typedef struct _CommandLineOptions
   gboolean startNextMatch;  /* start at the coord of the next match from the default start coord */
   BlxBlastMode blastMode;   /* the blast match mode */
   BlxSeqType seqType;	    /* the type of sequence i.e. DNA or peptide */
-  int numReadingFrames;	    /* the number of reading frames */
+  int numFrames;	    /* the number of reading frames */
   char *fetchMode;    /* the default method for fetching sequences */
 } CommandLineOptions;
 
 
+/* A Blixem View context, containing all status information required to draw the blixem view */
+typedef struct _BlxViewContext
+{
+  GtkWidget *bigPicture;	    /* The top section of the view, showing a "big picture" overview of the alignments */
+  GtkWidget *detailView;	    /* The bottom section of the view, showing a detailed list of the alignments */
 
-typedef struct _BlxWindowProperties
-  {
-    GtkWidget *bigPicture;
-    GtkWidget *detailView;
-    GtkWidget *mainmenu;
-    
-    char *refSeq;		    /* The reference sequence (always forward strand, always DNA sequence) */
-    const char *refSeqName;	    /* The name of the reference sequence */
-    IntRange refSeqRange;	    /* The range of the reference sequence */
-    IntRange fullDisplayRange;	    /* The range of the displayed sequence */
+  char *refSeq;			    /* The reference sequence (always forward strand, always DNA sequence) */
+  const char *refSeqName;	    /* The name of the reference sequence */
+  IntRange refSeqRange;		    /* The range of the reference sequence */
+  IntRange fullDisplayRange;	    /* The range of the displayed sequence */
+  
+  BlxBlastMode blastMode;	    /* The type of blast matching that was used */
+  BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */
+  char* fetchMode;		    /* The fetch method to use */
+  char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
+  int numFrames;		    /* The number of reading frames */
 
-    MSP *mspList;		    /* List of all MSPs. */
-    BlxBlastMode blastMode;	    /* The type of blast matching that was used */
-    char* fetchMode;		    /* The fetch method to use */
-    BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */
-    char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
-    int numReadingFrames;	    /* The number of reading frames */
-    gboolean gappedHsp;		    
-    const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
+  MSP *mspList;			    /* List of all MSPs. */
+  gboolean gappedHsp;		    
+  const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
-    
-    /* DYNAMIC PROPERTIES (these can be changed by the user): */
-    
-    gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
-    GList *selectedSeqs;	    /* A list of sequence names that are selected */
-    GList *sequenceGroups;	    /* A list of SequenceGroups */
-    SequenceGroup *matchSetGroup;   /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
-
-    gboolean autoDotterParams;	    /* Whether to use automatic dotter params */
-    int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
-    int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
-    int dotterZoom;		    /* Zoom param to call dotter with */
-
-    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
-    int lastYEnd;		    /* Keeps track of where the last item ended so we can draw the next one flush to it */
-    int lastYStart;		    /* Where the last item started (for drawing multiple items at same y pos) */
-    int lastYCoord;		    /* Y coord of last item (so we can check if current item should be at same Y pos) */
-  } BlxWindowProperties;
+  
+  gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
+  GList *selectedSeqs;		    /* A list of sequence names that are selected */
+  GList *sequenceGroups;	    /* A list of SequenceGroups */
+  SequenceGroup *matchSetGroup;	    /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
+  
+  gboolean autoDotterParams;	    /* Whether to use automatic dotter params */
+  int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
+  int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
+  int dotterZoom;		    /* Zoom param to call dotter with */
+  
+} BlxViewContext;
 
 
 /* Public function declarations */
-BlxWindowProperties*	  blxWindowGetProperties(GtkWidget *widget);
+BlxViewContext*		  blxWindowGetContext(GtkWidget *widget);
 gboolean		  blxWindowGetStrandsToggled(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
@@ -95,7 +89,7 @@ const char*		  blxWindowGetRefSeqName(GtkWidget *blxWindow);
 BlxSeqType		  blxWindowGetSeqType(GtkWidget *blxWindow);
 char**			  blxWindowGetGeneticCode(GtkWidget *blxWindow);
 char*			  blxWindowGetRefSeq(GtkWidget *blxWindow);
-int			  blxWindowGetNumReadingFrames(GtkWidget *blxWindow);
+int			  blxWindowGetNumFrames(GtkWidget *blxWindow);
 int			  blxWindowGetDotterStart(GtkWidget *blxWindow);
 int			  blxWindowGetDotterEnd(GtkWidget *blxWindow);
 int			  blxWindowGetDotterZoom(GtkWidget *blxWindow);

@@ -11,7 +11,7 @@
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
 #include <math.h>
 #include <string.h>
@@ -44,8 +44,8 @@ static GdkColor*	    gridGetMspLineHighlightColour(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColour(GtkWidget *grid);
 static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
-static GtkWidget*	    gridGetMainWindow(GtkWidget *grid);
-static int		    gridGetNumReadingFrames(GtkWidget *grid);
+static GtkWidget*	    gridGetBlxWindow(GtkWidget *grid);
+static int		    gridGetNumFrames(GtkWidget *grid);
 static void                 drawBigPictureGrid(GtkWidget *grid);
 
 /***********************************************************
@@ -194,10 +194,10 @@ static void drawVerticalGridLines(GtkWidget *grid,
 {
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(bpProperties->mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(bpProperties->mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(bpProperties->mainWindow);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(bpProperties->mainWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(bpProperties->blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(bpProperties->blxWindow);
+  const int numFrames = blxWindowGetNumFrames(bpProperties->blxWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(bpProperties->blxWindow);
   
   const int direction = rightToLeft ? -1 : 1; /* to subtract instead of add when display reversed */
   
@@ -280,13 +280,13 @@ void calculateMspLineDimensions(GtkWidget *grid,
 				int *height)
 {
   GridProperties *gridProperties = gridGetProperties(grid);
-  GtkWidget *mainWindow = bigPictureGetMainWindow(gridProperties->bigPicture);
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(gridProperties->bigPicture);
 
   const IntRange const *displayRange = bigPictureGetDisplayRange(gridProperties->bigPicture);
-  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
   const int frame = mspGetRefFrame(msp, seqType);
 
   /* Find the coordinates of the start and end base in this match sequence, and convert to display coords */
@@ -333,13 +333,13 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
   if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
       const IntRange const *displayRange = gridGetDisplayRange(grid);
-      GtkWidget *mainWindow = bigPictureGetMainWindow(gridGetBigPicture(grid));
+      GtkWidget *blxWindow = bigPictureGetBlxWindow(gridGetBigPicture(grid));
 
       /* Convert the msp's dna coords to display coords */
-      const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-      const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-      const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-      const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+      const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+      const int numFrames = blxWindowGetNumFrames(blxWindow);
+      const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+      const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
 
       const int mspStart = convertDnaIdxToDisplayIdx(msp->qstart, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
       const int mspEnd = convertDnaIdxToDisplayIdx(msp->qend, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
@@ -397,7 +397,7 @@ static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
   const char *seqName = (const char *)key;
   DrawGridData *drawData = (DrawGridData*)data;
   
-  if (!mainWindowIsSeqSelected(gridGetMainWindow(drawData->grid), seqName))
+  if (!blxWindowIsSeqSelected(gridGetBlxWindow(drawData->grid), seqName))
     {
       /* Get the list of MSPs for this sequence */
       SubjectSequence *subjectSeq = (SubjectSequence*)value;
@@ -471,10 +471,10 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
 static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 {
   DrawGridData drawData = {grid, drawable, gc, gridGetMspLineColour(grid), gridGetMspLineColour(grid)};
-  GtkWidget *mainWindow = gridGetMainWindow(grid);
+  GtkWidget *blxWindow = gridGetBlxWindow(grid);
 
   /* The MSP data lives in the detail-view trees. Loop through all trees (i.e. all frames) */
-  const int numFrames = gridGetNumReadingFrames(grid);
+  const int numFrames = gridGetNumFrames(grid);
   int frame = 1;
   
   /* Draw unselected MSPs first */
@@ -488,12 +488,12 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 
   /* Now draw MSPs that are in groups (to do: it would be good to do this in reverse
    * Sort Order, so that those ordered first get drawn last and therefore appear on top) */
-  GList *groupList = mainWindowGetSequenceGroups(mainWindow);
+  GList *groupList = blxWindowGetSequenceGroups(blxWindow);
   g_list_foreach(groupList, drawGroupedMspLines, &drawData);
   
   /* Finally, draw selected sequences. These will appear on top of everything else. */
   drawData.colour = gridGetMspLineHighlightColour(drawData.grid);
-  GList *seqList = mainWindowGetSelectedSeqs(mainWindow);
+  GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
   
   drawData.colour = gridGetMspLineHighlightColour(grid);
   GdkColor shadowColour = getDropShadowColour(drawData.colour);
@@ -729,9 +729,9 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 	  if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
 	    {
 	      /* It's a hit. Select this sequence. */
-	      GtkWidget *mainWindow = gridGetMainWindow(grid);
-	      mainWindowDeselectAllSeqs(mainWindow, TRUE);
-	      mainWindowSelectSeq(mainWindow, msp->sname, TRUE);
+	      GtkWidget *blxWindow = gridGetBlxWindow(grid);
+	      blxWindowDeselectAllSeqs(blxWindow, TRUE);
+	      blxWindowSelectSeq(blxWindow, msp->sname, TRUE);
 
 	      /* The relevant row will be selected in the detail view (if it is in the
 	       * detail view's display range). Scroll the tree vertically to bring the
@@ -756,7 +756,7 @@ static void selectClickedMspLines(GtkWidget *grid, GdkEventButton *event)
   gboolean done = FALSE;
 
   /* The msp info lives in the tree(s). There is one tree for each frame */
-  const int numFrames = gridGetNumReadingFrames(grid);
+  const int numFrames = gridGetNumFrames(grid);
   int frame = 1;
   
   for ( ; frame <= numFrames; ++frame)
@@ -915,10 +915,10 @@ static void gridCreateProperties(GtkWidget *widget,
 }
 
 
-static GtkWidget* gridGetMainWindow(GtkWidget *grid)
+static GtkWidget* gridGetBlxWindow(GtkWidget *grid)
 {
   GridProperties *properties = grid ? gridGetProperties(grid) : NULL;
-  return properties ? bigPictureGetMainWindow(properties->bigPicture) : NULL;
+  return properties ? bigPictureGetBlxWindow(properties->bigPicture) : NULL;
 }
 
 
@@ -928,10 +928,10 @@ Strand gridGetStrand(GtkWidget *grid)
   return properties->strand;
 }
 
-static int gridGetNumReadingFrames(GtkWidget *grid)
+static int gridGetNumFrames(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
-  return bigPictureGetNumReadingFrames(bigPicture);
+  return bigPictureGetNumFrames(bigPicture);
 }
 
 GtkWidget* gridGetBigPicture(GtkWidget *grid)
@@ -960,8 +960,8 @@ static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
 
 static GtkWidget* gridGetDetailView(GtkWidget *grid)
 {
-  GtkWidget *mainWindow = gridGetMainWindow(grid);
-  return mainWindowGetDetailView(mainWindow);
+  GtkWidget *blxWindow = gridGetBlxWindow(grid);
+  return blxWindowGetDetailView(blxWindow);
 }
 
 static GdkColor *gridGetMspLineColour(GtkWidget *grid)

@@ -10,7 +10,7 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/sequencecellrenderer.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
@@ -76,10 +76,10 @@ GtkWidget *treeGetDetailView(GtkWidget *tree)
   return properties ? properties->detailView : NULL;
 }
 
-GtkWidget *treeGetMainWindow(GtkWidget *tree)
+GtkWidget *treeGetBlxWindow(GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetMainWindow(detailView);
+  return detailViewGetBlxWindow(detailView);
 }
 
 GHashTable *treeGetSeqTable(GtkWidget *tree)
@@ -110,11 +110,11 @@ BlxBlastMode treeGetBlastMode(GtkWidget *tree)
   return detailViewGetBlastMode(detailView);
 }
 
-int treeGetNumReadingFrames(GtkWidget *tree)
+int treeGetNumFrames(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
-  return properties ? detailViewGetNumReadingFrames(properties->detailView) : UNSET_INT;
+  return properties ? detailViewGetNumFrames(properties->detailView) : UNSET_INT;
 }
 
 int treeGetFrame(GtkWidget *tree)
@@ -313,13 +313,13 @@ static TreeColumnHeaderInfo* treeColumnGetHeaderInfo(GtkWidget *tree, ColumnId c
 /* Call the given function on all trees in the detail view */
 void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 {
-  int numReadingFrames = detailViewGetNumReadingFrames(detailView);
+  int numFrames = detailViewGetNumFrames(detailView);
   GtkCallback func = (GtkCallback)data;
   
   /* Call the function on the forward strand tree and reverse strand tree
    * for each frame. */
   int frame = 1;
-  for ( ; frame <= numReadingFrames; ++frame)
+  for ( ; frame <= numFrames; ++frame)
     {
       GtkWidget *fwdTree = detailViewGetTree(detailView, FORWARD_STRAND, frame);
       GtkWidget *revTree = detailViewGetTree(detailView, REVERSE_STRAND, frame);
@@ -775,8 +775,8 @@ void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 
 gboolean treeIsSeqSelected(GtkWidget *tree, const char *seqName)
 {
-  GtkWidget *mainWindow = treeGetMainWindow(tree);
-  return mainWindowIsSeqSelected(mainWindow, seqName);
+  GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  return blxWindowIsSeqSelected(blxWindow, seqName);
 }
 
 
@@ -831,12 +831,12 @@ void selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data)
 }
 
 
-/* Mark the given row's sequence as selected in the main window's list of selected seqs.
- * Does not allow the main window to re-update the tree selection */
+/* Mark the given row's sequence as selected in the list of selected seqs.
+ * (Does not allow the tree selection to be re-updated again) */
 static void markSequenceSelectedForRow(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *mainWindow = treeGetMainWindow(tree);
+  GtkWidget *blxWindow = treeGetBlxWindow(tree);
   
   GList *mspGList = treeGetMsps(model, iter);
   
@@ -845,8 +845,8 @@ static void markSequenceSelectedForRow(GtkTreeModel *model, GtkTreePath *path, G
       /* Get the sequence name for any MSP in this row (they should all have the same seq) */
       MSP *msp = (MSP*)(mspGList->data);
       
-      /* Update the mainWindow's list of selected sequences. Tell it that it doens't need to update tree rows. */
-      mainWindowSelectSeq(mainWindow, msp->sname, FALSE);
+      /* Update the blxWindow's list of selected sequences. Tell it that it doens't need to update tree rows. */
+      blxWindowSelectSeq(blxWindow, msp->sname, FALSE);
     }
 }
 
@@ -939,20 +939,20 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
   if (g_list_length(mspList) > 0)
     {
       GtkWidget *tree = GTK_WIDGET(data);
-      GtkWidget *mainWindow = treeGetMainWindow(tree);
+      GtkWidget *blxWindow = treeGetBlxWindow(tree);
 
       /* Check the first msp to see if this sequence is in a group that's hidden */
       const MSP *firstMsp = (const MSP*)(mspList->data);
-      SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, firstMsp->sname);
+      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, firstMsp->sname);
       
       if (!group || !group->hidden)
 	{
 	  const int frame = treeGetFrame(tree);
-	  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-	  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
+	  const int numFrames = blxWindowGetNumFrames(blxWindow);
+	  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
 	  const IntRange const *displayRange = treeGetDisplayRange(tree);
-	  const IntRange const *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-	  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
+	  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+	  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
 
 	  /* Show the row if any MSP in the list is an exon or blast match within the display range */
 	  GList *mspListItem = mspList;
@@ -1157,17 +1157,17 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GdkDrawable *drawable = createBlankPixmap(headerWidget);
   
   GtkWidget *detailView = treeGetDetailView(tree);
-  GtkWidget *mainWindow = detailViewGetMainWindow(detailView);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   
   const Strand strand = treeGetStrand(tree);
   const int frame = treeGetFrame(tree);
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  IntRange *refSeqRange = mainWindowGetRefSeqRange(mainWindow);
-  const gboolean rightToLeft = mainWindowGetStrandsToggled(mainWindow);
-  const BlxSeqType seqType = mainWindowGetSeqType(mainWindow);
-  const int numFrames = mainWindowGetNumReadingFrames(mainWindow);
-  char *refSeq = mainWindowGetRefSeq(mainWindow);
-  const MSP *mspList = mainWindowGetMspList(mainWindow);
+  IntRange *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
+  char *refSeq = blxWindowGetRefSeq(blxWindow);
+  const MSP *mspList = blxWindowGetMspList(blxWindow);
   
   /* Set the colour to highlight SNP-affected bases in, if displaying SNPs against
    * this tree */
@@ -1181,7 +1181,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
     }
   
   /* Find the segment of the ref seq to display. */
-  gchar *segmentToDisplay = getSequenceSegment(mainWindow,
+  gchar *segmentToDisplay = getSequenceSegment(blxWindow,
 					       refSeq,
 					       refSeqRange,
 					       displayRange->min, 
@@ -1278,7 +1278,7 @@ static gboolean onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *ev
 static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, gpointer data)
 {
   /* Create a new drawable to draw to. Our custom cell renderer will draw to this as
-   * well as the main window. (Ideally we'd just draw to the bitmap and then push
+   * well as the widget's window. (Ideally we'd just draw to the bitmap and then push
    * this to the screen, but I'm not sure if it's possible to detect when the 
    * cell renderer has finished drawing.) */
   GdkDrawable *drawable = gdk_pixmap_new(tree->window, tree->allocation.width, tree->allocation.height, -1);
@@ -1308,7 +1308,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	/* Left button: selects a row, or shows the pfetch window if this was a double-click. */
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
-	    mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
+	    blxWindowDeselectAllSeqs(treeGetBlxWindow(tree), FALSE);
 	    deselectAllSiblingTrees(tree, FALSE);
 	    
 	    /* If we've clicked a different tree to the previously selected one, make this tree's 
@@ -1321,13 +1321,13 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
 	    /* Get the selected sequence (assumes that only one is selected) */
-	    GtkWidget *mainWindow = treeGetMainWindow(tree);
-	    GList *selectedSeqs = mainWindowGetSelectedSeqs(mainWindow);
+	    GtkWidget *blxWindow = treeGetBlxWindow(tree);
+	    GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
 	    
 	    if (selectedSeqs)
 	      {
 		char *seqName = (char*)selectedSeqs->data;
-		fetchAndDisplaySequence(seqName, 0, mainWindow);
+		fetchAndDisplaySequence(seqName, 0, blxWindow);
 	      }
 	      
 	    handled = TRUE;
@@ -1351,7 +1351,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     case 3:
       {
 	/* Right button: show context menu. */
-	GtkWidget *mainmenu = mainWindowGetMainMenu(treeGetMainWindow(tree));
+	GtkWidget *mainmenu = blxWindowGetMainMenu(treeGetBlxWindow(tree));
 	gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
 	handled = TRUE;
 	break;
@@ -1379,7 +1379,7 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
 	    /* Select the SNP that was clicked on.  */
-	    mainWindowDeselectAllSeqs(detailViewGetMainWindow(detailView), TRUE);
+	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
 	    
 	    selectClickedSnp(header, detailView, event->x, event->y, FALSE, FALSE, UNSET_INT); /* SNPs are always un-expanded in the DNA track */
 	    
@@ -1417,7 +1417,7 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
     case 3:
       {
 	/* Right button: show context menu. */
-	GtkWidget *mainmenu = mainWindowGetMainMenu(treeGetMainWindow(tree));
+	GtkWidget *mainmenu = blxWindowGetMainMenu(treeGetBlxWindow(tree));
 	gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
 	handled = TRUE;
 	break;
@@ -1450,7 +1450,7 @@ static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer dat
 	      if (gtk_tree_path_prev(path))
 		{
 		  callFuncOnAllDetailViewTrees(treeGetDetailView(tree), deselectAllRows);
-		  mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
+		  blxWindowDeselectAllSeqs(treeGetBlxWindow(tree), FALSE);
 		}
 	    }
 	  else
@@ -1462,7 +1462,7 @@ static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer dat
 	      if (gtk_tree_model_iter_next(model, &iter))
 		{
 		  callFuncOnAllDetailViewTrees(treeGetDetailView(tree), deselectAllRows);
-		  mainWindowDeselectAllSeqs(treeGetMainWindow(tree), FALSE);
+		  blxWindowDeselectAllSeqs(treeGetBlxWindow(tree), FALSE);
 		}
 	    }
 	}
@@ -1998,7 +1998,7 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
       const int colWidth = calculateColumnWidth(headerInfo, tree);
 
       /* Abbreviate the name */
-      const char *refSeqName = mainWindowGetRefSeqName(treeGetMainWindow(tree));
+      const char *refSeqName = blxWindowGetRefSeqName(treeGetBlxWindow(tree));
       const int maxLen = (colWidth / treeGetCharWidth(tree));
       
       char stringToAppend[] = "(+0)";
@@ -2044,14 +2044,14 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
       /* Update the font, in case its size has changed */
       gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
 
-      GtkWidget *mainWindow = treeGetMainWindow(tree);
+      GtkWidget *blxWindow = treeGetBlxWindow(tree);
       
       int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), 
 					treeGetFrame(tree),
-					mainWindowGetSeqType(mainWindow), 
-					mainWindowGetStrandsToggled(mainWindow), 
-					mainWindowGetNumReadingFrames(mainWindow),
-					mainWindowGetRefSeqRange(mainWindow));
+					blxWindowGetSeqType(blxWindow), 
+					blxWindowGetStrandsToggled(blxWindow), 
+					blxWindowGetNumFrames(blxWindow),
+					blxWindowGetRefSeqRange(blxWindow));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
@@ -2078,14 +2078,14 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
       /* Update the font, in case its size has changed */
       gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
 
-      GtkWidget *mainWindow = treeGetMainWindow(tree);
+      GtkWidget *blxWindow = treeGetBlxWindow(tree);
       
       int displayVal = getEndDnaCoord(treeGetDisplayRange(tree),
 				      treeGetFrame(tree),
-				      mainWindowGetSeqType(mainWindow), 
-				      mainWindowGetStrandsToggled(mainWindow), 
-				      mainWindowGetNumReadingFrames(mainWindow),
-				      mainWindowGetRefSeqRange(mainWindow));
+				      blxWindowGetSeqType(blxWindow), 
+				      blxWindowGetStrandsToggled(blxWindow), 
+				      blxWindowGetNumFrames(blxWindow),
+				      blxWindowGetRefSeqRange(blxWindow));
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
@@ -2338,9 +2338,9 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 	  /* Get the order number out of the group and sort on that. If the sequence
 	   * is not in a group, its order number is UNSET_INT, and it gets sorted after
 	   * any sequences that are in groups. */
-	  GtkWidget *mainWindow = treeGetMainWindow(tree);
-	  const int msp1Order = sequenceGetGroupOrder(mainWindow, msp1->sname);
-	  const int msp2Order = sequenceGetGroupOrder(mainWindow, msp2->sname);
+	  GtkWidget *blxWindow = treeGetBlxWindow(tree);
+	  const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sname);
+	  const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sname);
 	  
 	  if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
 	    result = 1;
@@ -2357,9 +2357,9 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   /* If values are the same, further sort by group, name, position, length */
   if (!result && sortColumn != SEQUENCE_COL)
     {
-      GtkWidget *mainWindow = treeGetMainWindow(tree);
-      const int msp1Order = sequenceGetGroupOrder(mainWindow, msp1->sname);
-      const int msp2Order = sequenceGetGroupOrder(mainWindow, msp2->sname);
+      GtkWidget *blxWindow = treeGetBlxWindow(tree);
+      const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sname);
+      const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sname);
       
       if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
 	result = -1;

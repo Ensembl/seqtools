@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.23 2010-04-28 11:13:36 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.24 2010-04-30 12:06:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -70,30 +70,6 @@ typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
 
 /* Fundamental blast match mode used */
 typedef enum {BLXMODE_UNSET, BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BLXMODE_TBLASTN, BLXMODE_BLASTP} BlxBlastMode ;
-
-
-/* This will probably never be completed but I want to start creating a blixem context....which
- * will require the following steps:
- * 
- * 1) Create a context struct which is initially a "global", i.e. is not passed from function
- *    to function but just accessed directly.
- * 
- * 2) Put all new fields into this struct.
- * 
- * 3) gradually move other fields into it.
- * 
- * 4) gradually change function signatures so that the struct is passed to functions that need it.
- * 
- *  */
-typedef struct BlixemViewStructName
-{
-
-
-  BOOL match_set ;
-
-
-} BlixemViewStruct, *BlixemView ;
-
 
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
@@ -235,7 +211,7 @@ void insertFS(MSP *msp, char *series);
 char *readFastaSeq(FILE *seqfile, char *qname);
 
 void blxPfetchEntry(char *sequence_name) ;
-void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *mainWindow) ;
+void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow) ;
 void blxFindInitialFetchMode(char *fetchMode) ;
 void blxPfetchMenu(void) ;
 char *blxGetFetchProg(const char *fetchMode) ;
@@ -259,7 +235,7 @@ void blxComplement(char *seq) ;
 
 char *getqseq(int start, int end, const char const *refSeq);
 
-void blviewDestroy(GtkWidget *mainWindow);
+void blviewDestroy(GtkWidget *blxWindow);
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char *blixemVersion ;

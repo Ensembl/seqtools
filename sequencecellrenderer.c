@@ -10,7 +10,7 @@
 #include <SeqTools/sequencecellrenderer.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
 #include <wh/smap.h>
 #include <gtk/gtkcellrenderertext.h>
@@ -43,7 +43,7 @@ typedef struct _RenderData
     const IntRange const *refSeqRange;
     const gboolean highlightDiffs;
     GdkDrawable *drawable;
-    GtkWidget *mainWindow;
+    GtkWidget *blxWindow;
     GdkColor *exonColour;
     GdkColor *exonColourSelected;
     GdkColor *insertionColour;
@@ -767,7 +767,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 void drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data)
 {
   /* Loop through all MSPs. */
-  const MSP *msp = mainWindowGetMspList(data->mainWindow);
+  const MSP *msp = blxWindowGetMspList(data->blxWindow);
 
   for ( ; msp; msp = msp->next)
     {
@@ -893,9 +893,9 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       return;
     }
   
-  gchar *refSeqSegment = getSequenceSegment(data->mainWindow,
-					    mainWindowGetRefSeq(data->mainWindow),
-					    mainWindowGetRefSeqRange(data->mainWindow),
+  gchar *refSeqSegment = getSequenceSegment(data->blxWindow,
+					    blxWindowGetRefSeq(data->blxWindow),
+					    blxWindowGetRefSeqRange(data->blxWindow),
 					    segmentRange.min, 
 					    segmentRange.max, 
 					    data->qStrand, 
@@ -959,7 +959,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   /* Extract all the info from the tree that we'll need repeatedly. */
   TreeProperties *treeProperties = treeGetProperties(tree);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeProperties->detailView);
-  MainWindowProperties *mainWindowProperties = mainWindowGetProperties(detailViewProperties->mainWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(detailViewProperties->blxWindow);
   
   const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colours if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
@@ -970,24 +970,24 @@ static void drawMsps(SequenceCellRenderer *renderer,
     window,
     state,
     gdk_gc_new(window),
-    mainWindowProperties->strandsToggled,
+    blxContext->strandsToggled,
     treeGetStrand(tree),
     treeProperties->readingFrame,
     detailViewProperties->selectedBaseIdx,
-    mainWindowIsSeqSelected(detailViewProperties->mainWindow, seqName),
+    blxWindowIsSeqSelected(detailViewProperties->blxWindow, seqName),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
     treeProperties->readingFrame,
-    mainWindowProperties->numReadingFrames,
+    blxContext->numFrames,
     detailViewProperties->charWidth,
     detailViewProperties->charHeight,
-    mainWindowProperties->seqType,
-    mainWindowProperties->blastMode,
+    blxContext->seqType,
+    blxContext->blastMode,
     &detailViewProperties->displayRange,
-    &mainWindowProperties->refSeqRange,
+    &blxContext->refSeqRange,
     highlightDiffs,
     widgetGetDrawable(tree),
-    detailViewProperties->mainWindow,
+    detailViewProperties->blxWindow,
     &detailViewProperties->exonColour,
     &detailViewProperties->exonColourSelected,
     &detailViewProperties->insertionColour,
@@ -1064,9 +1064,9 @@ static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindo
       /* Find out whether the MSP(s) that this cell is displaying are in 
        * a grouped sequence or are selected. */
       MSP *msp = (MSP*)(renderer->data->data);
-      GtkWidget *mainWindow = treeGetMainWindow(tree);
-      SequenceGroup *group = mainWindowGetSequenceGroup(mainWindow, msp->sname);
-      const gboolean isSelected = mainWindowIsSeqSelected(mainWindow, msp->sname);
+      GtkWidget *blxWindow = treeGetBlxWindow(tree);
+      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, msp->sname);
+      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sname);
       
       if (isSelected || (group && group->highlighted))
 	{

@@ -11,7 +11,7 @@
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/bigpicturegrid.h>
 #include <SeqTools/detailview.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
 
 #define EXON_VIEW_DEFAULT_COMPRESSED_HEIGHT      10
@@ -42,7 +42,7 @@ typedef struct _DrawData
     GdkGC *gc;
     GdkColor *colour;
     GdkRectangle *exonViewRect;
-    GtkWidget *mainWindow;
+    GtkWidget *blxWindow;
     const Strand strand;
     const IntRange const *displayRange;
     const IntRange const *refSeqRange;
@@ -56,7 +56,7 @@ typedef struct _DrawData
 /* Local function declarations */
 static GtkWidget*		exonViewGetBigPicture(GtkWidget *exonView);
 static Strand			exonViewGetStrand(GtkWidget *exonView);
-static GtkWidget*		exonViewGetMainWindow(GtkWidget *exonView);
+static GtkWidget*		exonViewGetBlxWindow(GtkWidget *exonView);
 static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
 static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
 
@@ -128,7 +128,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
   DrawData *drawData = (DrawData*)data;
   
   /* Loop through all msps in this sequence */
-  GList *mspListItem = mainWindowGetSequenceMsps(drawData->mainWindow, seqName);
+  GList *mspListItem = blxWindowGetSequenceMsps(drawData->blxWindow, seqName);
   
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
@@ -145,8 +145,8 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
 /* Draw the exon view */
 static void drawExonView(GtkWidget *exonView)
 {
-  GtkWidget *mainWindow = exonViewGetMainWindow(exonView);
-  const MSP *msp = mainWindowGetMspList(mainWindow);
+  GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
+  const MSP *msp = blxWindowGetMspList(blxWindow);
   const Strand currentStrand = exonViewGetStrand(exonView);
   ExonViewProperties *properties = exonViewGetProperties(exonView);
 
@@ -158,13 +158,13 @@ static void drawExonView(GtkWidget *exonView)
     gc,
     &properties->exonColour,
     &properties->exonViewRect,
-    mainWindow,
+    blxWindow,
     currentStrand,
     bigPictureGetDisplayRange(properties->bigPicture),
-    mainWindowGetRefSeqRange(mainWindow),
-    mainWindowGetStrandsToggled(mainWindow),
-    mainWindowGetNumReadingFrames(mainWindow),
-    mainWindowGetSeqType(mainWindow)
+    blxWindowGetRefSeqRange(blxWindow),
+    blxWindowGetStrandsToggled(blxWindow),
+    blxWindowGetNumFrames(blxWindow),
+    blxWindowGetSeqType(blxWindow)
   };
   
   /* Loop through all msps drawing only unselected ones */
@@ -172,7 +172,7 @@ static void drawExonView(GtkWidget *exonView)
     {
       if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == currentStrand)
 	{
-	  if (!mainWindowIsSeqSelected(mainWindow, msp->sname));
+	  if (!blxWindowIsSeqSelected(blxWindow, msp->sname));
 	    {
 	      drawExonIntron(msp, &drawData);
 	    }
@@ -180,7 +180,7 @@ static void drawExonView(GtkWidget *exonView)
     }
   
   /* Draw grouped msps */
-  GList *groupItem = mainWindowGetSequenceGroups(mainWindow);
+  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
@@ -190,7 +190,7 @@ static void drawExonView(GtkWidget *exonView)
   
   /* Draw all selected msps */
   drawData.colour = &properties->exonColourSelected;
-  g_list_foreach(mainWindowGetSelectedSeqs(mainWindow), drawExonIntronItem, &drawData);
+  g_list_foreach(blxWindowGetSelectedSeqs(blxWindow), drawExonIntronItem, &drawData);
   
   g_object_unref(gc);
 }
@@ -271,10 +271,10 @@ static Strand exonViewGetStrand(GtkWidget *exonView)
   return properties->currentStrand;
 }
 
-static GtkWidget* exonViewGetMainWindow(GtkWidget *exonView)
+static GtkWidget* exonViewGetBlxWindow(GtkWidget *exonView)
 {
   GtkWidget *bigPicture = exonViewGetBigPicture(exonView);
-  return bigPictureGetMainWindow(bigPicture);
+  return bigPictureGetBlxWindow(bigPicture);
 }
 
 static GtkWidget* exonViewGetTopGrid(GtkWidget *exonView)

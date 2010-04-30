@@ -29,7 +29,25 @@ typedef struct _CompareSeqData
   } SeqSearchData;
 
 
+/* Properties specific to the blixem window */
+typedef struct _BlxWindowProperties
+  {
+    BlxViewContext *blxContext;	      /* The blixem view context */
+    
+    GtkWidget *mainmenu;	      /* The main menu */
+
+    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
+    int lastYEnd;		      /* Keeps track of where the last item ended so we can draw the next one flush to it */
+    int lastYStart;		      /* Where the last item started (for drawing multiple items at same y pos) */
+    int lastYCoord;		      /* Y coord of last item (so we can check if current item should be at same Y pos) */
+    
+  } BlxWindowProperties;
+
+
+
 /* Local function declarations */
+static BlxWindowProperties*	  blxWindowGetProperties(GtkWidget *widget);
+
 static void			  onHelpMenu(GtkAction *action, gpointer data);
 static void			  onQuit(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
@@ -329,15 +347,15 @@ static void scrollDetailView(GtkWidget *window, const gboolean moveLeft, const g
  * the new base in view. */
 static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(window);
-  GtkWidget *detailView = properties->detailView;
+  BlxViewContext *blxContext = blxWindowGetContext(window);
+  GtkWidget *detailView = blxContext->detailView;
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
   if (detailViewProperties->selectedBaseIdx != UNSET_INT)
     {
       /* Decrement the index if moving left decrease and increment it if moving right, 
        * unless the display is toggled, in which case do the opposite */
-      const int numFrames = properties->numReadingFrames;
+      const int numFrames = blxContext->numFrames;
       const int minBaseNum = 1;
       const int maxBaseNum = numFrames;
 
@@ -424,8 +442,8 @@ static void goToMatch(GtkWidget *blxWindow, const gboolean moveLeft)
  * index in view. */
 static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(window);
-  GtkWidget *detailView = properties->detailView;
+  BlxViewContext *blxContext = blxWindowGetContext(window);
+  GtkWidget *detailView = blxContext->detailView;
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
   if (detailViewProperties->selectedBaseIdx != UNSET_INT)
@@ -504,8 +522,8 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
 {
   gboolean result = FALSE;
   
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  GList *groupList = properties->sequenceGroups;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  GList *groupList = blxContext->sequenceGroups;
   
   if (g_list_length(groupList) > 1)
     {
@@ -516,7 +534,7 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
       /* Only one group. If it's the match set group, check it has sequences */
       SequenceGroup *group = (SequenceGroup*)(groupList->data);
       
-      if (group != properties->matchSetGroup || g_list_length(group->seqNameList) > 0)
+      if (group != blxContext->matchSetGroup || g_list_length(group->seqNameList) > 0)
 	{
 	  result = TRUE;
 	}
@@ -706,7 +724,7 @@ void showViewPanesDialog(GtkWidget *blxWindow)
   createVisibilityButton(detailView, "_Detail view", contentArea);
   
   GtkWidget *detailViewSubBox = createVBoxWithBorder(contentArea, borderWidth);
-  const int numFrames = blxWindowGetNumReadingFrames(blxWindow);
+  const int numFrames = blxWindowGetNumFrames(blxWindow);
   int frame = 1;
   for ( ; frame <= numFrames; ++frame)
     {
@@ -896,13 +914,13 @@ static void destroySequenceGroup(GtkWidget *blxWindow, SequenceGroup **seqGroup)
   if (seqGroup && *seqGroup)
     {
       /* Remove it from the list of groups */
-      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-      properties->sequenceGroups = g_list_remove(properties->sequenceGroups, *seqGroup);
+      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+      blxContext->sequenceGroups = g_list_remove(blxContext->sequenceGroups, *seqGroup);
       
       /* If this is pointed to by the match-set pointer, null it */
-      if (*seqGroup == properties->matchSetGroup)
+      if (*seqGroup == blxContext->matchSetGroup)
 	{
-	  properties->matchSetGroup = NULL;
+	  blxContext->matchSetGroup = NULL;
 	}
       
       /* Free the memory used by the group name */
@@ -926,9 +944,9 @@ static void destroySequenceGroup(GtkWidget *blxWindow, SequenceGroup **seqGroup)
 /* Delete a single group */
 static void blxWindowDeleteSequenceGroup(GtkWidget *blxWindow, SequenceGroup *group)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
-  if (properties->sequenceGroups)
+  if (blxContext->sequenceGroups)
     {
       destroySequenceGroup(blxWindow, &group);
       blxWindowGroupsChanged(blxWindow);
@@ -939,8 +957,8 @@ static void blxWindowDeleteSequenceGroup(GtkWidget *blxWindow, SequenceGroup *gr
 /* Delete all groups */
 static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  GList *groupItem = properties->sequenceGroups;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  GList *groupItem = blxContext->sequenceGroups;
   
   for ( ; groupItem; groupItem = groupItem->next)
     {
@@ -948,8 +966,8 @@ static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
       destroySequenceGroup(blxWindow, &group);
     }
   
-  g_list_free(properties->sequenceGroups);
-  properties->sequenceGroups = NULL;
+  g_list_free(blxContext->sequenceGroups);
+  blxContext->sequenceGroups = NULL;
   
   blxWindowGroupsChanged(blxWindow);
 }
@@ -978,7 +996,7 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
  * will be allocated. */
 static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqNameList, const gboolean ownSeqNames, const char *groupName)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   /* Create the new group */
   SequenceGroup *group = g_malloc(sizeof(SequenceGroup));
@@ -988,7 +1006,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqNameLi
   group->hidden = FALSE;
   
   /* Find a unique ID */
-  GList *lastItem = g_list_last(properties->sequenceGroups);
+  GList *lastItem = g_list_last(blxContext->sequenceGroups);
   
   if (lastItem)
     {
@@ -1021,7 +1039,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqNameLi
   group->highlighted = TRUE;
   group->highlightColour = getGdkColor(GDK_RED);
 
-  properties->sequenceGroups = g_list_append(properties->sequenceGroups, group);
+  blxContext->sequenceGroups = g_list_append(blxContext->sequenceGroups, group);
 
   blxWindowGroupsChanged(blxWindow);
   
@@ -1131,10 +1149,10 @@ static void onGroupColourChanged(GtkWidget *button, gpointer data)
  * widget at the given row. */
 static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, GtkTable *table, const int row, const int xpad, const int ypad)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   /* Only show the special 'match set' group if it has some sequences */
-  if (group != properties->matchSetGroup || g_list_length(group->seqNameList) > 0)
+  if (group != blxContext->matchSetGroup || g_list_length(group->seqNameList) > 0)
     {
       /* Show the group's name in a text box that the user can edit */
       GtkWidget *nameWidget = gtk_entry_new();
@@ -1225,11 +1243,11 @@ static void addGroupFromSelection(GtkWidget *button, gpointer data)
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
       GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
       
-      if (g_list_length(properties->selectedSeqs) > 0)
+      if (g_list_length(blxContext->selectedSeqs) > 0)
 	{
-	  GList *list = g_list_copy(properties->selectedSeqs); /* group takes ownership of this */
+	  GList *list = g_list_copy(blxContext->selectedSeqs); /* group takes ownership of this */
 	  createSequenceGroup(blxWindow, list, FALSE, NULL);
 	}
       else
@@ -1313,21 +1331,21 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
   /* If a group already exists, replace its list. Otherwise create the group. */
   if (seqNameList)
     {
-      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
       
-      if (!properties->matchSetGroup)
+      if (!blxContext->matchSetGroup)
 	{
-	  properties->matchSetGroup = createSequenceGroup(blxWindow, seqNameList, FALSE, "Match Set");
+	  blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqNameList, FALSE, "Match Set");
 	}
       else
 	{
-	  freeStringList(&properties->matchSetGroup->seqNameList, properties->matchSetGroup->ownsSeqNames);
-	  properties->matchSetGroup->seqNameList = seqNameList;
+	  freeStringList(&blxContext->matchSetGroup->seqNameList, blxContext->matchSetGroup->ownsSeqNames);
+	  blxContext->matchSetGroup->seqNameList = seqNameList;
 	}
       
       /* Reset the highlighted/hidden properties to make sure the group is initially visible */
-      properties->matchSetGroup->highlighted = TRUE;
-      properties->matchSetGroup->hidden = FALSE;
+      blxContext->matchSetGroup->highlighted = TRUE;
+      blxContext->matchSetGroup->hidden = FALSE;
 
       blxWindowGroupsChanged(blxWindow);
     }
@@ -1356,13 +1374,13 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
  * from the current clipboard text (which should contain valid sequence name(s)). */
 static void toggleMatchSet(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
-  if (properties->matchSetGroup && properties->matchSetGroup->seqNameList)
+  if (blxContext->matchSetGroup && blxContext->matchSetGroup->seqNameList)
     {
       /* Clear the list of names only (don't delete the group, because we want to
        * keep any changes the user made (e.g. to the group colour etc.) for next time. */
-      freeStringList(&(properties->matchSetGroup->seqNameList), properties->matchSetGroup->ownsSeqNames);
+      freeStringList(&(blxContext->matchSetGroup->seqNameList), blxContext->matchSetGroup->ownsSeqNames);
       blxWindowGroupsChanged(blxWindow);
     }
   else
@@ -1629,10 +1647,10 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups)
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  const gboolean seqsSelected = g_list_length(properties->selectedSeqs) > 0;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  const gboolean seqsSelected = g_list_length(blxContext->selectedSeqs) > 0;
 
-  const int numRows = g_list_length(properties->sequenceGroups) + 2; /* +2 for header row and delete-all button */
+  const int numRows = g_list_length(blxContext->sequenceGroups) + 2; /* +2 for header row and delete-all button */
   const gboolean groupsExist = blxWindowGroupsExist(blxWindow);
   
 
@@ -2536,15 +2554,45 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
  *			   Properties                      *
  ***********************************************************/
 
-BlxWindowProperties* blxWindowGetProperties(GtkWidget *widget)
+static BlxWindowProperties* blxWindowGetProperties(GtkWidget *widget)
 {
   return widget ? (BlxWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BlxWindowProperties")) : NULL;
+}
+
+BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  return properties ? properties->blxContext : NULL;
 }
 
 static void onDestroyBlxWindow(GtkWidget *widget)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(widget);
   
+  if (properties && properties->blxContext)
+    {
+      /* Free the list of selected sequence names (not the names themselves
+       * because we don't own them). */
+      if (properties->blxContext->selectedSeqs)
+	{
+	  g_list_free(properties->blxContext->selectedSeqs);
+	  properties->blxContext->selectedSeqs = NULL;
+	}
+      
+      /* Free the list of sequence groups (and all the data they own) */
+      blxWindowDeleteAllSequenceGroups(widget);
+
+      if (properties->blxContext->fetchMode)
+	{
+	  g_free(properties->blxContext->fetchMode);
+	  properties->blxContext->fetchMode = NULL;
+	}
+     
+      /* Free the context struct itself */
+      g_free(properties->blxContext);
+      properties->blxContext = NULL;
+    }
+    
   if (properties)
     {
       if (properties->mainmenu)
@@ -2553,17 +2601,6 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 	  properties->mainmenu = NULL;
 	}
       
-      /* Free the list of selected sequence names (not the names themselves
-       * because we don't own them). */
-      if (properties->selectedSeqs)
-	{
-	  g_list_free(properties->selectedSeqs);
-	  properties->selectedSeqs = NULL;
-	}
-      
-      /* Free the list of sequence groups (and all the data they own) */
-      blxWindowDeleteAllSequenceGroups(widget);
-
       /* Destroy the print settings */
       if (properties->printSettings)
 	{
@@ -2571,23 +2608,61 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 	  properties->printSettings = NULL;
 	}
       
-      if (properties->fetchMode)
-	{
-	  g_free(properties->fetchMode);
-	  properties->fetchMode = NULL;
-	}
-      
       /* Free the properties struct itself */
       g_free(properties);
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", NULL);
     }
-    
+  
   /* Destroy variables created by the main program */
   blviewDestroy(widget);
   
   gtk_main_quit();
 }
+
+
+static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
+					      GtkWidget *widget, 
+					      GtkWidget *bigPicture, 
+					      GtkWidget *detailView,
+					      const IntRange const *refSeqRange,
+					      const IntRange const *fullDisplayRange,
+					      const char *paddingSeq)
+{
+  BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
+  
+  blxContext->bigPicture = bigPicture;
+  blxContext->detailView = detailView;
+
+  blxContext->refSeq = options->refSeq;
+  blxContext->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
+  blxContext->refSeqRange.min = refSeqRange->min;
+  blxContext->refSeqRange.max = refSeqRange->max;
+  blxContext->fullDisplayRange.min = fullDisplayRange->min;
+  blxContext->fullDisplayRange.max = fullDisplayRange->max;
+  
+  blxContext->mspList = options->mspList;
+  blxContext->geneticCode = options->geneticCode;
+  blxContext->blastMode = options->blastMode;
+  blxContext->seqType = options->seqType;
+  blxContext->numFrames = options->numFrames;
+  blxContext->gappedHsp = options->gappedHsp;
+  blxContext->paddingSeq = paddingSeq;
+  blxContext->fetchMode = g_strdup(options->fetchMode);
+  
+  blxContext->strandsToggled = FALSE;
+  blxContext->selectedSeqs = NULL;
+  blxContext->sequenceGroups = NULL;
+  blxContext->matchSetGroup = NULL;
+  
+  blxContext->autoDotterParams = TRUE;
+  blxContext->dotterStart = UNSET_INT;
+  blxContext->dotterEnd = UNSET_INT;
+  blxContext->dotterZoom = 0;
+  
+  return blxContext;
+}
+
 
 /* Create the properties struct and initialise all values. */
 static void blxWindowCreateProperties(CommandLineOptions *options,
@@ -2603,36 +2678,8 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
     {
       BlxWindowProperties *properties = g_malloc(sizeof *properties);
       
-      properties->bigPicture = bigPicture;
-      properties->detailView = detailView;
+      properties->blxContext = blxWindowCreateContext(options, widget, bigPicture, detailView, refSeqRange, fullDisplayRange, paddingSeq);
       properties->mainmenu = mainmenu;
-      
-      properties->refSeq = options->refSeq;
-      properties->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
-      properties->refSeqRange.min = refSeqRange->min;
-      properties->refSeqRange.max = refSeqRange->max;
-      properties->fullDisplayRange.min = fullDisplayRange->min;
-      properties->fullDisplayRange.max = fullDisplayRange->max;
-      
-      properties->mspList = options->mspList;
-      properties->geneticCode = options->geneticCode;
-      properties->blastMode = options->blastMode;
-      properties->seqType = options->seqType;
-      properties->numReadingFrames = options->numReadingFrames;
-      properties->gappedHsp = options->gappedHsp;
-      properties->paddingSeq = paddingSeq;
-      properties->fetchMode = g_strdup(options->fetchMode);
-      
-      /* Set default values for dynamic properties: */
-      properties->strandsToggled = FALSE;
-      properties->selectedSeqs = NULL;
-      properties->sequenceGroups = NULL;
-      properties->matchSetGroup = NULL;
-      
-      properties->autoDotterParams = TRUE;
-      properties->dotterStart = UNSET_INT;
-      properties->dotterEnd = UNSET_INT;
-      properties->dotterZoom = 0;
 
       properties->printSettings = gtk_print_settings_new();
       gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
@@ -2648,20 +2695,20 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
 
 gboolean blxWindowGetStrandsToggled(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->strandsToggled : FALSE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->strandsToggled : FALSE;
 }
 
 GtkWidget* blxWindowGetBigPicture(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->bigPicture : FALSE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->bigPicture : FALSE;
 }
 
 GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->detailView : FALSE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->detailView : FALSE;
 }
 
 GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
@@ -2672,98 +2719,98 @@ GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->blastMode : FALSE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->blastMode : FALSE;
 }
 
 const char* blxWindowGetFetchMode(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->fetchMode : FALSE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->fetchMode : FALSE;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->refSeq : NULL;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->refSeq : NULL;
 }
 
 const char * blxWindowGetRefSeqName(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->refSeqName : NULL;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->refSeqName : NULL;
 }
 
 char** blxWindowGetGeneticCode(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->geneticCode : NULL;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->geneticCode : NULL;
 }
 
 MSP* blxWindowGetMspList(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->mspList : FALSE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->mspList : FALSE;
 }
 
 BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->seqType : FALSE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->seqType : FALSE;
 }
 
 IntRange* blxWindowGetFullRange(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? &properties->fullDisplayRange : NULL;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? &blxContext->fullDisplayRange : NULL;
 }
 
 IntRange* blxWindowGetRefSeqRange(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? &properties->refSeqRange : NULL;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? &blxContext->refSeqRange : NULL;
 }
 
-int blxWindowGetNumReadingFrames(GtkWidget *blxWindow)
+int blxWindowGetNumFrames(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->numReadingFrames : UNSET_INT;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->numFrames : UNSET_INT;
 }
 
 int blxWindowGetAutoDotter(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->autoDotterParams : TRUE;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->autoDotterParams : TRUE;
 }
 
 int blxWindowGetDotterStart(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->dotterStart : UNSET_INT;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->dotterStart : UNSET_INT;
 }
 
 int blxWindowGetDotterEnd(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->dotterEnd : UNSET_INT;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->dotterEnd : UNSET_INT;
 }
 
 int blxWindowGetDotterZoom(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->dotterZoom : UNSET_INT;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->dotterZoom : UNSET_INT;
 }
 
 gboolean blxWindowGetGappedHsp(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->gappedHsp : UNSET_INT;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->gappedHsp : UNSET_INT;
 }
 
 const char* blxWindowGetPaddingSeq(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->paddingSeq : NULL;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->paddingSeq : NULL;
 }
 
 /* Return the active strand - forward strand by default, reverse strand if display toggled */
@@ -2788,8 +2835,8 @@ GList *blxWindowGetSequenceMsps(GtkWidget *blxWindow, const char *seqName)
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties->sequenceGroups;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext->sequenceGroups;
 }
 
 /* Returns the group that the given sequence belongs to, if any */
@@ -2826,8 +2873,8 @@ SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const char *seqNa
 
 GList* blxWindowGetSelectedSeqs(GtkWidget *blxWindow)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->selectedSeqs : NULL;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->selectedSeqs : NULL;
 }
 
 
@@ -2908,8 +2955,8 @@ void blxWindowSelectSeq(GtkWidget *blxWindow, char *seqName, const gboolean upda
 {
   if (!blxWindowIsSeqSelected(blxWindow, seqName))
     {
-      BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-      properties->selectedSeqs = g_list_append(properties->selectedSeqs, seqName);
+      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+      blxContext->selectedSeqs = g_list_append(blxContext->selectedSeqs, seqName);
       blxWindowSelectionChanged(blxWindow, updateTrees);
     }
 }
@@ -2920,8 +2967,8 @@ void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqNameList)
 {
   blxWindowDeselectAllSeqs(blxWindow, FALSE);
 
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  properties->selectedSeqs = seqNameList;
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  blxContext->selectedSeqs = seqNameList;
 
   blxWindowSelectionChanged(blxWindow, TRUE);
 }
@@ -2930,14 +2977,14 @@ void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqNameList)
 /* Call this function to deselect the given sequence */
 void blxWindowDeselectSeq(GtkWidget *blxWindow, char *seqName, const gboolean updateTrees)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
   /* See if it's in the list and, if so, get a pointer to the list element */
-  GList *foundSeq = findStringInList(properties->selectedSeqs, seqName);
+  GList *foundSeq = findStringInList(blxContext->selectedSeqs, seqName);
 
   if (foundSeq)
     {
-      properties->selectedSeqs = g_list_remove(properties->selectedSeqs, foundSeq->data);
+      blxContext->selectedSeqs = g_list_remove(blxContext->selectedSeqs, foundSeq->data);
       blxWindowSelectionChanged(blxWindow, updateTrees);
     }
 }
@@ -2946,12 +2993,12 @@ void blxWindowDeselectSeq(GtkWidget *blxWindow, char *seqName, const gboolean up
 /* Call this function to deselect all sequences */
 void blxWindowDeselectAllSeqs(GtkWidget *blxWindow, const gboolean updateTrees)
 {
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
-  if (g_list_length(properties->selectedSeqs) > 0)
+  if (g_list_length(blxContext->selectedSeqs) > 0)
     {
-      g_list_free(properties->selectedSeqs);
-      properties->selectedSeqs = NULL;
+      g_list_free(blxContext->selectedSeqs);
+      blxContext->selectedSeqs = NULL;
       blxWindowSelectionChanged(blxWindow, updateTrees);
     }
 }
@@ -2962,10 +3009,10 @@ gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const char *seqName)
 {
   gboolean result = FALSE;
   
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  if (properties)
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  if (blxContext)
     {
-      result = (findStringInList(properties->selectedSeqs, seqName) != NULL);
+      result = (findStringInList(blxContext->selectedSeqs, seqName) != NULL);
     }
   
   return result;
@@ -3036,8 +3083,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
   
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
-      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
+      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
+      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
     }
   
   printf("Reference sequence [%d - %d], display range [%d - %d]\n", refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
@@ -3047,7 +3094,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
   int startCoord = options->startCoord + options->refSeqOffset;
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
-      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numReadingFrames, FALSE, &refSeqRange, NULL);
+      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
     }
   
   
@@ -3087,7 +3134,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
 					   options->mspList,
 					   options->blastMode,
 					   options->seqType,
-					   options->numReadingFrames,
+					   options->numFrames,
 					   options->refSeqName,
 					   startCoord,
 					   options->sortInverted,

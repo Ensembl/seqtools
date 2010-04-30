@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.15 2010-04-14 16:11:52 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.16 2010-04-30 12:06:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -51,7 +51,7 @@
 #include <libpfetch/libpfetch.h>
 #endif
 #include <SeqTools/utilities.h>
-#include <SeqTools/blxviewMainWindow.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
 
 
@@ -223,7 +223,7 @@ static GKeyFile *blx_config_G = NULL ;
  * 
  * If this proves to be a problem I expect there is a way to feed the text to the
  * text widget a line a time. */
-static void externalCommand (char *command, GtkWidget *mainWindow)
+static void externalCommand (char *command, GtkWidget *blxWindow)
 {
 #if !defined(MACINTOSH)
   FILE *pipe ;
@@ -264,9 +264,9 @@ static void externalCommand (char *command, GtkWidget *mainWindow)
   
   /* Show the dialog. Use the same fixed-width font that the detail view uses, but
    * don't use the detail view's font size, because it may be zoomed in/out. */
-  GtkWidget *detailView = mainWindowGetDetailView(mainWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   PangoFontDescription *fontDesc = pango_font_description_copy(detailViewGetFontDesc(detailView));
-  pango_font_description_set_size(fontDesc, pango_font_description_get_size(mainWindow->style->font_desc));
+  pango_font_description_set_size(fontDesc, pango_font_description_get_size(blxWindow->style->font_desc));
 
   /* Set the initial width based on the default number of characters wide */
   PangoContext *context = gtk_widget_get_pango_context(detailView);
@@ -274,7 +274,7 @@ static void externalCommand (char *command, GtkWidget *mainWindow)
   gint charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
 
   const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
-  const int maxHeight = mainWindow->allocation.height * 0.5;
+  const int maxHeight = blxWindow->allocation.height * 0.5;
 
   showMessageDialog(command, str_text->str, NULL, initWidth, maxHeight, FALSE, fontDesc);
 
@@ -357,16 +357,16 @@ static int findCommand (char *command, char **retp)
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *mainWindow)
+void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
 {
-  const char *fetchMode = mainWindowGetFetchMode(mainWindow);
+  const char *fetchMode = blxWindowGetFetchMode(blxWindow);
   
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
     {
       /* --client gives logging information to pfetch server,
        * -F makes sure we get a full sequence entry returned. */
       externalCommand(messprintf("pfetch --client=acedb_%s_%s -F '%s' &", getSystemName(), getLogin(TRUE), seqName),
-		      mainWindow);
+		      blxWindow);
 
       /* currently unused... pfetchWindow(msp); */
     }
@@ -378,7 +378,7 @@ void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *mainWindow
 #endif
   else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
     {
-      externalCommand(messprintf("efetch '%s' &", seqName), mainWindow);
+      externalCommand(messprintf("efetch '%s' &", seqName), blxWindow);
     }
   else if (!strcmp(fetchMode, BLX_FETCH_WWW_EFETCH))
     {
