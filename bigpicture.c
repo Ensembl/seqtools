@@ -22,6 +22,7 @@
 
 
 /* Local function declarations */
+static BlxViewContext*		    bigPictureGetContext(GtkWidget *bigPicture);
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 static int			    bigPictureGetInitialZoom(GtkWidget *bigPicture);
@@ -54,7 +55,7 @@ gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRang
 
 
 /* Convert a base index to an x coord within the given rectangle. Returns the number of pixels 
- * from the left edge (including the start of the rectangle) to where the base lies. rightToLeft 
+ * from the left edge (including the start of the rectangle) to where the base lies. displayRev 
  * should be passed as true if the display is toggled (i.e. low values on the right and high 
  * values on the left). */
 gint convertBaseIdxToGridPos(const gint baseIdx, 
@@ -121,17 +122,14 @@ static int roundToValueFromList(const int inputVal, GSList *roundValues, int *ro
  * It should be called whenever the big picture is resized or its display range changes. */
 static void calculateBigPictureCellSize(GtkWidget *bigPicture)
 {
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   GtkWidget *header = bigPictureGetGridHeader(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
-  const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow);
-  const int numFrames = blxWindowGetNumFrames(properties->blxWindow);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(properties->blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(properties->blxWindow);
   
   /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
-  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
-  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int displayWidth = abs(displayEnd - displayStart); /* use abs because can be negative if display reversed */
   
   const int defaultBasesPerCell = ceil((double)(displayWidth) / DEFAULT_GRID_NUM_HOZ_CELLS);
@@ -151,19 +149,15 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 					const GdkColor const *textColour, 
 					const GdkColor const *lineColour)
 {
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
 
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(bpProperties->blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(bpProperties->blxWindow);
-  const int numFrames = bigPictureGetNumFrames(bigPicture);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(bpProperties->blxWindow);
-  
-  const int direction = rightToLeft ? -1 : 1; /* to subtract instead of add when display reversed */
+  const int direction = bc->displayRev ? -1 : 1; /* to subtract instead of add when display reversed */
   
   /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
    * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
@@ -181,7 +175,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
       const int x = convertBaseIdxToGridPos(displayIdx, &headerProperties->headerRect, &bpProperties->displayRange);
       
       if (x > minX && x < maxX)
@@ -282,7 +276,7 @@ static void addChildToBigPicture(GtkWidget *container, GtkWidget *child, gboolea
 
 
 /* This function removes the grids from the big picture and re-adds them in the
- * correct order according to the strandsToggled flag. It should be called every
+ * correct order according to the displayRev flag. It should be called every
  * time the strands are toggled. It assumes the two grids are both already in the 
  * bigPicture container, and that the properties have been set for all 3 widgets. */
 void refreshGridOrder(GtkWidget *bigPicture)
@@ -306,7 +300,7 @@ void refreshGridOrder(GtkWidget *bigPicture)
   
   /* Add them back, with the forward-strand grid at the top and the reverse-strand grid
    * at the bottom, or vice versa if the strands are toggled. */
-  if (bigPictureGetStrandsToggled(bigPicture))
+  if (bigPictureGetDisplayRev(bigPicture))
     {
       addChildToBigPicture(bigPicture, revStrandGrid, FALSE);
       addChildToBigPicture(bigPicture, revExonView, FALSE);
@@ -595,6 +589,12 @@ BigPictureProperties* bigPictureGetProperties(GtkWidget *bigPicture)
   return bigPicture ? (BigPictureProperties*)(g_object_get_data(G_OBJECT(bigPicture), "BigPictureProperties")) : NULL;
 }
 
+static BlxViewContext* bigPictureGetContext(GtkWidget *bigPicture)
+{
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+  return blxWindowGetContext(blxWindow);
+}
+
 static GridHeaderProperties* gridHeaderGetProperties(GtkWidget *gridHeader)
 {
   return gridHeader ? (GridHeaderProperties*)(g_object_get_data(G_OBJECT(gridHeader), "GridHeaderProperties")) : NULL;
@@ -747,14 +747,14 @@ GtkWidget* bigPictureGetRevGrid(GtkWidget *bigPicture)
 GtkWidget* bigPictureGetActiveGrid(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return bigPictureGetStrandsToggled(bigPicture) ? properties->revStrandGrid : properties->fwdStrandGrid;
+  return bigPictureGetDisplayRev(bigPicture) ? properties->revStrandGrid : properties->fwdStrandGrid;
 }
 
 /* Get the in-active grid (reverse strand grid by default, forward strand grid if display toggled) */
 GtkWidget* bigPictureGetInactiveGrid(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return bigPictureGetStrandsToggled(bigPicture) ? properties->fwdStrandGrid : properties->revStrandGrid;
+  return bigPictureGetDisplayRev(bigPicture) ? properties->fwdStrandGrid : properties->revStrandGrid;
 }
 
 GtkWidget* bigPictureGetFwdExonView(GtkWidget *bigPicture)
@@ -772,19 +772,19 @@ GtkWidget* bigPictureGetRevExonView(GtkWidget *bigPicture)
 GtkWidget* bigPictureGetActiveExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return bigPictureGetStrandsToggled(bigPicture) ? properties->revExonView : properties->fwdExonView;
+  return bigPictureGetDisplayRev(bigPicture) ? properties->revExonView : properties->fwdExonView;
 }
 
 GtkWidget* bigPictureGetInactiveExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return bigPictureGetStrandsToggled(bigPicture) ? properties->fwdExonView : properties->revExonView;
+  return bigPictureGetDisplayRev(bigPicture) ? properties->fwdExonView : properties->revExonView;
 }
 
-gboolean bigPictureGetStrandsToggled(GtkWidget *bigPicture)
+gboolean bigPictureGetDisplayRev(GtkWidget *bigPicture)
 {
   GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
-  return blxWindow ? blxWindowGetStrandsToggled(blxWindow) : FALSE;
+  return blxWindow ? blxWindowGetDisplayRev(blxWindow) : FALSE;
 }
 
 IntRange* bigPictureGetDisplayRange(GtkWidget *bigPicture)

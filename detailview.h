@@ -135,32 +135,24 @@ typedef struct _DetailViewProperties
 
 
 /* Public function declarations */
-char*			detailViewGetRefSeq(GtkWidget *detailView);
 int			detailViewGetNumFrames(GtkWidget *detailView);
 IntRange*		detailViewGetDisplayRange(GtkWidget *detailView);
-IntRange*		detailViewGetFullRange(GtkWidget *detailView);
 int			detailViewGetSelectedBaseIdx(GtkWidget *detailView);
 int			detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*		detailViewGetAdjustment(GtkWidget *detailView);
-GList*			detailViewGetFwdStrandTrees(GtkWidget *detailView);
-GList*			detailViewGetRevStrandTrees(GtkWidget *detailView);
 GtkWidget*		detailViewGetTree(GtkWidget *detailView, const Strand strand, const int frame);
 GtkWidget*		detailViewGetTreeContainer(GtkWidget *detailView, const Strand strand, const int frame);
-GList*			detailViewGetStrandTrees(GtkWidget *detailView, const Strand strand);
-gboolean		detailViewGetStrandsToggled(GtkWidget *detailView);
-BlxBlastMode		detailViewGetBlastMode(GtkWidget *detailView);
+gboolean		detailViewGetDisplayRev(GtkWidget *detailView);
 PangoFontDescription*	detailViewGetFontDesc(GtkWidget *detailView);
 GtkCellRenderer*	detailViewGetRenderer(GtkWidget *detailView);
 int			detailViewGetCellXPadding(GtkWidget *detailView);
 int			detailViewGetCellYPadding(GtkWidget *detailView);
 BlxSeqType		detailViewGetSeqType(GtkWidget *detailView);
-char**			detailViewGetGeneticCode(GtkWidget *detailView);
 IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);
 GtkWidget*	        detailViewGetBlxWindow(GtkWidget *detailView);
 int			detailViewGetCharWidth(GtkWidget *detailView);
 int			detailViewGetCharHeight(GtkWidget *detailView);
 GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
-SubjectSequence*	detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName);
 GHashTable*		detailViewGetSeqTable(GtkWidget *detailView);
 gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
 gboolean		detailViewGetSortInverted(GtkWidget *detailView);
@@ -168,7 +160,6 @@ gboolean		detailViewGetHighlightDiffs(GtkWidget *detailView);
 gboolean		detailViewGetShowSnpTrack(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
 DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
-int			detailViewGetActiveFrame(GtkWidget *detailView);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -176,16 +167,7 @@ int			detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId);
 
 int			getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange);
 
-GdkColor*		detailViewGetRefSeqColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetMatchColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetMismatchColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetConsColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetExonColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetInsertionColour(GtkWidget *detailView, const gboolean selected);
 GdkColor*		detailViewGetSnpColour(GtkWidget *detailView, const gboolean selected);
-GdkColor*		detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart);
-int			detailViewGetExonBoundaryWidth(GtkWidget *detailView);
-GdkLineStyle		detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart);
 
 void			prevMatch(GtkWidget *detailView, GList *seqNameList);
 void			nextMatch(GtkWidget *detailView, GList *seqNameList);
@@ -225,6 +207,7 @@ void			refreshTextHeader(GtkWidget *widget, gpointer data);
 gboolean		onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
 void			selectClickedSnp(GtkWidget *snpTrack,
+					 GtkWidget *colHeader,
 					 GtkWidget *detailView, 
 					 const int xIn, 
 					 const int yIn, 

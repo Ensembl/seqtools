@@ -12,6 +12,7 @@
 #include <gtk/gtk.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/sequencecellrenderer.h>
+#include <SeqTools/blxwindow.h>
 
 #define DETAIL_VIEW_TREE_NAME		  "DetailViewTreeName"
 #define DETAIL_VIEW_TREE_CONTAINER_NAME	  "DetailViewTreeContainerName"
@@ -46,40 +47,15 @@ typedef struct _TreeProperties
 
 
 /* Public function declarations */
+BlxViewContext*	  treeGetContext(GtkWidget *tree);
 TreeProperties*	  treeGetProperties(GtkWidget *widget);
-GtkAdjustment*	  treeGetAdjustment(GtkWidget *tree);
-GtkCellRenderer*  treeGetRenderer(GtkWidget *tree);
-int		  treeGetCharWidth(GtkWidget *tree);
-GtkWidget*	  treeGetGrid(GtkWidget *tree);
-int		  treeGetFrame(GtkWidget *tree);
 Strand		  treeGetStrand(GtkWidget *tree);
-gboolean	  treeGetStrandsToggled(GtkWidget *tree);
-int		  treeGetNumFrames(GtkWidget *tree);
-int		  treeGetSelectedBaseIdx(GtkWidget *tree);
-char*		  treeGetRefSeq(GtkWidget *tree);
-IntRange*	  treeGetDisplayRange(GtkWidget *tree);
 GList*		  treeGetMsps(GtkTreeModel *model, GtkTreeIter *iter);
-GtkTreeModel*	  treeGetVisibleDataModel(GtkTreeView *tree);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 GtkWidget*	  treeGetBlxWindow(GtkWidget *tree);
-GtkWidget*	  treeGetDetailView(GtkWidget *tree);
 int		  treeGetCellXPadding(GtkWidget *tree);
 int		  treeGetCellYPadding(GtkWidget *tree);
-int		  treeGetCharWidth(GtkWidget *tree);
-int		  treeGetCharHeight(GtkWidget *tree);
-BlxSeqType	  treeGetSeqType(GtkWidget *tree);
-BlxBlastMode	  treeGetBlastMode(GtkWidget *tree);
 GHashTable*	  treeGetSeqTable(GtkWidget *tree);
-
-GdkColor*	  treeGetRefSeqColour(GtkWidget *tree, const gboolean selected);
-GdkColor*	  treeGetMatchColour(GtkWidget *tree, const gboolean selected);
-GdkColor*	  treeGetConsColour(GtkWidget *tree, const gboolean selected);
-GdkColor*	  treeGetMismatchColour(GtkWidget *tree, const gboolean selected);
-GdkColor*	  treeGetExonColour(GtkWidget *tree, const gboolean selected);
-GdkColor*	  treeGetInsertionColour(GtkWidget *tree, const gboolean selected);
-GdkColor*	  treeGetExonBoundaryColour(GtkWidget *tree, const gboolean isStart);
-int		  treeGetExonBoundaryWidth(GtkWidget *tree);
-GdkLineStyle	  treeGetExonBoundaryStyle(GtkWidget *tree, const gboolean isStart);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 
@@ -103,7 +79,6 @@ gboolean	  treeGetMatchesSquashed(GtkWidget *tree);
 
 void		  treeScrollSelectionIntoView(GtkWidget *tree, gpointer data);
 void		  selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data);
-gboolean	  treeIsSeqSelected(GtkWidget *tree, const char *seqName);
 
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);

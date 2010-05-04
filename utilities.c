@@ -448,7 +448,7 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
 			      const int frame, 
 			      const int baseNum, 
 			      const int numFrames,
-			      const gboolean rightToLeft,
+			      const gboolean displayRev,
 			      const IntRange const *refSeqRange)
 {
   int dnaIdx = displayIdx;
@@ -465,7 +465,7 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
   /* If the display is reversed, we need to invert the result. (For example, if the 
    * result is index '2' out of the range '12345', then we convert it to '4', which is the
    * equivalent position in the range '54321'. */
-  if (rightToLeft)
+  if (displayRev)
     {
       dnaIdx = refSeqRange->max - dnaIdx + refSeqRange->min;
     }
@@ -483,7 +483,7 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 			      const BlxSeqType displaySeqType,
 			      const int frame, 
 			      const int numFrames, 
-			      const gboolean rightToLeft,
+			      const gboolean displayRev,
 			      const IntRange const *dnaIdxRange,
 			      int *baseNum)
 {
@@ -493,7 +493,7 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
    * invert the index (i.e. as if it were the normal left-to-right index for this
    * same position - for example, if the index is '4' out of the range '54321', convert
    * it to '2', which is the equivalent position in the range '12345'. */
-  if (rightToLeft)
+  if (displayRev)
     {
       displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
     }
@@ -535,7 +535,7 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 int getStartDnaCoord(const IntRange const *displayRange, 
 		     const int frame,
 		     const BlxSeqType displaySeqType, 
-		     const gboolean rightToLeft, 
+		     const gboolean displayRev, 
 		     const int numFrames,
 		     const IntRange const *refSeqRange)
 {
@@ -544,7 +544,7 @@ int getStartDnaCoord(const IntRange const *displayRange,
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the first base in the codon, if this is a peptide sequence. */
   const int baseNum = 1;
-  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, displayRev, refSeqRange);
   
   return result;
 }
@@ -556,7 +556,7 @@ int getStartDnaCoord(const IntRange const *displayRange,
 int getEndDnaCoord(const IntRange const *displayRange, 
 		   const int frame,
 		   const BlxSeqType displaySeqType, 
-		   const gboolean rightToLeft, 
+		   const gboolean displayRev, 
 		   const int numFrames,
 		   const IntRange const *refSeqRange)
 {
@@ -565,7 +565,7 @@ int getEndDnaCoord(const IntRange const *displayRange,
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the last base in the codon, if this is a peptide sequence. */
   const int baseNum = numFrames;
-  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, displayRev, refSeqRange);
   
   return result;
 }
@@ -581,7 +581,7 @@ int gapCoord(const MSP *msp,
 	     const int qIdx, 
 	     const int numFrames, 
 	     const Strand strand, 
-	     const gboolean rightToLeft, 
+	     const gboolean displayRev, 
 	     int *nearestIdx)
 {
   int result = UNSET_INT;
@@ -628,7 +628,7 @@ int gapCoord(const MSP *msp,
 	}
       else
 	{
-	  gboolean gapsReversedWrtDisplay = (rightToLeft == qForward);
+	  gboolean gapsReversedWrtDisplay = (displayRev == qForward);
 	  
 	  /* Look to see if x lies inside one of the reference sequence ranges. */
 	  int i = 0;

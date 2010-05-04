@@ -55,9 +55,9 @@ static void dotterDialogSaveSettings(DotterDialogData *dialogData)
   GtkEntry *endEntry = GTK_ENTRY(dialogData->endCoordWidget);
   GtkEntry *zoomEntry = GTK_ENTRY(dialogData->zoomCoordWidget);
   
-  blxContext->autoDotterParams = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
+  blxContext->autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
   
-  if (!blxContext->autoDotterParams)
+  if (!blxContext->autoDotter)
     {
       /* Save the manual parameters entered */
       blxContext->dotterStart = atoi(gtk_entry_get_text(startEntry));
@@ -185,16 +185,15 @@ void showDotterDialog(GtkWidget *blxWindow)
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const int spacing = 4;
 
   /* Find the various possibilities for start/end coords */
-  char *lastSavedStart = convertIntToString(blxWindowGetDotterStart(blxWindow));
-  char *lastSavedEnd = convertIntToString(blxWindowGetDotterEnd(blxWindow));
-  char *lastSavedZoom = convertIntToString(blxWindowGetDotterZoom(blxWindow));
-  char *fullRangeStart = convertIntToString(rightToLeft ? refSeqRange->max : refSeqRange->min);
-  char *fullRangeEnd = convertIntToString(rightToLeft ? refSeqRange->min : refSeqRange->max);
+  char *lastSavedStart = convertIntToString(bc->dotterStart);
+  char *lastSavedEnd = convertIntToString(bc->dotterEnd);
+  char *lastSavedZoom = convertIntToString(bc->dotterZoom);
+  char *fullRangeStart = convertIntToString(bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min);
+  char *fullRangeEnd = convertIntToString(bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max);
 
   int autoStartCoord = UNSET_INT, autoEndCoord = UNSET_INT;
   if (getDotterSSeq(blxWindow))
@@ -226,7 +225,7 @@ void showDotterDialog(GtkWidget *blxWindow)
   gtk_box_pack_start(vbox3, fullRangeButton, FALSE, FALSE, spacing);
 
   /* Disable last-saved button if no saved values exist */
-  if (blxWindowGetDotterStart(blxWindow) == UNSET_INT)
+  if (bc->dotterStart == UNSET_INT)
     {
       gtk_widget_set_sensitive(lastSavedButton, FALSE);
     }
@@ -263,7 +262,7 @@ void showDotterDialog(GtkWidget *blxWindow)
   gtk_entry_set_activates_default(GTK_ENTRY(zoomCoordWidget), TRUE);
   
   /* Set the initial state of the toggle buttons and entry widgets */
-  if(blxWindowGetAutoDotter(blxWindow))
+  if (bc->autoDotter)
     {
       gtk_entry_set_text(GTK_ENTRY(startCoordWidget), autoStart);
       gtk_entry_set_text(GTK_ENTRY(endCoordWidget), autoEnd);
@@ -341,18 +340,18 @@ char getDotterMode(const BlxBlastMode blastMode)
 }
 
 
-/* Get the start/end coords. If the autoDotterParams flag is set, calculate coords
+/* Get the start/end coords. If the autoDotter flag is set, calculate coords
  * automatically - otherwise use the stored manual coords */
 void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterStart, int *dotterEnd, int *dotterZoom)
 {
-  const gboolean autoDotterParams = blxWindowGetAutoDotter(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  if (!autoDotterParams)
+  if (!bc->autoDotter)
     {
       /* Use manual coords */
-      *dotterStart = blxWindowGetDotterStart(blxWindow);
-      *dotterEnd = blxWindowGetDotterEnd(blxWindow);
-      *dotterZoom = blxWindowGetDotterZoom(blxWindow);
+      *dotterStart = bc->dotterStart;
+      *dotterEnd = bc->dotterEnd;
+      *dotterZoom = bc->dotterZoom;
       
       if (*dotterStart == UNSET_INT || *dotterEnd == UNSET_INT)
 	{
@@ -377,20 +376,19 @@ void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterSta
 static char* getDotterSSeq(GtkWidget *blxWindow)
 {
   char *dotterSSeq = NULL;
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Get the selected sequence name */
-  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
-
-  if (g_list_length(selectedSeqs) > 0)
+  if (g_list_length(bc->selectedSeqs) > 0)
     {
-      const char *seqName = (const char*)(selectedSeqs->data);
+      const char *seqName = (const char*)(bc->selectedSeqs->data);
       GList *mspList = blxWindowGetSequenceMsps(blxWindow, seqName);
 
       /* If we're in seqbl mode, only part of the sequence is in the MSP. */
-      const BlxBlastMode blastMode = blxWindowGetBlastMode(blxWindow);
+      const BlxBlastMode blastMode = bc->blastMode;
       if (blastMode != BLXMODE_TBLASTN)
 	{
-	  const char *fetchMode = blxWindowGetFetchMode(blxWindow);
+	  const char *fetchMode = bc->fetchMode;
 	  dotterSSeq = fetchSeqRaw(seqName, fetchMode);
 	  
 	  /* If the match is on the reverse s strand, we need to modify it, because
@@ -398,10 +396,10 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	  if (dotterSSeq && g_list_length(mspList) > 0)
 	    {
 	      const MSP *msp = (const MSP*)(mspList->data);
-	      const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+	      const gboolean displayRev = bc->displayRev;
 	      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 	      
-	      if (qForward && rightToLeft)
+	      if (qForward && displayRev)
 		{
 		  /* This should be consolidated with the code below */
 		  blxComplement(dotterSSeq);
@@ -424,7 +422,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  if (msp->sseq != blxWindowGetPaddingSeq(blxWindow))
+		  if (msp->sseq != bc->paddingSeq)
 		    {
 		      dotterSSeq = g_strdup(msp->sseq);
 		      break;
@@ -439,12 +437,12 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	      if (dotterSSeq && g_list_length(mspList) > 0)
 		{
 		  const MSP *msp = (const MSP*)(mspList->data);
-		  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
+		  const gboolean displayRev = bc->displayRev;
 		  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
 		  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 		  const gboolean sameDirection = (qForward == sForward);
 		  
-		  if ((sameDirection && rightToLeft) || (!sForward && !rightToLeft))
+		  if ((sameDirection && displayRev) || (!sForward && !displayRev))
 		    {
 		      /* Complementing the match sequence here maintains existing dotter behaviour.
 		       * However, I think this is wrong - the match shows agains the wrong strand
@@ -500,23 +498,17 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 				 int *dotter_end_out)
 {
   gboolean result = FALSE;
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   /* Check that a sequence is selected */
-  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
+  GList *selectedSeqs = bc->selectedSeqs;
   if (g_list_length(selectedSeqs) < 1)
     {
       return result;
     }
-  
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  const IntRange const *bigPicRange = bigPictureGetDisplayRange(bigPicture);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-  const BlxBlastMode blastMode = blxWindowGetBlastMode(blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-  
-  char activeStrand = (rightToLeft ? '-' : '+') ;
+
+  const IntRange const *bigPicRange = bigPictureGetDisplayRange(bc->bigPicture);
+  char activeStrand = (bc->displayRev ? '-' : '+') ;
 
   /* Loop through all MSPs in the selected sequence. We'll estimate the wanted
    * query region from the extent of the HSP's that are completely within view. */
@@ -527,17 +519,17 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   for ( ; mspListItem ; mspListItem = mspListItem->next)
     {
       const MSP *msp = (MSP*)(mspListItem->data);
-      const int qFrame = mspGetRefFrame(msp, seqType);
+      const int qFrame = mspGetRefFrame(msp, bc->seqType);
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
       int base1, base2;
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base1);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, qFrame, numFrames, rightToLeft, refSeqRange, &base2);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base1);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base2);
       const int minMspCoord = min(coord1, coord2);
       const int maxMspCoord = max(coord1, coord2);
 
       /* Check if the MSP is in a visible tree row and is entirely within the big picture range */
-      if ((msp->qframe[1] == activeStrand || (blastMode == BLXMODE_BLASTN)) &&
+      if ((msp->qframe[1] == activeStrand || (bc->blastMode == BLXMODE_BLASTN)) &&
 	  (minMspCoord >= bigPicRange->min && maxMspCoord <= bigPicRange->max))
 	{
 	  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
@@ -548,17 +540,17 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	  int distToSMin = sSeqMin - 1;
 	  int distToSMax = 200; /* default amount if sequence not found or if mode is tblastn */
 	  
-	  if (blastMode != BLXMODE_TBLASTN && dotterSSeq)
+	  if (bc->blastMode != BLXMODE_TBLASTN && dotterSSeq)
 	    {
 	      distToSMax = strlen(dotterSSeq) - sSeqMax;
 	    }
 
 	  /* If the match sequence is a peptide sequence, convert the number of peptide
 	   * coords we want to traverse to the equivalent number of DNA coords */
-	  if (seqType == BLXSEQ_PEPTIDE)
+	  if (bc->seqType == BLXSEQ_PEPTIDE)
 	    {
-	      distToSMin *= numFrames;
-	      distToSMax *= numFrames;
+	      distToSMin *= bc->numFrames;
+	      distToSMax *= bc->numFrames;
 	    }
 
 	  /* If the strands are in opposite directions, the low end of the ref 
@@ -592,7 +584,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       qMin -= extend ;
       qMax += extend ;
 
-      if (blastMode == BLXMODE_BLASTX || blastMode == BLXMODE_TBLASTX)
+      if (bc->blastMode == BLXMODE_BLASTX || bc->blastMode == BLXMODE_TBLASTX)
 	{
 	  /* If sstart and send weren't in the end exons, we'll miss those - add some more */
 	  extend = 0.2 * (qMax - qMin) ;
@@ -601,9 +593,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	}
 
       /* Keep it within bounds */
-      const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-      boundsLimitValue(&qMin, refSeqRange);
-      boundsLimitValue(&qMax, refSeqRange);
+      boundsLimitValue(&qMin, &bc->refSeqRange);
+      boundsLimitValue(&qMax, &bc->refSeqRange);
 
       /* Apply min and max limits:  min 500 residues, max 10 Mb dots */
       int numDnaCoords = qMax - qMin;
@@ -614,7 +605,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	  numDnaCoords = 500;
 	}
 
-      const int numPeptideCoords = (seqType == BLXSEQ_PEPTIDE) ? numDnaCoords / numFrames : numDnaCoords;
+      const int numPeptideCoords = (bc->seqType == BLXSEQ_PEPTIDE) ? numDnaCoords / bc->numFrames : numDnaCoords;
       if (numDnaCoords * numPeptideCoords > 1e7)
 	{
 	  numDnaCoords = 1e7 / numPeptideCoords;
@@ -624,13 +615,13 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       qMax = midCoord + (numDnaCoords / 2) ;
 
       /* Bounds check again */
-      boundsLimitValue(&qMin, refSeqRange);
-      boundsLimitValue(&qMax, refSeqRange);
+      boundsLimitValue(&qMin, &bc->refSeqRange);
+      boundsLimitValue(&qMax, &bc->refSeqRange);
 
       /* Return the start/end. The values start low and end high in normal 
        * left-to-right display, or vice-versa if the display is reversed. */
-      *dotter_start_out = rightToLeft ? qMax : qMin;
-      *dotter_end_out = rightToLeft ? qMin : qMax;
+      *dotter_start_out = bc->displayRev ? qMax : qMin;
+      *dotter_end_out = bc->displayRev ? qMin : qMax;
 
       result = TRUE;
     }
@@ -756,8 +747,9 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
 /* Call dotter. Returns true if dotter was called; false if we quit trying. */
 gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 {
-  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
-  const int numSeqsSelected = g_list_length(selectedSeqs);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  const int numSeqsSelected = g_list_length(bc->selectedSeqs);
   
   if (numSeqsSelected < 1)
     {
@@ -772,7 +764,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
-  const char *selectedSeqName = (const char*)(selectedSeqs->data);
+  const char *selectedSeqName = (const char*)(bc->selectedSeqs->data);
   GList *selectedMsps = blxWindowGetSequenceMsps(blxWindow, selectedSeqName);
   const MSP *firstMsp = (const MSP*)(selectedMsps->data);
 
@@ -802,30 +794,23 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   getDotterRange(blxWindow, dotterSSeq, &dotterStart, &dotterEnd, &dotterZoom);
   
   /* Get the reference sequence name */
-  const char *dotterQName = blxWindowGetRefSeqName(blxWindow);
+  const char *dotterQName = bc->refSeqName;
   
   /* Get the section of reference sequence that we're interested in */
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
   const Strand strand = mspGetRefStrand(firstMsp);
-  const int frame = mspGetRefFrame(firstMsp, seqType);
+  const int frame = mspGetRefFrame(firstMsp, bc->seqType);
   
-  const char *refSeq = blxWindowGetRefSeq(blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-
-  char *querySeqSegmentTemp = getSequenceSegment(blxWindow, 
-						 refSeq,
-						 refSeqRange,
+  char *querySeqSegmentTemp = getSequenceSegment(bc,
+						 bc->refSeq,
 						 dotterStart,
 						 dotterEnd, 
 						 strand,
-						 BLXSEQ_DNA, /* calculated dotter coords are always in terms of DNA seq */
+						 BLXSEQ_DNA,	  /* calculated dotter coords are always in terms of DNA seq */
 						 frame,
-						 blxWindowGetNumFrames(blxWindow),
-						 FALSE,	      /* input coords are always left-to-right, even if display reversed */
-						 rightToLeft, /* whether to reverse */
-						 rightToLeft, /* whether to allow rev strands to be complemented */
-						 FALSE);      /* don't allow translation to a peptide seq */
+						 FALSE,		  /* input coords are always left-to-right, even if display reversed */
+						 bc->displayRev,  /* whether to reverse */
+						 bc->displayRev,  /* whether to allow rev strands to be complemented */
+						 FALSE);	  /* don't allow translation to a peptide seq */
   
   if (!querySeqSegmentTemp)
     {
@@ -855,23 +840,21 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   
   /* Get the options */
   static char opts[] = "     ";
-  opts[0] = rightToLeft ? 'R' : ' ';
+  opts[0] = bc->displayRev ? 'R' : ' ';
   opts[1] = hspsOnly ? 'H' : ' ';
-  opts[2] = blxWindowGetGappedHsp(blxWindow) ? 'G' : ' ';
+  opts[2] = bc->gappedHsp ? 'G' : ' ';
   
   /* Get the mode */
-  char type = getDotterMode(blxWindowGetBlastMode(blxWindow));
+  char type = getDotterMode(bc->blastMode);
   
   /* Get the list of all MSPs */
-  MSP *mspList = blxWindowGetMspList(blxWindow);
-  
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   
   printf("  query sequence: name -  %s, offset - %d\n"
 	 "subject sequence: name -  %s, offset - %d\n", dotterQName, offset, dotterSName, 0);
   
   dotter(type, opts, dotterQName, querySeqSegment, offset, dotterSName, dotterSSeq, 0,
-	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, mspList, refSeqRange->min - 1, 0, 0);
+	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->refSeqRange.min - 1, 0, 0);
   
   return TRUE;
 }

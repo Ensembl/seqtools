@@ -62,12 +62,12 @@ typedef struct _BlxViewContext
   const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
   
-  gboolean strandsToggled;	    /* If true, the reverse strand becomes the 'main' or 'top' strand */
+  gboolean displayRev;		    /* True if the display is reversed (i.e. coords increase from right to left). Set when strands are toggled. */
   GList *selectedSeqs;		    /* A list of sequence names that are selected */
   GList *sequenceGroups;	    /* A list of SequenceGroups */
   SequenceGroup *matchSetGroup;	    /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
   
-  gboolean autoDotterParams;	    /* Whether to use automatic dotter params */
+  gboolean autoDotter;		    /* Whether to use automatic dotter params */
   int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
   int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
   int dotterZoom;		    /* Zoom param to call dotter with */
@@ -77,7 +77,7 @@ typedef struct _BlxViewContext
 
 /* Public function declarations */
 BlxViewContext*		  blxWindowGetContext(GtkWidget *widget);
-gboolean		  blxWindowGetStrandsToggled(GtkWidget *blxWindow);
+gboolean		  blxWindowGetDisplayRev(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetMainMenu(GtkWidget *blxWindow);
@@ -123,16 +123,14 @@ void			  showFindDialog(GtkWidget *blxWindow);
 
 void			  blxWindowRedrawAll(GtkWidget *blxWindow);
 
-gchar*			  getSequenceSegment(GtkWidget *blxWindow, 
+gchar*			  getSequenceSegment(BlxViewContext *bc,
 					     const char const *dnaSequence,
-					     const IntRange const *dnaSequenceRange,
 					     const int coord1, 
 					     const int coord2,
 					     const Strand strand,
 					     const BlxSeqType inputCoordType,
 					     const int frame,
-					     const int numFrames,
-					     const gboolean rightToLeft,
+					     const gboolean displayRev,
 					     const gboolean reverseResult,
 					     const gboolean allowComplement,
 					     const gboolean translateResult);

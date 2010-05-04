@@ -26,7 +26,7 @@ typedef struct _RenderData
     GdkWindow *window;
     GtkStateType state;
     GdkGC *gc;
-    const gboolean rightToLeft;
+    const gboolean displayRev;
     const Strand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
@@ -629,8 +629,8 @@ static void drawBase(MSP *msp,
   
   /* From the segment index, find the display index and the ref seq index */
   const int displayIdx = segmentRange->min + segmentIdx;
-  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->seqType, data->qFrame, 1, data->numFrames, data->rightToLeft, data->refSeqRange);
-  *sIdx = gapCoord(msp, *qIdx, data->numFrames, data->qStrand, data->rightToLeft, NULL);
+  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->seqType, data->qFrame, 1, data->numFrames, data->displayRev, data->refSeqRange);
+  *sIdx = gapCoord(msp, *qIdx, data->numFrames, data->qStrand, data->displayRev, NULL);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal colour) */
@@ -716,18 +716,18 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && mspIsExon(msp))
     {
       /* Get the msp's start/end in terms of the display coords */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->frame, rd->numFrames, rd->rightToLeft, rd->refSeqRange, NULL);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->frame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->frame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
       const int minIdx = min(coord1, coord2);
       const int maxIdx = max(coord1, coord2);
       
       if (minIdx >= rd->displayRange->min && minIdx <= rd->displayRange->max)
 	{
 	  /* Draw the lower index. The colour and line style depend on whether it's the start or end index. */
-	  GdkColor *colour = rd->rightToLeft ? rd->exonBoundaryColourEnd : rd->exonBoundaryColourStart;
+	  GdkColor *colour = rd->displayRev ? rd->exonBoundaryColourEnd : rd->exonBoundaryColourStart;
 	  gdk_gc_set_foreground(rd->gc, colour);
 	  
-	  GdkLineStyle lineStyle = rd->rightToLeft ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
+	  GdkLineStyle lineStyle = rd->displayRev ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
 	  const int idx = minIdx - rd->displayRange->min;
@@ -742,10 +742,10 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
       if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
 	{
 	  /* Draw the upper index. The colour and line style depend on whether it's the start or end index. */
-	  GdkColor *colour = rd->rightToLeft ? rd->exonBoundaryColourStart : rd->exonBoundaryColourEnd;
+	  GdkColor *colour = rd->displayRev ? rd->exonBoundaryColourStart : rd->exonBoundaryColourEnd;
 	  gdk_gc_set_foreground(rd->gc, colour);
 	  
-	  GdkLineStyle lineStyle = rd->rightToLeft ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
+	  GdkLineStyle lineStyle = rd->displayRev ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
 	  const int idx = maxIdx + 1 - rd->displayRange->min;
@@ -850,8 +850,8 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
   IntRange result = {UNSET_INT, UNSET_INT};
   
   /* Find the start/end of the MSP in terms of the display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, data->qFrame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, data->qFrame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, data->qFrame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
   
   int minIdx = min(coord1, coord2);
   int maxIdx = max(coord1, coord2);
@@ -893,17 +893,17 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       return;
     }
   
-  gchar *refSeqSegment = getSequenceSegment(data->blxWindow,
-					    blxWindowGetRefSeq(data->blxWindow),
-					    blxWindowGetRefSeqRange(data->blxWindow),
+  BlxViewContext *bc = treeGetContext(tree);
+  
+  gchar *refSeqSegment = getSequenceSegment(bc,
+					    bc->refSeq,
 					    segmentRange.min, 
 					    segmentRange.max, 
 					    data->qStrand, 
 					    data->seqType,
 					    data->qFrame, 
-					    data->numFrames,
-					    data->rightToLeft,
-					    data->rightToLeft,
+					    data->displayRev,
+					    data->displayRev,
 					    TRUE,
 					    TRUE);
 
@@ -970,7 +970,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
     window,
     state,
     gdk_gc_new(window),
-    blxContext->strandsToggled,
+    blxContext->displayRev,
     treeGetStrand(tree),
     treeProperties->readingFrame,
     detailViewProperties->selectedBaseIdx,

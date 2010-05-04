@@ -197,16 +197,14 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
  * opposite direction to that indicated by the strand, because the display may be
  * reversed, so we leave it up to the caller to decide).
  */
-gchar *getSequenceSegment(GtkWidget *blxWindow,
+gchar *getSequenceSegment(BlxViewContext *bc,
 			  const char const *dnaSequence,
-			  const IntRange const *dnaSequenceRange,
 			  const int coord1, 
 			  const int coord2,
 			  const Strand strand,
 			  const BlxSeqType inputCoordType,
 			  const int frame,
-			  const int numFrames,
-			  const gboolean rightToLeft,
+			  const gboolean displayRev,
 			  const gboolean reverseResult,
 			  const gboolean allowComplement,
 			  const gboolean allowTranslate)
@@ -214,40 +212,40 @@ gchar *getSequenceSegment(GtkWidget *blxWindow,
   gchar *result = NULL;
 
   /* Convert input coord to ref seq coords and find the min/max */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, numFrames, rightToLeft, dnaSequenceRange);	 /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, numFrames, numFrames, rightToLeft, dnaSequenceRange); /* last base in frame */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, bc->numFrames, displayRev, &bc->refSeqRange);		  /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, bc->numFrames, bc->numFrames, displayRev, &bc->refSeqRange); /* last base in frame */
   int qMin = min(qIdx1, qIdx2);
   int qMax = max(qIdx1, qIdx2);
   
   /* Check that the requested segment is within the sequence's range */
-  if (qMin < dnaSequenceRange->min || qMax > dnaSequenceRange->max)
+  if (qMin < bc->refSeqRange.min || qMax > bc->refSeqRange.max)
     {
       /* We might request up to 3 bases beyond the end of the range if we want to 
        * show a partial triplet at the start/end. (It's a bit tricky for the caller to
        * specify the exact bases they want here so we allow it but just limit it to 
        * the actual range so that they can't index beyond the end of the range.) Any
        * further out than one triplet is probably indicative of an error, so give a warning. */
-      if (qMin < dnaSequenceRange->min - (numFrames + 1) || qMax > dnaSequenceRange->max + (numFrames + 1))
+      if (qMin < bc->refSeqRange.min - (bc->numFrames + 1) || qMax > bc->refSeqRange.max + (bc->numFrames + 1))
 	{
 	  if (inputCoordType == BLXSEQ_PEPTIDE)
-	    printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max, coord1, coord2);
+	    printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max, coord1, coord2);
 	  else
-	    printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, dnaSequenceRange->min, dnaSequenceRange->max);
+	    printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max);
 	}
       
-      if (qMax > dnaSequenceRange->max)
-	qMax = dnaSequenceRange->max;
+      if (qMax > bc->refSeqRange.max)
+	qMax = bc->refSeqRange.max;
 	
-      if (qMin < dnaSequenceRange->min)
-	qMin = dnaSequenceRange->min;
+      if (qMin < bc->refSeqRange.min)
+	qMin = bc->refSeqRange.min;
     }
   
   /* Get 0-based indices into the sequence */
-  const int idx1 = qMin - dnaSequenceRange->min;
-  const int idx2 = qMax - dnaSequenceRange->min;
+  const int idx1 = qMin - bc->refSeqRange.min;
+  const int idx2 = qMax - bc->refSeqRange.min;
   
   /* Copy the portion of interest from the reference sequence and translate as necessary */
-  const BlxBlastMode mode = blxWindowGetBlastMode(blxWindow);
+  const BlxBlastMode mode = bc->blastMode;
   
   if (mode == BLXMODE_BLASTP || mode == BLXMODE_TBLASTN)
     {
@@ -299,7 +297,7 @@ gchar *getSequenceSegment(GtkWidget *blxWindow,
       else
 	{
 	  /* Translate the DNA sequence to a peptide sequence */
-	  result = blxTranslate(segment, blxWindowGetGeneticCode(blxWindow));
+	  result = blxTranslate(segment, bc->geneticCode);
 	  
 	  g_free(segment); /* delete this because we're not returning it */
 	  segment = NULL;
@@ -553,7 +551,7 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
  * strand tree if displaying DNA matches (where both strands are displayed). */
 static void toggleTreeVisibility(GtkWidget *blxWindow, const int number)
 {
-  const gboolean toggled = blxWindowGetStrandsToggled(blxWindow);
+  const gboolean toggled = blxWindowGetDisplayRev(blxWindow);
   const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
   
   /* For protein matches, trees are always displayed in frame order (i.e. 1, 2, 3), 
@@ -594,7 +592,7 @@ static void toggleGridVisibility(GtkWidget *blxWindow, const int number)
   if (number == 1 || number == 2)
     {
       GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-      const gboolean useFwdGrid = (number == 1) != blxWindowGetStrandsToggled(blxWindow);
+      const gboolean useFwdGrid = (number == 1) != blxWindowGetDisplayRev(blxWindow);
       
       GtkWidget *grid = useFwdGrid ? bigPictureGetFwdGrid(bigPicture) : bigPictureGetRevGrid(bigPicture);
       widgetSetHidden(grid, !widgetGetHidden(grid));
@@ -608,7 +606,7 @@ static void toggleExonViewVisibility(GtkWidget *blxWindow, const int number)
   if (number == 1 || number == 2)
     {
       GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-      const gboolean useFwdExonView = (number == 1) != blxWindowGetStrandsToggled(blxWindow);
+      const gboolean useFwdExonView = (number == 1) != blxWindowGetDisplayRev(blxWindow);
       
       GtkWidget *exonView = useFwdExonView ? bigPictureGetFwdExonView(bigPicture) : bigPictureGetRevExonView(bigPicture);
       widgetSetHidden(exonView, !widgetGetHidden(exonView));
@@ -674,7 +672,7 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const Strand stran
       if (detailViewGetSeqType(detailView) == BLXSEQ_DNA)
 	{
 	  /* We only have 1 frame, but trees are from both strands, so distinguish between strands */
-	  const gboolean toggled = detailViewGetStrandsToggled(detailView);
+	  const gboolean toggled = detailViewGetDisplayRev(detailView);
 	  gboolean isActiveStrand = ((strand == FORWARD_STRAND) != toggled);
 	  
 	  char text1[] = "Act_ive strand alignments";
@@ -2650,12 +2648,12 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->paddingSeq = paddingSeq;
   blxContext->fetchMode = g_strdup(options->fetchMode);
   
-  blxContext->strandsToggled = FALSE;
+  blxContext->displayRev = FALSE;
   blxContext->selectedSeqs = NULL;
   blxContext->sequenceGroups = NULL;
   blxContext->matchSetGroup = NULL;
   
-  blxContext->autoDotterParams = TRUE;
+  blxContext->autoDotter = TRUE;
   blxContext->dotterStart = UNSET_INT;
   blxContext->dotterEnd = UNSET_INT;
   blxContext->dotterZoom = 0;
@@ -2693,10 +2691,10 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
     }
 }
 
-gboolean blxWindowGetStrandsToggled(GtkWidget *blxWindow)
+gboolean blxWindowGetDisplayRev(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->strandsToggled : FALSE;
+  return blxContext ? blxContext->displayRev : FALSE;
 }
 
 GtkWidget* blxWindowGetBigPicture(GtkWidget *blxWindow)
@@ -2780,7 +2778,7 @@ int blxWindowGetNumFrames(GtkWidget *blxWindow)
 int blxWindowGetAutoDotter(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->autoDotterParams : TRUE;
+  return blxContext ? blxContext->autoDotter : TRUE;
 }
 
 int blxWindowGetDotterStart(GtkWidget *blxWindow)
@@ -2816,13 +2814,13 @@ const char* blxWindowGetPaddingSeq(GtkWidget *blxWindow)
 /* Return the active strand - forward strand by default, reverse strand if display toggled */
 Strand blxWindowGetActiveStrand(GtkWidget *blxWindow)
 {
-  return blxWindowGetStrandsToggled(blxWindow) ? REVERSE_STRAND : FORWARD_STRAND;
+  return blxWindowGetDisplayRev(blxWindow) ? REVERSE_STRAND : FORWARD_STRAND;
 }
 
 /* Return the inactive strand - reverse strand by default, forward strand if display toggled */
 static Strand blxWindowGetInactiveStrand(GtkWidget *blxWindow)
 {
-  return blxWindowGetStrandsToggled(blxWindow) ? FORWARD_STRAND : REVERSE_STRAND;
+  return blxWindowGetDisplayRev(blxWindow) ? FORWARD_STRAND : REVERSE_STRAND;
 }
 
 /* Returns a list of all the MSPs with the given sequence name */

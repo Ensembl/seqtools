@@ -17,6 +17,7 @@
 
 
 /* Local function declarations */
+static GtkWidget*	treeGetDetailView(GtkWidget *tree);
 static void		onSelectionChangedTree(GObject *selection, gpointer data);
 static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
@@ -47,7 +48,7 @@ static void assertTree(GtkWidget *tree)
     messcrash("Tree properties not set [widget=%x]", tree);
 }
 
-GtkAdjustment *treeGetAdjustment(GtkWidget *tree)
+static GtkAdjustment *treeGetAdjustment(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -55,21 +56,14 @@ GtkAdjustment *treeGetAdjustment(GtkWidget *tree)
   return detailViewProperties ? detailViewProperties->adjustment : NULL;
 }
 
-GtkWidget *treeGetGrid(GtkWidget *tree)
-{
-  assertTree(tree);
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties ? properties->grid : NULL;
-}
-
-GtkCellRenderer *treeGetRenderer(GtkWidget *tree)
+static GtkCellRenderer *treeGetRenderer(GtkWidget *tree)
 {
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetRenderer(detailView);
 }
 
-GtkWidget *treeGetDetailView(GtkWidget *tree)
+static GtkWidget *treeGetDetailView(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -96,28 +90,14 @@ Strand treeGetStrand(GtkWidget *tree)
   return gridGetStrand(properties->grid);
 }
 
-
-gboolean treeGetStrandsToggled(GtkWidget *tree)
+static gboolean treeGetDisplayRev(GtkWidget *tree)
 {
   assertTree(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetStrandsToggled(detailView);
+  return detailViewGetDisplayRev(detailView);
 }
 
-BlxBlastMode treeGetBlastMode(GtkWidget *tree)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetBlastMode(detailView);
-}
-
-int treeGetNumFrames(GtkWidget *tree)
-{
-  assertTree(tree);
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties ? detailViewGetNumFrames(properties->detailView) : UNSET_INT;
-}
-
-int treeGetFrame(GtkWidget *tree)
+static int treeGetFrame(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -130,20 +110,13 @@ static gboolean treeGetSortInverted(GtkWidget *tree)
   return detailViewGetSortInverted(detailView);
 }
 
-BlxSeqType treeGetSeqType(GtkWidget *tree)
-{
-  assertTree(tree);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetSeqType(detailView);
-}
-
 static gboolean treeHasSnpHeader(GtkWidget *tree)
 {
   TreeProperties *properties = treeGetProperties(tree);
   return properties->hasSnpHeader;
 }
 
-int treeGetSelectedBaseIdx(GtkWidget *tree)
+static int treeGetSelectedBaseIdx(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -172,31 +145,15 @@ static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx, c
     }
 }
 
-/* Get the reference sequence (always the forward strand and always the DNA seq) */
-char* treeGetRefSeq(GtkWidget *tree)
-{
-  assertTree(tree);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetRefSeq(detailView);
-}
-
 /* Returns the currently-displayed range in the tree view */
-IntRange* treeGetDisplayRange(GtkWidget *tree)
+static IntRange* treeGetDisplayRange(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
   return properties ? detailViewGetDisplayRange(properties->detailView) : NULL;
 }
 
-/* Returns the full display range */
-IntRange* treeGetFullRange(GtkWidget *tree)
-{
-  assertTree(tree);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetFullRange(detailView);
-}
-
-PangoFontDescription* treeGetFontDesc(GtkWidget *tree)
+static PangoFontDescription* treeGetFontDesc(GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetFontDesc(detailView);
@@ -214,70 +171,10 @@ int treeGetCellYPadding(GtkWidget *tree)
   return detailViewGetCellYPadding(detailView);
 }
 
-int treeGetCharWidth(GtkWidget *tree)
+static int treeGetCharWidth(GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetCharWidth(detailView);
-}
-
-int treeGetCharHeight(GtkWidget *tree)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetCharHeight(detailView);
-}
-
-GdkColor* treeGetRefSeqColour(GtkWidget *tree, const gboolean selected)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetRefSeqColour(detailView, selected);
-}
-
-GdkColor* treeGetMatchColour(GtkWidget *tree, const gboolean selected)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetMatchColour(detailView, selected);
-}
-
-GdkColor* treeGetMismatchColour(GtkWidget *tree, const gboolean selected)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetMismatchColour(detailView, selected);
-}
-
-GdkColor* treeGetConsColour(GtkWidget *tree, const gboolean selected)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetConsColour(detailView, selected);
-}
-
-GdkColor* treeGetExonColour(GtkWidget *tree, const gboolean selected)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetExonColour(detailView, selected);
-}
-
-GdkColor* treeGetInsertionColour(GtkWidget *tree, const gboolean selected)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetInsertionColour(detailView, selected);
-}
-
-GdkColor* treeGetExonBoundaryColour(GtkWidget *tree, const gboolean isStart)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetExonBoundaryColour(detailView, isStart);
-}
-
-int treeGetExonBoundaryWidth(GtkWidget *tree)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetExonBoundaryWidth(detailView);
-}
-
-GdkLineStyle treeGetExonBoundaryStyle(GtkWidget *tree, const gboolean isStart)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetExonBoundaryStyle(detailView, isStart);
 }
 
 static TreeColumnHeaderInfo* treeColumnGetHeaderInfo(GtkWidget *tree, ColumnId columnId)
@@ -424,7 +321,7 @@ GList* treeGetMsps(GtkTreeModel *model, GtkTreeIter *iter)
 
 /* For the given tree view, return the data model used for the visible view
  * (which may be a filtered tree model). */
-GtkTreeModel* treeGetVisibleDataModel(GtkTreeView *tree)
+static GtkTreeModel* treeGetVisibleDataModel(GtkTreeView *tree)
 {
   /* Just return the model stored directly in the tree view. This will be the filter
    * if there is one, otherwise it will be the original data model. */
@@ -773,7 +670,7 @@ void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 }
 
 
-gboolean treeIsSeqSelected(GtkWidget *tree, const char *seqName)
+static gboolean treeIsSeqSelected(GtkWidget *tree, const char *seqName)
 {
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
   return blxWindowIsSeqSelected(blxWindow, seqName);
@@ -947,12 +844,9 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       
       if (!group || !group->hidden)
 	{
+	  BlxViewContext *bc = treeGetContext(tree);
 	  const int frame = treeGetFrame(tree);
-	  const int numFrames = blxWindowGetNumFrames(blxWindow);
-	  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
 	  const IntRange const *displayRange = treeGetDisplayRange(tree);
-	  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-	  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
 
 	  /* Show the row if any MSP in the list is an exon or blast match within the display range */
 	  GList *mspListItem = mspList;
@@ -963,8 +857,8 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	      if (mspIsBlastMatch(msp) || mspIsExon(msp))
 		{
 		  /* Convert the MSP's dna coords to display coords, and find the min and max */
-		  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
-		  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+		  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+		  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
 		  
 		  const int minCoord = min(coord1, coord2);
 		  const int maxCoord = max(coord1, coord2);
@@ -1026,6 +920,12 @@ void treeSortByGroupOrder(GtkWidget *tree, gpointer data)
 TreeProperties* treeGetProperties(GtkWidget *widget)
 {
   return widget ? (TreeProperties*)(g_object_get_data(G_OBJECT(widget), "TreeProperties")) : NULL;
+}
+
+BlxViewContext* treeGetContext(GtkWidget *tree)
+{
+  GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  return blxWindowGetContext(blxWindow);
 }
 
 static void onDestroyTree(GtkWidget *widget)
@@ -1156,18 +1056,12 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 {
   GdkDrawable *drawable = createBlankPixmap(headerWidget);
   
-  GtkWidget *detailView = treeGetDetailView(tree);
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  
+  BlxViewContext *bc = treeGetContext(tree);
   const Strand strand = treeGetStrand(tree);
   const int frame = treeGetFrame(tree);
-  IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  IntRange *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
-  char *refSeq = blxWindowGetRefSeq(blxWindow);
-  const MSP *mspList = blxWindowGetMspList(blxWindow);
+  
+  GtkWidget *detailView = treeGetDetailView(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   
   /* Set the colour to highlight SNP-affected bases in, if displaying SNPs against
    * this tree */
@@ -1181,50 +1075,45 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
     }
   
   /* Find the segment of the ref seq to display. */
-  gchar *segmentToDisplay = getSequenceSegment(blxWindow,
-					       refSeq,
-					       refSeqRange,
-					       displayRange->min, 
-					       displayRange->max, 
+  gchar *segmentToDisplay = getSequenceSegment(bc,
+					       bc->refSeq,
+					       properties->displayRange.min, 
+					       properties->displayRange.max, 
 					       strand, 
-					       seqType,
+					       bc->seqType,
 					       frame, 
-					       numFrames,
-					       rightToLeft,
-					       rightToLeft, /* show backwards if display reversed */
-					       TRUE,	    /* always complement reverse strand */
-					       TRUE);	    /* always translate peptide sequences */
+					       bc->displayRev,
+					       bc->displayRev,	/* show backwards if display reversed */
+					       TRUE,		/* always complement reverse strand */
+					       TRUE);		/* always translate peptide sequences */
   
   if (segmentToDisplay)
     {
       GdkGC *gc = gdk_gc_new(drawable);
-      const int charWidth = detailViewGetCharWidth(detailView);
-      const int charHeight = detailViewGetCharHeight(detailView);
-      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-      GdkColor *normalColour = detailViewGetRefSeqColour(detailView, FALSE);
-      GdkColor *selectedColour = detailViewGetRefSeqColour(detailView, TRUE);
       
-      gtk_layout_set_size(GTK_LAYOUT(headerWidget), headerWidget->allocation.width, charHeight);
+      int displayIdx = properties->displayRange.min;
+      int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
       
-      int displayIdx = displayRange->min;
+      const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
       
-      while (displayIdx >= displayRange->min && displayIdx <= displayRange->max)
+      while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
 	{
 	  /* Set the background colour depending on whether this base is selected or
 	   * is affected by a SNP */
-	   const gboolean displayIdxSelected = (displayIdx == selectedBaseIdx);
+	   const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
 	   
-	  GdkColor *colour = getCoordColour(displayIdx, strand, displayIdxSelected, displayIdxSelected, mspList,
-					    normalColour, selectedColour, snpColour, snpColourSelected, NULL, NULL);
+	  GdkColor *colour = getCoordColour(dnaIdx, strand, displayIdxSelected, displayIdxSelected, bc->mspList,
+					    &properties->refSeqColour, &properties->refSeqColourSelected, snpColour, snpColourSelected, NULL, NULL);
 	  
 	  if (colour)
 	    {
 	      gdk_gc_set_foreground(gc, colour);
-	      const int x = (displayIdx - displayRange->min) * charWidth;
+	      const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
 	      const int y = 0;
-	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, charWidth, charHeight);
+	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
 	    }
 	  
+	  dnaIdx += incrementValue;
 	  ++displayIdx;
 	}
       
@@ -1380,8 +1269,9 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	  {
 	    /* Select the SNP that was clicked on.  */
 	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
-	    
-	    selectClickedSnp(header, detailView, event->x, event->y, FALSE, FALSE, UNSET_INT); /* SNPs are always un-expanded in the DNA track */
+	    int clickedBase = 1; /* only get in here for DNA matches; so frame/base number is always one */
+
+	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
 	    refreshDetailViewHeaders(detailView);
 	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
@@ -1775,7 +1665,7 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
 				     gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  gboolean rightToLeft = treeGetStrandsToggled(tree);
+  gboolean displayRev = treeGetDisplayRev(tree);
   
   /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
   GList	*mspGList = treeGetMsps(model, iter);
@@ -1790,7 +1680,7 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
       int sSeqMin, sSeqMax;
       getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      int coord = (rightToLeft != sameDirection) ? sSeqMin : sSeqMax;
+      int coord = (displayRev != sameDirection) ? sSeqMin : sSeqMax;
 
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -1812,7 +1702,7 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
 				   gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  gboolean rightToLeft = treeGetStrandsToggled(tree);
+  gboolean displayRev = treeGetDisplayRev(tree);
   
   /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
   GList	*mspGList = treeGetMsps(model, iter);
@@ -1827,7 +1717,7 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
       int sSeqMin, sSeqMax;
       getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      int coord = (rightToLeft != sameDirection) ? sSeqMax : sSeqMin;
+      int coord = (displayRev != sameDirection) ? sSeqMax : sSeqMin;
       
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -2044,14 +1934,14 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
       /* Update the font, in case its size has changed */
       gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
 
-      GtkWidget *blxWindow = treeGetBlxWindow(tree);
+      BlxViewContext *bc = treeGetContext(tree);
       
       int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), 
 					treeGetFrame(tree),
-					blxWindowGetSeqType(blxWindow), 
-					blxWindowGetStrandsToggled(blxWindow), 
-					blxWindowGetNumFrames(blxWindow),
-					blxWindowGetRefSeqRange(blxWindow));
+					bc->seqType, 
+					bc->displayRev, 
+					bc->numFrames,
+					&bc->refSeqRange);
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
@@ -2078,14 +1968,14 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
       /* Update the font, in case its size has changed */
       gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
 
-      GtkWidget *blxWindow = treeGetBlxWindow(tree);
+      BlxViewContext *bc = treeGetContext(tree);
       
       int displayVal = getEndDnaCoord(treeGetDisplayRange(tree),
 				      treeGetFrame(tree),
-				      blxWindowGetSeqType(blxWindow), 
-				      blxWindowGetStrandsToggled(blxWindow), 
-				      blxWindowGetNumFrames(blxWindow),
-				      blxWindowGetRefSeqRange(blxWindow));
+				      bc->seqType, 
+				      bc->displayRev, 
+				      bc->numFrames,
+				      &bc->refSeqRange);
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       

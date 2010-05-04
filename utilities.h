@@ -91,14 +91,14 @@ int		      convertDisplayIdxToDnaIdx(const int inputIdx,
 						const int frame, 
 						const int baseNum, 
 						const int numFrames,
-						const gboolean rightToLeft,
+						const gboolean displayRev,
 						const IntRange const *dnaIdxRange);
 
 int		      convertDnaIdxToDisplayIdx(const int dnaIdx, 
 						const BlxSeqType displaySeqType,
 						const int frame,
 						const int numFrames, 
-						const gboolean rightToLeft,
+						const gboolean displayRev,
 						const IntRange const *dnaIdxRange,
 						int *baseNum);
 
@@ -121,14 +121,14 @@ char		      getRefSeqBase(char *refSeq,
 int		      getStartDnaCoord(const IntRange const *displayRange, 
 				       const int frame,
 				       const BlxSeqType displaySeqType, 
-				       const gboolean rightToLeft, 
+				       const gboolean displayRev, 
 				       const int numFrames,
 				       const IntRange const *refSeqRange);
 
 int		      getEndDnaCoord(const IntRange const *displayRange, 
 				     const int frame,
 				     const BlxSeqType displaySeqType, 
-				     const gboolean rightToLeft, 
+				     const gboolean displayRev, 
 				     const int numFrames,
 				     const IntRange const *refSeqRange);
 
@@ -136,7 +136,7 @@ int		      gapCoord(const MSP *msp,
 			       const int qIdx, 
 			       const int numFrames, 
 			       const Strand strand, 
-			       const gboolean rightToLeft, 
+			       const gboolean displayRev, 
 			       int *nearestIdx);
 
 int		      wildcardSearch(const char *textToSearch, const char *searchStr);

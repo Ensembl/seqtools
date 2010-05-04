@@ -46,7 +46,7 @@ typedef struct _DrawData
     const Strand strand;
     const IntRange const *displayRange;
     const IntRange const *refSeqRange;
-    const gboolean rightToLeft;
+    const gboolean displayRev;
     const int numFrames;
     const BlxSeqType seqType;
   } DrawData;
@@ -55,7 +55,6 @@ typedef struct _DrawData
 
 /* Local function declarations */
 static GtkWidget*		exonViewGetBigPicture(GtkWidget *exonView);
-static Strand			exonViewGetStrand(GtkWidget *exonView);
 static GtkWidget*		exonViewGetBlxWindow(GtkWidget *exonView);
 static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
 static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
@@ -91,8 +90,8 @@ static void drawExonIntron(const MSP *msp, DrawData *data)
   const int frame = mspGetRefFrame(msp, data->seqType);
 
   /* Find the coordinates of the start and end base in this msp, converting to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, frame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, frame, data->numFrames, data->rightToLeft, data->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
   
   /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the max coord + 1 */
   const int minCoord = min(coord1, coord2);
@@ -146,9 +145,10 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
 static void drawExonView(GtkWidget *exonView)
 {
   GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-  const MSP *msp = blxWindowGetMspList(blxWindow);
-  const Strand currentStrand = exonViewGetStrand(exonView);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  
   ExonViewProperties *properties = exonViewGetProperties(exonView);
+  const MSP *msp = blxContext->mspList;
 
   GdkDrawable *drawable = widgetGetDrawable(exonView);
   GdkGC *gc = gdk_gc_new(drawable);
@@ -159,18 +159,18 @@ static void drawExonView(GtkWidget *exonView)
     &properties->exonColour,
     &properties->exonViewRect,
     blxWindow,
-    currentStrand,
+    properties->currentStrand,
     bigPictureGetDisplayRange(properties->bigPicture),
-    blxWindowGetRefSeqRange(blxWindow),
-    blxWindowGetStrandsToggled(blxWindow),
-    blxWindowGetNumFrames(blxWindow),
-    blxWindowGetSeqType(blxWindow)
+    &blxContext->refSeqRange,
+    blxContext->displayRev,
+    blxContext->numFrames,
+    blxContext->seqType
   };
   
   /* Loop through all msps drawing only unselected ones */
   for ( ; msp; msp = msp->next)
     {
-      if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == currentStrand)
+      if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == properties->currentStrand)
 	{
 	  if (!blxWindowIsSeqSelected(blxWindow, msp->sname));
 	    {
@@ -180,7 +180,7 @@ static void drawExonView(GtkWidget *exonView)
     }
   
   /* Draw grouped msps */
-  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
+  GList *groupItem = blxContext->sequenceGroups;
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
@@ -190,7 +190,7 @@ static void drawExonView(GtkWidget *exonView)
   
   /* Draw all selected msps */
   drawData.colour = &properties->exonColourSelected;
-  g_list_foreach(blxWindowGetSelectedSeqs(blxWindow), drawExonIntronItem, &drawData);
+  g_list_foreach(blxContext->selectedSeqs, drawExonIntronItem, &drawData);
   
   g_object_unref(gc);
 }
@@ -265,12 +265,6 @@ static GtkWidget* exonViewGetBigPicture(GtkWidget *exonView)
   return properties->bigPicture;
 }
 
-static Strand exonViewGetStrand(GtkWidget *exonView)
-{
-  ExonViewProperties *properties = exonViewGetProperties(exonView);
-  return properties->currentStrand;
-}
-
 static GtkWidget* exonViewGetBlxWindow(GtkWidget *exonView)
 {
   GtkWidget *bigPicture = exonViewGetBigPicture(exonView);
@@ -283,7 +277,7 @@ static GtkWidget* exonViewGetTopGrid(GtkWidget *exonView)
   
   GtkWidget *topGrid = NULL;
   
-  if (bigPictureGetStrandsToggled(bigPicture))
+  if (bigPictureGetDisplayRev(bigPicture))
     {
       topGrid = bigPictureGetRevGrid(bigPicture);
     }

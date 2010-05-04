@@ -34,7 +34,7 @@ typedef struct
     const int startDnaIdx;		/* the DNA coord to start searching from */
     const gboolean searchRight;		/* search towards the right or left */
     const int searchDirection;		/* multiplier to add/subtract depending on whether searching right/left */
-    const gboolean rightToLeft;		/* true if the display is reversed */
+    const gboolean displayRev;		/* true if the display is reversed */
     const BlxSeqType seqType;		/* whether viewing DNA or peptide seqs */
     const int numFrames;		/* number of reading frames */
     const IntRange const *refSeqRange;	/* the full range of the reference sequence */
@@ -48,16 +48,18 @@ typedef struct
 
 
 /* Local function declarations */
+static BlxViewContext*	      detailViewGetContext(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
 static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
-static GdkColor*	      detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase);
+static int		      detailViewGetActiveFrame(GtkWidget *detailView);
+static SubjectSequence*	      detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName);
 
 static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
 static int		      snpTrackGetStrand(GtkWidget *snpTrack);
-static int		      getSnpDisplayCoord(const MSP *msp, const gboolean expandSnps, const BlxSeqType seqType, const int numFrames, const gboolean rightToLeft, const int activeFrame, const IntRange const *refSeqRange, int *snpStart, int *snpEnd, int *baseNum);
+static int		      getSnpDisplayCoord(const MSP *msp, const gboolean expandSnps, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange const *refSeqRange, int *snpStart, int *snpEnd, int *baseNum);
 
 static void		      detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
 static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
@@ -496,13 +498,13 @@ static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
 
 
 /* This function removes the trees from the detail view and re-adds them in the
- * correct order according to the strandsToggled flag. It should be called every
+ * correct order according to the displayRev flag. It should be called every
  * time the strands are toggled. It assumes the trees are already in the 
  * detailView container, and that the properties have been set for all 3 widgets. */
 static void refreshTreeOrder(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  gboolean toggled = detailViewGetStrandsToggled(detailView);
+  gboolean toggled = detailViewGetDisplayRev(detailView);
 
   gtk_container_foreach(GTK_CONTAINER(detailView), removeAllTreesFromContainer, detailView);
 
@@ -533,7 +535,7 @@ static void refreshStartColHeader(GtkWidget *header, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
 
-  if (detailViewGetStrandsToggled(detailView))
+  if (detailViewGetDisplayRev(detailView))
     {
       gtk_label_set_text(GTK_LABEL(header), END_COLUMN_HEADER_TEXT);
     }
@@ -550,7 +552,7 @@ static void refreshEndColHeader(GtkWidget *header, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
 
-  if (detailViewGetStrandsToggled(detailView))
+  if (detailViewGetDisplayRev(detailView))
     {
       gtk_label_set_text(GTK_LABEL(header), START_COLUMN_HEADER_TEXT);
     }
@@ -734,12 +736,9 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
   int sLen = UNSET_INT; /* the length of the match sequence */
-  
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
+
+  BlxViewContext *bc = detailViewGetContext(detailView);
   const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
   
   /* See if a base is selected. */
   qIdx = selectedDnaBaseIdx;
@@ -754,7 +753,7 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
 	{
 	  MSP *firstMsp = (MSP*)(mspList->data);
 	  
-	  if (firstMsp->sseq && firstMsp->sseq != blxWindowGetPaddingSeq(blxWindow))
+	  if (firstMsp->sseq && firstMsp->sseq != bc->paddingSeq)
 	    {
 	      sLen = strlen(firstMsp->sseq);
 	    }
@@ -768,7 +767,7 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  sIdx = gapCoord(msp, qIdx, numFrames, mspGetRefFrame(msp, seqType), rightToLeft, NULL);
+		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev, NULL);
 
 		  if (sIdx != UNSET_INT)
 		    {
@@ -1016,8 +1015,12 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
  * is true it means that the SNPs are drawn full-width (i.e. showing all the sequence
  * in the MSP) and we should take into account when clicking; otherwise, the SNP
  * is just shown as a marker at its actual coord, and we only need to check the
- * position of that coord to see if the user clicked there. */
+ * position of that coord to see if the user clicked there. snpTrack is the widget
+ * that was clicked on and the optional 'colHeader' argument can be passed if coordinates
+ * should be converted to the coordinate system of that column header (i.e. if the SNP track
+ * widget is not the same width of the sequence column, the coords will need converting). */
 void selectClickedSnp(GtkWidget *snpTrack,
+		      GtkWidget *colHeader,
 		      GtkWidget *detailView, 
 		      const int xIn, 
 		      const int yIn, 
@@ -1025,25 +1028,27 @@ void selectClickedSnp(GtkWidget *snpTrack,
 		      const gboolean expandSnps,
 		      const int clickedBase)
 {
-  /* Convert x coord to sequence-column coords */
-  int x = UNSET_INT, y = yIn;
-  DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
-  gtk_widget_translate_coordinates(snpTrack, seqColInfo->headerWidget, xIn, 0, &x, NULL);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   
-  int clickedDisplayIdx = getBaseIndexAtColCoords(x, y, detailViewGetCharWidth(detailView), detailViewGetDisplayRange(detailView));
+  /* Convert x coord to sequence-column coords */
+  int x = xIn, y = yIn;
+  
+  if (colHeader)
+    {
+      gtk_widget_translate_coordinates(snpTrack, colHeader, xIn, 0, &x, NULL);
+    }
+  
+  int clickedDisplayIdx = getBaseIndexAtColCoords(x, y, properties->charWidth, &properties->displayRange);
   
   if (clickedDisplayIdx != UNSET_INT)
     {
       GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-      const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-      const int numFrames = blxWindowGetNumFrames(blxWindow);
-      const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-      const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+      BlxViewContext *bc = blxWindowGetContext(blxWindow);
       const int activeFrame = detailViewGetActiveFrame(detailView);
       
       /* See if there are any SNPs at this displayIdx */
       GList *snpNameList = NULL;
-      const MSP *msp = blxWindowGetMspList(blxWindow);
+      const MSP *msp = bc->mspList;
       
       for ( ; msp; msp = msp->next)
 	{
@@ -1052,7 +1057,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
 	      /* Get the SNP coord, and the range of display coords where this SNP is shown */
 	      IntRange snpDisplayRange;
 	      int baseNum = UNSET_INT;
-	      const int snpDisplayIdx = getSnpDisplayCoord(msp, expandSnps, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &snpDisplayRange.min, &snpDisplayRange.max, &baseNum);
+	      const int snpDisplayIdx = getSnpDisplayCoord(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &snpDisplayRange.min, &snpDisplayRange.max, &baseNum);
 	      
 	      gboolean found = expandSnps
 		? valueWithinRange(clickedDisplayIdx, &snpDisplayRange)
@@ -1067,9 +1072,8 @@ void selectClickedSnp(GtkWidget *snpTrack,
 
 		  if (reCentre)
 		    {
-		      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-		      const int newStart = snpDisplayIdx - (getRangeLength(displayRange) / 2);
-		      setDetailViewStartIdx(detailView, newStart, seqType);
+		      const int newStart = snpDisplayIdx - (getRangeLength(&properties->displayRange) / 2);
+		      setDetailViewStartIdx(detailView, newStart, bc->seqType);
 		    }
 		}
 	    }
@@ -1090,82 +1094,68 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
   GdkDrawable *drawable = createBlankPixmap(dnaTrack);
   
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Find the segment of the ref sequence to display (complemented if this tree is
    * displaying the reverse strand, and reversed if the display is toggled) */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  IntRange *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
-  char *refSeq = blxWindowGetRefSeq(blxWindow);
   
-  gchar *segmentToDisplay = getSequenceSegment(blxWindow,
-					       refSeq,
-					       refSeqRange,
+  gchar *segmentToDisplay = getSequenceSegment(bc,
+					       bc->refSeq,
 					       displayRange->min, 
 					       displayRange->max, 
 					       strand, 
-					       seqType,
+					       bc->seqType,
 					       frame, 
-					       numFrames,
-					       rightToLeft,
-					       rightToLeft,
-					       rightToLeft,
+					       bc->displayRev,
+					       bc->displayRev,
+					       bc->displayRev,
 					       FALSE);
   
   if (segmentToDisplay)
     {
       GdkGC *gc = gdk_gc_new(drawable);
-      const int charWidth = detailViewGetCharWidth(detailView);
-      const int charHeight = detailViewGetCharHeight(detailView);
-      const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-      const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
+      DetailViewProperties *properties = detailViewGetProperties(detailView);
       const int activeFrame = detailViewGetActiveFrame(detailView);
-      GdkColor *snpColour = detailViewGetSnpColour(detailView, FALSE);
-      GdkColor *snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
-      GdkColor *tripletColour = detailViewGetTripletHighlightColour(detailView, FALSE);
-      GdkColor *tripletColourSelected = detailViewGetTripletHighlightColour(detailView, TRUE);
 
-      gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, charHeight);
+      gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
       
       /* Loop forward/backward through the display range depending on which strand we're viewing.
        * We need to convert display coords to actual coords on the ref sequence */
-      const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, seqType, frame, 1, numFrames, rightToLeft, refSeqRange);	  /* 1st base in frame */
-      const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, seqType, frame, numFrames, numFrames, rightToLeft, refSeqRange); /* last base in frame */
+      const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);	  /* 1st base in frame */
+      const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
       
       IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
       
-      int incrementValue = rightToLeft ? -numFrames : numFrames;
+      int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
       int displayLen = qRange.max - qRange.min + 1;
       char displayText[displayLen + 1];
       int displayTextPos = 0;
       
-      int qIdx = rightToLeft ? qRange.max : qRange.min;
-      int displayIdx = convertDnaIdxToDisplayIdx(qIdx, seqType, activeFrame, numFrames, rightToLeft, refSeqRange, NULL);
+      int qIdx = bc->displayRev ? qRange.max : qRange.min;
+      int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
       int x = 0;
       int y = 0;
       
       while (qIdx >= qRange.min && qIdx <= qRange.max)
 	{
 	  /* Get the character to display at this index */
-	  displayText[displayTextPos] = getRefSeqBase(refSeq, qIdx, rightToLeft, refSeqRange, BLXSEQ_DNA);
+	  displayText[displayTextPos] = getRefSeqBase(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
 	  
 	  /* Colour the base depending on whether it is selected or affected by a SNP */
-	  const gboolean displayIdxSelected = (displayIdx == selectedBaseIdx);
-	  const gboolean dnaIdxSelected = (qIdx == selectedDnaBaseIdx);
-	  const MSP *mspList = blxWindowGetMspList(blxWindow);
+	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+	  const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
 	  
 	  GdkColor *colour = getCoordColour(qIdx, strand, displayIdxSelected, dnaIdxSelected,
-					    mspList, NULL, NULL, snpColour, snpColourSelected,
-					    tripletColour, tripletColourSelected);
+					    bc->mspList, NULL, NULL, &properties->snpColour, &properties->snpColourSelected,
+					    &properties->highlightTripletColour, &properties->highlightDnaBaseColour);
 	  
 	  if (colour)
 	    {
 	      /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
 	      gdk_gc_set_foreground(gc, colour);
-	      x = displayTextPos * charWidth;
-	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, charWidth, charHeight);
+	      x = displayTextPos * properties->charWidth;
+	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
 	    }
 	  
 	  /* Increment indices */
@@ -1203,7 +1193,7 @@ static int getSnpDisplayCoord(const MSP *msp,
 			      const gboolean expandSnps,
 			      const BlxSeqType seqType, 
 			      const int numFrames,
-			      const gboolean rightToLeft, 
+			      const gboolean displayRev, 
 			      const int activeFrame,
 			      const IntRange const *refSeqRange,
 			      int *snpStart,
@@ -1212,7 +1202,7 @@ static int getSnpDisplayCoord(const MSP *msp,
 {
   /* Conver the SNP index to a display coord */
   int base = UNSET_INT;
-  const int displayIdx = convertDnaIdxToDisplayIdx(msp->qstart, seqType, activeFrame, numFrames, rightToLeft, refSeqRange, &base);
+  const int displayIdx = convertDnaIdxToDisplayIdx(msp->qstart, seqType, activeFrame, numFrames, displayRev, refSeqRange, &base);
 
   /* The calculated display index will be different depending on which reading frame is 
    * active. However, we always want to display the SNP in the same position, so adjust 
@@ -1268,17 +1258,10 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
     }
   
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-  const int charWidth = detailViewGetCharWidth(detailView);
-  const int charHeight = detailViewGetCharHeight(detailView);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
   const int activeFrame = detailViewGetActiveFrame(detailView);
-  PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
-  GdkColor *snpColour = detailViewGetSnpColour(detailView, FALSE);
-  GdkColor *snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
   
   Strand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
     ? blxWindowGetActiveStrand(blxWindow)
@@ -1302,22 +1285,22 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	{
 	  /* Get the range of display coords where this SNP will appear */
 	  int startIdx = UNSET_INT, endIdx = UNSET_INT;
-	  getSnpDisplayCoord(msp, TRUE, seqType, numFrames, rightToLeft, activeFrame, refSeqRange, &startIdx, &endIdx, NULL);
+	  getSnpDisplayCoord(msp, TRUE, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &startIdx, &endIdx, NULL);
 
 	  /* See if any of the SNP coords are in the current display range */
-	  if (valueWithinRange(startIdx, displayRange) || valueWithinRange(endIdx, displayRange))
+	  if (valueWithinRange(startIdx, &properties->displayRange) || valueWithinRange(endIdx, &properties->displayRange))
 	    {
-	      int x = leftMargin + ((startIdx - displayRange->min) * charWidth);
-	      const int width = strlen(msp->sseq) * charWidth;
+	      int x = leftMargin + ((startIdx - properties->displayRange.min) * properties->charWidth);
+	      const int width = strlen(msp->sseq) * properties->charWidth;
 	      
 	      /* Draw the background */
-	      GdkColor *colour = blxWindowIsSeqSelected(blxWindow, msp->sname) ? snpColourSelected : snpColour;
+	      GdkColor *colour = blxWindowIsSeqSelected(blxWindow, msp->sname) ? &properties->snpColourSelected : &properties->snpColour;
 	      gdk_gc_set_foreground(gc, colour);
-	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, charHeight);
+	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, properties->charHeight);
 	      
 	      /* Draw the text */
 	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, msp->sseq);
-	      pango_layout_set_font_description(layout, fontDesc);
+	      pango_layout_set_font_description(layout, properties->fontDesc);
 	      
 	      if (layout)
 		{
@@ -1507,22 +1490,6 @@ GHashTable *detailViewGetSeqTable(GtkWidget *detailView)
   return properties ? properties->seqTable : NULL;
 }
 
-
-/* Get the reference sequence (always the forward strand and always the DNA seq) */
-char* detailViewGetRefSeq(GtkWidget *detailView)
-{
-  assertDetailView(detailView);
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  return blxWindowGetRefSeq(blxWindow);
-}
-
-char** detailViewGetGeneticCode(GtkWidget *detailView)
-{
-  assertDetailView(detailView);
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  return blxWindowGetGeneticCode(blxWindow);
-}
-
 /* Get the list of columns */
 GList* detailViewGetColumnList(GtkWidget *detailView)
 {
@@ -1550,9 +1517,9 @@ DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const Colum
 }
 
 
-gboolean detailViewGetStrandsToggled(GtkWidget *detailView)
+gboolean detailViewGetDisplayRev(GtkWidget *detailView)
 {
-  return blxWindowGetStrandsToggled(detailViewGetBlxWindow(detailView));
+  return blxWindowGetDisplayRev(detailViewGetBlxWindow(detailView));
 }
 
 PangoFontDescription *detailViewGetFontDesc(GtkWidget *detailView)
@@ -1561,79 +1528,11 @@ PangoFontDescription *detailViewGetFontDesc(GtkWidget *detailView)
   return properties ? properties->fontDesc : NULL;
 }
 
-GdkColor* detailViewGetRefSeqColour(GtkWidget *detailView, const gboolean selected)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->refSeqColourSelected : &properties->refSeqColour;
-}
-
-GdkColor* detailViewGetMatchColour(GtkWidget *detailView, const gboolean selected)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->matchColourSelected : &properties->matchColour;
-}
-
-GdkColor* detailViewGetMismatchColour(GtkWidget *detailView, const gboolean selected)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->mismatchColourSelected : &properties->mismatchColour;
-}
-
-GdkColor* detailViewGetConsColour(GtkWidget *detailView, const gboolean selected)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->consColourSelected : &properties->consColour;
-}
-
-GdkColor* detailViewGetExonColour(GtkWidget *detailView, const gboolean selected)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->exonColourSelected : &properties->exonColour;
-}
-
 GdkColor* detailViewGetSnpColour(GtkWidget *detailView, const gboolean selected)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return selected ? &properties->snpColourSelected : &properties->snpColour;
 }
-
-GdkColor* detailViewGetInsertionColour(GtkWidget *detailView, const gboolean selected)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->insertionColourSelected : &properties->insertionColour;
-}
-
-static GdkColor* detailViewGetTripletHighlightColour(GtkWidget *detailView, const gboolean isSelectedDnaBase)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return isSelectedDnaBase ? &properties->highlightDnaBaseColour : &properties->highlightTripletColour;
-}
-
-GdkColor* detailViewGetExonBoundaryColour(GtkWidget *detailView, const gboolean isStart)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return isStart ? &properties->exonBoundaryColourStart : &properties->exonBoundaryColourEnd;
-}
-
-int detailViewGetExonBoundaryWidth(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties->exonBoundaryLineWidth;
-}
-
-GdkLineStyle detailViewGetExonBoundaryStyle(GtkWidget *detailView, const gboolean isStart)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return isStart ? properties->exonBoundaryLineStyleStart : properties->exonBoundaryLineStyleEnd;
-}
-
-
-GList *detailViewGetStrandTrees(GtkWidget *detailView, const Strand activeStrand)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return (activeStrand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
-}
-
 
 int detailViewGetCellXPadding(GtkWidget *detailView)
 {
@@ -1728,7 +1627,7 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand activeStrand, c
  * strand list by default, or the reverse strand list if strands are toggled). */
 static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 {
-  const gboolean toggled = detailViewGetStrandsToggled(detailView);
+  const gboolean toggled = detailViewGetDisplayRev(detailView);
   const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
   const int numFrames = detailViewGetNumFrames(detailView);
   
@@ -1764,17 +1663,6 @@ static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
   return result;
 }
 
-GList* detailViewGetFwdStrandTrees(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties->fwdStrandTrees;
-}
-
-GList* detailViewGetRevStrandTrees(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties->revStrandTrees;
-}
 
 int detailViewGetNumFrames(GtkWidget *detailView)
 {
@@ -1798,12 +1686,6 @@ IntRange* detailViewGetDisplayRange(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? &properties->displayRange : NULL;
-}
-
-IntRange* detailViewGetFullRange(GtkWidget *detailView)
-{
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  return blxWindowGetFullRange(blxWindow);
 }
 
 IntRange* detailViewGetRefSeqRange(GtkWidget *detailView)
@@ -1831,7 +1713,7 @@ static int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
 }
 
 /* Get the active frame. Returns the last-selected frame, or 1 if no frame is selected. */
-int detailViewGetActiveFrame(GtkWidget *detailView)
+static int detailViewGetActiveFrame(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return (!properties || properties->selectedFrame == UNSET_INT) ? 1 : properties->selectedFrame;
@@ -1865,7 +1747,7 @@ GList *detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName)
 
 
 /* Return the SubjectSequence struct for the sequence with the given name */
-SubjectSequence* detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName)
+static SubjectSequence* detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName)
 {
   SubjectSequence *result = NULL;
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -1916,12 +1798,8 @@ static void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
   properties->selectedFrame = frame;
   
   /* For protein matches, calculate the display index and base number of this dna idx */
-  const int numFrames = detailViewGetNumFrames(detailView);
-  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  const BlxSeqType seqType = detailViewGetSeqType(detailView);
-
-  properties->selectedBaseIdx = convertDnaIdxToDisplayIdx(selectedDnaBaseIdx, seqType, frame, numFrames, rightToLeft, refSeqRange, &properties->selectedBaseNum);
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  properties->selectedBaseIdx = convertDnaIdxToDisplayIdx(selectedDnaBaseIdx, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &properties->selectedBaseNum);
   
   updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
 }
@@ -1945,20 +1823,10 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
   properties->selectedBaseNum = baseNum;
   
   /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
-  const int numFrames = detailViewGetNumFrames(detailView);
-  const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  const BlxSeqType seqType = detailViewGetSeqType(detailView);
-  
-  properties->selectedDnaBaseIdx = convertDisplayIdxToDnaIdx(selectedBaseIdx, seqType, frame, baseNum, numFrames, rightToLeft, refSeqRange);
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  properties->selectedDnaBaseIdx = convertDisplayIdxToDnaIdx(selectedBaseIdx, bc->seqType, frame, baseNum, bc->numFrames, bc->displayRev, &bc->refSeqRange);
 
   updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
-}
-
-BlxBlastMode detailViewGetBlastMode(GtkWidget *detailView)
-{
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  return blxWindowGetBlastMode(blxWindow);
 }
 
 static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
@@ -2191,7 +2059,7 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
 	{
 	  /* There isn't a bitmap yet. Create it now. */
 	  GtkWidget *detailView = GTK_WIDGET(data);
-	  const Strand activeStrand = detailViewGetStrandsToggled(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
+	  const Strand activeStrand = detailViewGetDisplayRev(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
 	  
 	  drawDnaTrack(headerWidget, detailView, activeStrand, seqColHeaderGetRow(headerWidget));
 	  bitmap = widgetGetDrawable(headerWidget);
@@ -2254,8 +2122,12 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
       /* Select the SNP that was clicked on.  */
       GtkWidget *detailView = GTK_WIDGET(data);
       blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
-      
-      selectClickedSnp(snpTrack, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
+
+      /* The SNP track is not the same width as the sequence column, so pass the
+       * sequence column header so that we can convert to the correct coords */
+      DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+
+      selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
       
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
@@ -2288,7 +2160,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
 	    const int clickedBase = seqColHeaderGetBase(header, detailViewGetActiveFrame(detailView), detailViewGetNumFrames(detailView));
 
-	    selectClickedSnp(header, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
+	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
 	    refreshDetailViewHeaders(detailView);
 	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
@@ -2423,7 +2295,7 @@ void toggleStrand(GtkWidget *detailView)
   GtkWidget *bigPicture = blxContext->bigPicture;
 
   /* Update the flag */
-  blxContext->strandsToggled = !blxContext->strandsToggled;
+  blxContext->displayRev = !blxContext->displayRev;
   
   /* Invert the display range */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
@@ -2501,14 +2373,15 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 
 	  /* Convert the input coord to display coords. */
 	  const int activeFrame = detailViewGetActiveFrame(detailView);
+	  const BlxViewContext *bc = detailViewGetContext(detailView);
 	  int baseNum;
 	  
 	  const int displayIdx = convertDnaIdxToDisplayIdx(requestedCoord, 
-							   detailViewGetSeqType(detailView), 
+							   bc->seqType, 
 							   activeFrame,
-							   detailViewGetNumFrames(detailView), 
-							   detailViewGetStrandsToggled(detailView), 
-							   detailViewGetRefSeqRange(detailView),
+							   bc->numFrames, 
+							   bc->displayRev, 
+							   &bc->refSeqRange,
 							   &baseNum);
 	  
 	  /* Select the base index. */
@@ -2646,21 +2519,17 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
  * the currently-selected base index */
 static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gboolean searchRight, GList *seqNameList)
 {
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+  BlxViewContext *bc = detailViewGetContext(detailView);
   
-  const int searchDirection = (searchRight != rightToLeft) ? 1 : -1;
+  const int searchDirection = (searchRight != bc->displayRev) ? 1 : -1;
   
   MatchSearchData searchData = {startDnaIdx, 
 				searchRight, 
 				searchDirection, 
-				rightToLeft, 
-				seqType,
-				numFrames,
-				refSeqRange,
+				bc->displayRev, 
+				bc->seqType,
+				bc->numFrames,
+				&bc->refSeqRange,
 				seqNameList,
 				UNSET_INT,
 				UNSET_INT,
@@ -2715,13 +2584,8 @@ void prevMatch(GtkWidget *detailView, GList *seqNameList)
       
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
-      
-      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      const int numFrames = detailViewGetNumFrames(detailView);
-      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-      
-      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, seqType, frame, 1, numFrames, rightToLeft, refSeqRange);
+      BlxViewContext *bc = detailViewGetContext(detailView);
+      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
   goToNextMatch(detailView, startDnaIdx, FALSE, seqNameList);
@@ -2743,13 +2607,8 @@ void nextMatch(GtkWidget *detailView, GList *seqNameList)
       
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
-      
-      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      const int numFrames = detailViewGetNumFrames(detailView);
-      const gboolean rightToLeft = detailViewGetStrandsToggled(detailView);
-      const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-      
-      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, seqType, frame, 1, numFrames, rightToLeft, refSeqRange);
+      BlxViewContext *bc = detailViewGetContext(detailView);
+      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
   goToNextMatch(detailView, startDnaIdx, TRUE, seqNameList);
@@ -2761,7 +2620,7 @@ void firstMatch(GtkWidget *detailView, GList *seqNameList)
 {
   /* Jump to the nearest match to the start of the ref seq */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  const int startIdx = detailViewGetStrandsToggled(detailView) ? refSeqRange->max : refSeqRange->min;
+  const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max : refSeqRange->min;
   
   goToNextMatch(detailView, startIdx, TRUE, seqNameList);
 }
@@ -2772,7 +2631,7 @@ void lastMatch(GtkWidget *detailView, GList *seqNameList)
 {
   /* Jump to the nearest match to the end of the reference sequence */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  const int startIdx = detailViewGetStrandsToggled(detailView) ? refSeqRange->min : refSeqRange->max;
+  const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->min : refSeqRange->max;
 
   goToNextMatch(detailView, startIdx, FALSE, seqNameList);
 }
@@ -3433,11 +3292,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
  * */
 static void calcID(MSP *msp, GtkWidget *detailView)
 {
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  const BlxBlastMode blastMode = blxWindowGetBlastMode(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
-  const char *paddingSeq = blxWindowGetPaddingSeq(blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
+  BlxViewContext *bc = detailViewGetContext(detailView);
   
   const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
   const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
@@ -3447,22 +3302,20 @@ static void calcID(MSP *msp, GtkWidget *detailView)
   
   msp->id = 0;
   
-  if (msp->sseq && msp->sseq != paddingSeq)
+  if (msp->sseq && msp->sseq != bc->paddingSeq)
     {
       /* Note that this will reverse complement the ref seq if it is the reverse 
        * strand. This means that where there is no gaps array the comparison is trivial
        * as coordinates can be ignored and the two sequences just whipped through. */
 
-      char *refSeqSegment = getSequenceSegment(detailViewGetBlxWindow(detailView),
-					       detailViewGetRefSeq(detailView),
-					       detailViewGetRefSeqRange(detailView),
+      char *refSeqSegment = getSequenceSegment(bc,
+					       bc->refSeq,
 					       msp->qstart, 
 					       msp->qend, 
 					       mspGetRefStrand(msp), 
 					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
-					       mspGetRefFrame(msp, seqType),
-					       numFrames,
-					       blxWindowGetStrandsToggled(blxWindow),
+					       mspGetRefFrame(msp, bc->seqType),
+					       bc->displayRev,
 					       !qForward,
 					       TRUE,
 					       TRUE);
@@ -3481,9 +3334,9 @@ static void calcID(MSP *msp, GtkWidget *detailView)
       if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
 	{
 	  /* Ungapped alignments. */
-	  totalNumChars = (qSeqMax - qSeqMin + 1) / numFrames;
+	  totalNumChars = (qSeqMax - qSeqMin + 1) / bc->numFrames;
 	  
-	  if (blastMode == BLXMODE_TBLASTN || blastMode == BLXMODE_TBLASTX)
+	  if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
 	    {
 	      int i = 0;
 	      for ( ; i < totalNumChars; i++)
@@ -3513,11 +3366,11 @@ static void calcID(MSP *msp, GtkWidget *detailView)
 	  
 	  /* To do tblastn and tblastx is not imposssible but would like to work from
 	   * examples to get it right.... */
-	  if (blastMode == BLXMODE_TBLASTN)
+	  if (bc->blastMode == BLXMODE_TBLASTN)
 	    {
 	      printf("not implemented yet\n") ;
 	    }
-	  else if (blastMode == BLXMODE_TBLASTX)
+	  else if (bc->blastMode == BLXMODE_TBLASTX)
 	    {
 	      printf("not implemented yet\n") ;
 	    }
@@ -3541,7 +3394,7 @@ static void calcID(MSP *msp, GtkWidget *detailView)
                   /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
 		   * We need to translate the first coord in the range (which is in terms of the full
 		   * reference sequence) into coords in the cut-down ref sequence. */
-                  int q_start = qForward ? (qRangeMin - qSeqMin) / numFrames : (qSeqMax - qRangeMax) / numFrames;
+                  int q_start = qForward ? (qRangeMin - qSeqMin) / bc->numFrames : (qSeqMax - qRangeMax) / bc->numFrames;
 		  
 		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
 		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
@@ -3579,8 +3432,8 @@ static void calcMspData(MSP *msp, GtkWidget *detailView)
 {
   /* Convert the input coords (which are 1-based within the ref sequence section
    * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
-  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
-  int offset = refSeqRange->min - 1;
+  const BlxViewContext *bc = detailViewGetContext(detailView);
+  int offset = bc->refSeqRange.min - 1;
   msp->qstart = msp->qstart + offset;
   msp->qend = msp->qend + offset;
   
@@ -3601,15 +3454,12 @@ static void calcMspData(MSP *msp, GtkWidget *detailView)
    * frame 1 and the required frame number is simply the same as that.) */
   /* to do: do this for exons as well; we need more info though because exons don't
    * necessarily start at base1 in their frame. */
-  const BlxSeqType seqType = detailViewGetSeqType(detailView);
-  
-  if (seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
+  if (bc->seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
     {
-      const int numFrames = detailViewGetNumFrames(detailView);
       const gboolean reverseStrand = (mspGetRefStrand(msp) == REVERSE_STRAND);
       
       int frame = UNSET_INT;
-      convertDnaIdxToDisplayIdx(msp->qstart, seqType, 1, numFrames, reverseStrand, refSeqRange, &frame);
+      convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
       char *frameStr = convertIntToString(frame);
 
       if (frameStr[0] != msp->qframe[2])

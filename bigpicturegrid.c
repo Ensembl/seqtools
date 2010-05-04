@@ -38,6 +38,7 @@ typedef struct _DrawGridData
   
 
 /* Local function declarations */
+static BlxViewContext*	    gridGetContext(GtkWidget *grid);
 static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineHighlightColour(GtkWidget *grid);
@@ -192,18 +193,15 @@ static void drawVerticalGridLines(GtkWidget *grid,
                                   GdkGC *gc,
 				  const GdkColor const *lineColour)
 {
+  BlxViewContext *bc = gridGetContext(grid);
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(bpProperties->blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(bpProperties->blxWindow);
-  const int numFrames = blxWindowGetNumFrames(bpProperties->blxWindow);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(bpProperties->blxWindow);
   
-  const int direction = rightToLeft ? -1 : 1; /* to subtract instead of add when display reversed */
+  const int direction = bc->displayRev ? -1 : 1; /* to subtract instead of add when display reversed */
   
   /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
    * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, seqType, 1, 1, numFrames, rightToLeft, refSeqRange);
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min,bc-> seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
@@ -220,7 +218,7 @@ static void drawVerticalGridLines(GtkWidget *grid,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
       const int x = convertBaseIdxToGridPos(displayIdx, &properties->gridRect, &bpProperties->displayRange);
 
       if (x > minX && x < maxX)
@@ -279,19 +277,15 @@ void calculateMspLineDimensions(GtkWidget *grid,
 				int *width, 
 				int *height)
 {
+  BlxViewContext *bc = gridGetContext(grid);
   GridProperties *gridProperties = gridGetProperties(grid);
-  GtkWidget *blxWindow = bigPictureGetBlxWindow(gridProperties->bigPicture);
 
   const IntRange const *displayRange = bigPictureGetDisplayRange(gridProperties->bigPicture);
-  const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-  const int numFrames = blxWindowGetNumFrames(blxWindow);
-  const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-  const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-  const int frame = mspGetRefFrame(msp, seqType);
+  const int frame = mspGetRefFrame(msp, bc->seqType);
 
   /* Find the coordinates of the start and end base in this match sequence, and convert to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, seqType, frame, numFrames, rightToLeft, refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   
   /* Convert the coords to grid positions. The grid positions we use are for the left edge
    * of the coord, so to draw the end coord inclusively we need to increase the max coord by 1 */
@@ -332,17 +326,12 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
   
   if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
-      const IntRange const *displayRange = gridGetDisplayRange(grid);
-      GtkWidget *blxWindow = bigPictureGetBlxWindow(gridGetBigPicture(grid));
-
       /* Convert the msp's dna coords to display coords */
-      const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-      const int numFrames = blxWindowGetNumFrames(blxWindow);
-      const IntRange const *refSeqRange = blxWindowGetRefSeqRange(blxWindow);
-      const gboolean rightToLeft = blxWindowGetStrandsToggled(blxWindow);
-
-      const int mspStart = convertDnaIdxToDisplayIdx(msp->qstart, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
-      const int mspEnd = convertDnaIdxToDisplayIdx(msp->qend, seqType, 1, numFrames, rightToLeft, refSeqRange, NULL);
+      BlxViewContext *bc = gridGetContext(grid);
+      const IntRange const *displayRange = gridGetDisplayRange(grid);
+      
+      const int mspStart = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+      const int mspEnd = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
       const int qMin = min(mspStart, mspEnd);
       const int qMax = max(mspStart, mspEnd);
       
@@ -867,6 +856,11 @@ GridProperties* gridGetProperties(GtkWidget *widget)
   return widget ? (GridProperties*)(g_object_get_data(G_OBJECT(widget), "GridProperties")) : NULL;
 }
 
+static BlxViewContext* gridGetContext(GtkWidget *grid)
+{
+  GtkWidget *blxWindow = gridGetBlxWindow(grid);
+  return blxWindowGetContext(blxWindow);
+}
 
 static void onDestroyGrid(GtkWidget *widget)
 {
