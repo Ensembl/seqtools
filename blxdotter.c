@@ -150,6 +150,17 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
     {
+      /* Recalculate auto start/end in case user has selected a different sequence */
+      int autoStart = UNSET_INT, autoEnd = UNSET_INT;
+      smartDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow), &autoStart, &autoEnd);
+
+      g_free(dialogData->autoStart);
+      g_free(dialogData->autoEnd);
+      
+      dialogData->autoStart = autoStart != UNSET_INT ? convertIntToString(autoStart) : g_strdup(dialogData->fullRangeStart);
+      dialogData->autoEnd = autoEnd != UNSET_INT ? convertIntToString(autoEnd) : g_strdup(dialogData->fullRangeEnd);
+
+      /* Display the new values */
       gtk_entry_set_text(startEntry, dialogData->autoStart);
       gtk_entry_set_text(endEntry, dialogData->autoEnd);
       gtk_entry_set_text(zoomEntry, dialogData->autoZoom);
@@ -173,7 +184,7 @@ void showDotterDialog(GtkWidget *blxWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Dotter settings", 
 						  GTK_WINDOW(blxWindow), 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
 						  GTK_STOCK_SAVE,
@@ -201,8 +212,8 @@ void showDotterDialog(GtkWidget *blxWindow)
       smartDotterRange(blxWindow, getDotterSSeq(blxWindow), &autoStartCoord, &autoEndCoord);
     }
 
-  char *autoStart = autoStartCoord != UNSET_INT ? convertIntToString(autoStartCoord) : fullRangeStart;
-  char *autoEnd = autoEndCoord != UNSET_INT ? convertIntToString(autoEndCoord) : fullRangeEnd;
+  char *autoStart = autoStartCoord != UNSET_INT ? convertIntToString(autoStartCoord) : g_strdup(fullRangeStart);
+  char *autoEnd = autoEndCoord != UNSET_INT ? convertIntToString(autoEndCoord) : g_strdup(fullRangeEnd);
   char *autoZoom = convertIntToString(0);
   
   /* Create a container for the child widgets */
@@ -304,8 +315,8 @@ void showDotterDialog(GtkWidget *blxWindow)
   data->fullRangeEnd = fullRangeEnd;
   
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), data);
-  g_signal_connect(autoButton, "toggled", G_CALLBACK(onRadioButtonToggled), data);
-  g_signal_connect(manualButton, "toggled", G_CALLBACK(onRadioButtonToggled), data);
+  g_signal_connect(autoButton, "clicked", G_CALLBACK(onRadioButtonToggled), data);
+  g_signal_connect(manualButton, "clicked", G_CALLBACK(onRadioButtonToggled), data);
   g_signal_connect(lastSavedButton, "clicked", G_CALLBACK(onLastSavedButtonClicked), data);
   g_signal_connect(fullRangeButton, "clicked", G_CALLBACK(onFullRangeButtonClicked), data);
 
