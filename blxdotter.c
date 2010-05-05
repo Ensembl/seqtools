@@ -12,30 +12,18 @@
 #include <SeqTools/utilities.h>
 #include <SeqTools/dotter.h>
 
-
 typedef struct _DotterDialogData
   {
-    GtkWidget *dialog;
     GtkWidget *blxWindow;
-    
-    GtkWidget *startCoordWidget;
-    GtkWidget *endCoordWidget;
-    GtkWidget *zoomCoordWidget;
     
     GtkWidget *autoButton;
     GtkWidget *manualButton;
-    GtkWidget *lastSavedButton;
-    GtkWidget *fullRangeButton;
-    
-    char *autoStart;
-    char *autoEnd;
-    char *autoZoom;
-    char *lastSavedStart;
-    char *lastSavedEnd;
-    char *lastSavedZoom;
-    char *fullRangeStart;
-    char *fullRangeEnd;
+
+    GtkWidget *startEntry;
+    GtkWidget *endEntry;
+    GtkWidget *zoomEntry;
   } DotterDialogData;
+
 
 /* Local function declarations */
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out);
@@ -48,65 +36,54 @@ static char*	      getDotterSSeq(GtkWidget *blxWindow);
  *                      Dotter settings dialog                     *
  *******************************************************************/
 
-static void dotterDialogSaveSettings(DotterDialogData *dialogData)
+/* Callback to be called when the user clicks OK or Apply on the dotter
+ * dialog. It sets the dotter mode according to the toggle state of the 
+ * "auto" button. */
+static void onSaveDotterMode(GtkWidget *button, gpointer data)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
-  GtkEntry *startEntry = GTK_ENTRY(dialogData->startCoordWidget);
-  GtkEntry *endEntry = GTK_ENTRY(dialogData->endCoordWidget);
-  GtkEntry *zoomEntry = GTK_ENTRY(dialogData->zoomCoordWidget);
-  
-  blxContext->autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
-  
-  if (!blxContext->autoDotter)
-    {
-      /* Save the manual parameters entered */
-      blxContext->dotterStart = atoi(gtk_entry_get_text(startEntry));
-      blxContext->dotterEnd = atoi(gtk_entry_get_text(endEntry));
-      blxContext->dotterZoom = atoi(gtk_entry_get_text(zoomEntry));
-      
-      /* Enable the "last-saved" button so the user can revert to these values */
-      gtk_widget_set_sensitive(dialogData->lastSavedButton, TRUE);
-      dialogData->lastSavedStart = convertIntToString(blxContext->dotterStart);
-      dialogData->lastSavedEnd = convertIntToString(blxContext->dotterEnd);
-      dialogData->lastSavedZoom = convertIntToString(blxContext->dotterZoom);
-    }  
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  blxContext->autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
 }
 
 
-/* Called when the user has hit a response button on the dotter settings dialog */
-static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer data)
+/* Callback to be called when the user clicks OK or Apply on the dotter
+ * dialog. It saves the start parameter that was entered (if manual dotter
+ * params are being used). */
+static void onSaveDotterStart(GtkWidget *entry, gpointer data)
 {
-  DotterDialogData *dialogData = (DotterDialogData*)(data);
-  gboolean destroy = TRUE;
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+
+  /* Only save the parameter if we are using manual parameters */
+  if (!blxContext->autoDotter)
+    {
+      blxContext->dotterStart = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+    }  
+}
+
+static void onSaveDotterEnd(GtkWidget *entry, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
-  switch (responseId)
+  /* Only save the parameter if we are using manual parameters */
+  if (!blxContext->autoDotter)
     {
-      case GTK_RESPONSE_ACCEPT:
-	dotterDialogSaveSettings(dialogData);
-	destroy = callDotter(dialogData->blxWindow, FALSE);
-	break;
-	
-      case GTK_RESPONSE_APPLY:
-	dotterDialogSaveSettings(dialogData);
-	destroy = FALSE;
-	break;
-	
-      default:
-	break;
-    };
+      blxContext->dotterEnd = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+    }  
+}
 
-  if (destroy)
+static void onSaveDotterZoom(GtkWidget *entry, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  
+  /* Only save the parameter if we are using manual parameters */
+  if (!blxContext->autoDotter)
     {
-      g_free(dialogData->autoStart);
-      g_free(dialogData->autoEnd);
-      g_free(dialogData->autoZoom);
-      g_free(dialogData->lastSavedStart);
-      g_free(dialogData->lastSavedEnd);
-      g_free(dialogData->lastSavedZoom);
-      g_free(dialogData);
-
-      gtk_widget_destroy(GTK_WIDGET(dialog));
-    }
+      blxContext->dotterZoom = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+    }  
 }
 
 
@@ -115,9 +92,16 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
 static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-
-  gtk_entry_set_text(GTK_ENTRY(dialogData->startCoordWidget), dialogData->fullRangeStart);
-  gtk_entry_set_text(GTK_ENTRY(dialogData->endCoordWidget), dialogData->fullRangeEnd);
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  
+  char *startString = convertIntToString(bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min);
+  char *endString = convertIntToString(bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max);
+  
+  gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
+  
+  g_free(startString);
+  g_free(endString);
   
   /* Change the mode to manual */
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
@@ -129,13 +113,48 @@ static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
 static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
-  gtk_entry_set_text(GTK_ENTRY(dialogData->startCoordWidget), dialogData->lastSavedStart);
-  gtk_entry_set_text(GTK_ENTRY(dialogData->endCoordWidget), dialogData->lastSavedEnd);
-  gtk_entry_set_text(GTK_ENTRY(dialogData->zoomCoordWidget), dialogData->lastSavedZoom);
+  char *startString = convertIntToString(bc->dotterStart);
+  char *endString = convertIntToString(bc->dotterEnd);
+  char *zoomString = convertIntToString(bc->dotterZoom);
+  
+  gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->zoomEntry), zoomString);
   
   /* Change the mode to manual */
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
+}
+
+
+/* Called when the user has hit a response button on the dotter settings dialog */
+static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  DotterDialogData *dialogData = (DotterDialogData*)(data);
+  
+  switch (responseId)
+    {
+      case GTK_RESPONSE_ACCEPT:
+	widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+	destroy = callDotter(dialogData->blxWindow, FALSE); /* keep dialog open if not successful */
+	break;
+	
+      case GTK_RESPONSE_APPLY:
+	widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+	destroy = FALSE;
+	break;
+	
+      default:
+	break;
+    };
+
+  if (destroy)
+    {
+      g_free(dialogData);
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
 }
 
 
@@ -143,39 +162,78 @@ static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
 static void onRadioButtonToggled(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
-  GtkEntry *startEntry = GTK_ENTRY(dialogData->startCoordWidget);
-  GtkEntry *endEntry = GTK_ENTRY(dialogData->endCoordWidget);
-  GtkEntry *zoomEntry = GTK_ENTRY(dialogData->zoomCoordWidget);
-
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
     {
       /* Recalculate auto start/end in case user has selected a different sequence */
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
       smartDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow), &autoStart, &autoEnd);
 
-      g_free(dialogData->autoStart);
-      g_free(dialogData->autoEnd);
+      if (autoStart == UNSET_INT)
+	autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
       
-      dialogData->autoStart = autoStart != UNSET_INT ? convertIntToString(autoStart) : g_strdup(dialogData->fullRangeStart);
-      dialogData->autoEnd = autoEnd != UNSET_INT ? convertIntToString(autoEnd) : g_strdup(dialogData->fullRangeEnd);
+      if (autoEnd == UNSET_INT)
+	autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
+      
+      char *startString = convertIntToString(autoStart);
+      char *endString = convertIntToString(autoEnd);
+      char *zoomString = convertIntToString(bc->dotterZoom);
 
       /* Display the new values */
-      gtk_entry_set_text(startEntry, dialogData->autoStart);
-      gtk_entry_set_text(endEntry, dialogData->autoEnd);
-      gtk_entry_set_text(zoomEntry, dialogData->autoZoom);
+      gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
+      gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
+      gtk_entry_set_text(GTK_ENTRY(dialogData->zoomEntry), zoomString);
       
-      gtk_widget_set_sensitive(GTK_WIDGET(startEntry), FALSE);
-      gtk_widget_set_sensitive(GTK_WIDGET(endEntry), FALSE);
-      gtk_widget_set_sensitive(GTK_WIDGET(zoomEntry), FALSE);
+      g_free(startString);
+      g_free(endString);
+      g_free(zoomString);
+      
+      /* Lock out the entry boxes so they cannot be edited */
+      gtk_widget_set_sensitive(dialogData->startEntry, FALSE);
+      gtk_widget_set_sensitive(dialogData->endEntry, FALSE);
+      gtk_widget_set_sensitive(dialogData->zoomEntry, FALSE);
     }
   else
     {
       /* Manual coords. Leave values as they are but unlock the boxes so they can be edited. */
-      gtk_widget_set_sensitive(GTK_WIDGET(startEntry), TRUE);
-      gtk_widget_set_sensitive(GTK_WIDGET(endEntry), TRUE);
-      gtk_widget_set_sensitive(GTK_WIDGET(zoomEntry), TRUE);
+      gtk_widget_set_sensitive(dialogData->startEntry, TRUE);
+      gtk_widget_set_sensitive(dialogData->endEntry, TRUE);
+      gtk_widget_set_sensitive(dialogData->zoomEntry, TRUE);
     }
+}
+
+
+static GtkWidget* createTextEntry(GtkTable *table, 
+				  int col, 
+				  int row, 
+				  const int xpad, 
+				  const int ypad, 
+				  char *title,
+				  GtkCallback callbackFunc,
+				  GtkWidget *blxWindow,
+				  const int initValue)
+{
+  /* Create a label in the given column */
+  GtkWidget *label = gtk_label_new(title);
+  gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  /* Create the text entry widget in the next column in the same row */
+  ++col;
+  GtkWidget *entry = gtk_entry_new();
+  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  /* Set the initial text */
+  char *initText = convertIntToString(initValue);
+  gtk_entry_set_text(GTK_ENTRY(entry), initText);
+  g_free(initText);
+  
+  /* Add the callback data. This specifies what callback to use when the user hits OK or Apply on the dialog. */
+  widgetSetCallbackData(entry, callbackFunc, blxWindow);
+  
+  return entry;
 }
 
 
@@ -195,27 +253,9 @@ void showDotterDialog(GtkWidget *blxWindow)
   
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const int spacing = 4;
 
-  /* Find the various possibilities for start/end coords */
-  char *lastSavedStart = convertIntToString(bc->dotterStart);
-  char *lastSavedEnd = convertIntToString(bc->dotterEnd);
-  char *lastSavedZoom = convertIntToString(bc->dotterZoom);
-  char *fullRangeStart = convertIntToString(bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min);
-  char *fullRangeEnd = convertIntToString(bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max);
-
-  int autoStartCoord = UNSET_INT, autoEndCoord = UNSET_INT;
-  if (getDotterSSeq(blxWindow))
-    {
-      smartDotterRange(blxWindow, getDotterSSeq(blxWindow), &autoStartCoord, &autoEndCoord);
-    }
-
-  char *autoStart = autoStartCoord != UNSET_INT ? convertIntToString(autoStartCoord) : g_strdup(fullRangeStart);
-  char *autoEnd = autoEndCoord != UNSET_INT ? convertIntToString(autoEndCoord) : g_strdup(fullRangeEnd);
-  char *autoZoom = convertIntToString(0);
-  
   /* Create a container for the child widgets */
   GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
   gtk_container_add(contentArea, GTK_WIDGET(hbox));
@@ -225,8 +265,10 @@ void showDotterDialog(GtkWidget *blxWindow)
   gtk_box_pack_start(hbox, GTK_WIDGET(vbox3), FALSE, FALSE, spacing);
   
   GtkWidget *autoButton = gtk_radio_button_new_with_mnemonic(NULL, "_Auto");
-  GtkWidget *manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(autoButton), "_Manual");
   gtk_box_pack_start(vbox3, autoButton, FALSE, FALSE, spacing);
+  widgetSetCallbackData(autoButton, onSaveDotterMode, blxWindow);
+		   
+  GtkWidget *manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(autoButton), "_Manual");
   gtk_box_pack_start(vbox3, manualButton, FALSE, FALSE, spacing);
 
   /* Buttons to populate the entry boxes with the last-saved or full-range values */
@@ -241,87 +283,51 @@ void showDotterDialog(GtkWidget *blxWindow)
       gtk_widget_set_sensitive(lastSavedButton, FALSE);
     }
 
-  
-  /* coord labels */
+  /* Create the text entry boxes for the dotter parameters */
   GtkTable *table = GTK_TABLE(gtk_table_new(3, 2, FALSE));
   gtk_box_pack_start(hbox, GTK_WIDGET(table), FALSE, FALSE, spacing);
   int xpad = 4, ypad = 4;
   
-  GtkWidget *label1 = gtk_label_new("<i>Start:</i>");
-  gtk_label_set_use_markup(GTK_LABEL(label1), TRUE);
-  gtk_table_attach(table, label1, 1, 2, 1, 2, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  GtkWidget *startEntry = createTextEntry(table, 1, 1, xpad, ypad, "<i>Start:</i>", onSaveDotterStart, blxWindow, bc->dotterStart);
+  GtkWidget *endEntry = createTextEntry(table, 1, 2, xpad, ypad, "<i>End:</i>", onSaveDotterEnd, blxWindow, bc->dotterEnd);
+  GtkWidget *zoomEntry = createTextEntry(table, 1, 3, xpad, ypad, "<i>Zoom:</i>", onSaveDotterZoom, blxWindow, bc->dotterZoom);
 
-  GtkWidget *label2 = gtk_label_new("<i>End:</i>");
-  gtk_label_set_use_markup(GTK_LABEL(label2), TRUE);
-  gtk_table_attach(table, label2, 1, 2, 2, 3, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-
-  GtkWidget *label3 = gtk_label_new("<i>Zoom:</i>");
-  gtk_label_set_use_markup(GTK_LABEL(label3), TRUE);
-  gtk_table_attach(table, label3, 1, 2, 3, 4, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  /* Create the data struct we need to pass to the toggled callback, and connect signals */
+  DotterDialogData *dialogData = g_malloc(sizeof(DotterDialogData));
+  dialogData->blxWindow = blxWindow;
+  dialogData->autoButton = autoButton;
+  dialogData->manualButton = manualButton;
+  dialogData->startEntry = startEntry;
+  dialogData->endEntry = endEntry;
+  dialogData->zoomEntry = zoomEntry;
   
-  /* coord entry boxes */
-  GtkWidget *startCoordWidget = gtk_entry_new();
-  gtk_table_attach(table, startCoordWidget, 2, 3, 1, 2, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_entry_set_activates_default(GTK_ENTRY(startCoordWidget), TRUE);
+  /* There is an issue if the user selects a different sequence while the dotter dialog
+   * is still open: the auto range does not update automatically for the new sequence. To 
+   * mitigate this, connect the 'clicked' signal as well as the toggle signal, so that they can
+   * click on the 'auto' toggle button and have it refresh, even if that button is already selected.*/
+  g_signal_connect(G_OBJECT(autoButton), "toggled", G_CALLBACK(onRadioButtonToggled), dialogData);
+  g_signal_connect(G_OBJECT(manualButton), "toggled", G_CALLBACK(onRadioButtonToggled), dialogData);
+  g_signal_connect(G_OBJECT(autoButton), "clicked", G_CALLBACK(onRadioButtonToggled), dialogData);
+  g_signal_connect(G_OBJECT(manualButton), "clicked", G_CALLBACK(onRadioButtonToggled), dialogData);
   
-  GtkWidget *endCoordWidget = gtk_entry_new();
-  gtk_table_attach(table, endCoordWidget, 2, 3, 2, 3, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_entry_set_activates_default(GTK_ENTRY(endCoordWidget), TRUE);
+  g_signal_connect(G_OBJECT(fullRangeButton), "clicked", G_CALLBACK(onFullRangeButtonClicked), dialogData);
+  g_signal_connect(G_OBJECT(lastSavedButton), "clicked", G_CALLBACK(onLastSavedButtonClicked), dialogData);
 
-  GtkWidget *zoomCoordWidget = gtk_entry_new();
-  gtk_table_attach(table, zoomCoordWidget, 2, 3, 3, 4, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_entry_set_activates_default(GTK_ENTRY(zoomCoordWidget), TRUE);
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
   
   /* Set the initial state of the toggle buttons and entry widgets */
   if (bc->autoDotter)
     {
-      gtk_entry_set_text(GTK_ENTRY(startCoordWidget), autoStart);
-      gtk_entry_set_text(GTK_ENTRY(endCoordWidget), autoEnd);
-      gtk_entry_set_text(GTK_ENTRY(zoomCoordWidget), autoZoom);
-      gtk_widget_set_sensitive(startCoordWidget, FALSE);
-      gtk_widget_set_sensitive(endCoordWidget, FALSE);
-      gtk_widget_set_sensitive(zoomCoordWidget, FALSE);
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(manualButton), TRUE);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoButton), TRUE);
     }
   else
     {
-      gtk_entry_set_text(GTK_ENTRY(startCoordWidget), lastSavedStart);
-      gtk_entry_set_text(GTK_ENTRY(endCoordWidget), lastSavedEnd);
-      gtk_entry_set_text(GTK_ENTRY(zoomCoordWidget), lastSavedZoom);
-      gtk_widget_set_sensitive(startCoordWidget, TRUE);
-      gtk_widget_set_sensitive(endCoordWidget, TRUE);
-      gtk_widget_set_sensitive(zoomCoordWidget, TRUE);
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoButton), TRUE);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(manualButton), TRUE);
     }
   
-  /* Connect signals and show dialog */
-  DotterDialogData *data = g_malloc(sizeof(DotterDialogData));
-  data->dialog = dialog;
-  data->blxWindow = blxWindow;
-  data->startCoordWidget = startCoordWidget;
-  data->endCoordWidget = endCoordWidget;
-  data->zoomCoordWidget = zoomCoordWidget;
-  data->autoButton = autoButton;
-  data->manualButton = manualButton;
-  data->lastSavedButton = lastSavedButton;
-  data->fullRangeButton = fullRangeButton;
-  data->autoStart = autoStart;
-  data->autoEnd = autoEnd;
-  data->autoZoom = autoZoom;
-  data->lastSavedStart = lastSavedStart;
-  data->lastSavedEnd = lastSavedEnd;
-  data->lastSavedZoom = lastSavedZoom;
-  data->fullRangeStart = fullRangeStart;
-  data->fullRangeEnd = fullRangeEnd;
-  
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), data);
-  g_signal_connect(autoButton, "clicked", G_CALLBACK(onRadioButtonToggled), data);
-  g_signal_connect(manualButton, "clicked", G_CALLBACK(onRadioButtonToggled), data);
-  g_signal_connect(lastSavedButton, "clicked", G_CALLBACK(onLastSavedButtonClicked), data);
-  g_signal_connect(fullRangeButton, "clicked", G_CALLBACK(onFullRangeButtonClicked), data);
-
   gtk_widget_show_all(dialog);
- 
 }
 
 
