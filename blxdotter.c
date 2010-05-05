@@ -87,6 +87,26 @@ static void onSaveDotterZoom(GtkWidget *entry, gpointer data)
 }
 
 
+/* Called when the 'last saved' button in the dotter dialog is clicked. Populates
+ * the coord boxes with the start/end coords that were last saved */
+static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  
+  char *startString = convertIntToString(bc->dotterStart);
+  char *endString = convertIntToString(bc->dotterEnd);
+  char *zoomString = convertIntToString(bc->dotterZoom);
+  
+  gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->zoomEntry), zoomString);
+  
+  /* Change the mode to manual */
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
+}
+
+
 /* Called when the 'full range' button in the dotter dialog is clicked. Populates
  * the coord boxes with the start/end of the full ref seq range */
 static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
@@ -108,20 +128,23 @@ static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
 }
 
 
-/* Called when the 'last saved' button in the dotter dialog is clicked. Populates
- * the coord boxes with the start/end coords that were last saved */
-static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
+/* Called when the 'big picture range' button in the dotter dialog is clicked. Populates
+ * the coord boxes with the start/end of the big picture's current display range */
+static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
+  const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
   
-  char *startString = convertIntToString(bc->dotterStart);
-  char *endString = convertIntToString(bc->dotterEnd);
-  char *zoomString = convertIntToString(bc->dotterZoom);
+  char *startString = convertIntToString(bc->displayRev ? displayRange->max : displayRange->min);
+  char *endString = convertIntToString(bc->displayRev ? displayRange->min : displayRange->max);
   
   gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
   gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
-  gtk_entry_set_text(GTK_ENTRY(dialogData->zoomEntry), zoomString);
+  
+  g_free(startString);
+  g_free(endString);
   
   /* Change the mode to manual */
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
@@ -271,11 +294,14 @@ void showDotterDialog(GtkWidget *blxWindow)
   GtkWidget *manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(autoButton), "_Manual");
   gtk_box_pack_start(vbox3, manualButton, FALSE, FALSE, spacing);
 
-  /* Buttons to populate the entry boxes with the last-saved or full-range values */
+  /* Buttons that the user can click to populate the parameter boxes with certain values */
   GtkWidget *lastSavedButton = gtk_button_new_with_mnemonic("_Last saved ->");
   GtkWidget *fullRangeButton = gtk_button_new_with_mnemonic("_Full range ->");
+  GtkWidget *bpRangeButton = gtk_button_new_with_mnemonic("_Big picture range ->");
+
   gtk_box_pack_start(vbox3, lastSavedButton, FALSE, FALSE, spacing);
   gtk_box_pack_start(vbox3, fullRangeButton, FALSE, FALSE, spacing);
+  gtk_box_pack_start(vbox3, bpRangeButton, FALSE, FALSE, spacing);
 
   /* Disable last-saved button if no saved values exist */
   if (bc->dotterStart == UNSET_INT)
@@ -310,8 +336,9 @@ void showDotterDialog(GtkWidget *blxWindow)
   g_signal_connect(G_OBJECT(autoButton), "clicked", G_CALLBACK(onRadioButtonToggled), dialogData);
   g_signal_connect(G_OBJECT(manualButton), "clicked", G_CALLBACK(onRadioButtonToggled), dialogData);
   
-  g_signal_connect(G_OBJECT(fullRangeButton), "clicked", G_CALLBACK(onFullRangeButtonClicked), dialogData);
   g_signal_connect(G_OBJECT(lastSavedButton), "clicked", G_CALLBACK(onLastSavedButtonClicked), dialogData);
+  g_signal_connect(G_OBJECT(fullRangeButton), "clicked", G_CALLBACK(onFullRangeButtonClicked), dialogData);
+  g_signal_connect(G_OBJECT(bpRangeButton), "clicked", G_CALLBACK(onBpRangeButtonClicked), dialogData);
 
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
   
