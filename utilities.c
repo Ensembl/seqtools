@@ -1307,3 +1307,55 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
   return drawable;
 }
 
+
+/* Utility to pop up a simple confirmation dialog box with the given title and text, 
+ * with just an "OK" and "Cancel" button. Blocks until the user responds, and returns
+ * their response ID. */
+gint runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
+						  GTK_WINDOW(blxWindow), 
+						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_CANCEL,
+						  GTK_RESPONSE_REJECT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  /* Put message and icon into an hbox */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
+  
+  GtkWidget *image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_QUESTION, GTK_ICON_SIZE_DIALOG);
+  gtk_box_pack_start(GTK_BOX(hbox), image, TRUE, TRUE, 0);
+  
+  GtkWidget *label = gtk_label_new(messageText);
+  gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
+  gtk_widget_show_all(hbox);
+  
+  gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+  
+  gtk_widget_destroy(dialog);
+  
+  return response;
+}
+
+
+/* Utility function to extract the short sequence name from a long name (of the
+ * form LL:LLdddddd.d, where L means letter and d means digit). The result is a
+ * pointer into the original string, so should not be free'd. */
+const char* getShortSeqName(const char *longName)
+{
+  /* Ignore the text before the colon */
+  char *cutPoint = strchr(longName, ':');
+  
+  if (cutPoint)
+    ++cutPoint;
+  
+  const char *result = cutPoint ? cutPoint : longName;
+  
+  return result;
+}
+

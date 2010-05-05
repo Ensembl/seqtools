@@ -173,5 +173,8 @@ GList*		      parseMatchList(const char *inputText);
 
 GList*		      findStringInList(GList *list, const char *seqName);
 gboolean	      stringsEqual(gpointer key, gpointer value, gpointer data);
+const char*	      getShortSeqName(const char *longName);
+
+gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
 
 #endif /* _utilities_h_included_ */
