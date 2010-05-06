@@ -805,25 +805,13 @@ int convertStringToInt(const char *inputStr)
  *			   Dialogs			   *
  ***********************************************************/
 
-/* Utility to pop up a simple dialog with the given title and text, with just an "OK" button. */
-void showMessageDialog(const char *title,  
-		       const char *messageText,
-		       GtkWidget *parent,
-		       const int initWidth,
-		       const int maxHeight,
-		       const gboolean wrapText,
-		       PangoFontDescription *fontDesc)
+/* Utility to create a scrollable text view from the given message text */
+GtkWidget* createScrollableTextView(const char *messageText,
+				    const gboolean wrapText,
+				    PangoFontDescription *fontDesc,
+				    int *height)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-						  GTK_WINDOW(parent), 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
-  
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
-  /* Create the text buffer and copy the text in */
+  /* Create a text buffer and copy the text in */
   GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
   gtk_text_buffer_set_text(textBuffer, messageText, -1);
   
@@ -838,30 +826,52 @@ void showMessageDialog(const char *title,
       gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), TRUE);
     }
   
-  
-  /* Put the text view in a scrollable window, and add it to the dialog */
-  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
-  
-  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
-  gtk_box_pack_start(GTK_BOX(contentArea), scrollWin, TRUE, TRUE, 0);
-  
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  
   /* Set the initial height based on the number of lines (but don't make it bigger than the parent window) */
   PangoContext *context = gtk_widget_get_pango_context(textView);
   PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
   gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
   
-  int initHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight) + 100; /* fudge to allow space for buttons */
-  initHeight = min(maxHeight, initHeight);
-  gtk_window_set_default_size(GTK_WINDOW(dialog), initWidth, initHeight);
+  /* Adjust height to include all the lines if possible (limit to the original height passed in thought) */
+  const int calcHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight) + 100; /* fudge to allow space for buttons */
+  *height = min(*height, calcHeight);
   
   pango_font_metrics_unref(metrics);
-
-  /* Ensure dialog is destroyed when user responds */
-  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   
+  /* Put the text view in a scrollable window */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(scrollWin), textView);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+  /* Return the outermost container */
+  return scrollWin;
+}
+
+
+/* Utility to pop up a simple dialog with the given title and text, with just an "OK" button. */
+void showMessageDialog(const char *title,  
+		       const char *messageText,
+		       GtkWidget *parent,
+		       const int width,
+		       const int maxHeight,
+		       const gboolean wrapText,
+		       PangoFontDescription *fontDesc)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
+						  GTK_WINDOW(parent), 
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  int height = maxHeight;
+  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, &height);
+
+  gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
+
+  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   gtk_widget_show_all(dialog);
 }
 

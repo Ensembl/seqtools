@@ -115,11 +115,12 @@ int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const char *seqName);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);
 void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
 
-void			  displayHelp(GtkWidget *blxWindow);
+void			  showHelpDialog(GtkWidget *blxWindow);
 void			  showSettingsDialog(GtkWidget *blxWindow);
 void			  showViewPanesDialog(GtkWidget *blxWindow);
 void			  showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups);
 void			  showFindDialog(GtkWidget *blxWindow);
+void			  showAboutDialog(GtkWidget *blxWindow);
 
 void			  blxWindowRedrawAll(GtkWidget *blxWindow);
 

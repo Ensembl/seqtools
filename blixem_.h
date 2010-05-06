@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.24 2010-04-30 12:06:58 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.25 2010-05-06 14:51:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -45,12 +45,27 @@
 #define BLIXEM_VERSION 4
 #define BLIXEM_RELEASE 0
 #define BLIXEM_UPDATE  0
-#define BLIXEM_VERSION_NUMBER  UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_VERSION_STRING  UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_TITLE_STRING    UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_VERSION_COMPILE BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
+#define BLIXEM_VERSION_NUMBER	    UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
+#define BLIXEM_VERSION_STRING	    UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
+#define BLIXEM_TITLE_STRING	    UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
+#define BLIXEM_VERSION_COMPILE	    BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
 
-#define REFERENCE_SEQUENCE_NAME "Reference"
+#define BLIXEM_COPYRIGHT_STRING	    "Copyright (c) 2009-2010: Genome Research Ltd."
+#define BLIXEM_WEBSITE_STRING	    ""
+#define BLIXEM_LICENSE_STRING	    "Blixem is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
+
+#define BLIXEM_AUTHOR_LIST	    " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>",\
+				    " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
+
+#define BLIXEM_AUTHOR_TEXT	    " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>\n" \
+				    " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
+
+#define BLIXEM_COMMENTS_STRING(TITLE, VERSION, RELEASE, UPDATE)	\
+"("BLIXEM_TITLE_STRING", "					\
+"compiled on - "__DATE__" "__TIME__")\n\n"			\
+BLIXEM_AUTHOR_TEXT "\n"
+
+
 
 /* Special characters for displaying in sequences */
 #define SEQUENCE_CHAR_GAP	'.'   /* represents a gap in the match sequence */

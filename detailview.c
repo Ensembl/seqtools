@@ -2685,7 +2685,7 @@ static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
 static void GHelp(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  displayHelp(detailViewGetBlxWindow(detailView));
+  showHelpDialog(detailViewGetBlxWindow(detailView));
 }
 
 static void GSettings(GtkButton *button, gpointer data)
@@ -3126,7 +3126,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   GtkWidget *toolbarContainer = createEmptyButtonBar(detailView, &toolbar);
   
   /* Help */
-  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",	 (GtkSignalFunc)GHelp,		  detailView);
+  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GHelp,		  detailView);
 
   /* Combo box for sorting */
   createSortBox(toolbar, detailView, sortByType);
@@ -3135,8 +3135,8 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",		 (GtkSignalFunc)GSettings,	  detailView);
 
   /* Zoom buttons */
-  makeToolbarButton(toolbar, "Zoom in",		GTK_STOCK_ZOOM_IN,  "Zoom in (=)",  (GtkSignalFunc)onZoomInDetailView, detailView);
-  makeToolbarButton(toolbar, "Zoom out",	GTK_STOCK_ZOOM_OUT, "Zoom out (-)", (GtkSignalFunc)onZoomOutDetailView, detailView);
+  makeToolbarButton(toolbar, "Zoom in",		GTK_STOCK_ZOOM_IN,  "Zoom in (=)",		 (GtkSignalFunc)onZoomInDetailView, detailView);
+  makeToolbarButton(toolbar, "Zoom out",	GTK_STOCK_ZOOM_OUT, "Zoom out (-)",		 (GtkSignalFunc)onZoomOutDetailView, detailView);
   
   /* Navigation buttons */
   makeToolbarButton(toolbar, "Go to",		GTK_STOCK_JUMP_TO,    "Go to position (p)",		  (GtkSignalFunc)GGoto,		  detailView);

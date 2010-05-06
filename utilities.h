@@ -153,6 +153,11 @@ void		      showMessageDialog(const char *title,
 					const gboolean wrapText,
 					PangoFontDescription *fontDesc);
 
+GtkWidget*		createScrollableTextView(const char *messageText,
+						 const gboolean wrapText,
+						 PangoFontDescription *fontDesc,
+						 int *height);
+				    
 void		      widgetSetCallbackData(GtkWidget *widget, GtkCallback callbackFunc, gpointer callbackData);
 void		      widgetCallCallback(GtkWidget *widget);
 void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);

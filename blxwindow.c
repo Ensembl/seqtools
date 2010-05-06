@@ -974,11 +974,15 @@ static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
  * or sequences have been added to or removed from a group */
 static void blxWindowGroupsChanged(GtkWidget *blxWindow)
 {
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
+  
   /* Re-sort all trees, because grouping affects sort order */
-  callFuncOnAllDetailViewTrees(blxWindowGetDetailView(blxWindow), resortTree);
+  callFuncOnAllDetailViewTrees(detailView, resortTree);
   
   /* Refilter the trees (because groups affect whether sequences are visible) */
-  callFuncOnAllDetailViewTrees(blxWindowGetDetailView(blxWindow), refilterTree);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree);
 
   /* Redraw all (because highlighting affects both big picture and detail view) */
   blxWindowRedrawAll(blxWindow);
@@ -1948,10 +1952,103 @@ static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 
 
 /***********************************************************
+ *			About dialog			   *
+ ***********************************************************/
+
+/* Returns a string which is the name of the Blixem application. */
+static char *blxGetAppName(void)
+{
+  return BLIXEM_TITLE ;
+}
+
+/* Returns a copyright string for the Blixem application. */
+static char *blxGetCopyrightString(void)
+{
+  return BLIXEM_COPYRIGHT_STRING ;
+}
+
+/* Returns the Blixem website URL. */
+static char *blxGetWebSiteString(void)
+{
+  return BLIXEM_WEBSITE_STRING ;
+}
+
+/* Returns a comments string for the Blixem application. */
+static char *blxGetCommentsString(void)
+{
+  return BLIXEM_COMMENTS_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE) ;
+}
+
+/* Returns a license string for the blx application. */
+static char *blxGetLicenseString(void)
+{
+  return BLIXEM_LICENSE_STRING ;
+}
+
+/* Returns a string representing the Version/Release/Update of the Blixem code. */
+static char *blxGetVersionString(void)
+{
+  return BLIXEM_VERSION_STRING ;
+}
+
+
+/* Shows the 'About' dialog */
+void showAboutDialog(GtkWidget *parent)
+{
+#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
+  const gchar *authors[] = {BLIXEM_AUTHOR_LIST, NULL} ;
+
+  gtk_show_about_dialog(GTK_WINDOW(parent),
+			"authors", authors,
+			"comments", blxGetCommentsString(), 
+			"copyright", blxGetCopyrightString(),
+			"license", blxGetLicenseString(),
+			"name", blxGetAppName(),
+			"version", blxGetVersionString(),
+			"website", blxGetWebSiteString(),
+			NULL) ;
+#endif
+
+  return ;
+}
+
+
+/***********************************************************
  *			Help menu			   *
  ***********************************************************/
 
-void displayHelp(GtkWidget *blxWindow)
+void onResponseHelpDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      destroy = TRUE;
+      break;
+      
+    case GTK_RESPONSE_HELP:
+      showAboutDialog(NULL);
+      destroy = FALSE;
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
+}
+
+
+void showHelpDialog(GtkWidget *blxWindow)
 {
   char *messageText = (messprintf("\
 BLIXEM\n\
@@ -2128,10 +2225,28 @@ In the detail view, the following colours and symbols have the following meaning
 ", blixemVersion));
 
   /* Set a pretty big initial size */
-  const int initWidth = blxWindow->allocation.width * 0.7;
+  const int width = blxWindow->allocation.width * 0.7;
   const int maxHeight = blxWindow->allocation.height * 0.7;
   
-  showMessageDialog("Help", messageText, NULL, initWidth, maxHeight, TRUE, blxWindow->style->font_desc);
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Help", 
+						  NULL, 
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_ABOUT,
+						  GTK_RESPONSE_HELP,
+						  GTK_STOCK_OK,
+						  GTK_RESPONSE_ACCEPT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  int height = maxHeight;
+  GtkWidget *child = createScrollableTextView(messageText, TRUE, blxWindow->style->font_desc, &height);
+  
+  gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
+  
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseHelpDialog), NULL);
+  gtk_widget_show_all(dialog);
 }
 
 
@@ -2152,7 +2267,7 @@ static void onQuit(GtkAction *action, gpointer data)
 static void onHelpMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  displayHelp(blxWindow);
+  showHelpDialog(blxWindow);
 }
 
 
