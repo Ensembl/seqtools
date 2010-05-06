@@ -486,7 +486,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 		  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 		  const gboolean sameDirection = (qForward == sForward);
 		  
-		  if ((sameDirection && displayRev) || (!sForward && !displayRev))
+		  if (bc->seqType == BLXSEQ_DNA && ((sameDirection && displayRev) || (!sForward && !displayRev)))
 		    {
 		      /* Complementing the match sequence here maintains existing dotter behaviour.
 		       * However, I think this is wrong - the match shows agains the wrong strand
@@ -841,7 +841,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   const char *dotterQName = bc->refSeqName;
   
   /* Get the section of reference sequence that we're interested in */
-  const Strand strand = mspGetRefStrand(firstMsp);
+  const Strand strand = bc->seqType == BLXSEQ_DNA ? mspGetRefStrand(firstMsp) : blxWindowGetActiveStrand(blxWindow);
   const int frame = mspGetRefFrame(firstMsp, bc->seqType);
   
   char *querySeqSegmentTemp = getSequenceSegment(bc,
