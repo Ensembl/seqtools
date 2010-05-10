@@ -785,9 +785,14 @@ static char* getFeedbackText(GtkWidget *detailView, const SequenceStruct *seq, c
       g_string_printf(resultString, "%d   ", qIdx);
     }
   
-  if (seq && seq->seqName)
-    { 
-      g_string_append_printf(resultString, "%s", seq->seqName);
+  if (seq)
+    {
+      const char *seqName = sequenceGetDisplayName(seq);
+      
+      if (seqName)
+	{
+	  g_string_append_printf(resultString, "%s", seqName);
+	}
     }
   else if (qIdx != UNSET_INT)
     {

@@ -257,7 +257,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	{
 	  /* Add generic info about the sequence */
 	  gtk_list_store_set(store, &iter,
-			     S_NAME_COL, subjectSeq->seqName,
+			     S_NAME_COL, sequenceGetDisplayName(subjectSeq),
 			     SCORE_COL, NULL,
 			     ID_COL, NULL,
 			     START_COL, NULL,
@@ -1205,7 +1205,8 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	    if (selectedSeqs)
 	      {
 		const SequenceStruct *seq = (const SequenceStruct*)selectedSeqs->data;
-		fetchAndDisplaySequence(seq->seqName, 0, blxWindow);
+		char *seqName = seq->fullName;
+		fetchAndDisplaySequence(seqName, 0, blxWindow);
 	      }
 	      
 	    handled = TRUE;

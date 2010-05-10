@@ -148,7 +148,6 @@ static void drawExonView(GtkWidget *exonView)
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  const MSP *msp = blxContext->mspList;
 
   GdkDrawable *drawable = widgetGetDrawable(exonView);
   GdkGC *gc = gdk_gc_new(drawable);

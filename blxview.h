@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.11 2010-05-10 09:16:45 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.12 2010-05-10 10:49:51 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -99,9 +99,12 @@ typedef enum
 /* Structure that contains information about a sequence */
 typedef struct _SequenceStruct
 {
-  char *seqName;	/* name of the sequence */
-  const char *seq;		/* the actual sequence */
-  GList *mspList;		/* list of MSPs from this sequence */
+  char *fullName;	/* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
+  char *shortName;	/* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
+  const char *variantName;	/* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
+  
+  const char *seq;	/* the actual sequence */
+  GList *mspList;	/* list of MSPs from this sequence */
 } SequenceStruct;
 
 

@@ -432,7 +432,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
       if (blastMode != BLXMODE_TBLASTN)
 	{
 	  const char *fetchMode = bc->fetchMode;
-	  dotterSSeq = fetchSeqRaw(seq->seqName, fetchMode);
+	  dotterSSeq = fetchSeqRaw(sequenceGetFullName(seq), fetchMode);
 	  
 	  /* If the match is on the reverse s strand, we need to modify it, because
 	   * dotter does not currently handle it. */
@@ -618,7 +618,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
   if (qMin == UNSET_INT)
     {
-      messout("Could not find any matches on the '%c' strand to %s.", activeStrand, selectedSeq->seqName);
+      messout("Could not find any matches on the '%c' strand to %s.", activeStrand, sequenceGetFullName(selectedSeq));
       result = FALSE;
     }
   else

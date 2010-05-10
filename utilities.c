@@ -735,23 +735,114 @@ gboolean stringsEqual(gpointer key, gpointer value, gpointer data)
 }
 
 
+/* Utility function to extract the short version of the variant name from a 
+ * long sequence name (of the form LL:LLdddddd.d, where L means letter and d
+ * means digit). The result is a pointer into the original string, so should 
+ * not be free'd. */
+const char* getSeqVariantName(const char *longName)
+{
+  /* Ignore the text before the colon */
+  char *cutPoint = strchr(longName, ':');
+  
+  if (cutPoint)
+    ++cutPoint;
+  
+  const char *result = cutPoint ? cutPoint : longName;
+  
+  return result;
+}
+
+
+/* Return the full name of a SequenceStruct (including prefix and variant) */
+const char *sequenceGetFullName(const SequenceStruct *seq)
+{
+  return seq->fullName;
+}
+
+
+/* Return the variant name of a SequenceStruct (excludes prefix but includes variant) */
+const char *sequenceGetVariantName(const SequenceStruct *seq)
+{
+  return seq->variantName;
+}
+
+
+/* Return the display name of a SequenceStruct (same as variant name for now) */
+const char *sequenceGetDisplayName(const SequenceStruct *seq)
+{
+  return seq->variantName;
+}
+
+
+/* Return the short name of a SequenceStruct (excludes prefix and variant number) */
+const char *sequenceGetShortName(const SequenceStruct *seq)
+{
+  return seq->shortName;
+}
+
+
+/* Frees all memory used by a SequenceStruct */
+void destroySequenceStruct(SequenceStruct *seq)
+{
+  if (seq)
+    {
+      g_free(seq->fullName);
+      g_free(seq->shortName);
+      g_free(seq);
+    }
+}
+
+
+/* Utility to create a SequenceStruct and initialise it with the given values. */
+static SequenceStruct* createSequenceStruct(char *fullName, MSP *msp)
+{
+  SequenceStruct *seq = g_malloc(sizeof(SequenceStruct));
+  
+  seq->fullName = fullName;
+  
+  /* The variant name: just cut off the prefix chars. We can use a pointer into
+   * the original string. */
+  seq->variantName = getSeqVariantName(fullName);
+  
+  /* The short name: cut off the prefix chars (before the ':') and the variant
+   * number (after the '.'). Need to duplicate the string to change the end of it. */
+  seq->shortName = g_strdup(seq->variantName);
+  char *cutPoint = strchr(seq->shortName, '.');
+  
+  if (cutPoint)
+    *cutPoint = '\0';
+
+  /* Add a pointer to the MSP to this sequence's MSP list */
+  seq->mspList = g_list_prepend(NULL, msp);
+
+  /* Add a pointer to the MSP's sequence. (The MSP must therefore remain in 
+   * existance longer than this sequence struct. Ideally we would create the
+   * sequence structs first and set the sequence in those, and the MSPs would 
+   * get the sequence from this struct, but for historical reasons the parser
+   * populates the MSPs directly and I haven't got round to changing this yet.) */
+  seq->seq = msp->sseq;
+  
+  return seq;
+}
+
+
 /* Find out which SequenceStruct the given MSP belongs to.  If a SequenceStruct for this 
  * sequence does not yet exist, create it and add it to the GList of SequenceStructs. */
 void addMspToSeqList(GList **seqList, MSP *msp)
 {
-  /* Use the sequence name as the key */
-  char *key = g_strdup(msp->sname);
+  /* Use the variant name as the key, excluding the 'x' or 'i' at the end if this
+   * is an exon or intron (so that all exons and introns on the same sequence are
+   * grouped together). */
+  char *fullName = g_strdup(msp->sname);
 
-  /* If this is an intron or exon, cut of the 'i' or 'x' postfix off the sequence name so
-   * that all exons/introns from the same sequence are grouped together */
   if (mspIsExon(msp) || mspIsIntron(msp))
     {
-      const int len = strlen(key);
-      key[len - 1] = '\0';
+      const int len = strlen(fullName);
+      fullName[len - 1] = '\0';
     }
 
   /* See if this sequence name is already in the list */
-  SequenceStruct *subjectSeq = findNameInSeqList(*seqList, key);
+  SequenceStruct *subjectSeq = findNameInSeqList(*seqList, fullName);
   
   if (subjectSeq)
     {
@@ -761,10 +852,7 @@ void addMspToSeqList(GList **seqList, MSP *msp)
   else
     {
       /* Create a new SequenceStruct struct containing this MSP, and add it to the list */
-      subjectSeq = g_malloc(sizeof(SequenceStruct));
-      subjectSeq->seqName = key;
-      subjectSeq->mspList = g_list_prepend(NULL, msp);
-      
+      subjectSeq = createSequenceStruct(fullName, msp);
       *seqList = g_list_prepend(*seqList, subjectSeq);
     }
     
@@ -1302,7 +1390,7 @@ static SequenceStruct *findNameInSeqList(GList *seqList, const char *seqNameToFi
     {
       SequenceStruct *currentSeq = (SequenceStruct*)(listItem->data);
 
-      if (!strcmp(currentSeq->seqName, seqNameToFind))
+      if (!strcmp(currentSeq->fullName, seqNameToFind))
 	{
 	  result = currentSeq;
 	  break;
@@ -1367,20 +1455,4 @@ gint runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText)
   return response;
 }
 
-
-/* Utility function to extract the short sequence name from a long name (of the
- * form LL:LLdddddd.d, where L means letter and d means digit). The result is a
- * pointer into the original string, so should not be free'd. */
-const char* getShortSeqName(const char *longName)
-{
-  /* Ignore the text before the colon */
-  char *cutPoint = strchr(longName, ':');
-  
-  if (cutPoint)
-    ++cutPoint;
-  
-  const char *result = cutPoint ? cutPoint : longName;
-  
-  return result;
-}
 

@@ -979,8 +979,7 @@ static void blxWindowDeleteAllSequenceStructs(GtkWidget *blxWindow)
   for ( ; listItem; listItem = listItem->next)
     {
       SequenceStruct *seq = (SequenceStruct*)(listItem->data);
-      g_free(seq->seqName);
-      seq->seqName = NULL;
+      destroySequenceStruct(seq);
     }
   
   /* Free the list itself */
@@ -1228,11 +1227,11 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
   SeqSearchData *searchData = (SeqSearchData*)data;
   SequenceStruct *seq = (SequenceStruct*)listDataItem;
   
-  /* Cut both down to the short versions of the name, in case one is the short
+  /* Cut both down to the short versions of the variant name, in case one is the short
    * version and the other one isn't. */
-  if (wildcardSearch(getShortSeqName(seq->seqName), getShortSeqName(searchData->searchStr)))
+  if (wildcardSearch(sequenceGetVariantName(seq), getSeqVariantName(searchData->searchStr)))
     {
-      searchData->matchList = g_list_prepend(searchData->matchList, seq->seqName);
+      searchData->matchList = g_list_prepend(searchData->matchList, seq);
     }
 }
 
@@ -1310,7 +1309,6 @@ static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText)
   /* Must free the original name list and all its data. */
   freeStringList(&nameList, TRUE);
   
-  /* Create a group from the list of names */
   if (g_list_length(seqList) < 1)
     {
       g_list_free(seqList);
@@ -1341,7 +1339,11 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
 	}
       else
 	{
-	  g_free(blxContext->matchSetGroup->seqList);
+	  if (blxContext->matchSetGroup->seqList)
+	    {
+	      g_list_free(blxContext->matchSetGroup->seqList);
+	    }
+	  
 	  blxContext->matchSetGroup->seqList = seqList;
 	}
       
@@ -1382,7 +1384,7 @@ static void toggleMatchSet(GtkWidget *blxWindow)
     {
       /* Clear the list of names only (don't delete the group, because we want to
        * keep any changes the user made (e.g. to the group colour etc.) for next time. */
-      g_free(blxContext->matchSetGroup->seqList);
+      g_list_free(blxContext->matchSetGroup->seqList);
       blxContext->matchSetGroup->seqList = NULL;
       blxWindowGroupsChanged(blxWindow);
     }
@@ -3050,7 +3052,7 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 	}
 
       const SequenceStruct *seq = (const SequenceStruct*)(listItem->data);
-      g_string_append(result, seq->seqName);
+      g_string_append(result, sequenceGetDisplayName(seq));
     }
 
   return result;
