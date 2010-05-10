@@ -64,6 +64,8 @@ static void			  onSelectFeaturesMenu(GtkAction *action, gpointer data);
 static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
+static gboolean			  onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpointer data);
+
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 static void			  onDestroyBlxWindow(GtkWidget *widget);
@@ -76,6 +78,8 @@ static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existin
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
 
+static void			  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, GtkWidget *blxWindow);
+			      
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    G_CALLBACK(onQuit)},
@@ -495,12 +499,27 @@ void blxWindowRedrawAll(GtkWidget *blxWindow)
 }
 
 
-/* Utility to create a vbox with the given border and pack it into the given container */
-static GtkWidget* createVBoxWithBorder(GtkWidget *parent, const int borderWidth)
+/* Utility to create a vbox with the given border and pack it into the given container.
+ * Also put a frame around it with the given label if includeFrame is true */
+static GtkWidget* createVBoxWithBorder(GtkWidget *parent, 
+				       const int borderWidth,
+				       const gboolean includeFrame,
+				       const char *frameTitle)
 {
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_set_border_width(GTK_CONTAINER(vbox), borderWidth);
-  gtk_container_add(GTK_CONTAINER(parent), vbox);
+
+  if (includeFrame)
+    {
+      GtkWidget *frame = gtk_frame_new(frameTitle);
+      gtk_container_add(GTK_CONTAINER(parent), frame);
+      gtk_container_add(GTK_CONTAINER(frame), vbox);
+    }
+  else
+    {
+      gtk_container_add(GTK_CONTAINER(parent), vbox);
+    }
+  
   return vbox;
 }
 
@@ -669,26 +688,58 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const Strand stran
   
   if (gtk_widget_get_parent(tree))
     {
+      const gboolean toggled = detailViewGetDisplayRev(detailView);
+      gboolean isActiveStrand = ((strand == FORWARD_STRAND) != toggled);
+
       if (detailViewGetSeqType(detailView) == BLXSEQ_DNA)
 	{
-	  /* We only have 1 frame, but trees are from both strands, so distinguish between strands */
-	  const gboolean toggled = detailViewGetDisplayRev(detailView);
-	  gboolean isActiveStrand = ((strand == FORWARD_STRAND) != toggled);
-	  
-	  char text1[] = "Act_ive strand alignments";
-	  char text2[] = "Othe_r strand alignments";
-	  createVisibilityButton(tree, isActiveStrand ? text1 : text2, container);
+	  /* We only have 1 frame, but trees are from both strands, so distinguish between strands.
+	   * Put each strand in its own frame. */
+	  char text1[] = "Show _active strand";
+	  char text2[] = "Show othe_r strand";
+
+	  GtkWidget *frame = gtk_frame_new(isActiveStrand ? "Active strand" : "Other strand");
+  	  gtk_container_add(GTK_CONTAINER(container), frame);
+	  createVisibilityButton(tree, isActiveStrand ? text1 : text2, frame);
 	}
       else
 	{
-	  /* All the visible trees should be in the same strand, so just distinguish by frame number */
-	  char formatStr[] = "Alignment list _%d";
+	  /* All the visible trees should be in the same strand, so just distinguish by frame number.
+	   * Put the strand in its own frame for consistency. */
+	  char formatStr[] = "Show frame _%d";
 	  char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
 	  sprintf(displayText, formatStr, frame);
 
-	  createVisibilityButton(tree, displayText, container);
+	  GtkWidget *frame = gtk_frame_new(isActiveStrand ? "Active strand" : "Other strand");
+	  gtk_container_add(GTK_CONTAINER(container), frame);
+	  createVisibilityButton(tree, displayText, frame);
 	}
     }
+}
+
+
+/* Callback called when the user clicks the 'bump exon view' button */
+static void onBumpExonView(GtkWidget *button, gpointer data)
+{
+  GtkWidget *exonView = GTK_WIDGET(data);
+  const gboolean expanded = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  exonViewSetExpanded(exonView, expanded);
+}
+
+
+/* Create the set of settings buttons to control display of an exon-view widget. */
+static void createExonButtons(GtkWidget *exonView, const char *visLabel, const char *bumpLabel, GtkWidget *parent)
+{
+  /* Pack everything in an hbox */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(parent), hbox);
+  
+  /* Create a check button to control visibility of the exon view */
+  createVisibilityButton(exonView, visLabel, hbox);
+
+  /* Create a check button to control whether the exon view is expanded or compressed */
+  const gboolean isBumped = exonViewGetExpanded(exonView);
+  createCheckButton(GTK_BOX(hbox), bumpLabel, isBumped, G_CALLBACK(onBumpExonView), exonView);
 }
 
 
@@ -708,26 +759,32 @@ void showViewPanesDialog(GtkWidget *blxWindow)
   int borderWidth = 12;
   
   /* Big picture */
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  createVisibilityButton(bigPicture, "_Big picture", contentArea);
+  GtkWidget *bp = blxWindowGetBigPicture(blxWindow);
+  GtkWidget *bpVbox = createVBoxWithBorder(contentArea, borderWidth, TRUE, "Big picture");
   
-  GtkWidget *bigPictureSubBox = createVBoxWithBorder(contentArea, borderWidth);
-  createVisibilityButton(bigPictureGetActiveGrid(bigPicture), "_Active strand grid", bigPictureSubBox);
-  createVisibilityButton(bigPictureGetActiveExonView(bigPicture), "Active strand _exons", bigPictureSubBox);
-  createVisibilityButton(bigPictureGetInactiveExonView(bigPicture), "Other strand e_xons", bigPictureSubBox);
-  createVisibilityButton(bigPictureGetInactiveGrid(bigPicture), "O_ther strand grid", bigPictureSubBox);
+  createVisibilityButton(bp, "Show _big picture", bpVbox);
+  GtkWidget *bpSubBox = createVBoxWithBorder(bpVbox, borderWidth, FALSE, NULL);
+  
+  GtkWidget *bpActiveStrand = createVBoxWithBorder(bpSubBox, 0, TRUE, "Active strand");
+  createVisibilityButton(bigPictureGetActiveGrid(bp), "Show _grid", bpActiveStrand);
+  createExonButtons(bigPictureGetActiveExonView(bp), "Show _exons    ", "_Bump exons    ", bpActiveStrand);
+  
+  GtkWidget *bpOtherStrand = createVBoxWithBorder(bpSubBox, 0, TRUE, "Other strand");
+  createVisibilityButton(bigPictureGetInactiveGrid(bp), "Show gr_id", bpOtherStrand);
+  createExonButtons(bigPictureGetInactiveExonView(bp), "Show e_xons    ", "Bum_p exons    ", bpOtherStrand);
   
   /* Detail view */
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  createVisibilityButton(detailView, "_Detail view", contentArea);
+  GtkWidget *dvVbox = createVBoxWithBorder(contentArea, borderWidth, TRUE, "Alignment lists");
+  GtkWidget *dv = blxWindowGetDetailView(blxWindow);
+  createVisibilityButton(dv, "Show alignment _lists", dvVbox);
   
-  GtkWidget *detailViewSubBox = createVBoxWithBorder(contentArea, borderWidth);
+  GtkWidget *dvSubBox = createVBoxWithBorder(dvVbox, borderWidth, FALSE, NULL);
   const int numFrames = blxWindowGetNumFrames(blxWindow);
   int frame = 1;
   for ( ; frame <= numFrames; ++frame)
     {
-      createTreeVisibilityButton(detailView, blxWindowGetActiveStrand(blxWindow), frame, detailViewSubBox);
-      createTreeVisibilityButton(detailView, blxWindowGetInactiveStrand(blxWindow), frame, detailViewSubBox);
+      createTreeVisibilityButton(dv, blxWindowGetActiveStrand(blxWindow), frame, dvSubBox);
+      createTreeVisibilityButton(dv, blxWindowGetInactiveStrand(blxWindow), frame, dvSubBox);
     }
   
   /* Connect signals and show */
@@ -1837,7 +1894,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
       
       /* Create a label and a text entry box, arranged vertically in a vbox */
-      GtkWidget *vbox = createVBoxWithBorder(hbox, 4);
+      GtkWidget *vbox = createVBoxWithBorder(hbox, 4, FALSE, NULL);
       
       GtkWidget *label = gtk_label_new(columnInfo->title);
       gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
@@ -1907,7 +1964,7 @@ static void createTextEntryFromInt(GtkWidget *parent,
 				   gpointer callbackData)
 {
   /* Pack label and text entry into a vbox */
-  GtkWidget *vbox = createVBoxWithBorder(parent, 4);
+  GtkWidget *vbox = createVBoxWithBorder(parent, 4, FALSE, NULL);
 
   GtkWidget *label = gtk_label_new(title);
   gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
@@ -1964,13 +2021,13 @@ void showSettingsDialog(GtkWidget *blxWindow)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
-  GtkWidget *mainVBox = createVBoxWithBorder(contentArea, borderWidth);
+  GtkWidget *mainVBox = createVBoxWithBorder(contentArea, borderWidth, FALSE, NULL);
 
   /* Display options */
   GtkWidget *frame1 = gtk_frame_new("Display options");
   gtk_box_pack_start(GTK_BOX(mainVBox), frame1, FALSE, FALSE, 0);
 
-  GtkWidget *vbox1 = createVBoxWithBorder(frame1, borderWidth);
+  GtkWidget *vbox1 = createVBoxWithBorder(frame1, borderWidth, FALSE, NULL);
   
   createCheckButton(GTK_BOX(vbox1), "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
   createCheckButton(GTK_BOX(vbox1), "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
@@ -3548,7 +3605,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBlxWindow), mainmenu);
-  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBlxWindow), mainmenu);
+  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBlxWindow), NULL);
   
   
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
