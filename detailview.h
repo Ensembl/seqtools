@@ -82,7 +82,6 @@ typedef struct _DetailViewProperties
     GtkWidget *header;		  /* Contains all the widgets in the detail view header */
     GtkWidget *feedbackBox;	  /* A text box that feeds back info to the user about the currently selected items */
     GList *columnList;		  /* A list of details about all the columns in the detail view */
-    GHashTable *seqTable;	  /* Hash table linking a sequence name to a SubjectSequence struct. */
     
     GList *fwdStrandTrees;	  /* A list of all the trees that show the forward strand of the ref seq */
     GList *revStrandTrees;	  /* A list of all the trees that show the reverse strand of the ref seq */
@@ -152,8 +151,6 @@ IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);
 GtkWidget*	        detailViewGetBlxWindow(GtkWidget *detailView);
 int			detailViewGetCharWidth(GtkWidget *detailView);
 int			detailViewGetCharHeight(GtkWidget *detailView);
-GList*			detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName);
-GHashTable*		detailViewGetSeqTable(GtkWidget *detailView);
 gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
 gboolean		detailViewGetSortInverted(GtkWidget *detailView);
 gboolean		detailViewGetHighlightDiffs(GtkWidget *detailView);
@@ -169,10 +166,10 @@ int			getBaseIndexAtColCoords(const int x, const int y, const int charWidth, con
 
 GdkColor*		detailViewGetSnpColour(GtkWidget *detailView, const gboolean selected);
 
-void			prevMatch(GtkWidget *detailView, GList *seqNameList);
-void			nextMatch(GtkWidget *detailView, GList *seqNameList);
-void			firstMatch(GtkWidget *detailView, GList *seqNameList);
-void			lastMatch(GtkWidget *detailView, GList *seqNameList);
+void			prevMatch(GtkWidget *detailView, GList *seqList);
+void			nextMatch(GtkWidget *detailView, GList *seqList);
+void			firstMatch(GtkWidget *detailView, GList *seqList);
+void			lastMatch(GtkWidget *detailView, GList *seqList);
 void			goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
 void			setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
 void			setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);

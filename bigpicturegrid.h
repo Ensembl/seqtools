@@ -17,7 +17,6 @@
 
 
 #define BIG_PICTURE_GRID_NAME		"BigPictureGrid"
-#define DEFAULT_GRID_PERCENT_ID_MAX	100
 #define DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH 2
 
 
@@ -27,8 +26,6 @@ typedef struct _GridProperties
     
     Strand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
     
-    int numVCells;	     /* The number of cells in the grid vertically */
-    IntRange percentIdRange; /* The currently-displayed range of values along the vertical grid axis */
     int mspLineHeight;	     /* The height of the msp lines */
     
     int gridYPadding;	     /* The y padding around the grid */

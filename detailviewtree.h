@@ -39,8 +39,6 @@ typedef struct _TreeProperties
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
     gboolean hasSnpHeader;	    /* Whether a SNP track is shown above this tree */
     
-    GHashTable *seqTable;	    /* Hash table to group this tree's MSPs by sequence name. */
-    
     GtkTreeModel *mspTreeModel;	    /* Default tree data store, in which each MSP has its own row */
     GtkTreeModel *seqTreeModel;     /* Condensed tree data store, in which multiple MSPs on the same sequence appear in the same row */
   } TreeProperties;
@@ -55,7 +53,6 @@ GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 GtkWidget*	  treeGetBlxWindow(GtkWidget *tree);
 int		  treeGetCellXPadding(GtkWidget *tree);
 int		  treeGetCellYPadding(GtkWidget *tree);
-GHashTable*	  treeGetSeqTable(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 

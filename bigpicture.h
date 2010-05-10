@@ -29,8 +29,12 @@ typedef struct _BigPictureProperties
     IntRange displayRange;	/* The currently-displayed range in the big picture */
     
     int numHCells;		/* The number of cells in the grid horizontally */
-    int basesPerCell;		/* The number of bases show per cell */
+    int basesPerCell;		/* The number of bases show per horizontal cell */
     int roundTo;		/* The number of bases to round grid lines to the nearest multiple of */
+
+    int numVCells;		/* The number of cells in the grid vertically */
+    int idPerCell;		/* The percent ID to show per vertical cell */
+    IntRange percentIdRange;	/* The max and min %ID values displayed */
 
     int previewBoxCentre;	/* The base that the preview box is centered on (or UNSET_INT if no preview box) */
     
@@ -84,9 +88,17 @@ GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetDetailView(GtkWidget *bigPicture);
 BlxSeqType		      bigPictureGetSeqType(GtkWidget *bigPicture);
 int			      bigPictureGetNumFrames(GtkWidget *bigPicture);
+int			      bigPictureGetIdPerCell(GtkWidget *bigPicture);
+IntRange*		      bigPictureGetPercentIdRange(GtkWidget *bigPicture);
+int			      bigPictureGetNumVCells(GtkWidget *bigPicture);
+
+void			      bigPictureSetIdPerCell(GtkWidget *bigPicture, const int idPerCell);
+void			      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const int newValue);
+void			      bigPictureSetMinPercentId(GtkWidget *bigPicture, const int newValue);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
+void			      calculateNumVCells(GtkWidget *bigPicture);
 
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
@@ -112,7 +124,8 @@ GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
 					       GtkWidget *container,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
-					       const int bigPictZoom);
+					       const int bigPictZoom,
+					       const int lowestId);
 
 
 #endif /* _big_picture_included_ */

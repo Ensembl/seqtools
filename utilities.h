@@ -107,7 +107,7 @@ Strand		      mspGetRefStrand(const MSP const *msp);
 int		      mspGetMatchFrame(const MSP const *msp);
 Strand		      mspGetMatchStrand(const MSP const *msp);
 
-void		      addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey);
+void		      addMspToSeqList(GList **seqList, MSP *msp);
 
 int                   roundNearest(const double val);
 int		      roundToValue(const int inputVal, const int roundTo);
@@ -176,7 +176,6 @@ int		      parseMatchLine(const char *inputText,
 			
 GList*		      parseMatchList(const char *inputText);
 
-GList*		      findStringInList(GList *list, const char *seqName);
 gboolean	      stringsEqual(gpointer key, gpointer value, gpointer data);
 const char*	      getShortSeqName(const char *longName);
 

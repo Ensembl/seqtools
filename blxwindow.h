@@ -43,9 +43,6 @@ typedef struct _CommandLineOptions
 /* A Blixem View context, containing all status information required to draw the blixem view */
 typedef struct _BlxViewContext
 {
-  GtkWidget *bigPicture;	    /* The top section of the view, showing a "big picture" overview of the alignments */
-  GtkWidget *detailView;	    /* The bottom section of the view, showing a detailed list of the alignments */
-
   char *refSeq;			    /* The reference sequence (always forward strand, always DNA sequence) */
   const char *refSeqName;	    /* The name of the reference sequence */
   IntRange refSeqRange;		    /* The range of the reference sequence */
@@ -58,6 +55,7 @@ typedef struct _BlxViewContext
   int numFrames;		    /* The number of reading frames */
 
   MSP *mspList;			    /* List of all MSPs. */
+  GList *matchSeqs;		    /* List of all match sequences (as SequenceStructs). */
   gboolean gappedHsp;		    
   const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
@@ -96,22 +94,22 @@ int			  blxWindowGetDotterZoom(GtkWidget *blxWindow);
 int			  blxWindowGetAutoDotter(GtkWidget *blxWindow);
 gboolean		  blxWindowGetGappedHsp(GtkWidget *blxWindow);
 MSP*			  blxWindowGetMspList(GtkWidget *blxWindow);
-GList*			  blxWindowGetSequenceMsps(GtkWidget *blxWindow, const char *seqName);
+GList*			  blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
 GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);
-SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const char *seqName);
+SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const SequenceStruct *seqToFind);
 const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
 int			  blxWindowGetOffset(GtkWidget *blxWindow);
 Strand			  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
-void			  blxWindowSelectSeq(GtkWidget *blxWindow, char *seqName, const gboolean updateTrees);
-void			  blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqNameList);
-void			  blxWindowDeselectSeq(GtkWidget *blxWindow, char *seqName, const gboolean updateTrees);
+void			  blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees);
+void			  blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
+void			  blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees);
 void			  blxWindowDeselectAllSeqs(GtkWidget *blxWindow, const gboolean updateTrees);
-gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const char *msp);
+gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq);
 void			  blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees);
 
-int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const char *seqName);
+int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const SequenceStruct *seq);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);
 void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
 

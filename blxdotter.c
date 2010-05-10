@@ -425,21 +425,20 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
   /* Get the selected sequence name */
   if (g_list_length(bc->selectedSeqs) > 0)
     {
-      const char *seqName = (const char*)(bc->selectedSeqs->data);
-      GList *mspList = blxWindowGetSequenceMsps(blxWindow, seqName);
+      const SequenceStruct *seq = (const SequenceStruct*)(bc->selectedSeqs->data);
 
       /* If we're in seqbl mode, only part of the sequence is in the MSP. */
       const BlxBlastMode blastMode = bc->blastMode;
       if (blastMode != BLXMODE_TBLASTN)
 	{
 	  const char *fetchMode = bc->fetchMode;
-	  dotterSSeq = fetchSeqRaw(seqName, fetchMode);
+	  dotterSSeq = fetchSeqRaw(seq->seqName, fetchMode);
 	  
 	  /* If the match is on the reverse s strand, we need to modify it, because
 	   * dotter does not currently handle it. */
-	  if (dotterSSeq && g_list_length(mspList) > 0)
+	  if (dotterSSeq && g_list_length(seq->mspList) > 0)
 	    {
-	      const MSP *msp = (const MSP*)(mspList->data);
+	      const MSP *msp = (const MSP*)(seq->mspList->data);
 	      const gboolean displayRev = bc->displayRev;
 	      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
 	      
@@ -460,7 +459,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	      printf("Looking for sequence stored internally ... ");
 	      
 	      /* Loop through all MSPs in the selected sequence */
-	      GList *mspListItem = mspList;
+	      GList *mspListItem = seq->mspList;
 	      
 	      for ( ; mspListItem ; mspListItem = mspListItem->next)
 		{
@@ -478,9 +477,9 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	      
 	      /* If the match is on the reverse s strand, we need to modify it, because
 	       * dotter does not currently handle it. */
-	      if (dotterSSeq && g_list_length(mspList) > 0)
+	      if (dotterSSeq && g_list_length(seq->mspList) > 0)
 		{
-		  const MSP *msp = (const MSP*)(mspList->data);
+		  const MSP *msp = (const MSP*)(seq->mspList->data);
 		  const gboolean displayRev = bc->displayRev;
 		  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
 		  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
@@ -551,15 +550,16 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       return result;
     }
 
-  const IntRange const *bigPicRange = bigPictureGetDisplayRange(bc->bigPicture);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+  const IntRange const *bigPicRange = bigPictureGetDisplayRange(bigPicture);
   char activeStrand = (bc->displayRev ? '-' : '+') ;
 
   /* Loop through all MSPs in the selected sequence. We'll estimate the wanted
    * query region from the extent of the HSP's that are completely within view. */
-  const char *selectedSeqName = (const char*)(selectedSeqs->data);
+  const SequenceStruct *selectedSeq = (const SequenceStruct*)(selectedSeqs->data);
   int qMin = UNSET_INT, qMax = UNSET_INT;
+  GList *mspListItem = selectedSeq->mspList;  
   
-  GList *mspListItem = blxWindowGetSequenceMsps(blxWindow, selectedSeqName);
   for ( ; mspListItem ; mspListItem = mspListItem->next)
     {
       const MSP *msp = (MSP*)(mspListItem->data);
@@ -618,7 +618,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
   if (qMin == UNSET_INT)
     {
-      messout("Could not find any matches on the '%c' strand to %s.", activeStrand, selectedSeqName);
+      messout("Could not find any matches on the '%c' strand to %s.", activeStrand, selectedSeq->seqName);
       result = FALSE;
     }
   else
@@ -808,9 +808,8 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
-  const char *selectedSeqName = (const char*)(bc->selectedSeqs->data);
-  GList *selectedMsps = blxWindowGetSequenceMsps(blxWindow, selectedSeqName);
-  const MSP *firstMsp = (const MSP*)(selectedMsps->data);
+  const SequenceStruct *selectedSeq = (const SequenceStruct*)(bc->selectedSeqs->data);
+  const MSP *firstMsp = (const MSP*)(selectedSeq->mspList->data);
 
   if (!mspIsBlastMatch(firstMsp))
     {

@@ -38,7 +38,7 @@ typedef struct
     const BlxSeqType seqType;		/* whether viewing DNA or peptide seqs */
     const int numFrames;		/* number of reading frames */
     const IntRange const *refSeqRange;	/* the full range of the reference sequence */
-    GList *seqNameList;			/* only search matches in these sequences */
+    GList *seqList;			/* only search matches in these sequences */
 
     int frame;				/* the frame of the current tree we're looking at MSPs in */
     int offset;				/* the offset of the found MSP */
@@ -55,7 +55,6 @@ static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
 static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 static int		      detailViewGetActiveFrame(GtkWidget *detailView);
-static SubjectSequence*	      detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName);
 
 static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
 static int		      snpTrackGetStrand(GtkWidget *snpTrack);
@@ -730,7 +729,7 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
 /* Get the text displayed in the user feedback box based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). 
  * The string returned by this function must be free'd with g_free. */
-static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const int numSeqsSelected)
+static char* getFeedbackText(GtkWidget *detailView, const SequenceStruct *seq, const int numSeqsSelected)
 {
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
@@ -746,12 +745,11 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
   /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
   const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
   
-  if (seqName)
+  if (seq)
     {
-      GList *mspList = detailViewGetSequenceMsps(detailView, seqName);
-      if (g_list_length(mspList) > 0)
+      if (g_list_length(seq->mspList) > 0)
 	{
-	  MSP *firstMsp = (MSP*)(mspList->data);
+	  MSP *firstMsp = (MSP*)(seq->mspList->data);
 	  
 	  if (firstMsp->sseq && firstMsp->sseq != bc->paddingSeq)
 	    {
@@ -762,7 +760,8 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
 	   * for any of the MSPs for the selected sequence. */
 	  if (qIdx != UNSET_INT)
 	    {
-	      GList *mspListItem = mspList;
+	      GList *mspListItem = seq->mspList;
+	      
 	      for ( ; mspListItem; mspListItem = mspListItem->next)
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
@@ -786,9 +785,9 @@ static char* getFeedbackText(GtkWidget *detailView, const char *seqName, const i
       g_string_printf(resultString, "%d   ", qIdx);
     }
   
-  if (seqName != NULL)
+  if (seq && seq->seqName)
     { 
-      g_string_append_printf(resultString, "%s", seqName);
+      g_string_append_printf(resultString, "%s", seq->seqName);
     }
   else if (qIdx != UNSET_INT)
     {
@@ -819,13 +818,13 @@ void updateFeedbackBox(GtkWidget *detailView)
 {
   char *messageText = NULL;
 
-  GList *selectedSeqs = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  const int numSeqsSelected = g_list_length(selectedSeqs);
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  const int numSeqsSelected = g_list_length(bc->selectedSeqs);
   
   if (numSeqsSelected == 1) /* currently we only properly handle single sequence selection */
     {
-      const char *seqName = (const char*)(selectedSeqs->data);
-      messageText = getFeedbackText(detailView, seqName, numSeqsSelected);
+      const SequenceStruct *seq = (const SequenceStruct*)(bc->selectedSeqs->data);
+      messageText = getFeedbackText(detailView, seq, numSeqsSelected);
     }
   else
     {
@@ -1047,7 +1046,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
       const int activeFrame = detailViewGetActiveFrame(detailView);
       
       /* See if there are any SNPs at this displayIdx */
-      GList *snpNameList = NULL;
+      GList *snpList = NULL;
       const MSP *msp = bc->mspList;
       
       for ( ; msp; msp = msp->next)
@@ -1065,7 +1064,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
 	      
 	      if (found)
 		{
-		  snpNameList = g_list_prepend(snpNameList, msp->sname);
+		  snpList = g_list_prepend(snpList, msp->sSequence);
 		  
 		  /* Select the SNP coord */
 		  detailViewSetSelectedBaseIdx(detailView, snpDisplayIdx, activeFrame, baseNum, TRUE, FALSE);
@@ -1080,7 +1079,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
 	}
       
       /* Clear any existing selections and select the new SNP(s) */
-      blxWindowSetSelectedSeqList(blxWindow, snpNameList);
+      blxWindowSetSelectedSeqList(blxWindow, snpList);
     }
 }
 
@@ -1294,7 +1293,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      const int width = strlen(msp->sseq) * properties->charWidth;
 	      
 	      /* Draw the background */
-	      GdkColor *colour = blxWindowIsSeqSelected(blxWindow, msp->sname) ? &properties->snpColourSelected : &properties->snpColour;
+	      GdkColor *colour = blxWindowIsSeqSelected(blxWindow, msp->sSequence) ? &properties->snpColourSelected : &properties->snpColour;
 	      gdk_gc_set_foreground(gc, colour);
 	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, properties->charHeight);
 	      
@@ -1482,12 +1481,6 @@ GtkCellRenderer* detailViewGetRenderer(GtkWidget *detailView)
   assertDetailView(detailView);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->renderer : NULL;
-}
-
-GHashTable *detailViewGetSeqTable(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->seqTable : NULL;
 }
 
 /* Get the list of columns */
@@ -1737,30 +1730,6 @@ gboolean detailViewGetShowSnpTrack(GtkWidget *detailView)
   return properties ? properties->showSnpTrack : FALSE;
 }
 
-/* Return a list of all MSPs that have the given match sequence name */
-GList *detailViewGetSequenceMsps(GtkWidget *detailView, const char *seqName)
-{
-  SubjectSequence *subjectSeq = detailViewGetSequenceFromName(detailView, seqName);
-  GList *result = subjectSeq ? subjectSeq->mspList : NULL;
-  return result;
-}
-
-
-/* Return the SubjectSequence struct for the sequence with the given name */
-static SubjectSequence* detailViewGetSequenceFromName(GtkWidget *detailView, const char *seqName)
-{
-  SubjectSequence *result = NULL;
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  
-  if (properties)
-    {
-      /* Cast away const because predicate args are not const */
-      result = (SubjectSequence*)(g_hash_table_find(properties->seqTable, stringsEqual, (char*)seqName));
-    }
-  
-  return result;
-}
-
 
 /* Perform required updates after the selected base has changed. */
 static void updateFollowingBaseSelection(GtkWidget *detailView,
@@ -1860,12 +1829,6 @@ static void onDestroyDetailView(GtkWidget *widget)
       properties->columnList = NULL;
     }
     
-  if (properties->seqTable)
-    {
-      g_hash_table_unref(properties->seqTable);
-      properties->seqTable = NULL;
-    }
-  
   if (properties->fwdStrandTrees)
     {
       g_list_free(properties->fwdStrandTrees);
@@ -1933,7 +1896,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->fontDesc = fontDesc;
       properties->charWidth = 0;
       properties->charHeight = 0;
-      properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
       properties->sortInverted = sortInverted;
       properties->highlightDiffs = FALSE;
       properties->showSnpTrack = FALSE;
@@ -2292,7 +2254,7 @@ static void swapExonViewVisibility(GtkWidget *bigPicture)
 void toggleStrand(GtkWidget *detailView)
 {
   BlxViewContext *blxContext = detailViewGetContext(detailView);
-  GtkWidget *bigPicture = blxContext->bigPicture;
+  GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
 
   /* Update the flag */
   blxContext->displayRev = !blxContext->displayRev;
@@ -2466,7 +2428,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 
       /* Check its in the sequence list (if given), and is a valid match or exon */
       if ((mspIsExon(msp) || mspIsBlastMatch(msp)) &&
-	  (!searchData->seqNameList || findStringInList(searchData->seqNameList, msp->sname)))
+	  (!searchData->seqList || g_list_find(searchData->seqList, msp->sSequence)))
 	{
 	  /* Get the offset of the msp coords from the given start coord and find the smallest,
 	   * ignorning zero and negative offsets (negative means its the wrong direction) */
@@ -2517,7 +2479,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
  * If a list of sequence names is given, only look at matches in those sequences.
  * startDnaIdx determines where to start searching from. Sets the found match idx as
  * the currently-selected base index */
-static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gboolean searchRight, GList *seqNameList)
+static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gboolean searchRight, GList *seqList)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
   
@@ -2530,7 +2492,7 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 				bc->seqType,
 				bc->numFrames,
 				&bc->refSeqRange,
-				seqNameList,
+				seqList,
 				UNSET_INT,
 				UNSET_INT,
 				UNSET_INT,
@@ -2570,7 +2532,7 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 
 
 /* Go to the previous match (optionally limited to matches in the given list)  */
-void prevMatch(GtkWidget *detailView, GList *seqNameList)
+void prevMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
@@ -2588,12 +2550,12 @@ void prevMatch(GtkWidget *detailView, GList *seqNameList)
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
-  goToNextMatch(detailView, startDnaIdx, FALSE, seqNameList);
+  goToNextMatch(detailView, startDnaIdx, FALSE, seqList);
 }
 
 
 /* Go to the next match (optionally limited to matches in the given list)  */
-void nextMatch(GtkWidget *detailView, GList *seqNameList)
+void nextMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
@@ -2611,29 +2573,29 @@ void nextMatch(GtkWidget *detailView, GList *seqNameList)
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
-  goToNextMatch(detailView, startDnaIdx, TRUE, seqNameList);
+  goToNextMatch(detailView, startDnaIdx, TRUE, seqList);
 }
 
 
 /* Go to the first match (optionally limited to matches in the given list)  */
-void firstMatch(GtkWidget *detailView, GList *seqNameList)
+void firstMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the start of the ref seq */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max : refSeqRange->min;
   
-  goToNextMatch(detailView, startIdx, TRUE, seqNameList);
+  goToNextMatch(detailView, startIdx, TRUE, seqList);
 }
 
 
 /* Go to the last match (optionally limited to matches in the given list)  */
-void lastMatch(GtkWidget *detailView, GList *seqNameList)
+void lastMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the end of the reference sequence */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->min : refSeqRange->max;
 
-  goToNextMatch(detailView, startIdx, FALSE, seqNameList);
+  goToNextMatch(detailView, startIdx, FALSE, seqList);
 }
 
 
@@ -2731,29 +2693,29 @@ static void GGoto(GtkButton *button, gpointer data)
 static void GprevMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  prevMatch(detailView, seqNameList);
+  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
+  prevMatch(detailView, seqList);
 }
 
 static void GnextMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  nextMatch(detailView, seqNameList);
+  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
+  nextMatch(detailView, seqList);
 }
 
 static void GfirstMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  firstMatch(detailView, seqNameList);
+  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
+  firstMatch(detailView, seqList);
 }
 
 static void GlastMatch(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqNameList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  lastMatch(detailView, seqNameList);
+  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
+  lastMatch(detailView, seqList);
 }
 
 static void GscrollLeftBig(GtkButton *button, gpointer data)
@@ -3278,229 +3240,27 @@ static void createDetailViewPanes(GtkWidget *detailView,
  *                     Initialization                      *
  ***********************************************************/
 
-/* calcID: caculated percent identity of an MSP
- * 
- * There seems to be a general problem with this routine for protein
- * alignments, the existing code certainly does not do the right thing.
- * I have fixed this routine for gapped sequence alignments but not for
- * protein stuff at all.
- * 
- * To be honest I think this routine is a _waste_ of time, the alignment
- * programs that feed data to blixem produce an identity anyway so why
- * not use that...why reinvent the wheel......
- * 
- * */
-static void calcID(MSP *msp, GtkWidget *detailView)
-{
-  BlxViewContext *bc = detailViewGetContext(detailView);
-  
-  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
-  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
-  
-  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
-  
-  msp->id = 0;
-  
-  if (msp->sseq && msp->sseq != bc->paddingSeq)
-    {
-      /* Note that this will reverse complement the ref seq if it is the reverse 
-       * strand. This means that where there is no gaps array the comparison is trivial
-       * as coordinates can be ignored and the two sequences just whipped through. */
-
-      char *refSeqSegment = getSequenceSegment(bc,
-					       bc->refSeq,
-					       msp->qstart, 
-					       msp->qend, 
-					       mspGetRefStrand(msp), 
-					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
-					       mspGetRefFrame(msp, bc->seqType),
-					       bc->displayRev,
-					       !qForward,
-					       TRUE,
-					       TRUE);
-      
-      if (!refSeqSegment)
-	{
-	  messout ( "calcID failed: Don't have genomic sequence %d - %d, requested for match sequence '%s' (match coords = %d - %d)\n", msp->qstart, msp->qend, msp->sname, msp->sstart, msp->send);
-	  msp->id = 0;
-	  return;
-	}
-      
-      /* We need to find the number of characters that match out of the total number */
-      int numMatchingChars = 0;
-      int totalNumChars = 0;
-      
-      if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
-	{
-	  /* Ungapped alignments. */
-	  totalNumChars = (qSeqMax - qSeqMin + 1) / bc->numFrames;
-	  
-	  if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
-	    {
-	      int i = 0;
-	      for ( ; i < totalNumChars; i++)
-		{
-		  if (freeupper(msp->sseq[i]) == freeupper(refSeqSegment[i]))
-		    {
-		      numMatchingChars++;
-		    }
-		}
-	    }
-	  else						    /* blastn, blastp & blastx */
-	    {
-	      int i = 0;
-	      for ( ; i < totalNumChars; i++)
-                {
-                  int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
-		  if (freeupper(msp->sseq[sIndex]) == freeupper(refSeqSegment[i]))
-		    {
-		      numMatchingChars++;
-		    }
-                }
-	    }
-	}
-      else
-	{
-	  /* Gapped alignments. */
-	  
-	  /* To do tblastn and tblastx is not imposssible but would like to work from
-	   * examples to get it right.... */
-	  if (bc->blastMode == BLXMODE_TBLASTN)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else if (bc->blastMode == BLXMODE_TBLASTX)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else
-	    {
-	      /* blastn and blastp remain simple but blastx is more complex since the query
-               * coords are nucleic not protein. */
-	      
-              Array gaps = msp->gaps;
-	      
-              int i = 0;
-	      for ( ; i < arrayMax(gaps) ; i++)
-		{
-		  SMapMap *m = arrp(gaps, i, SMapMap) ;
-		  
-                  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-		  
-                  totalNumChars += sRangeMax - sRangeMin + 1;
-                  
-                  /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
-		   * We need to translate the first coord in the range (which is in terms of the full
-		   * reference sequence) into coords in the cut-down ref sequence. */
-                  int q_start = qForward ? (qRangeMin - qSeqMin) / bc->numFrames : (qSeqMax - qRangeMax) / bc->numFrames;
-		  
-		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
-		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
-		   * so start from the lower or upper end accordingly. */
-                  int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
-		  
-                  int sIdx = s_start, qIdx = q_start ;
-		  while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
-		    {
-		      if (freeupper(msp->sseq[sIdx]) == freeupper(refSeqSegment[qIdx]))
-			numMatchingChars++ ;
-		      
-                      /* Move to the next base. The refSeqSegment is always forward, but we might have to
-                       * traverse the s sequence in reverse. */
-                      ++qIdx ;
-                      if (sForward) ++sIdx ;
-                      else --sIdx ;
-		    }
-		}
-	    }
-	}
-      
-      msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
-      
-      g_free(refSeqSegment);
-    }
-  
-  return ;
-}
-
-
-/* Calculate the ID, q coordinates and q frame for the given MSP and store 
- * them in the MSP struct. */
-static void calcMspData(MSP *msp, GtkWidget *detailView)
-{
-  /* Convert the input coords (which are 1-based within the ref sequence section
-   * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
-  const BlxViewContext *bc = detailViewGetContext(detailView);
-  int offset = bc->refSeqRange.min - 1;
-  msp->qstart = msp->qstart + offset;
-  msp->qend = msp->qend + offset;
-  
-  /* Gap coords are also 1-based, so convert those too */
-  if (msp->gaps && arrayMax(msp->gaps) > 0)
-    {
-      int i = 0;
-      for ( ; i < arrayMax(msp->gaps) ; i++)
-	{
-	  SMapMap *curRange = arrp(msp->gaps, i, SMapMap);
-	  curRange->r1 = curRange->r1 + offset;
-	  curRange->r2 = curRange->r2 + offset;
-	}
-    }
-  
-  /* Calculate the q frame that this MSP should appear in; that is, the frame in which
-   * the first coord of the match will be base 1. (We can find the base number within
-   * frame 1 and the required frame number is simply the same as that.) */
-  /* to do: do this for exons as well; we need more info though because exons don't
-   * necessarily start at base1 in their frame. */
-  if (bc->seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
-    {
-      const gboolean reverseStrand = (mspGetRefStrand(msp) == REVERSE_STRAND);
-      
-      int frame = UNSET_INT;
-      convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
-      char *frameStr = convertIntToString(frame);
-
-      if (frameStr[0] != msp->qframe[2])
-	{
-	  printf("Warning: calculated match frame as %c but frame in input file is %c. Sequence %s [%d - %d]\n", frameStr[0], msp->qframe[2], msp->sname, msp->sstart, msp->send);
-	}  
-      
-      msp->qframe[2] = frameStr[0];
-      g_free(frameStr);
-    }
-  
-  /* Calculate the ID */
-  if (mspIsBlastMatch(msp))
-    {
-      calcID(msp, detailView);
-    }
-}
-
-
-/* Add the MSPs to the detail-view trees */
+/* Add the MSPs to the detail-view trees. Calculates and returns the lowest ID 
+ * out of all the blast matches */
 void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 {
+  BlxViewContext *bc = detailViewGetContext(detailView);
+
   /* First, create a data store for each tree so we have something to add our data to. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel);
 
-  /* Loop through each MSP, and add it to the correct tree based on its strand and reading frame */
-  const BlxSeqType seqType = detailViewGetSeqType(detailView);
-  GHashTable *seqTable = detailViewGetSeqTable(detailView);
+  /* Loop through each MSP, and add it to the correct tree based on its strand and
+   * reading frame. Also find the lowest ID value out of all the matches. */
   MSP *msp = mspList;
   
   for ( ; msp; msp = msp->next)
     {
-      /* First calculate the ID, frame and display coords for the MSP */
-      calcMspData(msp, detailView);
-      
       /* Only add matches and exons to trees */
       if (mspIsBlastMatch(msp) || mspIsExon(msp))
 	{
 	  /* Find the tree that this MSP should belong to based on its reading frame and strand */
 	  Strand activeStrand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
-	  const int frame = mspGetRefFrame(msp, seqType);
+	  const int frame = mspGetRefFrame(msp, bc->seqType);
 	  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
 
 	  if (tree)
@@ -3513,10 +3273,10 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 	    }
 	}
       
-      /* Add the MSP to the hash table that will group MSPs by sequence name. */
-      addMspToHashTable(seqTable, msp, msp->sname);
+      /* Add the MSP to a SequenceStruct in the sequence list. */
+      addMspToSeqList(&bc->matchSeqs, msp);
     }
-  
+    
   /* Finally, create a custom-filtered version of the data store for each tree. We do 
    * this AFTER adding the data so that it doesn't try to re-filter every time we add a row. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel);

@@ -33,7 +33,6 @@ typedef struct _RenderData
     const gboolean seqSelected;
     const int cellXPadding;
     const int cellYPadding;
-    const int frame;
     const int numFrames;
     const int charWidth;
     const int charHeight;
@@ -716,8 +715,8 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && mspIsExon(msp))
     {
       /* Get the msp's start/end in terms of the display coords */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->frame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->frame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->qFrame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->qFrame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
       const int minIdx = min(coord1, coord2);
       const int maxIdx = max(coord1, coord2);
       
@@ -949,7 +948,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 
 
 /* There can be multiple MSPs in the same cell. This function loops through them
- * and draws each one. */
+ * and draws each one (IF it is in the correct strand/frame for this tree). */
 static void drawMsps(SequenceCellRenderer *renderer,
 		     GtkWidget *tree,
 		     GdkWindow *window, 
@@ -963,7 +962,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colours if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
-  const char *seqName = firstMsp ? firstMsp->sname : NULL;
+  const SequenceStruct *seq = firstMsp ? firstMsp->sSequence : NULL;
   
   RenderData data = {
     cell_area,
@@ -974,10 +973,9 @@ static void drawMsps(SequenceCellRenderer *renderer,
     treeGetStrand(tree),
     treeProperties->readingFrame,
     detailViewProperties->selectedBaseIdx,
-    blxWindowIsSeqSelected(detailViewProperties->blxWindow, seqName),
+    blxWindowIsSeqSelected(detailViewProperties->blxWindow, seq),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
-    treeProperties->readingFrame,
     blxContext->numFrames,
     detailViewProperties->charWidth,
     detailViewProperties->charHeight,
@@ -1015,13 +1013,16 @@ static void drawMsps(SequenceCellRenderer *renderer,
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      if (mspIsExon(msp))
+      if (mspGetRefStrand(msp) == data.qStrand && mspGetRefFrame(msp, data.seqType) == data.qFrame)
 	{
-	  drawExon(renderer, msp, tree, &data);
-	}
-      else if (mspIsBlastMatch(msp))
-	{
-	  drawDnaSequence(renderer, msp, tree, &data);
+	  if (mspIsExon(msp))
+	    {
+	      drawExon(renderer, msp, tree, &data);
+	    }
+	  else if (mspIsBlastMatch(msp))
+	    {
+	      drawDnaSequence(renderer, msp, tree, &data);
+	    }
 	}
     }
   
@@ -1065,8 +1066,8 @@ static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindo
        * a grouped sequence or are selected. */
       MSP *msp = (MSP*)(renderer->data->data);
       GtkWidget *blxWindow = treeGetBlxWindow(tree);
-      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, msp->sname);
-      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sname);
+      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, msp->sSequence);
+      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
       
       if (isSelected || (group && group->highlighted))
 	{

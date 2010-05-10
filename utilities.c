@@ -8,8 +8,8 @@
 
 #include "SeqTools/utilities.h"
 
-static CallbackData* widgetGetCallbackData(GtkWidget *widget);
-
+static CallbackData*	  widgetGetCallbackData(GtkWidget *widget);
+static SequenceStruct*	  findNameInSeqList(GList *seqList, const char *seqNameToFind);
 
 /* Functions to get/set/destroy a GdkDrawable in a widget property, if a different drawable
  * than the window is required to be drawn to. The main purpose of this is for printing
@@ -735,26 +735,41 @@ gboolean stringsEqual(gpointer key, gpointer value, gpointer data)
 }
 
 
-/* Add the given MSP to the given hash table */
-void addMspToHashTable(GHashTable *hashTable, MSP *msp, char *hashKey)
+/* Find out which SequenceStruct the given MSP belongs to.  If a SequenceStruct for this 
+ * sequence does not yet exist, create it and add it to the GList of SequenceStructs. */
+void addMspToSeqList(GList **seqList, MSP *msp)
 {
-  /* See if this MSP's sequence already exists in the hash table */
-  SubjectSequence *subjectSeq = (SubjectSequence*)g_hash_table_find(hashTable, stringsEqual, hashKey);
+  /* Use the sequence name as the key */
+  char *key = g_strdup(msp->sname);
+
+  /* If this is an intron or exon, cut of the 'i' or 'x' postfix off the sequence name so
+   * that all exons/introns from the same sequence are grouped together */
+  if (mspIsExon(msp) || mspIsIntron(msp))
+    {
+      const int len = strlen(key);
+      key[len - 1] = '\0';
+    }
+
+  /* See if this sequence name is already in the list */
+  SequenceStruct *subjectSeq = findNameInSeqList(*seqList, key);
   
   if (subjectSeq)
     {
-      /* Append the MSP to the existing sequence's list */
-      subjectSeq->mspList = g_list_append(subjectSeq->mspList, msp);
+      /* Add the MSP to the SubjectSequence's list of MSPs */
+      subjectSeq->mspList = g_list_prepend(subjectSeq->mspList, msp);
     }
   else
     {
-      /* Create a new SubjectSequence struct containing this MSP, and add it to the hash table */
-      subjectSeq = g_malloc(sizeof(SubjectSequence));
-      subjectSeq->seqName = msp->sname;
-      subjectSeq->mspList = g_list_append(NULL, msp);
+      /* Create a new SequenceStruct struct containing this MSP, and add it to the list */
+      subjectSeq = g_malloc(sizeof(SequenceStruct));
+      subjectSeq->seqName = key;
+      subjectSeq->mspList = g_list_prepend(NULL, msp);
       
-      g_hash_table_insert(hashTable, hashKey, subjectSeq);  
+      *seqList = g_list_prepend(*seqList, subjectSeq);
     }
+    
+  /* Set a pointer to the SequenceStruct from the MSP */
+  msp->sSequence = subjectSeq;
 }
 
 
@@ -1274,22 +1289,22 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-/* Returns the pointer to the GList element that contains the given string, if the
- * string is in the list. Checks by string comparison, not pointer comparison. */
-GList *findStringInList(GList *list, const char *seqName)
+/* Returns the pointer to the SequenceStruct that has the given sequence name, if there
+ * is one. Returns NULL otherwise */
+static SequenceStruct *findNameInSeqList(GList *seqList, const char *seqNameToFind)
 {
-  GList *result = NULL;
+  SequenceStruct *result = NULL;
   
-  /* We can't use g_list_find because that checks if the pointer value is the same */
-  GList *listItem = list;
+  /* Loop through all sequences in the list and look for one with a matching name */
+  GList *listItem = seqList;
   
   for ( ; listItem; listItem = listItem->next)
     {
-      const char *listName = (const char*)(listItem->data);
-      
-      if (strcmp(listName, seqName) == 0)
+      SequenceStruct *currentSeq = (SequenceStruct*)(listItem->data);
+
+      if (!strcmp(currentSeq->seqName, seqNameToFind))
 	{
-	  result = listItem;
+	  result = currentSeq;
 	  break;
 	}
     }

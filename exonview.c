@@ -123,11 +123,11 @@ static void drawExonIntron(const MSP *msp, DrawData *data)
  * specified in the user data */
 static void drawExonIntronItem(gpointer listItemData, gpointer data)
 {
-  const char *seqName = (const char*)listItemData;
+  const SequenceStruct *seq = (const SequenceStruct*)listItemData;
   DrawData *drawData = (DrawData*)data;
   
   /* Loop through all msps in this sequence */
-  GList *mspListItem = blxWindowGetSequenceMsps(drawData->blxWindow, seqName);
+  GList *mspListItem = seq->mspList;
   
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
@@ -167,25 +167,17 @@ static void drawExonView(GtkWidget *exonView)
     blxContext->seqType
   };
   
-  /* Loop through all msps drawing only unselected ones */
-  for ( ; msp; msp = msp->next)
-    {
-      if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == properties->currentStrand)
-	{
-	  if (!blxWindowIsSeqSelected(blxWindow, msp->sname));
-	    {
-	      drawExonIntron(msp, &drawData);
-	    }
-	}
-    }
-  
-  /* Draw grouped msps */
+  /* Loop through all sequences, drawing all msps that are exons/introns */
+  GList *seqList = blxWindowGetAllMatchSeqs(blxWindow);
+  g_list_foreach(seqList, drawExonIntronItem, &drawData);
+    
+  /* Draw msps that are in groups */
   GList *groupItem = blxContext->sequenceGroups;
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
       drawData.colour = group->highlighted ? &group->highlightColour : &properties->exonColour;
-      g_list_foreach(group->seqNameList, drawExonIntronItem, &drawData);
+      g_list_foreach(group->seqList, drawExonIntronItem, &drawData);
     }
   
   /* Draw all selected msps */

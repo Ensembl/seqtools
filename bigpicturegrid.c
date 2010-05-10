@@ -18,8 +18,6 @@
 
 
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"
-#define DEFAULT_GRID_NUM_VERT_CELLS	5	  /* the number of vertical cells to split the grid into */
-#define DEFAULT_GRID_PERCENT_ID_MIN	0	  /* the minimum value on the y-axis of the grid */
 #define DEFAULT_MSP_LINE_HEIGHT		3	  /* the height of the MSP lines in the grid */
 #define DEFAULT_GRID_Y_PADDING		5	  /* this provides space between the grid and the edge of the widget */
 #define DEFAULT_GRID_CELL_Y_PADDING	-2	  /* this controls the vertical space between the labels on the y axis */
@@ -81,6 +79,13 @@ static gint gridGetCellHeight(GtkWidget *grid)
 }
 
 
+static int gridGetNumVCells(GtkWidget *grid)
+{
+  GtkWidget *bigPicture = gridGetBigPicture(grid);
+  return bigPictureGetNumVCells(bigPicture);
+}
+
+
 /* Get the x coord of the centre of the preview box within the given grid. 
  * Returns UNSET_INT if the preview box is not displayed. */
 static int gridGetPreviewBoxCentre(GtkWidget *grid)
@@ -118,7 +123,7 @@ gint convertValueToGridPos(GtkWidget *grid, const gint value)
   /* The top line of the grid is drawn one cell height down from the top of the grid border */
   GridProperties *properties = gridGetProperties(grid);
   
-  IntRange *valRange = &properties->percentIdRange;
+  IntRange *valRange = bigPictureGetPercentIdRange(properties->bigPicture);
   gdouble percent = (gdouble)(valRange->max - value) / (gdouble)(valRange->max - valRange->min);
   
   /* Make sure we do the multiplication on doubles before rounding to int */
@@ -379,40 +384,12 @@ static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
 }
 
 
-/* Draw the MSPs for the given sequence in the given colour, but only if the 
- * sequence is NOT selected */
-static void drawUnselectedMspLines(gpointer key, gpointer value, gpointer data)
-{
-  const char *seqName = (const char *)key;
-  DrawGridData *drawData = (DrawGridData*)data;
-  
-  if (!blxWindowIsSeqSelected(gridGetBlxWindow(drawData->grid), seqName))
-    {
-      /* Get the list of MSPs for this sequence */
-      SubjectSequence *subjectSeq = (SubjectSequence*)value;
-      GList *mspListItem = subjectSeq->mspList;
-
-      for ( ; mspListItem; mspListItem = mspListItem->next)
-	{
-	  MSP *msp = (MSP*)(mspListItem->data);
-	  
-	  if (mspShownInGrid(msp, drawData->grid))
-	    {
-	      drawMspLine(msp, drawData);
-	    }
-	}
-    }
-}
-
-
 /* Draw the MSPs for the given sequence in the given colour. */
 static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 {
-  const char *seqName = (const char*)listItemData;
-  DrawGridData *drawData = (DrawGridData*)data;
-  GtkWidget *detailView = gridGetDetailView(drawData->grid);
-  
-  GList *mspListItem = detailViewGetSequenceMsps(detailView, seqName);
+  const SequenceStruct *seq = (const SequenceStruct*)listItemData;
+  DrawGridData *drawData = (DrawGridData*)data;  
+  GList *mspListItem = seq->mspList;
 
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
@@ -442,7 +419,7 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
       GdkColor shadowColour = getDropShadowColour(drawData->colour);
       drawData->shadowColour = &shadowColour;
       
-      g_list_foreach(seqGroup->seqNameList, drawSequenceMspLines, drawData);
+      g_list_foreach(seqGroup->seqList, drawSequenceMspLines, drawData);
 
       /* Set the draw data back to its original values */
       drawData->colour = origColour;
@@ -450,7 +427,7 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
     }
   else
     {
-      g_list_foreach(seqGroup->seqNameList, drawSequenceMspLines, drawData);
+      g_list_foreach(seqGroup->seqList, drawSequenceMspLines, drawData);
     }
   
 }
@@ -459,36 +436,28 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
 /* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 {
-  DrawGridData drawData = {grid, drawable, gc, gridGetMspLineColour(grid), gridGetMspLineColour(grid)};
-  GtkWidget *blxWindow = gridGetBlxWindow(grid);
+  BlxViewContext *bc = gridGetContext(grid);
 
-  /* The MSP data lives in the detail-view trees. Loop through all trees (i.e. all frames) */
-  const int numFrames = gridGetNumFrames(grid);
-  int frame = 1;
+  DrawGridData drawData = {
+    grid, 
+    drawable, 
+    gc, 
+    gridGetMspLineColour(grid), 
+    gridGetMspLineColour(grid)
+  };
   
-  /* Draw unselected MSPs first */
-  for (frame = 1 ; frame <= numFrames; ++frame)
-    {
-      /* Get all of the MSPs for the tree, grouped by sequence name */
-      GtkWidget *tree = gridGetTree(grid, frame);
-      GHashTable *seqTable = treeGetSeqTable(tree);
-      g_hash_table_foreach(seqTable, drawUnselectedMspLines, &drawData);
-    }
+  /* Draw all MSPs for this grid */ 
+  g_list_foreach(bc->matchSeqs, drawSequenceMspLines, &drawData);  
 
   /* Now draw MSPs that are in groups (to do: it would be good to do this in reverse
    * Sort Order, so that those ordered first get drawn last and therefore appear on top) */
-  GList *groupList = blxWindowGetSequenceGroups(blxWindow);
-  g_list_foreach(groupList, drawGroupedMspLines, &drawData);
+  g_list_foreach(bc->sequenceGroups, drawGroupedMspLines, &drawData);
   
   /* Finally, draw selected sequences. These will appear on top of everything else. */
-  drawData.colour = gridGetMspLineHighlightColour(drawData.grid);
-  GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  
   drawData.colour = gridGetMspLineHighlightColour(grid);
   GdkColor shadowColour = getDropShadowColour(drawData.colour);
   drawData.shadowColour = &shadowColour;
-  
-  g_list_foreach(seqList, drawSequenceMspLines, &drawData);
+  g_list_foreach(bc->selectedSeqs, drawSequenceMspLines, &drawData);
 }
 
 
@@ -513,9 +482,8 @@ static void drawBigPictureGrid(GtkWidget *grid)
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
 
-  const gint percentPerCell = 
-    (properties->percentIdRange.max - properties->percentIdRange.min) / 
-    (properties->numVCells > 0 ? properties->numVCells : 1);
+  const gint percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
+  const gint numVCells = gridGetNumVCells(grid);
   
   /* Draw the grid lines */
   drawVerticalGridLines(grid, 
@@ -526,9 +494,9 @@ static void drawBigPictureGrid(GtkWidget *grid)
   drawHorizontalGridLines(grid, 
                           drawable,
                           gc,
-			  properties->numVCells, 
+			  numVCells, 
 			  percentPerCell, 
-			  properties->percentIdRange.max, 
+			  bigPictureProperties->percentIdRange.max, 
 			  &bigPictureProperties->gridTextColour, 
 			  &bigPictureProperties->gridLineColour);
   
@@ -571,6 +539,7 @@ void calculateGridBorders(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
+  int numVCells = gridGetNumVCells(grid);
   
   /* Get some info about the size of the layout and the font used */
   guint layoutWidth, layoutHeight;
@@ -584,7 +553,7 @@ void calculateGridBorders(GtkWidget *grid)
   properties->gridRect.x = bigPictureProperties->charWidth * bigPictureProperties->leftBorderChars;
   properties->gridRect.y = properties->highlightBoxYPad + properties->gridYPadding;
   properties->gridRect.width = properties->displayRect.width - properties->gridRect.x;
-  properties->gridRect.height = gridGetCellHeight(grid) * properties->numVCells;
+  properties->gridRect.height = gridGetCellHeight(grid) * numVCells;
   
   /* Get the boundaries of the highlight box */
   calculateHighlightBoxBorders(grid);
@@ -720,7 +689,7 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 	      /* It's a hit. Select this sequence. */
 	      GtkWidget *blxWindow = gridGetBlxWindow(grid);
 	      blxWindowDeselectAllSeqs(blxWindow, TRUE);
-	      blxWindowSelectSeq(blxWindow, msp->sname, TRUE);
+	      blxWindowSelectSeq(blxWindow, msp->sSequence, TRUE);
 
 	      /* The relevant row will be selected in the detail view (if it is in the
 	       * detail view's display range). Scroll the tree vertically to bring the
@@ -896,9 +865,6 @@ static void gridCreateProperties(GtkWidget *widget,
       properties->cellYPadding = DEFAULT_GRID_CELL_Y_PADDING;
       properties->highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD + DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH;
       
-      properties->numVCells = DEFAULT_GRID_NUM_VERT_CELLS;
-      properties->percentIdRange.min = DEFAULT_GRID_PERCENT_ID_MIN;
-      properties->percentIdRange.max = DEFAULT_GRID_PERCENT_ID_MAX;
       properties->mspLineHeight = DEFAULT_MSP_LINE_HEIGHT;
       properties->exposeHandlerId = exposeHandlerId;
       properties->ignoreSizeAlloc = FALSE;

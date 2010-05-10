@@ -76,13 +76,6 @@ GtkWidget *treeGetBlxWindow(GtkWidget *tree)
   return detailViewGetBlxWindow(detailView);
 }
 
-GHashTable *treeGetSeqTable(GtkWidget *tree)
-{
-  assertTree(tree);
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties->seqTable;
-}
-
 Strand treeGetStrand(GtkWidget *tree)
 {
   assertTree(tree);
@@ -234,12 +227,10 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 }
 
 
-/* Add subject sequence from the given hash table entry as a row in the given tree
- * store (passed as the user data). */
-static void addSubjectSequenceToRow(gpointer key, gpointer value, gpointer data)
+/* Add a SequenceStruct to as a row in the given tree store */
+static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 {
-  const char *seqName = (const char*)key;
-  SubjectSequence *subjectSeq = (SubjectSequence*)value;
+  SequenceStruct *subjectSeq = (SequenceStruct*)listItemData;
   
   if (subjectSeq && subjectSeq->mspList && g_list_length(subjectSeq->mspList) > 0)
     {
@@ -254,7 +245,7 @@ static void addSubjectSequenceToRow(gpointer key, gpointer value, gpointer data)
 	  MSP *msp = (MSP*)(subjectSeq->mspList->data);
 
 	  gtk_list_store_set(store, &iter,
-			     S_NAME_COL, seqName,
+			     S_NAME_COL, msp->sname,
 			     SCORE_COL, msp->score,
 			     ID_COL, msp->id,
 			     START_COL, msp->sstart,
@@ -266,7 +257,7 @@ static void addSubjectSequenceToRow(gpointer key, gpointer value, gpointer data)
 	{
 	  /* Add generic info about the sequence */
 	  gtk_list_store_set(store, &iter,
-			     S_NAME_COL, seqName,
+			     S_NAME_COL, subjectSeq->seqName,
 			     SCORE_COL, NULL,
 			     ID_COL, NULL,
 			     START_COL, NULL,
@@ -295,9 +286,10 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), START_COL,	  sortColumnCompareFunc, tree, NULL);
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, tree, NULL);
 
-  /* Add the rows. Use the hash table that groups MSPs by sequence name and qFrame/qStrand */
-  GHashTable *seqTable = treeGetSeqTable(tree);
-  g_hash_table_foreach(seqTable, addSubjectSequenceToRow, store);
+  /* Add the rows - one row per sequence. Use the list we've already compiled of all
+   * sequences as SequenceStructs */
+  GList *seqList = blxWindowGetAllMatchSeqs(treeGetBlxWindow(tree));
+  g_list_foreach(seqList, addSequenceStructToRow, store);
 
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
@@ -670,10 +662,10 @@ void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
 }
 
 
-static gboolean treeIsSeqSelected(GtkWidget *tree, const char *seqName)
+static gboolean treeIsSeqSelected(GtkWidget *tree, const SequenceStruct *seq)
 {
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  return blxWindowIsSeqSelected(blxWindow, seqName);
+  return blxWindowIsSeqSelected(blxWindow, seq);
 }
 
 
@@ -688,7 +680,7 @@ static gboolean selectRowIfSeqSelected(GtkTreeModel *model, GtkTreePath *path, G
       /* Check any MSP in this row to see if it's seq is selected (they should all have the same seq name) */
       MSP *msp = (MSP*)(mspGList->data);
   
-      if (treeIsSeqSelected(tree, msp->sname))
+      if (treeIsSeqSelected(tree, msp->sSequence))
       {
 	GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
 	gtk_tree_selection_select_path(selection, path);
@@ -743,7 +735,7 @@ static void markSequenceSelectedForRow(GtkTreeModel *model, GtkTreePath *path, G
       MSP *msp = (MSP*)(mspGList->data);
       
       /* Update the blxWindow's list of selected sequences. Tell it that it doens't need to update tree rows. */
-      blxWindowSelectSeq(blxWindow, msp->sname, FALSE);
+      blxWindowSelectSeq(blxWindow, msp->sSequence, FALSE);
     }
 }
 
@@ -840,21 +832,25 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 
       /* Check the first msp to see if this sequence is in a group that's hidden */
       const MSP *firstMsp = (const MSP*)(mspList->data);
-      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, firstMsp->sname);
+      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, firstMsp->sSequence);
       
       if (!group || !group->hidden)
 	{
 	  BlxViewContext *bc = treeGetContext(tree);
 	  const int frame = treeGetFrame(tree);
+	  const Strand strand = treeGetStrand(tree);
 	  const IntRange const *displayRange = treeGetDisplayRange(tree);
 
-	  /* Show the row if any MSP in the list is an exon or blast match within the display range */
+	  /* Show the row if any MSP in the list is an exon or blast match in the correct frame/strand
+	   * and within the display range */
 	  GList *mspListItem = mspList;
+	
 	  for ( ; mspListItem; mspListItem = mspListItem->next)
 	    {
 	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-	      if (mspIsBlastMatch(msp) || mspIsExon(msp))
+	      if ((mspIsBlastMatch(msp) || mspIsExon(msp)) &&
+		  mspGetRefStrand(msp) == strand && mspGetRefFrame(msp, bc->seqType) == frame)
 		{
 		  /* Convert the MSP's dna coords to display coords, and find the min and max */
 		  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
@@ -940,12 +936,6 @@ static void onDestroyTree(GtkWidget *widget)
 	  properties->treeColumnHeaderList = NULL;
 	}
     
-      if (properties->seqTable)
-	{
-	  g_hash_table_unref(properties->seqTable);
-	  properties->seqTable = NULL;
-	}
-    
       g_free(properties);
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "TreeProperties", NULL);
@@ -970,7 +960,6 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->treeHeader = treeHeader;
       properties->treeColumnHeaderList = treeColumnHeaderList;
       properties->hasSnpHeader = hasSnpHeader;
-      properties->seqTable = g_hash_table_new(g_str_hash, g_str_equal);
       properties->mspTreeModel = NULL;
       properties->seqTreeModel = NULL;
 
@@ -1215,8 +1204,8 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	    
 	    if (selectedSeqs)
 	      {
-		char *seqName = (char*)selectedSeqs->data;
-		fetchAndDisplaySequence(seqName, 0, blxWindow);
+		const SequenceStruct *seq = (const SequenceStruct*)selectedSeqs->data;
+		fetchAndDisplaySequence(seq->seqName, 0, blxWindow);
 	      }
 	      
 	    handled = TRUE;
@@ -1589,10 +1578,6 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
 {
   /* Add the MSP as an individual row */
   addMspToTreeRow(msp, tree);
-  
-  /* Add the MSP to the hash table that will group this tree's MSPs by sequence name */
-  GHashTable *seqTable = treeGetSeqTable(tree);
-  addMspToHashTable(seqTable, msp, msp->sname);
 }
 
 
@@ -2229,8 +2214,8 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 	   * is not in a group, its order number is UNSET_INT, and it gets sorted after
 	   * any sequences that are in groups. */
 	  GtkWidget *blxWindow = treeGetBlxWindow(tree);
-	  const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sname);
-	  const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sname);
+	  const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
+	  const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
 	  
 	  if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
 	    result = 1;
@@ -2248,8 +2233,8 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   if (!result && sortColumn != SEQUENCE_COL)
     {
       GtkWidget *blxWindow = treeGetBlxWindow(tree);
-      const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sname);
-      const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sname);
+      const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
+      const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
       
       if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
 	result = -1;

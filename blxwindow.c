@@ -32,9 +32,11 @@ typedef struct _CompareSeqData
 /* Properties specific to the blixem window */
 typedef struct _BlxWindowProperties
   {
-    BlxViewContext *blxContext;	      /* The blixem view context */
-    
+    GtkWidget *bigPicture;	    /* The top section of the view, showing a "big picture" overview of the alignments */
+    GtkWidget *detailView;	    /* The bottom section of the view, showing a detailed list of the alignments */
     GtkWidget *mainmenu;	      /* The main menu */
+
+    BlxViewContext *blxContext;	      /* The blixem view context */
 
     GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
     int lastYEnd;		      /* Keeps track of where the last item ended so we can draw the next one flush to it */
@@ -70,8 +72,8 @@ static Strand			  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
 static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *blxWindow);
-static void			  getSequencesThatMatch(gpointer key, gpointer value, gpointer data);
-static GList*			  getSeqNamesFromText(GtkWidget *blxWindow, const char *inputText);
+static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
+static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -314,9 +316,9 @@ gchar *getSequenceSegment(BlxViewContext *bc,
 
 /* Returns the order number of the group that this sequence belongs to, or
  * UNSET_INT if it does not belong to a group. */
-int sequenceGetGroupOrder(GtkWidget *blxWindow, const char *seqName)
+int sequenceGetGroupOrder(GtkWidget *blxWindow, const SequenceStruct *seq)
 {
-  SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, seqName);
+  SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, seq);
   return group ? group->order : UNSET_INT;
 }
 
@@ -345,7 +347,7 @@ static void scrollDetailView(GtkWidget *window, const gboolean moveLeft, const g
 static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
   BlxViewContext *blxContext = blxWindowGetContext(window);
-  GtkWidget *detailView = blxContext->detailView;
+  GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
   if (detailViewProperties->selectedBaseIdx != UNSET_INT)
@@ -439,8 +441,7 @@ static void goToMatch(GtkWidget *blxWindow, const gboolean moveLeft)
  * index in view. */
 static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(window);
-  GtkWidget *detailView = blxContext->detailView;
+  GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
   
   if (detailViewProperties->selectedBaseIdx != UNSET_INT)
@@ -531,7 +532,7 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
       /* Only one group. If it's the match set group, check it has sequences */
       SequenceGroup *group = (SequenceGroup*)(groupList->data);
       
-      if (group != blxContext->matchSetGroup || g_list_length(group->seqNameList) > 0)
+      if (group != blxContext->matchSetGroup || g_list_length(group->seqList) > 0)
 	{
 	  result = TRUE;
 	}
@@ -759,15 +760,13 @@ static GList* findSeqsFromName(GtkWidget *button, gpointer data)
   /* Extract the main blixem window from our parent window. */
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-  const char *searchStr = gtk_entry_get_text(entry);
-  
+    
   /* Loop through all the sequences and see if the name matches the search string */
-  GHashTable *seqTable = detailViewGetSeqTable(detailView);
+  const char *searchStr = gtk_entry_get_text(entry);
+  GList *seqList = blxWindowGetAllMatchSeqs(blxWindow);
   SeqSearchData searchData = {searchStr, NULL};
   
-  g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
+  g_list_foreach(seqList, getSequencesThatMatch, &searchData);
   
   if (g_list_length(searchData.matchList) < 1)
     {
@@ -779,8 +778,8 @@ static GList* findSeqsFromName(GtkWidget *button, gpointer data)
 
 
 /* Finds all the valid sequences blixem knows about whose names are in the given
- * text entry box (passed as the user data), and returns them in a GList. Only
- * does anything if the given radio button is active. */
+ * text entry box (passed as the user data), and returns them in a GList of
+ * SequenceStructs. Only does anything if the given radio button is active. */
 static GList* findSeqsFromList(GtkWidget *button, gpointer data)
 {
   if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
@@ -808,14 +807,14 @@ static GList* findSeqsFromList(GtkWidget *button, gpointer data)
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   
-  GList *seqNameList = getSeqNamesFromText(blxWindow, inputText);
+  GList *seqList = getSeqStructsFromText(blxWindow, inputText);
   
-  if (g_list_length(seqNameList) < 1)
+  if (g_list_length(seqList) < 1)
     {
       messout("No valid sequence names in buffer\n%s\n", inputText);
     }
     
-  return seqNameList;
+  return seqList;
 }
 
 
@@ -926,10 +925,10 @@ static void destroySequenceGroup(GtkWidget *blxWindow, SequenceGroup **seqGroup)
 	  g_free((*seqGroup)->groupName);
 	}
       
-      /* Free the list of names (and the names themselves too, if we own them) */
-      if ((*seqGroup)->seqNameList)
+      /* Free the list of sequences */
+      if ((*seqGroup)->seqList)
 	{
-	  freeStringList(&(*seqGroup)->seqNameList, (*seqGroup)->ownsSeqNames);
+	  freeStringList(&(*seqGroup)->seqList, (*seqGroup)->ownsSeqNames);
 	}
       
       g_free(*seqGroup);
@@ -970,6 +969,26 @@ static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 }
 
 
+/* Delete all sequence structs */
+static void blxWindowDeleteAllSequenceStructs(GtkWidget *blxWindow)
+{
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  GList *listItem = blxContext->matchSeqs;
+  
+  /* Delete any data the SequenceStructs own */
+  for ( ; listItem; listItem = listItem->next)
+    {
+      SequenceStruct *seq = (SequenceStruct*)(listItem->data);
+      g_free(seq->seqName);
+      seq->seqName = NULL;
+    }
+  
+  /* Free the list itself */
+  g_list_free(blxContext->matchSeqs);
+  blxContext->matchSeqs = NULL;
+}
+
+
 /* Update function to be called whenever groups have been added or deleted,
  * or sequences have been added to or removed from a group */
 static void blxWindowGroupsChanged(GtkWidget *blxWindow)
@@ -995,14 +1014,14 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
  * will take ownership of the sequence names and free them when it is destroyed. 
  * Caller can optionally provide the group name; if not provided, a default name
  * will be allocated. */
-static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqNameList, const gboolean ownSeqNames, const char *groupName)
+static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, const gboolean ownSeqNames, const char *groupName)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   /* Create the new group */
   SequenceGroup *group = g_malloc(sizeof(SequenceGroup));
   
-  group->seqNameList = seqNameList;
+  group->seqList = seqList;
   group->ownsSeqNames = ownSeqNames;
   group->hidden = FALSE;
   
@@ -1153,7 +1172,7 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   /* Only show the special 'match set' group if it has some sequences */
-  if (group != blxContext->matchSetGroup || g_list_length(group->seqNameList) > 0)
+  if (group != blxContext->matchSetGroup || g_list_length(group->seqList) > 0)
     {
       /* Show the group's name in a text box that the user can edit */
       GtkWidget *nameWidget = gtk_entry_new();
@@ -1204,16 +1223,16 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
 /* Called for each entry in a hash table. Compares the key of the table, which is
  * a sequence name, to the search string given in the user data. If it matches, it
  * appends the sequence name to the result list in the user data. */
-static void getSequencesThatMatch(gpointer key, gpointer value, gpointer data)
+static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 {
   SeqSearchData *searchData = (SeqSearchData*)data;
-  char *seqName = (char *)(key);
+  SequenceStruct *seq = (SequenceStruct*)listDataItem;
   
   /* Cut both down to the short versions of the name, in case one is the short
    * version and the other one isn't. */
-  if (wildcardSearch(getShortSeqName(seqName), getShortSeqName(searchData->searchStr)))
+  if (wildcardSearch(getShortSeqName(seq->seqName), getShortSeqName(searchData->searchStr)))
     {
-      searchData->matchList = g_list_append(searchData->matchList, seqName);
+      searchData->matchList = g_list_prepend(searchData->matchList, seq->seqName);
     }
 }
 
@@ -1259,48 +1278,47 @@ static void addGroupFromName(GtkWidget *button, gpointer data)
 
 
 /* Utility function to take a list of names, and return a list of those that
- * that are valid sequence names existing in the current blixem session. */
-static GList* getValidSeqsFromList(GtkWidget *blxWindow, GList *inputList)
+ * that are valid sequence names from the given list of SequenceStructs. */
+static GList* getSeqStructsFromNameList(GList *nameList, GList *seqList)
 {
   SeqSearchData searchData = {NULL, NULL};
   
-  GHashTable *seqTable = detailViewGetSeqTable(blxWindowGetDetailView(blxWindow));
-
   /* Loop through all the names in the input list */
-  GList *listItem = inputList;
-  for ( ; listItem; listItem = listItem->next)
+  GList *nameItem = nameList;
+  for ( ; nameItem; nameItem = nameItem->next)
     {
-      /* Compare this name to all names in the sequence table. If it matches,
-       * this adds it to the result list. */
-      searchData.searchStr = (const char*)(listItem->data);
-      g_hash_table_foreach(seqTable, getSequencesThatMatch, &searchData);
+      /* Compare this name to all names in the sequence list. If it matches,
+       * add it to the result list. */
+      searchData.searchStr = (const char*)(nameItem->data);
+      g_list_foreach(seqList, getSequencesThatMatch, &searchData);
     }
     
   return searchData.matchList;
 }
 
 
-/* Utility to create a GList of sequence names from a textual list of sequences.
+/* Utility to create a GList of SequenceStructs from a textual list of sequences.
  * Returns only valid sequences that blixem knows about. */
-static GList* getSeqNamesFromText(GtkWidget *blxWindow, const char *inputText)
+static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText)
 {
   GList *nameList = parseMatchList(inputText);
   
   /* Extract the entries from the list that are sequences that blixem knows about */
-  GList *seqNameList = getValidSeqsFromList(blxWindow, nameList);
+  GList *matchSeqs = blxWindowGetAllMatchSeqs(blxWindow);
+  GList *seqList = getSeqStructsFromNameList(nameList, matchSeqs);
   
   /* Must free the original name list and all its data. */
   freeStringList(&nameList, TRUE);
   
   /* Create a group from the list of names */
-  if (g_list_length(seqNameList) < 1)
+  if (g_list_length(seqList) < 1)
     {
-      g_list_free(seqNameList);
-      seqNameList = NULL;
+      g_list_free(seqList);
+      seqList = NULL;
       messout("No valid sequence names in buffer '%s'\n", inputText);
     }
   
-  return seqNameList;
+  return seqList;
 }
 
 
@@ -1310,21 +1328,21 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  GList *seqNameList = getSeqNamesFromText(blxWindow, clipboardText);
+  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText);
   
   /* If a group already exists, replace its list. Otherwise create the group. */
-  if (seqNameList)
+  if (seqList)
     {
       BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
       
       if (!blxContext->matchSetGroup)
 	{
-	  blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqNameList, FALSE, "Match Set");
+	  blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqList, FALSE, "Match Set");
 	}
       else
 	{
-	  freeStringList(&blxContext->matchSetGroup->seqNameList, blxContext->matchSetGroup->ownsSeqNames);
-	  blxContext->matchSetGroup->seqNameList = seqNameList;
+	  g_free(blxContext->matchSetGroup->seqList);
+	  blxContext->matchSetGroup->seqList = seqList;
 	}
       
       /* Reset the highlighted/hidden properties to make sure the group is initially visible */
@@ -1343,12 +1361,12 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  GList *seqNameList = getSeqNamesFromText(blxWindow, clipboardText);
+  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText);
   
-  if (seqNameList)
+  if (seqList)
     {
-      blxWindowSetSelectedSeqList(blxWindow, seqNameList);
-      firstMatch(blxWindowGetDetailView(blxWindow), seqNameList);
+      blxWindowSetSelectedSeqList(blxWindow, seqList);
+      firstMatch(blxWindowGetDetailView(blxWindow), seqList);
     }
 }
 
@@ -1360,11 +1378,12 @@ static void toggleMatchSet(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
-  if (blxContext->matchSetGroup && blxContext->matchSetGroup->seqNameList)
+  if (blxContext->matchSetGroup && blxContext->matchSetGroup->seqList)
     {
       /* Clear the list of names only (don't delete the group, because we want to
        * keep any changes the user made (e.g. to the group colour etc.) for next time. */
-      freeStringList(&(blxContext->matchSetGroup->seqNameList), blxContext->matchSetGroup->ownsSeqNames);
+      g_free(blxContext->matchSetGroup->seqList);
+      blxContext->matchSetGroup->seqList = NULL;
       blxWindowGroupsChanged(blxWindow);
     }
   else
@@ -1374,18 +1393,18 @@ static void toggleMatchSet(GtkWidget *blxWindow)
 }
 
 
-/* If the given radio button is enabled, add a group based on the list of sequence
- * names in the given text entry. */
+/* If the given radio button is enabled, add a group based on the list of sequences
+ * in the given text entry. */
 static void addGroupFromList(GtkWidget *button, gpointer data)
 {
-  GList *seqNameList = findSeqsFromList(button, data);
+  GList *seqList = findSeqsFromList(button, data);
   
-  if (seqNameList)
+  if (seqList)
     {
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
       GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      createSequenceGroup(blxWindow, seqNameList, FALSE, NULL);
+      createSequenceGroup(blxWindow, seqList, FALSE, NULL);
     }
 }
 
@@ -1836,6 +1855,81 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 }
 
 
+/* Callback to be called when the user has entered a new percent-ID per cell */
+static void onIdPerCellChanged(GtkWidget *widget, gpointer data)
+{
+  GtkWidget *bigPicture = GTK_WIDGET(data);  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  const int newValue = convertStringToInt(text);
+  bigPictureSetIdPerCell(bigPicture, newValue);
+}
+
+ 
+/* Callback to be called when the user has entered a new maximum percent-ID to display */
+static void onMaxPercentIdChanged(GtkWidget *widget, gpointer data)
+{
+  GtkWidget *bigPicture = GTK_WIDGET(data);  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  const int newValue = convertStringToInt(text);
+  bigPictureSetMaxPercentId(bigPicture, newValue);
+}
+
+/* Callback to be called when the user has entered a new minimum percent-ID to display */
+static void onMinPercentIdChanged(GtkWidget *widget, gpointer data)
+{
+  GtkWidget *bigPicture = GTK_WIDGET(data);  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  const int newValue = convertStringToInt(text);
+  bigPictureSetMinPercentId(bigPicture, newValue);
+}
+
+
+/* Utility to create a text entry widget displaying the given integer value. The
+ * given callback will be called when the user OK's the dialog that this widget 
+ * is a child of. */
+static void createTextEntryFromInt(GtkWidget *parent, 
+				   const char *title, 
+				   const int value, 
+				   GtkCallback callbackFunc, 
+				   gpointer callbackData)
+{
+  /* Pack label and text entry into a vbox */
+  GtkWidget *vbox = createVBoxWithBorder(parent, 4);
+
+  GtkWidget *label = gtk_label_new(title);
+  gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
+
+  GtkWidget *entry = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
+
+  char *displayText = convertIntToString(value);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  g_free(displayText);
+
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+
+  widgetSetCallbackData(entry, callbackFunc, callbackData);
+}
+
+
+/* Create a set of widgets to allow the user to edit grid properties */
+static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
+{
+  /* Group these buttons in a frame */
+  GtkWidget *frame = gtk_frame_new("Grid properties");
+  gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
+
+  /* Arrange the widgets horizontally */
+  GtkWidget *hbox = createHBoxWithBorder(frame, 12);
+  const IntRange const *percentIdRange = bigPictureGetPercentIdRange(bigPicture);
+  
+  createTextEntryFromInt(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
+  createTextEntryFromInt(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
+  createTextEntryFromInt(hbox, "Min %ID", percentIdRange->min, onMinPercentIdChanged, bigPicture);
+}
+
+
 /* Shows the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *blxWindow)
 {
@@ -1855,6 +1949,7 @@ void showSettingsDialog(GtkWidget *blxWindow)
 
   int borderWidth = 12;
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
   GtkWidget *mainVBox = createVBoxWithBorder(contentArea, borderWidth);
 
@@ -1869,8 +1964,8 @@ void showSettingsDialog(GtkWidget *blxWindow)
   createCheckButton(GTK_BOX(vbox1), "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
   createCheckButton(GTK_BOX(vbox1), "_Show SN_P track", detailViewGetShowSnpTrack(detailView), G_CALLBACK(onShowSnpTrackToggled), detailView);
   
-  /* Column sizes */
   createColumnSizeButtons(mainVBox, detailView);
+  createGridSettingsButtons(mainVBox, bigPicture);
   
   /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
@@ -2639,8 +2734,8 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 	  properties->blxContext->selectedSeqs = NULL;
 	}
       
-      /* Free the list of sequence groups (and all the data they own) */
       blxWindowDeleteAllSequenceGroups(widget);
+      blxWindowDeleteAllSequenceStructs(widget);
 
       if (properties->blxContext->fetchMode)
 	{
@@ -2682,18 +2777,12 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 
 
 static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
-					      GtkWidget *widget, 
-					      GtkWidget *bigPicture, 
-					      GtkWidget *detailView,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
 					      const char *paddingSeq)
 {
   BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
   
-  blxContext->bigPicture = bigPicture;
-  blxContext->detailView = detailView;
-
   blxContext->refSeq = options->refSeq;
   blxContext->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
   blxContext->refSeqRange.min = refSeqRange->min;
@@ -2709,6 +2798,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->gappedHsp = options->gappedHsp;
   blxContext->paddingSeq = paddingSeq;
   blxContext->fetchMode = g_strdup(options->fetchMode);
+  blxContext->matchSeqs = NULL; /* will be initialised from MSP data */
   
   blxContext->displayRev = FALSE;
   blxContext->selectedSeqs = NULL;
@@ -2726,19 +2816,23 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 
 /* Create the properties struct and initialise all values. */
 static void blxWindowCreateProperties(CommandLineOptions *options,
-				       GtkWidget *widget, 
-				       GtkWidget *bigPicture, 
-				       GtkWidget *detailView,
-				       GtkWidget *mainmenu,
-				       const IntRange const *refSeqRange,
-				       const IntRange const *fullDisplayRange,
-				       const char *paddingSeq)
+				      BlxViewContext *blxContext,
+				      GtkWidget *widget, 
+				      GtkWidget *bigPicture, 
+				      GtkWidget *detailView,
+				      GtkWidget *mainmenu,
+				      const IntRange const *refSeqRange,
+				      const IntRange const *fullDisplayRange,
+				      const char *paddingSeq)
 {
   if (widget)
     {
       BlxWindowProperties *properties = g_malloc(sizeof *properties);
       
-      properties->blxContext = blxWindowCreateContext(options, widget, bigPicture, detailView, refSeqRange, fullDisplayRange, paddingSeq);
+      properties->blxContext = blxContext;
+
+      properties->bigPicture = bigPicture;
+      properties->detailView = detailView;
       properties->mainmenu = mainmenu;
 
       properties->printSettings = gtk_print_settings_new();
@@ -2761,14 +2855,14 @@ gboolean blxWindowGetDisplayRev(GtkWidget *blxWindow)
 
 GtkWidget* blxWindowGetBigPicture(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->bigPicture : FALSE;
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  return properties ? properties->bigPicture : FALSE;
 }
 
 GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->detailView : FALSE;
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  return properties ? properties->detailView : FALSE;
 }
 
 GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
@@ -2810,7 +2904,13 @@ char** blxWindowGetGeneticCode(GtkWidget *blxWindow)
 MSP* blxWindowGetMspList(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->mspList : FALSE;
+  return blxContext ? blxContext->mspList : NULL;
+}
+
+GList* blxWindowGetAllMatchSeqs(GtkWidget *blxWindow)
+{
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext ? blxContext->matchSeqs : NULL;
 }
 
 BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
@@ -2885,12 +2985,6 @@ static Strand blxWindowGetInactiveStrand(GtkWidget *blxWindow)
   return blxWindowGetDisplayRev(blxWindow) ? FORWARD_STRAND : REVERSE_STRAND;
 }
 
-/* Returns a list of all the MSPs with the given sequence name */
-GList *blxWindowGetSequenceMsps(GtkWidget *blxWindow, const char *seqName)
-{
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  return detailViewGetSequenceMsps(detailView, seqName);
-}
 
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
@@ -2899,8 +2993,9 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
   return blxContext->sequenceGroups;
 }
 
-/* Returns the group that the given sequence belongs to, if any */
-SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const char *seqName)
+/* Returns the group that the given sequence belongs to, if any (assumes the sequence
+ * is only in one group; otherwise it just returns the first group it finds). */
+SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const SequenceStruct *seqToFind)
 {
   SequenceGroup *result = NULL;
   
@@ -2908,18 +3003,14 @@ SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const char *seqNa
   GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
   for ( ; groupItem; groupItem = groupItem->next)
     {
-      /* Loop through all sequences in the group and compare the name */
+      /* See if our sequence struct is in this group's list */
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      GList *seqItem = group->seqNameList;
+      GList *foundItem = g_list_find(group->seqList, seqToFind);
       
-      for ( ; seqItem; seqItem = seqItem->next)
+      if (foundItem)
 	{
-	  const char *compareName = (const char*)(seqItem->data);
-	  if (strcmp(compareName, seqName) == 0)
-	    {
-	      result = group;
-	      break;
-	    }
+	  result = group;
+	  break;
 	}
     }
   
@@ -2958,8 +3049,8 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 	  first = FALSE;
 	}
 
-      const char *seqName = (const char*)(listItem->data);
-      g_string_append(result, seqName);
+      const SequenceStruct *seq = (const SequenceStruct*)(listItem->data);
+      g_string_append(result, seq->seqName);
     }
 
   return result;
@@ -3011,36 +3102,36 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees)
 
 
 /* Call this function to select the given match sequence */
-void blxWindowSelectSeq(GtkWidget *blxWindow, char *seqName, const gboolean updateTrees)
+void blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees)
 {
-  if (!blxWindowIsSeqSelected(blxWindow, seqName))
+  if (!blxWindowIsSeqSelected(blxWindow, seq))
     {
       BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-      blxContext->selectedSeqs = g_list_append(blxContext->selectedSeqs, seqName);
+      blxContext->selectedSeqs = g_list_append(blxContext->selectedSeqs, seq);
       blxWindowSelectionChanged(blxWindow, updateTrees);
     }
 }
 
 
-/* Utility function to set the list of selected sequences to that given */
-void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqNameList)
+/* Utility function to set the list of selected sequences */
+void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList)
 {
   blxWindowDeselectAllSeqs(blxWindow, FALSE);
 
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  blxContext->selectedSeqs = seqNameList;
+  blxContext->selectedSeqs = seqList;
 
   blxWindowSelectionChanged(blxWindow, TRUE);
 }
 
 
 /* Call this function to deselect the given sequence */
-void blxWindowDeselectSeq(GtkWidget *blxWindow, char *seqName, const gboolean updateTrees)
+void blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
   /* See if it's in the list and, if so, get a pointer to the list element */
-  GList *foundSeq = findStringInList(blxContext->selectedSeqs, seqName);
+  GList *foundSeq = g_list_find(blxContext->selectedSeqs, seq);
 
   if (foundSeq)
     {
@@ -3065,17 +3156,17 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow, const gboolean updateTrees)
 
 
 /* Returns true if the given sequence is selected */
-gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const char *seqName)
+gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq)
 {
-  gboolean result = FALSE;
-  
+  GList *foundItem = NULL;
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  
   if (blxContext)
     {
-      result = (findStringInList(blxContext->selectedSeqs, seqName) != NULL);
+      foundItem = g_list_find(blxContext->selectedSeqs, seq);
     }
   
-  return result;
+  return (foundItem != NULL);
 }
 
 
@@ -3132,6 +3223,225 @@ static GtkWidget* createMainMenu(GtkWidget *window)
 }
 
 
+/* calcID: caculated percent identity of an MSP
+ * 
+ * There seems to be a general problem with this routine for protein
+ * alignments, the existing code certainly does not do the right thing.
+ * I have fixed this routine for gapped sequence alignments but not for
+ * protein stuff at all.
+ * 
+ * To be honest I think this routine is a _waste_ of time, the alignment
+ * programs that feed data to blixem produce an identity anyway so why
+ * not use that...why reinvent the wheel......
+ * 
+ * */
+static void calcID(MSP *msp, BlxViewContext *bc)
+{
+  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
+  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+  
+  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
+  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
+  
+  msp->id = UNSET_INT;
+  
+  if (mspIsBlastMatch(msp) && msp->sseq && msp->sseq != bc->paddingSeq)
+    {
+      msp->id = 0;
+      
+      /* Note that this will reverse complement the ref seq if it is the reverse 
+       * strand. This means that where there is no gaps array the comparison is trivial
+       * as coordinates can be ignored and the two sequences just whipped through. */
+
+      char *refSeqSegment = getSequenceSegment(bc,
+					       bc->refSeq,
+					       msp->qstart, 
+					       msp->qend, 
+					       mspGetRefStrand(msp), 
+					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
+					       mspGetRefFrame(msp, bc->seqType),
+					       bc->displayRev,
+					       !qForward,
+					       TRUE,
+					       TRUE);
+      
+      if (!refSeqSegment)
+	{
+	  messout ( "calcID failed: Don't have genomic sequence %d - %d, requested for match sequence '%s' (match coords = %d - %d)\n", msp->qstart, msp->qend, msp->sname, msp->sstart, msp->send);
+	  return;
+	}
+      
+      /* We need to find the number of characters that match out of the total number */
+      int numMatchingChars = 0;
+      int totalNumChars = 0;
+      
+      if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
+	{
+	  /* Ungapped alignments. */
+	  totalNumChars = (qSeqMax - qSeqMin + 1) / bc->numFrames;
+	  
+	  if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
+	    {
+	      int i = 0;
+	      for ( ; i < totalNumChars; i++)
+		{
+		  if (freeupper(msp->sseq[i]) == freeupper(refSeqSegment[i]))
+		    {
+		      numMatchingChars++;
+		    }
+		}
+	    }
+	  else						    /* blastn, blastp & blastx */
+	    {
+	      int i = 0;
+	      for ( ; i < totalNumChars; i++)
+                {
+                  int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
+		  if (freeupper(msp->sseq[sIndex]) == freeupper(refSeqSegment[i]))
+		    {
+		      numMatchingChars++;
+		    }
+                }
+	    }
+	}
+      else
+	{
+	  /* Gapped alignments. */
+	  
+	  /* To do tblastn and tblastx is not imposssible but would like to work from
+	   * examples to get it right.... */
+	  if (bc->blastMode == BLXMODE_TBLASTN)
+	    {
+	      printf("not implemented yet\n") ;
+	    }
+	  else if (bc->blastMode == BLXMODE_TBLASTX)
+	    {
+	      printf("not implemented yet\n") ;
+	    }
+	  else
+	    {
+	      /* blastn and blastp remain simple but blastx is more complex since the query
+               * coords are nucleic not protein. */
+	      
+              Array gaps = msp->gaps;
+	      
+              int i = 0;
+	      for ( ; i < arrayMax(gaps) ; i++)
+		{
+		  SMapMap *m = arrp(gaps, i, SMapMap) ;
+		  
+                  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+		  
+                  totalNumChars += sRangeMax - sRangeMin + 1;
+                  
+                  /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
+		   * We need to translate the first coord in the range (which is in terms of the full
+		   * reference sequence) into coords in the cut-down ref sequence. */
+                  int q_start = qForward ? (qRangeMin - qSeqMin) / bc->numFrames : (qSeqMax - qRangeMax) / bc->numFrames;
+		  
+		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
+		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
+		   * so start from the lower or upper end accordingly. */
+                  int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
+		  
+                  int sIdx = s_start, qIdx = q_start ;
+		  while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
+		    {
+		      if (freeupper(msp->sseq[sIdx]) == freeupper(refSeqSegment[qIdx]))
+			numMatchingChars++ ;
+		      
+                      /* Move to the next base. The refSeqSegment is always forward, but we might have to
+                       * traverse the s sequence in reverse. */
+                      ++qIdx ;
+                      if (sForward) ++sIdx ;
+                      else --sIdx ;
+		    }
+		}
+	    }
+	}
+      
+      msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
+      
+      g_free(refSeqSegment);
+    }
+  
+  return ;
+}
+
+
+/* Calculate the ID, q coordinates and q frame for the given MSP and store 
+ * them in the MSP struct. Returns the calculated ID (or UNSET_INT if this msp
+ * is not a blast match). */
+static void calcMspData(MSP *msp, BlxViewContext *bc)
+{
+  /* Convert the input coords (which are 1-based within the ref sequence section
+   * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
+  int offset = bc->refSeqRange.min - 1;
+  msp->qstart = msp->qstart + offset;
+  msp->qend = msp->qend + offset;
+  
+  /* Gap coords are also 1-based, so convert those too */
+  if (msp->gaps && arrayMax(msp->gaps) > 0)
+    {
+      int i = 0;
+      for ( ; i < arrayMax(msp->gaps) ; i++)
+	{
+	  SMapMap *curRange = arrp(msp->gaps, i, SMapMap);
+	  curRange->r1 = curRange->r1 + offset;
+	  curRange->r2 = curRange->r2 + offset;
+	}
+    }
+  
+  /* Calculate the q frame that this MSP should appear in; that is, the frame in which
+   * the first coord of the match will be base 1. (We can find the base number within
+   * frame 1 and the required frame number is simply the same as that.) */
+  /* to do: do this for exons as well; we need more info though because exons don't
+   * necessarily start at base1 in their frame. */
+  if (bc->seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
+    {
+      const gboolean reverseStrand = (mspGetRefStrand(msp) == REVERSE_STRAND);
+      
+      int frame = UNSET_INT;
+      convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
+      char *frameStr = convertIntToString(frame);
+
+      if (frameStr[0] != msp->qframe[2])
+	{
+	  printf("Warning: calculated match frame as %c but frame in input file is %c. Sequence %s [%d - %d]\n", frameStr[0], msp->qframe[2], msp->sname, msp->sstart, msp->send);
+	}  
+      
+      msp->qframe[2] = frameStr[0];
+      g_free(frameStr);
+    }
+  
+  /* Calculate the ID */
+  if (mspIsBlastMatch(msp))
+    {
+      calcID(msp, bc);
+    }
+}
+
+
+static int calculateMspData(MSP *mspList, BlxViewContext *bc)
+{
+  MSP *msp = mspList;
+  int lowestId = UNSET_INT;
+  
+  for ( ; msp; msp = msp->next)
+    {
+      calcMspData(msp, bc);
+      
+      if (mspIsBlastMatch(msp) && (lowestId == UNSET_INT || msp->id < lowestId))
+	{
+	  lowestId = msp->id;
+	}
+    }
+  
+  return lowestId;
+}
+
+
 /* Create the main blixem window */
 GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
 {
@@ -3178,13 +3488,17 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
 								      0,   /* page increment dynamically set based on display range */
 								      0)); /* page size dunamically set based on display range */
   
+  BlxViewContext *blxContext = blxWindowCreateContext(options, &refSeqRange, &fullDisplayRange, paddingSeq);
+  const int lowestId = calculateMspData(options->mspList, blxContext);
+  
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
   
   GtkWidget *bigPicture = createBigPicture(window,
 					   vbox, 
 					   &fwdStrandGrid, 
 					   &revStrandGrid,
-					   options->bigPictZoom);
+					   options->bigPictZoom,
+					   lowestId);
 
   GtkWidget *detailView = createDetailView(window,
 					   vbox, 
@@ -3206,17 +3520,19 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
   
   /* Set required data for the blixem window */
   blxWindowCreateProperties(options,
-			     window, 
-			     bigPicture, 
-			     detailView, 
-			     mainmenu,
-			     &refSeqRange, 
-			     &fullDisplayRange,
-			     paddingSeq);
+			    blxContext,
+			    window, 
+			    bigPicture, 
+			    detailView, 
+			    mainmenu,
+			    &refSeqRange, 
+			    &fullDisplayRange,
+			    paddingSeq);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBlxWindow), mainmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBlxWindow), mainmenu);
+  
   
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
@@ -3226,9 +3542,14 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
 
+  /* Calculate the number of vertical cells in the grids (again, requires properties) */
+  calculateNumVCells(bigPicture);
+
+
   /* Realise the widgets */
   printf("Starting Blixem\n");
   gtk_widget_show_all(window);
+  
 
   /* Set the initial column widths. (This must be called after the widgets are 
    * realised because it causes the scroll range to be updated, which in turn causes
@@ -3237,6 +3558,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
    * from its window's width, and this will be incorrect if it has not been realised.) */
   callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
   resizeDetailViewHeaders(detailView);
-
+  
   return window;
 }

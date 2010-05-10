@@ -27,13 +27,14 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.10 2010-04-14 12:28:44 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.11 2010-05-10 09:16:45 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
 #define DEF_BLXVIEW_H
 
 #include <wh/regular.h>
+#include <gtk/gtk.h>
 
 
 /* Only used in pephomolcol.c, would be good to get rid of this.... */
@@ -94,6 +95,17 @@ typedef enum
     SEQ, SEQdata
   } BlxMSPType ;
 
+
+/* Structure that contains information about a sequence */
+typedef struct _SequenceStruct
+{
+  char *seqName;	/* name of the sequence */
+  const char *seq;		/* the actual sequence */
+  GList *mspList;		/* list of MSPs from this sequence */
+} SequenceStruct;
+
+
+/* Structure holding information about a match */
 typedef struct _MSP
 {
   struct _MSP *next;
@@ -106,15 +118,16 @@ typedef struct _MSP
   int      qstart;
   int      qend;
 
-  char    *sname;	
-	
+  SequenceStruct *sSequence;	/* pointer to a struct holding info about the sequence this match is from */
+  char    *sname;		/* sequence name (should be removed - get from SequenceStruct instead) */
+  char    *sseq;		/* sequence (should be removed - get from SequenceStruct instead) */
+  
   /* Change to sstrand, frame for subject makes no sense.... */
   char     sframe[8];
 
   int      slength ;
   int      sstart; 
   int      send;
-  char    *sseq;
   
   char    *desc;
   int      box ;
