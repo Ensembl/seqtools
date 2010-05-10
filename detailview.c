@@ -10,6 +10,7 @@
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/bigpicture.h>
+#include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
 #include <gtk/gtk.h>
 

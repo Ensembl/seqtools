@@ -10,6 +10,7 @@
 #define _big_picture_included_
 
 #include <SeqTools/bigpicturegrid.h>
+#include <SeqTools/blxwindow.h>
 #include <SeqTools/blixem_.h>
 
 
@@ -91,6 +92,7 @@ int			      bigPictureGetNumFrames(GtkWidget *bigPicture);
 int			      bigPictureGetIdPerCell(GtkWidget *bigPicture);
 IntRange*		      bigPictureGetPercentIdRange(GtkWidget *bigPicture);
 int			      bigPictureGetNumVCells(GtkWidget *bigPicture);
+BlxViewContext*		      bigPictureGetContext(GtkWidget *bigPicture);
 
 void			      bigPictureSetIdPerCell(GtkWidget *bigPicture, const int idPerCell);
 void			      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const int newValue);
@@ -99,6 +101,7 @@ void			      bigPictureSetMinPercentId(GtkWidget *bigPicture, const int newValue
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
 void			      calculateNumVCells(GtkWidget *bigPicture);
+void			      bigPictureRedrawAll(GtkWidget *bigPicture);
 
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);

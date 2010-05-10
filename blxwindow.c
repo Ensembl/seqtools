@@ -11,6 +11,7 @@
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/blxdotter.h>
+#include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
 #include <gdk/gdkkeysyms.h>
 
@@ -488,9 +489,8 @@ static void zoomBlxWindow(GtkWidget *window, const gboolean zoomIn, const gboole
 void blxWindowRedrawAll(GtkWidget *blxWindow)
 {
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  widgetClearCachedDrawable(bigPictureGetFwdGrid(bigPicture));
-  widgetClearCachedDrawable(bigPictureGetRevGrid(bigPicture));
-  
+  bigPictureRedrawAll(bigPicture);
+
   gtk_widget_queue_draw(blxWindow);
 }
 
@@ -875,6 +875,17 @@ void showFindDialog(GtkWidget *blxWindow)
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
   
   gtk_widget_show_all(dialog);
+}
+
+
+/* Toggle the bump state. Currently only the exon view can be bumped, so this just
+ * affects that. */
+static void toggleBumpState(GtkWidget *blxWindow)
+{
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+  
+  exonViewToggleExpanded(bigPictureGetFwdExonView(bigPicture));
+  exonViewToggleExpanded(bigPictureGetRevExonView(bigPicture));
 }
 
 /***********************************************************
@@ -2678,6 +2689,12 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
 	  }
 	break;
 	
+      case GDK_b: /* fall through */
+      case GDK_B:
+	toggleBumpState(window);
+	result = TRUE;
+	break;
+	
       case GDK_t: /* fall through */
       case GDK_T:
 	toggleStrand(blxWindowGetDetailView(window));
@@ -3091,10 +3108,8 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees)
   /* Update the feedback box to tell the user which sequence is selected. */
   updateFeedbackBox(detailView);
   
-  /* Recreate the grids (because the MSP lines will change colour with highlighting) */
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
-  gtk_widget_queue_draw(bigPicture);
+  /* Redraw the grids and exon view (because items will change colour with selection) */
+  bigPictureRedrawAll(blxWindowGetBigPicture(blxWindow));
   
   /* Copy the selected sequence names to the PRIMARY clipboard */
   GString *displayText = blxWindowGetSelectedSeqNames(blxWindow);

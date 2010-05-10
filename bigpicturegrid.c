@@ -45,7 +45,7 @@ static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static GtkWidget*	    gridGetBlxWindow(GtkWidget *grid);
 static int		    gridGetNumFrames(GtkWidget *grid);
-static void                 drawBigPictureGrid(GtkWidget *grid);
+static void                 drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable);
 
 /***********************************************************
  *                     Utility functions	           *
@@ -463,21 +463,8 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 
 /* Main function that does the drawing for the grid. Drawing is done onto a pixmap
  * which is then stored in the grid properties */
-static void drawBigPictureGrid(GtkWidget *grid)
+static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 {
-  /* First create and cache the bitmap */
-  GdkDrawable *drawable = gdk_pixmap_new(GTK_LAYOUT(grid)->bin_window, grid->allocation.width, grid->allocation.height, -1);
-  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(grid, drawable); /* deletes the old drawable, if there is one */
-  
-  /* Paint a blank rectangle for the background, the same colour as the widget's background */
-  GdkGC *gc = gdk_gc_new(drawable);
-  GtkStyle *style = gtk_widget_get_style(grid);
-  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
-  gdk_gc_set_foreground(gc, bgColour);
-  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, grid->allocation.width, grid->allocation.height);
-
-  
   /* Calculate some factors for scaling */
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
@@ -486,6 +473,8 @@ static void drawBigPictureGrid(GtkWidget *grid)
   const gint numVCells = gridGetNumVCells(grid);
   
   /* Draw the grid lines */
+  GdkGC *gc = gdk_gc_new(drawable);
+
   drawVerticalGridLines(grid, 
                         drawable,
                         gc,
@@ -622,11 +611,12 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(grid);
+      
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
-          drawBigPictureGrid(grid);
-	  bitmap = widgetGetDrawable(grid);
+	  bitmap = createBlankPixmap(grid);
+          drawBigPictureGrid(grid, bitmap);
         }
       
       if (bitmap)

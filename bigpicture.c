@@ -25,7 +25,6 @@
 
 
 /* Local function declarations */
-static BlxViewContext*		    bigPictureGetContext(GtkWidget *bigPicture);
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
 static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 static int			    bigPictureGetInitialZoom(GtkWidget *bigPicture);
@@ -35,6 +34,20 @@ static void                         drawBigPictureGridHeader(GtkWidget *header, 
 /***********************************************************
  *                     Utility functions	           *
  ***********************************************************/
+
+void bigPictureRedrawAll(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  
+  widgetClearCachedDrawable(properties->header);
+  widgetClearCachedDrawable(properties->fwdStrandGrid);
+  widgetClearCachedDrawable(properties->revStrandGrid);
+  widgetClearCachedDrawable(properties->fwdExonView);
+  widgetClearCachedDrawable(properties->revExonView);
+  
+  gtk_widget_queue_draw(bigPicture);
+}
+
 
 /* Utility to get the height and (approx) width of the given widget's font */
 static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
@@ -405,6 +418,11 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
   /* Recalculate the grid cell size */
   calculateBigPictureCellSize(bigPicture);
 
+  /* Recalculate the exon view height, because it may have changed with more/less
+   * exons being scrolled into view */
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  
   /* Since we're keeping the highlight box centred, it should stay in the same place
    * if we're just scrolling. We therefore only need to recalculate its position if
    * its size has changed. */
@@ -413,10 +431,7 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
       callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
     }
 
-  /* Redraw */
-  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
-  widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
-  gtk_widget_queue_draw(bigPicture);
+  bigPictureRedrawAll(bigPicture);
 }
 
 
@@ -444,6 +459,11 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcH
       const int width = displayRange->max - displayRange->min;
       setBigPictureDisplayWidth(bigPicture, width, recalcHighlightBox);
     }
+
+  /* Recalculate the exon view height, because it may have changed with more/less
+   * exons being scrolled into view */
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
 }
 
 
@@ -517,6 +537,7 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
   setBigPictureDisplayWidth(bigPicture, newWidth, TRUE);
 }
 
+
 /* Zoom the big picture out to view the whole reference sequence */
 void zoomWholeBigPicture(GtkWidget *bigPicture)
 {
@@ -553,9 +574,7 @@ static void updateOnPercentIdChanged(GtkWidget *bigPicture)
   callFuncOnAllBigPictureGrids(bigPicture, calculateGridBorders);
   callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
   
-  callFuncOnAllBigPictureGrids(bigPicture, widgetClearCachedDrawable);
-  widgetClearCachedDrawable(bigPictureGetGridHeader(bigPicture));
-  gtk_widget_queue_draw(bigPicture);
+  bigPictureRedrawAll(bigPicture);
 }
 
 /***********************************************************
@@ -620,7 +639,7 @@ BigPictureProperties* bigPictureGetProperties(GtkWidget *bigPicture)
   return bigPicture ? (BigPictureProperties*)(g_object_get_data(G_OBJECT(bigPicture), "BigPictureProperties")) : NULL;
 }
 
-static BlxViewContext* bigPictureGetContext(GtkWidget *bigPicture)
+BlxViewContext* bigPictureGetContext(GtkWidget *bigPicture)
 {
   GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
   return blxWindowGetContext(blxWindow);
