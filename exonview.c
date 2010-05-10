@@ -395,6 +395,12 @@ static GtkWidget* exonViewGetTopGrid(GtkWidget *exonView)
   return topGrid;
 }
 
+gboolean exonViewGetExpanded(GtkWidget *exonView)
+{
+  ExonViewProperties *properties = exonViewGetProperties(exonView);
+  return properties->expanded;
+}
+
 /* Set whether the view is expanded or not */
 void exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded)
 {

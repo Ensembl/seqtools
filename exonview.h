@@ -11,6 +11,9 @@
 
 /* Public function declarations */
 GtkWidget*	createExonView(GtkWidget *bigPicture, const Strand strand);
+
+gboolean	exonViewGetExpanded(GtkWidget *exonView);
 void		exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded);
 void		exonViewToggleExpanded(GtkWidget *exonView);
+
 void		calculateExonViewHeight(GtkWidget *exonView);

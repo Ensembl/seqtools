@@ -704,15 +704,12 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const Strand stran
 	}
       else
 	{
-	  /* All the visible trees should be in the same strand, so just distinguish by frame number.
-	   * Put the strand in its own frame for consistency. */
+	  /* All the visible trees should be in the same strand, so just distinguish by frame number. */
 	  char formatStr[] = "Show frame _%d";
 	  char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
 	  sprintf(displayText, formatStr, frame);
 
-	  GtkWidget *frame = gtk_frame_new(isActiveStrand ? "Active strand" : "Other strand");
-	  gtk_container_add(GTK_CONTAINER(container), frame);
-	  createVisibilityButton(tree, displayText, frame);
+	  createVisibilityButton(tree, displayText, container);
 	}
     }
 }

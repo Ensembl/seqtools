@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.26 2010-05-10 09:16:45 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.27 2010-05-10 16:14:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -44,7 +44,7 @@
 
 #define BLIXEM_VERSION 4
 #define BLIXEM_RELEASE 0
-#define BLIXEM_UPDATE  0
+#define BLIXEM_UPDATE  1
 #define BLIXEM_VERSION_NUMBER	    UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
 #define BLIXEM_VERSION_STRING	    UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
 #define BLIXEM_TITLE_STRING	    UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
