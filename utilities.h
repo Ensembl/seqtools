@@ -25,6 +25,7 @@
 #define GDK_LIGHT_STEEL_BLUE  "#78b4f0"
 #define GDK_STEEL_BLUE	      "#5e76bb"
 #define GDK_ROYAL_BLUE	      "#4169e1"
+#define GDK_LIGHT_SKY_BLUE    "#87cefa"
 #define GDK_GREY	      "#bebebe"
 #define GDK_DARK_GREY	      "#929292"
 #define GDK_BLACK	      "#000000"
@@ -36,6 +37,14 @@
 #define GDK_DARK_GREEN	      "#00bb00"
 #define GDK_TURQUOISE	      "#40e0d0"
 #define GDK_DARK_TURQUOISE    "#32aca0"
+#define GDK_PURPLE	      "#9370db"
+#define GDK_PLUM	      "#dda0dd"
+#define GDK_TOMATO	      "#ff6347"
+#define GDK_PALE_GREEN	      "#98fb98"
+#define GDK_LAWN_GREEN	      "#7cfc00"
+#define GDK_LIGHT_CORAL	      "#f08080"
+#define GDK_LIGHT_SALMON      "#ffa07a"
+
 
 
 /* This struct holds generic callback information. It can be stored as a widget

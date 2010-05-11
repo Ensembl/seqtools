@@ -13,6 +13,7 @@
 #include <SeqTools/utilities.h>
 #include <SeqTools/sequencecellrenderer.h>
 #include <SeqTools/blxwindow.h>
+#include <SeqTools/detailview.h>
 
 #define DETAIL_VIEW_TREE_NAME		  "DetailViewTreeName"
 #define DETAIL_VIEW_TREE_CONTAINER_NAME	  "DetailViewTreeContainerName"
@@ -80,9 +81,17 @@ void		  selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data);
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);
 
-GdkColor*	  getCoordColour(const int displayIdx, const Strand strand, const gboolean displayIdxSelected, const gboolean dnaIdxSelected, const MSP *mspList,
-				 GdkColor *normalColour, GdkColor *selectedColour, GdkColor *snpColour, GdkColor *snpColourSelected, 
-				 GdkColor *tripletColour, GdkColor *tripletColourSelected);
+GdkColor*	  getCoordColour(BlxViewContext *bc,
+				 DetailViewProperties *properties,
+				 const int dnaIdx,
+				 const char baseChar,
+				 const Strand strand, 
+				 const BlxSeqType seqType,
+				 const gboolean displayIdxSelected, 
+				 const gboolean dnaIdxSelected, 
+				 const gboolean showBackground,
+				 const gboolean showSnps,
+				 const gboolean showCodons);
 
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,

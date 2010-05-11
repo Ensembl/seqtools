@@ -1151,9 +1151,17 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
 	  const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
 	  
-	  GdkColor *colour = getCoordColour(qIdx, strand, displayIdxSelected, dnaIdxSelected,
-					    bc->mspList, NULL, NULL, &properties->snpColour, &properties->snpColourSelected,
-					    &properties->highlightTripletColour, &properties->highlightDnaBaseColour);
+	  GdkColor *colour = getCoordColour(bc,
+					    properties,
+					    qIdx, 
+					    displayText[displayTextPos],
+					    strand, 
+					    BLXSEQ_DNA,
+					    displayIdxSelected, 
+					    dnaIdxSelected,
+					    FALSE,
+					    TRUE,
+					    TRUE);
 	  
 	  if (colour)
 	    {
@@ -1947,8 +1955,12 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->insertionColourSelected = getSelectionColour(&properties->insertionColour);
       properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
       properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_BLUE);
-      properties->highlightTripletColour  = getGdkColor(GDK_GREEN);
-      properties->highlightDnaBaseColour  = getSelectionColour(&properties->highlightTripletColour);
+      properties->codonColour		  = getGdkColor(GDK_LIGHT_SKY_BLUE);
+      properties->codonColourSelected	  = getSelectionColour(&properties->codonColour);
+      properties->metColour		  = getGdkColor(GDK_LAWN_GREEN);
+      properties->metColourSelected	  = getSelectionColour(&properties->metColour);
+      properties->stopColour		  = getGdkColor(GDK_LIGHT_SALMON);
+      properties->stopColourSelected	  = getSelectionColour(&properties->stopColour);
       properties->snpColour		  = getGdkColor(GDK_ORANGE);
       properties->snpColourSelected	  = getSelectionColour(&properties->snpColour);
 

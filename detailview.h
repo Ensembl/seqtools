@@ -121,9 +121,12 @@ typedef struct _DetailViewProperties
     GdkColor insertionColourSelected; /* background colour for insertion marker in match sequence (when position selected) */
     GdkColor exonBoundaryColourStart; /* line colour for exon boundaries (marking the start of an exon) */
     GdkColor exonBoundaryColourEnd;   /* line colour for exon boundaries (marking the end of an exon) */
-    GdkColor highlightTripletColour;  /* For codon triplets, highlight all the bases in the selected triplet in this colour */
-    GdkColor highlightDnaBaseColour;  /* For codon triplets, highlight the specific selected DNA base in this colour */
-    GdkColor highlightedRowColour;    /* Background colour for rows that have been grouped for highlighting */
+    GdkColor codonColour;	      /* Highlight all the nucleotides in the selected codon in this colour */
+    GdkColor codonColourSelected;     /* Highlight the selected nucleotide within the currently-selected codon in this colour */
+    GdkColor metColour;		      /* Background colour for MET codons */
+    GdkColor metColourSelected;	      /* Background colour for MET codons that are selected */
+    GdkColor stopColour;	      /* Background colour for STOP codons */
+    GdkColor stopColourSelected;      /* Background colour for STOP codons that are selected */
     GdkColor snpColour;		      /* Background colour for SNPs or bases that have SNPs associated with them */
     GdkColor snpColourSelected;	      /* Background colour for SNPs when they are selected */
     

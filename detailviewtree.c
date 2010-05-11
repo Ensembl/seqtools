@@ -1000,39 +1000,46 @@ static gboolean coordAffectedBySnp(const int dnaIdx, const Strand strand, const 
 /* Utility to determine the background colour of a base in the given frame
  * and strand. Pass in the colour options so we don't have to get them from the
  * tree (which is slow if called many times) */
-GdkColor* getCoordColour(const int dnaIdx,
+GdkColor* getCoordColour(BlxViewContext *bc,
+			 DetailViewProperties *properties,
+			 const int dnaIdx,
+			 const char baseChar,
 			 const Strand strand,
+			 const BlxSeqType seqType,
 			 const gboolean displayIdxSelected,
 			 const gboolean dnaIdxSelected,
-			 const MSP *mspList,
-			 GdkColor *normalColour,
-			 GdkColor *selectedColour,
-			 GdkColor *snpColour,
-			 GdkColor *snpColourSelected,
-			 GdkColor *tripletColour,
-			 GdkColor *tripletColourSelected)
+			 const gboolean showBackground,   /* whether to use default background colour or leave blank */
+			 const gboolean showSnps,	  /* whether to show SNPs */
+			 const gboolean showCodons)	  /* whether to highlight DNA bases within the selected codon, for protein matches */
 {
   GdkColor *result = NULL;
   
-  if (snpColour && snpColourSelected && coordAffectedBySnp(dnaIdx, strand, mspList))
+  if (showSnps && coordAffectedBySnp(dnaIdx, strand, bc->mspList))
     {
-      result = (dnaIdxSelected && snpColourSelected) ? snpColourSelected : snpColour;
+      /* The coord is affected by a SNP. */
+      result = (dnaIdxSelected) ? &properties->snpColourSelected : &properties->snpColour;
     }
-  else if (dnaIdxSelected && tripletColourSelected)
+  else if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected))
     {
-      result = tripletColourSelected;
+      /* The coord is a nucleotide in the currently-selected codon. The colour depends
+       * on whether the actual nucleotide itself is selected, or just the codon that it 
+       * belongs to. */
+      result = dnaIdxSelected ? &properties->codonColourSelected : &properties->codonColour;
     }
-  else if (displayIdxSelected && tripletColour)
+  else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
     {
-      result = tripletColour;
+      /* The coord is a MET codon or a STOP codon */
+      result = displayIdxSelected ? &properties->metColourSelected : &properties->metColour;
     }
-  else if (displayIdxSelected && selectedColour)
+  else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
     {
-      result = selectedColour;
+      /* The coord is a MET codon or a STOP codon */
+      result = displayIdxSelected ? &properties->stopColourSelected : &properties->stopColour;
     }
-  else if (normalColour)
+  else if (showBackground)
     {
-      result = normalColour;
+      /* Use the default background colour for the reference sequence */
+      result = displayIdxSelected ? &properties->refSeqColourSelected : &properties->refSeqColour;
     }
   
   return result;
@@ -1052,16 +1059,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
-  /* Set the colour to highlight SNP-affected bases in, if displaying SNPs against
-   * this tree */
-  GdkColor *snpColour = NULL;
-  GdkColor *snpColourSelected = NULL;
-  
-  if (treeHasSnpHeader(tree))
-    {
-      snpColour = detailViewGetSnpColour(detailView, FALSE);
-      snpColourSelected = detailViewGetSnpColour(detailView, TRUE);
-    }
+  const gboolean showSnps = treeHasSnpHeader(tree);
   
   /* Find the segment of the ref seq to display. */
   gchar *segmentToDisplay = getSequenceSegment(bc,
@@ -1089,10 +1087,20 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 	{
 	  /* Set the background colour depending on whether this base is selected or
 	   * is affected by a SNP */
-	   const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
-	   
-	  GdkColor *colour = getCoordColour(dnaIdx, strand, displayIdxSelected, displayIdxSelected, bc->mspList,
-					    &properties->refSeqColour, &properties->refSeqColourSelected, snpColour, snpColourSelected, NULL, NULL);
+	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+	  const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
+	  
+	  GdkColor *colour = getCoordColour(bc,
+					    properties,
+					    dnaIdx, 
+					    baseChar,
+					    strand, 
+					    bc->seqType,
+					    displayIdxSelected, 
+					    displayIdxSelected, 
+					    TRUE,
+					    showSnps, 
+					    FALSE);
 	  
 	  if (colour)
 	    {
