@@ -13,7 +13,6 @@
 #include <SeqTools/utilities.h>
 
 
-#define	DEFAULT_REF_SEQ_BG_COLOUR	GDK_YELLOW
 #define HEADER_CONTAINER_NAME		"header container"
 #define SNP_TRACK_HEADER_NAME		"SNP track header"
 #define DNA_TRACK_HEADER_NAME		"DNA track header"
@@ -105,32 +104,8 @@ typedef struct _DetailViewProperties
     /* Cached font sizes, needed often for calculations. */
     int charHeight;
     int charWidth;
-    
-    /* Display properties */
-    GdkColor refSeqColour;	      /* background colour for reference sequence base */
-    GdkColor refSeqColourSelected;    /* background colour for reference sequence base (when base selected) */
-    GdkColor matchColour;	      /* background colour for base that matches */
-    GdkColor matchColourSelected;     /* background colour for base that matches (when base selected) */
-    GdkColor mismatchColour;	      /* background colour for base that does not match */
-    GdkColor mismatchColourSelected;  /* background colour for base that does not match (when base selected) */
-    GdkColor consColour;	      /* background colour for peptide that matches similar type */
-    GdkColor consColourSelected;      /* background colour for peptide that matches similar type (when base selected) */
-    GdkColor exonColour;	      /* background colour for exon base */
-    GdkColor exonColourSelected;      /* background colour for exon base (when base selected) */
-    GdkColor insertionColour;	      /* background colour for insertion marker in match sequence */
-    GdkColor insertionColourSelected; /* background colour for insertion marker in match sequence (when position selected) */
-    GdkColor exonBoundaryColourStart; /* line colour for exon boundaries (marking the start of an exon) */
-    GdkColor exonBoundaryColourEnd;   /* line colour for exon boundaries (marking the end of an exon) */
-    GdkColor codonColour;	      /* Highlight all the nucleotides in the selected codon in this colour */
-    GdkColor codonColourSelected;     /* Highlight the selected nucleotide within the currently-selected codon in this colour */
-    GdkColor metColour;		      /* Background colour for MET codons */
-    GdkColor metColourSelected;	      /* Background colour for MET codons that are selected */
-    GdkColor stopColour;	      /* Background colour for STOP codons */
-    GdkColor stopColourSelected;      /* Background colour for STOP codons that are selected */
-    GdkColor snpColour;		      /* Background colour for SNPs or bases that have SNPs associated with them */
-    GdkColor snpColourSelected;	      /* Background colour for SNPs when they are selected */
-    
-    int exonBoundaryLineWidth;	      /* line width for exon boundaries */
+        
+    int exonBoundaryLineWidth;		     /* line width for exon boundaries */
     GdkLineStyle exonBoundaryLineStyleStart; /* line style for exon boundaries (marking the start of an exon) */
     GdkLineStyle exonBoundaryLineStyleEnd;   /* line style for exon boundaries (marking the end of the exon) */
   } DetailViewProperties;
@@ -166,8 +141,6 @@ DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 int			detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId);
 
 int			getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange);
-
-GdkColor*		detailViewGetSnpColour(GtkWidget *detailView, const gboolean selected);
 
 void			prevMatch(GtkWidget *detailView, GList *seqList);
 void			nextMatch(GtkWidget *detailView, GList *seqList);

@@ -171,8 +171,8 @@ gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointe
   
   GdkGC *gc = gdk_gc_new(drawable);
   GtkStyle *style = gtk_widget_get_style(label);
-  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
-  gdk_gc_set_foreground(gc, bgColour);
+  GdkColor *bgColor = &style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColor);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, label->allocation.width, label->allocation.height);
 
   PangoLayout *layout = gtk_label_get_layout(GTK_LABEL(label));
@@ -252,18 +252,17 @@ int numDigitsInInt(int val)
 }
 
 
-/* Create a GdkColor from one of our internally-defined colours, e.g. GDK_YELLOW.
- * At the moment this is just a wrapper around gdk_color_parse. */
-GdkColor getGdkColor(const char *colour)
+/* Create a GdkColor from one of our internally-defined colors, e.g. BLX_YELLOW.
+ * At the moment this is just a wrapper around gdk_color_parse. Returns true if ok, 
+ * false if there was an error. */
+gboolean parseBlxColor(const char *color, GdkColor *result)
 {
-  GdkColor result;
-  
-  gboolean ok = gdk_color_parse(colour, &result);
+  gboolean ok = gdk_color_parse(color, result);
 
   if (ok)
     {
       gboolean failures[1];
-      gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), &result, 1, TRUE, TRUE, failures);
+      gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), result, 1, TRUE, TRUE, failures);
       
       if (numFailures > 0)
 	ok = FALSE;
@@ -271,48 +270,126 @@ GdkColor getGdkColor(const char *colour)
 
   if (!ok)
     {
-      messerror("Error parsing colour string '%s'", colour);
+      messerror("Error parsing color string '%s'", color);
     }
   
-  return result;
+  return ok;
 }
 
 
-/* Reduce the brightness of a colour by the given factor (e.g. 0.5 for half brightness) */
-static GdkColor reduceColourBrightness(GdkColor *origColour, const double factor)
+/* Increase the brightness of a color by the given factor */
+static void increaseColorBrightness(GdkColor *origColor, const double factor, GdkColor *result)
 {
-  GdkColor result = {0, origColour->red * factor, origColour->green * factor, origColour->blue * factor};
+  result->pixel = 0;
+  const int maxRgb = 65535;
+  
+//  int maxVal = origColor->red > origColor->green ? origColor->red : origColor->green;
+//  
+//  if (origColor->blue > maxVal)
+//    maxVal = origColor->blue;
+//  
+//  int offset = maxVal * (factor - 1);
+//
+//  result->red	= ((int)origColor->red + offset > maxRgb)   ? maxRgb : (origColor->red + offset);
+//  result->green = ((int)origColor->green + offset > maxRgb) ? maxRgb : (origColor->green + offset);
+//  result->blue	= ((int)origColor->blue + offset > maxRgb)  ? maxRgb : (origColor->blue + offset);
+
+  int newRed = origColor->red * factor;
+  int newGreen = origColor->green * factor;
+  int newBlue = origColor->blue * factor;
+  
+  gboolean bustMax = FALSE;
+
+  if (newRed > maxRgb)
+    {
+      bustMax = TRUE;
+      newRed = maxRgb;
+    }
+
+  if (newGreen > maxRgb)
+    {
+      bustMax = TRUE;
+      newGreen = maxRgb;
+    }
+
+  if (newBlue > maxRgb)
+    {
+      bustMax = TRUE;
+      newBlue = maxRgb;
+    }
+  
+  if (bustMax)
+    {
+      const int offset = maxRgb * (factor - 1);
+      newRed = (origColor->red + offset > maxRgb) ? maxRgb : origColor->red + offset;
+      newGreen = (origColor->green + offset > maxRgb) ? maxRgb : origColor->green + offset;
+      newBlue = (origColor->blue + offset > maxRgb) ? maxRgb : origColor->blue + offset;
+    }
+  
+  result->red = newRed;
+  result->green = newGreen;
+  result->blue = newBlue;
   
   gboolean failures[1];
-  gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), &result, 1, TRUE, TRUE, failures);
+  gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), result, 1, TRUE, TRUE, failures);
   
   if (numFailures > 0)
     {
-      printf("Warning: error calculating highlight colour; using original colour instead (RGB=%d %d %d).", origColour->red, origColour->green, origColour->blue);
-      result.pixel = origColour->pixel;
-      result.red = origColour->red;
-      result.green = origColour->green;
-      result.blue = origColour->blue;
+      printf("Warning: error calculating highlight color; using original color instead (RGB=%d %d %d).", origColor->red, origColor->green, origColor->blue);
+      result->pixel = origColor->pixel;
+      result->red = origColor->red;
+      result->green = origColor->green;
+      result->blue = origColor->blue;
     }
+}
+
+
+/* Reduce the brightness of a color by the given factor (e.g. 0.5 for half brightness) */
+static void reduceColorBrightness(GdkColor *origColor, const double factor, GdkColor *result)
+{
+  result->pixel = 0;
+  result->red = origColor->red * factor;
+  result->green = origColor->green * factor;
+  result->blue = origColor->blue * factor;
   
-  return result;
+  gboolean failures[1];
+  gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), result, 1, TRUE, TRUE, failures);
+  
+  if (numFailures > 0)
+    {
+      printf("Warning: error calculating highlight color; using original color instead (RGB=%d %d %d).", origColor->red, origColor->green, origColor->blue);
+      result->pixel = origColor->pixel;
+      result->red = origColor->red;
+      result->green = origColor->green;
+      result->blue = origColor->blue;
+    }
+}
+
+
+/* Increase/decrease color brightness by given factor */
+void adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *result)
+{
+  if (factor > 1)
+    increaseColorBrightness(origColor, factor, result);
+  else if (factor < 1)
+    reduceColorBrightness(origColor, factor, result);
 }
 
 
 /* Utility to take a gdk color and return a slightly darker shade of it, for higlighting
- * things of that colour when they are selected. */
-GdkColor getSelectionColour(GdkColor *origColour)
+ * things of that color when they are selected. */
+void getSelectionColor(GdkColor *origColor, GdkColor *result)
 {
   const double factor = 0.8;
-  return reduceColourBrightness(origColour, factor);
+  adjustColorBrightness(origColor, factor, result);
 }
 
 
 /* Utility to take a gdk color and return a much darker shade of it, for use as a drop-shadow */
-GdkColor getDropShadowColour(GdkColor *origColour)
+void getDropShadowColor(GdkColor *origColor, GdkColor *result)
 {
   const double factor = 0.3;
-  return reduceColourBrightness(origColour, factor);
+  adjustColorBrightness(origColor, factor, result);
 }
 
 
@@ -1410,11 +1487,10 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
   gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
   widgetSetDrawable(widget, drawable); /* deletes the old drawable, if there is one */
   
-  /* Paint a blank rectangle for the background, the same colour as the widget's background */
+  /* Paint a blank rectangle for the background, the same color as the widget's background */
   GdkGC *gc = gdk_gc_new(drawable);
-  GtkStyle *style = gtk_widget_get_style(widget);
-  GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
-  gdk_gc_set_foreground(gc, bgColour);
+  GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColor);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);
   
   return drawable;
@@ -1456,3 +1532,35 @@ gint runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText)
 }
 
 
+/* Lookup the BlxColor with the given id in the given hash table and return a pointer to it */
+BlxColor* getBlxColor(GList *colorList, const BlxColorId colorId)
+{
+  BlxColor *result = NULL;
+  GList *item = colorList;
+  
+  for ( ; item; item = item->next)
+    {
+      BlxColor *blxColor = (BlxColor*)(item->data);
+
+      if (blxColor->id == colorId)
+	{
+	  result = blxColor;
+	  break;
+	}
+    }
+  
+  if (result && result->transparent)
+    {
+      /* return the background color instead */
+      result = getBlxColor(colorList, BLXCOL_BACKGROUND);
+    }
+  else if (!result)
+    {
+      printf("Warning: color ID %d not found.\n", colorId);
+    }
+  
+  return result;
+}
+
+
+  

@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.15 2010-05-10 09:16:45 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.16 2010-05-13 15:16:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -607,7 +607,7 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 	sscanf(line, "%s", qname);
 
 	while ((ch = fgetc(seqfile)) != '\n') {
-	    if (isalpha(ch) || ch == SEQUENCE_CHAR_GAP || ch == SEQUENCE_CHAR_RES) 
+	    if (isalpha(ch) || ch == SEQUENCE_CHAR_GAP || ch == SEQUENCE_CHAR_STOP) 
 		array(arr, i++, char) = ch;
 	}
 	q = g_malloc(arrayMax(arr)+1);
@@ -636,7 +636,7 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 	    
 	    for (cp = line; *cp; cp++)
 	      {
-		if (isalpha(*cp) || *cp == SEQUENCE_CHAR_RES)
+		if (isalpha(*cp) || *cp == SEQUENCE_CHAR_STOP)
 		  {
 		    *cq++ = *cp;
 		  }
@@ -653,7 +653,7 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 
 int isAlnRes (char ch)
 {
-    if (isalpha(ch) || ch == SEQUENCE_CHAR_RES || (HSPgaps && isdigit(ch)) )
+    if (isalpha(ch) || ch == SEQUENCE_CHAR_STOP || (HSPgaps && isdigit(ch)) )
 	return 1;
     else
 	return 0;

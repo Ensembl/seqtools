@@ -20,7 +20,7 @@
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
-
+#define MATCH_SET_GROUP_NAME		 "Match set"
 
 /* Utility struct used when comparing sequence names */
 typedef struct _CompareSeqData
@@ -43,7 +43,6 @@ typedef struct _BlxWindowProperties
     int lastYEnd;		      /* Keeps track of where the last item ended so we can draw the next one flush to it */
     int lastYStart;		      /* Where the last item started (for drawing multiple items at same y pos) */
     int lastYCoord;		      /* Y coord of last item (so we can check if current item should be at same Y pos) */
-    
   } BlxWindowProperties;
 
 
@@ -65,6 +64,7 @@ static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 
 static gboolean			  onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpointer data);
+static void			  onUpdateBackgroundColor(GtkWidget *blxWindow);
 
 static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
@@ -79,7 +79,9 @@ static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
 
 static void			  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, GtkWidget *blxWindow);
-			      
+static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
+static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
+
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    G_CALLBACK(onQuit)},
@@ -495,6 +497,12 @@ void blxWindowRedrawAll(GtkWidget *blxWindow)
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   bigPictureRedrawAll(bigPicture);
 
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  refreshDetailViewHeaders(detailView);
+  
+  callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+  
   gtk_widget_queue_draw(blxWindow);
 }
 
@@ -1080,7 +1088,7 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
  * will be allocated. */
 static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, const gboolean ownSeqNames, const char *groupName)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Create the new group */
   SequenceGroup *group = g_malloc(sizeof(SequenceGroup));
@@ -1090,7 +1098,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   group->hidden = FALSE;
   
   /* Find a unique ID */
-  GList *lastItem = g_list_last(blxContext->sequenceGroups);
+  GList *lastItem = g_list_last(bc->sequenceGroups);
   
   if (lastItem)
     {
@@ -1119,12 +1127,15 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
    * as the ID number, so groups are sorted in the order they were added */
   group->order = group->groupId;
 
-  /* Set the default highlight colour. */
+  /* Set the default highlight color. */
   group->highlighted = TRUE;
-  group->highlightColour = getGdkColor(GDK_RED);
 
-  blxContext->sequenceGroups = g_list_append(blxContext->sequenceGroups, group);
+  BlxColorId colorId = (groupName && !strcmp(groupName, MATCH_SET_GROUP_NAME)) ? BLXCOL_MATCH_SET : BLXCOL_GROUP;
+  GdkColor *color = getGdkColor(bc, colorId, FALSE);
+  group->highlightColor = *color;
 
+  /* Add it to the list, and update */
+  bc->sequenceGroups = g_list_append(bc->sequenceGroups, group);
   blxWindowGroupsChanged(blxWindow);
   
   return group;
@@ -1214,14 +1225,14 @@ static void onGroupHighlightedToggled(GtkWidget *button, gpointer data)
 }
 
 
-/* Called when the user has changed the colour of a group in the 'edit groups' dialog */
-static void onGroupColourChanged(GtkWidget *button, gpointer data)
+/* Called when the user has changed the color of a group in the 'edit groups' dialog */
+static void onGroupColorChanged(GtkWidget *button, gpointer data)
 {
   SequenceGroup *group = (SequenceGroup*)data;
-  gtk_color_button_get_color(GTK_COLOR_BUTTON(button), &group->highlightColour);
-  gdk_colormap_alloc_color(gdk_colormap_get_system(), &group->highlightColour, TRUE, TRUE);
+  gtk_color_button_get_color(GTK_COLOR_BUTTON(button), &group->highlightColor);
+  gdk_colormap_alloc_color(gdk_colormap_get_system(), &group->highlightColor, TRUE, TRUE);
   
-  /* Redraw everything in the new colours */
+  /* Redraw everything in the new colors */
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(button)));
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   blxWindowRedrawAll(blxWindow);
@@ -1265,9 +1276,9 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
       gtk_widget_set_size_request(orderWidget, 30, -1);
       widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
 
-      /* Show the group's highlight colour in a button that will also launch a colour-picker */
-      GtkWidget *colourButton = gtk_color_button_new_with_color(&group->highlightColour);
-      widgetSetCallbackData(colourButton, onGroupColourChanged, group);
+      /* Show the group's highlight color in a button that will also launch a color-picker */
+      GtkWidget *colorButton = gtk_color_button_new_with_color(&group->highlightColor);
+      widgetSetCallbackData(colorButton, onGroupColorChanged, group);
       
       /* Create a button that will delete this group */
       GtkWidget *deleteButton = gtk_button_new_from_stock(GTK_STOCK_DELETE);
@@ -1278,7 +1289,7 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
       gtk_table_attach(table, isHiddenWidget,	2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, isHighlightedWidget,	3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, orderWidget,		4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, colourButton,		5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, colorButton,		5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, deleteButton,		6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
     }
 }
@@ -1400,7 +1411,7 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
       
       if (!blxContext->matchSetGroup)
 	{
-	  blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqList, FALSE, "Match Set");
+	  blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqList, FALSE, MATCH_SET_GROUP_NAME);
 	}
       else
 	{
@@ -1448,7 +1459,7 @@ static void toggleMatchSet(GtkWidget *blxWindow)
   if (blxContext->matchSetGroup && blxContext->matchSetGroup->seqList)
     {
       /* Clear the list of names only (don't delete the group, because we want to
-       * keep any changes the user made (e.g. to the group colour etc.) for next time. */
+       * keep any changes the user made (e.g. to the group color etc.) for next time. */
       g_list_free(blxContext->matchSetGroup->seqList);
       blxContext->matchSetGroup->seqList = NULL;
       blxWindowGroupsChanged(blxWindow);
@@ -1997,6 +2008,106 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 }
 
 
+/* Callback called when user has changed a blixem color */
+static void onChangeBlxColor(GtkWidget *button, gpointer data)
+{
+  GdkColor *color = (GdkColor*)data;
+  
+  /* update the color */
+  gtk_color_button_get_color(GTK_COLOR_BUTTON(button), color);
+  gdk_colormap_alloc_color(gdk_colormap_get_system(), color, TRUE, TRUE);
+  
+  /* Redraw */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  blxWindowRedrawAll(blxWindow);
+}
+
+
+/* Callback called when user has changed the blixem background color */
+static void onChangeBackgroundColor(GtkWidget *button, gpointer data)
+{
+  GdkColor *color = (GdkColor*)data;
+  
+  /* update the color */
+  gtk_color_button_get_color(GTK_COLOR_BUTTON(button), color);
+  gdk_colormap_alloc_color(gdk_colormap_get_system(), color, TRUE, TRUE);
+  
+  /* Update */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  onUpdateBackgroundColor(blxWindow);
+}
+
+
+/* Create a button to allow user to change the color of the given setting */
+static void createColorButton(GtkTable *table, GdkColor *color, GtkCallback callbackFunc, gpointer callbackData,
+			      const int row, const int column, const int xpad, const int ypad)
+{
+  GtkWidget *colorButton = gtk_color_button_new_with_color(color);
+  widgetSetCallbackData(colorButton, callbackFunc, callbackData);
+
+  gtk_table_attach(table, colorButton, column, column + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+}
+
+
+/* Create buttons for the user to be able to change the blixem colour settings */
+static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const int borderWidth)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  /* put all the colors in a table. Put the table in a scrolled window, because
+   * there are likely to be many rows */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(parent), scrollWin);
+  
+  const int numCols = 5;
+  const int numRows = BLXCOL_NUM_COLORS + 1; /* add one for header row */
+  const int xpad = 2;
+  const int ypad = 2;
+
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+  /* Add a header row */
+  int row = 1;
+  gtk_table_attach(table, gtk_label_new("Normal   "), 2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("(selected)   "), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Print   "), 4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("(selected)   "), 5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  /* loop through all defined blixem colours */
+  int colorId = BLXCOL_MIN + 1;
+  
+  for ( ; colorId < BLXCOL_NUM_COLORS; ++colorId)
+    {
+      ++row;
+    
+      BlxColor *blxCol = getBlxColor(bc->colorList, colorId);
+      GtkWidget *label = gtk_label_new(blxCol->name);
+      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+
+      /* Special callback for the background color */
+      GtkCallback callbackFunc = (colorId == BLXCOL_BACKGROUND) ? onChangeBackgroundColor : onChangeBlxColor;
+      
+      createColorButton(table, &blxCol->normal, callbackFunc, &blxCol->normal, row, 2, xpad, ypad);
+      createColorButton(table, &blxCol->print, callbackFunc, &blxCol->print, row, 4, xpad, ypad);
+      createColorButton(table, &blxCol->selected, callbackFunc, &blxCol->selected, row, 3, xpad, ypad);
+      createColorButton(table, &blxCol->printSelected, callbackFunc, &blxCol->printSelected, row, 5, xpad, ypad);
+    }
+}
+
+
+/* Called when the user toggles whether print colors should be used or not */
+static void onTogglePrintColors(GtkWidget *button, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  const gboolean usePrintColors = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  blxWindowSetUsePrintColors(blxWindow, usePrintColors);
+}
+
+
 /* Shows the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *blxWindow)
 {
@@ -2012,28 +2123,40 @@ void showSettingsDialog(GtkWidget *blxWindow)
 						  NULL);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
-  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
 
   int borderWidth = 12;
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
-  GtkWidget *mainVBox = createVBoxWithBorder(contentArea, borderWidth, FALSE, NULL);
+  /* Create separate pages for general settings and colors */
+  GtkWidget *notebook = gtk_notebook_new();
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), notebook, TRUE, TRUE, 0);
+
+  GtkWidget *settingsPage = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(settingsPage), gtk_label_new("General"));
+
+  /* GENERAL PAGE */
+  GtkWidget *mainVBox = createVBoxWithBorder(settingsPage, borderWidth, FALSE, NULL);
 
   /* Display options */
-  GtkWidget *frame1 = gtk_frame_new("Display options");
-  gtk_box_pack_start(GTK_BOX(mainVBox), frame1, FALSE, FALSE, 0);
-
-  GtkWidget *vbox1 = createVBoxWithBorder(frame1, borderWidth, FALSE, NULL);
+  GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   
   createCheckButton(GTK_BOX(vbox1), "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
   createCheckButton(GTK_BOX(vbox1), "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
   createCheckButton(GTK_BOX(vbox1), "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
-  createCheckButton(GTK_BOX(vbox1), "_Show SN_P track", detailViewGetShowSnpTrack(detailView), G_CALLBACK(onShowSnpTrackToggled), detailView);
+  createCheckButton(GTK_BOX(vbox1), "Show SN_P track", detailViewGetShowSnpTrack(detailView), G_CALLBACK(onShowSnpTrackToggled), detailView);
   
   createColumnSizeButtons(mainVBox, detailView);
   createGridSettingsButtons(mainVBox, bigPicture);
-  
+
+  /* APPEARANCE PAGE */
+  GtkWidget *appearancePage = gtk_vbox_new(FALSE, borderWidth);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new("Appearance"));
+
+  const gboolean usePrintColours = blxWindowGetUsePrintColors(blxWindow);
+  createCheckButton(GTK_BOX(appearancePage), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
+  createColorButtons(appearancePage, blxWindow, borderWidth);
+
   /* Connect signals and show */
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
   gtk_widget_show_all(dialog);
@@ -2311,14 +2434,14 @@ Creating a temporary 'match-set' group from the current selection:\n\
         •       To create a match-set group, select the required items (e.g. in ZMap) and then select 'Toggle match set' from the right-click menu in Blixem, or hit the 'g' shortcut key.\n\
         •       To clear the match-set group, choose the 'Toggle match set' option again, or hit the 'g' shortcut key again.\n\
         •       While it exists, the match-set group can be edited like any other group, via the 'Edit Groups' dialog.\n\
-        •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight colour) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'g' shortcut key) instead.\n\
+        •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight color) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'g' shortcut key) instead.\n\
 \n\
 Editing groups:\n\
 To edit a group, right-click and select 'Edit Groups', or use the Ctrl-G shortcut key. You can change the following properties for a group:\n\
 	•	Name: you can specify a more meaningful name to help identify the group.\n\
 	•	Hide: tick this box to hide the alignments in the alignment lists.\n\
 	•	Highlight: tick this box to highlight the alignments.\n\
-	•	Colour: the colour the group will be highlighted in, if 'Highlight' is enabled.  The default colour for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colours.\n\
+	•	Color: the color the group will be highlighted in, if 'Highlight' is enabled.  The default color for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colors.\n\
 	•	Order: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (or vice versa if sort order is inverted). Alignments in a group will appear before alignments that are not in a group.\n\
 	•	To delete a single group, click on the 'Delete' button next to the group you wish to delete.\n\
 	•	To delete all groups, click on the 'Delete all groups' button.\n\
@@ -2374,7 +2497,7 @@ SETTINGS\n\
 \n\
 \n\
 KEY\n\
-In the detail view, the following colours and symbols have the following meanings:\n\
+In the detail view, the following colors and symbols have the following meanings:\n\
 	•	Yellow background: query sequence\n\
 	•	Cyan: identical residues\n\
 	•	Violet: conserved residues\n\
@@ -2619,8 +2742,9 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
   widgetSetDrawable(blxWindow, drawable);
   
   GdkGC *gc = gdk_gc_new(drawable);
-  GdkColor fgColour = getGdkColor(GDK_WHITE);
-  gdk_gc_set_foreground(gc, &fgColour);
+  GdkColor fgColor;
+  parseBlxColor(BLX_WHITE, &fgColor);
+  gdk_gc_set_foreground(gc, &fgColor);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, blxWindow->allocation.width, blxWindow->allocation.height);
 
   /* For each child widget that has a drawable set, draw this onto the main pixmap */
@@ -2815,6 +2939,12 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 	  g_free(properties->blxContext->fetchMode);
 	  properties->blxContext->fetchMode = NULL;
 	}
+      
+      if (properties->blxContext->colorList)
+	{
+	  g_list_free(properties->blxContext->colorList);
+	  properties->blxContext->colorList = NULL;
+	}
      
       /* Free the context struct itself */
       g_free(properties->blxContext);
@@ -2849,10 +2979,156 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 }
 
 
+/* Free all memory used by a blixem color */
+static void destroyBlxColor(BlxColor *blxColor)
+{
+  if (blxColor)
+    {
+      g_free(blxColor->name);
+      g_free(blxColor->desc);
+      
+      g_free(blxColor);
+    }
+}
+
+
+/* Create a Blixem color. The result should be destroyed with destroyBlxColor. Returns
+ * NULL if there was any problem. If "selected" state colors are not passed, this function
+ * calculates a slightly darker shade of the normal color to use for when it is selected.
+ * Inserts the new color into the given list */
+static void createBlxColor(BlxViewContext *bc,
+			   BlxColorId colorId,
+			   const char *name, 
+			   const char *desc, 
+			   const char *normalCol, 
+			   const char *printCol,
+			   const char *normalColSelected,
+			   const char *printColSelected)
+{
+  BlxColor *result = g_malloc(sizeof(BlxColor));
+  result->transparent = FALSE;
+  
+  if (!normalCol)
+    {
+      result->transparent = TRUE;
+    }
+  else if (parseBlxColor(normalCol, &result->normal)) 
+    {
+      /* find a "selected" version of it, if not passed one */
+      if (normalColSelected)
+	{
+	  if (!parseBlxColor(normalColSelected, &result->selected))
+	    {
+	      messout("Error getting color for selected items: using normal color instead.");
+	      result->selected = result->normal;
+	    }
+	}
+      else
+	{
+	  getSelectionColor(&result->normal, &result->selected); 
+	}
+      
+      /* Parse the print color */
+      if (parseBlxColor(printCol, &result->print))
+	{
+	  /* find a "selected" version of it, if not passed one */
+	  if (printColSelected)
+	    {
+	      if (!parseBlxColor(printColSelected, &result->printSelected))
+		{
+		  messout("Error getting print color for selected items: using normal print color instead.");
+		  result->printSelected = result->print;
+		}
+	    }
+	  else
+	    {
+	      getSelectionColor(&result->print, &result->printSelected); 
+	    }
+	}
+      else
+	{
+	  /* Error parsing the print color: use the normal color but give a warning */
+	  result->print = result->normal;
+	  result->printSelected = result->selected;
+	  messout("Error getting print colors: using normal colors instead.");
+	}
+    }
+  else
+    {
+      g_free(result);
+      result = NULL;
+    }
+  
+  if (result)
+    {
+      /* Set the other properties */
+      result->name = g_strdup(name);
+      result->desc = g_strdup(desc);
+      result->id = colorId;
+      
+      /* Insert into the list */
+      bc->colorList = g_list_append(bc->colorList, result);
+    }
+
+}
+
+
+/* Create the colors that blixem will use for various specific purposes */
+static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
+{
+  bc->colorList = NULL;
+  
+  /* Background color - get the default background color of our widgets (inherited from the theme).
+   * Remember the result because other colors might want to point to the same background color if they
+   * are to be made essentially transparent. */
+  char *defaultBgColor = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
+  createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColor, BLX_WHITE, NULL, NULL);
+  
+  /* reference sequence */
+  createBlxColor(bc, BLXCOL_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
+  
+  /* matches */
+  createBlxColor(bc, BLXCOL_MATCH, "Exact match", "Exact match", BLX_TURQUOISE, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_CONS, "Conserved match", "Conserved match", BLX_PALE_STEEL_BLUE, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_MISMATCH, "Mismatch", "Mismatch", BLX_GREY, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc, BLXCOL_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
+  
+  /* exons */
+  createBlxColor(bc, BLXCOL_EXON_CDS, "Exon (CDS)", "Exon color in alignment list (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_UTR, "Exon (UTR)", "Exon color in alignment list (non-coding)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_FILL_CDS, "Exon fill color (CDS)", "Exon fill color in big picture (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_FILL_UTR, "Exon fill color (UTR)", "Exon fill color in big picture (non-coding)", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_LINE_CDS, "Exon line color (CDS)", "Exon line color in big picture (coding)", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
+  createBlxColor(bc, BLXCOL_EXON_LINE_UTR, "Exon line color (UTR)", "Exon line color in big picture (non-coding)", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
+  
+  /* codons */
+  createBlxColor(bc, BLXCOL_CODON, "Codon nucleotides", "Codon nucleotides", BLX_LIGHT_SKY_BLUE, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_STOP, "STOP codons", "MET codons", BLX_LIGHT_SALMON, BLX_LIGHT_GREY, NULL, NULL);
+  
+  /* SNPs */
+  createBlxColor(bc, BLXCOL_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
+
+  /* Big Picture */
+  createBlxColor(bc, BLXCOL_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc, BLXCOL_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", BLX_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_PREVIEW_BOX, "Preview box", "Preview box in the big picture", BLX_BLACK, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
+
+  /* groups */
+  createBlxColor(bc, BLXCOL_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
+}
+
+
 static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
-					      const char *paddingSeq)
+					      const char *paddingSeq,
+					      GtkWidget *widget)
 {
   BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
   
@@ -2882,6 +3158,11 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->dotterStart = UNSET_INT;
   blxContext->dotterEnd = UNSET_INT;
   blxContext->dotterZoom = 0;
+  
+  blxContext->colorList = NULL;
+  blxContext->usePrintColors = FALSE;
+  
+  createBlxColors(blxContext, widget);
   
   return blxContext;
 }
@@ -3091,6 +3372,79 @@ SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const SequenceStr
 }
 
 
+static gboolean blxWindowGetUsePrintColors(GtkWidget *blxWindow)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  return bc->usePrintColors;
+}
+
+
+/* Recursively set the background color for the given widget and all its children */
+static void setWidgetBackgroundColor(GtkWidget *widget, gpointer data)
+{
+  GdkColor *color = (GdkColor*)data;
+  GtkWidget *blxWindow = gtk_widget_get_toplevel(widget);
+  
+  blxWindow->style->bg[GTK_STATE_NORMAL] = *color;
+  gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, color);
+  gtk_widget_modify_base(widget, GTK_STATE_NORMAL, color);
+  
+  if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), setWidgetBackgroundColor, data);
+    }
+}
+
+
+/* This should be called whenever the background color has changed */
+static void onUpdateBackgroundColor(GtkWidget *blxWindow)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  GdkColor *defaultBgColor = getGdkColor(bc, BLXCOL_BACKGROUND, FALSE);
+  setWidgetBackgroundColor(blxWindow, defaultBgColor);
+  
+  blxWindowRedrawAll(blxWindow);
+}
+
+
+/* This sets the 'use print colors' flag and then updates the display */
+static void blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  bc->usePrintColors = usePrintColors;
+  onUpdateBackgroundColor(blxWindow);
+}
+
+
+/* Lookup the BlxColor with the given id in the given hash table and return a 
+ * pointer to the gdk color with the given properties */
+GdkColor* getGdkColor(BlxViewContext *bc, const BlxColorId colorId, const gboolean selected)
+{
+  GdkColor *result = NULL;
+  
+  BlxColor *blxColor = getBlxColor(bc->colorList, colorId);
+  
+  if (blxColor)
+    {
+      if (bc->usePrintColors)
+	{
+	  result = selected ? &blxColor->printSelected : &blxColor->print;
+	}
+      else
+	{
+	  result = selected ? &blxColor->selected : &blxColor->normal;
+	}
+    }
+  else
+    {
+      printf("Error: requested invalid color ID %d", colorId);
+    }
+  
+  return result;
+}
+
+
 /***********************************************************
  *                        Selections                       *
  ***********************************************************/
@@ -3162,7 +3516,7 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees)
   /* Update the feedback box to tell the user which sequence is selected. */
   updateFeedbackBox(detailView);
   
-  /* Redraw the grids and exon view (because items will change colour with selection) */
+  /* Redraw the grids and exon view (because items will change color with selection) */
   bigPictureRedrawAll(blxWindowGetBigPicture(blxWindow));
   
   /* Copy the selected sequence names to the PRIMARY clipboard */
@@ -3559,7 +3913,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
 								      0,   /* page increment dynamically set based on display range */
 								      0)); /* page size dunamically set based on display range */
   
-  BlxViewContext *blxContext = blxWindowCreateContext(options, &refSeqRange, &fullDisplayRange, paddingSeq);
+  BlxViewContext *blxContext = blxWindowCreateContext(options, &refSeqRange, &fullDisplayRange, paddingSeq, window);
   const int lowestId = calculateMspData(options->mspList, blxContext);
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;

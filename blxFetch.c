@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.16 2010-04-30 12:06:58 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.17 2010-05-13 15:16:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -160,7 +160,7 @@ typedef struct
   || (PEPTIDE) == 'N' || (PEPTIDE) == 'P'|| (PEPTIDE) == 'Q' || (PEPTIDE) == 'R'    \
   || (PEPTIDE) == 'S' || (PEPTIDE) == 'T'|| (PEPTIDE) == 'U' || (PEPTIDE) == 'V'    \
   || (PEPTIDE) == 'W' || (PEPTIDE) == 'X'|| (PEPTIDE) == 'Y' || (PEPTIDE) == 'Z'    \
-  || (PEPTIDE) == SEQUENCE_CHAR_RES || (PEPTIDE) == SEQUENCE_CHAR_GAP || (PEPTIDE) == SEQUENCE_CHAR_PAD))
+  || (PEPTIDE) == SEQUENCE_CHAR_STOP || (PEPTIDE) == SEQUENCE_CHAR_GAP || (PEPTIDE) == SEQUENCE_CHAR_PAD))
 
 
 #ifdef PFETCH_HTML 

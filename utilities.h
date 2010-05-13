@@ -15,35 +15,97 @@
 
 #define UNSET_INT  -1
 
-/* Colour strings that can be passed to gdk_color_parse to create a GdkColor */
-#define GDK_YELLOW	      "#ffff00" 
-#define GDK_DARK_YELLOW	      "#c0c000"
-#define GDK_CYAN	      "#00ffff"
-#define GDK_DARK_CYAN	      "#008080"
-#define GDK_BLUE	      "#0000ff"
-#define GDK_DARK_BLUE	      "#000080"
-#define GDK_LIGHT_STEEL_BLUE  "#78b4f0"
-#define GDK_STEEL_BLUE	      "#5e76bb"
-#define GDK_ROYAL_BLUE	      "#4169e1"
-#define GDK_LIGHT_SKY_BLUE    "#87cefa"
-#define GDK_GREY	      "#bebebe"
-#define GDK_DARK_GREY	      "#929292"
-#define GDK_BLACK	      "#000000"
-#define GDK_WHITE	      "#ffffff"
-#define GDK_RED		      "#ff0000"
-#define GDK_DARK_RED	      "#800000"
-#define GDK_ORANGE	      "#ffa500"
-#define GDK_GREEN	      "#00ff00"
-#define GDK_DARK_GREEN	      "#00bb00"
-#define GDK_TURQUOISE	      "#40e0d0"
-#define GDK_DARK_TURQUOISE    "#32aca0"
-#define GDK_PURPLE	      "#9370db"
-#define GDK_PLUM	      "#dda0dd"
-#define GDK_TOMATO	      "#ff6347"
-#define GDK_PALE_GREEN	      "#98fb98"
-#define GDK_LAWN_GREEN	      "#7cfc00"
-#define GDK_LIGHT_CORAL	      "#f08080"
-#define GDK_LIGHT_SALMON      "#ffa07a"
+/* Color strings that can be passed to parseBlxColor to create a GdkColor */
+#define BLX_YELLOW	      "#ffff00" 
+#define BLX_DARK_YELLOW	      "#c0c000"
+#define BLX_LIGHT_YELLOW      "#fafad2"
+#define BLX_CYAN	      "#00ffff"
+#define BLX_DARK_CYAN	      "#008080"
+#define BLX_LIGHT_CYAN	      "#80FFF2"
+#define BLX_BLUE	      "#0000ff"
+#define BLX_DARK_BLUE	      "#000080"
+#define BLX_PALE_STEEL_BLUE   "#78b4f0"
+#define BLX_LIGHT_STEEL_BLUE  "#b0c4ff"
+#define BLX_STEEL_BLUE	      "#5e76bb"
+#define BLX_ROYAL_BLUE	      "#4169e1"
+#define BLX_LIGHT_SKY_BLUE    "#87cefa"
+#define BLX_SKY_BLUE	      "#a0b8c8"
+#define BLX_GREY	      "#bebebe"
+#define BLX_DARK_GREY	      "#929292"
+#define BLX_LIGHT_GREY	      "#d3d3d3"
+#define BLX_BLACK	      "#000000"
+#define BLX_WHITE	      "#ffffff"
+#define BLX_RED		      "#ff0000"
+#define BLX_DARK_RED	      "#800000"
+#define BLX_VERY_DARK_RED     "#A00000"
+#define BLX_ORANGE	      "#ffa500"
+#define BLX_LIGHT_ORANGE      "#FFCF55"
+#define BLX_GREEN	      "#00ff00"
+#define BLX_DARK_GREEN	      "#00bb00"
+#define BLX_VERY_DARK_GREEN   "#015800"
+#define BLX_TURQUOISE	      "#40e0d0"
+#define BLX_DARK_TURQUOISE    "#32aca0"
+#define BLX_PURPLE	      "#9370db"
+#define BLX_PLUM	      "#dda0dd"
+#define BLX_THISTLE	      "#d8bfd8"
+#define BLX_ORANGE_RED	      "#ff4500"
+#define BLX_PALE_GREEN	      "#C1FFC1" 
+#define BLX_LAWN_GREEN	      "#7cfc00"
+#define BLX_LIGHT_CORAL	      "#f08080"
+#define BLX_LIGHT_SALMON      "#ffa07a"
+#define BLX_BURLYWOOD	      "#deb887"
+#define BLX_TAN		      "#d2b48c"
+
+/* The following are used to define colors in Blixem for particular purposes.
+ * One of several different actual colors from this struct may be used depending 
+ * on state, e.g. we use a different color if "print colors" (i.e. black and 
+ * white mode) is on. */
+
+typedef enum 
+  {
+    BLXCOL_MIN,		  /* dummy value so that we don't get a zero ID */
+  
+    BLXCOL_BACKGROUND,	  /* background color of the widgets */
+    BLXCOL_REF_SEQ,	  /* default background color for the reference sequence */  
+    BLXCOL_MATCH,	  /* background color for an exact match */
+    BLXCOL_CONS,	  /* background color for a conserved match */
+    BLXCOL_MISMATCH,	  /* background color for a mismatch */
+    BLXCOL_EXON_CDS,	  /* background color for an exon (coding region) */
+    BLXCOL_EXON_UTR,	  /* background color for an exon (non-coding/untranslated region) */
+    BLXCOL_INSERTION,	  /* color for an insertion marker */
+    BLXCOL_EXON_START,	  /* color for the start boundary line of an exon */
+    BLXCOL_EXON_END,  	  /* color for the end boundary line of an exon */
+    BLXCOL_CODON,	  /* color in which to highlight the nucleotides for the currently-selected codon */
+    BLXCOL_MET,		  /* background color for MET codons in the three frame translation */
+    BLXCOL_STOP,	  /* background color for STOP codons in the three frame translation */
+    BLXCOL_GRID_LINE,	  /* color of the gridlines in the big picture grids */
+    BLXCOL_GRID_TEXT,	  /* color of the text in the big picture grids */
+    BLXCOL_HIGHLIGHT_BOX, /* color of the highlight box in the big picture */
+    BLXCOL_PREVIEW_BOX,	  /* color of the preview box in the big picture */
+    BLXCOL_MSP_LINE,	  /* color of the MSP lines in the big picture */
+    BLXCOL_SNP,		  /* background color for SNPs */
+    BLXCOL_GROUP,	  /* default highlight color for generic groups */
+    BLXCOL_MATCH_SET,	  /* default highlight color for the special match-set group */
+    BLXCOL_EXON_FILL_CDS, /* fill color for an exon in the big picture (coding region) */
+    BLXCOL_EXON_FILL_UTR, /* fill color for an exon in the big picture (non-coding/untranslated region) */
+    BLXCOL_EXON_LINE_CDS, /* line color for an exon in the big picture (coding region) */
+    BLXCOL_EXON_LINE_UTR, /* line color for an exon in the big picture (non-coding/untranslated region) */
+
+    BLXCOL_NUM_COLORS
+  } BlxColorId;
+
+typedef struct _BlxColor
+  {
+    BlxColorId id;		  /* unique ID for this color */
+    char *name;			  /* meaningful name for the color e.g. "Match" */
+    char *desc;			  /* meaningful description for what the color is used for e.g. "background color for exact matches" */
+    gboolean transparent;	  /* if this is true, the colors below are not specified and the background color should be used instead */
+    
+    GdkColor normal;		  /* the color in normal operation */
+    GdkColor selected;		  /* the color in a selected state */
+    GdkColor print;		  /* the color used for printing */
+    GdkColor printSelected;	  /* the selected-state color used for printing */
+  } BlxColor;
 
 
 
@@ -77,9 +139,10 @@ GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
-GdkColor	      getGdkColor(const char *colour);
-GdkColor	      getSelectionColour(GdkColor *origColour);
-GdkColor	      getDropShadowColour(GdkColor *origColour);
+gboolean	      parseBlxColor(const char *color, GdkColor *result);
+void		      getSelectionColor(GdkColor *origColor, GdkColor *result);
+void		      getDropShadowColor(GdkColor *origColor, GdkColor *result);
+void		      adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *result);
 
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
@@ -196,6 +259,7 @@ const char*	      sequenceGetDisplayName(const SequenceStruct *seq);
 const char*	      sequenceGetShortName(const SequenceStruct *seq);
 void		      destroySequenceStruct(SequenceStruct *seq);
 
+BlxColor*	      getBlxColor(GList *colorList, const BlxColorId colorId);
 
 
 #endif /* _utilities_h_included_ */

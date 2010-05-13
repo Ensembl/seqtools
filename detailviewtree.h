@@ -81,7 +81,7 @@ void		  selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data);
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);
 
-GdkColor*	  getCoordColour(BlxViewContext *bc,
+GdkColor*	  getCoordColor(BlxViewContext *bc,
 				 DetailViewProperties *properties,
 				 const int dnaIdx,
 				 const char baseChar,

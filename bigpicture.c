@@ -162,8 +162,8 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 					GtkWidget *bigPicture, 
                                         GdkDrawable *drawable,
 					GdkGC *gc, 
-					const GdkColor const *textColour, 
-					const GdkColor const *lineColour)
+					const GdkColor const *textColor, 
+					const GdkColor const *lineColor)
 {
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
@@ -196,7 +196,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       
       if (x > minX && x < maxX)
 	{
-	  gdk_gc_set_foreground(gc, textColour);
+	  gdk_gc_set_foreground(gc, textColor);
 	  gchar text[numDigitsInInt(baseIdx) + 1];
 	  sprintf(text, "%d", baseIdx);
 
@@ -205,7 +205,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 	  g_object_unref(layout);
 	  
 	  /* Draw a marker line (small cosmetic touch to better join the label to the grid below) */
-	  gdk_gc_set_foreground(gc, lineColour);
+	  gdk_gc_set_foreground(gc, lineColor);
 	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
 	}
     }
@@ -224,11 +224,11 @@ static void redrawBigPictureGridHeader(GtkWidget *header)
       gdk_drawable_set_colormap(bitmap, gdk_colormap_get_system());
       widgetSetDrawable(header, bitmap);
 
-      /* Clear the bitmap to the background colour */
+      /* Clear the bitmap to the background color */
       GdkGC *gc = gdk_gc_new(bitmap);
       GtkStyle *style = gtk_widget_get_style(header);
-      GdkColor *bgColour = &style->bg[GTK_STATE_NORMAL];
-      gdk_gc_set_foreground(gc, bgColour);
+      GdkColor *bgColor = &style->bg[GTK_STATE_NORMAL];
+      gdk_gc_set_foreground(gc, bgColor);
       gdk_draw_rectangle(bitmap, gc, TRUE, 0, 0, header->allocation.width, header->allocation.height);
 
       /* Draw the header */
@@ -242,7 +242,7 @@ static void redrawBigPictureGridHeader(GtkWidget *header)
 static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, GdkGC *gc)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
+  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
   
   /* Set the drawing properties */
   gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
@@ -252,8 +252,8 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
 			      properties->bigPicture, 
                               drawable,
 			      gc,
-			      &bigPictureProperties->gridTextColour, 
-			      &bigPictureProperties->gridLineColour);
+			      getGdkColor(bc, BLXCOL_GRID_TEXT, FALSE), 
+			      getGdkColor(bc, BLXCOL_GRID_LINE, FALSE));
   
   g_object_unref(gc);
 }
@@ -730,14 +730,6 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(5000));
       properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(10000));
       properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25000));
-      
-      /* Set default colours */
-      properties->gridLineColour = getGdkColor(GDK_YELLOW);
-      properties->gridTextColour = getGdkColor(GDK_BLACK);
-      properties->highlightBoxColour = getGdkColor(GDK_BLUE);
-      properties->previewBoxColour = getGdkColor(GDK_DARK_GREY);
-      properties->mspLineHighlightColour = getGdkColor(GDK_CYAN);
-      properties->mspLineColour = getGdkColor(GDK_BLACK);
       
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", properties);
       g_signal_connect(G_OBJECT(bigPicture), "destroy", G_CALLBACK(onDestroyBigPicture), NULL); 

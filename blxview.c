@@ -62,7 +62,7 @@
 96-02-08  [2.3] Added checkmarks to pull-down settings menu.
 96-03-05  2.3 Announced.
 96-03-08  [2.4] Only look for WWW browser once.
-96-05-09  [2.4] Proper grayscale print colours.
+96-05-09  [2.4] Proper grayscale print colors.
 96-05-09  [2.4] Enabled piping of query sequence too, for Pepmap and WWW calls.
 96-08-20  [2.4] Fixed minor bug in squashed mode and added restoring of previous sorting after squash.
 97-05-28  [2.4] Fixed parsing to handle gapped matches.
@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.31 2010-05-10 09:16:45 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.32 2010-05-13 15:16:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -108,7 +108,7 @@ MSP score codes:
 ----------------
 -1 exon                  -> Big picture + Alignment
 -2 intron                -> Big picture + Alignment
--3 Any coloured segment  -> Big picture
+-3 Any colored segment  -> Big picture
 -4 stringentSEGcolor     -> Big picture
 -5 mediumSEGcolor        -> Big picture
 -6 nonglobularSEGcolor   -> Big picture

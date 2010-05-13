@@ -22,39 +22,35 @@
 
 typedef struct _RenderData
   {
+    BlxViewContext *bc;
     GdkRectangle *cell_area;
     GdkWindow *window;
     GtkStateType state;
     GdkGC *gc;
-    const gboolean displayRev;
     const Strand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
     const gboolean seqSelected;
     const int cellXPadding;
     const int cellYPadding;
-    const int numFrames;
     const int charWidth;
     const int charHeight;
-    const BlxSeqType seqType;
-    const BlxBlastMode blastMode;
     const IntRange const *displayRange;
-    const IntRange const *refSeqRange;
     const gboolean highlightDiffs;
     GdkDrawable *drawable;
     GtkWidget *blxWindow;
-    GdkColor *exonColour;
-    GdkColor *exonColourSelected;
-    GdkColor *insertionColour;
-    GdkColor *insertionColourSelected;
-    GdkColor *matchColour;
-    GdkColor *matchColourSelected;
-    GdkColor *consColour;
-    GdkColor *consColourSelected;
-    GdkColor *mismatchColour;
-    GdkColor *mismatchColourSelected;
-    GdkColor *exonBoundaryColourStart;
-    GdkColor *exonBoundaryColourEnd;
+    GdkColor *exonColor;
+    GdkColor *exonColorSelected;
+    GdkColor *insertionColor;
+    GdkColor *insertionColorSelected;
+    GdkColor *matchColor;
+    GdkColor *matchColorSelected;
+    GdkColor *consColor;
+    GdkColor *consColorSelected;
+    GdkColor *mismatchColor;
+    GdkColor *mismatchColorSelected;
+    GdkColor *exonBoundaryColorStart;
+    GdkColor *exonBoundaryColorEnd;
     int exonBoundaryWidth;
     GdkLineStyle exonBoundaryStyleStart;
     GdkLineStyle exonBoundaryStyleEnd;
@@ -529,9 +525,9 @@ static void drawText(SequenceCellRenderer *renderer,
 
 
 /* The given renderer is an MSP. This function checks if there is a base index
- * selected and, if so, colours the background for that base with the given colour. */
+ * selected and, if so, colors the background for that base with the given color. */
 static void highlightSelectedBase(const int selectedBaseIdx,
-				  GdkColor *highlightColour,
+				  GdkColor *highlightColor,
 				  RenderData *data)
 {
   if (selectedBaseIdx != UNSET_INT && valueWithinRange(selectedBaseIdx, data->displayRange))
@@ -542,7 +538,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
       int x, y;
       getCoordsForBaseIdx(segmentIdx, data->displayRange, data, &x, &y);
 
-      gdk_gc_set_foreground(data->gc, highlightColour);
+      gdk_gc_set_foreground(data->gc, highlightColor);
       drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
     }
 }
@@ -562,17 +558,17 @@ static void drawExon(SequenceCellRenderer *renderer,
   getCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
   const int width = segmentLen * data->charWidth;
 
-  /* Just draw one big rectangle the same colour for the whole thing. Colour depends if row selected. */
-  GdkColor *colour = data->seqSelected ? data->exonColourSelected : data->exonColour;
-  gdk_gc_set_foreground(data->gc, colour);
+  /* Just draw one big rectangle the same color for the whole thing. Color depends if row selected. */
+  GdkColor *color = data->seqSelected ? data->exonColorSelected : data->exonColor;
+  gdk_gc_set_foreground(data->gc, color);
   drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, data->charHeight);
   
-  /* If a base is selected, highlight it. Its colour depends on whether it the base is within the exon range or not. */
+  /* If a base is selected, highlight it. Its color depends on whether it the base is within the exon range or not. */
   if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
     {
-      /* Negate the colour if double-selected (i.e. if the row is selected as well) */
-      GdkColor *colour = data->seqSelected ? data->exonColour : data->exonColourSelected;
-      highlightSelectedBase(data->selectedBaseIdx, colour, data);
+      /* Negate the color if double-selected (i.e. if the row is selected as well) */
+      GdkColor *color = data->seqSelected ? data->exonColor : data->exonColorSelected;
+      highlightSelectedBase(data->selectedBaseIdx, color, data);
     }
   
   drawVisibleExonBoundaries(tree, data);
@@ -608,7 +604,7 @@ static char getMatchSeqBase(char *matchSeq, const int sIdx, const BlxSeqType seq
 }
 
 
-/* Colour in the background of a particular base in the given match sequence. Returns
+/* Color in the background of a particular base in the given match sequence. Returns
  * the calculated index into the match sequence (for effiency, so that we don't have to
  * recalculate it later on). Returns the equivalent index in the subject sequence, or 
  * UNSET_INT if there is none. */
@@ -624,33 +620,33 @@ static void drawBase(MSP *msp,
 		     int *qIdx)
 {
   char sBase = '\0';
-  GdkColor *baseBgColour;
+  GdkColor *baseBgColor;
   
   /* From the segment index, find the display index and the ref seq index */
   const int displayIdx = segmentRange->min + segmentIdx;
-  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->seqType, data->qFrame, 1, data->numFrames, data->displayRev, data->refSeqRange);
-  *sIdx = gapCoord(msp, *qIdx, data->numFrames, data->qStrand, data->displayRev, NULL);
+  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, NULL);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
-   * (If it is selected in both, show it in the normal colour) */
+   * (If it is selected in both, show it in the normal color) */
   gboolean selected = (displayIdx == data->selectedBaseIdx) != data->seqSelected;
   
   if (*sIdx == UNSET_INT)
     {
       /* There is no equivalent base in the match sequence so draw a gap */
       sBase = SEQUENCE_CHAR_GAP;
-      baseBgColour = selected ? data->mismatchColourSelected : data->mismatchColour;
+      baseBgColor = selected ? data->mismatchColorSelected : data->mismatchColor;
     }
   else
     {
       /* There is a base in the match sequence. See if it matches the ref sequence */
-      sBase = getMatchSeqBase(msp->sseq, *sIdx, data->seqType);
+      sBase = getMatchSeqBase(msp->sseq, *sIdx, data->bc->seqType);
       char qBase = refSeqSegment[segmentIdx];
 
       if (sBase == qBase)
 	{
 	  /* Match */
-	  baseBgColour = selected ? data->matchColourSelected : data->matchColour;
+	  baseBgColor = selected ? data->matchColorSelected : data->matchColor;
 	  
 	  /* If we're highlighting differences, don't show this base (show a dash instead) */
 	  if (data->highlightDiffs)
@@ -658,20 +654,20 @@ static void drawBase(MSP *msp,
 	      sBase = SEQUENCE_CHAR_BLANK;
 	    }
 	}
-      else if (data->blastMode != BLXMODE_BLASTN && PAM120[aa_atob[(unsigned int)qBase]-1 ][aa_atob[(unsigned int)sBase]-1 ] > 0)
+      else if (data->bc->blastMode != BLXMODE_BLASTN && PAM120[aa_atob[(unsigned int)qBase]-1 ][aa_atob[(unsigned int)sBase]-1 ] > 0)
 	{
 	  /* 'Conserved' match (i.e. similar amino acid) */
-	  baseBgColour = selected ? data->consColourSelected : data->consColour;
+	  baseBgColor = selected ? data->consColorSelected : data->consColor;
 	}
       else
 	{
 	  /* Mismatch */
-	  baseBgColour = selected ? data->mismatchColourSelected : data->mismatchColour;
+	  baseBgColor = selected ? data->mismatchColorSelected : data->mismatchColor;
 	}
     }
 
-  /* Draw the background colour */
-  gdk_gc_set_foreground(data->gc, baseBgColour);
+  /* Draw the background color */
+  gdk_gc_set_foreground(data->gc, baseBgColor);
   drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
 
   /* Add this character into the display text */
@@ -715,18 +711,18 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && mspIsExon(msp))
     {
       /* Get the msp's start/end in terms of the display coords */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->seqType, rd->qFrame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->seqType, rd->qFrame, rd->numFrames, rd->displayRev, rd->refSeqRange, NULL);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
       const int minIdx = min(coord1, coord2);
       const int maxIdx = max(coord1, coord2);
       
       if (minIdx >= rd->displayRange->min && minIdx <= rd->displayRange->max)
 	{
-	  /* Draw the lower index. The colour and line style depend on whether it's the start or end index. */
-	  GdkColor *colour = rd->displayRev ? rd->exonBoundaryColourEnd : rd->exonBoundaryColourStart;
-	  gdk_gc_set_foreground(rd->gc, colour);
+	  /* Draw the lower index. The color and line style depend on whether it's the start or end index. */
+	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorEnd : rd->exonBoundaryColorStart;
+	  gdk_gc_set_foreground(rd->gc, color);
 	  
-	  GdkLineStyle lineStyle = rd->displayRev ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
+	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
 	  const int idx = minIdx - rd->displayRange->min;
@@ -740,11 +736,11 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
       
       if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
 	{
-	  /* Draw the upper index. The colour and line style depend on whether it's the start or end index. */
-	  GdkColor *colour = rd->displayRev ? rd->exonBoundaryColourStart : rd->exonBoundaryColourEnd;
-	  gdk_gc_set_foreground(rd->gc, colour);
+	  /* Draw the upper index. The color and line style depend on whether it's the start or end index. */
+	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorStart : rd->exonBoundaryColorEnd;
+	  gdk_gc_set_foreground(rd->gc, color);
 	  
-	  GdkLineStyle lineStyle = rd->displayRev ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
+	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
 	  const int idx = maxIdx + 1 - rd->displayRange->min;
@@ -770,7 +766,7 @@ void drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data)
 
   for ( ; msp; msp = msp->next)
     {
-      if (mspIsExon(msp) && mspGetRefFrame(msp, data->seqType) == data->qFrame && mspGetRefStrand(msp) == data->qStrand)
+      if (mspIsExon(msp) && mspGetRefFrame(msp, data->bc->seqType) == data->qFrame && mspGetRefStrand(msp) == data->qStrand)
 	{
 	  drawExonBoundary(msp, data);
 	}
@@ -801,8 +797,8 @@ static void drawInsertionMarker(int sIdx,
 	  gapWidth = MIN_GAP_WIDTH;
         }
 
-      /* No selections to worry about. Draw the whole thing in the normal colour */
-      gdk_gc_set_foreground(data->gc, data->insertionColour);
+      /* No selections to worry about. Draw the whole thing in the normal color */
+      gdk_gc_set_foreground(data->gc, data->insertionColor);
       drawRectangle2(data->window, data->drawable, data->gc, TRUE, x - gapWidth/2, y, gapWidth, data->charHeight);
     }
 }
@@ -849,8 +845,8 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
   IntRange result = {UNSET_INT, UNSET_INT};
   
   /* Find the start/end of the MSP in terms of the display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, data->qFrame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, data->qFrame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
   
   int minIdx = min(coord1, coord2);
   int maxIdx = max(coord1, coord2);
@@ -892,17 +888,15 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       return;
     }
   
-  BlxViewContext *bc = treeGetContext(tree);
-  
-  gchar *refSeqSegment = getSequenceSegment(bc,
-					    bc->refSeq,
+  gchar *refSeqSegment = getSequenceSegment(data->bc,
+					    data->bc->refSeq,
 					    segmentRange.min, 
 					    segmentRange.max, 
 					    data->qStrand, 
-					    data->seqType,
+					    data->bc->seqType,
 					    data->qFrame, 
-					    data->displayRev,
-					    data->displayRev,
+					    data->bc->displayRev,
+					    data->bc->displayRev,
 					    TRUE,
 					    TRUE);
 
@@ -921,7 +915,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 	  int x, y;
 	  getCoordsForBaseIdx(segmentIdx, &segmentRange, data, &x, &y);
 	  
-	  /* Find the base in the match sequence and draw the background colour according to how well it matches */
+	  /* Find the base in the match sequence and draw the background color according to how well it matches */
 	  int sIdx = UNSET_INT, qIdx = UNSET_INT;
 	  drawBase(msp, segmentIdx, &segmentRange, refSeqSegment, data, x, y, displayText, &sIdx, &qIdx);
 	  
@@ -958,46 +952,47 @@ static void drawMsps(SequenceCellRenderer *renderer,
   /* Extract all the info from the tree that we'll need repeatedly. */
   TreeProperties *treeProperties = treeGetProperties(tree);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeProperties->detailView);
-  BlxViewContext *blxContext = blxWindowGetContext(detailViewProperties->blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(detailViewProperties->blxWindow);
   
-  const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colours if this is true */
+  const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colors if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
   const SequenceStruct *seq = firstMsp ? firstMsp->sSequence : NULL;
+
+  GdkColor *matchColor = getGdkColor(bc, BLXCOL_MATCH, FALSE);
+  GdkColor *matchColorSelected = getGdkColor(bc, BLXCOL_MATCH, TRUE);
+  GdkColor *mismatchColor = getGdkColor(bc, BLXCOL_MISMATCH, FALSE);
+  GdkColor *mismatchColorSelected = getGdkColor(bc, BLXCOL_MISMATCH, TRUE);
   
   RenderData data = {
+    bc,
     cell_area,
     window,
     state,
     gdk_gc_new(window),
-    blxContext->displayRev,
     treeGetStrand(tree),
     treeProperties->readingFrame,
     detailViewProperties->selectedBaseIdx,
     blxWindowIsSeqSelected(detailViewProperties->blxWindow, seq),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
-    blxContext->numFrames,
     detailViewProperties->charWidth,
     detailViewProperties->charHeight,
-    blxContext->seqType,
-    blxContext->blastMode,
     &detailViewProperties->displayRange,
-    &blxContext->refSeqRange,
     highlightDiffs,
     widgetGetDrawable(tree),
     detailViewProperties->blxWindow,
-    &detailViewProperties->exonColour,
-    &detailViewProperties->exonColourSelected,
-    &detailViewProperties->insertionColour,
-    &detailViewProperties->insertionColourSelected,
-    highlightDiffs ? &detailViewProperties->mismatchColour : &detailViewProperties->matchColour,
-    highlightDiffs ? &detailViewProperties->mismatchColourSelected : &detailViewProperties->matchColourSelected,
-    &detailViewProperties->consColour,
-    &detailViewProperties->consColourSelected,
-    highlightDiffs ? &detailViewProperties->matchColour : &detailViewProperties->mismatchColour,
-    highlightDiffs ? &detailViewProperties->matchColourSelected : &detailViewProperties->mismatchColourSelected,
-    &detailViewProperties->exonBoundaryColourStart,
-    &detailViewProperties->exonBoundaryColourEnd,
+    getGdkColor(bc, BLXCOL_EXON_CDS, FALSE),
+    getGdkColor(bc, BLXCOL_EXON_CDS, TRUE),
+    getGdkColor(bc, BLXCOL_INSERTION, FALSE),
+    getGdkColor(bc, BLXCOL_INSERTION, TRUE),
+    highlightDiffs ? mismatchColor : matchColor,
+    highlightDiffs ? mismatchColorSelected : matchColorSelected,
+    getGdkColor(bc, BLXCOL_CONS, FALSE),
+    getGdkColor(bc, BLXCOL_CONS, TRUE),
+    highlightDiffs ? matchColor : mismatchColor,
+    highlightDiffs ? matchColorSelected : mismatchColorSelected,
+    getGdkColor(bc, BLXCOL_EXON_START, FALSE),
+    getGdkColor(bc, BLXCOL_EXON_END, FALSE),
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
     detailViewProperties->exonBoundaryLineStyleEnd
@@ -1005,7 +1000,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   /* If a base is selected highlight it now in case we don't come to process it (in 
    * which case this will get drawn over). */
-  highlightSelectedBase(data.selectedBaseIdx, &detailViewProperties->mismatchColourSelected, &data);
+  highlightSelectedBase(data.selectedBaseIdx, mismatchColorSelected, &data);
 
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;
@@ -1013,7 +1008,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      if (mspGetRefStrand(msp) == data.qStrand && mspGetRefFrame(msp, data.seqType) == data.qFrame)
+      if (mspGetRefStrand(msp) == data.qStrand && mspGetRefFrame(msp, data.bc->seqType) == data.qFrame)
 	{
 	  if (mspIsExon(msp))
 	    {
@@ -1055,8 +1050,8 @@ static GtkStateType getState(GtkWidget *widget, guint flags)
 }
 
 
-/* This function sets the background colour for the row. */
-static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow *window, GdkRectangle *background_area)
+/* This function sets the background color for the row. */
+static void setBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow *window, GdkRectangle *background_area)
 {
   SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
   
@@ -1069,30 +1064,36 @@ static void setBackgroundColour(GtkCellRenderer *cell, GtkWidget *tree, GdkWindo
       SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, msp->sSequence);
       const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
       
+      GdkGC *gc = gdk_gc_new(window);
+
       if (isSelected || (group && group->highlighted))
 	{
-	  GdkGC *gc = gdk_gc_new(window);
-	  
 	  if (group && group->highlighted && isSelected)
 	    {
-	      /* Use the group's highlight colour but darken it because it is also selected */
-	      GdkColor colour = getSelectionColour(&group->highlightColour);
-	      gdk_gc_set_foreground(gc, &colour);
+	      /* Use the group's highlight color but darken it because it is also selected */
+	      GdkColor color;
+	      getSelectionColor(&group->highlightColor, &color);
+	      gdk_gc_set_foreground(gc, &color);
 	    }
 	  else if (group && group->highlighted)
 	    {
-	      /* Use the group's highlight colour */
-	      gdk_gc_set_foreground(gc, &group->highlightColour);
+	      /* Use the group's highlight color */
+	      gdk_gc_set_foreground(gc, &group->highlightColor);
 	    }
 	  else
 	    {
-	      /* Not in a group but is selected. Use the background colour but darken it. */
-	      GdkColor colour = getSelectionColour(&tree->style->bg[GTK_STATE_NORMAL]);
-	      gdk_gc_set_foreground(gc, &colour);
+	      /* Not in a group but is selected. Use the background color but darken it. */
+	      GdkColor color;
+	      getSelectionColor(&tree->style->bg[GTK_STATE_NORMAL], &color);
+	      gdk_gc_set_foreground(gc, &color);
 	    }
-	  
-	  drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, background_area->x, background_area->y, background_area->width, background_area->height);
 	}
+      else
+        {
+  	  gdk_gc_set_foreground(gc, &tree->style->bg[GTK_STATE_NORMAL]);
+        }
+
+      drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, background_area->x, background_area->y, background_area->width, background_area->height);
     }
 }
 
@@ -1133,7 +1134,7 @@ sequence_cell_renderer_render (GtkCellRenderer *cell,
 			       GdkRectangle    *expose_area,
 			       guint            flags)
 {
-  setBackgroundColour(cell, tree, window, background_area);
+  setBackgroundColor(cell, tree, window, background_area);
   
   SequenceCellRenderer *renderer = SEQUENCE_CELL_RENDERER(cell);
   

@@ -1122,6 +1122,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
       GdkGC *gc = gdk_gc_new(drawable);
       DetailViewProperties *properties = detailViewGetProperties(detailView);
       const int activeFrame = detailViewGetActiveFrame(detailView);
+      const gboolean showSnpTrack = detailViewGetShowSnpTrack(detailView);
 
       gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
       
@@ -1147,11 +1148,11 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 	  /* Get the character to display at this index */
 	  displayText[displayTextPos] = getRefSeqBase(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
 	  
-	  /* Colour the base depending on whether it is selected or affected by a SNP */
+	  /* Color the base depending on whether it is selected or affected by a SNP */
 	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
 	  const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
 	  
-	  GdkColor *colour = getCoordColour(bc,
+	  GdkColor *color = getCoordColor(bc,
 					    properties,
 					    qIdx, 
 					    displayText[displayTextPos],
@@ -1160,13 +1161,13 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 					    displayIdxSelected, 
 					    dnaIdxSelected,
 					    FALSE,
-					    TRUE,
+					    showSnpTrack,
 					    TRUE);
 	  
-	  if (colour)
+	  if (color)
 	    {
-	      /* Highlight colour depends on whether this actual DNA base is selected or just the peptide that it's in */
-	      gdk_gc_set_foreground(gc, colour);
+	      /* Highlight color depends on whether this actual DNA base is selected or just the peptide that it's in */
+	      gdk_gc_set_foreground(gc, color);
 	      x = displayTextPos * properties->charWidth;
 	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
 	    }
@@ -1307,8 +1308,10 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      const int width = strlen(msp->sseq) * properties->charWidth;
 	      
 	      /* Draw the background */
-	      GdkColor *colour = blxWindowIsSeqSelected(blxWindow, msp->sSequence) ? &properties->snpColourSelected : &properties->snpColour;
-	      gdk_gc_set_foreground(gc, colour);
+	      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
+	      GdkColor *color = getGdkColor(bc, BLXCOL_SNP, isSelected);
+
+	      gdk_gc_set_foreground(gc, color);
 	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, properties->charHeight);
 	      
 	      /* Draw the text */
@@ -1533,12 +1536,6 @@ PangoFontDescription *detailViewGetFontDesc(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->fontDesc : NULL;
-}
-
-GdkColor* detailViewGetSnpColour(GtkWidget *detailView, const gboolean selected)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return selected ? &properties->snpColourSelected : &properties->snpColour;
 }
 
 int detailViewGetCellXPadding(GtkWidget *detailView)
@@ -1940,30 +1937,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 	  properties->cellXPadding = (horizontal_separator / 2) + 1;
 	  properties->cellYPadding = (vertical_separator / 2) + 1;
 	}
-      
-      properties->refSeqColour		  = getGdkColor(DEFAULT_REF_SEQ_BG_COLOUR);
-      properties->refSeqColourSelected	  = getSelectionColour(&properties->refSeqColour);
-      properties->matchColour		  = getGdkColor(GDK_TURQUOISE);
-      properties->matchColourSelected	  = getSelectionColour(&properties->matchColour);
-      properties->mismatchColour	  = getGdkColor(GDK_GREY);
-      properties->mismatchColourSelected  = getSelectionColour(&properties->mismatchColour);
-      properties->consColour		  = getGdkColor(GDK_LIGHT_STEEL_BLUE);
-      properties->consColourSelected	  = getSelectionColour(&properties->consColour);
-      properties->exonColour		  = getGdkColor(GDK_YELLOW);
-      properties->exonColourSelected	  = getSelectionColour(&properties->exonColour);
-      properties->insertionColour	  = getGdkColor(GDK_YELLOW);
-      properties->insertionColourSelected = getSelectionColour(&properties->insertionColour);
-      properties->exonBoundaryColourStart = getGdkColor(GDK_BLUE);
-      properties->exonBoundaryColourEnd	  = getGdkColor(GDK_DARK_BLUE);
-      properties->codonColour		  = getGdkColor(GDK_LIGHT_SKY_BLUE);
-      properties->codonColourSelected	  = getSelectionColour(&properties->codonColour);
-      properties->metColour		  = getGdkColor(GDK_LAWN_GREEN);
-      properties->metColourSelected	  = getSelectionColour(&properties->metColour);
-      properties->stopColour		  = getGdkColor(GDK_LIGHT_SALMON);
-      properties->stopColourSelected	  = getSelectionColour(&properties->stopColour);
-      properties->snpColour		  = getGdkColor(GDK_ORANGE);
-      properties->snpColourSelected	  = getSelectionColour(&properties->snpColour);
-
       properties->exonBoundaryLineWidth	  = 1;
       properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
       properties->exonBoundaryLineStyleEnd   = GDK_LINE_SOLID;

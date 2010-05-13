@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.28 2010-05-11 11:25:12 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.29 2010-05-13 15:16:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -131,7 +131,7 @@ typedef struct _SequenceGroup
     gboolean ownsSeqNames;	/* If true, the group will free the sequence names when it is destroyed */
     gboolean hidden;		/* true if the group should be hidden from the detail view */
     gboolean highlighted;	/* true if the group should be highlighted */
-    GdkColor highlightColour;	/* the colour to highlight the group's sequences in (in both the big picture and the detail view) */
+    GdkColor highlightColor;	/* the color to highlight the group's sequences in (in both the big picture and the detail view) */
   } SequenceGroup;
 
 

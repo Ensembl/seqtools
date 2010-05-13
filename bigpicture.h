@@ -43,14 +43,6 @@ typedef struct _BigPictureProperties
     int charWidth;		/* The width of the characters in the big picture grids */
     int charHeight;		/* The height of the characters in the big picture grids */
     
-    /* Colour settings */
-    GdkColor gridLineColour;
-    GdkColor gridTextColour;
-    GdkColor highlightBoxColour;
-    GdkColor previewBoxColour;
-    GdkColor mspLineColour;
-    GdkColor mspLineHighlightColour;
-    
     int highlightBoxLineWidth;
     int previewBoxLineWidth;
   } BigPictureProperties;

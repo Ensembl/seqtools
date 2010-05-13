@@ -29,8 +29,8 @@ typedef struct _DrawGridData
   GtkWidget *grid;
   GdkDrawable *drawable;
   GdkGC *gc;
-  GdkColor *colour;
-  GdkColor *shadowColour;
+  GdkColor *color;
+  GdkColor *shadowColor;
 } DrawGridData;
 
   
@@ -39,8 +39,7 @@ typedef struct _DrawGridData
 static BlxViewContext*	    gridGetContext(GtkWidget *grid);
 static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
-static GdkColor*	    gridGetMspLineHighlightColour(GtkWidget *grid);
-static GdkColor*	    gridGetMspLineColour(GtkWidget *grid);
+static GdkColor*	    gridGetMspLineColor(GtkWidget *grid, const gboolean selected);
 static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static GtkWidget*	    gridGetBlxWindow(GtkWidget *grid);
@@ -150,9 +149,9 @@ static void drawHighlightBox(GtkWidget *grid,
 			     GdkGC *gc, 
 			     const GdkRectangle const *rect,
 			     const gint lineWidth, 
-			     GdkColor *lineColour)
+			     GdkColor *lineColor)
 {
-  gdk_gc_set_foreground(gc, lineColour);
+  gdk_gc_set_foreground(gc, lineColor);
   gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
   gdk_draw_rectangle(drawable, gc, FALSE, 
 		     rect->x, rect->y, rect->width, rect->height);
@@ -188,7 +187,9 @@ static void drawPreviewBox(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   /* The other dimensions of the preview box are the same as the current highlight box. */
   GdkRectangle previewRect = {xRounded, properties->highlightRect.y, properties->highlightRect.width, properties->highlightRect.height};
 
-  drawHighlightBox(grid, drawable, gc, &previewRect, bigPictureProperties->previewBoxLineWidth, &bigPictureProperties->previewBoxColour);
+  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+  GdkColor *previewBoxColor = getGdkColor(bc, BLXCOL_PREVIEW_BOX, FALSE);
+  drawHighlightBox(grid, drawable, gc, &previewRect, bigPictureProperties->previewBoxLineWidth, previewBoxColor);
 }
 
 
@@ -196,7 +197,7 @@ static void drawPreviewBox(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 static void drawVerticalGridLines(GtkWidget *grid, 
                                   GdkDrawable *drawable,
                                   GdkGC *gc,
-				  const GdkColor const *lineColour)
+				  const GdkColor const *lineColor)
 {
   BlxViewContext *bc = gridGetContext(grid);
   GridProperties *properties = gridGetProperties(grid);
@@ -228,7 +229,7 @@ static void drawVerticalGridLines(GtkWidget *grid,
 
       if (x > minX && x < maxX)
 	{
-	  gdk_gc_set_foreground(gc, lineColour);
+	  gdk_gc_set_foreground(gc, lineColor);
 	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
 	}
     }
@@ -242,8 +243,8 @@ static void drawHorizontalGridLines(GtkWidget *grid,
 				    const gint numCells, 
 				    const gint rangePerCell, 
 				    const gint maxVal, 
-				    const GdkColor const *textColour,
-				    const GdkColor const *lineColour)
+				    const GdkColor const *textColor,
+				    const GdkColor const *lineColor)
 {
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
@@ -257,7 +258,7 @@ static void drawHorizontalGridLines(GtkWidget *grid,
       
       /* Label this gridline with the %ID */
       gint percent = maxVal - (rangePerCell * vCell);
-      gdk_gc_set_foreground(gc, textColour);
+      gdk_gc_set_foreground(gc, textColor);
       
       char text[bigPictureProperties->leftBorderChars + 1];
       sprintf(text, "%d%%", percent);
@@ -267,7 +268,7 @@ static void drawHorizontalGridLines(GtkWidget *grid,
       g_object_unref(layout);
       
       /* Draw the gridline */
-      gdk_gc_set_foreground(gc, lineColour);
+      gdk_gc_set_foreground(gc, lineColor);
       gdk_draw_line (drawable, gc, properties->gridRect.x, y, rightBorder, y);
     }
 }
@@ -357,7 +358,7 @@ static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
   if (mspShownInGrid(msp, drawData->grid))
     {
       gdk_gc_set_subwindow(drawData->gc, GDK_INCLUDE_INFERIORS);
-      gdk_gc_set_foreground(drawData->gc, drawData->colour);
+      gdk_gc_set_foreground(drawData->gc, drawData->color);
       
       /* Calculate where it should go */
       int x, y, width, height;
@@ -366,9 +367,9 @@ static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
       /* Draw a block rectangle */
       gdk_draw_rectangle(drawData->drawable, drawData->gc, TRUE, x, y, width, height);
       
-      /* Draw a drop-shadow, to make sure it is always visible even in the paler highlight colours */
+      /* Draw a drop-shadow, to make sure it is always visible even in the paler highlight colors */
       const int shadowHt = 1;
-      gdk_gc_set_foreground(drawData->gc, drawData->shadowColour);
+      gdk_gc_set_foreground(drawData->gc, drawData->shadowColor);
       gdk_gc_set_line_attributes(drawData->gc, shadowHt, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
       
       int yBottom = y + height - shadowHt;
@@ -384,7 +385,7 @@ static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
 }
 
 
-/* Draw the MSPs for the given sequence in the given colour. */
+/* Draw the MSPs for the given sequence in the given color. */
 static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 {
   const SequenceStruct *seq = (const SequenceStruct*)listItemData;
@@ -403,27 +404,28 @@ static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 }
 
 
-/* Draw MSP lines that are in groups. Use the highlight colour of the group if one is set */
+/* Draw MSP lines that are in groups. Use the highlight color of the group if one is set */
 static void drawGroupedMspLines(gpointer listItemData, gpointer data)
 {
   SequenceGroup *seqGroup = (SequenceGroup*)listItemData;
   DrawGridData *drawData = (DrawGridData*)data;
-  GdkColor *origColour = drawData->colour;
-  GdkColor *origShadowColour = drawData->shadowColour;
+  GdkColor *origColor = drawData->color;
+  GdkColor *origShadowColor = drawData->shadowColor;
 
-  /* Use the group's highlight colour, if this sequence should be highlighted */
+  /* Use the group's highlight color, if this sequence should be highlighted */
   if (seqGroup->highlighted)
     {
-      /* Use the group's highlight colour */
-      drawData->colour = &seqGroup->highlightColour;
-      GdkColor shadowColour = getDropShadowColour(drawData->colour);
-      drawData->shadowColour = &shadowColour;
+      /* Use the group's highlight color */
+      drawData->color = &seqGroup->highlightColor;
+      GdkColor shadowColor;
+      getDropShadowColor(drawData->color, &shadowColor);
+      drawData->shadowColor = &shadowColor;
       
       g_list_foreach(seqGroup->seqList, drawSequenceMspLines, drawData);
 
       /* Set the draw data back to its original values */
-      drawData->colour = origColour;
-      drawData->shadowColour = origShadowColour;
+      drawData->color = origColor;
+      drawData->shadowColor = origShadowColor;
     }
   else
     {
@@ -442,8 +444,8 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
     grid, 
     drawable, 
     gc, 
-    gridGetMspLineColour(grid), 
-    gridGetMspLineColour(grid)
+    gridGetMspLineColor(grid, FALSE), 
+    gridGetMspLineColor(grid, FALSE)
   };
   
   /* Draw all MSPs for this grid */ 
@@ -454,9 +456,10 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   g_list_foreach(bc->sequenceGroups, drawGroupedMspLines, &drawData);
   
   /* Finally, draw selected sequences. These will appear on top of everything else. */
-  drawData.colour = gridGetMspLineHighlightColour(grid);
-  GdkColor shadowColour = getDropShadowColour(drawData.colour);
-  drawData.shadowColour = &shadowColour;
+  drawData.color = gridGetMspLineColor(grid, TRUE);
+  GdkColor shadowColor;
+  getDropShadowColor(drawData.color, &shadowColor);
+  drawData.shadowColor = &shadowColor;
   g_list_foreach(bc->selectedSeqs, drawSequenceMspLines, &drawData);
 }
 
@@ -471,23 +474,16 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 
   const gint percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
   const gint numVCells = gridGetNumVCells(grid);
+
+  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+  GdkColor *gridLineColor = getGdkColor(bc, BLXCOL_GRID_LINE, FALSE);
+  GdkColor *gridTextColor = getGdkColor(bc, BLXCOL_GRID_TEXT, FALSE);
+  GdkColor *highlightBoxColor = getGdkColor(bc, BLXCOL_HIGHLIGHT_BOX, FALSE);
   
   /* Draw the grid lines */
   GdkGC *gc = gdk_gc_new(drawable);
-
-  drawVerticalGridLines(grid, 
-                        drawable,
-                        gc,
-			&bigPictureProperties->gridLineColour);
-  
-  drawHorizontalGridLines(grid, 
-                          drawable,
-                          gc,
-			  numVCells, 
-			  percentPerCell, 
-			  bigPictureProperties->percentIdRange.max, 
-			  &bigPictureProperties->gridTextColour, 
-			  &bigPictureProperties->gridLineColour);
+  drawVerticalGridLines(grid, drawable, gc, gridLineColor);
+  drawHorizontalGridLines(grid, drawable, gc, numVCells, percentPerCell, bigPictureProperties->percentIdRange.max, gridTextColor, gridLineColor);
   
   /* Draw lines corresponding to the MSPs */
   drawMspLines(grid, drawable, gc);
@@ -498,7 +494,7 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 		   gc,
 		   &properties->highlightRect, 
 		   bigPictureProperties->highlightBoxLineWidth,
-		   &bigPictureProperties->highlightBoxColour);
+		   highlightBoxColor);
 }
 
 
@@ -914,18 +910,11 @@ static GtkWidget* gridGetDetailView(GtkWidget *grid)
   return blxWindowGetDetailView(blxWindow);
 }
 
-static GdkColor *gridGetMspLineColour(GtkWidget *grid)
+static GdkColor *gridGetMspLineColor(GtkWidget *grid, const gboolean selected)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return &properties->mspLineColour;
-}
-
-static GdkColor *gridGetMspLineHighlightColour(GtkWidget *grid)
-{
-  GtkWidget *bigPicture = gridGetBigPicture(grid);
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return &properties->mspLineHighlightColour;
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  return getGdkColor(bc, BLXCOL_MSP_LINE, selected);
 }
 
 /***********************************************************

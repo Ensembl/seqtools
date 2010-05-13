@@ -500,6 +500,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
   /* Loop through all column headers and call their individual refresh functions
    * (this sets the specific data for the column headers) */
   GList *headerItem = properties->treeColumnHeaderList;
+  PangoFontDescription *fontDesc = treeGetFontDesc(tree);
   
   for ( ; headerItem; headerItem = headerItem->next)
     {
@@ -507,6 +508,15 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
       
       if (headerInfo && headerInfo->headerWidget)
 	{
+	  /* Set the background color (in the parent, seeing as the label doesn't have a window) */
+	  BlxViewContext *bc = treeGetContext(tree);
+	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
+	  GdkColor *bgColor = getGdkColor(bc, BLXCOL_REF_SEQ, FALSE);
+	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, bgColor);
+
+	  /* Update the font, in case its size has changed */
+	  gtk_widget_modify_font(headerInfo->headerWidget, fontDesc);
+
 	  /* Call the refresh function, if there is one */
 	  if (headerInfo->refreshFunc)
 	    {
@@ -997,10 +1007,10 @@ static gboolean coordAffectedBySnp(const int dnaIdx, const Strand strand, const 
   return result;
 }
 
-/* Utility to determine the background colour of a base in the given frame
- * and strand. Pass in the colour options so we don't have to get them from the
+/* Utility to determine the background color of a base in the given frame
+ * and strand. Pass in the color options so we don't have to get them from the
  * tree (which is slow if called many times) */
-GdkColor* getCoordColour(BlxViewContext *bc,
+GdkColor* getCoordColor(BlxViewContext *bc,
 			 DetailViewProperties *properties,
 			 const int dnaIdx,
 			 const char baseChar,
@@ -1008,7 +1018,7 @@ GdkColor* getCoordColour(BlxViewContext *bc,
 			 const BlxSeqType seqType,
 			 const gboolean displayIdxSelected,
 			 const gboolean dnaIdxSelected,
-			 const gboolean showBackground,   /* whether to use default background colour or leave blank */
+			 const gboolean showBackground,   /* whether to use default background color or leave blank */
 			 const gboolean showSnps,	  /* whether to show SNPs */
 			 const gboolean showCodons)	  /* whether to highlight DNA bases within the selected codon, for protein matches */
 {
@@ -1017,29 +1027,29 @@ GdkColor* getCoordColour(BlxViewContext *bc,
   if (showSnps && coordAffectedBySnp(dnaIdx, strand, bc->mspList))
     {
       /* The coord is affected by a SNP. */
-      result = (dnaIdxSelected) ? &properties->snpColourSelected : &properties->snpColour;
+      result = getGdkColor(bc, BLXCOL_SNP, dnaIdxSelected);
     }
   else if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected))
     {
-      /* The coord is a nucleotide in the currently-selected codon. The colour depends
+      /* The coord is a nucleotide in the currently-selected codon. The color depends
        * on whether the actual nucleotide itself is selected, or just the codon that it 
        * belongs to. */
-      result = dnaIdxSelected ? &properties->codonColourSelected : &properties->codonColour;
+      result = getGdkColor(bc, BLXCOL_CODON, dnaIdxSelected);
     }
   else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
     {
-      /* The coord is a MET codon or a STOP codon */
-      result = displayIdxSelected ? &properties->metColourSelected : &properties->metColour;
+      /* The coord is a MET codon */
+      result = getGdkColor(bc, BLXCOL_MET, displayIdxSelected);
     }
   else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
     {
-      /* The coord is a MET codon or a STOP codon */
-      result = displayIdxSelected ? &properties->stopColourSelected : &properties->stopColour;
+      /* The coord is a STOP codon */
+      result = getGdkColor(bc, BLXCOL_STOP, displayIdxSelected);
     }
   else if (showBackground)
     {
-      /* Use the default background colour for the reference sequence */
-      result = displayIdxSelected ? &properties->refSeqColourSelected : &properties->refSeqColour;
+      /* Use the default background color for the reference sequence */
+      result = getGdkColor(bc, BLXCOL_REF_SEQ, displayIdxSelected);
     }
   
   return result;
@@ -1059,7 +1069,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
-  const gboolean showSnps = treeHasSnpHeader(tree);
+  const gboolean showSnps = treeHasSnpHeader(tree) && detailViewGetShowSnpTrack(detailView);
   
   /* Find the segment of the ref seq to display. */
   gchar *segmentToDisplay = getSequenceSegment(bc,
@@ -1085,12 +1095,12 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       
       while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
 	{
-	  /* Set the background colour depending on whether this base is selected or
+	  /* Set the background color depending on whether this base is selected or
 	   * is affected by a SNP */
 	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
 	  const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
 	  
-	  GdkColor *colour = getCoordColour(bc,
+	  GdkColor *color = getCoordColor(bc,
 					    properties,
 					    dnaIdx, 
 					    baseChar,
@@ -1102,9 +1112,9 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 					    showSnps, 
 					    FALSE);
 	  
-	  if (colour)
+	  if (color)
 	    {
-	      gdk_gc_set_foreground(gc, colour);
+	      gdk_gc_set_foreground(gc, color);
 	      const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
 	      const int y = 0;
 	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
@@ -1171,10 +1181,10 @@ static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, g
   gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
   widgetSetDrawable(tree, drawable);
 
-  /* Draw a blank rectangle of the required widget background colour */
+  /* Draw a blank rectangle of the required widget background color */
   GdkGC *gc = gdk_gc_new(drawable);
-  GdkColor *bgColour = tree->style->bg;
-  gdk_gc_set_foreground(gc, bgColour);
+  GdkColor *bgColor = tree->style->bg;
+  gdk_gc_set_foreground(gc, bgColor);
   
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, tree->allocation.width, tree->allocation.height);
   
@@ -1874,7 +1884,7 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
   if (GTK_IS_LABEL(headerWidget))
     {
       GtkWidget *tree = GTK_WIDGET(data);
-      
+
       /* Update the font, in case its size has changed */
       gtk_widget_modify_font(headerWidget , treeGetFontDesc(tree));
 
@@ -1921,15 +1931,14 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 /* Refresh the start column header. This displays the start index of the current display range */
 static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 {
-  GtkWidget *tree = GTK_WIDGET(data);
-  
   if (GTK_IS_LABEL(headerWidget))
     {
+      GtkWidget *tree = GTK_WIDGET(data);
+      BlxViewContext *bc = treeGetContext(tree);
+
       /* Update the font, in case its size has changed */
       gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
 
-      BlxViewContext *bc = treeGetContext(tree);
-      
       int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), 
 					treeGetFrame(tree),
 					bc->seqType, 
@@ -1955,15 +1964,11 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 /* Refresh the start column header. This displays the end index of the current display range */
 static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
 {
-  GtkWidget *tree = GTK_WIDGET(data);
-  
   if (GTK_IS_LABEL(headerWidget))
     {
-      /* Update the font, in case its size has changed */
-      gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
-
+      GtkWidget *tree = GTK_WIDGET(data);
       BlxViewContext *bc = treeGetContext(tree);
-      
+    
       int displayVal = getEndDnaCoord(treeGetDisplayRange(tree),
 				      treeGetFrame(tree),
 				      bc->seqType, 
@@ -2096,16 +2101,12 @@ static void createTreeColHeader(GList **columnHeaders,
   
   if (columnHeader != NULL)
     { 
-      /* Put the widget in an event box so that we can colour its background. */
+      /* Put the widget in an event box so that we can color its background. */
       GtkWidget *parent = gtk_event_box_new();
       gtk_container_add(GTK_CONTAINER(parent), columnHeader);
       
       /* Put the event box into the header bar */
       gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == SEQUENCE_COL), TRUE, 0);
-
-      /* Set the default background colour (in the parent, seeing as the label doesn't have a window) */
-      GdkColor bgColour = getGdkColor(DEFAULT_REF_SEQ_BG_COLOUR);
-      gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, &bgColour);
       
       /* Create the header info and add it to the list */
       TreeColumnHeaderInfo *headerInfo = createTreeColumnHeaderInfo(columnHeader, tree, columnIds, refreshFunc);
@@ -2329,11 +2330,11 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
   
-  /* Set the background colour for the rows to be the same as the widget's background colour */
+  /* Set the background color for the rows to be the same as the widget's background color */
   gtk_widget_modify_base(GTK_WIDGET(tree), GTK_STATE_NORMAL, GTK_WIDGET(tree)->style->bg);
 
-  /* The default text colour when rows are selected is white. This doesn't work 
-   * well against our default background colour of cyan, so use the same text colour
+  /* The default text color when rows are selected is white. This doesn't work 
+   * well against our default background color of cyan, so use the same text color
    * as unselected rows. */
   gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_SELECTED, GTK_WIDGET(tree)->style->text);
   gtk_widget_modify_text(GTK_WIDGET(tree), GTK_STATE_ACTIVE, GTK_WIDGET(tree)->style->text);

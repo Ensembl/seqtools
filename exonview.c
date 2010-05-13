@@ -27,8 +27,6 @@ typedef struct _ExonViewProperties
     int yPad;			      /* y padding */
     
     GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
-    GdkColor exonColour;	      /* The colour to draw normal exons */
-    GdkColor exonColourSelected;      /* The colour to draw selected exons */
   } ExonViewProperties;
 
 
@@ -37,8 +35,10 @@ typedef struct _DrawData
   {
     GdkDrawable *drawable;
     GdkGC *gc;
-    GdkColor *colour;
-    GdkColor *exonColourSelected;
+    GdkColor *fillColor;
+    GdkColor *fillColorSelected;
+    GdkColor *lineColor;
+    GdkColor *lineColorSelected;
     GdkRectangle *exonViewRect;
     GtkWidget *blxWindow;
     const Strand strand;
@@ -67,27 +67,35 @@ static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
  ***********************************************************/
 
 /* Draw an exon */
-static void drawExon(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width, int height)
+static void drawExon(GdkDrawable *drawable, DrawData *data, const gboolean isSelected, int x, int y, int width, int height)
 {
-  gdk_draw_rectangle(drawable, gc, FALSE, x, y, width, height);
+  /* Draw the fill rectangle */
+  gdk_gc_set_foreground(data->gc, isSelected ? data->fillColorSelected : data->fillColor);
+  gdk_draw_rectangle(drawable, data->gc, TRUE, x, y, width, height);
+  
+  /* Draw outline (exon box outline always the same color; only intron lines change when selected) */
+  gdk_gc_set_foreground(data->gc, data->lineColor);
+  gdk_draw_rectangle(drawable, data->gc, FALSE, x, y, width, height);
   
 }
 
 
 /* Draw an intron */
-static void drawIntron(GdkDrawable *drawable, GdkGC *gc, int x, int y, int width, int height)
+static void drawIntron(GdkDrawable *drawable, DrawData *data, const gboolean isSelected, int x, int y, int width, int height)
 {
+  gdk_gc_set_foreground(data->gc, isSelected ? data->lineColorSelected : data->lineColor);
+
   int xMid = x + roundNearest((double)width / 2.0);
   int xEnd = x + width;
   int yMid = y + roundNearest((double)height / 2.0);
   
-  gdk_draw_line(drawable, gc, x, yMid, xMid, y);
-  gdk_draw_line(drawable, gc, xMid, y, xEnd, yMid);
+  gdk_draw_line(drawable, data->gc, x, yMid, xMid, y);
+  gdk_draw_line(drawable, data->gc, xMid, y, xEnd, yMid);
 }
 
 
 /* Draw the given exon/intron, if it is in range. Returns true if it was drawn */
-static gboolean drawExonIntron(const MSP *msp, DrawData *data, GdkColor *colour)
+static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean isSelected)
 {
   gboolean drawn = FALSE;
   
@@ -113,15 +121,13 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, GdkColor *colour)
       int y = data->y;
       int height = data->height;
       
-      gdk_gc_set_foreground(data->gc, colour);
-
       if (mspIsExon(msp))
 	{
-	  drawExon(data->drawable, data->gc, x, y, width, height);
+	  drawExon(data->drawable, data, isSelected, x, y, width, height);
 	}
       else if (mspIsIntron(msp))
 	{
-	  drawIntron(data->drawable, data->gc, x, y, width, height);
+	  drawIntron(data->drawable, data, isSelected, x, y, width, height);
 	}
     }
   
@@ -141,7 +147,7 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
   return showMsp;
 }
 
-/* Draw the msps in the given sequence, if they are exons/introns. Use the colour
+/* Draw the msps in the given sequence, if they are exons/introns. Use the color
  * specified in the user data */
 static void drawExonIntronItem(gpointer listItemData, gpointer data)
 {
@@ -163,18 +169,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
       
 	  if (showMspInExonView(msp, drawData))
 	    {
-	      GdkColor *colour = drawData->colour;
-	      
-	      if (isSelected)
-		{
-		  colour = drawData->exonColourSelected;
-		}
-	      else if (group && group->highlighted)
-		{
-		  colour = &(group->highlightColour);
-		}
-	      
-	      seqDrawn |= drawExonIntron(msp, drawData, colour);
+	      seqDrawn |= drawExonIntron(msp, drawData, isSelected);
 	    }
 	}
     }
@@ -194,14 +189,16 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-
+  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
   GdkGC *gc = gdk_gc_new(drawable);
   
   DrawData drawData = {
     drawable,
     gc,
-    &properties->exonColour,
-    &properties->exonColourSelected,
+    getGdkColor(bc, BLXCOL_EXON_FILL_CDS, FALSE),
+    getGdkColor(bc, BLXCOL_EXON_FILL_CDS, TRUE),
+    getGdkColor(bc, BLXCOL_EXON_LINE_CDS, FALSE),
+    getGdkColor(bc, BLXCOL_EXON_LINE_CDS, TRUE),
     &properties->exonViewRect,
     blxWindow,
     properties->currentStrand,
@@ -230,17 +227,16 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     {
       drawData.normalOnly = FALSE;
   
-      /* Draw all msps that are in groups */
-      GList *groupItem = blxContext->sequenceGroups;
-      for ( ; groupItem; groupItem = groupItem->next)
-	{
-	  SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-	  drawData.colour = group->highlighted ? &group->highlightColour : &properties->exonColour;
-	  g_list_foreach(group->seqList, drawExonIntronItem, &drawData);
-	}
+//      /* Draw all msps that are in groups */
+//      GList *groupItem = blxContext->sequenceGroups;
+//      for ( ; groupItem; groupItem = groupItem->next)
+//	{
+//	  SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+//	  drawData.color = group->highlighted ? &group->highlightColor : drawData.exonColor;
+//	  g_list_foreach(group->seqList, drawExonIntronItem, &drawData);
+//	}
       
       /* Draw all selected msps */
-      drawData.colour = &properties->exonColourSelected;
       g_list_foreach(blxContext->selectedSeqs, drawExonIntronItem, &drawData);
       
       /* Increment the y value when finished, because we calculate the view height based on this */
@@ -354,9 +350,6 @@ static void exonViewCreateProperties(GtkWidget *exonView,
       properties->exonViewRect.y      = DEFAULT_EXON_YPAD;
       properties->exonViewRect.width  = 0;
       properties->exonViewRect.height = DEFAULT_EXON_HEIGHT;
-      
-      properties->exonColour = getGdkColor(GDK_BLUE);
-      properties->exonColourSelected = getGdkColor(GDK_CYAN);
       
       gtk_widget_set_size_request(exonView, 0, DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
 
