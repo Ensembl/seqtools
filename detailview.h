@@ -11,6 +11,7 @@
 
 #include <gtk/gtk.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxwindow.h>
 
 
 #define HEADER_CONTAINER_NAME		"header container"
@@ -100,6 +101,7 @@ typedef struct _DetailViewProperties
     gboolean sortInverted;	  /* Whether the sort operations operate in the reverse direction to their default */
     gboolean highlightDiffs;	  /* Whether the 'highlight differences' option is enabled */
     gboolean showSnpTrack;	  /* Whether the 'Show SNP track' option is enabled */
+    int snpConnectorHeight;	  /* The height of the connector between the SNP track and the DNA base track */
 
     /* Cached font sizes, needed often for calculations. */
     int charHeight;
@@ -191,6 +193,22 @@ void			selectClickedSnp(GtkWidget *snpTrack,
 void			seqColHeaderSetRow(GtkWidget *header, const int frame);
 int			seqColHeaderGetRow(GtkWidget *header);
 int			seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames);
+
+void			drawHeaderChar(BlxViewContext *bc,
+				       DetailViewProperties *properties,
+				       const int dnaIdx,
+				       const char baseChar,
+				       const Strand strand, 
+				       const BlxSeqType seqType,
+				       const gboolean displayIdxSelected, 
+				       const gboolean dnaIdxSelected, 
+				       const gboolean showBackground,
+				       const gboolean showSnps,
+				       const gboolean showCodons,
+				       GdkDrawable *drawable,
+				       GdkGC *gc,
+				       const int x,
+				       const int y);
 
 GtkWidget*		createDetailView(GtkWidget *blxWindow,
 					 GtkWidget *container,

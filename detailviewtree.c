@@ -983,79 +983,6 @@ static void treeCreateProperties(GtkWidget *widget,
  *                       Tree events                       *
  ***********************************************************/
 
-/* Determine whether the given coord in the given frame/strand is affected by
- * a SNP */
-static gboolean coordAffectedBySnp(const int dnaIdx, const Strand strand, const MSP *mspList)
-{
-  gboolean result = FALSE;
-  
-  /* Loop through the MSPs and check any that are SNPs */
-  const MSP *msp = mspList;
-  
-  for ( ; msp; msp = msp->next)
-    {
-      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand)
-	{
-	  if (msp->qstart == dnaIdx)
-	    {
-	      result = TRUE;
-	      break;
-	    }
-	}
-    }
-  
-  return result;
-}
-
-/* Utility to determine the background color of a base in the given frame
- * and strand. Pass in the color options so we don't have to get them from the
- * tree (which is slow if called many times) */
-GdkColor* getCoordColor(BlxViewContext *bc,
-			 DetailViewProperties *properties,
-			 const int dnaIdx,
-			 const char baseChar,
-			 const Strand strand,
-			 const BlxSeqType seqType,
-			 const gboolean displayIdxSelected,
-			 const gboolean dnaIdxSelected,
-			 const gboolean showBackground,   /* whether to use default background color or leave blank */
-			 const gboolean showSnps,	  /* whether to show SNPs */
-			 const gboolean showCodons)	  /* whether to highlight DNA bases within the selected codon, for protein matches */
-{
-  GdkColor *result = NULL;
-  
-  if (showSnps && coordAffectedBySnp(dnaIdx, strand, bc->mspList))
-    {
-      /* The coord is affected by a SNP. */
-      result = getGdkColor(bc, BLXCOL_SNP, dnaIdxSelected);
-    }
-  else if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected))
-    {
-      /* The coord is a nucleotide in the currently-selected codon. The color depends
-       * on whether the actual nucleotide itself is selected, or just the codon that it 
-       * belongs to. */
-      result = getGdkColor(bc, BLXCOL_CODON, dnaIdxSelected);
-    }
-  else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
-    {
-      /* The coord is a MET codon */
-      result = getGdkColor(bc, BLXCOL_MET, displayIdxSelected);
-    }
-  else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
-    {
-      /* The coord is a STOP codon */
-      result = getGdkColor(bc, BLXCOL_STOP, displayIdxSelected);
-    }
-  else if (showBackground)
-    {
-      /* Use the default background color for the reference sequence */
-      result = getGdkColor(bc, BLXCOL_REF_SEQ, displayIdxSelected);
-    }
-  
-  return result;
-}
-
-
 /* Draw the part of the tree header that shows the reference sequence (either as
  * nucleotide sequence, or a peptide sequence if viewing protein matches) */
 static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
@@ -1069,7 +996,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
-  const gboolean showSnps = treeHasSnpHeader(tree) && detailViewGetShowSnpTrack(detailView);
+  const gboolean showSnps = treeHasSnpHeader(tree);
   
   /* Find the segment of the ref seq to display. */
   gchar *segmentToDisplay = getSequenceSegment(bc,
@@ -1100,25 +1027,10 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
 	  const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
 	  
-	  GdkColor *color = getCoordColor(bc,
-					    properties,
-					    dnaIdx, 
-					    baseChar,
-					    strand, 
-					    bc->seqType,
-					    displayIdxSelected, 
-					    displayIdxSelected, 
-					    TRUE,
-					    showSnps, 
-					    FALSE);
-	  
-	  if (color)
-	    {
-	      gdk_gc_set_foreground(gc, color);
-	      const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
-	      const int y = 0;
-	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
-	    }
+	  const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
+	  const int y = 0;
+
+	  drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, drawable, gc, x, y);
 	  
 	  dnaIdx += incrementValue;
 	  ++displayIdx;

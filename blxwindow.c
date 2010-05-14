@@ -3069,7 +3069,6 @@ static void createBlxColor(BlxViewContext *bc,
       /* Insert into the list */
       bc->colorList = g_list_append(bc->colorList, result);
     }
-
 }
 
 

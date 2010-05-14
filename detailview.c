@@ -25,6 +25,7 @@
 #define MAX_FONT_SIZE			20
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
+#define DEFAULT_SNP_CONNECTOR_HEIGHT	0
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
@@ -56,6 +57,7 @@ static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
 static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 static int		      detailViewGetActiveFrame(GtkWidget *detailView);
+static int		      detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 
 static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
 static int		      snpTrackGetStrand(GtkWidget *snpTrack);
@@ -586,19 +588,27 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
 
       const int charHeight = detailViewGetCharHeight(detailView);
       
-      if (GTK_IS_LAYOUT(header))
+      if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME))
 	{
-	  /* Set the size of the drawing area */
+	  /* SNP track */
+	  if (!detailViewGetShowSnpTrack(detailView))
+	    {
+	      /* SNP track is hidden, so set the height to 0 */
+	      gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, 0);
+	      gtk_widget_set_size_request(header, -1, 0);
+	    }
+	  else
+	    {
+	      /* Set the height to the character height plus the connector line height */
+	      const int height = charHeight + detailViewGetSnpConnectorHeight(detailView);
+	      gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, height);
+	      gtk_widget_set_size_request(header, -1, height);
+	    }
+	}
+      else if (GTK_IS_LAYOUT(header))
+	{
+	  /* Normal text header. Set the height to the character height */
 	  gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, charHeight);
-	}
-
-      /* If this header is the SNP track but the SNP track is hidden, set the height to 0 */
-      if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME) && !detailViewGetShowSnpTrack(detailView))
-	{
-	  gtk_widget_set_size_request(header, -1, 0);
-	}
-      else
-	{
 	  gtk_widget_set_size_request(header, -1, charHeight);
 	}
 
@@ -1122,7 +1132,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
       GdkGC *gc = gdk_gc_new(drawable);
       DetailViewProperties *properties = detailViewGetProperties(detailView);
       const int activeFrame = detailViewGetActiveFrame(detailView);
-      const gboolean showSnpTrack = detailViewGetShowSnpTrack(detailView);
+      const gboolean showSnpTrack = TRUE; /* always highlight SNP positions in the DNA header */
 
       gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
       
@@ -1140,8 +1150,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
       
       int qIdx = bc->displayRev ? qRange.max : qRange.min;
       int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      int x = 0;
-      int y = 0;
+      const int y = 0;
       
       while (qIdx >= qRange.min && qIdx <= qRange.max)
 	{
@@ -1151,26 +1160,10 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Stran
 	  /* Color the base depending on whether it is selected or affected by a SNP */
 	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
 	  const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
-	  
-	  GdkColor *color = getCoordColor(bc,
-					    properties,
-					    qIdx, 
-					    displayText[displayTextPos],
-					    strand, 
-					    BLXSEQ_DNA,
-					    displayIdxSelected, 
-					    dnaIdxSelected,
-					    FALSE,
-					    showSnpTrack,
-					    TRUE);
-	  
-	  if (color)
-	    {
-	      /* Highlight color depends on whether this actual DNA base is selected or just the peptide that it's in */
-	      gdk_gc_set_foreground(gc, color);
-	      x = displayTextPos * properties->charWidth;
-	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
-	    }
+	  const int x = displayTextPos * properties->charWidth;
+	  const char base = displayText[displayTextPos];
+
+	  drawHeaderChar(bc, properties, qIdx, base, strand, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, drawable, gc, x, y);
 	  
 	  /* Increment indices */
 	  ++displayTextPos;
@@ -1260,6 +1253,124 @@ static int getSnpDisplayCoord(const MSP *msp,
 }
 
 
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a SNP */
+static gboolean coordAffectedBySnp(const int dnaIdx, const Strand strand, const MSP *mspList)
+{
+  gboolean result = FALSE;
+  
+  /* Loop through the MSPs and check any that are SNPs */
+  const MSP *msp = mspList;
+  
+  for ( ; msp; msp = msp->next)
+    {
+      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand)
+	{
+	  if (msp->qstart == dnaIdx)
+	    {
+	      result = TRUE;
+	      break;
+	    }
+	}
+    }
+  
+  return result;
+}
+
+
+/* Draw a rectangle with an outline and a fill color */
+static void drawRectangle(GdkDrawable *drawable, 
+			  GdkGC *gc, 
+			  GdkColor *fillColor,
+			  GdkColor *outlineColor,
+			  const int x, 
+			  const int y,
+			  const int width, 
+			  const int height)
+{
+  const int lineWidth = 1;
+  
+  if (fillColor)
+    {
+      gdk_gc_set_foreground(gc, fillColor);
+      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, height);
+    }
+
+  if (outlineColor)
+    {
+      gdk_gc_set_foreground(gc, outlineColor);
+      gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+      gdk_draw_rectangle(drawable, gc, FALSE, x, y, width - lineWidth, height - lineWidth);
+    }
+}
+
+
+/* Draw a given nucleotide or peptide. Determines the color depending on various
+ * parameters */
+void drawHeaderChar(BlxViewContext *bc,
+		    DetailViewProperties *properties,
+		    const int dnaIdx,
+		    const char baseChar,
+		    const Strand strand,
+		    const BlxSeqType seqType,
+		    const gboolean displayIdxSelected,
+		    const gboolean dnaIdxSelected,
+		    const gboolean showBackground,    /* whether to use default background color or leave blank */
+		    const gboolean showSnps,	      /* whether to show SNPs */
+		    const gboolean showCodons,	      /* whether to highlight DNA bases within the selected codon, for protein matches */
+		    GdkDrawable *drawable,
+		    GdkGC *gc,
+		    const int x,
+		    const int y)
+{
+  GdkColor *fillColor = NULL;
+  GdkColor *outlineColor = NULL;
+  
+  if (showSnps && coordAffectedBySnp(dnaIdx, strand, bc->mspList))
+    {
+      /* The coord is affected by a SNP. Outline it in the "selected" SNP color
+       * (which is darker than the normal color) */
+      outlineColor = getGdkColor(bc, BLXCOL_SNP, TRUE);
+      
+      /* If the SNP is selected, also fill it with the SNP color (using the
+       * "unselected" SNP color, which is lighter than the outline). */
+      if (dnaIdxSelected)
+	{
+	  fillColor = getGdkColor(bc, BLXCOL_SNP, FALSE);
+	}
+    }
+  
+  if (!fillColor)
+    {
+      if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected))
+	{
+	  /* The coord is a nucleotide in the currently-selected codon. The color depends
+	   * on whether the actual nucleotide itself is selected, or just the codon that it 
+	   * belongs to. */
+	  fillColor = getGdkColor(bc, BLXCOL_CODON, dnaIdxSelected);
+	}
+      else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
+	{
+	  /* The coord is a MET codon */
+	  fillColor = getGdkColor(bc, BLXCOL_MET, displayIdxSelected);
+	}
+      else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
+	{
+	  /* The coord is a STOP codon */
+	  fillColor = getGdkColor(bc, BLXCOL_STOP, displayIdxSelected);
+	}
+      else if (showBackground)
+	{
+	  /* Use the default background color for the reference sequence */
+	  fillColor = getGdkColor(bc, BLXCOL_REF_SEQ, displayIdxSelected);
+	}
+    }
+  
+  
+  drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight);
+}
+
+
 /* Function that does the drawing for the SNP track */
 static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 {
@@ -1306,23 +1417,32 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	    {
 	      int x = leftMargin + ((startIdx - properties->displayRange.min) * properties->charWidth);
 	      const int width = strlen(msp->sseq) * properties->charWidth;
-	      
-	      /* Draw the background */
 	      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
-	      GdkColor *color = getGdkColor(bc, BLXCOL_SNP, isSelected);
-
-	      gdk_gc_set_foreground(gc, color);
-	      gdk_draw_rectangle(drawable, gc, TRUE, x, y, width, properties->charHeight);
+	      
+	      /* Draw the outline in the default SNP color. If the SNP is selected, also
+	       * fill in the rectangle in the SNP color (use the selected color for the
+	       * outline and the unselected color for the fill, so that the outline is darker). */
+	      GdkColor *outlineColor = getGdkColor(bc, BLXCOL_SNP, TRUE);
+	      GdkColor *fillColor = isSelected ? getGdkColor(bc, BLXCOL_SNP, FALSE) : NULL;
+	      
+	      /* Draw the background rectangle for the char */
+	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, properties->charHeight);
 	      
 	      /* Draw the text */
 	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, msp->sseq);
 	      pango_layout_set_font_description(layout, properties->fontDesc);
-	      
+
 	      if (layout)
 		{
 		  gtk_paint_layout(snpTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, x, y, layout);
 		  g_object_unref(layout);
 		}	      
+	      
+//	      /* Draw the connector line */
+//	      const int xStart = x + ((width + (width % 2 - 1) * properties->charWidth) / 2); /* mod subtracts 1 from even numbers, so we have an odd number of chars to find the middle one of */
+//	      const int yStart = y + properties->charHeight;
+//	      
+//	      gdk_draw_line(drawable, gc, xStart, yStart, xStart, yStart + properties->snpConnectorHeight);
 	    }
 	}
     }
@@ -1741,6 +1861,12 @@ gboolean detailViewGetShowSnpTrack(GtkWidget *detailView)
   return properties ? properties->showSnpTrack : FALSE;
 }
 
+static int detailViewGetSnpConnectorHeight(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->snpConnectorHeight : UNSET_INT;
+}
+
 
 /* Perform required updates after the selected base has changed. */
 static void updateFollowingBaseSelection(GtkWidget *detailView,
@@ -1910,6 +2036,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->sortInverted = sortInverted;
       properties->highlightDiffs = FALSE;
       properties->showSnpTrack = FALSE;
+      properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
 
       /* Set initial display range to something valid but only 1 base wide. Then if we try to do any 
        * calculations on the range before it gets set properly, it won't have much work to do. */
