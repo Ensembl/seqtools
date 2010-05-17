@@ -111,6 +111,7 @@ void			  blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
 void			  blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq);
 void			  blxWindowDeselectAllSeqs(GtkWidget *blxWindow);
 gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq);
+void			  blxWindowSetSeqSelected(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean selected);
 void			  blxWindowSelectionChanged(GtkWidget *blxWindow);
 SequenceStruct*		  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 

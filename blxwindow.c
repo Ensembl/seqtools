@@ -3600,6 +3600,20 @@ gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq)
 }
 
 
+/* Set the given sequence as selected or unselected, depending on the given argument */
+void blxWindowSetSeqSelected(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean selected)
+{
+  if (selected)
+    {
+      blxWindowSelectSeq(blxWindow, seq);
+    }
+  else
+    {
+      blxWindowDeselectSeq(blxWindow, seq);
+    }
+}
+
+
 SequenceStruct* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
 {
   SequenceStruct *result = NULL;
