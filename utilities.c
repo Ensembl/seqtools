@@ -530,21 +530,24 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
 {
   int dnaIdx = displayIdx;
   
-  if (displaySeqType == BLXSEQ_PEPTIDE)
+  if (displayIdx != UNSET_INT)
     {
-      /* Convert the input peptide coord to a dna coord */
-      dnaIdx = (displayIdx * numFrames) - numFrames + frame + baseNum - 1;
+      if (displaySeqType == BLXSEQ_PEPTIDE)
+	{
+	  /* Convert the input peptide coord to a dna coord */
+	  dnaIdx = (displayIdx * numFrames) - numFrames + frame + baseNum - 1;
 
-      /* Convert from 1-based coord to real coords */
-      dnaIdx += refSeqRange->min - 1;
-    }
-  
-  /* If the display is reversed, we need to invert the result. (For example, if the 
-   * result is index '2' out of the range '12345', then we convert it to '4', which is the
-   * equivalent position in the range '54321'. */
-  if (displayRev)
-    {
-      dnaIdx = refSeqRange->max - dnaIdx + refSeqRange->min;
+	  /* Convert from 1-based coord to real coords */
+	  dnaIdx += refSeqRange->min - 1;
+	}
+      
+      /* If the display is reversed, we need to invert the result. (For example, if the 
+       * result is index '2' out of the range '12345', then we convert it to '4', which is the
+       * equivalent position in the range '54321'. */
+      if (displayRev)
+	{
+	  dnaIdx = refSeqRange->max - dnaIdx + refSeqRange->min;
+	}
     }
 
   return dnaIdx;
@@ -566,40 +569,43 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 {
   int displayIdx = dnaIdx;
   
-  /* If the display is reversed (i.e. showing increasing values from right-to-left),
-   * invert the index (i.e. as if it were the normal left-to-right index for this
-   * same position - for example, if the index is '4' out of the range '54321', convert
-   * it to '2', which is the equivalent position in the range '12345'. */
-  if (displayRev)
+  if (dnaIdx != UNSET_INT)
     {
-      displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
-    }
-  
-  if (displaySeqType == BLXSEQ_PEPTIDE)
-    {
-      /* Must convert to 1-based coords to get correct reading frame (because that's
-       * the coordinate system used in blixem's input files). */
-      displayIdx -= dnaIdxRange->min - 1;
-
-      /* We're displaying peptides, so convert the dna coord to a peptide coord */
-      gdouble fraction = ((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames) ;
-      displayIdx = ceil(fraction);
-  
-      /* Find the base number of this DNA coord within the codon, if requested */
-      if (baseNum)
+      /* If the display is reversed (i.e. showing increasing values from right-to-left),
+       * invert the index (i.e. as if it were the normal left-to-right index for this
+       * same position - for example, if the index is '4' out of the range '54321', convert
+       * it to '2', which is the equivalent position in the range '12345'. */
+      if (displayRev)
 	{
-	  *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
+	  displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
+	}
       
-	  if (*baseNum < 1)
+      if (displaySeqType == BLXSEQ_PEPTIDE)
+	{
+	  /* Must convert to 1-based coords to get correct reading frame (because that's
+	   * the coordinate system used in blixem's input files). */
+	  displayIdx -= dnaIdxRange->min - 1;
+
+	  /* We're displaying peptides, so convert the dna coord to a peptide coord */
+	  gdouble fraction = ((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames) ;
+	  displayIdx = ceil(fraction);
+      
+	  /* Find the base number of this DNA coord within the codon, if requested */
+	  if (baseNum)
 	    {
-	      *baseNum += numFrames;
+	      *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
+	  
+	      if (*baseNum < 1)
+		{
+		  *baseNum += numFrames;
+		}
 	    }
 	}
-    }
-  else if (baseNum)
-    {
-      /* For dna sequences, we only have one reading frame */
-      *baseNum = 1;
+      else if (baseNum)
+	{
+	  /* For dna sequences, we only have one reading frame */
+	  *baseNum = 1;
+	}
     }
   
   return displayIdx;
