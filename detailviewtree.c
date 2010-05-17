@@ -18,13 +18,14 @@
 
 /* Local function declarations */
 static GtkWidget*	treeGetDetailView(GtkWidget *tree);
-static void		onSelectionChangedTree(GObject *selection, gpointer data);
+static gboolean		onSelectionChangedTree(GObject *selection, gpointer data);
 static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
 static int		scrollBarWidth();
 static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
+static GList*		treeGetSequenceRows(GtkWidget *tree, const SequenceStruct *seq);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -623,149 +624,29 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
  *			  Selections			   *
  ***********************************************************/
 
-/* Deselect all rows in the given tree */
-void deselectAllRows(GtkWidget *tree, gpointer data)
-{
-  assertTree(tree);
-  GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-  gtk_tree_selection_unselect_all(selection);
-}
-
-
-/* Deselect all rows in the given widget (if it is a tree) or in all of its child 
- * trees (if it is a container), unless it is the tree that is passed as the data pointer,
- * in which case ignore it. */
-void deselectAllRowsNotInTree(GtkWidget *widget, gpointer data)
-{
-  if (widget != data)
-    {
-      const gchar *name = gtk_widget_get_name(widget);
-      if (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0)
-	{
-	  deselectAllRows(widget, NULL);
-	}
-      else if (GTK_IS_CONTAINER(widget))
-	{
-	  gtk_container_foreach(GTK_CONTAINER(widget), deselectAllRowsNotInTree, data);
-	}
-    }
-}
-
-
-/* Call the deselect-all function on all trees that are in the same detail view 
- * as the given tree (but NOT on the given tree itself unless includeCurrent is true). */
-void deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent)
-{
-  assertTree(tree);
-  GtkWidget *detailView = treeGetDetailView(tree);
-  
-  if (includeCurrent)
-    {
-      /* Just call the recursive function */
-      callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
-    }
-  else
-    {
-      /* Need to pass extra data (i.e. the tree to omit), so do this call manually */
-      gtk_container_foreach(GTK_CONTAINER(detailView), deselectAllRowsNotInTree, tree);
-    }
-}
-
-
-static gboolean treeIsSeqSelected(GtkWidget *tree, const SequenceStruct *seq)
-{
-  GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  return blxWindowIsSeqSelected(blxWindow, seq);
-}
-
-
-/* Select the given row if its sequence is marked as selected. */
-static gboolean selectRowIfSeqSelected(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
-{
-  GtkWidget *tree = GTK_WIDGET(data);
-  GList *mspGList = treeGetMsps(model, iter);
-  
-  if (g_list_length(mspGList) > 0)
-    {
-      /* Check any MSP in this row to see if it's seq is selected (they should all have the same seq name) */
-      MSP *msp = (MSP*)(mspGList->data);
-  
-      if (treeIsSeqSelected(tree, msp->sSequence))
-      {
-	GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-	gtk_tree_selection_select_path(selection, path);
-      }
-    }
-  
-  return FALSE;
-}
-
 
 /* Scrolls the currently-selected row(s) into view */
 void treeScrollSelectionIntoView(GtkWidget *tree, gpointer data)
 {
-  assertTree(tree);
-  
-  GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-  GList *selectedRows = gtk_tree_selection_get_selected_rows(selection, NULL);
-  
-  if (g_list_length(selectedRows) >  0)
-    {
-      /* To make sure we show as much of the selection as possible, first scroll
-       * the end of the selection into view, then scroll the start into view. */
-      GtkTreePath *path = (GtkTreePath*)(g_list_last(selectedRows)->data);
-      gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
-      
-      path = (GtkTreePath*)(g_list_first(selectedRows)->data);
-      gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
-    }
-}
-
-
-/* Select all rows in this tree whose sequences are marked as selected */
-void selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data)
-{
-  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_model_foreach(model, selectRowIfSeqSelected, tree);
-}
-
-
-/* Mark the given row's sequence as selected in the list of selected seqs.
- * (Does not allow the tree selection to be re-updated again) */
-static void markSequenceSelectedForRow(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
-{
-  GtkWidget *tree = GTK_WIDGET(data);
+  /* Get the last selected sequence */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  const SequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
   
-  GList *mspGList = treeGetMsps(model, iter);
+  /* Get the tree row(s) that contain that sequence. (If multiple, just use 1st one) */
+  GList *rows = treeGetSequenceRows(tree, lastSelectedSeq);
   
-  if (g_list_length(mspGList) > 0)
+  if (g_list_length(rows) > 0)
     {
-      /* Get the sequence name for any MSP in this row (they should all have the same seq) */
-      MSP *msp = (MSP*)(mspGList->data);
-      
-      /* Update the blxWindow's list of selected sequences. Tell it that it doens't need to update tree rows. */
-      blxWindowSelectSeq(blxWindow, msp->sSequence, FALSE);
+      GtkTreePath *path = (GtkTreePath*)(rows->data);
+      gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
     }
 }
 
-static void onSelectionChangedTree(GObject *selection, gpointer data)
-{
-  GtkWidget *tree = GTK_WIDGET(data);
 
-  if (GTK_WIDGET_VISIBLE(tree))
-    {
-      gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(selection), markSequenceSelectedForRow, tree);
-  
-      /* Update the selection again based on the selected sequence. MSPs in different rows
-       * may have the same sequence, and all of them need to be selected after the user
-       * clicks on any one of them. Unfortunately this causes another selection-changed event, 
-       * so we recurse back here unnecessarily, but that won't cause any harm because the 2nd
-       * call here will do nothing (since no changes need to be made - it is therefore important
-       * to make sure updates only happen when changes DO need to be made, otherwise we risk
-       * infinite recursion). */
-      callFuncOnAllDetailViewTrees(treeGetDetailView(tree), selectRowsForSelectedSeqs);
-    }
+/* We handle row selections ourselves */
+static gboolean onSelectionChangedTree(GObject *selection, gpointer data)
+{
+  return TRUE;
 }
 
 
@@ -780,8 +661,6 @@ void refilterTree(GtkWidget *tree, gpointer data)
   
   GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
   gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(model));
-  
-  selectRowsForSelectedSeqs(tree, NULL);
 }
 
 
@@ -1105,6 +984,67 @@ static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, g
 }
 
 
+static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
+{
+  guint modifiers = gtk_accelerator_get_default_mod_mask();
+  const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+  const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
+  
+  if (!ctrlModifier && !shiftModifier)
+    {
+      blxWindowDeselectAllSeqs(treeGetBlxWindow(tree));
+    }
+  
+  /* If we've clicked a different tree to the previously selected one, make this tree's 
+   * reading frame the active one. Select the first base in the triplet */
+  treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), 1, FALSE);
+  
+  /* Find which row was clicked */
+  GtkTreePath *path = NULL;
+  GtkTreeViewColumn *col = NULL;
+  int cell_x, cell_y;
+  gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(tree), event->x, event->y, &path, &col, &cell_x, &cell_y);
+
+  if (path)
+    {
+      GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+      GtkTreeIter iter;
+      gtk_tree_model_get_iter(model, &iter, path);
+      GList *mspGList = treeGetMsps(model, &iter);
+
+      if (g_list_length(mspGList) > 0)
+	{
+	  /* Extract sequence from any of the MSPs in this row, and select that sequence */
+	  const MSP *firstMsp = (const MSP*)(mspGList->data);
+	  blxWindowSelectSeq(treeGetBlxWindow(tree), firstMsp->sSequence);
+	}
+
+      GtkWidget *detailView = treeGetDetailView(tree);
+      detailViewSetSelectedStrand(detailView, treeGetStrand(tree));
+      detailViewRedrawAll(detailView);
+    }
+  
+  return TRUE; /* handled */
+}
+
+
+static gboolean treePfetchRow(GtkWidget *tree)
+{
+  /* Get the selected sequence (assumes that only one is selected) */
+  GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
+  
+  if (selectedSeqs)
+    {
+      const SequenceStruct *seq = (const SequenceStruct*)selectedSeqs->data;
+      char *seqName = seq->fullName;
+      fetchAndDisplaySequence(seqName, 0, blxWindow);
+    }
+
+  return TRUE;
+}
+
+
 static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
@@ -1116,32 +1056,13 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 	/* Left button: selects a row, or shows the pfetch window if this was a double-click. */
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
-	    blxWindowDeselectAllSeqs(treeGetBlxWindow(tree), FALSE);
-	    deselectAllSiblingTrees(tree, FALSE);
-	    
-	    /* If we've clicked a different tree to the previously selected one, make this tree's 
-	     * reading frame the active one. Select the first base in the triplet */
-	    treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), 1, FALSE);
-	    
-	    /* Let the default handler select the row */
-	    handled = FALSE;
+	    handled = treeSelectRow(tree, event);
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
-	    /* Get the selected sequence (assumes that only one is selected) */
-	    GtkWidget *blxWindow = treeGetBlxWindow(tree);
-	    GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
-	    
-	    if (selectedSeqs)
-	      {
-		const SequenceStruct *seq = (const SequenceStruct*)selectedSeqs->data;
-		char *seqName = seq->fullName;
-		fetchAndDisplaySequence(seqName, 0, blxWindow);
-	      }
-	      
-	    handled = TRUE;
+	    handled = treePfetchRow(tree);
 	  }
-	  
+
 	break;
       }
 
@@ -1188,7 +1109,7 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
 	    /* Select the SNP that was clicked on.  */
-	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
+	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
 	    int clickedBase = 1; /* only get in here for DNA matches; so frame/base number is always one */
 
 	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
@@ -1241,44 +1162,110 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 }
 
 
-static gboolean onKeyPressTree(GtkWidget *tree, GdkEventKey *event, gpointer data)
+static SequenceStruct* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter)
 {
-  if (event->keyval == GDK_Up || event->keyval == GDK_Down)
+  SequenceStruct *result = NULL;
+  GList *mspGList = treeGetMsps(model, iter);
+  
+  if (g_list_length(mspGList) > 0)
     {
-      /* Mark the currently selected MSPs as no longer selected unless selection
-       * has not changed */
-      GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-      GtkTreeModel *model;
-      GList *listItem = gtk_tree_selection_get_selected_rows(selection, &model);
+      const MSP *firstMsp = (const MSP*)(mspGList->data);
+      result = firstMsp->sSequence;
+    }
+  
+  return result;
+}
+
+
+/* Get all the tree rows that contain MSPs from the given sequence */
+static GList *treeGetSequenceRows(GtkWidget *tree, const SequenceStruct *seq)
+{
+  GList *resultList = NULL;
+  
+  /* Loop through all tree rows looking for any with a matching sequence */
+  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+  
+  GtkTreeIter iter;
+  gboolean validIter = gtk_tree_model_get_iter_first(model, &iter);
+  
+  while (validIter)
+    {
+      GList *mspGList = treeGetMsps(model, &iter);
       
-      if (listItem)
+      if (g_list_length(mspGList) > 0)
 	{
-	  GtkTreePath *path = (GtkTreePath*)(listItem->data);
-	  
-	  if (event->keyval == GDK_Up)
+	  const MSP *firstMsp = (const MSP*)(mspGList->data);
+	  if (firstMsp->sSequence == seq)
 	    {
-	      if (gtk_tree_path_prev(path))
-		{
-		  callFuncOnAllDetailViewTrees(treeGetDetailView(tree), deselectAllRows);
-		  blxWindowDeselectAllSeqs(treeGetBlxWindow(tree), FALSE);
-		}
+	      GtkTreePath *path = gtk_tree_model_get_path(model, &iter);
+	      resultList = g_list_append(resultList, path);
+	    }
+	}
+      
+      validIter = gtk_tree_model_iter_next(model, &iter);
+    }
+
+  return resultList;
+}
+
+
+/* Move the current row selection up/down by one row */
+gboolean treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboolean shiftModifier)
+{
+  /* Get the last selected sequence */
+  GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  SequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
+  
+  /* Get the row in this tree that contain MSPs from that sequence (if there are multiple 
+   * rows behaviour is a bit ambiguous; for now just act on the first one that was found) */
+  GList *rows = treeGetSequenceRows(tree, lastSelectedSeq);
+
+  if (g_list_length(rows) > 0)
+    {
+      GtkTreePath *path = (GtkTreePath*)(rows->data);
+      GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+      
+      GtkTreeIter newRowIter;
+      gboolean newRowExists = FALSE;
+      
+      /* We have to use a path to get the previous row and an iter to get the next row (because
+       * gtk_tree_path_next is cyclic, so we can't tell if we're at the bottom already). */
+      if (moveUp && gtk_tree_path_prev(path))
+	{
+	  newRowExists = gtk_tree_model_get_iter(model, &newRowIter, path);
+	}
+      else if (!moveUp)
+	{
+	  newRowExists = gtk_tree_model_get_iter(model, &newRowIter, path);
+	  newRowExists &= gtk_tree_model_iter_next(model, &newRowIter);
+	}
+      
+      if (newRowExists)
+	{
+	  SequenceStruct *newSeq = treeGetSequence(model, &newRowIter);
+
+	  if (shiftModifier && blxWindowIsSeqSelected(blxWindow, newSeq))
+	    {
+	      /* The new row is already selected; deselect the last-selected row */
+	      blxWindowDeselectSeq(blxWindow, lastSelectedSeq);
+	    }
+	  else if (shiftModifier)
+	    {
+	      /* Add new row to current selection */
+	      blxWindowSelectSeq(blxWindow, newSeq);
 	    }
 	  else
 	    {
-	      /* For some reason gtk_tree_path_next doesn't indicate if next is null, so we have to get an iter... */
-	      GtkTreeIter iter;
-	      gtk_tree_model_get_iter(model, &iter, path);
-	      
-	      if (gtk_tree_model_iter_next(model, &iter))
-		{
-		  callFuncOnAllDetailViewTrees(treeGetDetailView(tree), deselectAllRows);
-		  blxWindowDeselectAllSeqs(treeGetBlxWindow(tree), FALSE);
-		}
+	      /* New row becomes sole selection */
+	      blxWindowDeselectAllSeqs(treeGetBlxWindow(tree));
+	      blxWindowSelectSeq(blxWindow, newSeq);
 	    }
+	  
+	  treeScrollSelectionIntoView(tree, NULL);
 	}
     }
   
-  return FALSE;
+  return TRUE;
 }
 
 
@@ -2343,7 +2330,6 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
   g_signal_connect(G_OBJECT(columnHeaderBar), "button-press-event",    G_CALLBACK(onButtonPressTreeHeader),	 tree);
   g_signal_connect(G_OBJECT(columnHeaderBar), "button-release-event",  G_CALLBACK(onButtonReleaseTreeHeader), tree);
-  g_signal_connect(G_OBJECT(tree), "key-press-event",	    G_CALLBACK(onKeyPressTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "motion-notify-event",   G_CALLBACK(onMouseMoveTree),	detailView);
   g_signal_connect(G_OBJECT(columnHeaderBar), "motion-notify-event",   G_CALLBACK(onMouseMoveTreeHeader),	tree);
   g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);

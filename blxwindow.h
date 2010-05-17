@@ -106,12 +106,13 @@ Strand			  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 GdkColor*		  getGdkColor(BlxViewContext *bc, const BlxColorId colorId, const gboolean selected);
 
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
-void			  blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees);
+void			  blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq);
 void			  blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
-void			  blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees);
-void			  blxWindowDeselectAllSeqs(GtkWidget *blxWindow, const gboolean updateTrees);
+void			  blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq);
+void			  blxWindowDeselectAllSeqs(GtkWidget *blxWindow);
 gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq);
-void			  blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees);
+void			  blxWindowSelectionChanged(GtkWidget *blxWindow);
+SequenceStruct*		  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
 int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const SequenceStruct *seq);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);

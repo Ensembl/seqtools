@@ -96,6 +96,7 @@ typedef struct _DetailViewProperties
     int selectedFrame;		  /* The reading frame to display selected bases for */
     int selectedBaseNum;	  /* The currently-selected base within the selected reading frame */
     int selectedDnaBaseIdx;	  /* The currently-selected index in terms of the DNA sequence */
+    Strand selectedStrand;	  /* Strand of the tree that the last-selected  */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
 
     gboolean sortInverted;	  /* Whether the sort operations operate in the reverse direction to their default */
@@ -137,6 +138,9 @@ gboolean		detailViewGetHighlightDiffs(GtkWidget *detailView);
 gboolean		detailViewGetShowSnpTrack(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
 DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
+int			detailViewGetActiveFrame(GtkWidget *detailView);
+Strand			detailViewGetSelectedStrand(GtkWidget *detailView);
+void			detailViewSetSelectedStrand(GtkWidget *detailView, Strand strand);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -166,10 +170,12 @@ void			updateFeedbackBox(GtkWidget *detailView);
 void			toggleStrand(GtkWidget *detailView);
 
 void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
+
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 void			updateSeqColumnSize(GtkWidget *detailView);
 void			resizeDetailViewHeaders(GtkWidget *detailView);
 void			refreshDetailViewHeaders(GtkWidget *detailView);
+void			detailViewRedrawAll(GtkWidget *detailView);
 
 void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert);

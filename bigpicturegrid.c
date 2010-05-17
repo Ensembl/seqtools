@@ -40,10 +40,8 @@ static BlxViewContext*	    gridGetContext(GtkWidget *grid);
 static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColor(GtkWidget *grid, const gboolean selected);
-static GtkWidget*	    gridGetTree(GtkWidget *grid, const int frame);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static GtkWidget*	    gridGetBlxWindow(GtkWidget *grid);
-static int		    gridGetNumFrames(GtkWidget *grid);
 static void                 drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable);
 
 /***********************************************************
@@ -646,45 +644,41 @@ static void onSizeAllocateBigPictureGrid(GtkWidget *grid, GtkAllocation *allocat
 }
 
 
-/* Mark the given row as selected if its MSP line contains the given coords,
+/* Mark the given MSP's sequence as selected if this MSP line contains the given coords.
  * Returns true if it was selected. */
-static gboolean selectRowIfContainsCoords(GtkWidget *grid, 
-					  GtkWidget *tree, 
-					  GtkTreeModel *model, 
-					  GtkTreeIter *iter,
+static gboolean selectMspIfContainsCoords(GtkWidget *grid, 
+					  const MSP *msp,
 					  const int x,
 					  const int y,
 					  gboolean deselectOthers)
 {
   gboolean wasSelected = FALSE;
   
-  /* The tree row can contain multiple MSPs. Check all of them until we find a match. */
-  GList* mspListItem = treeGetMsps(model, iter);
-  
-  for ( ; mspListItem; mspListItem = mspListItem->next)
+  if (mspShownInGrid(msp, grid))
     {
-      MSP *msp = (MSP*)(mspListItem->data);
+      int mspX, mspY, mspWidth, mspHeight;
+      calculateMspLineDimensions(grid, msp, &mspX, &mspY, &mspWidth, &mspHeight);
       
-      if (mspShownInGrid(msp, grid))
+      if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
 	{
-	  int mspX, mspY, mspWidth, mspHeight;
-	  calculateMspLineDimensions(grid, msp, &mspX, &mspY, &mspWidth, &mspHeight);
+	  /* It's a hit. Select this sequence. */
+	  GtkWidget *blxWindow = gridGetBlxWindow(grid);
 	  
-	  if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
+	  if (deselectOthers)
 	    {
-	      /* It's a hit. Select this sequence. */
-	      GtkWidget *blxWindow = gridGetBlxWindow(grid);
-	      blxWindowDeselectAllSeqs(blxWindow, TRUE);
-	      blxWindowSelectSeq(blxWindow, msp->sSequence, TRUE);
-
-	      /* The relevant row will be selected in the detail view (if it is in the
-	       * detail view's display range). Scroll the tree vertically to bring the
-	       * row into view, if necessary. */
-	      treeScrollSelectionIntoView(tree, NULL);
-
-	      wasSelected = TRUE;
-	      break;
+	      blxWindowDeselectAllSeqs(blxWindow);
 	    }
+	  
+	  blxWindowSelectSeq(blxWindow, msp->sSequence);
+	  
+	  /* Update the selected strand */
+	  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+	  detailViewSetSelectedStrand(detailView, gridGetStrand(grid));
+
+	  /* Scroll the detail view trees to bring the new selection into view */
+	  callFuncOnAllDetailViewTrees(detailView, treeScrollSelectionIntoView);
+
+	  wasSelected = TRUE;
 	}
     }
   
@@ -694,33 +688,19 @@ static gboolean selectRowIfContainsCoords(GtkWidget *grid,
 
 /* Loop through all the msp lines for this grid and mark them as selected
  * if they contain the coords of the mouse press */
-static void selectClickedMspLines(GtkWidget *grid, GdkEventButton *event)
+static void selectClickedMspLines(GtkWidget *grid, GdkEventButton *event, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
-  /* If multiple MSP lines overlap, just select the first one we find (for now). */
-  gboolean done = FALSE;
-
-  /* The msp info lives in the tree(s). There is one tree for each frame */
-  const int numFrames = gridGetNumFrames(grid);
-  int frame = 1;
+  /* Loop through all the MSPs until we find one under the click coords */
+  GtkWidget *blxWindow = gridGetBlxWindow(grid);
+  const MSP *msp = blxWindowGetMspList(blxWindow);
+  const gboolean deselectOthers = !ctrlModifier && !shiftModifier; /* whether to deselect all others first */
   
-  for ( ; frame <= numFrames; ++frame)
+  for ( ; msp; msp = msp->next)
     {
-      GtkWidget *tree = gridGetTree(grid, frame);
-      
-      if (tree)
-	{
-	  /* We'll loop through every row in the base (i.e. unfiltered) data model for the tree */
-	  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-	  
-	  GtkTreeIter iter;
-	  gboolean validIter = gtk_tree_model_get_iter_first(model, &iter);
-	  
-	  while (validIter && !done)
-	    {
-	      done = selectRowIfContainsCoords(grid, GTK_WIDGET(tree), model, &iter, event->x, event->y, TRUE);
-	      validIter = gtk_tree_model_iter_next(model, &iter);
-	    }
-	}
+      const gboolean found = selectMspIfContainsCoords(grid, msp, event->x, event->y, deselectOthers);
+
+      if (found)
+	break;
     }
 }
 
@@ -732,7 +712,11 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
   if (event->button == 1) /* left button */
     {
       /* If we clicked on top of an msp line, select that msp */
-      selectClickedMspLines(grid, event);
+      guint modifiers = gtk_accelerator_get_default_mod_mask();
+      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+      const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
+
+      selectClickedMspLines(grid, event, ctrlModifier, shiftModifier);
       handled = TRUE;
     }
   else if (event->button == 2) /* middle button */
@@ -874,22 +858,10 @@ Strand gridGetStrand(GtkWidget *grid)
   return properties->strand;
 }
 
-static int gridGetNumFrames(GtkWidget *grid)
-{
-  GtkWidget *bigPicture = gridGetBigPicture(grid);
-  return bigPictureGetNumFrames(bigPicture);
-}
-
 GtkWidget* gridGetBigPicture(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
   return properties ? properties->bigPicture : NULL;
-}
-
-static GtkWidget* gridGetTree(GtkWidget *grid, const int frame)
-{
-  GtkWidget *detailView = gridGetDetailView(grid);
-  return detailViewGetTree(detailView, gridGetStrand(grid), frame);
 }
 
 static IntRange* gridGetDisplayRange(GtkWidget *grid)

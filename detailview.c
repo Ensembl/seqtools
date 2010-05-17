@@ -56,7 +56,6 @@ static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
 static int		      detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
-static int		      detailViewGetActiveFrame(GtkWidget *detailView);
 static int		      detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 
 static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
@@ -75,6 +74,14 @@ static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 /***********************************************************
  *		       Utility functions                   *
  ***********************************************************/
+
+void detailViewRedrawAll(GtkWidget *detailView)
+{
+  /* Redraw all the trees */
+  callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable);
+  gtk_widget_queue_draw(detailView);
+}
+
 
 /* Return the width of the column with the given column id */
 int detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId)
@@ -1837,10 +1844,24 @@ static int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
 }
 
 /* Get the active frame. Returns the last-selected frame, or 1 if no frame is selected. */
-static int detailViewGetActiveFrame(GtkWidget *detailView)
+int detailViewGetActiveFrame(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return (!properties || properties->selectedFrame == UNSET_INT) ? 1 : properties->selectedFrame;
+}
+
+/* Get the strand of the tree that was last selected (which defaults to the active strand if none is selected). */
+Strand detailViewGetSelectedStrand(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->selectedStrand : FORWARD_STRAND;
+}
+
+/* Set the strand of the tree that was last selected. */
+void detailViewSetSelectedStrand(GtkWidget *detailView, Strand strand)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->selectedStrand = strand;
 }
 
 gboolean detailViewGetSortInverted(GtkWidget *detailView)
@@ -2201,7 +2222,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
     {
       /* Select the SNP that was clicked on.  */
       GtkWidget *detailView = GTK_WIDGET(data);
-      blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
+      blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
 
       /* The SNP track is not the same width as the sequence column, so pass the
        * sequence column header so that we can convert to the correct coords */
@@ -2237,7 +2258,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
 	    /* Select the SNP that was clicked on.  */
-	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView), TRUE);
+	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
 	    const int clickedBase = seqColHeaderGetBase(header, detailViewGetActiveFrame(detailView), detailViewGetNumFrames(detailView));
 
 	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */

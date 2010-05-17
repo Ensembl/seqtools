@@ -347,6 +347,18 @@ static void scrollDetailView(GtkWidget *window, const gboolean moveLeft, const g
 }
 
 
+/* Move the current row selection up/down */
+static gboolean moveRowSelection(GtkWidget *blxWindow, const gboolean moveUp, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  const int activeFrame = detailViewGetActiveFrame(detailView);
+  const Strand activeStrand = detailViewGetSelectedStrand(detailView);
+  
+  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, activeFrame);
+  return treeMoveRowSelection(tree, moveUp, shiftModifier);
+}
+
+
 /* Move the selected base index 1 base to the left/right. Moves by individual
  * DNA bases (i.e. you have to move 3 bases in order to scroll a full peptide
  * if viewing protein matches). Scrolls the detail view if necessary to keep 
@@ -1066,8 +1078,6 @@ static void blxWindowDeleteAllSequenceStructs(GtkWidget *blxWindow)
 static void blxWindowGroupsChanged(GtkWidget *blxWindow)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-  callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
   
   /* Re-sort all trees, because grouping affects sort order */
   callFuncOnAllDetailViewTrees(detailView, resortTree);
@@ -2613,7 +2623,7 @@ static void onSelectFeaturesMenu(GtkAction *action, gpointer data)
 static void onDeselectAllRows(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  blxWindowDeselectAllSeqs(blxWindow, TRUE);
+  blxWindowDeselectAllSeqs(blxWindow);
 }
 
 
@@ -2795,6 +2805,11 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
 	result = TRUE;
 	break;
       }
+	
+      case GDK_Up: /* fall through */
+      case GDK_Down:
+	result = moveRowSelection(window, event->keyval == GDK_Up, ctrlModifier, shiftModifier);
+	break;
 	
       case GDK_Home:
       case GDK_End:
@@ -3501,22 +3516,13 @@ void copySelectionToClipboard(GtkWidget *blxWindow)
 
 
 /* Update function to be called whenever the MSP selection has changed */
-void blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees)
+void blxWindowSelectionChanged(GtkWidget *blxWindow)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-  /* Unless requested not to, update the tree row selections to match our new selections */
-  if (updateTrees)
-    {
-      callFuncOnAllDetailViewTrees(detailView, deselectAllRows);
-      callFuncOnAllDetailViewTrees(detailView, selectRowsForSelectedSeqs);
-    }
-  
-  /* Update the feedback box to tell the user which sequence is selected. */
+
+  /* Redraw */
   updateFeedbackBox(detailView);
-  
-  /* Redraw the grids and exon view (because items will change color with selection) */
-  bigPictureRedrawAll(blxWindowGetBigPicture(blxWindow));
+  blxWindowRedrawAll(blxWindow);
   
   /* Copy the selected sequence names to the PRIMARY clipboard */
   GString *displayText = blxWindowGetSelectedSeqNames(blxWindow);
@@ -3526,13 +3532,13 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow, const gboolean updateTrees)
 
 
 /* Call this function to select the given match sequence */
-void blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees)
+void blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq)
 {
   if (!blxWindowIsSeqSelected(blxWindow, seq))
     {
       BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
       blxContext->selectedSeqs = g_list_append(blxContext->selectedSeqs, seq);
-      blxWindowSelectionChanged(blxWindow, updateTrees);
+      blxWindowSelectionChanged(blxWindow);
     }
 }
 
@@ -3540,17 +3546,17 @@ void blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolea
 /* Utility function to set the list of selected sequences */
 void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList)
 {
-  blxWindowDeselectAllSeqs(blxWindow, FALSE);
+  blxWindowDeselectAllSeqs(blxWindow);
 
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   blxContext->selectedSeqs = seqList;
 
-  blxWindowSelectionChanged(blxWindow, TRUE);
+  blxWindowSelectionChanged(blxWindow);
 }
 
 
 /* Call this function to deselect the given sequence */
-void blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean updateTrees)
+void blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
@@ -3560,13 +3566,13 @@ void blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq, const gbool
   if (foundSeq)
     {
       blxContext->selectedSeqs = g_list_remove(blxContext->selectedSeqs, foundSeq->data);
-      blxWindowSelectionChanged(blxWindow, updateTrees);
+      blxWindowSelectionChanged(blxWindow);
     }
 }
 
 
 /* Call this function to deselect all sequences */
-void blxWindowDeselectAllSeqs(GtkWidget *blxWindow, const gboolean updateTrees)
+void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
@@ -3574,7 +3580,7 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow, const gboolean updateTrees)
     {
       g_list_free(blxContext->selectedSeqs);
       blxContext->selectedSeqs = NULL;
-      blxWindowSelectionChanged(blxWindow, updateTrees);
+      blxWindowSelectionChanged(blxWindow);
     }
 }
 
@@ -3593,6 +3599,22 @@ gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq)
   return (foundItem != NULL);
 }
 
+
+SequenceStruct* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
+{
+  SequenceStruct *result = NULL;
+  
+  GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
+  
+  if (g_list_length(selectedSeqs) > 0)
+    {
+      /* Get the last-selected sequence */
+      GList *lastItem = g_list_last(selectedSeqs);
+      result = (SequenceStruct*)(lastItem->data);
+    }
+  
+  return result;
+}
 
 /***********************************************************
  *                      Initialisation                     *
@@ -3832,7 +3854,8 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
 
       if (frameStr[0] != msp->qframe[2])
 	{
-	  printf("Warning: calculated match frame as %c but frame in input file is %c. Sequence %s [%d - %d]\n", frameStr[0], msp->qframe[2], msp->sname, msp->sstart, msp->send);
+	  printf("Warning: calculated match frame as %c but frame in input file is %c. Sequence %s [%d - %d]\n",
+		 frameStr[0], msp->qframe[2], msp->sname, msp->sstart, msp->send);
 	}  
       
       msp->qframe[2] = frameStr[0];
@@ -3881,7 +3904,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
       fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
     }
   
-  printf("Reference sequence [%d - %d], display range [%d - %d]\n", refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
+  printf("Reference sequence [%d - %d], display range [%d - %d]\n", 
+	 refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
   
   /* Convert the start coord (which is 1-based and on the DNA sequence) to display
    * coords (which take into account the offset and may also be peptide coords) */
@@ -3982,6 +4006,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
    * from its window's width, and this will be incorrect if it has not been realised.) */
   callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
   resizeDetailViewHeaders(detailView);
-  
+
   return window;
 }

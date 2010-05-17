@@ -56,9 +56,6 @@ int		  treeGetCellYPadding(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
 
-void		  deselectAllSiblingTrees(GtkWidget *tree, gboolean includeCurrent);
-void		  deselectAllRows(GtkWidget *tree, gpointer data);
-
 void		  treeSortByName(GtkWidget *tree, gpointer data);
 void		  treeSortById(GtkWidget *tree, gpointer data);
 void		  treeSortByScore(GtkWidget *tree, gpointer data);
@@ -74,8 +71,8 @@ void		  treeSquashMatches(GtkWidget *tree, gpointer data);
 void		  treeUnsquashMatches(GtkWidget *tree, gpointer data);
 gboolean	  treeGetMatchesSquashed(GtkWidget *tree);
 
+gboolean	  treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboolean shiftModifier);
 void		  treeScrollSelectionIntoView(GtkWidget *tree, gpointer data);
-void		  selectRowsForSelectedSeqs(GtkWidget *tree, gpointer data);
 
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);
