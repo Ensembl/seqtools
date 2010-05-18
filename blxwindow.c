@@ -3092,16 +3092,36 @@ static void createBlxColor(BlxViewContext *bc,
 }
 
 
+/* This basically does what gdk_color_to_string does, but that function isn't available in
+ * older versions of GDK... */
+static char* convertColorToString(GdkColor *color)
+{
+//  char *result = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
+//  return result;
+
+  /* Need to make sure the color is allocated (otherwise the 'pixel' field may be zero) */
+  gboolean failures[1];
+  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
+
+  const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
+  
+  char *result = g_malloc(sizeof(char) * hexLen);
+  sprintf(result, "#%x", color->pixel);
+  
+  return result;
+}
+
+
 /* Create the colors that blixem will use for various specific purposes */
 static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 {
   bc->colorList = NULL;
   
-  /* Background color - get the default background color of our widgets (inherited from the theme).
-   * Remember the result because other colors might want to point to the same background color if they
-   * are to be made essentially transparent. */
-  char *defaultBgColor = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
-  createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColor, BLX_WHITE, NULL, NULL);
+  /* Get the default background color of our widgets (i.e. that inherited from the theme).
+   * Convert it to a string so we can use the same creation function as the other colors */
+  char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
+  createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  g_free(defaultBgColorStr);
   
   /* reference sequence */
   createBlxColor(bc, BLXCOL_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
