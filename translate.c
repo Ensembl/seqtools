@@ -28,7 +28,7 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.4 2010-01-20 18:16:55 gb10 Exp $
+ * CVS info:   $Id: translate.c,v 1.5 2010-05-18 09:04:52 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -50,18 +50,29 @@ static char complement(char *seq) ;
 void blxSeq2MSP(MSP *msp, char *seq_in)
 {
   char *seq = seq_in ;
+
+  /* For exons, the s strand and frame are not applicable, and the data passed in could
+   * be anything. We always want the exon to be in the same direction as the ref sequence, so
+   * set the match strand to be the same as the ref strand */
+  if (mspIsExon(msp))
+    {
+      msp->sframe[1] = msp->qframe[1];
+    }
+  
+  const gboolean qForward = mspGetRefStrand(msp) == FORWARD_STRAND;
+  const gboolean sForward = mspGetMatchStrand(msp) == FORWARD_STRAND;
   
   /* Make sure qstart is the lower value in the range and qend the upper value
    * if the q strand is forwards, or the opposite if reversed. */
-  sortValues(&msp->qstart, &msp->qend, MSP_IS_FORWARDS(msp->qframe));
+  sortValues(&msp->qstart, &msp->qend, qForward);
   
   /* For the sstrand, we want the lower value to be sstart if the s seq is displayed in 
    * the same direction as the q seq, or the higher value if the opposite direction. */
-  sortValues(&msp->sstart, &msp->send, MSP_IS_FORWARDS(msp->sframe) == MSP_IS_FORWARDS(msp->qframe));
+  sortValues(&msp->sstart, &msp->send, sForward == qForward);
 
   /* We are always given the forwards strand of the match sequence, so complement it
    * if the match is actually on the reverse strand. */
-  if (!MSP_IS_FORWARDS(msp->sframe))
+  if (mspIsBlastMatch(msp) && mspGetMatchStrand(msp) == REVERSE_STRAND)
     {
       seq = strnew(seq_in, 0) ;
       blxComplement(seq) ;
