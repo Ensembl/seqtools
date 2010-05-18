@@ -72,6 +72,8 @@ static void			  onDestroyBlxWindow(GtkWidget *widget);
 
 static Strand			  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
+static void			  destroyBlxColor(gpointer listDataItem, gpointer data);
+
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
 static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *blxWindow);
@@ -2957,6 +2959,7 @@ static void onDestroyBlxWindow(GtkWidget *widget)
       
       if (properties->blxContext->colorList)
 	{
+	  g_list_foreach(properties->blxContext->colorList, destroyBlxColor, NULL);
 	  g_list_free(properties->blxContext->colorList);
 	  properties->blxContext->colorList = NULL;
 	}
@@ -2995,8 +2998,10 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 
 
 /* Free all memory used by a blixem color */
-static void destroyBlxColor(BlxColor *blxColor)
+static void destroyBlxColor(gpointer listDataItem, gpointer data)
 {
+  BlxColor *blxColor = (BlxColor*)listDataItem;
+
   if (blxColor)
     {
       g_free(blxColor->name);
