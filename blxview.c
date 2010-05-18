@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.33 2010-05-17 14:38:08 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.34 2010-05-18 09:54:56 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -162,118 +162,10 @@ GtkWidget *blixemWindow = NULL ;
 static char *padseq = 0;
 
 
-/* A stepping stone to having a blixem view context is this global struct. */
-//static BlixemViewStruct blixem_context_G = {FALSE} ;
-
-
-
-/*
- *                External routines
- */
-
-
-
-
-
-
-
-
-
 
 /*
  *                Internal routines
  */
-
-/* Temporary function while introducing a blixem view context. */
-//static BlixemView getBlxViewContext(void)
-//{
-//  return &blixem_context_G ;
-//}
-
-//static void toggleVerbose(void)
-//{
-//  verbose = (verbose ? 0 : 1);
-//
-//  if (verbose)
-//    printMSPs() ;
-//
-//  blviewRedraw();
-//
-//  return ;  
-//}
-
-
-//static void toggleHiliteUpper(void)
-//{
-//    HiliteUpperOn = (HiliteUpperOn ? 0 : 1);
-//    blviewRedraw();
-//}
-
-//static void toggleHiliteLower(void) {
-//    HiliteLowerOn = (HiliteLowerOn ? 0 : 1);
-//    blviewRedraw();
-//}
-
-//static void toggleDESC(void) {
-//    DESCon = (DESCon ? 0 : 1);
-//    blviewRedraw();
-//}
-
-
-//static void toggleColors (void)
-//{
- //   static int oldback, oldgrid, oldID, oldcons, oldgene, oldhi;
-//
-////    graphActivate(settingsGraph);
-//
-//    if (!colortoggle) {
-//	oldback = backgColor; backgColor = WHITE;
-//	oldgrid = gridColor; gridColor = BLACK;
-//	oldID = IDcolor; IDcolor = WHITE;
-//	oldcons = consColor; consColor = WHITE;
-//	oldgene = geneColor; geneColor = BLACK;
-//	oldhi = hiColor; hiColor = WHITE;
-//	colortoggle = 1;
-//    }
-//    else {
-//	backgColor = oldback;
-//	gridColor= oldgrid;
-//	IDcolor = oldID;
-//	consColor = oldcons;
-//	geneColor = oldgene;
-//	hiColor = oldhi;
-//	colortoggle = 0;
-//    }
-//    blviewRedraw();
-//}
-
-
-//static void printColors (void)
-//{
-//    static int oldback, oldgrid, oldID, oldcons, oldgene, oldhi;
-//
-////    graphActivate(settingsGraph);
-//
-//    if (!printColorsOn) {
-//	oldback = backgColor; backgColor = WHITE;
-//	oldgrid = gridColor; gridColor = LIGHTGRAY;
-//	oldID = IDcolor; IDcolor = GRAY;
-//	oldcons = consColor; consColor = PALEGRAY;
-//	oldgene = geneColor; geneColor = BLACK;
-//	oldhi = hiColor; hiColor = LIGHTGRAY;
-//	printColorsOn = 1;
-//    }
-//    else {
-//	backgColor = oldback;
-//	gridColor= oldgrid;
-//	IDcolor = oldID;
-//	consColor = oldcons;
-//	geneColor = oldgene;
-//	hiColor = oldhi;
-//	printColorsOn = 0;
-//    }
-//    blviewRedraw();
-//}
 
 
 /* aghhh, this all needs rewriting, how opaque can you get sigh... */
@@ -716,8 +608,7 @@ static void blviewCreate(char *opts,
    THEM....GRRRRRRRRRRRRRR............
 
 
-   Could free auxseq, auxseq2 and padseq too, but they'd have to be remalloc'ed
-   next time then.
+   Could free padseq too, but they'd have to be remalloc'ed next time then.
 */
 void blviewDestroy(GtkWidget *blxWindow)
 {
@@ -814,49 +705,6 @@ void blxAssignPadseq(MSP *msp, MSP *msplist)
  }
 
 
-
-/* If crosshair-coordinates are screwed up, change here!
- ********************************************************/
-//static int x_to_residue(float x)
-//{
-//  int retval;
-//
-//  if (blastx || tblastx)
-//    retval = dispstart + plusmin*(x - NAMESIZE - 22.3)*3;
-//  else
-//    retval = dispstart + plusmin*(x - NAMESIZE - 22);
-//
-//
-//  if (plusmin > 0) {
-//    if (retval < dispstart) retval = dispstart;
-//    if (retval > dispstart+displen-1) retval = dispstart+displen-1;
-//    return retval;
-//  }
-//  else {
-//    if (retval > dispstart-1) retval = dispstart-1;
-//    if (retval < dispstart-displen) retval = dispstart-displen;
-//    return retval +1;
-//  }
-//}
-
-
-//static void markDNA(double y)
-//{
-//  Graph old = graphActive();
-//
-//  if (y < 0)
-//    return;
-//
-//  graphActivate(frameGraphQ[0]);
-//
-//  graphXorLine (NAMESIZE+22, 1.5 + y,
-//		NAMESIZE+22+displen/3, 1.5 + y);
-//
-//  graphActivate(old);
-//}
-
-
-
 /* Checks the MSP list of sequences for blixem to display to see if it contains sequence
  * data for each sequence (this may happen if acedb, for instance, starts blixem up and
  * acedb already contained all the sequences).
@@ -883,31 +731,6 @@ static BOOL haveAllSequences(const MSP const *msplist, DICT *dict)
 
   return result ;
 }
-
-
-
-/* Print out MSP's, probably for debugging.... */
-//static void printMSPs(void)
-//{
-//  MSP *msp;
-//
-//  for (msp = MSPlist; msp; msp = msp->next)
-//    {
-//#ifdef ACEDB
-//      if (msp->key)
-//	printf("%d %s ", msp->key, name(msp->key)) ;
-//      else
-//	printf("0 NULL_KEY") ;
-//#endif
-//      printf("%s %d %d %d %d %d %d :%s:\n",
-//	     msp->sname, msp->score, msp->id,
-//	     msp->qstart+qoffset, msp->qend+qoffset,
-//	     msp->sstart, msp->send, (msp->sseq ? msp->sseq : ""));
-//    }
-//
-//  return ;
-//}
-
 
 
 /***************** end of file ***********************/

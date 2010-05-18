@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.12 2010-05-10 10:49:51 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.13 2010-05-18 09:54:56 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -61,25 +61,6 @@ typedef struct
 #define BLX_DESCRIPTION_TAG "Description"
 #define BLX_SEQUENCE_TAG "Sequence"
 
-
-
-/* strand and frame are given in the form "([+|-][0|1|2|3])", these macros return
- * the strand or frame and should be used like this:.
- * 
- * int frame ;
- * frame = MSPFRAME(msp->qframe) ;
- * 
- * char strand ;
- * strand = MSPSTRAND(msp->qframe) ;
- *  */
-#define MSPFRAME(MSP_FRAME) \
-  (atoi((MSP_FRAME)[2]))
-
-#define MSPSTRAND(MSP_FRAME) \
-  ((MSP_FRAME)[1])
-
-#define MSP_IS_FORWARDS(MSP_FRAME) \
-  (MSPSTRAND((MSP_FRAME)) == '+' ? TRUE : FALSE)
 
 /* Types of MSP */
 typedef enum

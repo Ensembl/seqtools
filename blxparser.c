@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.16 2010-05-13 15:16:49 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.17 2010-05-18 09:54:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -743,7 +743,7 @@ static void getDesc(MSP *msp, char *s1, char *s2)
 /* Check if we have a reversed subject and, if so, if this is allowed. Throws an error if not. */
 static void CheckReversedSubjectAllowed(const MSP *msp, const char *opts)
 {
-  if (!MSP_IS_FORWARDS(msp->sframe) && *opts != 'T' && *opts != 'L' && *opts != 'N')
+  if (mspGetMatchStrand(msp) == REVERSE_STRAND && *opts != 'T' && *opts != 'L' && *opts != 'N')
     {
       messcrash("Reversed subjects are not allowed in modes blastp or blastx");
     }
@@ -768,16 +768,6 @@ static void prepSeq(MSP *msp, char *seq, char *opts)
       memset(msp->sseq, SEQUENCE_CHAR_PAD, msp->sstart); /* Fill up with dashes */
       strcpy(msp->sseq + msp->sstart - 1, seq);
     }
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-
-  /* CHECK WHAT THIS REALLY DOES.... */
-
-  if (!MSP_IS_FORWARDS(msp->sframe))
-    blxRevcompStr(msp->sseq) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
 
   return ;
 }
@@ -1302,7 +1292,7 @@ static BOOL parseGaps(char **text, MSP *msp)
 	      /* Second value is end of subject sequence range. Order values so that
 	       * s1 is less than s2 if we have the forward strand or v.v. if the reverse. */
 	      gap->s2 = atoi(next_gap);
-	      sortValues(&gap->s1, &gap->s2, MSP_IS_FORWARDS(msp->sframe));
+	      sortValues(&gap->s1, &gap->s2, mspGetMatchStrand(msp) == FORWARD_STRAND);
 	      break;
 	    }
 	      
@@ -1318,7 +1308,7 @@ static BOOL parseGaps(char **text, MSP *msp)
 	      /* Fourth value is end of reference sequence range. Order values so that
 	       * r1 is less than r2 if ref sequence is forward strand or v.v. if the reverse. */
 	      gap->r2 = atoi(next_gap);
-	      sortValues(&gap->r1, &gap->r2, MSP_IS_FORWARDS(msp->qframe));
+	      sortValues(&gap->r1, &gap->r2, mspGetRefStrand(msp) == FORWARD_STRAND);
 	    }
 	  }
 
