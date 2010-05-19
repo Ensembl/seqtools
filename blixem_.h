@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.29 2010-05-13 15:16:49 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.30 2010-05-19 10:27:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -75,11 +75,11 @@ BLIXEM_AUTHOR_TEXT "\n"
 #define SEQUENCE_CHAR_MET	'M'   /* MET codon */
 
 
-/* MSP list is sorted by one of these criteria, currently SORTBYID is the default. */
-typedef enum {SORTBYUNSORTED, SORTBYSCORE, SORTBYID, SORTBYNAME, SORTBYPOS, SORTBYGROUPORDER} SortByType ;
+/* MSP list is sorted by one of these criteria, currently BLXSORT_ID is the default. */
+typedef enum {BLXSORT_UNSORTED, BLXSORT_SCORE, BLXSORT_ID, BLXSORT_NAME, BLXSORT_POS, BLXSORT_GROUP} BlxSortMode ;
 
 /* Fundamental strand direction. */
-typedef enum {FORWARD_STRAND, REVERSE_STRAND} Strand ;
+typedef enum {BLXSTRAND_NONE, BLXSTRAND_FORWARD, BLXSTRAND_REVERSE} BlxStrand ;
 
 /* Fundamental type of sequence. */
 typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;

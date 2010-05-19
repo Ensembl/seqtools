@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.17 2010-05-18 09:54:55 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.18 2010-05-19 10:29:12 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -150,6 +150,368 @@ static MSP* createEmptyMsp()
 }
 
 
+/* Utility called by parseFS to parse the header info of a line from a file. Returns true
+ * if the line was processed, false if further processing is required */
+static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp)
+{
+  gboolean processed = FALSE;
+
+  if (!strncasecmp(line, "# seqbl_x", 9))
+    {
+      type = SEQBL_X ;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# exblx_x", 9))
+    {
+      type = EXBLX_X ;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# seqbl", 7))
+    {
+      /* Only for backwards compatibility */
+      type = SEQBL ;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# exblx", 7))
+    {
+      /* Only for backwards compatibility */
+      type = EXBLX ;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# FS type=HSP", 13) || 
+	   !strncasecmp(line, "# SFS type=HSP", 14))
+    {
+      type = HSP;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# FS type=GSP", 13) || 
+	   !strncasecmp(line, "# SFS type=GSP", 14))
+    {
+      type = GSP;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# dotter feature format 2", 25) ||
+	   !strncasecmp(line, "# FS type=SEG", 13) ||
+	   !strncasecmp(line, "# SFS type=SEG", 14))
+    {
+      type = FSSEG;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# FS type=GFF", 13) || 
+	   !strncasecmp(line, "# SFS type=GFF", 14))
+    {
+      type = GFF;
+      processed = TRUE ;
+    }
+  else if (!strncasecmp(line, "# FS type=XY", 12) ||
+	   !strncasecmp(line, "# SFS type=XY", 13))
+    {
+      type = XY;
+    }
+  else if (!strncasecmp(line, "# FS type=SEQ", 13) ||
+	   !strncasecmp(line, "# SFS type=SEQ", 14))
+    {
+      type = SEQ;
+    }
+  else if (!strncasecmp(line, "# FS type=", 10) ||
+	   !strncasecmp(line, "# SFS type=", 11))
+    {
+      messcrash("Unrecognised SFS type: %s\n", line);
+    }
+  else if (*line == '#')
+    {
+      /* Very ugly; only for backwards compatibility */
+      /* Changed to soft parsing (unknown labels ignored) so that
+       any comment can be used */
+      if (!strncasecmp(line, "# blastp" , 8))
+	*opts = 'P';
+      else if (!strncasecmp(line, "# tblastn", 9))
+	*opts = 'T';
+      else if (!strncasecmp(line, "# tblastx", 9))
+	*opts = 'L';
+      else if (!strncasecmp(line, "# blastn" , 8))
+	*opts = 'N';
+      else if (!strncasecmp(line, "# blastx" , 8))
+	*opts = 'X';
+      else if (!strncasecmp(line, "# hspgaps", 9))
+	{
+	  HSPgaps = 1;
+	  opts[7] = 'G';
+	}
+      else if (!strncasecmp(line, "# DESC ", 7) &&
+	       (type == HSP || type == GSP || type == SEQBL))
+	{
+	  if (msp)
+	    getDesc(msp, line, sname);
+	}
+      
+      /* move on to the next line. */
+      processed = TRUE ;
+    }
+  
+  return processed ;
+}
+
+
+/* Utility to parse a file line for data that doesn't go in an MSP */
+static gboolean parseNonMspData(char *line, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name)
+{
+  gboolean processed = FALSE ;
+
+  /* Data that don't go into a new MSP */
+  if (type == XYdata) 
+    {
+      int x, y;
+      if (sscanf(line, "%d%d", &x, &y) != 2) 
+	{
+	  messerror("Error parsing data file, type XYdata: \"%s\"\n", line);
+	  abort();
+	}
+      array(msp->xy, x-1, int) = y;
+      
+      processed = TRUE ;
+    }
+  else if (type == SEQdata) 
+    {
+      
+      /* Realloc if necessary */
+      if (readseqcount + strlen(line) > maxseqlen) 
+	{
+	  char *tmp;
+	  maxseqlen += MAXLINE + strlen(line);
+	  tmp = g_malloc(maxseqlen+1);
+	  strcpy(tmp, *readseq);
+	  g_free(*readseq);
+	  *readseq = tmp;
+	}
+      strcpy(*readseq+readseqcount, line);
+      
+      readseqcount += strlen(line);
+      
+      processed = TRUE;
+    }
+  else if (type == SEQ) 
+    {
+      char series[MAXLINE+1];
+      char qname[MAXLINE+1];
+      
+      if (sscanf(line+14, "%s%s", qname, series) != 2) 
+	{
+	  messerror("Error parsing data file, type SEQ: \"%s\"\n", line);
+	  abort();
+	}
+      
+      if (!strcmp(qname, "@1")) 
+	{
+	  readseq = seq1;
+	  strcpy(seq1name, series);
+	}
+      else if (!strcmp(qname, "@2")) 
+	{
+	  readseq = seq2;
+	  strcpy(seq2name, series);
+	}
+      
+      maxseqlen = MAXLINE;
+      *readseq = g_malloc(maxseqlen+1);
+      readseqcount = 0;
+      
+      type = SEQdata;
+      
+      processed = TRUE;
+    }
+  
+  return processed;
+}
+
+
+/* Utility to parse a file line for data that goes in an MSP */
+static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_string,
+			     char **seq1, char *seq1name, char **seq2, char *seq2name)
+{
+  gboolean processed = FALSE;
+
+  if (type == SEQBL || type == EXBLX)
+    {
+      parseEXBLXSEQBL(msp, type, opts, line_string) ;
+      processed = TRUE ;
+    }
+  else if (type == SEQBL_X || type == EXBLX_X)
+    {
+      parseEXBLXSEQBLExtended(msp, type, opts, line_string) ;
+      processed = TRUE ;
+    }
+  else if (type == HSP)
+    {
+      msp->type = HSP;
+      char qname[MAXLINE+1];
+      
+      /* <score> <qname> <qframe> <qstart> <qend> <sname> <sframe> <sstart> <ssend> <sequence> [annotation] */
+      if (sscanf(line, "%d%s%s%d%d%s%s%d%d%s", 
+		 &msp->score, 
+		 qname, msp->qframe+1, &msp->qstart, &msp->qend, 
+		 sname, msp->sframe+1, &msp->sstart, &msp->send,
+		 seq) != 10)
+	{
+	  messerror("Error parsing data, type HSP: \"%s\"\n", line);
+	  abort();
+	}
+      
+      msp->qname = g_malloc(strlen(qname)+1);
+      strcpy(msp->qname, qname);
+      msp->sname = g_malloc(strlen(sname)+1);
+      strcpy(msp->sname, sname);
+      
+      *msp->qframe = *msp->sframe = '(';
+      msp->qframe[3] = msp->sframe[3] = ')'; /* Too lazy to change code... */
+      
+      prepSeq(msp, seq, opts);
+    }
+  else if (type == GSP)
+    {
+      msp->type = GSP;
+      
+      /* Will write this as soon as MSPcrunch generates it */
+      
+      type = GSPdata ;
+    }
+  else if (type == FSSEG)
+    {
+      msp->type = FSSEG;
+      char series[MAXLINE+1];
+      char qname[MAXLINE+1];
+      char look[MAXLINE+1];
+      
+      /* <score> <sequencename> <seriesname> <start> <end> <look> [annotation] */
+      if (sscanf(line, "%d%s%s%d%d%s",
+		 &msp->score, qname, series, &msp->qstart, &msp->qend, look) != 6)
+	{
+	  messerror("Error parsing data, type FSSEG: \"%s\"\n", line);
+	  abort();
+	}
+      
+      msp->sstart = msp->qstart;
+      msp->send = msp->qend;
+      
+      msp->qname = g_malloc(strlen(qname)+1);
+      strcpy(msp->qname, qname);
+      
+      msp->sname = g_malloc(strlen(series)+1); 
+      strcpy(msp->sname, series);
+      
+      strcpy(msp->qframe, "(+1)");
+      
+      parseLook(msp, look);
+      
+      getDesc(msp, line, look);
+      
+      insertFS(msp, series);
+    }
+  else if (type == GFF)
+    {
+      char scorestring[256];
+      char series[MAXLINE+1];
+      char qname[MAXLINE+1];
+      char look[MAXLINE+1];
+      
+      msp->type = FSSEG;
+      
+      /* <sequencename> <seriesname> <look> <start> <end> <score> <strand> <transframe> [annotation] */
+      if (sscanf(line, "%s%s%s%d%d%s%s%s",
+		 qname, series, look, &msp->qstart, &msp->qend, scorestring, 
+		 msp->qframe+1, msp->qframe+2) != 8)
+	{
+	  messerror("Error parsing data, type GFF: \"%s\"\n", line);
+	  abort();
+	}
+      
+      if (!strcmp(scorestring, ".")) msp->score = 100;
+      else msp->score = 50.0*atof(scorestring);
+      
+      msp->qframe[0] = '(';
+      msp->qframe[3] = ')';
+      
+      msp->sstart = msp->qstart;
+      msp->send = msp->qend;
+      
+      msp->qname = g_malloc(strlen(qname)+1);
+      strcpy(msp->qname, qname);
+      
+      msp->sname = g_malloc(strlen(series)+1); 
+      strcpy(msp->sname, series);
+      
+      msp->desc = g_malloc(strlen(series)+1); 
+      strcpy(msp->desc, series);
+      
+      msp->color = 6;	/* Blue */
+      
+      insertFS(msp, series);
+    }
+  else if (type == XY)
+    {
+      int i, seqlen;
+      
+      msp->type = XY;
+      
+      char series[MAXLINE+1];
+      char qname[MAXLINE+1];
+      char look[MAXLINE+1];
+      
+      /* # FS type=XY <sequencename> <seriesname> <look> [annotation] */
+      if (sscanf(line+13, "%s%s%s", qname, series, look) != 3)
+	{
+	  messerror("Error parsing data, type XY: \"%s\"\n", line);
+	  abort();
+	}
+      
+      if (!seq1name || !seq2name)
+	messcrash("Sequencenames not provided");
+      
+      if (!strcasecmp(qname, seq1name) || !strcmp(qname, "@1"))
+	{
+	  if (!seq1 || !*seq1)
+	    messcrash("Sequence for %s not provided", qname);
+	  seqlen = strlen(*seq1);
+	}
+      else if (!strcasecmp(qname, seq2name) || !strcmp(qname, "@2"))
+	{
+	  if (!seq2 || !*seq2)
+	    messcrash("Sequence for %s not provided", qname);
+	  seqlen = strlen(*seq2);
+	}
+      else
+	messcrash("Invalid sequence name: %s", qname);
+      
+      if (!seqlen)
+	messcrash("Sequence for %s is empty", qname);
+      
+      msp->xy = arrayCreate(seqlen, int);
+      for (i = 0; i < seqlen; i++)
+	array(msp->xy, i, int) = XY_NOT_FILLED;
+      
+      msp->shape = XY_INTERPOLATE; /* default */
+      
+      type = XYdata; /* Start parsing XY data */
+      
+      msp->qname = g_malloc(strlen(qname)+1);
+      strcpy(msp->qname, qname);
+      
+      msp->sname = g_malloc(strlen(series)+1); 
+      strcpy(msp->sname, series);
+      
+      strcpy(msp->qframe, "(+1)");
+      
+      parseLook(msp, look);
+      
+      getDesc(msp, line, look);
+      
+      insertFS(msp, series);
+    }
+  
+  return processed;
+}
+
+
 /* Function: parse a stream of SFS data
  *
  * Assumptions:
@@ -162,20 +524,13 @@ static MSP* createEmptyMsp()
 void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	     char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset)
 {
-  GString *line_string ;
-  char *line ;
-  char    *cp, 
-    series[MAXLINE+1],
-    qname[MAXLINE+1],
-    look[MAXLINE+1];
-  MSP *msp;
-
-
   if (!fsArr) 
     fsArr = arrayCreate(50, FEATURESERIES);
   else
     arraySort(fsArr, fsorder);
 
+  /* Find the last MSP in the list */
+  MSP *msp = NULL;
   if (*MSPlist)
     {
       msp = *MSPlist;  
@@ -183,184 +538,44 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	msp = msp->next;
     }
 
-
-  line_string = g_string_sized_new(MAXLINE + 1) ;	    /* Allocate reusable/extendable string
-							       as our buffer..*/
+  /* Allocate reusable/extendable string as our buffer..*/
+  GString *line_string = g_string_sized_new(MAXLINE + 1); 
 
   while (!feof(file))
     {
       line_string = g_string_truncate(line_string, 0) ;	    /* Reset buffer pointer. */
 
-      if (!(line = nextLine(file, line_string)))
-	break ;
-
-      /* empty file ??? */
-      if (!strlen(line))
+      char *line = nextLine(file, line_string);
+      if (!line)
 	{
-	  continue;
+	  break;
+	}
+
+      const int lineLen = strlen(line);
+      if (lineLen == 0)
+	{
+	  continue; /* empty file??? */
 	}
       
       /* get rid of any trailing '\n', there may not be one if the last line of the file
        * didn't have one. */
-      if ((cp = strchr(line, '\n')))
-	*cp = 0;
-
-
-      /* Get header info. */
-      if (!strncasecmp(line, "# seqbl_x", 9))
+      char *charPtr = strchr(line, '\n');
+      if (charPtr)
 	{
-	  type = SEQBL_X ;
-	  continue ;
-	}
-      else if (!strncasecmp(line, "# exblx_x", 9))
-	{
-	  type = EXBLX_X ;
-	  continue ;
-	}
-      else if (!strncasecmp(line, "# seqbl", 7))
-	{
-	  /* Only for backwards compatibility */
-	  type = SEQBL ;
-	  continue ;
-	}
-      else if (!strncasecmp(line, "# exblx", 7))
-	{
-	  /* Only for backwards compatibility */
-	  type = EXBLX ;
-	  continue ;
-	}
-      else if (!strncasecmp(line, "# FS type=HSP", 13) || 
-	       !strncasecmp(line, "# SFS type=HSP", 14))
-	{
-	  type = HSP;
-	  continue;
-	}
-      else if (!strncasecmp(line, "# FS type=GSP", 13) || 
-	       !strncasecmp(line, "# SFS type=GSP", 14))
-	{
-	  type = GSP;
-	  continue;
-	}
-      else if (!strncasecmp(line, "# dotter feature format 2", 25) ||
-	       !strncasecmp(line, "# FS type=SEG", 13) ||
-	       !strncasecmp(line, "# SFS type=SEG", 14))
-	{
-	  type = FSSEG;
-	  continue;
-	}
-      else if (!strncasecmp(line, "# FS type=GFF", 13) || 
-	       !strncasecmp(line, "# SFS type=GFF", 14))
-	{
-	  type = GFF;
-	  continue;
-	}
-      else if (!strncasecmp(line, "# FS type=XY", 12) ||
-	       !strncasecmp(line, "# SFS type=XY", 13))
-	{
-	  type = XY;
-	}
-      else if (!strncasecmp(line, "# FS type=SEQ", 13) ||
-	       !strncasecmp(line, "# SFS type=SEQ", 14))
-	{
-	  type = SEQ;
-	}
-      else if (!strncasecmp(line, "# FS type=", 10) ||
-	       !strncasecmp(line, "# SFS type=", 11))
-	{
-	  messcrash("Unrecognised SFS type: %s\n", line);
-	}
-      else if (*line == '#')
-	{
-	  /* Very ugly; only for backwards compatibility */
-	  /* Changed to soft parsing (unknown labels ignored) so that
-	     any comment can be used */
-	  if (!strncasecmp(line, "# blastp" , 8))
-	    *opts = 'P';
-	  else if (!strncasecmp(line, "# tblastn", 9))
-	    *opts = 'T';
-	  else if (!strncasecmp(line, "# tblastx", 9))
-	    *opts = 'L';
-	  else if (!strncasecmp(line, "# blastn" , 8))
-	    *opts = 'N';
-	  else if (!strncasecmp(line, "# blastx" , 8))
-	    *opts = 'X';
-	  else if (!strncasecmp(line, "# hspgaps", 9))
-	    {
-	      HSPgaps = 1;
-	      opts[7] = 'G';
-	    }
-	  else if (!strncasecmp(line, "# DESC ", 7) &&
-		   (type == HSP || type == GSP || type == SEQBL))
-	    {
-	      if (msp)
-		getDesc(msp, line, sname);
-	    }
-
-	  /* NOTE THE CONTINUE means we get on to the data next. */
-	  continue ;
+	  *charPtr = 0;
 	}
 
+      /* Header info */
+      if (parseHeaderInfo(line, opts, msp))
+	{
+	  continue; 
+	}
 	
-      /* Data that don't go into a new MSP */
-      if (type == XYdata) 
+      /* Data that don't go into an MSP */
+      if (parseNonMspData(line, msp, seq1, seq1name, seq2, seq2name))
 	{
-	  int x, y;
-	  if (sscanf(line, "%d%d", &x, &y) != 2) 
-	    {
-	      messerror("Error parsing data file, type XYdata: \"%s\"\n", line);
-	      abort();
-	    }
-	  array(msp->xy, x-1, int) = y;
-
-	  continue;
+	  continue; 
 	}
-      else if (type == SEQdata) 
-	{
-
-	  /* Realloc if necessary */
-	  if (readseqcount + strlen(line) > maxseqlen) 
-	    {
-	      char *tmp;
-	      maxseqlen += MAXLINE + strlen(line);
-	      tmp = g_malloc(maxseqlen+1);
-	      strcpy(tmp, *readseq);
-	      g_free(*readseq);
-	      *readseq = tmp;
-	    }
-	  strcpy(*readseq+readseqcount, line);
-
-	  readseqcount += strlen(line);
-
-	  continue;
-	}
-      else if (type == SEQ) 
-	{
-	  if (sscanf(line+14, "%s%s", qname, series) != 2) 
-	    {
-	      messerror("Error parsing data file, type SEQ: \"%s\"\n", line);
-	      abort();
-	    }
-
-	  if (!strcmp(qname, "@1")) 
-	    {
-	      readseq = seq1;
-	      strcpy(seq1name, series);
-	    }
-	  else if (!strcmp(qname, "@2")) 
-	    {
-	      readseq = seq2;
-	      strcpy(seq2name, series);
-	    }
-	    
-	  maxseqlen = MAXLINE;
-	  *readseq = g_malloc(maxseqlen+1);
-	  readseqcount = 0;
-
-	  type = SEQdata;
-
-	  continue;
-	}
-
 
       /* Allocate a new MSP but only if this is a new record. */
       /* If it's a chunk of a dna sequence, leave as is.      */
@@ -377,177 +592,11 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	    }
 	}
 	
-
       /* Data that do go into a new MSP */
-      if (type == SEQBL || type == EXBLX)
+      if (parseMspData(line, opts, msp, line_string, seq1, seq1name, seq2, seq2name))
 	{
-	  parseEXBLXSEQBL(msp, type, opts, line_string) ;
-
 	  continue;
 	}
-      else if (type == SEQBL_X || type == EXBLX_X)
-	{
-	  parseEXBLXSEQBLExtended(msp, type, opts, line_string) ;
-
-	  continue;
-	}
-      else if (type == HSP)
-	{
-	  msp->type = HSP;
-
-	  /* <score> <qname> <qframe> <qstart> <qend> <sname> <sframe> <sstart> <ssend> <sequence> [annotation] */
-	  if (sscanf(line, "%d%s%s%d%d%s%s%d%d%s", 
-		     &msp->score, 
-		     qname, msp->qframe+1, &msp->qstart, &msp->qend, 
-		     sname, msp->sframe+1, &msp->sstart, &msp->send,
-		     seq) != 10)
-	    {
-	      messerror("Error parsing data, type HSP: \"%s\"\n", line);
-	      abort();
-	    }
-
-	  msp->qname = g_malloc(strlen(qname)+1);
-	  strcpy(msp->qname, qname);
-	  msp->sname = g_malloc(strlen(sname)+1);
-	  strcpy(msp->sname, sname);
-
-	  *msp->qframe = *msp->sframe = '(';
-	  msp->qframe[3] = msp->sframe[3] = ')'; /* Too lazy to change code... */
-
-	  prepSeq(msp, seq, opts);
-	}
-      else if (type == GSP)
-	{
-	  msp->type = GSP;
-
-	  /* Will write this as soon as MSPcrunch generates it */
-
-	  type = GSPdata ;
-	}
-      else if (type == FSSEG)
-	{
-	  msp->type = FSSEG;
-
-	  /* <score> <sequencename> <seriesname> <start> <end> <look> [annotation] */
-	  if (sscanf(line, "%d%s%s%d%d%s",
-		     &msp->score, qname, series, &msp->qstart, &msp->qend, look) != 6)
-	    {
-	      messerror("Error parsing data, type FSSEG: \"%s\"\n", line);
-	      abort();
-	  }
-	  
-	  msp->sstart = msp->qstart;
-	  msp->send = msp->qend;
-
-	  msp->qname = g_malloc(strlen(qname)+1);
-	  strcpy(msp->qname, qname);
-	  
-	  msp->sname = g_malloc(strlen(series)+1); 
-	  strcpy(msp->sname, series);
-	  
-	  strcpy(msp->qframe, "(+1)");
-	  
-	  parseLook(msp, look);
-
-	  getDesc(msp, line, look);
-	  
-	  insertFS(msp, series);
-	}
-      else if (type == GFF)
-	{
-	  char scorestring[256];
-
-	  msp->type = FSSEG;
-
-	  /* <sequencename> <seriesname> <look> <start> <end> <score> <strand> <transframe> [annotation] */
-	  if (sscanf(line, "%s%s%s%d%d%s%s%s",
-		     qname, series, look, &msp->qstart, &msp->qend, scorestring, 
-		     msp->qframe+1, msp->qframe+2) != 8)
-	    {
-	      messerror("Error parsing data, type GFF: \"%s\"\n", line);
-	      abort();
-	    }
-	  
-	  if (!strcmp(scorestring, ".")) msp->score = 100;
-	  else msp->score = 50.0*atof(scorestring);
-
-	  msp->qframe[0] = '(';
-	  msp->qframe[3] = ')';
-	  
-	  msp->sstart = msp->qstart;
-	  msp->send = msp->qend;
-	  
-	  msp->qname = g_malloc(strlen(qname)+1);
-	  strcpy(msp->qname, qname);
-	  
-	  msp->sname = g_malloc(strlen(series)+1); 
-	  strcpy(msp->sname, series);
-
-	  msp->desc = g_malloc(strlen(series)+1); 
-	  strcpy(msp->desc, series);
-	  
-	  msp->color = 6;	/* Blue */
-
-	  insertFS(msp, series);
-	}
-      else if (type == XY)
-	{
-	  int i, seqlen;
-	  
-	  msp->type = XY;
-	    
-	  /* # FS type=XY <sequencename> <seriesname> <look> [annotation] */
-	  if (sscanf(line+13, "%s%s%s", 
-		     qname, series, look) != 3)
-	    {
-	      messerror("Error parsing data, type XY: \"%s\"\n", line);
-	      abort();
-	    }
-
-	  if (!seq1name || !seq2name)
-	    messcrash("Sequencenames not provided");
-	  
-	  if (!strcasecmp(qname, seq1name) || !strcmp(qname, "@1"))
-	    {
-	      if (!seq1 || !*seq1)
-		messcrash("Sequence for %s not provided", qname);
-	      seqlen = strlen(*seq1);
-	    }
-	  else if (!strcasecmp(qname, seq2name) || !strcmp(qname, "@2"))
-	    {
-	      if (!seq2 || !*seq2)
-		messcrash("Sequence for %s not provided", qname);
-	      seqlen = strlen(*seq2);
-	    }
-	  else
-	    messcrash("Invalid sequence name: %s", qname);
-
-	  if (!seqlen)
-	    messcrash("Sequence for %s is empty", qname);
-	    
-	  msp->xy = arrayCreate(seqlen, int);
-	  for (i = 0; i < seqlen; i++)
-	    array(msp->xy, i, int) = XY_NOT_FILLED;
-
-	  msp->shape = XY_INTERPOLATE; /* default */
-	  
-	  type = XYdata; /* Start parsing XY data */
-
-	  msp->qname = g_malloc(strlen(qname)+1);
-	  strcpy(msp->qname, qname);
-
-	  msp->sname = g_malloc(strlen(series)+1); 
-	  strcpy(msp->sname, series);
-
-	  strcpy(msp->qframe, "(+1)");
-	    
-	  parseLook(msp, look);
-	    
-	  getDesc(msp, line, look);
-	    
-	  insertFS(msp, series);
-	}
-
     }
 
   g_string_free(line_string, TRUE) ;			    /* free everything, buffer and all. */
@@ -743,7 +792,7 @@ static void getDesc(MSP *msp, char *s1, char *s2)
 /* Check if we have a reversed subject and, if so, if this is allowed. Throws an error if not. */
 static void CheckReversedSubjectAllowed(const MSP *msp, const char *opts)
 {
-  if (mspGetMatchStrand(msp) == REVERSE_STRAND && *opts != 'T' && *opts != 'L' && *opts != 'N')
+  if (mspGetMatchStrand(msp) == BLXSTRAND_REVERSE && *opts != 'T' && *opts != 'L' && *opts != 'N')
     {
       messcrash("Reversed subjects are not allowed in modes blastp or blastx");
     }
@@ -1292,7 +1341,7 @@ static BOOL parseGaps(char **text, MSP *msp)
 	      /* Second value is end of subject sequence range. Order values so that
 	       * s1 is less than s2 if we have the forward strand or v.v. if the reverse. */
 	      gap->s2 = atoi(next_gap);
-	      sortValues(&gap->s1, &gap->s2, mspGetMatchStrand(msp) == FORWARD_STRAND);
+	      sortValues(&gap->s1, &gap->s2, mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
 	      break;
 	    }
 	      
@@ -1308,7 +1357,7 @@ static BOOL parseGaps(char **text, MSP *msp)
 	      /* Fourth value is end of reference sequence range. Order values so that
 	       * r1 is less than r2 if ref sequence is forward strand or v.v. if the reverse. */
 	      gap->r2 = atoi(next_gap);
-	      sortValues(&gap->r1, &gap->r2, mspGetRefStrand(msp) == FORWARD_STRAND);
+	      sortValues(&gap->r1, &gap->r2, mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
 	    }
 	  }
 

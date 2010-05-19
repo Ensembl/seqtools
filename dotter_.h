@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Sep 15 08:36 2006 (edgrif)
  * Created: Thu Aug 26 17:17:58 1999 (fw)
- * CVS info:   $Id: dotter_.h,v 1.2 2010-02-04 11:43:13 gb10 Exp $
+ * CVS info:   $Id: dotter_.h,v 1.3 2010-05-19 10:27:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 

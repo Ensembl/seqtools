@@ -70,7 +70,7 @@ static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context,
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 static void			  onDestroyBlxWindow(GtkWidget *widget);
 
-static Strand			  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
+static BlxStrand			  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
 static void			  destroyBlxColor(gpointer listDataItem, gpointer data);
 
@@ -211,7 +211,7 @@ gchar *getSequenceSegment(BlxViewContext *bc,
 			  const char const *dnaSequence,
 			  const int coord1, 
 			  const int coord2,
-			  const Strand strand,
+			  const BlxStrand strand,
 			  const BlxSeqType inputCoordType,
 			  const int frame,
 			  const gboolean displayRev,
@@ -273,7 +273,7 @@ gchar *getSequenceSegment(BlxViewContext *bc,
       /* Get the segment of the ref seq, adjusted as necessary for this strand */
       gchar *segment = NULL;
       
-      if (strand == FORWARD_STRAND)
+      if (strand == BLXSTRAND_FORWARD)
 	{
 	  /* Straight copy of the ref seq segment */
 	  segment = copySeqSegment(dnaSequence, idx1, idx2);
@@ -354,7 +354,7 @@ static gboolean moveRowSelection(GtkWidget *blxWindow, const gboolean moveUp, co
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   const int activeFrame = detailViewGetActiveFrame(detailView);
-  const Strand activeStrand = detailViewGetSelectedStrand(detailView);
+  const BlxStrand activeStrand = detailViewGetSelectedStrand(detailView);
   
   GtkWidget *tree = detailViewGetTree(detailView, activeStrand, activeFrame);
   return treeMoveRowSelection(tree, moveUp, shiftModifier);
@@ -593,13 +593,13 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
 static void toggleTreeVisibility(GtkWidget *blxWindow, const int number)
 {
   const gboolean toggled = blxWindowGetDisplayRev(blxWindow);
-  const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
+  const BlxStrand activeStrand = toggled ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
   
   /* For protein matches, trees are always displayed in frame order (i.e. 1, 2, 3), 
    * so just use the number pressed for the frame, and the active strand for the
    * strand. */
   int frame = number;
-  Strand strand = activeStrand;
+  BlxStrand strand = activeStrand;
   
   /* For DNA matches, the frame is always 1, but the strand depends on which number
    * was pressed: use 1 to toggle active strand, 2 for other strand */
@@ -613,7 +613,7 @@ static void toggleTreeVisibility(GtkWidget *blxWindow, const int number)
 	}
       else if (number == 2)
 	{
-	  strand = toggled ? FORWARD_STRAND : REVERSE_STRAND;
+	  strand = toggled ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
 	}
     }
   
@@ -701,7 +701,7 @@ static void createVisibilityButton(GtkWidget *widgetToToggle, const char *mnemon
 
 
 /* Create a check button to control visibility of the given tree. */
-static void createTreeVisibilityButton(GtkWidget *detailView, const Strand strand, const int frame, GtkWidget *container)
+static void createTreeVisibilityButton(GtkWidget *detailView, const BlxStrand strand, const int frame, GtkWidget *container)
 {
   /* Some trees may have been removed from the blixem window if they are not on the active 
    * strand, so only show check boxes for those that are in the window (i.e. have a parent). 
@@ -711,7 +711,7 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const Strand stran
   if (gtk_widget_get_parent(tree))
     {
       const gboolean toggled = detailViewGetDisplayRev(detailView);
-      gboolean isActiveStrand = ((strand == FORWARD_STRAND) != toggled);
+      gboolean isActiveStrand = ((strand == BLXSTRAND_FORWARD) != toggled);
 
       if (detailViewGetSeqType(detailView) == BLXSEQ_DNA)
 	{
@@ -3367,15 +3367,15 @@ const char* blxWindowGetPaddingSeq(GtkWidget *blxWindow)
 }
 
 /* Return the active strand - forward strand by default, reverse strand if display toggled */
-Strand blxWindowGetActiveStrand(GtkWidget *blxWindow)
+BlxStrand blxWindowGetActiveStrand(GtkWidget *blxWindow)
 {
-  return blxWindowGetDisplayRev(blxWindow) ? REVERSE_STRAND : FORWARD_STRAND;
+  return blxWindowGetDisplayRev(blxWindow) ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
 }
 
 /* Return the inactive strand - reverse strand by default, forward strand if display toggled */
-static Strand blxWindowGetInactiveStrand(GtkWidget *blxWindow)
+static BlxStrand blxWindowGetInactiveStrand(GtkWidget *blxWindow)
 {
-  return blxWindowGetDisplayRev(blxWindow) ? FORWARD_STRAND : REVERSE_STRAND;
+  return blxWindowGetDisplayRev(blxWindow) ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
 }
 
 
@@ -3722,8 +3722,8 @@ static GtkWidget* createMainMenu(GtkWidget *window)
  * */
 static void calcID(MSP *msp, BlxViewContext *bc)
 {
-  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
-  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+  const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
+  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
   
   int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
   getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
@@ -3885,7 +3885,7 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
    * necessarily start at base1 in their frame. */
   if (bc->seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
     {
-      const gboolean reverseStrand = (mspGetRefStrand(msp) == REVERSE_STRAND);
+      const gboolean reverseStrand = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
       
       int frame = UNSET_INT;
       convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
@@ -4024,7 +4024,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
   detailViewAddMspData(detailView, options->mspList);
-  detailViewSortByType(detailView, options->initSortMode);
+  detailViewSetSortMode(detailView, options->initSortMode);
 
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);

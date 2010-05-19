@@ -981,11 +981,11 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
   GtkWidget *header = createBigPictureGridHeader(bigPicture);
   addChildToBigPicture(bigPicture, header, FALSE);
 
-  *fwdStrandGrid = createBigPictureGrid(bigPicture, FORWARD_STRAND);
-  *revStrandGrid = createBigPictureGrid(bigPicture, REVERSE_STRAND);
+  *fwdStrandGrid = createBigPictureGrid(bigPicture, BLXSTRAND_FORWARD);
+  *revStrandGrid = createBigPictureGrid(bigPicture, BLXSTRAND_REVERSE);
 
-  GtkWidget *fwdExonView = createExonView(bigPicture, FORWARD_STRAND);
-  GtkWidget *revExonView = createExonView(bigPicture, REVERSE_STRAND);
+  GtkWidget *fwdExonView = createExonView(bigPicture, BLXSTRAND_FORWARD);
+  GtkWidget *revExonView = createExonView(bigPicture, BLXSTRAND_REVERSE);
   
   /* By default, make the forward strand the top grid */
   addChildToBigPicture(bigPicture, *fwdStrandGrid, FALSE);

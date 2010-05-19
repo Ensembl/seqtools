@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.34 2010-05-18 09:54:56 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.35 2010-05-19 10:27:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -361,9 +361,9 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
 	case 'T': setModeT(options);                break;
 	case 'L': setModeL(options);                break;
 	case '-':
-	  options->activeStrand = REVERSE_STRAND;   break;
+	  options->activeStrand = BLXSTRAND_REVERSE;   break;
 	case '+':
-	  options->activeStrand = FORWARD_STRAND;   break;
+	  options->activeStrand = BLXSTRAND_FORWARD;   break;
 	case 'B':
 	  options->bigPictON = TRUE;              break;
 	case 'b':
@@ -371,19 +371,19 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
 	case 'd':
 	  options->dotterFirst = TRUE;            break;
 	case 'i':
-	  options->initSortMode = SORTBYID ;      break;
+	  options->initSortMode = BLXSORT_ID ;      break;
 	case 'M':
 	  options->startNextMatch = 1;            break;
 	case 'n':
-	  options->initSortMode = SORTBYNAME ;    break;
+	  options->initSortMode = BLXSORT_NAME ;    break;
 	case 'p':
-	  options->initSortMode = SORTBYPOS ;     break;
+	  options->initSortMode = BLXSORT_POS ;     break;
 	case 'R':
 	  options->bigPictRev = 1;                break;
 	case 'r':
 	  options->bigPictRev = 0;                break;
 	case 's':
-	  options->initSortMode = SORTBYSCORE ;   break;
+	  options->initSortMode = BLXSORT_SCORE ;   break;
 	case 'Z':
 	  options->bigPictZoom = strlen(refSeq);  break;
       }
@@ -538,7 +538,7 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
   const int startCoord = start < 1 ? 1 : start;
   
   CommandLineOptions options = {refSeq, refSeqName, qOffset, startCoord, msplist, stdcode1,
-				FORWARD_STRAND, 10, TRUE, FALSE, SORTBYID, FALSE, FALSE,
+				BLXSTRAND_FORWARD, 10, TRUE, FALSE, BLXSORT_ID, FALSE, FALSE,
 				FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, fetchMode};
   
   blxviewGetOpts(opts, refSeq, &options);

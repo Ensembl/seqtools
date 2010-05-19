@@ -175,9 +175,9 @@ int		      convertDnaIdxToDisplayIdx(const int dnaIdx,
 						int *baseNum);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
-Strand		      mspGetRefStrand(const MSP const *msp);
+BlxStrand	      mspGetRefStrand(const MSP const *msp);
 int		      mspGetMatchFrame(const MSP const *msp);
-Strand		      mspGetMatchStrand(const MSP const *msp);
+BlxStrand	      mspGetMatchStrand(const MSP const *msp);
 
 void		      addMspToSeqList(GList **seqList, MSP *msp);
 
@@ -207,7 +207,7 @@ int		      getEndDnaCoord(const IntRange const *displayRange,
 int		      gapCoord(const MSP *msp, 
 			       const int qIdx, 
 			       const int numFrames, 
-			       const Strand strand, 
+			       const BlxStrand strand, 
 			       const gboolean displayRev, 
 			       int *nearestIdx);
 

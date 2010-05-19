@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.4 2010-02-04 17:52:58 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.5 2010-05-19 10:27:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -232,8 +232,8 @@ gint compareGenes(gconstpointer a, gconstpointer b) ;
 static void setYoffsets(GList *first, float min_offset, float max_offset) ;
 static void drawGenesCB(gpointer data, gpointer user_data) ;
 static void drawMSPGene(MSP *msp, float y_offset) ;
-static void printMSP(gpointer data, gpointer user_data) ;
-static void printGene(gpointer data, gpointer user_data) ;
+//static void printMSP(gpointer data, gpointer user_data) ;
+//static void printGene(gpointer data, gpointer user_data) ;
 
 
 #define toggleCrosshairStr    "Crosshair"
@@ -2352,28 +2352,28 @@ static void drawMSPGene(MSP *msp, float y_offset)
 }
 
 
-static void printMSP(gpointer data, gpointer user_data)
-{
-  MSP *msp = (MSP *)data ;
-  
-  printf("%s:\t%d,%d\t->\t%d,%d\n",
-	 msp->sname, msp->sstart, msp->send, msp->qstart, msp->qend) ;
-  
+//static void printMSP(gpointer data, gpointer user_data)
+//{
+//  MSP *msp = (MSP *)data ;
+//  
+//  printf("%s:\t%d,%d\t->\t%d,%d\n",
+//	 msp->sname, msp->sstart, msp->send, msp->qstart, msp->qend) ;
+//  
+//
+//  return ;
+//}
+//
 
-  return ;
-}
-
-
-static void printGene(gpointer data, gpointer user_data)
-{
-  GeneData gene = (GeneData)data ;
-  
-  printf("%s: '%c' %d -> %d   is at position: %f\n",
-	 gene->name, gene->strand, gene->start, gene->end, gene->y_pos) ;
-  
-
-  return ;
-}
+//static void printGene(gpointer data, gpointer user_data)
+//{
+//  GeneData gene = (GeneData)data ;
+//  
+//  printf("%s: '%c' %d -> %d   is at position: %f\n",
+//	 gene->name, gene->strand, gene->start, gene->end, gene->y_pos) ;
+//  
+//
+//  return ;
+//}
 
 
 

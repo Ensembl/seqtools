@@ -78,7 +78,7 @@ GtkWidget *treeGetBlxWindow(GtkWidget *tree)
   return detailViewGetBlxWindow(detailView);
 }
 
-Strand treeGetStrand(GtkWidget *tree)
+BlxStrand treeGetStrand(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -213,8 +213,8 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
   int frame = 1;
   for ( ; frame <= numFrames; ++frame)
     {
-      GtkWidget *fwdTree = detailViewGetTree(detailView, FORWARD_STRAND, frame);
-      GtkWidget *revTree = detailViewGetTree(detailView, REVERSE_STRAND, frame);
+      GtkWidget *fwdTree = detailViewGetTree(detailView, BLXSTRAND_FORWARD, frame);
+      GtkWidget *revTree = detailViewGetTree(detailView, BLXSTRAND_REVERSE, frame);
       
       if (fwdTree)
 	{
@@ -728,7 +728,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	{
 	  BlxViewContext *bc = treeGetContext(tree);
 	  const int frame = treeGetFrame(tree);
-	  const Strand strand = treeGetStrand(tree);
+	  const BlxStrand strand = treeGetStrand(tree);
 	  const IntRange const *displayRange = treeGetDisplayRange(tree);
 
 	  /* Show the row if any MSP in the list is an exon or blast match in the correct frame/strand
@@ -792,7 +792,7 @@ void treeSortByPos(GtkWidget *tree, gpointer data)
 }
 
 /* Sort by the order number in the sequence's group, if it has one. */
-void treeSortByGroupOrder(GtkWidget *tree, gpointer data)
+void treeSortByGroup(GtkWidget *tree, gpointer data)
 {
   GtkSortType sortOrder = treeGetColumnSortOrder(tree, SEQUENCE_COL);
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
@@ -870,7 +870,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GdkDrawable *drawable = createBlankPixmap(headerWidget);
   
   BlxViewContext *bc = treeGetContext(tree);
-  const Strand strand = treeGetStrand(tree);
+  const BlxStrand strand = treeGetStrand(tree);
   const int frame = treeGetFrame(tree);
   
   GtkWidget *detailView = treeGetDetailView(tree);
@@ -1871,7 +1871,7 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
       const int maxLen = (colWidth / treeGetCharWidth(tree));
       
       char stringToAppend[] = "(+0)";
-      stringToAppend[1] = (treeGetStrand(tree) == FORWARD_STRAND ? '+' : '-');
+      stringToAppend[1] = (treeGetStrand(tree) == BLXSTRAND_FORWARD ? '+' : '-');
       stringToAppend[2] = *convertIntToString(treeGetFrame(tree));
       const int numCharsToAppend = strlen(stringToAppend);
 
@@ -2010,7 +2010,7 @@ static void createTreeColHeader(GList **columnHeaders,
 				GtkWidget *tree,
 				const char const *refSeqName,
 				const int frame,
-				const Strand strand)
+				const BlxStrand strand)
 {
   /* Create a header for this column, if required. Create a list of other 
    * columns we wish to merge under the same header. */
@@ -2098,7 +2098,7 @@ static GList* addTreeColumns(GtkWidget *tree,
 			     GtkWidget *columnHeaderBar,
 			     const char const *refSeqName,
 			     const int frame,
-			     const Strand strand)
+			     const BlxStrand strand)
 {
   /* We'll create the headers as we create the columns */
   GList *columnHeaders = NULL;
@@ -2335,7 +2335,7 @@ static void setTreeStyle(GtkTreeView *tree)
 /* Create the widget that will contain all the header widgets. */
 static GtkWidget *createDetailViewTreeHeader(GtkWidget *detailView, 
 					     const gboolean includeSnpTrack,
-					     const Strand strand,
+					     const BlxStrand strand,
 					     GtkWidget *columnHeaderBar)
 {
   GtkWidget *treeHeader = NULL; /* the outermost container for the header widgets */
@@ -2370,7 +2370,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
 				const gboolean includeSnpTrack)
 {
   /* Find the strand the tree belongs to from the grid */
-  const Strand strand = gridGetStrand(grid);
+  const BlxStrand strand = gridGetStrand(grid);
   
   /* Create a tree view for the list of match sequences */
   GtkWidget *tree = gtk_tree_view_new();

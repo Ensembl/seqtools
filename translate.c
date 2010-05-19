@@ -28,7 +28,7 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.5 2010-05-18 09:04:52 gb10 Exp $
+ * CVS info:   $Id: translate.c,v 1.6 2010-05-19 10:27:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -59,8 +59,8 @@ void blxSeq2MSP(MSP *msp, char *seq_in)
       msp->sframe[1] = msp->qframe[1];
     }
   
-  const gboolean qForward = mspGetRefStrand(msp) == FORWARD_STRAND;
-  const gboolean sForward = mspGetMatchStrand(msp) == FORWARD_STRAND;
+  const gboolean qForward = mspGetRefStrand(msp) == BLXSTRAND_FORWARD;
+  const gboolean sForward = mspGetMatchStrand(msp) == BLXSTRAND_FORWARD;
   
   /* Make sure qstart is the lower value in the range and qend the upper value
    * if the q strand is forwards, or the opposite if reversed. */
@@ -72,7 +72,7 @@ void blxSeq2MSP(MSP *msp, char *seq_in)
 
   /* We are always given the forwards strand of the match sequence, so complement it
    * if the match is actually on the reverse strand. */
-  if (mspIsBlastMatch(msp) && mspGetMatchStrand(msp) == REVERSE_STRAND)
+  if (mspIsBlastMatch(msp) && mspGetMatchStrand(msp) == BLXSTRAND_REVERSE)
     {
       seq = strnew(seq_in, 0) ;
       blxComplement(seq) ;

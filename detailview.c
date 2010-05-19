@@ -1111,7 +1111,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
  *			    Drawing			   *
  ***********************************************************/
 
-static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const Strand strand, const int frame)
+static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxStrand strand, const int frame)
 {
   GdkDrawable *drawable = createBlankPixmap(dnaTrack);
   
@@ -1262,7 +1262,7 @@ static int getSnpDisplayCoord(const MSP *msp,
 
 /* Determine whether the given coord in the given frame/strand is affected by
  * a SNP */
-static gboolean coordAffectedBySnp(const int dnaIdx, const Strand strand, const MSP *mspList)
+static gboolean coordAffectedBySnp(const int dnaIdx, const BlxStrand strand, const MSP *mspList)
 {
   gboolean result = FALSE;
   
@@ -1318,7 +1318,7 @@ void drawHeaderChar(BlxViewContext *bc,
 		    DetailViewProperties *properties,
 		    const int dnaIdx,
 		    const char baseChar,
-		    const Strand strand,
+		    const BlxStrand strand,
 		    const BlxSeqType seqType,
 		    const gboolean displayIdxSelected,
 		    const gboolean dnaIdxSelected,
@@ -1395,9 +1395,9 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 
   const int activeFrame = detailViewGetActiveFrame(detailView);
   
-  Strand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
+  BlxStrand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
     ? blxWindowGetActiveStrand(blxWindow)
-    : (Strand)snpTrackGetStrand(snpTrack);
+    : (BlxStrand)snpTrackGetStrand(snpTrack);
   
   GdkGC *gc = gdk_gc_new(drawable);
   
@@ -1699,13 +1699,13 @@ static void detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int ch
 
 
 /* Get the outermost container for the GtkTreeView for the given frame on the given strand */
-GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const Strand activeStrand, const int frame)
+GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const BlxStrand activeStrand, const int frame)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GtkWidget *result = NULL;
   
   /* Get the list of trees for the relevant strand */
-  GList *list = (activeStrand == FORWARD_STRAND) ? properties->fwdStrandTrees : properties->revStrandTrees;
+  GList *list = (activeStrand == BLXSTRAND_FORWARD) ? properties->fwdStrandTrees : properties->revStrandTrees;
 
   /* The list should be sorted in order of frame number, and we should not be requesting a frame number
    * greater than the number of items in the list */
@@ -1732,7 +1732,7 @@ GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const Strand active
 
 
 /* Extract the actual GtkTreeView for the given frame on the given strand */
-GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand activeStrand, const int frame)
+GtkWidget* detailViewGetTree(GtkWidget *detailView, const BlxStrand activeStrand, const int frame)
 {
   GtkWidget *result = NULL;
   GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, activeStrand, frame);
@@ -1748,7 +1748,7 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand activeStrand, c
   
   if (!result)
     {
-      printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == FORWARD_STRAND) ? "forward" : "reverse"), frame);
+      printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == BLXSTRAND_FORWARD) ? "forward" : "reverse"), frame);
     }
   
   return result;
@@ -1759,7 +1759,7 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const Strand activeStrand, c
 static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 {
   const gboolean toggled = detailViewGetDisplayRev(detailView);
-  const Strand activeStrand = toggled ? REVERSE_STRAND : FORWARD_STRAND;
+  const BlxStrand activeStrand = toggled ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
   const int numFrames = detailViewGetNumFrames(detailView);
   
   GtkWidget *result = NULL;
@@ -1787,7 +1787,7 @@ static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
       
       if (!result || !GTK_WIDGET_VISIBLE(result))
 	{
-	  result = detailViewGetTree(detailView, toggled ? FORWARD_STRAND : REVERSE_STRAND, 1);
+	  result = detailViewGetTree(detailView, toggled ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE, 1);
 	}
     }
   
@@ -1851,14 +1851,14 @@ int detailViewGetActiveFrame(GtkWidget *detailView)
 }
 
 /* Get the strand of the tree that was last selected (which defaults to the active strand if none is selected). */
-Strand detailViewGetSelectedStrand(GtkWidget *detailView)
+BlxStrand detailViewGetSelectedStrand(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->selectedStrand : FORWARD_STRAND;
+  return properties ? properties->selectedStrand : BLXSTRAND_FORWARD;
 }
 
 /* Set the strand of the tree that was last selected. */
-void detailViewSetSelectedStrand(GtkWidget *detailView, Strand strand)
+void detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   properties->selectedStrand = strand;
@@ -2160,7 +2160,7 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
 	{
 	  /* There isn't a bitmap yet. Create it now. */
 	  GtkWidget *detailView = GTK_WIDGET(data);
-	  const Strand activeStrand = detailViewGetDisplayRev(detailView) ? REVERSE_STRAND : FORWARD_STRAND;
+	  const BlxStrand activeStrand = detailViewGetDisplayRev(detailView) ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
 	  
 	  drawDnaTrack(headerWidget, detailView, activeStrand, seqColHeaderGetRow(headerWidget));
 	  bitmap = widgetGetDrawable(headerWidget);
@@ -2350,8 +2350,8 @@ static void swapTreeVisibility(GtkWidget *detailView)
   /* Only do anything for DNA matches, where we have 1 frame and both strands are visible. */
   if (detailViewGetSeqType(detailView) == BLXSEQ_DNA)
     {
-      GtkWidget *tree1 = detailViewGetTreeContainer(detailView, FORWARD_STRAND, 1);
-      GtkWidget *tree2 = detailViewGetTreeContainer(detailView, REVERSE_STRAND, 1);
+      GtkWidget *tree1 = detailViewGetTreeContainer(detailView, BLXSTRAND_FORWARD, 1);
+      GtkWidget *tree2 = detailViewGetTreeContainer(detailView, BLXSTRAND_REVERSE, 1);
       
       if (widgetGetHidden(tree1) != widgetGetHidden(tree2))
 	{
@@ -2516,33 +2516,33 @@ static void detailViewSortById(GtkWidget *detailView)
   callFuncOnAllDetailViewTrees(detailView, treeSortById);
 }
 
-static void detailViewSortByGroupOrder(GtkWidget *detailView)
+static void detailViewSortByGroup(GtkWidget *detailView)
 {
-  callFuncOnAllDetailViewTrees(detailView, treeSortByGroupOrder);
+  callFuncOnAllDetailViewTrees(detailView, treeSortByGroup);
 }
 
-void detailViewSortByType(GtkWidget *detailView, const SortByType sortByType)
+void detailViewSetSortMode(GtkWidget *detailView, const BlxSortMode sortMode)
 {
-  switch (sortByType)
+  switch (sortMode)
     {
-      case SORTBYNAME:
+      case BLXSORT_NAME:
 	detailViewSortByName(detailView);
 	break;
     
-      case SORTBYSCORE:
+      case BLXSORT_SCORE:
 	detailViewSortByScore(detailView);
 	break;
 
-      case SORTBYID:
+      case BLXSORT_ID:
 	detailViewSortById(detailView);
 	break;
 
-      case SORTBYPOS:
+      case BLXSORT_POS:
 	detailViewSortByPos(detailView);
 	break;
 
-      case SORTBYGROUPORDER:
-	detailViewSortByGroupOrder(detailView);
+      case BLXSORT_GROUP:
+	detailViewSortByGroup(detailView);
 	break;
 	
       default:
@@ -2642,7 +2642,7 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 
   for (  ; searchData.frame <= searchData.numFrames; ++searchData.frame)
     {
-      GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, FORWARD_STRAND, searchData.frame);
+      GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_FORWARD, searchData.frame);
       GtkWidget *tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
       
       if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */
@@ -2651,7 +2651,7 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 	  gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
 	}
 
-      treeContainer = detailViewGetTreeContainer(detailView, REVERSE_STRAND, searchData.frame);
+      treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_REVERSE, searchData.frame);
       tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
       
       if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */
@@ -2752,28 +2752,28 @@ static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
       GValue val = {0};
       gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
       
-      SortByType sortType = g_value_get_int(&val);
+      BlxSortMode sortMode = g_value_get_int(&val);
       
-      switch (sortType)
+      switch (sortMode)
 	{
-	  case SORTBYSCORE:
+	  case BLXSORT_SCORE:
 	    detailViewSortByScore(detailView);
 	    break;
 	    
-	  case SORTBYID:
+	  case BLXSORT_ID:
 	    detailViewSortById(detailView);
 	    break;
 	    
-	  case SORTBYNAME:
+	  case BLXSORT_NAME:
 	    detailViewSortByName(detailView);
 	    break;
 	    
-	  case SORTBYPOS:
+	  case BLXSORT_POS:
 	    detailViewSortByPos(detailView);
 	    break;
 	    
-	  case SORTBYGROUPORDER:
-	    detailViewSortByGroupOrder(detailView);
+	  case BLXSORT_GROUP:
+	    detailViewSortByGroup(detailView);
 	    break;
 	    
 	  default:
@@ -3098,17 +3098,17 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 /* Add an option for the sorting drop-down box */
 static GtkTreeIter* addSortBoxItem(GtkTreeStore *store, 
 				  GtkTreeIter *parent, 
-				  SortByType sortType, 
+				  BlxSortMode sortMode, 
 				  const char *sortName,
-				  SortByType initSortType,
+				  BlxSortMode initSortMode,
 				  GtkComboBox *combo)
 {
   GtkTreeIter iter;
   gtk_tree_store_append(store, &iter, parent);
 
-  gtk_tree_store_set(store, &iter, SORT_TYPE_COL, sortType, SORT_TEXT_COL, sortName, -1);
+  gtk_tree_store_set(store, &iter, SORT_TYPE_COL, sortMode, SORT_TEXT_COL, sortName, -1);
 
-  if (sortType == initSortType)
+  if (sortMode == initSortMode)
     {
       gtk_combo_box_set_active_iter(combo, &iter);
     }
@@ -3118,7 +3118,7 @@ static GtkTreeIter* addSortBoxItem(GtkTreeStore *store,
 
 
 /* Create the combo box used for selecting sort criteria */
-static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const SortByType initSortType)
+static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const BlxSortMode initSortMode)
 {
   /* Add a label, to make it obvious what the combo box is for */
   GtkWidget *label = gtk_label_new(" <i>Sort by:</i>");
@@ -3139,11 +3139,11 @@ static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const Sort
 
   /* Add the options */
   GtkTreeIter *iter = NULL;
-  iter = addSortBoxItem(store, iter, SORTBYNAME, SORT_BY_NAME_STRING, initSortType, combo);
-  iter = addSortBoxItem(store, iter, SORTBYSCORE, SORT_BY_SCORE_STRING, initSortType, combo);
-  iter = addSortBoxItem(store, iter, SORTBYID, SORT_BY_ID_STRING, initSortType, combo);
-  iter = addSortBoxItem(store, iter, SORTBYPOS, SORT_BY_POS_STRING, initSortType, combo);
-  iter = addSortBoxItem(store, iter, SORTBYGROUPORDER, SORT_BY_GROUP_ORDER_STRING, initSortType, combo);
+  iter = addSortBoxItem(store, iter, BLXSORT_NAME, SORT_BY_NAME_STRING, initSortMode, combo);
+  iter = addSortBoxItem(store, iter, BLXSORT_SCORE, SORT_BY_SCORE_STRING, initSortMode, combo);
+  iter = addSortBoxItem(store, iter, BLXSORT_ID, SORT_BY_ID_STRING, initSortMode, combo);
+  iter = addSortBoxItem(store, iter, BLXSORT_POS, SORT_BY_POS_STRING, initSortMode, combo);
+  iter = addSortBoxItem(store, iter, BLXSORT_GROUP, SORT_BY_GROUP_ORDER_STRING, initSortMode, combo);
 
   g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(onSortOrderChanged), detailView);
 }
@@ -3220,7 +3220,7 @@ static void insertToolbarSeparator(GtkToolbar *toolbar)
 /* Create the detail view toolbar */
 static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
 					    BlxBlastMode mode,
-					    const SortByType sortByType,
+					    const BlxSortMode sortMode,
 					    GtkWidget **feedbackBox)
 {
   GtkToolbar *toolbar = NULL;
@@ -3230,7 +3230,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GHelp,		  detailView);
 
   /* Combo box for sorting */
-  createSortBox(toolbar, detailView, sortByType);
+  createSortBox(toolbar, detailView, sortMode);
 
   /* Settings button */
   makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",		 (GtkSignalFunc)GSettings,	  detailView);
@@ -3398,7 +3398,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
       if (mspIsBlastMatch(msp) || mspIsExon(msp))
 	{
 	  /* Find the tree that this MSP should belong to based on its reading frame and strand */
-	  Strand activeStrand = (msp->qframe[1] == '+') ? FORWARD_STRAND : REVERSE_STRAND;
+	  BlxStrand activeStrand = (msp->qframe[1] == '+') ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
 	  const int frame = mspGetRefFrame(msp, bc->seqType);
 	  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
 
@@ -3463,7 +3463,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			    const char const *refSeqName,
 			    const int startCoord,
 			    const gboolean sortInverted,
-			    const SortByType sortByType)
+			    const BlxSortMode sortMode)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -3477,7 +3477,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 
   /* Create the toolbar. We need to remember the feedback box. */
   GtkWidget *feedbackBox = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortByType, &feedbackBox);
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortMode, &feedbackBox);
 
   /* Create the header, and compile a list of columns. If viewing protein matches include
    * one SNP track in the detail view header; otherwise create SNP tracks in each tree header. */

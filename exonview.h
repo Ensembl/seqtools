@@ -10,7 +10,7 @@
 #include <SeqTools/blixem_.h>
 
 /* Public function declarations */
-GtkWidget*	createExonView(GtkWidget *bigPicture, const Strand strand);
+GtkWidget*	createExonView(GtkWidget *bigPicture, const BlxStrand strand);
 
 gboolean	exonViewGetExpanded(GtkWidget *exonView);
 void		exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded);

@@ -24,7 +24,7 @@ typedef struct _GridProperties
   {
     GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
     
-    Strand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
+    BlxStrand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
     
     int mspLineHeight;	     /* The height of the msp lines */
     
@@ -43,7 +43,7 @@ typedef struct _GridProperties
 
 /* Public function declarations */
 GridProperties*	    gridGetProperties(GtkWidget *widget);
-Strand		    gridGetStrand(GtkWidget *grid);
+BlxStrand	    gridGetStrand(GtkWidget *grid);
 GtkWidget*	    gridGetBigPicture(GtkWidget *grid);
 
 void		    calculateGridBorders(GtkWidget *grid);
@@ -59,6 +59,6 @@ void		    showPreviewBox(GtkWidget *grid, const int x);
 void		    acceptAndClearPreviewBox(GtkWidget *grid, const int x);
 
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
-					 Strand strand);
+					 BlxStrand strand);
 
 #endif /* _big_picture_grid_included_ */

@@ -27,7 +27,7 @@ typedef struct _RenderData
     GdkWindow *window;
     GtkStateType state;
     GdkGC *gc;
-    const Strand qStrand;
+    const BlxStrand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
     const gboolean seqSelected;

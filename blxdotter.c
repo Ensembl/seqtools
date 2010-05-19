@@ -440,7 +440,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 	    {
 	      const MSP *msp = (const MSP*)(seq->mspList->data);
 	      const gboolean displayRev = bc->displayRev;
-	      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+	      const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
 	      
 	      if (qForward && displayRev)
 		{
@@ -481,8 +481,8 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 		{
 		  const MSP *msp = (const MSP*)(seq->mspList->data);
 		  const gboolean displayRev = bc->displayRev;
-		  const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
-		  const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
+		  const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
+		  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
 		  const gboolean sameDirection = (qForward == sForward);
 		  
 		  if (bc->seqType == BLXSEQ_DNA && ((sameDirection && displayRev) || (!sForward && !displayRev)))
@@ -840,7 +840,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   const char *dotterQName = bc->refSeqName;
   
   /* Get the section of reference sequence that we're interested in */
-  const Strand strand = bc->seqType == BLXSEQ_DNA ? mspGetRefStrand(firstMsp) : blxWindowGetActiveStrand(blxWindow);
+  const BlxStrand strand = bc->seqType == BLXSEQ_DNA ? mspGetRefStrand(firstMsp) : blxWindowGetActiveStrand(blxWindow);
   const int frame = mspGetRefFrame(firstMsp, bc->seqType);
   
   char *querySeqSegmentTemp = getSequenceSegment(bc,

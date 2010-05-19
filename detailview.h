@@ -96,7 +96,7 @@ typedef struct _DetailViewProperties
     int selectedFrame;		  /* The reading frame to display selected bases for */
     int selectedBaseNum;	  /* The currently-selected base within the selected reading frame */
     int selectedDnaBaseIdx;	  /* The currently-selected index in terms of the DNA sequence */
-    Strand selectedStrand;	  /* Strand of the tree that the last-selected  */
+    BlxStrand selectedStrand;	  /* BlxStrand of the tree that the last-selected  */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
 
     gboolean sortInverted;	  /* Whether the sort operations operate in the reverse direction to their default */
@@ -120,8 +120,8 @@ IntRange*		detailViewGetDisplayRange(GtkWidget *detailView);
 int			detailViewGetSelectedBaseIdx(GtkWidget *detailView);
 int			detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*		detailViewGetAdjustment(GtkWidget *detailView);
-GtkWidget*		detailViewGetTree(GtkWidget *detailView, const Strand strand, const int frame);
-GtkWidget*		detailViewGetTreeContainer(GtkWidget *detailView, const Strand strand, const int frame);
+GtkWidget*		detailViewGetTree(GtkWidget *detailView, const BlxStrand strand, const int frame);
+GtkWidget*		detailViewGetTreeContainer(GtkWidget *detailView, const BlxStrand strand, const int frame);
 gboolean		detailViewGetDisplayRev(GtkWidget *detailView);
 PangoFontDescription*	detailViewGetFontDesc(GtkWidget *detailView);
 GtkCellRenderer*	detailViewGetRenderer(GtkWidget *detailView);
@@ -139,8 +139,8 @@ gboolean		detailViewGetShowSnpTrack(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
 DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
 int			detailViewGetActiveFrame(GtkWidget *detailView);
-Strand			detailViewGetSelectedStrand(GtkWidget *detailView);
-void			detailViewSetSelectedStrand(GtkWidget *detailView, Strand strand);
+BlxStrand		detailViewGetSelectedStrand(GtkWidget *detailView);
+void			detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
@@ -162,7 +162,7 @@ void			scrollDetailViewRightStep(GtkWidget *detailView);
 void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
-void			detailViewSortByType(GtkWidget *detailView, const SortByType sortByType);
+void			detailViewSetSortMode(GtkWidget *detailView, const BlxSortMode sortMode);
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll, const gboolean scrollMinimum);
@@ -204,7 +204,7 @@ void			drawHeaderChar(BlxViewContext *bc,
 				       DetailViewProperties *properties,
 				       const int dnaIdx,
 				       const char baseChar,
-				       const Strand strand, 
+				       const BlxStrand strand, 
 				       const BlxSeqType seqType,
 				       const gboolean displayIdxSelected, 
 				       const gboolean dnaIdxSelected, 
@@ -228,7 +228,7 @@ GtkWidget*		createDetailView(GtkWidget *blxWindow,
 					 const char const *refSeqName,
 					 const int startCoord,
 					 const gboolean sortInverted,
-					 const SortByType sortByType);
+					 const BlxSortMode sortMode);
 
 GtkWidget*		createDetailViewScrollBar(GtkAdjustment *adjustment, 
 						  GtkWidget *blxWindow);

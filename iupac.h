@@ -27,7 +27,7 @@
  * HISTORY:
  * Last edited: Aug 25 12:39 2009 (edgrif)
  * Created: Thu Aug 26 17:28:40 1999 (fw)
- * CVS info:   $Id: iupac.h,v 1.2 2010-02-02 14:32:48 gb10 Exp $
+ * CVS info:   $Id: iupac.h,v 1.3 2010-05-19 10:27:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 

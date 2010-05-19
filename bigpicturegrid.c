@@ -817,7 +817,7 @@ static void onDestroyGrid(GtkWidget *widget)
 static void gridCreateProperties(GtkWidget *widget, 
 				 GtkWidget *bigPicture,
 				 gulong exposeHandlerId,
-				 Strand strand)
+				 BlxStrand strand)
 {
   if (widget)
     { 
@@ -852,7 +852,7 @@ static GtkWidget* gridGetBlxWindow(GtkWidget *grid)
 }
 
 
-Strand gridGetStrand(GtkWidget *grid)
+BlxStrand gridGetStrand(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
   return properties->strand;
@@ -893,7 +893,7 @@ static GdkColor *gridGetMspLineColor(GtkWidget *grid, const gboolean selected)
  *                     Initialization                      *
  ***********************************************************/
 
-GtkWidget* createBigPictureGrid(GtkWidget *bigPicture, Strand strand)
+GtkWidget* createBigPictureGrid(GtkWidget *bigPicture, BlxStrand strand)
 {
   /* Create a layout area for the grid */
   GtkWidget *grid = gtk_layout_new(NULL, NULL);

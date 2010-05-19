@@ -47,7 +47,7 @@ typedef struct _TreeProperties
 /* Public function declarations */
 BlxViewContext*	  treeGetContext(GtkWidget *tree);
 TreeProperties*	  treeGetProperties(GtkWidget *widget);
-Strand		  treeGetStrand(GtkWidget *tree);
+BlxStrand	  treeGetStrand(GtkWidget *tree);
 GList*		  treeGetMsps(GtkTreeModel *model, GtkTreeIter *iter);
 GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 GtkWidget*	  treeGetBlxWindow(GtkWidget *tree);
@@ -60,7 +60,7 @@ void		  treeSortByName(GtkWidget *tree, gpointer data);
 void		  treeSortById(GtkWidget *tree, gpointer data);
 void		  treeSortByScore(GtkWidget *tree, gpointer data);
 void		  treeSortByPos(GtkWidget *tree, gpointer data);
-void		  treeSortByGroupOrder(GtkWidget *tree, gpointer data);
+void		  treeSortByGroup(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  resortTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);

@@ -23,20 +23,20 @@ typedef struct _CommandLineOptions
   MSP *mspList;			  /* the list of alignments */
   char **geneticCode;		  /* the genetic code */
   
-  Strand activeStrand;	    /* which strand will initially be the active one */
-  int bigPictZoom;	    /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
+  BlxStrand activeStrand;	  /* which strand will initially be the active one */
+  int bigPictZoom;		  /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
   gboolean bigPictON;	    
   gboolean bigPictRev;	    
-  SortByType initSortMode;  /* initial field to sort by */
-  gboolean sortInverted;    /* whether initial sort order should be inverted */
-  gboolean gappedHsp;	    /* whether this is a gapped hsp */
+  BlxSortMode initSortMode;	  /* initial field to sort by */
+  gboolean sortInverted;	  /* whether initial sort order should be inverted */
+  gboolean gappedHsp;		  /* whether this is a gapped hsp */
   gboolean hiliteSins;	    
-  gboolean dotterFirst;	    /* open dotter when blixem starts */
-  gboolean startNextMatch;  /* start at the coord of the next match from the default start coord */
-  BlxBlastMode blastMode;   /* the blast match mode */
-  BlxSeqType seqType;	    /* the type of sequence i.e. DNA or peptide */
-  int numFrames;	    /* the number of reading frames */
-  char *fetchMode;    /* the default method for fetching sequences */
+  gboolean dotterFirst;		  /* open dotter when blixem starts */
+  gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
+  BlxBlastMode blastMode;	  /* the blast match mode */
+  BlxSeqType seqType;		  /* the type of sequence i.e. DNA or peptide */
+  int numFrames;		  /* the number of reading frames */
+  char *fetchMode;		  /* the default method for fetching sequences */
 } CommandLineOptions;
 
 
@@ -101,7 +101,7 @@ GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);
 SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const SequenceStruct *seqToFind);
 const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
 int			  blxWindowGetOffset(GtkWidget *blxWindow);
-Strand			  blxWindowGetActiveStrand(GtkWidget *blxWindow);
+BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 
 GdkColor*		  getGdkColor(BlxViewContext *bc, const BlxColorId colorId, const gboolean selected);
 
@@ -132,7 +132,7 @@ gchar*			  getSequenceSegment(BlxViewContext *bc,
 					     const char const *dnaSequence,
 					     const int coord1, 
 					     const int coord2,
-					     const Strand strand,
+					     const BlxStrand strand,
 					     const BlxSeqType inputCoordType,
 					     const int frame,
 					     const gboolean displayRev,

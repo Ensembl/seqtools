@@ -20,7 +20,7 @@
 typedef struct _ExonViewProperties
   {
     GtkWidget *bigPicture;	      /* The big picture that this view belongs to */
-    Strand currentStrand;	      /* Which strand of the ref seq this view displays exons for */
+    BlxStrand currentStrand;	      /* Which strand of the ref seq this view displays exons for */
     
     gboolean expanded;		      /* Whether the exon view is expanded or compressed */
     
@@ -41,7 +41,7 @@ typedef struct _DrawData
     GdkColor *lineColorSelected;
     GdkRectangle *exonViewRect;
     GtkWidget *blxWindow;
-    const Strand strand;
+    const BlxStrand strand;
     const IntRange const *displayRange;
     const IntRange const *refSeqRange;
     const gboolean displayRev;
@@ -334,7 +334,7 @@ static void onDestroyExonView(GtkWidget *exonView)
 
 static void exonViewCreateProperties(GtkWidget *exonView, 
 				     GtkWidget *bigPicture, 
-				     const Strand currentStrand)
+				     const BlxStrand currentStrand)
 {
   if (exonView)
     {
@@ -489,7 +489,7 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
  ***********************************************************/
 
 /* Create the part of the view that will show the exons */
-GtkWidget *createExonView(GtkWidget *bigPicture, const Strand currentStrand)
+GtkWidget *createExonView(GtkWidget *bigPicture, const BlxStrand currentStrand)
 {
   GtkWidget *exonView = gtk_layout_new(NULL, NULL);
   
@@ -508,4 +508,3 @@ GtkWidget *createExonView(GtkWidget *bigPicture, const Strand currentStrand)
 
   return exonView;
 }
-

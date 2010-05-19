@@ -663,7 +663,7 @@ int getEndDnaCoord(const IntRange const *displayRange,
 int gapCoord(const MSP *msp, 
 	     const int qIdx, 
 	     const int numFrames, 
-	     const Strand strand, 
+	     const BlxStrand strand, 
 	     const gboolean displayRev, 
 	     int *nearestIdx)
 {
@@ -674,8 +674,8 @@ int gapCoord(const MSP *msp,
       int qSeqMin = UNSET_INT, qSeqMax = UNSET_INT, sSeqMin = UNSET_INT, sSeqMax = UNSET_INT;
       getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
       
-      const gboolean qForward = (mspGetRefStrand(msp) == FORWARD_STRAND);
-      const gboolean sForward = (mspGetMatchStrand(msp) == FORWARD_STRAND);
+      const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
+      const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
       const gboolean sameDirection = (qForward == sForward);
       
       Array gaps = msp->gaps ;
@@ -787,9 +787,9 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
 
 
 /* Return the strand of the ref sequence that the given MSP is a match against */
-Strand mspGetRefStrand(const MSP const *msp)
+BlxStrand mspGetRefStrand(const MSP const *msp)
 {
-  return msp->qframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
+  return msp->qframe[1] == '+' ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
 }
 
 
@@ -801,9 +801,9 @@ int mspGetMatchFrame(const MSP const *msp)
 
 
 /* Return the strand of the match sequence that the given MSP is a match on */
-Strand mspGetMatchStrand(const MSP const *msp)
+BlxStrand mspGetMatchStrand(const MSP const *msp)
 {
-  return msp->sframe[1] == '+' ? FORWARD_STRAND : REVERSE_STRAND;
+  return msp->sframe[1] == '+' ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
 }
 
 
@@ -1567,6 +1567,3 @@ BlxColor* getBlxColor(GList *colorList, const BlxColorId colorId)
   
   return result;
 }
-
-
-  
