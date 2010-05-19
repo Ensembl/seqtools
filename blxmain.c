@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.10 2010-05-06 14:51:13 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.11 2010-05-19 13:44:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -35,12 +35,6 @@
 #include <wh/regular.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
-
-
-/*                                                                           */
-/*            blixem copyright string, use "what" on the executable.         */
-/*                                                                           */
-static const char *ut_copyright_string = UT_COPYRIGHT_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE, BLIXEM_DESC)
 
 
 /* scrolled message window max messages. */
@@ -431,14 +425,6 @@ int main(int argc, char **argv)
   /* We should not get here.... */
   return (EXIT_FAILURE) ;
 }
-
-
-
-char *blxVersion(void)
-{
-  return (char *)ut_copyright_string ;
-}
-
 
 
 
