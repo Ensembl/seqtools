@@ -897,7 +897,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 	 "subject sequence: name -  %s, offset - %d\n", dotterQName, offset, dotterSName, 0);
   
   dotter(type, opts, dotterQName, querySeqSegment, offset, dotterSName, dotterSSeq, 0,
-	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->refSeqRange.min - 1, 0, 0);
+	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, 0, 0, 0);
   
   return TRUE;
 }
