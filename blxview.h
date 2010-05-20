@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.13 2010-05-18 09:54:56 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.14 2010-05-20 15:25:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -66,11 +66,11 @@ typedef struct
 typedef enum
   {
     BLX_MSP_INVALID,
-    EXBLX, SEQBL,					    /* Old style sequence entries. */
-    EXBLX_X, SEQBL_X,					    /* New style sequence entries with
-							       gaps and match strand. */
+    EXBLX, SEQBL,	    /* Old style sequence entries. */
+    EXBLX_X, SEQBL_X,	    /* New style sequence entries with gaps and match strand. */
     HSP,
-    GSP, GSPdata, GFF,
+    GSP, GSPdata,
+    GFF,
     FSSEG,
     XY, XYdata,
     SEQ, SEQdata
