@@ -827,12 +827,12 @@ static void drawSequenceText(GtkWidget *tree,
 	}
       else
 	{
-	  messerror("Error creating layout while trying to display sequence:\n%s\n", displayText);
+	  g_warning("Error creating layout while trying to display sequence:\n%s\n", displayText);
 	}
     }
   else
     {
-      messerror("Invalid string constructed when trying to display sequence:\n%s\n", displayText);
+      g_critical("Invalid string constructed when trying to display sequence:\n%s\n", displayText);
     }
   
 }
@@ -888,6 +888,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       return;
     }
   
+  GError *error = NULL;
   gchar *refSeqSegment = getSequenceSegment(data->bc,
 					    data->bc->refSeq,
 					    segmentRange.min, 
@@ -898,46 +899,53 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 					    data->bc->displayRev,
 					    data->bc->displayRev,
 					    TRUE,
-					    TRUE);
+					    TRUE,
+					    &error);
 
-  if (refSeqSegment)
+  if (!refSeqSegment)
     {
-      /* We'll populate a string with the characters we want to display as we loop through the indices. */
-      const int segmentLen = segmentRange.max - segmentRange.min + 1;
-      gchar displayText[segmentLen + 1];
-      
-      int lastFoundSIdx = UNSET_INT;  /* remember the last index where we found a valid base */
-      int lastFoundQIdx = UNSET_INT;  /* remember the last index where we found a valid base */
-
-      int segmentIdx = 0;
-      for ( ; segmentIdx < segmentLen; ++segmentIdx)
-	{
-	  int x, y;
-	  getCoordsForBaseIdx(segmentIdx, &segmentRange, data, &x, &y);
-	  
-	  /* Find the base in the match sequence and draw the background color according to how well it matches */
-	  int sIdx = UNSET_INT, qIdx = UNSET_INT;
-	  drawBase(msp, segmentIdx, &segmentRange, refSeqSegment, data, x, y, displayText, &sIdx, &qIdx);
-	  
-	  /* If there is an insertion (i.e. extra bases on the match sequence) between this 
-	   * and the previous coord, draw a marker */
-	  drawInsertionMarker(sIdx, lastFoundSIdx, qIdx, lastFoundQIdx, x, y, data);
-
-	  if (sIdx != UNSET_INT)
-	    {
-	      lastFoundSIdx = sIdx;
-	      lastFoundQIdx = qIdx;
-	    }
-	}
-
-      /* Null-terminate the string */
-      insertChar(displayText, &segmentIdx, '\0', msp);
-
-      /* Draw the sequence text */
-      drawSequenceText(tree, displayText, &segmentRange, data);
-      
-      g_free(refSeqSegment);
+      g_assert(error);
+      g_prefix_error(&error, "Could not draw alignment for sequence '%s'. ", msp->sname);
+      g_warning(error->message);
+      g_clear_error(&error);
+      return;
     }
+    
+  /* We'll populate a string with the characters we want to display as we loop through the indices. */
+  const int segmentLen = segmentRange.max - segmentRange.min + 1;
+  gchar displayText[segmentLen + 1];
+  
+  int lastFoundSIdx = UNSET_INT;  /* remember the last index where we found a valid base */
+  int lastFoundQIdx = UNSET_INT;  /* remember the last index where we found a valid base */
+
+  int segmentIdx = 0;
+  for ( ; segmentIdx < segmentLen; ++segmentIdx)
+    {
+      int x, y;
+      getCoordsForBaseIdx(segmentIdx, &segmentRange, data, &x, &y);
+      
+      /* Find the base in the match sequence and draw the background color according to how well it matches */
+      int sIdx = UNSET_INT, qIdx = UNSET_INT;
+      drawBase(msp, segmentIdx, &segmentRange, refSeqSegment, data, x, y, displayText, &sIdx, &qIdx);
+      
+      /* If there is an insertion (i.e. extra bases on the match sequence) between this 
+       * and the previous coord, draw a marker */
+      drawInsertionMarker(sIdx, lastFoundSIdx, qIdx, lastFoundQIdx, x, y, data);
+
+      if (sIdx != UNSET_INT)
+	{
+	  lastFoundSIdx = sIdx;
+	  lastFoundQIdx = qIdx;
+	}
+    }
+
+  /* Null-terminate the string */
+  insertChar(displayText, &segmentIdx, '\0', msp);
+
+  /* Draw the sequence text */
+  drawSequenceText(tree, displayText, &segmentRange, data);
+  
+  g_free(refSeqSegment);
 }    
 
 

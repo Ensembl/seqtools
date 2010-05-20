@@ -22,6 +22,16 @@
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
 #define MATCH_SET_GROUP_NAME		 "Match set"
 
+
+/* Error codes and domain */
+#define BLX_ERROR g_quark_from_string("Blixem")
+
+typedef enum {
+  BLX_ERROR_SEQ_SEGMENT	      /* error finding sequence segment */
+} BlxDotterError;
+
+
+
 /* Utility struct used when comparing sequence names */
 typedef struct _CompareSeqData
   {
@@ -217,7 +227,8 @@ gchar *getSequenceSegment(BlxViewContext *bc,
 			  const gboolean displayRev,
 			  const gboolean reverseResult,
 			  const gboolean allowComplement,
-			  const gboolean allowTranslate)
+			  const gboolean allowTranslate,
+			  GError **error)
 {
   gchar *result = NULL;
 
@@ -238,9 +249,9 @@ gchar *getSequenceSegment(BlxViewContext *bc,
       if (qMin < bc->refSeqRange.min - (bc->numFrames + 1) || qMax > bc->refSeqRange.max + (bc->numFrames + 1))
 	{
 	  if (inputCoordType == BLXSEQ_PEPTIDE)
-	    printf ( "Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max, coord1, coord2);
+	    g_warning("Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max, coord1, coord2);
 	  else
-	    printf ( "Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max);
+	    g_warning("Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max);
 	}
       
       if (qMax > bc->refSeqRange.max)
@@ -289,7 +300,13 @@ gchar *getSequenceSegment(BlxViewContext *bc,
 	  
 	      if (!segment)
 		{
-		  messcrash ("Error getting the reference sequence segment: Failed to complement the reference sequence for the range %d - %d.", qMin, qMax);
+		  g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_SEGMENT, 
+			      "Error getting sequence segment: Failed to complement the reference sequence for the range %d - %d.\n", 
+			      qMin, qMax);
+		  
+		  g_free(segment);
+		  g_free(result);
+		  return NULL;
 		}
 	    }
 	}
@@ -314,9 +331,20 @@ gchar *getSequenceSegment(BlxViewContext *bc,
 	  
 	  if (!result)
 	    {
-	      messcrash ("Error getting the reference sequence segment: Failed to translate the DNA sequence for the reference sequence range %d - %d/\n", qMin, qMax) ;
+	      g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_SEGMENT,
+			  "Error getting the sequence segment: Failed to translate the DNA sequence for the reference sequence range %d - %d\n", 
+			  qMin, qMax) ;
+	      
+	      g_free(segment);
+	      g_free(result);
+	      return NULL;
 	    }
 	}
+    }
+  
+  if (!result)
+    {
+      g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_SEGMENT, "Failed to find sequence segment for the range %d - %d\n", qMin, qMax);
     }
   
   return result;
@@ -3699,7 +3727,7 @@ static GtkWidget* createMainMenu(GtkWidget *window)
   
   if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
     {
-      g_message ("building menus failed: %s", error->message);
+      g_critical("Building menus failed: %s", error->message);
       g_error_free (error);
       exit (EXIT_FAILURE);
     }
@@ -3737,7 +3765,8 @@ static void calcID(MSP *msp, BlxViewContext *bc)
       /* Note that this will reverse complement the ref seq if it is the reverse 
        * strand. This means that where there is no gaps array the comparison is trivial
        * as coordinates can be ignored and the two sequences just whipped through. */
-
+      GError *error = NULL;
+      
       char *refSeqSegment = getSequenceSegment(bc,
 					       bc->refSeq,
 					       msp->qstart, 
@@ -3748,11 +3777,14 @@ static void calcID(MSP *msp, BlxViewContext *bc)
 					       bc->displayRev,
 					       !qForward,
 					       TRUE,
-					       TRUE);
+					       TRUE,
+					       &error);
       
       if (!refSeqSegment)
 	{
-	  messout ( "calcID failed: Don't have genomic sequence %d - %d, requested for match sequence '%s' (match coords = %d - %d)\n", msp->qstart, msp->qend, msp->sname, msp->sstart, msp->send);
+	  g_prefix_error(&error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", msp->sname, msp->sstart, msp->send);
+	  g_critical(error->message);
+	  g_clear_error(&error);
 	  return;
 	}
       
@@ -3931,6 +3963,9 @@ static int calculateMspData(MSP *mspList, BlxViewContext *bc)
 /* Create the main blixem window */
 GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
 {
+  g_log_set_default_handler(defaultMessageHandler, NULL);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
+  
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
   const int refSeqLen = (int)strlen(options->refSeq);

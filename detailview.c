@@ -173,7 +173,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
     }
   else
     {
-      messerror("Could not find a fixed-width font. Alignments may not be displayed correctly.");
+      g_critical("Could not find a fixed-width font. Alignments may not be displayed correctly.");
     }
   
   return result;
@@ -416,7 +416,7 @@ static void addTreesToDetailView(GtkContainer *detailView,
     }
   else
     {
-      messcrash("Unexpected detail view type: expected a paned widget. Could not add child trees.");
+      g_error("Unexpected detail view type: expected a paned widget. Could not add child trees.");
     }
 }
 
@@ -655,7 +655,7 @@ void refreshDetailViewHeaders(GtkWidget *detailView)
 	}
       else
 	{
-	  messerror("refreshDetailViewHeaders: Invalid column data for detail view header. Header may not be refreshed correctly.");
+	  g_critical("Invalid column data for detail view header; header may not be refreshed correctly.");
 	}
     }
 }
@@ -1121,7 +1121,8 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   /* Find the segment of the ref sequence to display (complemented if this tree is
    * displaying the reverse strand, and reversed if the display is toggled) */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  
+  GError *error = NULL;
+
   gchar *segmentToDisplay = getSequenceSegment(bc,
 					       bc->refSeq,
 					       displayRange->min, 
@@ -1132,68 +1133,75 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
 					       bc->displayRev,
 					       bc->displayRev,
 					       bc->displayRev,
-					       FALSE);
+					       FALSE,
+					       &error);
   
-  if (segmentToDisplay)
+  if (!segmentToDisplay)
     {
-      GdkGC *gc = gdk_gc_new(drawable);
-      DetailViewProperties *properties = detailViewGetProperties(detailView);
-      const int activeFrame = detailViewGetActiveFrame(detailView);
-      const gboolean showSnpTrack = TRUE; /* always highlight SNP positions in the DNA header */
-
-      gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
-      
-      /* Loop forward/backward through the display range depending on which strand we're viewing.
-       * We need to convert display coords to actual coords on the ref sequence */
-      const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);	  /* 1st base in frame */
-      const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
-      
-      IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
-      
-      int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
-      int displayLen = qRange.max - qRange.min + 1;
-      char displayText[displayLen + 1];
-      int displayTextPos = 0;
-      
-      int qIdx = bc->displayRev ? qRange.max : qRange.min;
-      int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int y = 0;
-      
-      while (qIdx >= qRange.min && qIdx <= qRange.max)
-	{
-	  /* Get the character to display at this index */
-	  displayText[displayTextPos] = getRefSeqBase(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
-	  
-	  /* Color the base depending on whether it is selected or affected by a SNP */
-	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
-	  const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
-	  const int x = displayTextPos * properties->charWidth;
-	  const char base = displayText[displayTextPos];
-
-	  drawHeaderChar(bc, properties, qIdx, base, strand, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, drawable, gc, x, y);
-	  
-	  /* Increment indices */
-	  ++displayTextPos;
-	  ++displayIdx;
-	  qIdx += incrementValue;
-	}
-      
-      /* Make sure the string is terminated properly */
-      displayText[displayTextPos] = '\0';
-      
-      /* Draw the text */
-      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, displayText);
-      pango_layout_set_font_description(layout, detailViewGetFontDesc(detailView));
-      
-      if (layout)
-	{
-	  gtk_paint_layout(dnaTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
-	  g_object_unref(layout);
-	}
-      
-      g_free(segmentToDisplay);
-      g_object_unref(gc);
+      g_assert(error);
+      g_prefix_error(&error, "Could not draw DNA header. ");
+      g_warning(error->message);
+      g_clear_error(&error);
+      return;
     }
+    
+  GdkGC *gc = gdk_gc_new(drawable);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  const int activeFrame = detailViewGetActiveFrame(detailView);
+  const gboolean showSnpTrack = TRUE; /* always highlight SNP positions in the DNA header */
+
+  gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
+  
+  /* Loop forward/backward through the display range depending on which strand we're viewing.
+   * We need to convert display coords to actual coords on the ref sequence */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);	  /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
+  
+  IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
+  
+  int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
+  int displayLen = qRange.max - qRange.min + 1;
+  char displayText[displayLen + 1];
+  int displayTextPos = 0;
+  
+  int qIdx = bc->displayRev ? qRange.max : qRange.min;
+  int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int y = 0;
+  
+  while (qIdx >= qRange.min && qIdx <= qRange.max)
+    {
+      /* Get the character to display at this index */
+      displayText[displayTextPos] = getRefSeqBase(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
+      
+      /* Color the base depending on whether it is selected or affected by a SNP */
+      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+      const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
+      const int x = displayTextPos * properties->charWidth;
+      const char base = displayText[displayTextPos];
+
+      drawHeaderChar(bc, properties, qIdx, base, strand, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, drawable, gc, x, y);
+      
+      /* Increment indices */
+      ++displayTextPos;
+      ++displayIdx;
+      qIdx += incrementValue;
+    }
+  
+  /* Make sure the string is terminated properly */
+  displayText[displayTextPos] = '\0';
+  
+  /* Draw the text */
+  PangoLayout *layout = gtk_widget_create_pango_layout(detailView, displayText);
+  pango_layout_set_font_description(layout, detailViewGetFontDesc(detailView));
+  
+  if (layout)
+    {
+      gtk_paint_layout(dnaTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
+      g_object_unref(layout);
+    }
+  
+  g_free(segmentToDisplay);
+  g_object_unref(gc);
 }
 
 
@@ -1595,16 +1603,16 @@ static void assertDetailView(GtkWidget *detailView)
 {
   /* Check it's a valid detail-view tree type */
   if (!detailView)
-    messcrash("Detail-view widget is null");
+    g_error("Detail-view widget is null");
   
   if (!GTK_IS_WIDGET(detailView))
-    messcrash("Detail-view is not a valid widget [%x]", detailView);
+    g_error("Detail-view is not a valid widget [%p]", detailView);
   
   if (!GTK_IS_CONTAINER(detailView))
-    messcrash("Detail-view is not a valid container [%x]", detailView);
+    g_error("Detail-view is not a valid container [%p]", detailView);
   
   if (!detailViewGetProperties(detailView))
-    messcrash("Tree properties not set [widget=%x]", detailView);
+    g_error("Tree properties not set [widget=%p]", detailView);
 }
 
 GtkWidget* detailViewGetBlxWindow(GtkWidget *detailView)
@@ -2203,7 +2211,7 @@ static gboolean onExposeSnpTrack(GtkWidget *snpTrack, GdkEventExpose *event, gpo
         }
       else
 	{
-	  messerror("Failed to draw SNP track [%x] - could not create bitmap", snpTrack);
+	  g_critical("Failed to draw SNP track [%p] - could not create bitmap", snpTrack);
 	}
     }
   

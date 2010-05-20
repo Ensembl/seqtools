@@ -138,7 +138,8 @@ gchar*			  getSequenceSegment(BlxViewContext *bc,
 					     const gboolean displayRev,
 					     const gboolean reverseResult,
 					     const gboolean allowComplement,
-					     const gboolean translateResult);
+					     const gboolean translateResult,
+					     GError **error);
   
 GtkWidget*		  createBlxWindow(CommandLineOptions *options, const char *paddingSeq);
 

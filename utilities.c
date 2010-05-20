@@ -160,7 +160,7 @@ gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointe
 {
   if (!label || !GTK_IS_LABEL(label))
     {
-      messerror("onExposeLabel: invalid widget type. Expected label [widget=%x]", label);
+      g_critical("Invalid widget type when printing label [%p]", label);
     }
   
   /* Only widgets that have a pixmap set will be shown in print output */
@@ -270,7 +270,7 @@ gboolean parseBlxColor(const char *color, GdkColor *result)
 
   if (!ok)
     {
-      messerror("Error parsing color string '%s'", color);
+      g_warning("Error parsing color string '%s'", color);
     }
   
   return ok;
@@ -1567,3 +1567,43 @@ BlxColor* getBlxColor(GList *colorList, const BlxColorId colorId)
   
   return result;
 }
+
+
+/* Utility to prepend a prefix onto the given GString depending on the log level */
+static void getLogLevelPrefix(GLogLevelFlags log_level, GString *prefix)
+{
+  if (log_level & G_LOG_LEVEL_ERROR)
+    {
+      g_string_prepend(prefix, "Error: ");
+    }
+  else if (log_level & G_LOG_LEVEL_CRITICAL || log_level & G_LOG_LEVEL_WARNING)
+    {
+      g_string_prepend(prefix, "Warning: ");
+    }
+  else if (log_level & G_LOG_LEVEL_DEBUG)
+    {
+      g_string_prepend(prefix, "Debug: ");
+    }
+}
+
+
+/* Default handler for GLib log messages (e.g. from g_message() etc.) */
+void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
+{
+  /* Just print to standard output, adding a prefix if this is an error or warning */
+  GString *prefix = g_string_new("");
+  getLogLevelPrefix(log_level, prefix);
+
+  printf("%s%s", prefix->str, (char*)message);
+  
+  g_string_free(prefix, TRUE);
+}
+
+/* Default handler for critical GLib log messages (i.e. from g_error and g_critical.) */
+void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
+{
+  /* Display message to screen and in pop-up box */
+  printf("***%s", (char*)message);
+  messout((char*)message);
+}
+

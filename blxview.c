@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.35 2010-05-19 10:27:32 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.36 2010-05-20 12:07:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -269,15 +269,15 @@ static void decGrid(void) {
 //
 //    /* Validation */
 //    if (plusmin > 0 && start > end) {
-//	messout("Please give a range where from: is less than to:");
+//	g_message("Please give a range where from: is less than to:");
 //	return;
 //    }
 //    else if (plusmin < 0 && start < end) {
-//	messout("Please give a range where from: is more than to:");
+//	g_message("Please give a range where from: is more than to:");
 //	return;
 //    }
 //    if (displen/symbfact > MAXALIGNLEN) {
-//	messout("Sorry, can't print more than %d residues.  Anyway, think of the paper!", MAXALIGNLEN*symbfact);
+//	g_message("Sorry, can't print more than %d residues.  Anyway, think of the paper!", MAXALIGNLEN*symbfact);
 //	return;
 //    }
 //
@@ -530,7 +530,7 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
       /* Set up program configuration. */
       if (!(blxGetConfig()) && !blxInitConfig(config_file, &error))
 	{
-	  messcrash("Config File Error: %s", error->message) ;
+	  g_error("Config File Error: %s", error->message) ;
 	}
     }
 
@@ -587,7 +587,16 @@ static void blviewCreate(char *opts,
   if (options->dotterFirst && options->mspList && options->mspList->sname && (options->mspList->type == HSP || options->mspList->type == GSP))
     {
       blxWindowSelectSeq(blixemWindow, options->mspList->sSequence);
-      callDotter(blixemWindow, FALSE);
+      
+      GError *error = NULL;
+      callDotter(blixemWindow, FALSE, &error);
+      
+      if (error)
+	{
+	  g_prefix_error(&error, "Could not start Dotter. ");
+	  g_critical(error->message);
+	  g_clear_error(&error);
+	}
     }
 
   if (options->startNextMatch)

@@ -19,7 +19,7 @@
 
 
 void			showDotterDialog(GtkWidget *blxWindow);
-gboolean		callDotter(GtkWidget *blxWindow, const gboolean hspsOnly);
+gboolean		callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **error);
 
 
 #endif /* _blx_dotter_h_included_ */

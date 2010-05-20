@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.17 2010-05-13 15:16:49 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.18 2010-05-20 12:07:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -553,7 +553,7 @@ BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
 	    {
 	      if (!fetch_data.cancelled)
 		{
-		  messerror("Sequence fetch from http server failed: %s", fetch_data.err_txt) ;
+		  g_critical("Sequence fetch from http server failed: %s", fetch_data.err_txt) ;
 		  g_free(fetch_data.err_txt) ;
 		}
 	    }
@@ -581,7 +581,7 @@ BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
     }
   else
     {
-      messerror("%s", "Failed to obtain preferences specifying how to pfetch.") ;
+      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.") ;
       status = FALSE ;
     }
 
@@ -648,7 +648,7 @@ void blxPfetchEntry(char *sequence_name)
     }
   else
     {
-      messerror("%s", "Failed to obtain preferences specifying how to pfetch.") ;
+      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.") ;
     }
 
   return ;
@@ -713,7 +713,7 @@ BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char *pfetchIP, int port, BOOL 
       /* send a final newline to flush the socket */
       if (send(sock, "\n", 1, 0) != 1)
 	{
-	  messerror("failed to send final \\n to socket") ;
+	  g_critical("failed to send final \\n to socket") ;
 	  status = FALSE ;
 	}
     }
@@ -744,8 +744,8 @@ BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char *pfetchIP, int port, BOOL 
 	  if (len == -1)
 	    {
 	      status = FALSE ;
-	      messerror("Could not retrieve sequence data from pfetch server, "
-			"error was: %s", messSysErrorText()) ;
+	      g_critical("Could not retrieve sequence data from pfetch server, "
+			 "error was: %s", messSysErrorText()) ;
 	    }
 	  else if (len == 0)
 	    {
@@ -791,9 +791,9 @@ BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char *pfetchIP, int port, BOOL 
 		      if (n > seq_total)
 			{
 			  status = FALSE ;
-			  messerror("Unexpected data from pfetch server, "
-				    "received %d lines when only %d sequences requested.",
-				    n, dictMax(dict)) ;
+			  g_critical("Unexpected data from pfetch server, "
+				     "received %d lines when only %d sequences requested.",
+				     n, dictMax(dict)) ;
 			}
 		      else
 			{
@@ -1008,7 +1008,7 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
   /* Create a reliable, stream socket using TCP */
   if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0)
     {
-      messerror ("socket() failed") ;
+      g_critical ("socket() failed") ;
       return -1 ;
     }
 
@@ -1020,12 +1020,12 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
   {
     if (External)
     {
-        messerror("Failed to start external blixem: unknown host \"%s\"", ipAddress);
+        g_critical("Failed to start external blixem: unknown host \"%s\"", ipAddress);
         return -1;
     }
     else
     {
-        messerror("Failed to start internal blixem: unknown host \"%s\"", ipAddress);
+        g_critical("Failed to start internal blixem: unknown host \"%s\"", ipAddress);
         return -1;
     }
   }
@@ -1039,7 +1039,7 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
   /* Establish the connection to the server */
   if (connect(sock, (struct sockaddr *) servAddr, sizeof(struct sockaddr_in)) < 0)
     {
-      messerror ("socket connect() to BLIXEM_PFETCH = %s failed", ipAddress) ;
+      g_critical ("socket connect() to BLIXEM_PFETCH = %s failed", ipAddress) ;
       sock = -1 ;
     }
 
@@ -1072,7 +1072,7 @@ static BOOL socketSend (int sock, char *text)
   sigemptyset(&oursigpipe.sa_mask) ;
   oursigpipe.sa_flags = 0 ;
   if (sigaction(SIGPIPE, &oursigpipe, &oldsigpipe) < 0)
-    messcrash("Cannot set SIG_IGN for SIGPIPE for socket write operations") ;
+    g_error("Cannot set SIG_IGN for SIGPIPE for socket write operations") ;
 
   bytes_written = send(sock, tmp, bytes_to_send, 0) ;
   if (bytes_written == -1)
@@ -1080,20 +1080,20 @@ static BOOL socketSend (int sock, char *text)
       if (errno == EPIPE || errno == ECONNRESET || errno == ENOTCONN)
 	{
 	  status = FALSE ;
-	  messerror("Socket connection to pfetch server has failed, "
-		    "error was: %s", messSysErrorText()) ;
+	  g_critical("Socket connection to pfetch server has failed, "
+		     "error was: %s", messSysErrorText()) ;
 	}
       else
-	messcrash("Fatal error on socket connection to pfetch server, "
+	g_error("Fatal error on socket connection to pfetch server, "
 		  "error was: %s", messSysErrorText()) ;
     }
   else if (bytes_written != bytes_to_send)
-    messcrash("send() call should have written %s bytes, but actually wrote %s.",
+    g_error("send() call should have written %d bytes, but actually wrote %d.",
 	      bytes_to_send, bytes_written) ;
 
   /* Reset the old signal handler.                                           */
   if (sigaction(SIGPIPE, &oldsigpipe, NULL) < 0)
-    messcrash("Cannot reset previous signal handler for signal SIGPIPE for socket write operations") ;
+    g_error("Cannot reset previous signal handler for signal SIGPIPE for socket write operations") ;
 
   g_free(tmp) ;
 

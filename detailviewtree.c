@@ -35,19 +35,19 @@ static SequenceStruct*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
 static void assertTree(GtkWidget *tree)
 {
   if (!tree)
-    messcrash("Tree is null", tree);
+    g_error("Tree is null");
   
   if (!GTK_IS_WIDGET(tree))
-    messcrash("Tree is not a valid widget [%x]", tree);
+    g_error("Tree is not a valid widget [%p]", tree);
     
   if (!GTK_IS_TREE_VIEW(tree))
-    messcrash("Tree is not a valid tree view [%x]", tree);
+    g_error("Tree is not a valid tree view [%p]", tree);
 
   if (strcmp(gtk_widget_get_name(tree), DETAIL_VIEW_TREE_NAME) != 0)
-    messcrash("Tree is not a valid detail-view tree [%x]", tree);
+    g_error("Tree is not a valid detail-view tree [%p]", tree);
 
   if (!treeGetProperties(tree))
-    messcrash("Tree properties not set [widget=%x]", tree);
+    g_error("Tree properties not set [widget=%p]", tree);
 }
 
 static GtkAdjustment *treeGetAdjustment(GtkWidget *tree)
@@ -479,7 +479,7 @@ gboolean treeGetMatchesSquashed(GtkWidget *tree)
     }
   else
     {
-      messerror("Unexpected tree data store [%x]. Expected either [%x] (normal data) or [%x] (condensed data)", model, properties->mspTreeModel, properties->seqTreeModel);
+      g_critical("Unexpected tree data store [%p]. Expected either [%p] (normal data) or [%p] (condensed data)", model, properties->mspTreeModel, properties->seqTreeModel);
     }
   
   return result;
@@ -527,7 +527,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 	}
       else
 	{
-	  messerror("refreshTreeHeaders: Warning - Invalid tree header info. Tree header may not refresh properly.");
+	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.");
 	}
     }
 }
@@ -564,7 +564,7 @@ static void resizeTreeHeaders(GtkWidget *tree, gpointer data)
 	}
       else
 	{
-	  messerror("refreshTreeHeaders: Warning - Invalid tree header info. Tree header may not refresh properly.");
+	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.");
 	}
     }
   
@@ -879,6 +879,8 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   const gboolean showSnps = treeHasSnpHeader(tree);
   
   /* Find the segment of the ref seq to display. */
+  GError *error = NULL;
+  
   gchar *segmentToDisplay = getSequenceSegment(bc,
 					       bc->refSeq,
 					       properties->displayRange.min, 
@@ -889,46 +891,53 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 					       bc->displayRev,
 					       bc->displayRev,	/* show backwards if display reversed */
 					       TRUE,		/* always complement reverse strand */
-					       TRUE);		/* always translate peptide sequences */
+					       TRUE,		/* always translate peptide sequences */
+					       &error);
   
-  if (segmentToDisplay)
+  if (!segmentToDisplay)
     {
-      GdkGC *gc = gdk_gc_new(drawable);
-      
-      int displayIdx = properties->displayRange.min;
-      int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-      
-      const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
-      
-      while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
-	{
-	  /* Set the background color depending on whether this base is selected or
-	   * is affected by a SNP */
-	  const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
-	  const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
-	  
-	  const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
-	  const int y = 0;
-
-	  drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, drawable, gc, x, y);
-	  
-	  dnaIdx += incrementValue;
-	  ++displayIdx;
-	}
-      
-      /* Mark up the text to highlight the selected base, if there is one */
-      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, segmentToDisplay);
-      pango_layout_set_font_description(layout, detailViewGetFontDesc(detailView));
-      
-      if (layout)
-	{
-	  gtk_paint_layout(headerWidget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
-	  g_object_unref(layout);
-	}
-      
-      g_free(segmentToDisplay);
-      g_object_unref(gc);
+      g_assert(error);
+      g_prefix_error(&error, "Could not draw reference sequence header. ");
+      g_warning(error->message);
+      g_clear_error(&error);
+      return;
     }
+  
+  GdkGC *gc = gdk_gc_new(drawable);
+  
+  int displayIdx = properties->displayRange.min;
+  int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  
+  const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
+  
+  while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
+    {
+      /* Set the background color depending on whether this base is selected or
+       * is affected by a SNP */
+      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+      const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
+      
+      const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
+      const int y = 0;
+
+      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, drawable, gc, x, y);
+      
+      dnaIdx += incrementValue;
+      ++displayIdx;
+    }
+  
+  /* Mark up the text to highlight the selected base, if there is one */
+  PangoLayout *layout = gtk_widget_create_pango_layout(detailView, segmentToDisplay);
+  pango_layout_set_font_description(layout, detailViewGetFontDesc(detailView));
+  
+  if (layout)
+    {
+      gtk_paint_layout(headerWidget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
+      g_object_unref(layout);
+    }
+  
+  g_free(segmentToDisplay);
+  g_object_unref(gc);
 }
 
 
@@ -1898,7 +1907,7 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      messerror("refreshNameColHeader: Column header is an unexpected widget type");
+      g_warning("Unexpected widget type for Name column header; header may not refresh properly.");
     }
 }
 
@@ -1931,7 +1940,7 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      messerror("refreshStartColHeader: Column header is an unexpected widget type");
+      g_warning("Unexpected widget type for Start column header; header may not refresh properly.");
     }
 }
 
@@ -1961,7 +1970,7 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      messerror("refreshEndColHeader: Column header is an unexpected widget type");
+      g_warning("Unexpected widget type for End column header; header may not refresh properly.");
     }
 }
 
@@ -2118,7 +2127,7 @@ static GList* addTreeColumns(GtkWidget *tree,
 	}
       else
 	{
-	  messerror("addTreeColumns: error creating column - invalid column info in detail-view column-list.");
+	  g_warning("Error creating column; invalid column info in detail-view column-list.");
 	}
     }
 

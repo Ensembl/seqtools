@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.18 2010-05-19 10:29:12 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.19 2010-05-20 12:07:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -216,7 +216,7 @@ static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp)
   else if (!strncasecmp(line, "# FS type=", 10) ||
 	   !strncasecmp(line, "# SFS type=", 11))
     {
-      messcrash("Unrecognised SFS type: %s\n", line);
+      g_error("Unrecognised SFS type: %s\n", line);
     }
   else if (*line == '#')
     {
@@ -264,7 +264,7 @@ static gboolean parseNonMspData(char *line, MSP *msp, char **seq1, char *seq1nam
       int x, y;
       if (sscanf(line, "%d%d", &x, &y) != 2) 
 	{
-	  messerror("Error parsing data file, type XYdata: \"%s\"\n", line);
+	  g_critical("Error parsing data file, type XYdata: \"%s\"\n", line);
 	  abort();
 	}
       array(msp->xy, x-1, int) = y;
@@ -297,7 +297,7 @@ static gboolean parseNonMspData(char *line, MSP *msp, char **seq1, char *seq1nam
       
       if (sscanf(line+14, "%s%s", qname, series) != 2) 
 	{
-	  messerror("Error parsing data file, type SEQ: \"%s\"\n", line);
+	  g_critical("Error parsing data file, type SEQ: \"%s\"\n", line);
 	  abort();
 	}
       
@@ -353,7 +353,7 @@ static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_str
 		 sname, msp->sframe+1, &msp->sstart, &msp->send,
 		 seq) != 10)
 	{
-	  messerror("Error parsing data, type HSP: \"%s\"\n", line);
+	  g_critical("Error parsing data, type HSP: \"%s\"\n", line);
 	  abort();
 	}
       
@@ -386,7 +386,7 @@ static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_str
       if (sscanf(line, "%d%s%s%d%d%s",
 		 &msp->score, qname, series, &msp->qstart, &msp->qend, look) != 6)
 	{
-	  messerror("Error parsing data, type FSSEG: \"%s\"\n", line);
+	  g_critical("Error parsing data, type FSSEG: \"%s\"\n", line);
 	  abort();
 	}
       
@@ -421,7 +421,7 @@ static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_str
 		 qname, series, look, &msp->qstart, &msp->qend, scorestring, 
 		 msp->qframe+1, msp->qframe+2) != 8)
 	{
-	  messerror("Error parsing data, type GFF: \"%s\"\n", line);
+	  g_critical("Error parsing data, type GFF: \"%s\"\n", line);
 	  abort();
 	}
       
@@ -460,30 +460,30 @@ static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_str
       /* # FS type=XY <sequencename> <seriesname> <look> [annotation] */
       if (sscanf(line+13, "%s%s%s", qname, series, look) != 3)
 	{
-	  messerror("Error parsing data, type XY: \"%s\"\n", line);
+	  g_critical("Error parsing data, type XY: \"%s\"\n", line);
 	  abort();
 	}
       
       if (!seq1name || !seq2name)
-	messcrash("Sequencenames not provided");
+	g_error("Sequencenames not provided");
       
       if (!strcasecmp(qname, seq1name) || !strcmp(qname, "@1"))
 	{
 	  if (!seq1 || !*seq1)
-	    messcrash("Sequence for %s not provided", qname);
+	    g_error("Sequence for %s not provided", qname);
 	  seqlen = strlen(*seq1);
 	}
       else if (!strcasecmp(qname, seq2name) || !strcmp(qname, "@2"))
 	{
 	  if (!seq2 || !*seq2)
-	    messcrash("Sequence for %s not provided", qname);
+	    g_error("Sequence for %s not provided", qname);
 	  seqlen = strlen(*seq2);
 	}
       else
-	messcrash("Invalid sequence name: %s", qname);
+	g_error("Invalid sequence name: %s", qname);
       
       if (!seqlen)
-	messcrash("Sequence for %s is empty", qname);
+	g_error("Sequence for %s is empty", qname);
       
       msp->xy = arrayCreate(seqlen, int);
       for (i = 0; i < seqlen; i++)
@@ -651,7 +651,7 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 	int i=0;
 
 	if (!fgets(line, MAXLINE, seqfile))
-	  messcrash("Error reading seqFile") ;
+	  g_error("Error reading seqFile") ;
 
 	sscanf(line, "%s", qname);
 
@@ -794,7 +794,7 @@ static void CheckReversedSubjectAllowed(const MSP *msp, const char *opts)
 {
   if (mspGetMatchStrand(msp) == BLXSTRAND_REVERSE && *opts != 'T' && *opts != 'L' && *opts != 'N')
     {
-      messcrash("Reversed subjects are not allowed in modes blastp or blastx");
+      g_error("Reversed subjects are not allowed in modes blastp or blastx");
     }
 }
 
@@ -858,8 +858,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
 	     &msp->score, msp->qframe, &msp->qstart, &msp->qend, 
 	     &msp->sstart, &msp->send, sname) != 7)
     {
-      messerror("Incomplete MSP data");
-	  
+      g_critical("Incomplete MSP data");
       abort() ;
     }
 
@@ -920,7 +919,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
   
   if (!(cp = strstr(line, sname)))
     {
-      messcrash("Line does not include %s", sname);
+      g_error("Line does not include %s", sname);
     }
       
   seq_pos = cp + strlen(sname) ;
@@ -989,7 +988,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
 	  
 	  if (sscanf(seq_pos, "%s", seq) != 1)
 	    {
-	      messcrash("Error parsing %s", line);
+	      g_error("Error parsing %s", line);
 	    }
 	  blxSeq2MSP(msp, seq) ;
 
@@ -1059,8 +1058,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 	     msp->qframe, &msp->qstart, &msp->qend, 
 	     msp->sframe, &msp->sstart, &msp->send, sname) != 8)
     {
-      messerror("Incomplete MSP data");
-	  
+      g_critical("Incomplete MSP data");
       abort() ;
     }
 
@@ -1120,7 +1118,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
   
   if (!(cp = strstr(line, sname)))
     {
-      messcrash("Line does not include %s", sname);
+      g_error("Line does not include %s", sname);
     }
       
   seq_pos = cp + strlen(sname) ;
@@ -1172,14 +1170,14 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 	      if ((strstr(seq_pos, BLX_GAPS_TAG)))
 		{
 		  if (!(result = parseGaps(&seq_pos, msp)))
-		    messcrash("Incomplete MSP gap data") ;
+		    g_error("Incomplete MSP gap data") ;
 		}
 	      else if (msp_type == EXBLX && (strstr(seq_pos, BLX_DESCRIPTION_TAG)))
 		{
 		  opts[5] = ' '; /* Don't use full zoom default */
 
 		  if (!(result = parseDescription(&seq_pos, msp)))
-		    messcrash("Bad description data") ;
+		    g_error("Bad description data") ;
 		}
 	      else if ((msp_type == SEQBL_X || mspIsSnp(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
 		{
@@ -1191,7 +1189,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 		    }
 	
 		  if (!(result = parseSequence(&seq_pos, msp)))
-		    messcrash("Bad sequence data") ;
+		    g_error("Bad sequence data") ;
 		}
 
 	    }
@@ -1264,7 +1262,7 @@ static char *nextLine(FILE *file, GString *line_string)
 	  if (feof(file))
 	    line_finished = TRUE ;
 	  else
-	    messcrash("NULL value returned on reading input file") ;
+	    g_error("NULL value returned on reading input file") ;
 	}
       else
 	{
@@ -1401,8 +1399,8 @@ static BOOL parseSequence(char **text, MSP *msp)
   
   if (validLen < 1 || validLen < strlen(cp))
     {
-      messcrash("Error parsing %s, coords are %d -> %d (%d), but valid length sequence is only %d (out of total length supplied = %d).",
-		msp->sname, msp->sstart, msp->send, msp->send - msp->sstart, validLen, origLen) ;
+      g_error("Error parsing %s, coords are %d -> %d (%d), but valid length sequence is only %d (out of total length supplied = %d).",
+		msp->sname, msp->sstart, msp->send, msp->send - msp->sstart, (int)validLen, (int)origLen) ;
     }
   else
     {
@@ -1412,7 +1410,7 @@ static BOOL parseSequence(char **text, MSP *msp)
 	  
       if (sscanf(cp, "%s", seq) != 1)
 	{
-	  messcrash("Error parsing %s", cp) ;
+	  g_error("Error parsing %s", cp) ;
 	}
 
       blxSeq2MSP(msp, seq) ;

@@ -624,7 +624,7 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
         }
       else
 	{
-	  messerror("Failed to draw grid [%x] - could not create bitmap", grid);
+	  g_warning("Failed to draw grid [%p] - could not create bitmap", grid);
 	}
     }
   

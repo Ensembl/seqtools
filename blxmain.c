@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.11 2010-05-19 13:44:31 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.12 2010-05-20 12:07:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 	  /* with the way blxview() accepts any value of offset, I just check*/
 	  /* its actually an integer.                                        */
 	  if (!(utStr2Int(optarg, &qOffset)))
-	    messcrash("Bad offset argument: \"-%c %s\"", optc, optarg) ;
+	    g_error("Bad offset argument: \"-%c %s\"", optc, optarg) ;
 	  break;
 	case 'p':
 	  opts[0] = 'P';
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 	  break ;
 	case 'S': 
 	  if (!(displayStart = atoi(optarg)))
-	    messcrash("Bad diplay start position: %s", optarg); 
+	    g_error("Bad diplay start position: %s", optarg); 
 	  opts[1] = ' ';
 	  break;
 	case 's': 
@@ -252,7 +252,7 @@ int main(int argc, char **argv)
 	  strcpy(xtra_filename, optarg);
 	  break;
 
-	default : messcrash("Illegal option");
+	default : g_error("Illegal option");
 	}
     }
 
@@ -278,7 +278,7 @@ int main(int argc, char **argv)
   /* Set up program configuration. */
   if (!blxInitConfig(config_file, &error))
     {
-      messcrash("Config File Error: %s", error->message) ;
+      g_error("Config File Error: %s", error->message) ;
     }
 
 
@@ -293,7 +293,7 @@ int main(int argc, char **argv)
 	}
       else if(!(seqfile = fopen(seqfilename, "r")))
 	{
-	  messcrash("Cannot open %s\n", seqfilename);
+	  g_error("Cannot open %s\n", seqfilename);
 	}
 	
       /* Read in query sequence */
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
 	  int i=0;
 	    
 	  if (!fgets(line, MAXLINE, seqfile))
-	    messcrash("Error reading seqFile");;
+	    g_error("Error reading seqFile");;
 
 	  sscanf(line, "%s", refSeqName);
 
@@ -379,7 +379,7 @@ int main(int argc, char **argv)
     }
   else if(!(FSfile = fopen(FSfilename, "r")))
     {
-      messcrash("Cannot open %s\n", FSfilename);
+      g_error("Cannot open %s\n", FSfilename);
     }
   
   parseFS(&mspList, FSfile, opts, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
@@ -394,7 +394,7 @@ int main(int argc, char **argv)
     {
       if(!(xtra_file = fopen(xtra_filename, "r")))
 	{
-	  messcrash("Cannot open %s\n", xtra_filename) ;
+	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
       parseFS(&mspList, xtra_file, opts, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
@@ -406,13 +406,13 @@ int main(int argc, char **argv)
   if (rm_input_files)
     {
       if(seqfilename[0] != '\0' && unlink(seqfilename) != 0)
-	messerror("Unlink of sequence input file \"%s\" failed: %s\n",
+	g_warning("Unlink of sequence input file \"%s\" failed: %s\n",
 		  seqfilename, messSysErrorText()) ;
       if(FSfilename[0] != '\0' && unlink(FSfilename) != 0)
-	messerror("Unlink of MSP input file \"%s\" failed: %s\n",
+	g_warning("Unlink of MSP input file \"%s\" failed: %s\n",
 		  FSfilename, messSysErrorText()) ;
       if (xtra_filename[0] != '\0' && unlink(xtra_filename) != 0)
-	messerror("Unlink of extra MSP sequence input file \"%s\" failed: %s\n",
+	g_warning("Unlink of extra MSP sequence input file \"%s\" failed: %s\n",
 		  xtra_filename, messSysErrorText()) ;
     }
 

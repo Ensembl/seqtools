@@ -1,6 +1,6 @@
 /*  Last edited: Feb 14 10:47 2008 (edgrif) */
 
-/* $Id: blxselect.c,v 1.4 2010-02-19 16:22:03 gb10 Exp $ */
+/* $Id: blxselect.c,v 1.5 2010-05-20 12:07:42 gb10 Exp $ */
 
 /* BLXSELECT - select seqbl/exblx files for blixem in a user-friendly way
  *
@@ -348,7 +348,7 @@ int main(int argc, char **argv)
 
     if (argc - optind == 1) {
 	if (!(file = fopen(argv[argc-1], "r")))
-	  messcrash("Cannot open exbl file %s\n", argv[argc-1]);
+	  g_error("Cannot open exbl file %s\n", argv[argc-1]);
 	strcpy(list, argv[argc-1]);
     }
     else {

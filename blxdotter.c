@@ -25,11 +25,25 @@ typedef struct _DotterDialogData
   } DotterDialogData;
 
 
+/* Error codes and domain */
+#define BLX_DOTTER_ERROR g_quark_from_string("Dotter")
+
+typedef enum {
+  BLX_DOTTER_ERROR_NO_SEQS,	      /* no sequences are selected */
+  BLX_DOTTER_ERROR_TOO_MANY_SEQS,     /* too many sequences are selected */
+  BLX_DOTTER_ERROR_INVALID_SEQ,       /* selected sequence(s) are invalid */
+  BLX_DOTTER_ERROR_NOT_FOUND,	      /* failed to find the sequence */
+  BLX_DOTTER_ERROR_NO_REF_SEQ,	      /* failed to find the query sequence segment */
+  BLX_DOTTER_ERROR_INTERNAL_SEQ,      /* using internally-stored sequence (because fetch failed) */
+  BLX_DOTTER_ERROR_NO_MATCHES	      /* there are no matches on the requested sequence */
+} BlxDotterError;
+
+
 /* Local function declarations */
-static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out);
+static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out, GError **error);
 static char*	      fetchSeqRaw(const char *seqname, const char *fetchMode);
 static char*	      fetchSequence(const char *seqname, char *fetch_prog);
-static char*	      getDotterSSeq(GtkWidget *blxWindow);
+static char*	      getDotterSSeq(GtkWidget *blxWindow, GError **error);
 
 
 /*******************************************************************
@@ -157,11 +171,13 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
   gboolean destroy = TRUE;
   DotterDialogData *dialogData = (DotterDialogData*)(data);
   
+  GError *error = NULL;
+  
   switch (responseId)
     {
       case GTK_RESPONSE_ACCEPT:
 	widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
-	destroy = callDotter(dialogData->blxWindow, FALSE); /* keep dialog open if not successful */
+	destroy = callDotter(dialogData->blxWindow, FALSE, &error); /* only destroy dialog if dotter launched successfully */
 	break;
 	
       case GTK_RESPONSE_APPLY:
@@ -172,6 +188,14 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
       default:
 	break;
     };
+
+  /* If any errors were found, report them */
+  if (error)
+    {
+      g_prefix_error(&error, "Could not start Dotter. ");
+      g_critical(error->message);
+      g_clear_error(&error);
+    }
 
   if (destroy)
     {
@@ -191,7 +215,7 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
     {
       /* Recalculate auto start/end in case user has selected a different sequence */
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
-      smartDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow), &autoStart, &autoEnd);
+      smartDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), &autoStart, &autoEnd, NULL);
 
       if (autoStart == UNSET_INT)
 	autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
@@ -386,8 +410,11 @@ char getDotterMode(const BlxBlastMode blastMode)
 
 /* Get the start/end coords. If the autoDotter flag is set, calculate coords
  * automatically - otherwise use the stored manual coords */
-void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterStart, int *dotterEnd, int *dotterZoom)
+static gboolean getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error)
 {
+  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
+
+  gboolean success = TRUE;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   if (!bc->autoDotter)
@@ -399,112 +426,125 @@ void getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterSta
       
       if (*dotterStart == UNSET_INT || *dotterEnd == UNSET_INT)
 	{
-	  messerror("Manual dotter parameters were requested but one or more coord is not set. Values are start=%d, end=%d. Attempting to calculate parameters.");
+	  g_debug("Manual dotter parameters were requested but one or more coord is not set (start=%d, end=%d). Calculating automatic parameters instead.\n",
+		  *dotterStart, *dotterEnd);
 	}
     }
   
   if (*dotterStart == UNSET_INT || *dotterEnd == UNSET_INT)
     {
-      if (!smartDotterRange(blxWindow, dotterSSeq, dotterStart, dotterEnd))
+      GError *tmpError = NULL;
+      if (!smartDotterRange(blxWindow, dotterSSeq, dotterStart, dotterEnd, &tmpError))
 	{
-	  messout("Could not start dotter - error calculating coordinate range.");
-	  return;
+	  success = FALSE;
+	  g_propagate_prefixed_error(error, tmpError, "Failed to calculate dotter coordinates. ");
 	}
     }
+  
+  return success;
 }
 
 
 /* Utility to fetch the selected match sequence or get it from the selected MSP.
  * This function assumes that if multiple MSPs are selected, that they are all for 
- * the same match sequence. returns null if no MSPs are selected */
-static char* getDotterSSeq(GtkWidget *blxWindow)
+ * the same match sequence. Returns null if no MSPs are selected, with details of the error
+ * in 'error'.  If the sequence was found but there were warnings, it returns non-null with
+ * the warnings in 'error'. */
+static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 {
+  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
+  
   char *dotterSSeq = NULL;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Get the selected sequence name */
-  if (g_list_length(bc->selectedSeqs) > 0)
+  if (g_list_length(bc->selectedSeqs) < 1)
     {
-      const SequenceStruct *seq = (const SequenceStruct*)(bc->selectedSeqs->data);
-
-      /* If we're in seqbl mode, only part of the sequence is in the MSP. */
-      const BlxBlastMode blastMode = bc->blastMode;
-      if (blastMode != BLXMODE_TBLASTN)
-	{
-	  const char *fetchMode = bc->fetchMode;
-	  dotterSSeq = fetchSeqRaw(sequenceGetFullName(seq), fetchMode);
-	  
-	  /* If the match is on the reverse s strand, we need to modify it, because
-	   * dotter does not currently handle it. */
-	  if (dotterSSeq && g_list_length(seq->mspList) > 0)
-	    {
-	      const MSP *msp = (const MSP*)(seq->mspList->data);
-	      const gboolean displayRev = bc->displayRev;
-	      const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-	      
-	      if (qForward && displayRev)
-		{
-		  /* This should be consolidated with the code below */
-		  blxComplement(dotterSSeq);
-		  //g_strreverse(dotterSSeq);
-		}
-	    }
-	}
-
-      if (!dotterSSeq)
-	{
-	  /* Check if sequence is passed from acedb */
-	  if (blastMode != BLXMODE_TBLASTX)
-	    {
-	      printf("Looking for sequence stored internally ... ");
-	      
-	      /* Loop through all MSPs in the selected sequence */
-	      GList *mspListItem = seq->mspList;
-	      
-	      for ( ; mspListItem ; mspListItem = mspListItem->next)
-		{
-		  MSP *msp = (MSP*)(mspListItem->data);
-		  
-		  if (msp->sseq != bc->paddingSeq)
-		    {
-		      dotterSSeq = g_strdup(msp->sseq);
-		      break;
-		    }
-		}
-	      
-	      if (!dotterSSeq) printf("not ");
-	      printf("found\n");
-	      
-	      /* If the match is on the reverse s strand, we need to modify it, because
-	       * dotter does not currently handle it. */
-	      if (dotterSSeq && g_list_length(seq->mspList) > 0)
-		{
-		  const MSP *msp = (const MSP*)(seq->mspList->data);
-		  const gboolean displayRev = bc->displayRev;
-		  const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
-		  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-		  const gboolean sameDirection = (qForward == sForward);
-		  
-		  if (bc->seqType == BLXSEQ_DNA && ((sameDirection && displayRev) || (!sForward && !displayRev)))
-		    {
-		      /* Complementing the match sequence here maintains existing dotter behaviour.
-		       * However, I think this is wrong - the match shows agains the wrong strand
-		       * in the alignment view in dotter. I think we should reverse it here and
-		       * not complement it; however, then the dot view shows the match in the 
-		       * wrong place, because it doesn't currently handle reverse s coords. */
-		      blxComplement(dotterSSeq);
-		      //g_strreverse(dotterSSeq);
-		    }
-		}
-	    }
-	}
-
-      if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
-	{
-	  messout("Note: the sequence passed to dotter is incomplete");
-	}
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
+      return dotterSSeq;
     }
   
+  const SequenceStruct *seq = (const SequenceStruct*)(bc->selectedSeqs->data);
+
+  /* If we're in seqbl mode, only part of the sequence is in the MSP. */
+  const BlxBlastMode blastMode = bc->blastMode;
+  if (blastMode != BLXMODE_TBLASTN)
+    {
+      const char *fetchMode = bc->fetchMode;
+      dotterSSeq = fetchSeqRaw(sequenceGetFullName(seq), fetchMode);
+      
+      /* If the match is on the reverse s strand, we need to modify it, because
+       * dotter does not currently handle it. */
+      if (dotterSSeq && g_list_length(seq->mspList) > 0)
+	{
+	  const MSP *msp = (const MSP*)(seq->mspList->data);
+	  const gboolean displayRev = bc->displayRev;
+	  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
+	  
+	  if (qForward && displayRev)
+	    {
+	      /* This should be consolidated with the code below */
+	      blxComplement(dotterSSeq);
+	      //g_strreverse(dotterSSeq);
+	    }
+	}
+    }
+
+  if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
+    {
+      g_message("Looking for sequence stored internally... ");
+    
+      /* Check if sequence is passed from acedb */
+      /* Loop through all MSPs in the selected sequence */
+      GList *mspListItem = seq->mspList;
+      
+      for ( ; mspListItem ; mspListItem = mspListItem->next)
+	{
+	  MSP *msp = (MSP*)(mspListItem->data);
+	  
+	  if (msp->sseq != bc->paddingSeq)
+	    {
+	      dotterSSeq = g_strdup(msp->sseq);
+	      break;
+	    }
+	}
+      
+      if (!dotterSSeq)
+	{
+	  g_message("not found.\n");
+	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", sequenceGetFullName(seq));
+	  return FALSE;
+	}
+
+      g_message("found.\n");
+      
+      /* If the match is on the reverse s strand, we need to modify it, because
+       * dotter does not currently handle it. */
+      if (dotterSSeq && g_list_length(seq->mspList) > 0)
+	{
+	  const MSP *msp = (const MSP*)(seq->mspList->data);
+	  const gboolean displayRev = bc->displayRev;
+	  const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
+	  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
+	  const gboolean sameDirection = (qForward == sForward);
+	  
+	  if (bc->seqType == BLXSEQ_DNA && ((sameDirection && displayRev) || (!sForward && !displayRev)))
+	    {
+	      /* Complementing the match sequence here maintains existing dotter behaviour.
+	       * However, I think this is wrong - the match shows agains the wrong strand
+	       * in the alignment view in dotter. I think we should reverse it here and
+	       * not complement it; however, then the dot view shows the match in the 
+	       * wrong place, because it doesn't currently handle reverse s coords. */
+	      blxComplement(dotterSSeq);
+	      //g_strreverse(dotterSSeq);
+	    }
+	}
+    }
+
+  if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
+    {
+      g_warning("The sequence for '%s' is incomplete.\n", sequenceGetFullName(seq));
+    }
   
   return dotterSSeq;
 }
@@ -538,16 +578,19 @@ static char* getDotterSSeq(GtkWidget *blxWindow)
 static gboolean smartDotterRange(GtkWidget *blxWindow,
 				 const char *dotterSSeq, 
 				 int *dotter_start_out, 
-				 int *dotter_end_out)
+				 int *dotter_end_out,
+				 GError **error)
 {
-  gboolean result = FALSE;
+  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
+
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   /* Check that a sequence is selected */
   GList *selectedSeqs = bc->selectedSeqs;
   if (g_list_length(selectedSeqs) < 1)
     {
-      return result;
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
+      return FALSE;
     }
 
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
@@ -618,59 +661,58 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
   if (qMin == UNSET_INT)
     {
-      messout("Could not find any matches on the '%c' strand to %s.", activeStrand, sequenceGetFullName(selectedSeq));
-      result = FALSE;
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, 
+		  "Could not find any matches on the '%c' strand of the selected sequence '%s'.", 
+		  activeStrand, sequenceGetFullName(selectedSeq));
+
+      return FALSE;
     }
-  else
+  
+  /* Due to gaps, we might miss the ends - add some more */
+  int extend = 0.1 * (qMax - qMin) ;
+  qMin -= extend ;
+  qMax += extend ;
+
+  if (bc->blastMode == BLXMODE_BLASTX || bc->blastMode == BLXMODE_TBLASTX)
     {
-      /* Due to gaps, we might miss the ends - add some more */
-      int extend = 0.1 * (qMax - qMin) ;
+      /* If sstart and send weren't in the end exons, we'll miss those - add some more */
+      extend = 0.2 * (qMax - qMin) ;
       qMin -= extend ;
       qMax += extend ;
-
-      if (bc->blastMode == BLXMODE_BLASTX || bc->blastMode == BLXMODE_TBLASTX)
-	{
-	  /* If sstart and send weren't in the end exons, we'll miss those - add some more */
-	  extend = 0.2 * (qMax - qMin) ;
-	  qMin -= extend ;
-	  qMax += extend ;
-	}
-
-      /* Keep it within bounds */
-      boundsLimitValue(&qMin, &bc->refSeqRange);
-      boundsLimitValue(&qMax, &bc->refSeqRange);
-
-      /* Apply min and max limits:  min 500 residues, max 10 Mb dots */
-      int numDnaCoords = qMax - qMin;
-      int midCoord = qMin + numDnaCoords/2;
-
-      if (numDnaCoords < 500)
-	{
-	  numDnaCoords = 500;
-	}
-
-      const int numPeptideCoords = (bc->seqType == BLXSEQ_PEPTIDE) ? numDnaCoords / bc->numFrames : numDnaCoords;
-      if (numDnaCoords * numPeptideCoords > 1e7)
-	{
-	  numDnaCoords = 1e7 / numPeptideCoords;
-	}
-
-      qMin = midCoord - (numDnaCoords / 2) ;
-      qMax = midCoord + (numDnaCoords / 2) ;
-
-      /* Bounds check again */
-      boundsLimitValue(&qMin, &bc->refSeqRange);
-      boundsLimitValue(&qMax, &bc->refSeqRange);
-
-      /* Return the start/end. The values start low and end high in normal 
-       * left-to-right display, or vice-versa if the display is reversed. */
-      *dotter_start_out = bc->displayRev ? qMax : qMin;
-      *dotter_end_out = bc->displayRev ? qMin : qMax;
-
-      result = TRUE;
     }
 
-  return result;
+  /* Keep it within bounds */
+  boundsLimitValue(&qMin, &bc->refSeqRange);
+  boundsLimitValue(&qMax, &bc->refSeqRange);
+
+  /* Apply min and max limits:  min 500 residues, max 10 Mb dots */
+  int numDnaCoords = qMax - qMin;
+  int midCoord = qMin + numDnaCoords/2;
+
+  if (numDnaCoords < 500)
+    {
+      numDnaCoords = 500;
+    }
+
+  const int numPeptideCoords = (bc->seqType == BLXSEQ_PEPTIDE) ? numDnaCoords / bc->numFrames : numDnaCoords;
+  if (numDnaCoords * numPeptideCoords > 1e7)
+    {
+      numDnaCoords = 1e7 / numPeptideCoords;
+    }
+
+  qMin = midCoord - (numDnaCoords / 2) ;
+  qMax = midCoord + (numDnaCoords / 2) ;
+
+  /* Bounds check again */
+  boundsLimitValue(&qMin, &bc->refSeqRange);
+  boundsLimitValue(&qMax, &bc->refSeqRange);
+
+  /* Return the start/end. The values start low and end high in normal 
+   * left-to-right display, or vice-versa if the display is reversed. */
+  *dotter_start_out = bc->displayRev ? qMax : qMin;
+  *dotter_end_out = bc->displayRev ? qMin : qMax;
+  
+  return TRUE;
 }
 
 
@@ -681,7 +723,7 @@ static char *fetchSeqRaw(const char *seqname, const char *fetchMode)
 
   if (!*seqname)
     {
-      messout ( "Nameless sequence - skipping Efetch\n");
+      g_warning( "Nameless sequence - skipping %s\n", fetchMode);
     }
   else
     {
@@ -713,7 +755,7 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
   
   if (!outputFile)
     {
-      messerror("%s", "Cannot open blixem sequence output file: \"myoutput\"") ;
+      g_warning("%s", "Cannot open blixem sequence output file: 'myoutput'.\n") ;
     }
 
   if (!strcmp(fetch_prog, "pfetch"))
@@ -728,14 +770,15 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
       fetchstr = hprintf(0, "%s -q '%s'", fetch_prog, seqname) ;
     }
 
-  printf("%sing %s...\n", fetch_prog, seqname);
+  g_message("%sing %s...\n", fetch_prog, seqname);
 
   /* Try and get the sequence, if we overrun the buffer then we need to try again. */
   FILE *pipe = (FILE*)popen(fetchstr, "r");
   
   if (!pipe)
     {
-      messcrash("Failed to open pipe %s\n", fetchstr);
+      g_critical("Failed to open pipe %s\n", fetchstr);
+      return result;
     }
   
   /* Create a string to read the file into. We don't know the length we need, so
@@ -788,21 +831,23 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
  *		      Functions to call dotter                     *
  *******************************************************************/
 
+
+
 /* Call dotter. Returns true if dotter was called; false if we quit trying. */
-gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
+gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **error)
 {
+  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  
   const int numSeqsSelected = g_list_length(bc->selectedSeqs);
   
   if (numSeqsSelected < 1)
     {
-      messout("Select a sequence first");
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
       return FALSE;
     }
   else if (numSeqsSelected > 1)
     {
-      messout("Dotter cannot be called on multiple sequences. Select a single sequence and try again.");
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_TOO_MANY_SEQS, "Cannot run dotter on multiple sequences.\n");
       return FALSE;
     }
   
@@ -813,18 +858,18 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 
   if (!mspIsBlastMatch(firstMsp))
     {
-      messout("Select a valid match sequence first");
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_INVALID_SEQ, "You must select a valid match sequence first.\n");
       return FALSE;
     }
   
   /* Get the match sequence. Blixem uses g_malloc consistently now to allocate 
    * strings but unfortunately dotter will free this string with messfree, so 
    * we need to copy the result into a string allocated with messalloc. */
-  char *dotterSSeqTemp = getDotterSSeq(blxWindow);
+  GError *tmpError = NULL;
+  char *dotterSSeqTemp = getDotterSSeq(blxWindow, &tmpError);
   if (!dotterSSeqTemp)
     {
-      printf("Error starting Dotter: failed to fetch subject sequence\n");
-      messout("Error starting Dotter: failed to fetch subject sequence\n");
+      g_propagate_error(error, tmpError);
       return FALSE;
     }
   
@@ -834,7 +879,11 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   
   /* Get the coords */
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
-  getDotterRange(blxWindow, dotterSSeq, &dotterStart, &dotterEnd, &dotterZoom);
+  if (!getDotterRange(blxWindow, dotterSSeq, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
+    {
+      g_propagate_error(error, tmpError);
+      return FALSE;
+    }
   
   /* Get the reference sequence name */
   const char *dotterQName = bc->refSeqName;
@@ -842,7 +891,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
   /* Get the section of reference sequence that we're interested in */
   const BlxStrand strand = bc->seqType == BLXSEQ_DNA ? mspGetRefStrand(firstMsp) : blxWindowGetActiveStrand(blxWindow);
   const int frame = mspGetRefFrame(firstMsp, bc->seqType);
-  
+
   char *querySeqSegmentTemp = getSequenceSegment(bc,
 						 bc->refSeq,
 						 dotterStart,
@@ -853,11 +902,12 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly)
 						 FALSE,		  /* input coords are always left-to-right, even if display reversed */
 						 bc->displayRev,  /* whether to reverse */
 						 bc->displayRev,  /* whether to allow rev strands to be complemented */
-						 FALSE);	  /* don't allow translation to a peptide seq */
+						 FALSE,		  /* don't allow translation to a peptide seq */
+						 &tmpError);
   
   if (!querySeqSegmentTemp)
     {
-      messerror("Cannot start dotter - failed to get query sequence.");
+      g_propagate_error(error, tmpError);
       return FALSE;
     }
   

@@ -261,5 +261,7 @@ void		      destroySequenceStruct(SequenceStruct *seq);
 
 BlxColor*	      getBlxColor(GList *colorList, const BlxColorId colorId);
 
+void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
+void		      popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 
 #endif /* _utilities_h_included_ */
