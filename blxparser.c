@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.20 2010-05-20 15:25:59 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.21 2010-05-21 12:53:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -59,7 +59,7 @@ static void	    prepSeq(MSP *msp, char *seq, char *opts) ;
 static void	    parseLook(MSP *msp, char *s) ;
 
 static gboolean	    parseNonMspData(char *line, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, 
-				    BlxMSPType *mspType, char **readSeq, int *readSeqLen, int *readSeqMaxLen);
+				    BlxMSPType *mspType, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
 static gboolean	    parseMspData(char *line, char *opts, MSP *msp, GString *line_string, char **seq1, 
 				 char *seq1name, char **seq2, char *seq2name, BlxMSPType *mspType);
@@ -184,7 +184,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	}
 	
       /* Data that don't go into an MSP */
-      if (parseNonMspData(line, msp, seq1, seq1name, seq2, seq2name, &mspType, readSeq, &readSeqLen, &readSeqMaxLen))
+      if (parseNonMspData(line, msp, seq1, seq1name, seq2, seq2name, &mspType, &readSeq, &readSeqLen, &readSeqMaxLen))
 	{
 	  continue; 
 	}
@@ -1396,7 +1396,7 @@ static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_str
 static gboolean parseNonMspData(char *line, MSP *msp, 
 				char **seq1, char *seq1name, char **seq2, char *seq2name, 
 				BlxMSPType *mspType,
-				char **readSeq, int *readSeqLen, int *readSeqMaxLen)
+				char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
 {
   gboolean processed = FALSE ;
   
@@ -1422,11 +1422,11 @@ static gboolean parseNonMspData(char *line, MSP *msp,
 	  char *tmp;
 	  *readSeqMaxLen += MAXLINE + strlen(line);
 	  tmp = g_malloc(*readSeqMaxLen + 1);
-	  strcpy(tmp, *readSeq);
-	  g_free(*readSeq);
-	  *readSeq = tmp;
+	  strcpy(tmp, **readSeq);
+	  g_free(**readSeq);
+	  **readSeq = tmp;
 	}
-      strcpy(*readSeq + *readSeqLen, line);
+      strcpy(**readSeq + *readSeqLen, line);
       
       *readSeqLen += strlen(line);
       
@@ -1445,17 +1445,17 @@ static gboolean parseNonMspData(char *line, MSP *msp,
       
       if (!strcmp(qname, "@1")) 
 	{
-	  readSeq = seq1;
+	  *readSeq = seq1;
 	  strcpy(seq1name, series);
 	}
       else if (!strcmp(qname, "@2")) 
 	{
-	  readSeq = seq2;
+	  *readSeq = seq2;
 	  strcpy(seq2name, series);
 	}
       
       *readSeqMaxLen = MAXLINE;
-      *readSeq = g_malloc(*readSeqMaxLen + 1);
+      **readSeq = g_malloc(*readSeqMaxLen + 1);
       *readSeqLen = 0;
       
       *mspType = SEQdata;
