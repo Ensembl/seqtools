@@ -9,8 +9,12 @@
 #include <SeqTools/blxdotter.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/bigpicture.h>
+#include <SeqTools/detailview.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/dotter.h>
+
+
+#define DEFAULT_DOTTER_RANGE_SELF	2000
 
 typedef struct _DotterDialogData
   {
@@ -22,6 +26,9 @@ typedef struct _DotterDialogData
     GtkWidget *startEntry;
     GtkWidget *endEntry;
     GtkWidget *zoomEntry;
+    
+    gboolean callOnSelf;
+    gboolean hspsOnly;
   } DotterDialogData;
 
 
@@ -40,10 +47,13 @@ typedef enum {
 
 
 /* Local function declarations */
+static gboolean	      getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, const gboolean callOnSelf, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out, GError **error);
+static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static char*	      fetchSeqRaw(const char *seqname, const char *fetchMode);
 static char*	      fetchSequence(const char *seqname, char *fetch_prog);
 static char*	      getDotterSSeq(GtkWidget *blxWindow, GError **error);
+static gboolean	      callDotterSelf(GtkWidget *blxWindow, GError **error);
 
 
 /*******************************************************************
@@ -165,6 +175,47 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
 }
 
 
+/* Called when the "call on self" button is toggled on the dotter dialog */
+static void onSelfButtonToggled(GtkWidget *button, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  
+  dialogData->callOnSelf = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  
+  /* Recalculate auto start/end */
+  int autoStart = UNSET_INT, autoEnd = UNSET_INT;
+  getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, &autoStart, &autoEnd, NULL, NULL);
+
+  if (autoStart == UNSET_INT)
+    autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
+  
+  if (autoEnd == UNSET_INT)
+    autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
+  
+  char *startString = convertIntToString(autoStart);
+  char *endString = convertIntToString(autoEnd);
+  char *zoomString = convertIntToString(bc->dotterZoom);
+
+  /* Display the new values */
+  gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
+  gtk_entry_set_text(GTK_ENTRY(dialogData->zoomEntry), zoomString);
+  
+  g_free(startString);
+  g_free(endString);
+  g_free(zoomString);
+}
+
+
+/* Called when the "call on self" button is toggled on the dotter dialog */
+static void onHspsButtonToggled(GtkWidget *button, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  dialogData->hspsOnly = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+}
+
+
 /* Called when the user has hit a response button on the dotter settings dialog */
 static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
@@ -177,7 +228,7 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
     {
       case GTK_RESPONSE_ACCEPT:
 	widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
-	destroy = callDotter(dialogData->blxWindow, FALSE, &error); /* only destroy dialog if dotter launched successfully */
+	destroy = dialogData->callOnSelf ? callDotterSelf(dialogData->blxWindow, &error) : callDotter(dialogData->blxWindow, dialogData->hspsOnly, &error);
 	break;
 	
       case GTK_RESPONSE_APPLY:
@@ -215,7 +266,7 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
     {
       /* Recalculate auto start/end in case user has selected a different sequence */
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
-      smartDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), &autoStart, &autoEnd, NULL);
+      getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, &autoStart, &autoEnd, NULL, NULL);
 
       if (autoStart == UNSET_INT)
 	autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
@@ -308,24 +359,24 @@ void showDotterDialog(GtkWidget *blxWindow)
   gtk_container_add(contentArea, GTK_WIDGET(hbox));
 
   /* Radio buttons for auto/manual params */
-  GtkBox *vbox3 = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_box_pack_start(hbox, GTK_WIDGET(vbox3), FALSE, FALSE, spacing);
+  GtkBox *vbox1 = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_box_pack_start(hbox, GTK_WIDGET(vbox1), FALSE, FALSE, spacing);
   
   GtkWidget *autoButton = gtk_radio_button_new_with_mnemonic(NULL, "_Auto");
-  gtk_box_pack_start(vbox3, autoButton, FALSE, FALSE, spacing);
+  gtk_box_pack_start(vbox1, autoButton, FALSE, FALSE, spacing);
   widgetSetCallbackData(autoButton, onSaveDotterMode, blxWindow);
 		   
   GtkWidget *manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(autoButton), "_Manual");
-  gtk_box_pack_start(vbox3, manualButton, FALSE, FALSE, spacing);
+  gtk_box_pack_start(vbox1, manualButton, FALSE, FALSE, spacing);
 
   /* Buttons that the user can click to populate the parameter boxes with certain values */
   GtkWidget *lastSavedButton = gtk_button_new_with_mnemonic("_Last saved ->");
   GtkWidget *fullRangeButton = gtk_button_new_with_mnemonic("_Full range ->");
   GtkWidget *bpRangeButton = gtk_button_new_with_mnemonic("_Big picture range ->");
 
-  gtk_box_pack_start(vbox3, lastSavedButton, FALSE, FALSE, spacing);
-  gtk_box_pack_start(vbox3, fullRangeButton, FALSE, FALSE, spacing);
-  gtk_box_pack_start(vbox3, bpRangeButton, FALSE, FALSE, spacing);
+  gtk_box_pack_start(vbox1, lastSavedButton, FALSE, FALSE, spacing);
+  gtk_box_pack_start(vbox1, fullRangeButton, FALSE, FALSE, spacing);
+  gtk_box_pack_start(vbox1, bpRangeButton, FALSE, FALSE, spacing);
 
   /* Disable last-saved button if no saved values exist */
   if (bc->dotterStart == UNSET_INT)
@@ -342,6 +393,15 @@ void showDotterDialog(GtkWidget *blxWindow)
   GtkWidget *endEntry = createTextEntry(table, 1, 2, xpad, ypad, "<i>End:</i>", onSaveDotterEnd, blxWindow, bc->dotterEnd);
   GtkWidget *zoomEntry = createTextEntry(table, 1, 3, xpad, ypad, "<i>Zoom:</i>", onSaveDotterZoom, blxWindow, bc->dotterZoom);
 
+  /* Create check buttons for the various options */
+  GtkBox *vbox3 = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_box_pack_start(hbox, GTK_WIDGET(vbox3), FALSE, FALSE, spacing);
+  
+  GtkWidget *selfButton = gtk_check_button_new_with_mnemonic("Call on _self");
+  gtk_box_pack_start(vbox3, selfButton, FALSE, FALSE, 0);
+  GtkWidget *hspsButton = gtk_check_button_new_with_mnemonic("_HSPs only");
+  gtk_box_pack_start(vbox3, hspsButton, FALSE, FALSE, 0);
+  
   /* Create the data struct we need to pass to the toggled callback, and connect signals */
   DotterDialogData *dialogData = g_malloc(sizeof(DotterDialogData));
   dialogData->blxWindow = blxWindow;
@@ -350,6 +410,8 @@ void showDotterDialog(GtkWidget *blxWindow)
   dialogData->startEntry = startEntry;
   dialogData->endEntry = endEntry;
   dialogData->zoomEntry = zoomEntry;
+  dialogData->callOnSelf = FALSE;
+  dialogData->hspsOnly = FALSE;
   
   /* There is an issue if the user selects a different sequence while the dotter dialog
    * is still open: the auto range does not update automatically for the new sequence. To 
@@ -364,6 +426,9 @@ void showDotterDialog(GtkWidget *blxWindow)
   g_signal_connect(G_OBJECT(fullRangeButton), "clicked", G_CALLBACK(onFullRangeButtonClicked), dialogData);
   g_signal_connect(G_OBJECT(bpRangeButton), "clicked", G_CALLBACK(onBpRangeButtonClicked), dialogData);
 
+  g_signal_connect(G_OBJECT(selfButton), "toggled", G_CALLBACK(onSelfButtonToggled), dialogData);
+  g_signal_connect(G_OBJECT(hspsButton), "toggled", G_CALLBACK(onHspsButtonToggled), dialogData);
+  
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
   
   /* Set the initial state of the toggle buttons and entry widgets */
@@ -410,7 +475,13 @@ char getDotterMode(const BlxBlastMode blastMode)
 
 /* Get the start/end coords. If the autoDotter flag is set, calculate coords
  * automatically - otherwise use the stored manual coords */
-static gboolean getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error)
+static gboolean getDotterRange(GtkWidget *blxWindow, 
+			       const char *dotterSSeq, 
+			       const gboolean callOnSelf,
+			       int *dotterStart, 
+			       int *dotterEnd, 
+			       int *dotterZoom, 
+			       GError **error)
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
 
@@ -420,23 +491,28 @@ static gboolean getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int
   if (!bc->autoDotter)
     {
       /* Use manual coords */
-      *dotterStart = bc->dotterStart;
-      *dotterEnd = bc->dotterEnd;
-      *dotterZoom = bc->dotterZoom;
+      if (dotterStart) *dotterStart = bc->dotterStart;
+      if (dotterEnd) *dotterEnd = bc->dotterEnd;
+      if (dotterZoom) *dotterZoom = bc->dotterZoom;
       
-      if (*dotterStart == UNSET_INT || *dotterEnd == UNSET_INT)
+      if ((dotterStart && *dotterStart == UNSET_INT) || (dotterEnd && *dotterEnd == UNSET_INT))
 	{
 	  g_debug("Manual dotter parameters were requested but one or more coord is not set (start=%d, end=%d). Calculating automatic parameters instead.\n",
 		  *dotterStart, *dotterEnd);
 	}
     }
   
-  if (*dotterStart == UNSET_INT || *dotterEnd == UNSET_INT)
+  if ((dotterStart && *dotterStart == UNSET_INT) || (dotterEnd && *dotterEnd == UNSET_INT))
     {
       GError *tmpError = NULL;
-      if (!smartDotterRange(blxWindow, dotterSSeq, dotterStart, dotterEnd, &tmpError))
+      
+      if (callOnSelf)
+	success = smartDotterRangeSelf(blxWindow, dotterStart, dotterEnd, &tmpError);
+      else
+	success = smartDotterRange(blxWindow, dotterSSeq, dotterStart, dotterEnd, &tmpError);
+
+      if (!success)
 	{
-	  success = FALSE;
 	  g_propagate_prefixed_error(error, tmpError, "Failed to calculate dotter coordinates. ");
 	}
     }
@@ -550,24 +626,29 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 }
 
 
-//static int smartDotterRangeSelf(void)
-//{
-//    int len, mid;
-//
-//    len = 2000;
-//    mid = dispstart + plusmin*displen/2;
-//
-//    dotterStart = mid - plusmin*len/2;
-//    dotterEnd = mid + plusmin*len/2;
-//
-//    /* Keep it within bounds */
-//    if (dotterStart < 1) dotterStart = 1;
-//    if (dotterStart > qlen) dotterStart = qlen;
-//    if (dotterEnd > qlen) dotterEnd = qlen;
-//    if (dotterEnd < 1) dotterEnd = 1;
+/* Attempts to set the range of dotter in a sensible way, when calling dotter on the reference
+ * sequence versus itself. */
+static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
+				     int *dotter_start_out,
+				     int *dotter_end_out,
+				     GError **error)
+{
+  /* We'll just use a large-ish range centred on the current display range */
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
 
-//    return 1;
-//}
+  const int mid = getRangeCentre(displayRange);
+  const int offset = DEFAULT_DOTTER_RANGE_SELF / 2;
+
+  *dotter_start_out = mid - offset;
+  *dotter_end_out = *dotter_start_out + DEFAULT_DOTTER_RANGE_SELF;
+
+  const BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  boundsLimitValue(dotter_start_out, &bc->refSeqRange);
+  boundsLimitValue(dotter_end_out, &bc->refSeqRange);
+  
+  return TRUE;
+}
 
 
 /* Attempts to set the range of dotter in some sort of sensible way. The problem is that
@@ -879,14 +960,11 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
   
   /* Get the coords */
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
-  if (!getDotterRange(blxWindow, dotterSSeq, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
+  if (!getDotterRange(blxWindow, dotterSSeq, FALSE, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
     {
       g_propagate_error(error, tmpError);
       return FALSE;
     }
-  
-  /* Get the reference sequence name */
-  const char *dotterQName = bc->refSeqName;
   
   /* Get the section of reference sequence that we're interested in */
   const BlxStrand strand = bc->seqType == BLXSEQ_DNA ? mspGetRefStrand(firstMsp) : blxWindowGetActiveStrand(blxWindow);
@@ -911,12 +989,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
       return FALSE;
     }
   
-  
   /* Again, dotter will free this with messfree, so we need to pass a string allocated with messalloc */
   char *querySeqSegment = messalloc(strlen(querySeqSegmentTemp) + 1);
   strcpy(querySeqSegment, querySeqSegmentTemp);
   g_free(querySeqSegmentTemp);
-  
   
   /* Get the match sequence name (chopping off the letters before the colon, if there is one). */
   char *dotterSName = strchr(firstMsp->sname, ':');
@@ -944,59 +1020,100 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   
   printf("  query sequence: name -  %s, offset - %d\n"
-	 "subject sequence: name -  %s, offset - %d\n", dotterQName, offset, dotterSName, 0);
+	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
   
-  dotter(type, opts, dotterQName, querySeqSegment, offset, dotterSName, dotterSSeq, 0,
+  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, dotterSName, dotterSSeq, 0,
 	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, 0, 0, 0);
   
   return TRUE;
 }
 
 
-//static void callDotterSelf(const MSP const *msplist)
-//{//
-//    static char opts[] = "     ";
-//    char type, *queryseq;
-//    int  offset;
-//
-//    type = ' ';
-//    if (blastp || tblastn || tblastx)
-//      type = 'P';
-//    else if (blastx || blastn)
-//      type = 'N';
-//
-//    if (smartDotter)
-//	if (!smartDotterRangeSelf())
-//	  return;
-//
-//    if (!*dotterqname)
-//      {
-//	if (!*qname_G)
-//	  strcpy(dotterqname, "Blixem-seq");
-//	else
-//	  strncpy(dotterqname, qname_G, LONG_NAMESIZE);
-//	dotterqname[LONG_NAMESIZE] = 0;
-//      }
-//
-//    /* Get query sequence */
-//    /* Can't do reversed strand since Dotter can't reverse vertical scale */
-//    /* Avoid translating queryseq by pretending to be blastn - very sneaky and dangerous */
-//    if (blastx || tblastx)
-//      blastn = 1;
-//
-//    if (!(queryseq = getqseq(min(dotterStart, dotterEnd), max(dotterStart, dotterEnd), q)))
-//      return;
-//
-//    if (blastx || tblastx)
-//      blastn = 0;
-//
-//    dottersseq = g_malloc(strlen(queryseq)+1);
-//    strcpy(dottersseq, queryseq);
-//
-//    offset = min(dotterStart, dotterEnd)-1 + qoffset;
-//
-//    printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
-//
-//    dotter(type, opts, dotterqname, queryseq, offset, dotterqname, dottersseq, offset,
-//	   0, 0, NULL, NULL, NULL, 0.0, dotterZoom, msplist, qoffset, 0, 0);
-//}
+/* Call dotter on the reference sequence versus itself.
+ *
+ * The follow notes on this are from http://sonnhammer.sbc.su.se/Dotter.html:
+ *
+ * When looking for overlaps between many sequences, for instance when assembling contigs, it can
+ * be uselful to make a dotplot of all sequences vs. each other. This way any overlap will show up 
+ * as a diagonal in the corner of a subsequence dotplot. Dotter has a built-in mechanism for this. 
+ * To run Dotter on many sequences at once, concatenate the sequence files (in fasta format). Then
+ * run dotter on the concatenated sequence file against itself, and green partitioning lines will
+ * appear between the sequences. At each partitioning line, the name of the following sequence is 
+ * printed. These lines can be turned on and off with the button "Draw lines a segment ends" in
+ * the "Feature series selection tool", which is launched from the main menu. 
+ */
+static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  /* Get the auto range, if requested */
+  int dotterStart = UNSET_INT;
+  int dotterEnd = UNSET_INT;
+  int dotterZoom = 0;
+  
+  GError *tmpError = NULL;
+  if (!getDotterRange(blxWindow, NULL, TRUE, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
+    {
+      g_propagate_error(error, tmpError);
+      return FALSE;
+    }
+  
+  /* Set the options string (no options are required) */
+  static char opts[] = "     ";
+
+  /* Set the type */
+  char type = ' ';
+  
+  if (bc->blastMode == BLXMODE_BLASTP || bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
+    {
+      type = 'P';
+    }
+  else if (bc->blastMode == BLXMODE_BLASTX || bc->blastMode == BLXMODE_BLASTN)
+    {
+      type = 'N';
+    }
+
+  /* Get the section of reference sequence that we're interested in */
+  const BlxStrand strand = blxWindowGetActiveStrand(blxWindow);
+  const int frame = 1;
+  
+  char *querySeqSegmentTemp = getSequenceSegment(bc,
+						 bc->refSeq,
+						 dotterStart,
+						 dotterEnd, 
+						 strand,
+						 BLXSEQ_DNA,	  /* calculated dotter coords are always in terms of DNA seq */
+						 frame,
+						 FALSE,		  /* input coords are always left-to-right, even if display reversed */
+						 bc->displayRev,  /* whether to reverse */
+						 bc->displayRev,  /* whether to allow rev strands to be complemented */
+						 FALSE,		  /* don't allow translation to a peptide seq */
+						 &tmpError);
+  
+  if (!querySeqSegmentTemp)
+    {
+      g_propagate_error(error, tmpError);
+      return FALSE;
+    }
+  
+  /* dotter will free this memory with messfree, so we need to pass a string allocated with messalloc */
+  char *querySeqSegment = messalloc(strlen(querySeqSegmentTemp) + 1);
+  strcpy(querySeqSegment, querySeqSegmentTemp);
+  g_free(querySeqSegmentTemp);
+  
+  /* Make a copy of the reference sequence segment to pass as the match sequence */
+  char *dotterSSeq = messalloc(strlen(querySeqSegment) + 1);
+  strcpy(dotterSSeq, querySeqSegment);
+
+  int offset = min(dotterStart, dotterEnd) - 1;
+
+  printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
+
+  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, bc->refSeqName, dotterSSeq, offset,
+	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, 0, 0, 0);
+  
+  return TRUE;
+}
+
+
+
