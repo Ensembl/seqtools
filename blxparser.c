@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.23 2010-05-25 15:03:50 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.24 2010-05-25 16:41:25 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -102,7 +102,7 @@ static void	    parseLook(MSP *msp, char *s) ;
 static gboolean	    parseNonMspData(char *line, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, 
 				    BlxDataType *dataType, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
-static gboolean	    parseMspData(char *line, char *opts, MSP *msp, GString *line_string, char **seq1, 
+static void	    parseMspData(char *line, char *opts, MSP *msp, GString *line_string, char **seq1, 
 				 char *seq1name, char **seq2, char *seq2name, BlxDataType *dataType);
 
 static void	    parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxDataType *dataType);
@@ -220,38 +220,32 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	  *charPtr = 0;
 	}
 
-      /* Header info */
+      /* Check for header info */
       if (parseHeaderInfo(line, opts, msp, &dataType))
 	{
 	  continue; 
 	}
 	
-      /* Data that don't go into an MSP */
+      /* Check for data that don't go into an MSP */
       if (parseNonMspData(line, msp, seq1, seq1name, seq2, seq2name, &dataType, &readSeq, &readSeqLen, &readSeqMaxLen))
 	{
 	  continue; 
 	}
 
-      /* Allocate a new MSP but only if this is a new record. */
-      /* If it's a chunk of a dna sequence, leave as is.      */
+      /* Ok, if there's still something left to parse then it should be data that goes into a new MSP, so 
+       * create one here. */
       if (!*MSPlist) 
 	{
 	  msp = *MSPlist = createEmptyMsp();
 	}
       else 
 	{
-	  if (strcspn(line, "acgt") != 0)	/* ie line contains chars other than acgt */
-	    {
-	      msp->next = createEmptyMsp();
-	      msp = msp->next;
-	    }
+          msp->next = createEmptyMsp();
+          msp = msp->next;
 	}
 	
-      /* Data that do go into a new MSP */
-      if (parseMspData(line, opts, msp, line_string, seq1, seq1name, seq2, seq2name, &dataType))
-	{
-	  continue;
-	}
+      /* Parse the data for the new MSP */
+      parseMspData(line, opts, msp, line_string, seq1, seq1name, seq2, seq2name, &dataType);
     }
 
   g_string_free(line_string, TRUE) ;			    /* free everything, buffer and all. */
@@ -300,11 +294,13 @@ void insertFS(MSP *msp, char *series)
   else
     {
       /* Remember the order we added them so we can sort by it again later. */
-      fs.order = orderNum;
       orderNum++;
+      fs.order = orderNum;
 
       arrayInsert(fsArr, &fs, fsSortByNameCompareFunc);
       
+      /* To do: there's a bug in here where we get the wrong pointer for msp->fs if the names in 
+       * the file are not in alphabetical order... Intend to change this to use GArray anyway... */
       arrayFind(fsArr, &fs, &i, fsSortByNameCompareFunc);
       msp->fs = arrp(fsArr, i, FeatureSeries);
     }
@@ -1142,8 +1138,8 @@ static MSP* createEmptyMsp()
 }
 
 
-/* Utility called by parseFS to parse the header info of a line from a file. Returns true
- * if the line was processed, false if further processing is required */
+/* Utility called by parseFS to parse the header info of a line from a file. Returns true if the
+ * line was completely processed, false if further processing on the same line is still required */
 static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp, BlxDataType *dataType)
 {
   gboolean processed = FALSE;
@@ -1199,11 +1195,13 @@ static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp, BlxDataType *d
 	   !strncasecmp(line, "# SFS type=XY", 13))
     {
       *dataType = FS_XY_HEADER;
+      processed = FALSE; /* more info exists in the header line for this data type */
     }
   else if (!strncasecmp(line, "# FS type=SEQ", 13) ||
 	   !strncasecmp(line, "# SFS type=SEQ", 14))
     {
       *dataType = FS_SEQ_HEADER;
+      processed = FALSE; /* more info exists in the header line for this data type */
     }
   else if (!strncasecmp(line, "# FS type=", 10) ||
 	   !strncasecmp(line, "# SFS type=", 11))
@@ -1357,7 +1355,8 @@ static void parseGff(char *line, char *opts, MSP *msp)
   msp->desc = g_malloc(strlen(series)+1); 
   strcpy(msp->desc, series);
   
-  msp->fsColor = 6;	/* Blue */
+  parseLook(msp, look);
+//  msp->fsColor = 6;	/* Blue */
   
   insertFS(msp, series);
   
@@ -1408,8 +1407,6 @@ static void parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1nam
   
   msp->fsShape = BLXCURVE_INTERPOLATE; /* default */
   
-  *dataType = FS_XY_DATA; /* Start parsing XY data next */
-  
   msp->qname = g_malloc(strlen(qname)+1);
   strcpy(msp->qname, qname);
   
@@ -1425,28 +1422,25 @@ static void parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1nam
   insertFS(msp, series); 
   
   msp->type = BLXMSP_XY_PLOT;
+  *dataType = FS_XY_DATA; /* Start parsing the actual XY data next */
 }
 
 
 /* Utility to parse a file line for data that goes in an MSP */
-static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_string,
-			     char **seq1, char *seq1name, char **seq2, char *seq2name, 
-			     BlxDataType *dataType)
+static void parseMspData(char *line, char *opts, MSP *msp, GString *line_string,
+                         char **seq1, char *seq1name, char **seq2, char *seq2name, 
+                         BlxDataType *dataType)
 {
-  gboolean processed = FALSE;
-  
   switch (*dataType)
   {
     case SEQBL_HEADER: /* fall through */
     case EXBLX_HEADER:
       parseEXBLXSEQBL(msp, *dataType, opts, line_string) ;
-      processed = TRUE ;
       break;
       
     case SEQBL_X_HEADER: /* fall through */
     case EXBLX_X_HEADER:
       parseEXBLXSEQBLExtended(msp, *dataType, opts, line_string) ;
-      processed = TRUE ;
       break;
       
     case FS_HSP_HEADER:
@@ -1472,8 +1466,6 @@ static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_str
     default:
       break;
   };
-  
-  return processed;
 }
 
 
@@ -1485,9 +1477,9 @@ static gboolean parseNonMspData(char *line, MSP *msp,
 {
   gboolean processed = FALSE ;
   
-  /* Data that don't go into a new MSP */
   if (*dataType == FS_XY_DATA) 
     {
+      /* XY coordinates go in to the XY list in the current MSP. */
       int x, y;
       if (sscanf(line, "%d%d", &x, &y) != 2) 
 	{
@@ -1498,27 +1490,9 @@ static gboolean parseNonMspData(char *line, MSP *msp,
       
       processed = TRUE ;
     }
-  else if (*dataType == FS_SEQ_DATA) 
-    {
-      
-      /* Realloc if necessary */
-      if (*readSeqLen + strlen(line) > *readSeqMaxLen) 
-	{
-	  char *tmp;
-	  *readSeqMaxLen += MAXLINE + strlen(line);
-	  tmp = g_malloc(*readSeqMaxLen + 1);
-	  strcpy(tmp, **readSeq);
-	  g_free(**readSeq);
-	  **readSeq = tmp;
-	}
-      strcpy(**readSeq + *readSeqLen, line);
-      
-      *readSeqLen += strlen(line);
-      
-      processed = TRUE;
-    }
   else if (*dataType == FS_SEQ_HEADER) 
     {
+      /* We have a header for sequence data. Read in the sequence name from the header line. */
       char series[MAXLINE+1];
       char qname[MAXLINE+1];
       
@@ -1528,6 +1502,8 @@ static gboolean parseNonMspData(char *line, MSP *msp,
 	  abort();
 	}
       
+      /* We need to allocate a string to read the seqeunce data in to. We want to allocate the releavant
+       * return pointer (seq1 or seq2) depending on which string was indicated in the header line. */
       if (!strcmp(qname, "@1")) 
 	{
 	  *readSeq = seq1;
@@ -1544,6 +1520,27 @@ static gboolean parseNonMspData(char *line, MSP *msp,
       *readSeqLen = 0;
       
       *dataType = FS_SEQ_DATA;
+      
+      processed = TRUE;
+    }
+  else if (*dataType == FS_SEQ_DATA) 
+    {
+      /* Read in the actual sequence data. It may span several lines, so concatenate each
+       * one on to the end of our result. */
+      
+      /* Realloc if necessary */
+      if (*readSeqLen + strlen(line) > *readSeqMaxLen) 
+	{
+	  char *tmp;
+	  *readSeqMaxLen += MAXLINE + strlen(line);
+	  tmp = g_malloc(*readSeqMaxLen + 1);
+	  strcpy(tmp, **readSeq);
+	  g_free(**readSeq);
+	  **readSeq = tmp;
+	}
+      strcpy(**readSeq + *readSeqLen, line);
+      
+      *readSeqLen += strlen(line);
       
       processed = TRUE;
     }
