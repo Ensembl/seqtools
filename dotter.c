@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.6 2010-05-25 13:34:09 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.7 2010-05-25 15:03:50 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1673,7 +1673,7 @@ static void XdrawSEGxy(MSP *msp, float offset)
 	    x = seq2graphX(i);
 	    y = offset-1 - (float)arr(msp->xy, i, int)/100*fsPlotHeight*fonth;
 	    if (xold && (x != xold || y != yold) && 
-		(!inNotFilled || msp->fsShape == XY_INTERPOLATE)) {
+		(!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) {
 	        graphLine(xold, yold, x, y);
 		if (fsAnnBottomOn && msp->desc && !descShown) {
 		    int linecolor = graphColor(BLACK);
@@ -1737,7 +1737,7 @@ static void YdrawSEGxy(MSP *msp, float offset)
 	    x = seq2graphY(i);
 	    y = offset-1 - (float)arr(msp->xy, i, int)/100*fsPlotHeight*fonth;
 	    if (xold && (x != xold || y != yold) && 
-		(!inNotFilled || msp->fsShape == XY_INTERPOLATE)) {
+		(!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) {
 		graphLine(yold, xold, y, x);
 		if (fsAnnRightOn && msp->desc && !descShown) {
 		    int linecolor = graphColor(BLACK);
@@ -1857,11 +1857,11 @@ static void drawGenes(MSP *msp)
 		{
 		  /* HORIZONTAL AXIS (X) */
 		    
-		  if (msp->type == XY)
+		  if (msp->type == BLXMSP_XY_PLOT)
 		    {
 		      XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
 		    }
-		  else if (msp->type == FSSEG)
+		  else if (msp->type == BLXMSP_FS_SEG)
 		    {
 		      XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
 		    }
@@ -1871,11 +1871,11 @@ static void drawGenes(MSP *msp)
 		{
 		/* VERTICAL AXIS (Y) */
 
-		if (msp->type == XY)
+		if (msp->type == BLXMSP_XY_PLOT)
 		  {
 		    YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
 		  }
-		else if (msp->type == FSSEG)
+		else if (msp->type == BLXMSP_FS_SEG)
 		  {
 		    YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
 		  }
@@ -2003,11 +2003,11 @@ static void drawAllFeatures(MSP *msp)
 	    {
 	      /* HORIZONTAL AXIS (X) */
 		    
-	      if (msp->type == XY)
+	      if (msp->type == BLXMSP_XY_PLOT)
 		{
 		  XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
 		}
-	      else if (msp->type == FSSEG)
+	      else if (msp->type == BLXMSP_FS_SEG)
 		{
 		  XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
 		}
@@ -2017,11 +2017,11 @@ static void drawAllFeatures(MSP *msp)
 	    {
 	      /* VERTICAL AXIS (Y) */
 
-	      if (msp->type == XY)
+	      if (msp->type == BLXMSP_XY_PLOT)
 		{
 		  YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
 		}
-	      else if (msp->type == FSSEG)
+	      else if (msp->type == BLXMSP_FS_SEG)
 		{
 		  YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
 		}
@@ -3096,11 +3096,11 @@ float fsTotalHeight(MSP *msplist)
       {
         if (mspShowFs(msp))
 	  {
-	    if (msp->type == XY) 
+	    if (msp->type == BLXMSP_XY_PLOT) 
 	      {
 		mspGetFsBottomEdge(msp, &maxy, fsPlotHeight+1);
 	      }
-	    else if (msp->type == FSSEG) 
+	    else if (msp->type == BLXMSP_FS_SEG) 
 	      {
 		mspGetFsBottomEdge(msp, &maxy, 1+1);
 	      }
@@ -3542,7 +3542,7 @@ static void callDotter(int dotterZoom, int xstart, int ystart, int xend, int yen
     /* Pass on features */
     for (msp = MSPlist; msp; msp = msp->next) 
       {
-	if (msp->type == FSSEG)
+	if (msp->type == BLXMSP_FS_SEG)
 	  {
 	    fprintf(pipe, "%d %d %d %d %d %d", 
 		    msp->type,

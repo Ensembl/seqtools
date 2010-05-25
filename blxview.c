@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.37 2010-05-25 13:34:09 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.38 2010-05-25 15:03:50 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -552,7 +552,8 @@ static void blviewCreate(char *opts,
       options->refSeqName = nameSeparatorPos + 1;
     }
   
-  if (options->dotterFirst && options->mspList && options->mspList->sname && (options->mspList->type == HSP || options->mspList->type == GSP))
+  if (options->dotterFirst && options->mspList && options->mspList->sname &&
+      (options->mspList->type == BLXMSP_HSP || options->mspList->type == BLXMSP_GSP))
     {
       blxWindowSelectSeq(blixemWindow, options->mspList->sSequence);
       

@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.15 2010-05-25 13:34:09 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.16 2010-05-25 15:03:50 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -62,21 +62,6 @@ typedef struct
 #define BLX_SEQUENCE_TAG "Sequence"
 
 
-/* Types of MSP */
-typedef enum
-  {
-    BLX_MSP_INVALID,
-    EXBLX, SEQBL,	    /* Old style sequence entries. */
-    EXBLX_X, SEQBL_X,	    /* New style sequence entries with gaps and match strand. */
-    HSP,
-    GSP, GSPdata,
-    GFF,
-    FSSEG,
-    XY, XYdata,
-    SEQ, SEQdata
-  } BlxMSPType ;
-
-
 /* Structure that contains information about a sequence */
 typedef struct _SequenceStruct
 {
@@ -99,38 +84,59 @@ typedef struct _FeatureSeries {
 } FeatureSeries;
 
 
+/* Shapes of XY curves */
+typedef enum { BLXCURVE_PARTIAL, BLXCURVE_INTERPOLATE, BLXCURVE_BADSHAPE } BlxCurveShape;
+
+
+/* Supported types of MSP */
+typedef enum 
+  {
+    BLXMSP_INVALID,               /* No valid type was set */
+    
+    BLXMSP_MATCH,                 /* Standard Blast match / alignment */
+    BLXMSP_EXON,                  /* Exon */
+    BLXMSP_INTRON,                /* Intron */
+    
+    BLXMSP_SNP,                   /* Single Nucleotide Polymorphism */
+    
+    BLXMSP_HSP,                   /*  */
+    BLXMSP_GSP,                   /*  */
+
+    BLXMSP_FS_SEG,                /* Feature Series Segment */
+    BLXMSP_XY_PLOT                /* x/y coordinates - for plotting feature-series curves */
+  } BlxMspType;
+
+
 /* Structure holding information about a match */
 typedef struct _MSP
 {
-  struct _MSP *next;
-  BlxMSPType type;					    /* See enum above */
-  int      score;
-  int      id;
+  struct _MSP       *next;
+  BlxMspType        type;		/* See enum above */
+  int               score;
+  int               id;
 
-  char    *qname;		/* For Dotter, the MSP can belong to either sequence */
-  char     qframe[8];		
-  int      qstart;
-  int      qend;
+  char              *qname;		/* For Dotter, the MSP can belong to either sequence */
+  char              qframe[8];		
+  int               qstart;
+  int               qend;
 
-  SequenceStruct *sSequence;	/* pointer to a struct holding info about the sequence this match is from */
-  char    *sname;		/* sequence name (should be removed - get from SequenceStruct instead) */
-  char    *sseq;		/* sequence (should be removed - get from SequenceStruct instead) */
+  SequenceStruct    *sSequence;         /* pointer to a struct holding info about the sequence this match is from */
+  char              *sname;		/* sequence name (should be removed - get from SequenceStruct instead) */
+  char              *sseq;		/* sequence (should be removed - get from SequenceStruct instead) */
+  char              sframe[8];          /* Change to just store the s strand (having a frame for the subject makes no sense....) */
+
+  int               slength;            /* required? */
+  int               sstart;             /* Start coord of match on the subject sequence */
+  int               send;               /* End coord of the match on the subject sequence */
   
-  /* Change to sstrand, frame for subject makes no sense.... */
-  char     sframe[8];
+  char              *desc;              /* Optional description text for the MSP */
+  Array             gaps;               /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array
+                                         * gives the ranges of the bits that align, and the gaps are the bits in between */
 
-  int      slength ;
-  int      sstart; 
-  int      send;
-  
-  char    *desc;                /* Optional description text for the MSP */
-  Array    gaps;                /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array
-                                 * gives the ranges of the bits that align, and the gaps are the bits in between */
-
-  FeatureSeries *fs;            /* Feature series that this MSP belongs to */
-  int      fsColor;             /* Color to draw this MSP in the feature series */
-  int      fsShape;             /* Shape data for drawing this MSP in the feature series, i.e. XY type PARTIAL or INTERPOLATE shapes */
-  Array    xy;                  /* For XY plot feature series */
+  FeatureSeries     *fs;                /* Feature series that this MSP belongs to */
+  int               fsColor;            /* Color to draw this MSP in the feature series */
+  BlxCurveShape     fsShape;            /* Shape data for drawing feature series curves, i.e. XY type PARTIAL or INTERPOLATE shapes */
+  Array             xy;                 /* For XY plot feature series */
 
   
 #ifdef ACEDB

@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.5 2010-05-25 13:34:10 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.6 2010-05-25 15:03:50 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -163,7 +163,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char s
    msp->qstart = msp->qend = pos;
    *msp->sframe = seq;
    msp->fsColor = DARKGREEN;
-   msp->type = FSSEG;
+   msp->type = BLXMSP_FS_SEG;
    msp->score = 100;
    insertFS(msp, "chain_separator");
 }		      
@@ -385,7 +385,8 @@ int main(int argc, char **argv)
 	    while (*cp == ' ') cp++;
 	    msp->qend = strtol(cp, &cp, 10); 
 	    while (*cp == ' ') cp++;
-	    msp->fs = strtol(cp, &cp, 10);
+	    msp->fs = NULL;
+            strtol(cp, &cp, 10);
 	    msp->sname = stringUnprotect(&cp, NULL);
 	    stringUnprotect(&cp, msp->sframe);
 	    msp->qname = stringUnprotect(&cp, NULL);
@@ -394,7 +395,7 @@ int main(int argc, char **argv)
 
 
 	    /* really horrible hack */
-	    if (msp->type == FSSEG)
+	    if (msp->type == BLXMSP_FS_SEG)
 	      {
 		insertFS(msp, "chain_separator");
 		opts[4] = 'L';

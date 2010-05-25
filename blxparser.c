@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.22 2010-05-25 13:34:09 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.23 2010-05-25 15:03:50 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -44,10 +44,51 @@
 #include <wh/smap.h>					    /* for SMapMap struct. */
 #include <SeqTools/utilities.h>
 
+
+/* Types of data to parse. A file can contain multiple types of data. The start of a new
+ * section of data is indicated by a header line beginning with a hash and a known format name,
+ * e.g. "# exblx_x".
+ *
+ * FS and SFS (Feature Series) data type names have FS or SFS followed by a specific format type, 
+ * e.g. "# SFS type=GFF". 
+ *
+ * For some data types, data is included in the header line as well as in the section below it. 
+ * For these, there are two data types in the enum, one postfixed with _HEADER and one with _DATA. 
+ * When the header line is detected the initial type is set to the _HEADER one, and when the header
+ * has been processed it is set to _DATA, so that when we loop through subsequent lines we know which
+ * type of line we are processing.
+ */
+typedef enum
+  {
+    BLXDATA_INVALID,
+
+    EXBLX_HEADER,           /* Old style sequence entries. */
+    SEQBL_HEADER,	    /* Old style sequence entries. */
+    EXBLX_X_HEADER,	    /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */ 
+    SEQBL_X_HEADER,	    /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */
+
+    FS_HSP_HEADER,          /* feature-series HSP data header */
+    
+    FS_GSP_HEADER,          /* feature-series GSP data header */
+    FS_GSP_DATA,            /* feature-series GSP data */
+    
+    FS_GFF_HEADER,          /* feature-series GFF data header */
+    
+    FS_SEG_HEADER,          /* feature-series segment data header */
+    
+    FS_XY_HEADER,           /* feature-series XY data header */
+    FS_XY_DATA,             /* feature-series XY data */
+    
+    FS_SEQ_HEADER,          /* feature-series sequence data header */
+    FS_SEQ_DATA             /* feature-series sequence data */
+  } BlxDataType ;
+
+
+
 static char *	    nextLine(FILE *file, GString *line_string);
 
-static void	    parseEXBLXSEQBL(MSP *msp, const BlxMSPType msp_type, char *opts, GString *line_string);
-static void	    parseEXBLXSEQBLExtended(MSP *msp, const BlxMSPType msp_type, char *opts, GString *line_string);
+static void	    parseEXBLXSEQBL(MSP *msp, const BlxDataType dataType, char *opts, GString *line_string);
+static void	    parseEXBLXSEQBLExtended(MSP *msp, const BlxDataType dataType, char *opts, GString *line_string);
 static BOOL	    parseGaps(char **text, MSP *msp) ;
 static BOOL	    parseDescription(char **text, MSP *msp_unused) ;
 static BOOL	    parseSequence(char **text, MSP *msp) ;
@@ -59,18 +100,20 @@ static void	    prepSeq(MSP *msp, char *seq, char *opts) ;
 static void	    parseLook(MSP *msp, char *s) ;
 
 static gboolean	    parseNonMspData(char *line, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, 
-				    BlxMSPType *mspType, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
+				    BlxDataType *dataType, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
 static gboolean	    parseMspData(char *line, char *opts, MSP *msp, GString *line_string, char **seq1, 
-				 char *seq1name, char **seq2, char *seq2name, BlxMSPType *mspType);
+				 char *seq1name, char **seq2, char *seq2name, BlxDataType *dataType);
 
-static void	    parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxMSPType *mspType);
+static void	    parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxDataType *dataType);
 static void	    parseGff(char *line, char *opts, MSP *msp);
-static void	    parseFsseg(char *line, char *opts, MSP *msp);
-static void	    parseGsp(char *line, char *opts, MSP *msp, BlxMSPType *mspType);
+static void	    parseFsSeg(char *line, char *opts, MSP *msp);
+static void	    parseGsp(char *line, char *opts, MSP *msp, BlxDataType *dataType);
 static void	    parseHsp(char *line, char *opts, MSP *msp);
-static gboolean	    parseHeaderInfo(char *line, char *opts, MSP *msp, BlxMSPType *mspType);
+static gboolean	    parseHeaderInfo(char *line, char *opts, MSP *msp, BlxDataType *dataType);
 static MSP*	    createEmptyMsp();
+static BlxMspType   getMspTypeFromScore(const int score);
+
 
 /*
  *  Globals
@@ -146,7 +189,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
   /* Allocate reusable/extendable string as our buffer..*/
   GString *line_string = g_string_sized_new(MAXLINE + 1); 
 
-  BlxMSPType mspType = FSSEG;
+  BlxDataType dataType = BLXDATA_INVALID;
   
   /* Variables for reading in SEQ data */
   char **readSeq;	/* buffer to hold the sequence we're reading in */
@@ -178,13 +221,13 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	}
 
       /* Header info */
-      if (parseHeaderInfo(line, opts, msp, &mspType))
+      if (parseHeaderInfo(line, opts, msp, &dataType))
 	{
 	  continue; 
 	}
 	
       /* Data that don't go into an MSP */
-      if (parseNonMspData(line, msp, seq1, seq1name, seq2, seq2name, &mspType, &readSeq, &readSeqLen, &readSeqMaxLen))
+      if (parseNonMspData(line, msp, seq1, seq1name, seq2, seq2name, &dataType, &readSeq, &readSeqLen, &readSeqMaxLen))
 	{
 	  continue; 
 	}
@@ -205,7 +248,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	}
 	
       /* Data that do go into a new MSP */
-      if (parseMspData(line, opts, msp, line_string, seq1, seq1name, seq2, seq2name, &mspType))
+      if (parseMspData(line, opts, msp, line_string, seq1, seq1name, seq2, seq2name, &dataType))
 	{
 	  continue;
 	}
@@ -223,7 +266,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 /* Returns true if this msp is part of a feature series */
 gboolean mspHasFs(const MSP *msp)
 {
-  gboolean result = (msp->type == FSSEG || msp->type == XY);
+  gboolean result = (msp->type == BLXMSP_FS_SEG || msp->type == BLXMSP_XY_PLOT);
   return result;
 }
 
@@ -243,7 +286,7 @@ void insertFS(MSP *msp, char *series)
   FeatureSeries fs;
   fs.on = 1;
   fs.y = 0.0;
-  fs.xy = (msp->type == XY ? 1 : 0);
+  fs.xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
 
   fs.name = g_malloc(strlen(series)+1);
   strcpy(fs.name, series);
@@ -332,31 +375,38 @@ char *readFastaSeq(FILE *seqfile, char *qname)
 
 
 
-/* 
+/*************************************************
  *               Internal functions.
- */
+ *************************************************/
 
-
+/* Parse a string that contains a color name from our internally-defined list of accepted
+ * colors. */
 static int parseColor(char *s) 
 {
-    int i;
+  int i;
 
-    for (i = 0; i < NUM_TRUECOLORS; i++) {
-	if (!strcasecmp(colorNames[i], s)) break;
+  for (i = 0; i < NUM_TRUECOLORS; i++) 
+    {
+      if (!strcasecmp(colorNames[i], s)) 
+        break;
     }
-    return i;
+    
+  return i;
 }
 
-static int parseShape(char *s) 
+/* Parse a line that contains shape information about a curve. */
+static BlxCurveShape parseShape(char *s) 
 {
     if (!strcasecmp(s, "interpolate")) 
-	return XY_INTERPOLATE;
+      return BLXCURVE_INTERPOLATE;
     else if (!strcasecmp(s, "partial")) 
-	return XY_PARTIAL;
+      return BLXCURVE_PARTIAL;
     else 
-	return XY_BADSHAPE;
+      return BLXCURVE_BADSHAPE;
 }
 
+/* Parse a string that contains information about the way the given MSP
+ * should look, i.e. color and shape-interpolation. */
 static void parseLook(MSP *msp, char *s)
 {
     char *cp, *s2;
@@ -371,7 +421,7 @@ static void parseLook(MSP *msp, char *s)
 	if (parseColor(cp) != NUM_TRUECOLORS) {
 	    msp->fsColor = parseColor(cp);
 	}
-	else if (parseShape(cp) != XY_BADSHAPE) {
+	else if (parseShape(cp) != BLXCURVE_BADSHAPE) {
 	    msp->fsShape = parseShape(cp);
 	}
 	else 
@@ -454,7 +504,7 @@ static void prepSeq(MSP *msp, char *seq, char *opts)
  *    11 (+2) 49052 49783 102 328 SW:YCF2_MARPO some description or other
  * 
  */
-static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *line_string)
+static void parseEXBLXSEQBL(MSP *msp, BlxDataType dataType, char *opts, GString *line_string)
 {
   int   i, qlen, slen;
   char *cp;
@@ -474,8 +524,6 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
       abort() ;
     }
 
-  msp->type = msp_type ;
-  
   /* MSPcrunch gives sframe for tblastn - restore qframe */
   if (*opts == 'T')
     strcpy(msp->qframe, "(+1)");
@@ -563,7 +611,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
     }
 
 
-  if (msp_type == EXBLX)
+  if (dataType == EXBLX_HEADER)
     {
       opts[5] = ' '; /* Don't use full zoom default */
       
@@ -578,7 +626,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
 	    seq_pos++;
 	}
     }
-  else if (msp_type == SEQBL)
+  else if (dataType == SEQBL_HEADER)
     {
       CheckReversedSubjectAllowed(msp, opts);
     
@@ -616,6 +664,8 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
   
   if (*opts == 'N')
     opts[3] = 'R';
+
+  msp->type = getMspTypeFromScore(msp->score);
   
   return;
 }
@@ -652,7 +702,7 @@ static void parseEXBLXSEQBL(MSP *msp, BlxMSPType msp_type, char *opts, GString *
  * Currently acedb & ZMap export this format but other programs could also use it.
  * 
  */
-static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, GString *line_string)
+static void parseEXBLXSEQBLExtended(MSP *msp, BlxDataType dataType, char *opts, GString *line_string)
 {
   BOOL result = FALSE ;
   int   i, qlen, slen;
@@ -674,8 +724,6 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
       abort() ;
     }
 
-  msp->type = msp_type ;
-  
   /* MSPcrunch gives sframe for tblastn - restore qframe */
   if (*opts == 'T')
     strcpy(msp->qframe, "(+1)");
@@ -784,14 +832,14 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 		  if (!(result = parseGaps(&seq_pos, msp)))
 		    g_error("Incomplete MSP gap data") ;
 		}
-	      else if (msp_type == EXBLX && (strstr(seq_pos, BLX_DESCRIPTION_TAG)))
+	      else if (dataType == EXBLX_HEADER && (strstr(seq_pos, BLX_DESCRIPTION_TAG)))
 		{
 		  opts[5] = ' '; /* Don't use full zoom default */
 
 		  if (!(result = parseDescription(&seq_pos, msp)))
 		    g_error("Bad description data") ;
 		}
-	      else if ((msp_type == SEQBL_X || mspIsSnp(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
+	      else if ((dataType == SEQBL_X_HEADER || mspIsSnp(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
 		{
                   CheckReversedSubjectAllowed(msp, opts);
                 
@@ -808,7 +856,7 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 	}
     }
 
-  if (msp_type == SEQBL_X)
+  if (dataType == SEQBL_X_HEADER)
     {
       CheckReversedSubjectAllowed(msp, opts);
     
@@ -823,6 +871,8 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
   
   if (*opts == 'N')
     opts[3] = 'R';
+  
+  msp->type = getMspTypeFromScore(msp->score) ;
   
   return ;
 }
@@ -1009,6 +1059,12 @@ static BOOL parseDescription(char **text, MSP *msp)
 }
 
 
+/* Description, should just be plain text, format is:
+ * 
+ * "Sequence text ; "
+ * 
+ * text following Sequence must not contain ';'. Moves text to first
+ * char after ';'. */
 static BOOL parseSequence(char **text, MSP *msp)
 {
   BOOL result = FALSE ;
@@ -1051,7 +1107,7 @@ static MSP* createEmptyMsp()
   MSP *msp = (MSP *)g_malloc(sizeof(MSP));
   
   msp->next = NULL;
-  msp->type = BLX_MSP_INVALID;
+  msp->type = BLXMSP_INVALID;
   msp->score = 0;
   msp->id = 0;
   
@@ -1088,66 +1144,66 @@ static MSP* createEmptyMsp()
 
 /* Utility called by parseFS to parse the header info of a line from a file. Returns true
  * if the line was processed, false if further processing is required */
-static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp, BlxMSPType *mspType)
+static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp, BlxDataType *dataType)
 {
   gboolean processed = FALSE;
   
   if (!strncasecmp(line, "# seqbl_x", 9))
     {
-      *mspType = SEQBL_X ;
+      *dataType = SEQBL_X_HEADER ;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# exblx_x", 9))
     {
-      *mspType = EXBLX_X ;
+      *dataType = EXBLX_X_HEADER ;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# seqbl", 7))
     {
       /* Only for backwards compatibility */
-      *mspType = SEQBL ;
+      *dataType = SEQBL_HEADER ;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# exblx", 7))
     {
       /* Only for backwards compatibility */
-      *mspType = EXBLX ;
+      *dataType = EXBLX_HEADER ;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# FS type=HSP", 13) || 
 	   !strncasecmp(line, "# SFS type=HSP", 14))
     {
-      *mspType = HSP;
+      *dataType = FS_HSP_HEADER;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# FS type=GSP", 13) || 
 	   !strncasecmp(line, "# SFS type=GSP", 14))
     {
-      *mspType = GSP;
+      *dataType = FS_GSP_HEADER;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# dotter feature format 2", 25) ||
 	   !strncasecmp(line, "# FS type=SEG", 13) ||
 	   !strncasecmp(line, "# SFS type=SEG", 14))
     {
-      *mspType = FSSEG;
+      *dataType = FS_SEG_HEADER;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# FS type=GFF", 13) || 
 	   !strncasecmp(line, "# SFS type=GFF", 14))
     {
-      *mspType = GFF;
+      *dataType = FS_GFF_HEADER;
       processed = TRUE ;
     }
   else if (!strncasecmp(line, "# FS type=XY", 12) ||
 	   !strncasecmp(line, "# SFS type=XY", 13))
     {
-      *mspType = XY;
+      *dataType = FS_XY_HEADER;
     }
   else if (!strncasecmp(line, "# FS type=SEQ", 13) ||
 	   !strncasecmp(line, "# SFS type=SEQ", 14))
     {
-      *mspType = SEQ;
+      *dataType = FS_SEQ_HEADER;
     }
   else if (!strncasecmp(line, "# FS type=", 10) ||
 	   !strncasecmp(line, "# SFS type=", 11))
@@ -1174,7 +1230,7 @@ static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp, BlxMSPType *ms
 	  opts[7] = 'G';
 	}
       else if (!strncasecmp(line, "# DESC ", 7) &&
-	       (*mspType == HSP || *mspType == GSP || *mspType == SEQBL))
+	       (*dataType == FS_HSP_HEADER || *dataType == FS_GSP_HEADER || *dataType == SEQBL_HEADER))
 	{
 	  if (msp)
 	    getDesc(msp, line, sname);
@@ -1188,10 +1244,9 @@ static gboolean parseHeaderInfo(char *line, char *opts, MSP *msp, BlxMSPType *ms
 }
 
 
-/* Parse data from the given line into an MSP of type HSP */
+/* Parse data from the given line into an MSP of type FS_HSP */
 static void parseHsp(char *line, char *opts, MSP *msp)
 {
-  msp->type = HSP;
   char qname[MAXLINE+1];
   
   /* <score> <qname> <qframe> <qstart> <qend> <sname> <sframe> <sstart> <ssend> <sequence> [annotation] */
@@ -1201,7 +1256,7 @@ static void parseHsp(char *line, char *opts, MSP *msp)
 	     sname, msp->sframe+1, &msp->sstart, &msp->send,
 	     seq) != 10)
     {
-      g_critical("Error parsing data, type HSP: \"%s\"\n", line);
+      g_critical("Error parsing data, type FS_HSP: \"%s\"\n", line);
       abort();
     }
   
@@ -1215,25 +1270,25 @@ static void parseHsp(char *line, char *opts, MSP *msp)
   
   prepSeq(msp, seq, opts);
   
+  msp->type = BLXMSP_HSP;
 }
 
 
-/* Parse data from the given line into an MSP of type GSP */
-static void parseGsp(char *line, char *opts, MSP *msp, BlxMSPType *mspType)
+/* Parse data from the given line into an MSP of type FS_GSP */
+static void parseGsp(char *line, char *opts, MSP *msp, BlxDataType *dataType)
 {
-  msp->type = GSP;
-  
+  msp->type = BLXMSP_GSP;
+
   /* Will write this as soon as MSPcrunch generates it */
   
   /* Start parsing the GSP data next */
-  *mspType = GSPdata ;
+  *dataType = FS_GSP_DATA ;
 }
 
 
-/* Parse data from the given line into an MSP of type FFSEG */
-static void parseFsseg(char *line, char *opts, MSP *msp)
+/* Parse data from the given line into an MSP of type FS_SEG (Feature Series Segment) */
+static void parseFsSeg(char *line, char *opts, MSP *msp)
 {
-  msp->type = FSSEG;
   char series[MAXLINE+1];
   char qname[MAXLINE+1];
   char look[MAXLINE+1];
@@ -1242,7 +1297,7 @@ static void parseFsseg(char *line, char *opts, MSP *msp)
   if (sscanf(line, "%d%s%s%d%d%s",
 	     &msp->score, qname, series, &msp->qstart, &msp->qend, look) != 6)
     {
-      g_critical("Error parsing data, type FSSEG: \"%s\"\n", line);
+      g_critical("Error parsing data, type FS_SEG: \"%s\"\n", line);
       abort();
     }
   
@@ -1262,6 +1317,8 @@ static void parseFsseg(char *line, char *opts, MSP *msp)
   getDesc(msp, line, look);
   
   insertFS(msp, series);
+  
+  msp->type = BLXMSP_FS_SEG;
 }
 
 
@@ -1273,14 +1330,12 @@ static void parseGff(char *line, char *opts, MSP *msp)
   char qname[MAXLINE+1];
   char look[MAXLINE+1];
   
-  msp->type = FSSEG;
-  
   /* <sequencename> <seriesname> <look> <start> <end> <score> <strand> <transframe> [annotation] */
   if (sscanf(line, "%s%s%s%d%d%s%s%s",
 	     qname, series, look, &msp->qstart, &msp->qend, scorestring, 
 	     msp->qframe+1, msp->qframe+2) != 8)
     {
-      g_critical("Error parsing data, type GFF: \"%s\"\n", line);
+      g_critical("Error parsing data, type FS_GFF: \"%s\"\n", line);
       abort();
     }
   
@@ -1305,15 +1360,15 @@ static void parseGff(char *line, char *opts, MSP *msp)
   msp->fsColor = 6;	/* Blue */
   
   insertFS(msp, series);
+  
+  msp->type = BLXMSP_FS_SEG;
 }
 
 
 /* Parse data from the given line into an MSP of type XY */
-static void parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxMSPType *mspType)
+static void parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxDataType *dataType)
 {
   int i, seqlen;
-  
-  msp->type = XY;
   
   char series[MAXLINE+1];
   char qname[MAXLINE+1];
@@ -1351,9 +1406,9 @@ static void parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1nam
   for (i = 0; i < seqlen; i++)
     array(msp->xy, i, int) = XY_NOT_FILLED;
   
-  msp->fsShape = XY_INTERPOLATE; /* default */
+  msp->fsShape = BLXCURVE_INTERPOLATE; /* default */
   
-  *mspType = XYdata; /* Start parsing XY data next */
+  *dataType = FS_XY_DATA; /* Start parsing XY data next */
   
   msp->qname = g_malloc(strlen(qname)+1);
   strcpy(msp->qname, qname);
@@ -1368,48 +1423,50 @@ static void parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1nam
   getDesc(msp, line, look);
   
   insertFS(msp, series); 
+  
+  msp->type = BLXMSP_XY_PLOT;
 }
 
 
 /* Utility to parse a file line for data that goes in an MSP */
 static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_string,
 			     char **seq1, char *seq1name, char **seq2, char *seq2name, 
-			     BlxMSPType *mspType)
+			     BlxDataType *dataType)
 {
   gboolean processed = FALSE;
   
-  switch (*mspType)
+  switch (*dataType)
   {
-    case SEQBL: /* fall through */
-    case EXBLX:
-      parseEXBLXSEQBL(msp, *mspType, opts, line_string) ;
+    case SEQBL_HEADER: /* fall through */
+    case EXBLX_HEADER:
+      parseEXBLXSEQBL(msp, *dataType, opts, line_string) ;
       processed = TRUE ;
       break;
       
-    case SEQBL_X: /* fall through */
-    case EXBLX_X:
-      parseEXBLXSEQBLExtended(msp, *mspType, opts, line_string) ;
+    case SEQBL_X_HEADER: /* fall through */
+    case EXBLX_X_HEADER:
+      parseEXBLXSEQBLExtended(msp, *dataType, opts, line_string) ;
       processed = TRUE ;
       break;
       
-    case HSP:
+    case FS_HSP_HEADER:
       parseHsp(line, opts, msp);
       break;
       
-    case GSP:
-      parseGsp(line, opts, msp, mspType);
+    case FS_GSP_HEADER:
+      parseGsp(line, opts, msp, dataType);
       break;
       
-    case FSSEG:
-      parseFsseg(line, opts, msp);
+    case FS_SEG_HEADER:
+      parseFsSeg(line, opts, msp);
       break;
       
-    case GFF:
+    case FS_GFF_HEADER:
       parseGff(line, opts, msp);
       break;
       
-    case XY:
-      parseXY(line, opts, msp, seq1, seq1name, seq2, seq2name, mspType);
+    case FS_XY_HEADER:
+      parseXY(line, opts, msp, seq1, seq1name, seq2, seq2name, dataType);
       break;
       
     default:
@@ -1423,25 +1480,25 @@ static gboolean parseMspData(char *line, char *opts, MSP *msp, GString *line_str
 /* Utility to parse a file line for data that doesn't go in an MSP */
 static gboolean parseNonMspData(char *line, MSP *msp, 
 				char **seq1, char *seq1name, char **seq2, char *seq2name, 
-				BlxMSPType *mspType,
+				BlxDataType *dataType,
 				char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
 {
   gboolean processed = FALSE ;
   
   /* Data that don't go into a new MSP */
-  if (*mspType == XYdata) 
+  if (*dataType == FS_XY_DATA) 
     {
       int x, y;
       if (sscanf(line, "%d%d", &x, &y) != 2) 
 	{
-	  g_critical("Error parsing data file, type XYdata: \"%s\"\n", line);
+	  g_critical("Error parsing data file, type FS_XY_DATA: \"%s\"\n", line);
 	  abort();
 	}
       array(msp->xy, x-1, int) = y;
       
       processed = TRUE ;
     }
-  else if (*mspType == SEQdata) 
+  else if (*dataType == FS_SEQ_DATA) 
     {
       
       /* Realloc if necessary */
@@ -1460,14 +1517,14 @@ static gboolean parseNonMspData(char *line, MSP *msp,
       
       processed = TRUE;
     }
-  else if (*mspType == SEQ) 
+  else if (*dataType == FS_SEQ_HEADER) 
     {
       char series[MAXLINE+1];
       char qname[MAXLINE+1];
       
       if (sscanf(line+14, "%s%s", qname, series) != 2) 
 	{
-	  g_critical("Error parsing data file, type SEQ: \"%s\"\n", line);
+	  g_critical("Error parsing data file, type FS_SEQ_HEADER: \"%s\"\n", line);
 	  abort();
 	}
       
@@ -1486,11 +1543,39 @@ static gboolean parseNonMspData(char *line, MSP *msp,
       **readSeq = g_malloc(*readSeqMaxLen + 1);
       *readSeqLen = 0;
       
-      *mspType = SEQdata;
+      *dataType = FS_SEQ_DATA;
       
       processed = TRUE;
     }
   
   return processed;
 }
+
+
+/* For old file types, the hacky way of specifying the type of the MSP was by using a negative score
+ * for anything that is not a match. This function determines the type from the given score. */
+static BlxMspType getMspTypeFromScore(const int score)
+{
+  BlxMspType result = BLXMSP_INVALID;
+  
+  if (score >= 0)
+    {
+      result = BLXMSP_MATCH;
+    }
+  else if (score == -1)
+    {
+      result = BLXMSP_EXON;
+    }
+  else if (score == -2)
+    {
+      result = BLXMSP_INTRON;
+    }
+  else if (score == -3)
+    {
+      result = BLXMSP_SNP;
+    }
+
+  return result;  
+}
+
 

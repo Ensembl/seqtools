@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.31 2010-05-25 13:34:09 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.32 2010-05-25 15:03:50 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -114,9 +114,6 @@ typedef struct _SequenceGroup
 
 #define selectFeaturesStr     "Feature series selection tool"
 #define XY_NOT_FILLED -1000  /* Magic value meaning "value not provided" */
-
-/* Shapes of XY data */
-enum { XY_PARTIAL, XY_INTERPOLATE, XY_BADSHAPE };
 
   
 /* 
