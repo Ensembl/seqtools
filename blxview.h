@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.14 2010-05-20 15:25:59 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.15 2010-05-25 13:34:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -89,6 +89,16 @@ typedef struct _SequenceStruct
 } SequenceStruct;
 
 
+typedef struct _FeatureSeries {
+    char        *name;        /* Name of the Feature Series */
+    int         on;           /* Flag to show/hide the Feature Series */
+    int         order;        /* Order number used for sorting */
+    float       x;	      /* Series offset on x axis, to bump series on the screen */
+    float       y;	      /* Series offset on y axis */
+    int         xy;	      /* Flag for XY plot series */
+} FeatureSeries;
+
+
 /* Structure holding information about a match */
 typedef struct _MSP
 {
@@ -113,16 +123,15 @@ typedef struct _MSP
   int      sstart; 
   int      send;
   
-  char    *desc;
-  int      box ;
+  char    *desc;                /* Optional description text for the MSP */
+  Array    gaps;                /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array
+                                 * gives the ranges of the bits that align, and the gaps are the bits in between */
 
-  int      color;   
-  int      shape;   /* For SFS data, e.g. XY type PARTIAL or INTERPOLATE shapes */
-  int      fs;      /* Ordinal number of the series that this MSP belongs to. */
+  FeatureSeries *fs;            /* Feature series that this MSP belongs to */
+  int      fsColor;             /* Color to draw this MSP in the feature series */
+  int      fsShape;             /* Shape data for drawing this MSP in the feature series, i.e. XY type PARTIAL or INTERPOLATE shapes */
+  Array    xy;                  /* For XY plot feature series */
 
-  Array    xy;      /* For XY plot series */
-
-  Array    gaps;    /* gaps in this homolgy */
   
 #ifdef ACEDB
   KEY      key;

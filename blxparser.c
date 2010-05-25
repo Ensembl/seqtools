@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.21 2010-05-21 12:53:02 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.22 2010-05-25 13:34:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -52,8 +52,8 @@ static BOOL	    parseGaps(char **text, MSP *msp) ;
 static BOOL	    parseDescription(char **text, MSP *msp_unused) ;
 static BOOL	    parseSequence(char **text, MSP *msp) ;
 
-static int	    fsorder(void *x_in, void *y_in) ;
-static int	    fsnrorder(void *x_in, void *y_in) ;
+static int	    fsSortByNameCompareFunc(void *fs1_in, void *fs2_in) ;
+static int	    fsSortByOrderCompareFunc(void *fs1_in, void *fs2_in) ;
 static void	    getDesc(MSP *msp, char *s1, char *s2) ;
 static void	    prepSeq(MSP *msp, char *seq, char *opts) ;
 static void	    parseLook(MSP *msp, char *s) ;
@@ -130,9 +130,9 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
 	     char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset)
 {
   if (!fsArr) 
-    fsArr = arrayCreate(50, FEATURESERIES);
+    fsArr = arrayCreate(50, FeatureSeries);
   else
-    arraySort(fsArr, fsorder);
+    arraySort(fsArr, fsSortByNameCompareFunc);
 
   /* Find the last MSP in the list */
   MSP *msp = NULL;
@@ -214,37 +214,56 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts,
   g_string_free(line_string, TRUE) ;			    /* free everything, buffer and all. */
 
   /* Sort feature segment array by number */
-  arraySort(fsArr, fsnrorder);
+  arraySort(fsArr, fsSortByOrderCompareFunc);
 
   return ;
 }
 
 
+/* Returns true if this msp is part of a feature series */
+gboolean mspHasFs(const MSP *msp)
+{
+  gboolean result = (msp->type == FSSEG || msp->type == XY);
+  return result;
+}
 
 
+/* Insert the given MSP into the Feature Series of the given name. If the Feature Series
+ * does not exist yet, create it. Also, if the Feature Series array does not exist yet, create
+ * that too. */
 void insertFS(MSP *msp, char *series)
 {
-    FEATURESERIES fs;
-    int i;
-    static int curnr=0;
-
-    if (!fsArr) 
-	fsArr = arrayCreate(50, FEATURESERIES);
-
-    fs.on = 1;
-    fs.y = 0.0;
-    fs.xy = (msp->type == XY ? 1 : 0);
-
-    fs.name = g_malloc(strlen(series)+1);
-    strcpy(fs.name, series);
-
-    if (arrayFind(fsArr, &fs, &i, fsorder)) {
-	msp->fs = arrp(fsArr, i, FEATURESERIES)->nr;
-	g_free(fs.name);
+  if (!fsArr) 
+    {
+      fsArr = arrayCreate(50, FeatureSeries);
     }
-    else {
-	msp->fs = fs.nr = curnr++;
-	arrayInsert(fsArr, &fs, fsorder);
+
+  static int orderNum = 0; /* will increment this each time we add a feature series to the array */
+  
+  FeatureSeries fs;
+  fs.on = 1;
+  fs.y = 0.0;
+  fs.xy = (msp->type == XY ? 1 : 0);
+
+  fs.name = g_malloc(strlen(series)+1);
+  strcpy(fs.name, series);
+
+  int i;
+  if (arrayFind(fsArr, &fs, &i, fsSortByNameCompareFunc))
+    {
+      msp->fs = arrp(fsArr, i, FeatureSeries);
+      g_free(fs.name);
+    }
+  else
+    {
+      /* Remember the order we added them so we can sort by it again later. */
+      fs.order = orderNum;
+      orderNum++;
+
+      arrayInsert(fsArr, &fs, fsSortByNameCompareFunc);
+      
+      arrayFind(fsArr, &fs, &i, fsSortByNameCompareFunc);
+      msp->fs = arrp(fsArr, i, FeatureSeries);
     }
 }
 
@@ -350,10 +369,10 @@ static void parseLook(MSP *msp, char *s)
     while (cp) {
 	
 	if (parseColor(cp) != NUM_TRUECOLORS) {
-	    msp->color = parseColor(cp);
+	    msp->fsColor = parseColor(cp);
 	}
 	else if (parseShape(cp) != XY_BADSHAPE) {
-	    msp->shape = parseShape(cp);
+	    msp->fsShape = parseShape(cp);
 	}
 	else 
 	    messout("Unrecognised Look: %s", cp);
@@ -809,24 +828,34 @@ static void parseEXBLXSEQBLExtended(MSP *msp, BlxMSPType msp_type, char *opts, G
 }
 
 
-static int fsnrorder(void *x_in, void *y_in)
+/* Comparison function to sort two Feature Series by the order number stored in the FeatureSeries
+ * struct. Returns -1 if the first item is before the second, 1 if the second is first, or 0 if 
+ * they are equal.  */
+static int fsSortByOrderCompareFunc(void *fs1_in, void *fs2_in)
 {
-  FEATURESERIES *x = (FEATURESERIES *)x_in, *y = (FEATURESERIES *)y_in ;
+  int result = 0;
 
-  if (x->nr < y->nr)
-    return -1;
-  else if (x->nr > y->nr)
-    return 1;
-  else return 0;
+  FeatureSeries *fs1 = (FeatureSeries *)fs1_in;
+  FeatureSeries *fs2 = (FeatureSeries *)fs2_in;
+
+  if (fs1->order < fs2->order)
+    result = -1;
+  else if (fs1->order > fs2->order)
+    result = 1;
+  
+  return result;
 }
 
-static int fsorder(void *x_in, void *y_in)
+
+/* Comparison function to sort two Features Series by name. */
+static int fsSortByNameCompareFunc(void *fs1_in, void *fs2_in)
 {
-  FEATURESERIES *x = (FEATURESERIES *)x_in, *y = (FEATURESERIES *)y_in ;
+  FeatureSeries *fs1 = (FeatureSeries *)fs1_in;
+  FeatureSeries *fs2 = (FeatureSeries *)fs2_in;
 
-  /*printf("%s - %s : %d\n", x->name, y->name,  strcmp(x->name, y->name));*/
+  /*printf("%s - %s : %d\n", fs1->name, fs2->name,  strcmp(fs1->name, fs2->name));*/
 
-  return strcmp(x->name, y->name);
+  return strcmp(fs1->name, fs2->name);
 }
 
 
@@ -1041,11 +1070,10 @@ static MSP* createEmptyMsp()
   msp->send = 0;
   
   msp->desc = NULL;
-  msp->box = 0;
   
-  msp->color = 0;
-  msp->shape = 0;
-  msp->fs = 0;
+  msp->fs = NULL;
+  msp->fsColor = 0;
+  msp->fsShape = 0;
   
   msp->xy = NULL;
   msp->gaps = NULL;
@@ -1274,7 +1302,7 @@ static void parseGff(char *line, char *opts, MSP *msp)
   msp->desc = g_malloc(strlen(series)+1); 
   strcpy(msp->desc, series);
   
-  msp->color = 6;	/* Blue */
+  msp->fsColor = 6;	/* Blue */
   
   insertFS(msp, series);
 }
@@ -1323,7 +1351,7 @@ static void parseXY(char *line, char *opts, MSP *msp, char **seq1, char *seq1nam
   for (i = 0; i < seqlen; i++)
     array(msp->xy, i, int) = XY_NOT_FILLED;
   
-  msp->shape = XY_INTERPOLATE; /* default */
+  msp->fsShape = XY_INTERPOLATE; /* default */
   
   *mspType = XYdata; /* Start parsing XY data next */
   

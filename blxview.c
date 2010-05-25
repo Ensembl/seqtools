@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.36 2010-05-20 12:07:42 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.37 2010-05-25 13:34:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -168,24 +168,17 @@ static char *padseq = 0;
  */
 
 
-/* aghhh, this all needs rewriting, how opaque can you get sigh... */
-
-#define FSpriority {if (FS(msp1) && !FS(msp2)) return -1; else if (FS(msp2) && !FS(msp1)) return 1;}
-
 //static int possort(MSP *msp1, MSP *msp2) {
-//    FSpriority
 //    return ( (msp1->qstart > msp2->qstart) ? 1 : -1 );
 //}
 //
 //static int namesort(MSP *msp1, MSP *msp2) {
-//    FSpriority
 //    if (strcmp(msp1->sname, msp2->sname))
 //	return strcmp(msp1->sname, msp2->sname);
 //    else
 //	return possort(msp1, msp2);
 //}
 //static int scoresort(MSP *msp1, MSP *msp2) {
-//    FSpriority
 //    return ( (msp1->score < msp2->score) ? 1 : -1 );
 //}
 //
@@ -193,35 +186,10 @@ static char *padseq = 0;
 //{
 //  int result = 0 ;
 //
-//  FSpriority
-//
 //  result = ( (msp1->id < msp2->id) ? 1 : -1 ) ;
 //
 //  return result ;
 //}
-
-
-
-/*
-static void incBack(void) {
-    backgColor++;
-    if (!(backgColor % BLACK)) backgColor++;
-    blviewRedraw();
-}
-static void decBack(void) {
-    backgColor--;
-    if (!(backgColor % BLACK)) backgColor--;
-    blviewRedraw();
-}
-static void incGrid(void) {
-    gridColor++;
-    blviewRedraw();
-}
-static void decGrid(void) {
-    gridColor--;
-    blviewRedraw();
-}
-*/
 
 
 //static void wholePrint(void)

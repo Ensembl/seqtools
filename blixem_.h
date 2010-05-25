@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.30 2010-05-19 10:27:32 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.31 2010-05-25 13:34:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -98,29 +98,6 @@ typedef enum {BLXMODE_UNSET, BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BL
 #define MAXLINE 10000
 
 
-/* Types and struct to support retrieving data from the window systems clipboard. */
-typedef enum
-  {
-    BLXPASTE_INVALID,
-    BLXPASTE_MATCHSET,					    /* Data is a set of matche names. */
-    BLXPASTE_MOVETO					    /* Data is a single match. */
-  } BlxPasteType ;
-
-typedef struct
-{
-  BlxPasteType type ;					    /* defines type of data in union. */
-  union
-  {
-    char **match_set ;
-    struct
-    {
-      char *match ;
-      int start, end ;
-    } move_to ;
-  } data ;
-} BlxPasteDataStruct, *BlxPasteData ;
-
-
 /* Structure that groups several SequenceStructs in order to hide/highlight/sort them etc. */
 typedef struct _SequenceGroup
   {
@@ -135,30 +112,13 @@ typedef struct _SequenceGroup
   } SequenceGroup;
 
 
-/* remove ?? */
-#define max(a,b)        (((a) > (b)) ? (a) : (b))
-#define min(a,b)        (((a) < (b)) ? (a) : (b))
-
-
 #define selectFeaturesStr     "Feature series selection tool"
-#define FS(msp) (msp->type == FSSEG || msp->type == XY)
 #define XY_NOT_FILLED -1000  /* Magic value meaning "value not provided" */
 
 /* Shapes of XY data */
 enum { XY_PARTIAL, XY_INTERPOLATE, XY_BADSHAPE };
 
   
-typedef struct featureSeries_ {
-    char  *name;
-    int    nr;
-    int    on;
-    float  x;	      /* Series offset on x axis, to bump series on the screen */
-    float  y;	      /* Series offset on y axis */
-    int    xy;	      /* Flag for XY plot series */
-} FEATURESERIES;
-
-
-
 /* 
  * config file groups/keywords, these should not be changed willy nilly as they
  * are used external programs and users when constructing config files.
@@ -180,10 +140,6 @@ typedef struct featureSeries_ {
 #define PFETCH_SOCKET_GROUP  "pfetch-socket"
 #define PFETCH_SOCKET_NODE   "node"
 #define PFETCH_SOCKET_PORT   "port"
-
-
-
-
 
 
 /* Fetch programs for sequence entries. */
@@ -208,7 +164,7 @@ char *revcomp(char *comp, char *seq);
 void *compl(char *seq);
 void  argvAdd(int *argc, char ***argv, char *s);
 void  loadFeatures(FILE* fil, MSP **msp);
-float fs2y(MSP *msp, float *maxy, float height);
+float mspGetFsBottomEdge(MSP *msp, float *maxy, float height);
 char  Seqtype(char *seq);
 void  blviewRedraw(void);
 void  selectFeatures(void);
@@ -216,6 +172,7 @@ float fsTotalHeight(MSP *msplist);
 void  parseFS(MSP **MSPlist, FILE *file, char *opts,
 	      char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset) ;
 void insertFS(MSP *msp, char *series);
+gboolean mspHasFs(const MSP *msp);
 char *readFastaSeq(FILE *seqfile, char *qname);
 
 void blxPfetchEntry(char *sequence_name) ;

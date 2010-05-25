@@ -12,8 +12,12 @@
 #include <gtk/gtk.h>
 #include <SeqTools/blixem_.h>
 
-
 #define UNSET_INT  -1
+
+
+#define max(a,b)        (((a) > (b)) ? (a) : (b))
+#define min(a,b)        (((a) < (b)) ? (a) : (b))
+
 
 /* Color strings that can be passed to parseBlxColor to create a GdkColor */
 #define BLX_YELLOW	      "#ffff00" 

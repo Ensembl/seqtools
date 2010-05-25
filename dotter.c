@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.5 2010-05-19 10:27:32 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.6 2010-05-25 13:34:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -494,7 +494,7 @@ Array fsArr = 0;  /* Stores Feature Series - the actual segments are stored
 		     msp->qstart = segment start
 		     msp->qend   = segment end
 		     msp->fs     = Ordinal number of series that this MSP belongs to.
-		     msp->color  = color
+		     msp->fsColor  = color
 		     msp->desc   = annotation
 		     */
 
@@ -1536,37 +1536,68 @@ static void drawScale(void)
 }
 
 
-/* Return the y position of this series (lower edge) given its height, 
-   calculate it if not set yet */
-float fs2y(MSP *msp, float *maxy, float height)
+/* Utility to return the Feature Series that the given MSP belongs to */
+static FeatureSeries* mspGetFeatureSeries(const MSP *msp)
 {
-    float f;
-
-    if ((f = arrp(fsArr, msp->fs, FEATURESERIES)->y)) {
-	return f;
-    }
-    else {
-	*maxy += height;
-	arrp(fsArr, msp->fs, FEATURESERIES)->y = *maxy;
-	return *maxy;
-    }
+  return msp->fs;
 }
 
 
-/* Return the y position of this series (lower edge) given its height, 
-   calculate it if not set yet */
-float fs2x(MSP *msp, float *maxx, float height)
+/* Returns true if this MSP is part of a Feature Series and that feature series is currently displayed */
+static gboolean mspShowFs(const MSP *msp)
 {
-    float f;
+  FeatureSeries *fs = mspGetFeatureSeries(msp);
+  return (fs && fs->on);
+}
 
-    if ((f = arrp(fsArr, msp->fs, FEATURESERIES)->x)) {
-	return f;
+
+/* Return the y position of the lower edge of a feature-series MSP, given its height.
+   Calculate it if it is not set yet. Updates the max y coord to be the lower edge of
+   this MSP. Returns 0 if the MSP is not in a Feature Series */
+float mspGetFsBottomEdge(MSP *msp, float *maxy, float height)
+{
+  float result = 0;
+  
+  FeatureSeries *fs = mspGetFeatureSeries(msp);
+  
+  if (fs)
+    {
+      result = fs->y;
+
+      if (!result)
+        {
+          *maxy += height;
+          fs->y = *maxy;
+          result = *maxy;
+        }
     }
-    else {
-	*maxx += height;
-	arrp(fsArr, msp->fs, FEATURESERIES)->x = *maxx;
-	return *maxx;
+  
+  return result;
+}
+
+
+/* Return the x position of the rightmost edge of a feature-series MSP, given its height.
+   Calculae it if it is not yet set. Updates the max x coord to be the rightmost edge of
+   this MSP. Returns 0 if the MSP is not in a FeatureSeries */
+float mspGetFsRightEdge(MSP *msp, float *maxx, float height)
+{
+  float result = 0;
+
+  FeatureSeries *fs = mspGetFeatureSeries(msp);
+
+  if (fs)
+    {
+      result = fs->x;
+      
+      if (!result)
+        {
+          *maxx += height;
+          fs->x = *maxx;
+          result = *maxx;
+        }
     }
+  
+  return result;
 }
 
 
@@ -1605,7 +1636,7 @@ static void XdrawSEG(MSP *msp, float offset)
 	ex = seq2graphX(msp->qend);
     
     offset += TopBorder + slen4 -1;
-    oldcolor = graphColor(msp->color); oldLinew = graphLinewidth(.25);
+    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 
     if (fsEndLinesOn) {
 	graphLine(sx, TopBorder, sx, TopBorder+slen4-2);
@@ -1632,7 +1663,7 @@ static void XdrawSEGxy(MSP *msp, float offset)
 	xold=0, yold=0;
 
     offset += TopBorder + slen4 -1;
-    oldcolor = graphColor(msp->color); oldLinew = graphLinewidth(.25);
+    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 
     for (i = 0; i < qlen; i++) {
 	if (arr(msp->xy, i, int) == XY_NOT_FILLED) {
@@ -1642,7 +1673,7 @@ static void XdrawSEGxy(MSP *msp, float offset)
 	    x = seq2graphX(i);
 	    y = offset-1 - (float)arr(msp->xy, i, int)/100*fsPlotHeight*fonth;
 	    if (xold && (x != xold || y != yold) && 
-		(!inNotFilled || msp->shape == XY_INTERPOLATE)) {
+		(!inNotFilled || msp->fsShape == XY_INTERPOLATE)) {
 	        graphLine(xold, yold, x, y);
 		if (fsAnnBottomOn && msp->desc && !descShown) {
 		    int linecolor = graphColor(BLACK);
@@ -1669,7 +1700,7 @@ static void YdrawSEG(MSP *msp, float offset)
 	ex = seq2graphY(msp->qend);
     
     offset += LeftBorder + qlen4 -1;
-    oldcolor = graphColor(msp->color); oldLinew = graphLinewidth(.25);
+    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 
     if (fsEndLinesOn) {
 	graphLine(LeftBorder, sx, LeftBorder+qlen4-2, sx);
@@ -1696,7 +1727,7 @@ static void YdrawSEGxy(MSP *msp, float offset)
 	xold=0, yold=0;
 
     offset += LeftBorder + qlen4 -1;
-    oldcolor = graphColor(msp->color); oldLinew = graphLinewidth(.25);
+    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 
     for (i = 0; i < qlen; i++) {
 	if (arr(msp->xy, i, int) == XY_NOT_FILLED) {
@@ -1706,7 +1737,7 @@ static void YdrawSEGxy(MSP *msp, float offset)
 	    x = seq2graphY(i);
 	    y = offset-1 - (float)arr(msp->xy, i, int)/100*fsPlotHeight*fonth;
 	    if (xold && (x != xold || y != yold) && 
-		(!inNotFilled || msp->shape == XY_INTERPOLATE)) {
+		(!inNotFilled || msp->fsShape == XY_INTERPOLATE)) {
 		graphLine(yold, xold, y, x);
 		if (fsAnnRightOn && msp->desc && !descShown) {
 		    int linecolor = graphColor(BLACK);
@@ -1770,7 +1801,7 @@ static void drawGenes(MSP *msp)
   if (fsArr)
     {
       for (i = 0; i < arrayMax(fsArr); i++)
-	arrp(fsArr, i, FEATURESERIES)->y = arrp(fsArr, i, FEATURESERIES)->x = 0;
+	arrp(fsArr, i, FeatureSeries)->y = arrp(fsArr, i, FeatureSeries)->x = 0;
     }
 
   textHeight = fonth;
@@ -1789,7 +1820,7 @@ static void drawGenes(MSP *msp)
     {    
       height = boxHeight;
 
-      if (msp->score < 0 || FS(msp))
+      if (msp->score < 0 || mspHasFs(msp))
 	{
 	  sx = seq2graphX(msp->qstart);
 	  ex = seq2graphX(msp->qend);
@@ -1811,9 +1842,9 @@ static void drawGenes(MSP *msp)
 	      graphLine (sx, y + height/2, midx, y) ;
 	      graphLine (ex, y + height/2, midx, y) ;
 	    }
-	  else if (FS(msp)) /* FEATURE SEGMENT - COLOURED BOX OR LINE */
+	  else if (mspHasFs(msp)) /* FEATURE SEGMENT - COLOURED BOX OR LINE */
 	    {
-	      if (!arrp(fsArr, msp->fs, FEATURESERIES)->on)
+              if (!mspShowFs(msp))
 		continue;
 
 	      /* Adjust height to score */
@@ -1828,11 +1859,11 @@ static void drawGenes(MSP *msp)
 		    
 		  if (msp->type == XY)
 		    {
-		      XdrawSEGxy(msp, fs2x(msp, &posx, fonth*(fsPlotHeight+1)));
+		      XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
 		    }
 		  else if (msp->type == FSSEG)
 		    {
-		      XdrawSEG(msp, fs2x(msp, &posx, boxHeight+textHeight));
+		      XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
 		    }
 		}
 
@@ -1842,11 +1873,11 @@ static void drawGenes(MSP *msp)
 
 		if (msp->type == XY)
 		  {
-		    YdrawSEGxy(msp, fs2y(msp, &posy, fonth*(fsPlotHeight+1)));
+		    YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
 		  }
 		else if (msp->type == FSSEG)
 		  {
-		    YdrawSEG(msp, fs2y(msp, &posy, boxHeight+textHeight));
+		    YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
 		  }
 		}
 	    }
@@ -1930,7 +1961,7 @@ static void drawAllFeatures(MSP *msp)
   if (fsArr)
     {
       for (i = 0; i < arrayMax(fsArr); i++)
-	arrp(fsArr, i, FEATURESERIES)->y = arrp(fsArr, i, FEATURESERIES)->x = 0;
+	arrp(fsArr, i, FeatureSeries)->y = arrp(fsArr, i, FeatureSeries)->x = 0;
     }
 
   textHeight = fonth;
@@ -1949,7 +1980,7 @@ static void drawAllFeatures(MSP *msp)
     {    
       height = boxHeight;
 
-      if (FS(msp))
+      if (mspHasFs(msp))
 	{
 	  sx = seq2graphX(msp->qstart);
 	  ex = seq2graphX(msp->qend);
@@ -1959,7 +1990,7 @@ static void drawAllFeatures(MSP *msp)
 	  else
 	    y = forward_y ;
 
-	  if (!arrp(fsArr, msp->fs, FEATURESERIES)->on)
+          if (!mspShowFs(msp))
 	    continue;
 
 	  /* Adjust height to score */
@@ -1974,11 +2005,11 @@ static void drawAllFeatures(MSP *msp)
 		    
 	      if (msp->type == XY)
 		{
-		  XdrawSEGxy(msp, fs2x(msp, &posx, fonth*(fsPlotHeight+1)));
+		  XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
 		}
 	      else if (msp->type == FSSEG)
 		{
-		  XdrawSEG(msp, fs2x(msp, &posx, boxHeight+textHeight));
+		  XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
 		}
 	    }
 
@@ -1988,11 +2019,11 @@ static void drawAllFeatures(MSP *msp)
 
 	      if (msp->type == XY)
 		{
-		  YdrawSEGxy(msp, fs2y(msp, &posy, fonth*(fsPlotHeight+1)));
+		  YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
 		}
 	      else if (msp->type == FSSEG)
 		{
-		  YdrawSEG(msp, fs2y(msp, &posy, boxHeight+textHeight));
+		  YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
 		}
 	    }
 
@@ -2858,7 +2889,7 @@ static void fsSelAll(void)
   int i;
   graphActivate(fsGraph);
   for (i = 0; i < arrayMax(fsArr); i++) {
-    arrp(fsArr, i, FEATURESERIES)->on = 1;
+    arrp(fsArr, i, FeatureSeries)->on = 1;
     graphBoxDraw(fsBoxStart+i, WHITE, BLACK);
   }
   fsSelFinish();
@@ -2868,7 +2899,7 @@ static void fsSelNone(void)
   int i;
   graphActivate(fsGraph);
   for (i = 0; i < arrayMax(fsArr); i++) {
-    arrp(fsArr, i, FEATURESERIES)->on = 0;
+    arrp(fsArr, i, FeatureSeries)->on = 0;
     graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
   }
   fsSelFinish();
@@ -2878,8 +2909,8 @@ static void fsSelNoCurves(void)
   int i;
   graphActivate(fsGraph);
   for (i = 0; i < arrayMax(fsArr); i++) {
-    if (arrp(fsArr, i, FEATURESERIES)->xy) {
-      arrp(fsArr, i, FEATURESERIES)->on = 0;
+    if (arrp(fsArr, i, FeatureSeries)->xy) {
+      arrp(fsArr, i, FeatureSeries)->on = 0;
       graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
     }
   }
@@ -2891,8 +2922,8 @@ static void fsSelNoSegments(void)
   int i;
   graphActivate(fsGraph);
   for (i = 0; i < arrayMax(fsArr); i++) {
-    if (!arrp(fsArr, i, FEATURESERIES)->xy) {
-      arrp(fsArr, i, FEATURESERIES)->on = 0;
+    if (!arrp(fsArr, i, FeatureSeries)->xy) {
+      arrp(fsArr, i, FeatureSeries)->on = 0;
       graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
     }
   }
@@ -2936,7 +2967,7 @@ static void fsSel(int box, double x_unused, double y_unused, int modifier_unused
 	return;
     
 
-    on = &arrp(fsArr, box-fsBoxStart, FEATURESERIES)->on;
+    on = &arrp(fsArr, box-fsBoxStart, FeatureSeries)->on;
 
     graphActivate(fsGraph);
 
@@ -3025,13 +3056,13 @@ void selectFeatures(void)
     float 
       margin = 0.1;
     box = graphBoxStart();
-    graphText(arrp(fsArr, i, FEATURESERIES)->name, 1, y);
+    graphText(arrp(fsArr, i, FeatureSeries)->name, 1, y);
     graphRectangle(1-margin, y-margin, 
-		   1+margin+strlen(arrp(fsArr, i, FEATURESERIES)->name), 
+		   1+margin+strlen(arrp(fsArr, i, FeatureSeries)->name), 
 		   y+1+margin);
     graphBoxEnd();
 
-    if (!arrp(fsArr, i, FEATURESERIES)->on) {
+    if (!arrp(fsArr, i, FeatureSeries)->on) {
       graphBoxDraw(box, BLACK, WHITE);
     }
     else {
@@ -3058,20 +3089,20 @@ float fsTotalHeight(MSP *msplist)
 
     for (i = 0; i < arrayMax(fsArr); i++) 
       {
-	arrp(fsArr, i, FEATURESERIES)->y = arrp(fsArr, i, FEATURESERIES)->x = 0;
+	arrp(fsArr, i, FeatureSeries)->y = arrp(fsArr, i, FeatureSeries)->x = 0;
       }
 	
     for (msp = msplist; msp; msp = msp->next) 
       {
-	if (FS(msp) && arrp(fsArr, msp->fs, FEATURESERIES)->on) 
+        if (mspShowFs(msp))
 	  {
 	    if (msp->type == XY) 
 	      {
-		fs2y(msp, &maxy, fsPlotHeight+1);
+		mspGetFsBottomEdge(msp, &maxy, fsPlotHeight+1);
 	      }
 	    else if (msp->type == FSSEG) 
 	      {
-		fs2y(msp, &maxy, 1+1);
+		mspGetFsBottomEdge(msp, &maxy, 1+1);
 	      }
 	  }
       }
@@ -3516,10 +3547,10 @@ static void callDotter(int dotterZoom, int xstart, int ystart, int xend, int yen
 	    fprintf(pipe, "%d %d %d %d %d %d", 
 		    msp->type,
 		    msp->score, 
-		    msp->color, 
+		    msp->fsColor, 
 		    msp->qstart +MSPoffset,
 		    msp->qend   +MSPoffset,
-		    msp->fs);
+		    msp->fs ? msp->fs->order : 0);
 	    stringProtect(pipe, msp->sname);
 	    stringProtect(pipe, msp->sframe);
 	    stringProtect(pipe, msp->qname);
