@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.3 2010-03-25 15:21:54 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.4 2010-05-25 11:26:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -37,6 +37,37 @@
 #include <wh/gex.h>
 #include <SeqTools/blixem_.h>
 #include <wh/dotter_.h>
+
+#define UNSET_INT  -1
+
+
+typedef struct _DotterOptions
+  {
+    int qoffset;
+    int soffset; 
+    int selfcall;
+    int qlen;
+    int slen;
+    int revcompq;
+    int dotterZoom;
+    int install : 1;
+    int pixelFacset;
+    int seqInSFS;
+    
+    float memoryLimit;
+    
+    char *savefile;
+    char *loadfile;
+    char *FSfilename;
+    char *mtxfile;
+    
+    char *winsize;
+    
+    char *qname;
+    char *sname;
+  } DotterOptions;
+
+
 
 static void strNamecpy(char *dest, char *src)
 {
@@ -137,64 +168,12 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char s
    insertFS(msp, "chain_separator");
 }		      
 
-  
-int main(int argc, char **argv)
+
+static char* getUsageText()
 {
-    int     
-	l, qoffset=0, 
-	soffset=0, 
-	selfcall=0, 
-	qlen, 
-	slen,
-	revcompq = 0,
-	dotterZoom = 0,
-	count,
-	install = 1,
-	pixelFacset = 0,
-	seqInSFS=0;
-    char   
-	*qseq=0, *sseq=0, line[MAXLINE+1],
-	*qname, *sname, *cp, *cc, *cq, type, 
-        *firstdesc, *qfilename, *sfilename,
-	*savefile = 0,
-	*loadfile = 0,
-	*FSfilename = 0,
-	*mtxfile = 0,
-	opts[] = "D    ",	 /* D  display mirror image
-			    W  only watson strand
-			    C  only crick strand
-			    H  only HSPs
-			    S  start with swapped greyramptool
-			    */
-	*winsize = 0,
-	text[MAXLINE+1];
-    FILE   
-	*qfile, *sfile;
-    float   
-	memoryLimit=0;
-    MSP   
-	*MSPlist=0, *msp;
 
-    
-    int          optc;
-    extern int   optind;
-    extern char *optarg;
-    char        *optstring="b:cDf:F:Hil:M:m:p:q:Rrs:SW:wz:";
-
-    extern char
-	*dotterVersion,
-	*dotterBinary;
-
-    static char *cc_date = 
-#if defined(__DATE__)
-    __DATE__
-#else
-    ""
-#endif
-    ;
-
-    char *usage;
-    static char usageText[] = "\
+  char *usage;
+  static char usageText[] = "\
 \n\
  Dotter - Sequence dotplots with image enhancement tools.\n\
 \n\
@@ -237,58 +216,103 @@ int main(int argc, char **argv)
  by Erik.Sonnhammer@cgb.ki.se\n\
  Version ";
     
+  extern char *dotterVersion;
 
-    usage = messalloc(strlen(usageText) + strlen(dotterVersion) + strlen(cc_date) + 20);
-    sprintf(usage, "%s%s, compiled %s\n", usageText, dotterVersion, cc_date);
+  static char *cc_date = 
+#if defined(__DATE__)
+  __DATE__
+#else
+  ""
+#endif
+  ;
+  
+  usage = messalloc(strlen(usageText) + strlen(dotterVersion) + strlen(cc_date) + 20);
+  sprintf(usage, "%s%s, compiled %s\n", usageText, dotterVersion, cc_date);
+  
+  return usage;
+}
+
+
+int main(int argc, char **argv)
+{
+  DotterOptions options = {0, 0, 0, UNSET_INT, UNSET_INT, 0, 0, 1, 0, 0, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+  
+  char   
+      *qseq=0, *sseq=0, line[MAXLINE+1],
+      *cp, *cc, *cq, type, 
+      *firstdesc, *qfilename, *sfilename,
+      text[MAXLINE+1];
+
+  char opts[] = "D    ";    /* D  display mirror image
+                               W  only watson strand
+                               C  only crick strand
+                               H  only HSPs
+                               S  start with swapped greyramptool
+                            */
+  FILE *qfile, *sfile;
+  MSP *MSPlist=0;
+  MSP *msp;
+
+  
+  int          optc;
+  extern int   optind;
+  extern char *optarg;
+  char        *optstring="b:cDf:F:Hil:M:m:p:q:Rrs:SW:wz:";
+
+  extern char *dotterBinary;
+
+  char *usage = getUsageText();
 
     
-    while ((optc = getopt(argc, argv, optstring)) != EOF)
-	switch (optc) 
-	{
-	case 'b': 
-	    savefile = messalloc(strlen(optarg)+1);
-	    strcpy(savefile, optarg);         break;
-	case 'c': opts[1] = 'C';              break;
-	case 'D': opts[0] = ' ';              break;
-	case 'f': 
-	    FSfilename = messalloc(strlen(optarg)+1);
-	    strcpy(FSfilename, optarg);       break;
-	case 'F': 
-	    seqInSFS = 1;        
-	    FSfilename = messalloc(strlen(optarg)+1);
-	    strcpy(FSfilename, optarg);       break;
-	case 'H': opts[2] = 'H';              break;
-	case 'i': install = 0;                break;
-	case 'l': 
-	    loadfile = messalloc(strlen(optarg)+1);
-	    strcpy(loadfile, optarg);         break;
-	case 'M': 
-	    mtxfile = messalloc(strlen(optarg)+1);
-	    strcpy(mtxfile, optarg);          break;
-	case 'm': memoryLimit = atof(optarg); break;
-	case 'p': pixelFacset = atoi(optarg); break;
-	case 'q': qoffset = atoi(optarg);     break;
-	case 'R': opts[3] = 'S';              break;
-	case 'r': revcompq = 1;               break;
-	case 's': soffset = atoi(optarg);     break;
-	case 'S': 
-	    selfcall = 1;
-	    qname = messalloc(strlen(argv[optind])+1); strcpy(qname, argv[optind]);
-	    qlen = atoi(argv[optind+1]);
-	    sname = messalloc(strlen(argv[optind+2])+1); strcpy(sname, argv[optind+2]);
-	    slen = atoi(argv[optind+3]);
-	    dotterBinary = messalloc(strlen(argv[optind+4])+1);
-	    strcpy(dotterBinary, argv[optind+4]);
-	                                      break;
-	case 'W': 
-	    winsize = messalloc(strlen(optarg)+1);
-	    strcpy(winsize, optarg);          break;
-	case 'w': opts[1] = 'W';              break;
-	case 'z': dotterZoom = atoi(optarg);  break;
-	default : fatal("Illegal option");
-	}
-
-    if (!savefile)
+  while ((optc = getopt(argc, argv, optstring)) != EOF)
+    {
+      switch (optc) 
+        {
+          case 'b': 
+            options.savefile = messalloc(strlen(optarg)+1);
+            strcpy(options.savefile, optarg);         break;
+          case 'c': opts[1] = 'C';              break;
+          case 'D': opts[0] = ' ';              break;
+          case 'f': 
+            options.FSfilename = messalloc(strlen(optarg)+1);
+            strcpy(options.FSfilename, optarg);       break;
+          case 'F': 
+            options.seqInSFS = 1;        
+            options.FSfilename = messalloc(strlen(optarg)+1);
+            strcpy(options.FSfilename, optarg);       break;
+          case 'H': opts[2] = 'H';              break;
+          case 'i': options.install = 0;                break;
+          case 'l': 
+            options.loadfile = messalloc(strlen(optarg)+1);
+            strcpy(options.loadfile, optarg);         break;
+          case 'M': 
+            options.mtxfile = messalloc(strlen(optarg)+1);
+            strcpy(options.mtxfile, optarg);          break;
+          case 'm': options.memoryLimit = atof(optarg); break;
+          case 'p': options.pixelFacset = atoi(optarg); break;
+          case 'q': options.qoffset = atoi(optarg);     break;
+          case 'R': opts[3] = 'S';              break;
+          case 'r': options.revcompq = 1;               break;
+          case 's': options.soffset = atoi(optarg);     break;
+          case 'S': 
+            options.selfcall = 1;
+            options.qname = messalloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
+            options.qlen = atoi(argv[optind+1]);
+            options.sname = messalloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
+            options.slen = atoi(argv[optind+3]);
+            dotterBinary = messalloc(strlen(argv[optind+4])+1);
+            strcpy(dotterBinary, argv[optind+4]);
+                                              break;
+          case 'W': 
+            options.winsize = messalloc(strlen(optarg)+1);
+            strcpy(options.winsize, optarg);          break;
+          case 'w': opts[1] = 'W';              break;
+          case 'z': options.dotterZoom = atoi(optarg);  break;
+          default : fatal("Illegal option");
+      }
+    }
+  
+    if (!options.savefile)
       {
 	graphInit(&argc, argv);
 	gexInit(&argc, argv);
@@ -310,33 +334,44 @@ int main(int argc, char **argv)
 	}
     }
 
-    if (selfcall) /* Dotter calling dotter */
-    {
-	qseq = (char *)messalloc(qlen+1);
-	sseq = (char *)messalloc(slen+1);
+    if (options.selfcall) /* Dotter calling dotter */
+      {
+	qseq = (char *)messalloc(options.qlen+1);
+	sseq = (char *)messalloc(options.slen+1);
 
-	if ((l=fread(qseq, 1, qlen, stdin)) != qlen) 
-	    fatal("Only read %d chars to qseq, expected %d", l, qlen);
-	qseq[qlen] = 0;
+        int l = fread(qseq, 1, options.qlen, stdin); 
+	if (l != options.qlen) 
+          {
+	    fatal("Only read %d chars to qseq, expected %d", l, options.qlen);
+          }
+	qseq[options.qlen] = 0;
 
-	if ((l=fread(sseq, 1, slen, stdin)) != slen) 
-	    fatal("Only read %d chars to sseq, expected %d", l, slen);
-	sseq[slen] = 0;
+        l = fread(sseq, 1, options.slen, stdin);
+	if (l != options.slen) 
+          {
+	    fatal("Only read %d chars to sseq, expected %d", l, options.slen);
+          }
+	sseq[options.slen] = 0;
 
 	/* Read in MSPs */
 	while (!feof (stdin))
-	{ 
+          { 
 	    char *cp;
-	    if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF ) break;
+	    if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF)
+              {
+                break;
+              }
 	    
-	    if (!MSPlist) {
+	    if (!MSPlist) 
+              {
 		MSPlist = (MSP *)messalloc(sizeof(MSP));
 		msp = MSPlist;
-	    }
-	    else {
+              }
+	    else
+              {
 		msp->next = (MSP *)messalloc(sizeof(MSP));
 		msp = msp->next;
-	    }
+              }
 	    
 	    cp = text;
 	    while (*cp == ' ') cp++;
@@ -364,87 +399,116 @@ int main(int argc, char **argv)
 		insertFS(msp, "chain_separator");
 		opts[4] = 'L';
 	      }
-	}
+          }
 	fclose(stdin);
-    }
-    else if (!seqInSFS)
-    {
-	if (argc - optind < 2) {
+      }
+    else if (!options.seqInSFS)
+      {
+	if (argc - optind < 2) 
+          {
 	    fprintf(stderr, "%s\n", usage); 
 	    exit(1);
-	}
-	else if(!(qfile = fopen(argv[optind], "r"))) {
+          }
+	else if(!(qfile = fopen(argv[optind], "r"))) 
+          {
 	    fprintf(stderr,"Cannot open %s\n", argv[optind]); exit(1);
-	}
+          }
+      
 	qfilename = argv[optind];
 	fseek(qfile, 0, SEEK_END);
-	qlen = ftell(qfile);
-	qseq = (char *)messalloc(qlen+1);
+	options.qlen = ftell(qfile);
+	qseq = (char *)messalloc(options.qlen+1);
 	fseek(qfile, 0, SEEK_SET);
+      
 	if ((cp = (char *)strrchr(argv[optind], '/')))
-	  qname = strnew(cp+1, 0);
+          {
+            options.qname = strnew(cp+1, 0);
+          }
 	else
-	  qname = strnew(argv[optind], 0);
+          {
+            options.qname = strnew(argv[optind], 0);
+          }
 
-	if (!(sfile = fopen(argv[optind+1], "r"))) {
+	if (!(sfile = fopen(argv[optind+1], "r"))) 
+          {
 	    fprintf(stderr,"Cannot open %s\n", argv[optind+1]); exit(1);
-	}
+          }
+      
 	sfilename = argv[optind+1];
 	fseek(sfile, 0, SEEK_END);
-	slen = ftell(sfile);
-	sseq = (char *)messalloc(slen+1);
+	options.slen = ftell(sfile);
+	sseq = (char *)messalloc(options.slen+1);
 	fseek(sfile, 0, SEEK_SET);
+      
 	if ((cp = (char *)strrchr(argv[optind]+1, '/')))
-	  sname = strnew(cp+1, 0);
+          {
+            options.sname = strnew(cp+1, 0);
+          }
 	else
-	  sname = strnew(argv[optind+1], 0);
+          {
+            options.sname = strnew(argv[optind+1], 0);
+          }
 
 	/* Read in the sequences */
-	l = count = 0;
+	int l = 0, count = 0;
 	cc = qseq;
+      
 	while (!feof(qfile))
-	{
-	    if (!fgets(line, MAXLINE, qfile))
-	      break;
-	    if ((cq = (char *)strchr(line, '\n')))
-	      *cq = 0;
+          {
+            if (!fgets(line, MAXLINE, qfile))
+              {
+                break;
+              }
+        
+            if ((cq = (char *)strchr(line, '\n')))
+              {
+                *cq = 0;
+              }
 
-	    /* Name headers */
-	    if ((cq = (char *)strchr(line, '>'))) {
-		cq++;
-		if (++l == 1) {
-		    qname = messalloc(strlen(cq)+1); strNamecpy(qname, cq);
-		    firstdesc = messalloc(strlen(cq)+1);
-		    strcpy(firstdesc, cq);
-		}
-		else {
-		  /* Multiple sequences - add break lines */
+            /* Name headers */
+            if ((cq = (char *)strchr(line, '>'))) 
+              {
+                cq++;
+                if (++l == 1) 
+                  {
+                    options.qname = messalloc(strlen(cq)+1); strNamecpy(options.qname, cq);
+                    firstdesc = messalloc(strlen(cq)+1);
+                    strcpy(firstdesc, cq);
+                  }
+                else
+                  {
+                  /* Multiple sequences - add break lines */
+                    if (l == 2) 
+                      {
+                        opts[4] = 'L';
 
-		    if (l == 2) {
-			opts[4] = 'L';
-
-		        /* Second sequence - add break line to mark first sequence */
-		        addBreakline (&MSPlist, qfilename, firstdesc, 0, '1');
-			
-			/* change sequence name to filename */
-			qname = messalloc(strlen(qfilename)+1); strcpy(qname, qfilename);
-		    }
-		    addBreakline (&MSPlist, qfilename, cq, count, '1');
-		}
-	    }
-	    else {
-		for (cq = line; *cq; cq++) if (isalpha(*cq)) {
-		    *cc++ = *cq;
-		    count++;
-		}
-	    }
-	}
+                        /* Second sequence - add break line to mark first sequence */
+                        addBreakline (&MSPlist, qfilename, firstdesc, 0, '1');
+                        
+                        /* change sequence name to filename */
+                        options.qname = messalloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
+                      }
+                    
+                    addBreakline (&MSPlist, qfilename, cq, count, '1');
+                  }
+              }
+            else 
+              {
+                for (cq = line; *cq; cq++) if (isalpha(*cq)) 
+                  {
+                    *cc++ = *cq;
+                    count++;
+                  }
+              }
+          }
+      
 	*cc = 0;
 	
-	l = count = 0;
+	l = 0, count = 0;
 	cc = sseq;
+      
 	while (!feof(sfile))
-	{
+          {
 	    if (!fgets(line, MAXLINE, sfile))
 	      break;
 	    if ((cq = (char *)strchr(line, '\n')))
@@ -454,7 +518,7 @@ int main(int argc, char **argv)
 	    if ((cq = (char *)strchr(line, '>'))) {
 		cq++;
 		if (++l == 1) {
-		    sname = messalloc(strlen(cq)+1); strNamecpy(sname, cq);
+		    options.sname = messalloc(strlen(cq)+1); strNamecpy(options.sname, cq);
 		    firstdesc = messalloc(strlen(cq)+1);
 		    strcpy(firstdesc, cq);
 		}
@@ -468,72 +532,85 @@ int main(int argc, char **argv)
 		        addBreakline (&MSPlist, sfilename, firstdesc, 0, '2');
 			
 			/* change sequence name to filename */
-			sname = messalloc(strlen(sfilename)+1); strcpy(sname, sfilename);
+			options.sname = messalloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
 		    }
 		    addBreakline (&MSPlist, sfilename, cq, count, '2');
 		}
 	    }
-	    else {
-		for (cq = line; *cq; cq++) if (isalpha(*cq)) {
+	    else 
+              {
+		for (cq = line; *cq; cq++) if (isalpha(*cq)) 
+                  {
 		    *cc++ = *cq;
 		    count++;
-		}
-	    }
-	}
+                  }
+              }
+          }
+        
 	*cc = 0;
-    }
+      }
 
-    if (FSfilename) {
+    if (options.FSfilename) 
+      {
 	char dummyopts[32];	/* opts have different meaning in blixem */
 	FILE *file;
 	
-	if (!strcmp(FSfilename, "-")) {
+	if (!strcmp(options.FSfilename, "-")) 
+          {
 	    file = stdin;
-	}
-	else if(!(file = fopen(FSfilename, "r")))
-	    messcrash("Cannot open %s\n", FSfilename);
+          }
+	else if(!(file = fopen(options.FSfilename, "r")))
+          {
+	    messcrash("Cannot open %s\n", options.FSfilename);
+          }
 	
-	parseFS(&MSPlist, file, dummyopts, &qseq, qname, &sseq, sname, qoffset);
-    }
+	parseFS(&MSPlist, file, dummyopts, &qseq, options.qname, &sseq, options.sname, options.qoffset);
+      }
 
     /* Determine sequence types */
-    if (Seqtype(qseq) == 'P' && Seqtype(sseq) == 'P') {
+    if (Seqtype(qseq) == 'P' && Seqtype(sseq) == 'P') 
+      {
 	printf("\nDetected sequence types: Protein vs. Protein\n");
 	type = 'P';
-    }
-    else if (Seqtype(qseq) == 'N' && Seqtype(sseq) == 'N') {
+      }
+    else if (Seqtype(qseq) == 'N' && Seqtype(sseq) == 'N') 
+      {
 	printf("\nDetected sequence types: DNA vs. DNA\n");
 	type = 'N';
-    }
-    else if (Seqtype(qseq) == 'N' && Seqtype(sseq) == 'P') {
+      }
+    else if (Seqtype(qseq) == 'N' && Seqtype(sseq) == 'P') 
+      {
 	printf("\nDetected sequence types: DNA vs. Protein\n");
 	type = 'X';
-    }
+      }
     else fatal("Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
 
-    if (revcompq) {
+    if (options.revcompq) 
+      {
 	if (type != 'X')
+          {
 	    fatal("Revcomp'ing horizontal_sequence only needed in DNA vs. Protein");
-	else {
-	    cc = messalloc(qlen+1);
+          }
+	else 
+          {
+	    cc = messalloc(options.qlen+1);
 	    revComplement(cc, qseq);
 	    messfree(qseq);
 	    qseq = cc;
-	}
-    }
+          }
+      }
 
     /* Add -install for private colormaps */
-    if (install) argvAdd(&argc, &argv, "-install");
-
-    if (!savefile)
+    if (options.install) 
       {
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-	graphLoop(dotter(type, opts, qname, qseq, qoffset, sname, sseq, soffset, 
-			 0, 0, savefile, loadfile, mtxfile, memoryLimit, dotterZoom, MSPlist, 0, winsize, pixelFacset));
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+        argvAdd(&argc, &argv, "-install");
+      }
 
-	dotter(type, opts, qname, qseq, qoffset, sname, sseq, soffset, 
-	       0, 0, savefile, loadfile, mtxfile, memoryLimit, dotterZoom, MSPlist, 0, winsize, pixelFacset) ;
+    if (!options.savefile)
+      {
+	dotter(type, opts, options.qname, qseq, options.qoffset, options.sname, sseq, options.soffset, 
+	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
+               options.dotterZoom, MSPlist, 0, options.winsize, options.pixelFacset) ;
 
 	graphLoop(0) ;
 
@@ -547,8 +624,9 @@ int main(int argc, char **argv)
 	messErrorRegister (nullContext);
 	messExitRegister(nullContext);
 	messCrashRegister (nullContext);
-	dotter(type, opts, qname, qseq, qoffset, sname, sseq, soffset, 
-	       0, 0, savefile, loadfile, mtxfile, memoryLimit, dotterZoom, MSPlist, 0, winsize, pixelFacset);
+	dotter(type, opts, options.qname, qseq, options.qoffset, options.sname, sseq, options.soffset, 
+	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
+               options.dotterZoom, MSPlist, 0, options.winsize, options.pixelFacset);
       }
 
     return (0) ;
