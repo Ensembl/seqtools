@@ -25,8 +25,8 @@ static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpoint
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
 static int		scrollBarWidth();
 static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
-static GList*		treeGetSequenceRows(GtkWidget *tree, const SequenceStruct *clickedSeq);
-static SequenceStruct*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
+static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequenceStruct *clickedSeq);
+static BlxSequenceStruct*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -229,10 +229,10 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 }
 
 
-/* Add a SequenceStruct to as a row in the given tree store */
+/* Add a BlxSequenceStruct to as a row in the given tree store */
 static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 {
-  SequenceStruct *subjectSeq = (SequenceStruct*)listItemData;
+  BlxSequenceStruct *subjectSeq = (BlxSequenceStruct*)listItemData;
   
   if (subjectSeq && subjectSeq->mspList && g_list_length(subjectSeq->mspList) > 0)
     {
@@ -289,7 +289,7 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, tree, NULL);
 
   /* Add the rows - one row per sequence. Use the list we've already compiled of all
-   * sequences as SequenceStructs */
+   * sequences as BlxSequenceStructs */
   GList *seqList = blxWindowGetAllMatchSeqs(treeGetBlxWindow(tree));
   g_list_foreach(seqList, addSequenceStructToRow, store);
 
@@ -631,7 +631,7 @@ void treeScrollSelectionIntoView(GtkWidget *tree, gpointer data)
 {
   /* Get the last selected sequence */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  const SequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
+  const BlxSequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
   
   /* Get the tree row(s) that contain that sequence. (If multiple, just use 1st one) */
   GList *rows = treeGetSequenceRows(tree, lastSelectedSeq);
@@ -1022,7 +1022,7 @@ static void treeSelectRowRange(GtkWidget *blxWindow, GtkTreeModel *model, GtkTre
       GtkTreeIter currentIter;
       if (gtk_tree_model_get_iter(model, &currentIter, currentPath))
 	{
-	  SequenceStruct *currentSeq = treeGetSequence(model, &currentIter);
+	  BlxSequenceStruct *currentSeq = treeGetSequence(model, &currentIter);
 	  blxWindowSelectSeq(blxWindow, currentSeq);
 	}
       else
@@ -1072,7 +1072,7 @@ static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
       gtk_tree_model_get_iter(model, &clickedIter, clickedPath);
       
       /* Get the sequence of the MSP(s) in this row */
-      SequenceStruct *clickedSeq = treeGetSequence(model, &clickedIter);
+      BlxSequenceStruct *clickedSeq = treeGetSequence(model, &clickedIter);
 
       if (clickedSeq)
 	{
@@ -1091,7 +1091,7 @@ static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
 	  else if (!ctrlModifier && shiftModifier)
 	    {
 	      /* Shift pressed: select all rows between the last-selected sequence and the clicked row */
-	      const SequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
+	      const BlxSequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
 	      GList *lastSelectedRows = treeGetSequenceRows(tree, lastSelectedSeq);
 	      
 	      if (g_list_length(lastSelectedRows) > 0) /* do nothing if no rows were previously selected */
@@ -1121,7 +1121,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
   
   if (selectedSeqs)
     {
-      const SequenceStruct *clickedSeq = (const SequenceStruct*)selectedSeqs->data;
+      const BlxSequenceStruct *clickedSeq = (const BlxSequenceStruct*)selectedSeqs->data;
       char *seqName = clickedSeq->fullName;
       fetchAndDisplaySequence(seqName, 0, blxWindow);
     }
@@ -1247,9 +1247,9 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 }
 
 
-static SequenceStruct* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter)
+static BlxSequenceStruct* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter)
 {
-  SequenceStruct *result = NULL;
+  BlxSequenceStruct *result = NULL;
   GList *mspGList = treeGetMsps(model, iter);
   
   if (g_list_length(mspGList) > 0)
@@ -1263,7 +1263,7 @@ static SequenceStruct* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter)
 
 
 /* Get all the tree rows that contain MSPs from the given sequence */
-static GList *treeGetSequenceRows(GtkWidget *tree, const SequenceStruct *clickedSeq)
+static GList *treeGetSequenceRows(GtkWidget *tree, const BlxSequenceStruct *clickedSeq)
 {
   GList *resultList = NULL;
   
@@ -1299,7 +1299,7 @@ gboolean treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboo
 {
   /* Get the last selected sequence */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  SequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
+  BlxSequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
   
   /* Get the row in this tree that contain MSPs from that sequence (if there are multiple 
    * rows behaviour is a bit ambiguous; for now just act on the first one that was found) */
@@ -1327,7 +1327,7 @@ gboolean treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboo
       
       if (newRowExists)
 	{
-	  SequenceStruct *newSeq = treeGetSequence(model, &newRowIter);
+	  BlxSequenceStruct *newSeq = treeGetSequence(model, &newRowIter);
 
 	  if (shiftModifier && blxWindowIsSeqSelected(blxWindow, newSeq))
 	    {

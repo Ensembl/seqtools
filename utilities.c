@@ -9,7 +9,7 @@
 #include "SeqTools/utilities.h"
 
 static CallbackData*	  widgetGetCallbackData(GtkWidget *widget);
-static SequenceStruct*	  findNameInSeqList(GList *seqList, const char *seqNameToFind);
+static BlxSequenceStruct* findNameInSeqList(GList *seqList, const char *seqNameToFind);
 
 /* Functions to get/set/destroy a GdkDrawable in a widget property, if a different drawable
  * than the window is required to be drawn to. The main purpose of this is for printing
@@ -836,36 +836,36 @@ const char* getSeqVariantName(const char *longName)
 }
 
 
-/* Return the full name of a SequenceStruct (including prefix and variant) */
-const char *sequenceGetFullName(const SequenceStruct *seq)
+/* Return the full name of a BlxSequenceStruct (including prefix and variant) */
+const char *sequenceGetFullName(const BlxSequenceStruct *seq)
 {
   return seq->fullName;
 }
 
 
-/* Return the variant name of a SequenceStruct (excludes prefix but includes variant) */
-const char *sequenceGetVariantName(const SequenceStruct *seq)
+/* Return the variant name of a BlxSequenceStruct (excludes prefix but includes variant) */
+const char *sequenceGetVariantName(const BlxSequenceStruct *seq)
 {
   return seq->variantName;
 }
 
 
-/* Return the display name of a SequenceStruct (same as variant name for now) */
-const char *sequenceGetDisplayName(const SequenceStruct *seq)
+/* Return the display name of a BlxSequenceStruct (same as variant name for now) */
+const char *sequenceGetDisplayName(const BlxSequenceStruct *seq)
 {
   return seq->variantName;
 }
 
 
-/* Return the short name of a SequenceStruct (excludes prefix and variant number) */
-const char *sequenceGetShortName(const SequenceStruct *seq)
+/* Return the short name of a BlxSequenceStruct (excludes prefix and variant number) */
+const char *sequenceGetShortName(const BlxSequenceStruct *seq)
 {
   return seq->shortName;
 }
 
 
-/* Frees all memory used by a SequenceStruct */
-void destroySequenceStruct(SequenceStruct *seq)
+/* Frees all memory used by a BlxSequenceStruct */
+void destroySequenceStruct(BlxSequenceStruct *seq)
 {
   if (seq)
     {
@@ -876,10 +876,10 @@ void destroySequenceStruct(SequenceStruct *seq)
 }
 
 
-/* Utility to create a SequenceStruct and initialise it with the given values. */
-static SequenceStruct* createSequenceStruct(char *fullName, MSP *msp)
+/* Utility to create a BlxSequenceStruct and initialise it with the given values. */
+static BlxSequenceStruct* createSequenceStruct(char *fullName, MSP *msp)
 {
-  SequenceStruct *seq = g_malloc(sizeof(SequenceStruct));
+  BlxSequenceStruct *seq = g_malloc(sizeof(BlxSequenceStruct));
   
   seq->fullName = fullName;
   
@@ -909,8 +909,8 @@ static SequenceStruct* createSequenceStruct(char *fullName, MSP *msp)
 }
 
 
-/* Find out which SequenceStruct the given MSP belongs to.  If a SequenceStruct for this 
- * sequence does not yet exist, create it and add it to the GList of SequenceStructs. */
+/* Find out which BlxSequenceStruct the given MSP belongs to.  If a BlxSequenceStruct for this 
+ * sequence does not yet exist, create it and add it to the GList of BlxSequenceStructs. */
 void addMspToSeqList(GList **seqList, MSP *msp)
 {
   /* Use the variant name as the key, excluding the 'x' or 'i' at the end if this
@@ -925,7 +925,7 @@ void addMspToSeqList(GList **seqList, MSP *msp)
     }
 
   /* See if this sequence name is already in the list */
-  SequenceStruct *subjectSeq = findNameInSeqList(*seqList, fullName);
+  BlxSequenceStruct *subjectSeq = findNameInSeqList(*seqList, fullName);
   
   if (subjectSeq)
     {
@@ -934,12 +934,12 @@ void addMspToSeqList(GList **seqList, MSP *msp)
     }
   else
     {
-      /* Create a new SequenceStruct struct containing this MSP, and add it to the list */
+      /* Create a new BlxSequenceStruct struct containing this MSP, and add it to the list */
       subjectSeq = createSequenceStruct(fullName, msp);
       *seqList = g_list_prepend(*seqList, subjectSeq);
     }
     
-  /* Set a pointer to the SequenceStruct from the MSP */
+  /* Set a pointer to the BlxSequenceStruct from the MSP */
   msp->sSequence = subjectSeq;
 }
 
@@ -1460,18 +1460,18 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-/* Returns the pointer to the SequenceStruct that has the given sequence name, if there
+/* Returns the pointer to the BlxSequenceStruct that has the given sequence name, if there
  * is one. Returns NULL otherwise */
-static SequenceStruct *findNameInSeqList(GList *seqList, const char *seqNameToFind)
+static BlxSequenceStruct *findNameInSeqList(GList *seqList, const char *seqNameToFind)
 {
-  SequenceStruct *result = NULL;
+  BlxSequenceStruct *result = NULL;
   
   /* Loop through all sequences in the list and look for one with a matching name */
   GList *listItem = seqList;
   
   for ( ; listItem; listItem = listItem->next)
     {
-      SequenceStruct *currentSeq = (SequenceStruct*)(listItem->data);
+      BlxSequenceStruct *currentSeq = (BlxSequenceStruct*)(listItem->data);
 
       if (!strcmp(currentSeq->fullName, seqNameToFind))
 	{

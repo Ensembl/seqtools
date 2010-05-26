@@ -526,7 +526,7 @@ gchar *getSequenceSegment(BlxViewContext *bc,
 
 /* Returns the order number of the group that this sequence belongs to, or
  * UNSET_INT if it does not belong to a group. */
-int sequenceGetGroupOrder(GtkWidget *blxWindow, const SequenceStruct *seq)
+int sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequenceStruct *seq)
 {
   SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, seq);
   return group ? group->order : UNSET_INT;
@@ -1056,7 +1056,7 @@ static GList* findSeqsFromName(GtkWidget *button, gpointer data)
 
 /* Finds all the valid sequences blixem knows about whose names are in the given
  * text entry box (passed as the user data), and returns them in a GList of
- * SequenceStructs. Only does anything if the given radio button is active. */
+ * BlxSequenceStructs. Only does anything if the given radio button is active. */
 static GList* findSeqsFromList(GtkWidget *button, gpointer data)
 {
   if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
@@ -1263,10 +1263,10 @@ static void blxWindowDeleteAllSequenceStructs(GtkWidget *blxWindow)
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   GList *listItem = blxContext->matchSeqs;
   
-  /* Delete any data the SequenceStructs own */
+  /* Delete any data the BlxSequenceStructs own */
   for ( ; listItem; listItem = listItem->next)
     {
-      SequenceStruct *seq = (SequenceStruct*)(listItem->data);
+      BlxSequenceStruct *seq = (BlxSequenceStruct*)(listItem->data);
       destroySequenceStruct(seq);
     }
   
@@ -1514,7 +1514,7 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
 static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 {
   SeqSearchData *searchData = (SeqSearchData*)data;
-  SequenceStruct *seq = (SequenceStruct*)listDataItem;
+  BlxSequenceStruct *seq = (BlxSequenceStruct*)listDataItem;
   
   /* Cut both down to the short versions of the variant name, in case one is the short
    * version and the other one isn't. */
@@ -1566,7 +1566,7 @@ static void addGroupFromName(GtkWidget *button, gpointer data)
 
 
 /* Utility function to take a list of names, and return a list of those that
- * that are valid sequence names from the given list of SequenceStructs. */
+ * that are valid sequence names from the given list of BlxSequenceStructs. */
 static GList* getSeqStructsFromNameList(GList *nameList, GList *seqList)
 {
   SeqSearchData searchData = {NULL, NULL};
@@ -1585,7 +1585,7 @@ static GList* getSeqStructsFromNameList(GList *nameList, GList *seqList)
 }
 
 
-/* Utility to create a GList of SequenceStructs from a textual list of sequences.
+/* Utility to create a GList of BlxSequenceStructs from a textual list of sequences.
  * Returns only valid sequences that blixem knows about. */
 static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText)
 {
@@ -3417,7 +3417,7 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const SequenceStruct *seqToFind)
+SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequenceStruct *seqToFind)
 {
   SequenceGroup *result = NULL;
   
@@ -3544,7 +3544,7 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 	  first = FALSE;
 	}
 
-      const SequenceStruct *seq = (const SequenceStruct*)(listItem->data);
+      const BlxSequenceStruct *seq = (const BlxSequenceStruct*)(listItem->data);
       g_string_append(result, sequenceGetDisplayName(seq));
     }
 
@@ -3586,7 +3586,7 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow)
 
 
 /* Call this function to select the given match sequence */
-void blxWindowSelectSeq(GtkWidget *blxWindow, SequenceStruct *seq)
+void blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequenceStruct *seq)
 {
   if (!blxWindowIsSeqSelected(blxWindow, seq))
     {
@@ -3610,7 +3610,7 @@ void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList)
 
 
 /* Call this function to deselect the given sequence */
-void blxWindowDeselectSeq(GtkWidget *blxWindow, SequenceStruct *seq)
+void blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequenceStruct *seq)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
@@ -3640,7 +3640,7 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 
 
 /* Returns true if the given sequence is selected */
-gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq)
+gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequenceStruct *seq)
 {
   GList *foundItem = NULL;
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -3655,7 +3655,7 @@ gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const SequenceStruct *seq)
 
 
 /* Set the given sequence as selected or unselected, depending on the given argument */
-void blxWindowSetSeqSelected(GtkWidget *blxWindow, SequenceStruct *seq, const gboolean selected)
+void blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequenceStruct *seq, const gboolean selected)
 {
   if (selected)
     {
@@ -3668,9 +3668,9 @@ void blxWindowSetSeqSelected(GtkWidget *blxWindow, SequenceStruct *seq, const gb
 }
 
 
-SequenceStruct* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
+BlxSequenceStruct* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
 {
-  SequenceStruct *result = NULL;
+  BlxSequenceStruct *result = NULL;
   
   GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   
@@ -3678,7 +3678,7 @@ SequenceStruct* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
     {
       /* Get the last-selected sequence */
       GList *lastItem = g_list_last(selectedSeqs);
-      result = (SequenceStruct*)(lastItem->data);
+      result = (BlxSequenceStruct*)(lastItem->data);
     }
   
   return result;

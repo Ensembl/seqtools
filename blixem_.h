@@ -25,7 +25,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.32 2010-05-25 15:03:50 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.33 2010-05-26 11:27:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -98,13 +98,13 @@ typedef enum {BLXMODE_UNSET, BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BL
 #define MAXLINE 10000
 
 
-/* Structure that groups several SequenceStructs in order to hide/highlight/sort them etc. */
+/* Structure that groups several BlxSequenceStructs in order to hide/highlight/sort them etc. */
 typedef struct _SequenceGroup
   {
     char *groupName;		/* user-friendly name for the group (should be unique to save confusion) */
     int groupId;		/* unique ID number for the group */
     int order;			/* field for sorting - lower numbers will be listed first */
-    GList *seqList;		/* list of SequenceStructs */
+    GList *seqList;		/* list of BlxSequenceStructs */
     gboolean ownsSeqNames;	/* If true, the group will free the sequence names when it is destroyed */
     gboolean hidden;		/* true if the group should be hidden from the detail view */
     gboolean highlighted;	/* true if the group should be highlighted */

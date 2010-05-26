@@ -386,7 +386,7 @@ static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
 /* Draw the MSPs for the given sequence in the given color. */
 static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 {
-  const SequenceStruct *seq = (const SequenceStruct*)listItemData;
+  const BlxSequenceStruct *seq = (const BlxSequenceStruct*)listItemData;
   DrawGridData *drawData = (DrawGridData*)data;  
   GList *mspListItem = seq->mspList;
 

@@ -540,7 +540,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
       return dotterSSeq;
     }
   
-  const SequenceStruct *seq = (const SequenceStruct*)(bc->selectedSeqs->data);
+  const BlxSequenceStruct *seq = (const BlxSequenceStruct*)(bc->selectedSeqs->data);
 
   /* If we're in seqbl mode, only part of the sequence is in the MSP. */
   const BlxBlastMode blastMode = bc->blastMode;
@@ -680,7 +680,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
   /* Loop through all MSPs in the selected sequence. We'll estimate the wanted
    * query region from the extent of the HSP's that are completely within view. */
-  const SequenceStruct *selectedSeq = (const SequenceStruct*)(selectedSeqs->data);
+  const BlxSequenceStruct *selectedSeq = (const BlxSequenceStruct*)(selectedSeqs->data);
   int qMin = UNSET_INT, qMax = UNSET_INT;
   GList *mspListItem = selectedSeq->mspList;  
   
@@ -934,7 +934,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
   
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
-  const SequenceStruct *selectedSeq = (const SequenceStruct*)(bc->selectedSeqs->data);
+  const BlxSequenceStruct *selectedSeq = (const BlxSequenceStruct*)(bc->selectedSeqs->data);
   const MSP *firstMsp = (const MSP*)(selectedSeq->mspList->data);
 
   if (!mspIsBlastMatch(firstMsp))

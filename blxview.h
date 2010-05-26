@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.16 2010-05-25 15:03:50 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.17 2010-05-26 11:27:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -63,7 +63,7 @@ typedef struct
 
 
 /* Structure that contains information about a sequence */
-typedef struct _SequenceStruct
+typedef struct _BlxSequenceStruct
 {
   char *fullName;	/* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
   char *shortName;	/* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
@@ -71,7 +71,7 @@ typedef struct _SequenceStruct
   
   const char *seq;	/* the actual sequence */
   GList *mspList;	/* list of MSPs from this sequence */
-} SequenceStruct;
+} BlxSequenceStruct;
 
 
 typedef struct _FeatureSeries {
@@ -120,9 +120,9 @@ typedef struct _MSP
   int               qstart;
   int               qend;
 
-  SequenceStruct    *sSequence;         /* pointer to a struct holding info about the sequence this match is from */
-  char              *sname;		/* sequence name (should be removed - get from SequenceStruct instead) */
-  char              *sseq;		/* sequence (should be removed - get from SequenceStruct instead) */
+  BlxSequenceStruct *sSequence;         /* pointer to a struct holding info about the sequence this match is from */
+  char              *sname;		/* sequence name (should be removed - get from BlxSequenceStruct instead) */
+  char              *sseq;		/* sequence (should be removed - get from BlxSequenceStruct instead) */
   char              sframe[8];          /* Change to just store the s strand (having a frame for the subject makes no sense....) */
 
   int               slength;            /* required? */

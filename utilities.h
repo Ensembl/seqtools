@@ -257,11 +257,11 @@ gboolean	      stringsEqual(gpointer key, gpointer value, gpointer data);
 gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
 
 const char*	      getSeqVariantName(const char *longName);
-const char*	      sequenceGetFullName(const SequenceStruct *seq);
-const char*	      sequenceGetVariantName(const SequenceStruct *seq);
-const char*	      sequenceGetDisplayName(const SequenceStruct *seq);
-const char*	      sequenceGetShortName(const SequenceStruct *seq);
-void		      destroySequenceStruct(SequenceStruct *seq);
+const char*	      sequenceGetFullName(const BlxSequenceStruct *seq);
+const char*	      sequenceGetVariantName(const BlxSequenceStruct *seq);
+const char*	      sequenceGetDisplayName(const BlxSequenceStruct *seq);
+const char*	      sequenceGetShortName(const BlxSequenceStruct *seq);
+void		      destroySequenceStruct(BlxSequenceStruct *seq);
 
 BlxColor*	      getBlxColor(GList *colorList, const BlxColorId colorId);
 

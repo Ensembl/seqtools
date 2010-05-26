@@ -964,7 +964,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colors if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
-  const SequenceStruct *seq = firstMsp ? firstMsp->sSequence : NULL;
+  const BlxSequenceStruct *seq = firstMsp ? firstMsp->sSequence : NULL;
 
   GdkColor *matchColor = getGdkColor(bc, BLXCOL_MATCH, FALSE);
   GdkColor *matchColorSelected = getGdkColor(bc, BLXCOL_MATCH, TRUE);

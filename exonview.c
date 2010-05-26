@@ -151,7 +151,7 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
  * specified in the user data */
 static void drawExonIntronItem(gpointer listItemData, gpointer data)
 {
-  const SequenceStruct *seq = (const SequenceStruct*)listItemData;
+  const BlxSequenceStruct *seq = (const BlxSequenceStruct*)listItemData;
   DrawData *drawData = (DrawData*)data;
 
   const gboolean isSelected = blxWindowIsSeqSelected(drawData->blxWindow, seq);
@@ -268,7 +268,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
   for ( ; seqItem; seqItem = seqItem->next)
     {
       /* Loop through all msps */
-      const SequenceStruct *seq = (SequenceStruct*)(seqItem->data);
+      const BlxSequenceStruct *seq = (BlxSequenceStruct*)(seqItem->data);
       GList *mspItem = seq->mspList;
       
       for ( ; mspItem; mspItem = mspItem->next)

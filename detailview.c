@@ -747,7 +747,7 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
 /* Get the text displayed in the user feedback box based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). 
  * The string returned by this function must be free'd with g_free. */
-static char* getFeedbackText(GtkWidget *detailView, const SequenceStruct *seq, const int numSeqsSelected)
+static char* getFeedbackText(GtkWidget *detailView, const BlxSequenceStruct *seq, const int numSeqsSelected)
 {
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
@@ -846,7 +846,7 @@ void updateFeedbackBox(GtkWidget *detailView)
   
   if (numSeqsSelected == 1) /* currently we only properly handle single sequence selection */
     {
-      const SequenceStruct *seq = (const SequenceStruct*)(bc->selectedSeqs->data);
+      const BlxSequenceStruct *seq = (const BlxSequenceStruct*)(bc->selectedSeqs->data);
       messageText = getFeedbackText(detailView, seq, numSeqsSelected);
     }
   else
@@ -3420,7 +3420,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 	    }
 	}
       
-      /* Add the MSP to a SequenceStruct in the sequence list. */
+      /* Add the MSP to a BlxSequenceStruct in the sequence list. */
       addMspToSeqList(&bc->matchSeqs, msp);
     }
     
