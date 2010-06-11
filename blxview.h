@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.17 2010-05-26 11:27:09 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.18 2010-06-11 09:29:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -38,7 +38,7 @@
 
 
 /* Only used in pephomolcol.c, would be good to get rid of this.... */
-#define FULLNAMESIZE 255
+#define FULLNAMESIZE               255
 
 
 
@@ -57,53 +57,72 @@ typedef struct
  * which should be used in code that writes these files.
  * 
  *  */
-#define BLX_GAPS_TAG "Gaps"
-#define BLX_DESCRIPTION_TAG "Description"
-#define BLX_SEQUENCE_TAG "Sequence"
+#define BLX_GAPS_TAG               "Gaps"
+#define BLX_DESCRIPTION_TAG        "Description"
+#define BLX_SEQUENCE_TAG           "Sequence"
+
+
+/* Fundamental strand direction. */
+typedef enum
+  {
+    BLXSTRAND_NONE, 
+    BLXSTRAND_FORWARD, 
+    BLXSTRAND_REVERSE
+  } BlxStrand ;
 
 
 /* Structure that contains information about a sequence */
-typedef struct _BlxSequenceStruct
+typedef struct _BlxSequence
 {
-  char *fullName;	/* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
-  char *shortName;	/* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
-  const char *variantName;	/* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
+  char *fullName;                  /* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
+  char *shortName;                 /* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
+  char *variantName;               /* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
   
-  const char *seq;	/* the actual sequence */
-  GList *mspList;	/* list of MSPs from this sequence */
-} BlxSequenceStruct;
+  BlxStrand strand;                /* which strand of the sequence this is */
+  char *sequence;                  /* the actual sequence data */
+  gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
+  GList *mspList;                  /* list of MSPs from this sequence */
+} BlxSequence;
 
 
-typedef struct _FeatureSeries {
-    char        *name;        /* Name of the Feature Series */
-    int         on;           /* Flag to show/hide the Feature Series */
-    int         order;        /* Order number used for sorting */
-    float       x;	      /* Series offset on x axis, to bump series on the screen */
-    float       y;	      /* Series offset on y axis */
-    int         xy;	      /* Flag for XY plot series */
-} FeatureSeries;
+typedef struct _FeatureSeries
+  {
+    char        *name;             /* Name of the Feature Series */
+    int         on;                /* Flag to show/hide the Feature Series */
+    int         order;             /* Order number used for sorting */
+    float       x;	           /* Series offset on x axis, to bump series on the screen */
+    float       y;	           /* Series offset on y axis */
+    int         xy;	           /* Flag for XY plot series */
+  } FeatureSeries;
 
 
 /* Shapes of XY curves */
-typedef enum { BLXCURVE_PARTIAL, BLXCURVE_INTERPOLATE, BLXCURVE_BADSHAPE } BlxCurveShape;
+typedef enum
+  { 
+    BLXCURVE_PARTIAL, 
+    BLXCURVE_INTERPOLATE, 
+    BLXCURVE_BADSHAPE
+  } BlxCurveShape;
 
 
 /* Supported types of MSP */
 typedef enum 
   {
-    BLXMSP_INVALID,               /* No valid type was set */
+    BLXMSP_INVALID,                /* No valid type was set */
     
-    BLXMSP_MATCH,                 /* Standard Blast match / alignment */
-    BLXMSP_EXON,                  /* Exon */
-    BLXMSP_INTRON,                /* Intron */
+    BLXMSP_MATCH,                  /* Standard Blast match / alignment */
+    BLXMSP_EXON_CDS,               /* Exon (coding section) */
+    BLXMSP_EXON_UTR,               /* Exon (untranslated region i.e. non-coding section) */
+    BLXMSP_EXON_UNK,               /* Exon (unknown type) */
+    BLXMSP_INTRON,                 /* Intron */
     
-    BLXMSP_SNP,                   /* Single Nucleotide Polymorphism */
+    BLXMSP_SNP,                    /* Single Nucleotide Polymorphism */
     
-    BLXMSP_HSP,                   /*  */
-    BLXMSP_GSP,                   /*  */
+    BLXMSP_HSP,                    /*  */
+    BLXMSP_GSP,                    /*  */
 
-    BLXMSP_FS_SEG,                /* Feature Series Segment */
-    BLXMSP_XY_PLOT                /* x/y coordinates - for plotting feature-series curves */
+    BLXMSP_FS_SEG,                 /* Feature Series Segment */
+    BLXMSP_XY_PLOT                 /* x/y coordinates - for plotting feature-series curves */
   } BlxMspType;
 
 
@@ -111,32 +130,33 @@ typedef enum
 typedef struct _MSP
 {
   struct _MSP       *next;
-  BlxMspType        type;		/* See enum above */
+  BlxMspType        type;          /* See enum above */
   int               score;
   int               id;
 
-  char              *qname;		/* For Dotter, the MSP can belong to either sequence */
-  char              qframe[8];		
-  int               qstart;
-  int               qend;
+  char              *qname;        /* For Dotter, the MSP can belong to either sequence */
+  char              qframe[8];     /* obsolete - use qFrame and qStrand instead */
+  int               qstart;        /* the start coord of the match on the ref sequence */
+  int               qend;          /* the end coord of the match on the ref sequence */
+  BlxStrand         qStrand;       /* which strand on the reference sequence the match is on */
+  int               qFrame;        /* which frame on the reference sequence the match is on */
 
-  BlxSequenceStruct *sSequence;         /* pointer to a struct holding info about the sequence this match is from */
-  char              *sname;		/* sequence name (should be removed - get from BlxSequenceStruct instead) */
-  char              *sseq;		/* sequence (should be removed - get from BlxSequenceStruct instead) */
-  char              sframe[8];          /* Change to just store the s strand (having a frame for the subject makes no sense....) */
+  BlxSequence       *sSequence;    /* pointer to a struct holding info about the sequence/strand this match is from */
+  char              *sname;        /* sequence name (could be different to the sequence name in the blxSequence e.g. exons have a postfixed 'x') */
+  char              sframe[8];     /* obsolete - use sStrand instead */
 
-  int               slength;            /* required? */
-  int               sstart;             /* Start coord of match on the subject sequence */
-  int               send;               /* End coord of the match on the subject sequence */
+  int               slength;       /* required? */
+  int               sstart;        /* Start coord of match on the subject sequence */
+  int               send;          /* End coord of the match on the subject sequence */
   
-  char              *desc;              /* Optional description text for the MSP */
-  Array             gaps;               /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array
-                                         * gives the ranges of the bits that align, and the gaps are the bits in between */
+  char              *desc;         /* Optional description text for the MSP */
+  GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array
+                                    * gives the ranges of the bits that align, and the gaps are the bits in between */
 
-  FeatureSeries     *fs;                /* Feature series that this MSP belongs to */
-  int               fsColor;            /* Color to draw this MSP in the feature series */
-  BlxCurveShape     fsShape;            /* Shape data for drawing feature series curves, i.e. XY type PARTIAL or INTERPOLATE shapes */
-  Array             xy;                 /* For XY plot feature series */
+  FeatureSeries     *fs;           /* Feature series that this MSP belongs to */
+  int               fsColor;       /* Color to draw this MSP in the feature series */
+  BlxCurveShape     fsShape;       /* Shape data for drawing feature series curves, i.e. XY type PARTIAL or INTERPOLATE shapes */
+  Array             xy;            /* For XY plot feature series */
 
   
 #ifdef ACEDB
@@ -146,9 +166,16 @@ typedef struct _MSP
 
 
 /* Function to show blixem window, can be called from any application. */
-int blxview (char *refSeq, char *refSeqName,
-	     int start, int qOffset, MSP *msplist, char *opts, 
-	     PfetchParams *pfetch, char *align_types, BOOL External) ;
+int                                blxview(char *refSeq, 
+                                           char *refSeqName,
+	                                   int start, 
+                                           int qOffset, 
+                                           MSP *msplist, 
+                                           GList *seqList, 
+                                           char *opts, 
+	                                   PfetchParams *pfetch, 
+                                           char *align_types, 
+                                           BOOL External) ;
 
 
 #endif /*  !defined DEF_BLXVIEW_H */

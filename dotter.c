@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.7 2010-05-25 15:03:50 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.8 2010-06-11 09:29:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1787,7 +1787,6 @@ static void drawGenes(MSP *msp)
     boxHeight=10,
     textHeight,
     oldLinew;
-  char strand;
   int i;
   float posx=0, posy=0;		/* Next series to be drawn */
 
@@ -1810,10 +1809,12 @@ static void drawGenes(MSP *msp)
   oldLinew = graphLinewidth(1);
 
 
+  BlxStrand strand = BLXSTRAND_NONE;
+  
   if (selfcomp || !reversedScale) 
-    strand = '+';
+    strand = BLXSTRAND_FORWARD;
   else 
-    strand = '-';
+    strand = BLXSTRAND_REVERSE;
 
 
   for (; msp; msp = msp->next)
@@ -1825,7 +1826,7 @@ static void drawGenes(MSP *msp)
 	  sx = seq2graphX(msp->qstart);
 	  ex = seq2graphX(msp->qend);
 
-	  if (msp->qframe[1] != strand)
+	  if (msp->qStrand != strand)
 	    y = reverse_y ;
 	  else
 	    y = forward_y ;
@@ -1892,7 +1893,11 @@ static void drawGenes(MSP *msp)
 	      ey += TopBorder-1;
 		
 	      x = LeftBorder + qlen4 + 10;
-	      if (msp->qframe[1] != strand) x += 20;
+              
+	      if (msp->qStrand != strand)
+                {
+                  x += 20;
+                }
 		
 	      if (msp->score == -1) /* EXON */
 	        {
@@ -1926,7 +1931,6 @@ static void drawAllFeatures(MSP *msp)
     boxHeight=10,
     textHeight,
     oldLinew;
-  char strand;
   int i;
   float posx=0, posy=0;		/* Next series to be drawn */
 
@@ -1969,11 +1973,12 @@ static void drawAllFeatures(MSP *msp)
 
   oldLinew = graphLinewidth(1);
 
-
+  BlxStrand strand = BLXSTRAND_NONE;
+  
   if (selfcomp || !reversedScale) 
-    strand = '+';
+    strand = BLXSTRAND_FORWARD;
   else 
-    strand = '-';
+    strand = BLXSTRAND_REVERSE;
 
 
   for (; msp; msp = msp->next)
@@ -1985,7 +1990,7 @@ static void drawAllFeatures(MSP *msp)
 	  sx = seq2graphX(msp->qstart);
 	  ex = seq2graphX(msp->qend);
 
-	  if (msp->qframe[1] != strand)
+	  if (msp->qStrand != strand)
 	    y = reverse_y ;
 	  else
 	    y = forward_y ;
@@ -2042,16 +2047,16 @@ static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
 
   float height,		/* box height/width */
     sy, ey, midy, x, y, oldLinew ;
-  char strand;
 
   height = fonth ;
 
   oldLinew = graphLinewidth(1);
 
+  BlxStrand strand = BLXSTRAND_NONE;
   if (selfcomp || !reversedScale) 
-    strand = '+';
+    strand = BLXSTRAND_FORWARD;
   else 
-    strand = '-';
+    strand = BLXSTRAND_REVERSE;
 
 
   if (bump_genes)
@@ -2118,7 +2123,7 @@ static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
 	{    
 	  if (msp->score < 0)
 	    {
-	      if (msp->qframe[1] != strand)
+	      if (msp->qStrand != strand)
 		y = reverse_y ;
 	      else
 		y = forward_y ;
@@ -2135,7 +2140,7 @@ static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
 		  ey += TopBorder-1;
 		
 		  x = LeftBorder + qlen4 + 10;
-		  if (msp->qframe[1] != strand) x += 20;
+		  if (msp->qStrand != strand) x += 20;
 		
 		  if (msp->score == -1) /* EXON */
 		    {

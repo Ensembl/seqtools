@@ -21,11 +21,12 @@
  * 	Richard Durbin (Sanger Centre, UK) rd@sanger.ac.uk, and
  *	Jean Thierry-Mieg (CRBM du CNRS, France) mieg@kaa.crbm.cnrs-mop.fr
  *
- * Description: Internal header for blixem code.
+ * Description: Internal header for Dotter and Blixem package-wide code
+ * 
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.33 2010-05-26 11:27:09 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.34 2010-06-11 09:29:47 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -45,20 +46,20 @@
 #define BLIXEM_VERSION 4
 #define BLIXEM_RELEASE 0
 #define BLIXEM_UPDATE  1
-#define BLIXEM_VERSION_NUMBER	    UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_VERSION_STRING	    UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_TITLE_STRING	    UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_VERSION_COMPILE	    BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
+#define BLIXEM_VERSION_NUMBER	   UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
+#define BLIXEM_VERSION_STRING	   UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
+#define BLIXEM_TITLE_STRING	   UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
+#define BLIXEM_VERSION_COMPILE	   BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
 
-#define BLIXEM_COPYRIGHT_STRING	    "Copyright (c) 2009-2010: Genome Research Ltd."
-#define BLIXEM_WEBSITE_STRING	    ""
-#define BLIXEM_LICENSE_STRING	    "Blixem is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
+#define BLIXEM_COPYRIGHT_STRING	   "Copyright (c) 2009-2010: Genome Research Ltd."
+#define BLIXEM_WEBSITE_STRING	   ""
+#define BLIXEM_LICENSE_STRING	   "Blixem is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
 
-#define BLIXEM_AUTHOR_LIST	    " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>",\
-				    " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
+#define BLIXEM_AUTHOR_LIST	   " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>",\
+				   " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
 
-#define BLIXEM_AUTHOR_TEXT	    " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>\n" \
-				    " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
+#define BLIXEM_AUTHOR_TEXT	   " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>\n" \
+				   " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
 
 #define BLIXEM_COMMENTS_STRING(TITLE, VERSION, RELEASE, UPDATE)	\
 "("BLIXEM_TITLE_STRING", "					\
@@ -66,56 +67,6 @@
 BLIXEM_AUTHOR_TEXT "\n"
 
 
-
-/* Special characters for displaying in sequences */
-#define SEQUENCE_CHAR_GAP	'.'   /* represents a gap in the match sequence */
-#define SEQUENCE_CHAR_PAD	'-'   /* used for padding when the sequence is unavailable */
-#define SEQUENCE_CHAR_BLANK	'-'   /* used to display a blank when we're not interested in what the actual base is */
-#define SEQUENCE_CHAR_STOP	'*'   /* STOP codon */
-#define SEQUENCE_CHAR_MET	'M'   /* MET codon */
-
-
-/* MSP list is sorted by one of these criteria, currently BLXSORT_ID is the default. */
-typedef enum {BLXSORT_UNSORTED, BLXSORT_SCORE, BLXSORT_ID, BLXSORT_NAME, BLXSORT_POS, BLXSORT_GROUP} BlxSortMode ;
-
-/* Fundamental strand direction. */
-typedef enum {BLXSTRAND_NONE, BLXSTRAND_FORWARD, BLXSTRAND_REVERSE} BlxStrand ;
-
-/* Fundamental type of sequence. */
-typedef enum {BLXSEQ_INVALID, BLXSEQ_DNA, BLXSEQ_PEPTIDE} BlxSeqType ;
-
-/* Fundamental blast match mode used */
-typedef enum {BLXMODE_UNSET, BLXMODE_BLASTX, BLXMODE_TBLASTX, BLXMODE_BLASTN, BLXMODE_TBLASTN, BLXMODE_BLASTP} BlxBlastMode ;
-
-
-/* Really the buffers that use this should be dynamic but I'm not going to do that, this
- * code is so poor that it doesn't warrant the effort.... */
-#define NAMESIZE    12
-#define LONG_NAMESIZE 1000
-
-#define INITDBSEQLEN 50000				    /* Initial estimate of max database sequence length */
-
-#define MAXLINE 10000
-
-
-/* Structure that groups several BlxSequenceStructs in order to hide/highlight/sort them etc. */
-typedef struct _SequenceGroup
-  {
-    char *groupName;		/* user-friendly name for the group (should be unique to save confusion) */
-    int groupId;		/* unique ID number for the group */
-    int order;			/* field for sorting - lower numbers will be listed first */
-    GList *seqList;		/* list of BlxSequenceStructs */
-    gboolean ownsSeqNames;	/* If true, the group will free the sequence names when it is destroyed */
-    gboolean hidden;		/* true if the group should be hidden from the detail view */
-    gboolean highlighted;	/* true if the group should be highlighted */
-    GdkColor highlightColor;	/* the color to highlight the group's sequences in (in both the big picture and the detail view) */
-  } SequenceGroup;
-
-
-#define selectFeaturesStr     "Feature series selection tool"
-#define XY_NOT_FILLED -1000  /* Magic value meaning "value not provided" */
-
-  
 /* 
  * config file groups/keywords, these should not be changed willy nilly as they
  * are used external programs and users when constructing config files.
@@ -127,86 +78,202 @@ typedef struct _SequenceGroup
 
 
 /* For http pfetch proxy fetching of sequences/entries */
-#define PFETCH_PROXY_GROUP      "pfetch-http"
-#define PFETCH_PROXY_LOCATION   "pfetch"
-#define PFETCH_PROXY_COOKIE_JAR "cookie-jar"
-#define PFETCH_PROXY_MODE       "pfetch-mode"
-#define PFETCH_PROXY_PORT       "port"
+#define PFETCH_PROXY_GROUP         "pfetch-http"
+#define PFETCH_PROXY_LOCATION      "pfetch"
+#define PFETCH_PROXY_COOKIE_JAR    "cookie-jar"
+#define PFETCH_PROXY_MODE          "pfetch-mode"
+#define PFETCH_PROXY_PORT          "port"
 
 /* For direct pfetch socket fetching of sequences/entries */
-#define PFETCH_SOCKET_GROUP  "pfetch-socket"
-#define PFETCH_SOCKET_NODE   "node"
-#define PFETCH_SOCKET_PORT   "port"
+#define PFETCH_SOCKET_GROUP        "pfetch-socket"
+#define PFETCH_SOCKET_NODE         "node"
+#define PFETCH_SOCKET_PORT         "port"
 
 
 /* Fetch programs for sequence entries. */
-#define BLX_FETCH_PFETCH      PFETCH_SOCKET_GROUP
+#define BLX_FETCH_PFETCH           PFETCH_SOCKET_GROUP
 #ifdef PFETCH_HTML 
-#define BLX_FETCH_PFETCH_HTML PFETCH_PROXY_GROUP
+#define BLX_FETCH_PFETCH_HTML      PFETCH_PROXY_GROUP
 #endif
-#define BLX_FETCH_EFETCH      "efetch"
-#define BLX_FETCH_WWW_EFETCH  "WWW-efetch"
+#define BLX_FETCH_EFETCH           "efetch"
+#define BLX_FETCH_WWW_EFETCH       "WWW-efetch"
 #ifdef ACEDB
-#define BLX_FETCH_ACEDB       "acedb"
-#define BLX_FETCH_ACEDB_TEXT  "acedb text"
+#define BLX_FETCH_ACEDB            "acedb"
+#define BLX_FETCH_ACEDB_TEXT       "acedb text"
 #endif
 
 
+/* Special characters for displaying in sequences */
+#define SEQUENCE_CHAR_GAP    '.'   /* represents a gap in the match sequence */
+#define SEQUENCE_CHAR_PAD    '-'   /* used for padding when the sequence is unavailable */
+#define SEQUENCE_CHAR_BLANK  '-'   /* used to display a blank when we're not interested in what the actual base is */
+#define SEQUENCE_CHAR_STOP   '*'   /* STOP codon */
+#define SEQUENCE_CHAR_MET    'M'   /* MET codon */
 
-/* Dotter/Blixem Package-wide functions */
-void blxreadhsp(FILE *seqfile, FILE *exblxfile, char *featurefile, char *qname, 
-		 int dispstart, int qoffset, char *opts, int *argc, char **argv);
-char *blxTranslate(char *seq, char **code);
-char *revcomp(char *comp, char *seq);
-void *compl(char *seq);
-void  argvAdd(int *argc, char ***argv, char *s);
-void  loadFeatures(FILE* fil, MSP **msp);
-float mspGetFsBottomEdge(MSP *msp, float *maxy, float height);
-char  Seqtype(char *seq);
-void  blviewRedraw(void);
-void  selectFeatures(void);
-float fsTotalHeight(MSP *msplist);
-void  parseFS(MSP **MSPlist, FILE *file, char *opts,
-	      char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset) ;
-void insertFS(MSP *msp, char *series);
-gboolean mspHasFs(const MSP *msp);
-char *readFastaSeq(FILE *seqfile, char *qname);
+#define selectFeaturesStr          "Feature series selection tool"
+#define XY_NOT_FILLED -1000        /* Magic value meaning "value not provided" */
 
-void blxPfetchEntry(char *sequence_name) ;
-void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow) ;
-void blxFindInitialFetchMode(char *fetchMode) ;
-void blxPfetchMenu(void) ;
-char *blxGetFetchProg(const char *fetchMode) ;
+/* Really the buffers that use this should be dynamic but I'm not going to do that, this
+ * code is so poor that it doesn't warrant the effort.... */
+#define NAMESIZE      12
+#define LONG_NAMESIZE 1000
+#define INITDBSEQLEN  50000        /* Initial estimate of max database sequence length */
+#define MAXLINE       10000
 
-BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType) ;
-BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char* pfetchIP, int port, BOOL External) ;
-void blxAssignPadseq(MSP *msp, MSP *msplist) ;
 
-BOOL blxInitConfig(char *config_file, GError **error) ;
-GKeyFile *blxGetConfig(void) ;
-gboolean blxConfigSetPFetchSocketPrefs(char *node, int port) ;
-gboolean blxConfigGetPFetchSocketPrefs(char **node, int *port) ;
-char *blxConfigGetFetchMode(void) ;
+/* The MSP list is sorted by one of these criteria, currently BLXSORT_ID is the default. */
+typedef enum 
+  {
+    BLXSORT_UNSORTED, 
+    BLXSORT_SCORE, 
+    BLXSORT_ID, 
+    BLXSORT_NAME, 
+    BLXSORT_POS, 
+    BLXSORT_GROUP
+  } BlxSortMode ;
 
-void blxSeq2MSP(MSP *msp, char *seq) ;
+/* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
+typedef enum
+  {
+    BLXSEQ_INVALID, 
+    BLXSEQ_DNA, 
+    BLXSEQ_PEPTIDE
+  } BlxSeqType ;
 
-BOOL blxRevComplement(char *seq_in, char **revcomp_seq_out) ;
-char *translate(char  *seq, char **code) ;
-char *revComplement(char *comp, char *seq) ;
-void blxComplement(char *seq) ;
+/* Fundamental blast mode used */
+typedef enum
+  {
+    BLXMODE_UNSET, 
+    BLXMODE_BLASTX, 
+    BLXMODE_TBLASTX, 
+    BLXMODE_BLASTN, 
+    BLXMODE_TBLASTN, 
+    BLXMODE_BLASTP
+  } BlxBlastMode ;
 
-char *getqseq(int start, int end, const char const *refSeq);
+/* Structure representing a group of sequences. This groups several BlxSequences together and 
+ * sets various flags so that we can hide/highlight/etc all of the sequences in a group. */
+typedef struct _SequenceGroup
+  {
+    char *groupName;		   /* user-friendly name for the group (should be unique to save confusion) */
+    int groupId;		   /* unique ID number for the group */
+    int order;			   /* field for sorting - lower numbers will be listed first */
+    GList *seqList;		   /* list of BlxSequences */
+    gboolean ownsSeqNames;	   /* If true, the group will free the sequence names when it is destroyed */
+    gboolean hidden;		   /* true if the group should be hidden from the detail view */
+    gboolean highlighted;	   /* true if the group should be highlighted */
+    GdkColor highlightColor;	   /* the color to highlight the group's sequences in (in both the big picture and the detail view) */
+  } SequenceGroup;
 
-void blviewDestroy(GtkWidget *blxWindow);
+
+/* This enum is to record the type of data currently being parsed by the parser. An input file can 
+ * contain multiple types of data. The start of a new section of data is indicated by a header 
+ * line beginning with a hash and a known type name, e.g. "# exblx_x" or "##gff-version   3"
+ *
+ * FS and SFS (Feature Series) data type names have "FS" or "SFS" followed by a specific format 
+ * type, e.g. "# SFS type=SEG". 
+ *
+ * For some data types, additional data is included in the header line(s) as well as in the 'body' 
+ * section below it. For these, there are two data types in the enum, one postfixed with _HEADER 
+ * and one with _BODY. When the header line is detected the initial type is set to the _HEADER enum, 
+ * and when we are finished processing the header information it is set to _BODY, so that we go on
+ * to process the body of the data on the next loop through. For types with no information in the 
+ * header, there is only a _BODY enum.
+ */
+typedef enum
+  {
+    PARSER_START,	           /* indicates that we haven't started processing yet */
+    PARSER_ERROR,	           /* indiates an error state */
+    
+    GFF_3_HEADER,	           /* GFF 3 header */
+    GFF_3_BODY,		           /* GFF 3 data */
+    
+    FASTA_SEQ_HEADER,              /* FASTA sequence header */
+    FASTA_SEQ_BODY,                /* Sequence data in FASTA format */
+
+    EXBLX_BODY,                    /* Old style sequence entries. */
+    SEQBL_BODY,                    /* Old style sequence entries. */
+    EXBLX_X_BODY,	           /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */ 
+    SEQBL_X_BODY,	           /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */
+
+    FS_HSP_BODY,                   /* feature-series HSP data */
+    
+    FS_GSP_HEADER,                 /* feature-series GSP data header */
+    FS_GSP_BODY,                   /* feature-series GSP data */
+    
+    FS_GFF_BODY,                   /* feature-series GFF data */
+    
+    FS_SEG_BODY,                   /* feature-series segment data */
+    
+    FS_XY_HEADER,                  /* feature-series XY data header */
+    FS_XY_BODY,                    /* feature-series XY data */
+    
+    FS_SEQ_HEADER,                 /* feature-series sequence data header */
+    FS_SEQ_BODY                    /* feature-series sequence data */
+  } BlxParserState ;
+  
+
+/* blxview.c */
+void                               blviewRedraw(void);
+
+/* dotter.c */
+void                               argvAdd(int *argc, char ***argv, char *s);
+void                               loadFeatures(FILE* fil, MSP **msp);
+float                              mspGetFsBottomEdge(MSP *msp, float *maxy, float height);
+char                               Seqtype(char *seq);
+void                               selectFeatures(void);
+float                              fsTotalHeight(MSP *msplist);
+
+/* blxparser.c */
+void                               parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList,
+	                                   char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset) ;
+void                               insertFS(MSP *msp, char *series);
+gboolean                           mspHasFs(const MSP *msp);  
+char*                              readFastaSeq(FILE *seqfile, char *qname);
+
+/* blxFetch.c */
+void                               blxPfetchEntry(char *sequence_name) ;
+void                               fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow) ;
+void                               blxFindInitialFetchMode(char *fetchMode) ;
+void                               blxPfetchMenu(void) ;
+char*                              blxGetFetchProg(const char *fetchMode) ;
+
+gboolean                           blxGetSseqsPfetchHtml(GList *seqsToFetch, BlxSeqType seqType) ;
+gboolean                           blxGetSseqsPfetch(GList *seqsToFetch, char* pfetchIP, int port, BOOL External) ;
+BOOL                               blxInitConfig(char *config_file, GError **error) ;
+GKeyFile*                          blxGetConfig(void) ;
+gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
+gboolean                           blxConfigGetPFetchSocketPrefs(char **node, int *port) ;
+
+/* translate.c */
+char*                              blxTranslate(char *seq, char **code);
+void                               blxComplement(char *seq) ;    
+char*                              revComplement(char *comp, char *seq) ;
+
+/* Create/destroy sequences and MSPs */
+MSP*                               createEmptyMsp(MSP **lastMsp, MSP **mspList);
+MSP*                               createNewMsp(MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, const int score, 
+                                                const char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
+                                                const char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
+                                                char *opts, GError **error);  
+
+void                               destroyMspList(MSP **mspList);
+void                               destroyMspData(MSP *msp);
+void                               destroyBlxSequenceList(GList **seqList);
+void                               blviewResetGlobals();
+
+void                               addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
+BlxSequence*                       addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *sequence, GError **error);
+
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
-extern char *blixemVersion ;
-extern char *stdcode1[];        /* 1-letter amino acid translation code */
-extern int   aa_atob[];
-extern int PAM120[23][23];
-extern Array fsArr;		/* in dotter.c */
-extern int dotterGraph;
-extern float fsPlotHeight;
+extern char      *blixemVersion;
+extern char      *stdcode1[];      /* 1-letter amino acid translation code */
+extern int       aa_atob[];
+extern int       PAM120[23][23];
+extern Array     fsArr;		   /* in dotter.c */
+extern int       dotterGraph;
+extern float     fsPlotHeight;
 extern GtkWidget *blixemWindow;
 
 

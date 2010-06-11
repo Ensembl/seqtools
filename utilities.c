@@ -9,7 +9,6 @@
 #include "SeqTools/utilities.h"
 
 static CallbackData*	  widgetGetCallbackData(GtkWidget *widget);
-static BlxSequenceStruct* findNameInSeqList(GList *seqList, const char *seqNameToFind);
 
 /* Functions to get/set/destroy a GdkDrawable in a widget property, if a different drawable
  * than the window is required to be drawn to. The main purpose of this is for printing
@@ -160,7 +159,7 @@ gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointe
 {
   if (!label || !GTK_IS_LABEL(label))
     {
-      g_critical("Invalid widget type when printing label [%p]", label);
+      g_critical("Invalid widget type when printing label [%p]\n", label);
     }
   
   /* Only widgets that have a pixmap set will be shown in print output */
@@ -270,7 +269,7 @@ gboolean parseBlxColor(const char *color, GdkColor *result)
 
   if (!ok)
     {
-      g_warning("Error parsing color string '%s'", color);
+      g_warning("Error parsing color string '%s'\n", color);
     }
   
   return ok;
@@ -395,22 +394,104 @@ void getDropShadowColor(GdkColor *origColor, GdkColor *result)
 
 gboolean mspIsExon(const MSP const *msp)
 {
-  return (msp && msp->score == -1);
+  return (msp && 
+          (msp->type == BLXMSP_EXON_CDS ||
+           msp->type == BLXMSP_EXON_UTR || 
+           msp->type == BLXMSP_EXON_UNK));
+}
+
+/* Determine whether the given MSP is in a coding region or untranslated region. For 
+ * exons, this is determined by the exon type. For introns, we have to look at the
+ * adjacent exons to determine whether to show them as CDS or UTR - only show it as
+ * CDS if there is a CDS exon on both sides of the intron. */
+gboolean mspIsCds(const MSP const *msp, const BlxSequence *blxSeq)
+{
+  gboolean result = FALSE;
+  
+  if (mspIsExon(msp))
+    {
+      result = msp && msp->type == BLXMSP_EXON_CDS;
+    }
+  else if (mspIsIntron(msp))
+    {
+      /* Find the nearest exons before and after this MSP */
+      const MSP *prevExon = NULL;
+      const MSP *nextExon = NULL;
+    
+      GList *mspItem = blxSeq->mspList;
+      for ( ; mspItem; mspItem = mspItem->next)
+	{
+	  const MSP *curMsp = (const MSP *)(mspItem->data);
+	
+	  if (mspIsExon(curMsp))
+	    {
+	      const int curOffset = curMsp->qstart - msp->qstart;
+	    
+	      if (curOffset < 0 && (!prevExon || curOffset > prevExon->qstart - msp->qstart))
+		{
+		  /* Current MSP is before our MSP and is the smallest offset so far */
+		  prevExon = curMsp;
+		}
+	      else if (curOffset > 0 && (!nextExon || curOffset < nextExon->qstart - msp->qstart))
+		{
+		  /* Current MSP is after our MSP and is the smallest offset so far */
+		  nextExon = curMsp;
+		}
+	    }
+	}
+
+      /* If there isn't an exon either side, we don't know what to display. Default to UTR. */
+      result = prevExon || nextExon;
+      
+      /* For the exon(s) that we found, they must both be CDS if the intron is to be CDS. If
+       * we only have an exon on one side, and it is CDS, then the intron is CDS. */
+      result &= (!prevExon || prevExon->type == BLXMSP_EXON_CDS) &&
+		(!nextExon || nextExon->type == BLXMSP_EXON_CDS);
+    }
+  
+  return result;
 }
 
 gboolean mspIsIntron(const MSP const *msp)
 {
-  return (msp && msp->score == -2);
+  return (msp && msp->type == BLXMSP_INTRON);
 }
 
 gboolean mspIsSnp(const MSP const *msp)
 {
-  return (msp && msp->score == -3);
+  return (msp && msp->type == BLXMSP_SNP);
 }
 
 gboolean mspIsBlastMatch(const MSP const *msp)
 {
-  return (msp && msp->score > 0);
+  return (msp && msp->type == BLXMSP_MATCH);
+}
+
+/* Whether the msp has a Target name (i.e. Subject sequence name) */
+gboolean mspHasSName(const MSP const *msp)
+{
+  return TRUE;
+}
+
+/* Whether the MSP requires subject sequence coords to be set. Only matches 
+ * and exons have coords on the subject sequence. (to do: is this optional for exons?) */
+gboolean mspHasSCoords(const MSP const *msp)
+{
+  return mspIsExon(msp) || mspIsBlastMatch(msp);
+}
+
+/* Whether the MSP requires subject sequence strand to be set. Only matches 
+ * require strand on the subject sequence, although exons may have them set. */
+gboolean mspHasSStrand(const MSP const *msp)
+{
+  return mspIsBlastMatch(msp);
+}
+
+/* Whether the MSP requires the actual sequence data for the subject sequence. Only
+ * matches require the sequence data. */
+gboolean mspHasSSeq(const MSP  const *msp)
+{
+  return mspIsBlastMatch(msp);
 }
 
 
@@ -447,19 +528,19 @@ void getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin
 
 /* Returns the upper and lower extents of the query and subject sequence ranges in
  * the given gap range. Any of the return values can be passed as NULL if they are not required. */
-void getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax)
+void getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax)
 {
   if (qRangeMin)
-    *qRangeMin = range->r1 < range->r2 ? range->r1 : range->r2;
+    *qRangeMin = min(range->qStart, range->qEnd);
   
   if (qRangeMax)
-    *qRangeMax = range->r1 < range->r2 ? range->r2 : range->r1;
+    *qRangeMax = max(range->qStart, range->qEnd);
   
   if (sRangeMin)
-    *sRangeMin = range->s1 < range->s2 ? range->s1 : range->s2;
+    *sRangeMin = min(range->sStart, range->sEnd);
   
   if (sRangeMax)
-    *sRangeMax = range->s1 < range->s2 ? range->s2 : range->s1;
+    *sRangeMax = max(range->sStart, range->sEnd);
 }
 
 
@@ -664,8 +745,7 @@ int gapCoord(const MSP *msp,
 	     const int qIdx, 
 	     const int numFrames, 
 	     const BlxStrand strand, 
-	     const gboolean displayRev, 
-	     int *nearestIdx)
+	     const gboolean displayRev)
 {
   int result = UNSET_INT;
   
@@ -678,8 +758,7 @@ int gapCoord(const MSP *msp,
       const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
       const gboolean sameDirection = (qForward == sForward);
       
-      Array gaps = msp->gaps ;
-      if (!gaps || arrayMax(gaps) < 1)
+      if (!msp->gaps || g_slist_length(msp->gaps) < 1)
 	{
 	  /* If strands are in the same direction, find the offset from qSeqMin and add it to sSeqMin.
 	   * If strands are in opposite directions, find the offset from qSeqMin and subtract it from sSeqMax. */
@@ -689,38 +768,23 @@ int gapCoord(const MSP *msp,
 	  if (result < sSeqMin)
 	    {
 	      result = UNSET_INT;
-	      
-	      if (nearestIdx)
-		{
-		  *nearestIdx = sSeqMin;
-		}
 	    }
 	  else if (result > sSeqMax)
 	    {
 	      result = UNSET_INT;
-	      
-	      if (nearestIdx)
-		{
-		  *nearestIdx = sSeqMax;
-		}
-	    }
-	  else if (nearestIdx)
-	    {
-	      *nearestIdx = result;
 	    }
 	}
       else
 	{
-	  gboolean gapsReversedWrtDisplay = (displayRev == qForward);
-	  
-	  /* Look to see if x lies inside one of the reference sequence ranges. */
-	  int i = 0;
-	  for ( ; i < arrayMax(gaps) ; ++i)
+	  /* Look to see if x lies inside one of the "gaps" ranges. */
+          GSList *rangeItem = msp->gaps;
+
+	  for ( ; rangeItem ; rangeItem = rangeItem->next)
 	    {
-	      SMapMap *curRange = arrp(gaps, i, SMapMap) ;
+	      CoordRange *curRange = (CoordRange*)(rangeItem->data);
 	      
 	      int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-	      getSMapMapRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+	      getCoordRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
 	      
 	      /* We've "found" the value if it's in or before this range. Note that the
 	       * the range values are in decreasing order if the q strand is reversed. */
@@ -735,29 +799,9 @@ int gapCoord(const MSP *msp,
 		      /* It's inside this range. Calculate the actual index. */
 		      int offset = (qIdx - qRangeMin) / numFrames;
 		      result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
-		      
-		      if (nearestIdx)
-			{
-			  *nearestIdx = result;
-			}
 		    }
-		  else if (nearestIdx && (i == 0 || gapsReversedWrtDisplay))
-		    {
-		      /* Remember the start of the current range. This will be the value we
-		       * return if the index is before of the first range, or if we're in a gap
-		       * and gaps are ordered in the opposite direction to the display (i.e. gap
-		       * coords go from low to high and display shows high to low or v.v.) */
-		      *nearestIdx = curRange->s1;
-		    }
-		  
+
 		  break;
-		}
-	      else if (nearestIdx && !gapsReversedWrtDisplay)
-		{
-		  /* Remember the end of the current range (which is the result we will return
-		   * if qIdx lies after this range but before the next - unless gaps are reversed
-		   * with respect to the display). */
-		  *nearestIdx = curRange->s2;
 		}
 	    }
 	}
@@ -779,7 +823,7 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
     }
   else
     {
-      result = atoi(&msp->qframe[2]);
+      result = msp->qFrame;
     }
   
   return result;
@@ -789,36 +833,69 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
 /* Return the strand of the ref sequence that the given MSP is a match against */
 BlxStrand mspGetRefStrand(const MSP const *msp)
 {
-  return msp->qframe[1] == '+' ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
-}
-
-
-/* Return the reading frame of the match sequence */
-int mspGetMatchFrame(const MSP const *msp)
-{
-  return atoi(&msp->sframe[2]);
+  return msp->qStrand;
 }
 
 
 /* Return the strand of the match sequence that the given MSP is a match on */
 BlxStrand mspGetMatchStrand(const MSP const *msp)
 {
-  return msp->sframe[1] == '+' ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
+  return msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE;
 }
 
 
-gboolean stringsEqual(gpointer key, gpointer value, gpointer data)
+/* Get the match sequence for the given MSP */
+const char* mspGetMatchSeq(const MSP const *msp)
 {
-  const char *keyStr = (const char*)key;
-  const char *seqName = (const char*)data;
+  return msp->sSequence ? msp->sSequence->sequence : NULL;
+}
+
+
+/* Get the sequence name for an MSP. This removes the postfixed 'x' or 'i' from
+ * exon and intron names; otherwise it just returns a copy of the name in the MSP.
+ * The result should be free'd with g_free. */
+char* mspGetSeqName(const MSP *msp)
+{
+  char *name = g_strdup(msp->sname);
   
-  gboolean result = !strcmp(keyStr, seqName);
+  if (name)
+    {
+    int i = strlen(name) - 1;
+    
+    if (mspIsExon(msp) && (name[i] == 'x' || name[i] == 'X'))
+      {
+      name[i] = '\0';
+      }
+    else if (mspIsIntron(msp) && (name[i] == 'i' || name[i] == 'I'))
+      {
+      name[i] = '\0';
+      }
+    }
+  
+  return name;
+}
+
+
+/* Return a char representation of a strand, i.e. "+" for forward strand, "-" for
+ * reverse, or "." for none. */
+char getStrandAsChar(const BlxStrand strand)
+{
+  char result = '.';
+  
+  if (strand == BLXSTRAND_FORWARD)
+    {
+      result = '+';
+    }
+  else if (strand == BLXSTRAND_REVERSE)
+    {
+      result = '-';
+    }
   
   return result;
 }
 
 
-/* Utility function to extract the short version of the variant name from a 
+/* Utility function to extract the variant name from a 
  * long sequence name (of the form LL:LLdddddd.d, where L means letter and d
  * means digit). The result is a pointer into the original string, so should 
  * not be free'd. */
@@ -835,57 +912,101 @@ const char* getSeqVariantName(const char *longName)
   return result;
 }
 
+/* Extract the short version of a sequence name. If the original is of the format
+ * "Em:AB12345.1", this cuts off the bit before the ":" and the bit after the "."
+ * The result is a new string that must be free'd with g_free. */
+char* getSeqShortName(const char *longName)
+{
+  const int len = strlen(longName);
 
-/* Return the full name of a BlxSequenceStruct (including prefix and variant) */
-const char *sequenceGetFullName(const BlxSequenceStruct *seq)
+  char *result = g_malloc(sizeof(char) * len);
+ 
+  /* This bool will be set to true when we have passed the ":". It means that we are
+   * ready to start copying chars into the result. If there is no ":", set it to true
+   * right at the beginning. */
+  char *cutPoint = strchr(longName, ':');
+  gboolean start = (cutPoint == NULL);
+  
+  int srcIdx = 0;
+  int destIdx = 0;
+  
+  /* Copy contents after the : (or from beginning if : doesn't exist), and up to the . (if exists) */
+  for ( ; srcIdx < len; ++srcIdx)
+    {
+      if (start)
+	{
+	  result[destIdx] = longName[srcIdx];
+	  ++destIdx;
+	}
+      else if (longName[srcIdx] == ':')
+	{
+	  start = TRUE;
+	}
+      else if (longName[srcIdx] == '.')
+	{
+	  break;
+	}
+    }
+
+  result[destIdx] = '\0';
+
+  return result;
+}
+
+
+/* Return the full name of a BlxSequence (including prefix and variant) */
+const char *sequenceGetFullName(const BlxSequence *seq)
 {
   return seq->fullName;
 }
 
 
-/* Return the variant name of a BlxSequenceStruct (excludes prefix but includes variant) */
-const char *sequenceGetVariantName(const BlxSequenceStruct *seq)
+/* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
+const char *sequenceGetVariantName(const BlxSequence *seq)
 {
   return seq->variantName;
 }
 
 
-/* Return the display name of a BlxSequenceStruct (same as variant name for now) */
-const char *sequenceGetDisplayName(const BlxSequenceStruct *seq)
+/* Return the display name of a BlxSequence (same as variant name for now) */
+const char *sequenceGetDisplayName(const BlxSequence *seq)
 {
   return seq->variantName;
 }
 
 
-/* Return the short name of a BlxSequenceStruct (excludes prefix and variant number) */
-const char *sequenceGetShortName(const BlxSequenceStruct *seq)
+/* Return the short name of a BlxSequence (excludes prefix and variant number) */
+const char *sequenceGetShortName(const BlxSequence *seq)
 {
   return seq->shortName;
 }
 
 
-/* Frees all memory used by a BlxSequenceStruct */
-void destroySequenceStruct(BlxSequenceStruct *seq)
+/* Frees all memory used by a BlxSequence */
+void destroyBlxSequence(BlxSequence *seq)
 {
   if (seq)
     {
       g_free(seq->fullName);
+      g_free(seq->variantName);
       g_free(seq->shortName);
+      g_free(seq->sequence);
+      
       g_free(seq);
     }
 }
 
 
-/* Utility to create a BlxSequenceStruct and initialise it with the given values. */
-static BlxSequenceStruct* createSequenceStruct(char *fullName, MSP *msp)
+/* Utility to create a BlxSequence with the given name. */
+BlxSequence* createEmptyBlxSequence(char *fullName)
 {
-  BlxSequenceStruct *seq = g_malloc(sizeof(BlxSequenceStruct));
+  BlxSequence *seq = g_malloc(sizeof(BlxSequence));
   
-  seq->fullName = fullName;
+  seq->fullName = g_strdup(fullName);
   
   /* The variant name: just cut off the prefix chars. We can use a pointer into
    * the original string. */
-  seq->variantName = getSeqVariantName(fullName);
+  seq->variantName = g_strdup(getSeqVariantName(fullName));
   
   /* The short name: cut off the prefix chars (before the ':') and the variant
    * number (after the '.'). Need to duplicate the string to change the end of it. */
@@ -895,52 +1016,10 @@ static BlxSequenceStruct* createSequenceStruct(char *fullName, MSP *msp)
   if (cutPoint)
     *cutPoint = '\0';
 
-  /* Add a pointer to the MSP to this sequence's MSP list */
-  seq->mspList = g_list_prepend(NULL, msp);
-
-  /* Add a pointer to the MSP's sequence. (The MSP must therefore remain in 
-   * existance longer than this sequence struct. Ideally we would create the
-   * sequence structs first and set the sequence in those, and the MSPs would 
-   * get the sequence from this struct, but for historical reasons the parser
-   * populates the MSPs directly and I haven't got round to changing this yet.) */
-  seq->seq = msp->sseq;
+  seq->mspList = NULL;
+  seq->sequence = NULL;
   
   return seq;
-}
-
-
-/* Find out which BlxSequenceStruct the given MSP belongs to.  If a BlxSequenceStruct for this 
- * sequence does not yet exist, create it and add it to the GList of BlxSequenceStructs. */
-void addMspToSeqList(GList **seqList, MSP *msp)
-{
-  /* Use the variant name as the key, excluding the 'x' or 'i' at the end if this
-   * is an exon or intron (so that all exons and introns on the same sequence are
-   * grouped together). */
-  char *fullName = g_strdup(msp->sname);
-
-  if (mspIsExon(msp) || mspIsIntron(msp))
-    {
-      const int len = strlen(fullName);
-      fullName[len - 1] = '\0';
-    }
-
-  /* See if this sequence name is already in the list */
-  BlxSequenceStruct *subjectSeq = findNameInSeqList(*seqList, fullName);
-  
-  if (subjectSeq)
-    {
-      /* Add the MSP to the SubjectSequence's list of MSPs */
-      subjectSeq->mspList = g_list_prepend(subjectSeq->mspList, msp);
-    }
-  else
-    {
-      /* Create a new BlxSequenceStruct struct containing this MSP, and add it to the list */
-      subjectSeq = createSequenceStruct(fullName, msp);
-      *seqList = g_list_prepend(*seqList, subjectSeq);
-    }
-    
-  /* Set a pointer to the BlxSequenceStruct from the MSP */
-  msp->sSequence = subjectSeq;
 }
 
 
@@ -1310,6 +1389,15 @@ gchar *abbreviateText(const char *inputStr, const int max_len)
 }
 
 
+/* String comparison function with caseSensitive option. Returns true if the two 
+ * strings are equal. The two strings must be null-terminated. */
+gboolean stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive)
+{
+  const int len1 = strlen(str1);
+  return (strlen(str2) == len1 && !strncasecmp(str1, str2, len1));
+}
+
+
 /* Parses a line of text containing a match description, which is of the form:
  * 
  *                       "\"name\" start end (length)"
@@ -1395,12 +1483,13 @@ GList* parseMatchList(const char *inputText)
       /* Split the input text into separate strings based on the following delimiters: */
       char *delimiters = "\n\r,;";
       char **tokens = g_strsplit_set(inputText, delimiters, -1);   /* -1 means do all tokens. */
-
-      if (tokens)
+      char **token = tokens;
+      
+      if (token)
 	{
-	  char *match = *tokens;
+	  char *match = *token;
 
-	  while (tokens && match)
+	  while (token && match)
 	    {
 	      char *match_name ;
 	      int start = 0, end = 0, length = 0 ;
@@ -1410,10 +1499,12 @@ GList* parseMatchList(const char *inputText)
 		  matchList = g_list_append(matchList, match_name);
 		}
 
-	      tokens++ ;
-	      match = *tokens ? *tokens : 0; /* token may be empty string if two delimiters next to each other */
+	      token++ ;
+	      match = *token ? *token : 0; /* token may be empty string if two delimiters next to each other */
 	    }
 	}
+      
+      g_strfreev(tokens);
     }
   
   return matchList ;
@@ -1460,20 +1551,20 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-/* Returns the pointer to the BlxSequenceStruct that has the given sequence name, if there
- * is one. Returns NULL otherwise */
-static BlxSequenceStruct *findNameInSeqList(GList *seqList, const char *seqNameToFind)
+/* Returns the pointer to the BlxSequence that matches the given sequence name and
+ * strand. Returns NULL if no match was found. */
+BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const BlxStrand reqdStrand)
 {
-  BlxSequenceStruct *result = NULL;
+  BlxSequence *result = NULL;
   
-  /* Loop through all sequences in the list and look for one with a matching name */
+  /* Loop through all sequences in the list */
   GList *listItem = seqList;
   
   for ( ; listItem; listItem = listItem->next)
     {
-      BlxSequenceStruct *currentSeq = (BlxSequenceStruct*)(listItem->data);
+      BlxSequence *currentSeq = (BlxSequence*)(listItem->data);
 
-      if (!strcmp(currentSeq->fullName, seqNameToFind))
+      if (!strcmp(currentSeq->fullName, reqdName) && currentSeq->strand == reqdStrand)
 	{
 	  result = currentSeq;
 	  break;
@@ -1569,35 +1660,12 @@ BlxColor* getBlxColor(GList *colorList, const BlxColorId colorId)
 }
 
 
-/* Utility to prepend a prefix onto the given GString depending on the log level */
-static void getLogLevelPrefix(GLogLevelFlags log_level, GString *prefix)
-{
-  if (log_level & G_LOG_LEVEL_ERROR)
-    {
-      g_string_prepend(prefix, "Error: ");
-    }
-  else if (log_level & G_LOG_LEVEL_CRITICAL || log_level & G_LOG_LEVEL_WARNING)
-    {
-      g_string_prepend(prefix, "Warning: ");
-    }
-  else if (log_level & G_LOG_LEVEL_DEBUG)
-    {
-      g_string_prepend(prefix, "Debug: ");
-    }
-}
-
-
 /* Default handler for GLib log messages (e.g. from g_message() etc.) */
 void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
 {
-  /* Just print to standard output, adding a prefix if this is an error or warning */
-  GString *prefix = g_string_new("");
-  getLogLevelPrefix(log_level, prefix);
-
-  printf("%s%s", prefix->str, (char*)message);
-  
-  g_string_free(prefix, TRUE);
+  printf("%s", (char*)message);
 }
+
 
 /* Default handler for critical GLib log messages (i.e. from g_error and g_critical.) */
 void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
@@ -1607,3 +1675,107 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
   messout((char*)message);
 }
 
+
+/* Tag the given prefix string onto the start of the given error's message */
+void prefixError(GError *error, char *formatStr, ...)
+{
+//  g_prefix_error(error, prefixStr);  /* Only from GLib v2.16 */
+
+  va_list argp;
+  va_start(argp, formatStr);
+  
+  /* Print the prefix text and args into a new string. We're not sure how much space we need
+   * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
+   * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
+  const int len = strlen(formatStr) + 200;
+  char tmpStr[len];
+  vsnprintf(tmpStr, len, formatStr, argp);
+
+  va_end(argp);
+
+  /* Append the error message */
+  char *resultStr = g_malloc(len + strlen(error->message));
+  snprintf(resultStr, len, "%s%s", tmpStr, error->message);
+  
+  /* Replace the error message text with the new string. */
+  g_free(error->message);
+  error->message = resultStr;
+}
+
+//
+///* Tag the given postfix string onto the end of the given error's message */
+//static void postfixError(GError *error, char *formatStr, ...)
+//{
+//  va_list argp;
+//  va_start(argp, formatStr);
+//  
+//  /* Print the prefix text into a new string */
+//  GString *tmp = g_string_new("");
+//  g_string_vprintf(tmp, formatStr, argp);
+//  
+//  va_end(argp);
+//  
+//  /* Prepend the error text */
+//  g_string_prepend(tmp, error->message);
+//  
+//  /* Replace the error message text with the new string. */
+//  g_free(error->message);
+//  error->message = tmp->str;
+//  
+//  /* Free the temporary GString object */
+//  g_string_free(tmp, FALSE);
+//}
+//
+//
+///* Custom function to propagate a GError. Unlike g_propagate_error, this allows the destination
+// * error to be non-null: if that is the case, the new error message is concatenated on the end
+// * of the original error message. The src error is free'd and set to NULL. */
+//void propagateError(GError **dest, GError **src)
+//{
+//  if (dest == NULL || src == NULL || *src == NULL)
+//    return;
+//  
+//  if (*dest == NULL)
+//    {
+//      g_propagate_error(dest, *src);
+//      *src = NULL;
+//    }
+//  else
+//    {
+//      postfixError(*error, (*src)->message);
+//    }
+//}
+
+
+#ifdef DEBUG
+/* Prints whitespace for log level (that is, how indented logging currently is, according to how
+ * many DEBUG_ENTER and EXITs we've called), and then increase it by the increase amount (can be negative). */
+void debugLogLevel(const int increaseAmt)
+{
+  static int count = 0;
+  
+  gboolean done = FALSE;
+  
+  /* If decreasing the count (i.e. printing an exit statement) decrease the log level
+   * first. */
+  if (increaseAmt < 0)
+    {
+      count += increaseAmt;
+      if (count < 0) count = 0;
+      done = TRUE;
+    }
+  
+  /* Print whitespace */
+  int i = 0;
+  for ( ; i < count; ++i)
+    {
+      printf("  "); /* print 2 spaces per log level */
+    }
+  
+  if (!done)
+    {
+      count += increaseAmt;
+      if (count < 0) count = 0;
+    }
+}
+#endif

@@ -243,8 +243,8 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
   /* If any errors were found, report them */
   if (error)
     {
-      g_prefix_error(&error, "Could not start Dotter. ");
-      g_critical(error->message);
+      prefixError(error, "Could not start Dotter. ");
+      g_critical("%s", error->message);
       g_clear_error(&error);
     }
 
@@ -511,9 +511,10 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
       else
 	success = smartDotterRange(blxWindow, dotterSSeq, dotterStart, dotterEnd, &tmpError);
 
-      if (!success)
+      if (error && *error)
 	{
-	  g_propagate_prefixed_error(error, tmpError, "Failed to calculate dotter coordinates. ");
+	  g_propagate_error(error, tmpError);
+	  prefixError(*error, "Failed to calculate dotter coordinates. ");
 	}
     }
   
@@ -540,20 +541,20 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
       return dotterSSeq;
     }
   
-  const BlxSequenceStruct *seq = (const BlxSequenceStruct*)(bc->selectedSeqs->data);
+  const BlxSequence *blxSeq = (const BlxSequence*)(bc->selectedSeqs->data);
 
   /* If we're in seqbl mode, only part of the sequence is in the MSP. */
   const BlxBlastMode blastMode = bc->blastMode;
   if (blastMode != BLXMODE_TBLASTN)
     {
       const char *fetchMode = bc->fetchMode;
-      dotterSSeq = fetchSeqRaw(sequenceGetFullName(seq), fetchMode);
+      dotterSSeq = fetchSeqRaw(sequenceGetFullName(blxSeq), fetchMode);
       
       /* If the match is on the reverse s strand, we need to modify it, because
        * dotter does not currently handle it. */
-      if (dotterSSeq && g_list_length(seq->mspList) > 0)
+      if (dotterSSeq && g_list_length(blxSeq->mspList) > 0)
 	{
-	  const MSP *msp = (const MSP*)(seq->mspList->data);
+	  const MSP *msp = (const MSP*)(blxSeq->mspList->data);
 	  const gboolean displayRev = bc->displayRev;
 	  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
 	  
@@ -568,27 +569,15 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
     {
+      /* Check if sequence is stored internally (i.e. it was passed from acedb) */
       g_message("Looking for sequence stored internally... ");
     
-      /* Check if sequence is passed from acedb */
-      /* Loop through all MSPs in the selected sequence */
-      GList *mspListItem = seq->mspList;
-      
-      for ( ; mspListItem ; mspListItem = mspListItem->next)
-	{
-	  MSP *msp = (MSP*)(mspListItem->data);
-	  
-	  if (msp->sseq != bc->paddingSeq)
-	    {
-	      dotterSSeq = g_strdup(msp->sseq);
-	      break;
-	    }
-	}
+      dotterSSeq = g_strdup(blxSeq->sequence);
       
       if (!dotterSSeq)
 	{
 	  g_message("not found.\n");
-	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", sequenceGetFullName(seq));
+	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", sequenceGetFullName(blxSeq));
 	  return FALSE;
 	}
 
@@ -596,9 +585,9 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
       
       /* If the match is on the reverse s strand, we need to modify it, because
        * dotter does not currently handle it. */
-      if (dotterSSeq && g_list_length(seq->mspList) > 0)
+      if (dotterSSeq && g_list_length(blxSeq->mspList) > 0)
 	{
-	  const MSP *msp = (const MSP*)(seq->mspList->data);
+	  const MSP *msp = (const MSP*)(blxSeq->mspList->data);
 	  const gboolean displayRev = bc->displayRev;
 	  const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
 	  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
@@ -619,7 +608,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 
   if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
     {
-      g_warning("The sequence for '%s' is incomplete.\n", sequenceGetFullName(seq));
+      g_warning("The sequence for '%s' is incomplete.\n", sequenceGetFullName(blxSeq));
     }
   
   return dotterSSeq;
@@ -676,11 +665,11 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   const IntRange const *bigPicRange = bigPictureGetDisplayRange(bigPicture);
-  char activeStrand = (bc->displayRev ? '-' : '+') ;
+  const BlxStrand activeStrand = (bc->displayRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD) ;
 
   /* Loop through all MSPs in the selected sequence. We'll estimate the wanted
    * query region from the extent of the HSP's that are completely within view. */
-  const BlxSequenceStruct *selectedSeq = (const BlxSequenceStruct*)(selectedSeqs->data);
+  const BlxSequence *selectedSeq = (const BlxSequence*)(selectedSeqs->data);
   int qMin = UNSET_INT, qMax = UNSET_INT;
   GList *mspListItem = selectedSeq->mspList;  
   
@@ -697,7 +686,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       const int maxMspCoord = max(coord1, coord2);
 
       /* Check if the MSP is in a visible tree row and is entirely within the big picture range */
-      if ((msp->qframe[1] == activeStrand || (bc->blastMode == BLXMODE_BLASTN)) &&
+      if ((msp->qStrand == activeStrand || (bc->blastMode == BLXMODE_BLASTN)) &&
 	  (minMspCoord >= bigPicRange->min && maxMspCoord <= bigPicRange->max))
 	{
 	  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
@@ -723,7 +712,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
 	  /* If the strands are in opposite directions, the low end of the ref 
 	   * sequence corresponds to the high of the match sequence, and vice versa. */
-	  const gboolean sameDirection = (msp->qframe[1] == msp->sframe[1]);
+	  const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
 	  qSeqMin -= sameDirection ? distToSMin : distToSMax;
 	  qSeqMax += sameDirection ? distToSMax : distToSMin;
 
@@ -934,7 +923,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
   
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
-  const BlxSequenceStruct *selectedSeq = (const BlxSequenceStruct*)(bc->selectedSeqs->data);
+  const BlxSequence *selectedSeq = (const BlxSequence*)(bc->selectedSeqs->data);
   const MSP *firstMsp = (const MSP*)(selectedSeq->mspList->data);
 
   if (!mspIsBlastMatch(firstMsp))

@@ -21,7 +21,7 @@
 #define DEFAULT_GRID_NUM_HOZ_CELLS	5	  /* the default number of cells to show horizontally in the grids */
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
 #define DEFAULT_GRID_PERCENT_ID_MAX	100	  /* default maximum %ID to show on the scale */
-
+#define MIN_NUM_V_CELLS			1	  /* minimum number of vertical cells to show in the grid */
 
 
 /* Local function declarations */
@@ -561,6 +561,12 @@ void calculateNumVCells(GtkWidget *bigPicture)
   const int idRangeLen = properties->percentIdRange.max - properties->percentIdRange.min;
   
   properties->numVCells = ceil((double)idRangeLen / (double)properties->idPerCell); 
+  
+  if (properties->numVCells < MIN_NUM_V_CELLS)
+    {
+      properties->numVCells = MIN_NUM_V_CELLS;
+    }
+  
   properties->percentIdRange.min = properties->percentIdRange.max - (properties->numVCells * properties->idPerCell);
 }
 

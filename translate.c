@@ -28,7 +28,7 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.6 2010-05-19 10:27:32 gb10 Exp $
+ * CVS info:   $Id: translate.c,v 1.7 2010-06-11 09:29:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -40,47 +40,6 @@
 
 
 /* THIS FILE NEEDS RENAMING TO SOMETHING LIKE utils.c */
-
-static char complement(char *seq) ;
-
-
-/* For alignments from the forward strand strand of the match (subject) sequence
- * the sequence can simply be set in the MSP, for the reverse strand it must be
- * reverse complemented first. */
-void blxSeq2MSP(MSP *msp, char *seq_in)
-{
-  char *seq = seq_in ;
-
-  /* For exons, the s strand and frame are not applicable, and the data passed in could
-   * be anything. We always want the exon to be in the same direction as the ref sequence, so
-   * set the match strand to be the same as the ref strand */
-  if (mspIsExon(msp))
-    {
-      msp->sframe[1] = msp->qframe[1];
-    }
-  
-  const gboolean qForward = mspGetRefStrand(msp) == BLXSTRAND_FORWARD;
-  const gboolean sForward = mspGetMatchStrand(msp) == BLXSTRAND_FORWARD;
-  
-  /* Make sure qstart is the lower value in the range and qend the upper value
-   * if the q strand is forwards, or the opposite if reversed. */
-  sortValues(&msp->qstart, &msp->qend, qForward);
-  
-  /* For the sstrand, we want the lower value to be sstart if the s seq is displayed in 
-   * the same direction as the q seq, or the higher value if the opposite direction. */
-  sortValues(&msp->sstart, &msp->send, sForward == qForward);
-
-  /* We are always given the forwards strand of the match sequence, so complement it
-   * if the match is actually on the reverse strand. */
-  if (mspIsBlastMatch(msp) && mspGetMatchStrand(msp) == BLXSTRAND_REVERSE)
-    {
-      seq = strnew(seq_in, 0) ;
-      blxComplement(seq) ;
-    }
-  
-  msp->sseq = seq ;
-}
-
 
 /* Function: Translate(char *seq, char **code)
  * 
@@ -142,15 +101,12 @@ char *blxTranslate(char  *seq, char **code)
 
 /* All these calls need rationalising into a single function with options. */
 
-/* revcomp.c
+/* revComplement.c
  * 
  * Reverse complement of a IUPAC character string
  * 
  */
 /* Ratinalise this with my func. below..... */
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-char *revcomp(char *comp, char *seq)
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
 char *revComplement(char *comp, char *seq)
 {
   long  bases;
@@ -197,67 +153,12 @@ char *revComplement(char *comp, char *seq)
 }
   
 
-
-/* Reverse complement of a IUPAC character string. If revcomp_seq_out
- * is NULL the reverse complement is done _inplace_, otherwise a new
- * reverse-complemented sequence is returned in revcomp_seq_out.
- * 
- * No validating of the input sequence is done, if a symbol cannot be
- * translated it is simply ignored, this behaviour preserves common
- * gap characters like '-'.
- *  */
-BOOL blxRevComplement(char *seq_in, char **revcomp_seq_out)
-{
-  BOOL result = FALSE ;
-  char *seq, *start , *end ;
-  int  bases ;
-
-
-  if (seq_in && *seq_in)
-    {
-      int i ;
-
-      if (revcomp_seq_out)
-	seq = *revcomp_seq_out = g_strdup(seq_in) ;
-      else
-	seq = seq_in ;
-
-      bases = strlen(seq) ;
-
-      start = seq ;
-      end = seq + bases - 1 ;
-
-      for (i = 0 ; i < (bases / 2) ; i++, start++, end--)
-	{
-	  char cs, ce ;
-
-	  cs = complement(start) ;
-	  ce = complement(end) ;
-
-	  *end = cs ;
-	  *start = ce ;
-	}
-
-      if (bases % 2 != 0)				    /* Do middle base if there is one. */
-	*start = complement(start) ;
-
-      result = TRUE ;
-    }
-
-  return result ;
-}
-  
-
-/* compl.c
+/* blxComplement.c
  * 
  * Just complement of a IUPAC character string
  * 
  * Note that it overwrites calling string!!!! (revcomp doesn't)
  */
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-void compl(char *seq)
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
 void blxComplement(char *seq)
 {
   char *fwdp;
@@ -296,44 +197,5 @@ void blxComplement(char *seq)
   return ;
 }
   
-
-
-
-/* 
- *                Internal routines
- */
-
-
-/* Takes a string and complements it using IUPAC coding.
- * 
- * Any symbols in the string that are not IUPAC codes are left unchanged,
- * this preserves symbols used for missing sequence etc e.g. '-'.
- * 
- * Case of the input string is maintained.
- *  */
-static char complement(char *seq)
-{
-  char comp = ' ' ;
-  int   idx ;
-
-  comp = *seq ;
-  comp = freeupper(comp) ;
-
-  for (idx = 0 ; idx < IUPACSYMNUM ; idx++)
-    {
-      if (comp == iupac[idx].sym)
-	{
-	  comp = iupac[idx].symcomp ;
-	  break ;
-	}
-    }
-
-  if (islower(*seq))
-    comp = freelower(comp) ;
-
-  return comp ;
-}
-
-
 
 

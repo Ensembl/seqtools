@@ -39,8 +39,10 @@ typedef struct _RenderData
     const gboolean highlightDiffs;
     GdkDrawable *drawable;
     GtkWidget *blxWindow;
-    GdkColor *exonColor;
-    GdkColor *exonColorSelected;
+    GdkColor *exonColorCds;
+    GdkColor *exonColorCdsSelected;
+    GdkColor *exonColorUtr;
+    GdkColor *exonColorUtrSelected;
     GdkColor *insertionColor;
     GdkColor *insertionColorSelected;
     GdkColor *matchColor;
@@ -544,6 +546,16 @@ static void highlightSelectedBase(const int selectedBaseIdx,
 }
 
 
+/* Utility to get the exon color based on whether it is CDS/UTR and whether it is selected */
+static GdkColor* getExonFillColor(const MSP const *msp, const gboolean isSelected, RenderData *data)
+{
+  if (msp->type == BLXMSP_EXON_CDS)
+    return (isSelected ? data->exonColorCdsSelected : data->exonColorCds);
+  else /* UTR and undefined exon types */
+    return (isSelected ? data->exonColorUtrSelected : data->exonColorUtr);
+}
+
+
 /* The given renderer is an MSP that is an exon. This function draws the exon
  * or part of the exon that is in view, if it is within the current display range. */
 static void drawExon(SequenceCellRenderer *renderer,
@@ -559,7 +571,7 @@ static void drawExon(SequenceCellRenderer *renderer,
   const int width = segmentLen * data->charWidth;
 
   /* Just draw one big rectangle the same color for the whole thing. Color depends if row selected. */
-  GdkColor *color = data->seqSelected ? data->exonColorSelected : data->exonColor;
+  GdkColor *color = getExonFillColor(msp, data->seqSelected, data);
   gdk_gc_set_foreground(data->gc, color);
   drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, data->charHeight);
   
@@ -567,7 +579,7 @@ static void drawExon(SequenceCellRenderer *renderer,
   if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
     {
       /* Negate the color if double-selected (i.e. if the row is selected as well) */
-      GdkColor *color = data->seqSelected ? data->exonColor : data->exonColorSelected;
+      GdkColor *color = getExonFillColor(msp, !data->seqSelected, data);
       highlightSelectedBase(data->selectedBaseIdx, color, data);
     }
   
@@ -587,18 +599,19 @@ static void insertChar(char *text1, int *i, char charToAdd, MSP *msp)
 }
 
 
-/* Get the base from the given match sequence at the given index. Converts to
+/* Get the base from the given sequence at the given index. Converts to
  * upper or lower case as appropriate for the sequence type. The given index is
- * assumed to be 1-based. */
-static char getMatchSeqBase(char *matchSeq, const int sIdx, const BlxSeqType seqType)
+ * assumed to be 1-based. If the given BlxSequence has null sequence data, then
+ * this function returns a padding character instead */
+static char getMatchSeqBase(BlxSequence *blxSeq, const int sIdx, const BlxSeqType seqType)
 {
   char result = SEQUENCE_CHAR_PAD;
   
-  if (matchSeq)
-  {
-    result = matchSeq[sIdx - 1];
-    result = convertBaseToCorrectCase(result, seqType);
-  }
+  if (blxSeq && blxSeq->sequence)
+    {
+      result = blxSeq->sequence[sIdx - 1];
+      result = convertBaseToCorrectCase(result, seqType);
+    }
 
   return result;
 }
@@ -625,7 +638,7 @@ static void drawBase(MSP *msp,
   /* From the segment index, find the display index and the ref seq index */
   const int displayIdx = segmentRange->min + segmentIdx;
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
-  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, NULL);
+  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */
@@ -640,7 +653,7 @@ static void drawBase(MSP *msp,
   else
     {
       /* There is a base in the match sequence. See if it matches the ref sequence */
-      sBase = getMatchSeqBase(msp->sseq, *sIdx, data->bc->seqType);
+      sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
       char qBase = refSeqSegment[segmentIdx];
 
       if (sBase == qBase)
@@ -905,8 +918,8 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   if (!refSeqSegment)
     {
       g_assert(error);
-      g_prefix_error(&error, "Could not draw alignment for sequence '%s'. ", msp->sname);
-      g_warning(error->message);
+      prefixError(error, "Could not draw alignment for sequence '%s'. ", msp->sname);
+      g_warning("%s", error->message);
       g_clear_error(&error);
       return;
     }
@@ -964,7 +977,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colors if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
-  const BlxSequenceStruct *seq = firstMsp ? firstMsp->sSequence : NULL;
+  const BlxSequence *seq = firstMsp ? firstMsp->sSequence : NULL;
 
   GdkColor *matchColor = getGdkColor(bc, BLXCOL_MATCH, FALSE);
   GdkColor *matchColorSelected = getGdkColor(bc, BLXCOL_MATCH, TRUE);
@@ -991,6 +1004,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->blxWindow,
     getGdkColor(bc, BLXCOL_EXON_CDS, FALSE),
     getGdkColor(bc, BLXCOL_EXON_CDS, TRUE),
+    getGdkColor(bc, BLXCOL_EXON_UTR, FALSE),
+    getGdkColor(bc, BLXCOL_EXON_UTR, TRUE),
     getGdkColor(bc, BLXCOL_INSERTION, FALSE),
     getGdkColor(bc, BLXCOL_INSERTION, TRUE),
     highlightDiffs ? mismatchColor : matchColor,

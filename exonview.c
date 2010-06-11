@@ -35,12 +35,17 @@ typedef struct _DrawData
   {
     GdkDrawable *drawable;
     GdkGC *gc;
-    GdkColor *fillColor;
-    GdkColor *fillColorSelected;
-    GdkColor *lineColor;
-    GdkColor *lineColorSelected;
+    GdkColor *cdsFillColor;
+    GdkColor *cdsFillColorSelected;
+    GdkColor *cdsLineColor;
+    GdkColor *cdsLineColorSelected;
+    GdkColor *utrFillColor;
+    GdkColor *utrFillColorSelected;
+    GdkColor *utrLineColor;
+    GdkColor *utrLineColorSelected;
     GdkRectangle *exonViewRect;
     GtkWidget *blxWindow;
+    BlxViewContext *bc;
     const BlxStrand strand;
     const IntRange const *displayRange;
     const IntRange const *refSeqRange;
@@ -66,24 +71,41 @@ static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
  *                       Utility functions                 *
  ***********************************************************/
 
+static GdkColor* getFillColor(const MSP const *msp, const gboolean isSelected, DrawData *data, const BlxSequence *blxSeq)
+{
+  if (mspIsCds(msp, blxSeq))
+    return (isSelected ? data->cdsFillColorSelected : data->cdsFillColor);
+  else /* UTR and undefined exon types */
+    return (isSelected ? data->utrFillColorSelected : data->utrFillColor);
+}
+
+static GdkColor* getLineColor(const MSP const *msp, const gboolean isSelected, DrawData *data, const BlxSequence *blxSeq)
+{
+  if (mspIsCds(msp, blxSeq))
+    return (isSelected ? data->cdsLineColorSelected : data->cdsLineColor);
+  else 
+    return (isSelected ? data->utrLineColorSelected : data->utrLineColor);
+}
+
+
 /* Draw an exon */
-static void drawExon(GdkDrawable *drawable, DrawData *data, const gboolean isSelected, int x, int y, int width, int height)
+static void drawExon(const MSP const *msp, GdkDrawable *drawable, DrawData *data, const BlxSequence *blxSeq, const gboolean isSelected, int x, int y, int width, int height)
 {
   /* Draw the fill rectangle */
-  gdk_gc_set_foreground(data->gc, isSelected ? data->fillColorSelected : data->fillColor);
+  gdk_gc_set_foreground(data->gc, getFillColor(msp, isSelected, data, blxSeq));
   gdk_draw_rectangle(drawable, data->gc, TRUE, x, y, width, height);
   
-  /* Draw outline (exon box outline always the same color; only intron lines change when selected) */
-  gdk_gc_set_foreground(data->gc, data->lineColor);
+  /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
+  gdk_gc_set_foreground(data->gc, getLineColor(msp, FALSE, data, blxSeq));
   gdk_draw_rectangle(drawable, data->gc, FALSE, x, y, width, height);
   
 }
 
 
 /* Draw an intron */
-static void drawIntron(GdkDrawable *drawable, DrawData *data, const gboolean isSelected, int x, int y, int width, int height)
+static void drawIntron(const MSP const *msp, GdkDrawable *drawable, DrawData *data, const BlxSequence *blxSeq, const gboolean isSelected, int x, int y, int width, int height)
 {
-  gdk_gc_set_foreground(data->gc, isSelected ? data->lineColorSelected : data->lineColor);
+  gdk_gc_set_foreground(data->gc, getLineColor(msp, isSelected, data, blxSeq));
 
   int xMid = x + roundNearest((double)width / 2.0);
   int xEnd = x + width;
@@ -95,7 +117,7 @@ static void drawIntron(GdkDrawable *drawable, DrawData *data, const gboolean isS
 
 
 /* Draw the given exon/intron, if it is in range. Returns true if it was drawn */
-static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean isSelected)
+static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean isSelected, const BlxSequence *blxSeq)
 {
   gboolean drawn = FALSE;
   
@@ -123,11 +145,11 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
       
       if (mspIsExon(msp))
 	{
-	  drawExon(data->drawable, data, isSelected, x, y, width, height);
+	  drawExon(msp, data->drawable, data, blxSeq, isSelected, x, y, width, height);
 	}
       else if (mspIsIntron(msp))
 	{
-	  drawIntron(data->drawable, data, isSelected, x, y, width, height);
+	  drawIntron(msp, data->drawable, data, blxSeq, isSelected, x, y, width, height);
 	}
     }
   
@@ -151,7 +173,7 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
  * specified in the user data */
 static void drawExonIntronItem(gpointer listItemData, gpointer data)
 {
-  const BlxSequenceStruct *seq = (const BlxSequenceStruct*)listItemData;
+  const BlxSequence *seq = (const BlxSequence*)listItemData;
   DrawData *drawData = (DrawData*)data;
 
   const gboolean isSelected = blxWindowIsSeqSelected(drawData->blxWindow, seq);
@@ -169,7 +191,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
       
 	  if (showMspInExonView(msp, drawData))
 	    {
-	      seqDrawn |= drawExonIntron(msp, drawData, isSelected);
+	      seqDrawn |= drawExonIntron(msp, drawData, isSelected, seq);
 	    }
 	}
     }
@@ -199,8 +221,13 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     getGdkColor(bc, BLXCOL_EXON_FILL_CDS, TRUE),
     getGdkColor(bc, BLXCOL_EXON_LINE_CDS, FALSE),
     getGdkColor(bc, BLXCOL_EXON_LINE_CDS, TRUE),
+    getGdkColor(bc, BLXCOL_EXON_FILL_UTR, FALSE),
+    getGdkColor(bc, BLXCOL_EXON_FILL_UTR, TRUE),
+    getGdkColor(bc, BLXCOL_EXON_LINE_UTR, FALSE),
+    getGdkColor(bc, BLXCOL_EXON_LINE_UTR, TRUE),
     &properties->exonViewRect,
     blxWindow,
+    blxContext,
     properties->currentStrand,
     bigPictureGetDisplayRange(properties->bigPicture),
     &blxContext->refSeqRange,
@@ -268,7 +295,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
   for ( ; seqItem; seqItem = seqItem->next)
     {
       /* Loop through all msps */
-      const BlxSequenceStruct *seq = (BlxSequenceStruct*)(seqItem->data);
+      const BlxSequence *seq = (BlxSequence*)(seqItem->data);
       GList *mspItem = seq->mspList;
       
       for ( ; mspItem; mspItem = mspItem->next)

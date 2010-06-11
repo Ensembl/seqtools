@@ -25,8 +25,8 @@ static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpoint
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
 static int		scrollBarWidth();
 static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
-static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequenceStruct *clickedSeq);
-static BlxSequenceStruct*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
+static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq);
+static BlxSequence*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -35,19 +35,19 @@ static BlxSequenceStruct*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter
 static void assertTree(GtkWidget *tree)
 {
   if (!tree)
-    g_error("Tree is null");
+    g_error("Tree is null\n");
   
   if (!GTK_IS_WIDGET(tree))
-    g_error("Tree is not a valid widget [%p]", tree);
+    g_error("Tree is not a valid widget [%p]\n", tree);
     
   if (!GTK_IS_TREE_VIEW(tree))
-    g_error("Tree is not a valid tree view [%p]", tree);
+    g_error("Tree is not a valid tree view [%p]\n", tree);
 
   if (strcmp(gtk_widget_get_name(tree), DETAIL_VIEW_TREE_NAME) != 0)
-    g_error("Tree is not a valid detail-view tree [%p]", tree);
+    g_error("Tree is not a valid detail-view tree [%p]\n", tree);
 
   if (!treeGetProperties(tree))
-    g_error("Tree properties not set [widget=%p]", tree);
+    g_error("Tree properties not set [widget=%p]\n", tree);
 }
 
 static GtkAdjustment *treeGetAdjustment(GtkWidget *tree)
@@ -229,10 +229,10 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
 }
 
 
-/* Add a BlxSequenceStruct to as a row in the given tree store */
+/* Add a BlxSequence to as a row in the given tree store */
 static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 {
-  BlxSequenceStruct *subjectSeq = (BlxSequenceStruct*)listItemData;
+  BlxSequence *subjectSeq = (BlxSequence*)listItemData;
   
   if (subjectSeq && subjectSeq->mspList && g_list_length(subjectSeq->mspList) > 0)
     {
@@ -289,7 +289,7 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), SEQUENCE_COL, sortColumnCompareFunc, tree, NULL);
 
   /* Add the rows - one row per sequence. Use the list we've already compiled of all
-   * sequences as BlxSequenceStructs */
+   * sequences as BlxSequences */
   GList *seqList = blxWindowGetAllMatchSeqs(treeGetBlxWindow(tree));
   g_list_foreach(seqList, addSequenceStructToRow, store);
 
@@ -479,7 +479,7 @@ gboolean treeGetMatchesSquashed(GtkWidget *tree)
     }
   else
     {
-      g_critical("Unexpected tree data store [%p]. Expected either [%p] (normal data) or [%p] (condensed data)", model, properties->mspTreeModel, properties->seqTreeModel);
+      g_critical("Unexpected tree data store [%p]. Expected either [%p] (normal data) or [%p] (condensed data).\n", model, properties->mspTreeModel, properties->seqTreeModel);
     }
   
   return result;
@@ -527,7 +527,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 	}
       else
 	{
-	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.");
+	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.\n");
 	}
     }
 }
@@ -564,7 +564,7 @@ static void resizeTreeHeaders(GtkWidget *tree, gpointer data)
 	}
       else
 	{
-	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.");
+	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.\n");
 	}
     }
   
@@ -631,7 +631,7 @@ void treeScrollSelectionIntoView(GtkWidget *tree, gpointer data)
 {
   /* Get the last selected sequence */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  const BlxSequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
+  const BlxSequence *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
   
   /* Get the tree row(s) that contain that sequence. (If multiple, just use 1st one) */
   GList *rows = treeGetSequenceRows(tree, lastSelectedSeq);
@@ -897,8 +897,8 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   if (!segmentToDisplay)
     {
       g_assert(error);
-      g_prefix_error(&error, "Could not draw reference sequence header. ");
-      g_warning(error->message);
+      prefixError(error, "Could not draw reference sequence header. ");
+      g_warning("%s", error->message);
       g_clear_error(&error);
       return;
     }
@@ -1022,7 +1022,7 @@ static void treeSelectRowRange(GtkWidget *blxWindow, GtkTreeModel *model, GtkTre
       GtkTreeIter currentIter;
       if (gtk_tree_model_get_iter(model, &currentIter, currentPath))
 	{
-	  BlxSequenceStruct *currentSeq = treeGetSequence(model, &currentIter);
+	  BlxSequence *currentSeq = treeGetSequence(model, &currentIter);
 	  blxWindowSelectSeq(blxWindow, currentSeq);
 	}
       else
@@ -1072,7 +1072,7 @@ static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
       gtk_tree_model_get_iter(model, &clickedIter, clickedPath);
       
       /* Get the sequence of the MSP(s) in this row */
-      BlxSequenceStruct *clickedSeq = treeGetSequence(model, &clickedIter);
+      BlxSequence *clickedSeq = treeGetSequence(model, &clickedIter);
 
       if (clickedSeq)
 	{
@@ -1091,7 +1091,7 @@ static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
 	  else if (!ctrlModifier && shiftModifier)
 	    {
 	      /* Shift pressed: select all rows between the last-selected sequence and the clicked row */
-	      const BlxSequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
+	      const BlxSequence *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
 	      GList *lastSelectedRows = treeGetSequenceRows(tree, lastSelectedSeq);
 	      
 	      if (g_list_length(lastSelectedRows) > 0) /* do nothing if no rows were previously selected */
@@ -1121,7 +1121,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
   
   if (selectedSeqs)
     {
-      const BlxSequenceStruct *clickedSeq = (const BlxSequenceStruct*)selectedSeqs->data;
+      const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
       char *seqName = clickedSeq->fullName;
       fetchAndDisplaySequence(seqName, 0, blxWindow);
     }
@@ -1247,9 +1247,9 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 }
 
 
-static BlxSequenceStruct* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter)
+static BlxSequence* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter)
 {
-  BlxSequenceStruct *result = NULL;
+  BlxSequence *result = NULL;
   GList *mspGList = treeGetMsps(model, iter);
   
   if (g_list_length(mspGList) > 0)
@@ -1263,7 +1263,7 @@ static BlxSequenceStruct* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter
 
 
 /* Get all the tree rows that contain MSPs from the given sequence */
-static GList *treeGetSequenceRows(GtkWidget *tree, const BlxSequenceStruct *clickedSeq)
+static GList *treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq)
 {
   GList *resultList = NULL;
   
@@ -1299,7 +1299,7 @@ gboolean treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboo
 {
   /* Get the last selected sequence */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  BlxSequenceStruct *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
+  BlxSequence *lastSelectedSeq = blxWindowGetLastSelectedSeq(blxWindow);
   
   /* Get the row in this tree that contain MSPs from that sequence (if there are multiple 
    * rows behaviour is a bit ambiguous; for now just act on the first one that was found) */
@@ -1327,7 +1327,7 @@ gboolean treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboo
       
       if (newRowExists)
 	{
-	  BlxSequenceStruct *newSeq = treeGetSequence(model, &newRowIter);
+	  BlxSequence *newSeq = treeGetSequence(model, &newRowIter);
 
 	  if (shiftModifier && blxWindowIsSeqSelected(blxWindow, newSeq))
 	    {
@@ -1629,7 +1629,7 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	      displayText[i] = ' ';
 	    }
 
-	  displayText[maxLen - 1] = msp->sframe[1];
+	  displayText[maxLen - 1] = getStrandAsChar(mspGetMatchStrand(msp));
 	  displayText[maxLen] = 0;
 	  
 	  g_object_set(renderer, NAME_COLUMN_PROPERTY_NAME, displayText, NULL);
@@ -1907,7 +1907,7 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      g_warning("Unexpected widget type for Name column header; header may not refresh properly.");
+      g_warning("Unexpected widget type for Name column header; header may not refresh properly.\n");
     }
 }
 
@@ -1940,7 +1940,7 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      g_warning("Unexpected widget type for Start column header; header may not refresh properly.");
+      g_warning("Unexpected widget type for Start column header; header may not refresh properly.\n");
     }
 }
 
@@ -1970,7 +1970,7 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
     }
   else
     {
-      g_warning("Unexpected widget type for End column header; header may not refresh properly.");
+      g_warning("Unexpected widget type for End column header; header may not refresh properly.\n");
     }
 }
 
@@ -2127,7 +2127,7 @@ static GList* addTreeColumns(GtkWidget *tree,
 	}
       else
 	{
-	  g_warning("Error creating column; invalid column info in detail-view column-list.");
+	  g_warning("Error creating column; invalid column info in detail-view column-list.\n");
 	}
     }
 

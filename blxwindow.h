@@ -56,7 +56,7 @@ typedef struct _BlxViewContext
   int numFrames;		    /* The number of reading frames */
 
   MSP *mspList;			    /* List of all MSPs. */
-  GList *matchSeqs;		    /* List of all match sequences (as BlxSequenceStructs). */
+  GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
   gboolean gappedHsp;		    
   const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
@@ -99,7 +99,7 @@ gboolean		  blxWindowGetGappedHsp(GtkWidget *blxWindow);
 MSP*			  blxWindowGetMspList(GtkWidget *blxWindow);
 GList*			  blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
 GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);
-SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequenceStruct *seqToFind);
+SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind);
 const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
 int			  blxWindowGetOffset(GtkWidget *blxWindow);
 BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
@@ -107,16 +107,16 @@ BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 GdkColor*		  getGdkColor(BlxViewContext *bc, const BlxColorId colorId, const gboolean selected);
 
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
-void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequenceStruct *seq);
+void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);
 void			  blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
-void			  blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequenceStruct *seq);
+void			  blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq);
 void			  blxWindowDeselectAllSeqs(GtkWidget *blxWindow);
-gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequenceStruct *seq);
-void			  blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequenceStruct *seq, const gboolean selected);
+gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq);
+void			  blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const gboolean selected);
 void			  blxWindowSelectionChanged(GtkWidget *blxWindow);
-BlxSequenceStruct*	  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
+BlxSequence*	  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
-int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequenceStruct *seq);
+int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);
 void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
 
@@ -142,7 +142,7 @@ gchar*			  getSequenceSegment(BlxViewContext *bc,
 					     const gboolean translateResult,
 					     GError **error);
   
-GtkWidget*		  createBlxWindow(CommandLineOptions *options, const char *paddingSeq);
+GtkWidget*		  createBlxWindow(CommandLineOptions *options, const char *paddingSeq, GList *seqList);
 
 
 #endif /* _blxwindow_included_ */

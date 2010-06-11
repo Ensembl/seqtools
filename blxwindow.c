@@ -526,7 +526,7 @@ gchar *getSequenceSegment(BlxViewContext *bc,
 
 /* Returns the order number of the group that this sequence belongs to, or
  * UNSET_INT if it does not belong to a group. */
-int sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequenceStruct *seq)
+int sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq)
 {
   SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, seq);
   return group ? group->order : UNSET_INT;
@@ -1056,7 +1056,7 @@ static GList* findSeqsFromName(GtkWidget *button, gpointer data)
 
 /* Finds all the valid sequences blixem knows about whose names are in the given
  * text entry box (passed as the user data), and returns them in a GList of
- * BlxSequenceStructs. Only does anything if the given radio button is active. */
+ * BlxSequences. Only does anything if the given radio button is active. */
 static GList* findSeqsFromList(GtkWidget *button, gpointer data)
 {
   if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
@@ -1193,18 +1193,17 @@ static void freeStringList(GList **stringList, const gboolean freeDataItems)
 
 
 /* Free the memory used by the given sequence group and its members. */
-static void destroySequenceGroup(GtkWidget *blxWindow, SequenceGroup **seqGroup)
+static void destroySequenceGroup(BlxViewContext *bc, SequenceGroup **seqGroup)
 {
   if (seqGroup && *seqGroup)
     {
       /* Remove it from the list of groups */
-      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-      blxContext->sequenceGroups = g_list_remove(blxContext->sequenceGroups, *seqGroup);
+      bc->sequenceGroups = g_list_remove(bc->sequenceGroups, *seqGroup);
       
       /* If this is pointed to by the match-set pointer, null it */
-      if (*seqGroup == blxContext->matchSetGroup)
+      if (*seqGroup == bc->matchSetGroup)
 	{
-	  blxContext->matchSetGroup = NULL;
+	  bc->matchSetGroup = NULL;
 	}
       
       /* Free the memory used by the group name */
@@ -1232,47 +1231,34 @@ static void blxWindowDeleteSequenceGroup(GtkWidget *blxWindow, SequenceGroup *gr
   
   if (blxContext->sequenceGroups)
     {
-      destroySequenceGroup(blxWindow, &group);
+      destroySequenceGroup(blxContext, &group);
       blxWindowGroupsChanged(blxWindow);
     }
 }
 
 
 /* Delete all groups */
-static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
+static void blxContextDeleteAllSequenceGroups(BlxViewContext *bc)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  GList *groupItem = blxContext->sequenceGroups;
+  GList *groupItem = bc->sequenceGroups;
   
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      destroySequenceGroup(blxWindow, &group);
+      destroySequenceGroup(bc, &group);
     }
   
-  g_list_free(blxContext->sequenceGroups);
-  blxContext->sequenceGroups = NULL;
+  g_list_free(bc->sequenceGroups);
+  bc->sequenceGroups = NULL;
   
-  blxWindowGroupsChanged(blxWindow);
 }
 
 
-/* Delete all sequence structs */
-static void blxWindowDeleteAllSequenceStructs(GtkWidget *blxWindow)
+static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  GList *listItem = blxContext->matchSeqs;
-  
-  /* Delete any data the BlxSequenceStructs own */
-  for ( ; listItem; listItem = listItem->next)
-    {
-      BlxSequenceStruct *seq = (BlxSequenceStruct*)(listItem->data);
-      destroySequenceStruct(seq);
-    }
-  
-  /* Free the list itself */
-  g_list_free(blxContext->matchSeqs);
-  blxContext->matchSeqs = NULL;
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  blxContextDeleteAllSequenceGroups(bc);
+  blxWindowGroupsChanged(blxWindow);
 }
 
 
@@ -1514,18 +1500,32 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
 static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 {
   SeqSearchData *searchData = (SeqSearchData*)data;
-  BlxSequenceStruct *seq = (BlxSequenceStruct*)listDataItem;
+  BlxSequence *seq = (BlxSequence*)listDataItem;
   
   /* Cut both down to the short versions of the variant name, in case one is the short
    * version and the other one isn't. */
-  if (wildcardSearch(sequenceGetVariantName(seq), getSeqVariantName(searchData->searchStr)))
+  gboolean found = wildcardSearch(sequenceGetVariantName(seq), getSeqVariantName(searchData->searchStr));
+  
+  if (!found)
+    {
+      /* Get the short name (without the variant on the end) and compare that */
+      found = wildcardSearch(sequenceGetShortName(seq), getSeqShortName(searchData->searchStr));
+    }
+  
+  if (!found)
+    {
+      /* Sequence names don't have the 'x' or 'i' postfix for exons or introns. If the search
+       * string has an 'x' or 'i' on the end, ignore it. */
+    }
+  
+  if (found)
     {
       searchData->matchList = g_list_prepend(searchData->matchList, seq);
-    }
+    }  
 }
 
 
-/* If the given radio button is enabled, add a group based on the currently-
+/* If the given radio button is enabled, add a group based on the curently-
  * selected sequences. */
 static void addGroupFromSelection(GtkWidget *button, gpointer data)
 {
@@ -1566,7 +1566,7 @@ static void addGroupFromName(GtkWidget *button, gpointer data)
 
 
 /* Utility function to take a list of names, and return a list of those that
- * that are valid sequence names from the given list of BlxSequenceStructs. */
+ * that are valid sequence names from the given list of BlxSequences. */
 static GList* getSeqStructsFromNameList(GList *nameList, GList *seqList)
 {
   SeqSearchData searchData = {NULL, NULL};
@@ -1585,7 +1585,7 @@ static GList* getSeqStructsFromNameList(GList *nameList, GList *seqList)
 }
 
 
-/* Utility to create a GList of BlxSequenceStructs from a textual list of sequences.
+/* Utility to create a GList of BlxSequences from a textual list of sequences.
  * Returns only valid sequences that blixem knows about. */
 static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText)
 {
@@ -2382,40 +2382,57 @@ void showSettingsDialog(GtkWidget *blxWindow)
 
 static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
 {
-  int numMSPs = 0;          /* count of MSPs */
-  int numSeqs = 0;          /* count of sequences (excluding duplicates) */
-  gint32 totalSeqSize = 0;  /* total memory used by the sequences */
-  GHashTable *sequences = g_hash_table_new(NULL, NULL); /* remembers which sequences we've already seen */
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  /* Compile data for sequences */
+  int totalNumSeqs = 0;             /* total number of sequences */
+  int numValidSeqs = 0;             /* how many sequences have sequence data filled in */
+
+  gint32 seqDataSize = 0;           /* total memory used by the sequence data */
+  gint32 seqStructSize = 0;         /* total memory used by the sequence structs */
+
+  GList *seqItem = bc->matchSeqs;
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      ++totalNumSeqs;
+      seqStructSize += sizeof(BlxSequence);
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      
+      if (blxSeq->sequence)
+        {
+          ++numValidSeqs;
+          seqDataSize += strlen(blxSeq->sequence) * sizeof(char);
+        }
+    }
   
+
+  /* Compile data for MSPs */
+  int numMSPs = 0;                /* total number of MSPs */
+  gint32 mspStructSize = 0;       /* total memory used by the MSP structs */
+
   MSP *msp = NULL;
   for (msp = MSPlist; msp ; msp = msp->next)
     {
       ++numMSPs;
-      
-      if (!g_hash_table_lookup(sequences, msp->sseq))
-        {
-          ++numSeqs;
-	  if (msp->sseq)
-	    {
-	      totalSeqSize += strlen(msp->sseq) * sizeof(char);
-	    }
-          
-          g_hash_table_insert(sequences, msp->sseq, &msp->slength);
-        }
+      mspStructSize += sizeof(MSP);
     }
+
   
-  g_hash_table_destroy(sequences);
-  
+  /* Other data */
   int refSeqLen = strlen(blxWindowGetRefSeq(blxWindow));
+
   
   /* Create the text based on the results */
-  g_string_printf(result, "%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s",
+  g_string_printf(result, "%s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s",
                   "Length of reference sequence\t\t= ", refSeqLen, " characters\n\n",
-                  "Number of match sequences\t\t= ", numSeqs, "\n",
-                  "Total memory used by sequences\t= ", totalSeqSize, " bytes\n\n",
+                  "Total number of match sequences\t\t= ", totalNumSeqs, "\n",
+                  "Number of match sequences containing sequence data\t\t= ", numValidSeqs, "\n",
+                  "Total memory used by sequence data\t= ", seqDataSize, " bytes\n\n",
+                  "Size of each sequence struct\t= ", (int)sizeof(BlxSequence), " bytes\n",
+                  "Total memory used by sequence structs\t= ", seqStructSize, " bytes\n\n",
 		  "Number of MSPs\t\t\t\t\t= ", numMSPs, "\n",
                   "Size of each MSP\t\t\t\t\t= ", (int)sizeof(MSP), " bytes\n",
-		  "Total memory used by MSPs\t\t= ", (int)sizeof(MSP) * numMSPs, " bytes");
+		  "Total memory used by MSP structs\t\t= ", (int)sizeof(MSP) * numMSPs, " bytes");
 }
 
 
@@ -2963,43 +2980,52 @@ BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
   return properties ? properties->blxContext : NULL;
 }
 
+
+static void destroyBlxContext(BlxViewContext **bc)
+{
+  if (bc && *bc)
+    {
+      /* Free the list of selected sequence names (not the names themselves
+       * because we don't own them). */
+      if ((*bc)->selectedSeqs)
+	{
+	  g_list_free((*bc)->selectedSeqs);
+	  (*bc)->selectedSeqs = NULL;
+	}
+      
+      blxContextDeleteAllSequenceGroups(*bc);
+      
+      if ((*bc)->fetchMode)
+	{
+	  g_free((*bc)->fetchMode);
+	  (*bc)->fetchMode = NULL;
+	}
+      
+      if ((*bc)->colorList)
+	{
+	  g_list_foreach((*bc)->colorList, destroyBlxColor, NULL);
+	  g_list_free((*bc)->colorList);
+	  (*bc)->colorList = NULL;
+	}
+      
+      destroyMspList(&((*bc)->mspList));
+      destroyBlxSequenceList(&((*bc)->matchSeqs));
+      
+      /* Free the context struct itself */
+      g_free((*bc));
+      *bc = NULL;
+    }
+}
+
+
 static void onDestroyBlxWindow(GtkWidget *widget)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(widget);
   
-  if (properties && properties->blxContext)
-    {
-      /* Free the list of selected sequence names (not the names themselves
-       * because we don't own them). */
-      if (properties->blxContext->selectedSeqs)
-	{
-	  g_list_free(properties->blxContext->selectedSeqs);
-	  properties->blxContext->selectedSeqs = NULL;
-	}
-      
-      blxWindowDeleteAllSequenceGroups(widget);
-      blxWindowDeleteAllSequenceStructs(widget);
-
-      if (properties->blxContext->fetchMode)
-	{
-	  g_free(properties->blxContext->fetchMode);
-	  properties->blxContext->fetchMode = NULL;
-	}
-      
-      if (properties->blxContext->colorList)
-	{
-	  g_list_foreach(properties->blxContext->colorList, destroyBlxColor, NULL);
-	  g_list_free(properties->blxContext->colorList);
-	  properties->blxContext->colorList = NULL;
-	}
-     
-      /* Free the context struct itself */
-      g_free(properties->blxContext);
-      properties->blxContext = NULL;
-    }
-    
   if (properties)
     {
+      destroyBlxContext(&properties->blxContext);
+
       if (properties->mainmenu)
 	{
 	  gtk_widget_destroy(properties->mainmenu);
@@ -3018,9 +3044,9 @@ static void onDestroyBlxWindow(GtkWidget *widget)
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", NULL);
     }
-  
-  /* Destroy variables created by the main program */
-  blviewDestroy(widget);
+
+  /* Reset the global pointer to the blxWindow */
+  blviewResetGlobals();
   
   gtk_main_quit();
 }
@@ -3163,11 +3189,11 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   
   /* exons */
   createBlxColor(bc, BLXCOL_EXON_CDS, "Exon (CDS)", "Exon color in alignment list (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_UTR, "Exon (UTR)", "Exon color in alignment list (non-coding)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_UTR, "Exon (UTR)", "Exon color in alignment list (non-coding)", BLX_LIGHT_RED, BLX_LIGHT_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOL_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOL_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOL_EXON_FILL_CDS, "Exon fill color (CDS)", "Exon fill color in big picture (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_FILL_UTR, "Exon fill color (UTR)", "Exon fill color in big picture (non-coding)", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_EXON_FILL_UTR, "Exon fill color (UTR)", "Exon fill color in big picture (non-coding)", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOL_EXON_LINE_CDS, "Exon line color (CDS)", "Exon line color in big picture (coding)", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
   createBlxColor(bc, BLXCOL_EXON_LINE_UTR, "Exon line color (UTR)", "Exon line color in big picture (non-coding)", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
   
@@ -3196,6 +3222,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
 					      const char *paddingSeq,
+                                              GList *seqList,
 					      GtkWidget *widget)
 {
   BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
@@ -3215,7 +3242,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->gappedHsp = options->gappedHsp;
   blxContext->paddingSeq = paddingSeq;
   blxContext->fetchMode = g_strdup(options->fetchMode);
-  blxContext->matchSeqs = NULL; /* will be initialised from MSP data */
+  blxContext->matchSeqs = seqList;
   
   blxContext->displayRev = FALSE;
   blxContext->selectedSeqs = NULL;
@@ -3417,7 +3444,7 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequenceStruct *seqToFind)
+SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
 {
   SequenceGroup *result = NULL;
   
@@ -3544,7 +3571,7 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 	  first = FALSE;
 	}
 
-      const BlxSequenceStruct *seq = (const BlxSequenceStruct*)(listItem->data);
+      const BlxSequence *seq = (const BlxSequence*)(listItem->data);
       g_string_append(result, sequenceGetDisplayName(seq));
     }
 
@@ -3586,7 +3613,7 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow)
 
 
 /* Call this function to select the given match sequence */
-void blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequenceStruct *seq)
+void blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq)
 {
   if (!blxWindowIsSeqSelected(blxWindow, seq))
     {
@@ -3610,7 +3637,7 @@ void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList)
 
 
 /* Call this function to deselect the given sequence */
-void blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequenceStruct *seq)
+void blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
@@ -3640,7 +3667,7 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 
 
 /* Returns true if the given sequence is selected */
-gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequenceStruct *seq)
+gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq)
 {
   GList *foundItem = NULL;
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -3655,7 +3682,7 @@ gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequenceStruct *s
 
 
 /* Set the given sequence as selected or unselected, depending on the given argument */
-void blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequenceStruct *seq, const gboolean selected)
+void blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const gboolean selected)
 {
   if (selected)
     {
@@ -3668,9 +3695,9 @@ void blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequenceStruct *seq, const
 }
 
 
-BlxSequenceStruct* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
+BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
 {
-  BlxSequenceStruct *result = NULL;
+  BlxSequence *result = NULL;
   
   GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   
@@ -3678,7 +3705,7 @@ BlxSequenceStruct* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
     {
       /* Get the last-selected sequence */
       GList *lastItem = g_list_last(selectedSeqs);
-      result = (BlxSequenceStruct*)(lastItem->data);
+      result = (BlxSequence*)(lastItem->data);
     }
   
   return result;
@@ -3728,7 +3755,7 @@ static GtkWidget* createMainMenu(GtkWidget *window)
   
   if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
     {
-      g_critical("Building menus failed: %s", error->message);
+      g_critical("Building menus failed: %s\n", error->message);
       g_error_free (error);
       exit (EXIT_FAILURE);
     }
@@ -3759,129 +3786,134 @@ static void calcID(MSP *msp, BlxViewContext *bc)
   
   msp->id = UNSET_INT;
   
-  if (mspIsBlastMatch(msp) && msp->sseq && msp->sseq != bc->paddingSeq)
+  if (mspIsBlastMatch(msp))
     {
       msp->id = 0;
       
-      /* Note that this will reverse complement the ref seq if it is the reverse 
-       * strand. This means that where there is no gaps array the comparison is trivial
-       * as coordinates can be ignored and the two sequences just whipped through. */
-      GError *error = NULL;
-      
-      char *refSeqSegment = getSequenceSegment(bc,
-					       bc->refSeq,
-					       msp->qstart, 
-					       msp->qend, 
-					       mspGetRefStrand(msp), 
-					       BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
-					       mspGetRefFrame(msp, bc->seqType),
-					       bc->displayRev,
-					       !qForward,
-					       TRUE,
-					       TRUE,
-					       &error);
-      
-      if (!refSeqSegment)
-	{
-	  g_prefix_error(&error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", msp->sname, msp->sstart, msp->send);
-	  g_critical(error->message);
-	  g_clear_error(&error);
-	  return;
-	}
-      
-      /* We need to find the number of characters that match out of the total number */
-      int numMatchingChars = 0;
-      int totalNumChars = 0;
-      
-      if (!(msp->gaps) || arrayMax(msp->gaps) == 0)
-	{
-	  /* Ungapped alignments. */
-	  totalNumChars = (qSeqMax - qSeqMin + 1) / bc->numFrames;
-	  
-	  if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
-	    {
-	      int i = 0;
-	      for ( ; i < totalNumChars; i++)
-		{
-		  if (freeupper(msp->sseq[i]) == freeupper(refSeqSegment[i]))
-		    {
-		      numMatchingChars++;
-		    }
-		}
-	    }
-	  else						    /* blastn, blastp & blastx */
-	    {
-	      int i = 0;
-	      for ( ; i < totalNumChars; i++)
+      /* If there is no sequence data, leave the ID as zero */
+      const char *matchSeq = mspGetMatchSeq(msp);
+
+      if (matchSeq)
+        {
+          /* Note that this will reverse complement the ref seq if it is the reverse 
+           * strand. This means that where there is no gaps array the comparison is trivial
+           * as coordinates can be ignored and the two sequences just whipped through. */
+          GError *error = NULL;
+          
+          char *refSeqSegment = getSequenceSegment(bc,
+                                                   bc->refSeq,
+                                                   msp->qstart, 
+                                                   msp->qend, 
+                                                   mspGetRefStrand(msp), 
+                                                   BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
+                                                   mspGetRefFrame(msp, bc->seqType),
+                                                   bc->displayRev,
+                                                   !qForward,
+                                                   TRUE,
+                                                   TRUE,
+                                                   &error);
+          
+          if (!refSeqSegment)
+            {
+	      prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", msp->sname, msp->sstart, msp->send);
+              g_critical("%s", error->message);
+              g_clear_error(&error);
+              return;
+            }
+          
+          /* We need to find the number of characters that match out of the total number */
+          int numMatchingChars = 0;
+          int totalNumChars = 0;
+          const int numGaps = msp->gaps ? g_slist_length(msp->gaps) : 0;
+          
+          if (numGaps == 0)
+            {
+              /* Ungapped alignments. */
+              totalNumChars = (qSeqMax - qSeqMin + 1) / bc->numFrames;
+              
+              if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
                 {
-                  int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
-		  if (freeupper(msp->sseq[sIndex]) == freeupper(refSeqSegment[i]))
-		    {
-		      numMatchingChars++;
-		    }
+                  int i = 0;
+                  for ( ; i < totalNumChars; i++)
+                    {
+                      if (freeupper(matchSeq[i]) == freeupper(refSeqSegment[i]))
+                        {
+                          numMatchingChars++;
+                        }
+                    }
                 }
-	    }
-	}
-      else
-	{
-	  /* Gapped alignments. */
-	  
-	  /* To do tblastn and tblastx is not imposssible but would like to work from
-	   * examples to get it right.... */
-	  if (bc->blastMode == BLXMODE_TBLASTN)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else if (bc->blastMode == BLXMODE_TBLASTX)
-	    {
-	      printf("not implemented yet\n") ;
-	    }
-	  else
-	    {
-	      /* blastn and blastp remain simple but blastx is more complex since the query
-               * coords are nucleic not protein. */
-	      
-              Array gaps = msp->gaps;
-	      
-              int i = 0;
-	      for ( ; i < arrayMax(gaps) ; i++)
-		{
-		  SMapMap *m = arrp(gaps, i, SMapMap) ;
-		  
-                  int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-		  getSMapMapRangeExtents(m, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-		  
-                  totalNumChars += sRangeMax - sRangeMin + 1;
+              else						    /* blastn, blastp & blastx */
+                {
+                  int i = 0;
+                  for ( ; i < totalNumChars; i++)
+                    {
+                      int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
+                      if (freeupper(matchSeq[sIndex]) == freeupper(refSeqSegment[i]))
+                        {
+                          numMatchingChars++;
+                        }
+                    }
+                }
+            }
+          else
+            {
+              /* Gapped alignments. */
+              
+              /* To do tblastn and tblastx is not imposssible but would like to work from
+               * examples to get it right.... */
+              if (bc->blastMode == BLXMODE_TBLASTN)
+                {
+                  printf("not implemented yet\n") ;
+                }
+              else if (bc->blastMode == BLXMODE_TBLASTX)
+                {
+                  printf("not implemented yet\n") ;
+                }
+              else
+                {
+                  /* blastn and blastp remain simple but blastx is more complex since the query
+                   * coords are nucleic not protein. */
+                  GSList *rangeItem = msp->gaps;
                   
-                  /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
-		   * We need to translate the first coord in the range (which is in terms of the full
-		   * reference sequence) into coords in the cut-down ref sequence. */
-                  int q_start = qForward ? (qRangeMin - qSeqMin) / bc->numFrames : (qSeqMax - qRangeMax) / bc->numFrames;
-		  
-		  /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
-		   * through sseq if we have the forward strand or backwards if we have the reverse strand,
-		   * so start from the lower or upper end accordingly. */
-                  int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
-		  
-                  int sIdx = s_start, qIdx = q_start ;
-		  while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
-		    {
-		      if (freeupper(msp->sseq[sIdx]) == freeupper(refSeqSegment[qIdx]))
-			numMatchingChars++ ;
-		      
-                      /* Move to the next base. The refSeqSegment is always forward, but we might have to
-                       * traverse the s sequence in reverse. */
-                      ++qIdx ;
-                      if (sForward) ++sIdx ;
-                      else --sIdx ;
-		    }
-		}
-	    }
-	}
-      
-      msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
-      
-      g_free(refSeqSegment);
+                  for ( ; rangeItem; rangeItem = rangeItem->next)
+                    {
+                      CoordRange *range = (CoordRange*)(rangeItem->data);
+                      
+                      int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+                      getCoordRangeExtents(range, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+                      
+                      totalNumChars += sRangeMax - sRangeMin + 1;
+                      
+                      /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
+                       * We need to translate the first coord in the range (which is in terms of the full
+                       * reference sequence) into coords in the cut-down ref sequence. */
+                      int q_start = qForward ? (qRangeMin - qSeqMin) / bc->numFrames : (qSeqMax - qRangeMax) / bc->numFrames;
+                      
+                      /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
+                       * through sseq if we have the forward strand or backwards if we have the reverse strand,
+                       * so start from the lower or upper end accordingly. */
+                      int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
+                      
+                      int sIdx = s_start, qIdx = q_start ;
+                      while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
+                        {
+                          if (freeupper(matchSeq[sIdx]) == freeupper(refSeqSegment[qIdx]))
+                            numMatchingChars++ ;
+                          
+                          /* Move to the next base. The refSeqSegment is always forward, but we might have to
+                           * traverse the s sequence in reverse. */
+                          ++qIdx ;
+                          if (sForward) ++sIdx ;
+                          else --sIdx ;
+                        }
+                    }
+                }
+            }
+          
+          msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
+          
+          g_free(refSeqSegment);
+        }
     }
   
   return ;
@@ -3900,15 +3932,13 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
   msp->qend = msp->qend + offset;
   
   /* Gap coords are also 1-based, so convert those too */
-  if (msp->gaps && arrayMax(msp->gaps) > 0)
+  GSList *rangeItem = msp->gaps;
+
+  for ( ; rangeItem; rangeItem = rangeItem->next)
     {
-      int i = 0;
-      for ( ; i < arrayMax(msp->gaps) ; i++)
-	{
-	  SMapMap *curRange = arrp(msp->gaps, i, SMapMap);
-	  curRange->r1 = curRange->r1 + offset;
-	  curRange->r2 = curRange->r2 + offset;
-	}
+      CoordRange *curRange = (CoordRange*)(rangeItem->data);
+      curRange->qStart += offset;
+      curRange->qEnd += offset;
     }
   
   /* Calculate the q frame that this MSP should appear in; that is, the frame in which
@@ -3922,14 +3952,16 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
       
       int frame = UNSET_INT;
       convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
+      
       char *frameStr = convertIntToString(frame);
 
-      if (frameStr[0] != msp->qframe[2])
+      if (frame != msp->qFrame)
 	{
-	  printf("Warning: calculated match frame as %c but frame in input file is %c. Sequence %s [%d - %d]\n",
-		 frameStr[0], msp->qframe[2], msp->sname, msp->sstart, msp->send);
+	  printf("Warning: calculated match frame as %d but frame in input file is %d. Sequence %s [%d - %d]\n",
+		 frame, msp->qFrame, msp->sname, msp->sstart, msp->send);
 	}  
       
+      msp->qFrame = frame;
       msp->qframe[2] = frameStr[0];
       g_free(frameStr);
     }
@@ -3962,11 +3994,8 @@ static int calculateMspData(MSP *mspList, BlxViewContext *bc)
 
 
 /* Create the main blixem window */
-GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
+GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq, GList *seqList)
 {
-  g_log_set_default_handler(defaultMessageHandler, NULL);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
-  
   /* Get the range of the reference sequence. If this is a DNA sequence but our
    * matches are peptide sequences, we must convert to the peptide sequence. */
   const int refSeqLen = (int)strlen(options->refSeq);
@@ -4011,11 +4040,12 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq)
 								      0,   /* page increment dynamically set based on display range */
 								      0)); /* page size dunamically set based on display range */
   
-  BlxViewContext *blxContext = blxWindowCreateContext(options, &refSeqRange, &fullDisplayRange, paddingSeq, window);
+  BlxViewContext *blxContext = blxWindowCreateContext(options, &refSeqRange, &fullDisplayRange, paddingSeq, seqList, window);
+  
   const int lowestId = calculateMspData(options->mspList, blxContext);
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
-  
+
   GtkWidget *bigPicture = createBigPicture(window,
 					   vbox, 
 					   &fwdStrandGrid, 

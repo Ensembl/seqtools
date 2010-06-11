@@ -27,11 +27,12 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.12 2010-05-20 12:07:42 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.13 2010-06-11 09:29:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 #include <wh/regular.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
@@ -140,10 +141,14 @@ int main(int argc, char **argv)
 				   7 G (blxparser.c)
 				   8    sorting mode
 				*/
-  char refSeqName[FULLNAMESIZE+1];
-  char dummyseqname[FULLNAMESIZE+1];
+  char refSeqName[FULLNAMESIZE+1] = "";
+  char dummyseqname[FULLNAMESIZE+1] = "";
   
-  int displayStart = 0, qOffset = 0, install = 1, seqInSFS = 0 ;
+  int displayStart = 0;
+  int qOffset = 0;
+  int install = 1;
+  gboolean singleFile = FALSE;        /* if true, there is a single file containing both the query 
+                                         sequence and the alignment data */
   
   int          optc;
   extern int   optind;
@@ -159,9 +164,25 @@ int main(int argc, char **argv)
   char *config_file = NULL ;
   GError *error = NULL ;
  
+  /* Set up the GLib message handlers
+   *
+   * For now, also set up the acedb message package. I'm trying to phase out use of the acedb
+   * message package so we can get rid of dependencies on acedb: for now, the GLib message
+   * handlers just pass the messages to the acedb package. This is so that we can gradually switch
+   * everything over to using GLib calls instead of calling the acedb package directly. Then when
+   * we're ready we can just change the GLib handlers to use something else instead of acedb. 
+   * 
+   * There are two handlers: the default one for all non-critical messages, which will just log
+   * output to the console, and one for critical messages and errors, which will display a 
+   * pop-up message (the idea being that we don't bother the user unless it's something serious).
+   * So, to get a pop-up message use g_critical, and to log a message or warning use g_message, 
+   * g_warning, g_debug etc. Note that g_error is always fatal.
+   */
+  g_log_set_default_handler(defaultMessageHandler, NULL);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
 
-  /* Set up the message package to report program/user details in messages.  */
   messSetMsgInfo(argv[0], BLIXEM_TITLE_STRING) ;
+
 
   /* Stick version info. into usage string. */
   usage = g_malloc(strlen(usageText) + strlen(blixemVersion) + 10) ;
@@ -182,7 +203,7 @@ int main(int argc, char **argv)
 	  config_file = strnew(optarg, 0) ;
 	  break;
 	case 'F': 
-	  seqInSFS = 1;        
+	  singleFile = TRUE;        
 	  strcpy(FSfilename, optarg);
 	  break;
 	case 'h': 
@@ -218,7 +239,7 @@ int main(int argc, char **argv)
 	  /* with the way blxview() accepts any value of offset, I just check*/
 	  /* its actually an integer.                                        */
 	  if (!(utStr2Int(optarg, &qOffset)))
-	    g_error("Bad offset argument: \"-%c %s\"", optc, optarg) ;
+	    g_error("Bad offset argument: \"-%c %s\"\n", optc, optarg) ;
 	  break;
 	case 'p':
 	  opts[0] = 'P';
@@ -233,7 +254,7 @@ int main(int argc, char **argv)
 	  break ;
 	case 'S': 
 	  if (!(displayStart = atoi(optarg)))
-	    g_error("Bad diplay start position: %s", optarg); 
+	    g_error("Bad diplay start position: %s\n", optarg); 
 	  opts[1] = ' ';
 	  break;
 	case 's': 
@@ -252,11 +273,11 @@ int main(int argc, char **argv)
 	  strcpy(xtra_filename, optarg);
 	  break;
 
-	default : g_error("Illegal option");
+	default : g_error("Illegal option\n");
 	}
     }
 
-  if (argc-optind < 2 && !seqInSFS)
+  if (argc-optind < 2 && !singleFile)
     {
       fprintf(stderr, "%s\n", usage); 
 
@@ -278,12 +299,14 @@ int main(int argc, char **argv)
   /* Set up program configuration. */
   if (!blxInitConfig(config_file, &error))
     {
-      g_error("Config File Error: %s", error->message) ;
+      g_error("Config File Error: %s\n", error->message) ;
     }
 
 
-  if (!seqInSFS)
+  if (!singleFile)
     {
+      /* The query sequence is in a separate file. */
+      
       strcpy(seqfilename, argv[optind]);
       strcpy(FSfilename, argv[optind+1]);
 
@@ -293,7 +316,7 @@ int main(int argc, char **argv)
 	}
       else if(!(seqfile = fopen(seqfilename, "r")))
 	{
-	  g_error("Cannot open %s\n", seqfilename);
+	  messerror("Cannot open %s\n", seqfilename);
 	}
 	
       /* Read in query sequence */
@@ -304,7 +327,7 @@ int main(int argc, char **argv)
 	  int i=0;
 	    
 	  if (!fgets(line, MAXLINE, seqfile))
-	    g_error("Error reading seqFile");;
+	    g_error("Error reading seqFile.\n");
 
 	  sscanf(line, "%s", refSeqName);
 
@@ -382,7 +405,8 @@ int main(int argc, char **argv)
       g_error("Cannot open %s\n", FSfilename);
     }
   
-  parseFS(&mspList, FSfile, opts, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+  GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
+  parseFS(&mspList, FSfile, opts, &seqList, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
   
   if (FSfile != stdin)
     {
@@ -397,7 +421,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&mspList, xtra_file, opts, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+      parseFS(&mspList, xtra_file, opts, &seqList, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
       fclose(xtra_file) ;
     }
 
@@ -419,7 +443,7 @@ int main(int argc, char **argv)
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  blxview(refSeq, refSeqName, displayStart, qOffset, mspList, opts, pfetch, align_types, TRUE);
+  blxview(refSeq, refSeqName, displayStart, qOffset, mspList, seqList, opts, pfetch, align_types, TRUE);
   gtk_main();
     
   /* We should not get here.... */

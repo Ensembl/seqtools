@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.6 2010-05-25 15:03:50 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.7 2010-06-11 09:29:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -132,8 +132,8 @@ static char *stringUnprotect(char **textp, char *target)
 }
 
   
-static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char seq) {
-
+static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char seq)
+{
    MSP   
        *msp;
    char 
@@ -565,7 +565,9 @@ int main(int argc, char **argv)
 	    messcrash("Cannot open %s\n", options.FSfilename);
           }
 	
-	parseFS(&MSPlist, file, dummyopts, &qseq, options.qname, &sseq, options.sname, options.qoffset);
+        GList *seqList = NULL; /* parser compiles a list of BlxSequences into here; not required for dotter */
+
+	parseFS(&MSPlist, file, dummyopts, &seqList, &qseq, options.qname, &sseq, options.sname, options.qoffset);
       }
 
     /* Determine sequence types */

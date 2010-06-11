@@ -386,7 +386,7 @@ static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
 /* Draw the MSPs for the given sequence in the given color. */
 static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 {
-  const BlxSequenceStruct *seq = (const BlxSequenceStruct*)listItemData;
+  const BlxSequence *seq = (const BlxSequence*)listItemData;
   DrawGridData *drawData = (DrawGridData*)data;  
   GList *mspListItem = seq->mspList;
 
@@ -624,7 +624,7 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
         }
       else
 	{
-	  g_warning("Failed to draw grid [%p] - could not create bitmap", grid);
+	  g_warning("Failed to draw grid [%p] - could not create bitmap.\n", grid);
 	}
     }
   

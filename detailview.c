@@ -173,7 +173,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
     }
   else
     {
-      g_critical("Could not find a fixed-width font. Alignments may not be displayed correctly.");
+      g_critical("Could not find a fixed-width font. Alignments may not be displayed correctly.\n");
     }
   
   return result;
@@ -416,7 +416,7 @@ static void addTreesToDetailView(GtkContainer *detailView,
     }
   else
     {
-      g_error("Unexpected detail view type: expected a paned widget. Could not add child trees.");
+      g_error("Unexpected detail view type: expected a paned widget. Could not add child trees.\n");
     }
 }
 
@@ -655,7 +655,7 @@ void refreshDetailViewHeaders(GtkWidget *detailView)
 	}
       else
 	{
-	  g_critical("Invalid column data for detail view header; header may not be refreshed correctly.");
+	  g_critical("Invalid column data for detail view header; header may not be refreshed correctly.\n");
 	}
     }
 }
@@ -747,7 +747,7 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
 /* Get the text displayed in the user feedback box based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). 
  * The string returned by this function must be free'd with g_free. */
-static char* getFeedbackText(GtkWidget *detailView, const BlxSequenceStruct *seq, const int numSeqsSelected)
+static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, const int numSeqsSelected)
 {
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
@@ -769,9 +769,9 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequenceStruct *seq
 	{
 	  MSP *firstMsp = (MSP*)(seq->mspList->data);
 	  
-	  if (firstMsp->sseq && firstMsp->sseq != bc->paddingSeq)
+	  if (mspGetMatchSeq(firstMsp))
 	    {
-	      sLen = strlen(firstMsp->sseq);
+	      sLen = strlen(mspGetMatchSeq(firstMsp));
 	    }
 
 	  /* If a q index is selected, see if there is a valid base at that index 
@@ -784,7 +784,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequenceStruct *seq
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev, NULL);
+		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev);
 
 		  if (sIdx != UNSET_INT)
 		    {
@@ -846,7 +846,7 @@ void updateFeedbackBox(GtkWidget *detailView)
   
   if (numSeqsSelected == 1) /* currently we only properly handle single sequence selection */
     {
-      const BlxSequenceStruct *seq = (const BlxSequenceStruct*)(bc->selectedSeqs->data);
+      const BlxSequence *seq = (const BlxSequence*)(bc->selectedSeqs->data);
       messageText = getFeedbackText(detailView, seq, numSeqsSelected);
     }
   else
@@ -1139,8 +1139,8 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   if (!segmentToDisplay)
     {
       g_assert(error);
-      g_prefix_error(&error, "Could not draw DNA header. ");
-      g_warning(error->message);
+      prefixError(error, "Could not draw DNA header. ");
+      g_warning("%s", error->message);
       g_clear_error(&error);
       return;
     }
@@ -1245,11 +1245,11 @@ static int getSnpDisplayCoord(const MSP *msp,
   int startIdx = adjustedIdx;
   int endIdx = adjustedIdx; /* currently we only deal with substitutions, i.e. length==1 */
   
-  if (expandSnps)
+  if (expandSnps && mspGetMatchSeq(msp))
     {
       /* Expand the SNP range so that we display its entire sequence. We'll position 
        * the SNP so that the middle of its sequence lies at this coord */
-      const int numChars = strlen(msp->sseq);
+      const int numChars = strlen(mspGetMatchSeq(msp));
       startIdx = adjustedIdx - ceil((double)numChars / 2.0) + 1;
       endIdx = startIdx + numChars - 1;
     }
@@ -1421,7 +1421,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   
   for ( ; msp; msp = msp->next)
     {
-      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand)
+      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
 	{
 	  /* Get the range of display coords where this SNP will appear */
 	  int startIdx = UNSET_INT, endIdx = UNSET_INT;
@@ -1431,7 +1431,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	  if (valueWithinRange(startIdx, &properties->displayRange) || valueWithinRange(endIdx, &properties->displayRange))
 	    {
 	      int x = leftMargin + ((startIdx - properties->displayRange.min) * properties->charWidth);
-	      const int width = strlen(msp->sseq) * properties->charWidth;
+	      const int width = strlen(mspGetMatchSeq(msp)) * properties->charWidth;
 	      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
 	      
 	      /* Draw the outline in the default SNP color. If the SNP is selected, also
@@ -1444,7 +1444,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, properties->charHeight);
 	      
 	      /* Draw the text */
-	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, msp->sseq);
+	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, mspGetMatchSeq(msp));
 	      pango_layout_set_font_description(layout, properties->fontDesc);
 
 	      if (layout)
@@ -1603,16 +1603,16 @@ static void assertDetailView(GtkWidget *detailView)
 {
   /* Check it's a valid detail-view tree type */
   if (!detailView)
-    g_error("Detail-view widget is null");
+    g_error("Detail-view widget is null\n");
   
   if (!GTK_IS_WIDGET(detailView))
-    g_error("Detail-view is not a valid widget [%p]", detailView);
+    g_error("Detail-view is not a valid widget [%p]\n", detailView);
   
   if (!GTK_IS_CONTAINER(detailView))
-    g_error("Detail-view is not a valid container [%p]", detailView);
+    g_error("Detail-view is not a valid container [%p]\n", detailView);
   
   if (!detailViewGetProperties(detailView))
-    g_error("Tree properties not set [widget=%p]", detailView);
+    g_error("Tree properties not set [widget=%p]\n", detailView);
 }
 
 GtkWidget* detailViewGetBlxWindow(GtkWidget *detailView)
@@ -2211,7 +2211,7 @@ static gboolean onExposeSnpTrack(GtkWidget *snpTrack, GdkEventExpose *event, gpo
         }
       else
 	{
-	  g_critical("Failed to draw SNP track [%p] - could not create bitmap", snpTrack);
+	  g_critical("Failed to draw SNP track [%p] - could not create bitmap.\n", snpTrack);
 	}
     }
   
@@ -3406,9 +3406,9 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
       if (mspIsBlastMatch(msp) || mspIsExon(msp))
 	{
 	  /* Find the tree that this MSP should belong to based on its reading frame and strand */
-	  BlxStrand activeStrand = (msp->qframe[1] == '+') ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
+	  BlxStrand strand = mspGetRefStrand(msp);
 	  const int frame = mspGetRefFrame(msp, bc->seqType);
-	  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
+	  GtkWidget *tree = detailViewGetTree(detailView, strand, frame);
 
 	  if (tree)
 	    {
@@ -3419,9 +3419,6 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", msp->sname, msp->qstart, msp->qend, msp->sstart, msp->send, msp->qframe);
 	    }
 	}
-      
-      /* Add the MSP to a BlxSequenceStruct in the sequence list. */
-      addMspToSeqList(&bc->matchSeqs, msp);
     }
     
   /* Finally, create a custom-filtered version of the data store for each tree. We do 

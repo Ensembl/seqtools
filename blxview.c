@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.38 2010-05-25 15:03:50 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.39 2010-06-11 09:29:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -152,8 +152,8 @@ MSP score codes:
 char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
-static void blviewCreate(char *opts, char *align_types, const char *paddingSeq, CommandLineOptions *options) ;
-static BOOL haveAllSequences(const MSP const *msplist, DICT *dict) ;
+static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, CommandLineOptions *options) ;
+static GList*          getEmptySeqs(GList *inputList);
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -391,7 +391,10 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
 
 /* Find out if we need to fetch any sequences (they may all be contained in the input
  * files), if we do need to, then fetch them by the appropriate method. */
-static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, MSP *msplist, CommandLineOptions *options)
+static gboolean blxviewFetchSequences(PfetchParams *pfetch, 
+                                      gboolean External, 
+                                      GList *seqList, /* list of BlxSequence structs for all required sequences */
+                                      CommandLineOptions *options)
 {
   gboolean success = TRUE;
 
@@ -411,9 +414,10 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
     }
   
   
-  /* See if we have any sequences to fetch */
-  DICT *dict = dictCreate(128) ;
-  if (!haveAllSequences(msplist, dict))
+  /* See if we have any sequences to fetch (i.e. any that do not have sequence data already) */
+  GList *seqsToFetch = getEmptySeqs(seqList);
+  
+  if (g_list_length(seqsToFetch) > 0)
     {
       if (strcmp(options->fetchMode, BLX_FETCH_PFETCH) == 0)
 	{
@@ -455,17 +459,18 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
 	  
 	  if (net_id)
 	    {
-	      success = blxGetSseqsPfetch(msplist, dict, net_id, port, External) ;
+	      success = blxGetSseqsPfetch(seqsToFetch, net_id, port, External) ;
 	    }
 	}
 #ifdef PFETCH_HTML 
       else if (strcmp(options->fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
 	{
-	  success = blxGetSseqsPfetchHtml(msplist, dict, options->seqType) ;
+	  success = blxGetSseqsPfetchHtml(seqsToFetch, options->seqType) ;
 	}
 #endif
+
+      g_list_free(seqsToFetch);
     }
-  messfree(dict) ;
   
   return success;
 }
@@ -483,7 +488,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch, gboolean External, M
  *             pfetch struct to locate the pfetch server).
  *
  */
-int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist,
+int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist, GList *seqList,
             char *opts, PfetchParams *pfetch, char *align_types, BOOL External)
 {
   if (blixemWindow)
@@ -498,7 +503,7 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
       /* Set up program configuration. */
       if (!(blxGetConfig()) && !blxInitConfig(config_file, &error))
 	{
-	  g_error("Config File Error: %s", error->message) ;
+	  g_error("Config File Error: %s\n", error->message) ;
 	}
     }
 
@@ -511,14 +516,14 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
   
   blxviewGetOpts(opts, refSeq, &options);
   
-  gboolean status = blxviewFetchSequences(pfetch, External, msplist, &options);
+  gboolean status = blxviewFetchSequences(pfetch, External, seqList, &options);
   
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, padseq, &options) ;
+      blviewCreate(opts, align_types, padseq, seqList, &options) ;
     }
 
   return 0;
@@ -529,12 +534,13 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
 static void blviewCreate(char *opts, 
 			 char *align_types, 
 			 const char *paddingSeq,
+                         GList *seqList,
 			 CommandLineOptions *options)
 {
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createBlxWindow(options, paddingSeq);
+      blixemWindow = createBlxWindow(options, paddingSeq, seqList);
 
       BOOL pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       gtk_window_set_title(GTK_WINDOW(blixemWindow),
@@ -562,8 +568,8 @@ static void blviewCreate(char *opts,
       
       if (error)
 	{
-	  g_prefix_error(&error, "Could not start Dotter. ");
-	  g_critical(error->message);
+	  prefixError(error, "Could not start Dotter. ");
+	  g_critical("%s", error->message);
 	  g_clear_error(&error);
 	}
     }
@@ -575,66 +581,281 @@ static void blviewCreate(char *opts,
     }
 }
 
-/***********************************************************/
+/***********************************************************
+ *            Create/destroy MSPs and BlxSequences
+ ***********************************************************/
 
-
-/* BLVIEWDESTROY frees all the allocated memory
-   N.B. This memory was allocated in the calling program (acedb)
-
-   WHAT THIS ROUTINE DOES NOT ADDRESS IS RESETTING THE LARGE NUMBER OF GLOBALS
-   IN ANY SENSIBLE WAY......NOT IDEAL TO HAVE GLOBALS, EVEN LESS TO TO NOT RESET
-   THEM....GRRRRRRRRRRRRRR............
-
-
-   Could free padseq too, but they'd have to be remalloc'ed next time then.
-*/
-void blviewDestroy(GtkWidget *blxWindow)
+/* Add or create a BlxSequence struct, creating the BlxSequence if one does not
+ * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
+ * for the forward and reverse strands of the same sequence. The passed-in sequence 
+ * should always be forwards, and we reverse complement it here if we need the 
+ * reverse strand. Returns the new BlxSequence */
+BlxSequence* addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *sequence, GError **error)
 {
-  MSP *mspList = blxWindowGetMspList(blxWindow);
-  
-  /* Free the allocated sequences and names */
-  MSP *msp = NULL, *fmsp = NULL;
-  for (msp = mspList; msp; msp = msp->next)
+  char *name = mspGetSeqName(msp);
+
+  /* If this is an exon or intron the match strand is not applicable. The exon should 
+   * be in the same direction as the ref seq, so use the ref seq strand. */
+  if (mspIsExon(msp) || mspIsIntron(msp))
     {
-      if (msp->sseq && msp->sseq != padseq)
-	{
-	  /* Loop forward through all next MSPs and NULL the sseq pointer
-	   * if its the same as this one, so we don't try to delete it twice. */
-	  for (fmsp = msp->next; fmsp; fmsp = fmsp->next)
-	    {
-	      if (fmsp->sseq == msp->sseq)
-		{
-		  fmsp->sseq = NULL;
-		}
-	    }
-
-	  /* Free the MSP data. (Bug in fmapfeatures.c causes introns to have stale sseq's) */
-	  if (msp->score >= 0)
-	    {
-	      g_free(msp->sseq);
-	      g_free(msp->qname);
-	      g_free(msp->sname);
-	      g_free(msp->desc);
-	      arrayDestroy(msp->gaps);
-	      arrayDestroy(msp->xy);
-	    }
-	}
+      strand = msp->qStrand;
     }
+  
+  /* See if this strand for this sequence already exists. */
+  BlxSequence *blxSeq = findBlxSequence(*seqList, name, strand);
+  
+  if (!blxSeq)
+    {
+      /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
+      blxSeq = createEmptyBlxSequence(name);
+      *seqList = g_list_prepend(*seqList, blxSeq);
+      
+      blxSeq->strand = strand;
+      
+      /* Set the sequence data (if relevant and if passed) */
+      blxSeq->sequenceReqd = mspIsBlastMatch(msp) || mspIsSnp(msp);
+    }
+  
+  g_free(name);
+  
+  /* Add the MSP to the BlxSequence's list */
+  blxSeq->mspList = g_list_prepend(blxSeq->mspList, msp);
+  
+  /* Set a pointer to the BlxSequence from the MSP */
+  msp->sSequence = blxSeq;
+  
+  /* Add the sequence data */
+  addBlxSequenceData(blxSeq, sequence, error);
+  
+  return blxSeq;
+}
 
+
+/* Allocates memory for an MSP and initialise all its fields to the given values.
+ * Adds it into the given MSP list and makes the end pointer ('lastMsp') point to the new
+ * end of the list. Returns a pointer to the newly-created MSP. Also creates a BlxSequence
+ * for this MSP's sequence name (or adds the MSP to the existing one, if it exists already), 
+ * and adds that BlxSequence to the given seqList. Takes ownership of 'sequence'. */
+MSP* createNewMsp(MSP **lastMsp, 
+                  MSP **mspList,
+                  GList **seqList,
+                  const BlxMspType mspType,
+                  const int score,
+                  const char *qName,
+                  const int qStart,
+                  const int qEnd,
+                  const BlxStrand qStrand,
+                  const int qFrame,
+                  const char *sName,
+                  const int sStart,
+                  const int sEnd,
+                  BlxStrand sStrand,
+                  char *sequence,
+                  char *opts, 
+                  GError **error)
+{
+  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
+  
+  msp->next = NULL;
+  msp->type = mspType;
+  msp->score = score;
+  
+  msp->qname = g_strdup(qName);
+  
+  msp->qFrame = qFrame;
+  msp->qStrand = qStrand;
+  msp->qstart = qStart;
+  msp->qend = qEnd;
+  
+  msp->sname = g_ascii_strup(sName, -1);
+  msp->sstart = sStart;
+  msp->send = sEnd;
+  
+  msp->desc = NULL;
+  
+  msp->fs = NULL;
+  msp->fsColor = 0;
+  msp->fsShape = BLXCURVE_BADSHAPE;
+  msp->xy = NULL;
+  
+  msp->gaps = NULL;
+  
+#ifdef ACEDB
+  msp->key = 0;
+#endif
+  
+  /* ID will be calculated later */
+  msp->id = 0;
+  
+  /* For exons and introns, the s strand is not applicable. We always want the exon
+   * to be in the same direction as the ref sequence, so set the match seq strand to be 
+   * the same as the ref seq strand */
+  if (mspIsExon(msp) || mspIsIntron(msp))
+    {
+      sStrand = qStrand;
+    }
+  
+  /* Sort coords according to the strand direction */
+  sortValues(&msp->qstart, &msp->qend, qStrand == BLXSTRAND_FORWARD);
+  sortValues(&msp->sstart, &msp->send, sStrand == qStrand);
+  
+  /* Dotter still uses the old text versions of strand and frame, so create them here */
+  sprintf(msp->qframe, "(%c%d)", getStrandAsChar(qStrand), qFrame);
+  sprintf(msp->sframe, "(%c%d)", getStrandAsChar(sStrand), 1);
+  
+  /* Add/create a BlxSequence for this MSP's sequence name */
+  addBlxSequence(msp, sStrand, seqList, sequence, error);
+  
+  /* Add it to the list */
+  if (!*mspList) 
+    {
+      *mspList = msp; /* first entry in list */
+    }
+  
+  if (*lastMsp)
+    {
+      (*lastMsp)->next = msp; /* add to end of list */
+    }
+  
+  *lastMsp = msp;
+  
+  if (error && *error)
+    {
+      prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d %s], match seq = '%s' [%d - %d %s]). ",
+                  qName, qStart, qEnd, msp->qframe, sName, sStart, sEnd, msp->sframe);
+    }
+  
+  return msp;
+}
+
+
+/* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values.
+ * Add it into the given MSP list and make the end pointer ('lastMsp') point to the new
+ * end of the list. Returns a pointer to the newly-created MSP */
+MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
+{
+  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
+  
+  msp->next = NULL;
+  msp->type = BLXMSP_INVALID;
+  msp->score = 0;
+  msp->id = 0;
+  
+  msp->qname = NULL;
+  
+  msp->qframe[0] = '(';
+  msp->qframe[1] = '+';
+  msp->qframe[2] = '1';
+  msp->qframe[3] = ')';
+  msp->qframe[4] = '\0';
+  
+  msp->qstart = 0;
+  msp->qend = 0;
+  
+  msp->sSequence = NULL;
+  msp->sname = NULL;
+  
+  msp->slength = 0;
+  msp->sstart = 0;
+  msp->send = 0;
+  
+  msp->sframe[0] = '(';
+  msp->sframe[1] = '+';
+  msp->sframe[2] = '1';
+  msp->sframe[3] = ')';
+  msp->sframe[4] = '\0';
+  
+  msp->desc = NULL;
+  
+  msp->fs = NULL;
+  msp->fsColor = 0;
+  msp->fsShape = BLXCURVE_BADSHAPE;
+  
+  msp->xy = NULL;
+  msp->gaps = NULL;
+  
+#ifdef ACEDB
+  msp->key = 0;
+#endif
+  
+  /* Add it to the list */
+  if (!*mspList) 
+    {
+      /* Nothing in the list yet: make this the first entry */
+      *mspList = msp;
+    }
+  
+  if (*lastMsp)
+    {
+      /* Tag it on to the end of the list */
+      (*lastMsp)->next = msp;
+    }
+  
+  /* Make the 'lastMsp' pointer point to the new end of the list */
+  *lastMsp = msp;
+  
+  return msp;
+}
+
+
+void destroyMspData(MSP *msp)
+{
+  g_free(msp->qname);
+  msp->qname = NULL;
+  
+  g_free(msp->sname);
+  msp->sname = NULL;
+  
+  g_free(msp->desc);
+  msp->desc = NULL;
+  
+  g_slist_free(msp->gaps);
+  msp->gaps = NULL;
+  
+  arrayDestroy(msp->xy);
+  msp->xy = NULL;
+}
+
+
+/* Destroy all of the MSPs */
+void destroyMspList(MSP **mspList)
+{
+  /* Free the allocated sequences and names */
+  MSP *msp = NULL;
+  for (msp = *mspList; msp; msp = msp->next)
+    {
+      destroyMspData(msp);
+    }
+  
   /* Now free the MSPs themselves. */
-  for (msp = mspList; msp; )
+  MSP *fmsp = NULL;
+  for (msp = *mspList; msp; )
     {
       fmsp = msp;
       msp = msp->next;
       g_free(fmsp);
     }
-
-  /* Reset the globals */
-  blixemWindow = NULL ;
-
+  
+  *mspList = NULL;
+  
   return ;
 }
 
+
+/* Destroy all of the BlxSequences */
+void destroyBlxSequenceList(GList **seqList)
+{
+  GList *seqItem = *seqList;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      destroyBlxSequence(blxSeq);
+    }
+  
+  g_list_free(*seqList);
+  *seqList = NULL;
+}
 
 
 /* Redraw the entire blixem window. (Call blxWindowRedrawAll directly where possible,
@@ -648,66 +869,34 @@ void blviewRedraw(void)
 }
 
 
-/* This function is called if an MSP sequence cannot be found. It fills the length
- * of the sequence with padding characters (dashes). If there is already a pad sequence
- * that is long enough it uses that (because any out-of-range characters will be ignored);
- * otherwise it creates a new one of the required length, and makes all other padded MSPs
- * point to the new one too, so that we only have to maintain one. */
-void blxAssignPadseq(MSP *msp, MSP *msplist)
+void blviewResetGlobals()
 {
-    static int padseqlen=0;
-    char *oldpadseq;
-    int len = max(msp->sstart, msp->send);
-    MSP *hsp;
-
-    if (!padseq) {
-	padseq = g_malloc(INITDBSEQLEN+1);
-	memset(padseq, SEQUENCE_CHAR_PAD, INITDBSEQLEN);
-	padseqlen = INITDBSEQLEN;
-    }
-
-    if (len > padseqlen) {
-	oldpadseq = padseq;
-	g_free(padseq);
-
-	padseq = g_malloc(len+1);
-	memset(padseq, SEQUENCE_CHAR_PAD, len);
-	padseqlen = len;
-
-	/* Change all old padseqs to new */
-	for (hsp = msplist; hsp ; hsp = hsp->next)
-	    if (hsp->sseq == oldpadseq) hsp->sseq = padseq;
-    }
-
-    msp->sseq = padseq;
- }
+  blixemWindow = NULL;
+}
 
 
-/* Checks the MSP list of sequences for blixem to display to see if it contains sequence
- * data for each sequence (this may happen if acedb, for instance, starts blixem up and
- * acedb already contained all the sequences).
- * Returns TRUE if all the sequences are already there, FALSE otherwise.
- * Optionally returns the names of all the sequences that need to be fetched in dict if
- * one is supplied by caller. */
-static BOOL haveAllSequences(const MSP const *msplist, DICT *dict)
+/* Checks the list of sequences for blixem to display to see if they contain sequence
+ * data (this may happen if acedb, for instance, starts blixem up and acedb already contained
+ * all the sequences). Returns a list of all those that do not have sequence data. */
+static GList* getEmptySeqs(GList *inputList)
 {
-  BOOL result = TRUE ;
+  GList *resultList = NULL;
 
-  const MSP *msp = NULL;
-  for (msp = msplist ; msp ; msp = msp->next)
+  /* Loop through the input list */
+  GList *inputItem = inputList;
+  
+  for ( ; inputItem; inputItem = inputItem->next)
     {
-      if (!msp->sseq && msp->sname && *msp->sname && msp->score >= 0)
-	{
-	  result = FALSE ;
-	  if (dict)
-	    dictAdd (dict, msp->sname, 0) ;
-	  else
-	    break ;					    /* No dict so no need to carry on. */
-	}
+      BlxSequence *blxSeq = (BlxSequence*)(inputItem->data);
+      
+      /* Only alignments need a sequence */
+      if (blxSeq->sequenceReqd && blxSeq->sequence == NULL)
+        {
+          resultList = g_list_prepend(resultList, blxSeq);
+        }
     }
-  /* RD note: I would expect to have looked at msp->type above */
 
-  return result ;
+  return resultList;
 }
 
 

@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.18 2010-05-20 12:07:42 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.19 2010-06-11 09:29:47 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -122,14 +122,12 @@ typedef struct
   gboolean stats ;					    /* TRUE means record and output stats. */
   int min_bytes, max_bytes, total_bytes, total_reads ;	    /* Stats. */
 
-  int seq_total ;
-  DICT *dict ;
-  BlxSeqType seq_type ;
-  Array seqs ;
-
-
-  ProgressBar bar ;
-
+  int seq_total ;                                           /* Number of sequences to fetch */
+  GList *seqList ;                                          /* List of sequences to fetch */
+  GList *currentSeqItem ;                                   /* Keeps track of which BlxSequence we're currently fetching the data for */
+  BlxSeqType seq_type ;                                     /* Whether sequences are nucleotide or peptide */
+  
+  ProgressBar bar ;                                         /* Provides graphical feedback about how many sequences have been fetched */
   PFetchHandle pfetch ;
 } PFetchSequenceStruct, *PFetchSequence ;
 
@@ -181,7 +179,7 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 				    gpointer      user_data) ;
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
-static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data, int *num_seqs_inout) ;
+static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
 #endif
 
 static int socketConstruct(char *ipAddress, int port, BOOL External) ;
@@ -194,13 +192,11 @@ static void destroyProgressBar(ProgressBar bar) ;
 static void destroyProgressCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 static void cancelCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 
-static void fillMSPwithSeqs(MSP *msplist, Array seqs, DICT *dict) ;
-static void freeSeqs(Array seqs) ;
-
 static BOOL readConfigFile(GKeyFile *key_file, char *config_file, GError **error) ;
 ConfigGroup getConfig(char *config_name) ;
 static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
+static char *blxConfigGetFetchMode(void);
 
 
 
@@ -486,7 +482,7 @@ char *blxGetFetchProg(const char *fetchMode)
 /* Gets all the sequences needed by blixem but from http proxy server instead of from
  * the pfetch server direct, this enables blixem to be run and get sequences from
  * anywhere that can see the http proxy server. */
-BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
+gboolean blxGetSseqsPfetchHtml(GList *seqsToFetch, BlxSeqType seqType)
 {
   BOOL status = FALSE ;
   PFetchUserPrefsStruct prefs = {NULL} ;
@@ -497,19 +493,25 @@ BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
     {
       GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
       PFetchSequenceStruct fetch_data = {FALSE} ;
-      GString *seq_string = NULL;
-      int i ;
 
-
-      fetch_data.seqs = arrayCreate(128, char*) ;
-      fetch_data.dict = dict ;
+      fetch_data.finished = FALSE;
+      fetch_data.cancelled = FALSE;
       fetch_data.status = TRUE ;
-      fetch_data.pfetch = PFetchHandleNew(pfetch_type);
-      fetch_data.seq_total = dictMax(dict) ;
-      fetch_data.bar = makeProgressBar(fetch_data.seq_total) ;
+      fetch_data.err_txt = NULL;
+
       fetch_data.stats = FALSE ;
       fetch_data.min_bytes = INT_MAX ;
+      fetch_data.max_bytes = 0 ;
+      fetch_data.total_bytes = 0 ;
+      fetch_data.total_reads = 0 ;
+
+      fetch_data.seq_total = g_list_length(seqsToFetch);
+      fetch_data.seqList = seqsToFetch;
+      fetch_data.currentSeqItem = seqsToFetch;
       fetch_data.seq_type = seqType ;
+
+      fetch_data.bar = makeProgressBar(fetch_data.seq_total) ;
+      fetch_data.pfetch = PFetchHandleNew(pfetch_type);
 
       g_signal_connect(G_OBJECT(fetch_data.bar->top_level), "destroy",
 		       G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
@@ -533,10 +535,13 @@ BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
 
 
       /* Build up a string containing all the sequence names. */
-      seq_string = g_string_sized_new(1000) ;
-      for (i = 0; i < fetch_data.seq_total; i++)
+      GString *seq_string = g_string_sized_new(1000) ;
+      GList *seqItem = seqsToFetch;
+      
+      for ( ; seqItem; seqItem = seqItem->next)
 	{
-	  g_string_append_printf(seq_string, "%s ", dictName(dict, i)) ;
+          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+	  g_string_append_printf(seq_string, "%s ", blxSeq->fullName);
 	}
 
       /* Set up pfetch/curl connection routines, this is non-blocking so if connection
@@ -553,7 +558,7 @@ BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
 	    {
 	      if (!fetch_data.cancelled)
 		{
-		  g_critical("Sequence fetch from http server failed: %s", fetch_data.err_txt) ;
+		  g_critical("Sequence fetch from http server failed: %s\n", fetch_data.err_txt) ;
 		  g_free(fetch_data.err_txt) ;
 		}
 	    }
@@ -566,22 +571,10 @@ BOOL blxGetSseqsPfetchHtml(MSP *msplist, DICT *dict, BlxSeqType seqType)
       g_string_free(seq_string, TRUE);
 
       destroyProgressBar(fetch_data.bar) ;
-
-      /* If all good then fill in msp->sseq, otherwise clean up the allocated memory. */
-      if (status)
-	{
-	  fillMSPwithSeqs(msplist, fetch_data.seqs, fetch_data.dict) ;
-	}
-      else
-	{
-	  freeSeqs(fetch_data.seqs) ;
-	}
-
-      arrayDestroy(fetch_data.seqs) ;
     }
   else
     {
-      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.") ;
+      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.\n") ;
       status = FALSE ;
     }
 
@@ -648,7 +641,7 @@ void blxPfetchEntry(char *sequence_name)
     }
   else
     {
-      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.") ;
+      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.\n") ;
     }
 
   return ;
@@ -664,25 +657,17 @@ void blxPfetchEntry(char *sequence_name)
  *  - this version incorporates a progress monitor as a window,
  *    much easier for user to control + has a cancel button.
  */
-BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char *pfetchIP, int port, BOOL External)
+gboolean blxGetSseqsPfetch(GList *seqsToFetch, char *pfetchIP, int port, BOOL External)
 {
-  BOOL status = TRUE ;
-  enum {RCVBUFSIZE = 256} ;				    /* size of receive buffer */
-  int sock ;
-  STORE_HANDLE handle ;
-  Array seq ;		/* of char - the current sequence being parsed */
-  Array seqs ;		/* of char* - all sequences indexed by dict index */
-  int seq_total ;					    /* Total number of sequences requested. */
-  int i, len ;
-  static char buffer[RCVBUFSIZE] ;
+  BOOL status = TRUE;                     /* gets set to false if we encounter an error */
+  enum {RCVBUFSIZE = 256} ;               /* size of receive buffer */
 
-  handle = handleCreate () ;
-
-  seq = arrayHandleCreate (1024, char, handle) ;
-  seqs = arrayHandleCreate (128, char*, handle) ;
-  seq_total = dictMax(dict) ;
+  static char buffer[RCVBUFSIZE] ;        /* receive buffer */
+  STORE_HANDLE handle = handleCreate();
+  int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
 
   /* open socket connection */
+  int sock;
   if (status)
     {
       sock = socketConstruct (pfetchIP, port, External) ;
@@ -697,151 +682,171 @@ BOOL blxGetSseqsPfetch(MSP *msplist, DICT *dict, char *pfetchIP, int port, BOOL 
   /* send the command/names to the server */
   if (status)
     {
-      status = socketSend (sock, "-q -C") ;		    /* -q to get back one line per
-							       sequence, -C for lowercase DNA and
-							       uppercase protein. */
+      /* Send '-q' to get back one line per sequence, '-C' for lowercase DNA and uppercase protein. */
+      status = socketSend (sock, "-q -C");
     }
+
   if (status)
     {
-      for (i = 0 ; i < seq_total && status ; ++i)
+      /* For each sequence, send a command to fetch that sequence, in the order that they are in our list */
+      GList *seqItem = seqsToFetch;
+      
+      for ( ; seqItem && status ; seqItem = seqItem->next)
 	{
-	  status = socketSend(sock, dictName(dict, i)) ;
+          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+	  status = socketSend(sock, blxSeq->fullName);
 	}
     }
+
   if (status)
     {
       /* send a final newline to flush the socket */
       if (send(sock, "\n", 1, 0) != 1)
 	{
-	  g_critical("failed to send final \\n to socket") ;
+	  g_critical("failed to send final \\n to socket\n") ;
 	  status = FALSE ;
 	}
     }
 
 
-  /* get the sequences back */
-  if (status)
+  /* Get the sequences back. They will be returned in the same order that we asked for them, i.e. 
+   * in the order they are in our list. */
+  GList *currentSeqItem = seqsToFetch;
+  BlxSequence *currentSeq = (BlxSequence*)(currentSeqItem->data);
+
+  /* We'll read character by character into an extandable string */
+  GString *currentStr = g_string_new_len(NULL, 500);
+  
+  if (status && currentSeq)
     {
-      BOOL finished ;
-      int n, k, tot ;
-      ProgressBar bar ;
+      ProgressBar bar = makeProgressBar(numRequested);
+      int numFetched = 0;
+      int numSucceeded = 0;
+      gboolean finished = FALSE;
+      gboolean cancelled = FALSE;
 
-      bar = makeProgressBar(seq_total) ;
-
-      finished = FALSE ;
-      n = 0 ;						    /* number of sequence */
-      k = 0 ;						    /* position in sequence */
-      tot = 0 ;						    /* total sequences fetched. */
-      while (!finished && status)
+      while (status && !finished && !cancelled)
 	{
+          /* Check if user cancelled */
 	  if (isCancelledProgressBar(bar))
 	    {
-	      status = FALSE ;
-	      goto user_cancelled ;
+	      status = FALSE;
+	      cancelled = TRUE;
+              break;
 	    }
 
-	  len = recv(sock, buffer, RCVBUFSIZE, 0) ;
-	  if (len == -1)
+          /* Ask for the next chunk of data to be put into our buffer */
+	  int lenReceived = recv(sock, buffer, RCVBUFSIZE, 0);
+          
+	  if (lenReceived == -1)
 	    {
-	      status = FALSE ;
-	      g_critical("Could not retrieve sequence data from pfetch server, "
-			 "error was: %s", messSysErrorText()) ;
+              /* Problem with this one - skip to the next */
+	      status = FALSE;
+	      g_critical("Could not retrieve sequence data from pfetch server, error was: %s\n", messSysErrorText()) ;
+              break;
 	    }
-	  else if (len == 0)
+	  
+          if (lenReceived == 0)
 	    {
-	      finished = TRUE ;
-	    }
-	  else
-	    {
-	      BOOL pfetch_ok ;
-
-	      for (i = 0 ; i < len ; ++i)
-		{
-		  if (isCancelledProgressBar(bar))
-		    {
-		      status = FALSE ;
-		      goto user_cancelled ;
-		    }
-
-		  if (buffer[i] == '\n')
-		    {
-
-		      array(seq, k, char) = 0 ;
-		      if (strcmp(arrp(seq, 0, char), "no match"))
-			{
-			  /* NB not on handle - these must last after returning */
-			  array(seqs, n++, char*) = strnew(arrp(seq, 0, char), 0) ;
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-			  printf("%s\n", arrp(seq, 0, char)) ;
-			  printf("\nEND (%d)\n", strlen(arrp(seq, 0, char))) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-			  tot++ ;
-			  pfetch_ok = TRUE ;
-			}
-		      else
-			{
-			  array(seqs, n++, char*) = 0 ;
-
-			  pfetch_ok = FALSE ;
-			}
-		      k = 0 ;
-
-		      if (n > seq_total)
-			{
-			  status = FALSE ;
-			  g_critical("Unexpected data from pfetch server, "
-				     "received %d lines when only %d sequences requested.",
-				     n, dictMax(dict)) ;
-			}
-		      else
-			{
-			  updateProgressBar(bar, dictName(dict, (n - 1)), n, pfetch_ok) ;
-			}
-		    }
-		  else
-		    array(seq, k++, char) = buffer[i] ;
-		}
+              /* No more data, so quit out of the loop */
+	      finished = TRUE;
+              break;
 	    }
 
+          /* Loop through each character in the buffer */
+          gboolean pfetch_ok = FALSE;
+          int i = 0;
+          
+          for ( ; i < lenReceived ; ++i)
+            {
+              /* Check for user cancellation again */
+              if (isCancelledProgressBar(bar))
+                {
+                  status = FALSE;
+                  cancelled = TRUE;
+                  break;
+                }
+ 
+              if (buffer[i] == '\n')
+                {
+                  /* A new line means that we've finished one sequence and are about to start reading the next. */
+                  ++numFetched;
+                  finished = numFetched >= numRequested;
+                  
+                  /* Copy the result into the current BlxSequence (unless the fetch failed) */
+                  pfetch_ok = currentStr->str && strcmp(currentStr->str, "no match");
+                  
+                  if (pfetch_ok)
+                    {
+                      GError *error = NULL;
+                      addBlxSequenceData(currentSeq, g_strdup(currentStr->str), &error);
+                      
+                      if (error)
+                        {
+                          g_warning("%s", error->message);
+                          g_error_free(error);
+                        }
+                      else
+                        {
+                          ++numSucceeded;
+                        }
+                    }
+                  
+                  if (!finished)
+                    {
+                      /* Reset the string ready for the next sequence */
+                      g_string_truncate(currentStr, 0);
+                  
+                      /* Check that another BlxSequence item exists in the list */
+                      if (currentSeqItem->next)
+                        {
+                          updateProgressBar(bar, currentSeq->fullName, numFetched, pfetch_ok) ;
+                          
+                          /* Move to the next BlxSequence */
+                          currentSeqItem = currentSeqItem->next;
+                          currentSeq = (BlxSequence*)(currentSeqItem->data);
+                        }
+                      else
+                        {
+                          status = FALSE ;
+                          g_critical("Unexpected data from pfetch server: received too many lines. (%d sequences were requested.)\n", numRequested);
+                        }
+                    }
+                }
+              else
+                {
+                  /* Append this character onto our current sequence string */
+                  g_string_append_c(currentStr, buffer[i]);
+                }
+            }
 	}
-
-
-      /* User clicked the cancelled button in the dialog... */
-    user_cancelled:
       
-      shutdown(sock, SHUT_RDWR) ;
+      /* Finish up */
+      g_string_free(currentStr, TRUE);
 
-      destroyProgressBar(bar) ;
+      shutdown(sock, SHUT_RDWR);
+
+      destroyProgressBar(bar);
       bar = NULL ;
 
-      if (status && tot != seq_total)
+      if (status && numSucceeded != numRequested)
 	{
-	  double seq_prop ;
-
-	  seq_prop = (float)tot / (float)seq_total ;
+	  double proportionOk = (float)numSucceeded / (float)numRequested;
 
 	  /* We don't display an error message unless lots of sequences don't get fetched
 	   * because users find it annoying as most of the time they don't mind if the
 	   * odd sequence isn't fetched successfully. */
-	  if (seq_prop < 0.5)
-	    messerror("pfetch sent back %d when %d requested", tot, seq_total) ;
+	  if (proportionOk < 0.5)
+            {
+              g_critical("pfetch sent back %d when %d requested\n", numSucceeded, numRequested) ;
+            }
 	  else
-	    messdump("pfetch sent back %d when %d requested", tot, seq_total) ;
+            {
+              g_message("pfetch sent back %d when %d requested\n", numSucceeded, numRequested) ;
+            }
 	}
     }
 
-
-  /* If all good then fill in msp->sseq, otherwise clean up the allocated memory. */
-  if (status)
-    {
-      fillMSPwithSeqs(msplist, seqs, dict) ;
-    }
-  else
-    {
-      freeSeqs(seqs) ;
-    }
 
   messfree(handle) ;
 
@@ -897,7 +902,7 @@ BOOL blxConfigSetFetchMode(char *mode)
 }
 
 
-char *blxConfigGetFetchMode(void)
+static char *blxConfigGetFetchMode(void)
 {
   char *fetch_mode = NULL ;
   GKeyFile *key_file ;
@@ -960,44 +965,6 @@ gboolean blxConfigSetPFetchSocketPrefs(char *node, int port)
  */
 
 
-static void fillMSPwithSeqs(MSP *msplist, Array seqs, DICT *dict)
-{
-  int i ;
-  MSP *msp ;
-
-  for (msp = msplist ; msp ; msp = msp->next)
-    {
-      if (!msp->sseq && msp->sname && *msp->sname && dictFind (dict, msp->sname, &i))
-	{
-	  if (array(seqs, i, char*))
-	    {
-	      blxSeq2MSP(msp, array(seqs, i, char*)) ;
-	    }
-	  else
-	    {
-	      blxAssignPadseq (msp, msplist) ;	/* use pads if you can't find it */
-	    }
-	}
-    }
-
-  return ;
-}
-
-
-static void freeSeqs(Array seqs)
-{
-  int i ;
-
-  for (i = 0 ; i < arrayMax(seqs) ; i++)
-    {
-      if ((array(seqs, i, char*)))
-	g_free(array(seqs, i, char*)) ;
-    }
-
-  return ;
-}
-
-
 static int socketConstruct (char *ipAddress, int port, BOOL External)
 {
   int sock ;                       /* socket descriptor */
@@ -1008,7 +975,7 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
   /* Create a reliable, stream socket using TCP */
   if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0)
     {
-      g_critical ("socket() failed") ;
+      g_critical ("socket() failed\n") ;
       return -1 ;
     }
 
@@ -1020,12 +987,12 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
   {
     if (External)
     {
-        g_critical("Failed to start external blixem: unknown host \"%s\"", ipAddress);
+        g_critical("Failed to start external blixem: unknown host \"%s\"\n", ipAddress);
         return -1;
     }
     else
     {
-        g_critical("Failed to start internal blixem: unknown host \"%s\"", ipAddress);
+        g_critical("Failed to start internal blixem: unknown host \"%s\"\n", ipAddress);
         return -1;
     }
   }
@@ -1039,7 +1006,7 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
   /* Establish the connection to the server */
   if (connect(sock, (struct sockaddr *) servAddr, sizeof(struct sockaddr_in)) < 0)
     {
-      g_critical ("socket connect() to BLIXEM_PFETCH = %s failed", ipAddress) ;
+      g_critical ("socket connect() to BLIXEM_PFETCH = %s failed\n", ipAddress) ;
       sock = -1 ;
     }
 
@@ -1072,7 +1039,7 @@ static BOOL socketSend (int sock, char *text)
   sigemptyset(&oursigpipe.sa_mask) ;
   oursigpipe.sa_flags = 0 ;
   if (sigaction(SIGPIPE, &oursigpipe, &oldsigpipe) < 0)
-    g_error("Cannot set SIG_IGN for SIGPIPE for socket write operations") ;
+    g_error("Cannot set SIG_IGN for SIGPIPE for socket write operations.\n") ;
 
   bytes_written = send(sock, tmp, bytes_to_send, 0) ;
   if (bytes_written == -1)
@@ -1080,20 +1047,18 @@ static BOOL socketSend (int sock, char *text)
       if (errno == EPIPE || errno == ECONNRESET || errno == ENOTCONN)
 	{
 	  status = FALSE ;
-	  g_critical("Socket connection to pfetch server has failed, "
-		     "error was: %s", messSysErrorText()) ;
+	  g_critical("Socket connection to pfetch server has failed, error was: %s\n", messSysErrorText()) ;
 	}
       else
-	g_error("Fatal error on socket connection to pfetch server, "
-		  "error was: %s", messSysErrorText()) ;
+	g_error("Fatal error on socket connection to pfetch server, error was: %s\n", messSysErrorText()) ;
     }
   else if (bytes_written != bytes_to_send)
-    g_error("send() call should have written %d bytes, but actually wrote %d.",
+    g_error("send() call should have written %d bytes, but actually wrote %d.\n",
 	      bytes_to_send, bytes_written) ;
 
   /* Reset the old signal handler.                                           */
   if (sigaction(SIGPIPE, &oldsigpipe, NULL) < 0)
-    g_error("Cannot reset previous signal handler for signal SIGPIPE for socket write operations") ;
+    g_error("Cannot reset previous signal handler for signal SIGPIPE for socket write operations.\n") ;
 
   g_free(tmp) ;
 
@@ -1223,9 +1188,7 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 	}
       else
 	{
-	  static int seq_num = 0 ;
-
-	  if (!parsePfetchBuffer(text, *actual_read, fetch_data, &seq_num))
+	  if (!parsePfetchBuffer(text, *actual_read, fetch_data))
 	    status = PFETCH_STATUS_FAILED ;
 	}
     }
@@ -1281,15 +1244,17 @@ static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data)
  * even possible for very long sequences that they may span several buffers. Note also
  * that the buffer is _not_ null terminated, we have to use length to know when to stop reading.
  */
-static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data, int *num_seqs_inout)
+static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data)
 {
   BOOL status = TRUE ;
-  static int seq_num = 0 ;
+  static int seq_num = 0 ;                               /* counts how many sequences we've fetched */
   static char *unfinished = NULL ;
   char *seq_start, *cp ;
-  Array seqs = fetch_data->seqs ;
   int seqlen = 0 ;
   gboolean new_sequence ;
+
+  g_assert(fetch_data && fetch_data->currentSeqItem && fetch_data->currentSeqItem->data);
+  BlxSequence *currentSeq = (BlxSequence*)(fetch_data->currentSeqItem->data);
 
   if (fetch_data->stats)
     {
@@ -1325,12 +1290,15 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
 							       ? length : strlen("no match"))) == 0)
 	{
 	  fetch_ok = FALSE ;
-
-	  seq_num++ ;
+	  ++seq_num;
+          
 	  cp += strlen("no match") + 1 ;
 
-	  updateProgressBar(fetch_data->bar, dictName(fetch_data->dict, (seq_num - 1)),
-			    seq_num, fetch_ok) ;
+	  updateProgressBar(fetch_data->bar, currentSeq->fullName, seq_num, fetch_ok) ;
+          
+          /* Move to the next item */
+          fetch_data->currentSeqItem = fetch_data->currentSeqItem->next;
+          currentSeq = fetch_data->currentSeqItem ? (BlxSequence*)(fetch_data->currentSeqItem->data) : NULL;
 	}
       else
 	{
@@ -1352,10 +1320,6 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
 
 	  if (isValidChar)
 	    {
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-	      printf("%c", *cp) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
 	      if (!seq_start)
 		seq_start = cp ;
 
@@ -1367,11 +1331,6 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
 	      /* We've reached the end of a sequence so save it. */
 	      int length ;
 	      char *sequence = NULL ;
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-	      printf("\nEND (%d)\n", seqlen) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
 
 	      length = cp - seq_start ;
 
@@ -1395,24 +1354,28 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
 		  unfinished = NULL ;
 		}
 
-	      /* ghastly waste of time to recopy string but it must be inserted into
-	       * acedb's alloc/free system or there will be trouble elsewhere.... */
-	      array(seqs, seq_num++, char*) = strnew(sequence, 0) ;
-	      g_free(sequence) ;
+              if (!currentSeq)
+                {
+                  g_critical("Unexpected data from pfetch server: received too many lines. (%d sequences were requested.)\n", fetch_data->seq_total);
+                  status = FALSE; 
+                  return status;
+                }
+              
+              currentSeq->sequence = sequence;
 
 	      fetch_ok = TRUE ;
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-	      printf("seqlen = %d\n", strlen(array(seqs, *num_seqs_inout, char*))) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+              ++seq_num;
 
 	      seq_start = NULL ;
 	      seqlen = 0 ;
 
-	      updateProgressBar(fetch_data->bar, dictName(fetch_data->dict, (seq_num - 1)),
-				seq_num, fetch_ok) ;
-
+	      updateProgressBar(fetch_data->bar, currentSeq->fullName, seq_num, fetch_ok) ;
+              
 	      cp++ ;
+              
+              /* Move to the next item */
+              fetch_data->currentSeqItem = fetch_data->currentSeqItem->next;
+              currentSeq = fetch_data->currentSeqItem ? (BlxSequence*)(fetch_data->currentSeqItem->data) : NULL;
 	    }
 	  else
 	    {
@@ -1428,7 +1391,7 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
 	      fetch_data->err_txt = g_string_free(err_msg, FALSE) ;
 
 	      status = FALSE ;
-	      goto abort ;
+	      return status;
 	    }
 
 	}
@@ -1440,11 +1403,6 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
    * we need to save the dangling sequence to be completed on the next read(s). */
   if (*(cp - 1) != '\n')
     {
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-      printf("\nNO END (%d), char = '%c'\n", seqlen, *(cp - 1)) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
       /* If there's no unfinished sequence then just copy, otherwise concatnate with existing
        * unfinished sequence. */
       if (!unfinished)
@@ -1467,9 +1425,6 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
 	}
     }
 
-
-  /* We jump here if we come across unexpected chars in the input buffer. */
- abort:
 
   return status ;
 }
@@ -1629,7 +1584,7 @@ BOOL readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
       if (!config_loaded)
 	{
 	  *error = g_error_new_literal(g_quark_from_string("BLIXEM_CONFIG"), 1,
-				       "No groups found in config file.") ;
+				       "No groups found in config file.\n") ;
 	  result = FALSE ;
 	}
     }

@@ -19,6 +19,27 @@
 #define min(a,b)        (((a) < (b)) ? (a) : (b))
 
 
+/* Debug logging macros. #define DEBUG to enable debug output. */
+#ifdef DEBUG
+#define DEBUG_OUT(format, args...) debugLogLevel(0); printf(format, ##args);
+#else
+#define DEBUG_OUT(format, args...)
+#endif
+
+#ifdef DEBUG
+#define DEBUG_ENTER(format, args...) debugLogLevel(1); printf("-->"); printf(format, ##args); printf("\n");
+#else
+#define DEBUG_ENTER(format, args...)
+#endif
+
+#ifdef DEBUG
+#define DEBUG_EXIT(format, args...) debugLogLevel(-1); printf("<--"); printf(format, ##args); printf("\n");
+#else
+#define DEBUG_EXIT(format, args...)
+#endif
+
+
+
 /* Color strings that can be passed to parseBlxColor to create a GdkColor */
 #define BLX_YELLOW	      "#ffff00" 
 #define BLX_DARK_YELLOW	      "#c0c000"
@@ -40,6 +61,8 @@
 #define BLX_BLACK	      "#000000"
 #define BLX_WHITE	      "#ffffff"
 #define BLX_RED		      "#ff0000"
+#define BLX_LIGHTER_RED	      "#ff5353"
+#define BLX_LIGHT_RED	      "#ff7373"
 #define BLX_DARK_RED	      "#800000"
 #define BLX_VERY_DARK_RED     "#A00000"
 #define BLX_ORANGE	      "#ffa500"
@@ -129,6 +152,17 @@ typedef struct _IntRange
     int max;
   } IntRange ;
   
+  
+/* Struct to hold a pair of coordinate ranges, one holding ref seq coords, the other match coords */
+typedef struct _CoordRange
+  {
+    int qStart;     /* start coord on the reference (Query) seq */
+    int qEnd;       /* end coord on the reference (Query) seq */
+    int sStart;     /* start coord on the match (Subject) seq */
+    int sEnd;       /* end coord on the match (Subject) seq */
+  } CoordRange;
+  
+  
 
 GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
 void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
@@ -152,9 +186,15 @@ gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
 gboolean	      mspIsSnp(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);
+gboolean	      mspIsCds(const MSP const *msp, const BlxSequence *blxSeq);
+
+gboolean              mspHasSName(const MSP const *msp);
+gboolean              mspHasSSeq(const MSP  const *msp);
+gboolean              mspHasSCoords(const MSP const *msp);
+gboolean              mspHasSStrand(const MSP const *msp);
 
 void		      getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin, int *sSeqMax);
-void		      getSMapMapRangeExtents(SMapMap *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
+void		      getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
 int		      getRangeLength(const IntRange const *range);
 int		      getRangeCentre(const IntRange const *range);
@@ -180,10 +220,14 @@ int		      convertDnaIdxToDisplayIdx(const int dnaIdx,
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
-int		      mspGetMatchFrame(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
+const char*           mspGetMatchSeq(const MSP const *msp);
+char*		      mspGetSeqName(const MSP *msp);
 
-void		      addMspToSeqList(GList **seqList, MSP *msp);
+char                  getStrandAsChar(const BlxStrand strand);
+
+BlxSequence*          createEmptyBlxSequence(char *fullName);
+BlxSequence*          findBlxSequence(GList *seqList, const char *reqdName, const BlxStrand reqdStrand);
 
 int                   roundNearest(const double val);
 int		      roundToValue(const int inputVal, const int roundTo);
@@ -212,14 +256,14 @@ int		      gapCoord(const MSP *msp,
 			       const int qIdx, 
 			       const int numFrames, 
 			       const BlxStrand strand, 
-			       const gboolean displayRev, 
-			       int *nearestIdx);
+			       const gboolean displayRev);
 
 int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 
 char*		      convertIntToString(const int value);
 int		      convertStringToInt(const char *inputStr);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
+gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
 
 void		      showMessageDialog(const char *title,  
 					const char *messageText,
@@ -249,23 +293,28 @@ int		      parseMatchLine(const char *inputText,
 				     int *matchStartOut, 
 				     int *matchEndOut, 
 				     int *matchLenOut);
-			
-GList*		      parseMatchList(const char *inputText);
 
-gboolean	      stringsEqual(gpointer key, gpointer value, gpointer data);
+GList*		      parseMatchList(const char *inputText);
 
 gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
 
 const char*	      getSeqVariantName(const char *longName);
-const char*	      sequenceGetFullName(const BlxSequenceStruct *seq);
-const char*	      sequenceGetVariantName(const BlxSequenceStruct *seq);
-const char*	      sequenceGetDisplayName(const BlxSequenceStruct *seq);
-const char*	      sequenceGetShortName(const BlxSequenceStruct *seq);
-void		      destroySequenceStruct(BlxSequenceStruct *seq);
+char*		      getSeqShortName(const char *longName);
+const char*	      sequenceGetFullName(const BlxSequence *seq);
+const char*	      sequenceGetVariantName(const BlxSequence *seq);
+const char*	      sequenceGetDisplayName(const BlxSequence *seq);
+const char*	      sequenceGetShortName(const BlxSequence *seq);
+void		      destroyBlxSequence(BlxSequence *seq);
 
 BlxColor*	      getBlxColor(GList *colorList, const BlxColorId colorId);
 
 void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void		      popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
+
+void		      prefixError(GError *error, char *prefixStr, ...);
+
+#ifdef DEBUG
+void		      debugLogLevel(const int increaseAmt);
+#endif
 
 #endif /* _utilities_h_included_ */
