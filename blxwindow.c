@@ -3755,8 +3755,8 @@ static GtkWidget* createMainMenu(GtkWidget *window)
   
   if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
     {
-      g_critical("Building menus failed: %s\n", error->message);
-      g_error_free (error);
+      prefixError(error, "Building menus failed: ");
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       exit (EXIT_FAILURE);
     }
   
@@ -3816,8 +3816,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           if (!refSeqSegment)
             {
 	      prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", msp->sname, msp->sstart, msp->send);
-              g_critical("%s", error->message);
-              g_clear_error(&error);
+              reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
               return;
             }
           
@@ -4102,7 +4101,13 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq, 
   /* Realise the widgets */
   printf("Starting Blixem\n");
   gtk_widget_show_all(window);
-  
+
+  /* If the options don't say to show the reverse strand grid, hide it now. (This must be done
+   * after showing the widgets, or it will get shown again in show_all.) */
+  if (!options->bigPictRev)
+    {
+      widgetSetHidden(revStrandGrid, TRUE);
+    }
 
   /* Set the initial column widths. (This must be called after the widgets are 
    * realised because it causes the scroll range to be updated, which in turn causes

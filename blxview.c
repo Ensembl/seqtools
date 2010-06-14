@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.39 2010-06-11 09:29:48 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.40 2010-06-14 11:14:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -333,7 +333,7 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
 	case '+':
 	  options->activeStrand = BLXSTRAND_FORWARD;   break;
 	case 'B':
-	  options->bigPictON = TRUE;              break;
+	  options->bigPictON = TRUE;              break; 
 	case 'b':
 	  options->bigPictON = FALSE;             break;
 	case 'd':
@@ -347,7 +347,7 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
 	case 'p':
 	  options->initSortMode = BLXSORT_POS ;     break;
 	case 'R':
-	  options->bigPictRev = 1;                break;
+	  options->bigPictRev = 1;                break; /* to do: this is currently not implemented. not sure what it should do */
 	case 'r':
 	  options->bigPictRev = 0;                break;
 	case 's':
@@ -565,13 +565,7 @@ static void blviewCreate(char *opts,
       
       GError *error = NULL;
       callDotter(blixemWindow, FALSE, &error);
-      
-      if (error)
-	{
-	  prefixError(error, "Could not start Dotter. ");
-	  g_critical("%s", error->message);
-	  g_clear_error(&error);
-	}
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
 
   if (options->startNextMatch)

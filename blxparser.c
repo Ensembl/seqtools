@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.26 2010-06-11 09:29:48 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.27 2010-06-14 11:14:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -543,11 +543,7 @@ static void parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, BlxParserState parserS
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
                           opts, &error);
   
-  if (error)
-    {
-      g_critical("%s", error->message);
-      g_error_free(error);
-    }
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
   /* Convert subject names to fetchable ones if from NCBI server 
          
@@ -626,7 +622,7 @@ static void parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, BlxParserState parserS
   
   if (parserState == EXBLX_BODY)
     {
-      opts[5] = ' '; /* Don't use full zoom default */
+      opts[BLXOPT_FULL_ZOOM] = ' '; /* Don't use full zoom default */
       
       /* skip over description */
       while (*seq_pos && (*seq_pos == ' ' || *seq_pos == '\t')) 
@@ -672,12 +668,7 @@ static void parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, BlxParserState parserS
   if (sequence)
     {
       addBlxSequenceData(msp->sSequence, sequence, &error);
-      
-      if (error)
-        {
-          g_critical("%s", error->message);
-          g_error_free(error);
-        }
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
 
   /* Parse gaps data */
@@ -786,11 +777,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
                           sName, sStart, sEnd, sStrand, NULL,
                           opts, &error);
   
-  if (error)
-    {
-      g_critical("%s", error->message);
-      g_error_free(error);
-    }
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
   
   /* Convert subject names to fetchable ones if from NCBI server 
@@ -889,7 +876,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
 		}
 	      else if (parserState == EXBLX_BODY && (strstr(seq_pos, BLX_DESCRIPTION_TAG)))
 		{
-		  opts[5] = ' '; /* Don't use full zoom default */
+		  opts[BLXOPT_FULL_ZOOM] = ' '; /* Don't use full zoom default */
                   result = parseDescription(&seq_pos, msp);
                   
 		  if (!result)
@@ -920,12 +907,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
   if (sequence)
     {
       addBlxSequenceData(msp->sSequence, sequence, &error);
-      
-      if (error)
-        {
-          g_critical("%s", error->message);
-          g_error_free(error);
-        }
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
   
   if (parserState == SEQBL_X_BODY)
@@ -1270,7 +1252,7 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState
 	*opts = 'X';
       else if (!strncasecmp(line, "# hspgaps", 9))
 	{
-	  opts[7] = 'G';
+	  opts[BLXOPT_HSP_GAPS] = 'G';
 	}
       else if (!strncasecmp(line, "# DESC ", 7) &&
 	       (*parserState == FS_HSP_BODY || *parserState == FS_GSP_HEADER || *parserState == SEQBL_BODY))
@@ -1342,12 +1324,7 @@ static void parseFsHsp(char *line, char *opts, MSP **lastMsp, MSP **mspList, GLi
                            sName, sStart, sEnd, sStrand, sSeq,
                            opts, &error);
 
-  if (error)
-    {
-      g_critical("%s", error->message);
-      g_error_free(error);
-    }
-
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   checkReversedSubjectAllowed(msp, opts);
 }
 
@@ -1405,11 +1382,7 @@ static void parseFsSeg(char *line, char *opts, MSP **lastMsp, MSP **mspList, GLi
   getDesc(msp, line, look);
   insertFS(msp, series);
   
-  if (error)
-    {
-      g_critical("%s", error->message);
-      g_error_free(error);
-    }
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 }
 
 
@@ -1461,11 +1434,7 @@ static void parseFsGff(char *line, char *opts, MSP **lastMsp, MSP **mspList, GLi
   parseLook(msp, look);
   insertFS(msp, series);
   
-  if (error)
-    {
-      g_error("%s", error->message);
-      g_error_free(error);
-    }
+  reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
 }
 
 
@@ -1514,11 +1483,7 @@ static void parseFsXyHeader(char *line, char *opts, MSP **lastMsp, MSP **mspList
                           series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, 
                           opts, &error);
   
-  if (error)
-    {
-      g_critical("%s", error->message);
-      g_error_free(error);
-    }
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
   /* Add additional MSP information */
   msp->xy = arrayCreate(seqlen, int);

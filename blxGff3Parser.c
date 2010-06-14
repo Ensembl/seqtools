@@ -40,19 +40,21 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_TAG,                 /* invalid format for a tag/data pair */
   BLX_GFF3_ERROR_INVALID_SEQ,                 /* invalid sequence data */
   BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT,        /* invalid CIGAR format */
-  BLX_GFF3_ERROR_INVALID_MSP                  /* MSP has invalid/missing data */
+  BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
+  BLX_GFF3_ERROR_UNKNOWN_MODE                 /* unknown blast mode */
 } BlxDotterError;
 
 
-static void           parseAttributes(char *attributes, MSP *msp, GList **seqList, char *opts, const int lineNum, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, const char *opts, MSP *msp, GList **seqList, GError **error);
+static void           parseAttributes(char *attributes, MSP *msp, GList **seqList, const char *opts, const int lineNum, GError **error);
 static void           parseTagDataPair(char *text, MSP *msp, char **sequence, BlxStrand *strand, char **gapString, GList **seqList, const int lineNum, GError **error);
 static void           parseNameTag(char *data, MSP *msp, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqList, const int lineNum, GError **error);
-static void           parseGapString(char *text, const int lineNum, MSP *msp, GError **error);
+static void           parseGapString(char *text, const int lineNum, const char *opts, MSP *msp, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
 static void           parseMspType(char *token, MSP *msp, GError **error);
-static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, int *q, int *s, GError **error);
+static gboolean       parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int numFrames, int *q, int *s);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 static void           validateMsp(const MSP *msp, GError **error);
 
@@ -121,42 +123,8 @@ void parseGff3Body(const int lineNum,
   MSP *prevMsp = *lastMsp;
   MSP *msp = createEmptyMsp(lastMsp, mspList);
 
-  /* Split the line into its tab-separated columns. We should get 9 of them */
-  char **tokens = g_strsplit_set(line_string->str, "\t", -1);   /* -1 means do all tokens. */
-  
-  /* This error should get set if there is a fatal error reading this line. */
   GError *error = NULL;
-
-  validateNumTokens(tokens, 9, 9, &error);
-
-  if (!error)
-    {
-      msp->qname = g_ascii_strup(tokens[0], -1);
-      parseMspType(tokens[2], msp, &error);
-    }
-  
-  if (!error)
-    {
-      msp->qstart = convertStringToInt(tokens[3]);
-      msp->qend = convertStringToInt(tokens[4]);
-      msp->score = convertStringToInt(tokens[5]);
-      msp->qStrand = readStrand(tokens[6], &error);
-    }
-
-  if (!error)
-    {
-      /* Sort coords according to strand direction (unless no strand was specified) */
-      if (msp->qStrand != BLXSTRAND_NONE)
-        {
-          sortValues(&msp->qstart, &msp->qend, msp->qStrand == BLXSTRAND_FORWARD);
-        }
-      
-      msp->qFrame = convertStringToInt(tokens[7]);
-  
-      /* Parse the optional attributes */
-      char *attributes = tokens[8];
-      parseAttributes(attributes, msp, seqList, opts, lineNum, &error);
-    }
+  parseGffColumns(line_string, lineNum, opts, msp, seqList, &error);
   
   if (!error)
     {
@@ -182,11 +150,8 @@ void parseGff3Body(const int lineNum,
       msp = NULL;
 
       prefixError(error, "[line %d] Error parsing GFF data. ", lineNum);
-      g_critical("%s", error->message);
-      g_error_free(error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
-  
-  g_strfreev(tokens);
   
   DEBUG_EXIT("parseGff3Body");
 }
@@ -306,10 +271,59 @@ static BlxStrand readStrand(char *token, GError **error)
 }
 
 
+/* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
+static void parseGffColumns(GString *line_string, const int lineNum, const char *opts, MSP *msp, GList **seqList, GError **error)
+{
+    /* Split the line into its tab-separated columns. We should get 9 of them */
+  char **tokens = g_strsplit_set(line_string->str, "\t", -1);   /* -1 means do all tokens. */
+  
+  /* This error should get set if there is a fatal error reading this line. */
+  GError *tmpError = NULL;
+
+  validateNumTokens(tokens, 9, 9, &tmpError);
+
+  if (!tmpError)
+    {
+      msp->qname = g_ascii_strup(tokens[0], -1);
+      parseMspType(tokens[2], msp, &tmpError);
+    }
+  
+  if (!tmpError)
+    {
+      msp->qstart = convertStringToInt(tokens[3]);
+      msp->qend = convertStringToInt(tokens[4]);
+      msp->score = convertStringToInt(tokens[5]);
+      msp->qStrand = readStrand(tokens[6], &tmpError);
+    }
+
+  if (!tmpError)
+    {
+      /* Sort coords according to strand direction (unless no strand was specified) */
+      if (msp->qStrand != BLXSTRAND_NONE)
+        {
+          sortValues(&msp->qstart, &msp->qend, msp->qStrand == BLXSTRAND_FORWARD);
+        }
+      
+      msp->qFrame = convertStringToInt(tokens[7]);
+  
+      /* Parse the optional attributes */
+      char *attributes = tokens[8];
+      parseAttributes(attributes, msp, seqList, opts, lineNum, &tmpError);
+    }
+    
+  if (tmpError)
+    {
+      g_propagate_error(error, tmpError);
+    }
+  
+  g_strfreev(tokens);
+}
+
+
 /* Parse the given text, which contains attributes of the format "tag=data". The data
  * can contain multiple values, separated by spaces. Space characters within the data must 
  * be escaped. Populates the match sequence into 'sequence' if found in one of the attributes. */
-static void parseAttributes(char *attributes, MSP *msp, GList **seqList, char *opts, const int lineNum, GError **error)
+static void parseAttributes(char *attributes, MSP *msp, GList **seqList, const char *opts, const int lineNum, GError **error)
 {
   /* Attributes are separated by semi colons */
   char **tokens = g_strsplit_set(attributes, ";", -1);   /* -1 means do all tokens. */
@@ -330,6 +344,7 @@ static void parseAttributes(char *attributes, MSP *msp, GList **seqList, char *o
   while (token && *token && **token && !tmpError)
     {
       parseTagDataPair(*token, msp, &sequence, &strand, &gapString, seqList, lineNum, &tmpError);
+      reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
       ++token;
     }
 
@@ -342,7 +357,7 @@ static void parseAttributes(char *attributes, MSP *msp, GList **seqList, char *o
   /* Parse the gaps string */
   if (!tmpError && gapString)
     {
-      parseGapString(gapString, lineNum, msp, &tmpError);
+      parseGapString(gapString, lineNum, opts, msp, &tmpError);
     }
   else if (gapString)
     {
@@ -480,9 +495,37 @@ static void parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqL
 }
 
 
+/* Find out how many reading frames there are based on the options (1 for nucleotide matches, 
+ * 3 for protein matches) */
+static int getNumFrames(const char *opts, GError **error)
+{
+  int result = 1;
+  
+  switch (opts[BLXOPT_MODE])
+    {
+      case 'X': /* fall through */
+      case 'L':
+        result = 3; /* protein matches */
+        break;
+        
+      case 'N': /* fall through */
+      case 'T': /* fall through */
+      case 'P':
+        result = 3; /* nucleotide matches */
+        break;
+        
+      default:
+        g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_UNKNOWN_MODE, "Unknown blast mode '%c' in options. Expected X, L, N, T or P.\n", opts[BLXOPT_MODE]);
+        break;
+    };
+  
+  return result;
+}
+
+
 /* Parse the data from a 'Gap' tag, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
  * Frees the given gap string when finished with. */
-static void parseGapString(char *text, const int lineNum, MSP *msp, GError **error)
+static void parseGapString(char *text, const int lineNum, const char *opts, MSP *msp, GError **error)
 {
   if (!text)
     {
@@ -493,6 +536,13 @@ static void parseGapString(char *text, const int lineNum, MSP *msp, GError **err
   /* Split on spaces */
   char **tokens = g_strsplit_set(text, " ", -1); /* -1 means do all tokens */
 
+  /* Find out how many reading frames there are, based on the blast mode */
+  GError *tmpError = NULL;
+  const int numFrames = getNumFrames(opts, &tmpError);
+
+  /* getNumFrames() always returns something so if there was an error give a warning and try to continue */
+  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+  
   /* Start at the MSP's min coord and increase values as we progress through
    * the cigar string IF the strand is forward. If it is the reverse strand, 
    * start at the max coord and decrease values. */
@@ -505,20 +555,20 @@ static void parseGapString(char *text, const int lineNum, MSP *msp, GError **err
   int s = sForward ? min(msp->sstart, msp->send) : max(msp->sstart, msp->send);
   
   char **token = tokens;
-  GError *tmpError = NULL;
 
-  while (token && *token && **token)
+  while (token && *token && **token && !tmpError)
     {
-      parseCigarStringSection(*token, msp, qDirection, sDirection, &q, &s, &tmpError);
-      
-      if (tmpError)
+      if (!parseCigarStringSection(*token, msp, qDirection, sDirection, numFrames, &q, &s))
         {
-          g_critical("[line %d] %s", lineNum, tmpError->message);
-          g_error_free(tmpError);
-          tmpError = NULL;
+          g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid CIGAR string '%s' for MSP '%s'.\n", text, msp->sname);
         }
-      
+
       ++token;
+    }
+  
+  if (tmpError)
+    {
+      g_propagate_error(error, tmpError);
     }
   
   g_strfreev(tokens);
@@ -543,21 +593,23 @@ static void parseGapString(char *text, const int lineNum, MSP *msp, GError **err
  *   I2 indicates an insertion in the Subject sequence of 2 bases, so we increase the s coord by 2;
  *   D3 indicates a deletion from the Subject sequence of 3 bases, so we increase the q coord by 3. 
  */
-static void parseCigarStringSection(const char *text, 
-                                    MSP *msp, 
-                                    const int qDirection, 
-                                    const int sDirection, 
-                                    int *q, 
-                                    int *s, 
-                                    GError **error)
+static gboolean parseCigarStringSection(const char *text, 
+                                        MSP *msp, 
+                                        const int qDirection, 
+                                        const int sDirection, 
+                                        const int numFrames,
+                                        int *q, 
+                                        int *s)
 {
+  gboolean result = TRUE;
+  
   /* Get the digit part of the string */
   const int numBases = convertStringToInt(text+1);
   
   if (text[0] == 'M' || text[0] == 'm')
     {
       /* Create a match range between the old coords and the new */
-      int newQ = *q + qDirection * (numBases - 1);
+      int newQ = *q + qDirection * ( ((numBases - 1) * numFrames) + numFrames - 1);  /* convert to nucleotide coords */
       int newS = *s + sDirection *(numBases - 1);
       
       CoordRange *newRange = g_malloc(sizeof(CoordRange));
@@ -573,19 +625,20 @@ static void parseCigarStringSection(const char *text,
     }
   else if (text[0] == 'D' || text[0] == 'd')
     {
-      *q += qDirection * (numBases + 1);
-      *s += sDirection * 1;
+      *q += qDirection * ( ((numBases + 1) * numFrames) - numFrames + 1);    /* convert to nucleotide coords */
+      *s += sDirection;
     }
   else if (text[0] == 'I' || text[0] == 'i')
     {
+      *q += qDirection * (numFrames - numFrames + 1);    /* convert to nucleotide coords */
       *s += sDirection * (numBases + 1);
-      *q += qDirection * 1;
     }
-  else if (error)
+  else
     {
-      g_assert(*error == NULL);
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid CIGAR string format '%s' found while parsing data for MSP '%s'.\n", text, msp->sname);
+      result = FALSE;
     }
+  
+  return result;
 }
 
                            

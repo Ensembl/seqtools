@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.13 2010-06-11 09:29:48 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.14 2010-06-14 11:14:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -131,16 +131,7 @@ int main(int argc, char **argv)
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char line[MAXLINE+1];
   MSP *mspList = NULL ;
-  char opts[32]=" MBr Z   ";	/* 0 L|N|P|T|X
-				   1 M
-				   2 B|b
-				   3 R|r (blxparser.c)
-				   4    (available)
-				   5 Z (blxparser.c)
-				   6 I 
-				   7 G (blxparser.c)
-				   8    sorting mode
-				*/
+  char opts[BLXOPT_NUM_OPTS]=" MBr Z   ";
   char refSeqName[FULLNAMESIZE+1] = "";
   char dummyseqname[FULLNAMESIZE+1] = "";
   
@@ -217,10 +208,10 @@ int main(int argc, char **argv)
 	  install = 0;
 	  break;
 	case 'l':
-	  opts[0] = 'L';
+	  opts[BLXOPT_MODE] = 'L';
 	  break;
 	case 'n':
-	  opts[0] = 'N';
+	  opts[BLXOPT_MODE] = 'N';
 	  break;
 	case 'o':
 	  {
@@ -242,7 +233,7 @@ int main(int argc, char **argv)
 	    g_error("Bad offset argument: \"-%c %s\"\n", optc, optarg) ;
 	  break;
 	case 'p':
-	  opts[0] = 'P';
+	  opts[BLXOPT_MODE] = 'P';
 	  break;
 	case 'P':
 	  pfetch = g_malloc(sizeof(PfetchParams)) ;
@@ -263,10 +254,10 @@ int main(int argc, char **argv)
 	      fprintf(stderr,"Bad sorting mode: %s\n", optarg); 
 	      exit(EXIT_FAILURE) ;
 	    }
-	  opts[8] = *optarg;
+	  opts[BLXOPT_SORT_MODE] = *optarg;
 	  break;
 	case 't':
-	  opts[0] = 'T';
+	  opts[BLXOPT_MODE] = 'T';
 	  break;
 	case 'x': 
 	  xtra_data = TRUE ;

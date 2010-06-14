@@ -312,6 +312,7 @@ void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_le
 void		      popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 
 void		      prefixError(GError *error, char *prefixStr, ...);
+void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
 
 #ifdef DEBUG
 void		      debugLogLevel(const int increaseAmt);

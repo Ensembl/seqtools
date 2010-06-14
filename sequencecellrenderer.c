@@ -919,8 +919,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
     {
       g_assert(error);
       prefixError(error, "Could not draw alignment for sequence '%s'. ", msp->sname);
-      g_warning("%s", error->message);
-      g_clear_error(&error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       return;
     }
     

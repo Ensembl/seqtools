@@ -898,8 +898,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
     {
       g_assert(error);
       prefixError(error, "Could not draw reference sequence header. ");
-      g_warning("%s", error->message);
-      g_clear_error(&error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       return;
     }
   

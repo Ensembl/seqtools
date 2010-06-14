@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.19 2010-06-11 09:29:47 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.20 2010-06-14 11:14:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -780,13 +780,9 @@ gboolean blxGetSseqsPfetch(GList *seqsToFetch, char *pfetchIP, int port, BOOL Ex
                     {
                       GError *error = NULL;
                       addBlxSequenceData(currentSeq, g_strdup(currentStr->str), &error);
-                      
-                      if (error)
-                        {
-                          g_warning("%s", error->message);
-                          g_error_free(error);
-                        }
-                      else
+                      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+
+                      if (!error)
                         {
                           ++numSucceeded;
                         }

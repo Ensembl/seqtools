@@ -1747,6 +1747,31 @@ void prefixError(GError *error, char *formatStr, ...)
 //}
 
 
+/* This utility reports the given error if it is non-null and then frees the GError and
+ * sets the pointer to NULL. It reports it at the given log level.  */
+void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
+{
+  if (error && *error)
+    {
+      switch (log_level)
+        {
+          case G_LOG_LEVEL_ERROR:            g_error("%s", (*error)->message);            break;
+          case G_LOG_LEVEL_CRITICAL:         g_critical("%s", (*error)->message);         break;
+          case G_LOG_LEVEL_WARNING:          g_warning("%s", (*error)->message);          break;
+          case G_LOG_LEVEL_MESSAGE:          g_message("%s", (*error)->message);          break;
+          case G_LOG_LEVEL_INFO:             g_message("%s", (*error)->message);          break;
+          case G_LOG_LEVEL_DEBUG:            g_debug("%s", (*error)->message);            break;
+            
+          default:
+            break;
+        };
+      
+      g_error_free(*error);
+      *error = NULL;
+    }
+}
+
+
 #ifdef DEBUG
 /* Prints whitespace for log level (that is, how indented logging currently is, according to how
  * many DEBUG_ENTER and EXITs we've called), and then increase it by the increase amount (can be negative). */

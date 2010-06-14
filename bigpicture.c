@@ -1011,7 +1011,6 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
 			     initialZoom,
 			     lowestId);
   
-  
   return bigPicture;
 }
 

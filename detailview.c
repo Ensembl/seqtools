@@ -1140,8 +1140,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
     {
       g_assert(error);
       prefixError(error, "Could not draw DNA header. ");
-      g_warning("%s", error->message);
-      g_clear_error(&error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       return;
     }
     

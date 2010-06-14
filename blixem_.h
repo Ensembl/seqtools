@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.34 2010-06-11 09:29:47 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.35 2010-06-14 11:14:39 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -212,6 +212,24 @@ typedef enum
     FS_SEQ_BODY                    /* feature-series sequence data */
   } BlxParserState ;
   
+
+/* This enum gives a more meaningful way of indexing the "opts" string */
+typedef enum
+  {
+    BLXOPT_MODE = 0,              /* Blast mode: L = tblastx, N = blastn, P = blastp, T = tblastn, X = blastx */
+    BLXOPT_START_NEXT_MATCH = 1,  /* 'M' means start at next match. Blank to ignore. */
+    BLXOPT_SHOW_BIG_PICT = 2,     /* 'B' to show big picture, 'b' to hide it */
+    BLXOPT_REV_BIG_PICT = 3,      /* 'R' to show the reverse strand in the big picture; 'r' just show the forward strand (blxparser.c) */
+    BLXOPT_UNUSED = 4,            /* --unused-- */
+    BLXOPT_FULL_ZOOM = 5,         /* 'Z' to use full zoom by default; blank otherwise (blxparser.c) */
+    BLXOPT_INVERT_SORT = 6,       /* 'I' to invert the default sort order; blank otherwise */
+    BLXOPT_HSP_GAPS = 7,          /* 'G' for HSP gaps mode; blank otherwise (blxparser.c) */
+    BLXOPT_SORT_MODE = 8,         /* Initial sort mode: 'i' = ID, 'n' = name, 'p' = position, 's' = score;
+                                   * OR: set to 'd' to automatically dotter the first sequence; blank otherwise (blxselect.c) */
+    
+    BLXOPT_NUM_OPTS               /* Total number of options (must always be last in list) */
+  } BlxOptsIdx ;
+
 
 /* blxview.c */
 void                               blviewRedraw(void);

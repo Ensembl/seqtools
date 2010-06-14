@@ -45,15 +45,6 @@ typedef enum {BLXGFF_PARSE_HEADER, BLXGFF_PARSE_BODY,
  *          "The error domain is called <NAMESPACE>_<MODULE>_ERROR" */
 #define BLX_GFF_ERROR "BLX_GFF_ERROR"
 
-typedef enum
-{
-  BLX_GFF_ERROR_HEADER,				    /* Error in GFF header section. */
-  BLX_GFF_ERROR_BODY,					    /* Error in GFF body section. */
-  BLX_GFF_ERROR_FAILED					    /* Other fatal failure, error->message
-							       should explain. */
-} BlxGFFError ;
-
-
 void parseGff3Header(const int lineNum,
                      MSP **lastMsp, 
 		     MSP **mspList, 

@@ -244,8 +244,7 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
   if (error)
     {
       prefixError(error, "Could not start Dotter. ");
-      g_critical("%s", error->message);
-      g_clear_error(&error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
 
   if (destroy)
