@@ -1394,7 +1394,11 @@ gchar *abbreviateText(const char *inputStr, const int max_len)
 gboolean stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive)
 {
   const int len1 = strlen(str1);
-  return (strlen(str2) == len1 && !strncasecmp(str1, str2, len1));
+  
+  if (caseSensitive)
+    return (strcmp(str1, str2) == NULL);
+  else
+    return (strlen(str2) == len1 && !g_ascii_strncasecmp(str1, str2, len1));
 }
 
 
@@ -1701,6 +1705,7 @@ void prefixError(GError *error, char *formatStr, ...)
   g_free(error->message);
   error->message = resultStr;
 }
+
 
 //
 ///* Tag the given postfix string onto the end of the given error's message */

@@ -50,11 +50,11 @@ static void           parseAttributes(char *attributes, MSP *msp, GList **seqLis
 static void           parseTagDataPair(char *text, MSP *msp, char **sequence, BlxStrand *strand, char **gapString, GList **seqList, const int lineNum, GError **error);
 static void           parseNameTag(char *data, MSP *msp, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqList, const int lineNum, GError **error);
-static void           parseGapString(char *text, const int lineNum, const char *opts, MSP *msp, GError **error);
+static void           parseGapString(char *text, const char *opts, MSP *msp, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
 static void           parseMspType(char *token, MSP *msp, GError **error);
-static gboolean       parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int numFrames, int *q, int *s);
+static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int numFrames, int *q, int *s, GError **error);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 static void           validateMsp(const MSP *msp, GError **error);
 
@@ -213,27 +213,27 @@ static void parseMspType(char *token, MSP *msp, GError **error)
 {
   msp->type = BLXMSP_INVALID;
 
-  if (stringsEqual(token, "match", FALSE))
+  if (stringsEqual(token, "match", FALSE) || stringsEqual(token, "SO:0000343", FALSE))
     {
       msp->type = BLXMSP_MATCH;
     }
-  else if (stringsEqual(token, "exon", FALSE))
+  else if (stringsEqual(token, "exon", FALSE) || stringsEqual(token, "SO:0000147", FALSE))
     {
       msp->type = BLXMSP_EXON_UNK;
     }
-  else if (stringsEqual(token, "cds", FALSE))
+  else if (stringsEqual(token, "cds", FALSE) || stringsEqual(token, "SO:0000234", FALSE))
     {
       msp->type = BLXMSP_EXON_CDS;
     }
-  else if (stringsEqual(token, "utr", FALSE))
+  else if (stringsEqual(token, "utr", FALSE)  || stringsEqual(token, "SO:0000203", FALSE))
     {
       msp->type = BLXMSP_EXON_UTR;
     }
-  else if (stringsEqual(token, "intron", FALSE))
+  else if (stringsEqual(token, "intron", FALSE) || stringsEqual(token, "SO:0000188", FALSE))
     {
       msp->type = BLXMSP_INTRON;
     }
-  else if (stringsEqual(token, "SNP", FALSE))
+  else if (stringsEqual(token, "SNP", FALSE) || stringsEqual(token, "SO:0000694", FALSE))
     {
       msp->type = BLXMSP_SNP;
     }
@@ -357,7 +357,7 @@ static void parseAttributes(char *attributes, MSP *msp, GList **seqList, const c
   /* Parse the gaps string */
   if (!tmpError && gapString)
     {
-      parseGapString(gapString, lineNum, opts, msp, &tmpError);
+      parseGapString(gapString, opts, msp, &tmpError);
     }
   else if (gapString)
     {
@@ -505,13 +505,13 @@ static int getNumFrames(const char *opts, GError **error)
     {
       case 'X': /* fall through */
       case 'L':
-        result = 3; /* protein matches */
+        result = 3; /* protein matches: 3 frames */
         break;
         
       case 'N': /* fall through */
       case 'T': /* fall through */
       case 'P':
-        result = 3; /* nucleotide matches */
+        result = 1; /* nucleotide matches: 1 frame */
         break;
         
       default:
@@ -525,7 +525,7 @@ static int getNumFrames(const char *opts, GError **error)
 
 /* Parse the data from a 'Gap' tag, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
  * Frees the given gap string when finished with. */
-static void parseGapString(char *text, const int lineNum, const char *opts, MSP *msp, GError **error)
+static void parseGapString(char *text, const char *opts, MSP *msp, GError **error)
 {
   if (!text)
     {
@@ -558,9 +558,11 @@ static void parseGapString(char *text, const int lineNum, const char *opts, MSP 
 
   while (token && *token && **token && !tmpError)
     {
-      if (!parseCigarStringSection(*token, msp, qDirection, sDirection, numFrames, &q, &s))
+      parseCigarStringSection(*token, msp, qDirection, sDirection, numFrames, &q, &s, &tmpError);
+      
+      if (tmpError)
         {
-          g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid CIGAR string '%s' for MSP '%s'.\n", text, msp->sname);
+          prefixError(tmpError, "Invalid CIGAR string '%s'. ", text);
         }
 
       ++token;
@@ -593,16 +595,15 @@ static void parseGapString(char *text, const int lineNum, const char *opts, MSP 
  *   I2 indicates an insertion in the Subject sequence of 2 bases, so we increase the s coord by 2;
  *   D3 indicates a deletion from the Subject sequence of 3 bases, so we increase the q coord by 3. 
  */
-static gboolean parseCigarStringSection(const char *text, 
-                                        MSP *msp, 
-                                        const int qDirection, 
-                                        const int sDirection, 
-                                        const int numFrames,
-                                        int *q, 
-                                        int *s)
+static void parseCigarStringSection(const char *text, 
+                                    MSP *msp, 
+                                    const int qDirection, 
+                                    const int sDirection, 
+                                    const int numFrames,
+                                    int *q, 
+                                    int *s,
+                                    GError **error)
 {
-  gboolean result = TRUE;
-  
   /* Get the digit part of the string */
   const int numBases = convertStringToInt(text+1);
   
@@ -633,12 +634,14 @@ static gboolean parseCigarStringSection(const char *text,
       *q += qDirection * (numFrames - numFrames + 1);    /* convert to nucleotide coords */
       *s += sDirection * (numBases + 1);
     }
+  else if (text[0] == 'f' || text[0] == 'F' || text[0] == 'r' || text[0] == 'R')
+    {
+      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Blixem does not handle Frameshift operators.\n");
+    }
   else
     {
-      result = FALSE;
+      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Unknown operator '%c'.\n", text[0]);
     }
-  
-  return result;
 }
 
                            
