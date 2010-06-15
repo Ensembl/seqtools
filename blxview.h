@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.18 2010-06-11 09:29:48 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.19 2010-06-15 12:02:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -110,7 +110,8 @@ typedef enum
   {
     BLXMSP_INVALID,                /* No valid type was set */
     
-    BLXMSP_MATCH,                  /* Standard Blast match / alignment */
+    BLXMSP_MATCH,                  /* A match (i.e. alignment) */
+    BLXMSP_MATCH_SET,              /* The parent of a set of matches. Can be used to specify generic properties such as color. */
     BLXMSP_EXON_CDS,               /* Exon (coding section) */
     BLXMSP_EXON_UTR,               /* Exon (untranslated region i.e. non-coding section) */
     BLXMSP_EXON_UNK,               /* Exon (unknown type) */

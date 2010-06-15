@@ -208,32 +208,92 @@ void parseFastaSeqHeader(char *line, const int lineNum,
  *                  Internal functions
  *********************************************************/
 
+static gboolean isNucleotideMatch(char *text)
+{
+  return (stringsEqual(text, "nucleotide_match", FALSE) || stringsEqual(text, "SO:0000347", FALSE));
+}
+
+static gboolean isProteinMatch(char *text)
+{
+  return (stringsEqual(text, "protein_match", FALSE) || stringsEqual(text, "SO:0000349", FALSE));
+}
+
+static gboolean isMatchPart(char *text)
+{
+  return (stringsEqual(text, "match_part", FALSE) || stringsEqual(text, "SO:0000039", FALSE));
+}
+
+static gboolean isMatchSet(char *text)
+{
+  return (stringsEqual(text, "match_set", FALSE) || stringsEqual(text, "SO:0000038", FALSE));
+}
+
+static gboolean isMatch(char *text)
+{
+  return (isNucleotideMatch(text) || 
+          isProteinMatch(text) || 
+          isMatchPart(text) ||
+          isMatchSet(text) ||
+          stringsEqual(text, "match", FALSE) || stringsEqual(text, "SO:0000343", FALSE));
+}
+
+static gboolean isCds(char *text)
+{
+  return (stringsEqual(text, "CDS", FALSE) || stringsEqual(text, "SO:0000234", FALSE));
+}
+
+static gboolean isUtr(char *text)
+{
+  return (stringsEqual(text, "UTR", FALSE) || stringsEqual(text, "SO:0000203", FALSE));
+}
+
+static gboolean isExon(char *text)
+{
+  return (stringsEqual(text, "exon", FALSE) || stringsEqual(text, "SO:0000147", FALSE));
+}
+
+static gboolean isIntron(char *text)
+{
+  return (stringsEqual(text, "intron", FALSE) || stringsEqual(text, "SO:0000188", FALSE));
+}
+
+static gboolean isSnp(char *text)
+{
+  return (stringsEqual(text, "SNP", FALSE) || stringsEqual(text, "SO:0000694", FALSE));
+}
+
+
+
 /* Get the MSP type from a string continaing a valid GFF3 type name */
 static void parseMspType(char *token, MSP *msp, GError **error)
 {
   msp->type = BLXMSP_INVALID;
 
-  if (stringsEqual(token, "match", FALSE) || stringsEqual(token, "SO:0000343", FALSE))
+  if (isMatchSet(token))
+    {
+      msp->type = BLXMSP_MATCH_SET;
+    }
+  else if (isMatch(token))
     {
       msp->type = BLXMSP_MATCH;
     }
-  else if (stringsEqual(token, "exon", FALSE) || stringsEqual(token, "SO:0000147", FALSE))
+  else if (isExon(token))
     {
       msp->type = BLXMSP_EXON_UNK;
     }
-  else if (stringsEqual(token, "cds", FALSE) || stringsEqual(token, "SO:0000234", FALSE))
+  else if (isCds(token))
     {
       msp->type = BLXMSP_EXON_CDS;
     }
-  else if (stringsEqual(token, "utr", FALSE)  || stringsEqual(token, "SO:0000203", FALSE))
+  else if (isUtr(token))
     {
       msp->type = BLXMSP_EXON_UTR;
     }
-  else if (stringsEqual(token, "intron", FALSE) || stringsEqual(token, "SO:0000188", FALSE))
+  else if (isIntron(token))
     {
       msp->type = BLXMSP_INTRON;
     }
-  else if (stringsEqual(token, "SNP", FALSE) || stringsEqual(token, "SO:0000694", FALSE))
+  else if (isSnp(token))
     {
       msp->type = BLXMSP_SNP;
     }
