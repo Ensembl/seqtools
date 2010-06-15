@@ -239,7 +239,7 @@ static gboolean isMatch(char *text)
 
 static gboolean isCds(char *text)
 {
-  return (stringsEqual(text, "CDS", FALSE) || stringsEqual(text, "SO:0000234", FALSE));
+  return (stringsEqual(text, "CDS", FALSE) || stringsEqual(text, "SO:0000316", FALSE));
 }
 
 static gboolean isUtr(char *text)

@@ -1393,12 +1393,19 @@ gchar *abbreviateText(const char *inputStr, const int max_len)
  * strings are equal. The two strings must be null-terminated. */
 gboolean stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive)
 {
-  const int len1 = strlen(str1);
+  gboolean result = FALSE;
   
   if (caseSensitive)
-    return (strcmp(str1, str2) == NULL);
+    {
+      result = !strcmp(str1, str2);
+    }
   else
-    return (strlen(str2) == len1 && !g_ascii_strncasecmp(str1, str2, len1));
+    {
+      const int len1 = strlen(str1);
+      result = (strlen(str2) == len1 && !g_ascii_strncasecmp(str1, str2, len1));
+    }
+  
+  return result;
 }
 
 

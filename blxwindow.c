@@ -2424,15 +2424,15 @@ static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
   
   /* Create the text based on the results */
   g_string_printf(result, "%s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s %s%d%s",
-                  "Length of reference sequence\t\t= ", refSeqLen, " characters\n\n",
-                  "Total number of match sequences\t\t= ", totalNumSeqs, "\n",
-                  "Number of match sequences containing sequence data\t\t= ", numValidSeqs, "\n",
-                  "Total memory used by sequence data\t= ", seqDataSize, " bytes\n\n",
-                  "Size of each sequence struct\t= ", (int)sizeof(BlxSequence), " bytes\n",
-                  "Total memory used by sequence structs\t= ", seqStructSize, " bytes\n\n",
-		  "Number of MSPs\t\t\t\t\t= ", numMSPs, "\n",
-                  "Size of each MSP\t\t\t\t\t= ", (int)sizeof(MSP), " bytes\n",
-		  "Total memory used by MSP structs\t\t= ", (int)sizeof(MSP) * numMSPs, " bytes");
+                  "Length of reference sequence\t\t\t\t\t\t\t= ", refSeqLen, " characters\n\n",
+                  "Total number of match sequences\t\t\t\t\t\t= ", totalNumSeqs, "\n",
+                  "Number of match sequences containing sequence data\t= ", numValidSeqs, "\n",
+                  "Total memory used by sequence data\t\t\t\t\t= ", seqDataSize, " bytes\n\n",
+                  "Size of each sequence struct\t\t\t\t\t\t\t= ", (int)sizeof(BlxSequence), " bytes\n",
+                  "Total memory used by sequence structs\t\t\t\t\t= ", seqStructSize, " bytes\n\n",
+		  "Number of MSPs\t\t\t\t\t\t\t\t\t\t= ", numMSPs, "\n",
+                  "Size of each MSP\t\t\t\t\t\t\t\t\t\t= ", (int)sizeof(MSP), " bytes\n",
+		  "Total memory used by MSP structs\t\t\t\t\t\t= ", (int)sizeof(MSP) * numMSPs, " bytes");
 }
 
 

@@ -83,8 +83,8 @@
 #define BLX_BURLYWOOD	      "#deb887"
 #define BLX_TAN		      "#d2b48c"
 
-/* The following are used to define colors in Blixem for particular purposes.
- * One of several different actual colors from this struct may be used depending 
+/* The following are used to define default colors for certain types of features in Blixem.
+ * One of several different actual colors from the BlxColor struct may be used depending 
  * on state, e.g. we use a different color if "print colors" (i.e. black and 
  * white mode) is on. */
 
