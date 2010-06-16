@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.41 2010-06-16 10:54:32 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.42 2010-06-16 11:04:04 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -667,6 +667,10 @@ MSP* createNewMsp(MSP **lastMsp,
   
   msp->desc = NULL;
   
+  msp->fillColor = NULL;
+  msp->outlineColor = NULL;
+  msp->outlineWeight = UNSET_INT;
+  
   msp->fs = NULL;
   msp->fsColor = 0;
   msp->fsShape = BLXCURVE_BADSHAPE;
@@ -798,26 +802,47 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 
 void destroyMspData(MSP *msp)
 {
-  g_free(msp->qname);
-  msp->qname = NULL;
-  
-  g_free(msp->sname);
-  msp->sname = NULL;
-  
-  g_free(msp->desc);
-  msp->desc = NULL;
-  
-  g_free(msp->fillColor);
-  msp->fillColor = NULL;
+  if (msp->qname)
+    {
+      g_free(msp->qname);
+      msp->qname = NULL;
+    }
+    
+  if (msp->sname)
+    {
+      g_free(msp->sname);
+      msp->sname = NULL;
+    }
+    
+  if (msp->desc)
+    {
+      g_free(msp->desc);
+      msp->desc = NULL;
+    }
+    
+  if (msp->fillColor)
+    {
+      g_free(msp->fillColor);
+      msp->fillColor = NULL;
+    }
 
-  g_free(msp->outlineColor);
-  msp->outlineColor = NULL;
+  if (msp->outlineColor)
+    {
+      g_free(msp->outlineColor);
+      msp->outlineColor = NULL;
+    }
+    
+  if (msp->gaps)
+    {
+      g_slist_free(msp->gaps);
+      msp->gaps = NULL;
+    }
   
-  g_slist_free(msp->gaps);
-  msp->gaps = NULL;
-  
-  arrayDestroy(msp->xy);
-  msp->xy = NULL;
+  if (msp->xy)
+    {
+      arrayDestroy(msp->xy);
+      msp->xy = NULL;
+    }
 }
 
 
