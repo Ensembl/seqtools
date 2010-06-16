@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.40 2010-06-14 11:14:39 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.41 2010-06-16 10:54:32 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -760,6 +760,10 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->sframe[4] = '\0';
   
   msp->desc = NULL;
+
+  msp->fillColor = NULL;
+  msp->outlineColor = NULL;
+  msp->outlineWeight = UNSET_INT;
   
   msp->fs = NULL;
   msp->fsColor = 0;
@@ -802,6 +806,12 @@ void destroyMspData(MSP *msp)
   
   g_free(msp->desc);
   msp->desc = NULL;
+  
+  g_free(msp->fillColor);
+  msp->fillColor = NULL;
+
+  g_free(msp->outlineColor);
+  msp->outlineColor = NULL;
   
   g_slist_free(msp->gaps);
   msp->gaps = NULL;

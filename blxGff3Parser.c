@@ -41,7 +41,8 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_SEQ,                 /* invalid sequence data */
   BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT,        /* invalid CIGAR format */
   BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
-  BLX_GFF3_ERROR_UNKNOWN_MODE                 /* unknown blast mode */
+  BLX_GFF3_ERROR_UNKNOWN_MODE,                /* unknown blast mode */
+  BLX_GFF3_ERROR_BAD_COLOR                    /* Bad color string found when parsing color */
 } BlxDotterError;
 
 
@@ -50,6 +51,7 @@ static void           parseAttributes(char *attributes, MSP *msp, GList **seqLis
 static void           parseTagDataPair(char *text, MSP *msp, char **sequence, BlxStrand *strand, char **gapString, GList **seqList, const int lineNum, GError **error);
 static void           parseNameTag(char *data, MSP *msp, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqList, const int lineNum, GError **error);
+static void           parseStyleTag(char *data, MSP *msp, GError **error);
 static void           parseGapString(char *text, const char *opts, MSP *msp, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
@@ -57,6 +59,7 @@ static void           parseMspType(char *token, MSP *msp, GError **error);
 static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int numFrames, int *q, int *s, GError **error);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 static void           validateMsp(const MSP *msp, GError **error);
+static GdkColor*      getColorFromString(char *colorStr, GError **error);
 
 
 /* Parse GFF3 header information */
@@ -471,6 +474,10 @@ static void parseTagDataPair(char *text,
         {
           *gapString = g_strdup(tokens[1]);
         }
+      else if (!strcmp(tokens[0], "style"))
+        {
+          parseStyleTag(tokens[1], msp, &tmpError);
+        }
       else
         {
           DEBUG_OUT("Unknown tag: ignorning.\n");
@@ -552,6 +559,68 @@ static void parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqL
     }
   
   g_strfreev(tokens);
+}
+
+
+/* Parse the data from a 'style' tag */
+static void parseStyleTag(char *data, MSP *msp, GError **error)
+{
+  /* Split on spaces */
+    char **tokens = g_strsplit_set(data, " ", -1); /* -1 means all tokens */
+  
+  GError *tmpError = NULL;
+  validateNumTokens(tokens, 3, 3, &tmpError);
+  
+  if (!tmpError)
+    {
+      msp->fillColor = getColorFromString(tokens[0], &tmpError);
+    }
+
+  if (!tmpError)
+    {
+      msp->outlineColor = getColorFromString(tokens[1], &tmpError);
+    }
+    
+  if (!tmpError)
+    {
+      msp->outlineWeight = convertStringToInt(tokens[2]);
+    }
+    
+  if (tmpError)
+    {
+      prefixError(tmpError, "Error parsing 'style' tag '%s'. ", data);
+      g_propagate_error(error, tmpError);
+    }
+}
+
+
+/* Creates a GdkColor from the given color string in hex format, e.g. "#00ffbe". Returns NULL
+ * and sets 'error' if there was a problem */
+static GdkColor* getColorFromString(char *colorStr, GError **error)
+{
+  GdkColor *color = g_malloc(sizeof(GdkColor));
+  
+  gboolean ok = gdk_color_parse(colorStr, color);
+
+  if (ok)
+    {
+      gboolean failures[1];
+      gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
+      
+      if (numFailures > 0)
+        {
+          ok = FALSE;
+        }
+    }
+
+  if (!ok)
+    {
+      g_free(color);
+      color = NULL;
+      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_BAD_COLOR, "Error parsing color string '%s'\n", colorStr);
+    }
+  
+  return color;
 }
 
 
