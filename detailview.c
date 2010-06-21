@@ -26,6 +26,7 @@
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
 #define DEFAULT_SNP_CONNECTOR_HEIGHT	0
+#define DEFAULT_NUM_UNALIGNED_BASES     5    /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
@@ -784,7 +785,8 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev);
+		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev,
+				  FALSE, FALSE, UNSET_INT);/* don't show unaligned base coords */
 
 		  if (sIdx != UNSET_INT)
 		    {
@@ -900,6 +902,9 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
 * to the expanded version (where each MSP has its own row) if squash is false. */
 void detailViewSquashMatches(GtkWidget *detailView, const gboolean squash)
 {
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->squashMatches = squash;
+  
   if (squash)
     {
       callFuncOnAllDetailViewTrees(detailView, treeSquashMatches);
@@ -949,6 +954,42 @@ void detailViewSetShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrac
   properties->showSnpTrack = showSnpTrack;
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+}
+
+
+/* Set the value of the 'Show Unaligned Sequence' flag */
+void detailViewSetShowUnalignedSeq(GtkWidget *detailView, const gboolean showUnalignedSeq)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->showUnalignedSeq = showUnalignedSeq;
+  
+  /* Refilter and re-draw */
+  callFuncOnAllDetailViewTrees(detailView, refilterTree);
+  gtk_widget_queue_draw(detailView);
+}
+
+
+/* Set the value of the 'Limit Unaligned Bases' flag */
+void detailViewSetLimitUnalignedBases(GtkWidget *detailView, const gboolean limitUnalignedBases)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->limitUnalignedBases = limitUnalignedBases;
+  
+  /* Refilter and re-draw */
+  callFuncOnAllDetailViewTrees(detailView, refilterTree);
+  gtk_widget_queue_draw(detailView);
+}
+
+
+/* Set the number of additional bases to show for the show-unaligned-sequence option */
+void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->numUnalignedBases = numBases;
+  
+  /* Refilter and re-draw */
+  callFuncOnAllDetailViewTrees(detailView, refilterTree);
+  gtk_widget_queue_draw(detailView);
 }
 
 
@@ -1223,7 +1264,7 @@ static int getSnpDisplayCoord(const MSP *msp,
 {
   /* Conver the SNP index to a display coord */
   int base = UNSET_INT;
-  const int displayIdx = convertDnaIdxToDisplayIdx(msp->qstart, seqType, activeFrame, numFrames, displayRev, refSeqRange, &base);
+  const int displayIdx = convertDnaIdxToDisplayIdx(mspGetQStart(msp), seqType, activeFrame, numFrames, displayRev, refSeqRange, &base);
 
   /* The calculated display index will be different depending on which reading frame is 
    * active. However, we always want to display the SNP in the same position, so adjust 
@@ -1280,7 +1321,7 @@ static gboolean coordAffectedBySnp(const int dnaIdx, const BlxStrand strand, con
     {
       if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand)
 	{
-	  if (msp->qstart == dnaIdx)
+	  if (mspGetQStart(msp) == dnaIdx)
 	    {
 	      result = TRUE;
 	      break;
@@ -1889,6 +1930,27 @@ gboolean detailViewGetShowSnpTrack(GtkWidget *detailView)
   return properties ? properties->showSnpTrack : FALSE;
 }
 
+/* Returns true if the 'show unaligned sequence' option is on AND the squash matches 
+ * option is OFF (because they don't work well together) */
+gboolean detailViewGetShowUnalignedSeq(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->showUnalignedSeq && !properties->squashMatches : FALSE;
+}
+
+gboolean detailViewGetLimitUnalignedBases(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->limitUnalignedBases : FALSE;
+}
+
+int detailViewGetNumUnalignedBases(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->numUnalignedBases : FALSE;
+}
+
+
 static int detailViewGetSnpConnectorHeight(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -2061,10 +2123,14 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->fontDesc = fontDesc;
       properties->charWidth = 0;
       properties->charHeight = 0;
+      properties->squashMatches = FALSE;
       properties->sortInverted = sortInverted;
       properties->highlightDiffs = FALSE;
       properties->showSnpTrack = FALSE;
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
+      properties->showUnalignedSeq = FALSE;
+      properties->limitUnalignedBases = TRUE;
+      properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
 
       /* Set initial display range to something valid but only 1 base wide. Then if we try to do any 
        * calculations on the range before it gets set properly, it won't have much work to do. */
@@ -2578,8 +2644,8 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 	{
 	  /* Get the offset of the msp coords from the given start coord and find the smallest,
 	   * ignorning zero and negative offsets (negative means its the wrong direction) */
-	  const int offset1 = (msp->qstart - searchData->startDnaIdx) * searchData->searchDirection;
-	  const int offset2 = (msp->qend - searchData->startDnaIdx) * searchData->searchDirection;
+	  const int offset1 = (msp->qRange.min - searchData->startDnaIdx) * searchData->searchDirection;
+	  const int offset2 = (msp->qRange.max - searchData->startDnaIdx) * searchData->searchDirection;
 	  
 	  int currentFrame = searchData->frame;
 	  int currentBest = UNSET_INT;
@@ -3415,7 +3481,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 	    }
 	  else
 	    {
-	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", msp->sname, msp->qstart, msp->qend, msp->sstart, msp->send, msp->qframe);
+	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", msp->sname, msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qframe);
 	    }
 	}
     }

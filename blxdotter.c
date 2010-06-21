@@ -679,8 +679,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
       int base1, base2;
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base1);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base2);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base1);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base2);
       const int minMspCoord = min(coord1, coord2);
       const int maxMspCoord = max(coord1, coord2);
 
@@ -688,8 +688,10 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       if ((msp->qStrand == activeStrand || (bc->blastMode == BLXMODE_BLASTN)) &&
 	  (minMspCoord >= bigPicRange->min && maxMspCoord <= bigPicRange->max))
 	{
-	  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
-	  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
+	  int qSeqMin = msp->qRange.min;
+	  int qSeqMax = msp->qRange.max;
+	  int sSeqMin = msp->sRange.min;
+	  int sSeqMax = msp->sRange.max;
 	  
 	  /* Extrapolate qMin backwards to the start of the match sequence (i.e. where
 	   * s==0) and qMax forwards to the end of the match sequence (i.e. where s==sLength). */

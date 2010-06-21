@@ -288,8 +288,8 @@ void calculateMspLineDimensions(GtkWidget *grid,
   const int frame = mspGetRefFrame(msp, bc->seqType);
 
   /* Find the coordinates of the start and end base in this match sequence, and convert to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   
   /* Convert the coords to grid positions. The grid positions we use are for the left edge
    * of the coord, so to draw the end coord inclusively we need to increase the max coord by 1 */
@@ -334,8 +334,8 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
       BlxViewContext *bc = gridGetContext(grid);
       const IntRange const *displayRange = gridGetDisplayRange(grid);
       
-      const int mspStart = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int mspEnd = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+      const int mspStart = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+      const int mspEnd = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
       const int qMin = min(mspStart, mspEnd);
       const int qMax = max(mspStart, mspEnd);
       

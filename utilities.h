@@ -47,6 +47,7 @@
 #define BLX_CYAN	      "#00ffff"
 #define BLX_DARK_CYAN	      "#008080"
 #define BLX_LIGHT_CYAN	      "#80FFF2"
+#define BLX_VERY_LIGHT_BLUE   "#c1ccdb"
 #define BLX_BLUE	      "#0000ff"
 #define BLX_DARK_BLUE	      "#000080"
 #define BLX_PALE_STEEL_BLUE   "#78b4f0"
@@ -67,6 +68,7 @@
 #define BLX_VERY_DARK_RED     "#A00000"
 #define BLX_ORANGE	      "#ffa500"
 #define BLX_LIGHT_ORANGE      "#FFCF55"
+#define BLX_DUSK_ORANGE	      "#D7BA94"
 #define BLX_GREEN	      "#00ff00"
 #define BLX_DARK_GREEN	      "#00bb00"
 #define BLX_VERY_DARK_GREEN   "#015800"
@@ -117,6 +119,7 @@ typedef enum
     BLXCOL_EXON_FILL_UTR, /* fill color for an exon in the big picture (non-coding/untranslated region) */
     BLXCOL_EXON_LINE_CDS, /* line color for an exon in the big picture (coding region) */
     BLXCOL_EXON_LINE_UTR, /* line color for an exon in the big picture (non-coding/untranslated region) */
+    BLXCOL_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;
@@ -143,14 +146,6 @@ typedef struct _CallbackData
     GtkCallback func;	  /* Callback function to be called */
     gpointer data;	  /* User data to pass to the callback function */
   } CallbackData;
-
-
-/* Utility struct to hold a range of integers */
-typedef struct _IntRange
-  {
-    int min;
-    int max;
-  } IntRange ;
   
   
 /* Struct to hold a pair of coordinate ranges, one holding ref seq coords, the other match coords */
@@ -193,7 +188,6 @@ gboolean              mspHasSSeq(const MSP  const *msp);
 gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
 
-void		      getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin, int *sSeqMax);
 void		      getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
 int		      getRangeLength(const IntRange const *range);
@@ -223,6 +217,15 @@ BlxStrand	      mspGetRefStrand(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
 const char*           mspGetMatchSeq(const MSP const *msp);
 char*		      mspGetSeqName(const MSP *msp);
+const IntRange const* mspGetRefCoords(const MSP const *msp);
+const IntRange const* mspGetMatchCoords(const MSP const *msp);
+int		      mspGetQStart(const MSP const *msp);
+int		      mspGetQEnd(const MSP const *msp);
+int		      mspGetSStart(const MSP const *msp);
+int		      mspGetSEnd(const MSP const *msp);
+int		      mspGetQRangeLen(const MSP const *msp);
+int		      mspGetSRangeLen(const MSP const *msp);
+int		      mspGetMatchSeqLen(const MSP const *msp);
 
 char                  getStrandAsChar(const BlxStrand strand);
 
@@ -256,7 +259,10 @@ int		      gapCoord(const MSP *msp,
 			       const int qIdx, 
 			       const int numFrames, 
 			       const BlxStrand strand, 
-			       const gboolean displayRev);
+			       const gboolean displayRev,
+			       const gboolean showUnalignedSeq,
+			       const gboolean limitUnalignedBases,
+			       const gboolean numUnalignedBases);
 
 int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 
@@ -304,6 +310,9 @@ const char*	      sequenceGetFullName(const BlxSequence *seq);
 const char*	      sequenceGetVariantName(const BlxSequence *seq);
 const char*	      sequenceGetDisplayName(const BlxSequence *seq);
 const char*	      sequenceGetShortName(const BlxSequence *seq);
+const IntRange const* sequenceGetRange(const BlxSequence *seq);
+int		      sequenceGetLength(const BlxSequence *seq);
+
 void		      destroyBlxSequence(BlxSequence *seq);
 
 BlxColor*	      getBlxColor(GList *colorList, const BlxColorId colorId);
@@ -313,6 +322,8 @@ void		      popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_leve
 
 void		      prefixError(GError *error, char *prefixStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
+
+void		      intrangeSetValues(IntRange *range, const int val1, const int val2);
 
 #ifdef DEBUG
 void		      debugLogLevel(const int increaseAmt);

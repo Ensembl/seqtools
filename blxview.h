@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.20 2010-06-16 10:54:32 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.21 2010-06-21 10:52:00 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -61,6 +61,13 @@ typedef struct
 #define BLX_DESCRIPTION_TAG        "Description"
 #define BLX_SEQUENCE_TAG           "Sequence"
 
+/* Utility struct to hold a range of integers */
+typedef struct _IntRange
+  {
+    int min;
+    int max;
+  } IntRange ;
+  
 
 /* Fundamental strand direction. */
 typedef enum
@@ -81,6 +88,7 @@ typedef struct _BlxSequence
   BlxStrand strand;                /* which strand of the sequence this is */
   char *sequence;                  /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
+  IntRange seqRange;		   /* the range of coords in this sequence */
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
 
@@ -127,7 +135,7 @@ typedef enum
   } BlxMspType;
 
 
-/* Structure holding information about a match */
+/* Structure holding information about an alignment */
 typedef struct _MSP
 {
   struct _MSP       *next;
@@ -137,18 +145,14 @@ typedef struct _MSP
 
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   char              qframe[8];     /* obsolete - use qFrame and qStrand instead */
-  int               qstart;        /* the start coord of the match on the ref sequence */
-  int               qend;          /* the end coord of the match on the ref sequence */
+  IntRange	    qRange;	   /* the range of coords on the ref sequence where the alignment lies */
   BlxStrand         qStrand;       /* which strand on the reference sequence the match is on */
   int               qFrame;        /* which frame on the reference sequence the match is on */
 
   BlxSequence       *sSequence;    /* pointer to a struct holding info about the sequence/strand this match is from */
   char              *sname;        /* sequence name (could be different to the sequence name in the blxSequence e.g. exons have a postfixed 'x') */
   char              sframe[8];     /* obsolete - use sStrand instead */
-
-  int               slength;       /* required? */
-  int               sstart;        /* Start coord of match on the subject sequence */
-  int               send;          /* End coord of the match on the subject sequence */
+  IntRange	    sRange;	   /* the range of coords on the match sequence where the alignment lies */
   
   char              *desc;         /* Optional description text for the MSP */
   GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array

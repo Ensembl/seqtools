@@ -124,8 +124,8 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
   const int frame = mspGetRefFrame(msp, data->seqType);
 
   /* Find the coordinates of the start and end base in this msp, converting to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
   
   if (valueWithinRange(coord1, data->displayRange) || valueWithinRange(coord2, data->displayRange))
     {
@@ -305,8 +305,8 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	  if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == properties->currentStrand)
 	    {
 	      const int frame = mspGetRefFrame(msp, bc->seqType);
-	      const int startCoord = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-	      const int endCoord = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+	      const int startCoord = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+	      const int endCoord = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
 	      
 	      if (valueWithinRange(startCoord, displayRange) || valueWithinRange(endCoord, displayRange))
 		{

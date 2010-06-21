@@ -425,14 +425,14 @@ gboolean mspIsCds(const MSP const *msp, const BlxSequence *blxSeq)
 	
 	  if (mspIsExon(curMsp))
 	    {
-	      const int curOffset = curMsp->qstart - msp->qstart;
+	      const int curOffset = mspGetQStart(curMsp) - mspGetQStart(msp);
 	    
-	      if (curOffset < 0 && (!prevExon || curOffset > prevExon->qstart - msp->qstart))
+	      if (curOffset < 0 && (!prevExon || curOffset > mspGetQStart(prevExon) - mspGetQStart(msp)))
 		{
 		  /* Current MSP is before our MSP and is the smallest offset so far */
 		  prevExon = curMsp;
 		}
-	      else if (curOffset > 0 && (!nextExon || curOffset < nextExon->qstart - msp->qstart))
+	      else if (curOffset > 0 && (!nextExon || curOffset < mspGetQStart(nextExon) - mspGetQStart(msp)))
 		{
 		  /* Current MSP is after our MSP and is the smallest offset so far */
 		  nextExon = curMsp;
@@ -505,24 +505,6 @@ void sortValues(int *val1, int *val2, gboolean forwards)
       *val1 = *val2;
       *val2 = temp;
     }
-}
-
-
-/* Returns the upper and lower extents of the query and subject sequence ranges in 
- * the given MSP. Any of the return values can be NULL if they are not required. */
-void getMspRangeExtents(const MSP *msp, int *qSeqMin, int *qSeqMax, int *sSeqMin, int *sSeqMax)
-{
-  if (qSeqMin)
-    *qSeqMin = msp->qstart < msp->qend ? msp->qstart : msp->qend;
-  
-  if (qSeqMax)
-    *qSeqMax = msp->qstart < msp->qend ? msp->qend : msp->qstart;
-  
-  if (sSeqMin)
-    *sSeqMin = msp->sstart < msp->send ? msp->sstart : msp->send;
-  
-  if (sSeqMax)
-    *sSeqMax = msp->sstart < msp->send ? msp->send : msp->sstart;
 }
 
 
@@ -745,38 +727,23 @@ int gapCoord(const MSP *msp,
 	     const int qIdx, 
 	     const int numFrames, 
 	     const BlxStrand strand, 
-	     const gboolean displayRev)
+	     const gboolean displayRev,
+	     const gboolean showUnalignedSeq,
+	     const gboolean limitUnalignedBases,
+	     const int numUnalignedBases)
 {
   int result = UNSET_INT;
   
   if (mspIsBlastMatch(msp) || mspIsExon(msp))
     {
-      int qSeqMin = UNSET_INT, qSeqMax = UNSET_INT, sSeqMin = UNSET_INT, sSeqMax = UNSET_INT;
-      getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
-      
       const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
       const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
       const gboolean sameDirection = (qForward == sForward);
+      const gboolean inGapsRange = (qIdx >= msp->qRange.min && qIdx <= msp->qRange.max);
       
-      if (!msp->gaps || g_slist_length(msp->gaps) < 1)
+      if (msp->gaps && g_slist_length(msp->gaps) >= 1 && inGapsRange)
 	{
-	  /* If strands are in the same direction, find the offset from qSeqMin and add it to sSeqMin.
-	   * If strands are in opposite directions, find the offset from qSeqMin and subtract it from sSeqMax. */
-	  int offset = (qIdx - qSeqMin)/numFrames ;
-	  result = (sameDirection) ? sSeqMin + offset : sSeqMax - offset ;
-	  
-	  if (result < sSeqMin)
-	    {
-	      result = UNSET_INT;
-	    }
-	  else if (result > sSeqMax)
-	    {
-	      result = UNSET_INT;
-	    }
-	}
-      else
-	{
-	  /* Look to see if x lies inside one of the "gaps" ranges. */
+	  /* Gapped alignment. Look to see if x lies inside one of the "gaps" ranges. */
           GSList *rangeItem = msp->gaps;
 
 	  for ( ; rangeItem ; rangeItem = rangeItem->next)
@@ -805,11 +772,135 @@ int gapCoord(const MSP *msp,
 		}
 	    }
 	}
+      else if (!inGapsRange && mspIsBlastMatch(msp))
+	{
+	  /* The q index is outside the alignment range but the option to show unaligned sequence 
+	  * is enabled, so extend the range to include the allowed number of extra bases (or the 
+	  * full range of the match sequence, if no limit is set), and check if the q index is 
+	  * within that. */
+	  int sMin = msp->sRange.min;
+	  int sMax = msp->sRange.max;
+
+	  if (!inGapsRange && showUnalignedSeq && msp->sSequence && msp->sSequence->sequence)
+	    {
+	      /* Get the full range of the match sequence */
+	      sMin = 1;
+	      sMax = strlen(msp->sSequence->sequence);
+	      
+	      if (limitUnalignedBases)
+		{
+		  /* Include up to 'numUnalignedBases' each side of the MSP range. (Make sure
+		   * this doesn't take us outside the full range of the match sequence, though.) */
+		  sMin = max(sMin, msp->sRange.min - numUnalignedBases);
+		  sMax = min(sMax, msp->sRange.max + numUnalignedBases);
+		}
+	    }
+	    
+	  if (qIdx < msp->qRange.min)
+	    {
+	      /* Find the offset backwards from the low coord and subtract it from the low end
+	       * of the s coord range (or add it to the high end, if the directions are opposite). */
+	      const int offset = (msp->qRange.min - qIdx) / numFrames;
+	      result = sameDirection ? msp->sRange.min - offset : msp->sRange.max + offset;
+	    }
+	  else
+	    {
+	      /* Find the offset forwards from the high coord and add it to the high end of the
+	       * s coord range (or subtract it from the low end, if the directions are opposite). */
+	      const int offset = (qIdx - msp->qRange.max) / numFrames;
+	      result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
+	    }
+
+	  /* If the result is still out of range, there's nothing to show for this qIdx. */
+	  if (result < sMin || result > sMax)
+	    {
+	      result = UNSET_INT;
+	    }
+	}
+      else
+	{
+	  /* If strands are in the same direction, find the offset from qRange.min and add it to 
+	   * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
+	   * subtract it from sRange.max. Note that the offset could be negative if we're outside
+	   * the alignment range. */
+	  int offset = (qIdx - msp->qRange.min)/numFrames ;
+	  result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
+	  
+	  if (result < msp->sRange.min || result > msp->sRange.max)
+	    {
+	      result = UNSET_INT;
+	    }
+
+	}
     }
   
   return result;
 }
 
+
+/***********************************************************
+ *		MSP data access functions		   * 
+ ***********************************************************/
+
+/* Get the range of coords of the alignment on the reference sequence */
+const IntRange const *mspGetRefCoords(const MSP const *msp)
+{
+  return &msp->qRange;
+}
+
+/* Get the range of coords of the alignment on the match sequence */
+const IntRange const *mspGetMatchCoords(const MSP const *msp)
+{
+  return &msp->sRange;
+}
+
+/* Return the length of the range of alignment coords on the ref seq */
+int mspGetQRangeLen(const MSP const *msp)
+{
+  return msp->qRange.max - msp->qRange.min + 1;
+}
+
+/* Return the length of the range of alignment coords on the match seq */
+int mspGetSRangeLen(const MSP const *msp)
+{
+  return msp->sRange.max - msp->sRange.min + 1;
+}
+
+/* Get the start (5 prime) coord of the alignment on the reference sequence. This is
+ * the lowest value coord if the strand is forwards or the highest if it is reverse. */
+int mspGetQStart(const MSP const *msp)
+{
+  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.max : msp->qRange.min);
+}
+
+/* Get the end (3 prime) coord of the alignment on the reference sequence. This is
+ * the highest value coord if the strand is forwards or the lowest if it is reverse. */
+int mspGetQEnd(const MSP const *msp)
+{
+  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.min : msp->qRange.max);
+}
+
+/* Get the start coord of the alignment on the match sequence. This is
+ * the lowest value coord if the match strand is the same direction as the ref seq strand,
+ * or the highest value coord otherwise. */
+int mspGetSStart(const MSP const *msp)
+{
+  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.min : msp->sRange.max);
+}
+
+/* Get the end coord of the alignment on the match sequence. This is
+ * the highest value coord if the match strand is in the same direction as the ref seq strand, 
+ * or the lowest value coord otherwise. */
+int mspGetSEnd(const MSP const *msp)
+{
+  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max : msp->sRange.min);
+}
+
+/* Return the length of the match sequence that the given MSP lies on */
+int mspGetMatchSeqLen(const MSP const *msp)
+{
+  return (msp->sSequence ? sequenceGetLength(msp->sSequence) : 0);
+}
 
 /* Return the reading frame of the ref sequence that the given MSP is a match against */
 int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
@@ -829,13 +920,11 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
   return result;
 }
 
-
 /* Return the strand of the ref sequence that the given MSP is a match against */
 BlxStrand mspGetRefStrand(const MSP const *msp)
 {
   return msp->qStrand;
 }
-
 
 /* Return the strand of the match sequence that the given MSP is a match on */
 BlxStrand mspGetMatchStrand(const MSP const *msp)
@@ -843,13 +932,11 @@ BlxStrand mspGetMatchStrand(const MSP const *msp)
   return msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE;
 }
 
-
 /* Get the match sequence for the given MSP */
 const char* mspGetMatchSeq(const MSP const *msp)
 {
   return msp->sSequence ? msp->sSequence->sequence : NULL;
 }
-
 
 /* Get the sequence name for an MSP. This removes the postfixed 'x' or 'i' from
  * exon and intron names; otherwise it just returns a copy of the name in the MSP.
@@ -960,13 +1047,11 @@ const char *sequenceGetFullName(const BlxSequence *seq)
   return seq->fullName;
 }
 
-
 /* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
 const char *sequenceGetVariantName(const BlxSequence *seq)
 {
   return seq->variantName;
 }
-
 
 /* Return the display name of a BlxSequence (same as variant name for now) */
 const char *sequenceGetDisplayName(const BlxSequence *seq)
@@ -974,13 +1059,21 @@ const char *sequenceGetDisplayName(const BlxSequence *seq)
   return seq->variantName;
 }
 
-
 /* Return the short name of a BlxSequence (excludes prefix and variant number) */
 const char *sequenceGetShortName(const BlxSequence *seq)
 {
   return seq->shortName;
 }
 
+const IntRange const* sequenceGetRange(const BlxSequence *seq)
+{
+  return &seq->seqRange;
+}
+
+int sequenceGetLength(const BlxSequence *seq)
+{
+  return (seq->seqRange.max - seq->seqRange.min + 1);
+}
 
 /* Frees all memory used by a BlxSequence */
 void destroyBlxSequence(BlxSequence *seq)
@@ -1781,6 +1874,14 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
       g_error_free(*error);
       *error = NULL;
     }
+}
+
+
+/* Set the values in an IntRange. */
+void intrangeSetValues(IntRange *range, const int val1, const int val2)
+{
+  range->min = val1 < val2 ? val1 : val2;
+  range->max = val1 < val2 ? val2 : val1;
 }
 
 

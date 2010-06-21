@@ -263,7 +263,7 @@ static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existin
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
 
-static void			  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, GtkWidget *blxWindow);
+static void			  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
 static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
 static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
 
@@ -2062,14 +2062,14 @@ static void createCheckButton(GtkBox *box,
 			      const char *mnemonic, 
 			      const gboolean isActive, 
 			      GCallback callback, 
-			      GtkWidget *blxWindow)
+			      gpointer data)
 {
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   
-  g_signal_connect(G_OBJECT(button), "toggled", callback, blxWindow);
+  g_signal_connect(G_OBJECT(button), "toggled", callback, data);
 }
 
 
@@ -2321,6 +2321,99 @@ static void onTogglePrintColors(GtkWidget *button, gpointer data)
 }
 
 
+/* Callback function called when the 'Show unaligned sequence' button is toggled */
+static void onShowUnalignedSeqToggled(GtkWidget *button, gpointer data)
+{
+  /* Get the new value */
+  const gboolean showUnalignedSeq = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  
+  /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
+  GtkWidget *subComponents = GTK_WIDGET(data);
+  gtk_widget_set_sensitive(subComponents, showUnalignedSeq); 
+  
+  /* Get the detail view from the main window */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  /* Update the value */
+  detailViewSetShowUnalignedSeq(detailView, showUnalignedSeq);
+}
+
+
+/* Callback function called when the 'Limit unaligned bases' button is toggled */
+static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
+{
+  /* Get the new value */
+  const gboolean limitUnalignedBases = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+
+  /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
+  GtkWidget *subComponents = GTK_WIDGET(data);
+  gtk_widget_set_sensitive(subComponents, limitUnalignedBases); 
+  
+  /* Get the detail view from the main window */
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  /* Update the value */
+  detailViewSetLimitUnalignedBases(detailView, limitUnalignedBases);
+}
+
+
+/* Callback called when the user has changed the number of additional bases to show when the
+ * 'show unaligned bases' option is enabled. */
+static void onSetNumUnalignedBases(GtkWidget *entry, gpointer data)
+{
+  const char *numStr = gtk_entry_get_text(GTK_ENTRY(entry));
+  int numBases = convertStringToInt(numStr);
+  
+  GtkWidget *detailView = GTK_WIDGET(data);
+  detailViewSetNumUnalignedBases(detailView, numBases);
+}
+
+
+/* Create option buttons for enabling/disabling display of unaligned sequence */
+static void createUnalignedSeqButtons(GtkWidget *parent, GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  const gboolean showUnalignedSeq = detailViewGetShowUnalignedSeq(detailView); /* takes into account more than just the flag */
+  
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(parent), vbox, FALSE, FALSE, 0);
+
+  /* Create an hbox for the sub-components. Create it now so we can pass it to the main toggle
+   * button callback, but don't pack it in the container till we've added the other. */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_widget_set_sensitive(hbox, showUnalignedSeq); 
+
+  /* Main check button to enable/disable the option */
+  createCheckButton(GTK_BOX(vbox), "Show _unaligned sequence (only works if Squash Matches is off)", showUnalignedSeq, G_CALLBACK(onShowUnalignedSeqToggled), hbox);
+
+  /* Text entry box to specify the limit */
+  GtkWidget *entry = gtk_entry_new();
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  widgetSetCallbackData(entry, onSetNumUnalignedBases, detailView);
+
+  char *numStr = convertIntToString(properties->numUnalignedBases);
+  gtk_entry_set_text(GTK_ENTRY(entry), numStr);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(numStr) + 2); /* fudge up width a bit in case user enters longer text */
+  g_free(numStr);
+  
+  /* Check button to enable/disable setting the limit */
+  GtkWidget *button = gtk_check_button_new_with_mnemonic("_Limit to ");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), properties->limitUnalignedBases);
+  g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onLimitUnalignedBasesToggled), entry);
+
+  /* Pack it all in the hbox */
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new("   "), FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new(" additional bases"), FALSE, FALSE, 0);
+}
+
+
 /* Shows the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *blxWindow)
 {
@@ -2355,10 +2448,10 @@ void showSettingsDialog(GtkWidget *blxWindow)
   GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   
   createCheckButton(GTK_BOX(vbox1), "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
+  createUnalignedSeqButtons(vbox1, detailView);
   createCheckButton(GTK_BOX(vbox1), "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
   createCheckButton(GTK_BOX(vbox1), "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
   createCheckButton(GTK_BOX(vbox1), "Show SN_P track", detailViewGetShowSnpTrack(detailView), G_CALLBACK(onShowSnpTrackToggled), detailView);
-  
   createColumnSizeButtons(mainVBox, detailView);
   createGridSettingsButtons(mainVBox, bigPicture);
 
@@ -3176,7 +3269,6 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
    * Convert it to a string so we can use the same creation function as the other colors */
   char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
   createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, NULL, NULL);
-  g_free(defaultBgColorStr);
   
   /* reference sequence */
   createBlxColor(bc, BLXCOL_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
@@ -3215,6 +3307,11 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* groups */
   createBlxColor(bc, BLXCOL_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_LIGHT_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOL_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
+  
+  /* misc */
+  createBlxColor(bc, BLXCOL_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  
+  g_free(defaultBgColorStr);
 }
 
 
@@ -3245,6 +3342,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->matchSeqs = seqList;
   
   blxContext->displayRev = FALSE;
+  
   blxContext->selectedSeqs = NULL;
   blxContext->sequenceGroups = NULL;
   blxContext->matchSetGroup = NULL;
@@ -3781,9 +3879,6 @@ static void calcID(MSP *msp, BlxViewContext *bc)
   const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
   const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
   
-  int qSeqMin, qSeqMax, sSeqMin, sSeqMax;
-  getMspRangeExtents(msp, &qSeqMin, &qSeqMax, &sSeqMin, &sSeqMax);
-  
   msp->id = UNSET_INT;
   
   if (mspIsBlastMatch(msp))
@@ -3802,8 +3897,8 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           
           char *refSeqSegment = getSequenceSegment(bc,
                                                    bc->refSeq,
-                                                   msp->qstart, 
-                                                   msp->qend, 
+                                                   msp->qRange.min, 
+                                                   msp->qRange.max, 
                                                    mspGetRefStrand(msp), 
                                                    BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
                                                    mspGetRefFrame(msp, bc->seqType),
@@ -3815,7 +3910,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           
           if (!refSeqSegment)
             {
-	      prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", msp->sname, msp->sstart, msp->send);
+	      prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", msp->sname, msp->sRange.min, msp->sRange.max);
               reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
               return;
             }
@@ -3828,7 +3923,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           if (numGaps == 0)
             {
               /* Ungapped alignments. */
-              totalNumChars = (qSeqMax - qSeqMin + 1) / bc->numFrames;
+              totalNumChars = (msp->qRange.max - msp->qRange.min + 1) / bc->numFrames;
               
               if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
                 {
@@ -3846,7 +3941,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                   int i = 0;
                   for ( ; i < totalNumChars; i++)
                     {
-                      int sIndex = sForward ? sSeqMin + i - 1 : sSeqMax - i - 1;
+                      int sIndex = sForward ? msp->sRange.min + i - 1 : msp->sRange.max - i - 1;
                       if (freeupper(matchSeq[sIndex]) == freeupper(refSeqSegment[i]))
                         {
                           numMatchingChars++;
@@ -3886,7 +3981,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                       /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
                        * We need to translate the first coord in the range (which is in terms of the full
                        * reference sequence) into coords in the cut-down ref sequence. */
-                      int q_start = qForward ? (qRangeMin - qSeqMin) / bc->numFrames : (qSeqMax - qRangeMax) / bc->numFrames;
+                      int q_start = qForward ? (qRangeMin - msp->qRange.min) / bc->numFrames : (msp->qRange.max - qRangeMax) / bc->numFrames;
                       
                       /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
                        * through sseq if we have the forward strand or backwards if we have the reverse strand,
@@ -3927,8 +4022,8 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
   /* Convert the input coords (which are 1-based within the ref sequence section
    * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
   int offset = bc->refSeqRange.min - 1;
-  msp->qstart = msp->qstart + offset;
-  msp->qend = msp->qend + offset;
+  msp->qRange.min += offset;
+  msp->qRange.max += offset;
   
   /* Gap coords are also 1-based, so convert those too */
   GSList *rangeItem = msp->gaps;
@@ -3950,14 +4045,14 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
       const gboolean reverseStrand = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
       
       int frame = UNSET_INT;
-      convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
+      convertDnaIdxToDisplayIdx(mspGetQStart(msp), bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
       
       char *frameStr = convertIntToString(frame);
 
       if (frame != msp->qFrame)
 	{
 	  printf("Warning: calculated match frame as %d but frame in input file is %d. Sequence %s [%d - %d]\n",
-		 frame, msp->qFrame, msp->sname, msp->sstart, msp->send);
+		 frame, msp->qFrame, msp->sname, msp->sRange.min, msp->sRange.max);
 	}  
       
       msp->qFrame = frame;

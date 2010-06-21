@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.8 2010-06-11 09:29:48 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.9 2010-06-21 10:52:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -146,6 +146,7 @@
 #include <wh/menu.h>
 #include <SeqTools/blixem_.h>
 #include <SeqTools/dotter_.h>
+#include <SeqTools/utilities.h>
 
 
 /* tint stuff used to be in graph.h, now local - rd 960524
@@ -1632,8 +1633,8 @@ static void XdrawSEG(MSP *msp, float offset)
     /* Horizontal axis */
 
     float  
-	sx = seq2graphX(msp->qstart), 
-	ex = seq2graphX(msp->qend);
+	sx = seq2graphX(mspGetQStart(msp)), 
+	ex = seq2graphX(mspGetQEnd(msp));
     
     offset += TopBorder + slen4 -1;
     oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
@@ -1696,8 +1697,8 @@ static void YdrawSEG(MSP *msp, float offset)
     /* Vertical axis */
 
     float  
-	sx = seq2graphY(msp->qstart), 
-	ex = seq2graphY(msp->qend);
+	sx = seq2graphY(mspGetQStart(msp)), 
+	ex = seq2graphY(mspGetQEnd(msp));
     
     offset += LeftBorder + qlen4 -1;
     oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
@@ -1823,8 +1824,8 @@ static void drawGenes(MSP *msp)
 
       if (msp->score < 0 || mspHasFs(msp))
 	{
-	  sx = seq2graphX(msp->qstart);
-	  ex = seq2graphX(msp->qend);
+	  sx = seq2graphX(mspGetQStart(msp));
+	  ex = seq2graphX(mspGetQEnd(msp));
 
 	  if (msp->qStrand != strand)
 	    y = reverse_y ;
@@ -1886,8 +1887,8 @@ static void drawGenes(MSP *msp)
 
 	  if (selfcomp) /* Draw the boxes on vertical axes too */
 	    {
-	      sy = ceil((float)(msp->qstart+MSPoffset - qoffset)/zoom);
-	      ey = ceil((float)(msp->qend+MSPoffset - qoffset)/zoom);
+	      sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
+	      ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
 		
 	      sy += TopBorder-1;
 	      ey += TopBorder-1;
@@ -1987,8 +1988,8 @@ static void drawAllFeatures(MSP *msp)
 
       if (mspHasFs(msp))
 	{
-	  sx = seq2graphX(msp->qstart);
-	  ex = seq2graphX(msp->qend);
+	  sx = seq2graphX(mspGetQStart(msp));
+	  ex = seq2graphX(mspGetQEnd(msp));
 
 	  if (msp->qStrand != strand)
 	    y = reverse_y ;
@@ -2133,8 +2134,8 @@ static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
 
 	      if (selfcomp) /* Draw the boxes on vertical axes too */
 		{
-		  sy = ceil((float)(msp->qstart+MSPoffset - qoffset)/zoom);
-		  ey = ceil((float)(msp->qend+MSPoffset - qoffset)/zoom);
+		  sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
+		  ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
 		
 		  sy += TopBorder-1;
 		  ey += TopBorder-1;
@@ -2175,17 +2176,17 @@ gint compareMSPs(gconstpointer a, gconstpointer b)
 
   if (!(result = strcmp(msp_a->sname, msp_b->sname)))
     {
-      if (msp_a->sstart < msp_b->sstart)
+      if (mspGetSStart(msp_a) < mspGetSStart(msp_b))
 	result = -1 ;
-      else if (msp_a->sstart > msp_b->sstart)
+      else if (mspGetSStart(msp_a) > mspGetSStart(msp_b))
 	result = 1 ;
       else
 	{
 	  /* I actually don't think this should ever happen as it means either there are
 	   * duplicates or worse there are overlapping introns/exons within a gene.... */
-	  if (msp_a->send < msp_b->send)
+	  if (mspGetSEnd(msp_a) < mspGetSEnd(msp_b))
 	    result = -1 ;
-	  else if (msp_a->send > msp_b->send)
+	  else if (mspGetSEnd(msp_a) > mspGetSEnd(msp_b))
 	    result = 1 ;
 	  else
 	    result = 0 ;
@@ -2230,8 +2231,8 @@ static void getGenePositionsCB(gpointer data, gpointer user_data)
 	{
 	  gene = g_new0(GeneDataStruct, 1) ;
 	  gene->name = msp->sname ;
-	  gene->start = msp->sstart ;
-	  gene->end = msp->send ;
+	  gene->start = mspGetSStart(msp) ;
+	  gene->end = mspGetSEnd(msp) ;
 	  gene->strand = msp->qframe[1] ;
 	  gene->msp_start = msp ;
 
@@ -2241,7 +2242,7 @@ static void getGenePositionsCB(gpointer data, gpointer user_data)
 	{
 	  gene = (GeneData)(gene_list->data) ;
 
-	  gene->end = msp->send ;
+	  gene->end = mspGetSEnd(msp) ;
 	  gene->msp_end = msp ;
 	}
 
@@ -2369,8 +2370,8 @@ static void drawMSPGene(MSP *msp, float y_offset)
 
   height = fonth ;
 
-  sx = seq2graphX(msp->qstart);
-  ex = seq2graphX(msp->qend);
+  sx = seq2graphX(mspGetQStart(msp));
+  ex = seq2graphX(mspGetQEnd(msp));
 
   if (msp->score == -1) /* EXON */
     {
@@ -2541,17 +2542,17 @@ static void drawBlastHSPs(void)
 
       if (!strcmp(MSPsname, sname))
 	{
-	  matchlen = (abs(msp->send - msp->sstart)+1)/zoom;
+	  matchlen = mspGetSRangeLen(msp) / zoom;
 	    
 
 /* printf("\n%s: %d,%d - %d,%d\n", 
        msp->sname, msp->qstart, msp->sstart, msp->qend, msp->send);
 */
 
-	    if (msp->qstart < msp->qend) {
+	    if (mspGetQStart(msp) < mspGetQEnd(msp)) {
 
-		sx = ceil((float)(msp->qstart+MSPoffset - qoffset)/resfac) -1;
-		sy = msp->sstart - soffset -1;
+		sx = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/resfac) -1;
+		sy = mspGetSStart(msp) - soffset -1;
 
 		/* Check if we're in an illegal part of submatrix
 		 * - We only want to compress in legal submatrix parts */
@@ -2564,8 +2565,8 @@ static void drawBlastHSPs(void)
 		ex = sx + (matchlen-1);
 	    }
 	    else {
-		sx = ceil((float)(msp->qstart+MSPoffset - qoffset)/resfac) -1;
-		sy = msp->sstart - soffset -1;
+		sx = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/resfac) -1;
+		sy = mspGetSStart(msp) - soffset -1;
 
 		/* Check if we're in an illegal part of submatrix
 		 * - We only want to compress in legal submatrix parts */
@@ -2577,7 +2578,7 @@ static void drawBlastHSPs(void)
 		
 		ex = sx - (matchlen-1);
 
-		/* sx = ceil((float)(msp->qstart+MSPoffset - qoffset)/resfac);
+		/* sx = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/resfac);
 		sx = sx/zoom - 1;
 		ex = sx - (matchlen-1);
 		sy = (msp->sstart - soffset)/zoom - 1;*/
@@ -3553,8 +3554,8 @@ static void callDotter(int dotterZoom, int xstart, int ystart, int xend, int yen
 		    msp->type,
 		    msp->score, 
 		    msp->fsColor, 
-		    msp->qstart +MSPoffset,
-		    msp->qend   +MSPoffset,
+		    mspGetQStart(msp) +MSPoffset,
+		    mspGetQEnd(msp)   +MSPoffset,
 		    msp->fs ? msp->fs->order : 0);
 	    stringProtect(pipe, msp->sname);
 	    stringProtect(pipe, msp->sframe);

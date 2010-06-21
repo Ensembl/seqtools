@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.42 2010-06-16 11:04:04 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.43 2010-06-21 10:52:00 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -658,12 +658,8 @@ MSP* createNewMsp(MSP **lastMsp,
   
   msp->qFrame = qFrame;
   msp->qStrand = qStrand;
-  msp->qstart = qStart;
-  msp->qend = qEnd;
   
   msp->sname = g_ascii_strup(sName, -1);
-  msp->sstart = sStart;
-  msp->send = sEnd;
   
   msp->desc = NULL;
   
@@ -677,6 +673,9 @@ MSP* createNewMsp(MSP **lastMsp,
   msp->xy = NULL;
   
   msp->gaps = NULL;
+
+  intrangeSetValues(&msp->qRange, qStart, qEnd);  
+  intrangeSetValues(&msp->sRange, sStart, sEnd);
   
 #ifdef ACEDB
   msp->key = 0;
@@ -692,10 +691,6 @@ MSP* createNewMsp(MSP **lastMsp,
     {
       sStrand = qStrand;
     }
-  
-  /* Sort coords according to the strand direction */
-  sortValues(&msp->qstart, &msp->qend, qStrand == BLXSTRAND_FORWARD);
-  sortValues(&msp->sstart, &msp->send, sStrand == qStrand);
   
   /* Dotter still uses the old text versions of strand and frame, so create them here */
   sprintf(msp->qframe, "(%c%d)", getStrandAsChar(qStrand), qFrame);
@@ -747,15 +742,14 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->qframe[3] = ')';
   msp->qframe[4] = '\0';
   
-  msp->qstart = 0;
-  msp->qend = 0;
+  msp->qRange.min = 0;
+  msp->qRange.max = 0;
   
   msp->sSequence = NULL;
   msp->sname = NULL;
   
-  msp->slength = 0;
-  msp->sstart = 0;
-  msp->send = 0;
+  msp->sRange.min = 0;
+  msp->sRange.max = 0;
   
   msp->sframe[0] = '(';
   msp->sframe[1] = '+';

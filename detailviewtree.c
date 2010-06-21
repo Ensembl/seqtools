@@ -250,9 +250,9 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 			     S_NAME_COL, msp->sname,
 			     SCORE_COL, msp->score,
 			     ID_COL, msp->id,
-			     START_COL, msp->sstart,
+			     START_COL, msp->sRange.min,
 			     SEQUENCE_COL, subjectSeq->mspList,
-			     END_COL, msp->send,
+			     END_COL, msp->sRange.max,
 			     -1);
 	}
       else
@@ -708,6 +708,99 @@ void resortTree(GtkWidget *tree, gpointer data)
   gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumn, sortOrder);
 }
 
+
+
+static void mspGetVisibleRange(const MSP const *msp,
+                        const BlxViewContext *bc,
+                        const gboolean showUnalignedSeq,
+                        const gboolean limitUnalignedBases,
+                        const int numUnalignedBases,
+                        IntRange *qRange_out, 
+                        IntRange *sRange_out)
+{
+  if (showUnalignedSeq && mspIsBlastMatch(msp))
+    {
+      /* We need to include some/all unaligned parts of the match sequence too. 
+       * First, get the full range of the match sequence. */
+      int sMin = 1;
+      int sMax = mspGetMatchSeqLen(msp);
+      
+      if (limitUnalignedBases)
+        {
+          /* Limit the range to the start/end of the alignment but with the given number of additional 
+           * bases. Make sure we don't go outside the range the full match sequence range, though. */
+          sMin = max(sMin, msp->sRange.min - numUnalignedBases);
+          sMax = min(sMax, msp->sRange.max + numUnalignedBases);
+        }
+      
+      if (sRange_out)
+        {
+          sRange_out->min = sMin;
+          sRange_out->max = sMax;
+        }
+      
+      if (qRange_out)
+        {
+          /* Find out how much the new s coords are offset from the start/end of the MSP range */
+          int startOffset = msp->sRange.min - sMin;
+          int endOffset = sMax - msp->sRange.max;
+
+          /* Get the q coords. The s coords are in terms of display coords so we need the q coords in 
+           * display coords too. Note that the conversion may invert the coords, so we have to work out 
+           * which is the max/min again. */
+          const int qFrame = mspGetRefFrame(msp, bc->seqType);
+          
+          const int qIdx1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+          const int qIdx2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+          
+          int qMin = min(qIdx1, qIdx2);
+          int qMax = max(qIdx1, qIdx2);
+          
+          /* Adjust the q coords by the offset. If the strands are in opposite directions, or if
+           * the display is reversed (which inverts the q coords), then we need to apply the offset
+           * at the opposite end of the reference sequence. */
+          const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
+          
+          if (sameDirection != bc->displayRev)
+            {
+              qMin -= startOffset;
+              qMax += endOffset;
+            }
+          else
+            {
+              qMin -= endOffset;
+              qMax += startOffset;
+            }
+          
+          qRange_out->min = qMin;
+          qRange_out->max = qMax;
+        }
+    }
+  else
+    {
+      /* Just return the coords */
+      if (qRange_out)
+        {
+          const int qFrame = mspGetRefFrame(msp, bc->seqType);
+
+          const int qIdx1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+          const int qIdx2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+          
+          qRange_out->min = min(qIdx1, qIdx2);
+          qRange_out->max = max(qIdx1, qIdx2);
+        }
+      
+      if (sRange_out)
+        {
+          sRange_out->min = msp->sRange.min;
+          sRange_out->max = msp->sRange.max;
+        }
+    }
+}
+
+
+
+
 /* Filter function. Returns true if the given row in the given tree model should be visible. */
 static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
@@ -727,6 +820,9 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       if (!group || !group->hidden)
 	{
 	  BlxViewContext *bc = treeGetContext(tree);
+          GtkWidget *detailView = treeGetDetailView(tree);
+          DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+
 	  const int frame = treeGetFrame(tree);
 	  const BlxStrand strand = treeGetStrand(tree);
 	  const IntRange const *displayRange = treeGetDisplayRange(tree);
@@ -742,14 +838,10 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	      if ((mspIsBlastMatch(msp) || mspIsExon(msp)) &&
 		  mspGetRefStrand(msp) == strand && mspGetRefFrame(msp, bc->seqType) == frame)
 		{
-		  /* Convert the MSP's dna coords to display coords, and find the min and max */
-		  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-		  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-		  
-		  const int minCoord = min(coord1, coord2);
-		  const int maxCoord = max(coord1, coord2);
+                  IntRange qRange;
+                  mspGetVisibleRange(msp, bc, detailViewGetShowUnalignedSeq(detailView), dvProperties->limitUnalignedBases, dvProperties->numUnalignedBases, &qRange, NULL);
 
-		  if (minCoord <= displayRange->max && maxCoord >= displayRange->min)
+		  if (qRange.min <= displayRange->max && qRange.max >= displayRange->min)
 		    {
 		      bDisplay = TRUE;
 		      break;
@@ -1566,9 +1658,9 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
 			 S_NAME_COL, msp->sname,
 			 SCORE_COL, msp->score,
 			 ID_COL, msp->id,
-			 START_COL, msp->sstart,
+			 START_COL, msp->sRange.min,
 			 SEQUENCE_COL, mspGList,
-			 END_COL, msp->send,
+			 END_COL, msp->sRange.max,
 			 -1);
    }
 }
@@ -1664,10 +1756,8 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
       /* We want to display the min coord if we're in the same direction as the q strand,
        * or the max coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
-      int sSeqMin, sSeqMax;
-      getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      int coord = (displayRev != sameDirection) ? sSeqMin : sSeqMax;
+      int coord = (displayRev != sameDirection) ? msp->sRange.min : msp->sRange.max;
 
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -1701,10 +1791,8 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
       /* We want to display the max coord if we're in the same direction as the q strand,
        * or the min coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
-      int sSeqMin, sSeqMax;
-      getMspRangeExtents(msp, NULL, NULL, &sSeqMin, &sSeqMax);
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      int coord = (displayRev != sameDirection) ? sSeqMax : sSeqMin;
+      int coord = (displayRev != sameDirection) ? msp->sRange.max : msp->sRange.min;
       
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -2192,10 +2280,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 	  else
 	    {
 	      /* Use the low end of the reference sequence range */
-	      int qMin1, qMin2;
-	      getMspRangeExtents(msp1, &qMin1, NULL, NULL, NULL);
-	      getMspRangeExtents(msp2, &qMin2, NULL, NULL, NULL);
-	      result = qMin1 - qMin2;
+	      result = msp1->qRange.min - msp2->qRange.min;
 	    }
 	  
 	  break;
@@ -2244,15 +2329,12 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   
   if (!multipleMsps && !result && sortColumn != START_COL)
     {
-      int sMin1, sMin2;
-      getMspRangeExtents(msp1, NULL, NULL, &sMin1, NULL);
-      getMspRangeExtents(msp2, NULL, NULL, &sMin2, NULL);
-      result = sMin1 - sMin2;
+      result = msp1->sRange.min - msp2->sRange.min;
     }
   
   if (!multipleMsps && !result)
     {
-      result = msp1->slength - msp2->slength;
+//      result = msp1->slength - msp2->slength;
     }
   
   return result;

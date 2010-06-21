@@ -62,6 +62,7 @@ typedef struct _BlxViewContext
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
   
   gboolean displayRev;		    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
+  
   GList *selectedSeqs;		    /* A list of sequence names that are selected */
   GList *sequenceGroups;	    /* A list of SequenceGroups */
   SequenceGroup *matchSetGroup;	    /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */

@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.27 2010-06-14 11:14:39 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.28 2010-06-21 10:52:00 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -55,7 +55,8 @@ typedef enum {
   BLX_PARSER_ERROR_INVALID_COORDS,    /* MSP does not have valid ref seq coords */
   BLX_PARSER_ERROR_NO_STRAND,         /* MSP does not have a valid ref seq strand */
   BLX_PARSER_ERROR_INVALID_S_COORDS,  /* MSP does not have valid match coords */
-  BLX_PARSER_ERROR_SEQS_DIFFER        /* parsed data for the same sequence is different on different data lines */
+  BLX_PARSER_ERROR_SEQS_DIFFER,       /* parsed data for the same sequence is different on different data lines */
+  BLX_PARSER_ERROR_COMPLEMENT_FAILED  /* failed to complement the sequence */
 } BlxDotterError;
 
 
@@ -591,8 +592,8 @@ static void parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, BlxParserState parserS
       
   seq_pos = cp + strlen(sName) ;
             
-  qlen = abs(msp->qend - msp->qstart)+1;
-  slen = abs(msp->send - msp->sstart)+1;
+  qlen = mspGetQRangeLen(msp);
+  slen = mspGetSRangeLen(msp);
 
 
   if (*opts == ' ')
@@ -676,7 +677,7 @@ static void parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, BlxParserState parserS
     {
       if (!parseGaps(&seq_pos, msp, FALSE))
         {
-          g_error("Incomplete MSP gap data for MSP '%s' [%d - %d]\n", msp->sname, msp->sstart, msp->send) ;
+          g_error("Incomplete MSP gap data for MSP '%s' [%d - %d]\n", msp->sname, msp->sRange.min, msp->sRange.max) ;
         }
     }
   
@@ -825,8 +826,8 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
       
   seq_pos = cp + strlen(sName) ;
             
-  qlen = abs(msp->qend - msp->qstart)+1;
-  slen = abs(msp->send - msp->sstart)+1;
+  qlen = mspGetQRangeLen(msp);
+  slen = mspGetSRangeLen(msp);
 
   if (*opts == ' ')
     {
@@ -888,7 +889,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
 		{
 		  if (*opts == 'L')
 		    {
-		      slen = (abs(msp->send - msp->sstart) + 1)/3;
+		      slen = mspGetSRangeLen(msp) / 3;
 		    }
                   
                   sequence = parseSequence(&seq_pos, msp);
@@ -914,7 +915,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
     {
       if (*opts == 'L')
 	{
-	  slen = (abs(msp->send - msp->sstart) + 1)/3;
+	  slen = mspGetSRangeLen(msp) / 3;
 	}
 	
 
@@ -1135,7 +1136,7 @@ static char* parseSequence(char **text, MSP *msp)
   if (validLen < 1 || validLen < strlen(cp))
     {
       g_error("Error parsing %s, coords are %d -> %d (%d), but valid length sequence is only %d (out of total length supplied = %d).\n",
-		msp->sname, msp->sstart, msp->send, msp->send - msp->sstart, (int)validLen, (int)origLen) ;
+		msp->sname, msp->sRange.min, msp->sRange.max, msp->sRange.max - msp->sRange.min, (int)validLen, (int)origLen) ;
     }
   else
     {
@@ -1720,6 +1721,12 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
           if (blxSeq->strand == BLXSTRAND_REVERSE)
             {
               blxComplement(sequence) ;
+	      
+	      if (!sequence)
+		{
+		  g_set_error(error, BLX_PARSER_ERROR, BLX_PARSER_ERROR_COMPLEMENT_FAILED, 
+			      "Failed to complement sequence '%s'", blxSeq->fullName);
+		}
             }
           
           blxSeq->sequence = sequence;
@@ -1741,6 +1748,13 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
                           blxSeq->fullName, (blxSeq->strand == BLXSTRAND_FORWARD ? "forward" : "reverse"));
             }
         }
+
+      /* If we were successful, calculate the sequence range */
+      if (blxSeq->sequence)
+	{
+	  blxSeq->seqRange.min = 1;
+	  blxSeq->seqRange.max = strlen(blxSeq->sequence);
+	}
     }      
   
   if (!sequenceUsed)

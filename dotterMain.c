@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.7 2010-06-11 09:29:48 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.8 2010-06-21 10:52:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -35,6 +35,7 @@
 #include <wh/regular.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
+#include <SeqTools/utilities.h>
 #include <SeqTools/blixem_.h>
 #include <wh/dotter_.h>
 
@@ -160,7 +161,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char s
    if ((cp = (char *)strchr(msp->desc, '\n')))
      *cp = 0;
 
-   msp->qstart = msp->qend = pos;
+   msp->qRange.min = msp->qRange.max = pos;
    *msp->sframe = seq;
    msp->fsColor = DARKGREEN;
    msp->type = BLXMSP_FS_SEG;
@@ -381,9 +382,9 @@ int main(int argc, char **argv)
 	    while (*cp == ' ') cp++;
 	    msp->fsColor = strtol(cp, &cp, 10);
 	    while (*cp == ' ') cp++;
-	    msp->qstart = strtol(cp, &cp, 10); 
+	    const int qStart = strtol(cp, &cp, 10); 
 	    while (*cp == ' ') cp++;
-	    msp->qend = strtol(cp, &cp, 10); 
+	    const int qEnd = strtol(cp, &cp, 10); 
 	    while (*cp == ' ') cp++;
 	    msp->fs = NULL;
             strtol(cp, &cp, 10);
@@ -393,6 +394,7 @@ int main(int argc, char **argv)
 	    stringUnprotect(&cp, msp->qframe);
 	    msp->desc = stringUnprotect(&cp, NULL);
 
+	    intrangeSetValues(&msp->qRange, qStart, qEnd);
 
 	    /* really horrible hack */
 	    if (msp->type == BLXMSP_FS_SEG)

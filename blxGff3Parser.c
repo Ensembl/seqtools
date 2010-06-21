@@ -353,20 +353,16 @@ static void parseGffColumns(GString *line_string, const int lineNum, const char 
   
   if (!tmpError)
     {
-      msp->qstart = convertStringToInt(tokens[3]);
-      msp->qend = convertStringToInt(tokens[4]);
+      int qStart = convertStringToInt(tokens[3]);
+      int qEnd = convertStringToInt(tokens[4]);
+      intrangeSetValues(&msp->qRange, qStart, qEnd);
+      
       msp->score = convertStringToInt(tokens[5]);
       msp->qStrand = readStrand(tokens[6], &tmpError);
     }
 
   if (!tmpError)
     {
-      /* Sort coords according to strand direction (unless no strand was specified) */
-      if (msp->qStrand != BLXSTRAND_NONE)
-        {
-          sortValues(&msp->qstart, &msp->qend, msp->qStrand == BLXSTRAND_FORWARD);
-        }
-      
       msp->qFrame = convertStringToInt(tokens[7]);
   
       /* Parse the optional attributes */
@@ -535,28 +531,21 @@ static void parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqL
           msp->sname = g_ascii_strup(tokens[0], -1);
         }
       
-      msp->sstart = convertStringToInt(tokens[1]);
-      msp->send = convertStringToInt(tokens[2]);
+      const int sStart = convertStringToInt(tokens[1]);
+      const int sEnd = convertStringToInt(tokens[2]);
+      intrangeSetValues(&msp->sRange, sStart, sEnd);
       
       if (numTokens == 4)
         {
           *strand = readStrand(tokens[3], &tmpError);
         }
-      
-      /* Sort coords according to strand direction (unless no strand was specified).
-       * The coords should be forwards if the match strand is in the same direction as the 
-       * reference sequence strand. */
-      if (*strand != BLXSTRAND_NONE && msp->qStrand != BLXSTRAND_NONE)
-        {
-          sortValues(&msp->sstart, &msp->send, *strand == msp->qStrand);
-        }
-    }
+      }
   
-  if (tmpError)
-    {
-      prefixError(tmpError, "Error parsing 'Target' tag '%s'", data);
-      g_propagate_error(error, tmpError);
-    }
+   if (tmpError)
+     {
+       prefixError(tmpError, "Error parsing 'Target' tag '%s'", data);
+       g_propagate_error(error, tmpError);
+     }
   
   g_strfreev(tokens);
 }
@@ -680,8 +669,8 @@ static void parseGapString(char *text, const char *opts, MSP *msp, GError **erro
   const int qDirection = qForward ? 1 : -1;
   const int sDirection = sForward ? 1 : -1;
 
-  int q = qForward ? min(msp->qstart, msp->qend) : max(msp->qstart, msp->qend);
-  int s = sForward ? min(msp->sstart, msp->send) : max(msp->sstart, msp->send);
+  int q = qForward ? msp->qRange.min : msp->qRange.max;
+  int s = sForward ? msp->sRange.min : msp->sRange.max;
   
   char **token = tokens;
 
@@ -813,7 +802,7 @@ static void validateMsp(const MSP *msp, GError **error)
     {
       g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Reference sequence for MSP is not set.\n");
     }
-  else if (msp->qstart == UNSET_INT || msp->qend == UNSET_INT)
+  else if (msp->qRange.min == UNSET_INT || msp->qRange.max == UNSET_INT)
     {
       g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Reference sequence coords are not set.\n");
     }
@@ -825,7 +814,7 @@ static void validateMsp(const MSP *msp, GError **error)
     {
       g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Match sequence name is null.\n");
     }
-  else if (mspHasSCoords(msp) && (msp->sstart == UNSET_INT || msp->send == UNSET_INT))
+  else if (mspHasSCoords(msp) && (msp->sRange.min == UNSET_INT || msp->sRange.max == UNSET_INT))
     {
       g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Match sequence coords are not set.\n");
     }

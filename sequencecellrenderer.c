@@ -51,11 +51,16 @@ typedef struct _RenderData
     GdkColor *consColorSelected;
     GdkColor *mismatchColor;
     GdkColor *mismatchColorSelected;
+    GdkColor *unalignedSeqColor;
+    GdkColor *unalignedSeqColorSelected;
     GdkColor *exonBoundaryColorStart;
     GdkColor *exonBoundaryColorEnd;
     int exonBoundaryWidth;
     GdkLineStyle exonBoundaryStyleStart;
     GdkLineStyle exonBoundaryStyleEnd;
+    gboolean showUnalignedSeq;
+    gboolean limitUnalignedBases;
+    int numUnalignedBases;
   } RenderData;
 
 
@@ -633,20 +638,32 @@ static void drawBase(MSP *msp,
 		     int *qIdx)
 {
   char sBase = '\0';
-  GdkColor *baseBgColor;
+  GdkColor *baseBgColor = NULL;
   
   /* From the segment index, find the display index and the ref seq index */
   const int displayIdx = segmentRange->min + segmentIdx;
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
-  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev);
+  
+  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, 
+		   data->showUnalignedSeq, data->limitUnalignedBases, data->numUnalignedBases);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */
   gboolean selected = (displayIdx == data->selectedBaseIdx) != data->seqSelected;
-  
-  if (*sIdx == UNSET_INT)
+
+  if (*qIdx < msp->qRange.min || *qIdx > msp->qRange.max)
     {
-      /* There is no equivalent base in the match sequence so draw a gap */
+      /* We're outside the alignment range. There might still be a base to display if
+       * we're displaying unaligned parts of the match sequence; otherwise, we show nothing. */
+      if (*sIdx != UNSET_INT)
+	{
+	  sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
+	  baseBgColor = selected ? data->unalignedSeqColorSelected : data->unalignedSeqColor;
+	}
+    }
+  else if (*sIdx == UNSET_INT)
+    {
+      /* We're inside the alignment range but there is no base to display: we must be in a gap. */
       sBase = SEQUENCE_CHAR_GAP;
       baseBgColor = selected ? data->mismatchColorSelected : data->mismatchColor;
     }
@@ -680,11 +697,17 @@ static void drawBase(MSP *msp,
     }
 
   /* Draw the background color */
-  gdk_gc_set_foreground(data->gc, baseBgColor);
-  drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
-
-  /* Add this character into the display text */
-  displayText[segmentIdx] = sBase;
+  if (baseBgColor)
+    {
+      gdk_gc_set_foreground(data->gc, baseBgColor);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
+    }
+  
+  if (sBase != '\0')
+    {
+      /* Add this character into the display text */
+      displayText[segmentIdx] = sBase;
+    }
 }
 
 
@@ -724,8 +747,8 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && mspIsExon(msp))
     {
       /* Get the msp's start/end in terms of the display coords */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
+      const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
+      const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
       const int minIdx = min(coord1, coord2);
       const int maxIdx = max(coord1, coord2);
       
@@ -845,7 +868,7 @@ static void drawSequenceText(GtkWidget *tree,
     }
   else
     {
-      g_critical("Invalid string constructed when trying to display sequence:\n%s\n", displayText);
+      g_critical("Invalid string constructed when trying to display sequence.\n");
     }
   
 }
@@ -856,14 +879,45 @@ static void drawSequenceText(GtkWidget *tree,
 static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
 {
   IntRange result = {UNSET_INT, UNSET_INT};
+  const gboolean sameDirection = mspGetRefStrand(msp) == mspGetMatchStrand(msp);
   
   /* Find the start/end of the MSP in terms of the display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qstart, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qend, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
+  const int idx1 = convertDnaIdxToDisplayIdx(msp->qRange.min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
+  const int idx2 = convertDnaIdxToDisplayIdx(msp->qRange.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
   
-  int minIdx = min(coord1, coord2);
-  int maxIdx = max(coord1, coord2);
+  /* Get the min/max coord */
+  int minIdx = min(idx1, idx2);
+  int maxIdx = max(idx1, idx2);
 
+  /* If we're displaying additional bases from the unaligned part of the match sequence, add those 
+   * bases here (not applicable to exons) */
+  if (data->showUnalignedSeq && mspIsBlastMatch(msp))
+    {
+      const int seqLen = mspGetMatchSeqLen(msp);
+      
+      /* Find the offset to the start/end of the sequence */
+      int startOffset = msp->sRange.min - 1;
+      int endOffset = seqLen - msp->sRange.max;
+      
+      if (data->limitUnalignedBases)
+        {
+          /* Limit the offset to the given number of bases */
+          startOffset = min(startOffset, data->numUnalignedBases);
+          endOffset = min(endOffset, data->numUnalignedBases);
+        }
+
+      if (sameDirection != data->bc->displayRev)
+	{
+	  minIdx -= startOffset;
+	  maxIdx += endOffset;
+	}
+      else
+	{
+	  maxIdx += startOffset;
+	  minIdx -= endOffset;
+	}
+    }
+  
   /* Check it's in the visible range. */
   if (maxIdx >= data->displayRange->min && minIdx <= data->displayRange->max)
     {
@@ -894,7 +948,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 {
   /* Extract the section of the reference sequence that we're interested in. */
   IntRange segmentRange = getVisibleMspRange(msp, data);
-  
+
   /* Nothing to do if this msp is not in the visible range */
   if (segmentRange.min == UNSET_INT)
     {
@@ -1013,11 +1067,16 @@ static void drawMsps(SequenceCellRenderer *renderer,
     getGdkColor(bc, BLXCOL_CONS, TRUE),
     highlightDiffs ? matchColor : mismatchColor,
     highlightDiffs ? matchColorSelected : mismatchColorSelected,
+    getGdkColor(bc, BLXCOL_UNALIGNED_SEQ, FALSE),
+    getGdkColor(bc, BLXCOL_UNALIGNED_SEQ, TRUE),
     getGdkColor(bc, BLXCOL_EXON_START, FALSE),
     getGdkColor(bc, BLXCOL_EXON_END, FALSE),
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
-    detailViewProperties->exonBoundaryLineStyleEnd
+    detailViewProperties->exonBoundaryLineStyleEnd,
+    detailViewGetShowUnalignedSeq(treeProperties->detailView),
+    detailViewProperties->limitUnalignedBases,
+    detailViewProperties->numUnalignedBases
   };  
   
   /* If a base is selected highlight it now in case we don't come to process it (in 

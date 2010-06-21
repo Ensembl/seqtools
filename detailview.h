@@ -99,10 +99,15 @@ typedef struct _DetailViewProperties
     BlxStrand selectedStrand;	  /* BlxStrand of the tree that the last-selected  */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
 
+    gboolean squashMatches;       /* Whether the 'squash matches' option is enabled */
     gboolean sortInverted;	  /* Whether the sort operations operate in the reverse direction to their default */
     gboolean highlightDiffs;	  /* Whether the 'highlight differences' option is enabled */
     gboolean showSnpTrack;	  /* Whether the 'Show SNP track' option is enabled */
     int snpConnectorHeight;	  /* The height of the connector between the SNP track and the DNA base track */
+
+    gboolean showUnalignedSeq;    /* True if we should display unaligned parts of the match sequence */
+    gboolean limitUnalignedBases; /* If true, the number of additional bases will be limited to numUnalignedBases */
+    int numUnalignedBases;        /* If displayUnalignedSeq is True, this specifies how many additional bases to show at each end of the alignment */
 
     /* Cached font sizes, needed often for calculations. */
     int charHeight;
@@ -136,6 +141,9 @@ gboolean		detailViewGetMatchesSquashed(GtkWidget *detailView);
 gboolean		detailViewGetSortInverted(GtkWidget *detailView);
 gboolean		detailViewGetHighlightDiffs(GtkWidget *detailView);
 gboolean		detailViewGetShowSnpTrack(GtkWidget *detailView);
+gboolean                detailViewGetShowUnalignedSeq(GtkWidget *detailView);
+gboolean                detailViewGetLimitUnalignedBases(GtkWidget *detailView);
+int                     detailViewGetNumUnalignedBases(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
 DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
 int			detailViewGetActiveFrame(GtkWidget *detailView);
@@ -181,6 +189,9 @@ void			detailViewSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert);
 void			detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlightDiffs);
 void			detailViewSetShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack);
+void			detailViewSetShowUnalignedSeq(GtkWidget *detailView, const gboolean showUnalignedSeq);
+void                    detailViewSetLimitUnalignedBases(GtkWidget *detailView, const gboolean limitUnalignedBases);
+void                    detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases);
 void			detailViewToggleSnpTrack(GtkWidget *detailView);
 
 GtkWidget*		createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int strand);
