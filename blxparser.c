@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.28 2010-06-21 10:52:00 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.29 2010-06-21 16:08:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -225,14 +225,6 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList,
 
   DEBUG_EXIT("parseFS");
   return ;
-}
-
-
-/* Returns true if this msp is part of a feature series */
-gboolean mspHasFs(const MSP *msp)
-{
-  gboolean result = (msp->type == BLXMSP_FS_SEG || msp->type == BLXMSP_XY_PLOT);
-  return result;
 }
 
 
@@ -1695,72 +1687,6 @@ static BlxMspType getMspTypeFromScore(const int score)
     }
 
   return result;  
-}
-
-
-
-/* Add the given sequence data to a BlxSequence. Validates that the existing sequence data is
- * either null or is the same as the new data; sets the given error if not. We claim ownership
- * of the given sequence data (either the BlxSequence owns it, or we delete it if it is not 
- * required). The given sequence should always be the forward strand; we complement it ourselves
- * here if this BlxSequence requires the reverse strand. */
-void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
-{
-  if (!sequence)
-    {
-      return;
-    }
-  
-  gboolean sequenceUsed = FALSE;
-  
-  if (blxSeq && blxSeq->sequenceReqd)
-    {
-      if (!blxSeq->sequence)
-        {
-          /* Sequence does not yet exist, so add it */
-          if (blxSeq->strand == BLXSTRAND_REVERSE)
-            {
-              blxComplement(sequence) ;
-	      
-	      if (!sequence)
-		{
-		  g_set_error(error, BLX_PARSER_ERROR, BLX_PARSER_ERROR_COMPLEMENT_FAILED, 
-			      "Failed to complement sequence '%s'", blxSeq->fullName);
-		}
-            }
-          
-          blxSeq->sequence = sequence;
-          sequenceUsed = TRUE;
-        }
-      else if (error && *error)
-        {
-          /* Sequence already exists. Validate that it's the same as the existing one.
-           * (Remember to complement the passed in one if the existing one is complemented.) */
-          if (blxSeq->strand == BLXSTRAND_REVERSE)
-            {
-              blxComplement(sequence);
-            }
-          
-          if (strcmp(sequence, blxSeq->sequence) != 0)
-            {
-              g_set_error(error, BLX_PARSER_ERROR, BLX_PARSER_ERROR_SEQS_DIFFER,
-                          "Invalid sequence data: multiple matches were found for sequence '%s' (%s strand), but the parsed sequence data is not the same for each instance of this sequence. Alignments for this sequence may therefore not display correctly. Please check the input data.\n",
-                          blxSeq->fullName, (blxSeq->strand == BLXSTRAND_FORWARD ? "forward" : "reverse"));
-            }
-        }
-
-      /* If we were successful, calculate the sequence range */
-      if (blxSeq->sequence)
-	{
-	  blxSeq->seqRange.min = 1;
-	  blxSeq->seqRange.max = strlen(blxSeq->sequence);
-	}
-    }      
-  
-  if (!sequenceUsed)
-    {
-      g_free(sequence);
-    }
 }
 
 

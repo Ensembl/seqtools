@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.43 2010-06-21 10:52:00 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.44 2010-06-21 16:08:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -622,6 +622,66 @@ BlxSequence* addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *s
   addBlxSequenceData(blxSeq, sequence, error);
   
   return blxSeq;
+}
+
+
+/* Returns true if this msp is part of a feature series */
+gboolean mspHasFs(const MSP *msp)
+{
+  gboolean result = (msp->type == BLXMSP_FS_SEG || msp->type == BLXMSP_XY_PLOT);
+  return result;
+}
+
+
+/* Add the given sequence data to a BlxSequence. Validates that the existing sequence data is
+ * either null or is the same as the new data; sets the given error if not. We claim ownership
+ * of the given sequence data (either the BlxSequence owns it, or we delete it if it is not 
+ * required). The given sequence should always be the forward strand; we complement it ourselves
+ * here if this BlxSequence requires the reverse strand. */
+void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
+{
+  if (!sequence)
+    {
+      return;
+    }
+  
+  gboolean sequenceUsed = FALSE;
+  
+  if (blxSeq && blxSeq->sequenceReqd)
+    {
+      if (!blxSeq->sequence)
+        {
+          /* Sequence does not yet exist, so add it */
+          if (blxSeq->strand == BLXSTRAND_REVERSE)
+            {
+              blxComplement(sequence) ;
+            }
+          
+          blxSeq->sequence = sequence;
+          sequenceUsed = TRUE;
+        }
+      else if (error && *error)
+        {
+          /* Sequence already exists. Validate that it's the same as the existing one.
+           * (Remember to complement the passed in one if the existing one is complemented.) */
+          if (blxSeq->strand == BLXSTRAND_REVERSE)
+            {
+              blxComplement(sequence);
+            }
+        }
+      
+      /* If we were successful, calculate the sequence range */
+      if (blxSeq->sequence)
+	{
+	  blxSeq->seqRange.min = 1;
+	  blxSeq->seqRange.max = strlen(blxSeq->sequence);
+	}
+    }      
+  
+  if (!sequenceUsed)
+    {
+      g_free(sequence);
+    }
 }
 
 
