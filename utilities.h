@@ -85,6 +85,25 @@
 #define BLX_BURLYWOOD	      "#deb887"
 #define BLX_TAN		      "#d2b48c"
 
+/* Function pointer for callback functions used by widgets on dialog boxes */
+typedef void (*BlxResponseCallback)(GtkWidget *widget, const gint responseId, gpointer data);
+
+/* This struct holds generic callback information. It can be stored as a widget
+ * property and called on the widget on request (e.g. by a dialog when it applies changes). */
+typedef struct _CallbackData
+  {
+    BlxResponseCallback func;	  /* Callback function to be called */
+    gpointer data;                /* User data to pass to the callback function */
+  } CallbackData;
+
+/* Custom dialog response types, which can be used in addition to the default types specified by GtkResponseType */
+typedef enum
+  {
+    BLX_RESPONSE_FORWARD, 
+    BLX_RESPONSE_BACK
+  } BlxResponseType;
+
+
 /* The following are used to define default colors for certain types of features in Blixem.
  * One of several different actual colors from the BlxColor struct may be used depending 
  * on state, e.g. we use a different color if "print colors" (i.e. black and 
@@ -138,16 +157,6 @@ typedef struct _BlxColor
   } BlxColor;
 
 
-
-/* This struct holds generic callback information. It can be stored as a widget
- * property and called on the widget on request (e.g. by a dialog when it applies changes). */
-typedef struct _CallbackData
-  {
-    GtkCallback func;	  /* Callback function to be called */
-    gpointer data;	  /* User data to pass to the callback function */
-  } CallbackData;
-  
-  
 /* Struct to hold a pair of coordinate ranges, one holding ref seq coords, the other match coords */
 typedef struct _CoordRange
   {
@@ -284,8 +293,7 @@ GtkWidget*		createScrollableTextView(const char *messageText,
 						 PangoFontDescription *fontDesc,
 						 int *height);
 				    
-void		      widgetSetCallbackData(GtkWidget *widget, GtkCallback callbackFunc, gpointer callbackData);
-void		      widgetCallCallback(GtkWidget *widget);
+void		      widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);
 void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
 
@@ -321,6 +329,7 @@ void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_le
 void		      popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 
 void		      prefixError(GError *error, char *prefixStr, ...);
+void                  postfixError(GError *error, char *formatStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
 
 void		      intrangeSetValues(IntRange *range, const int val1, const int val2);

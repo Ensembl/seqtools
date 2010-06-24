@@ -1004,39 +1004,44 @@ const char* getSeqVariantName(const char *longName)
  * The result is a new string that must be free'd with g_free. */
 char* getSeqShortName(const char *longName)
 {
+  char *result = NULL;
+
   const int len = strlen(longName);
 
-  char *result = g_malloc(sizeof(char) * len);
- 
-  /* This bool will be set to true when we have passed the ":". It means that we are
-   * ready to start copying chars into the result. If there is no ":", set it to true
-   * right at the beginning. */
-  char *cutPoint = strchr(longName, ':');
-  gboolean start = (cutPoint == NULL);
-  
-  int srcIdx = 0;
-  int destIdx = 0;
-  
-  /* Copy contents after the : (or from beginning if : doesn't exist), and up to the . (if exists) */
-  for ( ; srcIdx < len; ++srcIdx)
+  if (len > 0)
     {
-      if (start)
-	{
-	  result[destIdx] = longName[srcIdx];
-	  ++destIdx;
-	}
-      else if (longName[srcIdx] == ':')
-	{
-	  start = TRUE;
-	}
-      else if (longName[srcIdx] == '.')
-	{
-	  break;
-	}
+      result = g_malloc(sizeof(char) * len);
+      
+      /* This bool will be set to true when we have passed the ":". It means that we are
+       * ready to start copying chars into the result. If there is no ":", set it to true
+       * right at the beginning. */
+      char *cutPoint = strchr(longName, ':');
+      gboolean start = (cutPoint == NULL);
+      
+      int srcIdx = 0;
+      int destIdx = 0;
+      
+      /* Copy contents after the : (or from beginning if : doesn't exist), and up to the . (if exists) */
+      for ( ; srcIdx < len; ++srcIdx)
+        {
+          if (start)
+            {
+              result[destIdx] = longName[srcIdx];
+              ++destIdx;
+            }
+          else if (longName[srcIdx] == ':')
+            {
+              start = TRUE;
+            }
+          else if (longName[srcIdx] == '.')
+            {
+              break;
+            }
+        }
+
+      result[destIdx] = '\0';
     }
-
-  result[destIdx] = '\0';
-
+  
   return result;
 }
 
@@ -1242,7 +1247,7 @@ static CallbackData* widgetGetCallbackData(GtkWidget *widget)
 
 
 /* Set callback function and user-data for the given widget */
-void widgetSetCallbackData(GtkWidget *widget, GtkCallback func, gpointer data)
+void widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback func, gpointer data)
 {
   if (widget)
     { 
@@ -1256,27 +1261,29 @@ void widgetSetCallbackData(GtkWidget *widget, GtkCallback func, gpointer data)
 }
 
 /* Get the CallbackData struct for this widget, if it has one, and call it. */
-void widgetCallCallback(GtkWidget *widget)
+static void widgetCallCallback(GtkWidget *widget, const gint responseId)
 {
   CallbackData *callbackData = widgetGetCallbackData(widget);
   
   if (callbackData && callbackData->func)
     {
-      callbackData->func(widget, callbackData->data);
+      callbackData->func(widget, responseId, callbackData->data);
     }
 }
 
 /* Call the stored CallbackData callbacks (if any exist) for this widget and
- * all of its children. */
+ * all of its children. The response ID is passed as the user data */
 void widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
 {
   if (widget && GTK_IS_WIDGET(widget))
     {
-      widgetCallCallback(widget);
+      gint responseId = GPOINTER_TO_INT(data);
+      
+      widgetCallCallback(widget, responseId);
   
       if (GTK_IS_CONTAINER(widget))
 	{
-	  gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, NULL);
+	  gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, data);
 	}
     }
 }
@@ -1288,16 +1295,21 @@ void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
   gboolean destroy = TRUE;
   
-  
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
-      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
       destroy = TRUE;
       break;
       
     case GTK_RESPONSE_APPLY:
-      widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      destroy = FALSE;
+      break;
+
+    case BLX_RESPONSE_BACK:  /* fall through */
+    case BLX_RESPONSE_FORWARD:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
       destroy = FALSE;
       break;
       
@@ -1331,6 +1343,11 @@ void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
 */
 int wildcardSearch(const char *textToSearch, const char *searchStr)
 {
+  if (!textToSearch || !searchStr)
+    {
+      return 0;
+    }
+  
   char *textChar = (char*)textToSearch; /* to do: don't cast away const! */
   char *searchChar = (char*)searchStr;	/* to do: don't cast away const! */
   char *ts, *cs, *s = 0 ;
@@ -1807,31 +1824,33 @@ void prefixError(GError *error, char *formatStr, ...)
 }
 
 
-//
-///* Tag the given postfix string onto the end of the given error's message */
-//static void postfixError(GError *error, char *formatStr, ...)
-//{
-//  va_list argp;
-//  va_start(argp, formatStr);
-//  
-//  /* Print the prefix text into a new string */
-//  GString *tmp = g_string_new("");
-//  g_string_vprintf(tmp, formatStr, argp);
-//  
-//  va_end(argp);
-//  
-//  /* Prepend the error text */
-//  g_string_prepend(tmp, error->message);
-//  
-//  /* Replace the error message text with the new string. */
-//  g_free(error->message);
-//  error->message = tmp->str;
-//  
-//  /* Free the temporary GString object */
-//  g_string_free(tmp, FALSE);
-//}
-//
-//
+
+/* Tag the given postfix string onto the end of the given error's message */
+void postfixError(GError *error, char *formatStr, ...)
+{
+  va_list argp;
+  va_start(argp, formatStr);
+  
+  
+  /* Print the postfix text and args into a new string. We're not sure how much space we need
+   * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
+   * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
+  const int len = strlen(formatStr) + 200;
+  char tmpStr[len];
+  vsnprintf(tmpStr, len, formatStr, argp);
+  
+  va_end(argp);
+  
+  /* Prepend the error message */
+  char *resultStr = g_malloc(len + strlen(error->message));
+  snprintf(resultStr, len, "%s%s", error->message, tmpStr);
+  
+  /* Replace the error message text with the new string. */
+  g_free(error->message);
+  error->message = resultStr;
+}
+
+
 ///* Custom function to propagate a GError. Unlike g_propagate_error, this allows the destination
 // * error to be non-null: if that is the case, the new error message is concatenated on the end
 // * of the original error message. The src error is free'd and set to NULL. */

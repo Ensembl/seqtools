@@ -63,7 +63,7 @@ static gboolean	      callDotterSelf(GtkWidget *blxWindow, GError **error);
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It sets the dotter mode according to the toggle state of the 
  * "auto" button. */
-static void onSaveDotterMode(GtkWidget *button, gpointer data)
+static void onSaveDotterMode(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -74,7 +74,7 @@ static void onSaveDotterMode(GtkWidget *button, gpointer data)
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It saves the start parameter that was entered (if manual dotter
  * params are being used). */
-static void onSaveDotterStart(GtkWidget *entry, gpointer data)
+static void onSaveDotterStart(GtkWidget *entry, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -86,7 +86,7 @@ static void onSaveDotterStart(GtkWidget *entry, gpointer data)
     }  
 }
 
-static void onSaveDotterEnd(GtkWidget *entry, gpointer data)
+static void onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -98,7 +98,7 @@ static void onSaveDotterEnd(GtkWidget *entry, gpointer data)
     }  
 }
 
-static void onSaveDotterZoom(GtkWidget *entry, gpointer data)
+static void onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -227,12 +227,12 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
   switch (responseId)
     {
       case GTK_RESPONSE_ACCEPT:
-	widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+	widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
 	destroy = dialogData->callOnSelf ? callDotterSelf(dialogData->blxWindow, &error) : callDotter(dialogData->blxWindow, dialogData->hspsOnly, &error);
 	break;
 	
       case GTK_RESPONSE_APPLY:
-	widgetCallAllCallbacks(GTK_WIDGET(dialog), NULL);
+	widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
 	destroy = FALSE;
 	break;
 	
@@ -307,7 +307,7 @@ static GtkWidget* createTextEntry(GtkTable *table,
 				  const int xpad, 
 				  const int ypad, 
 				  char *title,
-				  GtkCallback callbackFunc,
+				  BlxResponseCallback callbackFunc,
 				  GtkWidget *blxWindow,
 				  const int initValue)
 {

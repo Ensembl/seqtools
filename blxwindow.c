@@ -26,9 +26,13 @@
 /* Error codes and domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
 
-typedef enum {
-  BLX_ERROR_SEQ_SEGMENT	      /* error finding sequence segment */
-} BlxDotterError;
+typedef enum
+  {
+    BLX_ERROR_SEQ_SEGMENT,	      /* error finding sequence segment */
+    BLX_ERROR_EMPTY_STRING,           /* error code for when user entered a zero-length string */
+    BLX_ERROR_STRING_NOT_FOUND,       /* error code for when a search string is not found */
+    BLX_ERROR_SEQ_NAME_NOT_FOUND      /* the sequence name(s) being searched for were not found */
+  } BlxDotterError;
 
 
 /* Utility struct used when comparing sequence names */
@@ -128,6 +132,15 @@ SORTING\n\
 	•	The alignments can also be sorted by group by selecting the Group option from the drop-down box.  See the Groups section.\n\
 \n\
 \n\
+FINDING\n\
+	•	Click the find icon on the toolbar or press the Ctrl-F shortcut to open the find dialog.\n\
+	•	To search for sequences by name, use either the 'Sequence name search' or 'Sequence name list' search box.  Enter the sequence name you wish to search for and hit 'OK', 'Forward' or 'Back'.\n\
+	•	To search for a string of nucleotides in the reference sequence, use the 'DNA search' box.  Enter the string of nucleotides and hit 'OK', 'Forward' or 'Back'.  Note that the search is only performed on the active strand: use the 'Toggle strand' button on the toolbar or hit the 't' shortcut key to toggle which strand is active.\n\
+	•	Using the 'OK' button will search for the first match in the entire Blixem range.\n\
+	•	Using the 'Forward' or 'Back' buttons will search for the next/previous match from the current position.\n\
+	•	After performing a find, you can repeat the search by hitting the F3 key (or Shift-F3 to search backwards).\n\
+\n\
+\n\
 GROUPS\n\
 Alignments can be grouped together so that they can be sorted/highlighted/hidden etc.\n\
 \n\
@@ -178,56 +191,70 @@ DOTTER\n\
 	•	To save the parameters and run Dotter, click 'Execute'.\n\
 \n\
 \n\
+SETTINGS\n\
+        •	The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.\n\
+        •	Squash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
+        •	Invert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
+        •	Highlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
+        •       Column sizes: use this to change the width of the columns.\n\
+\n\
+\n\
+COLOR KEY\n\
+In the detail view, the following colors and symbols have the following meanings:\n\
+        •	Yellow background: query sequence\n\
+        •	Cyan: identical residues\n\
+        •	Violet: conserved residues\n\
+        •	Grey: mismatch\n\
+        •	Grey with a '.': deletion\n\
+        •	Yellow vertical line: insertion\n\
+        •	Green background: coding (CDS) exon\n\
+        •	Red background: non-coding (UTR) exon\n\
+        •	Thin blue vertical line: start boundary of an exon\n\
+        •	Thin dark-blue vertical line: end boundary of an exon\n\
+        •	Green background in the reference sequence (protein matches only): the three nucleotides for the currently-selected codon. Dark green indicates the specific nucleotide that is currently displayed in the feedback box.\n\
+        •	Red background in the three-frame translation: STOP codon\n\
+        •	Green background in the three-frame translation: MET codon\n\
+\n\
+\n\
 KEYBOARD SHORTCUTS\n\
 	•	Ctrl-Q: Quit\n\
 	•	Ctrl-H: Help\n\
 	•	Ctrl-P: Print\n\
 	•	Ctrl-S: 'Settings' menu\n\
-	•	V: 'View' menu (for hiding sections of the display)\n\
+\n\
+        •	Ctrl-F: Open the Find dialog\n\
+	•	f: Perform a find on sequence name(s) in the current selection buffer\n\
+\n\
+        •	Ctrl-G: Edit groups (or create a group if none currently exist)\n\
 	•	Shift-Ctrl-G: Create group\n\
-	•	Ctrl-G: Edit groups (or create a group if none currently exist)\n\
+        •	g: Toggle the 'match set' Group\n\
+\n\
 	•	Ctrl-A: Select all sequences in the current list\n\
 	•	Shift-Ctrl-A: Deselect all sequences\n\
+\n\
 	•	Ctrl-D: Dotter\n\
+\n\
 	•	Left/right arrow keys: Move the currently-selected coordinate one place to the left/right\n\
 	•	Shift-Left/right: Same as left/right arrow keys, but for proteins it scrolls by a single nucleotide, rather than an entire codon.\n\
 	•	Ctrl-Left/right: Scroll to the start/end of the previous/next alignment (limited to just the selected sequences, if any are selected).\n\
 	•	Home/End: Scroll to the start/end of the display.\n\
 	•	Ctrl-Home/End: Scroll to the first/last alignment (limited to just the selected sequences, if any are selected).\n\
-	•	=: zoom in detail view\n\
-	•	-: zoom out detail view\n\
+        •	, (comma): scroll left one coordinate\n\
+        •	. (period): scroll right one coordinate\n\
+\n\
+	•	= (equals): zoom in detail view\n\
+	•	- (subtract): zoom out detail view\n\
 	•	Ctrl-= : zoom in big picture\n\
 	•	Ctrl-- :  zoom out big picture\n\
 	•	Shift-Ctrl-- :  zoom out big picture to whole width\n\
-	•	,: scroll left one coordinate\n\
-	•	.: scroll right one coordinate\n\
-	•	p: Go to position\n\
-	•	t: Toggle the active strand\n\
-	•	g: Toggle the 'match set' Group\n\
+\n\
+        •	V: 'View' menu (for toggling visibility)\n\
 	•       1, 2, 3: These number keys toggle visibility of the 1st, 2nd (and 3rd, for protein matches) alignment list.\n\
 	•	Ctrl-1, Ctrl-2: This toggles visibility of the 1st and 2nd big picture grid.\n\
 	•       Shift-Ctrl-1, Shift-Ctrl-2: This toggles visibility of the 1st and 2nd exon views.\n\
 \n\
-\n\
-SETTINGS\n\
-	•	The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.\n\
-	•	Squash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
-	•	Invert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
-	•	Highlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
-	•       Column sizes: use this to change the width of the columns.\n\
-\n\
-\n\
-KEY\n\
-In the detail view, the following colors and symbols have the following meanings:\n\
-	•	Yellow background: query sequence\n\
-	•	Cyan: identical residues\n\
-	•	Violet: conserved residues\n\
-	•	Grey: mismatch\n\
-	•	Grey with a '.': deletion\n\
-	•	Yellow vertical line: insertion\n\
-	•	Thin blue vertical line: start boundary of an exon\n\
-	•	Thin dark-blue vertical line: end boundary of an exon\n\
-	•	Green background (protein matches only): the three nucleotides for the currently-selected codon. Dark green indicates the specific nucleotide that is currently displayed in the feedback box.\n\
+        •	p: Go to position\n\
+        •	t: Toggle the active strand\n\
 "
 
 /* Local function declarations */
@@ -259,13 +286,20 @@ static void			  destroyBlxColor(gpointer listDataItem, gpointer data);
 
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
-static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, GtkCallback callbackFunc, GtkWidget *blxWindow);
+static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, BlxResponseCallback callbackFunc, GtkWidget *blxWindow);
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
 
 static void			  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
 static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
 static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
+
+static void                       blxWindowFindDnaString(GtkWidget *blxWindow, const char *inputSearchStr, const int startCoord, const gboolean searchLeft, const gboolean findAgain, GError **error);
+static GList*                     findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error);
+static int                        getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft);
+static GList*                     findSeqsFromName(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error);
+
+
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -879,6 +913,62 @@ static void togglePaneVisibility(GtkWidget *blxWindow, const int number, const g
 }
 
 
+/* Repeat the last find operation. Searches for the next (rightwards) match unless the given
+ * modifier is pressed, in which case it searches for the previous (leftwards) match */
+static void findAgain(GtkWidget *blxWindow, const gboolean modifier)
+{
+  GError *error = NULL;
+
+  const int startCoord = getSearchStartCoord(blxWindow, FALSE, modifier);
+
+  /* Try the DNA search. Does nothing if last search was not a DNA search. */
+  blxWindowFindDnaString(blxWindow, NULL, startCoord, modifier, TRUE, &error);
+
+  if (error)
+    {
+      /* DNA search was attempted but not found. Try looping round to the beginning */
+      g_error_free(error);
+      error = NULL;
+      const int newStart = getSearchStartCoord(blxWindow, TRUE, modifier);
+      blxWindowFindDnaString(blxWindow, NULL, newStart, modifier, TRUE, &error);
+    }
+  
+  if (!error)
+    {
+      /* Try the search-from-list search. Returns NULL if last search was not a list search */
+      GList *seqList = findSeqsFromList(blxWindow, NULL, TRUE, &error);
+      
+      if (!seqList && !error)
+        {
+          /* Try the search-by-name search. Returns NULL if last search was not a name search. */
+          seqList = findSeqsFromName(blxWindow, NULL, TRUE, &error);
+        }
+      
+      /* If either the list or name search succeeded, select the prev/next MSP from the 
+       * found sequence(s) depending on which direction we're searching. */
+      if (seqList)
+        {
+          blxWindowSetSelectedSeqList(blxWindow, seqList);
+          
+          if (modifier)
+            {
+              prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+            }
+          else
+            {
+              nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+            }
+        }
+    }
+  
+  if (error)
+    {
+      prefixError(error, "Find %s failed. ", (modifier ? "previous" : "next"));
+      reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
+    }
+}
+
+
 /* Called when the state of a check button is toggled */
 static void onVisibilityButtonToggled(GtkWidget *button, gpointer data)
 {
@@ -1018,28 +1108,22 @@ void showViewPanesDialog(GtkWidget *blxWindow)
  *			    Find menu			   *
  ***********************************************************/
 
-static GList* findSeqsFromName(GtkWidget *button, gpointer data)
+static GList* findSeqsFromName(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error)
 {
-  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+  static char *searchStr = NULL;
+  
+  if (!findAgain)
+    {
+      g_free(searchStr);
+      searchStr = g_strdup(inputText);
+    }
+  
+  if (!searchStr)
     {
       return NULL;
     }
   
-  /* The text entry box was passed as the user data */
-  GtkEntry *entry = GTK_ENTRY(data);
-  
-  if (!entry || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(entry)))
-    {
-      messout("Could not set search string: invalid text entry box [%x]\n", entry);
-      return NULL;
-    }
-  
-  /* Extract the main blixem window from our parent window. */
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-    
   /* Loop through all the sequences and see if the name matches the search string */
-  const char *searchStr = gtk_entry_get_text(entry);
   GList *seqList = blxWindowGetAllMatchSeqs(blxWindow);
   SeqSearchData searchData = {searchStr, NULL};
   
@@ -1047,26 +1131,36 @@ static GList* findSeqsFromName(GtkWidget *button, gpointer data)
   
   if (g_list_length(searchData.matchList) < 1)
     {
-      messout("No sequences found matching text %s", searchStr);
+      g_set_error(error, BLX_ERROR, BLX_ERROR_STRING_NOT_FOUND, "No sequences found matching text '%s'.\n", searchStr);
     }
   
   return searchData.matchList;
 }
 
 
-/* Finds all the valid sequences blixem knows about whose names are in the given
- * text entry box (passed as the user data), and returns them in a GList of
- * BlxSequences. Only does anything if the given radio button is active. */
-static GList* findSeqsFromList(GtkWidget *button, gpointer data)
+/* Utility to extract the contents of a GtkEntry and return it as a string. The result is 
+ * owned by the GtkTextEntry and should not be free'd. */
+static const char* getStringFromTextEntry(GtkEntry *entry)
 {
-  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+  const char *result = NULL;
+  
+  if (!entry || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(entry)))
     {
-      return NULL;
+      g_warning("Could not set search string: invalid text entry box\n");
+    }
+  else
+    {
+      result = gtk_entry_get_text(entry);
     }
   
-  /* The text entry box was passed as the user data. We should have a (multi-line) text view */
-  GtkTextView *textView = GTK_TEXT_VIEW(data);
-  
+  return result;
+}
+
+
+/* Utility to extract the contents of a GtkTextView and return it as a string. The result is
+ * owned by the GtkTextView and should not be free'd. */
+static const char* getStringFromTextView(GtkTextView *textView)
+{
   if (!textView || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(textView)))
     {
       messout("Could not set search string: invalid text entry box [%x]\n", textView);
@@ -1079,27 +1173,56 @@ static GList* findSeqsFromList(GtkWidget *button, gpointer data)
   GtkTextIter start, end;
   gtk_text_buffer_get_bounds(textBuffer, &start, &end);
   
-  const char *inputText = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
+  return gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
+}
+
+
+/* Finds all the valid sequences blixem knows about whose names are in the given
+ * text, and returns them in a GList of BlxSequences. */
+static GList* findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error)
+{
+  static char *searchStr = NULL; /* remember last searched-for string for use with 'findAgain' option */
   
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-  
-  GList *seqList = getSeqStructsFromText(blxWindow, inputText);
-  
+  if (!findAgain)
+    {
+      g_free(searchStr);
+      searchStr = g_strdup(inputText);
+    }
+      
+  if (!searchStr)
+    {
+      return NULL;
+    }
+
+  GList *seqList = getSeqStructsFromText(blxWindow, searchStr);
+
   if (g_list_length(seqList) < 1)
     {
-      messout("No valid sequence names in buffer\n%s\n", inputText);
+      g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_NAME_NOT_FOUND, "No valid sequence names in search string\n%s\n", searchStr);
     }
-    
+  
   return seqList;
 }
 
 
 /* Callback called when requested to find sequences from a sequence name. Selects
  * the sequences and scrolls to the start of the first match in the selection */
-static void onFindSeqsFromName(GtkWidget *button, gpointer data)
+static void onFindSeqsFromName(GtkWidget *button, const gint responseId, gpointer data)
 {
-  GList *seqList = findSeqsFromName(button, data);
+  const char *inputText = NULL;
+  
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      inputText = getStringFromTextEntry(GTK_ENTRY(data));
+    }
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  
+  GError *error = NULL;
+  GList *seqList = findSeqsFromName(blxWindow, inputText, FALSE, &error);
+  
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
   if (seqList)
     {
@@ -1107,49 +1230,284 @@ static void onFindSeqsFromName(GtkWidget *button, gpointer data)
       GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
       blxWindowSetSelectedSeqList(blxWindow, seqList);
-      firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+      
+      if (responseId == BLX_RESPONSE_FORWARD)
+        {
+          nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+        }
+      else if (responseId == BLX_RESPONSE_BACK)
+        {
+          prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+        }
+      else
+        {
+          firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+        }
     }
 }
 
 
 /* Callback called when requested to find sequences from a given list. Selects
  * the sequences ands scrolls to the start of the first match in the selection. */
-static void onFindSeqsFromList(GtkWidget *button, gpointer data)
+static void onFindSeqsFromList(GtkWidget *button, const gint responseId, gpointer data)
 {
-  GList *seqList = findSeqsFromList(button, data);
+  const char *inputText = NULL;
+  
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      inputText = getStringFromTextView(GTK_TEXT_VIEW(data));
+    }
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  
+  GError *error = NULL;
+  GList *seqList = findSeqsFromList(blxWindow, inputText, FALSE, &error);
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
   if (seqList)
     {
-      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-      
       blxWindowSetSelectedSeqList(blxWindow, seqList);
-      firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+      
+      if (responseId == BLX_RESPONSE_FORWARD)
+        {
+          nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+        }
+      else if (responseId == BLX_RESPONSE_BACK)
+        {
+          prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+        }
+      else
+        {
+          firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+        }
     }
 }
 
 
+/* Search for the given DNA string in the reference sequence. Searches for the next (rightwards)
+ * value from the given start coord, unless searchLeft is true in which case it searches leftwards.
+ * If findAgain is true it repeats the last DNA search. */
+static void blxWindowFindDnaString(GtkWidget *blxWindow, 
+                                   const char *inputSearchStr, 
+                                   const int refSeqStart,
+                                   const gboolean searchLeft, 
+                                   const gboolean findAgain, 
+                                   GError **error)
+{
+  /* Remember the last input string for use with findAgain */
+  static char *searchStr = NULL;
+  
+  if (!findAgain)
+    {
+      /* We must copy the input string because it may not exist if/when we come to do a 'find again' */
+      g_free(searchStr);
+      searchStr = g_strdup(inputSearchStr);
+    }
+  
+  const int searchStrMax = searchStr ? strlen(searchStr) - 1 : -1;
+  
+  if (searchStrMax < 0)
+    {
+      return;
+    }
+
+  const int searchStart = searchLeft ? searchStrMax : 0;
+  const int searchEnd = searchLeft ? 0 : searchStrMax;
+  const int searchStrIncrement = searchLeft ? -1 : 1;
+  
+  /* Values increase left-to-right in normal display or right-to-left in reversed display */
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const gboolean searchForward = (searchLeft == bc->displayRev);
+  const int refSeqIncrement = searchForward ? 1 : -1;
+  
+  /* We'll need to complement ref seq bases if the active strand is the reverse strand */
+  const gboolean complement = (blxWindowGetActiveStrand(blxWindow) == BLXSTRAND_REVERSE);
+  
+  int refSeqIdx = refSeqStart;
+  int searchStrIdx = searchStart;
+  int matchStart = UNSET_INT;
+  
+  while (refSeqIdx >= bc->refSeqRange.min && refSeqIdx <= bc->refSeqRange.max && searchStrIdx >= 0 && searchStrIdx <= searchStrMax)
+    {
+      const char refSeqBase = getRefSeqBase(bc->refSeq, refSeqIdx, complement, &bc->refSeqRange, BLXSEQ_DNA);
+      char searchStrBase = convertBaseToCorrectCase(searchStr[searchStrIdx], BLXSEQ_DNA);      
+      
+      if (refSeqBase == searchStrBase)
+        {
+          /* The base matches. If it's the first matching base, set the match-start coord (or if we're 
+           * searching leftwards, then always set the match-start coord, because the start is actually 
+           * the last coord that will be found). Then proceed to the next position in the search string */
+          if (matchStart == UNSET_INT)
+            {
+              matchStart = refSeqIdx;
+            }
+          
+          searchStrIdx += searchStrIncrement;
+          refSeqIdx += refSeqIncrement;
+        }
+      else if (matchStart != UNSET_INT)
+        {
+          /* We were in a match but this base doesn't match. Reset to the start of the 
+           * search string, and start looking again from one base after the place where the last
+           * match started. (We need to re-check all bases from there because we're comparing
+           * against a different section of the search string now.) */
+          searchStrIdx = searchStart;
+          refSeqIdx = matchStart + refSeqIncrement;
+          matchStart = UNSET_INT;
+        }
+      else
+        {
+          refSeqIdx += refSeqIncrement;
+        }
+    }
+  
+  /* Undo the last increment, so that we have the final coords of the matching section (if found) */
+  refSeqIdx -= refSeqIncrement;
+  searchStrIdx -= searchStrIncrement;
+  
+  /* If we reached the end of the search string, then we matched the whole lot. */
+  const gboolean finished = searchStrIdx == searchEnd;
+  
+  if (matchStart != UNSET_INT && finished)
+    {
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+      const int frame = 1;
+      int baseNum = UNSET_INT;
+      
+      int result = searchLeft ? refSeqIdx : matchStart;
+      result = convertDnaIdxToDisplayIdx(result, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
+      
+      detailViewSetSelectedBaseIdx(detailView, result, frame, baseNum, TRUE, FALSE);
+    }
+  else
+    {
+      g_set_error(error, BLX_ERROR, BLX_ERROR_STRING_NOT_FOUND, "The string '%s' was not found in the reference sequence searching to the %s from coord %d.\n", searchStr, (searchLeft ? "left" : "right"), refSeqStart);
+    }
+}
+
+
+/* Get the start coord for a search. If startBeginning is false, this gets the currently-selected display
+ * index (shifted by one base so that we don't start searching at the same position as a previous
+ * find result) or, if no base index is selected, returns the start coord of the current display range. If
+ * startBeginning is true, just start from the beginning of the reference sequence. The result is 
+ * nucleotide coord on the ref sequence. */
+static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft)
+{
+  int result = UNSET_INT;
+  
+  const BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  if (startBeginning)
+    {
+      result = (searchLeft == bc->displayRev) ? bc->refSeqRange.min : bc->refSeqRange.max;
+    }
+  else  
+    {
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+      result = detailViewGetSelectedBaseIdx(detailView);
+      
+      if (result != UNSET_INT)
+        {
+          /* Increment by one to make sure we don't re-find a previously-found match */
+          ++result;
+        }
+      else
+        {
+          /* The start display coord is the min coord if we're searching left and the max if searching right. */
+          const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+          result = searchLeft ? displayRange->max : displayRange->min;
+        }
+
+      /* Convert the display coord to a nucleotide coord */
+      result = convertDisplayIdxToDnaIdx(result, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+    }
+  
+  return result;
+}
+
+
+/* Callback called when requested to search for a DNA string. If found, sets the currently-
+ * selected base index to the coord where the matching string starts. The text entry for the
+ * search string is passed as the callback data. */
+static void onFindDnaString(GtkWidget *button, const gint responseId, gpointer data)
+{
+  /* Get the search string from the text entry. If the toggle button is not active, call
+   * blxWindowFindDnaString with a NULL search string to "cancel" any previous searches
+   * so that "findAgain" will not attempt to perform a DNA search). */
+  const char *searchStr = NULL;
+
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      searchStr = getStringFromTextEntry(GTK_ENTRY(data));
+
+      if (!searchStr || strlen(searchStr) < 1)
+        {
+          g_critical("DNA search failed. The search string was empty.\n");
+        }
+    }
+
+  /* Search left wrt the screen if the user hit 'back' search right if 'forward' */
+  const gboolean searchLeft = (responseId == BLX_RESPONSE_BACK);
+
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  
+  const gboolean startBeginning = (responseId != BLX_RESPONSE_FORWARD && responseId != BLX_RESPONSE_BACK);
+  int startCoord = getSearchStartCoord(blxWindow, startBeginning, searchLeft);
+  
+  GError *error = NULL;
+  blxWindowFindDnaString(blxWindow, searchStr, startCoord, searchLeft, FALSE, &error);
+  
+  if (error)
+    {
+      if (!startBeginning)
+        {
+          /* Try looping round to the beginning */
+          postfixError(error, " Trying again from the %s of the range.\n", (searchLeft ? "end" : "start"));
+          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+          
+          startCoord = getSearchStartCoord(blxWindow, TRUE, searchLeft);
+          blxWindowFindDnaString(blxWindow, searchStr, startCoord, searchLeft, FALSE, &error);
+        }
+    }
+  
+  if (error)
+    {
+      prefixError(error, "DNA search failed. ");
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+    }
+}
+
+
+/* Show the 'Find' dialog */
 void showFindDialog(GtkWidget *blxWindow)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Find sequences", 
 						  GTK_WINDOW(blxWindow), 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_CANCEL,
+						  GTK_STOCK_GO_BACK,
+						  BLX_RESPONSE_BACK,
+						  GTK_STOCK_GO_FORWARD,
+						  BLX_RESPONSE_FORWARD,
+						  GTK_STOCK_CLOSE,
 						  GTK_RESPONSE_REJECT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
+                                                  GTK_STOCK_OK,
+                                                  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
   GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
   
-  GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "From _name (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
-  createRadioButton(contentArea, button1, "From _list", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+  GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "Sequence _name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
+  createRadioButton(contentArea, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
+  createRadioButton(contentArea, button1, "Sequence name _list search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
   
   /* Connect signals and show */
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), button1);
   
   gtk_widget_show_all(dialog);
 }
@@ -1342,7 +1700,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
 
 
 /* This function sets the sequence-group-name text based on the given text entry widget */
-static void onGroupNameChanged(GtkWidget *widget, gpointer data)
+static void onGroupNameChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkEntry *entry = GTK_ENTRY(widget);
   SequenceGroup *group = (SequenceGroup*)data;
@@ -1366,7 +1724,7 @@ static void onGroupNameChanged(GtkWidget *widget, gpointer data)
 
 /* This function is called when the sequence-group-order text entry widget's
  * value has changed. It sets the new order number in the group. */
-static void onGroupOrderChanged(GtkWidget *widget, gpointer data)
+static void onGroupOrderChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkEntry *entry = GTK_ENTRY(widget);
   SequenceGroup *group = (SequenceGroup*)data;
@@ -1394,7 +1752,7 @@ static void onGroupOrderChanged(GtkWidget *widget, gpointer data)
 
 /* This callback is called when the dialog settings are applied. It sets the hidden
  * status of the passed groupo based on the toggle button's state */
-static void onGroupHiddenToggled(GtkWidget *button, gpointer data)
+static void onGroupHiddenToggled(GtkWidget *button, const gint responseId, gpointer data)
 {
   SequenceGroup *group = (SequenceGroup*)data;
   group->hidden = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
@@ -1409,7 +1767,7 @@ static void onGroupHiddenToggled(GtkWidget *button, gpointer data)
 
 /* This callback is called when the toggle button for a group's "highlighted" flag is toggled.
  * It updates the group's highlighted flag according to the button's new status. */
-static void onGroupHighlightedToggled(GtkWidget *button, gpointer data)
+static void onGroupHighlightedToggled(GtkWidget *button, const gint responseId, gpointer data)
 {
   SequenceGroup *group = (SequenceGroup*)data;
   group->highlighted = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
@@ -1425,7 +1783,7 @@ static void onGroupHighlightedToggled(GtkWidget *button, gpointer data)
 
 
 /* Called when the user has changed the color of a group in the 'edit groups' dialog */
-static void onGroupColorChanged(GtkWidget *button, gpointer data)
+static void onGroupColorChanged(GtkWidget *button, const gint responseId, gpointer data)
 {
   SequenceGroup *group = (SequenceGroup*)data;
   gtk_color_button_get_color(GTK_COLOR_BUTTON(button), &group->highlightColor);
@@ -1527,7 +1885,7 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 
 /* If the given radio button is enabled, add a group based on the curently-
  * selected sequences. */
-static void addGroupFromSelection(GtkWidget *button, gpointer data)
+static void addGroupFromSelection(GtkWidget *button, const gint responseId, gpointer data)
 {
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     {  
@@ -1551,9 +1909,22 @@ static void addGroupFromSelection(GtkWidget *button, gpointer data)
 
 /* If the given radio button is enabled, add a group based on the search text
  * in the given text entry. */
-static void addGroupFromName(GtkWidget *button, gpointer data)
+static void addGroupFromName(GtkWidget *button, const gint responseId, gpointer data)
 {
-  GList *seqList = findSeqsFromName(button, data);
+  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      return;
+    }
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
+  const char *inputText = getStringFromTextEntry(GTK_ENTRY(data));
+  
+  GError *error = NULL;
+  GList *seqList = findSeqsFromName(blxWindow, inputText, FALSE, &error);
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
   if (seqList)
     {
@@ -1686,9 +2057,23 @@ static void toggleMatchSet(GtkWidget *blxWindow)
 
 /* If the given radio button is enabled, add a group based on the list of sequences
  * in the given text entry. */
-static void addGroupFromList(GtkWidget *button, gpointer data)
+static void addGroupFromList(GtkWidget *button, const gint responseId, gpointer data)
 {
-  GList *seqList = findSeqsFromList(button, data);
+  if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      return;
+    }
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+
+  /* The text entry box was passed as the user data. We should have a (multi-line) text view */
+  const char *inputText = getStringFromTextView(GTK_TEXT_VIEW(data));
+
+  GError *error = NULL;
+  GList *seqList = findSeqsFromList(blxWindow, inputText, FALSE, &error);
+  
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
   if (seqList)
     {
@@ -1775,7 +2160,7 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
 
 /* Callback when a text entry box in the groups dialog is clicked (for text that
  * is associated with a radio button). Clicking the text box activates its radio button */
-static gboolean onRadioButtonTextClicked(GtkWidget *textWidget, GdkEventButton *event, gpointer data)
+static gboolean onRadioButtonTextEntered(GtkWidget *textWidget, GdkEventButton *event, gpointer data)
 {
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(data), TRUE);
   
@@ -1792,7 +2177,7 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 					 const gboolean isActive, 
 					 const gboolean createTextEntry,
 					 const gboolean multiline,
-					 GtkCallback callbackFunc,
+					 BlxResponseCallback callbackFunc,
 					 GtkWidget *blxWindow)
 {
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
@@ -1843,7 +2228,7 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 	}
 
       g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onRadioButtonToggled), entry);
-      g_signal_connect(G_OBJECT(entry), "button-press-event", G_CALLBACK(onRadioButtonTextClicked), button);
+      g_signal_connect(G_OBJECT(entry), "focus-in-event", G_CALLBACK(onRadioButtonTextEntered), button);
     }
 
   /* Add the callback data. This specifies what callback to use when the dialog is ok'd. */
@@ -1887,13 +2272,13 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
-      widgetCallAllCallbacks(page, NULL);
+      widgetCallAllCallbacks(page, GINT_TO_POINTER(responseId));
       destroy = TRUE;
       refresh = FALSE;
       break;
 
     case GTK_RESPONSE_APPLY:
-      widgetCallAllCallbacks(page, NULL);
+      widgetCallAllCallbacks(page, GINT_TO_POINTER(responseId));
       destroy = FALSE;
       refresh = (pageNo == 0); /* if created a new group, Edit Groups section must be refreshed */
       break;
@@ -2074,7 +2459,7 @@ static void createCheckButton(GtkBox *box,
 
 
 /* Callback to be called when the user has entered a new column size */
-static void onColumnSizeChanged(GtkWidget *widget, gpointer data)
+static void onColumnSizeChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkEntry *entry = GTK_ENTRY(widget);
   DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
@@ -2147,7 +2532,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 
 
 /* Callback to be called when the user has entered a new percent-ID per cell */
-static void onIdPerCellChanged(GtkWidget *widget, gpointer data)
+static void onIdPerCellChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
@@ -2157,7 +2542,7 @@ static void onIdPerCellChanged(GtkWidget *widget, gpointer data)
 
  
 /* Callback to be called when the user has entered a new maximum percent-ID to display */
-static void onMaxPercentIdChanged(GtkWidget *widget, gpointer data)
+static void onMaxPercentIdChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
@@ -2166,7 +2551,7 @@ static void onMaxPercentIdChanged(GtkWidget *widget, gpointer data)
 }
 
 /* Callback to be called when the user has entered a new minimum percent-ID to display */
-static void onMinPercentIdChanged(GtkWidget *widget, gpointer data)
+static void onMinPercentIdChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
@@ -2181,7 +2566,7 @@ static void onMinPercentIdChanged(GtkWidget *widget, gpointer data)
 static void createTextEntryFromInt(GtkWidget *parent, 
 				   const char *title, 
 				   const int value, 
-				   GtkCallback callbackFunc, 
+				   BlxResponseCallback callbackFunc, 
 				   gpointer callbackData)
 {
   /* Pack label and text entry into a vbox */
@@ -2222,7 +2607,7 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 
 
 /* Callback called when user has changed a blixem color */
-static void onChangeBlxColor(GtkWidget *button, gpointer data)
+static void onChangeBlxColor(GtkWidget *button, const gint responseId, gpointer data)
 {
   GdkColor *color = (GdkColor*)data;
   
@@ -2238,7 +2623,7 @@ static void onChangeBlxColor(GtkWidget *button, gpointer data)
 
 
 /* Callback called when user has changed the blixem background color */
-static void onChangeBackgroundColor(GtkWidget *button, gpointer data)
+static void onChangeBackgroundColor(GtkWidget *button, const gint responseId, gpointer data)
 {
   GdkColor *color = (GdkColor*)data;
   
@@ -2254,7 +2639,7 @@ static void onChangeBackgroundColor(GtkWidget *button, gpointer data)
 
 
 /* Create a button to allow user to change the color of the given setting */
-static void createColorButton(GtkTable *table, GdkColor *color, GtkCallback callbackFunc, gpointer callbackData,
+static void createColorButton(GtkTable *table, GdkColor *color, BlxResponseCallback callbackFunc, gpointer callbackData,
 			      const int row, const int column, const int xpad, const int ypad)
 {
   GtkWidget *colorButton = gtk_color_button_new_with_color(color);
@@ -2302,7 +2687,7 @@ static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const in
       gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
 
       /* Special callback for the background color */
-      GtkCallback callbackFunc = (colorId == BLXCOL_BACKGROUND) ? onChangeBackgroundColor : onChangeBlxColor;
+      BlxResponseCallback callbackFunc = (colorId == BLXCOL_BACKGROUND) ? onChangeBackgroundColor : onChangeBlxColor;
       
       createColorButton(table, &blxCol->normal, callbackFunc, &blxCol->normal, row, 2, xpad, ypad);
       createColorButton(table, &blxCol->print, callbackFunc, &blxCol->print, row, 4, xpad, ypad);
@@ -2363,7 +2748,7 @@ static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
 
 /* Callback called when the user has changed the number of additional bases to show when the
  * 'show unaligned bases' option is enabled. */
-static void onSetNumUnalignedBases(GtkWidget *entry, gpointer data)
+static void onSetNumUnalignedBases(GtkWidget *entry, const gint responseId, gpointer data)
 {
   const char *numStr = gtk_entry_get_text(GTK_ENTRY(entry));
   int numBases = convertStringToInt(numStr);
@@ -3053,6 +3438,11 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
 	togglePaneVisibility(window, 3, ctrlModifier, shiftModifier);
 	result = TRUE;
 	break;
+        
+      case GDK_F3:
+        findAgain(window, shiftModifier);
+        result = TRUE;
+        break;
     };
   
   return result;
@@ -3274,9 +3664,9 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc, BLXCOL_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
   
   /* matches */
-  createBlxColor(bc, BLXCOL_MATCH, "Exact match", "Exact match", BLX_TURQUOISE, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_CONS, "Conserved match", "Conserved match", BLX_PALE_STEEL_BLUE, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_MISMATCH, "Mismatch", "Mismatch", BLX_GREY, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc, BLXCOL_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00d7c2", NULL);
+  createBlxColor(bc, BLXCOL_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
+  createBlxColor(bc, BLXCOL_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
   createBlxColor(bc, BLXCOL_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
   
   /* exons */
