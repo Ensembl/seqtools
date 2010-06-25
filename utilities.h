@@ -338,4 +338,23 @@ void		      intrangeSetValues(IntRange *range, const int val1, const int val2);
 void		      debugLogLevel(const int increaseAmt);
 #endif
 
+
+
+
+void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,
+                                                   GtkTextIter   *iter,
+                                                   const gchar   *markup);
+
+void    gtk_text_buffer_insert_markup_with_tag    (GtkTextBuffer *buffer,
+                                                   GtkTextIter   *iter,
+                                                   const gchar   *markup,
+                                                   GtkTextTag    *tag);
+
+void    gtk_text_buffer_set_markup_with_tag       (GtkTextBuffer *buffer,
+                                                   const gchar   *markup,
+                                                   GtkTextTag    *tag);
+
+void    gtk_text_buffer_set_markup                (GtkTextBuffer *buffer,
+                                                   const gchar   *markup);
+
 #endif /* _utilities_h_included_ */

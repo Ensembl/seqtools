@@ -61,200 +61,215 @@ typedef struct _BlxWindowProperties
 
 
 #define HELP_TEXT1 "\
-BLIXEM\n\
-BLast matches In an X-windows Embedded Multiple alignment\n\
+<b><big>BLIXEM</big></b>\n\
+<b>BL</b>ast matches <b>I</b>n an <b>X</b>-windows <b>E</b>mbedded <b>M</b>ultiple alignment\n\
 \n\
 \n\
-pfetch\n\
-	•	Double-click a row to pfetch a sequence.\n\
+<span foreground=\"blue\">\
+<b><big>What's new</big></b>\n\
+\t•\t<b><i>Bump exons</i></b>: see the 'View' dialog or hit the 'b' keyboard shortcut.\n\
+\t•\t<b><i>DNA search</i></b>: see the 'Find' dialog.\n\
+\t•\tShow <b><i>unaligned sequence</i></b>: see the 'Settings' dialog.\n\
+\t•\tChange <b><i>column widths</i></b>: see the 'Settings' dialog.\n\
+\t•\tChange the <b><i>grid scale</i></b>: see the 'Settings' dialog.\n\
+\t•\t(Show SNP track: this option is not supported yet.)\n\
+</span>\
 \n\
 \n\
-MAIN MENU\n\
+<b><big>Pfetch</big></b>\n\
+\t•\tDouble-click a row to pfetch a sequence.\n\
+\n\
+\n\
+<b><big>Main menu</big></b>\n\
 Right-click anywhere in the Blixem window to pop up the main menu.  The menu options are:\n\
-	•	Quit: Quit Blixem.\n\
-	•	Help: Display this help.\n\
-	•	Print: Print the display\n\
-	•	Settings: Edit settings.\n\
-	•	View: Display the View dialog box. This allows you to show/hide parts of the display.\n\
-	•	Create Group: Create a group of sequences.\n\
-	•	Edit Groups: Edit properties for groups.\n\
-	•	Deselect all: Deselect all sequences.\n\
-	•	Dotter: Run Dotter and/or set Dotter parameters.\n\
-	•	Feature series selection tool: ???\n\
+\n\
+\t•\tQuit: Quit Blixem.\n\
+\t•\tHelp: Display this help.\n\
+\t•\tPrint: Print the display\n\
+\t•\tSettings: Edit settings.\n\
+\t•\tView: Display the View dialog box. This allows you to show/hide parts of the display.\n\
+\t•\tCreate Group: Create a group of sequences.\n\
+\t•\tEdit Groups: Edit properties for groups.\n\
+\t•\tDeselect all: Deselect all sequences.\n\
+\t•\tDotter: Run Dotter and/or set Dotter parameters.\n\
+\t•\tFeature series selection tool: ???\n\
 \n\
 \n\
-SCROLLING\n\
-	•	Middle-click in the big picture to scroll to an area.\n\
-	•	Middle-click in the detail view to centre on a base.\n\
-	•	Use the horizontal scrollbar at the bottom of the window to scroll the detail view.\n\
-	•	Use the mouse-wheel to scroll up/down in the list of alignments.\n\
-	•	Use the mouse-wheel to scroll the alignments left/right (if your mouse has a horizontal scroll-wheel).\n\
-	•	Ctrl-left and Ctrl-right arrow keys scroll to the start/end of the previous/next match (limited to currently-selected sequences, if any are selected).\n\
-	•	The Home/End keys scroll to the start/end of the display.\n\
-	•	Ctrl-Home and Ctrl-End scroll to the start/end of the currently-selected alignments (or to the first/last alignment if none are selected).\n\
-	•	The ',' (comma) and '.' (full-stop) keys scroll the display one nucleotide to the left/right.\n\
-	•	You can scroll to a specific position using the Go-to button on the toolbar, or by pressing the 'p' shortcut key.\n\
+<b><big>Scrolling</big></b>\n\
+\t•\tMiddle-click in the big picture to scroll to an area.\n\
+\t•\tMiddle-click in the detail view to centre on a base.\n\
+\t•\tUse the horizontal scrollbar at the bottom of the window to scroll the detail view.\n\
+\t•\tUse the mouse-wheel to scroll up/down in the list of alignments.\n\
+\t•\tUse the mouse-wheel to scroll the alignments left/right (if your mouse has a horizontal scroll-wheel).\n\
+\t•\tCtrl-left and Ctrl-right arrow keys scroll to the start/end of the previous/next match (limited to currently-selected sequences, if any are selected).\n\
+\t•\tThe Home/End keys scroll to the start/end of the display.\n\
+\t•\tCtrl-Home and Ctrl-End scroll to the start/end of the currently-selected alignments (or to the first/last alignment if none are selected).\n\
+\t•\tThe ',' (comma) and '.' (full-stop) keys scroll the display one nucleotide to the left/right.\n\
+\t•\tPressing Ctrl and ',' (comma) or '.' (full-stop) scrolls the display one page to the left/right.\n\
+\t•\tYou can scroll to a specific position using the Go-to button on the toolbar, or by pressing the 'p' shortcut key.\n\
 \n\
 \n\
-SELECTIONS\n\
-	•	You can select a sequence by clicking on its row in the alignment list.  Selected sequences are highlighted in cyan in the big picture.\n\
-	•	You can select a sequence by clicking on it in the big picture.\n\
-	•	The name of the sequence you selected is displayed in the feedback box on the toolbar.  If there are multiple alignments for the same sequence, all of them will be selected.\n\
-	•	You can select multiple sequences by holding down the Ctrl or Shift keys while selecting rows.\n\
-	•	You can deselect a single sequence by Ctrl-clicking on its row.\n\
-	•	You can deselect all sequences by right-clicking and selecting 'Deselect all', or with the Shift-Ctrl-A keyboard shortcut.\n\
-	•	You can move the selection up/down a row using the up/down arrow keys.\n\
+<b><big>Selections</big></b>\n\
+\t•\tYou can select a sequence by clicking on its row in the alignment list.  Selected sequences are highlighted in cyan in the big picture.\n\
+\t•\tYou can select a sequence by clicking on it in the big picture.\n\
+\t•\tThe name of the sequence you selected is displayed in the feedback box on the toolbar.  If there are multiple alignments for the same sequence, all of them will be selected.\n\
+\t•\tYou can select multiple sequences by holding down the Ctrl or Shift keys while selecting rows.\n\
+\t•\tYou can deselect a single sequence by Ctrl-clicking on its row.\n\
+\t•\tYou can deselect all sequences by right-clicking and selecting 'Deselect all', or with the Shift-Ctrl-A keyboard shortcut.\n\
+\t•\tYou can move the selection up/down a row using the up/down arrow keys.\n\
 \n\
-	•	You can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
-	•	For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
-	•	You can move the selection to the previous/next nucleotide using the left and right arrow keys.\n\
-	•	You can move the selection to the previous/next peptide by holding Shift while using the left and right arrow keys.\n\
-	•	You can move the selection to the start/end of the previous/next matchb by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected).\n\
-	•	To select a coordinate without the display re-centering on it, hold down Ctrl as you middle-click.\n\
-\n\
-\n\
-ZOOMING\n\
-	•	Zoom in to the currently-selected region in the big picture using the +/- buttons in the top-left corner of the window, or using the Ctrl '=' and Ctrl '-' shortcut keys.  The 'Whole' button zooms out to show the full length of the query sequence.\n\
-	•	Zoom in/out of the detail view using the +/- buttons on the toolbar, or using the '=' and '-' shortcut keys.\n\
+\t•\tYou can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
+\t•\tFor protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
+\t•\tYou can move the selection to the previous/next nucleotide using the left and right arrow keys.\n\
+\t•\tYou can move the selection to the previous/next peptide by holding Shift while using the left and right arrow keys.\n\
+\t•\tYou can move the selection to the start/end of the previous/next matchb by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected).\n\
+\t•\tTo select a coordinate without the display re-centering on it, hold down Ctrl as you middle-click.\n\
 \n\
 \n\
-COPY AND PASTE\n\
-	•       When sequence(s) are selected, their names are copied to the selection buffer and can be pasted by middle-clicking.\n\
-	•       To paste sequence names from the selection buffer, hit the 'f' keyboard shortcut. Blixem will select the sequences and jump to the start of the selection.\n\
-        •	To copy sequence name(s) to the default clipboard, select the sequence(s) and hit Ctrl-C. Sequence names can then be pasted into other applications using Ctrl-V.\n\
-	•	The clipboard text can also be pasted into Blixem using Ctrl-V. If the clipboard contains valid sequence names, those sequences will be selected and the display will jump to the start of the selection.\n\
-	•	Note that text from the feedback box and some text labels (e.g. the reference sequence start/end coords) can be copied by selecting it with the mouse and then hitting Ctrl-C.\n\
-	•	Text can be pasted into dialog box text entry boxes using Ctrl-V (or middle-clicking to paste from the selection buffer).\n\
+<b><big>Zooming</big></b>\n\
+\t•\tZoom in to the currently-selected region in the big picture using the +/- buttons in the top-left corner of the window, or using the Ctrl '=' and Ctrl '-' shortcut keys.  The 'Whole' button zooms out to show the full length of the query sequence.\n\
+\t•\tZoom in/out of the detail view using the +/- buttons on the toolbar, or using the '=' and '-' shortcut keys.\n\
 \n\
 \n\
-SORTING\n\
-	•	The alignments can be sorted by selecting the column you wish to sort by from the drop-down box on the toolbar.  To reverse the sort order, select the relevant option under the Settings menu.\n\
-	•	The alignments can also be sorted by group by selecting the Group option from the drop-down box.  See the Groups section.\n\
+<b><big>Copy and paste</big></b>\n\
+\t•\tWhen sequence(s) are selected, their names are copied to the selection buffer and can be pasted by middle-clicking.\n\
+\t•\tTo paste sequence names from the selection buffer, hit the 'f' keyboard shortcut. Blixem will select the sequences and jump to the start of the selection.\n\
+\t•\tTo copy sequence name(s) to the default clipboard, select the sequence(s) and hit Ctrl-C. Sequence names can then be pasted into other applications using Ctrl-V.\n\
+\t•\tThe clipboard text can also be pasted into Blixem using Ctrl-V. If the clipboard contains valid sequence names, those sequences will be selected and the display will jump to the start of the selection.\n\
+\t•\tNote that text from the feedback box and some text labels (e.g. the reference sequence start/end coords) can be copied by selecting it with the mouse and then hitting Ctrl-C.\n\
+\t•\tText can be pasted into dialog box text entry boxes using Ctrl-V (or middle-clicking to paste from the selection buffer).\n\
 \n\
 \n\
-FINDING\n\
-	•	Click the find icon on the toolbar or press the Ctrl-F shortcut to open the find dialog.\n\
-	•	To search for sequences by name, use either the 'Sequence name search' or 'Sequence name list' search box.  Enter the sequence name you wish to search for and hit 'OK', 'Forward' or 'Back'.\n\
-	•	To search for a string of nucleotides in the reference sequence, use the 'DNA search' box.  Enter the string of nucleotides and hit 'OK', 'Forward' or 'Back'.  Note that the search is only performed on the active strand: use the 'Toggle strand' button on the toolbar or hit the 't' shortcut key to toggle which strand is active.\n\
-	•	Using the 'OK' button will search for the first match in the entire Blixem range.\n\
-	•	Using the 'Forward' or 'Back' buttons will search for the next/previous match from the current position.\n\
-	•	After performing a find, you can repeat the search by hitting the F3 key (or Shift-F3 to search backwards).\n\
+<b><big>Sorting</big></b>\n\
+\t•\tThe alignments can be sorted by selecting the column you wish to sort by from the drop-down box on the toolbar.  To reverse the sort order, select the relevant option under the Settings menu.\n\
+\t•\tThe alignments can also be sorted by group by selecting the Group option from the drop-down box.  See the Groups section.\n\
 \n\
 \n\
-GROUPS\n\
+<b><big>Finding</big></b>\n\
+\t•\tClick the find icon on the toolbar or press the Ctrl-F shortcut to open the find dialog.\n\
+\t•\tTo search for sequences by name, use either the 'Sequence name search' or 'Sequence name list' search box.  Enter the sequence name you wish to search for and hit 'OK', 'Forward' or 'Back'.\n\
+\t•\tTo search for a string of nucleotides in the reference sequence, use the 'DNA search' box.  Enter the string of nucleotides and hit 'OK', 'Forward' or 'Back'.  Note that the search is only performed on the active strand: use the 'Toggle strand' button on the toolbar or hit the 't' shortcut key to toggle which strand is active.\n\
+\t•\tUsing the 'OK' button will search for the first match in the entire Blixem range.\n\
+\t•\tUsing the 'Forward' or 'Back' buttons will search for the next/previous match from the current position.\n\
+\t•\tAfter performing a find, you can repeat the search by hitting the F3 key (or Shift-F3 to search backwards).\n\
+\t•\tYou can perform a fast find on sequence name(s) in the selection buffer by hitting the 'f' shortcut key.\n\
+\n\
+\n\
+<b><big>Groups</big></b>\n\
 Alignments can be grouped together so that they can be sorted/highlighted/hidden etc.\n\
 \n\
-Creating a group from a selection:\n\
-	•	Select the sequences you wish to include in the group by left-clicking their rows in the detail view.  Multiple rows can be selected by holding the Ctrl or Shift keys while clicking.\n\
-	•	Right-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also shortcut to here if no groups currently exist.)\n\
-	•	Ensure that the 'From selection' radio button is selected, and click 'OK'.\n\
+<b>Creating a group from a selection:</b>\n\
+\t•\tSelect the sequences you wish to include in the group by left-clicking their rows in the detail view.  Multiple rows can be selected by holding the Ctrl or Shift keys while clicking.\n\
+\t•\tRight-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also shortcut to here if no groups currently exist.)\n\
+\t•\tEnsure that the 'From selection' radio button is selected, and click 'OK'.\n\
 \n\
-Creating a group from a sequence name:\n\
-	•	Right-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Or Ctrl-G if no groups currently exist.)\n\
-	•	Select the 'From name' radio button and enter the name of the sequence in the box below.  You may use the following wildcards to search for sequences: '*' for any number of characters; '?' for a single character.  For example, searching for '*X' will find all sequences whose name ends in 'X' (i.e. all exons).\n\
-	•	Click 'OK'.\n\
+<b>Creating a group from a sequence name:</b>\n\
+\t•\tRight-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Or Ctrl-G if no groups currently exist.)\n\
+\t•\tSelect the 'From name' radio button and enter the name of the sequence in the box below.  You may use the following wildcards to search for sequences: '*' for any number of characters; '?' for a single character.  For example, searching for '*X' will find all sequences whose name ends in 'X' (i.e. all exons).\n\
+\t•\tClick 'OK'.\n\
 \n\
-Creating a group from sequence name(s):\n\
-	•	Right-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Or Ctrl-G if no groups currently exist.)\n\
-	•	Select the 'From name(s)' radio button.\n\
-        •       Enter the sequence name(s) in the text box.\n\
-        •       You may use the following wildcards in a sequence name: '*' for any number of characters; '?' for a single character.  (For example, searching for '*X' will find all sequences whose name ends in 'X', i.e. all exons).\n\
-        •       You may search for multiple sequence names by separating them with the following delimiters: newline, comma or semi-colon.\n\
-        •       You may paste sequence names directly from ZMap: click on the feature in ZMap and then middle-click in the text box on the Groups dialog.  Grouping in Blixem works on the sequence name alone, so the feature coords will be ignored.\n\
-	•	Click 'OK'.\n\
+<b>Creating a group from sequence name(s):</b>\n\
+\t•\tRight-click and select 'Create Group', or use the Shift-Ctrl-G shortcut key. (Or Ctrl-G if no groups currently exist.)\n\
+\t•\tSelect the 'From name(s)' radio button.\n\
+\t•\tEnter the sequence name(s) in the text box.\n\
+\t•\tYou may use the following wildcards in a sequence name: '*' for any number of characters; '?' for a single character.  (For example, searching for '*X' will find all sequences whose name ends in 'X', i.e. all exons).\n\
+\t•\tYou may search for multiple sequence names by separating them with the following delimiters: newline, comma or semi-colon.\n\
+\t•\tYou may paste sequence names directly from ZMap: click on the feature in ZMap and then middle-click in the text box on the Groups dialog.  Grouping in Blixem works on the sequence name alone, so the feature coords will be ignored.\n\
+\t•\tClick 'OK'.\n\
 \n\
-Creating a temporary 'match-set' group from the current selection:\n\
-        •       You can quickly create a group from a current selection (e.g. selected features in ZMap) using the 'Toggle match set' option.\n\
-        •       To create a match-set group, select the required items (e.g. in ZMap) and then select 'Toggle match set' from the right-click menu in Blixem, or hit the 'g' shortcut key.\n\
-        •       To clear the match-set group, choose the 'Toggle match set' option again, or hit the 'g' shortcut key again.\n\
-        •       While it exists, the match-set group can be edited like any other group, via the 'Edit Groups' dialog.\n\
-        •       If you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight color) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'g' shortcut key) instead.\n\
+<b>Creating a temporary 'match-set' group from the current selection:</b>\n\
+\t•\tYou can quickly create a group from a current selection (e.g. selected features in ZMap) using the 'Toggle match set' option.\n\
+\t•\tTo create a match-set group, select the required items (e.g. in ZMap) and then select 'Toggle match set' from the right-click menu in Blixem, or hit the 'g' shortcut key.\n\
+\t•\tTo clear the match-set group, choose the 'Toggle match set' option again, or hit the 'g' shortcut key again.\n\
+\t•\tWhile it exists, the match-set group can be edited like any other group, via the 'Edit Groups' dialog.\n\
+\t•\tIf you delete the match-set group from the 'Edit Groups' dialog, all settings (e.g. highlight color) will be lost. To maintain these settings, clear the group using the 'Toggle match set' menu option (or 'g' shortcut key) instead.\n\
 \n\
-Editing groups:\n\
+<b>Editing groups:</b>\n\
 To edit a group, right-click and select 'Edit Groups', or use the Ctrl-G shortcut key. You can change the following properties for a group:\n\
-	•	Name: you can specify a more meaningful name to help identify the group.\n\
-	•	Hide: tick this box to hide the alignments in the alignment lists.\n\
-	•	Highlight: tick this box to highlight the alignments.\n\
-	•	Color: the color the group will be highlighted in, if 'Highlight' is enabled.  The default color for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colors.\n\
-	•	Order: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (or vice versa if sort order is inverted). Alignments in a group will appear before alignments that are not in a group.\n\
-	•	To delete a single group, click on the 'Delete' button next to the group you wish to delete.\n\
-	•	To delete all groups, click on the 'Delete all groups' button.\n\
+\t•\tName: you can specify a more meaningful name to help identify the group.\n\
+\t•\tHide: tick this box to hide the alignments in the alignment lists.\n\
+\t•\tHighlight: tick this box to highlight the alignments.\n\
+\t•\tColor: the color the group will be highlighted in, if 'Highlight' is enabled.  The default color for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colors.\n\
+\t•\tOrder: when sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (or vice versa if sort order is inverted). Alignments in a group will appear before alignments that are not in a group.\n\
+\t•\tTo delete a single group, click on the 'Delete' button next to the group you wish to delete.\n\
+\t•\tTo delete all groups, click on the 'Delete all groups' button.\n\
 \n\
 \n\
-DOTTER\n\
-	•	To start Dotter, or to edit the Dotter parameters, right-click and select 'Dotter' or use the Ctrl-D keyboard shortcut.	The Dotter settings dialog will pop up.\n\
-	•	To run Dotter with the default (automatic) parameters, just hit RETURN, or click the 'Execute' button.\n\
-	•	To enter manual parameters, click the 'Manual' radio button and enter the values in the 'Start' and 'End' boxes.\n\
-	•	To revert to the last-saved manual parameters, click the 'Last saved' button.\n\
-	•	To revert back to automatic parameters, click the 'Auto' radio button.\n\
-	•	To save the parameters without running Dotter, click Save and then Cancel'.\n\
-	•	To save the parameters and run Dotter, click 'Execute'.\n\
+<b><big>Dotter</big></b>\n\
+\t•\tTo start Dotter, or to edit the Dotter parameters, right-click and select 'Dotter' or use the Ctrl-D keyboard shortcut.	The Dotter settings dialog will pop up.\n\
+\t•\tTo run Dotter with the default (automatic) parameters, just hit RETURN, or click the 'Execute' button.\n\
+\t•\tTo enter manual parameters, click the 'Manual' radio button and enter the values in the 'Start' and 'End' boxes.\n\
+\t•\tTo revert to the last-saved manual parameters, click the 'Last saved' button.\n\
+\t•\tTo revert back to automatic parameters, click the 'Auto' radio button.\n\
+\t•\tTo save the parameters without running Dotter, click Save and then Cancel'.\n\
+\t•\tTo save the parameters and run Dotter, click 'Execute'.\n\
 \n\
 \n\
-SETTINGS\n\
-        •	The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.\n\
-        •	Squash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
-        •	Invert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
-        •	Highlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
-        •       Column sizes: use this to change the width of the columns.\n\
+<b><big>Settings</big></b>\n\
+\t•\tThe settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.\n\
+\t•\tSquash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
+\t•\tInvert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
+\t•\tHighlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
+\t•\tColumn sizes: use this to change the width of the columns.\n\
 \n\
 \n\
-COLOR KEY\n\
+<b><big>Color key</big></b>\n\
 In the detail view, the following colors and symbols have the following meanings:\n\
-        •	Yellow background: query sequence\n\
-        •	Cyan: identical residues\n\
-        •	Violet: conserved residues\n\
-        •	Grey: mismatch\n\
-        •	Grey with a '.': deletion\n\
-        •	Yellow vertical line: insertion\n\
-        •	Green background: coding (CDS) exon\n\
-        •	Red background: non-coding (UTR) exon\n\
-        •	Thin blue vertical line: start boundary of an exon\n\
-        •	Thin dark-blue vertical line: end boundary of an exon\n\
-        •	Green background in the reference sequence (protein matches only): the three nucleotides for the currently-selected codon. Dark green indicates the specific nucleotide that is currently displayed in the feedback box.\n\
-        •	Red background in the three-frame translation: STOP codon\n\
-        •	Green background in the three-frame translation: MET codon\n\
+\n\
+\t<span background=\"yellow\">Yellow</span>\t\t\t\t\t\tQuery sequence\n\
+\t<span background=\"cyan\">Cyan</span>\t\t\t\t\t\tIdentical match\n\
+\t<span background=\"lightslateblue\">Violet</span>\t\t\t\t\t\tSimilar match\n\
+\t<span background=\"grey\">Grey</span>\t\t\t\t\t\tMismatch\n\
+\t<span background=\"grey\"><b> . </b></span>\t\t\t\t\t\t\tDeletion\n\
+\t<span background=\"yellow\"> </span> Yellow line\t\t\t\t\tInsertion\n\
+\t<span background=\"palegreen\">         </span> Empty green box\t\tCoding (CDS) exon\n\
+\t<span background=\"lightcoral\">         </span> Empty red box\t\t\tNon-coding (UTR) exon\n\
+\t<span background=\"royalblue\">|</span> Blue line\t\t\t\t\tStart boundary of an exon\n\
+\t<span background=\"darkblue\">|</span> Dark blue line\t\t\t\tEnd boundary of an exon\n\
+\t<span background=\"lightskyblue\">Blue</span> in DNA header\t\t\tNucleotides of the selected codon. Darker blue indicates the specific nucleotide displayed in the feedback box.\n\
+\t<span background=\"salmon\">Red</span> in 3-frame translation\t\tSTOP codon\n\
+\t<span background=\"lawngreen\">Green</span> in 3-frame translation\tMET codon\n\
 \n\
 \n\
-KEYBOARD SHORTCUTS\n\
-	•	Ctrl-Q: Quit\n\
-	•	Ctrl-H: Help\n\
-	•	Ctrl-P: Print\n\
-	•	Ctrl-S: 'Settings' menu\n\
+<b><big>Keyboard shortcuts</big></b>\n\
+\t•\t<b>Ctrl-Q</b>    Quit\n\
+\t•\t<b>Ctrl-H</b>    Help\n\
+\t•\t<b>Ctrl-P</b>    Print\n\
+\t•\t<b>Ctrl-S</b>    'Settings' menu\n\
 \n\
-        •	Ctrl-F: Open the Find dialog\n\
-	•	f: Perform a find on sequence name(s) in the current selection buffer\n\
+\t•\t<b>Ctrl-F</b>    Open the Find dialog\n\
+\t•\t<b>f</b>    Perform a find on sequence name(s) in the current selection buffer\n\
 \n\
-        •	Ctrl-G: Edit groups (or create a group if none currently exist)\n\
-	•	Shift-Ctrl-G: Create group\n\
-        •	g: Toggle the 'match set' Group\n\
+\t•\t<b>Ctrl-G</b>    Edit groups (or create a group if none currently exist)\n\
+\t•\t<b>Shift-Ctrl-G</b>    Create group\n\
+\t•\t<b>g</b>    Toggle the 'match set' Group\n\
 \n\
-	•	Ctrl-A: Select all sequences in the current list\n\
-	•	Shift-Ctrl-A: Deselect all sequences\n\
+\t•\t<b>Ctrl-A</b>    Select all sequences in the current list\n\
+\t•\t<b>Shift-Ctrl-A</b>    Deselect all sequences\n\
 \n\
-	•	Ctrl-D: Dotter\n\
+\t•\t<b>Ctrl-D</b>    Dotter\n\
 \n\
-	•	Left/right arrow keys: Move the currently-selected coordinate one place to the left/right\n\
-	•	Shift-Left/right: Same as left/right arrow keys, but for proteins it scrolls by a single nucleotide, rather than an entire codon.\n\
-	•	Ctrl-Left/right: Scroll to the start/end of the previous/next alignment (limited to just the selected sequences, if any are selected).\n\
-	•	Home/End: Scroll to the start/end of the display.\n\
-	•	Ctrl-Home/End: Scroll to the first/last alignment (limited to just the selected sequences, if any are selected).\n\
-        •	, (comma): scroll left one coordinate\n\
-        •	. (period): scroll right one coordinate\n\
+\t•\t<b>Left</b>/<b>right</b> arrow keys    Move the currently-selected coordinate one place to the left/right\n\
+\t•\t<b>Shift-Left</b>/<b>right</b>    Same as left/right arrow keys, but for proteins it scrolls by a single nucleotide, rather than an entire codon.\n\
+\t•\t<b>Ctrl-Left</b>/<b>right</b>    Scroll to the start/end of the previous/next alignment (limited to just the selected sequences, if any are selected).\n\
+\t•\t<b>Home</b>/<b>End</b>    Scroll to the start/end of the display.\n\
+\t•\t<b>Ctrl-Home</b>/<b>End</b>    Scroll to the first/last alignment (limited to just the selected sequences, if any are selected).\n\
+\t•\t<b>,</b> (comma)    scroll left one coordinate\n\
+\t•\t<b>.</b> (period)    scroll right one coordinate\n\
 \n\
-	•	= (equals): zoom in detail view\n\
-	•	- (subtract): zoom out detail view\n\
-	•	Ctrl-= : zoom in big picture\n\
-	•	Ctrl-- :  zoom out big picture\n\
-	•	Shift-Ctrl-- :  zoom out big picture to whole width\n\
+\t•\t<b>=</b> (equals)    zoom in detail view\n\
+\t•\t<b>-</b> (subtract)    zoom out detail view\n\
+\t•\t<b>Ctrl</b>-<b>=</b>     zoom in big picture\n\
+\t•\t<b>Ctrl</b>-<b>-</b>      zoom out big picture\n\
+\t•\t<b>Shift</b>-<b>Ctrl</b>-<b>-</b>      zoom out big picture to whole width\n\
 \n\
-        •	V: 'View' menu (for toggling visibility)\n\
-	•       1, 2, 3: These number keys toggle visibility of the 1st, 2nd (and 3rd, for protein matches) alignment list.\n\
-	•	Ctrl-1, Ctrl-2: This toggles visibility of the 1st and 2nd big picture grid.\n\
-	•       Shift-Ctrl-1, Shift-Ctrl-2: This toggles visibility of the 1st and 2nd exon views.\n\
+\t•\t<b>V</b>    'View' menu (for toggling visibility)\n\
+\t•\t<b>1</b>, <b>2</b>, <b>3</b>    These number keys toggle visibility of the 1st, 2nd (and 3rd, for protein matches) alignment list.\n\
+\t•\t<b>Ctrl</b>-<b>1</b>, <b>Ctrl</b>-<b>2</b>    This toggles visibility of the 1st and 2nd big picture grid.\n\
+\t•\t<b>Shift</b>-<b>Ctrl</b>-<b>1</b>, <b>Shift</b>-<b>Ctrl</b>-<b>2</b>    This toggles visibility of the 1st and 2nd exon views.\n\
 \n\
-        •	p: Go to position\n\
-        •	t: Toggle the active strand\n\
+\t•\t<b>p</b>    Go to position\n\
+\t•\t<b>t</b>    Toggle the active strand\n\
 "
 
 /* Local function declarations */
@@ -2931,7 +2946,9 @@ static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
   GString *displayText = g_string_sized_new(200); /* will be extended if we need more space */
   getStats(blxWindow, displayText, MSPlist);
   GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
+  
   gtk_text_buffer_set_text(GTK_TEXT_BUFFER(textBuffer), displayText->str, -1);
+  
   g_string_free(displayText, TRUE);
   
   /* Create a text view widget and put it in the vbox area of the dialog */
@@ -3047,7 +3064,7 @@ void showHelpDialog(GtkWidget *blxWindow)
 
   /* Set a pretty big initial size */
   const int width = blxWindow->allocation.width * 0.7;
-  const int maxHeight = blxWindow->allocation.height * 0.7;
+  const int maxHeight = blxWindow->allocation.height * 0.9;
   
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Help", 
 						  NULL, 
