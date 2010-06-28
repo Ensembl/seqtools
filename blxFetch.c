@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.20 2010-06-14 11:14:39 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.21 2010-06-28 16:19:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1583,6 +1583,8 @@ BOOL readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
 				       "No groups found in config file.\n") ;
 	  result = FALSE ;
 	}
+        
+      g_strfreev(groups);
     }
 
   

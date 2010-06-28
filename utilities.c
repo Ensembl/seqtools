@@ -251,27 +251,30 @@ int numDigitsInInt(int val)
 }
 
 
-/* Create a GdkColor from one of our internally-defined colors, e.g. BLX_YELLOW.
- * At the moment this is just a wrapper around gdk_color_parse. Returns true if ok, 
- * false if there was an error. */
-gboolean parseBlxColor(const char *color, GdkColor *result)
+/* Creates a GdkColor from the given color string in hex format, e.g. "#00ffbe". Returns false
+ * and sets 'error' if there was a problem */
+gboolean getColorFromString(const char *colorStr, GdkColor *color, GError **error)
 {
-  gboolean ok = gdk_color_parse(color, result);
+  gboolean ok = gdk_color_parse(colorStr, color);
 
   if (ok)
     {
       gboolean failures[1];
-      gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), result, 1, TRUE, TRUE, failures);
+      gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
       
       if (numFailures > 0)
-	ok = FALSE;
+        {
+          ok = FALSE;
+        }
     }
 
   if (!ok)
     {
-      g_warning("Error parsing color string '%s'\n", color);
+      g_free(color);
+      color = NULL;
+      g_set_error(error, BLX_ERROR, 1, "Error parsing color string '%s'\n", colorStr);
     }
-  
+    
   return ok;
 }
 
@@ -1803,30 +1806,34 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
 }
 
 
-/* Tag the given prefix string onto the start of the given error's message */
+/* If error is non-null, tag the given prefix string onto the start of the given 
+ * error's message. If error is null, do nothing. */
 void prefixError(GError *error, char *formatStr, ...)
 {
 //  g_prefix_error(error, prefixStr);  /* Only from GLib v2.16 */
 
-  va_list argp;
-  va_start(argp, formatStr);
-  
-  /* Print the prefix text and args into a new string. We're not sure how much space we need
-   * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
-   * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
-  const int len = strlen(formatStr) + 200;
-  char tmpStr[len];
-  vsnprintf(tmpStr, len, formatStr, argp);
+  if (error)
+  {
+    va_list argp;
+    va_start(argp, formatStr);
+    
+    /* Print the prefix text and args into a new string. We're not sure how much space we need
+     * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
+     * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
+    const int len = strlen(formatStr) + 200;
+    char tmpStr[len];
+    vsnprintf(tmpStr, len, formatStr, argp);
 
-  va_end(argp);
+    va_end(argp);
 
-  /* Append the error message */
-  char *resultStr = g_malloc(len + strlen(error->message));
-  snprintf(resultStr, len, "%s%s", tmpStr, error->message);
-  
-  /* Replace the error message text with the new string. */
-  g_free(error->message);
-  error->message = resultStr;
+    /* Append the error message */
+    char *resultStr = g_malloc(len + strlen(error->message));
+    snprintf(resultStr, len, "%s%s", tmpStr, error->message);
+    
+    /* Replace the error message text with the new string. */
+    g_free(error->message);
+    error->message = resultStr;
+  }
 }
 
 

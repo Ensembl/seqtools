@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.14 2010-06-14 11:14:39 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.15 2010-06-28 16:19:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -76,6 +76,7 @@ static char *usageText ="\n\
  -a         specify a string giving the names of the alignments, e.g. \"EST_mouse EST_human\" etc.\n\
  -b         Don't start with Big Picture.\n\
  -c <file>  Read configuration options from 'file'.\n\
+ -k <file>  Read color/style options from key-value file 'file'. (See GLib Key-value-file-parser documentation.)\n\
  -S <#>     Start display at position #.\n\
  -F <file>  Read in query sequence and data from <file> (replaces sequencefile).\n\
  -h         Help and more options.\n\
@@ -118,6 +119,70 @@ static char *help_string = "\n\
 
 
 
+/* Read in the key file, which contains style information. Returns a list of
+ * style structs for each style found. */
+static GSList* blxReadStylesFile(char *keyFileName, GError **error)
+{
+  GSList *result = NULL;
+  
+  if (!keyFileName)
+    {
+      return result;
+    }
+  
+  /* Load the key file */
+  GKeyFile *keyFile = g_key_file_new();
+  GKeyFileFlags flags = G_KEY_FILE_NONE ;
+
+  if (g_key_file_load_from_file(keyFile, keyFileName, flags, error))
+    {
+      /* Get all the groups (i.e. style names) from the file */
+      gsize num_groups;
+      char **groups = g_key_file_get_groups(keyFile, &num_groups) ;
+
+      /* Loop through each style */
+      char **group;
+      int i;
+      GError *tmpError = NULL;
+      
+      for (i = 0, group = groups ; i < num_groups && !tmpError ; i++, group++)
+	{
+          /* Look for the keys corresponding to the style values we require */
+          char *fillColor = g_key_file_get_value(keyFile, *group, "fill_color", &tmpError);
+          
+          if (!tmpError)
+            {
+              char *lineColor = g_key_file_get_value(keyFile, *group, "line_color", &tmpError);
+              
+              if (!tmpError)
+                {
+                  /* Create a style with these colors */
+                  BlxStyle *style = createBlxStyle(*group, fillColor, lineColor, &tmpError);
+                  result = g_slist_append(result, style);
+                }
+            }
+        }
+      
+      if (tmpError)
+        {
+          g_propagate_error(error, tmpError);
+        }
+      
+      g_strfreev(groups);
+    }
+
+  g_key_file_free(keyFile) ;
+  keyFile = NULL ;
+  
+  if (error && *error)
+    {
+      prefixError(*error, "Error reading key file. ");
+    }
+  
+  return result;
+}
+
+
 /* Entry point for blixem standalone program, you should be aware when
  * altering this that blxview.c is also compiled into acedb and that
  * blxview() is called directly by acedb code.
@@ -144,7 +209,7 @@ int main(int argc, char **argv)
   int          optc;
   extern int   optind;
   extern char *optarg;
-  char        *optstring="a:bc:F:hIilno:O:pP:rS:s:tx:";
+  char        *optstring="a:bck:F:hIilno:O:pP:rS:s:tx:";
   char *usage;
   BOOL rm_input_files = FALSE ;
   PfetchParams *pfetch = NULL ;
@@ -152,7 +217,8 @@ int main(int argc, char **argv)
   FILE *xtra_file = NULL ;
   char xtra_filename[1000] = {'\0'} ;
   char *align_types = NULL ;
-  char *config_file = NULL ;
+  char *config_file = NULL ;        /* optional blixem config file (usually "blixemrc") */
+  char *key_file = NULL ;           /* optional keyword file for passing style information */
   GError *error = NULL ;
  
   /* Set up the GLib message handlers
@@ -193,6 +259,9 @@ int main(int argc, char **argv)
 	case 'c': 
 	  config_file = strnew(optarg, 0) ;
 	  break;
+	case 'k': 
+	  key_file = strnew(optarg, 0) ;
+          break;
 	case 'F': 
 	  singleFile = TRUE;        
 	  strcpy(FSfilename, optarg);
@@ -293,7 +362,10 @@ int main(int argc, char **argv)
       g_error("Config File Error: %s\n", error->message) ;
     }
 
-
+  /* Read in the key file, if there is one */
+  GSList *styles = blxReadStylesFile(key_file, &error);
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  
   if (!singleFile)
     {
       /* The query sequence is in a separate file. */
@@ -397,7 +469,7 @@ int main(int argc, char **argv)
     }
   
   GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
-  parseFS(&mspList, FSfile, opts, &seqList, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+  parseFS(&mspList, FSfile, opts, &seqList, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
   
   if (FSfile != stdin)
     {
@@ -412,7 +484,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&mspList, xtra_file, opts, &seqList, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+      parseFS(&mspList, xtra_file, opts, &seqList, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
       fclose(xtra_file) ;
     }
 

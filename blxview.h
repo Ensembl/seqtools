@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.21 2010-06-21 10:52:00 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.22 2010-06-28 16:19:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -135,6 +135,15 @@ typedef enum
   } BlxMspType;
 
 
+/* Define a drawing style for an MSP */
+typedef struct _BlxStyle
+  {
+    char *styleName;
+    GdkColor fillColor;
+    GdkColor lineColor;
+  } BlxStyle;
+
+
 /* Structure holding information about an alignment */
 typedef struct _MSP
 {
@@ -157,10 +166,8 @@ typedef struct _MSP
   char              *desc;         /* Optional description text for the MSP */
   GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array
                                     * gives the ranges of the bits that align, and the gaps are the bits in between */
-                                    
-  GdkColor          *fillColor;    /* Fill color for feature */
-  GdkColor          *outlineColor; /* Outline color for feature  */
-  int               outlineWeight; /* Line weight for feature outline */
+                         
+  BlxStyle          *style;        /* Specifies drawing style for this MSP, e.g. fill color and line color */
 
   FeatureSeries     *fs;           /* Feature series that this MSP belongs to */
   int               fsColor;       /* Color to draw this MSP in the feature series */

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.44 2010-06-21 16:08:49 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.45 2010-06-28 16:19:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -723,9 +723,7 @@ MSP* createNewMsp(MSP **lastMsp,
   
   msp->desc = NULL;
   
-  msp->fillColor = NULL;
-  msp->outlineColor = NULL;
-  msp->outlineWeight = UNSET_INT;
+  msp->style = NULL;
   
   msp->fs = NULL;
   msp->fsColor = 0;
@@ -819,10 +817,8 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   
   msp->desc = NULL;
 
-  msp->fillColor = NULL;
-  msp->outlineColor = NULL;
-  msp->outlineWeight = UNSET_INT;
-  
+  msp->style = NULL;
+
   msp->fs = NULL;
   msp->fsColor = 0;
   msp->fsShape = BLXCURVE_BADSHAPE;
@@ -872,18 +868,6 @@ void destroyMspData(MSP *msp)
     {
       g_free(msp->desc);
       msp->desc = NULL;
-    }
-    
-  if (msp->fillColor)
-    {
-      g_free(msp->fillColor);
-      msp->fillColor = NULL;
-    }
-
-  if (msp->outlineColor)
-    {
-      g_free(msp->outlineColor);
-      msp->outlineColor = NULL;
     }
     
   if (msp->gaps)
@@ -981,6 +965,78 @@ static GList* getEmptySeqs(GList *inputList)
 
   return resultList;
 }
+
+
+
+/* Create a BlxStyle */
+BlxStyle* createBlxStyle(const char *styleName, const char *fillColor, const char *lineColor, GError **error)
+{
+  BlxStyle *style = g_malloc(sizeof(BlxStyle));
+  GError *tmpError = NULL;
+
+  if (!styleName)
+    {
+      g_set_error(error, BLX_ERROR, 1, "Style name is NULL.\n");
+    }
+    
+  if (!tmpError)
+    {
+      style->styleName = g_strdup(styleName);
+    }
+  
+  if (!tmpError)
+    {
+      getColorFromString(fillColor, &style->fillColor, &tmpError);
+    }
+  
+  if (!tmpError)
+    {
+      getColorFromString(lineColor, &style->lineColor, &tmpError);
+    }
+  
+  if (tmpError)
+    {
+      g_free(style);
+      prefixError(tmpError, "Error creating style '%s'. ", styleName);
+      g_propagate_error(error, tmpError);
+    }
+  
+  return style;
+}
+
+
+/* Destroy a BlxStyle */
+void destroyBlxStyle(BlxStyle *style)
+{
+  if (style)
+    {
+      g_free(style->styleName);
+    }
+}
+
+
+/* Get the BlxStyle with the given name. Returns null if not found. */
+BlxStyle* getBlxStyle(const char *styleName, GSList *styles)
+{
+  BlxStyle *result = NULL;
+  GSList *item = styles;
+  
+  for ( ; item; item = item->next)
+    {
+      BlxStyle *style = (BlxStyle*)(item->data);
+      if (style && stringsEqual(style->styleName, styleName, FALSE))
+        {
+          result = style;
+          break;
+        }
+    }
+  
+  return result;
+}
+
+
+
+
 
 
 /***************** end of file ***********************/

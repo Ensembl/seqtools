@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.29 2010-06-21 16:08:49 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.30 2010-06-28 16:19:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -68,7 +68,7 @@ static char *	    nextLine(FILE *file, GString *line_string);
 static gboolean	    parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState *parserState);
 
 static void	    parseBody(char *line, const int lineNum, char *opts, MSP **msp, GString *line_string, char **seq1, 
-                              char *seq1name, char **seq2, char *seq2name, BlxParserState *parserState, MSP **mspList, GList **seqList,
+                              char *seq1name, char **seq2, char *seq2name, BlxParserState *parserState, MSP **mspList, GList **seqList, GSList *styles,
                               char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
 static void	    parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, const BlxParserState parserState, char *opts, GString *line_string, GList **seqList);
@@ -148,7 +148,7 @@ static char *colorNames[NUM_TRUECOLORS] =
  *  *seq1name and *seq2name are allocated at least 255 bytes
  *
  */
-void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList,
+void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *styles,
 	     char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset)
 {
   DEBUG_ENTER("parseFS");
@@ -214,7 +214,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList,
 	}
 
       parseBody(line, lineNum, opts, &msp, line_string, 
-                seq1, seq1name, seq2, seq2name, &parserState, MSPlist, seqList,
+                seq1, seq1name, seq2, seq2name, &parserState, MSPlist, seqList, styles,
                 &readSeq, &readSeqLen, &readSeqMaxLen);
     }
 
@@ -1583,7 +1583,7 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
 /* Utility to call the relevant parser function to parse the current data type */
 static void parseBody(char *line, const int lineNum, char *opts, MSP **lastMsp, GString *line_string,
                       char **seq1, char *seq1name, char **seq2, char *seq2name, 
-                      BlxParserState *parserState, MSP **mspList, GList **seqList,
+                      BlxParserState *parserState, MSP **mspList, GList **seqList, GSList *styles,
                       char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
 {
   DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
@@ -1596,7 +1596,7 @@ static void parseBody(char *line, const int lineNum, char *opts, MSP **lastMsp, 
       break;
       
     case GFF_3_BODY:
-      parseGff3Body(lineNum, lastMsp, mspList, parserState, opts, line_string, seqList);
+      parseGff3Body(lineNum, lastMsp, mspList, parserState, opts, line_string, seqList, styles);
       break;
 
     case SEQBL_BODY: /* fall through */

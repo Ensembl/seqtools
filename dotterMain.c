@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.8 2010-06-21 10:52:01 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.9 2010-06-28 16:19:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -569,7 +569,7 @@ int main(int argc, char **argv)
 	
         GList *seqList = NULL; /* parser compiles a list of BlxSequences into here; not required for dotter */
 
-	parseFS(&MSPlist, file, dummyopts, &seqList, &qseq, options.qname, &sseq, options.sname, options.qoffset);
+	parseFS(&MSPlist, file, dummyopts, &seqList, NULL, &qseq, options.qname, &sseq, options.sname, options.qoffset);
       }
 
     /* Determine sequence types */

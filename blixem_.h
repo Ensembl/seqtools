@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.35 2010-06-14 11:14:39 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.36 2010-06-28 16:19:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -119,6 +119,10 @@ BLIXEM_AUTHOR_TEXT "\n"
 #define LONG_NAMESIZE 1000
 #define INITDBSEQLEN  50000        /* Initial estimate of max database sequence length */
 #define MAXLINE       10000
+
+
+/* Main Blixem error domain */
+#define BLX_ERROR g_quark_from_string("Blixem")
 
 
 /* The MSP list is sorted by one of these criteria, currently BLXSORT_ID is the default. */
@@ -243,7 +247,7 @@ void                               selectFeatures(void);
 float                              fsTotalHeight(MSP *msplist);
 
 /* blxparser.c */
-void                               parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList,
+void                               parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *styles,
 	                                   char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset) ;
 void                               insertFS(MSP *msp, char *series);
 gboolean                           mspHasFs(const MSP *msp);  
@@ -282,6 +286,10 @@ void                               blviewResetGlobals();
 
 void                               addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
 BlxSequence*                       addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *sequence, GError **error);
+
+BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *lineColor, GError **error);
+void                               destroyBlxStyle(BlxStyle *style);
+BlxStyle*                          getBlxStyle(const char *styleName, GSList *styles);
 
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */

@@ -60,7 +60,8 @@ void parseGff3Body(const int lineNum,
 		   BlxParserState *parserState, 
 		   char *opts, 
 		   GString *line_string, 
-		   GList **seqList);
+		   GList **seqList,
+                   GSList *styles);
 
 void parseFastaSeqHeader(char *line, const int lineNum,
                          char **refSeq, char *refSeqName,

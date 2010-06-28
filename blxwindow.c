@@ -23,16 +23,14 @@
 #define MATCH_SET_GROUP_NAME		 "Match set"
 
 
-/* Error codes and domain */
-#define BLX_ERROR g_quark_from_string("Blixem")
-
+/* Error codes */
 typedef enum
   {
     BLX_ERROR_SEQ_SEGMENT,	      /* error finding sequence segment */
     BLX_ERROR_EMPTY_STRING,           /* error code for when user entered a zero-length string */
     BLX_ERROR_STRING_NOT_FOUND,       /* error code for when a search string is not found */
     BLX_ERROR_SEQ_NAME_NOT_FOUND      /* the sequence name(s) being searched for were not found */
-  } BlxDotterError;
+  } BlxError;
 
 
 /* Utility struct used when comparing sequence names */
@@ -3295,8 +3293,11 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
   widgetSetDrawable(blxWindow, drawable);
   
   GdkGC *gc = gdk_gc_new(drawable);
+  
   GdkColor fgColor;
-  parseBlxColor(BLX_WHITE, &fgColor);
+  GError *error = NULL;
+  getColorFromString(BLX_WHITE, &fgColor, &error);
+
   gdk_gc_set_foreground(gc, &fgColor);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, blxWindow->allocation.width, blxWindow->allocation.height);
 
@@ -3582,19 +3583,21 @@ static void createBlxColor(BlxViewContext *bc,
 {
   BlxColor *result = g_malloc(sizeof(BlxColor));
   result->transparent = FALSE;
+  GError *error = NULL;
   
   if (!normalCol)
     {
       result->transparent = TRUE;
     }
-  else if (parseBlxColor(normalCol, &result->normal)) 
+  else if (getColorFromString(normalCol, &result->normal, &error)) 
     {
       /* find a "selected" version of it, if not passed one */
       if (normalColSelected)
 	{
-	  if (!parseBlxColor(normalColSelected, &result->selected))
+	  if (!getColorFromString(normalColSelected, &result->selected, &error))
 	    {
-	      messout("Error getting color for selected items: using normal color instead.");
+              prefixError(error, "Error getting 'selected' color: using normal color instead. ");
+              reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
 	      result->selected = result->normal;
 	    }
 	}
@@ -3604,14 +3607,15 @@ static void createBlxColor(BlxViewContext *bc,
 	}
       
       /* Parse the print color */
-      if (parseBlxColor(printCol, &result->print))
+      if (getColorFromString(printCol, &result->print, &error))
 	{
 	  /* find a "selected" version of it, if not passed one */
 	  if (printColSelected)
 	    {
-	      if (!parseBlxColor(printColSelected, &result->printSelected))
+	      if (!getColorFromString(printColSelected, &result->printSelected, &error))
 		{
-		  messout("Error getting print color for selected items: using normal print color instead.");
+		  prefixError(error, "Error getting print color for selected items: using normal print color instead. ");
+                  reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
 		  result->printSelected = result->print;
 		}
 	    }
@@ -3623,13 +3627,15 @@ static void createBlxColor(BlxViewContext *bc,
       else
 	{
 	  /* Error parsing the print color: use the normal color but give a warning */
+          prefixError(error, "Error getting print colors: using normal colors instead. ");
+          reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
 	  result->print = result->normal;
 	  result->printSelected = result->selected;
-	  messout("Error getting print colors: using normal colors instead.");
 	}
     }
   else
     {
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       g_free(result);
       result = NULL;
     }

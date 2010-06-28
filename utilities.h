@@ -40,7 +40,7 @@
 
 
 
-/* Color strings that can be passed to parseBlxColor to create a GdkColor */
+/* Color strings that can be passed to create a GdkColor */
 #define BLX_YELLOW	      "#ffff00" 
 #define BLX_DARK_YELLOW	      "#c0c000"
 #define BLX_LIGHT_YELLOW      "#fafad2"
@@ -181,7 +181,7 @@ GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
-gboolean	      parseBlxColor(const char *color, GdkColor *result);
+gboolean              getColorFromString(const char *colorStr, GdkColor *color, GError **error);
 void		      getSelectionColor(GdkColor *origColor, GdkColor *result);
 void		      getDropShadowColor(GdkColor *origColor, GdkColor *result);
 void		      adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *result);
