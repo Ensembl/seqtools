@@ -1873,26 +1873,61 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
   SeqSearchData *searchData = (SeqSearchData*)data;
   BlxSequence *seq = (BlxSequence*)listDataItem;
   
-  /* Cut both down to the short versions of the variant name, in case one is the short
-   * version and the other one isn't. */
-  gboolean found = wildcardSearch(sequenceGetVariantName(seq), getSeqVariantName(searchData->searchStr));
-  
+  /* Try matching against the full sequence name, e.g. Em:AB123456.1 */
+  gboolean found = wildcardSearch(sequenceGetFullName(seq), searchData->searchStr);
+
   if (!found)
     {
-      /* Get the short name (without the variant on the end) and compare that */
-      found = wildcardSearch(sequenceGetShortName(seq), getSeqShortName(searchData->searchStr));
+      /* Try without the prefix, e.g. AB123456.1 */
+      found = wildcardSearch(sequenceGetVariantName(seq), searchData->searchStr);
     }
   
   if (!found)
     {
-      /* Sequence names don't have the 'x' or 'i' postfix for exons or introns. If the search
-       * string has an 'x' or 'i' on the end, ignore it. */
+      /* Try without the variant. e.g. Em:AB123456 */
+      char *seqName = g_strdup(sequenceGetFullName(seq));
+      char *cutPoint = strchr(seqName, '.');
+      
+      if (cutPoint)
+        {
+          *cutPoint = '\0';
+          found = wildcardSearch(seqName, searchData->searchStr);
+        }
+      
+      g_free(seqName);
     }
   
+  if (!found)
+    {
+      /* Try without the prefix or variant e.g. AB123456 */
+      found = wildcardSearch(sequenceGetShortName(seq), searchData->searchStr);
+    }
+
+  if (!found)
+    {
+        const int len = strlen(searchData->searchStr);
+      
+      if (len > 2 &&
+          (searchData->searchStr[len - 1] == 'x' || searchData->searchStr[len - 1] == 'X' ||
+           searchData->searchStr[len - 1] == 'i' || searchData->searchStr[len - 1] == 'I'))
+        {
+    
+          /* BlxSequence names don't have the 'x' or 'i' postfix for exons or introns. If the search
+           * string has an 'x' or 'i' on the end, ignore it. */
+          char *searchStr = g_strdup(searchData->searchStr);
+          searchStr[len - 1] = '\0';
+      
+          found = wildcardSearch(sequenceGetFullName(seq), searchStr);
+      
+          g_free(searchStr);
+        }
+    }  
+    
   if (found)
     {
       searchData->matchList = g_list_prepend(searchData->matchList, seq);
     }  
+   
 }
 
 
