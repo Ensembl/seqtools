@@ -1061,10 +1061,10 @@ const char *sequenceGetVariantName(const BlxSequence *seq)
   return seq->variantName;
 }
 
-/* Return the display name of a BlxSequence (same as variant name for now) */
+/* Return the display name of a BlxSequence (same as full name for now) */
 const char *sequenceGetDisplayName(const BlxSequence *seq)
 {
-  return seq->variantName;
+  return seq->fullName;
 }
 
 /* Return the short name of a BlxSequence (excludes prefix and variant number) */
