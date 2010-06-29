@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.15 2010-06-28 16:19:31 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.16 2010-06-29 09:06:46 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
   int          optc;
   extern int   optind;
   extern char *optarg;
-  char        *optstring="a:bck:F:hIilno:O:pP:rS:s:tx:";
+  char        *optstring="a:bc:k:F:hIilno:O:pP:rS:s:tx:";
   char *usage;
   BOOL rm_input_files = FALSE ;
   PfetchParams *pfetch = NULL ;
