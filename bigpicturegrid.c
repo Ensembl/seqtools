@@ -186,7 +186,7 @@ static void drawPreviewBox(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   GdkRectangle previewRect = {xRounded, properties->highlightRect.y, properties->highlightRect.width, properties->highlightRect.height};
 
   BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
-  GdkColor *previewBoxColor = getGdkColor(bc, BLXCOL_PREVIEW_BOX, FALSE);
+  GdkColor *previewBoxColor = getGdkColor(BLXCOL_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
   drawHighlightBox(grid, drawable, gc, &previewRect, bigPictureProperties->previewBoxLineWidth, previewBoxColor);
 }
 
@@ -474,9 +474,9 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   const gint numVCells = gridGetNumVCells(grid);
 
   BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
-  GdkColor *gridLineColor = getGdkColor(bc, BLXCOL_GRID_LINE, FALSE);
-  GdkColor *gridTextColor = getGdkColor(bc, BLXCOL_GRID_TEXT, FALSE);
-  GdkColor *highlightBoxColor = getGdkColor(bc, BLXCOL_HIGHLIGHT_BOX, FALSE);
+  GdkColor *gridLineColor = getGdkColor(BLXCOL_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *gridTextColor = getGdkColor( BLXCOL_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *highlightBoxColor = getGdkColor(BLXCOL_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
   
   /* Draw the grid lines */
   GdkGC *gc = gdk_gc_new(drawable);
@@ -886,7 +886,7 @@ static GdkColor *gridGetMspLineColor(GtkWidget *grid, const gboolean selected)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
-  return getGdkColor(bc, BLXCOL_MSP_LINE, selected);
+  return getGdkColor(BLXCOL_MSP_LINE, bc->defaultColors, selected, bc->usePrintColors);
 }
 
 /***********************************************************

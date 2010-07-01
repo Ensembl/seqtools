@@ -293,9 +293,9 @@ static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context,
 static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 static void			  onDestroyBlxWindow(GtkWidget *widget);
 
-static BlxStrand			  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
+static BlxStrand		  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
-static void			  destroyBlxColor(gpointer listDataItem, gpointer data);
+static void			  destroyBlxColor(BlxColor *blxCol);
 
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
@@ -1701,7 +1701,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   group->highlighted = TRUE;
 
   BlxColorId colorId = (groupName && !strcmp(groupName, MATCH_SET_GROUP_NAME)) ? BLXCOL_MATCH_SET : BLXCOL_GROUP;
-  GdkColor *color = getGdkColor(bc, colorId, FALSE);
+  GdkColor *color = getGdkColor(colorId, bc->defaultColors, FALSE, bc->usePrintColors);
   group->highlightColor = *color;
 
   /* Add it to the list, and update */
@@ -2730,7 +2730,7 @@ static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const in
     {
       ++row;
     
-      BlxColor *blxCol = getBlxColor(bc->colorList, colorId);
+      BlxColor *blxCol = getBlxColor(bc->defaultColors, colorId);
       GtkWidget *label = gtk_label_new(blxCol->name);
       gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
 
@@ -3537,11 +3537,17 @@ static void destroyBlxContext(BlxViewContext **bc)
 	  (*bc)->fetchMode = NULL;
 	}
       
-      if ((*bc)->colorList)
+      if ((*bc)->defaultColors)
 	{
-	  g_list_foreach((*bc)->colorList, destroyBlxColor, NULL);
-	  g_list_free((*bc)->colorList);
-	  (*bc)->colorList = NULL;
+	  BlxColorId i = BLXCOL_MIN + 1;
+	  for (; i < BLXCOL_NUM_COLORS; ++i)
+	    {
+	      BlxColor *blxColor = &g_array_index((*bc)->defaultColors, BlxColor, i);
+	      destroyBlxColor(blxColor);
+	    }
+
+	  g_array_free((*bc)->defaultColors, TRUE);
+	  (*bc)->defaultColors = NULL;
 	}
       
       destroyMspList(&((*bc)->mspList));
@@ -3589,16 +3595,12 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 
 
 /* Free all memory used by a blixem color */
-static void destroyBlxColor(gpointer listDataItem, gpointer data)
+static void destroyBlxColor(BlxColor *blxColor)
 {
-  BlxColor *blxColor = (BlxColor*)listDataItem;
-
   if (blxColor)
     {
       g_free(blxColor->name);
       g_free(blxColor->desc);
-      
-      g_free(blxColor);
     }
 }
 
@@ -3616,7 +3618,8 @@ static void createBlxColor(BlxViewContext *bc,
 			   const char *normalColSelected,
 			   const char *printColSelected)
 {
-  BlxColor *result = g_malloc(sizeof(BlxColor));
+  BlxColor *result = &g_array_index(bc->defaultColors, BlxColor, colorId);
+				    
   result->transparent = FALSE;
   GError *error = NULL;
   
@@ -3674,16 +3677,12 @@ static void createBlxColor(BlxViewContext *bc,
       g_free(result);
       result = NULL;
     }
-  
+
   if (result)
     {
       /* Set the other properties */
       result->name = g_strdup(name);
       result->desc = g_strdup(desc);
-      result->id = colorId;
-      
-      /* Insert into the list */
-      bc->colorList = g_list_append(bc->colorList, result);
     }
 }
 
@@ -3711,11 +3710,22 @@ static char* convertColorToString(GdkColor *color)
 /* Create the colors that blixem will use for various specific purposes */
 static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 {
-  bc->colorList = NULL;
+  /* Initialise the array with empty BlxColor structs */
+  bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BLXCOL_NUM_COLORS);
+  int i = BLXCOL_MIN + 1;
+  
+  for ( ; i < BLXCOL_NUM_COLORS; ++i)
+    {
+      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
+      blxColor->name = NULL;
+      blxColor->desc = NULL;
+      g_array_append_val(bc->defaultColors, *blxColor);
+    }
   
   /* Get the default background color of our widgets (i.e. that inherited from the theme).
    * Convert it to a string so we can use the same creation function as the other colors */
   char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
+  printf("creating colors\n");
   createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, NULL, NULL);
   
   /* reference sequence */
@@ -3800,7 +3810,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->dotterEnd = UNSET_INT;
   blxContext->dotterZoom = 0;
   
-  blxContext->colorList = NULL;
+  blxContext->defaultColors = NULL;
   blxContext->usePrintColors = FALSE;
   
   createBlxColors(blxContext, widget);
@@ -4042,7 +4052,7 @@ static void onUpdateBackgroundColor(GtkWidget *blxWindow)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
-  GdkColor *defaultBgColor = getGdkColor(bc, BLXCOL_BACKGROUND, FALSE);
+  GdkColor *defaultBgColor = getGdkColor(BLXCOL_BACKGROUND, bc->defaultColors, FALSE, bc->usePrintColors);
   setWidgetBackgroundColor(blxWindow, defaultBgColor);
   
   blxWindowRedrawAll(blxWindow);
@@ -4055,34 +4065,6 @@ static void blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean useP
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   bc->usePrintColors = usePrintColors;
   onUpdateBackgroundColor(blxWindow);
-}
-
-
-/* Lookup the BlxColor with the given id in the given hash table and return a 
- * pointer to the gdk color with the given properties */
-GdkColor* getGdkColor(BlxViewContext *bc, const BlxColorId colorId, const gboolean selected)
-{
-  GdkColor *result = NULL;
-  
-  BlxColor *blxColor = getBlxColor(bc->colorList, colorId);
-  
-  if (blxColor)
-    {
-      if (bc->usePrintColors)
-	{
-	  result = selected ? &blxColor->printSelected : &blxColor->print;
-	}
-      else
-	{
-	  result = selected ? &blxColor->selected : &blxColor->normal;
-	}
-    }
-  else
-    {
-      printf("Error: requested invalid color ID %d", colorId);
-    }
-  
-  return result;
 }
 
 

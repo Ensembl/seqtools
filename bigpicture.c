@@ -252,8 +252,8 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
 			      properties->bigPicture, 
                               drawable,
 			      gc,
-			      getGdkColor(bc, BLXCOL_GRID_TEXT, FALSE), 
-			      getGdkColor(bc, BLXCOL_GRID_LINE, FALSE));
+			      getGdkColor(BLXCOL_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors), 
+			      getGdkColor(BLXCOL_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors));
   
   g_object_unref(gc);
 }

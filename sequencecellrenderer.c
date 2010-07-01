@@ -1032,10 +1032,10 @@ static void drawMsps(SequenceCellRenderer *renderer,
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
   const BlxSequence *seq = firstMsp ? firstMsp->sSequence : NULL;
 
-  GdkColor *matchColor = getGdkColor(bc, BLXCOL_MATCH, FALSE);
-  GdkColor *matchColorSelected = getGdkColor(bc, BLXCOL_MATCH, TRUE);
-  GdkColor *mismatchColor = getGdkColor(bc, BLXCOL_MISMATCH, FALSE);
-  GdkColor *mismatchColorSelected = getGdkColor(bc, BLXCOL_MISMATCH, TRUE);
+  GdkColor *matchColor = getGdkColor(BLXCOL_MATCH, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *matchColorSelected = getGdkColor(BLXCOL_MATCH, bc->defaultColors, TRUE, bc->usePrintColors);
+  GdkColor *mismatchColor = getGdkColor(BLXCOL_MISMATCH, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *mismatchColorSelected = getGdkColor(BLXCOL_MISMATCH, bc->defaultColors, TRUE, bc->usePrintColors);
   
   RenderData data = {
     bc,
@@ -1055,22 +1055,22 @@ static void drawMsps(SequenceCellRenderer *renderer,
     highlightDiffs,
     widgetGetDrawable(tree),
     detailViewProperties->blxWindow,
-    getGdkColor(bc, BLXCOL_EXON_CDS, FALSE),
-    getGdkColor(bc, BLXCOL_EXON_CDS, TRUE),
-    getGdkColor(bc, BLXCOL_EXON_UTR, FALSE),
-    getGdkColor(bc, BLXCOL_EXON_UTR, TRUE),
-    getGdkColor(bc, BLXCOL_INSERTION, FALSE),
-    getGdkColor(bc, BLXCOL_INSERTION, TRUE),
+    getGdkColor(BLXCOL_EXON_CDS, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOL_EXON_CDS, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOL_EXON_UTR, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOL_EXON_UTR, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOL_INSERTION, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOL_INSERTION, bc->defaultColors, TRUE, bc->usePrintColors),
     highlightDiffs ? mismatchColor : matchColor,
     highlightDiffs ? mismatchColorSelected : matchColorSelected,
-    getGdkColor(bc, BLXCOL_CONS, FALSE),
-    getGdkColor(bc, BLXCOL_CONS, TRUE),
+    getGdkColor(BLXCOL_CONS, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOL_CONS, bc->defaultColors, TRUE, bc->usePrintColors),
     highlightDiffs ? matchColor : mismatchColor,
     highlightDiffs ? matchColorSelected : mismatchColorSelected,
-    getGdkColor(bc, BLXCOL_UNALIGNED_SEQ, FALSE),
-    getGdkColor(bc, BLXCOL_UNALIGNED_SEQ, TRUE),
-    getGdkColor(bc, BLXCOL_EXON_START, FALSE),
-    getGdkColor(bc, BLXCOL_EXON_END, FALSE),
+    getGdkColor(BLXCOL_UNALIGNED_SEQ, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOL_UNALIGNED_SEQ, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOL_EXON_START, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOL_EXON_END, bc->defaultColors, FALSE, bc->usePrintColors),
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
     detailViewProperties->exonBoundaryLineStyleEnd,

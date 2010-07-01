@@ -1385,13 +1385,13 @@ void drawHeaderChar(BlxViewContext *bc,
     {
       /* The coord is affected by a SNP. Outline it in the "selected" SNP color
        * (which is darker than the normal color) */
-      outlineColor = getGdkColor(bc, BLXCOL_SNP, TRUE);
+      outlineColor = getGdkColor(BLXCOL_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
       
       /* If the SNP is selected, also fill it with the SNP color (using the
        * "unselected" SNP color, which is lighter than the outline). */
       if (dnaIdxSelected)
 	{
-	  fillColor = getGdkColor(bc, BLXCOL_SNP, FALSE);
+	  fillColor = getGdkColor(BLXCOL_SNP, bc->defaultColors, FALSE, bc->usePrintColors);
 	}
     }
   
@@ -1402,22 +1402,22 @@ void drawHeaderChar(BlxViewContext *bc,
 	  /* The coord is a nucleotide in the currently-selected codon. The color depends
 	   * on whether the actual nucleotide itself is selected, or just the codon that it 
 	   * belongs to. */
-	  fillColor = getGdkColor(bc, BLXCOL_CODON, dnaIdxSelected);
+	  fillColor = getGdkColor(BLXCOL_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
 	}
       else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
 	{
 	  /* The coord is a MET codon */
-	  fillColor = getGdkColor(bc, BLXCOL_MET, displayIdxSelected);
+	  fillColor = getGdkColor(BLXCOL_MET, bc->defaultColors, displayIdxSelected, bc->usePrintColors);
 	}
       else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
 	{
 	  /* The coord is a STOP codon */
-	  fillColor = getGdkColor(bc, BLXCOL_STOP, displayIdxSelected);
+	  fillColor = getGdkColor(BLXCOL_STOP, bc->defaultColors, displayIdxSelected, bc->usePrintColors);
 	}
       else if (showBackground)
 	{
 	  /* Use the default background color for the reference sequence */
-	  fillColor = getGdkColor(bc, BLXCOL_REF_SEQ, displayIdxSelected);
+	  fillColor = getGdkColor(BLXCOL_REF_SEQ, bc->defaultColors, displayIdxSelected, bc->usePrintColors);
 	}
     }
   
@@ -1477,8 +1477,8 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      /* Draw the outline in the default SNP color. If the SNP is selected, also
 	       * fill in the rectangle in the SNP color (use the selected color for the
 	       * outline and the unselected color for the fill, so that the outline is darker). */
-	      GdkColor *outlineColor = getGdkColor(bc, BLXCOL_SNP, TRUE);
-	      GdkColor *fillColor = isSelected ? getGdkColor(bc, BLXCOL_SNP, FALSE) : NULL;
+	      GdkColor *outlineColor = getGdkColor(BLXCOL_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
+	      GdkColor *fillColor = isSelected ? getGdkColor(BLXCOL_SNP, bc->defaultColors, FALSE, bc->usePrintColors) : NULL;
 	      
 	      /* Draw the background rectangle for the char */
 	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, properties->charHeight);

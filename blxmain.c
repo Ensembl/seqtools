@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.16 2010-06-29 09:06:46 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.17 2010-07-01 08:54:44 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -118,6 +118,26 @@ static char *help_string = "\n\
 
 
 
+/* Utility to extract a color string with the key name 'key' from the given group in the
+ * given key file. Does nothing if the given error is already set. */
+static char* getColorFromKeyFile(GKeyFile *keyFile, const char *group, const char *key, GError **error)
+{
+  char *result = NULL;
+  
+  if (error == NULL || *error == NULL)
+    {
+      result = g_key_file_get_value(keyFile, group, key, error);
+
+      if (error && *error)
+	{
+	  prefixError(*error, "Required key not found. ");
+	  postfixError(*error, "\n");
+	}
+    }
+    
+  return result;
+}
+
 
 /* Read in the key file, which contains style information. Returns a list of
  * style structs for each style found. */
@@ -148,19 +168,24 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
       for (i = 0, group = groups ; i < num_groups && !tmpError ; i++, group++)
 	{
           /* Look for the keys corresponding to the style values we require */
-          char *fillColor = g_key_file_get_value(keyFile, *group, "fill_color", &tmpError);
-          
-          if (!tmpError)
-            {
-              char *lineColor = g_key_file_get_value(keyFile, *group, "line_color", &tmpError);
-              
-              if (!tmpError)
-                {
-                  /* Create a style with these colors */
-                  BlxStyle *style = createBlxStyle(*group, fillColor, lineColor, &tmpError);
-                  result = g_slist_append(result, style);
-                }
-            }
+	  char *fillColor = getColorFromKeyFile(keyFile, *group, "fill_color", &tmpError);
+	  char *lineColor = getColorFromKeyFile(keyFile, *group, "line_color", &tmpError);
+	  
+	  /* Look for optional keys (passing error as null means we don't care if it's not found) */
+	  char *fillColorSelected = getColorFromKeyFile(keyFile, *group, "fill_color_selected", NULL);
+	  char *lineColorSelected = getColorFromKeyFile(keyFile, *group, "line_color_selected", NULL);
+	  char *fillColorPrint = getColorFromKeyFile(keyFile, *group, "fill_color_print", NULL);
+	  char *lineColorPrint = getColorFromKeyFile(keyFile, *group, "line_color_print", NULL);
+	  char *fillColorPrintSelected = getColorFromKeyFile(keyFile, *group, "fill_color_print_selected", NULL);
+	  char *lineColorPrintSelected = getColorFromKeyFile(keyFile, *group, "line_color_print_selected", NULL);
+
+	  /* If there was an error, skip this group. Otherwise, go ahead and create the style */
+	  if (!tmpError)
+	    {
+	      BlxStyle *style = createBlxStyle(*group, fillColor, fillColorSelected, fillColorPrint, fillColorPrintSelected,
+						lineColor, lineColorSelected, lineColorPrint, lineColorPrintSelected, &tmpError);
+	      result = g_slist_append(result, style);
+	    }
         }
       
       if (tmpError)
@@ -176,7 +201,7 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
   
   if (error && *error)
     {
-      prefixError(*error, "Error reading key file. ");
+      prefixError(*error, "Error reading key file '%s'. ", keyFileName);
     }
   
   return result;

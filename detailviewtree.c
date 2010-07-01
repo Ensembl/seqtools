@@ -513,7 +513,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 	  /* Set the background color (in the parent, seeing as the label doesn't have a window) */
 	  BlxViewContext *bc = treeGetContext(tree);
 	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
-	  GdkColor *bgColor = getGdkColor(bc, BLXCOL_REF_SEQ, FALSE);
+	  GdkColor *bgColor = getGdkColor(BLXCOL_REF_SEQ, bc->defaultColors, FALSE, bc->usePrintColors);
 	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, bgColor);
 
 	  /* Update the font, in case its size has changed */

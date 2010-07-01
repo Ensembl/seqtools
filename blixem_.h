@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.36 2010-06-28 16:19:31 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.37 2010-07-01 08:54:44 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -287,9 +287,12 @@ void                               blviewResetGlobals();
 void                               addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
 BlxSequence*                       addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *sequence, GError **error);
 
-BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *lineColor, GError **error);
+BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *fillColorSelected, const char *fillColorPrint, const char *fillColorPrintSelected, const char *lineColor, const char *lineColorSelected, const char *lineColorPrint, const char *lineColorPrintSelected, GError **error);
 void                               destroyBlxStyle(BlxStyle *style);
-BlxStyle*                          getBlxStyle(const char *styleName, GSList *styles);
+BlxStyle*                          getBlxStyle(const char *styleName, GSList *styles, GError **error);
+
+BlxColor*			   getBlxColor(GArray *defaultColors, const BlxColorId colorId);
+GdkColor*			   getGdkColor(BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
 
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */

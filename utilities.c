@@ -387,6 +387,29 @@ void getSelectionColor(GdkColor *origColor, GdkColor *result)
 }
 
 
+/* Utility to take a gdk color and return a greyscale version of it */
+void convertToGrayscale(GdkColor *origColor, GdkColor *result)
+{
+  result->red = result->green = result->blue =
+   ((11 * origColor->red) + (16 * origColor->green) + (5 * origColor->blue)) / 32;
+   
+  gboolean failures[1];
+  gint numFailures = gdk_colormap_alloc_colors(gdk_colormap_get_system(), result, 1, TRUE, TRUE, failures);
+  
+  if (numFailures > 0)
+    {
+      printf("Warning: error calculating greyscale color (RGB=%d %d %d).", origColor->red, origColor->green, origColor->blue);
+      
+      /* Set it to black, for want of something better to do... */
+      result->pixel = 0;
+      result->red = 0;
+      result->green = 0;
+      result->blue = 0;
+    }
+
+}
+
+
 /* Utility to take a gdk color and return a much darker shade of it, for use as a drop-shadow */
 void getDropShadowColor(GdkColor *origColor, GdkColor *result)
 {
@@ -407,51 +430,72 @@ gboolean mspIsExon(const MSP const *msp)
  * exons, this is determined by the exon type. For introns, we have to look at the
  * adjacent exons to determine whether to show them as CDS or UTR - only show it as
  * CDS if there is a CDS exon on both sides of the intron. */
-gboolean mspIsCds(const MSP const *msp, const BlxSequence *blxSeq)
+static const GdkColor* mspGetIntronColor(const MSP const *msp, 
+					 GArray *defaultColors,
+					 const BlxSequence *blxSeq,
+					 const gboolean selected,
+					 const gboolean usePrintColors,
+					 const gboolean fill)
 {
-  gboolean result = FALSE;
+  const GdkColor *result = NULL;
   
-  if (mspIsExon(msp))
-    {
-      result = msp && msp->type == BLXMSP_EXON_CDS;
-    }
-  else if (mspIsIntron(msp))
-    {
-      /* Find the nearest exons before and after this MSP */
-      const MSP *prevExon = NULL;
-      const MSP *nextExon = NULL;
-    
-      GList *mspItem = blxSeq->mspList;
-      for ( ; mspItem; mspItem = mspItem->next)
-	{
-	  const MSP *curMsp = (const MSP *)(mspItem->data);
-	
-	  if (mspIsExon(curMsp))
-	    {
-	      const int curOffset = mspGetQStart(curMsp) - mspGetQStart(msp);
-	    
-	      if (curOffset < 0 && (!prevExon || curOffset > mspGetQStart(prevExon) - mspGetQStart(msp)))
-		{
-		  /* Current MSP is before our MSP and is the smallest offset so far */
-		  prevExon = curMsp;
-		}
-	      else if (curOffset > 0 && (!nextExon || curOffset < mspGetQStart(nextExon) - mspGetQStart(msp)))
-		{
-		  /* Current MSP is after our MSP and is the smallest offset so far */
-		  nextExon = curMsp;
-		}
-	    }
-	}
+  /* Find the nearest exons before and after this MSP */
+  const MSP *prevExon = NULL;
+  const MSP *nextExon = NULL;
 
-      /* If there isn't an exon either side, we don't know what to display. Default to UTR. */
-      result = prevExon || nextExon;
-      
-      /* For the exon(s) that we found, they must both be CDS if the intron is to be CDS. If
-       * we only have an exon on one side, and it is CDS, then the intron is CDS. */
-      result &= (!prevExon || prevExon->type == BLXMSP_EXON_CDS) &&
-		(!nextExon || nextExon->type == BLXMSP_EXON_CDS);
+  GList *mspItem = blxSeq->mspList;
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP *curMsp = (const MSP *)(mspItem->data);
+    
+      if (mspIsExon(curMsp))
+        {
+          const int curOffset = mspGetQStart(curMsp) - mspGetQStart(msp);
+        
+          if (curOffset < 0 && (!prevExon || curOffset > mspGetQStart(prevExon) - mspGetQStart(msp)))
+            {
+              /* Current MSP is before our MSP and is the smallest offset so far */
+              prevExon = curMsp;
+            }
+          else if (curOffset > 0 && (!nextExon || curOffset < mspGetQStart(nextExon) - mspGetQStart(msp)))
+            {
+              /* Current MSP is after our MSP and is the smallest offset so far */
+              nextExon = curMsp;
+            }
+        }
     }
-  
+
+  gboolean prevIsUtr = prevExon && prevExon->type == BLXMSP_EXON_UTR;
+  gboolean nextIsUtr = nextExon && nextExon->type == BLXMSP_EXON_UTR;
+
+  /* if either exon is UTR, the intron is UTR */
+  if (prevIsUtr)
+    {
+      result = mspGetColor(prevExon, defaultColors, blxSeq, selected, usePrintColors, fill);
+    }
+  else if (nextIsUtr)
+    {
+      result = mspGetColor(nextExon, defaultColors, blxSeq, selected, usePrintColors, fill);
+    }
+  else if (prevExon)
+    {
+      /* Both exons (or the sole exon, if only one exists) are CDS, so the intron is CDS */
+      result = mspGetColor(prevExon, defaultColors, blxSeq, selected, usePrintColors, fill);
+    }
+  else if (nextExon)
+    {
+      /* This is the only exon and it is CDS, so make the intron CDS */
+      result = mspGetColor(nextExon, defaultColors, blxSeq, selected, usePrintColors, fill);
+    }
+  else
+    {
+      /* No exon exists adjacent to this intron: default to UTR for want of anything better to do. */
+      if (fill)
+        result = getGdkColor(BLXCOL_EXON_FILL_UTR, defaultColors, selected, usePrintColors);
+      else
+        result = getGdkColor(BLXCOL_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
+    }
+              
   return result;
 }
 
@@ -964,6 +1008,103 @@ char* mspGetSeqName(const MSP *msp)
   
   return name;
 }
+
+
+/* For the given BlxColor, return a pointer to the GdkColor that meets the given criteria */
+static const GdkColor *blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors)
+{
+  const GdkColor *result = NULL;
+  
+  if (usePrintColors)
+    {
+      if (selected)
+	{
+	  result = &blxColor->printSelected;
+	}
+      else
+	{
+	  result = &blxColor->print;
+	}
+    }
+  else
+    {
+      if (selected)
+	{
+	  result = &blxColor->selected;
+	}
+      else
+	{
+	  result = &blxColor->normal;
+	}
+    }
+    
+  return result;
+}
+
+
+/* Return the color matching the given properties from the given style */
+static const GdkColor *styleGetColor(const BlxStyle *style, const gboolean selected, const gboolean usePrintColors, const gboolean fill)
+{
+  const GdkColor *result = NULL;
+  
+  if (fill)
+    {
+      result = blxColorGetColor(&style->fillColor, selected, usePrintColors);
+    }
+  else
+    {
+      result = blxColorGetColor(&style->lineColor, selected, usePrintColors);
+    }
+  return result;
+}
+
+
+/* Get the color for drawing the given MSP (If 'selected' is true, returns
+ * the color when the MSP is selected.). Returns the fill color if 'fill' is 
+ * true, otherwise the line color */
+const GdkColor* mspGetColor(const MSP const *msp, 
+			    GArray *defaultColors, 
+			    const BlxSequence *blxSeq,
+			    const gboolean selected, 
+			    const gboolean usePrintColors, 
+			    const gboolean fill)
+{
+  const GdkColor *result = NULL;
+  
+  if (msp->style)
+    {
+      result = styleGetColor(msp->style, selected, usePrintColors, fill);
+    }
+
+  if (!result)
+    {
+      /* Use the default color for this MSP's type */
+      switch (msp->type)
+        {
+          case BLXMSP_EXON_UNK:
+            result = getGdkColor(fill ? BLXCOL_EXON_FILL_CDS : BLXCOL_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
+            break;
+            
+          case BLXMSP_EXON_CDS:
+            result = getGdkColor(fill ? BLXCOL_EXON_FILL_CDS : BLXCOL_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
+            break;
+
+          case BLXMSP_EXON_UTR:
+            result = getGdkColor(fill ? BLXCOL_EXON_FILL_UTR : BLXCOL_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
+            break;
+            
+          case BLXMSP_INTRON:
+             result = mspGetIntronColor(msp, defaultColors, blxSeq, selected, usePrintColors, fill);
+             break;
+             
+          default:
+            break;
+        };
+    }
+  
+  return result;
+}
+
 
 
 /* Return a char representation of a strand, i.e. "+" for forward strand, "-" for
@@ -1756,37 +1897,6 @@ gint runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText)
   gtk_widget_destroy(dialog);
   
   return response;
-}
-
-
-/* Lookup the BlxColor with the given id in the given hash table and return a pointer to it */
-BlxColor* getBlxColor(GList *colorList, const BlxColorId colorId)
-{
-  BlxColor *result = NULL;
-  GList *item = colorList;
-  
-  for ( ; item; item = item->next)
-    {
-      BlxColor *blxColor = (BlxColor*)(item->data);
-
-      if (blxColor->id == colorId)
-	{
-	  result = blxColor;
-	  break;
-	}
-    }
-  
-  if (result && result->transparent)
-    {
-      /* return the background color instead */
-      result = getBlxColor(colorList, BLXCOL_BACKGROUND);
-    }
-  else if (!result)
-    {
-      printf("Warning: color ID %d not found.\n", colorId);
-    }
-  
-  return result;
 }
 
 

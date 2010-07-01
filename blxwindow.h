@@ -72,7 +72,7 @@ typedef struct _BlxViewContext
   int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
   int dotterZoom;		    /* Zoom param to call dotter with */
   
-  GList *colorList;		    /* Colors used by Blixem for specific purposes */
+  GArray *defaultColors;	    /* Default colors used by Blixem */
   gboolean usePrintColors;	    /* Whether to use print colors (i.e. black and white) */
 } BlxViewContext;
 
@@ -104,8 +104,6 @@ SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSeque
 const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
 int			  blxWindowGetOffset(GtkWidget *blxWindow);
 BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
-
-GdkColor*		  getGdkColor(BlxViewContext *bc, const BlxColorId colorId, const gboolean selected);
 
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
 void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.45 2010-06-28 16:19:31 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.46 2010-07-01 08:54:44 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -969,7 +969,16 @@ static GList* getEmptySeqs(GList *inputList)
 
 
 /* Create a BlxStyle */
-BlxStyle* createBlxStyle(const char *styleName, const char *fillColor, const char *lineColor, GError **error)
+BlxStyle* createBlxStyle(const char *styleName, 
+			 const char *fillColor, 
+			 const char *fillColorSelected, 
+			 const char *fillColorPrint, 
+			 const char *fillColorPrintSelected, 
+			 const char *lineColor, 
+			 const char *lineColorSelected, 
+			 const char *lineColorPrint, 
+			 const char *lineColorPrintSelected, 
+			 GError **error)
 {
   BlxStyle *style = g_malloc(sizeof(BlxStyle));
   GError *tmpError = NULL;
@@ -984,16 +993,53 @@ BlxStyle* createBlxStyle(const char *styleName, const char *fillColor, const cha
       style->styleName = g_strdup(styleName);
     }
   
-  if (!tmpError)
+  if (!tmpError && fillColor)
     {
-      getColorFromString(fillColor, &style->fillColor, &tmpError);
+      getColorFromString(fillColor, &style->fillColor.normal, &tmpError);
+      getSelectionColor(&style->fillColor.normal, &style->fillColor.selected); /* default if selection color not given */
+      convertToGrayscale(&style->fillColor.normal, &style->fillColor.print); /* default if print color not given */
+      getSelectionColor(&style->fillColor.print, &style->fillColor.printSelected); /* default if selected-print color not given */
     }
   
-  if (!tmpError)
+  if (!tmpError && lineColor)
     {
-      getColorFromString(lineColor, &style->lineColor, &tmpError);
+      getColorFromString(lineColor, &style->lineColor.normal, &tmpError);
+      getSelectionColor(&style->lineColor.normal, &style->lineColor.selected); /* default if selection color not given */
+      convertToGrayscale(&style->lineColor.normal, &style->lineColor.print); /* default if print color not given */
+      getSelectionColor(&style->lineColor.print, &style->lineColor.printSelected); /* default if selected-print color not given */
     }
-  
+
+  if (!tmpError && fillColorSelected)
+    {
+      getColorFromString(fillColorSelected, &style->fillColor.selected, &tmpError);
+    }
+    
+    if (!tmpError && lineColorSelected)
+    {
+      getColorFromString(lineColorSelected, &style->lineColor.selected, &tmpError);
+    }
+
+  if (!tmpError && fillColorPrint)
+    {
+      getColorFromString(fillColorPrint, &style->fillColor.print, &tmpError);
+    }
+
+  if (!tmpError && lineColorPrint)
+    {
+      getColorFromString(lineColorPrint, &style->lineColor.print, &tmpError);
+    }
+
+
+  if (!tmpError && fillColorPrintSelected)
+    {
+      getColorFromString(fillColorPrintSelected, &style->fillColor.printSelected, &tmpError);
+    }
+
+  if (!tmpError && lineColorPrintSelected)
+    {
+      getColorFromString(lineColorPrintSelected, &style->lineColor.printSelected, &tmpError);
+    }
+
   if (tmpError)
     {
       g_free(style);
@@ -1015,20 +1061,80 @@ void destroyBlxStyle(BlxStyle *style)
 }
 
 
-/* Get the BlxStyle with the given name. Returns null if not found. */
-BlxStyle* getBlxStyle(const char *styleName, GSList *styles)
+/* Get the BlxStyle with the given name. Returns null and sets the error if 
+ * we expected to find the name but didn't. The special-case input string "."
+ * means "value not set", so in this case we return NULL and don't set the error. */
+BlxStyle* getBlxStyle(const char *styleName, GSList *styles, GError **error)
 {
   BlxStyle *result = NULL;
-  GSList *item = styles;
-  
-  for ( ; item; item = item->next)
+
+  if (strcmp(styleName, ".") != 0)
     {
-      BlxStyle *style = (BlxStyle*)(item->data);
-      if (style && stringsEqual(style->styleName, styleName, FALSE))
-        {
-          result = style;
-          break;
-        }
+      GSList *item = styles;
+      
+      for ( ; item; item = item->next)
+	{
+	  BlxStyle *style = (BlxStyle*)(item->data);
+	  if (style && stringsEqual(style->styleName, styleName, FALSE))
+	    {
+	      result = style;
+	      break;
+	    }
+	}
+	
+      /* Set the error if we failed to find the style name */
+      if (!result)
+	{
+	  g_set_error(error, BLX_ERROR, 1, "Requested style '%s' does not exist.\n", styleName);
+	}
+    }
+
+  return result;
+}
+
+
+
+/* Return a pointer to the BlxColor with the given id */
+BlxColor* getBlxColor(GArray *defaultColors, const BlxColorId colorId)
+{
+  BlxColor *result = &g_array_index(defaultColors, BlxColor, colorId);
+
+  if (result && result->transparent)
+    {
+      /* return the background color instead */
+      result = &g_array_index(defaultColors, BlxColor, BLXCOL_BACKGROUND);
+    }
+  else if (!result)
+    {
+      printf("Warning: color ID %d not found in the default colors array.\n", colorId);
+    }
+  
+  return result;
+}
+
+
+/* Lookup the BlxColor with the given id in the given hash table and return a 
+ * pointer to the gdk color with the given properties */
+GdkColor* getGdkColor(const BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors)
+{
+  GdkColor *result = NULL;
+  
+  BlxColor *blxColor = getBlxColor(defaultColors, colorId);
+  
+  if (blxColor)
+    {
+      if (usePrintColors)
+	{
+	  result = selected ? &blxColor->printSelected : &blxColor->print;
+	}
+      else
+	{
+	  result = selected ? &blxColor->selected : &blxColor->normal;
+	}
+    }
+  else
+    {
+      printf("Error: requested invalid color ID %d", colorId);
     }
   
   return result;

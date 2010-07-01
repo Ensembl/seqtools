@@ -104,59 +104,6 @@ typedef enum
   } BlxResponseType;
 
 
-/* The following are used to define default colors for certain types of features in Blixem.
- * One of several different actual colors from the BlxColor struct may be used depending 
- * on state, e.g. we use a different color if "print colors" (i.e. black and 
- * white mode) is on. */
-
-typedef enum 
-  {
-    BLXCOL_MIN,		  /* dummy value so that we don't get a zero ID */
-  
-    BLXCOL_BACKGROUND,	  /* background color of the widgets */
-    BLXCOL_REF_SEQ,	  /* default background color for the reference sequence */  
-    BLXCOL_MATCH,	  /* background color for an exact match */
-    BLXCOL_CONS,	  /* background color for a conserved match */
-    BLXCOL_MISMATCH,	  /* background color for a mismatch */
-    BLXCOL_EXON_CDS,	  /* background color for an exon (coding region) */
-    BLXCOL_EXON_UTR,	  /* background color for an exon (non-coding/untranslated region) */
-    BLXCOL_INSERTION,	  /* color for an insertion marker */
-    BLXCOL_EXON_START,	  /* color for the start boundary line of an exon */
-    BLXCOL_EXON_END,  	  /* color for the end boundary line of an exon */
-    BLXCOL_CODON,	  /* color in which to highlight the nucleotides for the currently-selected codon */
-    BLXCOL_MET,		  /* background color for MET codons in the three frame translation */
-    BLXCOL_STOP,	  /* background color for STOP codons in the three frame translation */
-    BLXCOL_GRID_LINE,	  /* color of the gridlines in the big picture grids */
-    BLXCOL_GRID_TEXT,	  /* color of the text in the big picture grids */
-    BLXCOL_HIGHLIGHT_BOX, /* color of the highlight box in the big picture */
-    BLXCOL_PREVIEW_BOX,	  /* color of the preview box in the big picture */
-    BLXCOL_MSP_LINE,	  /* color of the MSP lines in the big picture */
-    BLXCOL_SNP,		  /* background color for SNPs */
-    BLXCOL_GROUP,	  /* default highlight color for generic groups */
-    BLXCOL_MATCH_SET,	  /* default highlight color for the special match-set group */
-    BLXCOL_EXON_FILL_CDS, /* fill color for an exon in the big picture (coding region) */
-    BLXCOL_EXON_FILL_UTR, /* fill color for an exon in the big picture (non-coding/untranslated region) */
-    BLXCOL_EXON_LINE_CDS, /* line color for an exon in the big picture (coding region) */
-    BLXCOL_EXON_LINE_UTR, /* line color for an exon in the big picture (non-coding/untranslated region) */
-    BLXCOL_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
-
-    BLXCOL_NUM_COLORS
-  } BlxColorId;
-
-typedef struct _BlxColor
-  {
-    BlxColorId id;		  /* unique ID for this color */
-    char *name;			  /* meaningful name for the color e.g. "Match" */
-    char *desc;			  /* meaningful description for what the color is used for e.g. "background color for exact matches" */
-    gboolean transparent;	  /* if this is true, the colors below are not specified and the background color should be used instead */
-    
-    GdkColor normal;		  /* the color in normal operation */
-    GdkColor selected;		  /* the color in a selected state */
-    GdkColor print;		  /* the color used for printing */
-    GdkColor printSelected;	  /* the selected-state color used for printing */
-  } BlxColor;
-
-
 /* Struct to hold a pair of coordinate ranges, one holding ref seq coords, the other match coords */
 typedef struct _CoordRange
   {
@@ -184,13 +131,13 @@ int		      numDigitsInInt(int val);
 gboolean              getColorFromString(const char *colorStr, GdkColor *color, GError **error);
 void		      getSelectionColor(GdkColor *origColor, GdkColor *result);
 void		      getDropShadowColor(GdkColor *origColor, GdkColor *result);
+void		      convertToGrayscale(GdkColor *origColor, GdkColor *result);
 void		      adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *result);
 
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
 gboolean	      mspIsSnp(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);
-gboolean	      mspIsCds(const MSP const *msp, const BlxSequence *blxSeq);
 
 gboolean              mspHasSName(const MSP const *msp);
 gboolean              mspHasSSeq(const MSP  const *msp);
@@ -235,6 +182,7 @@ int		      mspGetSEnd(const MSP const *msp);
 int		      mspGetQRangeLen(const MSP const *msp);
 int		      mspGetSRangeLen(const MSP const *msp);
 int		      mspGetMatchSeqLen(const MSP const *msp);
+const GdkColor*       mspGetColor(const MSP const *msp, GArray *defaultColors, const BlxSequence *blxSeq, const gboolean selected, const gboolean usePrintColors, const gboolean fill);
 
 char                  getStrandAsChar(const BlxStrand strand);
 
@@ -322,8 +270,6 @@ const IntRange const* sequenceGetRange(const BlxSequence *seq);
 int		      sequenceGetLength(const BlxSequence *seq);
 
 void		      destroyBlxSequence(BlxSequence *seq);
-
-BlxColor*	      getBlxColor(GList *colorList, const BlxColorId colorId);
 
 void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void		      popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);

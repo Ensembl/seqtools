@@ -35,14 +35,6 @@ typedef struct _DrawData
   {
     GdkDrawable *drawable;
     GdkGC *gc;
-    GdkColor *cdsFillColor;
-    GdkColor *cdsFillColorSelected;
-    GdkColor *cdsLineColor;
-    GdkColor *cdsLineColorSelected;
-    GdkColor *utrFillColor;
-    GdkColor *utrFillColorSelected;
-    GdkColor *utrLineColor;
-    GdkColor *utrLineColorSelected;
     GdkRectangle *exonViewRect;
     GtkWidget *blxWindow;
     BlxViewContext *bc;
@@ -71,32 +63,17 @@ static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
  *                       Utility functions                 *
  ***********************************************************/
 
-static GdkColor* getFillColor(const MSP const *msp, const gboolean isSelected, DrawData *data, const BlxSequence *blxSeq)
-{
-  if (mspIsCds(msp, blxSeq))
-    return (isSelected ? data->cdsFillColorSelected : data->cdsFillColor);
-  else /* UTR and undefined exon types */
-    return (isSelected ? data->utrFillColorSelected : data->utrFillColor);
-}
-
-static GdkColor* getLineColor(const MSP const *msp, const gboolean isSelected, DrawData *data, const BlxSequence *blxSeq)
-{
-  if (mspIsCds(msp, blxSeq))
-    return (isSelected ? data->cdsLineColorSelected : data->cdsLineColor);
-  else 
-    return (isSelected ? data->utrLineColorSelected : data->utrLineColor);
-}
-
-
 /* Draw an exon */
 static void drawExon(const MSP const *msp, GdkDrawable *drawable, DrawData *data, const BlxSequence *blxSeq, const gboolean isSelected, int x, int y, int width, int height)
 {
   /* Draw the fill rectangle */
-  gdk_gc_set_foreground(data->gc, getFillColor(msp, isSelected, data, blxSeq));
+  const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE);
+  gdk_gc_set_foreground(data->gc, fillColor);
   gdk_draw_rectangle(drawable, data->gc, TRUE, x, y, width, height);
   
   /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
-  gdk_gc_set_foreground(data->gc, getLineColor(msp, FALSE, data, blxSeq));
+  const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE);
+  gdk_gc_set_foreground(data->gc, lineColor);
   gdk_draw_rectangle(drawable, data->gc, FALSE, x, y, width, height);
   
 }
@@ -105,7 +82,8 @@ static void drawExon(const MSP const *msp, GdkDrawable *drawable, DrawData *data
 /* Draw an intron */
 static void drawIntron(const MSP const *msp, GdkDrawable *drawable, DrawData *data, const BlxSequence *blxSeq, const gboolean isSelected, int x, int y, int width, int height)
 {
-  gdk_gc_set_foreground(data->gc, getLineColor(msp, isSelected, data, blxSeq));
+  const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE);
+  gdk_gc_set_foreground(data->gc, lineColor);
 
   int xMid = x + roundNearest((double)width / 2.0);
   int xEnd = x + width;
@@ -211,20 +189,11 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
   GdkGC *gc = gdk_gc_new(drawable);
   
   DrawData drawData = {
     drawable,
     gc,
-    getGdkColor(bc, BLXCOL_EXON_FILL_CDS, FALSE),
-    getGdkColor(bc, BLXCOL_EXON_FILL_CDS, TRUE),
-    getGdkColor(bc, BLXCOL_EXON_LINE_CDS, FALSE),
-    getGdkColor(bc, BLXCOL_EXON_LINE_CDS, TRUE),
-    getGdkColor(bc, BLXCOL_EXON_FILL_UTR, FALSE),
-    getGdkColor(bc, BLXCOL_EXON_FILL_UTR, TRUE),
-    getGdkColor(bc, BLXCOL_EXON_LINE_UTR, FALSE),
-    getGdkColor(bc, BLXCOL_EXON_LINE_UTR, TRUE),
     &properties->exonViewRect,
     blxWindow,
     blxContext,
