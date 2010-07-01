@@ -22,6 +22,8 @@
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
 #define DEFAULT_GRID_PERCENT_ID_MAX	100	  /* default maximum %ID to show on the scale */
 #define MIN_NUM_V_CELLS			1	  /* minimum number of vertical cells to show in the grid */
+#define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2	  /* this provides space between highlight box and the top/bottom of the grid */
+#define MIN_HIGHLIGHT_BOX_WIDTH         5         /* minimum width of the highlight box */
 
 
 /* Local function declarations */
@@ -46,6 +48,19 @@ void bigPictureRedrawAll(GtkWidget *bigPicture)
   widgetClearCachedDrawable(properties->revExonView);
   
   gtk_widget_queue_draw(bigPicture);
+}
+
+
+/* Set the x coord of the centre of the preview box within the big picture.
+ * Setting it to UNSET_INT means the preview box will not be displayed. */
+void bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre)
+{
+  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(bigPicture);
+  
+  if (bigPictureProperties)
+    {
+      bigPictureProperties->previewBoxCentre = previewBoxCentre;
+    }
 }
 
 
@@ -429,6 +444,7 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
   if (recalcHighlightBox)
     {
       callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
+      callFuncOnAllBigPictureExonViews(bigPicture, calculateExonViewHighlightBoxBorders);
     }
 
   bigPictureRedrawAll(bigPicture);
@@ -635,6 +651,91 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 }
 
 
+/* Convert an x coord on the given widget to a base index */
+gint convertWidgetPosToBaseIdx(const gint widgetPos, 
+                               const GdkRectangle const *displayRect,  
+                               const IntRange const *displayRange)
+{
+  gint result = UNSET_INT;
+  
+  int distFromEdge = (int)((gdouble)widgetPos - (gdouble)displayRect->x);
+  int basesFromEdge = distFromEdge / pixelsPerBase(displayRect->width, displayRange);
+  result = displayRange->min + basesFromEdge;
+  
+  return result;
+}
+
+
+/* Draw the preview box on the given drawable within the boundaries of the given displayRect.
+ * The boundaries of the preview box are given by highlightRect.
+ * Only does anything if the preview box centre is set. */
+void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, GdkRectangle *displayRect, GdkRectangle *highlightRect)
+{
+  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(bigPicture);
+  
+  if (bigPictureProperties->previewBoxCentre == UNSET_INT)
+    {
+      return;
+    }
+
+  int previewBoxCentre = bigPictureProperties->previewBoxCentre;
+  const IntRange const *displayRange = &bigPictureProperties->displayRange;
+  
+  /* Find the x coord for the left edge of the preview box (or the right edge, if
+   * the display is right-to-left). */
+  int x = getLeftCoordFromCentre(previewBoxCentre, highlightRect->width, displayRect);
+  
+  /* Convert it to the base index and back again so that we get it rounded to the position of
+   * the nearest base. */
+  int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, displayRange);
+  int xRounded = convertBaseIdxToGridPos(baseIdx, displayRect, displayRange);
+  
+  /* The other dimensions of the preview box are the same as the current highlight box. */
+  GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
+
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  GdkColor *previewBoxColor = getGdkColor(BLXCOL_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+  drawHighlightBox(drawable, &previewRect, bigPictureProperties->previewBoxLineWidth, previewBoxColor);
+}
+
+
+/* Show a preview box centred on the given x coord */
+void showPreviewBox(GtkWidget *bigPicture, const int x)
+{
+  /* Set the centre position of the preview box. When this is set the box will
+   * be drawn when the grid is exposed. */
+  bigPictureSetPreviewBoxCentre(bigPicture, x);
+  
+  /* Force immediate update so that it happens before the button-release event */
+  gtk_widget_queue_draw(bigPicture);
+  gdk_window_process_updates(bigPicture->window, TRUE);
+}
+
+
+/* Scroll the big picture so that it is centred on the current preview box position, and clear
+ * the preview box.  */
+void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect)
+{
+  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  
+  /* Find the base index where the new scroll range will start. This is the leftmost
+   * edge of the preview box if numbers increase in the normal left-to-right direction, 
+   * or the rightmost edge if the display is reversed. */
+  int x = getLeftCoordFromCentre(xCentre, highlightRect->width, displayRect);
+  int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, displayRange);
+  
+  /* Clear the preview box */
+  bigPictureSetPreviewBoxCentre(bigPicture, UNSET_INT);
+  
+  /* Update the detail view's scroll pos to start at the new base. The base index is in terms of
+   * the display coords, so the coord's sequence type is whatever the displayed sequence type is */
+  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);  /* displayed seq type */
+  setDetailViewStartIdx(detailView, baseIdx, seqType);
+  
+  gtk_widget_queue_draw(bigPicture);
+}
+
 
 /***********************************************************
  *                       Properties                        *
@@ -709,8 +810,9 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 
       properties->previewBoxCentre = previewBoxCentre;
       properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
-      properties->highlightBoxLineWidth = DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH;
+      properties->highlightBoxMinWidth = MIN_HIGHLIGHT_BOX_WIDTH;
       properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
+      properties->highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD;
       properties->initialZoom = initialZoom;
       
       /* These will be initialized when the detail view size is first allocated,

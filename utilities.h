@@ -284,6 +284,7 @@ void		      intrangeSetValues(IntRange *range, const int val1, const int val2);
 void		      debugLogLevel(const int increaseAmt);
 #endif
 
+void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
 
 

@@ -43,8 +43,9 @@ typedef struct _BigPictureProperties
     int charWidth;		/* The width of the characters in the big picture grids */
     int charHeight;		/* The height of the characters in the big picture grids */
     
-    int highlightBoxLineWidth;
+    int highlightBoxMinWidth;
     int previewBoxLineWidth;
+    int highlightBoxYPad;       /* Vertical padding between the highlight box and the grid */
   } BigPictureProperties;
 
 typedef struct _GridHeaderProperties
@@ -89,11 +90,18 @@ BlxViewContext*		      bigPictureGetContext(GtkWidget *bigPicture);
 void			      bigPictureSetIdPerCell(GtkWidget *bigPicture, const int idPerCell);
 void			      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const int newValue);
 void			      bigPictureSetMinPercentId(GtkWidget *bigPicture, const int newValue);
+void                          bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
 void			      calculateNumVCells(GtkWidget *bigPicture);
 void			      bigPictureRedrawAll(GtkWidget *bigPicture);
+
+gint                          convertWidgetPosToBaseIdx(const gint widgetPos, const GdkRectangle const *displayRect, const IntRange const *displayRange);
+
+void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, GdkRectangle *displayRect, GdkRectangle *highlightRect);
+void                          showPreviewBox(GtkWidget *bigPicture, const int x);
+void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);

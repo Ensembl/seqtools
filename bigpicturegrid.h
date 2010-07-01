@@ -17,7 +17,6 @@
 
 
 #define BIG_PICTURE_GRID_NAME		"BigPictureGrid"
-#define DEFAULT_HIGHLIGHT_BOX_LINE_WIDTH 2
 
 
 typedef struct _GridProperties
@@ -30,7 +29,6 @@ typedef struct _GridProperties
     
     int gridYPadding;	     /* The y padding around the grid */
     int cellYPadding;	     /* The y padding of the grid cells around the text height */
-    int highlightBoxYPad;    /* Vertical padding between the highlight box and the grid */
     
     gulong exposeHandlerId;  /* The handler ID for the expose event */
     gboolean ignoreSizeAlloc; /* Flag to indicate that we should ignore size allocation events */
@@ -54,9 +52,6 @@ void		    callFuncOnAllBigPictureGrids(GtkWidget *widget,
 
 gint		    convertValueToGridPos(GtkWidget *grid, 
 					  const gint value);
-
-void		    showPreviewBox(GtkWidget *grid, const int x);
-void		    acceptAndClearPreviewBox(GtkWidget *grid, const int x);
 
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
 					 BlxStrand strand);

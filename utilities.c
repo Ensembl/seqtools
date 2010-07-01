@@ -2061,7 +2061,27 @@ void debugLogLevel(const int increaseAmt)
 #endif
 
 
+/* Draw the highlight box (for highlighting the current detail-view display range on 
+ * big-picture widgets such as the grids and exon views). */
+void drawHighlightBox(GdkDrawable *drawable,
+                      const GdkRectangle const *rect,
+                      const gint minWidth, 
+                      GdkColor *color)
+{
+  GdkGC *gc = gdk_gc_new(drawable);
 
+  gdk_gc_set_foreground(gc, color);
+//  gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+
+  gdk_gc_set_function(gc, GDK_AND);
+  
+  const int width = max(minWidth, rect->width);
+  
+  gdk_draw_rectangle(drawable, gc, TRUE, 
+		     rect->x, rect->y, width, rect->height);
+                     
+  g_object_unref(gc);
+}
 
 
 

@@ -1423,8 +1423,16 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
       
       if (result != UNSET_INT)
         {
-          /* Increment by one to make sure we don't re-find a previously-found match */
-          ++result;
+          /* Increment by one to make sure we don't re-find a previously-found match
+           * (or decrement if searching leftwards) */
+           if (searchLeft)
+             {
+                --result;
+              }
+            else
+              {
+                ++result;
+              }
         }
       else
         {
@@ -3758,8 +3766,8 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* Big Picture */
   createBlxColor(bc, BLXCOL_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOL_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc, BLXCOL_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", BLX_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_PREVIEW_BOX, "Preview box", "Preview box in the big picture", BLX_BLACK, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", "#c7c7c7", BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_PREVIEW_BOX, "Preview box", "Preview box in the big picture", "#b1b1b1", BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOL_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
 
   /* groups */

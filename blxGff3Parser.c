@@ -347,10 +347,18 @@ static void parseGffColumns(GString *line_string, const int lineNum, const char 
   if (!tmpError)
     {
       msp->qname = g_ascii_strup(tokens[0], -1);
-      msp->style = getBlxStyle(tokens[1], styles);
+      msp->style = getBlxStyle(tokens[1], styles, &tmpError);
+      
+      if (tmpError)
+	{
+	  /* An error getting the style is not critical so report it and clear the error */
+	  prefixError(tmpError, "[line %d] Error getting style for MSP (default styles will be used instead). ", lineNum);
+	  reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING); 
+	}
+	
       parseMspType(tokens[2], msp, &tmpError);
     }
-  
+    
   if (!tmpError)
     {
       int qStart = convertStringToInt(tokens[3]);

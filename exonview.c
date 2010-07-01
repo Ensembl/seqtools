@@ -27,6 +27,7 @@ typedef struct _ExonViewProperties
     int yPad;			      /* y padding */
     
     GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
+    GdkRectangle highlightRect;       /* The area that the highlight box will cover (indicating the current detail-view display range) */
   } ExonViewProperties;
 
 
@@ -56,12 +57,29 @@ typedef struct _DrawData
 static GtkWidget*		exonViewGetBigPicture(GtkWidget *exonView);
 static GtkWidget*		exonViewGetBlxWindow(GtkWidget *exonView);
 static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
-static GtkWidget*		exonViewGetTopGrid(GtkWidget *exonView);
 
 
 /***********************************************************
  *                       Utility functions                 *
  ***********************************************************/
+
+/* Calls the given function (passed as the data pointer) on the given widget 
+ * if it is an exon view in the big picture view, or, if it is a container, 
+ * calls the function on all children/grandchildren/etc that are exon views */
+void callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data)
+{
+  const gchar *name = gtk_widget_get_name(widget);
+  if (strcmp(name, BIG_PICTURE_EXON_VIEW_NAME) == 0)
+    {
+      GtkCallback func = (GtkCallback)data;
+      func(widget, NULL);
+    }
+  else if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnAllBigPictureExonViews, data);
+    }
+}
+
 
 /* Draw an exon */
 static void drawExon(const MSP const *msp, GdkDrawable *drawable, DrawData *data, const BlxSequence *blxSeq, const gboolean isSelected, int x, int y, int width, int height)
@@ -186,9 +204,21 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
 static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 {
   GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
+  
+  /* Draw the highlight box */
+  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
+  GdkColor *highlightBoxColor = getGdkColor(BLXCOL_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+  
+  drawHighlightBox(drawable, 
+                   &properties->highlightRect, 
+                   bigPictureProperties->highlightBoxMinWidth, 
+                   highlightBoxColor);
+
+  /* Draw the exons and introns. Since we could have a lot of them in the loop, extract all the
+   * info we need now and pass it around so we don't have to look for this stuff each time. */
   GdkGC *gc = gdk_gc_new(drawable);
   
   DrawData drawData = {
@@ -196,13 +226,13 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     gc,
     &properties->exonViewRect,
     blxWindow,
-    blxContext,
+    bc,
     properties->currentStrand,
     bigPictureGetDisplayRange(properties->bigPicture),
-    &blxContext->refSeqRange,
-    blxContext->displayRev,
-    blxContext->numFrames,
-    blxContext->seqType,
+    &bc->refSeqRange,
+    bc->displayRev,
+    bc->numFrames,
+    bc->seqType,
     properties->expanded,
     FALSE,
     properties->exonViewRect.y,
@@ -223,17 +253,8 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     {
       drawData.normalOnly = FALSE;
   
-//      /* Draw all msps that are in groups */
-//      GList *groupItem = blxContext->sequenceGroups;
-//      for ( ; groupItem; groupItem = groupItem->next)
-//	{
-//	  SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-//	  drawData.color = group->highlighted ? &group->highlightColor : drawData.exonColor;
-//	  g_list_foreach(group->seqList, drawExonIntronItem, &drawData);
-//	}
-      
       /* Draw all selected msps */
-      g_list_foreach(blxContext->selectedSeqs, drawExonIntronItem, &drawData);
+      g_list_foreach(bc->selectedSeqs, drawExonIntronItem, &drawData);
       
       /* Increment the y value when finished, because we calculate the view height based on this */
       drawData.y += drawData.height + DEFAULT_EXON_YPAD;
@@ -242,7 +263,6 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   /* Set the height based on the height of the exons that were actually drawn */
   const int newHeight = drawData.y - properties->exonViewRect.y + DEFAULT_EXON_YPAD;
   gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
-//  gtk_widget_set_size_request(exonView, -1, newHeight);
   
   g_object_unref(gc);
 }
@@ -298,7 +318,30 @@ void calculateExonViewHeight(GtkWidget *exonView)
 }
 
 
-void calculateExonViewBorders(GtkWidget *exonView)
+void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
+{
+  ExonViewProperties *properties = exonViewGetProperties(exonView);
+  
+  /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
+   * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
+  GtkWidget *detailView = bigPictureGetDetailView(properties->bigPicture);
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+  
+  if (adjustment)
+    {
+      IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+      int firstBaseIdx = adjustment->value;
+      
+      properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->exonViewRect, displayRange);
+      properties->highlightRect.y = 0; //properties->exonViewRect.y - bigPictureProperties->highlightBoxYPad;
+      
+      properties->highlightRect.width = roundNearest((gdouble)adjustment->page_size * pixelsPerBase(properties->exonViewRect.width, displayRange));
+      properties->highlightRect.height = exonView->allocation.height; //properties->exonViewRect.height + (2 * bigPictureProperties->highlightBoxYPad);
+    }
+}
+
+
+static void calculateExonViewBorders(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
@@ -306,6 +349,9 @@ void calculateExonViewBorders(GtkWidget *exonView)
   /* Calculate the size of the exon view */
   properties->exonViewRect.x = bigPictureProperties->charWidth * bigPictureProperties->leftBorderChars;
   properties->exonViewRect.width = exonView->allocation.width - properties->exonViewRect.x;
+  
+  /* Calculate the size of the highlight box */
+  calculateExonViewHighlightBoxBorders(exonView);
 }
 
 /***********************************************************
@@ -366,24 +412,6 @@ static GtkWidget* exonViewGetBlxWindow(GtkWidget *exonView)
   return bigPictureGetBlxWindow(bigPicture);
 }
 
-static GtkWidget* exonViewGetTopGrid(GtkWidget *exonView)
-{
-  GtkWidget *bigPicture = exonViewGetBigPicture(exonView);
-  
-  GtkWidget *topGrid = NULL;
-  
-  if (bigPictureGetDisplayRev(bigPicture))
-    {
-      topGrid = bigPictureGetRevGrid(bigPicture);
-    }
-  else
-    {
-      topGrid = bigPictureGetFwdGrid(bigPicture);
-    }
-      
-  return topGrid;
-}
-
 gboolean exonViewGetExpanded(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
@@ -427,8 +455,14 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
   if (drawable)
     {  
       /* Push the pixmap onto the screen */
-      GdkGC *gc = gdk_gc_new(GTK_LAYOUT(exonView)->bin_window);
-      gdk_draw_drawable(GTK_LAYOUT(exonView)->bin_window, gc, drawable, 0, 0, 0, 0, -1, -1);
+      GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
+
+      GdkGC *gc = gdk_gc_new(window);
+      gdk_draw_drawable(window, gc, drawable, 0, 0, 0, 0, -1, -1);
+      
+      /* Draw the preview box on top, if it is set */
+      ExonViewProperties *properties = exonViewGetProperties(exonView);
+      drawPreviewBox(properties->bigPicture, window, gc, &properties->exonViewRect, &properties->highlightRect);
     }
   
   return TRUE;
@@ -446,8 +480,7 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
   
   if (event->button == 2) /* middle button */
     {
-      GtkWidget *grid = exonViewGetTopGrid(exonView);
-      showPreviewBox(grid, event->x);
+      showPreviewBox(exonViewGetBigPicture(exonView), event->x);
       handled = TRUE;
     }
   
@@ -459,8 +492,8 @@ static gboolean onButtonReleaseExonView(GtkWidget *exonView, GdkEventButton *eve
 {
   if (event->button == 2) /* middle button */
     {
-      GtkWidget *grid = exonViewGetTopGrid(exonView);
-      acceptAndClearPreviewBox(grid, event->x);
+      ExonViewProperties *properties = exonViewGetProperties(exonView);
+      acceptAndClearPreviewBox(exonViewGetBigPicture(exonView), event->x, &properties->exonViewRect, &properties->highlightRect);
     }
   
   return TRUE;
@@ -472,8 +505,7 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
   if (event->state == GDK_BUTTON2_MASK) /* middle button */
     {
       /* Draw a preview box at the mouse pointer location */
-      GtkWidget *grid = exonViewGetTopGrid(exonView);
-      showPreviewBox(grid, event->x);
+      showPreviewBox(exonViewGetBigPicture(exonView), event->x);
     }
   
   return TRUE;
@@ -488,7 +520,8 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
 GtkWidget *createExonView(GtkWidget *bigPicture, const BlxStrand currentStrand)
 {
   GtkWidget *exonView = gtk_layout_new(NULL, NULL);
-  
+  gtk_widget_set_name(exonView, BIG_PICTURE_EXON_VIEW_NAME);
+
   /* Connect signals */
   gtk_widget_add_events(exonView, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(exonView, GDK_BUTTON_RELEASE_MASK);
