@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.23 2010-07-01 08:54:44 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.24 2010-07-08 10:14:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -171,6 +171,8 @@ typedef enum
     BLXCOL_EXON_LINE_CDS, /* line color for an exon in the big picture (coding region) */
     BLXCOL_EXON_LINE_UTR, /* line color for an exon in the big picture (non-coding/untranslated region) */
     BLXCOL_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
+    BLXCOL_CANONICAL,     /* background highlight color for canonical intron bases */
+    BLXCOL_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;

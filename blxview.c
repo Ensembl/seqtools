@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.46 2010-07-01 08:54:44 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.47 2010-07-08 10:14:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -579,6 +579,16 @@ static void blviewCreate(char *opts,
  *            Create/destroy MSPs and BlxSequences
  ***********************************************************/
 
+/* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
+ * if a = b; positive value if a > b. */
+static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
+{
+  const MSP const *msp1 = (const MSP const*)a;
+  const MSP const *msp2 = (const MSP const*)b;
+  
+  return msp1->qRange.min -  msp2->qRange.min;
+}
+
 /* Add or create a BlxSequence struct, creating the BlxSequence if one does not
  * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
  * for the forward and reverse strands of the same sequence. The passed-in sequence 
@@ -612,8 +622,8 @@ BlxSequence* addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *s
   
   g_free(name);
   
-  /* Add the MSP to the BlxSequence's list */
-  blxSeq->mspList = g_list_prepend(blxSeq->mspList, msp);
+  /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
+  blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
   
   /* Set a pointer to the BlxSequence from the MSP */
   msp->sSequence = blxSeq;

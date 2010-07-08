@@ -70,6 +70,9 @@ typedef struct _BlxWindowProperties
 \t•\tShow <b><i>unaligned sequence</i></b>: see the 'Settings' dialog.\n\
 \t•\tChange <b><i>column widths</i></b>: see the 'Settings' dialog.\n\
 \t•\tChange the <b><i>grid scale</i></b>: see the 'Settings' dialog.\n\
+\t•\tHighlight <b><i>splice sites</i></b> for the selected alignment(s): see the 'Settings' dialog.\n\
+\t•\tThe <b><i>Escape</i></b> key now cancels the current base selection.\n\
+\t•\t<b><i>Reference sequence highlighting</i></b>: the section of reference sequence corresponding to the currently-selected alignment(s) is now highlighted.\n\
 \t•\t(Show SNP track: this option is not supported yet.)\n\
 </span>\
 \n\
@@ -115,6 +118,7 @@ Right-click anywhere in the Blixem window to pop up the main menu.  The menu opt
 \t•\tYou can deselect a single sequence by Ctrl-clicking on its row.\n\
 \t•\tYou can deselect all sequences by right-clicking and selecting 'Deselect all', or with the Shift-Ctrl-A keyboard shortcut.\n\
 \t•\tYou can move the selection up/down a row using the up/down arrow keys.\n\
+\t•\tIf the 'Show Splice Sites' option is on (see the 'Settings' dialog), splice sites will be highlighted on the reference sequence for the currently-selected alignment(s).\n\
 \n\
 \t•\tYou can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
 \t•\tFor protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
@@ -204,11 +208,15 @@ To edit a group, right-click and select 'Edit Groups', or use the Ctrl-G shortcu
 \n\
 \n\
 <b><big>Settings</big></b>\n\
-\t•\tThe settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.\n\
-\t•\tSquash Matches: this groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
-\t•\tInvert Sort Order: reverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
-\t•\tHighlight Differences: when this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
-\t•\tColumn sizes: use this to change the width of the columns.\n\
+The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.\n\
+\t•\t<b>Squash Matches</b>:\t\tGroup multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.\n\
+\t•\t<b>Show Unaligned Sequence</b>:Show any additional unaligned parts of the match sequence at the start/end of the alignment.  Specify the number of additional bases to show in 'Limit to... bases', or untick this option to show all of the unaligned sequence.  Note that this option does not work with the 'Squash Matches' option, so it will not do anything if 'Squash Matches' is on.\n\
+\t•\t<b>Invert Sort Order</b>:\t\tReverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
+\t•\t<b>Highlight Differences</b>:When this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
+\t•\t<b>Show SNP Track</b>:Shows the SNP track.\n\
+\t•\t<b>Show Splice Sites</b>:Shows splice sites for the currently-selected alignment(s).  Splice sites are highlighted on the reference sequence in green (for canonical) or red (for non-canonical).  Blixem identifies GC-AG and AT-AC introns as canonical.\n\
+\t•\t<b>Column sizes</b>:\t\t\tEdit the width of the columns in the detail view.\n\
+\t•\t<b>Grid properties</b>:\t\t\tSet the maximum/minimum %ID values show in the big picture.  Expand or contract the grid scale by adjusting '%ID per cell'.\n\
 \n\
 \n\
 <b><big>Color key</big></b>\n\
@@ -242,8 +250,8 @@ In the detail view, the following colors and symbols have the following meanings
 \t•\t<b>Shift-Ctrl-G</b>    Create group\n\
 \t•\t<b>g</b>    Toggle the 'match set' Group\n\
 \n\
-\t•\t<b>Ctrl-A</b>    Select all sequences in the current list\n\
-\t•\t<b>Shift-Ctrl-A</b>    Deselect all sequences\n\
+\t•\t<b>Shift-Ctrl-A</b>    Deselect all alignments\n\
+\t•\t<b>Escape</b>    Deselect the currently-selected base index\n\
 \n\
 \t•\t<b>Ctrl-D</b>    Dotter\n\
 \n\
@@ -742,9 +750,13 @@ static void zoomBlxWindow(GtkWidget *window, const gboolean zoomIn, const gboole
   if (ctrl)
     {
       if (shift)
-	zoomWholeBigPicture(blxWindowGetBigPicture(window));
+	{
+	  zoomWholeBigPicture(blxWindowGetBigPicture(window));
+	}
       else
-	zoomBigPicture(blxWindowGetBigPicture(window), zoomIn);
+	{
+	  zoomBigPicture(blxWindowGetBigPicture(window), zoomIn);
+	}
     }
   else
     {
@@ -2458,43 +2470,110 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups)
  *			   Settings menu                   *
  ***********************************************************/
 
+/* This function should be called on the child widget of a dialog box that is a transient
+ * child of the main blixem window. It finds the parent dialog of the child and then finds
+ * the blxWindow from the dialog. */
+static GtkWidget* dialogChildGetBlxWindow(GtkWidget *child)
+{
+  GtkWidget *result = NULL;
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(child));
+  
+  if (dialogWindow)
+    {
+      result = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+    }
+  
+  return result;
+}
+
+
+/* Set the given flag to the given value */
+void blxContextSetFlag(BlxViewContext *bc, const BlxFlag flag, const gboolean newValue)
+{
+  gboolean *value = &g_array_index(bc->blxFlags, gboolean, flag);
+  *value = newValue;
+}
+
+
+/* Get the value of the given flag */
+gboolean blxContextGetFlag(BlxViewContext *bc, const BlxFlag flag)
+{
+  gboolean result = g_array_index(bc->blxFlags, gboolean, flag);
+  
+  /* Special case for the show-unaligned-sequnece option: only allow this to be true if
+   * squash matches is off, because they don't work well together */
+  if (result && flag == BLXFLAG_SHOW_UNALIGNED_SEQ && blxContextGetFlag(bc, BLXFLAG_SQUASH_MATCHES))
+    {
+      result = FALSE;
+    }
+  
+  return result;
+}
+
+
+/* Updates the given flag from the given button. The passed in widget is the toggle button and
+ * the data is an enum indicating which flag was toggled. Returns the new value that was set.
+ * Returns the new value that was set. */
+static gboolean setFlagFromButton(GtkWidget *button, gpointer data)
+{
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  BlxFlag flag = GPOINTER_TO_INT(data);
+  const gboolean newValue = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  
+  blxContextSetFlag(bc, flag, newValue);
+  
+  return newValue;
+}
+
+
+/* This callback is called when one of the boolean flags is toggled on the settings dialog.
+ * This generic function sets the flag and redraws everything; if different 
+ * updates are required a custom callback function can be used instead. */
+static void onToggleFlag(GtkWidget *button, gpointer data)
+{
+  setFlagFromButton(button, data);
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  blxWindowRedrawAll(blxWindow);
+}
+
+
 /* Callback function called when the 'squash matches' button is toggled */
 static void onSquashMatches(GtkWidget *button, gpointer data)
 {
-  const gboolean squash = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  GtkWidget *detailView = GTK_WIDGET(data);
+  const gboolean squash = setFlagFromButton(button, data);
   
-  detailViewSquashMatches(detailView, squash);
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  detailViewUpdateSquashMatches(detailView, squash);
 }
 
 
 /* Callback function called when the 'invert sort order' button is toggled */
 static void onSortOrderToggled(GtkWidget *button, gpointer data)
 {
-  const gboolean invert = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  GtkWidget *detailView = GTK_WIDGET(data);
+  const gboolean invert = setFlagFromButton(button, data);
   
-  detailViewSetSortInverted(detailView, invert);
-}
-
-
-/* Callback function called when the 'highlight differences' button is toggled */
-static void onHighlightDiffsToggled(GtkWidget *button, gpointer data)
-{
-  const gboolean highlightDiffs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  GtkWidget *detailView = GTK_WIDGET(data);
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
-  detailViewSetHighlightDiffs(detailView, highlightDiffs);
+  detailViewUpdateSortInverted(detailView, invert);
 }
 
 
 /* Callback function called when the 'Show SNP track' button is toggled */
 static void onShowSnpTrackToggled(GtkWidget *button, gpointer data)
 {
-  const gboolean showSnpTrack = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  GtkWidget *detailView = GTK_WIDGET(data);
+  const gboolean showSnpTrack = setFlagFromButton(button, data);
   
-  detailViewSetShowSnpTrack(detailView, showSnpTrack);
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  detailViewUpdateShowSnpTrack(detailView, showSnpTrack);
 }
 
 
@@ -2527,8 +2606,7 @@ static void onColumnSizeChanged(GtkWidget *widget, const gint responseId, gpoint
     {
       columnInfo->width = newWidth;
 
-      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+      GtkWidget *blxWindow = dialogChildGetBlxWindow(widget);
       GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
       callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
@@ -2576,12 +2654,13 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 	{
 	  char *displayText = convertIntToString(columnInfo->width);
 	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-	  g_free(displayText);
 
 	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
 	  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
 	  widgetSetCallbackData(entry, onColumnSizeChanged, (gpointer)columnInfo);
+          
+          g_free(displayText);
 	}
     }
 }
@@ -2636,12 +2715,13 @@ static void createTextEntryFromInt(GtkWidget *parent,
 
   char *displayText = convertIntToString(value);
   gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-  g_free(displayText);
 
   gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
   widgetSetCallbackData(entry, callbackFunc, callbackData);
+  
+  g_free(displayText);
 }
 
 
@@ -2766,19 +2846,18 @@ static void onTogglePrintColors(GtkWidget *button, gpointer data)
 static void onShowUnalignedSeqToggled(GtkWidget *button, gpointer data)
 {
   /* Get the new value */
-  const gboolean showUnalignedSeq = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  const gboolean showUnalignedSeq = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED_SEQ));
   
   /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
   GtkWidget *subComponents = GTK_WIDGET(data);
   gtk_widget_set_sensitive(subComponents, showUnalignedSeq); 
   
   /* Get the detail view from the main window */
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   /* Update the value */
-  detailViewSetShowUnalignedSeq(detailView, showUnalignedSeq);
+  detailViewUpdateShowUnalignedSeq(detailView, showUnalignedSeq);
 }
 
 
@@ -2786,19 +2865,18 @@ static void onShowUnalignedSeqToggled(GtkWidget *button, gpointer data)
 static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
 {
   /* Get the new value */
-  const gboolean limitUnalignedBases = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  const gboolean limitUnalignedBases = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_LIMIT_UNALIGNED_BASES));
 
   /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
   GtkWidget *subComponents = GTK_WIDGET(data);
   gtk_widget_set_sensitive(subComponents, limitUnalignedBases); 
   
   /* Get the detail view from the main window */
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   /* Update the value */
-  detailViewSetLimitUnalignedBases(detailView, limitUnalignedBases);
+  detailViewUpdateLimitUnalignedBases(detailView, limitUnalignedBases);
 }
 
 
@@ -2815,10 +2893,9 @@ static void onSetNumUnalignedBases(GtkWidget *entry, const gint responseId, gpoi
 
 
 /* Create option buttons for enabling/disabling display of unaligned sequence */
-static void createUnalignedSeqButtons(GtkWidget *parent, GtkWidget *detailView)
+static void createUnalignedSeqButtons(GtkWidget *parent, GtkWidget *detailView, BlxViewContext *bc)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  const gboolean showUnalignedSeq = detailViewGetShowUnalignedSeq(detailView); /* takes into account more than just the flag */
+  const gboolean showUnalignedSeq = blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ);
   
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(parent), vbox, FALSE, FALSE, 0);
@@ -2836,14 +2913,16 @@ static void createUnalignedSeqButtons(GtkWidget *parent, GtkWidget *detailView)
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
   widgetSetCallbackData(entry, onSetNumUnalignedBases, detailView);
 
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   char *numStr = convertIntToString(properties->numUnalignedBases);
+  
   gtk_entry_set_text(GTK_ENTRY(entry), numStr);
   gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(numStr) + 2); /* fudge up width a bit in case user enters longer text */
   g_free(numStr);
   
   /* Check button to enable/disable setting the limit */
   GtkWidget *button = gtk_check_button_new_with_mnemonic("_Limit to ");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), properties->limitUnalignedBases);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES));
   g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onLimitUnalignedBasesToggled), entry);
 
   /* Pack it all in the hbox */
@@ -2874,6 +2953,7 @@ void showSettingsDialog(GtkWidget *blxWindow)
   int borderWidth = 12;
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Create separate pages for general settings and colors */
   GtkWidget *notebook = gtk_notebook_new();
@@ -2888,11 +2968,13 @@ void showSettingsDialog(GtkWidget *blxWindow)
   /* Display options */
   GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   
-  createCheckButton(GTK_BOX(vbox1), "_Squash matches", detailViewGetMatchesSquashed(detailView), G_CALLBACK(onSquashMatches), detailView);
-  createUnalignedSeqButtons(vbox1, detailView);
-  createCheckButton(GTK_BOX(vbox1), "_Invert sort order", detailViewGetSortInverted(detailView), G_CALLBACK(onSortOrderToggled), detailView);
-  createCheckButton(GTK_BOX(vbox1), "_Highlight differences", detailViewGetHighlightDiffs(detailView), G_CALLBACK(onHighlightDiffsToggled), detailView);
-  createCheckButton(GTK_BOX(vbox1), "Show SN_P track", detailViewGetShowSnpTrack(detailView), G_CALLBACK(onShowSnpTrackToggled), detailView);
+  createCheckButton(GTK_BOX(vbox1), "_Squash matches", blxContextGetFlag(bc, BLXFLAG_SQUASH_MATCHES), G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
+  createUnalignedSeqButtons(vbox1, detailView, bc);
+  createCheckButton(GTK_BOX(vbox1), "_Invert sort order", blxContextGetFlag(bc, BLXFLAG_INVERT_SORT), G_CALLBACK(onSortOrderToggled), GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
+  createCheckButton(GTK_BOX(vbox1), "_Highlight differences", blxContextGetFlag(bc, BLXFLAG_HIGHLIGHT_DIFFS), G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
+  createCheckButton(GTK_BOX(vbox1), "Show SN_P track", blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK), G_CALLBACK(onShowSnpTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_SNP_TRACK));
+  createCheckButton(GTK_BOX(vbox1), "Show Sp_lice Sites for selected seqs", blxContextGetFlag(bc, BLXFLAG_SHOW_SPLICE_SITES), G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
+  
   createColumnSizeButtons(mainVBox, detailView);
   createGridSettingsButtons(mainVBox, bigPicture);
 
@@ -3369,6 +3451,156 @@ static gboolean onButtonPressBlxWindow(GtkWidget *window, GdkEventButton *event,
 }
 
 
+/* Handlers for specific key presses */
+static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  /* Reset the selected base index. Leave the selected frame as it is, though. */
+  GtkWidget *detailView = blxWindowGetDetailView(window);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  
+  detailViewSetSelectedBaseIdx(detailView, UNSET_INT, properties->selectedFrame, UNSET_INT, TRUE, TRUE);
+  return TRUE;
+}
+
+static gboolean onKeyPressLeftRight(GtkWidget *window, const gboolean left, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  if (ctrlModifier)
+    {
+      goToMatch(window, left);
+    }
+  else if (shiftModifier)
+    {
+      moveSelectedBaseIdxBy1(window, left);
+    }
+  else
+    {
+      moveSelectedDisplayIdxBy1(window, left);
+    }
+  
+  return TRUE;
+}
+
+static gboolean onKeyPressUpDown(GtkWidget *window, const gboolean up, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  gboolean result = moveRowSelection(window, up, ctrlModifier, shiftModifier);
+  return result;
+}
+
+static gboolean onKeyPressHomeEnd(GtkWidget *window, const gboolean home, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  scrollToExtremity(window, home, ctrlModifier);
+  return TRUE;
+}
+
+static gboolean onKeyPressComma(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  scrollDetailView(window, TRUE, ctrlModifier);
+  return TRUE;
+}
+
+static gboolean onKeyPressPeriod(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  scrollDetailView(window, FALSE, ctrlModifier);
+  return TRUE;
+}
+
+static gboolean onKeyPressPlusMinus(GtkWidget *window, const gboolean zoomIn, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  zoomBlxWindow(window, zoomIn, ctrlModifier, shiftModifier);
+  return TRUE;
+}
+
+static gboolean onKeyPressC(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  gboolean result = FALSE;
+  
+  if (ctrlModifier)
+    {
+      copySelectionToClipboard(window);
+      result = TRUE;
+    }
+  
+  return result;
+}
+
+static gboolean onKeyPressV(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  gboolean result = FALSE;
+  
+  if (ctrlModifier)
+    {
+      /* Paste from the default clipboard */
+      requestDefaultClipboardText(findSeqsFromClipboard, window);
+      result = TRUE;
+    }
+  
+  return result;
+}
+
+static gboolean onKeyPressF(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  if (ctrlModifier)
+    {
+      showFindDialog(window);
+    }
+  else
+    {
+      requestPrimaryClipboardText(findSeqsFromClipboard, window);
+    }
+
+  return TRUE;
+}
+
+static gboolean onKeyPressP(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  gboolean result = FALSE;
+  
+  if (!ctrlModifier)
+    {
+      goToDetailViewCoord(blxWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
+      result = TRUE;
+    }
+  
+  return result;
+}
+
+static gboolean onKeyPressG(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  gboolean result = FALSE;
+  
+  if (!ctrlModifier)
+    {	    
+      toggleMatchSet(window);
+      result = TRUE;
+    }
+  
+  return result;
+}
+
+static gboolean onKeyPressB(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  toggleBumpState(window);
+  return TRUE;
+}
+
+static gboolean onKeyPressT(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  toggleStrand(blxWindowGetDetailView(window));
+  return TRUE;
+}
+
+static gboolean onKeyPressNumber(GtkWidget *window, const int number, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  togglePaneVisibility(window, number, ctrlModifier, shiftModifier);
+  return TRUE;
+}
+
+static gboolean onKeyPressF3(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  findAgain(window, shiftModifier);
+  return TRUE;
+}
+
 /* Key press handler */
 static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpointer data)
 {
@@ -3379,131 +3611,58 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
   
   switch (event->keyval)
     {
-      case GDK_Left: /* fall through */
-      case GDK_Right:
-      {
-	if (ctrlModifier)
-	  goToMatch(window, event->keyval == GDK_Left);
-	else if (shiftModifier)
-	  moveSelectedBaseIdxBy1(window, event->keyval == GDK_Left);
-	else
-	  moveSelectedDisplayIdxBy1(window, event->keyval == GDK_Left);
-	
-	result = TRUE;
-	break;
-      }
-	
-      case GDK_Up: /* fall through */
-      case GDK_Down:
-	result = moveRowSelection(window, event->keyval == GDK_Up, ctrlModifier, shiftModifier);
-	break;
-	
-      case GDK_Home:
-      case GDK_End:
-	scrollToExtremity(window, event->keyval == GDK_Home, ctrlModifier);
-	result = TRUE;
-	break;
-
-      case GDK_comma:  /* fall through */
-      case GDK_period:
-	scrollDetailView(window, event->keyval == GDK_comma, ctrlModifier);
-	result = TRUE;
-	break;
-
-      case GDK_underscore: /* fall through */
-      case GDK_equal:	   /* fall through */
-      case GDK_minus:
-      {
-	const gboolean zoomIn = (event->keyval == GDK_plus || event->keyval == GDK_equal);
-	zoomBlxWindow(window, zoomIn, ctrlModifier, shiftModifier);
-	result = TRUE;
-	break;
-      }
+      case GDK_Escape:	    result = onKeyPressEscape(window, ctrlModifier, shiftModifier);	      break;
       
-      case GDK_c: /* fall through */
-      case GDK_C:
-	if (ctrlModifier)
-	  {
-	    copySelectionToClipboard(window);
-	    result = TRUE;
-	  }
-	break;
+      case GDK_Left:	    result = onKeyPressLeftRight(window, TRUE, ctrlModifier, shiftModifier);  break;
+      case GDK_Right:	    result = onKeyPressLeftRight(window, FALSE, ctrlModifier, shiftModifier); break;
+      
+      case GDK_Up:	    result = onKeyPressUpDown(window, TRUE, ctrlModifier, shiftModifier);     break;
+      case GDK_Down:	    result = onKeyPressUpDown(window, FALSE, ctrlModifier, shiftModifier);    break;
+	
+      case GDK_Home:	    result = onKeyPressHomeEnd(window, TRUE, ctrlModifier, shiftModifier);    break;
+      case GDK_End:	    result = onKeyPressHomeEnd(window, FALSE, ctrlModifier, shiftModifier);   break;
 
-      case GDK_v: /* fall through */
-      case GDK_V:
-	if (ctrlModifier)
-	  {
-	    /* Paste from the default clipboard */
-	    requestDefaultClipboardText(findSeqsFromClipboard, window);
-	    result = TRUE;
-	  }
-	break;
-	
-      case GDK_f: /* fall through */
-      case GDK_F:
-      {
-	if (ctrlModifier)
-	  showFindDialog(window);
-	else
-	  requestPrimaryClipboardText(findSeqsFromClipboard, window);
-	
-	result = TRUE;
-	break;
-      }
-	
-      case GDK_p: /* fall through */
-      case GDK_P:
-	if (!ctrlModifier)
-	  {
-	    goToDetailViewCoord(blxWindowGetDetailView(window), BLXSEQ_DNA); /* for now, only accept input in terms of DNA seq coords */
-	    result = TRUE;
-	  }
-	break;
-	
-      case GDK_g: /* fall through */
-      case GDK_G:
-	if (!ctrlModifier)
-	  {	    
-	    toggleMatchSet(window);
-	    result = TRUE;
-	  }
-	break;
-	
-      case GDK_b: /* fall through */
-      case GDK_B:
-	toggleBumpState(window);
-	result = TRUE;
-	break;
-	
-      case GDK_t: /* fall through */
-      case GDK_T:
-	toggleStrand(blxWindowGetDetailView(window));
-	result = TRUE;
-	break;
-	
-      case GDK_1: /* fall through */
-      case GDK_exclam:
-	togglePaneVisibility(window, 1, ctrlModifier, shiftModifier);
-	result = TRUE;
-	break;
+      case GDK_comma:	    result = onKeyPressComma(window, ctrlModifier, shiftModifier);	      break;
+      case GDK_period:	    result = onKeyPressPeriod(window, ctrlModifier, shiftModifier);	      break;
 
-      case GDK_2:	  /* fall through */
-      case GDK_quotedbl:  /* fall through */
-      case GDK_at:
-	togglePaneVisibility(window, 2, ctrlModifier, shiftModifier);
-	result = TRUE;
-	break;
+      case GDK_equal:	    /* fall through */
+      case GDK_plus:	    result = onKeyPressPlusMinus(window, TRUE, ctrlModifier, shiftModifier);  break;
+      
+      case GDK_minus:	    /* fall through */
+      case GDK_underscore:  result = onKeyPressPlusMinus(window, FALSE, ctrlModifier, shiftModifier); break;
+      
+      case GDK_F3:	    result = onKeyPressF3(window, ctrlModifier, shiftModifier);		      break;
+
+      case GDK_c:	    /* fall through */
+      case GDK_C:	    result = onKeyPressC(window, ctrlModifier, shiftModifier);		      break;
+
+      case GDK_v:	    /* fall through */
+      case GDK_V:	    result = onKeyPressV(window, ctrlModifier, shiftModifier);		      break;
 	
-      case GDK_3: /* fall through */
-      case GDK_currency:
-	togglePaneVisibility(window, 3, ctrlModifier, shiftModifier);
-	result = TRUE;
-	break;
-        
-      case GDK_F3:
-        findAgain(window, shiftModifier);
-        result = TRUE;
-        break;
+      case GDK_f:	    /* fall through */
+      case GDK_F:	    result = onKeyPressF(window, ctrlModifier, shiftModifier);		      break;
+
+      case GDK_g:	    /* fall through */
+      case GDK_G:	    result = onKeyPressG(window, ctrlModifier, shiftModifier);		      break;
+
+      case GDK_p:	    /* fall through */
+      case GDK_P:	    result = onKeyPressP(window, ctrlModifier, shiftModifier);		      break;
+		
+      case GDK_b:	    /* fall through */
+      case GDK_B:	    result = onKeyPressB(window, ctrlModifier, shiftModifier);		      break;
+	
+      case GDK_t:	    /* fall through */
+      case GDK_T:	    result = onKeyPressT(window, ctrlModifier, shiftModifier);		      break;
+	
+      case GDK_1:	    /* fall through */
+      case GDK_exclam:	    result = onKeyPressNumber(window, 1, ctrlModifier, shiftModifier);	      break;
+
+      case GDK_2:	    /* fall through */
+      case GDK_quotedbl:    /* fall through */
+      case GDK_at:	    result = onKeyPressNumber(window, 2, ctrlModifier, shiftModifier);	      break;
+
+      case GDK_3:	    /* fall through */
+      case GDK_currency:    result = onKeyPressNumber(window, 3, ctrlModifier, shiftModifier);	      break;
     };
   
   return result;
@@ -3556,6 +3715,11 @@ static void destroyBlxContext(BlxViewContext **bc)
 
 	  g_array_free((*bc)->defaultColors, TRUE);
 	  (*bc)->defaultColors = NULL;
+	}
+    
+      if ((*bc)->blxFlags)
+	{
+	  g_array_free((*bc)->blxFlags, FALSE);
 	}
       
       destroyMspList(&((*bc)->mspList));
@@ -3695,24 +3859,24 @@ static void createBlxColor(BlxViewContext *bc,
 }
 
 
-/* This basically does what gdk_color_to_string does, but that function isn't available in
- * older versions of GDK... */
-static char* convertColorToString(GdkColor *color)
-{
-//  char *result = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
+///* This basically does what gdk_color_to_string does, but that function isn't available in
+// * older versions of GDK... */
+//static char* convertColorToString(GdkColor *color)
+//{
+////  char *result = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
+////  return result;
+//
+//  /* Need to make sure the color is allocated (otherwise the 'pixel' field may be zero) */
+//  gboolean failures[1];
+//  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
+//
+//  const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
+//  
+//  char *result = g_malloc(sizeof(char) * hexLen);
+//  sprintf(result, "#%x", color->pixel);
+//  
 //  return result;
-
-  /* Need to make sure the color is allocated (otherwise the 'pixel' field may be zero) */
-  gboolean failures[1];
-  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
-
-  const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
-  
-  char *result = g_malloc(sizeof(char) * hexLen);
-  sprintf(result, "#%x", color->pixel);
-  
-  return result;
-}
+//}
 
 
 /* Create the colors that blixem will use for various specific purposes */
@@ -3732,15 +3896,14 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   
   /* Get the default background color of our widgets (i.e. that inherited from the theme).
    * Convert it to a string so we can use the same creation function as the other colors */
-  char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
-  printf("creating colors\n");
-  createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  char *defaultBgColorStr = "#dcdcdc"; //convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
+  createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
   
   /* reference sequence */
-  createBlxColor(bc, BLXCOL_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, "#dbdb00", NULL);
   
   /* matches */
-  createBlxColor(bc, BLXCOL_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00d7c2", NULL);
+  createBlxColor(bc, BLXCOL_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00c3b0", NULL);
   createBlxColor(bc, BLXCOL_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
   createBlxColor(bc, BLXCOL_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
   createBlxColor(bc, BLXCOL_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
@@ -3776,8 +3939,10 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   
   /* misc */
   createBlxColor(bc, BLXCOL_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc, BLXCOL_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOL_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
   
-  g_free(defaultBgColorStr);
+//  g_free(defaultBgColorStr);
 }
 
 
@@ -3823,6 +3988,18 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   createBlxColors(blxContext, widget);
   
+  blxContext->blxFlags = g_array_sized_new(FALSE, TRUE, sizeof(gboolean), BLXFLAG_NUM_FLAGS);
+  
+  /* Initialise all the flags to false */
+  int flag = BLXFLAG_MIN + 1;
+  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
+    {
+      blxContextSetFlag(blxContext, flag, FALSE);
+    }
+  
+  /* Set any specific flags that we want initialised to TRUE */
+  blxContextSetFlag(blxContext, BLXFLAG_LIMIT_UNALIGNED_BASES, TRUE);
+
   return blxContext;
 }
 

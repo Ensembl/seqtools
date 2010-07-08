@@ -99,12 +99,6 @@ static int treeGetFrame(GtkWidget *tree)
   return properties->readingFrame;
 }
 
-static gboolean treeGetSortInverted(GtkWidget *tree)
-{
-  GtkWidget *detailView = treeGetDetailView(tree);
-  return detailViewGetSortInverted(detailView);
-}
-
 static gboolean treeHasSnpHeader(GtkWidget *tree)
 {
   TreeProperties *properties = treeGetProperties(tree);
@@ -672,7 +666,8 @@ void refilterTree(GtkWidget *tree, gpointer data)
 static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId)
 {
   GtkSortType result = GTK_SORT_ASCENDING;
-  
+  BlxViewContext *bc = treeGetContext(tree);
+
   switch (columnId)
     {
       case SCORE_COL: /* fall through */
@@ -684,7 +679,7 @@ static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const ColumnId column
 	break;
     };
 
-  if (treeGetSortInverted(tree))
+  if (blxContextGetFlag(bc, BLXFLAG_INVERT_SORT))
     {
       result = (result == GTK_SORT_ASCENDING) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
     }
@@ -839,7 +834,10 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 		  mspGetRefStrand(msp) == strand && mspGetRefFrame(msp, bc->seqType) == frame)
 		{
                   IntRange qRange;
-                  mspGetVisibleRange(msp, bc, detailViewGetShowUnalignedSeq(detailView), dvProperties->limitUnalignedBases, dvProperties->numUnalignedBases, &qRange, NULL);
+		  const gboolean showUnalignedSeq = blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ);
+		  const gboolean limitUnalignedBases = blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES);
+		
+                  mspGetVisibleRange(msp, bc, showUnalignedSeq, limitUnalignedBases, dvProperties->numUnalignedBases, &qRange, NULL);
 
 		  if (qRange.min <= displayRange->max && qRange.max >= displayRange->min)
 		    {
@@ -996,10 +994,16 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   
   GdkGC *gc = gdk_gc_new(drawable);
   
-  int displayIdx = properties->displayRange.min;
-  int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  /* Find out if there are any bases in the introns that need highlighting. */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
   
+  GHashTable *intronBases = getIntronBasesToHighlight(detailView, &qRange, bc->seqType, strand);
+
   const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
+  int displayIdx = properties->displayRange.min;
+  int dnaIdx = qIdx1;
   
   while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
     {
@@ -1011,7 +1015,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
       const int y = 0;
 
-      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, drawable, gc, x, y);
+      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, drawable, gc, x, y, intronBases);
       
       dnaIdx += incrementValue;
       ++displayIdx;
@@ -1295,7 +1299,8 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
-	    detailViewToggleSnpTrack(detailView);
+	    BlxViewContext *bc = treeGetContext(tree);
+	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK));
 	  }
 	
 	handled = TRUE;

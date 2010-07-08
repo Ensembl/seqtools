@@ -1028,7 +1028,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeProperties->detailView);
   BlxViewContext *bc = blxWindowGetContext(detailViewProperties->blxWindow);
   
-  const gboolean highlightDiffs = detailViewProperties->highlightDiffs; /* swap match/mismatch colors if this is true */
+  const gboolean highlightDiffs = blxContextGetFlag(bc, BLXFLAG_HIGHLIGHT_DIFFS); /* swap match/mismatch colors if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
   const BlxSequence *seq = firstMsp ? firstMsp->sSequence : NULL;
 
@@ -1074,8 +1074,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
     detailViewProperties->exonBoundaryLineStyleEnd,
-    detailViewGetShowUnalignedSeq(treeProperties->detailView),
-    detailViewProperties->limitUnalignedBases,
+    blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ),
+    blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES),
     detailViewProperties->numUnalignedBases
   };  
   

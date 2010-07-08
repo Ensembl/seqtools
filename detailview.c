@@ -71,6 +71,7 @@ static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescri
 static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
 static const char*	      findDetailViewFont(GtkWidget *detailView);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
+static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
 
 /***********************************************************
  *		       Utility functions                   *
@@ -514,17 +515,18 @@ static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
 static void refreshTreeOrder(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
+  BlxViewContext *bc = detailViewGetContext(detailView);
   gboolean toggled = detailViewGetDisplayRev(detailView);
 
   gtk_container_foreach(GTK_CONTAINER(detailView), removeAllTreesFromContainer, detailView);
 
-  if (properties->seqType == BLXSEQ_DNA)
+  if (bc->seqType == BLXSEQ_DNA)
     {
       /* Add both trees - the order they're added will depend on whether the display is toggled or not. */
       addTreesToDetailView(GTK_CONTAINER(detailView), properties->fwdStrandTrees, !toggled);
       addTreesToDetailView(GTK_CONTAINER(detailView), properties->revStrandTrees, toggled);
     }
-  else if (properties->seqType == BLXSEQ_PEPTIDE)
+  else if (bc->seqType == BLXSEQ_PEPTIDE)
     {
       /* Only add one set of trees - the reverse strand if toggled, the forward strand if not. */
       GList *treeList = toggled ? properties->revStrandTrees : properties->fwdStrandTrees;
@@ -573,8 +575,10 @@ static void refreshEndColHeader(GtkWidget *header, gpointer data)
 }
 
 
-/* Refresh a header that contains text; updates the height of the widget and 
- * the font description, and clears its cached drawable, if it has one */
+/* Refresh a header that contains fixed-width text that needs to be resized whenever a zoom
+ * happens; updates the height of the widget and the font description, and clears its cached
+ * drawable, if it has one. This just sets things up ready for the next expose event, where 
+ * the actual drawing will take place. */
 void refreshTextHeader(GtkWidget *header, gpointer data)
 {
   const char *widgetName = gtk_widget_get_name(header);
@@ -599,7 +603,9 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME))
 	{
 	  /* SNP track */
-	  if (!detailViewGetShowSnpTrack(detailView))
+	  BlxViewContext *bc = detailViewGetContext(detailView);
+	
+	  if (!blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK))
 	    {
 	      /* SNP track is hidden, so set the height to 0 */
 	      gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, 0);
@@ -897,14 +903,11 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
 }
 
 
-/* Squash matches switches to the condensed view of the trees (where multiple
-* MSPs in the same sequence appear on the same row) if squash is true, or reverts
-* to the expanded version (where each MSP has its own row) if squash is false. */
-void detailViewSquashMatches(GtkWidget *detailView, const gboolean squash)
+/* This is called when the Squash matches option has been toggled. It switches to the condensed 
+ * view of the trees (where multiple MSPs in the same sequence appear on the same row) if squash
+ * is true, or reverts to the expanded version (where each MSP has its own row) if squash is false. */
+void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->squashMatches = squash;
-  
   if (squash)
     {
       callFuncOnAllDetailViewTrees(detailView, treeSquashMatches);
@@ -918,51 +921,24 @@ void detailViewSquashMatches(GtkWidget *detailView, const gboolean squash)
 }
 
 
-/* Returns true if the matches are squashed */
-gboolean detailViewGetMatchesSquashed(GtkWidget *detailView)
-{
-  /* Just check the state of any one of the trees */
-  return treeGetMatchesSquashed(detailViewGetFirstTree(detailView));
-}
-
-
 /* Set the value of the 'invert sort order' flag */
-void detailViewSetSortInverted(GtkWidget *detailView, const gboolean invert)
+void detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->sortInverted = invert;
-
   callFuncOnAllDetailViewTrees(detailView, resortTree);
 }
 
 
-/* Set the value of the 'highlight differences' flag */
-void detailViewSetHighlightDiffs(GtkWidget *detailView, const gboolean highlightDiffs)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->highlightDiffs = highlightDiffs;
-
-  /* No data to recalculate, but we need to make all the trees redraw themselves */
-  gtk_widget_queue_draw(detailView);
-}
-
-
 /* Set the value of the 'Show SNP track' flag */
-void detailViewSetShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack)
+void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->showSnpTrack = showSnpTrack;
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
 }
 
 
 /* Set the value of the 'Show Unaligned Sequence' flag */
-void detailViewSetShowUnalignedSeq(GtkWidget *detailView, const gboolean showUnalignedSeq)
+void detailViewUpdateShowUnalignedSeq(GtkWidget *detailView, const gboolean showUnalignedSeq)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->showUnalignedSeq = showUnalignedSeq;
-  
   /* Refilter and re-draw */
   callFuncOnAllDetailViewTrees(detailView, refilterTree);
   gtk_widget_queue_draw(detailView);
@@ -970,11 +946,8 @@ void detailViewSetShowUnalignedSeq(GtkWidget *detailView, const gboolean showUna
 
 
 /* Set the value of the 'Limit Unaligned Bases' flag */
-void detailViewSetLimitUnalignedBases(GtkWidget *detailView, const gboolean limitUnalignedBases)
+void detailViewUpdateLimitUnalignedBases(GtkWidget *detailView, const gboolean limitUnalignedBases)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->limitUnalignedBases = limitUnalignedBases;
-  
   /* Refilter and re-draw */
   callFuncOnAllDetailViewTrees(detailView, refilterTree);
   gtk_widget_queue_draw(detailView);
@@ -990,16 +963,6 @@ void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
   /* Refilter and re-draw */
   callFuncOnAllDetailViewTrees(detailView, refilterTree);
   gtk_widget_queue_draw(detailView);
-}
-
-
-/* Toggle visibility of the SNP track */
-void detailViewToggleSnpTrack(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->showSnpTrack = !properties->showSnpTrack;
-  refreshDetailViewHeaders(detailView);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
 }
 
 
@@ -1152,6 +1115,317 @@ void selectClickedSnp(GtkWidget *snpTrack,
  *			    Drawing			   *
  ***********************************************************/
 
+/* Populates the 'bases' string with the two bases from the ref seq adjacent to the start/end
+ * of the given MSP (if it is an exon/match). 'Start' here means at the lower value coord end
+ * of the MSP. 'revStrand' is true if this MSP is on the reverse strand of the ref seq */
+static void mspGetAdjacentBases(const MSP const *msp, char *bases, const gboolean start, const gboolean revStrand, const BlxViewContext *bc)
+{
+  if (start)
+    {
+      bases[0] = getRefSeqBase(bc->refSeq, msp->qRange.min - 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[1] = getRefSeqBase(bc->refSeq, msp->qRange.min - 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[2] = '\0';
+    }  
+  else
+    {
+      bases[0] = getRefSeqBase(bc->refSeq, msp->qRange.max + 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[1] = getRefSeqBase(bc->refSeq, msp->qRange.max + 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[2] = '\0';
+    }
+}
+
+
+/* This function returns the prev/next MSP in the given sequence in order of start position on
+ * the ref seq. Returns the next MSP (with the next-highest start coord) if 'getNext' is true; 
+ * otherwise returns the previous one. The return value will be NULL if there is no next/prev MSP.
+ * The error will be set if there was any problem (e.g. if the given MSP does not exist the the sequence).
+ * Only considers exons and matches. */
+static const MSP* sequenceGetNextMsp(const MSP const *msp, 
+                                     const BlxSequence *blxSeq, 
+                                     const gboolean getNext, 
+                                     GError **error)
+{
+  const MSP *result = NULL;
+
+  GList *mspItem = blxSeq->mspList;
+  const MSP *prevMsp = NULL;
+  gboolean found = FALSE;
+  
+  /* Loop through all MSPs and look for the given one. */
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP const *curMsp = (const MSP*)(mspItem->data);
+      
+      if (curMsp == msp)
+        {
+          found = TRUE;
+          
+          /* If looking for the previous MSP, we already know it. */
+          if (!getNext)
+            {
+              result = prevMsp;
+              break;
+            }
+          else
+            {
+              /* Continue looping to find the next MSP. */
+              continue;
+            }
+        }
+      
+      if (found && getNext)
+        {
+          /* We've found the input MSP and we're on the next one. See if it is an exon/match,
+           * otherwise continue looping. */
+          if (mspIsExon(curMsp) || mspIsBlastMatch(msp))
+            {
+              result = curMsp;
+              break;
+            }
+        }
+      
+      /* Set the previous MSP (but only if it's an exon/match) */
+      if (mspIsExon(curMsp) || mspIsBlastMatch(curMsp))
+        {
+          prevMsp = curMsp;
+        }
+    }
+  
+  if (!found && error)
+    {
+      g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", msp->sname, blxSeq->fullName);
+    }
+  
+  return result;
+}
+
+
+/* Determine whether the bases at the other end of the intron for the start/end of 
+ * the given MSP are canonical. 'canonicalStart' and 'canonicalEnd' contain the two bases to look
+ * for at the start/end of the next/previous MSP to determine if the result is canonical. */
+static BlxCanonical mspIsSpliceSiteCanonicalOtherEnd(const MSP const *msp,
+                                                     const BlxSequence *blxSeq,
+                                                     const gboolean isMinCoord, 
+                                                     const gboolean revStrand,
+                                                     const gboolean donor,
+                                                     const BlxViewContext *bc,
+                                                     const BlxSpliceSite *spliceSite)
+{
+  BlxCanonical result = BLX_NOT_CANONICAL;
+ 
+  /* Get the previous MSP if we're looking at the min coord of the current MSP, or 
+   * the next MSP if we're at the end */
+  const MSP *nextMsp = sequenceGetNextMsp(msp, blxSeq, !isMinCoord, NULL);
+  
+  if (nextMsp)
+    {
+      /* Get the two bases at the end of the previous MSP / start of the next MSP */
+      char bases[3];
+      mspGetAdjacentBases(nextMsp, bases, !isMinCoord, revStrand, bc);
+      
+      /* If the original site was a donor site, look for an acceptor site (or vice versa) */
+      const char *canonicalBases = spliceSiteGetBases(spliceSite, !donor, revStrand);
+
+      if (stringsEqual(bases, canonicalBases, FALSE))
+        {
+          result = BLX_IS_CANONICAL;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Create a BlxSpliceSite and add it to the given list */
+static void addBlxSpliceSite(GSList **spliceSites, char *donorSite, char *acceptorSite, const gboolean bothReqd)
+{
+  BlxSpliceSite *spliceSite = g_malloc(sizeof(BlxSpliceSite));
+
+  if (strlen(donorSite) < 2 || strlen(acceptorSite) < 2)
+    {
+      g_critical("Error adding splice site info ['%s', '%s'].\n", donorSite, acceptorSite);
+      return;
+    }
+  
+  spliceSite->donorSite[0] = donorSite[0];
+  spliceSite->donorSite[1] = donorSite[1];
+  spliceSite->donorSite[2] = '\0';
+
+  spliceSite->donorSiteRev[0] = donorSite[1];
+  spliceSite->donorSiteRev[1] = donorSite[0];
+  spliceSite->donorSiteRev[2] = '\0';
+
+  spliceSite->acceptorSite[0] = acceptorSite[0];
+  spliceSite->acceptorSite[1] = acceptorSite[1];
+  spliceSite->acceptorSite[2] = '\0';
+  
+  spliceSite->acceptorSiteRev[0] = acceptorSite[1];
+  spliceSite->acceptorSiteRev[1] = acceptorSite[0];
+  spliceSite->acceptorSiteRev[2] = '\0';
+  
+  spliceSite->bothReqd = bothReqd;
+  
+  /* Add it to the list */
+  *spliceSites = g_slist_append(*spliceSites, spliceSite);
+}
+
+
+/* Frees the memory used by a BlxSpliceSite */
+static void destroyBlxSpliceSite(gpointer listItemData, gpointer data)
+{
+  BlxSpliceSite *spliceSite = (BlxSpliceSite*)listItemData;
+  
+  g_free(spliceSite);
+}
+
+
+/* Return the canonical bases at the donor/acceptor end of the given BlxSpliceSite. Returns them in
+ * reverse order if 'reverse' is true, e.g. for a GC-AG intron, the dono is GC and acceptor is AG.
+ * If reverse is true the donor returns CG and acceptor returns GA. The result is a pointer to the
+ * string in the splice site, which is owned by the Detail View properties. */
+static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse)
+{
+  const char *result = NULL;
+  
+  if (donor)
+    {
+      result = reverse ? spliceSite->donorSiteRev : spliceSite->donorSite;
+    }
+  else
+    {
+      result = reverse ? spliceSite->acceptorSiteRev : spliceSite->acceptorSite;
+    }
+  
+  return result;
+}
+
+
+/* Determines whether the intron splice sites for the given MSP are canonical or not.
+ * We look for GC-AG or AT-AC introns. The latter must have both ends of the intron matching
+ * to be canonical. GC is the donor site and AG is the acceptor site. */
+static BlxCanonical isMspSpliceSiteCanonical(const MSP const *msp, 
+                                             const BlxSequence *blxSeq, 
+                                             const gboolean isMinCoord, 
+                                             const gboolean revStrand,
+                                             const BlxViewContext *bc,
+                                             GSList *spliceSites)
+{
+  BlxCanonical result = BLX_NOT_CANONICAL;
+
+  GSList *item = spliceSites;
+  for ( ; item; item = item->next)
+    {
+      const BlxSpliceSite *spliceSite = (const BlxSpliceSite*)(item->data);
+
+      /* Get the two adjacent bases at the start/end of the given MSP */
+      char bases[3];
+      mspGetAdjacentBases(msp, bases, isMinCoord, revStrand, bc);
+      
+      /* The min coord end of the MSP is the acceptor site of the intron and the max coord the 
+       * donor site (or vice versa if the strand is reversed). */
+      const gboolean donor = (isMinCoord == revStrand);
+      const char *canonicalBases = spliceSiteGetBases(spliceSite, donor, revStrand);
+
+      if (stringsEqual(bases, canonicalBases, FALSE))
+        {
+          if (spliceSite->bothReqd)
+            {
+              /* Must also check if the other end of the intron matches */
+              result = mspIsSpliceSiteCanonicalOtherEnd(msp, blxSeq, isMinCoord, revStrand, donor, bc, spliceSite);
+            }
+          else
+            {
+              result = BLX_IS_CANONICAL;
+            }
+        }
+    }
+
+  return result;
+}
+
+
+/* If the given MSP is an exon/match, get the 2 nucleotides from the reference sequence at the
+ * splice sites of the adjacent introns. Inserts the results into the given hash table with
+ * an enum indicating whether the nucleotides are canonical/non-canonical. Only considers
+ * MSPs that are within the given ref seq range. */
+static void mspGetSpliceSiteCoords(const MSP const *msp, 
+                                   const BlxSequence *blxSeq, 
+                                   const IntRange const *qRange, 
+                                   const BlxViewContext *bc, 
+                                   GSList *spliceSites,
+                                   GHashTable *result)
+{
+  const gboolean revStrand = (mspGetRefStrand(msp) != BLXSTRAND_FORWARD);
+  
+  /* See if the min coord is within the given range */
+  if (valueWithinRange(msp->qRange.min, qRange) && msp->qRange.min >= bc->refSeqRange.min + 2)
+    {
+      /* Find out if the adjacent bases are canonical/non-canonical. */
+      BlxCanonical canonical = isMspSpliceSiteCanonical(msp, blxSeq, TRUE, revStrand, bc, spliceSites);
+      
+      /* Insert the two coords into the hash table */
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 2), GINT_TO_POINTER(canonical));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 1), GINT_TO_POINTER(canonical));
+    }
+  
+  /* See if the max coord is within the given range */
+  if (valueWithinRange(msp->qRange.max, qRange) && msp->qRange.max <= bc->refSeqRange.max - 2)
+    {
+      /* Find out if they are canonical/non-canonical */
+      BlxCanonical canonical = isMspSpliceSiteCanonical(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
+      
+      /* Insert the two coords into the hash table */
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 1), GINT_TO_POINTER(canonical));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 2), GINT_TO_POINTER(canonical));
+    }
+}
+
+
+/* This function looks at all selected exons/matches in all of the given ref seq range and compiles a
+ * list of the 2 nucleotides at the start/end of the adjacent introns and whether they are canonical/
+ * non-canonical. It only considers MSPs that are on the given ref seq strand and only does anything
+ * if the show-splice-sites option is enabled. */
+GHashTable* getIntronBasesToHighlight(GtkWidget *detailView, 
+                                      const IntRange const *qRange, 
+                                      const BlxSeqType seqType,
+                                      const BlxStrand qStrand)
+{
+  GHashTable *result = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  const BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  /* We only highlight nucleotides, so there is nothing to do if we're showing a peptide sequence,
+   * or if the show-splice-sites option is disabled. */
+  if (seqType == BLXSEQ_PEPTIDE || !blxContextGetFlag(bc, BLXFLAG_SHOW_SPLICE_SITES))
+    {
+      return result;
+    }
+  
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GList *seqItem = blxWindowGetSelectedSeqs(blxWindow);
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      const BlxSequence *blxSeq = (const BlxSequence*)(seqItem->data);
+      GList *mspItem = blxSeq->mspList;
+      
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          const MSP const *msp = (const MSP const *)(mspItem->data);
+          
+          /* Only look at MSPs within the given strand */
+          if ((mspIsBlastMatch(msp) || mspIsExon(msp)) && mspGetRefStrand(msp) == qStrand)
+            {
+              mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
+            }
+        }
+    }
+  
+  return result;
+}
+
+
 static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxStrand strand, const int frame)
 {
   GdkDrawable *drawable = createBlankPixmap(dnaTrack);
@@ -1185,9 +1459,11 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       return;
     }
     
+    
   GdkGC *gc = gdk_gc_new(drawable);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   const int activeFrame = detailViewGetActiveFrame(detailView);
+  const BlxStrand activeStrand = blxWindowGetActiveStrand(blxWindow);
   const gboolean showSnpTrack = TRUE; /* always highlight SNP positions in the DNA header */
 
   gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
@@ -1198,6 +1474,9 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
   
   IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
+  
+  /* Find out if there are any bases in the introns that need highlighting. */
+  GHashTable *intronBases = getIntronBasesToHighlight(detailView, &qRange, BLXSEQ_DNA, activeStrand);
   
   int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
   int displayLen = qRange.max - qRange.min + 1;
@@ -1219,7 +1498,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       const int x = displayTextPos * properties->charWidth;
       const char base = displayText[displayTextPos];
 
-      drawHeaderChar(bc, properties, qIdx, base, strand, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, drawable, gc, x, y);
+      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, drawable, gc, x, y, intronBases);
       
       /* Increment indices */
       ++displayTextPos;
@@ -1360,6 +1639,57 @@ static void drawRectangle(GdkDrawable *drawable,
 }
 
 
+/* Returns true if the given coord (which must be in nucleotide coords) is within the
+ * range of any MSP that is selected. Only considers MSPs that are on the given ref seq
+ * frame and strand (if given; otherwise considers all MSPs). */
+static gboolean isCoordInSelectedMspRange(const BlxViewContext *bc,
+                                          const int dnaIdx, 
+                                          const BlxStrand refSeqStrand, 
+                                          const int refSeqFrame,
+                                          const BlxSeqType seqType)
+{
+  gboolean inSelectedMspRange = FALSE;
+  
+  /* Loop through all the selected sequences */
+  GList *seqItem = bc->selectedSeqs;
+  
+  for ( ; seqItem && !inSelectedMspRange; seqItem = seqItem->next)
+    {
+      /* Loop through all the MSPs in this sequence */
+      const BlxSequence const *blxSeq = (const BlxSequence const *)(seqItem->data);
+      GList *mspItem = blxSeq->mspList;
+      
+      for ( ; mspItem && !inSelectedMspRange; mspItem = mspItem->next)
+        {
+          const MSP const *msp = (const MSP const *)(mspItem->data);
+          const int mspFrame = mspGetRefFrame(msp, seqType);
+          
+          if ((mspIsBlastMatch(msp) || mspIsExon(msp)) && 
+              (refSeqStrand == BLXSTRAND_NONE || mspGetRefStrand(msp) == refSeqStrand) &&
+              (refSeqFrame == UNSET_INT || mspFrame == refSeqFrame))
+            {
+              /* Passed-in coord is the nucleotide for base 1 in frame 1 of the current display index.
+               * We need to compare against base1 for the frame for the individual MSP, though, so 
+               * we need to convert it: just add 1 base if we're in frame 2 or 2 bases if we're in frame3. */
+              int idx = dnaIdx;
+              
+              if (bc->displayRev)
+                {
+                  idx -= (mspFrame - 1);
+                }
+              else
+                {
+                  idx += (mspFrame - 1);
+                }
+              
+              inSelectedMspRange = valueWithinRange(idx, &msp->qRange);
+            }
+        }
+    }
+
+  return inSelectedMspRange;
+}
+
 /* Draw a given nucleotide or peptide. Determines the color depending on various
  * parameters */
 void drawHeaderChar(BlxViewContext *bc,
@@ -1367,6 +1697,7 @@ void drawHeaderChar(BlxViewContext *bc,
 		    const int dnaIdx,
 		    const char baseChar,
 		    const BlxStrand strand,
+                    const int frame,
 		    const BlxSeqType seqType,
 		    const gboolean displayIdxSelected,
 		    const gboolean dnaIdxSelected,
@@ -1376,11 +1707,52 @@ void drawHeaderChar(BlxViewContext *bc,
 		    GdkDrawable *drawable,
 		    GdkGC *gc,
 		    const int x,
-		    const int y)
+		    const int y,
+                    GHashTable *intronBases)
 {
   GdkColor *fillColor = NULL;
   GdkColor *outlineColor = NULL;
   
+  /* Shade the background if the base is selected XOR if the base is within the range of a 
+   * selected sequence. (If both conditions are true we don't shade, to give the effect of an
+   * inverted selection color.) */
+  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, dnaIdx, strand, frame, seqType);
+  const gboolean shadeBackground = (displayIdxSelected != inSelectedMspRange);
+  
+  /* If there are any intron bases that need highlighting check if this coord is one of them */
+  gpointer hashValue = g_hash_table_lookup(intronBases, GINT_TO_POINTER(dnaIdx));
+  
+  if (hashValue)
+    {
+      BlxCanonical canonical = GPOINTER_TO_INT(hashValue);
+
+      if (canonical == BLX_IS_CANONICAL)
+        {
+          fillColor = getGdkColor(BLXCOL_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
+        }
+      else
+        {
+          fillColor = getGdkColor(BLXCOL_NON_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
+        }
+    }
+  
+  if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected || shadeBackground))
+    {
+      if (dnaIdxSelected || displayIdxSelected)
+        {
+          /* The coord is a nucleotide in the currently-selected codon. The color depends
+           * on whether the actual nucleotide itself is selected, or just the codon that it 
+           * belongs to. */
+          fillColor = getGdkColor(BLXCOL_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
+        }
+      else
+        {
+          /* The coord is not selected but this coord is within the range of a selected MSP, so 
+           * shade the background. */
+          fillColor = getGdkColor(BLXCOL_BACKGROUND, bc->defaultColors, shadeBackground, bc->usePrintColors);
+        }
+    }
+
   if (showSnps && coordAffectedBySnp(dnaIdx, strand, bc->mspList))
     {
       /* The coord is affected by a SNP. Outline it in the "selected" SNP color
@@ -1397,27 +1769,20 @@ void drawHeaderChar(BlxViewContext *bc,
   
   if (!fillColor)
     {
-      if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected))
-	{
-	  /* The coord is a nucleotide in the currently-selected codon. The color depends
-	   * on whether the actual nucleotide itself is selected, or just the codon that it 
-	   * belongs to. */
-	  fillColor = getGdkColor(BLXCOL_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
-	}
-      else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
+      if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
 	{
 	  /* The coord is a MET codon */
-	  fillColor = getGdkColor(BLXCOL_MET, bc->defaultColors, displayIdxSelected, bc->usePrintColors);
+	  fillColor = getGdkColor(BLXCOL_MET, bc->defaultColors, shadeBackground, bc->usePrintColors);
 	}
       else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
 	{
 	  /* The coord is a STOP codon */
-	  fillColor = getGdkColor(BLXCOL_STOP, bc->defaultColors, displayIdxSelected, bc->usePrintColors);
+	  fillColor = getGdkColor(BLXCOL_STOP, bc->defaultColors, shadeBackground, bc->usePrintColors);
 	}
       else if (showBackground)
 	{
 	  /* Use the default background color for the reference sequence */
-	  fillColor = getGdkColor(BLXCOL_REF_SEQ, bc->defaultColors, displayIdxSelected, bc->usePrintColors);
+	  fillColor = getGdkColor(BLXCOL_REF_SEQ, bc->defaultColors, shadeBackground, bc->usePrintColors);
 	}
     }
   
@@ -1432,15 +1797,15 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   /* Create the drawable for the widget (whether we're actually going to do any drawing or not) */
   GdkDrawable *drawable = createBlankPixmap(snpTrack);
 
-  if (!detailViewGetShowSnpTrack(detailView))
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  if (!blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK))
     {
       return;
     }
   
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-
   const int activeFrame = detailViewGetActiveFrame(detailView);
   
   BlxStrand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
@@ -1492,12 +1857,6 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 		  gtk_paint_layout(snpTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, x, y, layout);
 		  g_object_unref(layout);
 		}	      
-	      
-//	      /* Draw the connector line */
-//	      const int xStart = x + ((width + (width % 2 - 1) * properties->charWidth) / 2); /* mod subtracts 1 from even numbers, so we have an odd number of chars to find the middle one of */
-//	      const int yStart = y + properties->charHeight;
-//	      
-//	      gdk_draw_line(drawable, gc, xStart, yStart, xStart, yStart + properties->snpConnectorHeight);
 	    }
 	}
     }
@@ -1845,8 +2204,8 @@ static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
 
 int detailViewGetNumFrames(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->numFrames : UNSET_INT;
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  return bc->numFrames;
 }
 
 static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
@@ -1875,8 +2234,8 @@ IntRange* detailViewGetRefSeqRange(GtkWidget *detailView)
 
 BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
 {
-  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-  return blxWindowGetSeqType(blxWindow);
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  return bc->seqType;
 }
 
 int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
@@ -1912,37 +2271,6 @@ void detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand)
   properties->selectedStrand = strand;
 }
 
-gboolean detailViewGetSortInverted(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->sortInverted : FALSE;
-}
-
-gboolean detailViewGetHighlightDiffs(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->highlightDiffs : FALSE;
-}
-
-gboolean detailViewGetShowSnpTrack(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->showSnpTrack : FALSE;
-}
-
-/* Returns true if the 'show unaligned sequence' option is on AND the squash matches 
- * option is OFF (because they don't work well together) */
-gboolean detailViewGetShowUnalignedSeq(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->showUnalignedSeq && !properties->squashMatches : FALSE;
-}
-
-gboolean detailViewGetLimitUnalignedBases(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->limitUnalignedBases : FALSE;
-}
 
 int detailViewGetNumUnalignedBases(GtkWidget *detailView)
 {
@@ -2074,6 +2402,13 @@ static void onDestroyDetailView(GtkWidget *widget)
       properties->fontDesc = NULL;
     }
   
+  if (properties->spliceSites)
+    {
+      g_slist_foreach(properties->spliceSites, destroyBlxSpliceSite, NULL);
+      g_slist_free(properties->spliceSites);
+      properties->spliceSites = NULL;
+    }
+  
   if (properties)
     {
       g_free(properties);
@@ -2092,8 +2427,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GtkWidget *feedbackBox,
 				       GList *columnList,
 				       GtkAdjustment *adjustment, 
-				       BlxSeqType seqType,
-				       int numFrames,
 				       const int startCoord,
 				       const gboolean sortInverted)
 {
@@ -2114,8 +2447,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->feedbackBox = feedbackBox;
       properties->columnList = columnList;
       properties->adjustment = adjustment;
-      properties->seqType = seqType;
-      properties->numFrames = numFrames;
       properties->selectedBaseIdx = UNSET_INT;
       properties->selectedBaseNum = UNSET_INT;
       properties->selectedFrame = UNSET_INT;
@@ -2123,14 +2454,14 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->fontDesc = fontDesc;
       properties->charWidth = 0;
       properties->charHeight = 0;
-      properties->squashMatches = FALSE;
-      properties->sortInverted = sortInverted;
-      properties->highlightDiffs = FALSE;
-      properties->showSnpTrack = FALSE;
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
-      properties->showUnalignedSeq = FALSE;
-      properties->limitUnalignedBases = TRUE;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
+      
+      /* Add the splice sites that we want Blixem to be able to find */
+      properties->spliceSites = NULL;
+      addBlxSpliceSite(&properties->spliceSites, "GC", "AG", FALSE);
+      addBlxSpliceSite(&properties->spliceSites, "AT", "AC", TRUE);
+//      addBlxSpliceSite(&properties->spliceSites, "GT", "AG", FALSE);
 
       /* Set initial display range to something valid but only 1 base wide. Then if we try to do any 
        * calculations on the range before it gets set properly, it won't have much work to do. */
@@ -2139,7 +2470,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
-       * that we don't have gaps between rows. */
+       * that we don't have gaps between rows. */ 
       if (fwdStrandTrees)
 	{
 	  GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
@@ -2342,7 +2673,8 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
 	    /* Double-click: toggle SNP track visibility */
-	    detailViewToggleSnpTrack(detailView);
+	    BlxViewContext *bc = detailViewGetContext(detailView);
+	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK));
 	  }
 
 	handled = TRUE;
@@ -3589,8 +3921,6 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			     feedbackBox, 
 			     columnList,
 			     adjustment, 
-			     seqType,
-			     numFrames,
 			     startCoord,
 			     sortInverted);
   

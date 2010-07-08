@@ -41,6 +41,23 @@ typedef struct _CommandLineOptions
 } CommandLineOptions;
 
 
+/* This enum contains a list of all the boolean options that the user can toggle on/off */
+typedef enum
+  {
+    BLXFLAG_MIN,		    /* Start index for looping through flags */
+  
+    BLXFLAG_SQUASH_MATCHES,	    /* Puts all MSPs from the same sequence on the same row in the detail view */
+    BLXFLAG_INVERT_SORT,	    /* Inverts the default sort order */
+    BLXFLAG_HIGHLIGHT_DIFFS,	    /* Hides matching bases and highlights mis-matching ones */
+    BLXFLAG_SHOW_SNP_TRACK,	    /* Shows the SNP track */
+    BLXFLAG_SHOW_UNALIGNED_SEQ,	    /* Shows additional bits of the match sequence that are not part of the aligned section */
+    BLXFLAG_LIMIT_UNALIGNED_BASES,  /* If the above option is on, limits how many bases from the unaligned sequence are shown */
+    BLXFLAG_SHOW_SPLICE_SITES,	    /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
+    
+    BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
+  } BlxFlag;
+
+
 /* A Blixem View context, containing all status information required to draw the blixem view */
 typedef struct _BlxViewContext
 {
@@ -74,6 +91,8 @@ typedef struct _BlxViewContext
   
   GArray *defaultColors;	    /* Default colors used by Blixem */
   gboolean usePrintColors;	    /* Whether to use print colors (i.e. black and white) */
+  
+  GArray *blxFlags;		    /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
 } BlxViewContext;
 
 
@@ -105,6 +124,9 @@ const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
 int			  blxWindowGetOffset(GtkWidget *blxWindow);
 BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 
+void			  blxContextSetFlag(BlxViewContext *bc, const BlxFlag flag, const gboolean newValue);
+gboolean		  blxContextGetFlag(BlxViewContext *bc, const BlxFlag flag);
+
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
 void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);
 void			  blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
@@ -113,7 +135,7 @@ void			  blxWindowDeselectAllSeqs(GtkWidget *blxWindow);
 gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq);
 void			  blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const gboolean selected);
 void			  blxWindowSelectionChanged(GtkWidget *blxWindow);
-BlxSequence*	  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
+BlxSequence*		  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
 int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);
