@@ -73,6 +73,7 @@ typedef struct _BlxWindowProperties
 \t•\tHighlight <b><i>splice sites</i></b> for the selected alignment(s): see the 'Settings' dialog.\n\
 \t•\tThe <b><i>Escape</i></b> key now cancels the current base selection.\n\
 \t•\t<b><i>Reference sequence highlighting</i></b>: the section of reference sequence corresponding to the currently-selected alignment(s) is now highlighted.\n\
+\t•\t<b><i>Detail-view range</i></b>: the current detail-view range is now highlighted in the big picture by background shading rather than a blue outline box, and also now extends over the whole big picture.\n\
 \t•\t(Show SNP track: this option is not supported yet.)\n\
 </span>\
 \n\
