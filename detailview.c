@@ -3296,21 +3296,17 @@ static void GToggleStrand(GtkButton *button, gpointer data)
  *                     Initialization                      *
  ***********************************************************/
 
-/* Adds the given column-header widget to the container, and adds its column info
- * to the columnList. Also sets the default width of the widget and the alignment. */
-static void addHeaderColumn(GtkBox *container, 
-			    ColumnId columnId, 
-			    GtkWidget *specialWidget,
-			    GtkCallback callbackFn, 
-			    char *title,
-			    char *propertyName,
-			    const int defaultWidth,
-			    const gboolean expand,
-			    GList **columnList)
+/* Creates a detail-view column from the given info and adds it to the columnList. */
+static void createColumn(ColumnId columnId, 
+                         GtkWidget *specialWidget,
+                         GtkCallback callbackFn, 
+                         char *title,
+                         char *propertyName,
+                         const int defaultWidth,
+                         GList **columnList)
 {
   /* Create a simple label for the header (unless already passed a special header widget) */
   GtkWidget *headerWidget = specialWidget ? specialWidget : gtk_label_new(title);
-  gtk_box_pack_start(container, headerWidget, expand, TRUE, 0);
   gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
   
   if (GTK_IS_MISC(headerWidget))
@@ -3331,6 +3327,52 @@ static void addHeaderColumn(GtkBox *container,
 }
 
 
+/* This creates DetailViewColumnInfo entries for each column required in the detail view. It
+ * returns a list of the columns created. */
+static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames)
+{
+  GList *columnList = NULL;
+  
+  /* The sequence column has a special header widget and callback when we're dealing 
+   * with peptide sequences. This returns NULL for DNA sequences, in which case createColumn
+   * will create a simple label header for us instead. */
+  GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numFrames);
+  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshTextHeader : NULL;
+  
+  /* The start and end columns have special callbacks to switch the start/end text when display is toggled */
+  GtkCallback startCallback = refreshStartColHeader;
+  GtkCallback endCallback = refreshEndColHeader;
+  
+  /* Create the column headers and pack them into the column header bar */
+  createColumn(S_NAME_COL,    NULL,       NULL,            NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  &columnList);
+  createColumn(SCORE_COL,     NULL,       NULL,            SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, &columnList);
+  createColumn(ID_COL,        NULL,       NULL,            ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    &columnList);
+  createColumn(START_COL,     NULL,       startCallback,   START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, &columnList);
+  createColumn(SEQUENCE_COL,  seqHeader,  seqCallback,     SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   &columnList);
+  createColumn(END_COL,       NULL,       endCallback,     END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   END_COLUMN_DEFAULT_WIDTH,   &columnList);
+  
+  return columnList;
+}
+
+
+/* This loops through all the columns and adds each column's header widget to the header bar. */
+static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
+{
+  /* Loop through each column and add its header widget to the header bar */
+  GList *columnItem = columnList;
+  
+  for ( ; columnItem; columnItem = columnItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
+
+      /* The sequence column is a special one that wants to fill any additional space, so
+       * set the 'expand' property to true for that column only. */
+      const gboolean expand = (columnInfo->columnId == SEQUENCE_COL );
+      gtk_box_pack_start(headerBar, columnInfo->headerWidget, expand, TRUE, 0);
+    }
+}
+
+
 /* Create the header bar for the detail view. This contains the labels for the
  * detail-view trees (since we only want one label at the top, rather than 
  * individual labels for each tree). For protein sequence matches, the header
@@ -3340,7 +3382,7 @@ static void addHeaderColumn(GtkBox *container,
 static GtkWidget* createDetailViewHeader(GtkWidget *detailView, 
 					 const BlxSeqType seqType, 
 					 const int numFrames,
-					 GList **columnList,
+					 GList *columnList,
 					 const gboolean includeSnpTrack)
 {
   GtkBox *header = NULL; /* outermost container for the header */
@@ -3360,21 +3402,8 @@ static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
       header = headerBar;
     }
 
-  /* The sequence column has a special header and callback when we're dealing with peptide sequences */
-  GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numFrames);
-  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshTextHeader : NULL;
-  
-  /* The start and end columns have callbacks to switch the start/end text when display is toggled */
-  GtkCallback startCallback = refreshStartColHeader;
-  GtkCallback endCallback = refreshEndColHeader;
-  
-  /* Create the column headers and pack them into the column header bar */
-  addHeaderColumn(headerBar, S_NAME_COL, NULL,	  NULL,		 NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  FALSE, columnList);
-  addHeaderColumn(headerBar, SCORE_COL,  NULL,	  NULL,		 SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
-  addHeaderColumn(headerBar, ID_COL,     NULL,	  NULL,		 ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    FALSE, columnList);
-  addHeaderColumn(headerBar, START_COL,  NULL,	  startCallback, START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, FALSE, columnList);
-  addHeaderColumn(headerBar, SEQUENCE_COL, seqHeader, seqCallback, SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   TRUE,  columnList);
-  addHeaderColumn(headerBar, END_COL,    NULL,	  endCallback,	 END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   END_COLUMN_DEFAULT_WIDTH,   FALSE, columnList);
+  /* Add all the column headers to the header bar */
+  addColumnsToHeaderBar(headerBar, columnList);
 
   return GTK_WIDGET(header);
 }
@@ -3881,11 +3910,13 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkWidget *feedbackBox = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortMode, &feedbackBox);
 
-  /* Create the header, and compile a list of columns. If viewing protein matches include
-   * one SNP track in the detail view header; otherwise create SNP tracks in each tree header. */
-  GList *columnList = NULL;
+  /* Create the columns */
+  GList *columnList = createColumns(detailView, seqType, numFrames);
+  
+  /* Create the header bar. If viewing protein matches include one SNP track in the detail 
+   * view header; otherwise create SNP tracks in each tree header. */
   const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
-  GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, &columnList, singleSnpTrack);
+  GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, columnList, singleSnpTrack);
   
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
