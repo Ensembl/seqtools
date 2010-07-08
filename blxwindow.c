@@ -2497,7 +2497,7 @@ void blxContextSetFlag(BlxViewContext *bc, const BlxFlag flag, const gboolean ne
 
 
 /* Get the value of the given flag */
-gboolean blxContextGetFlag(BlxViewContext *bc, const BlxFlag flag)
+gboolean blxContextGetFlag(const BlxViewContext *bc, const BlxFlag flag)
 {
   gboolean result = g_array_index(bc->blxFlags, gboolean, flag);
   

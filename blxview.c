@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.47 2010-07-08 10:14:01 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.48 2010-07-08 12:06:47 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -766,20 +766,20 @@ MSP* createNewMsp(MSP **lastMsp,
   
   /* Add/create a BlxSequence for this MSP's sequence name */
   addBlxSequence(msp, sStrand, seqList, sequence, error);
-  
+
   /* Add it to the list */
   if (!*mspList) 
     {
       *mspList = msp; /* first entry in list */
     }
-  
+
   if (*lastMsp)
     {
       (*lastMsp)->next = msp; /* add to end of list */
     }
   
   *lastMsp = msp;
-  
+
   if (error && *error)
     {
       prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d %s], match seq = '%s' [%d - %d %s]). ",

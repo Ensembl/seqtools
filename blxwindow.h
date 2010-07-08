@@ -80,7 +80,7 @@ typedef struct _BlxViewContext
   
   gboolean displayRev;		    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
   
-  GList *selectedSeqs;		    /* A list of sequence names that are selected */
+  GList *selectedSeqs;		    /* A list of sequences that are selected (as BlxSequences) */
   GList *sequenceGroups;	    /* A list of SequenceGroups */
   SequenceGroup *matchSetGroup;	    /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
   
@@ -125,7 +125,7 @@ int			  blxWindowGetOffset(GtkWidget *blxWindow);
 BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 
 void			  blxContextSetFlag(BlxViewContext *bc, const BlxFlag flag, const gboolean newValue);
-gboolean		  blxContextGetFlag(BlxViewContext *bc, const BlxFlag flag);
+gboolean		  blxContextGetFlag(const BlxViewContext *bc, const BlxFlag flag);
 
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
 void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);

@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.30 2010-06-28 16:19:31 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.31 2010-07-08 12:06:47 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -192,7 +192,6 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *sty
 	{
 	  break;
 	}
-
       const int lineLen = strlen(line);
       if (lineLen == 0)
 	{
@@ -718,6 +717,8 @@ static void parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, BlxParserState parserS
  */
 static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState parserState, char *opts, GString *line_string, GList **seqList)
 {
+  DEBUG_ENTER("parseEXBLXSEQBLExtended (opts='%s')", opts);
+  
   BOOL result = FALSE ;
   int  qlen, slen;
   char *cp;
@@ -815,7 +816,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
     {
       g_error("Line does not include %s\n", sName);
     }
-      
+
   seq_pos = cp + strlen(sName) ;
             
   qlen = mspGetQRangeLen(msp);
@@ -914,13 +915,16 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
     }
 
   if (*opts == 'N')
-    opts[3] = 'R';
+    {
+      opts[3] = 'R';
+    }
   
   if (parserState == SEQBL_X_BODY)
     { 
       checkReversedSubjectAllowed(msp, opts);
     }
   
+  DEBUG_EXIT("parseEXBLXSEQBLExtended");
   return ;
 }
 
@@ -1586,7 +1590,7 @@ static void parseBody(char *line, const int lineNum, char *opts, MSP **lastMsp, 
                       BlxParserState *parserState, MSP **mspList, GList **seqList, GSList *styles,
                       char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
 {
-  DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
+  DEBUG_ENTER("parseBody(parserState=%d, line=%d, opts='%s')", *parserState, lineNum, opts);
   
   /* Call the relevant function for the current type of data being parsed */
   switch (*parserState)

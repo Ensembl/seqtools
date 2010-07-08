@@ -2457,7 +2457,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
       
-      /* Add the splice sites that we want Blixem to be able to find */
+      /* Add the splice sites that we want Blixem to identify as canonical */
       properties->spliceSites = NULL;
       addBlxSpliceSite(&properties->spliceSites, "GC", "AG", FALSE);
       addBlxSpliceSite(&properties->spliceSites, "AT", "AC", TRUE);

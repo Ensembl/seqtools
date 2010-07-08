@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.17 2010-07-01 08:54:44 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.18 2010-07-08 12:06:47 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -208,6 +208,27 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
 }
 
 
+/* Initialise the opts string to blanks, except for some specific opts we want to set as defaults. */
+static void initialiseOptsString(char *opts)
+{
+  /* Initialise to blanks */
+  int optNum = 0;
+  for ( ; optNum < BLXOPT_NUM_OPTS; ++optNum)
+    {
+      opts[optNum] = ' ';
+    }
+
+  /* Terminate the string */
+  opts[BLXOPT_NUM_OPTS] = '\0';
+
+  /* Set some specific defaults */
+  opts[BLXOPT_START_NEXT_MATCH] = 'M'; /* start at next match */
+  opts[BLXOPT_SHOW_BIG_PICT] = 'B';    /* show big picture */
+  opts[BLXOPT_REV_BIG_PICT] = 'r';     /* only show the forward strand in the big picture */
+  opts[BLXOPT_FULL_ZOOM] = 'Z';        /* use full zoom */
+}
+
+
 /* Entry point for blixem standalone program, you should be aware when
  * altering this that blxview.c is also compiled into acedb and that
  * blxview() is called directly by acedb code.
@@ -221,7 +242,11 @@ int main(int argc, char **argv)
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char line[MAXLINE+1];
   MSP *mspList = NULL ;
-  char opts[BLXOPT_NUM_OPTS]=" MBr Z   ";
+  
+  /* Create the opts string and initialise to blanks. */
+  char opts[BLXOPT_NUM_OPTS+1];
+  initialiseOptsString(opts);
+  
   char refSeqName[FULLNAMESIZE+1] = "";
   char dummyseqname[FULLNAMESIZE+1] = "";
   
