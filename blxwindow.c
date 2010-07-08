@@ -2643,7 +2643,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
       GtkWidget *entry = gtk_entry_new();
       gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
       
-      if (columnInfo->columnId == SEQUENCE_COL)
+      if (columnInfo->columnId == BLXCOL_SEQUENCE)
 	{
 	  /* The sequence column updates dynamically, so don't allow the user to edit it */
 	  char displayText[] = "<dynamic>";

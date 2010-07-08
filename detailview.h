@@ -28,19 +28,12 @@
 #define SEQ_COLUMN_DEFAULT_WIDTH	40
 #define END_COLUMN_DEFAULT_WIDTH	80
 
-#define NAME_COLUMN_HEADER_TEXT		"Name"
-#define SCORE_COLUMN_HEADER_TEXT	"Score"
-#define ID_COLUMN_HEADER_TEXT		"%Id"
-#define START_COLUMN_HEADER_TEXT	"Start"
-#define SEQ_COLUMN_HEADER_TEXT		"Sequence"
-#define END_COLUMN_HEADER_TEXT		"End"
-
-#define NAME_COLUMN_PROPERTY_NAME	"name"
-#define SCORE_COLUMN_PROPERTY_NAME	"score"
-#define ID_COLUMN_PROPERTY_NAME		"id"
-#define START_COLUMN_PROPERTY_NAME	"start"
-#define SEQ_COLUMN_PROPERTY_NAME	"sequence"
-#define END_COLUMN_PROPERTY_NAME	"end"
+#define BLXCOL_SEQNAME_TITLE		"Name"
+#define BLXCOL_SCORE_TITLE              "Score"
+#define BLXCOL_ID_TITLE                 "%Id"
+#define BLXCOL_START_TITLE              "Start"
+#define BLXCOL_SEQUENCE_TITLE           "Sequence"
+#define END_COLUMN_HEADER_TEXT          "End"
 
 
 /* This enum is used to define integer values to mean "canonical" and "non canonical". The values
@@ -56,12 +49,12 @@ typedef enum
 /* This enum declares identifiers for each column in the detail view */
 typedef enum
   {
-    S_NAME_COL,
-    SCORE_COL,
-    ID_COL,
-    START_COL,
-    SEQUENCE_COL,
-    END_COL,
+    BLXCOL_SEQNAME,
+    BLXCOL_SCORE,
+    BLXCOL_ID,
+    BLXCOL_START,
+    BLXCOL_SEQUENCE,
+    BLXCOL_END,
     
     N_COLUMNS
   } ColumnId;

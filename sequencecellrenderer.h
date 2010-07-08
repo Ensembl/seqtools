@@ -27,6 +27,13 @@
 #define SEQUENCE_CELL_RENDERER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj),  SEQUENCE_CELL_RENDERER_TYPE, SequenceCellRendererClass))
 
 
+/* Define the property names that we will use to set the data in the renderer */
+#define RENDERER_TEXT_PROPERTY          "text"
+#define RENDERER_SEQUENCE_PROPERTY      "sequence"
+#define RENDERER_DATA_PROPERTY          "data"
+
+
+
 /* SequenceCellRenderer: Our custom cell renderer
  *   structure. Extend according to need */
 
@@ -35,14 +42,10 @@ typedef struct _SequenceCellRenderer
   GtkCellRenderer   parent;
   
   /* The cell renderer can be used to render a match sequence or plain text */
+  char *text;       /* generic text property */
   GList *mspGList;  /* property for the sequence column. Contains the MSP(s) to be displayed in this row */
-  char *name;    /* property for the name column */
-  char *score;   /* property for the score column */
-  char *id;	 /* property for the id column */
-  char *start;   /* property for the start column */
-  char *end;	 /* property for the end column */
+  GList *data;      /* property for data that is set for every column */
   
-  GList *data; /* property that is set for every column */
 } SequenceCellRenderer;
 
 

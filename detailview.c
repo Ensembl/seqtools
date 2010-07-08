@@ -272,7 +272,7 @@ void scrollDetailViewRightPage(GtkWidget *detailView)
 static int calcNumBasesInSequenceColumn(GtkWidget *detailView)
 {
   /* Find the width of the sequence column */
-  int colWidth = detailViewGetColumnWidth(detailView, SEQUENCE_COL);
+  int colWidth = detailViewGetColumnWidth(detailView, BLXCOL_SEQUENCE);
   
   /* Don't include the cell padding area */
   GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
@@ -553,7 +553,7 @@ static void refreshStartColHeader(GtkWidget *header, gpointer data)
     }
   else
     {
-      gtk_label_set_text(GTK_LABEL(header), START_COLUMN_HEADER_TEXT);
+      gtk_label_set_text(GTK_LABEL(header), BLXCOL_START_TITLE);
     }
 }
 
@@ -566,7 +566,7 @@ static void refreshEndColHeader(GtkWidget *header, gpointer data)
 
   if (detailViewGetDisplayRev(detailView))
     {
-      gtk_label_set_text(GTK_LABEL(header), START_COLUMN_HEADER_TEXT);
+      gtk_label_set_text(GTK_LABEL(header), BLXCOL_START_TITLE);
     }
   else
     {
@@ -677,7 +677,7 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)listItem->data;
 
-      if (columnInfo->columnId == SEQUENCE_COL)
+      if (columnInfo->columnId == BLXCOL_SEQUENCE)
 	{
 	  /* For the sequence column, don't set the size request, or we won't be
 	   * able to shrink the window. The sequence col header will be resized
@@ -1817,7 +1817,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   /* Find the left margin. It will be at the same x coord as the left edge of
    * the sequence column header. */
   int leftMargin = UNSET_INT;
-  DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+  DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
   
   /* Loop through all the MSPs looking for SNPs in the current display range */
@@ -1873,9 +1873,9 @@ static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *alloc
    * window size changes. Find its new width and cache it. All trees should resize
    * in the same manner, so their columns should be the same size. */
   GtkWidget *tree = detailViewGetFirstTree(detailView);
-  GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), SEQUENCE_COL);
+  GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), BLXCOL_SEQUENCE);
 
-  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
   columnInfo->width = gtk_tree_view_column_get_width(column);
       
   /* Perform updates required on the sequence col after its size has changed */
@@ -2630,7 +2630,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
 
       /* The SNP track is not the same width as the sequence column, so pass the
        * sequence column header so that we can convert to the correct coords */
-      DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, SEQUENCE_COL);
+      DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
 
       selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
       
@@ -3344,12 +3344,12 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   GtkCallback endCallback = refreshEndColHeader;
   
   /* Create the column headers and pack them into the column header bar */
-  createColumn(S_NAME_COL,    NULL,       NULL,            NAME_COLUMN_HEADER_TEXT,  NAME_COLUMN_PROPERTY_NAME,  NAME_COLUMN_DEFAULT_WIDTH,  &columnList);
-  createColumn(SCORE_COL,     NULL,       NULL,            SCORE_COLUMN_HEADER_TEXT, SCORE_COLUMN_PROPERTY_NAME, SCORE_COLUMN_DEFAULT_WIDTH, &columnList);
-  createColumn(ID_COL,        NULL,       NULL,            ID_COLUMN_HEADER_TEXT,    ID_COLUMN_PROPERTY_NAME,    ID_COLUMN_DEFAULT_WIDTH,    &columnList);
-  createColumn(START_COL,     NULL,       startCallback,   START_COLUMN_HEADER_TEXT, START_COLUMN_PROPERTY_NAME, START_COLUMN_DEFAULT_WIDTH, &columnList);
-  createColumn(SEQUENCE_COL,  seqHeader,  seqCallback,     SEQ_COLUMN_HEADER_TEXT,   SEQ_COLUMN_PROPERTY_NAME,   SEQ_COLUMN_DEFAULT_WIDTH,   &columnList);
-  createColumn(END_COL,       NULL,       endCallback,     END_COLUMN_HEADER_TEXT,   END_COLUMN_PROPERTY_NAME,   END_COLUMN_DEFAULT_WIDTH,   &columnList);
+  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          BLXCOL_SEQNAME_TITLE,   RENDERER_TEXT_PROPERTY,     NAME_COLUMN_DEFAULT_WIDTH,  &columnList);
+  createColumn(BLXCOL_SCORE,     NULL,       NULL,          BLXCOL_SCORE_TITLE,     RENDERER_TEXT_PROPERTY,     SCORE_COLUMN_DEFAULT_WIDTH, &columnList);
+  createColumn(BLXCOL_ID,        NULL,       NULL,          BLXCOL_ID_TITLE,        RENDERER_TEXT_PROPERTY,     ID_COLUMN_DEFAULT_WIDTH,    &columnList);
+  createColumn(BLXCOL_START,     NULL,       startCallback, BLXCOL_START_TITLE,     RENDERER_TEXT_PROPERTY,     START_COLUMN_DEFAULT_WIDTH, &columnList);
+  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   BLXCOL_SEQUENCE_TITLE,  RENDERER_SEQUENCE_PROPERTY, SEQ_COLUMN_DEFAULT_WIDTH,   &columnList);
+  createColumn(BLXCOL_END,       NULL,       endCallback,   END_COLUMN_HEADER_TEXT, RENDERER_TEXT_PROPERTY,     END_COLUMN_DEFAULT_WIDTH,   &columnList);
   
   return columnList;
 }
@@ -3367,7 +3367,7 @@ static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
 
       /* The sequence column is a special one that wants to fill any additional space, so
        * set the 'expand' property to true for that column only. */
-      const gboolean expand = (columnInfo->columnId == SEQUENCE_COL );
+      const gboolean expand = (columnInfo->columnId == BLXCOL_SEQUENCE );
       gtk_box_pack_start(headerBar, columnInfo->headerWidget, expand, TRUE, 0);
     }
 }

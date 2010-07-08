@@ -70,12 +70,8 @@ enum
 {
   PROP_0,
   
-  PROP_NAME,
-  PROP_SCORE,
-  PROP_ID,
-  PROP_START,
+  PROP_TEXT,
   PROP_MSP,
-  PROP_END,
   PROP_DATA
 };
 
@@ -226,11 +222,7 @@ sequence_cell_renderer_init (SequenceCellRenderer *cellrenderersequence)
 
   cellrenderersequence->data = NULL;
   cellrenderersequence->mspGList = NULL;
-  cellrenderersequence->name = NULL;
-  cellrenderersequence->score = NULL;
-  cellrenderersequence->id = NULL;
-  cellrenderersequence->start = NULL;
-  cellrenderersequence->end = NULL;
+  cellrenderersequence->text = NULL;
 }
 
 
@@ -264,57 +256,25 @@ sequence_cell_renderer_class_init (SequenceCellRendererClass *klass)
   
   g_object_class_install_property (object_class,
                                    PROP_DATA,
-                                   g_param_spec_pointer ("data",
+                                   g_param_spec_pointer (RENDERER_DATA_PROPERTY,
                                                          "Data",
                                                          "Pointer to the msp",
                                                          G_PARAM_WRITABLE));
 
   g_object_class_install_property (object_class,
                                    PROP_MSP,
-                                   g_param_spec_pointer (SEQ_COLUMN_PROPERTY_NAME,
-                                                         SEQ_COLUMN_HEADER_TEXT,
+                                   g_param_spec_pointer (RENDERER_SEQUENCE_PROPERTY,
+                                                         BLXCOL_SEQUENCE_TITLE,
                                                          "Pointer to an msp whose sequence to display",
                                                          G_PARAM_WRITABLE));
 
   g_object_class_install_property (object_class,
-                                   PROP_NAME,
-                                   g_param_spec_string (NAME_COLUMN_PROPERTY_NAME,
-                                                        NAME_COLUMN_HEADER_TEXT,
-                                                        "Sequence name",
+                                   PROP_TEXT,
+                                   g_param_spec_string (RENDERER_TEXT_PROPERTY,
+                                                        "Text",
+                                                        "Text field",
 							NULL,
                                                         G_PARAM_WRITABLE));
-
-  g_object_class_install_property (object_class,
-                                   PROP_SCORE,
-                                   g_param_spec_string (SCORE_COLUMN_PROPERTY_NAME,
-                                                        SCORE_COLUMN_HEADER_TEXT,
-                                                        "Score",
-							NULL,
-                                                        G_PARAM_WRITABLE));
-							
-  g_object_class_install_property (object_class,
-                                   PROP_ID,
-                                   g_param_spec_string (ID_COLUMN_PROPERTY_NAME,
-                                                        ID_COLUMN_HEADER_TEXT,
-                                                        "Identity",
-							NULL,
-                                                        G_PARAM_WRITABLE));
-							
-  g_object_class_install_property (object_class,
-                                   PROP_START,
-                                   g_param_spec_string (START_COLUMN_PROPERTY_NAME,
-                                                        START_COLUMN_HEADER_TEXT,
-                                                        "Start index of match",
-							NULL,
-                                                        G_PARAM_WRITABLE));
-							
-  g_object_class_install_property (object_class,
-                                   PROP_END,
-                                   g_param_spec_string (END_COLUMN_PROPERTY_NAME,
-                                                        END_COLUMN_HEADER_TEXT,
-                                                        "End index of match",
-							NULL,
-                                                        G_PARAM_WRITABLE));  
 }
 
 
@@ -358,7 +318,7 @@ sequence_cell_renderer_new (void)
 
 static void setAllPropertiesNull(SequenceCellRenderer *renderer)
 {
-  renderer->name = renderer->score = renderer->id = renderer->start = renderer->end = NULL;
+  renderer->text = NULL;
   renderer->mspGList = NULL;
 }
 
@@ -382,31 +342,11 @@ sequence_cell_renderer_set_property (GObject      *object,
       renderer->mspGList = (GList*)g_value_get_pointer(value);
       break;
 
-    case PROP_NAME:
+    case PROP_TEXT:
       setAllPropertiesNull(renderer);
-      renderer->name = g_strdup(g_value_get_string(value));
+      renderer->text = g_strdup(g_value_get_string(value));
       break;
       
-    case PROP_SCORE:
-      setAllPropertiesNull(renderer);
-      renderer->score = g_strdup(g_value_get_string(value));
-      break;
-
-    case PROP_ID:
-      setAllPropertiesNull(renderer);
-      renderer->id = g_strdup(g_value_get_string(value));
-      break;
-
-    case PROP_START:
-      setAllPropertiesNull(renderer);
-      renderer->start = g_strdup(g_value_get_string(value));
-      break;
-
-    case PROP_END:
-      setAllPropertiesNull(renderer);
-      renderer->end = g_strdup(g_value_get_string(value));
-      break;
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, param_id, pspec);
       break;
@@ -437,24 +377,8 @@ sequence_cell_renderer_get_property (GObject      *object,
       g_value_set_pointer(value, renderer->mspGList);
       break;
       
-    case PROP_NAME:
-      g_value_set_string(value, renderer->name);
-      break;
-
-    case PROP_SCORE:
-      g_value_set_string(value, renderer->score);
-      break;
-
-    case PROP_ID:
-      g_value_set_string(value, renderer->id);
-      break;
-
-    case PROP_START:
-      g_value_set_string(value, renderer->start);
-      break;
-
-    case PROP_END:
-      g_value_set_string(value, renderer->end);
+    case PROP_TEXT:
+      g_value_set_string(value, renderer->text);
       break;
 
     default:
@@ -484,23 +408,6 @@ get_size (GtkCellRenderer *cell,
 }
 
 
-static char* getText(SequenceCellRenderer *renderer)
-{
-  if (renderer->name)
-    return renderer->name;
-  else if (renderer->score)
-    return renderer->score;
-  else if (renderer->id)
-    return renderer->id;
-  else if (renderer->start)
-    return renderer->start;
-  else if (renderer->end)
-    return renderer->end;
-    
-  return NULL;
-}
-
-
 /* Render function for a cell that contains simple text */
 static void drawText(SequenceCellRenderer *renderer, 
 		     GtkWidget *tree,
@@ -508,7 +415,7 @@ static void drawText(SequenceCellRenderer *renderer,
 		     GtkStateType state, 
 		     GdkRectangle *cell_area)
 {
-  gchar *displayText = getText(renderer);
+  gchar *displayText = renderer->text;
   PangoLayout *layout = gtk_widget_create_pango_layout(tree, displayText);
 
   PangoFontDescription *font_desc = pango_font_description_copy(tree->style->font_desc);
