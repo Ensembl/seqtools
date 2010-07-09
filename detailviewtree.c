@@ -519,10 +519,6 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 	      headerInfo->refreshFunc(headerInfo->headerWidget, tree);
 	    }
 	}
-      else
-	{
-	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.\n");
-	}
     }
 }
 
@@ -555,10 +551,6 @@ static void resizeTreeHeaders(GtkWidget *tree, gpointer data)
 	      const int width = calculateColumnWidth(headerInfo, tree);
 	      gtk_widget_set_size_request(headerInfo->headerWidget, width, -1);
 	    }
-	}
-      else
-	{
-	  g_warning("Invalid tree header info found when refreshing tree headers. Tree header may not refresh properly.\n");
 	}
     }
   
@@ -1887,16 +1879,17 @@ static void onSeqColWidthChanged(GtkTreeViewColumn *column, GParamSpec *paramSpe
 
 
 /* Create a single column in the tree. */
-static GtkTreeViewColumn* initColumn(GtkWidget *tree, 
-				     GtkCellRenderer *renderer, 
-				      DetailViewColumnInfo *columnInfo)
+static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree, 
+                                           GtkCellRenderer *renderer, 
+                                           DetailViewColumnInfo *columnInfo)
 {
   /* Create the column */
-  GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(columnInfo->title, 
-								       renderer, 
-								       columnInfo->propertyName, columnInfo->columnId, 
-								       "data", BLXCOL_SEQUENCE, /* always set msp so each column has access to all the data */
-								       NULL);
+  GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(
+    columnInfo->title, 
+    renderer, 
+    columnInfo->propertyName, columnInfo->columnId,  /* set the given property for this column */
+    RENDERER_DATA_PROPERTY, BLXCOL_SEQUENCE,         /* also set the data property so all columns have access to the MSP data */
+    NULL);
 
   /* Reduce the width of the end col by the scrollbar width. (This is so it matches the width
    * of the header, which does not have a scrollbar. ) */
@@ -2102,19 +2095,22 @@ static TreeColumnHeaderInfo* createTreeColumnHeaderInfo(GtkWidget *headerWidget,
 }
 
 
-/* Create the header widget for the given column in the tree header. The tree
- * header bar shows information about the reference sequence. */
-static void createTreeColHeader(GList **columnHeaders, 
-				GtkTreeViewColumn *treeColumn,
-				DetailViewColumnInfo *columnInfo,
-				GtkWidget *headerBar,
-				GtkWidget *tree,
-				const char const *refSeqName,
-				const int frame,
-				const BlxStrand strand)
+/* Create the column header widget for the given column in the tree header. It gets placed in
+ * a TreecolumnHeaderInfo struct along with other header properties. The tree header shows
+ * information about the reference sequence. */
+static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders, 
+                                                 GtkTreeViewColumn *treeColumn,
+                                                 DetailViewColumnInfo *columnInfo,
+                                                 TreeColumnHeaderInfo* firstTreeCol,
+                                                 GtkWidget *headerBar,
+                                                 GtkWidget *tree,
+                                                 const char const *refSeqName,
+                                                 const int frame,
+                                                 const BlxStrand strand)
 {
-  /* Create a header for this column, if required. Create a list of other 
-   * columns we wish to merge under the same header. */
+  /* Create a header widget for this column, if required. Also create a list of other 
+   * column IDs we wish to merge under the same header (i.e. the 'Name' header spans over
+   * the name column as well as the score and Id columns). */
   GtkWidget *columnHeader = NULL;
   GList *columnIds = NULL;
   GtkCallback refreshFunc = NULL;
@@ -2127,12 +2123,8 @@ static void createTreeColHeader(GList **columnHeaders,
 	   * This header will also span the score and id columns, seeing as we don't need
 	   * to show any info in those columns. */
 	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
-	  
 	  refreshFunc = refreshNameColHeader;
-	  
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(BLXCOL_SEQNAME));
-	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(BLXCOL_SCORE));
-	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(BLXCOL_ID));
 	  break;
 	}
 	
@@ -2168,44 +2160,50 @@ static void createTreeColHeader(GList **columnHeaders,
 	  break;
 	}
 
-      case BLXCOL_SCORE: /* fall through */
-      case BLXCOL_ID:    /* fall through */
       default:
-	break;
+        /* Any columns not specified above will not have their own header, so add them under the
+         * first column's header instead. */
+        {
+          if (firstTreeCol)
+            {
+              firstTreeCol->columnIds = g_list_append(firstTreeCol->columnIds, GINT_TO_POINTER(columnInfo->columnId));
+            }
+          
+          break;
+        }
     };
 
+  TreeColumnHeaderInfo *headerInfo = NULL;
   
-  if (columnHeader != NULL)
-    { 
-      /* Put the widget in an event box so that we can color its background. */
-      GtkWidget *parent = gtk_event_box_new();
-      gtk_container_add(GTK_CONTAINER(parent), columnHeader);
-      
-      /* Put the event box into the header bar */
-      gtk_box_pack_start(GTK_BOX(headerBar), parent, (columnInfo->columnId == BLXCOL_SEQUENCE), TRUE, 0);
-      
-      /* Create the header info and add it to the list */
-      TreeColumnHeaderInfo *headerInfo = createTreeColumnHeaderInfo(columnHeader, tree, columnIds, refreshFunc);
+  if (columnHeader)
+    {
+      /* Create a header info struct for each column, even if its contents are null */
+      headerInfo = createTreeColumnHeaderInfo(columnHeader, tree, columnIds, refreshFunc);
       *columnHeaders = g_list_append(*columnHeaders, headerInfo);
     }
+  
+  return headerInfo;
 }
 
 
 /* Create the columns. Returns a list of header info for the column headers */
-static GList* addTreeColumns(GtkWidget *tree, 
-			     GtkCellRenderer *renderer, 
-			     const BlxSeqType seqType,
-			     GList *columnList,
-			     GtkWidget *columnHeaderBar,
-			     const char const *refSeqName,
-			     const int frame,
-			     const BlxStrand strand)
+static GList* createTreeColumns(GtkWidget *tree, 
+                                GtkCellRenderer *renderer, 
+                                 const BlxSeqType seqType,
+                                 GList *columnList,
+                                 GtkWidget *columnHeaderBar,
+                                 const char const *refSeqName,
+                                 const int frame,
+                                 const BlxStrand strand)
 {
-  /* We'll create the headers as we create the columns */
-  GList *columnHeaders = NULL;
+  /* We'll create a list of tree column headers */
+  GList *treeColumns = NULL;
 
   /* The columns are defined by the columnList from the detail view. This list contains the
-   * info such as the column width and title for each column. */
+   * info such as the column width and title for each column. Loop through and create the tree
+   * column header for each detail-view column. If any columns do not require their own header
+   * in the tree, add them under the first column's header instead. */
+  TreeColumnHeaderInfo* firstTreeCol = NULL;
   GList *column = columnList;
   
   for ( ; column; column = column->next)
@@ -2214,21 +2212,47 @@ static GList* addTreeColumns(GtkWidget *tree,
       
       if (columnInfo)
 	{
-	  GtkTreeViewColumn *treeColumn = initColumn(tree, renderer, columnInfo);
-	  createTreeColHeader(&columnHeaders, treeColumn, columnInfo, columnHeaderBar, tree, refSeqName, frame, strand);
+	  GtkTreeViewColumn *treeColumn = createTreeColumn(tree, renderer, columnInfo);
+	  TreeColumnHeaderInfo* headerInfo = createTreeColHeader(&treeColumns, treeColumn, columnInfo, firstTreeCol, columnHeaderBar, tree, refSeqName, frame, strand);
+          
+          if (!firstTreeCol)
+            {
+              firstTreeCol = headerInfo;
+            }
 	}
       else
 	{
 	  g_warning("Error creating column; invalid column info in detail-view column-list.\n");
 	}
     }
-
+  
   /* Set a tooltip to display the sequence name. To do: at the moment this shows
    * the tooltip when hovering anywhere over the tree: really we probably just
    * want to show it when hovering over the name column. */
   /* gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree), BLXCOL_SEQNAME); */ /* only in GTK 2.12 and higher */
 
-  return columnHeaders;
+  return treeColumns;
+}
+
+
+/* Add the header widget for each column to the tree's header bar */
+static void addColumnsToTreeHeader(GtkWidget *headerBar, GList *columnList)
+{
+  GList *columnItem = columnList;
+  
+  for ( ; columnItem; columnItem = columnItem->next)
+    {
+      TreeColumnHeaderInfo *columnInfo = (TreeColumnHeaderInfo*)(columnItem->data);
+      
+      /* Put the header widget in an event box so that we can color its background. */
+      GtkWidget *eventBox = gtk_event_box_new();
+      gtk_container_add(GTK_CONTAINER(eventBox), columnInfo->headerWidget);
+      
+      /* Put the event box into the header bar. If it's the sequence column, set the expand property. */
+      gboolean expand = (g_list_find(columnInfo->columnIds, GINT_TO_POINTER(BLXCOL_SEQUENCE)) != NULL);
+      
+      gtk_box_pack_start(GTK_BOX(headerBar), eventBox, expand, TRUE, 0);
+    }
 }
 
 
@@ -2489,8 +2513,11 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   gtk_box_pack_start(GTK_BOX(vbox), treeHeader, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
   
-  /* Add the columns */
-  GList *treeColumnHeaderList = addTreeColumns(tree, renderer, seqType, columnList, columnHeaderBar, refSeqName, frame, strand);
+  /* Create the tree columns */
+  GList *treeColumnHeaderList = createTreeColumns(tree, renderer, seqType, columnList, columnHeaderBar, refSeqName, frame, strand);
+  
+  /* Add the columns to the tree header */
+  addColumnsToTreeHeader(columnHeaderBar, treeColumnHeaderList);
   
   /* Set the essential tree properties */
   treeCreateProperties(tree, grid, detailView, frame, treeHeader, treeColumnHeaderList, includeSnpTrack);
