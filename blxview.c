@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.48 2010-07-08 12:06:47 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.49 2010-07-09 11:49:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -718,9 +718,8 @@ MSP* createNewMsp(MSP **lastMsp,
                   char *opts, 
                   GError **error)
 {
-  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
+  MSP *msp = createEmptyMsp(lastMsp, mspList);
   
-  msp->next = NULL;
   msp->type = mspType;
   msp->score = score;
   
@@ -731,26 +730,8 @@ MSP* createNewMsp(MSP **lastMsp,
   
   msp->sname = g_ascii_strup(sName, -1);
   
-  msp->desc = NULL;
-  
-  msp->style = NULL;
-  
-  msp->fs = NULL;
-  msp->fsColor = 0;
-  msp->fsShape = BLXCURVE_BADSHAPE;
-  msp->xy = NULL;
-  
-  msp->gaps = NULL;
-
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
-  
-#ifdef ACEDB
-  msp->key = 0;
-#endif
-  
-  /* ID will be calculated later */
-  msp->id = 0;
   
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -766,19 +747,6 @@ MSP* createNewMsp(MSP **lastMsp,
   
   /* Add/create a BlxSequence for this MSP's sequence name */
   addBlxSequence(msp, sStrand, seqList, sequence, error);
-
-  /* Add it to the list */
-  if (!*mspList) 
-    {
-      *mspList = msp; /* first entry in list */
-    }
-
-  if (*lastMsp)
-    {
-      (*lastMsp)->next = msp; /* add to end of list */
-    }
-  
-  *lastMsp = msp;
 
   if (error && *error)
     {
@@ -826,6 +794,7 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->sframe[4] = '\0';
   
   msp->desc = NULL;
+  msp->source = NULL;
 
   msp->style = NULL;
 

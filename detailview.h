@@ -18,24 +18,6 @@
 #define SNP_TRACK_HEADER_NAME		"SNP track header"
 #define DNA_TRACK_HEADER_NAME		"DNA track header"
 
-/* Define the columns. Specify a default width, the display text for the
- * column header, and also a name for the property that will be set in the
- * cell renderer. (The latter cannot contain special characters.) */
-#define NAME_COLUMN_DEFAULT_WIDTH	120
-#define SCORE_COLUMN_DEFAULT_WIDTH	40
-#define ID_COLUMN_DEFAULT_WIDTH		40
-#define START_COLUMN_DEFAULT_WIDTH	50
-#define SEQ_COLUMN_DEFAULT_WIDTH	40
-#define END_COLUMN_DEFAULT_WIDTH	80
-
-#define BLXCOL_SEQNAME_TITLE		"Name"
-#define BLXCOL_SCORE_TITLE              "Score"
-#define BLXCOL_ID_TITLE                 "%Id"
-#define BLXCOL_START_TITLE              "Start"
-#define BLXCOL_SEQUENCE_TITLE           "Sequence"
-#define END_COLUMN_HEADER_TEXT          "End"
-
-
 /* This enum is used to define integer values to mean "canonical" and "non canonical". The values
  * are converted to pointers to be used in a hash table, so they must be non-zero, or the hash table
  * will treat them as null */
@@ -46,18 +28,32 @@ typedef enum
   } BlxCanonical;
 
 
-/* This enum declares identifiers for each column in the detail view */
+/* This enum declares identifiers for each column in the detail-view trees. If you add an enum
+ * here you must also add its type to the TREE_COLUMN_TYPE_LIST definition below. */
 typedef enum
   {
-    BLXCOL_SEQNAME,
-    BLXCOL_SCORE,
-    BLXCOL_ID,
-    BLXCOL_START,
-    BLXCOL_SEQUENCE,
-    BLXCOL_END,
+    BLXCOL_SEQNAME,             /* The match sequence's name */
+    BLXCOL_SOURCE,              /* The match's source */
+    BLXCOL_SCORE,               /* The alignment's score */
+    BLXCOL_ID,                  /* The alignment's %ID */
+    BLXCOL_START,               /* The start coord of the alignment on the match sequence */
+    BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
+    BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
     
-    N_COLUMNS
+    BLXCOL_NUM_COLUMNS          /* The number of columns; must always be the last item in this enum */
   } ColumnId;
+
+
+/* This defines the variable type for each detail-view-tree column. These MUST be the 
+ * correct types (in the correct order) for the columns listed in the ColumnId enum above. */
+#define TREE_COLUMN_TYPE_LIST                     \
+    G_TYPE_STRING,              /* seq name */    \
+    G_TYPE_STRING,              /* source */      \
+    G_TYPE_INT,                 /* score */       \
+    G_TYPE_INT,                 /* id */          \
+    G_TYPE_INT,                 /* start */       \
+    G_TYPE_POINTER,             /* sequence */    \
+    G_TYPE_INT                  /* end */
 
 
 /* This struct describes a column in the detail view. Multiple widgets (i.e. headers

@@ -28,6 +28,14 @@
 #define DEFAULT_SNP_CONNECTOR_HEIGHT	0
 #define DEFAULT_NUM_UNALIGNED_BASES     5    /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
 
+/* Define the columns' default widths and titles. */
+#define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
+#define BLXCOL_HIDDEN_COLUMN_WIDTH      0     /* default width for columns that are initially hidden */
+#define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
+#define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
+#define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
+#define BLXCOL_SEQUENCE_WIDTH           40    /* default width for sequence column */
+
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
 
@@ -549,11 +557,11 @@ static void refreshStartColHeader(GtkWidget *header, gpointer data)
 
   if (detailViewGetDisplayRev(detailView))
     {
-      gtk_label_set_text(GTK_LABEL(header), END_COLUMN_HEADER_TEXT);
+      gtk_label_set_text(GTK_LABEL(header), "End");
     }
   else
     {
-      gtk_label_set_text(GTK_LABEL(header), BLXCOL_START_TITLE);
+      gtk_label_set_text(GTK_LABEL(header), "Start");
     }
 }
 
@@ -566,11 +574,11 @@ static void refreshEndColHeader(GtkWidget *header, gpointer data)
 
   if (detailViewGetDisplayRev(detailView))
     {
-      gtk_label_set_text(GTK_LABEL(header), BLXCOL_START_TITLE);
+      gtk_label_set_text(GTK_LABEL(header), "Start");
     }
   else
     {
-      gtk_label_set_text(GTK_LABEL(header), END_COLUMN_HEADER_TEXT);
+      gtk_label_set_text(GTK_LABEL(header), "End");
     }
 }
 
@@ -677,14 +685,9 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)listItem->data;
 
-      if (columnInfo->columnId == BLXCOL_SEQUENCE)
-	{
-	  /* For the sequence column, don't set the size request, or we won't be
-	   * able to shrink the window. The sequence col header will be resized
-	   * dynamically to fit its text, which is the width that we want anyway. */
-	  gtk_widget_set_size_request(columnInfo->headerWidget, SEQ_COLUMN_DEFAULT_WIDTH, -1);
-	}
-      else
+      /* For the sequence column, don't set the size request, or we won't be able
+       * to shrink the window. (The sequence col header will be resized dynamically.) */
+      if (columnInfo->columnId != BLXCOL_SEQUENCE)
 	{
 	  /* For other columns, we can set the size request: they're small enough
 	   * that we can live without the need to shrink below their sum widths. */
@@ -3296,6 +3299,16 @@ static void GToggleStrand(GtkButton *button, gpointer data)
  *                     Initialization                      *
  ***********************************************************/
 
+/* Comparison function for two DetailViewColumnInfo structs
+ * Returns : negative value if a < b; zero if a = b; positive value if a > b.  */
+static gint columnCompareFunc(gconstpointer a, gconstpointer b)
+{
+  DetailViewColumnInfo *col1 = (DetailViewColumnInfo*)a;
+  DetailViewColumnInfo *col2 = (DetailViewColumnInfo*)b;
+  
+  return col1->columnId - col2->columnId;
+}
+
 /* Creates a detail-view column from the given info and adds it to the columnList. */
 static void createColumn(ColumnId columnId, 
                          GtkWidget *specialWidget,
@@ -3315,15 +3328,19 @@ static void createColumn(ColumnId columnId,
       gtk_misc_set_alignment(GTK_MISC(headerWidget), 0.0, 1.0);
     }
 
-  /* Create the column info and place it in the list */
+  /* Create the column info */
   DetailViewColumnInfo *columnInfo = g_malloc(sizeof(DetailViewColumnInfo));
+  
   columnInfo->columnId = columnId;
   columnInfo->headerWidget = headerWidget;
   columnInfo->refreshFunc = callbackFn,
   columnInfo->title = title;
   columnInfo->propertyName = propertyName;
   columnInfo->width = defaultWidth;
-  *columnList = g_list_append(*columnList, columnInfo);
+  
+  /* Place it in the list. Sort the list by ColumnId because the list must be sorted in the same
+   * order as the variable types in the TREE_COLUMN_TYPE_LIST definition */
+  *columnList = g_list_insert_sorted(*columnList, columnInfo, columnCompareFunc);
 }
 
 
@@ -3344,13 +3361,14 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   GtkCallback endCallback = refreshEndColHeader;
   
   /* Create the column headers and pack them into the column header bar */
-  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          BLXCOL_SEQNAME_TITLE,   RENDERER_TEXT_PROPERTY,     NAME_COLUMN_DEFAULT_WIDTH,  &columnList);
-  createColumn(BLXCOL_SCORE,     NULL,       NULL,          BLXCOL_SCORE_TITLE,     RENDERER_TEXT_PROPERTY,     SCORE_COLUMN_DEFAULT_WIDTH, &columnList);
-  createColumn(BLXCOL_ID,        NULL,       NULL,          BLXCOL_ID_TITLE,        RENDERER_TEXT_PROPERTY,     ID_COLUMN_DEFAULT_WIDTH,    &columnList);
-  createColumn(BLXCOL_START,     NULL,       startCallback, BLXCOL_START_TITLE,     RENDERER_TEXT_PROPERTY,     START_COLUMN_DEFAULT_WIDTH, &columnList);
-  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   BLXCOL_SEQUENCE_TITLE,  RENDERER_SEQUENCE_PROPERTY, SEQ_COLUMN_DEFAULT_WIDTH,   &columnList);
-  createColumn(BLXCOL_END,       NULL,       endCallback,   END_COLUMN_HEADER_TEXT, RENDERER_TEXT_PROPERTY,     END_COLUMN_DEFAULT_WIDTH,   &columnList);
-  
+  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          "Name",      RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        &columnList);
+  createColumn(BLXCOL_SCORE,     NULL,       NULL,          "Score",     RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     &columnList);
+  createColumn(BLXCOL_ID,        NULL,       NULL,          "%Id",       RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     &columnList);
+  createColumn(BLXCOL_START,     NULL,       startCallback, "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          &columnList);
+  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   "Sequence",  RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       &columnList);
+  createColumn(BLXCOL_END,       NULL,       endCallback,   "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            &columnList);
+  createColumn(BLXCOL_SOURCE,    NULL,       NULL,          "Source",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  &columnList);
+
   return columnList;
 }
 

@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.24 2010-07-08 10:14:02 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.25 2010-07-09 11:49:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -219,8 +219,9 @@ typedef struct _MSP
   IntRange	    sRange;	   /* the range of coords on the match sequence where the alignment lies */
   
   char              *desc;         /* Optional description text for the MSP */
-  GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer; the array
-                                    * gives the ranges of the bits that align, and the gaps are the bits in between */
+  char              *source;       /* Optional source text for the MSP */
+  GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer because the array
+                                    * gives the ranges of the bits that align rather than the ranges of the gaps in between */
                          
   BlxStyle          *style;        /* Specifies drawing style for this MSP, e.g. fill color and line color */
 

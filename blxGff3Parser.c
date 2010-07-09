@@ -347,7 +347,8 @@ static void parseGffColumns(GString *line_string, const int lineNum, const char 
   if (!tmpError)
     {
       msp->qname = g_ascii_strup(tokens[0], -1);
-      msp->style = getBlxStyle(tokens[1], styles, &tmpError);
+      msp->source = g_strdup(tokens[1]);
+      msp->style = getBlxStyle(msp->source, styles, &tmpError);
       
       if (tmpError)
 	{

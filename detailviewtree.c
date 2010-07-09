@@ -242,6 +242,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, msp->sname,
+			     BLXCOL_SOURCE, msp->source,
 			     BLXCOL_SCORE, msp->score,
 			     BLXCOL_ID, msp->id,
 			     BLXCOL_START, msp->sRange.min,
@@ -254,6 +255,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	  /* Add generic info about the sequence */
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, sequenceGetDisplayName(subjectSeq),
+			     BLXCOL_SOURCE, NULL,
 			     BLXCOL_SCORE, NULL,
 			     BLXCOL_ID, NULL,
 			     BLXCOL_START, NULL,
@@ -267,20 +269,14 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 
 void addSequencesToTree(GtkWidget *tree, gpointer data)
 {
-  GtkListStore *store = gtk_list_store_new(N_COLUMNS,
-					   G_TYPE_STRING, 
-					   G_TYPE_INT, 
-					   G_TYPE_INT, 
-					   G_TYPE_INT, 
-					   G_TYPE_POINTER, 
-					   G_TYPE_INT);
+  GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
   
-  /* Set the sort functions for each column */
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_SEQNAME,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_ID,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_SCORE,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_START,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_SEQUENCE, sortColumnCompareFunc, tree, NULL);
+  /* Set the sort function for each column */
+  int colNum = 0;
+  for ( ; colNum < BLXCOL_NUM_COLUMNS; ++colNum)
+    {
+      gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), colNum,	sortColumnCompareFunc, tree, NULL);
+    }
 
   /* Add the rows - one row per sequence. Use the list we've already compiled of all
    * sequences as BlxSequences */
@@ -537,14 +533,10 @@ static void resizeTreeHeaders(GtkWidget *tree, gpointer data)
 	{
 	  int firstColId = GPOINTER_TO_INT(headerInfo->columnIds->data);
 
-	  if (firstColId == BLXCOL_SEQUENCE)
-	    {
-	      /* For the sequence column, don't set the size request, or we won't be
-	       * able to shrink the window. The sequence col header will be resized
-	       * dynamically to fit its text, which is the width that we want anyway. */
-	      gtk_widget_set_size_request(headerInfo->headerWidget, SEQ_COLUMN_DEFAULT_WIDTH, -1);
-	    }
-	  else
+          /* For the sequence column, don't set the size request to the real size, or we 
+           * won't be able to shrink the window. (The sequence col header will be resized
+           * dynamically anyway.) */
+	  if (firstColId != BLXCOL_SEQUENCE)
 	    {
 	      /* For other columns, we can set the size request: they're small enough
 	       * that we can live without the need to shrink below their sum widths. */
@@ -1653,6 +1645,7 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
       
       gtk_list_store_set(store, &iter,
 			 BLXCOL_SEQNAME, msp->sname,
+			 BLXCOL_SOURCE, msp->source,
 			 BLXCOL_SCORE, msp->score,
 			 BLXCOL_ID, msp->id,
 			 BLXCOL_START, msp->sRange.min,
@@ -1905,7 +1898,17 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
   }
   
   /* Set the column properties and add the column to the tree */
-  gtk_tree_view_column_set_fixed_width(column, width);
+  if (width > 0)
+    {
+      gtk_tree_view_column_set_visible(column, TRUE);
+      gtk_tree_view_column_set_fixed_width(column, width);
+    }
+  else
+    {
+      /* Can't have 0 width, so hide the column instead */
+      gtk_tree_view_column_set_visible(column, FALSE);
+    }
+  
   gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
   gtk_tree_view_column_set_resizable(column, TRUE);
   gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
@@ -2124,7 +2127,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 	   * to show any info in those columns. */
 	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshNameColHeader;
-	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(BLXCOL_SEQNAME));
+	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  break;
 	}
 	
@@ -2287,7 +2290,15 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 	  result = strcmp(msp1->sname, msp2->sname);
 	  break;
 	}
-	
+
+      case BLXCOL_SOURCE:
+      {
+        MSP *msp1 = (MSP*)(mspGList1->data);
+        MSP *msp2 = (MSP*)(mspGList2->data);
+        result = strcmp(msp1->source, msp2->source);
+        break;
+      }
+        
       case BLXCOL_SCORE:
 	{
 	  result = multipleMsps ? 0 : msp1->score - msp2->score;
@@ -2374,20 +2385,14 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 {
   /* Create the data store for the tree view */
-  GtkListStore *store = gtk_list_store_new(N_COLUMNS,
-					   G_TYPE_STRING, 
-					   G_TYPE_INT, 
-					   G_TYPE_INT, 
-					   G_TYPE_INT, 
-					   G_TYPE_POINTER, 
-					   G_TYPE_INT);
+  GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
   
-  /* Set the sort functions for each column */
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_SEQNAME,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_ID,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_SCORE,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_START,	  sortColumnCompareFunc, tree, NULL);
-  gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), BLXCOL_SEQUENCE, sortColumnCompareFunc, tree, NULL);
+  /* Set the sort function for each column */
+  int colNum = 0;
+  for ( ; colNum < BLXCOL_NUM_COLUMNS; ++colNum)
+    {
+      gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), colNum,	sortColumnCompareFunc, tree, NULL);
+    }
   
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
   g_object_unref(G_OBJECT(store));
