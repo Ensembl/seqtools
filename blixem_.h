@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.38 2010-07-12 09:42:21 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.39 2010-07-12 10:09:25 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -223,6 +223,16 @@ typedef enum
     BLXOPT_NUM_OPTS               /* Total number of options (must always be last in list) */
   } BlxOptsIdx ;
 
+
+
+/* COLUMNS: To add a new column you must do the following:
+ *    - add an identifier for the column to the ColumnId enum;
+ *    - add the type to the TREE_COLUMN_TYPE_LIST definition; and
+ *    - specify the data source in addSequenceStructToRow and addMspToRow;
+ * and optionally:
+ *    - add a custom data function in createTreeColumn;
+ *    - add a custom header widget and/or header refresh function in createTreeColHeader;
+ *    - specify sort behaviour in sortColCompareFunc. */
 
 /* This enum declares identifiers for each column in the detail-view trees. If you add an enum
  * here you must also add its type to the TREE_COLUMN_TYPE_LIST definition below. */
