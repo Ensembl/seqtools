@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.39 2010-07-12 10:09:25 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.40 2010-07-12 15:49:30 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -284,7 +284,6 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname);
 
 /* blxFetch.c */
-void                               blxPfetchEntry(char *sequence_name) ;
 void                               fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow) ;
 void                               blxFindInitialFetchMode(char *fetchMode) ;
 void                               blxPfetchMenu(void) ;

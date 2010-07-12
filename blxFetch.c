@@ -33,12 +33,12 @@
  *              This requires w3rdparty libs libpfetch and libcurlobj
  *              which in turn require libcurl.
  *
- * Exported functions: blxPfetchEntry()
+ * Exported functions: 
  *              
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.22 2010-07-12 11:28:25 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.23 2010-07-12 15:49:30 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -47,7 +47,6 @@
 #include <arpa/inet.h>  /* for sockaddr_in and inet_addr() */
 #include <netdb.h>					    /* for gethostbyname() */
 #ifdef PFETCH_HTML 
-#include <wh/gex.h>
 #include <libpfetch/libpfetch.h>
 #endif
 #include <SeqTools/utilities.h>
@@ -197,7 +196,7 @@ ConfigGroup getConfig(char *config_name) ;
 static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
 static char *blxConfigGetFetchMode(void);
-
+static void blxPfetchEntry(char *sequence_name, GtkWidget *blxWindow);
 
 
 /* Some local globals.... */
@@ -244,6 +243,36 @@ static GString* getExternalCommandOutput(const char *command)
 }
 
 
+/* Display a message dialog showing the given display text. This utility functions sets
+ * things like the font and default width based on properties of the main blixem window.
+ * Returns a pointer to the dialog, and optionally sets a pointer to the text buffer in the
+ * textBuffer return argument. */
+static GtkWidget* displayFetchDialog(const char *title, const char *displayText, GtkWidget *blxWindow, GtkTextBuffer **textBuffer)
+{
+  /* Use the same fixed-width font that the detail view uses, but* don't use the
+   * detail view's font size, because it may be zoomed in/out. */
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  PangoFontDescription *fontDesc = pango_font_description_copy(detailViewGetFontDesc(detailView));
+  pango_font_description_set_size(fontDesc, pango_font_description_get_size(blxWindow->style->font_desc));
+
+  /* Set the initial width based on the default number of characters wide */
+  PangoContext *context = gtk_widget_get_pango_context(detailView);
+  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+  gint charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
+
+  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
+  const int maxHeight = blxWindow->allocation.height * 0.5;
+
+  GtkWidget *result = showMessageDialog(title, displayText, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc, textBuffer);
+
+  /* Clean up */
+  pango_font_metrics_unref(metrics);
+  pango_font_description_free(fontDesc);
+  
+  return result;
+}
+
+
 /* SHOULD BE MERGED INTO libfree.a */
 /* call an external shell command and print output in a text_scroll window
  *
@@ -259,26 +288,7 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 #if !defined(MACINTOSH)
 
   GString *resultText = getExternalCommandOutput(command);
-  
-  /* Show the dialog. Use the same fixed-width font that the detail view uses, but
-   * don't use the detail view's font size, because it may be zoomed in/out. */
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  PangoFontDescription *fontDesc = pango_font_description_copy(detailViewGetFontDesc(detailView));
-  pango_font_description_set_size(fontDesc, pango_font_description_get_size(blxWindow->style->font_desc));
-
-  /* Set the initial width based on the default number of characters wide */
-  PangoContext *context = gtk_widget_get_pango_context(detailView);
-  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-  gint charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
-
-  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
-  const int maxHeight = blxWindow->allocation.height * 0.5;
-
-  showMessageDialog(command, resultText->str, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc);
-
-  /* Clean up */
-  pango_font_metrics_unref(metrics);
-  pango_font_description_free(fontDesc);
+  displayFetchDialog(command, resultText->str, blxWindow, NULL);
   g_string_free(resultText, TRUE);
 
 #endif
@@ -371,7 +381,7 @@ void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
 #ifdef PFETCH_HTML 
   else if (!strcmp(fetchMode, BLX_FETCH_PFETCH_HTML))
     {
-      blxPfetchEntry(seqName) ;
+      blxPfetchEntry(seqName, blxWindow) ;
     }
 #endif
   else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
@@ -584,7 +594,7 @@ gboolean blxGetSseqsPfetchHtml(GList *seqsToFetch, BlxSeqType seqType)
 }
 
 
-void blxPfetchEntry(char *sequence_name)
+static void blxPfetchEntry(char *sequence_name, GtkWidget *blxWindow)
 {
   PFetchUserPrefsStruct prefs = {NULL} ;
   gboolean debug_pfetch = FALSE ;
@@ -604,14 +614,12 @@ void blxPfetchEntry(char *sequence_name)
       
       if ((pfetch_data->title = g_strdup_printf(PFETCH_TITLE_FORMAT, sequence_name)))
 	{
-	  GexEditor editor ;
+          GtkTextBuffer *textBuffer = NULL;
+          
+          GtkWidget *dialog = displayFetchDialog(pfetch_data->title, "pfetching...\n", blxWindow, &textBuffer);
 
-	  editor = gexTextEditorNew(pfetch_data->title, "pfetching...\n", 0,
-				    NULL, NULL, NULL,
-				    FALSE, FALSE, TRUE) ;
-	  
-	  pfetch_data->dialog = editor->window ;
-	  pfetch_data->text_buffer = editor->text ;
+	  pfetch_data->dialog = dialog ;
+	  pfetch_data->text_buffer = textBuffer ;
 
 	  pfetch_data->widget_destroy_handler_id = 
 	    g_signal_connect(G_OBJECT(pfetch_data->dialog), "destroy", 
@@ -619,18 +627,22 @@ void blxPfetchEntry(char *sequence_name)
 	}
       
       if (PFETCH_IS_HTTP_HANDLE(pfetch))
-	PFetchHandleSettings(pfetch, 
-			     "full",       TRUE,
-			     "port",       prefs.port,
-			     "debug",      debug_pfetch,
-			     "pfetch",     prefs.location,
-			     "cookie-jar", prefs.cookie_jar,
-			     NULL);
+        {
+            PFetchHandleSettings(pfetch, 
+                                 "full",       TRUE,
+                                 "port",       prefs.port,
+                                 "debug",      debug_pfetch,
+                                 "pfetch",     prefs.location,
+                                 "cookie-jar", prefs.cookie_jar,
+                                 NULL);
+        }
       else
-	PFetchHandleSettings(pfetch, 
-			     "full",       TRUE,
-			     "pfetch",     prefs.location,
-			     NULL);
+        {
+            PFetchHandleSettings(pfetch, 
+                                 "full",       TRUE,
+                                 "pfetch",     prefs.location,
+                                 NULL);
+        }
       
       g_free(prefs.location);
       g_free(prefs.cookie_jar);
@@ -1109,7 +1121,7 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 	gtk_text_buffer_set_text(text_buffer, "", 0);
 
       gtk_text_buffer_insert_at_cursor(text_buffer, text, *actual_read);
-
+      
       pfetch_data->got_response = TRUE;
     }
 

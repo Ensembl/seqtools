@@ -228,20 +228,22 @@ int		      convertStringToInt(const char *inputStr);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
 
-void		      showMessageDialog(const char *title,  
+GtkWidget*	      showMessageDialog(const char *title,  
 					const char *messageText,
 					GtkWidget *parent,
 					const int initWidth,
 					const int maxHeight,
 					const gboolean wrapText,
                                         const gboolean useMarkup,
-					PangoFontDescription *fontDesc);
+					PangoFontDescription *fontDesc,
+                                        GtkTextBuffer **textBuffer);
 
 GtkWidget*		createScrollableTextView(const char *messageText,
 						 const gboolean wrapText,
 						 PangoFontDescription *fontDesc,
                                                  const gboolean useMarkup,
-						 int *height);
+						 int *height,
+                                                 GtkTextBuffer **textBufferOut);
 				    
 void		      widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);
 void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);

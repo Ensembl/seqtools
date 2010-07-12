@@ -1312,15 +1312,40 @@ int convertStringToInt(const char *inputStr)
  *			   Dialogs			   *
  ***********************************************************/
 
-/* Utility to create a scrollable text view from the given message text */
+///* Utility to set the height of a GtkTextView based on the number of lines of text it
+// * contains (but not going above the given max height). Returns the height that was set. */
+//static int textViewSetHeight(GtkWidget *textView, GtkTextBuffer *textBuffer, PangoFontDescription *fontDesc, int maxHeight)
+//{
+//  PangoContext *context = gtk_widget_get_pango_context(textView);
+//  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+//  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
+//  
+//  /* Adjust height to include all the lines if possible (limit to the original height passed in thought) */
+//  const int calcHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight) + 100; /* fudge to allow space for buttons */
+//  int resultHeight = min(maxHeight, calcHeight);
+//  
+//  pango_font_metrics_unref(metrics);
+//  
+//  return resultHeight;
+//}
+
+
+/* Utility to create a scrollable text view from the given message text. If textBufferOut is
+ * non-null its value is set to point to the text buffer. */
 GtkWidget* createScrollableTextView(const char *messageText,
 				    const gboolean wrapText,
 				    PangoFontDescription *fontDesc,
                                     const gboolean useMarkup,
-				    int *height)
+				    int *height,
+                                    GtkTextBuffer **textBufferOut)
 {
   /* Create a text buffer and copy the text in */
   GtkTextBuffer *textBuffer = gtk_text_buffer_new(NULL);
+  
+  if (textBufferOut)
+    {
+      *textBufferOut = textBuffer;
+    }
   
   GtkTextIter textIter;
   gtk_text_buffer_get_iter_at_line(textBuffer, &textIter, 0);
@@ -1345,17 +1370,6 @@ GtkWidget* createScrollableTextView(const char *messageText,
       gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), TRUE);
     }
   
-  /* Set the initial height based on the number of lines (but don't make it bigger than the parent window) */
-  PangoContext *context = gtk_widget_get_pango_context(textView);
-  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  
-  /* Adjust height to include all the lines if possible (limit to the original height passed in thought) */
-  const int calcHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight) + 100; /* fudge to allow space for buttons */
-  *height = min(*height, calcHeight);
-  
-  pango_font_metrics_unref(metrics);
-  
   /* Put the text view in a scrollable window */
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(scrollWin), textView);
@@ -1366,15 +1380,18 @@ GtkWidget* createScrollableTextView(const char *messageText,
 }
 
 
-/* Utility to pop up a simple dialog with the given title and text, with just an "OK" button. */
-void showMessageDialog(const char *title,  
-		       const char *messageText,
-		       GtkWidget *parent,
-		       const int width,
-		       const int maxHeight,
-		       const gboolean wrapText,
-                       const gboolean useMarkup,
-		       PangoFontDescription *fontDesc)
+/* Utility to pop up a simple dialog with the given title and text, with just an "OK" 
+ * button. Returns the dialog, and optionally sets a pointer to the text buffer in the 
+ * textBuffer return arg. */
+GtkWidget* showMessageDialog(const char *title,  
+                             const char *messageText,
+                             GtkWidget *parent,
+                             const int width,
+                             const int maxHeight,
+                             const gboolean wrapText,
+                             const gboolean useMarkup,
+                             PangoFontDescription *fontDesc,
+                             GtkTextBuffer **textBuffer)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
 						  GTK_WINDOW(parent), 
@@ -1386,13 +1403,15 @@ void showMessageDialog(const char *title,
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
   int height = maxHeight;
-  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, &height);
+  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, &height, textBuffer);
 
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
 
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
   gtk_widget_show_all(dialog);
+  
+  return dialog;
 }
 
 
