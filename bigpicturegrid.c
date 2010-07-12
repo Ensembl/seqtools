@@ -380,9 +380,9 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   const gint percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
   const gint numVCells = gridGetNumVCells(grid);
 
-  GdkColor *highlightBoxColor = getGdkColor(BLXCOL_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkColor *gridLineColor = getGdkColor(BLXCOL_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkColor *gridTextColor = getGdkColor( BLXCOL_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *gridLineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *gridTextColor = getGdkColor( BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
 
   /* Draw the highlight box */
   drawHighlightBox(drawable,
@@ -545,7 +545,7 @@ static gboolean selectMspIfContainsCoords(GtkWidget *grid,
 	  detailViewSetSelectedStrand(detailView, gridGetStrand(grid));
 
 	  /* Scroll the detail view trees to bring the new selection into view */
-	  callFuncOnAllDetailViewTrees(detailView, treeScrollSelectionIntoView);
+	  callFuncOnAllDetailViewTrees(detailView, treeScrollSelectionIntoView, NULL);
 
 	  wasSelected = TRUE;
 	}
@@ -755,7 +755,7 @@ static GdkColor *gridGetMspLineColor(GtkWidget *grid, const gboolean selected)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
-  return getGdkColor(BLXCOL_MSP_LINE, bc->defaultColors, selected, bc->usePrintColors);
+  return getGdkColor(BLXCOLOR_MSP_LINE, bc->defaultColors, selected, bc->usePrintColors);
 }
 
 /***********************************************************

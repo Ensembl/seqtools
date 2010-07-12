@@ -54,13 +54,9 @@ GtkWidget*	  treeGetBlxWindow(GtkWidget *tree);
 int		  treeGetCellXPadding(GtkWidget *tree);
 int		  treeGetCellYPadding(GtkWidget *tree);
 
-void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, gpointer data);
+void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, GtkCallback func, gpointer data);
 
-void		  treeSortByName(GtkWidget *tree, gpointer data);
-void		  treeSortById(GtkWidget *tree, gpointer data);
-void		  treeSortByScore(GtkWidget *tree, gpointer data);
-void		  treeSortByPos(GtkWidget *tree, gpointer data);
-void		  treeSortByGroup(GtkWidget *tree, gpointer data);
+void              treeSetSortColumn(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  resortTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);

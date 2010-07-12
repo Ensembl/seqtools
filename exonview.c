@@ -210,7 +210,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   
   /* Draw the highlight box */
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-  GdkColor *highlightBoxColor = getGdkColor(BLXCOL_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
   
   drawHighlightBox(drawable, 
                    &properties->highlightRect, 

@@ -264,7 +264,7 @@ sequence_cell_renderer_class_init (SequenceCellRendererClass *klass)
   g_object_class_install_property (object_class,
                                    PROP_MSP,
                                    g_param_spec_pointer (RENDERER_SEQUENCE_PROPERTY,
-                                                         BLXCOL_SEQUENCE_TITLE,
+                                                         "Sequence",
                                                          "Pointer to an msp whose sequence to display",
                                                          G_PARAM_WRITABLE));
 
@@ -939,10 +939,10 @@ static void drawMsps(SequenceCellRenderer *renderer,
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
   const BlxSequence *seq = firstMsp ? firstMsp->sSequence : NULL;
 
-  GdkColor *matchColor = getGdkColor(BLXCOL_MATCH, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkColor *matchColorSelected = getGdkColor(BLXCOL_MATCH, bc->defaultColors, TRUE, bc->usePrintColors);
-  GdkColor *mismatchColor = getGdkColor(BLXCOL_MISMATCH, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkColor *mismatchColorSelected = getGdkColor(BLXCOL_MISMATCH, bc->defaultColors, TRUE, bc->usePrintColors);
+  GdkColor *matchColor = getGdkColor(BLXCOLOR_MATCH, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *matchColorSelected = getGdkColor(BLXCOLOR_MATCH, bc->defaultColors, TRUE, bc->usePrintColors);
+  GdkColor *mismatchColor = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *mismatchColorSelected = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, TRUE, bc->usePrintColors);
   
   RenderData data = {
     bc,
@@ -962,22 +962,22 @@ static void drawMsps(SequenceCellRenderer *renderer,
     highlightDiffs,
     widgetGetDrawable(tree),
     detailViewProperties->blxWindow,
-    getGdkColor(BLXCOL_EXON_CDS, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOL_EXON_CDS, bc->defaultColors, TRUE, bc->usePrintColors),
-    getGdkColor(BLXCOL_EXON_UTR, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOL_EXON_UTR, bc->defaultColors, TRUE, bc->usePrintColors),
-    getGdkColor(BLXCOL_INSERTION, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOL_INSERTION, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_CDS, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_CDS, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_UTR, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_UTR, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_INSERTION, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_INSERTION, bc->defaultColors, TRUE, bc->usePrintColors),
     highlightDiffs ? mismatchColor : matchColor,
     highlightDiffs ? mismatchColorSelected : matchColorSelected,
-    getGdkColor(BLXCOL_CONS, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOL_CONS, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_CONS, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_CONS, bc->defaultColors, TRUE, bc->usePrintColors),
     highlightDiffs ? matchColor : mismatchColor,
     highlightDiffs ? matchColorSelected : mismatchColorSelected,
-    getGdkColor(BLXCOL_UNALIGNED_SEQ, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOL_UNALIGNED_SEQ, bc->defaultColors, TRUE, bc->usePrintColors),
-    getGdkColor(BLXCOL_EXON_START, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOL_EXON_END, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_UNALIGNED_SEQ, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_UNALIGNED_SEQ, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_START, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_END, bc->defaultColors, FALSE, bc->usePrintColors),
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
     detailViewProperties->exonBoundaryLineStyleEnd,

@@ -197,10 +197,9 @@ static TreeColumnHeaderInfo* treeColumnGetHeaderInfo(GtkWidget *tree, ColumnId c
  ***********************************************************/
 
 /* Call the given function on all trees in the detail view */
-void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
+void callFuncOnAllDetailViewTrees(GtkWidget *detailView, GtkCallback func, gpointer data)
 {
   int numFrames = detailViewGetNumFrames(detailView);
-  GtkCallback func = (GtkCallback)data;
   
   /* Call the function on the forward strand tree and reverse strand tree
    * for each frame. */
@@ -212,12 +211,12 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, gpointer data)
       
       if (fwdTree)
 	{
-	  func(fwdTree, NULL);
+	  func(fwdTree, data);
 	}
       
       if (revTree)
 	{
-	  func(revTree, NULL);
+	  func(revTree, data);
 	}
     }
 }
@@ -243,6 +242,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, msp->sname,
 			     BLXCOL_SOURCE, msp->source,
+			     BLXCOL_GROUP, NULL,
 			     BLXCOL_SCORE, msp->score,
 			     BLXCOL_ID, msp->id,
 			     BLXCOL_START, msp->sRange.min,
@@ -256,6 +256,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, sequenceGetDisplayName(subjectSeq),
 			     BLXCOL_SOURCE, NULL,
+			     BLXCOL_GROUP, NULL,
 			     BLXCOL_SCORE, NULL,
 			     BLXCOL_ID, NULL,
 			     BLXCOL_START, NULL,
@@ -503,7 +504,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 	  /* Set the background color (in the parent, seeing as the label doesn't have a window) */
 	  BlxViewContext *bc = treeGetContext(tree);
 	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
-	  GdkColor *bgColor = getGdkColor(BLXCOL_REF_SEQ, bc->defaultColors, FALSE, bc->usePrintColors);
+	  GdkColor *bgColor = getGdkColor(BLXCOLOR_REF_SEQ, bc->defaultColors, FALSE, bc->usePrintColors);
 	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, bgColor);
 
 	  /* Update the font, in case its size has changed */
@@ -837,40 +838,14 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 }
 
 
-void treeSortByName(GtkWidget *tree, gpointer data)
+void treeSetSortColumn(GtkWidget *tree, gpointer data)
 {
-  GtkSortType sortOrder = treeGetColumnSortOrder(tree, BLXCOL_SEQNAME);
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, BLXCOL_SEQNAME, sortOrder);
-}
-
-void treeSortById(GtkWidget *tree, gpointer data)
-{
-  GtkSortType sortOrder = treeGetColumnSortOrder(tree, BLXCOL_ID);
-  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, BLXCOL_ID, sortOrder);
-}
-
-void treeSortByScore(GtkWidget *tree, gpointer data)
-{
-  GtkSortType sortOrder = treeGetColumnSortOrder(tree, BLXCOL_SCORE);
-  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, BLXCOL_SCORE, sortOrder);
-}
-
-void treeSortByPos(GtkWidget *tree, gpointer data)
-{
-  GtkSortType sortOrder = treeGetColumnSortOrder(tree, BLXCOL_START);
-  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, BLXCOL_START, sortOrder);
-}
-
-/* Sort by the order number in the sequence's group, if it has one. */
-void treeSortByGroup(GtkWidget *tree, gpointer data)
-{
-  GtkSortType sortOrder = treeGetColumnSortOrder(tree, BLXCOL_SEQUENCE);
-  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  gtk_tree_sortable_set_sort_column_id(model, BLXCOL_SEQUENCE, sortOrder);
+  
+  ColumnId sortColumn = GPOINTER_TO_INT(data);
+  GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
+  
+  gtk_tree_sortable_set_sort_column_id(model, sortColumn, sortOrder);
 }
 
 /***********************************************************
@@ -999,7 +974,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
       const int y = 0;
 
-      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, drawable, gc, x, y, intronBases);
+      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, y, intronBases);
       
       dnaIdx += incrementValue;
       ++displayIdx;
@@ -1279,7 +1254,7 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
 	    refreshDetailViewHeaders(detailView);
-	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
@@ -1646,6 +1621,7 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
       gtk_list_store_set(store, &iter,
 			 BLXCOL_SEQNAME, msp->sname,
 			 BLXCOL_SOURCE, msp->source,
+                         BLXCOL_GROUP, NULL,
 			 BLXCOL_SCORE, msp->score,
 			 BLXCOL_ID, msp->id,
 			 BLXCOL_START, msp->sRange.min,
@@ -1829,6 +1805,34 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
 }
 
 
+/* Cell data function for the Group column. */
+static void cellDataFunctionGroupCol(GtkTreeViewColumn *column, 
+                                     GtkCellRenderer *renderer, 
+                                     GtkTreeModel *model, 
+                                     GtkTreeIter *iter, 
+                                     gpointer data)
+{
+  /* Get the MSP(s) for this row and find out they are in a group. All MSPs in a row should
+   * be in the same sequence. */
+  GList	*mspGList = treeGetMsps(model, iter);
+  
+  if (g_list_length(mspGList) > 0)
+    {
+      const MSP const *msp = (const MSP const*)(mspGList->data);
+
+      GtkWidget *tree = GTK_WIDGET(data);
+      GtkWidget *blxWindow = treeGetBlxWindow(tree);
+
+      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, msp->sSequence);
+      
+      if (group)
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, group->groupName, NULL);
+        }
+    }
+}
+
+
 /* Utility function to calculate the width of a vertical scrollbar */
 static int scrollBarWidth()
 {
@@ -1938,6 +1942,10 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
 
     case BLXCOL_ID:
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionIdCol, tree, NULL);
+      break;
+
+    case BLXCOL_GROUP:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionGroupCol, tree, NULL);
       break;
       
     default:
@@ -2259,6 +2267,35 @@ static void addColumnsToTreeHeader(GtkWidget *headerBar, GList *columnList)
 }
 
 
+/* Sort comparison function for sorting by group */
+static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *tree)
+{
+  gint result = 0;
+  
+  /* Get the order number out of the group and sort on that. If the sequence
+   * is not in a group, its order number is UNSET_INT, and it gets sorted after
+   * any sequences that are in groups. */
+  GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
+  const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
+  
+  if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
+    {
+      result = 1;
+    }
+  else if (msp1Order != UNSET_INT && msp2Order == UNSET_INT)
+    {
+      result = -1;
+    }
+  else
+    {
+      result = msp1Order - msp2Order;
+    }
+
+  return result;
+}
+
+
 /* Sort comparison function.  Returns a negative value if the first row appears before the second,
  * positive if the second appears before the first, or 0 if they are equivalent according to
  * the current search criteria. */
@@ -2267,8 +2304,10 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   gint result = UNSET_INT;
 
   /* Extract the sort column and sort order */
-  gint sortColumn;
-  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, NULL);
+  gint col;
+  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &col, NULL);
+
+  ColumnId sortColumn = (ColumnId)col; 
 
   /* Extract the MSP lists from the tree rows */
   GList *mspGList1 = treeGetMsps(model, iter1);
@@ -2278,77 +2317,46 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   MSP *msp1 = (MSP*)(mspGList1->data);
   MSP *msp2 = (MSP*)(mspGList2->data);
 
+  /* Check whether either row has more than one MSP. If so, it means some options aren't applicable. */
   const gboolean multipleMsps = g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1;
+  
   GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
   
   switch (sortColumn)
     {
       case BLXCOL_SEQNAME:
-	{
-	  MSP *msp1 = (MSP*)(mspGList1->data);
-	  MSP *msp2 = (MSP*)(mspGList2->data);
-	  result = strcmp(msp1->sname, msp2->sname);
-	  break;
-	}
+        result = strcmp(msp1->sname, msp2->sname);
+        break;
 
       case BLXCOL_SOURCE:
-      {
-        MSP *msp1 = (MSP*)(mspGList1->data);
-        MSP *msp2 = (MSP*)(mspGList2->data);
         result = strcmp(msp1->source, msp2->source);
         break;
-      }
         
       case BLXCOL_SCORE:
-	{
-	  result = multipleMsps ? 0 : msp1->score - msp2->score;
-	  break;
-	}
+        result = multipleMsps ? 0 : msp1->score - msp2->score;
+        break;
 	
       case BLXCOL_ID:
-	{
-	  result = multipleMsps ? 0 : msp1->id - msp2->id;
-	  break;
-	}
-	
-      case BLXCOL_START:
-	{
-	  if (multipleMsps)
-	    {
-	      result = 0;
-	    }
-	  else
-	    {
-	      /* Use the low end of the reference sequence range */
-	      result = msp1->qRange.min - msp2->qRange.min;
-	    }
-	  
-	  break;
-	}
+        result = multipleMsps ? 0 : msp1->id - msp2->id;
+        break;
 
-      case BLXCOL_SEQUENCE:
-	{
-	  /* Get the order number out of the group and sort on that. If the sequence
-	   * is not in a group, its order number is UNSET_INT, and it gets sorted after
-	   * any sequences that are in groups. */
-	  GtkWidget *blxWindow = treeGetBlxWindow(tree);
-	  const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
-	  const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
-	  
-	  if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
-	    result = 1;
-	  else if (msp1Order != UNSET_INT && msp2Order == UNSET_INT)
-	    result = -1;
-	  else
-	    result = msp1Order - msp2Order;
-	}
+      case BLXCOL_START:
+        result = multipleMsps ? 0 : msp1->qRange.min - msp2->qRange.min;
+        break;
+
+      case BLXCOL_GROUP:
+        result = sortByGroupCompareFunc(msp1, msp2, tree);
+        break;
 
       default:
-	break;
+        g_warning("Sort function not implemented for column '%s'.\n", columnInfo->title);
+        break;
     };
   
   /* If values are the same, further sort by group, name, position, length */
-  if (!result && sortColumn != BLXCOL_SEQUENCE)
+  if (!result && sortColumn != BLXCOL_GROUP)
     {
       GtkWidget *blxWindow = treeGetBlxWindow(tree);
       const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);

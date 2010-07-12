@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.49 2010-07-09 11:49:36 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.50 2010-07-12 09:42:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -333,27 +333,27 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
 	case '+':
 	  options->activeStrand = BLXSTRAND_FORWARD;   break;
 	case 'B':
-	  options->bigPictON = TRUE;              break; 
+	  options->bigPictON = TRUE;               break; 
 	case 'b':
-	  options->bigPictON = FALSE;             break;
+	  options->bigPictON = FALSE;              break;
 	case 'd':
-	  options->dotterFirst = TRUE;            break;
+	  options->dotterFirst = TRUE;             break;
 	case 'i':
-	  options->initSortMode = BLXSORT_ID ;      break;
+	  options->initSortColumn = BLXCOL_ID ;    break;
 	case 'M':
-	  options->startNextMatch = 1;            break;
+	  options->startNextMatch = 1;             break;
 	case 'n':
-	  options->initSortMode = BLXSORT_NAME ;    break;
+	  options->initSortColumn = BLXCOL_SEQNAME ; break;
 	case 'p':
-	  options->initSortMode = BLXSORT_POS ;     break;
+	  options->initSortColumn = BLXCOL_START ; break;
 	case 'R':
-	  options->bigPictRev = 1;                break; /* to do: this is currently not implemented. not sure what it should do */
+	  options->bigPictRev = 1;                 break; /* to do: this is currently not implemented. not sure what it should do */
 	case 'r':
-	  options->bigPictRev = 0;                break;
+	  options->bigPictRev = 0;                 break;
 	case 's':
-	  options->initSortMode = BLXSORT_SCORE ;   break;
+	  options->initSortColumn = BLXCOL_SCORE ; break;
 	case 'Z':
-	  options->bigPictZoom = strlen(refSeq);  break;
+	  options->bigPictZoom = strlen(refSeq);   break;
       }
       
       opt++;
@@ -511,7 +511,7 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
   const int startCoord = start < 1 ? 1 : start;
   
   CommandLineOptions options = {refSeq, refSeqName, qOffset, startCoord, msplist, stdcode1,
-				BLXSTRAND_FORWARD, 10, TRUE, FALSE, BLXSORT_ID, FALSE, FALSE,
+				BLXSTRAND_FORWARD, 10, TRUE, FALSE, BLXCOL_ID, FALSE, FALSE,
 				FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, fetchMode};
   
   blxviewGetOpts(opts, refSeq, &options);
@@ -1081,7 +1081,7 @@ BlxColor* getBlxColor(GArray *defaultColors, const BlxColorId colorId)
   if (result && result->transparent)
     {
       /* return the background color instead */
-      result = &g_array_index(defaultColors, BlxColor, BLXCOL_BACKGROUND);
+      result = &g_array_index(defaultColors, BlxColor, BLXCOLOR_BACKGROUND);
     }
   else if (!result)
     {

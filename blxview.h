@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.25 2010-07-09 11:49:36 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.26 2010-07-12 09:42:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -143,36 +143,36 @@ typedef enum
 
 typedef enum 
   {
-    BLXCOL_MIN,		  /* dummy value so that we don't get a zero ID */
+    BLXCOLOR_MIN,		  /* dummy value so that we don't get a zero ID */
   
-    BLXCOL_BACKGROUND,	  /* background color of the widgets */
-    BLXCOL_REF_SEQ,	  /* default background color for the reference sequence */  
-    BLXCOL_MATCH,	  /* background color for an exact match */
-    BLXCOL_CONS,	  /* background color for a conserved match */
-    BLXCOL_MISMATCH,	  /* background color for a mismatch */
-    BLXCOL_EXON_CDS,	  /* background color for an exon (coding region) */
-    BLXCOL_EXON_UTR,	  /* background color for an exon (non-coding/untranslated region) */
-    BLXCOL_INSERTION,	  /* color for an insertion marker */
-    BLXCOL_EXON_START,	  /* color for the start boundary line of an exon */
-    BLXCOL_EXON_END,  	  /* color for the end boundary line of an exon */
-    BLXCOL_CODON,	  /* color in which to highlight the nucleotides for the currently-selected codon */
-    BLXCOL_MET,		  /* background color for MET codons in the three frame translation */
-    BLXCOL_STOP,	  /* background color for STOP codons in the three frame translation */
-    BLXCOL_GRID_LINE,	  /* color of the gridlines in the big picture grids */
-    BLXCOL_GRID_TEXT,	  /* color of the text in the big picture grids */
-    BLXCOL_HIGHLIGHT_BOX, /* color of the highlight box in the big picture */
-    BLXCOL_PREVIEW_BOX,	  /* color of the preview box in the big picture */
-    BLXCOL_MSP_LINE,	  /* color of the MSP lines in the big picture */
-    BLXCOL_SNP,		  /* background color for SNPs */
-    BLXCOL_GROUP,	  /* default highlight color for generic groups */
-    BLXCOL_MATCH_SET,	  /* default highlight color for the special match-set group */
-    BLXCOL_EXON_FILL_CDS, /* fill color for an exon in the big picture (coding region) */
-    BLXCOL_EXON_FILL_UTR, /* fill color for an exon in the big picture (non-coding/untranslated region) */
-    BLXCOL_EXON_LINE_CDS, /* line color for an exon in the big picture (coding region) */
-    BLXCOL_EXON_LINE_UTR, /* line color for an exon in the big picture (non-coding/untranslated region) */
-    BLXCOL_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
-    BLXCOL_CANONICAL,     /* background highlight color for canonical intron bases */
-    BLXCOL_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
+    BLXCOLOR_BACKGROUND,	  /* background color of the widgets */
+    BLXCOLOR_REF_SEQ,	  /* default background color for the reference sequence */  
+    BLXCOLOR_MATCH,	  /* background color for an exact match */
+    BLXCOLOR_CONS,	  /* background color for a conserved match */
+    BLXCOLOR_MISMATCH,	  /* background color for a mismatch */
+    BLXCOLOR_EXON_CDS,	  /* background color for an exon (coding region) */
+    BLXCOLOR_EXON_UTR,	  /* background color for an exon (non-coding/untranslated region) */
+    BLXCOLOR_INSERTION,	  /* color for an insertion marker */
+    BLXCOLOR_EXON_START,	  /* color for the start boundary line of an exon */
+    BLXCOLOR_EXON_END,  	  /* color for the end boundary line of an exon */
+    BLXCOLOR_CODON,	  /* color in which to highlight the nucleotides for the currently-selected codon */
+    BLXCOLOR_MET,		  /* background color for MET codons in the three frame translation */
+    BLXCOLOR_STOP,	  /* background color for STOP codons in the three frame translation */
+    BLXCOLOR_GRID_LINE,	  /* color of the gridlines in the big picture grids */
+    BLXCOLOR_GRID_TEXT,	  /* color of the text in the big picture grids */
+    BLXCOLOR_HIGHLIGHT_BOX, /* color of the highlight box in the big picture */
+    BLXCOLOR_PREVIEW_BOX,	  /* color of the preview box in the big picture */
+    BLXCOLOR_MSP_LINE,	  /* color of the MSP lines in the big picture */
+    BLXCOLOR_SNP,		  /* background color for SNPs */
+    BLXCOLOR_GROUP,	  /* default highlight color for generic groups */
+    BLXCOLOR_MATCH_SET,	  /* default highlight color for the special match-set group */
+    BLXCOLOR_EXON_FILL_CDS, /* fill color for an exon in the big picture (coding region) */
+    BLXCOLOR_EXON_FILL_UTR, /* fill color for an exon in the big picture (non-coding/untranslated region) */
+    BLXCOLOR_EXON_LINE_CDS, /* line color for an exon in the big picture (coding region) */
+    BLXCOLOR_EXON_LINE_UTR, /* line color for an exon in the big picture (non-coding/untranslated region) */
+    BLXCOLOR_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
+    BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
+    BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;

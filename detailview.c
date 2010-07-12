@@ -15,9 +15,9 @@
 #include <gtk/gtk.h>
 
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
+#define SORT_BY_NAME_STRING		"Name"
 #define SORT_BY_SCORE_STRING		"Score"
 #define SORT_BY_ID_STRING		"Identity"
-#define SORT_BY_NAME_STRING		"Name"
 #define SORT_BY_POS_STRING		"Position"
 #define SORT_BY_GROUP_ORDER_STRING	"Group"
 #define FONT_INCREMENT_SIZE		1
@@ -88,7 +88,7 @@ static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite
 void detailViewRedrawAll(GtkWidget *detailView)
 {
   /* Redraw all the trees */
-  callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable);
+  callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -600,7 +600,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
   else if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME) || !strcmp(widgetName, DNA_TRACK_HEADER_NAME))
     {
       /* Clear the cached drawable so that it gets recreated on the next expose */
-      widgetClearCachedDrawable(header);
+      widgetClearCachedDrawable(header, NULL);
 
       /* Update the font and the widget height, in case the font-size has changed. */
       GtkWidget *detailView = GTK_WIDGET(data);
@@ -704,8 +704,8 @@ void updateDetailViewFontDesc(GtkWidget *detailView)
   
   updateCellRendererFont(detailView, fontDesc);
   refreshDetailViewHeaders(detailView);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
-  callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+  callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize, NULL);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -913,11 +913,11 @@ void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
 {
   if (squash)
     {
-      callFuncOnAllDetailViewTrees(detailView, treeSquashMatches);
+      callFuncOnAllDetailViewTrees(detailView, treeSquashMatches, NULL);
     }
   else
     {
-      callFuncOnAllDetailViewTrees(detailView, treeUnsquashMatches);
+      callFuncOnAllDetailViewTrees(detailView, treeUnsquashMatches, NULL);
     }
 
   gtk_widget_queue_draw(detailView);
@@ -927,7 +927,7 @@ void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
 /* Set the value of the 'invert sort order' flag */
 void detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert)
 {
-  callFuncOnAllDetailViewTrees(detailView, resortTree);
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
 }
 
 
@@ -935,7 +935,7 @@ void detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert)
 void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack)
 {
   refreshDetailViewHeaders(detailView);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
 }
 
 
@@ -943,7 +943,7 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
 void detailViewUpdateShowUnalignedSeq(GtkWidget *detailView, const gboolean showUnalignedSeq)
 {
   /* Refilter and re-draw */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -952,7 +952,7 @@ void detailViewUpdateShowUnalignedSeq(GtkWidget *detailView, const gboolean show
 void detailViewUpdateLimitUnalignedBases(GtkWidget *detailView, const gboolean limitUnalignedBases)
 {
   /* Refilter and re-draw */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -964,7 +964,7 @@ void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
   properties->numUnalignedBases = numBases;
   
   /* Refilter and re-draw */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -1501,7 +1501,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       const int x = displayTextPos * properties->charWidth;
       const char base = displayText[displayTextPos];
 
-      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, drawable, gc, x, y, intronBases);
+      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, intronBases);
       
       /* Increment indices */
       ++displayTextPos;
@@ -1707,6 +1707,7 @@ void drawHeaderChar(BlxViewContext *bc,
 		    const gboolean showBackground,    /* whether to use default background color or leave blank */
 		    const gboolean showSnps,	      /* whether to show SNPs */
 		    const gboolean showCodons,	      /* whether to highlight DNA bases within the selected codon, for protein matches */
+                    const BlxColorId defaultBgColor,  /* the default background color for the header */
 		    GdkDrawable *drawable,
 		    GdkGC *gc,
 		    const int x,
@@ -1731,11 +1732,11 @@ void drawHeaderChar(BlxViewContext *bc,
 
       if (canonical == BLX_IS_CANONICAL)
         {
-          fillColor = getGdkColor(BLXCOL_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          fillColor = getGdkColor(BLXCOLOR_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
         }
       else
         {
-          fillColor = getGdkColor(BLXCOL_NON_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          fillColor = getGdkColor(BLXCOLOR_NON_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
         }
     }
   
@@ -1746,13 +1747,13 @@ void drawHeaderChar(BlxViewContext *bc,
           /* The coord is a nucleotide in the currently-selected codon. The color depends
            * on whether the actual nucleotide itself is selected, or just the codon that it 
            * belongs to. */
-          fillColor = getGdkColor(BLXCOL_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
+          fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
         }
       else
         {
           /* The coord is not selected but this coord is within the range of a selected MSP, so 
            * shade the background. */
-          fillColor = getGdkColor(BLXCOL_BACKGROUND, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
         }
     }
 
@@ -1760,13 +1761,13 @@ void drawHeaderChar(BlxViewContext *bc,
     {
       /* The coord is affected by a SNP. Outline it in the "selected" SNP color
        * (which is darker than the normal color) */
-      outlineColor = getGdkColor(BLXCOL_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
+      outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
       
       /* If the SNP is selected, also fill it with the SNP color (using the
        * "unselected" SNP color, which is lighter than the outline). */
       if (dnaIdxSelected)
 	{
-	  fillColor = getGdkColor(BLXCOL_SNP, bc->defaultColors, FALSE, bc->usePrintColors);
+	  fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, FALSE, bc->usePrintColors);
 	}
     }
   
@@ -1775,17 +1776,17 @@ void drawHeaderChar(BlxViewContext *bc,
       if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
 	{
 	  /* The coord is a MET codon */
-	  fillColor = getGdkColor(BLXCOL_MET, bc->defaultColors, shadeBackground, bc->usePrintColors);
+	  fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, shadeBackground, bc->usePrintColors);
 	}
       else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
 	{
 	  /* The coord is a STOP codon */
-	  fillColor = getGdkColor(BLXCOL_STOP, bc->defaultColors, shadeBackground, bc->usePrintColors);
+	  fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, shadeBackground, bc->usePrintColors);
 	}
       else if (showBackground)
 	{
 	  /* Use the default background color for the reference sequence */
-	  fillColor = getGdkColor(BLXCOL_REF_SEQ, bc->defaultColors, shadeBackground, bc->usePrintColors);
+	  fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
 	}
     }
   
@@ -1845,8 +1846,8 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      /* Draw the outline in the default SNP color. If the SNP is selected, also
 	       * fill in the rectangle in the SNP color (use the selected color for the
 	       * outline and the unselected color for the fill, so that the outline is darker). */
-	      GdkColor *outlineColor = getGdkColor(BLXCOL_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
-	      GdkColor *fillColor = isSelected ? getGdkColor(BLXCOL_SNP, bc->defaultColors, FALSE, bc->usePrintColors) : NULL;
+	      GdkColor *outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
+	      GdkColor *fillColor = isSelected ? getGdkColor(BLXCOLOR_SNP, bc->defaultColors, FALSE, bc->usePrintColors) : NULL;
 	      
 	      /* Draw the background rectangle for the char */
 	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, properties->charHeight);
@@ -1907,12 +1908,12 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       displayRange->max = newEnd;
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      callFuncOnAllDetailViewTrees(detailView, refilterTree);
+      callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
 
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
-      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
       gtk_widget_queue_draw(detailView);
 
       /* Update the big picture because the highlight box has moved (and changed size) */
@@ -1939,12 +1940,12 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       displayRange->max = newEnd;
 
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      callFuncOnAllDetailViewTrees(detailView, refilterTree);
+      callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
 
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
-      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
       gtk_widget_queue_draw(detailView);
 
       /* Update the big picture because the highlight box has moved */
@@ -2304,7 +2305,7 @@ static void updateFollowingBaseSelection(GtkWidget *detailView,
   
   /* Update the headers so that the newly-selected index is highlighted */
   refreshDetailViewHeaders(detailView);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -2638,7 +2639,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
       selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
       
       refreshDetailViewHeaders(detailView);
-      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
       
       handled = TRUE;
       break;
@@ -2671,7 +2672,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
 	    refreshDetailViewHeaders(detailView);
-	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
@@ -2834,7 +2835,7 @@ void toggleStrand(GtkWidget *detailView)
 
   /* Redraw the tree and detail-view headers */
   refreshDetailViewHeaders(detailView);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   gtk_widget_queue_draw(detailView);
   
   /* Redraw the grids and grid headers */
@@ -2902,60 +2903,10 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 }
 
 
-/* Sort the match entries by..... */
-
-static void detailViewSortByName(GtkWidget *detailView)
+/* Sort the detail view trees by the given column */
+void detailViewSetSortColumn(GtkWidget *detailView, const ColumnId sortColumn)
 {
-  callFuncOnAllDetailViewTrees(detailView, treeSortByName);
-}
-
-static void detailViewSortByScore(GtkWidget *detailView)
-{
-  callFuncOnAllDetailViewTrees(detailView, treeSortByScore);
-}
-
-static void detailViewSortByPos(GtkWidget *detailView)
-{
-  callFuncOnAllDetailViewTrees(detailView, treeSortByPos);
-}
-
-static void detailViewSortById(GtkWidget *detailView)
-{
-  callFuncOnAllDetailViewTrees(detailView, treeSortById);
-}
-
-static void detailViewSortByGroup(GtkWidget *detailView)
-{
-  callFuncOnAllDetailViewTrees(detailView, treeSortByGroup);
-}
-
-void detailViewSetSortMode(GtkWidget *detailView, const BlxSortMode sortMode)
-{
-  switch (sortMode)
-    {
-      case BLXSORT_NAME:
-	detailViewSortByName(detailView);
-	break;
-    
-      case BLXSORT_SCORE:
-	detailViewSortByScore(detailView);
-	break;
-
-      case BLXSORT_ID:
-	detailViewSortById(detailView);
-	break;
-
-      case BLXSORT_POS:
-	detailViewSortByPos(detailView);
-	break;
-
-      case BLXSORT_GROUP:
-	detailViewSortByGroup(detailView);
-	break;
-	
-      default:
-	break;
-    };
+  callFuncOnAllDetailViewTrees(detailView, treeSetSortColumn, GINT_TO_POINTER(sortColumn));
 }
 
 
@@ -3160,33 +3111,8 @@ static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
       GValue val = {0};
       gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
       
-      BlxSortMode sortMode = g_value_get_int(&val);
-      
-      switch (sortMode)
-	{
-	  case BLXSORT_SCORE:
-	    detailViewSortByScore(detailView);
-	    break;
-	    
-	  case BLXSORT_ID:
-	    detailViewSortById(detailView);
-	    break;
-	    
-	  case BLXSORT_NAME:
-	    detailViewSortByName(detailView);
-	    break;
-	    
-	  case BLXSORT_POS:
-	    detailViewSortByPos(detailView);
-	    break;
-	    
-	  case BLXSORT_GROUP:
-	    detailViewSortByGroup(detailView);
-	    break;
-	    
-	  default:
-	    break;
-	};
+      ColumnId sortColumn = g_value_get_int(&val);
+      detailViewSetSortColumn(detailView, sortColumn);
     }
 }
 
@@ -3316,6 +3242,7 @@ static void createColumn(ColumnId columnId,
                          char *title,
                          char *propertyName,
                          const int defaultWidth,
+                         char *sortName,
                          GList **columnList)
 {
   /* Create a simple label for the header (unless already passed a special header widget) */
@@ -3337,6 +3264,7 @@ static void createColumn(ColumnId columnId,
   columnInfo->title = title;
   columnInfo->propertyName = propertyName;
   columnInfo->width = defaultWidth;
+  columnInfo->sortName = sortName;
   
   /* Place it in the list. Sort the list by ColumnId because the list must be sorted in the same
    * order as the variable types in the TREE_COLUMN_TYPE_LIST definition */
@@ -3361,13 +3289,14 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   GtkCallback endCallback = refreshEndColHeader;
   
   /* Create the column headers and pack them into the column header bar */
-  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          "Name",      RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        &columnList);
-  createColumn(BLXCOL_SCORE,     NULL,       NULL,          "Score",     RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     &columnList);
-  createColumn(BLXCOL_ID,        NULL,       NULL,          "%Id",       RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     &columnList);
-  createColumn(BLXCOL_START,     NULL,       startCallback, "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          &columnList);
-  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   "Sequence",  RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       &columnList);
-  createColumn(BLXCOL_END,       NULL,       endCallback,   "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            &columnList);
-  createColumn(BLXCOL_SOURCE,    NULL,       NULL,          "Source",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  &columnList);
+  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          "Name",      RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        "Name",     &columnList);
+  createColumn(BLXCOL_SCORE,     NULL,       NULL,          "Score",     RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     "Score",    &columnList);
+  createColumn(BLXCOL_ID,        NULL,       NULL,          "%Id",       RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     "Identity", &columnList);
+  createColumn(BLXCOL_START,     NULL,       startCallback, "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          "Position", &columnList);
+  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   "Sequence",  RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       NULL,       &columnList);
+  createColumn(BLXCOL_END,       NULL,       endCallback,   "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            NULL,       &columnList);
+  createColumn(BLXCOL_SOURCE,    NULL,       NULL,          "Source",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  NULL,       &columnList);
+  createColumn(BLXCOL_GROUP,     NULL,       NULL,          "Group",     RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  "Group",    &columnList);
 
   return columnList;
 }
@@ -3550,17 +3479,17 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 /* Add an option for the sorting drop-down box */
 static GtkTreeIter* addSortBoxItem(GtkTreeStore *store, 
 				  GtkTreeIter *parent, 
-				  BlxSortMode sortMode, 
+				  ColumnId sortColumn, 
 				  const char *sortName,
-				  BlxSortMode initSortMode,
+				  ColumnId initSortColumn,
 				  GtkComboBox *combo)
 {
   GtkTreeIter iter;
   gtk_tree_store_append(store, &iter, parent);
 
-  gtk_tree_store_set(store, &iter, SORT_TYPE_COL, sortMode, SORT_TEXT_COL, sortName, -1);
+  gtk_tree_store_set(store, &iter, SORT_TYPE_COL, sortColumn, SORT_TEXT_COL, sortName, -1);
 
-  if (sortMode == initSortMode)
+  if (sortColumn == initSortColumn)
     {
       gtk_combo_box_set_active_iter(combo, &iter);
     }
@@ -3570,7 +3499,7 @@ static GtkTreeIter* addSortBoxItem(GtkTreeStore *store,
 
 
 /* Create the combo box used for selecting sort criteria */
-static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const BlxSortMode initSortMode)
+static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const ColumnId initSortColumn, GList *columnList)
 {
   /* Add a label, to make it obvious what the combo box is for */
   GtkWidget *label = gtk_label_new(" <i>Sort by:</i>");
@@ -3589,13 +3518,25 @@ static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const BlxS
   gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
   gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", SORT_TEXT_COL, NULL);
 
-  /* Add the options */
+  /* Add an option to sort by each column that has the 'sortName' property set. */
   GtkTreeIter *iter = NULL;
-  iter = addSortBoxItem(store, iter, BLXSORT_NAME, SORT_BY_NAME_STRING, initSortMode, combo);
-  iter = addSortBoxItem(store, iter, BLXSORT_SCORE, SORT_BY_SCORE_STRING, initSortMode, combo);
-  iter = addSortBoxItem(store, iter, BLXSORT_ID, SORT_BY_ID_STRING, initSortMode, combo);
-  iter = addSortBoxItem(store, iter, BLXSORT_POS, SORT_BY_POS_STRING, initSortMode, combo);
-  iter = addSortBoxItem(store, iter, BLXSORT_GROUP, SORT_BY_GROUP_ORDER_STRING, initSortMode, combo);
+  GList *columnItem = columnList;
+  
+  for ( ; columnItem; columnItem = columnItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
+      
+      if (columnInfo->sortName)
+        {
+          iter = addSortBoxItem(store, iter, columnInfo->columnId, columnInfo->sortName, initSortColumn, combo);
+        }
+    }
+  
+//  iter = addSortBoxItem(store, iter, BLXSORT_NAME, SORT_BY_NAME_STRING, initSortMode, combo);
+//  iter = addSortBoxItem(store, iter, BLXSORT_SCORE, SORT_BY_SCORE_STRING, initSortMode, combo);
+//  iter = addSortBoxItem(store, iter, BLXSORT_ID, SORT_BY_ID_STRING, initSortMode, combo);
+//  iter = addSortBoxItem(store, iter, BLXSORT_POS, SORT_BY_POS_STRING, initSortMode, combo);
+//  iter = addSortBoxItem(store, iter, BLXSORT_GROUP, SORT_BY_GROUP_ORDER_STRING, initSortMode, combo);
 
   g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(onSortOrderChanged), detailView);
 }
@@ -3672,7 +3613,8 @@ static void insertToolbarSeparator(GtkToolbar *toolbar)
 /* Create the detail view toolbar */
 static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
 					    BlxBlastMode mode,
-					    const BlxSortMode sortMode,
+					    const ColumnId sortColumn,
+                                            GList *columnList,
 					    GtkWidget **feedbackBox)
 {
   GtkToolbar *toolbar = NULL;
@@ -3682,7 +3624,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GHelp,		  detailView);
 
   /* Combo box for sorting */
-  createSortBox(toolbar, detailView, sortMode);
+  createSortBox(toolbar, detailView, sortColumn, columnList);
 
   /* Settings button */
   makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",		 (GtkSignalFunc)GSettings,	  detailView);
@@ -3838,7 +3780,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   BlxViewContext *bc = detailViewGetContext(detailView);
 
   /* First, create a data store for each tree so we have something to add our data to. */
-  callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel);
+  callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel, NULL);
 
   /* Loop through each MSP, and add it to the correct tree based on its strand and
    * reading frame. Also find the lowest ID value out of all the matches. */
@@ -3867,11 +3809,11 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
     
   /* Finally, create a custom-filtered version of the data store for each tree. We do 
    * this AFTER adding the data so that it doesn't try to re-filter every time we add a row. */
-  callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel);
+  callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel, NULL);
   
   /* Also create a second data store that will store one sequence per row (as opposed to one
    * MSP per row). This data store will be switched in when the user selects 'squash matches'. */
-  callFuncOnAllDetailViewTrees(detailView, addSequencesToTree);
+  callFuncOnAllDetailViewTrees(detailView, addSequencesToTree, NULL);
 }
 
 
@@ -3912,7 +3854,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			    const char const *refSeqName,
 			    const int startCoord,
 			    const gboolean sortInverted,
-			    const BlxSortMode sortMode)
+			    const ColumnId sortColumn)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -3924,17 +3866,17 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
 
-  /* Create the toolbar. We need to remember the feedback box. */
-  GtkWidget *feedbackBox = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortMode, &feedbackBox);
-
   /* Create the columns */
   GList *columnList = createColumns(detailView, seqType, numFrames);
-  
+
   /* Create the header bar. If viewing protein matches include one SNP track in the detail 
    * view header; otherwise create SNP tracks in each tree header. */
   const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
   GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, columnList, singleSnpTrack);
+
+  /* Create the toolbar. We need to remember the feedback box. */
+  GtkWidget *feedbackBox = NULL;
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortColumn, columnList, &feedbackBox);
   
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;

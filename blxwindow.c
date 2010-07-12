@@ -775,8 +775,8 @@ void blxWindowRedrawAll(GtkWidget *blxWindow)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   refreshDetailViewHeaders(detailView);
   
-  callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders);
+  callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
+  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   
   gtk_widget_queue_draw(blxWindow);
 }
@@ -1661,10 +1661,10 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   /* Re-sort all trees, because grouping affects sort order */
-  callFuncOnAllDetailViewTrees(detailView, resortTree);
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   
   /* Refilter the trees (because groups affect whether sequences are visible) */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
 
   /* Redraw all (because highlighting affects both big picture and detail view) */
   blxWindowRedrawAll(blxWindow);
@@ -1721,7 +1721,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   /* Set the default highlight color. */
   group->highlighted = TRUE;
 
-  BlxColorId colorId = (groupName && !strcmp(groupName, MATCH_SET_GROUP_NAME)) ? BLXCOL_MATCH_SET : BLXCOL_GROUP;
+  BlxColorId colorId = (groupName && !strcmp(groupName, MATCH_SET_GROUP_NAME)) ? BLXCOLOR_MATCH_SET : BLXCOLOR_GROUP;
   GdkColor *color = getGdkColor(colorId, bc->defaultColors, FALSE, bc->usePrintColors);
   group->highlightColor = *color;
 
@@ -2610,7 +2610,7 @@ static void onColumnSizeChanged(GtkWidget *widget, const gint responseId, gpoint
       GtkWidget *blxWindow = dialogChildGetBlxWindow(widget);
       GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
-      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
+      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
       resizeDetailViewHeaders(detailView);
     }
 }
@@ -2813,7 +2813,7 @@ static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const in
   gtk_table_attach(table, gtk_label_new("(selected)   "), 5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   
   /* loop through all defined blixem colours */
-  int colorId = BLXCOL_MIN + 1;
+  int colorId = BLXCOLOR_MIN + 1;
   
   for ( ; colorId < BLXCOL_NUM_COLORS; ++colorId)
     {
@@ -2824,7 +2824,7 @@ static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const in
       gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
 
       /* Special callback for the background color */
-      BlxResponseCallback callbackFunc = (colorId == BLXCOL_BACKGROUND) ? onChangeBackgroundColor : onChangeBlxColor;
+      BlxResponseCallback callbackFunc = (colorId == BLXCOLOR_BACKGROUND) ? onChangeBackgroundColor : onChangeBlxColor;
       
       createColorButton(table, &blxCol->normal, callbackFunc, &blxCol->normal, row, 2, xpad, ypad);
       createColorButton(table, &blxCol->print, callbackFunc, &blxCol->print, row, 4, xpad, ypad);
@@ -3707,7 +3707,7 @@ static void destroyBlxContext(BlxViewContext **bc)
       
       if ((*bc)->defaultColors)
 	{
-	  BlxColorId i = BLXCOL_MIN + 1;
+	  BlxColorId i = BLXCOLOR_MIN + 1;
 	  for (; i < BLXCOL_NUM_COLORS; ++i)
 	    {
 	      BlxColor *blxColor = &g_array_index((*bc)->defaultColors, BlxColor, i);
@@ -3885,7 +3885,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 {
   /* Initialise the array with empty BlxColor structs */
   bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BLXCOL_NUM_COLORS);
-  int i = BLXCOL_MIN + 1;
+  int i = BLXCOLOR_MIN + 1;
   
   for ( ; i < BLXCOL_NUM_COLORS; ++i)
     {
@@ -3898,50 +3898,50 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* Get the default background color of our widgets (i.e. that inherited from the theme).
    * Convert it to a string so we can use the same creation function as the other colors */
   char *defaultBgColorStr = "#dcdcdc"; //convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
-  createBlxColor(bc, BLXCOL_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
+  createBlxColor(bc, BLXCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
   
   /* reference sequence */
-  createBlxColor(bc, BLXCOL_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, "#dbdb00", NULL);
+  createBlxColor(bc, BLXCOLOR_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, "#dbdb00", NULL);
   
   /* matches */
-  createBlxColor(bc, BLXCOL_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00c3b0", NULL);
-  createBlxColor(bc, BLXCOL_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
-  createBlxColor(bc, BLXCOL_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
-  createBlxColor(bc, BLXCOL_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00c3b0", NULL);
+  createBlxColor(bc, BLXCOLOR_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
+  createBlxColor(bc, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
+  createBlxColor(bc, BLXCOLOR_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
   
   /* exons */
-  createBlxColor(bc, BLXCOL_EXON_CDS, "Exon (CDS)", "Exon color in alignment list (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_UTR, "Exon (UTR)", "Exon color in alignment list (non-coding)", BLX_LIGHT_RED, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_FILL_CDS, "Exon fill color (CDS)", "Exon fill color in big picture (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_FILL_UTR, "Exon fill color (UTR)", "Exon fill color in big picture (non-coding)", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_EXON_LINE_CDS, "Exon line color (CDS)", "Exon line color in big picture (coding)", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
-  createBlxColor(bc, BLXCOL_EXON_LINE_UTR, "Exon line color (UTR)", "Exon line color in big picture (non-coding)", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_CDS, "Exon (CDS)", "Exon color in alignment list (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_UTR, "Exon (UTR)", "Exon color in alignment list (non-coding)", BLX_LIGHT_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_FILL_CDS, "Exon fill color (CDS)", "Exon fill color in big picture (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_FILL_UTR, "Exon fill color (UTR)", "Exon fill color in big picture (non-coding)", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_LINE_CDS, "Exon line color (CDS)", "Exon line color in big picture (coding)", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_LINE_UTR, "Exon line color (UTR)", "Exon line color in big picture (non-coding)", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
   
   /* codons */
-  createBlxColor(bc, BLXCOL_CODON, "Codon nucleotides", "Codon nucleotides", BLX_LIGHT_SKY_BLUE, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_STOP, "STOP codons", "MET codons", BLX_LIGHT_SALMON, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_LIGHT_SKY_BLUE, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_STOP, "STOP codons", "MET codons", BLX_LIGHT_SALMON, BLX_LIGHT_GREY, NULL, NULL);
   
   /* SNPs */
-  createBlxColor(bc, BLXCOL_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
 
   /* Big Picture */
-  createBlxColor(bc, BLXCOL_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc, BLXCOL_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", "#c7c7c7", BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_PREVIEW_BOX, "Preview box", "Preview box in the big picture", "#b1b1b1", BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
+  createBlxColor(bc, BLXCOLOR_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", "#c7c7c7", BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", "#b1b1b1", BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
 
   /* groups */
-  createBlxColor(bc, BLXCOL_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
   
   /* misc */
-  createBlxColor(bc, BLXCOL_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
-  createBlxColor(bc, BLXCOL_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOL_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
   
 //  g_free(defaultBgColorStr);
 }
@@ -4238,7 +4238,7 @@ static void onUpdateBackgroundColor(GtkWidget *blxWindow)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
-  GdkColor *defaultBgColor = getGdkColor(BLXCOL_BACKGROUND, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *defaultBgColor = getGdkColor(BLXCOLOR_BACKGROUND, bc->defaultColors, FALSE, bc->usePrintColors);
   setWidgetBackgroundColor(blxWindow, defaultBgColor);
   
   blxWindowRedrawAll(blxWindow);
@@ -4775,7 +4775,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq, 
 					   options->refSeqName,
 					   startCoord,
 					   options->sortInverted,
-					   options->initSortMode);
+					   options->initSortColumn);
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
@@ -4800,7 +4800,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq, 
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
   detailViewAddMspData(detailView, options->mspList);
-  detailViewSetSortMode(detailView, options->initSortMode);
+  detailViewSetSortColumn(detailView, options->initSortColumn);
 
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
@@ -4825,7 +4825,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options, const char *paddingSeq, 
    * the big picture range to be set. The widgets must be realised before this because
    * the initial big picture range depends on the detail view range, which is calculated
    * from its window's width, and this will be incorrect if it has not been realised.) */
-  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns);
+  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
   resizeDetailViewHeaders(detailView);
 
   return window;

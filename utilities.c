@@ -56,7 +56,7 @@ void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
 
 /* Call this function to clear the cached drawable for the widget. This means that the
  * next time that expose is called, the bitmap will be redrawn from scratch. */
-void widgetClearCachedDrawable(GtkWidget *widget)
+void widgetClearCachedDrawable(GtkWidget *widget, gpointer data)
 {  
   widgetSetDrawable(widget, NULL);
 }
@@ -491,9 +491,9 @@ static const GdkColor* mspGetIntronColor(const MSP const *msp,
     {
       /* No exon exists adjacent to this intron: default to UTR for want of anything better to do. */
       if (fill)
-        result = getGdkColor(BLXCOL_EXON_FILL_UTR, defaultColors, selected, usePrintColors);
+        result = getGdkColor(BLXCOLOR_EXON_FILL_UTR, defaultColors, selected, usePrintColors);
       else
-        result = getGdkColor(BLXCOL_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
+        result = getGdkColor(BLXCOLOR_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
     }
               
   return result;
@@ -1082,15 +1082,15 @@ const GdkColor* mspGetColor(const MSP const *msp,
       switch (msp->type)
         {
           case BLXMSP_EXON_UNK:
-            result = getGdkColor(fill ? BLXCOL_EXON_FILL_CDS : BLXCOL_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
+            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL_CDS : BLXCOLOR_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
             break;
             
           case BLXMSP_EXON_CDS:
-            result = getGdkColor(fill ? BLXCOL_EXON_FILL_CDS : BLXCOL_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
+            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL_CDS : BLXCOLOR_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
             break;
 
           case BLXMSP_EXON_UTR:
-            result = getGdkColor(fill ? BLXCOL_EXON_FILL_UTR : BLXCOL_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
+            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL_UTR : BLXCOLOR_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
             break;
             
           case BLXMSP_INTRON:

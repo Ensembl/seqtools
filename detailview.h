@@ -28,34 +28,6 @@ typedef enum
   } BlxCanonical;
 
 
-/* This enum declares identifiers for each column in the detail-view trees. If you add an enum
- * here you must also add its type to the TREE_COLUMN_TYPE_LIST definition below. */
-typedef enum
-  {
-    BLXCOL_SEQNAME,             /* The match sequence's name */
-    BLXCOL_SOURCE,              /* The match's source */
-    BLXCOL_SCORE,               /* The alignment's score */
-    BLXCOL_ID,                  /* The alignment's %ID */
-    BLXCOL_START,               /* The start coord of the alignment on the match sequence */
-    BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
-    BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
-    
-    BLXCOL_NUM_COLUMNS          /* The number of columns; must always be the last item in this enum */
-  } ColumnId;
-
-
-/* This defines the variable type for each detail-view-tree column. These MUST be the 
- * correct types (in the correct order) for the columns listed in the ColumnId enum above. */
-#define TREE_COLUMN_TYPE_LIST                     \
-    G_TYPE_STRING,              /* seq name */    \
-    G_TYPE_STRING,              /* source */      \
-    G_TYPE_INT,                 /* score */       \
-    G_TYPE_INT,                 /* id */          \
-    G_TYPE_INT,                 /* start */       \
-    G_TYPE_POINTER,             /* sequence */    \
-    G_TYPE_INT                  /* end */
-
-
 /* This struct describes a column in the detail view. Multiple widgets (i.e. headers
  * and tree columns) in the detail view must all have columns that share the same
  * properties (namely the column width). */
@@ -66,6 +38,8 @@ typedef struct _DetailViewColumnInfo
     GtkCallback refreshFunc;	/* the function that will be called on the header widget when columns are refreshed */
     char *title;		/* the default column title */
     char *propertyName;		/* the property name (used to set the data for the SequenceCellRenderer) */
+    char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
+    
     int width;			/* the column width */
   } DetailViewColumnInfo;
 
@@ -168,7 +142,7 @@ void			scrollDetailViewRightStep(GtkWidget *detailView);
 void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
-void			detailViewSetSortMode(GtkWidget *detailView, const BlxSortMode sortMode);
+void			detailViewSetSortColumn(GtkWidget *detailView, const ColumnId sortColumn);
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll, const gboolean scrollMinimum);
@@ -223,6 +197,7 @@ void			drawHeaderChar(BlxViewContext *bc,
 				       const gboolean showBackground,
 				       const gboolean showSnps,
 				       const gboolean showCodons,
+                                       const BlxColorId defaultBgColor,
 				       GdkDrawable *drawable,
 				       GdkGC *gc,
 				       const int x,
@@ -241,7 +216,7 @@ GtkWidget*		createDetailView(GtkWidget *blxWindow,
 					 const char const *refSeqName,
 					 const int startCoord,
 					 const gboolean sortInverted,
-					 const BlxSortMode sortMode);
+					 const ColumnId sortColumn);
 
 GtkWidget*		createDetailViewScrollBar(GtkAdjustment *adjustment, 
 						  GtkWidget *blxWindow);

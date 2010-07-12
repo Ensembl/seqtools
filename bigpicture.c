@@ -41,11 +41,11 @@ void bigPictureRedrawAll(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
-  widgetClearCachedDrawable(properties->header);
-  widgetClearCachedDrawable(properties->fwdStrandGrid);
-  widgetClearCachedDrawable(properties->revStrandGrid);
-  widgetClearCachedDrawable(properties->fwdExonView);
-  widgetClearCachedDrawable(properties->revExonView);
+  widgetClearCachedDrawable(properties->header, NULL);
+  widgetClearCachedDrawable(properties->fwdStrandGrid, NULL);
+  widgetClearCachedDrawable(properties->revStrandGrid, NULL);
+  widgetClearCachedDrawable(properties->fwdExonView, NULL);
+  widgetClearCachedDrawable(properties->revExonView, NULL);
   
   gtk_widget_queue_draw(bigPicture);
 }
@@ -267,8 +267,8 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
 			      properties->bigPicture, 
                               drawable,
 			      gc,
-			      getGdkColor(BLXCOL_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors), 
-			      getGdkColor(BLXCOL_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors));
+			      getGdkColor(BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors), 
+			      getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors));
   
   g_object_unref(gc);
 }
@@ -694,7 +694,7 @@ void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, Gdk
   GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
 
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
-  GdkColor *previewBoxColor = getGdkColor(BLXCOL_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkColor *previewBoxColor = getGdkColor(BLXCOLOR_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
   drawHighlightBox(drawable, &previewRect, bigPictureProperties->previewBoxLineWidth, previewBoxColor);
 }
 

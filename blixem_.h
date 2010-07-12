@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.37 2010-07-01 08:54:44 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.38 2010-07-12 09:42:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -125,17 +125,6 @@ BLIXEM_AUTHOR_TEXT "\n"
 #define BLX_ERROR g_quark_from_string("Blixem")
 
 
-/* The MSP list is sorted by one of these criteria, currently BLXSORT_ID is the default. */
-typedef enum 
-  {
-    BLXSORT_UNSORTED, 
-    BLXSORT_SCORE, 
-    BLXSORT_ID, 
-    BLXSORT_NAME, 
-    BLXSORT_POS, 
-    BLXSORT_GROUP
-  } BlxSortMode ;
-
 /* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
 typedef enum
   {
@@ -233,6 +222,37 @@ typedef enum
     
     BLXOPT_NUM_OPTS               /* Total number of options (must always be last in list) */
   } BlxOptsIdx ;
+
+
+/* This enum declares identifiers for each column in the detail-view trees. If you add an enum
+ * here you must also add its type to the TREE_COLUMN_TYPE_LIST definition below. */
+typedef enum
+  {
+    BLXCOL_SEQNAME,             /* The match sequence's name */
+    BLXCOL_SOURCE,              /* The match's source */
+    BLXCOL_GROUP,               /* The group that this alignment belongs to */
+    BLXCOL_SCORE,               /* The alignment's score */
+    BLXCOL_ID,                  /* The alignment's %ID */
+    BLXCOL_START,               /* The start coord of the alignment on the match sequence */
+    BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
+    BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
+    
+    BLXCOL_NUM_COLUMNS          /* The number of columns; must always be the last item in this enum */
+  } ColumnId;
+
+
+/* This defines the variable type for each detail-view-tree column. These MUST be the 
+ * correct types (in the correct order) for the columns listed in the ColumnId enum above. */
+#define TREE_COLUMN_TYPE_LIST                     \
+    G_TYPE_STRING,              /* seq name */    \
+    G_TYPE_STRING,              /* source */      \
+    G_TYPE_STRING,              /* group */       \
+    G_TYPE_INT,                 /* score */       \
+    G_TYPE_INT,                 /* id */          \
+    G_TYPE_INT,                 /* start */       \
+    G_TYPE_POINTER,             /* sequence */    \
+    G_TYPE_INT                  /* end */
+
 
 
 /* blxview.c */
