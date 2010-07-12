@@ -234,11 +234,13 @@ void		      showMessageDialog(const char *title,
 					const int initWidth,
 					const int maxHeight,
 					const gboolean wrapText,
+                                        const gboolean useMarkup,
 					PangoFontDescription *fontDesc);
 
 GtkWidget*		createScrollableTextView(const char *messageText,
 						 const gboolean wrapText,
 						 PangoFontDescription *fontDesc,
+                                                 const gboolean useMarkup,
 						 int *height);
 				    
 void		      widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);

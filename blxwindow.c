@@ -3202,7 +3202,7 @@ void showHelpDialog(GtkWidget *blxWindow)
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
   int height = maxHeight;
-  GtkWidget *child = createScrollableTextView(messageText, TRUE, blxWindow->style->font_desc, &height);
+  GtkWidget *child = createScrollableTextView(messageText, TRUE, blxWindow->style->font_desc, TRUE, &height);
   
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);

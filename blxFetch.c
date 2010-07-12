@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.21 2010-06-28 16:19:31 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.22 2010-07-12 11:28:25 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -208,6 +208,41 @@ static char *URL = NULL ;
 static GKeyFile *blx_config_G = NULL ;
 
 
+/* Execute the given external command and return the output from the command as a GString. 
+ * The result should be free'd with g_string_free. */
+static GString* getExternalCommandOutput(const char *command)
+{
+  GString *resultText = g_string_new(NULL) ;
+
+  char lineText[MAXLINE+1];
+  
+  FILE *pipe = popen (command, "r") ;
+  
+  while (!feof (pipe))
+    { 
+      if (!fgets (lineText, MAXLINE, pipe))
+        {
+          break;
+        }
+      
+      int len = strlen(lineText);
+      
+      if (len > 0)
+	{ 
+	  if (lineText[len-1] == '\n') 
+            {
+              lineText[len-1] = '\0';
+            }
+          
+          g_string_append_printf(resultText, "%s\n", lineText) ;
+	}
+    }
+  
+  pclose (pipe);
+  
+  return resultText;
+}
+
 
 /* SHOULD BE MERGED INTO libfree.a */
 /* call an external shell command and print output in a text_scroll window
@@ -222,41 +257,8 @@ static GKeyFile *blx_config_G = NULL ;
 static void externalCommand (char *command, GtkWidget *blxWindow)
 {
 #if !defined(MACINTOSH)
-  FILE *pipe ;
-  char text[MAXLINE+1], *cp ;
-  int line=0, len, maxlen=0;
-  static Stack stack ;
-  GString *str_text ;
-  
-  str_text = g_string_new(NULL) ;
-  
-  stack = stackReCreate (stack, 50) ;
-  
-  pipe = popen (command, "r") ;
-  while (!feof (pipe))
-    { 
-      if (!fgets (text, MAXLINE, pipe))
-	break;
-      
-      len = strlen (text) ;
-      if (len)
-	{ 
-	  if (text[len-1] == '\n') 
-	    text[len-1] = '\0';
-	  pushText (stack, text) ;
-	  line++;
-	  if (len > maxlen)
-	    maxlen = len;
-	}
-    }
-  pclose (pipe);
-  
-  stackCursor(stack, 0) ;
-  
-  while ((cp = stackNextText (stack)))
-    {
-      g_string_append_printf(str_text, "%s\n", cp) ;
-    }
+
+  GString *resultText = getExternalCommandOutput(command);
   
   /* Show the dialog. Use the same fixed-width font that the detail view uses, but
    * don't use the detail view's font size, because it may be zoomed in/out. */
@@ -272,12 +274,12 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
   const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
   const int maxHeight = blxWindow->allocation.height * 0.5;
 
-  showMessageDialog(command, str_text->str, NULL, initWidth, maxHeight, FALSE, fontDesc);
+  showMessageDialog(command, resultText->str, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc);
 
   /* Clean up */
   pango_font_metrics_unref(metrics);
   pango_font_description_free(fontDesc);
-  g_string_free(str_text, TRUE);
+  g_string_free(resultText, TRUE);
 
 #endif
   return ;

@@ -1316,6 +1316,7 @@ int convertStringToInt(const char *inputStr)
 GtkWidget* createScrollableTextView(const char *messageText,
 				    const gboolean wrapText,
 				    PangoFontDescription *fontDesc,
+                                    const gboolean useMarkup,
 				    int *height)
 {
   /* Create a text buffer and copy the text in */
@@ -1323,10 +1324,15 @@ GtkWidget* createScrollableTextView(const char *messageText,
   
   GtkTextIter textIter;
   gtk_text_buffer_get_iter_at_line(textBuffer, &textIter, 0);
-  gtk_text_buffer_insert_markup(textBuffer, &textIter, messageText);
   
-  
-//  gtk_text_buffer_set_text(textBuffer, messageText, -1);
+  if (useMarkup)
+    {
+      gtk_text_buffer_insert_markup(textBuffer, &textIter, messageText);
+    }
+  else
+    {
+      gtk_text_buffer_set_text(textBuffer, messageText, -1);
+    }
   
   /* Create a text view to display the buffer */
   GtkWidget *textView = gtk_text_view_new();
@@ -1367,6 +1373,7 @@ void showMessageDialog(const char *title,
 		       const int width,
 		       const int maxHeight,
 		       const gboolean wrapText,
+                       const gboolean useMarkup,
 		       PangoFontDescription *fontDesc)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
@@ -1379,7 +1386,7 @@ void showMessageDialog(const char *title,
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
   int height = maxHeight;
-  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, &height);
+  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, &height);
 
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
