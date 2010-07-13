@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.40 2010-07-12 15:49:30 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.41 2010-07-13 14:20:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -123,6 +123,16 @@ BLIXEM_AUTHOR_TEXT "\n"
 
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
+
+/* Error codes */
+typedef enum
+  {
+    BLX_ERROR_SEQ_SEGMENT,	      /* error finding sequence segment */
+    BLX_ERROR_EMPTY_STRING,           /* error code for when user entered a zero-length string */
+    BLX_ERROR_STRING_NOT_FOUND,       /* error code for when a search string is not found */
+    BLX_ERROR_SEQ_NAME_NOT_FOUND,     /* the sequence name(s) being searched for were not found */
+    BLX_ERROR_SEQ_DATA_MISMATCH       /* same sequence was parsed more than once and data does not match */
+  } BlxError;
 
 
 /* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */

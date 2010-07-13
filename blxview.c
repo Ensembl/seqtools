@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.50 2010-07-12 09:42:21 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.51 2010-07-13 14:20:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -668,8 +668,11 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
             }
           
           blxSeq->sequence = sequence;
+
           sequenceUsed = TRUE;
-        }
+          blxSeq->seqRange.min = 1;
+          blxSeq->seqRange.max = strlen(blxSeq->sequence);
+          }
       else if (error && *error)
         {
           /* Sequence already exists. Validate that it's the same as the existing one.
@@ -678,14 +681,12 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
             {
               blxComplement(sequence);
             }
+            
+          if (!stringsEqual(sequence, blxSeq->sequence, FALSE))
+            {
+              g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSeq->fullName);
+            }
         }
-      
-      /* If we were successful, calculate the sequence range */
-      if (blxSeq->sequence)
-	{
-	  blxSeq->seqRange.min = 1;
-	  blxSeq->seqRange.max = strlen(blxSeq->sequence);
-	}
     }      
   
   if (!sequenceUsed)

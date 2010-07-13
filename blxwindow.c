@@ -23,15 +23,6 @@
 #define MATCH_SET_GROUP_NAME		 "Match set"
 
 
-/* Error codes */
-typedef enum
-  {
-    BLX_ERROR_SEQ_SEGMENT,	      /* error finding sequence segment */
-    BLX_ERROR_EMPTY_STRING,           /* error code for when user entered a zero-length string */
-    BLX_ERROR_STRING_NOT_FOUND,       /* error code for when a search string is not found */
-    BLX_ERROR_SEQ_NAME_NOT_FOUND      /* the sequence name(s) being searched for were not found */
-  } BlxError;
-
 
 /* Utility struct used when comparing sequence names */
 typedef struct _CompareSeqData

@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.23 2010-07-12 15:49:30 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.24 2010-07-13 14:20:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -96,18 +96,22 @@ typedef struct
 #ifdef PFETCH_HTML 
 #define PFETCH_READ_SIZE 80	/* about a line */
 #define PFETCH_FAILED_PREFIX "PFetch failed:"
+#define PFETCH_TITLE_FORMAT_F "blixem - pfetch -F \"%s\""
 #define PFETCH_TITLE_FORMAT "blixem - pfetch \"%s\""
 
 
 typedef struct
 {
+  GtkWidget *blxWindow;
   GtkWidget *dialog;
   GtkTextBuffer *text_buffer;
   char *title;
+  char *sequence_name;
 
   gulong widget_destroy_handler_id;
   PFetchHandle pfetch;
   gboolean got_response;
+  gboolean requested_full_entry;
 } PFetchDataStruct, *PFetchData;
 
 
@@ -179,6 +183,7 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
+static void blxPfetchHttpEntry(char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
 #endif
 
 static int socketConstruct(char *ipAddress, int port, BOOL External) ;
@@ -196,7 +201,7 @@ ConfigGroup getConfig(char *config_name) ;
 static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
 static char *blxConfigGetFetchMode(void);
-static void blxPfetchEntry(char *sequence_name, GtkWidget *blxWindow);
+static void blxPfetchEntry(char *seqName, GtkWidget *blxWindow);
 
 
 /* Some local globals.... */
@@ -247,7 +252,7 @@ static GString* getExternalCommandOutput(const char *command)
  * things like the font and default width based on properties of the main blixem window.
  * Returns a pointer to the dialog, and optionally sets a pointer to the text buffer in the
  * textBuffer return argument. */
-static GtkWidget* displayFetchDialog(const char *title, const char *displayText, GtkWidget *blxWindow, GtkTextBuffer **textBuffer)
+static GtkWidget* displayFetchResults(const char *title, const char *displayText, GtkWidget *blxWindow, GtkTextBuffer **textBuffer)
 {
   /* Use the same fixed-width font that the detail view uses, but* don't use the
    * detail view's font size, because it may be zoomed in/out. */
@@ -288,7 +293,7 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 #if !defined(MACINTOSH)
 
   GString *resultText = getExternalCommandOutput(command);
-  displayFetchDialog(command, resultText->str, blxWindow, NULL);
+  displayFetchResults(command, resultText->str, blxWindow, NULL);
   g_string_free(resultText, TRUE);
 
 #endif
@@ -371,17 +376,12 @@ void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
   
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
     {
-      /* --client gives logging information to pfetch server,
-       * -F makes sure we get a full sequence entry returned. */
-      externalCommand(messprintf("pfetch --client=acedb_%s_%s -F '%s' &", getSystemName(), getLogin(TRUE), seqName),
-		      blxWindow);
-
-      /* currently unused... pfetchWindow(msp); */
+      blxPfetchEntry(seqName, blxWindow);
     }
 #ifdef PFETCH_HTML 
   else if (!strcmp(fetchMode, BLX_FETCH_PFETCH_HTML))
     {
-      blxPfetchEntry(seqName, blxWindow) ;
+      blxPfetchHttpEntry(seqName, blxWindow, NULL, NULL, TRUE) ;
     }
 #endif
   else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
@@ -490,6 +490,35 @@ char *blxGetFetchProg(const char *fetchMode)
 }
 
 
+
+/* Use the 'pfetch' command to fetch and entry */
+static void blxPfetchEntry(char *seqName, GtkWidget *blxWindow)
+{
+  /* --client gives logging information to pfetch server;
+   * -F requests the full sequence entry record. For protein variants, pfetch does not
+   * return anything with the -F option, so if it fails we need to re-try without -F so
+   * that at least we can display the fasta sequence. */
+  GString *command = g_string_sized_new(100);
+  g_string_append_printf(command, "pfetch --client=acedb_%s_%s -F '%s' &", getSystemName(), getLogin(TRUE), seqName);
+  
+  GString *resultText = getExternalCommandOutput(command->str);
+
+  if (!strncasecmp(resultText->str, "no match", 8))
+    {
+      g_string_truncate(command, 0);
+      g_string_truncate(resultText, 0);
+
+      g_string_append_printf(command, "pfetch --client=acedb_%s_%s '%s' &", getSystemName(), getLogin(TRUE), seqName);
+      resultText = getExternalCommandOutput(command->str);
+    }
+  
+  displayFetchResults(command->str, resultText->str, blxWindow, NULL);
+
+  g_string_free(command, TRUE);
+  g_string_free(resultText, TRUE);
+}
+
+
 #ifdef PFETCH_HTML 
 /* Gets all the sequences needed by blixem but from http proxy server instead of from
  * the pfetch server direct, this enables blixem to be run and get sequences from
@@ -594,7 +623,8 @@ gboolean blxGetSseqsPfetchHtml(GList *seqsToFetch, BlxSeqType seqType)
 }
 
 
-static void blxPfetchEntry(char *sequence_name, GtkWidget *blxWindow)
+/* Use the http proxy to pfetch an entry */
+static void blxPfetchHttpEntry(char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry)
 {
   PFetchUserPrefsStruct prefs = {NULL} ;
   gboolean debug_pfetch = FALSE ;
@@ -612,14 +642,31 @@ static void blxPfetchEntry(char *sequence_name, GtkWidget *blxWindow)
 
       pfetch_data->pfetch = pfetch = PFetchHandleNew(pfetch_type);
       
-      if ((pfetch_data->title = g_strdup_printf(PFETCH_TITLE_FORMAT, sequence_name)))
+      pfetch_data->blxWindow = blxWindow;
+      pfetch_data->sequence_name = sequence_name;
+      pfetch_data->requested_full_entry = fetchFullEntry;
+      
+      if (fetchFullEntry)
+        {
+          pfetch_data->title = g_strdup_printf(PFETCH_TITLE_FORMAT_F, sequence_name);
+        }
+      else
+        {
+          pfetch_data->title = g_strdup_printf(PFETCH_TITLE_FORMAT, sequence_name);
+        }
+      
+      if (pfetch_data->title)
 	{
-          GtkTextBuffer *textBuffer = NULL;
-          
-          GtkWidget *dialog = displayFetchDialog(pfetch_data->title, "pfetching...\n", blxWindow, &textBuffer);
-
-	  pfetch_data->dialog = dialog ;
-	  pfetch_data->text_buffer = textBuffer ;
+          if (dialog && text_buffer)
+            {
+              gtk_window_set_title(GTK_WINDOW(dialog), pfetch_data->title);
+              pfetch_data->dialog = dialog;
+              pfetch_data->text_buffer = text_buffer;
+            }
+          else
+            {
+              pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, &pfetch_data->text_buffer);
+            }
 
 	  pfetch_data->widget_destroy_handler_id = 
 	    g_signal_connect(G_OBJECT(pfetch_data->dialog), "destroy", 
@@ -629,7 +676,7 @@ static void blxPfetchEntry(char *sequence_name, GtkWidget *blxWindow)
       if (PFETCH_IS_HTTP_HANDLE(pfetch))
         {
             PFetchHandleSettings(pfetch, 
-                                 "full",       TRUE,
+                                 "full",       fetchFullEntry,
                                  "port",       prefs.port,
                                  "debug",      debug_pfetch,
                                  "pfetch",     prefs.location,
@@ -639,7 +686,7 @@ static void blxPfetchEntry(char *sequence_name, GtkWidget *blxWindow)
       else
         {
             PFetchHandleSettings(pfetch, 
-                                 "full",       TRUE,
+                                 "full",       fetchFullEntry,
                                  "pfetch",     prefs.location,
                                  NULL);
         }
@@ -794,11 +841,14 @@ gboolean blxGetSseqsPfetch(GList *seqsToFetch, char *pfetchIP, int port, BOOL Ex
                     {
                       GError *error = NULL;
                       addBlxSequenceData(currentSeq, g_strdup(currentStr->str), &error);
-                      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
                       if (!error)
                         {
                           ++numSucceeded;
+                        }
+                      else
+                        {
+                          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
                         }
                     }
                   
@@ -1118,10 +1168,22 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 
       /* clear the buffer the first time... */
       if(pfetch_data->got_response == FALSE)
-	gtk_text_buffer_set_text(text_buffer, "", 0);
+        {
+          gtk_text_buffer_set_text(text_buffer, "", 0);
+        }
 
-      gtk_text_buffer_insert_at_cursor(text_buffer, text, *actual_read);
-      
+      /* If we tried fetching the full entry and got 'no match', try again
+       * without the "full" option. (It is a "feature" of pfetch that it does 
+       * not return anything with the -F option for protein variants.) */
+      if (pfetch_data->requested_full_entry && !strncasecmp(text, "no match", 8))
+        {
+          blxPfetchHttpEntry(pfetch_data->sequence_name, pfetch_data->blxWindow, pfetch_data->dialog, pfetch_data->text_buffer, FALSE);
+        }
+      else
+        {
+          gtk_text_buffer_insert_at_cursor(text_buffer, text, *actual_read);
+        }
+        
       pfetch_data->got_response = TRUE;
     }
 
@@ -1371,9 +1433,19 @@ static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_
                   return status;
                 }
               
-              currentSeq->sequence = sequence;
+              GError *error = NULL;
+              addBlxSequenceData(currentSeq, sequence, &error);
+              
+              if (!error)
+                {
+                  fetch_ok = TRUE;
+                }
+              else
+                {
+                  fetch_ok = FALSE;
+                  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+                }
 
-	      fetch_ok = TRUE ;
               ++seq_num;
 
 	      seq_start = NULL ;
