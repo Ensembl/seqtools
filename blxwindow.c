@@ -773,7 +773,7 @@ void blxWindowRedrawAll(GtkWidget *blxWindow)
 }
 
 
-/* Utility to create a vbox with the given border and pack it into the given container.
+/* Utility to create a vbox with the given border and pack it into the given box.
  * Also put a frame around it with the given label if includeFrame is true */
 static GtkWidget* createVBoxWithBorder(GtkWidget *parent, 
 				       const int borderWidth,
@@ -786,12 +786,12 @@ static GtkWidget* createVBoxWithBorder(GtkWidget *parent,
   if (includeFrame)
     {
       GtkWidget *frame = gtk_frame_new(frameTitle);
-      gtk_container_add(GTK_CONTAINER(parent), frame);
+      gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
       gtk_container_add(GTK_CONTAINER(frame), vbox);
     }
   else
     {
-      gtk_container_add(GTK_CONTAINER(parent), vbox);
+      gtk_box_pack_start(GTK_BOX(parent), vbox, FALSE, FALSE, 0);
     }
   
   return vbox;
@@ -2967,6 +2967,9 @@ void showSettingsDialog(GtkWidget *blxWindow)
   createCheckButton(GTK_BOX(vbox1), "Show SN_P track", blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK), G_CALLBACK(onShowSnpTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_SNP_TRACK));
   createCheckButton(GTK_BOX(vbox1), "Show Sp_lice Sites for selected seqs", blxContextGetFlag(bc, BLXFLAG_SHOW_SPLICE_SITES), G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
   
+  GtkWidget *pfetchBox = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Fetch mode");
+  createPfetchDropDownBox(GTK_BOX(pfetchBox), blxWindow);
+  
   createColumnSizeButtons(mainVBox, detailView);
   createGridSettingsButtons(mainVBox, bigPicture);
 
@@ -3851,24 +3854,24 @@ static void createBlxColor(BlxViewContext *bc,
 }
 
 
-///* This basically does what gdk_color_to_string does, but that function isn't available in
-// * older versions of GDK... */
-//static char* convertColorToString(GdkColor *color)
-//{
-////  char *result = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
-////  return result;
-//
-//  /* Need to make sure the color is allocated (otherwise the 'pixel' field may be zero) */
-//  gboolean failures[1];
-//  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
-//
-//  const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
-//  
-//  char *result = g_malloc(sizeof(char) * hexLen);
-//  sprintf(result, "#%x", color->pixel);
-//  
+/* This basically does what gdk_color_to_string does, but that function isn't available in
+ * older versions of GDK... */
+static char* convertColorToString(GdkColor *color)
+{
+//  char *result = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
 //  return result;
-//}
+
+  /* Need to make sure the color is allocated (otherwise the 'pixel' field may be zero) */
+  gboolean failures[1];
+  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
+
+  const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
+  
+  char *result = g_malloc(sizeof(char) * hexLen);
+  sprintf(result, "#%x", color->pixel);
+  
+  return result;
+}
 
 
 /* Create the colors that blixem will use for various specific purposes */
@@ -3888,7 +3891,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   
   /* Get the default background color of our widgets (i.e. that inherited from the theme).
    * Convert it to a string so we can use the same creation function as the other colors */
-  char *defaultBgColorStr = "#dcdcdc"; //convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
+  char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
   createBlxColor(bc, BLXCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
   
   /* reference sequence */
@@ -3934,7 +3937,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
   
-//  g_free(defaultBgColorStr);
+  g_free(defaultBgColorStr);
 }
 
 

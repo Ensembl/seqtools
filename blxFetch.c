@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.24 2010-07-13 14:20:42 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.25 2010-07-14 13:33:27 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1775,5 +1775,85 @@ static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
 
 
   return result ;
+}
+
+
+/* Callback called when the sort order has been changed in the drop-down box */
+static void onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  BlxViewContext *bc = (BlxViewContext*)data;
+  GtkComboBox *combo = GTK_COMBO_BOX(widget);
+  
+  GtkTreeIter iter;
+  
+  if (gtk_combo_box_get_active_iter(combo, &iter))
+    {
+      GtkTreeModel *model = gtk_combo_box_get_model(combo);
+      
+      GValue val = {0};
+      gtk_tree_model_get_value(model, &iter, 0, &val);
+      
+      const char *fetchMode = g_value_get_string(&val);
+      
+      g_free(bc->fetchMode);
+      bc->fetchMode = g_strdup(fetchMode);
+    }
+}
+
+
+/* Add an item to the pfetch drop-down list */
+static void addPfetchItem(GtkTreeStore *store, GtkTreeIter *parent, const char *itemName, const char *currentFetchMode, GtkComboBox *combo)
+{
+  GtkTreeIter iter;
+  gtk_tree_store_append(store, &iter, parent);
+  
+  gtk_tree_store_set(store, &iter, 0, itemName, -1);
+  
+  if (stringsEqual(itemName, currentFetchMode, FALSE))
+    {
+      gtk_combo_box_set_active_iter(combo, &iter);
+    }
+}
+
+
+/* Create a drop-down box for selecting which pfetch mode blixem should use */
+void createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow)
+{
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(box, hbox, FALSE, FALSE, 0);
+  
+  /* Label */
+  GtkWidget *label = gtk_label_new("Select the fetch mode:    ");
+  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+  
+  /* Create a tree store for the list, and create the combo box itself */
+  GtkTreeStore *store = gtk_tree_store_new(1, G_TYPE_STRING);
+  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
+  g_object_unref(store);
+  gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(combo), FALSE, FALSE, 0);
+  
+  /* Create a cell renderer to display the list text. */
+  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
+  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", 0, NULL);
+  
+  /* Set the callback function */
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  widgetSetCallbackData(GTK_WIDGET(combo), onFetchModeChanged, bc);
+  
+  /* Add the list items */
+  addPfetchItem(store, NULL, BLX_FETCH_PFETCH, bc->fetchMode, combo);
+  
+#ifdef PFETCH_HTML
+  addPfetchItem(store, NULL, BLX_FETCH_PFETCH_HTML, bc->fetchMode, combo);
+#endif
+  
+  addPfetchItem(store, NULL, BLX_FETCH_EFETCH, bc->fetchMode, combo);
+  addPfetchItem(store, NULL, BLX_FETCH_WWW_EFETCH, bc->fetchMode, combo);
+  
+#ifdef ACEDB
+  addPfetchItem(store, NULL, BLX_FETCH_ACEDB, bc->fetchMode, combo);
+  addPfetchItem(store, NULL, BLX_FETCH_ACEDB_TEXT, bc->fetchMode, combo);
+#endif
 }
 

@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.41 2010-07-13 14:20:42 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.42 2010-07-14 13:33:27 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -333,6 +333,7 @@ BlxStyle*                          getBlxStyle(const char *styleName, GSList *st
 BlxColor*			   getBlxColor(GArray *defaultColors, const BlxColorId colorId);
 GdkColor*			   getGdkColor(BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
 
+void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char      *blixemVersion;

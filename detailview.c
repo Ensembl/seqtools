@@ -3532,12 +3532,6 @@ static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const Colu
         }
     }
   
-//  iter = addSortBoxItem(store, iter, BLXSORT_NAME, SORT_BY_NAME_STRING, initSortMode, combo);
-//  iter = addSortBoxItem(store, iter, BLXSORT_SCORE, SORT_BY_SCORE_STRING, initSortMode, combo);
-//  iter = addSortBoxItem(store, iter, BLXSORT_ID, SORT_BY_ID_STRING, initSortMode, combo);
-//  iter = addSortBoxItem(store, iter, BLXSORT_POS, SORT_BY_POS_STRING, initSortMode, combo);
-//  iter = addSortBoxItem(store, iter, BLXSORT_GROUP, SORT_BY_GROUP_ORDER_STRING, initSortMode, combo);
-
   g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(onSortOrderChanged), detailView);
 }
 
