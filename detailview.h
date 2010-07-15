@@ -125,6 +125,7 @@ void			detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand);
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
 int			detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId);
+void                    detailViewGetColumnXCoords(GtkWidget *detailView, const ColumnId columnId, IntRange *xRange);
 
 int			getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange);
 

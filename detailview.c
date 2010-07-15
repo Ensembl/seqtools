@@ -1867,6 +1867,77 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 }
 
 
+/* This function centres the detail view display on the currently-selected base index. Does 
+ * nothing if there isn't a selected base. */
+static void detailViewCentreOnSelection(GtkWidget *detailView)
+{
+  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  
+  if (selectedBaseIdx != UNSET_INT)
+    {
+      /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
+      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+      
+      int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+      setDetailViewStartIdx(detailView, newStart, seqType);
+    }
+}
+
+
+/* Gets the x coords at the start/end of the given column and populate them into the range
+ * return argument. */
+void detailViewGetColumnXCoords(GtkWidget *detailView, const ColumnId columnId, IntRange *xRange)
+{
+  xRange->min = 0;
+  xRange->max = 0;
+  
+  /* Loop through all the columns up to the sequence column, summing their widths. */
+  GList *columnItem = detailViewGetColumnList(detailView);
+  
+  for ( ; columnItem; columnItem = columnItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
+      
+      if (columnInfo->columnId != columnId)
+        {
+          xRange->min += columnInfo->width;
+        }
+      else
+        {
+          xRange->max = xRange->min + columnInfo->width;
+          break;
+        }
+    }
+}
+
+
+/* In the detail view, get the base index at the given coords, if those coords lie within the
+ * sequence column; returns UNSET_INT otherwise. */
+static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, const int y)
+{
+  int baseIdx = UNSET_INT;
+
+  /* Get the x coords at the start/end of the sequence column */
+  IntRange xRange;
+  detailViewGetColumnXCoords(detailView, BLXCOL_SEQUENCE, &xRange);
+  
+  /* See if our x coord lies inside the sequence column */
+  if (x >= xRange.min && x <= xRange.max)
+    {
+      /* Get the 0-based char index at x */
+      gint charWidth = detailViewGetCharWidth(detailView);
+      int charIdx = (int)(((double)x - xRange.min) / (double)charWidth);
+
+      /* Add the start of the scroll range to convert this to the display index */
+      GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+      baseIdx = charIdx + adjustment->value;
+    }
+  
+  return baseIdx;
+}
+
+
 /***********************************************************
  *                    Detail view events                   *
  ***********************************************************/
@@ -2650,6 +2721,107 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
 }
 
 
+/* Parent handler for button presses anywhere on the detail view. */
+static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->button)
+  {
+    case 2:
+    {
+      /* Middle button: select the base index at the clicked coords */
+      int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
+      
+      if (baseIdx != UNSET_INT)
+        {
+          /* For protein matches, select the first base in the triplet */
+          const int baseNum = 1;
+          const int frame = detailViewGetActiveFrame(detailView);
+          detailViewSetSelectedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
+        }
+      
+      handled = TRUE;
+      break;
+    }
+      
+    case 3:
+    {
+      /* Right button: show context menu. */
+      GtkWidget *mainmenu = blxWindowGetMainMenu(detailViewGetBlxWindow(detailView));
+      gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
+      handled = TRUE;
+      break;
+    }
+      
+    default:
+      break;
+  };
+  
+  return handled;
+}
+
+
+static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *event, gpointer data)
+{
+  if (event->state & GDK_BUTTON2_MASK)
+    {
+      /* Moving mouse with middle mouse button down. Update the currently-selected base
+       * (but don't re-centre on the selected base until the mouse button is released). */
+      const int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
+      
+      if (baseIdx != UNSET_INT)
+        {
+          /* For protein matches, get the 1st base in the peptide */
+          const int baseNum = 1;
+          const int frame = detailViewGetActiveFrame(detailView);
+          detailViewSetSelectedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
+        }
+    }
+  
+  return TRUE;
+}
+
+
+static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  /* Right button: show context menu (handled in button-press event) */
+  if (event->button == 3)
+    {
+      handled = TRUE;
+    }
+  
+  /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
+  if (event->button == 2)
+    {
+      guint modifiers = gtk_accelerator_get_default_mod_mask();
+      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+      
+      if (!ctrlModifier)
+	{
+	  /* Move the scrollbar so that the currently-selected base index is at the centre */
+	  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+	  
+	  if (selectedBaseIdx != UNSET_INT)
+	    {
+	      /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
+	      const BlxSeqType seqType = detailViewGetSeqType(detailView);
+	      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	      
+	      int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+	      setDetailViewStartIdx(detailView, newStart, seqType);
+	    }
+	}
+      
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+
 /* Handler for when a mouse button is pressed on a sequence column header widget.
  * This signal only gets connected for protein matches, where there are 3 header
  * widgets, each showing the DNA nucleotides for a specific reading frame. */
@@ -2716,17 +2888,7 @@ static gboolean onButtonReleaseSeqColHeader(GtkWidget *header, GdkEventButton *e
 	{
 	  /* Move the scrollbar so that the currently-selected base index is at the centre */
 	  GtkWidget *detailView = GTK_WIDGET(data);
-	  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-	  
-	  if (selectedBaseIdx != UNSET_INT)
-	    {
-	      /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
-	      const BlxSeqType seqType = detailViewGetSeqType(detailView);
-	      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-	      
-	      int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
-	      setDetailViewStartIdx(detailView, newStart, seqType);
-	    }
+          detailViewCentreOnSelection(detailView);
 	}
       
       handled = TRUE;
@@ -3895,8 +4057,12 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   gtk_box_pack_start(GTK_BOX(container), vbox, TRUE, TRUE, 0);
   
   /* Connect signals */
+  gtk_widget_add_events(detailView, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
-  
+  g_signal_connect(G_OBJECT(detailView), "button-press-event", G_CALLBACK(onButtonPressDetailView), NULL);
+  g_signal_connect(G_OBJECT(detailView), "button-release-event", G_CALLBACK(onButtonReleaseDetailView), NULL);
+  g_signal_connect(G_OBJECT(detailView), "motion-notify-event", G_CALLBACK(onMouseMoveDetailView), NULL);
+
   detailViewCreateProperties(detailView, 
 			     blxWindow, 
 			     renderer,
