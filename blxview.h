@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.26 2010-07-12 09:42:21 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.27 2010-07-15 09:24:05 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -124,6 +124,7 @@ typedef enum
     BLXMSP_EXON_UTR,               /* Exon (untranslated region i.e. non-coding section) */
     BLXMSP_EXON_UNK,               /* Exon (unknown type) */
     BLXMSP_INTRON,                 /* Intron */
+    BLXMSP_POLYA_TAIL,		   /* polyA tail */
     
     BLXMSP_SNP,                    /* Single Nucleotide Polymorphism */
     
@@ -173,6 +174,7 @@ typedef enum
     BLXCOLOR_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
     BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
+    BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;

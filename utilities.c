@@ -509,6 +509,11 @@ gboolean mspIsSnp(const MSP const *msp)
   return (msp && msp->type == BLXMSP_SNP);
 }
 
+gboolean mspIsPolyATail(const MSP const *msp)
+{
+  return (msp && msp->type == BLXMSP_POLYA_TAIL);
+}
+
 gboolean mspIsBlastMatch(const MSP const *msp)
 {
   return (msp && msp->type == BLXMSP_MATCH);
@@ -524,21 +529,21 @@ gboolean mspHasSName(const MSP const *msp)
  * and exons have coords on the subject sequence. (to do: is this optional for exons?) */
 gboolean mspHasSCoords(const MSP const *msp)
 {
-  return mspIsExon(msp) || mspIsBlastMatch(msp);
+  return mspIsExon(msp) || mspIsBlastMatch(msp) || mspIsPolyATail(msp);
 }
 
 /* Whether the MSP requires subject sequence strand to be set. Only matches 
  * require strand on the subject sequence, although exons may have them set. */
 gboolean mspHasSStrand(const MSP const *msp)
 {
-  return mspIsBlastMatch(msp);
+  return mspIsBlastMatch(msp) || mspIsPolyATail(msp);
 }
 
 /* Whether the MSP requires the actual sequence data for the subject sequence. Only
  * matches require the sequence data. */
 gboolean mspHasSSeq(const MSP  const *msp)
 {
-  return mspIsBlastMatch(msp);
+  return mspIsBlastMatch(msp) || mspIsPolyATail(msp);
 }
 
 
@@ -781,7 +786,7 @@ int gapCoord(const MSP *msp,
 {
   int result = UNSET_INT;
   
-  if (mspIsBlastMatch(msp) || mspIsExon(msp))
+  if (mspIsBlastMatch(msp) || mspIsExon(msp) || mspIsPolyATail(msp))
     {
       const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
       const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
@@ -1260,6 +1265,7 @@ BlxSequence* createEmptyBlxSequence(char *fullName)
 
   seq->mspList = NULL;
   seq->sequence = NULL;
+  seq->sequenceReqd = FALSE;
   
   return seq;
 }

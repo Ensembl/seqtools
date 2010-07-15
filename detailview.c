@@ -3782,8 +3782,8 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   
   for ( ; msp; msp = msp->next)
     {
-      /* Only add matches and exons to trees */
-      if (mspIsBlastMatch(msp) || mspIsExon(msp))
+      /* Only add matches/exons/polyA-tails to trees */
+      if (mspIsBlastMatch(msp) || mspIsExon(msp) || mspIsPolyATail(msp))
 	{
 	  /* Find the tree that this MSP should belong to based on its reading frame and strand */
 	  BlxStrand strand = mspGetRefStrand(msp);

@@ -55,6 +55,8 @@ typedef struct _RenderData
     GdkColor *unalignedSeqColorSelected;
     GdkColor *exonBoundaryColorStart;
     GdkColor *exonBoundaryColorEnd;
+    GdkColor *polyAColor;
+    GdkColor *polyAColorSelected;
     int exonBoundaryWidth;
     GdkLineStyle exonBoundaryStyleStart;
     GdkLineStyle exonBoundaryStyleEnd;
@@ -574,6 +576,16 @@ static void drawBase(MSP *msp,
       sBase = SEQUENCE_CHAR_GAP;
       baseBgColor = selected ? data->mismatchColorSelected : data->mismatchColor;
     }
+  else if (mspIsPolyATail(msp))
+    {
+      /* Special treatment for bases inside a polyA tail: only show polyA tails if the sequence
+       * is selected. */
+      if (data->seqSelected)
+	{
+	  baseBgColor = selected ? data->polyAColorSelected : data->polyAColor;
+	  sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
+	}
+    }
   else
     {
       /* There is a base in the match sequence. See if it matches the ref sequence */
@@ -978,6 +990,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
     getGdkColor(BLXCOLOR_UNALIGNED_SEQ, bc->defaultColors, TRUE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_EXON_START, bc->defaultColors, FALSE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_EXON_END, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_POLYA_TAIL, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_POLYA_TAIL, bc->defaultColors, TRUE, bc->usePrintColors),
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
     detailViewProperties->exonBoundaryLineStyleEnd,
@@ -1002,7 +1016,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
 	    {
 	      drawExon(renderer, msp, tree, &data);
 	    }
-	  else if (mspIsBlastMatch(msp))
+	  else if (mspIsBlastMatch(msp) || mspIsPolyATail(msp))
 	    {
 	      drawDnaSequence(renderer, msp, tree, &data);
 	    }

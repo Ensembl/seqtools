@@ -691,12 +691,12 @@ void resortTree(GtkWidget *tree, gpointer data)
 
 
 static void mspGetVisibleRange(const MSP const *msp,
-                        const BlxViewContext *bc,
-                        const gboolean showUnalignedSeq,
-                        const gboolean limitUnalignedBases,
-                        const int numUnalignedBases,
-                        IntRange *qRange_out, 
-                        IntRange *sRange_out)
+			       const BlxViewContext *bc,
+			       const gboolean showUnalignedSeq,
+			       const gboolean limitUnalignedBases,
+			       const int numUnalignedBases,
+			       IntRange *qRange_out, 
+			       IntRange *sRange_out)
 {
   if (showUnalignedSeq && mspIsBlastMatch(msp))
     {
@@ -779,6 +779,39 @@ static void mspGetVisibleRange(const MSP const *msp,
 }
 
 
+/* Utility that returns true if the given MSP is currently shown in the tree with the given
+ * strand/frame */
+static gboolean isMspVisible(const MSP const *msp, 
+			     GtkWidget *blxWindow, 
+			     const BlxViewContext *bc, 
+			     const BlxStrand strand, 
+			     const int frame, 
+			     const IntRange const *displayRange,
+			     const int numUnalignedBases)
+{
+  /* We only display blast matches or exons (or polyA tails, if the MSP's sequence is 
+   * selected) */
+  gboolean result = mspIsBlastMatch(msp) || mspIsExon(msp) ||
+		    (mspIsPolyATail(msp) && blxWindowIsSeqSelected(blxWindow, msp->sSequence));
+		    
+  /* Check that it is in this tree's frame and strand */
+  result &= (mspGetRefStrand(msp) == strand);
+  result &= (mspGetRefFrame(msp, bc->seqType) == frame);
+  
+  /* Check it's in the current display range */
+  if (result)
+    {
+      IntRange qRange;
+      const gboolean showUnalignedSeq = blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ);
+      const gboolean limitUnalignedBases = blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES);
+    
+      mspGetVisibleRange(msp, bc, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, &qRange, NULL);
+
+      result &= (qRange.min <= displayRange->max && qRange.max >= displayRange->min);
+    }
+    
+  return result;
+}
 
 
 /* Filter function. Returns true if the given row in the given tree model should be visible. */
@@ -815,20 +848,10 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	    {
 	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-	      if ((mspIsBlastMatch(msp) || mspIsExon(msp)) &&
-		  mspGetRefStrand(msp) == strand && mspGetRefFrame(msp, bc->seqType) == frame)
+	      if (isMspVisible(msp, blxWindow, bc, strand, frame, displayRange, dvProperties->numUnalignedBases))
 		{
-                  IntRange qRange;
-		  const gboolean showUnalignedSeq = blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ);
-		  const gboolean limitUnalignedBases = blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES);
-		
-                  mspGetVisibleRange(msp, bc, showUnalignedSeq, limitUnalignedBases, dvProperties->numUnalignedBases, &qRange, NULL);
-
-		  if (qRange.min <= displayRange->max && qRange.max >= displayRange->min)
-		    {
-		      bDisplay = TRUE;
-		      break;
-		    }
+		  bDisplay = TRUE;
+		  break;
 		}
 	    }	  
 	}

@@ -3936,6 +3936,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
   createBlxColor(bc, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_GREY, NULL, NULL);
   
   g_free(defaultBgColorStr);
 }
@@ -4309,6 +4310,10 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
 
+  /* Re-filter the detail-view trees, because selecting an MSP can cause other MSPs to 
+   * become visible (i.e. polyA tails). */
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  
   /* Redraw */
   updateFeedbackBox(detailView);
   blxWindowRedrawAll(blxWindow);

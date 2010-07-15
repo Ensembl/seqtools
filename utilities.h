@@ -137,6 +137,7 @@ void		      adjustColorBrightness(GdkColor *origColor, const double factor, GdkC
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
 gboolean	      mspIsSnp(const MSP const *msp);
+gboolean	      mspIsPolyATail(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);
 
 gboolean              mspHasSName(const MSP const *msp);

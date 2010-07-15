@@ -264,6 +264,11 @@ static gboolean isSnp(char *text)
   return (stringsEqual(text, "SNP", FALSE) || stringsEqual(text, "SO:0000694", FALSE));
 }
 
+static gboolean isPolyATail(char *text)
+{
+  return (stringsEqual(text, "polyA_sequence", FALSE) || stringsEqual(text, "SO:0000610", FALSE));
+}
+
 
 
 /* Get the MSP type from a string continaing a valid GFF3 type name */
@@ -298,6 +303,10 @@ static void parseMspType(char *token, MSP *msp, GError **error)
   else if (isSnp(token))
     {
       msp->type = BLXMSP_SNP;
+    }
+  else if (isPolyATail(token))
+    {
+      msp->type = BLXMSP_POLYA_TAIL;
     }
   else
     {
