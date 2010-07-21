@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.28 2010-07-21 11:59:57 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.29 2010-07-21 14:23:12 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1953,7 +1953,7 @@ static void onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointe
         {
           /* If this is the first time we've been set to pfetch mode, initialise the net id and port */
           GError *error = NULL;
-          const gboolean success = setupPfetchMode(NULL, bc->fetchMode, &bc->net_id, &bc->port, &error);
+          setupPfetchMode(NULL, bc->fetchMode, &bc->net_id, &bc->port, &error);
           
           if (error)
             {
