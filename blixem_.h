@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.44 2010-07-21 11:39:18 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.45 2010-07-21 14:46:45 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -236,7 +236,7 @@ typedef enum
 
 
 /* COLUMNS: To add a new column you must do the following:
- *    - add an identifier for the column to the ColumnId enum;
+ *    - add an identifier for the column to the BlxColumnId enum;
  *    - add the type to the TREE_COLUMN_TYPE_LIST definition; and
  *    - specify the data source in addSequenceStructToRow and addMspToRow;
  *    - create the column in createColumns(...)
@@ -263,11 +263,11 @@ typedef enum
     BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
     
     BLXCOL_NUM_COLUMNS          /* The number of columns; must always be the last item in this enum */
-  } ColumnId;
+  } BlxColumnId;
 
 
 /* This defines the variable type for each detail-view-tree column. These MUST be the 
- * correct types (in the correct order) for the columns listed in the ColumnId enum above. */
+ * correct types (in the correct order) for the columns listed in the BlxColumnId enum above. */
 #define TREE_COLUMN_TYPE_LIST                     \
     G_TYPE_STRING,              /* seq name */    \
     G_TYPE_STRING,              /* source */      \

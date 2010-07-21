@@ -28,7 +28,7 @@ typedef struct _CommandLineOptions
   int bigPictZoom;		  /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
   gboolean bigPictON;	    
   gboolean bigPictRev;	    
-  ColumnId initSortColumn;	  /* initial column to sort by */
+  BlxColumnId initSortColumn;	  /* initial column to sort by */
   gboolean sortInverted;	  /* whether initial sort order should be inverted */
   gboolean gappedHsp;		  /* whether this is a gapped hsp */
   gboolean hiliteSins;	    

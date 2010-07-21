@@ -22,7 +22,7 @@ static gboolean		onSelectionChangedTree(GObject *selection, gpointer data);
 static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
-static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId);
+static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const BlxColumnId columnId);
 static int		scrollBarWidth();
 static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq);
@@ -152,7 +152,7 @@ static int treeGetCharWidth(GtkWidget *tree)
   return detailViewGetCharWidth(detailView);
 }
 
-static TreeColumnHeaderInfo* treeColumnGetHeaderInfo(GtkWidget *tree, ColumnId columnId)
+static TreeColumnHeaderInfo* treeColumnGetHeaderInfo(GtkWidget *tree, BlxColumnId columnId)
 {
   /* Loop through each headerinfo item until we find the one that contains this column id */
   TreeProperties *properties = treeGetProperties(tree);
@@ -591,7 +591,7 @@ void refilterTree(GtkWidget *tree, gpointer data)
  * sort order (e.g. name is sorted ascending, but score is sorted descending.)
  * However, the opposite sort order is returned if the detail view's invert-sort-
  * order flag is set. */
-static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const ColumnId columnId)
+static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const BlxColumnId columnId)
 {
   GtkSortType result = GTK_SORT_ASCENDING;
   BlxViewContext *bc = treeGetContext(tree);
@@ -808,7 +808,7 @@ void treeSetSortColumn(GtkWidget *tree, gpointer data)
 {
   GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
   
-  ColumnId sortColumn = GPOINTER_TO_INT(data);
+  BlxColumnId sortColumn = GPOINTER_TO_INT(data);
   GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
   
   gtk_tree_sortable_set_sort_column_id(model, sortColumn, sortOrder);
@@ -2311,7 +2311,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   gint col;
   gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &col, NULL);
 
-  ColumnId sortColumn = (ColumnId)col; 
+  BlxColumnId sortColumn = (BlxColumnId)col; 
 
   /* Extract the MSP lists from the tree rows */
   GList *mspGList1 = treeGetMsps(model, iter1);

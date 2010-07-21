@@ -33,7 +33,7 @@ typedef enum
  * properties (namely the column width). */
 typedef struct _DetailViewColumnInfo
   {
-    ColumnId columnId;		/* the column identifier */
+    BlxColumnId columnId;		/* the column identifier */
     GtkWidget *headerWidget;	/* the header widget for this column (in the detail-view header) */
     GtkCallback refreshFunc;	/* the function that will be called on the header widget when columns are refreshed */
     char *title;		/* the default column title */
@@ -118,15 +118,15 @@ int			detailViewGetCharWidth(GtkWidget *detailView);
 int			detailViewGetCharHeight(GtkWidget *detailView);
 int                     detailViewGetNumUnalignedBases(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
-DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId);
+DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId);
 int			detailViewGetActiveFrame(GtkWidget *detailView);
 BlxStrand		detailViewGetSelectedStrand(GtkWidget *detailView);
 void			detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand);
 
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
-int			detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId);
-void                    detailViewGetColumnXCoords(GtkWidget *detailView, const ColumnId columnId, IntRange *xRange);
+int			detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
+void                    detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange);
 
 int			getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange);
 
@@ -144,7 +144,7 @@ void			scrollDetailViewRightStep(GtkWidget *detailView);
 void			scrollDetailViewLeftPage(GtkWidget *detailView);
 void			scrollDetailViewRightPage(GtkWidget *detailView);
 
-void			detailViewSetSortColumn(GtkWidget *detailView, const ColumnId sortColumn);
+void			detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn);
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll, const gboolean scrollMinimum);
@@ -221,7 +221,7 @@ GtkWidget*		createDetailView(GtkWidget *blxWindow,
 					 const char const *refSeqName,
 					 const int startCoord,
 					 const gboolean sortInverted,
-					 const ColumnId sortColumn,
+					 const BlxColumnId sortColumn,
                                          const gboolean optionalDataLoaded);
 
 GtkWidget*		createDetailViewScrollBar(GtkAdjustment *adjustment, 

@@ -94,7 +94,7 @@ void detailViewRedrawAll(GtkWidget *detailView)
 
 
 /* Return the width of the column with the given column id */
-int detailViewGetColumnWidth(GtkWidget *detailView, const ColumnId columnId)
+int detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId)
 {
   int result = 0;
 
@@ -1936,7 +1936,7 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
 
 /* Gets the x coords at the start/end of the given column and populate them into the range
  * return argument. */
-void detailViewGetColumnXCoords(GtkWidget *detailView, const ColumnId columnId, IntRange *xRange)
+void detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange)
 {
   xRange->min = 0;
   xRange->max = 0;
@@ -2166,7 +2166,7 @@ GList* detailViewGetColumnList(GtkWidget *detailView)
 }
 
 /* Get the column info for a particular column */
-DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const ColumnId columnId)
+DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId)
 {
   DetailViewColumnInfo *result = NULL;
   
@@ -3133,7 +3133,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 
 
 /* Sort the detail view trees by the given column */
-void detailViewSetSortColumn(GtkWidget *detailView, const ColumnId sortColumn)
+void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn)
 {
   callFuncOnAllDetailViewTrees(detailView, treeSetSortColumn, GINT_TO_POINTER(sortColumn));
 }
@@ -3340,7 +3340,7 @@ static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
       GValue val = {0};
       gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
       
-      ColumnId sortColumn = g_value_get_int(&val);
+      BlxColumnId sortColumn = g_value_get_int(&val);
       detailViewSetSortColumn(detailView, sortColumn);
     }
 }
@@ -3465,7 +3465,7 @@ static gint columnCompareFunc(gconstpointer a, gconstpointer b)
 }
 
 /* Creates a detail-view column from the given info and adds it to the columnList. */
-static void createColumn(ColumnId columnId, 
+static void createColumn(BlxColumnId columnId, 
                          GtkWidget *specialWidget,
                          GtkCallback callbackFn, 
                          char *title,
@@ -3506,7 +3506,7 @@ static void createColumn(ColumnId columnId,
   columnInfo->sortName = sortName;
   columnInfo->dataLoaded = optionalDataLoaded;
   
-  /* Place it in the list. Sort the list by ColumnId because the list must be sorted in the same
+  /* Place it in the list. Sort the list by BlxColumnId because the list must be sorted in the same
    * order as the variable types in the TREE_COLUMN_TYPE_LIST definition */
   *columnList = g_list_insert_sorted(*columnList, columnInfo, columnCompareFunc);
 }
@@ -3723,9 +3723,9 @@ static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
 /* Add an option for the sorting drop-down box */
 static GtkTreeIter* addSortBoxItem(GtkTreeStore *store, 
 				  GtkTreeIter *parent, 
-				  ColumnId sortColumn, 
+				  BlxColumnId sortColumn, 
 				  const char *sortName,
-				  ColumnId initSortColumn,
+				  BlxColumnId initSortColumn,
 				  GtkComboBox *combo)
 {
   GtkTreeIter iter;
@@ -3743,7 +3743,7 @@ static GtkTreeIter* addSortBoxItem(GtkTreeStore *store,
 
 
 /* Create the combo box used for selecting sort criteria */
-static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const ColumnId initSortColumn, GList *columnList)
+static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList)
 {
   /* Add a label, to make it obvious what the combo box is for */
   GtkWidget *label = gtk_label_new(" <i>Sort by:</i>");
@@ -3851,7 +3851,7 @@ static void insertToolbarSeparator(GtkToolbar *toolbar)
 /* Create the detail view toolbar */
 static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
 					    BlxBlastMode mode,
-					    const ColumnId sortColumn,
+					    const BlxColumnId sortColumn,
                                             GList *columnList,
 					    GtkWidget **feedbackBox)
 {
@@ -4092,7 +4092,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			    const char const *refSeqName,
 			    const int startCoord,
 			    const gboolean sortInverted,
-			    const ColumnId sortColumn,
+			    const BlxColumnId sortColumn,
                             const gboolean optionalDataLoaded)
 {
   /* We'll group the trees in their own container so that we can pass them all around
