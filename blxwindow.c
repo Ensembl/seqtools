@@ -63,15 +63,18 @@ typedef struct _BlxWindowProperties
 \t•\tChange <b><i>column widths</i></b>: see the 'Settings' dialog.\n\
 \t•\tChange the <b><i>grid scale</i></b>: see the 'Settings' dialog.\n\
 \t•\tHighlight <b><i>splice sites</i></b> for the selected alignment(s): see the 'Settings' dialog.\n\
+\t•\tFetching a <b><i>protein variant</i></b> now displays the FASTA sequence if the full EMBL file cannot be found.\n\
+\t•\t<b><i>Load additional data</i></b> such as organism and tissue-type: see the 'Settings' dialog.\n\
 \t•\tThe <b><i>Escape</i></b> key now cancels the current base selection.\n\
 \t•\t<b><i>Reference sequence highlighting</i></b>: the section of reference sequence corresponding to the currently-selected alignment(s) is now highlighted.\n\
-\t•\t<b><i>Detail-view range</i></b>: the current detail-view range is now highlighted in the big picture by background shading rather than a blue outline box, and also now extends over the whole big picture.\n\
+\t•\tThe <b><i>detail-view range</i></b> is now highlighted by background shading rather than a blue outline box.\n\
 \t•\t(Show SNP track: this option is not supported yet.)\n\
 </span>\
 \n\
 \n\
-<b><big>Pfetch</big></b>\n\
-\t•\tDouble-click a row to pfetch a sequence.\n\
+<b><big>Fetch</big></b>\n\
+\t•\tDouble-click a row to fetch a sequence.\n\
+\t•\tIn the Settings dialog, click the 'Load optional data' button to fetch additional information such as organism and tissue-type. This data can be viewed by enabling the corresponding column.\n\
 \n\
 \n\
 <b><big>Main menu</big></b>\n\
@@ -136,8 +139,10 @@ Right-click anywhere in the Blixem window to pop up the main menu.  The menu opt
 \n\
 \n\
 <b><big>Sorting</big></b>\n\
-\t•\tThe alignments can be sorted by selecting the column you wish to sort by from the drop-down box on the toolbar.  To reverse the sort order, select the relevant option under the Settings menu.\n\
-\t•\tThe alignments can also be sorted by group by selecting the Group option from the drop-down box.  See the Groups section.\n\
+\t•\tThe alignments can be sorted by selecting the column you wish to sort by from the drop-down box on the toolbar.\n\
+\t•\tYou can reverse the sort order by selecting the 'Invert sort order' option on the Settings dialog.\n\
+\t•\tIf you sort by one of the optional columns (e.g. organism or tissue-type) the sort will have no effect until the data for that column is loaded. Load the data by clicking the 'Load optional data' button in the 'Columns' section of the Settings dialog.\n\
+\t•\tYou can place alignments in a group and then sort by group to keep specific sequences always on top.  See the Groups section for more details.\n\
 \n\
 \n\
 <b><big>Finding</big></b>\n\
@@ -208,7 +213,7 @@ The settings menu can be accessed by right-clicking and selecting Settings, or b
 \t•\t<b>Highlight Differences</b>:When this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
 \t•\t<b>Show SNP Track</b>:Shows the SNP track.\n\
 \t•\t<b>Show Splice Sites</b>:Shows splice sites for the currently-selected alignment(s).  Splice sites are highlighted on the reference sequence in green (for canonical) or red (for non-canonical).  Blixem identifies GC-AG and AT-AC introns as canonical.\n\
-\t•\t<b>Column sizes</b>:\t\t\tEdit the width of the columns in the detail view.\n\
+\t•\t<b>Columns</b>:\t\t\tEdit the width of columns in pixels.  Set the width to 0 to hide a column. Click the 'Load optional data' button to load the data for the optional columns such as organism and tissue-type - then set the width of these columns to non-zero values to view the data. Once optional data is loaded you can also sort by it. Note that optional data is loaded on startup for DNA matches but not for protein matches, because the latter can be slow.\n\
 \t•\t<b>Grid properties</b>:\t\t\tSet the maximum/minimum %ID values show in the big picture.  Expand or contract the grid scale by adjusting '%ID per cell'.\n\
 \n\
 \n\
@@ -2686,7 +2691,7 @@ static GtkWidget* createColumnLoadDataButton(GtkBox *box, GtkWidget *detailView)
 static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 {
   /* Group these buttons in a frame */
-  GtkWidget *frame = gtk_frame_new("Column sizes");
+  GtkWidget *frame = gtk_frame_new("Columns");
   gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
 
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
