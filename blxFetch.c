@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.27 2010-07-21 11:39:18 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.28 2010-07-21 11:59:57 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1847,8 +1847,10 @@ static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
 
 
 /* Set up the net id and port if the mode is pfetch */
-static void setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, char **net_id, int *port)
+static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, char **net_id, int *port, GError **error)
 {
+  gboolean success = TRUE;
+  
   if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0)
     {
       /* three ways to determine this:
@@ -1884,7 +1886,15 @@ static void setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, char **
           /* Lastly try for a config file. */
           blxConfigGetPFetchSocketPrefs(net_id, port) ;
         }
+
+      if (*net_id == NULL || *port == UNSET_INT)
+        {
+          g_set_error(error, BLX_ERROR, 1, "Network ID and port number were not found. These must be specified in the Blixem command line options, in the Blixem config file or in the BLIXEM_PFETCH and BLIXEM_PORT enviroment variables.");
+          success = FALSE;
+        }
     }
+  
+  return success;
 }
 
 
@@ -1908,7 +1918,14 @@ void setupFetchMode(PfetchParams *pfetch, char **fetchMode, char **net_id, int *
   
 
   /* For pfetch mode, find the net_id and port */
-  setupPfetchMode(pfetch, *fetchMode, net_id, port);
+  GError *error = NULL;
+  const gboolean success = setupPfetchMode(pfetch, *fetchMode, net_id, port, &error);
+  
+  if (!success)
+    {
+      prefixError(error, "Error setting fetch mode. ");
+      reportAndClearIfError(&error, success ? G_LOG_LEVEL_WARNING : G_LOG_LEVEL_CRITICAL);
+    }
 }
 
 
@@ -1935,7 +1952,14 @@ static void onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointe
       if (!strcmp(bc->fetchMode, BLX_FETCH_PFETCH) && (bc->net_id == NULL || bc->port == UNSET_INT))
         {
           /* If this is the first time we've been set to pfetch mode, initialise the net id and port */
-          setupPfetchMode(NULL, bc->fetchMode, &bc->net_id, &bc->port);
+          GError *error = NULL;
+          const gboolean success = setupPfetchMode(NULL, bc->fetchMode, &bc->net_id, &bc->port, &error);
+          
+          if (error)
+            {
+              prefixError(error, "Error setting fetch mode. ");
+              reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+            }
         }
     }
 }
