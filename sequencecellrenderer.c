@@ -166,6 +166,23 @@ void drawRectangle2(GdkDrawable *drawable1,
     gdk_draw_rectangle(drawable2, gc, filled, x, y, width, height);
 }
 
+/* Custom version of gdk_draw_line that draws the same thing to two GdkDrawables */
+void drawLine2(GdkDrawable *drawable1,
+               GdkDrawable *drawable2,
+               GdkGC *gc,
+               gint x1,
+               gint y1,
+               gint x2,
+               gint y2)
+{
+  if (drawable1)
+    gdk_draw_line(drawable1, gc, x1, y1, x2, y2);
+  
+  if (drawable2)
+    gdk_draw_line(drawable2, gc, x1, y1, x2, y2);
+}
+
+
 /***************************************************************************
  *
  *  sequence_cell_renderer_get_type: here we register our type with
@@ -521,9 +538,9 @@ static char getMatchSeqBase(BlxSequence *blxSeq, const int sIdx, const BlxSeqTyp
 {
   char result = SEQUENCE_CHAR_PAD;
   
-  if (blxSeq && blxSeq->sequence)
+  if (blxSeq && blxSeq->sequence && blxSeq->sequence->str && sIdx < blxSeq->sequence->len)
     {
-      result = blxSeq->sequence[sIdx - 1];
+      result = blxSeq->sequence->str[sIdx - 1];
       result = convertBaseToCorrectCase(result, seqType);
     }
 
@@ -685,8 +702,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  int x, y;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 	  
-	  gdk_draw_line(rd->window, rd->gc, x, y, x, y + rd->charHeight);
-	  gdk_draw_line(rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
+          drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
 	}
       
       if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
@@ -703,8 +719,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  int x, y;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 
-	  gdk_draw_line(rd->window, rd->gc, x, y, x, y + rd->charHeight);
-	  gdk_draw_line(rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
+          drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
 	}
     }
   
@@ -1099,6 +1114,35 @@ static void setBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow
     }
 }
 
+
+/* Draw the tree grid lines (i.e. column separators) */
+static void drawGridLines(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell_area)
+{
+  GdkDrawable *drawable = widgetGetDrawable(tree);
+  BlxViewContext *bc = treeGetContext(tree);
+
+  /* Set the line color */
+  GdkGC *gc = gdk_gc_new(window);
+  GdkColor *color = getGdkColor(BLXCOLOR_TREE_GRID_LINES, bc->defaultColors, FALSE, bc->usePrintColors);
+  gdk_gc_set_foreground(gc, color);
+  
+  /* We want dashed lines */
+  const int lineWidth = 1;
+  gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_ON_OFF_DASH, GDK_CAP_BUTT, GDK_JOIN_MITER);
+
+  /* Make the dashes very short and closely packed (i.e. dash length of 1 pixel and gaps of 1 pixel) */
+  int listLen = 1;
+  gint8 dashList[listLen];
+  dashList[0] = 1;
+  gdk_gc_set_dashes(gc, 0, dashList, listLen);
+  
+  /* Draw vertical lines. Draw the right edge of each cell (because we don't really want a
+   * line at the leftmost edge of the first cell.) */
+  const int x = cell_area->x + cell_area->width - lineWidth;
+  drawLine2(window, drawable, gc, x, cell_area->y, x, cell_area->y + cell_area->height);
+}
+
+
 /***************************************************************************
  *
  *  sequence_cell_renderer_get_size: crucial - calculate the size
@@ -1150,6 +1194,8 @@ sequence_cell_renderer_render (GtkCellRenderer *cell,
     {
       drawText(renderer, tree, window, getState(tree, flags), cell_area);
     }
+  
+  drawGridLines(tree, window, background_area);
 }
 
 

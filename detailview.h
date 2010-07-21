@@ -41,6 +41,7 @@ typedef struct _DetailViewColumnInfo
     char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
     
     int width;			/* the column width */
+    gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
   } DetailViewColumnInfo;
 
 
@@ -186,6 +187,9 @@ int			seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrame
 
 GHashTable*             getIntronBasesToHighlight(GtkWidget *detailView, const IntRange const *displayRange, const BlxSeqType seqType, const BlxStrand strand);
 
+void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
+gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
+
 void			drawHeaderChar(BlxViewContext *bc,
 				       DetailViewProperties *properties,
 				       const int dnaIdx,
@@ -217,7 +221,8 @@ GtkWidget*		createDetailView(GtkWidget *blxWindow,
 					 const char const *refSeqName,
 					 const int startCoord,
 					 const gboolean sortInverted,
-					 const ColumnId sortColumn);
+					 const ColumnId sortColumn,
+                                         const gboolean optionalDataLoaded);
 
 GtkWidget*		createDetailViewScrollBar(GtkAdjustment *adjustment, 
 						  GtkWidget *blxWindow);

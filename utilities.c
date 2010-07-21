@@ -143,6 +143,8 @@ GtkWidget* createLabel(const char *text,
                              NULL);
     }
   
+  gtk_misc_set_padding(GTK_MISC(label), DEFAULT_LABEL_X_PAD, 0);
+  
   if (label && showWhenPrinting)
     {
       /* Connect to the expose event handler that will create the drawable object required for printing */
@@ -833,11 +835,11 @@ int gapCoord(const MSP *msp,
 	  int sMin = msp->sRange.min;
 	  int sMax = msp->sRange.max;
 
-	  if (!inGapsRange && showUnalignedSeq && msp->sSequence && msp->sSequence->sequence)
+	  if (!inGapsRange && showUnalignedSeq && mspGetMatchSeq(msp))
 	    {
 	      /* Get the full range of the match sequence */
 	      sMin = 1;
-	      sMax = strlen(msp->sSequence->sequence);
+	      sMax = mspGetMatchSeqLen(msp);
 	      
 	      if (limitUnalignedBases)
 		{
@@ -951,7 +953,7 @@ int mspGetSEnd(const MSP const *msp)
 /* Return the length of the match sequence that the given MSP lies on */
 int mspGetMatchSeqLen(const MSP const *msp)
 {
-  return (msp->sSequence ? sequenceGetLength(msp->sSequence) : 0);
+  return blxSequenceGetLength(msp->sSequence);
 }
 
 /* Return the reading frame of the ref sequence that the given MSP is a match against */
@@ -987,7 +989,7 @@ BlxStrand mspGetMatchStrand(const MSP const *msp)
 /* Get the match sequence for the given MSP */
 const char* mspGetMatchSeq(const MSP const *msp)
 {
-  return msp->sSequence ? msp->sSequence->sequence : NULL;
+  return blxSequenceGetSeq(msp->sSequence);
 }
 
 /* Get the sequence name for an MSP. This removes the postfixed 'x' or 'i' from
@@ -1111,6 +1113,28 @@ const GdkColor* mspGetColor(const MSP const *msp,
 }
 
 
+/* Get functions from msps for various sequence properties. Result is owned by the sequence
+ * and should not be free'd. Returns NULL if the property is not set. */
+char *mspGetOrganism(const MSP const *msp)
+{
+  return (msp && msp->sSequence && msp->sSequence->organism ? msp->sSequence->organism->str : NULL);
+}
+
+char *mspGetGeneName(const MSP const *msp)
+{
+  return (msp && msp->sSequence && msp->sSequence->geneName ? msp->sSequence->geneName->str : NULL);
+}
+
+char *mspGetTissueType(const MSP const *msp)
+{
+  return (msp && msp->sSequence && msp->sSequence->tissueType ? msp->sSequence->tissueType->str : NULL);
+}
+
+char *mspGetStrain(const MSP const *msp)
+{
+  return (msp && msp->sSequence && msp->sSequence->strain ? msp->sSequence->strain->str : NULL);
+}
+
 
 /* Return a char representation of a strand, i.e. "+" for forward strand, "-" for
  * reverse, or "." for none. */
@@ -1196,37 +1220,39 @@ char* getSeqShortName(const char *longName)
 
 
 /* Return the full name of a BlxSequence (including prefix and variant) */
-const char *sequenceGetFullName(const BlxSequence *seq)
+const char *blxSequenceGetFullName(const BlxSequence *seq)
 {
   return seq->fullName;
 }
 
 /* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
-const char *sequenceGetVariantName(const BlxSequence *seq)
+const char *blxSequenceGetVariantName(const BlxSequence *seq)
 {
   return seq->variantName;
 }
 
 /* Return the display name of a BlxSequence (same as full name for now) */
-const char *sequenceGetDisplayName(const BlxSequence *seq)
+const char *blxSequenceGetDisplayName(const BlxSequence *seq)
 {
   return seq->fullName;
 }
 
 /* Return the short name of a BlxSequence (excludes prefix and variant number) */
-const char *sequenceGetShortName(const BlxSequence *seq)
+const char *blxSequenceGetShortName(const BlxSequence *seq)
 {
   return seq->shortName;
 }
 
-const IntRange const* sequenceGetRange(const BlxSequence *seq)
+/* Return the length of the given blxsequence's sequence data */
+int blxSequenceGetLength(const BlxSequence *seq)
 {
-  return &seq->seqRange;
+  return (seq && seq->sequence ? seq->sequence->len : 0);
 }
 
-int sequenceGetLength(const BlxSequence *seq)
+/* Get the sequence data for the given blxsequence */
+char *blxSequenceGetSeq(const BlxSequence *seq)
 {
-  return (seq->seqRange.max - seq->seqRange.min + 1);
+  return (seq && seq->sequence ? seq->sequence->str : NULL);
 }
 
 /* Frees all memory used by a BlxSequence */
@@ -1237,7 +1263,12 @@ void destroyBlxSequence(BlxSequence *seq)
       g_free(seq->fullName);
       g_free(seq->variantName);
       g_free(seq->shortName);
-      g_free(seq->sequence);
+      
+      if (seq->sequence)      g_string_free(seq->sequence, TRUE);
+      if (seq->organism)      g_string_free(seq->organism, TRUE);
+      if (seq->geneName)      g_string_free(seq->geneName, TRUE);
+      if (seq->tissueType)    g_string_free(seq->tissueType, TRUE);
+      if (seq->strain)        g_string_free(seq->strain, TRUE);
       
       g_free(seq);
     }
@@ -1266,6 +1297,11 @@ BlxSequence* createEmptyBlxSequence(char *fullName)
   seq->mspList = NULL;
   seq->sequence = NULL;
   seq->sequenceReqd = FALSE;
+  
+  seq->organism = NULL;
+  seq->geneName = NULL;
+  seq->tissueType = NULL;
+  seq->strain = NULL;
   
   return seq;
 }

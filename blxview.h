@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.27 2010-07-15 09:24:05 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.28 2010-07-21 11:23:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -85,10 +85,15 @@ typedef struct _BlxSequence
   char *shortName;                 /* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
   char *variantName;               /* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
   
+  GString *organism;               /* organism from the EMBL data OS line */
+  GString *geneName;               /* gene name from the EMBL data GN line */
+  GString *tissueType;             /* tissue type from the /tissue_type attribute from the FT lines in the EMBL file */
+  GString *strain;                 /* strain from the /strain attribute from the FT lines in the EMBL file */
+  
   BlxStrand strand;                /* which strand of the sequence this is */
-  char *sequence;                  /* the actual sequence data */
+  GString *sequence;               /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
-  IntRange seqRange;		   /* the range of coords in this sequence */
+  
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
 
@@ -175,6 +180,7 @@ typedef enum
     BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
     BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
+    BLXCOLOR_TREE_GRID_LINES,/* color of the tree grid lines (i.e. column separator lines) */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;

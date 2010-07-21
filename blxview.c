@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.52 2010-07-15 09:24:05 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.53 2010-07-21 11:23:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -152,7 +152,7 @@ MSP score codes:
 char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
-static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, CommandLineOptions *options) ;
+static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, CommandLineOptions *options, char *net_id, int port, const gboolean External) ;
 static GList*          getEmptySeqs(GList *inputList);
 
 
@@ -314,46 +314,60 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
   char *opt = opts;
   while (*opt)
     {
-      /* Used options: 	 BGILMNPRSTXZ-+brsinp      */
+      /* Used options: 	 BFGILMNPRSTXZ-+bgrstimnop      */
       
       switch (*opt)
       {
-	case 'I':
-	  options->sortInverted = TRUE;             break;
 	case 'G':
 	  /* Gapped HSPs */
 	  options->hiliteSins = options->gappedHsp = TRUE;    break;
-	case 'P': setModeP(options);                break;
-	case 'N': setModeN(options);                break;
-	case 'X': setModeX(options);                break;
-	case 'T': setModeT(options);                break;
-	case 'L': setModeL(options);                break;
+          
+	case 'P': setModeP(options);                  break;
+	case 'N': setModeN(options);                  break;
+	case 'X': setModeX(options);                  break;
+	case 'T': setModeT(options);                  break;
+	case 'L': setModeL(options);                  break;
+          
 	case '-':
-	  options->activeStrand = BLXSTRAND_REVERSE;   break;
+	  options->activeStrand = BLXSTRAND_REVERSE; break;
 	case '+':
-	  options->activeStrand = BLXSTRAND_FORWARD;   break;
+	  options->activeStrand = BLXSTRAND_FORWARD; break;
 	case 'B':
-	  options->bigPictON = TRUE;               break; 
+	  options->bigPictON = TRUE;                 break; 
 	case 'b':
-	  options->bigPictON = FALSE;              break;
+	  options->bigPictON = FALSE;                break;
 	case 'd':
-	  options->dotterFirst = TRUE;             break;
-	case 'i':
-	  options->initSortColumn = BLXCOL_ID ;    break;
+	  options->dotterFirst = TRUE;               break;
+        case 'F':
+          options->parseFullEmblInfo = TRUE;         break;
 	case 'M':
-	  options->startNextMatch = 1;             break;
-	case 'n':
-	  options->initSortColumn = BLXCOL_SEQNAME ; break;
-	case 'p':
-	  options->initSortColumn = BLXCOL_START ; break;
+	  options->startNextMatch = 1;               break;
 	case 'R':
-	  options->bigPictRev = 1;                 break; /* to do: this is currently not implemented. not sure what it should do */
+	  options->bigPictRev = 1;                   break; /* to do: this is currently not implemented. not sure what it should do */
 	case 'r':
-	  options->bigPictRev = 0;                 break;
-	case 's':
-	  options->initSortColumn = BLXCOL_SCORE ; break;
+	  options->bigPictRev = 0;                   break;
 	case 'Z':
-	  options->bigPictZoom = strlen(refSeq);   break;
+	  options->bigPictZoom = strlen(refSeq);     break;
+
+          /* Sorting... */
+        case 'I':
+	  options->sortInverted = TRUE;                   break;
+	case 'i':
+	  options->initSortColumn = BLXCOL_ID ;           break;
+	case 'n':
+	  options->initSortColumn = BLXCOL_SEQNAME ;      break;
+	case 'p':
+	  options->initSortColumn = BLXCOL_START ;        break;
+	case 's':
+	  options->initSortColumn = BLXCOL_SCORE ;        break;
+	case 't':
+	  options->initSortColumn = BLXCOL_TISSUE_TYPE ;  break;
+	case 'm':
+	  options->initSortColumn = BLXCOL_STRAIN ;       break;
+	case 'g':
+	  options->initSortColumn = BLXCOL_GENE_NAME ;    break;
+	case 'o':
+	  options->initSortColumn = BLXCOL_ORGANISM ;     break;
       }
       
       opt++;
@@ -386,18 +400,19 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
       options->seqType = BLXSEQ_DNA;
       options->numFrames = 1;
     }
+  
+  /* For DNA matches, always get the full EMBL file, because it doesn't seem to be any slower
+   * (in fact, it seems to be quicker).  For protein matches, only get the full file if requested. */
+  if (options->seqType == BLXSEQ_DNA)
+    {
+      options->parseFullEmblInfo = TRUE;
+    }
 }
 
 
-/* Find out if we need to fetch any sequences (they may all be contained in the input
- * files), if we do need to, then fetch them by the appropriate method. */
-static gboolean blxviewFetchSequences(PfetchParams *pfetch, 
-                                      gboolean External, 
-                                      GList *seqList, /* list of BlxSequence structs for all required sequences */
-                                      CommandLineOptions *options)
+/* Set up the fetch mode. Sets the fetch-mode, and also net_id and port if relevant */
+static void setupFetchMode(PfetchParams *pfetch, char **fetchMode, char **net_id, int *port)
 {
-  gboolean success = TRUE;
-
   /* First, set the fetch mode */
   if (pfetch)
     {
@@ -405,71 +420,182 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch,
       
       if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
 	{
-	  options->fetchMode = BLX_FETCH_PFETCH;
+	  *fetchMode = BLX_FETCH_PFETCH;
 	}
     }
   else
     {
-      blxFindInitialFetchMode(options->fetchMode);
+      blxFindInitialFetchMode(*fetchMode);
     }
   
-  
-  /* See if we have any sequences to fetch (i.e. any that do not have sequence data already) */
-  GList *seqsToFetch = getEmptySeqs(seqList);
+
+  /* For pfetch mode, find the net_id and port */
+  if (strcmp(*fetchMode, BLX_FETCH_PFETCH) == 0)
+    {
+      /* Fill BlxSequence->sequence fast by pfetch if possible
+       * three ways to use this:
+       *    1) call blixem main with "-P node:port" commandline option
+       *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
+       *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
+       *       or to the name of the machine, e.g. "plato"
+       *       and optionally setenv BLIXEM_PORT to the port number for
+       *       the pfetch server.
+       *    3) call blixem with the -c option to specify a config file*/
+      enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
+      *port = PFETCH_PORT ;
+      
+      if (pfetch)
+        {
+          *net_id = pfetch->net_id ;
+          if (!(*port = pfetch->port))
+            *port = PFETCH_PORT ;
+        }
+      else if ((*net_id = getenv("BLIXEM_PFETCH")))
+        {
+          char *port_str ;
+          
+          *port = 0 ;
+          if ((port_str = getenv("BLIXEM_PORT")))
+            *port = atoi(port_str) ;
+          
+          if (*port <= 0)
+            *port = PFETCH_PORT ;
+        }
+      else
+        {
+          /* Lastly try for a config file. */
+          blxConfigGetPFetchSocketPrefs(net_id, port) ;
+        }
+    }
+}
+
+
+/* This function actually performs the work of fetching the given list of sequences.
+ * The first argument is the list of sequences to fetch and the second is the list of all
+ * sequences. */
+gboolean fetchSequences(GList *seqsToFetch, 
+                        GList *seqList,
+                        char *fetchMode, 
+                        const BlxSeqType seqType,
+                        char *net_id, 
+                        int port, 
+                        const gboolean parseOptionalData,
+                        const gboolean parseSequenceData,
+                        const gboolean External,
+                        GError **error)
+{
+  gboolean success = TRUE;
   
   if (g_list_length(seqsToFetch) > 0)
     {
-      if (strcmp(options->fetchMode, BLX_FETCH_PFETCH) == 0)
-	{
-	  /* Fill msp->sseq fast by pfetch if possible
-	   * two ways to use this:
-	   *    1) call blixem main with "-P node:port" commandline option
-	   *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
-	   *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
-	   *       or to the name of the machine, e.g. "plato"
-	   *       and optionally setenv BLIXEM_PORT to the port number for
-	   *       the pfetch server. */
-	  enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
-	  char *net_id = NULL ;
-	  int port = PFETCH_PORT ;
-	  
-	  if (pfetch)
+      if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0)
+        {  
+	  if (net_id && port != UNSET_INT)
 	    {
-	      net_id = pfetch->net_id ;
-	      if (!(port = pfetch->port))
-		port = PFETCH_PORT ;
+              if (parseSequenceData && !parseOptionalData)
+                {
+                  /* Just parse the minimal EMBL file containing just the fasta sequence */
+                  success = blxGetSseqsPfetch(seqsToFetch, net_id, port, External) ;
+                }
+              else if (parseOptionalData)
+                {
+                  /* This first call tries fetching the full EMBL entry and parses
+                   * additional information such as organism and tissue-type */
+                  success = blxGetSseqsPfetchFull(seqsToFetch, net_id, port, External) ;
+                  
+                  /* If we were requested to populate the sequence fasta data but there are still 
+                   * some empty sequences (which is likely in protein matches because pfetch -F 
+                   * fails for protein variants), try fetching the EMBL entry containing just the 
+                   * fasta sequence. */
+                  if (success && parseSequenceData)
+                    {
+                      GList *remainingSeqs = getEmptySeqs(seqList);
+                      
+                      if (g_list_length(remainingSeqs) > 0)
+                        {
+                          success = blxGetSseqsPfetch(remainingSeqs, net_id, port, External) ;
+                        }
+                      
+                      g_list_free(remainingSeqs);
+                    }
+                }
 	    }
-	  else if ((net_id = getenv("BLIXEM_PFETCH")))
-	    {
-	      char *port_str ;
-	      
-	      port = 0 ;
-	      if ((port_str = getenv("BLIXEM_PORT")))
-		port = atoi(port_str) ;
-	      
-	      if (port <= 0)
-		port = PFETCH_PORT ;
-	    }
-	  else
-	    {
-	      /* Lastly try for a config file. */
-	      
-	      blxConfigGetPFetchSocketPrefs(&net_id, &port) ;
-	    }
-	  
-	  if (net_id)
-	    {
-	      success = blxGetSseqsPfetch(seqsToFetch, net_id, port, External) ;
-	    }
+          else
+            {
+              g_set_error(error, BLX_ERROR, 1, "pfetch is not initialised: net_id = %s, port = %d.\n", net_id, port);
+            }
 	}
 #ifdef PFETCH_HTML 
-      else if (strcmp(options->fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
+      else if (strcmp(fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
 	{
-	  success = blxGetSseqsPfetchHtml(seqsToFetch, options->seqType) ;
+          if (parseSequenceData)
+            {
+              success = blxGetSseqsPfetchHtml(seqsToFetch, seqType) ;
+              
+              if (parseOptionalData)
+                {
+                  g_set_error(error, BLX_ERROR, 1, "Fetching optional data is not implemented yet in pfetch-http mode.\n");
+                }
+            }
+          else if (parseOptionalData)
+            {
+              g_set_error(error, BLX_ERROR, 1, "Fetching optional data is not implemented yet in pfetch-http mode.\n");
+              success = FALSE;
+            }
 	}
 #endif
+      else
+        {
+          g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
+          success = FALSE;
+        }
+    }
+  
+  return success;
+}
 
+
+/* Find out if we need to fetch any sequences (they may all be contained in the input
+ * files), if we do need to, then fetch them by the appropriate method. */
+static gboolean blxviewFetchSequences(PfetchParams *pfetch, 
+                                      gboolean External, 
+                                      const gboolean parseFullEmblInfo,
+                                      const BlxSeqType seqType,
+                                      GList *seqList, /* list of BlxSequence structs for all required sequences */
+                                      char **fetchMode,
+                                      char **net_id,
+                                      int *port)
+{
+  gboolean success = TRUE;
+
+  setupFetchMode(pfetch, fetchMode, net_id, port);
+  
+  /* See if we have any sequences to fetch */
+  GError *error = NULL;
+  
+  if (parseFullEmblInfo)
+    {
+      /* Fetch all sequences (because none will have EMBL data loaded yet, even if they
+       * have had their sequence data populated) */
+      success = fetchSequences(seqList, seqList, *fetchMode, seqType, *net_id, *port, parseFullEmblInfo, TRUE, External, &error);
+    }
+  else
+    {
+      /* Fetch any sequences that do not have their sequence data already populated */
+      GList *seqsToFetch = getEmptySeqs(seqList);
+      success = fetchSequences(seqsToFetch, seqList, *fetchMode, seqType, *net_id, *port, parseFullEmblInfo, TRUE, External, &error);
       g_list_free(seqsToFetch);
+    }
+  
+  if (error && !success)
+    {
+      prefixError(error, "Error fetching sequences. ");
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+    }
+  else if (error)
+    {
+      prefixError(error, "Warning: ");
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
   
   return success;
@@ -512,18 +638,20 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
   
   CommandLineOptions options = {refSeq, refSeqName, qOffset, startCoord, msplist, stdcode1,
 				BLXSTRAND_FORWARD, 10, TRUE, FALSE, BLXCOL_ID, FALSE, FALSE,
-				FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, fetchMode};
+				FALSE, FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, fetchMode};
   
   blxviewGetOpts(opts, refSeq, &options);
   
-  gboolean status = blxviewFetchSequences(pfetch, External, seqList, &options);
+  char *net_id = NULL;
+  int port = UNSET_INT;
+  gboolean status = blxviewFetchSequences(pfetch, External, options.parseFullEmblInfo, options.seqType, seqList, &options.fetchMode, &net_id, &port);
   
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, padseq, seqList, &options) ;
+      blviewCreate(opts, align_types, padseq, seqList, &options, net_id, port, External) ;
     }
 
   return 0;
@@ -535,12 +663,15 @@ static void blviewCreate(char *opts,
 			 char *align_types, 
 			 const char *paddingSeq,
                          GList *seqList,
-			 CommandLineOptions *options)
+			 CommandLineOptions *options,
+                         char *net_id,
+                         int port,
+                         const gboolean External)
 {
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createBlxWindow(options, paddingSeq, seqList);
+      blixemWindow = createBlxWindow(options, paddingSeq, seqList, net_id, port, External);
 
       BOOL pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       gtk_window_set_title(GTK_WINDOW(blixemWindow),
@@ -666,12 +797,9 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
             {
               blxComplement(sequence) ;
             }
-          
-          blxSeq->sequence = sequence;
 
+          blxSeq->sequence = g_string_new(sequence);
           sequenceUsed = TRUE;
-          blxSeq->seqRange.min = 1;
-          blxSeq->seqRange.max = strlen(blxSeq->sequence);
           }
       else if (error && *error)
         {
@@ -682,7 +810,7 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
               blxComplement(sequence);
             }
             
-          if (!stringsEqual(sequence, blxSeq->sequence, FALSE))
+          if (!stringsEqual(sequence, blxSeq->sequence->str, FALSE))
             {
               g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSeq->fullName);
             }

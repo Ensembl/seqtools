@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.42 2010-07-14 13:33:27 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.43 2010-07-21 11:23:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -45,7 +45,7 @@
 
 #define BLIXEM_VERSION 4
 #define BLIXEM_RELEASE 0
-#define BLIXEM_UPDATE  1
+#define BLIXEM_UPDATE  2
 #define BLIXEM_VERSION_NUMBER	   UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
 #define BLIXEM_VERSION_STRING	   UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
 #define BLIXEM_TITLE_STRING	   UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
@@ -223,11 +223,11 @@ typedef enum
     BLXOPT_START_NEXT_MATCH = 1,  /* 'M' means start at next match. Blank to ignore. */
     BLXOPT_SHOW_BIG_PICT = 2,     /* 'B' to show big picture, 'b' to hide it */
     BLXOPT_REV_BIG_PICT = 3,      /* 'R' to show the reverse strand in the big picture; 'r' just show the forward strand (blxparser.c) */
-    BLXOPT_UNUSED = 4,            /* --unused-- */
+    BLXOPT_FULL_EMBL_INFO = 4,    /* 'F' to parse full embl info on startup; blank to just parse the sequence data (quicker) */
     BLXOPT_FULL_ZOOM = 5,         /* 'Z' to use full zoom by default; blank otherwise (blxparser.c) */
     BLXOPT_INVERT_SORT = 6,       /* 'I' to invert the default sort order; blank otherwise */
     BLXOPT_HSP_GAPS = 7,          /* 'G' for HSP gaps mode; blank otherwise (blxparser.c) */
-    BLXOPT_SORT_MODE = 8,         /* Initial sort mode: 'i' = ID, 'n' = name, 'p' = position, 's' = score;
+    BLXOPT_SORT_MODE = 8,         /* Initial sort mode: i=ID, n=name, p=position, s=score, t=tissue type, m=strain, g=gene name, o=organism;
                                    * OR: set to 'd' to automatically dotter the first sequence; blank otherwise (blxselect.c) */
     
     BLXOPT_NUM_OPTS               /* Total number of options (must always be last in list) */
@@ -239,10 +239,11 @@ typedef enum
  *    - add an identifier for the column to the ColumnId enum;
  *    - add the type to the TREE_COLUMN_TYPE_LIST definition; and
  *    - specify the data source in addSequenceStructToRow and addMspToRow;
+ *    - create the column in createColumns(...)
  * and optionally:
  *    - add a custom data function in createTreeColumn;
  *    - add a custom header widget and/or header refresh function in createTreeColHeader;
- *    - specify sort behaviour in sortColCompareFunc. */
+ *    - specify sort behaviour in sortColumnCompareFunc. */
 
 /* This enum declares identifiers for each column in the detail-view trees. If you add an enum
  * here you must also add its type to the TREE_COLUMN_TYPE_LIST definition below. */
@@ -250,6 +251,10 @@ typedef enum
   {
     BLXCOL_SEQNAME,             /* The match sequence's name */
     BLXCOL_SOURCE,              /* The match's source */
+    BLXCOL_ORGANISM,            
+    BLXCOL_GENE_NAME,            
+    BLXCOL_TISSUE_TYPE,            
+    BLXCOL_STRAIN,            
     BLXCOL_GROUP,               /* The group that this alignment belongs to */
     BLXCOL_SCORE,               /* The alignment's score */
     BLXCOL_ID,                  /* The alignment's %ID */
@@ -266,6 +271,10 @@ typedef enum
 #define TREE_COLUMN_TYPE_LIST                     \
     G_TYPE_STRING,              /* seq name */    \
     G_TYPE_STRING,              /* source */      \
+    G_TYPE_STRING,              /* organism */    \
+    G_TYPE_STRING,              /* gene name */   \
+    G_TYPE_STRING,              /* tissue type */ \
+    G_TYPE_STRING,              /* strain */      \
     G_TYPE_STRING,              /* group */       \
     G_TYPE_INT,                 /* score */       \
     G_TYPE_INT,                 /* id */          \
@@ -299,8 +308,10 @@ void                               blxFindInitialFetchMode(char *fetchMode) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 
+void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
 gboolean                           blxGetSseqsPfetchHtml(GList *seqsToFetch, BlxSeqType seqType) ;
 gboolean                           blxGetSseqsPfetch(GList *seqsToFetch, char* pfetchIP, int port, BOOL External) ;
+gboolean                           blxGetSseqsPfetchFull(GList *seqsToFetch, char *pfetchIP, int port, BOOL External);
 BOOL                               blxInitConfig(char *config_file, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
@@ -334,6 +345,17 @@ BlxColor*			   getBlxColor(GArray *defaultColors, const BlxColorId colorId);
 GdkColor*			   getGdkColor(BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
+
+gboolean                           fetchSequences(GList *seqsToFetch, 
+                                                  GList *seqList,
+                                                  char *fetchMode, 
+                                                  const BlxSeqType seqType,
+                                                  char *net_id, 
+                                                  int port, 
+                                                  const gboolean parseOptionalData,
+                                                  const gboolean parseSequenceData,
+                                                  const gboolean External,
+                                                  GError **error);
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char      *blixemVersion;

@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.18 2010-07-08 12:06:47 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.19 2010-07-21 11:23:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -72,23 +72,26 @@ static char *usageText ="\n\
                i = by Identity\n\
                n = by Name\n\
                p = by Position\n\
+               t = by Tissue type\n\
+               m = by Strain\n\
+               g = by Gene name\n\
+               o = by Organism\n\
  -I         Inverted sorting order\n\
  -a         specify a string giving the names of the alignments, e.g. \"EST_mouse EST_human\" etc.\n\
  -b         Don't start with Big Picture.\n\
  -c <file>  Read configuration options from 'file'.\n\
  -k <file>  Read color/style options from key-value file 'file'. (See GLib Key-value-file-parser documentation.)\n\
- -S <#>     Start display at position #.\n\
+ -S <n>     Start display at position n.\n\
  -F <file>  Read in query sequence and data from <file> (replaces sequencefile).\n\
  -h         Help and more options.\n\
  -o <optstring>\n\
-            Blixem options,  e.g. -o \"MBr\" you'll have to read the source code for details.\n\
- -O <#>     sequence offset.\n\
+            Blixem options, e.g. -o \"MBr\". You'll have to read the source code for details.\n\
+ -O <n>     Sequence offset.\n\
  -P nodeid<:port>\n\
             Causes Blixem to get sequences from a pfetch server at machine nodeid on the given port (default 22100).\n\
  -r         Remove input files after parsing, used by xace when calling blixem as a\n\
             standalone program.\n\
- -x <file>  Read in extra data (to that in datafile) from from <file>, data may be in a\n\
-            different format.\n\
+ -x <file>  Read in extra data (to that in datafile) from from <file>, data may be in a different format.\n\
 \n\
  Some X options:\n\
  -acefont <font> Main font.\n\
@@ -259,7 +262,7 @@ int main(int argc, char **argv)
   int          optc;
   extern int   optind;
   extern char *optarg;
-  char        *optstring="a:bc:k:F:hIilno:O:pP:rS:s:tx:";
+  char        *optstring="a:bc:F:hIik:lno:O:pP:rS:s:tx:";
   char *usage;
   BOOL rm_input_files = FALSE ;
   PfetchParams *pfetch = NULL ;
@@ -368,7 +371,8 @@ int main(int argc, char **argv)
 	  opts[1] = ' ';
 	  break;
 	case 's': 
-	  if (*optarg != 's' && *optarg != 'i' && *optarg != 'n' && *optarg != 'p')
+	  if (*optarg != 's' && *optarg != 'i' && *optarg != 'n' && *optarg != 'p' &&
+              *optarg != 't' && *optarg != 'm' && *optarg != 'g' && *optarg != 'o')
 	    {
 	      fprintf(stderr,"Bad sorting mode: %s\n", optarg); 
 	      exit(EXIT_FAILURE) ;

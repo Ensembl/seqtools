@@ -228,6 +228,10 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, msp->sname,
 			     BLXCOL_SOURCE, msp->source,
+			     BLXCOL_ORGANISM, NULL,
+			     BLXCOL_GENE_NAME, NULL,
+			     BLXCOL_TISSUE_TYPE, NULL,
+			     BLXCOL_STRAIN, NULL,
 			     BLXCOL_GROUP, NULL,
 			     BLXCOL_SCORE, msp->score,
 			     BLXCOL_ID, msp->id,
@@ -240,8 +244,12 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	{
 	  /* Add generic info about the sequence */
 	  gtk_list_store_set(store, &iter,
-			     BLXCOL_SEQNAME, sequenceGetDisplayName(subjectSeq),
+			     BLXCOL_SEQNAME, blxSequenceGetDisplayName(subjectSeq),
 			     BLXCOL_SOURCE, NULL,
+			     BLXCOL_ORGANISM, NULL,
+			     BLXCOL_GENE_NAME, NULL,
+			     BLXCOL_TISSUE_TYPE, NULL,
+			     BLXCOL_STRAIN, NULL,
 			     BLXCOL_GROUP, NULL,
 			     BLXCOL_SCORE, NULL,
 			     BLXCOL_ID, NULL,
@@ -980,9 +988,12 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       g_object_unref(layout);
     }
   
+  drawColumnSeparatorLine(headerWidget, drawable, gc, bc);
+  
   g_free(segmentToDisplay);
   g_object_unref(gc);
 }
+
 
 
 /* expose function to push a cached bitmap to screen */
@@ -1483,6 +1494,10 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
       gtk_list_store_set(store, &iter,
 			 BLXCOL_SEQNAME, msp->sname,
 			 BLXCOL_SOURCE, msp->source,
+                         BLXCOL_ORGANISM, NULL,
+                         BLXCOL_GENE_NAME, NULL,
+                         BLXCOL_TISSUE_TYPE, NULL,
+                         BLXCOL_STRAIN, NULL,
                          BLXCOL_GROUP, NULL,
 			 BLXCOL_SCORE, msp->score,
 			 BLXCOL_ID, msp->id,
@@ -1695,6 +1710,66 @@ static void cellDataFunctionGroupCol(GtkTreeViewColumn *column,
 }
 
 
+/* Cell data function for the Organism column. */
+static void cellDataFunctionOrganismCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+  GList	*mspGList = treeGetMsps(model, iter);
+  if (g_list_length(mspGList) > 0)
+    {
+      const MSP const *msp = (const MSP const*)(mspGList->data);
+      if (msp->sSequence && msp->sSequence->organism)
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->organism->str, NULL);
+        }
+    }
+}
+
+
+/* Cell data function for the Gene Name column. */
+static void cellDataFunctionGeneNameCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+  GList	*mspGList = treeGetMsps(model, iter);
+  if (g_list_length(mspGList) > 0)
+    {
+      const MSP const *msp = (const MSP const*)(mspGList->data);
+      if (msp->sSequence && msp->sSequence->geneName)
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->geneName->str, NULL);
+        }
+    }
+}
+
+
+/* Cell data function for the Tissue Type column. */
+static void cellDataFunctionTissueTypeCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+  GList	*mspGList = treeGetMsps(model, iter);
+  if (g_list_length(mspGList) > 0)
+    {
+      const MSP const *msp = (const MSP const*)(mspGList->data);
+      if (msp->sSequence && msp->sSequence->tissueType)
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->tissueType->str, NULL);
+        }
+    }
+}
+
+
+/* Cell data function for the Strain column. */
+static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+  GList	*mspGList = treeGetMsps(model, iter);
+  if (g_list_length(mspGList) > 0)
+    {
+      const MSP const *msp = (const MSP const*)(mspGList->data);
+      if (msp->sSequence && msp->sSequence->strain)
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->strain->str, NULL);
+        }
+    }
+}
+
+
 /* Utility function to calculate the width of a vertical scrollbar */
 static int scrollBarWidth()
 {
@@ -1808,6 +1883,22 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
 
     case BLXCOL_GROUP:
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionGroupCol, tree, NULL);
+      break;
+
+    case BLXCOL_ORGANISM:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionOrganismCol, tree, NULL);
+      break;
+      
+    case BLXCOL_GENE_NAME:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionGeneNameCol, tree, NULL);
+      break;
+      
+    case BLXCOL_TISSUE_TYPE:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionTissueTypeCol, tree, NULL);
+      break;
+      
+    case BLXCOL_STRAIN:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionStrainCol, tree, NULL);
       break;
       
     default:
@@ -1977,6 +2068,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
                                                  TreeColumnHeaderInfo* firstTreeCol,
                                                  GtkWidget *headerBar,
                                                  GtkWidget *tree,
+                                                 GtkWidget *detailView,
                                                  const char const *refSeqName,
                                                  const int frame,
                                                  const BlxStrand strand)
@@ -1998,6 +2090,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshNameColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
+	  g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
 	  break;
 	}
 	
@@ -2029,6 +2122,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshStartColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
+          g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
 	  break;
 	}
 	
@@ -2038,6 +2132,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshEndColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
+          g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
 	  break;
 	}
 
@@ -2069,13 +2164,14 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 
 /* Create the columns. Returns a list of header info for the column headers */
 static GList* createTreeColumns(GtkWidget *tree, 
+                                GtkWidget *detailView,
                                 GtkCellRenderer *renderer, 
-                                 const BlxSeqType seqType,
-                                 GList *columnList,
-                                 GtkWidget *columnHeaderBar,
-                                 const char const *refSeqName,
-                                 const int frame,
-                                 const BlxStrand strand)
+                                const BlxSeqType seqType,
+                                GList *columnList,
+                                GtkWidget *columnHeaderBar,
+                                const char const *refSeqName,
+                                const int frame,
+                                const BlxStrand strand)
 {
   /* We'll create a list of tree column headers */
   GList *treeColumns = NULL;
@@ -2094,7 +2190,17 @@ static GList* createTreeColumns(GtkWidget *tree,
       if (columnInfo)
 	{
 	  GtkTreeViewColumn *treeColumn = createTreeColumn(tree, renderer, columnInfo);
-	  TreeColumnHeaderInfo* headerInfo = createTreeColHeader(&treeColumns, treeColumn, columnInfo, firstTreeCol, columnHeaderBar, tree, refSeqName, frame, strand);
+          
+	  TreeColumnHeaderInfo* headerInfo = createTreeColHeader(&treeColumns, 
+                                                                 treeColumn, 
+                                                                 columnInfo, 
+                                                                 firstTreeCol, 
+                                                                 columnHeaderBar, 
+                                                                 tree, 
+                                                                 detailView, 
+                                                                 refSeqName, 
+                                                                 frame, 
+                                                                 strand);
           
           if (!firstTreeCol)
             {
@@ -2166,6 +2272,34 @@ static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *
 }
 
 
+/* Sort comparison function for sorting by string values. Allows NULL values and
+ * sorts them AFTER non-null values. Comparison is case-insensitive. */
+static int sortByStringCompareFunc(char *str1, char *str2)
+{
+  int result = 0;
+
+  if (!str1 && !str2)
+    {
+      result = 0;
+    }
+  else if (!str1)
+    {
+      result = 1;
+    }
+  else if (!str2)
+    {
+      result = -1;
+    }
+  else
+    {
+      const int len = min(strlen(str1), strlen(str2));
+      result = g_ascii_strncasecmp(str1, str2, len);
+    }
+  
+  return result;
+}
+
+
 /* Sort comparison function.  Returns a negative value if the first row appears before the second,
  * positive if the second appears before the first, or 0 if they are equivalent according to
  * the current search criteria. */
@@ -2197,11 +2331,11 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   switch (sortColumn)
     {
       case BLXCOL_SEQNAME:
-        result = strcmp(msp1->sname, msp2->sname);
+        result = sortByStringCompareFunc(msp1->sname, msp2->sname);
         break;
 
       case BLXCOL_SOURCE:
-        result = strcmp(msp1->source, msp2->source);
+        result = sortByStringCompareFunc(msp1->source, msp2->source);
         break;
         
       case BLXCOL_SCORE:
@@ -2220,40 +2354,26 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
         result = sortByGroupCompareFunc(msp1, msp2, tree);
         break;
 
+      case BLXCOL_ORGANISM:
+        result = sortByStringCompareFunc(mspGetOrganism(msp1), mspGetOrganism(msp2));
+        break;
+
+      case BLXCOL_GENE_NAME:
+        result = sortByStringCompareFunc(mspGetGeneName(msp1), mspGetGeneName(msp2));
+        break;
+
+      case BLXCOL_TISSUE_TYPE:
+        result = sortByStringCompareFunc(mspGetTissueType(msp1), mspGetTissueType(msp2));
+        break;
+
+      case BLXCOL_STRAIN:
+        result = sortByStringCompareFunc(mspGetStrain(msp1), mspGetStrain(msp2));
+        break;
+        
       default:
         g_warning("Sort function not implemented for column '%s'.\n", columnInfo->title);
         break;
     };
-  
-  /* If values are the same, further sort by group, name, position, length */
-  if (!result && sortColumn != BLXCOL_GROUP)
-    {
-      GtkWidget *blxWindow = treeGetBlxWindow(tree);
-      const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
-      const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
-      
-      if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
-	result = -1;
-      else if (msp1Order != UNSET_INT && msp2Order == UNSET_INT)
-	result = 1;
-      else
-	result = msp1Order - msp2Order;
-    }
-
-  if (!result && sortColumn != BLXCOL_SEQNAME)
-    {
-      result = strcmp(msp1->sname, msp2->sname);
-    }
-  
-  if (!multipleMsps && !result && sortColumn != BLXCOL_START)
-    {
-      result = msp1->sRange.min - msp2->sRange.min;
-    }
-  
-  if (!multipleMsps && !result)
-    {
-//      result = msp1->slength - msp2->slength;
-    }
   
   return result;
 }
@@ -2302,7 +2422,7 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_widget_set_name(GTK_WIDGET(tree), DETAIL_VIEW_TREE_NAME);
   gtk_widget_set_redraw_on_allocate(GTK_WIDGET(tree), FALSE);
   
-  gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_VERTICAL);
+  gtk_tree_view_set_grid_lines(tree, GTK_TREE_VIEW_GRID_LINES_NONE);
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
@@ -2327,7 +2447,6 @@ static void setTreeStyle(GtkTreeView *tree)
 	  "GtkTreeView::expander-size	      = 0\n"
 	  "GtkTreeView::vertical-separator    = 0\n"
 	  "GtkTreeView::horizontal-separator  = 0\n"
-	  "GtkTreeView::enable-grid-lines     = GTK_TREE_VIEW_GRID_LINES_VERTICAL\n"
 	  "}"
 	  "widget \"*%s*\" style \"packedTree\"", DETAIL_VIEW_TREE_NAME);
   gtk_rc_parse_string(parseString);
@@ -2397,7 +2516,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
   
   /* Create the tree columns */
-  GList *treeColumnHeaderList = createTreeColumns(tree, renderer, seqType, columnList, columnHeaderBar, refSeqName, frame, strand);
+  GList *treeColumnHeaderList = createTreeColumns(tree, detailView, renderer, seqType, columnList, columnHeaderBar, refSeqName, frame, strand);
   
   /* Add the columns to the tree header */
   addColumnsToTreeHeader(columnHeaderBar, treeColumnHeaderList);

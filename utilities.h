@@ -12,7 +12,8 @@
 #include <gtk/gtk.h>
 #include <SeqTools/blixem_.h>
 
-#define UNSET_INT  -1
+#define UNSET_INT                     -1   /* this value indicates an unset integer */
+#define DEFAULT_LABEL_X_PAD           0    /* default x padding to use for header labels */
 
 
 #define max(a,b)        (((a) > (b)) ? (a) : (b))
@@ -58,6 +59,7 @@
 #define BLX_SKY_BLUE	      "#a0b8c8"
 #define BLX_GREY	      "#bebebe"
 #define BLX_DARK_GREY	      "#929292"
+#define BLX_VERY_DARK_GREY    "#5f5f5f"
 #define BLX_LIGHT_GREY	      "#d3d3d3"
 #define BLX_BLACK	      "#000000"
 #define BLX_WHITE	      "#ffffff"
@@ -184,6 +186,10 @@ int		      mspGetQRangeLen(const MSP const *msp);
 int		      mspGetSRangeLen(const MSP const *msp);
 int		      mspGetMatchSeqLen(const MSP const *msp);
 const GdkColor*       mspGetColor(const MSP const *msp, GArray *defaultColors, const BlxSequence *blxSeq, const gboolean selected, const gboolean usePrintColors, const gboolean fill);
+char*                 mspGetOrganism(const MSP const *msp);
+char*                 mspGetGeneName(const MSP const *msp);
+char*                 mspGetTissueType(const MSP const *msp);
+char*                 mspGetStrain(const MSP const *msp);
 
 char                  getStrandAsChar(const BlxStrand strand);
 
@@ -267,12 +273,12 @@ gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageT
 
 const char*	      getSeqVariantName(const char *longName);
 char*		      getSeqShortName(const char *longName);
-const char*	      sequenceGetFullName(const BlxSequence *seq);
-const char*	      sequenceGetVariantName(const BlxSequence *seq);
-const char*	      sequenceGetDisplayName(const BlxSequence *seq);
-const char*	      sequenceGetShortName(const BlxSequence *seq);
-const IntRange const* sequenceGetRange(const BlxSequence *seq);
-int		      sequenceGetLength(const BlxSequence *seq);
+const char*	      blxSequenceGetFullName(const BlxSequence *seq);
+const char*	      blxSequenceGetVariantName(const BlxSequence *seq);
+const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);
+const char*	      blxSequenceGetShortName(const BlxSequence *seq);
+int		      blxSequenceGetLength(const BlxSequence *seq);
+char*                 blxSequenceGetSeq(const BlxSequence *seq);
 
 void		      destroyBlxSequence(BlxSequence *seq);
 

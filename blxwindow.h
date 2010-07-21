@@ -34,6 +34,7 @@ typedef struct _CommandLineOptions
   gboolean hiliteSins;	    
   gboolean dotterFirst;		  /* open dotter when blixem starts */
   gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
+  gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
   BlxBlastMode blastMode;	  /* the blast match mode */
   BlxSeqType seqType;		  /* the type of sequence i.e. DNA or peptide */
   int numFrames;		  /* the number of reading frames */
@@ -53,6 +54,7 @@ typedef enum
     BLXFLAG_SHOW_UNALIGNED_SEQ,	    /* Shows additional bits of the match sequence that are not part of the aligned section */
     BLXFLAG_LIMIT_UNALIGNED_BASES,  /* If the above option is on, limits how many bases from the unaligned sequence are shown */
     BLXFLAG_SHOW_SPLICE_SITES,	    /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
+    BLXFLAG_EMBL_DATA_LOADED,         /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
     
     BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
   } BlxFlag;
@@ -79,6 +81,9 @@ typedef struct _BlxViewContext
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
   
   gboolean displayRev;		    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
+  char *net_id;                     /* pfetch-socket net id */
+  int port;                         /* pfetch-socket port */
+  gboolean external;                /* True if Blixem was run externally or false if it was run internally from another program */
   
   GList *selectedSeqs;		    /* A list of sequences that are selected (as BlxSequences) */
   GList *sequenceGroups;	    /* A list of SequenceGroups */
@@ -163,7 +168,7 @@ gchar*			  getSequenceSegment(BlxViewContext *bc,
 					     const gboolean translateResult,
 					     GError **error);
   
-GtkWidget*		  createBlxWindow(CommandLineOptions *options, const char *paddingSeq, GList *seqList);
+GtkWidget*		  createBlxWindow(CommandLineOptions *options, const char *paddingSeq, GList *seqList, char *net_id, int port, const gboolean External);
 
 
 #endif /* _blxwindow_included_ */

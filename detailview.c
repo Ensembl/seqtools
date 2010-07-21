@@ -691,7 +691,17 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
 	{
 	  /* For other columns, we can set the size request: they're small enough
 	   * that we can live without the need to shrink below their sum widths. */
-	  gtk_widget_set_size_request(columnInfo->headerWidget, columnInfo->width, -1);
+          if (columnInfo->width > 0)
+            {
+              widgetSetHidden(columnInfo->headerWidget, FALSE);
+              gtk_widget_set_size_request(columnInfo->headerWidget, columnInfo->width, -1);
+            }
+          else
+            {
+              /* Zero width: we must hide the widget because it always seems to have
+               * some width even if we set the size request to 0 */
+              widgetSetHidden(columnInfo->headerWidget, TRUE);
+            }
 	}
     }
 }
@@ -816,7 +826,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   
   if (seq)
     {
-      const char *seqName = sequenceGetDisplayName(seq);
+      const char *seqName = blxSequenceGetDisplayName(seq);
       
       if (seqName)
 	{
@@ -1117,6 +1127,39 @@ void selectClickedSnp(GtkWidget *snpTrack,
 /***********************************************************
  *			    Drawing			   *
  ***********************************************************/
+
+/* Draw a vertical separator line at the edges of the given widget */
+void drawColumnSeparatorLine(GtkWidget *widget, 
+                             GdkDrawable *drawable, 
+                             GdkGC *gc, 
+                             const BlxViewContext *bc)
+{
+  const int lineWidth = 1; /* width of the separator lines */
+  
+  if (GTK_WIDGET_VISIBLE(widget) && widget->allocation.width > lineWidth)
+    {
+      GdkColor *color = getGdkColor(BLXCOLOR_TREE_GRID_LINES, bc->defaultColors, FALSE, bc->usePrintColors);
+      gdk_gc_set_foreground(gc, color);
+      
+      /* We want dashed lines */
+      gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_ON_OFF_DASH, GDK_CAP_BUTT, GDK_JOIN_MITER);
+      
+      /* Make the dashes very short and closely packed (i.e. dash length of 1 pixel and gaps of 1 pixel) */
+      int listLen = 1;
+      gint8 dashList[listLen];
+      dashList[0] = 1;
+      gdk_gc_set_dashes(gc, 0, dashList, listLen);
+      
+      /* Draw vertical lines. Draw the rightmost edge of each widget (because we don't really want a
+       * line at the leftmost edge of the first cell of the tree view.) */
+      const int x = widget->allocation.x + widget->allocation.width - lineWidth;
+      const int y1 = widget->allocation.y;
+      const int y2 = y1 + widget->allocation.height;
+      
+      gdk_draw_line(drawable, gc, x, y1, x, y2);
+    }
+}
+
 
 /* Populates the 'bases' string with the two bases from the ref seq adjacent to the start/end
  * of the given MSP (if it is an exon/match). 'Start' here means at the lower value coord end
@@ -1522,6 +1565,8 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       g_object_unref(layout);
     }
   
+  drawColumnSeparatorLine(dnaTrack, drawable, gc, bc);
+  
   g_free(segmentToDisplay);
   g_object_unref(gc);
 }
@@ -1864,6 +1909,10 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	    }
 	}
     }
+  
+  drawColumnSeparatorLine(snpTrack, drawable, gc, bc);
+  
+  g_object_unref(gc);
 }
 
 
@@ -2625,6 +2674,20 @@ static int snpTrackGetStrand(GtkWidget *snpTrack)
  *                     Events                              *
  ***********************************************************/
 
+/* Expose function for generic text headers. Draws vertical separator lines and then lets the
+ * default handler continue.  */
+gboolean onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data)
+{
+  GdkGC *gc = gdk_gc_new(headerWidget->window);
+  GtkWidget *detailView = GTK_WIDGET(data);
+  const BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  drawColumnSeparatorLine(headerWidget, headerWidget->window, gc, bc);
+  
+  return FALSE;
+}
+
+
 /* expose function to push a cached bitmap to screen */
 gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data)
 {
@@ -2764,6 +2827,8 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
 
 static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *event, gpointer data)
 {
+  gboolean handled = FALSE;
+  
   if (event->state & GDK_BUTTON2_MASK)
     {
       /* Moving mouse with middle mouse button down. Update the currently-selected base
@@ -2777,9 +2842,11 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
           const int frame = detailViewGetActiveFrame(detailView);
           detailViewSetSelectedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
         }
+      
+      handled = TRUE;
     }
   
-  return TRUE;
+  return handled;
 }
 
 
@@ -3404,17 +3471,27 @@ static void createColumn(ColumnId columnId,
                          char *title,
                          char *propertyName,
                          const int defaultWidth,
+                         const gboolean optionalDataLoaded,
                          char *sortName,
-                         GList **columnList)
+                         GList **columnList,
+                         GtkWidget *detailView)
 {
   /* Create a simple label for the header (unless already passed a special header widget) */
-  GtkWidget *headerWidget = specialWidget ? specialWidget : gtk_label_new(title);
+  GtkWidget *headerWidget = specialWidget;
+  
+  if (headerWidget == NULL)
+    {
+      headerWidget = gtk_label_new(title);
+      g_signal_connect(G_OBJECT(headerWidget), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
+    }
+  
   gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
   
   if (GTK_IS_MISC(headerWidget))
     {
       /* Align the text bottom-left */
       gtk_misc_set_alignment(GTK_MISC(headerWidget), 0.0, 1.0);
+      gtk_misc_set_padding(GTK_MISC(headerWidget), DEFAULT_LABEL_X_PAD, 0);
     }
 
   /* Create the column info */
@@ -3427,6 +3504,7 @@ static void createColumn(ColumnId columnId,
   columnInfo->propertyName = propertyName;
   columnInfo->width = defaultWidth;
   columnInfo->sortName = sortName;
+  columnInfo->dataLoaded = optionalDataLoaded;
   
   /* Place it in the list. Sort the list by ColumnId because the list must be sorted in the same
    * order as the variable types in the TREE_COLUMN_TYPE_LIST definition */
@@ -3436,7 +3514,7 @@ static void createColumn(ColumnId columnId,
 
 /* This creates DetailViewColumnInfo entries for each column required in the detail view. It
  * returns a list of the columns created. */
-static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames)
+static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames, const gboolean optionalDataLoaded)
 {
   GList *columnList = NULL;
   
@@ -3451,14 +3529,18 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   GtkCallback endCallback = refreshEndColHeader;
   
   /* Create the column headers and pack them into the column header bar */
-  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          "Name",      RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        "Name",     &columnList);
-  createColumn(BLXCOL_SCORE,     NULL,       NULL,          "Score",     RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     "Score",    &columnList);
-  createColumn(BLXCOL_ID,        NULL,       NULL,          "%Id",       RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     "Identity", &columnList);
-  createColumn(BLXCOL_START,     NULL,       startCallback, "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          "Position", &columnList);
-  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   "Sequence",  RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       NULL,       &columnList);
-  createColumn(BLXCOL_END,       NULL,       endCallback,   "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            NULL,       &columnList);
-  createColumn(BLXCOL_SOURCE,    NULL,       NULL,          "Source",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  NULL,       &columnList);
-  createColumn(BLXCOL_GROUP,     NULL,       NULL,          "Group",     RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  "Group",    &columnList);
+  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          "Name",      RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,  "Name",     &columnList, detailView);
+  createColumn(BLXCOL_SCORE,     NULL,       NULL,          "Score",     RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,  "Score",    &columnList, detailView);
+  createColumn(BLXCOL_ID,        NULL,       NULL,          "%Id",       RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,  "Identity", &columnList, detailView);
+  createColumn(BLXCOL_START,     NULL,       startCallback, "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,  "Position", &columnList, detailView);
+  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   "Sequence",  RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,  NULL,       &columnList, detailView);
+  createColumn(BLXCOL_END,       NULL,       endCallback,   "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,  NULL,       &columnList, detailView);
+  createColumn(BLXCOL_SOURCE,    NULL,       NULL,          "Source",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  TRUE,  NULL,       &columnList, detailView);
+  createColumn(BLXCOL_GROUP,     NULL,       NULL,          "Group",     RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  TRUE,  "Group",    &columnList, detailView);
+  createColumn(BLXCOL_ORGANISM,  NULL,       NULL,          "Organism",  RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded,  "Organism", &columnList, detailView);
+  createColumn(BLXCOL_GENE_NAME, NULL,       NULL,          "Gene Name", RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded, "Gene name", &columnList, detailView);
+  createColumn(BLXCOL_TISSUE_TYPE,NULL,      NULL,          "Tissue Type",RENDERER_TEXT_PROPERTY,    BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded, "Tissue type",&columnList, detailView);
+  createColumn(BLXCOL_STRAIN,    NULL,       NULL,          "Strain",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded, "Strain",   &columnList, detailView);
 
   return columnList;
 }
@@ -4010,7 +4092,8 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			    const char const *refSeqName,
 			    const int startCoord,
 			    const gboolean sortInverted,
-			    const ColumnId sortColumn)
+			    const ColumnId sortColumn,
+                            const gboolean optionalDataLoaded)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -4023,7 +4106,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
 
   /* Create the columns */
-  GList *columnList = createColumns(detailView, seqType, numFrames);
+  GList *columnList = createColumns(detailView, seqType, numFrames, optionalDataLoaded);
 
   /* Create the header bar. If viewing protein matches include one SNP track in the detail 
    * view header; otherwise create SNP tracks in each tree header. */

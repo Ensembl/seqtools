@@ -547,7 +547,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
   if (blastMode != BLXMODE_TBLASTN)
     {
       const char *fetchMode = bc->fetchMode;
-      dotterSSeq = fetchSeqRaw(sequenceGetFullName(blxSeq), fetchMode);
+      dotterSSeq = fetchSeqRaw(blxSequenceGetFullName(blxSeq), fetchMode);
       
       /* If the match is on the reverse s strand, we need to modify it, because
        * dotter does not currently handle it. */
@@ -571,12 +571,12 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
       /* Check if sequence is stored internally (i.e. it was passed from acedb) */
       g_message("Looking for sequence stored internally... ");
     
-      dotterSSeq = g_strdup(blxSeq->sequence);
+      dotterSSeq = g_strdup(blxSequenceGetSeq(blxSeq));
       
       if (!dotterSSeq)
 	{
 	  g_message("not found.\n");
-	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", sequenceGetFullName(blxSeq));
+	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", blxSequenceGetFullName(blxSeq));
 	  return FALSE;
 	}
 
@@ -607,7 +607,7 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 
   if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
     {
-      g_warning("The sequence for '%s' is incomplete.\n", sequenceGetFullName(blxSeq));
+      g_warning("The sequence for '%s' is incomplete.\n", blxSequenceGetFullName(blxSeq));
     }
   
   return dotterSSeq;
@@ -734,7 +734,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
     {
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, 
 		  "Could not find any matches on the '%c' strand of the selected sequence '%s'.", 
-		  activeStrand, sequenceGetFullName(selectedSeq));
+		  activeStrand, blxSequenceGetFullName(selectedSeq));
 
       return FALSE;
     }
