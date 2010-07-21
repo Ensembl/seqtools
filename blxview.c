@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.53 2010-07-21 11:23:02 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.54 2010-07-21 11:39:18 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -406,66 +406,6 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
   if (options->seqType == BLXSEQ_DNA)
     {
       options->parseFullEmblInfo = TRUE;
-    }
-}
-
-
-/* Set up the fetch mode. Sets the fetch-mode, and also net_id and port if relevant */
-static void setupFetchMode(PfetchParams *pfetch, char **fetchMode, char **net_id, int *port)
-{
-  /* First, set the fetch mode */
-  if (pfetch)
-    {
-      /* If pfetch struct then this sets fetch mode to pfetch. */
-      
-      if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
-	{
-	  *fetchMode = BLX_FETCH_PFETCH;
-	}
-    }
-  else
-    {
-      blxFindInitialFetchMode(*fetchMode);
-    }
-  
-
-  /* For pfetch mode, find the net_id and port */
-  if (strcmp(*fetchMode, BLX_FETCH_PFETCH) == 0)
-    {
-      /* Fill BlxSequence->sequence fast by pfetch if possible
-       * three ways to use this:
-       *    1) call blixem main with "-P node:port" commandline option
-       *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
-       *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
-       *       or to the name of the machine, e.g. "plato"
-       *       and optionally setenv BLIXEM_PORT to the port number for
-       *       the pfetch server.
-       *    3) call blixem with the -c option to specify a config file*/
-      enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
-      *port = PFETCH_PORT ;
-      
-      if (pfetch)
-        {
-          *net_id = pfetch->net_id ;
-          if (!(*port = pfetch->port))
-            *port = PFETCH_PORT ;
-        }
-      else if ((*net_id = getenv("BLIXEM_PFETCH")))
-        {
-          char *port_str ;
-          
-          *port = 0 ;
-          if ((port_str = getenv("BLIXEM_PORT")))
-            *port = atoi(port_str) ;
-          
-          if (*port <= 0)
-            *port = PFETCH_PORT ;
-        }
-      else
-        {
-          /* Lastly try for a config file. */
-          blxConfigGetPFetchSocketPrefs(net_id, port) ;
-        }
     }
 }
 

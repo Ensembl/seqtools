@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.43 2010-07-21 11:23:01 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.44 2010-07-21 11:39:18 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -345,6 +345,7 @@ BlxColor*			   getBlxColor(GArray *defaultColors, const BlxColorId colorId);
 GdkColor*			   getGdkColor(BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
+void                               setupFetchMode(PfetchParams *pfetch, char **fetchMode, char **net_id, int *port);
 
 gboolean                           fetchSequences(GList *seqsToFetch, 
                                                   GList *seqList,

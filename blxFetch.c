@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.26 2010-07-21 11:23:02 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.27 2010-07-21 11:39:18 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1846,6 +1846,72 @@ static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
 }
 
 
+/* Set up the net id and port if the mode is pfetch */
+static void setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, char **net_id, int *port)
+{
+  if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0)
+    {
+      /* three ways to determine this:
+       *    1) call blixem main with "-P node:port" commandline option
+       *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
+       *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
+       *       or to the name of the machine, e.g. "plato"
+       *       and optionally setenv BLIXEM_PORT to the port number for
+       *       the pfetch server.
+       *    3) call blixem with the -c option to specify a config file*/
+      enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
+      *port = PFETCH_PORT ;
+      
+      if (pfetch)
+        {
+          *net_id = pfetch->net_id ;
+          if (!(*port = pfetch->port))
+            *port = PFETCH_PORT ;
+        }
+      else if ((*net_id = getenv("BLIXEM_PFETCH")))
+        {
+          char *port_str ;
+          
+          *port = 0 ;
+          if ((port_str = getenv("BLIXEM_PORT")))
+            *port = atoi(port_str) ;
+          
+          if (*port <= 0)
+            *port = PFETCH_PORT ;
+        }
+      else
+        {
+          /* Lastly try for a config file. */
+          blxConfigGetPFetchSocketPrefs(net_id, port) ;
+        }
+    }
+}
+
+
+/* Set up the fetch mode. Sets the fetch-mode, and also net_id and port if relevant */
+void setupFetchMode(PfetchParams *pfetch, char **fetchMode, char **net_id, int *port)
+{
+  /* First, set the fetch mode */
+  if (pfetch)
+    {
+      /* If pfetch struct then this sets fetch mode to pfetch. */
+      
+      if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
+	{
+	  *fetchMode = BLX_FETCH_PFETCH;
+	}
+    }
+  else
+    {
+      blxFindInitialFetchMode(*fetchMode);
+    }
+  
+
+  /* For pfetch mode, find the net_id and port */
+  setupPfetchMode(pfetch, *fetchMode, net_id, port);
+}
+
+
 /* Callback called when the sort order has been changed in the drop-down box */
 static void onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
@@ -1865,6 +1931,12 @@ static void onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointe
       
       g_free(bc->fetchMode);
       bc->fetchMode = g_strdup(fetchMode);
+      
+      if (!strcmp(bc->fetchMode, BLX_FETCH_PFETCH) && (bc->net_id == NULL || bc->port == UNSET_INT))
+        {
+          /* If this is the first time we've been set to pfetch mode, initialise the net id and port */
+          setupPfetchMode(NULL, bc->fetchMode, &bc->net_id, &bc->port);
+        }
     }
 }
 
