@@ -279,6 +279,7 @@ const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);
 const char*	      blxSequenceGetShortName(const BlxSequence *seq);
 int		      blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
+BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
 
 void		      destroyBlxSequence(BlxSequence *seq);
 
@@ -297,6 +298,7 @@ void		      debugLogLevel(const int increaseAmt);
 
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
+char*                 blxprintf(char *formatStr, ...);
 
 
 void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,

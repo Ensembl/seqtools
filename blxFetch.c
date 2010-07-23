@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.29 2010-07-21 14:23:12 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.30 2010-07-23 14:29:25 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -46,12 +46,23 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>  /* for sockaddr_in and inet_addr() */
 #include <netdb.h>					    /* for gethostbyname() */
-#ifdef PFETCH_HTML 
-#include <libpfetch/libpfetch.h>
-#endif
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
+#include <wh/regular.h>
+
+#ifdef PFETCH_HTML 
+#include <libpfetch/libpfetch.h>
+#endif
+
+#ifdef ACEDB
+#include <wh/graph.h>
+#include <wh/display.h>
+#endif
 
 
 #define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
@@ -201,23 +212,23 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 				    gpointer      user_data) ;
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
-static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
+static gboolean parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
 static void pfetchHttpEntry(char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
 #endif
 
-static int socketConstruct(char *ipAddress, int port, BOOL External) ;
-static BOOL socketSend(int sock, char *text) ;
+static int socketConstruct(char *ipAddress, int port, gboolean External) ;
+static gboolean socketSend(int sock, char *text) ;
 
 static ProgressBar makeProgressBar(int seq_total) ;
-static void updateProgressBar(ProgressBar bar, char *sequence, int seq_num, BOOL fetch_ok) ;
+static void updateProgressBar(ProgressBar bar, char *sequence, int seq_num, gboolean fetch_ok) ;
 static gboolean isCancelledProgressBar(ProgressBar bar) ;
 static void destroyProgressBar(ProgressBar bar) ;
 static void destroyProgressCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 static void cancelCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 
-static BOOL readConfigFile(GKeyFile *key_file, char *config_file, GError **error) ;
+static gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error) ;
 ConfigGroup getConfig(char *config_name) ;
-static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
+static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
 static char *blxConfigGetFetchMode(void);
 static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
@@ -227,7 +238,7 @@ static void                     appendCharToString(const char curChar, GString *
 static void                     appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString **result);
 static gboolean                 isWhitespaceChar(const char curChar);
 
-static gboolean                 pfetchInit(char *pfetchOptions, GList *seqsToFetch, char *pfetchIP, int port, BOOL External, int *sock);
+static gboolean                 pfetchInit(char *pfetchOptions, GList *seqsToFetch, char *pfetchIP, int port, gboolean External, int *sock);
 static void                     checkProgressBar(ProgressBar bar, BlxEmblParserState *parserState, gboolean *status);
 
 static int                      pfetchReceiveBuffer(char *buffer, const int bufferSize, const int sock, 
@@ -255,7 +266,7 @@ static void                     pfetchFinishEmblFile(BlxSequence **currentSeq, G
                                                      int *numSucceeded, ProgressBar bar, BlxEmblParserState *parserState, gboolean *status);
 
 static gboolean                 pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState);
-
+static void                     populateMissingDataFromParent(GList *seqList);
 
 
 /* Some local globals.... */
@@ -355,6 +366,7 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 }
 
 
+#if !defined(ACEDB)
 /* Find an executable and return its complete pathname.
  */
 static int findCommand (char *command, char **retp)
@@ -420,11 +432,15 @@ static int findCommand (char *command, char **retp)
   
 #endif
 }
-
+#endif
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
+#ifdef ACEDB
 void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
+#else
+void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
+#endif
 {
   const char *fetchMode = blxWindowGetFetchMode(blxWindow);
   
@@ -440,12 +456,16 @@ void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
 #endif
   else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
     {
-      externalCommand(messprintf("efetch '%s' &", seqName), blxWindow);
+      char *command = blxprintf("efetch '%s' &", seqName);
+      externalCommand(command, blxWindow);
+      g_free(command);
     }
   else if (!strcmp(fetchMode, BLX_FETCH_WWW_EFETCH))
     {
 #ifdef ACEDB
-      graphWebBrowser (messprintf ("%s%s", URL, seqName));
+      char *command = blxprintf("%s%s", URL, seqName);
+      graphWebBrowser (command);
+      g_free(command);
 #else
       {
 	char *browser = NULL ;
@@ -461,15 +481,18 @@ void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
 		!findCommand("firefox", &browser) &&
 		!findCommand("Safari", &browser))
 	      {
-		messout("Couldn't find any WWW browser.  Looked for "
-			"netscape, Netscape, Mosaic, xmosaic, mosaic, firefox & Safari. "
-			"System message: \"%s\"", browser);
+		g_critical("Couldn't find any WWW browser.  Looked for "
+			  "netscape, Netscape, Mosaic, xmosaic, mosaic, firefox & Safari. "
+			  "System message: \"%s\"", browser);
 		return;
 	      }
 	  }
 	printf("Using WWW browser %s\n", browser);
 	fflush(stdout);
-	system(messprintf("%s %s%s&", browser, URL, seqName));
+        
+        char *command = blxprintf("%s %s%s&", browser, URL, seqName);
+	system(command);
+        g_free(command);
       }
 #endif
     }
@@ -484,7 +507,7 @@ void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
     }
 #endif
   else
-    messout("Unknown fetchMode: %s", fetchMode);
+    g_critical("Unknown fetchMode: %s", fetchMode);
 
   if (!URL)
     {
@@ -590,9 +613,9 @@ static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean disp
 /* Gets all the sequences needed by blixem but from http proxy server instead of from
  * the pfetch server direct, this enables blixem to be run and get sequences from
  * anywhere that can see the http proxy server. */
-gboolean blxGetSseqsPfetchHtml(GList *seqsToFetch, BlxSeqType seqType)
+gboolean populateFastaDataHtml(GList *seqsToFetch, BlxSeqType seqType)
 {
-  BOOL status = FALSE ;
+  gboolean status = FALSE ;
   PFetchUserPrefsStruct prefs = {NULL} ;
   gboolean debug_pfetch = FALSE ;
   
@@ -789,9 +812,9 @@ static void pfetchHttpEntry(char *sequence_name,
  *  - this version incorporates a progress monitor as a window,
  *    much easier for user to control + has a cancel button.
  */
-gboolean blxGetSseqsPfetch(GList *seqsToFetch, char *pfetchIP, int port, BOOL External)
+gboolean populateFastaDataPfetch(GList *seqsToFetch, char *pfetchIP, int port, gboolean External)
 {
-  time_t startTime = time(NULL);
+//  time_t startTime = time(NULL);
 
   /* Initialise and send the requests */
   STORE_HANDLE handle = handleCreate();
@@ -859,11 +882,10 @@ gboolean blxGetSseqsPfetch(GList *seqsToFetch, char *pfetchIP, int port, BOOL Ex
   
   messfree(handle) ;
   
-  time_t endTime = time(NULL);
-  static int totalTime = 0;
-  totalTime += (int)(endTime - startTime);
-  
-  printf("blxGetSseqsPfetch duration = %d\n", totalTime);
+//  time_t endTime = time(NULL);
+//  static int totalTime = 0;
+//  totalTime += (int)(endTime - startTime);
+//  printf("blxGetSseqsPfetch duration = %d\n", totalTime);
   
   
   return status ;
@@ -874,15 +896,20 @@ gboolean blxGetSseqsPfetch(GList *seqsToFetch, char *pfetchIP, int port, BOOL Ex
  *
  *  - this version incorporates a progress monitor as a window,
  *    much easier for user to control + has a cancel button.
- *  - same as blxGetSseqsPfetch but fetches the full EMBL entry
+ *  - same as populateFastaDataPfetch but fetches the full EMBL entry
  *    in order to parse additional info such as organism. This
  *    may fail for protein variants though so blxGetSseqsPfetch
  *    should subsequently be run on any that still don't have their
  *    sequence filled in.
+ *  - can be called after the fasta sequence data is already populated:
+ *    in that case it will ignore the sequence data and just populate
+ *    the additional data.
+ *  - sequence data will also be ignored for sequences that have the
+ *    sequenceReqd flag set to false
  */
-gboolean blxGetSseqsPfetchFull(GList *seqsToFetch, char *pfetchIP, int port, BOOL External)
+gboolean populateFullDataPfetch(GList *seqsToFetch, char *pfetchIP, int port, gboolean External)
 {
-  time_t startTime = time(NULL);
+//  time_t startTime = time(NULL);
   
   STORE_HANDLE handle = handleCreate();
   int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
@@ -971,22 +998,78 @@ gboolean blxGetSseqsPfetchFull(GList *seqsToFetch, char *pfetchIP, int port, BOO
 
 
   messfree(handle) ;
-
-  time_t endTime = time(NULL);
-  static int totalTime = 0;
-  totalTime += (int)(endTime - startTime);
   
-  printf("blxGetSseqsPfetchFull duration = %d\n", totalTime);
+  /* If there are any seqs left that do not have their optional data populated
+   * they are likely to be protein variants. See if we can find their parent 
+   * sequence and copy the data from there. */
+  if (status)
+    {
+      populateMissingDataFromParent(seqsToFetch);
+    }
+
+
+//  time_t endTime = time(NULL);
+//  static int totalTime = 0;
+//  totalTime += (int)(endTime - startTime);
+//  printf("blxGetSseqsPfetchFull duration = %d\n", totalTime);
   
   return status ;
 }
 
 
+/* Utility to get the parent sequence of the given variant, if it is not already set.
+ * returns true if the returned parent is not null. */
+static gboolean getParent(BlxSequence *variant, BlxSequence **parent, GList *allSeqs)
+{
+  if (*parent == NULL)
+    {
+      *parent = blxSequenceGetVariantParent(variant, allSeqs);
+    }
+  
+  return (*parent != NULL);
+}
+
+
+/* This function loops through all sequences in the given list and if any sequence is 
+ * missing the optional-column data (organism, tissue-type etc.) then it looks for the
+ * parent of the sequence and copies it from there, if found. */
+static void populateMissingDataFromParent(GList *seqList)
+{
+  GList *seqItem = seqList;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(seqItem->data);
+      BlxSequence *parent = NULL;
+      
+      /* For each optional column, check if the data in the BlxSequence is null */
+      if (!curSeq->organism && getParent(curSeq, &parent, seqList) && parent->organism && parent->organism->str)
+        {
+          curSeq->organism = g_string_new(parent->organism->str);
+        }
+      
+      if (!curSeq->geneName && getParent(curSeq, &parent, seqList) && parent->geneName && parent->geneName->str)
+        {
+          curSeq->geneName = g_string_new(parent->geneName->str);
+        }
+      
+      if (!curSeq->tissueType && getParent(curSeq, &parent, seqList) && parent->tissueType && parent->tissueType->str)
+        {
+          curSeq->tissueType = g_string_new(parent->tissueType->str);
+        }
+      
+      if (!curSeq->strain && getParent(curSeq, &parent, seqList) && parent->strain && parent->strain->str)
+        {
+          curSeq->strain = g_string_new(parent->strain->str);
+        }
+    }
+}
+
 
 /* Set/Get global config, necessary because we don't have some blixem context pointer.... */
-BOOL blxInitConfig(char *config_file, GError **error)
+gboolean blxInitConfig(char *config_file, GError **error)
 {
-  BOOL result = FALSE ;
+  gboolean result = FALSE ;
 
   messAssert(!blx_config_G) ;
 
@@ -1016,9 +1099,9 @@ GKeyFile *blxGetConfig(void)
 }
 
 
-BOOL blxConfigSetFetchMode(char *mode)
+gboolean blxConfigSetFetchMode(char *mode)
 {
-  BOOL result = FALSE ;
+  gboolean result = FALSE ;
   GKeyFile *key_file ;
 
   key_file = blxGetConfig() ;
@@ -1093,7 +1176,7 @@ gboolean blxConfigSetPFetchSocketPrefs(char *node, int port)
  */
 
 
-static int socketConstruct (char *ipAddress, int port, BOOL External)
+static int socketConstruct (char *ipAddress, int port, gboolean External)
 {
   int sock ;                       /* socket descriptor */
   struct sockaddr_in *servAddr ;   /* echo server address */
@@ -1143,9 +1226,9 @@ static int socketConstruct (char *ipAddress, int port, BOOL External)
   return sock ;
 }
 
-static BOOL socketSend (int sock, char *text)
+static gboolean socketSend (int sock, char *text)
 {
-  BOOL status = TRUE ;
+  gboolean status = TRUE ;
   int len, bytes_to_send, bytes_written ;
   char *tmp ;
   struct sigaction oursigpipe, oldsigpipe ;
@@ -1384,9 +1467,9 @@ static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data)
  * even possible for very long sequences that they may span several buffers. Note also
  * that the buffer is _not_ null terminated, we have to use length to know when to stop reading.
  */
-static BOOL parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data)
+static gboolean parsePfetchBuffer(char *read_text, int length, PFetchSequence fetch_data)
 {
-  BOOL status = TRUE ;
+  gboolean status = TRUE ;
   static int seq_num = 0 ;                               /* counts how many sequences we've fetched */
   static char *unfinished = NULL ;
   char *seq_start, *cp ;
@@ -1641,7 +1724,7 @@ static ProgressBar makeProgressBar(int seq_total)
   return bar ;
 }
 
-static void updateProgressBar(ProgressBar bar, char *sequence, int seq_num, BOOL fetch_ok)
+static void updateProgressBar(ProgressBar bar, char *sequence, int seq_num, gboolean fetch_ok)
 {
   char *label_text ;
 
@@ -1707,9 +1790,9 @@ static void cancelCB(GtkWidget *widget, gpointer cb_data)
  *            Configuration file reading.
  */
 
-BOOL readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
+gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
 {
-  BOOL result = FALSE ;
+  gboolean result = FALSE ;
   GKeyFileFlags flags = G_KEY_FILE_NONE ;
   
   if ((result = g_key_file_load_from_file(key_file, config_file, flags, error)))
@@ -1780,9 +1863,9 @@ ConfigGroup getConfig(char *config_name)
 
 
 /* Tries to load values for all keyvalues given in ConfigGroup fails if any are missing. */
-static BOOL loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
+static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
 {
-  BOOL result = TRUE ;
+  gboolean result = TRUE ;
   ConfigKeyValue key_value ;
 
   key_value = group->key_values ;
@@ -2029,7 +2112,7 @@ void createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow)
 
 /* Initialise a pfetch connection with the given options and calls pfetch on each of the 
  * sequences in the given list. */
-static gboolean pfetchInit(char *pfetchOptions, GList *seqsToFetch, char *pfetchIP, int port, BOOL External, int *sock)
+static gboolean pfetchInit(char *pfetchOptions, GList *seqsToFetch, char *pfetchIP, int port, gboolean External, int *sock)
 {
   gboolean status = TRUE;
   
@@ -2215,10 +2298,9 @@ static gboolean pfetchGetParserStateFromId(const char *sectionId, BlxSequence *c
   
   if (stringsEqual(sectionId, "SQ", TRUE))
     {
-      if (currentSeq->sequence && currentSeq->sequence->str)
+      /* Skip the sequence section if the sequence is already populated or not required. */
+      if (currentSeq->sequence && (currentSeq->sequence->str || !currentSeq->sequenceReqd))
         {
-          /* The sequence is already populated so we can skip this section. */
-          finishSequence = TRUE;
           *parserState = PARSING_IGNORE;
         }
       else

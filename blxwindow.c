@@ -14,6 +14,8 @@
 #include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
 #include <gdk/gdkkeysyms.h>
+#include <string.h>
+#include <ctype.h>
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      10   /* used to change the default border width around the blixem window */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
@@ -1186,7 +1188,7 @@ static const char* getStringFromTextView(GtkTextView *textView)
 {
   if (!textView || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(textView)))
     {
-      messout("Could not set search string: invalid text entry box [%x]\n", textView);
+      g_critical("Could not set search string: invalid text entry box\n");
       return NULL;
     }
   
@@ -1740,7 +1742,7 @@ static void onGroupNameChanged(GtkWidget *widget, const gint responseId, gpointe
   
   if (!newName || strlen(newName) < 1)
     {
-      messout("Invalid group name '%s' entered; reverting to previous group name '%s'.", newName, group->groupName);
+      g_critical("Invalid group name '%s' entered; reverting to previous group name '%s'.", newName, group->groupName);
       gtk_entry_set_text(entry, group->groupName);
     }
   else
@@ -1764,7 +1766,7 @@ static void onGroupOrderChanged(GtkWidget *widget, const gint responseId, gpoint
   
   if (!newOrder || strlen(newOrder) < 1)
     {
-      messout("Invalid order number '%s' entered; reverting to previous order number '%d'.", newOrder, group->order);
+      g_critical("Invalid order number '%s' entered; reverting to previous order number '%d'.", newOrder, group->order);
       char *orderStr = convertIntToString(group->order);
       gtk_entry_set_text(entry, orderStr);
       g_free(orderStr);
@@ -1967,7 +1969,7 @@ static void addGroupFromSelection(GtkWidget *button, const gint responseId, gpoi
 	}
       else
 	{
-	  messout("Warning: cannot create group; no sequences are currently selected");
+	  g_critical("Warning: cannot create group; no sequences are currently selected");
 	}
     }
 }
@@ -2039,7 +2041,7 @@ static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText)
     {
       g_list_free(seqList);
       seqList = NULL;
-      messout("No valid sequence names in buffer '%s'\n", inputText);
+      g_critical("No valid sequence names in buffer '%s'\n", inputText);
     }
   
   return seqList;
@@ -2627,9 +2629,15 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  /* Load the optional data. Pass false for the second bool arg because we don't need to re-fetch sequence data */
+  /* Load the optional data. (Note that we don't need to re-fetch sequence data.) */
+  const gboolean getSequenceData = FALSE;
+  const gboolean getOptionalData = TRUE;
+  GList *seqsToFetch = getSeqsToPopulate(bc->matchSeqs, getSequenceData, getOptionalData);
+
   GError *error = NULL;
-  gboolean success = fetchSequences(bc->matchSeqs, bc->matchSeqs, bc->fetchMode, bc->seqType, bc->net_id, bc->port, TRUE, FALSE, bc->external, &error);
+  gboolean success = fetchSequences(seqsToFetch, bc->matchSeqs, bc->fetchMode, bc->seqType, bc->net_id, bc->port, TRUE, FALSE, bc->external, &error);
+  
+  g_list_free(seqsToFetch);
   
   if (error)
     {
@@ -3275,7 +3283,7 @@ void onResponseHelpDialog(GtkDialog *dialog, gint responseId, gpointer data)
 
 void showHelpDialog(GtkWidget *blxWindow)
 {
-  char *messageText = (messprintf(HELP_TEXT1, blixemVersion));
+  char *messageText = blxprintf(HELP_TEXT1, blixemVersion);
 
   /* Set a pretty big initial size */
   const int width = blxWindow->allocation.width * 0.7;
@@ -3300,6 +3308,8 @@ void showHelpDialog(GtkWidget *blxWindow)
   
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseHelpDialog), NULL);
   gtk_widget_show_all(dialog);
+  
+  g_free(messageText);
 }
 
 
@@ -4399,7 +4409,7 @@ void copySelectionToClipboard(GtkWidget *blxWindow)
 {
   if (g_list_length(blxWindowGetSelectedSeqs(blxWindow)) < 1)
     {
-      messout("No sequences selected.");
+      g_critical("No sequences selected.");
     }
   else
     {
@@ -4574,8 +4584,7 @@ static GtkWidget* createMainMenu(GtkWidget *window)
   if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
     {
       prefixError(error, "Building menus failed: ");
-      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-      exit (EXIT_FAILURE);
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
     }
   
   return gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
@@ -4650,7 +4659,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                   int i = 0;
                   for ( ; i < totalNumChars; i++)
                     {
-                      if (freeupper(matchSeq[i]) == freeupper(refSeqSegment[i]))
+                      if (toupper(matchSeq[i]) == toupper(refSeqSegment[i]))
                         {
                           numMatchingChars++;
                         }
@@ -4662,7 +4671,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                   for ( ; i < totalNumChars; i++)
                     {
                       int sIndex = sForward ? msp->sRange.min + i - 1 : msp->sRange.max - i - 1;
-                      if (freeupper(matchSeq[sIndex]) == freeupper(refSeqSegment[i]))
+                      if (toupper(matchSeq[sIndex]) == toupper(refSeqSegment[i]))
                         {
                           numMatchingChars++;
                         }
@@ -4711,7 +4720,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                       int sIdx = s_start, qIdx = q_start ;
                       while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
                         {
-                          if (freeupper(matchSeq[sIdx]) == freeupper(refSeqSegment[qIdx]))
+                          if (toupper(matchSeq[sIdx]) == toupper(refSeqSegment[qIdx]))
                             numMatchingChars++ ;
                           
                           /* Move to the next base. The refSeqSegment is always forward, but we might have to

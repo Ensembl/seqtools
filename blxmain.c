@@ -27,15 +27,15 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.19 2010-07-21 11:23:02 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.20 2010-07-23 14:29:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <SeqTools/blixem_.h>
 #include <SeqTools/utilities.h>
-#include <wh/regular.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
+#include <wh/regular.h>
 
 
 /* scrolled message window max messages. */
@@ -48,7 +48,7 @@ static void msgPopupsCB(BOOL msg_list) ;
 
 
 /* global debug flag for blixem, set TRUE to get debugging output.           */
-BOOL blixem_debug_G = FALSE ;
+gboolean blixem_debug_G = FALSE ;
 
 
 static char *usageText ="\n\
@@ -264,9 +264,9 @@ int main(int argc, char **argv)
   extern char *optarg;
   char        *optstring="a:bc:F:hIik:lno:O:pP:rS:s:tx:";
   char *usage;
-  BOOL rm_input_files = FALSE ;
+  gboolean rm_input_files = FALSE ;
   PfetchParams *pfetch = NULL ;
-  BOOL xtra_data = FALSE ;
+  gboolean xtra_data = FALSE ;
   FILE *xtra_file = NULL ;
   char xtra_filename[1000] = {'\0'} ;
   char *align_types = NULL ;
@@ -433,38 +433,34 @@ int main(int argc, char **argv)
 	}
       else if(!(seqfile = fopen(seqfilename, "r")))
 	{
-	  messerror("Cannot open %s\n", seqfilename);
+	  g_error("Cannot open %s\n", seqfilename);
 	}
 	
       /* Read in query sequence */
       if (seqfile == stdin)
 	{
 	  /* Same file for query and FS data - sequence on first two lines */
-	  Array arr = arrayCreate(5000, char);
-	  int i=0;
 	    
 	  if (!fgets(line, MAXLINE, seqfile))
-	    g_error("Error reading seqFile.\n");
+	    {
+	      g_error("Error reading seqFile.\n");
+	    }
 
 	  sscanf(line, "%s", refSeqName);
 
-	  /* Scan the input stream and place the chars in an array */
+	  /* Scan the input stream and place the chars in an extendable string */
+	  GString *resultStr = g_string_sized_new(5000);
 	  char charFromStream = fgetc(seqfile);
+	  
 	  while (charFromStream != '\n')
 	    {
-	      array(arr, i++, char) = charFromStream;
+	      g_string_append_c(resultStr, charFromStream);
+	      charFromStream = fgetc(seqfile);
 	    }
 	  
-	  /* Allocate the reference sequence from the array of chars */
-	  refSeq = g_malloc(arrayMax(arr)+1);
-	  char *refSeqChar = refSeq;
-	  
-	  for (i = 0; i < arrayMax(arr);)
-	    {
-	      *refSeqChar++ = arr(arr, i++, char);
-	    }
-	    
-	  arrayDestroy(arr);
+	  /* Set the reference sequence and free the GString (but not its data, which we've used) */
+	  refSeq = resultStr->str;
+	  g_string_free(resultStr, FALSE);
 	}
       else
 	{

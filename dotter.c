@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.9 2010-06-21 10:52:01 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.10 2010-07-23 14:29:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -235,6 +235,7 @@ static void drawGenesCB(gpointer data, gpointer user_data) ;
 static void drawMSPGene(MSP *msp, float y_offset) ;
 //static void printMSP(gpointer data, gpointer user_data) ;
 //static void printGene(gpointer data, gpointer user_data) ;
+static int gArrayGetLen(GArray *array);
 
 
 #define toggleCrosshairStr    "Crosshair"
@@ -489,15 +490,15 @@ int ntob_compl[] = {
 /* binary-to-ASCII translation table */
 char bton[] = "ACGTN*";
 
-Array fsArr = 0;  /* Stores Feature Series - the actual segments are stored
-		     as MSPs, using these fields:
-		     msp->sframe  = [1..2] sequence
-		     msp->qstart = segment start
-		     msp->qend   = segment end
-		     msp->fs     = Ordinal number of series that this MSP belongs to.
-		     msp->fsColor  = color
-		     msp->desc   = annotation
-		     */
+GArray *fsArr = NULL;  /* Stores Feature Series - the actual segments are stored
+			   as MSPs, using these fields:
+			   msp->sframe  = [1..2] sequence
+			   msp->qstart = segment start
+			   msp->qend   = segment end
+			   msp->fs     = Ordinal number of series that this MSP belongs to.
+			   msp->fsColor  = color
+			   msp->desc   = annotation
+			   */
 
 
 
@@ -730,11 +731,15 @@ void dotter (char  type,
 	
       RightBorder = LeftBorder-1 + qlen4 - qlen % 4;
 	
-      if (fsArr)
-	CrosshairFullscreenON = 1;
-
+      if (fsArr) /* feature-series array exists */
+	{
+	  CrosshairFullscreenON = 1;
+	}
+	
       if (!loadfile && !BlastHSPsOn)
-	calcWindow();
+	{
+	  calcWindow();
+	}
 
       dotterRedraw();	/* Note: must be after calcWindow; used to be before in AW to fail early */
     }
@@ -1666,28 +1671,38 @@ static void XdrawSEGxy(MSP *msp, float offset)
     offset += TopBorder + slen4 -1;
     oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 
-    for (i = 0; i < qlen; i++) {
-	if (arr(msp->xy, i, int) == XY_NOT_FILLED) {
+    for (i = 0; i < qlen; i++)
+      {
+	const int xyVal = g_array_index(msp->xy, int, i);
+
+	if (xyVal == XY_NOT_FILLED)
+	  {
 	    inNotFilled = 1;
-	}
-	else {
+	  }
+	else
+	  {
 	    x = seq2graphX(i);
-	    y = offset-1 - (float)arr(msp->xy, i, int)/100*fsPlotHeight*fonth;
-	    if (xold && (x != xold || y != yold) && 
-		(!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) {
+	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+	    
+	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE))
+	      {
 	        graphLine(xold, yold, x, y);
-		if (fsAnnBottomOn && msp->desc && !descShown) {
+		
+		if (fsAnnBottomOn && msp->desc && !descShown)
+		  {
 		    int linecolor = graphColor(BLACK);
 		    graphText(msp->desc, xold, offset);
 		    graphColor(linecolor);
 		    descShown = 1;
-		}
-	    }
+		  }
+	      }
+		
 	    xold = x;
 	    yold = y;
 	    inNotFilled = 0;
-	}
-    }
+	  }
+      }
+    
     graphColor(oldcolor); graphLinewidth(oldLinew);
 }
 
@@ -1730,28 +1745,37 @@ static void YdrawSEGxy(MSP *msp, float offset)
     offset += LeftBorder + qlen4 -1;
     oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 
-    for (i = 0; i < qlen; i++) {
-	if (arr(msp->xy, i, int) == XY_NOT_FILLED) {
+    for (i = 0; i < qlen; i++)
+      {
+	const int xyVal = g_array_index(msp->xy, int, i);
+	
+	if (xyVal == XY_NOT_FILLED)
+	  {
 	    inNotFilled = 1;
-	}
-	else {
+	  }
+	else
+	  {
 	    x = seq2graphY(i);
-	    y = offset-1 - (float)arr(msp->xy, i, int)/100*fsPlotHeight*fonth;
-	    if (xold && (x != xold || y != yold) && 
-		(!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) {
+	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+	    
+	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) 
+	      {
 		graphLine(yold, xold, y, x);
-		if (fsAnnRightOn && msp->desc && !descShown) {
+		
+		if (fsAnnRightOn && msp->desc && !descShown) 
+		  {
 		    int linecolor = graphColor(BLACK);
 		    graphText(msp->desc, offset, xold);
 		    graphColor(linecolor);
 		    descShown = 1;
-		}
-	    }
+		  }
+	      }
+
 	    xold = x;
 	    yold = y;
 	    inNotFilled = 0;
-	}
-    }
+	  }
+      }
     
     graphColor(oldcolor); graphLinewidth(oldLinew);
 }
@@ -1800,8 +1824,12 @@ static void drawGenes(MSP *msp)
 
   if (fsArr)
     {
-      for (i = 0; i < arrayMax(fsArr); i++)
-	arrp(fsArr, i, FeatureSeries)->y = arrp(fsArr, i, FeatureSeries)->x = 0;
+      /* Loop through each feature-series in the feature-series array and set coords to 0 */
+      for (i = 0; i < gArrayGetLen(fsArr); i++)
+	{
+	  FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+	  fs->y = fs->x = 0;
+	}
     }
 
   textHeight = fonth;
@@ -1965,8 +1993,12 @@ static void drawAllFeatures(MSP *msp)
 
   if (fsArr)
     {
-      for (i = 0; i < arrayMax(fsArr); i++)
-	arrp(fsArr, i, FeatureSeries)->y = arrp(fsArr, i, FeatureSeries)->x = 0;
+      /* Loop through each feature-series in the feature-series array and set coords to 0 */
+      for (i = 0; i < gArrayGetLen(fsArr); i++)
+	{
+	  FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+	  fs->y = fs->x = 0;
+	}
     }
 
   textHeight = fonth;
@@ -2894,47 +2926,70 @@ static void fsSelAll(void)
 {
   int i;
   graphActivate(fsGraph);
-  for (i = 0; i < arrayMax(fsArr); i++) {
-    arrp(fsArr, i, FeatureSeries)->on = 1;
-    graphBoxDraw(fsBoxStart+i, WHITE, BLACK);
-  }
+  
+  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+    {
+      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+      fs->on = 1;
+      graphBoxDraw(fsBoxStart+i, WHITE, BLACK);
+    }
+    
   fsSelFinish();
 }
+
 static void fsSelNone(void)
 {
   int i;
   graphActivate(fsGraph);
-  for (i = 0; i < arrayMax(fsArr); i++) {
-    arrp(fsArr, i, FeatureSeries)->on = 0;
-    graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
-  }
+  
+  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+    {
+      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+      fs->on = 0;
+      graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+    }
+    
   fsSelFinish();
 }
+
 static void fsSelNoCurves(void)
 {
   int i;
   graphActivate(fsGraph);
-  for (i = 0; i < arrayMax(fsArr); i++) {
-    if (arrp(fsArr, i, FeatureSeries)->xy) {
-      arrp(fsArr, i, FeatureSeries)->on = 0;
-      graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+  
+  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+    {
+      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+      
+      if (fs->xy) 
+	{
+	  fs->on = 0;
+	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+	}
     }
-  }
-    fsSelFinish();
+    
+  fsSelFinish();
 }
 
 static void fsSelNoSegments(void)
 {
   int i;
   graphActivate(fsGraph);
-  for (i = 0; i < arrayMax(fsArr); i++) {
-    if (!arrp(fsArr, i, FeatureSeries)->xy) {
-      arrp(fsArr, i, FeatureSeries)->on = 0;
-      graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+  
+  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+    {
+      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+      
+      if (!fs->xy) 
+	{
+	  fs->on = 0;
+	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+	}
     }
-  }
+    
   fsSelFinish();
 }
+
 static void fsToggleBottom(void)
 {
     fsBottomOn = !fsBottomOn;
@@ -2967,13 +3022,11 @@ static void fsToggleEndLines(void)
 }
 static void fsSel(int box, double x_unused, double y_unused, int modifier_unused)
 {
-    int *on;
-
-    if (box-fsBoxStart < 0 || box-fsBoxStart > arrayMax(fsArr))
+    if (box-fsBoxStart < 0 || box-fsBoxStart > gArrayGetLen(fsArr))
 	return;
     
-
-    on = &arrp(fsArr, box-fsBoxStart, FeatureSeries)->on;
+    FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, box - fsBoxStart);
+    int *on = &fs->on;
 
     graphActivate(fsGraph);
 
@@ -3056,26 +3109,29 @@ void selectFeatures(void)
   fsBoxStart = 1+graphButton("None", fsSelNone, 6, y);
   y += 2;
 
-  graphTextBounds(50, arrayMax(fsArr)*1.5 + y + 5);
+  graphTextBounds(50, gArrayGetLen(fsArr) * 1.5 + y + 5);
 
-  for (i = 0; i < arrayMax(fsArr); i++) {
-    float 
-      margin = 0.1;
-    box = graphBoxStart();
-    graphText(arrp(fsArr, i, FeatureSeries)->name, 1, y);
-    graphRectangle(1-margin, y-margin, 
-		   1+margin+strlen(arrp(fsArr, i, FeatureSeries)->name), 
-		   y+1+margin);
-    graphBoxEnd();
+  for (i = 0; i < gArrayGetLen(fsArr); i++)
+    {
+      float  margin = 0.1;
+      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
 
-    if (!arrp(fsArr, i, FeatureSeries)->on) {
-      graphBoxDraw(box, BLACK, WHITE);
+      box = graphBoxStart();
+      graphText(fs->name, 1, y);      
+      graphRectangle(1 - margin, y - margin, 1 + margin + strlen(fs->name), y + 1 + margin);
+      graphBoxEnd();
+
+      if (!fs->on) 
+	{
+	  graphBoxDraw(box, BLACK, WHITE);
+	}
+      else 
+	{
+	  graphBoxDraw(box, WHITE, BLACK);
+	}
+	
+      y += 1.5;
     }
-    else {
-      graphBoxDraw(box, WHITE, BLACK);
-    }
-    y += 1.5;
-  }
 
   graphRedraw();
 
@@ -3088,14 +3144,15 @@ float fsTotalHeight(MSP *msplist)
     int i;
     float maxy = 0;
 	
-    if (!fsArr || !arrayMax(fsArr))
+    if (!fsArr || !gArrayGetLen(fsArr))
       {
 	return 0.0;
       }
 
-    for (i = 0; i < arrayMax(fsArr); i++) 
+    for (i = 0; i < gArrayGetLen(fsArr); i++) 
       {
-	arrp(fsArr, i, FeatureSeries)->y = arrp(fsArr, i, FeatureSeries)->x = 0;
+	FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+	fs->y = fs->x = 0;
       }
 	
     for (msp = msplist; msp; msp = msp->next) 
@@ -3964,7 +4021,9 @@ static void dotterRedraw(void)
   graphPop();
 
   if (fsArr)
-    menuUnsetFlags(menuItem(dotterMenu, selectFeaturesStr), MENUFLAG_HIDE);
+    {
+      menuUnsetFlags(menuItem(dotterMenu, selectFeaturesStr), MENUFLAG_HIDE);
+    }
 
     
   /*    sprintf(banner, "%s (horizontal) vs. %s (vertical).  Window = %d, Pixel values = %d x score/residue, Matrix = %s",
@@ -4127,5 +4186,11 @@ void argvAdd(int *argc, char ***argv, char *s)
     *argv = v;
 }
 
+
+/* Utility to get the length of the given GArray. Returns 0 if array is null. */
+static int gArrayGetLen(GArray *array)
+{
+  return (array ? array->len : 0);
+}
 
 /**************************** eof ***************************/

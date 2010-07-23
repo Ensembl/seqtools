@@ -13,6 +13,7 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
+#include <string.h>
 
 #define DEFAULT_EXON_HEIGHT			 10
 #define	DEFAULT_EXON_YPAD			 7

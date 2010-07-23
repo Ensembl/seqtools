@@ -12,7 +12,7 @@
 #include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
 #include <math.h>
-
+#include <stdlib.h>
 
 #define DEFAULT_PREVIEW_BOX_LINE_WIDTH  1
 #define DEFAULT_GRID_NUM_HEADER_LINES   1	  /* the default number of lines of text in the grid header */

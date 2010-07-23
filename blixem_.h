@@ -26,17 +26,19 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.45 2010-07-21 14:46:45 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.46 2010-07-23 14:29:25 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
 #define DEF_BLIXEM_P_H
 
 #include <gtk/gtk.h>
-#include <wh/version.h>
-#include <wh/dict.h>
-#include <wh/smap.h>
 #include <SeqTools/blxview.h>
+#include <wh/version.h>
+
+#ifdef ACEDB
+#include <wh/regular.h>
+#endif
 
 
 /*            blixem program version and information.                        */
@@ -286,6 +288,7 @@ typedef enum
 
 /* blxview.c */
 void                               blviewRedraw(void);
+GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
 
 /* dotter.c */
 void                               argvAdd(int *argc, char ***argv, char *s);
@@ -303,16 +306,21 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname);
 
 /* blxFetch.c */
+#ifdef ACEDB
 void                               fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow) ;
+#else
+void                               fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow) ;
+#endif
+
 void                               blxFindInitialFetchMode(char *fetchMode) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
-gboolean                           blxGetSseqsPfetchHtml(GList *seqsToFetch, BlxSeqType seqType) ;
-gboolean                           blxGetSseqsPfetch(GList *seqsToFetch, char* pfetchIP, int port, BOOL External) ;
-gboolean                           blxGetSseqsPfetchFull(GList *seqsToFetch, char *pfetchIP, int port, BOOL External);
-BOOL                               blxInitConfig(char *config_file, GError **error) ;
+gboolean                           populateFastaDataHtml(GList *seqsToFetch, BlxSeqType seqType) ;
+gboolean                           populateFastaDataPfetch(GList *seqsToFetch, char* pfetchIP, int port, gboolean External) ;
+gboolean                           populateFullDataPfetch(GList *seqsToFetch, char *pfetchIP, int port, gboolean External);
+gboolean                           blxInitConfig(char *config_file, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
 gboolean                           blxConfigGetPFetchSocketPrefs(char **node, int *port) ;
@@ -363,7 +371,7 @@ extern char      *blixemVersion;
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */
 extern int       aa_atob[];
 extern int       PAM120[23][23];
-extern Array     fsArr;		   /* in dotter.c */
+extern GArray    *fsArr;		   /* in dotter.c */
 extern int       dotterGraph;
 extern float     fsPlotHeight;
 extern GtkWidget *blixemWindow;

@@ -34,15 +34,16 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.31 2010-07-08 12:06:47 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.32 2010-07-23 14:29:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <wh/regular.h>
-#include <wh/graph.h>
-#include <wh/gex.h>
+#include <wh/colours.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxGff3Parser_.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
 
 
 /* Error codes and domain */
@@ -84,7 +85,7 @@ static void         parseFsSeqHeader(char *line, char **seq1, char *seq1name, ch
 static void         parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
 static gboolean	    parseGaps(char **text, MSP *msp, const gboolean hasGapsTag) ;
-static BOOL	    parseDescription(char **text, MSP *msp_unused) ;
+static gboolean	    parseDescription(char **text, MSP *msp_unused) ;
 static char*	    parseSequence(char **text, MSP *msp) ;
 static void	    parseLook(MSP *msp, char *s) ;
 
@@ -92,8 +93,8 @@ static BlxMspType   getMspTypeFromScore(const int score);
 static void	    getDesc(MSP *msp, char *s1, char *s2) ;
 static char*	    prepSeq(const int sStart, char *inputSeq, char *opts) ;
 
-static int	    fsSortByNameCompareFunc(void *fs1_in, void *fs2_in) ;
-static int	    fsSortByOrderCompareFunc(void *fs1_in, void *fs2_in) ;
+static gint	    fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in) ;
+static gint	    fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in) ;
 
 static void         getStrandAndFrameFromString(char *text, BlxStrand *strand, int *frame);
 static void         checkReversedSubjectAllowed(const MSP *msp, const char *opts);
@@ -154,9 +155,9 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *sty
   DEBUG_ENTER("parseFS");
 
   if (!fsArr) 
-    fsArr = arrayCreate(50, FeatureSeries);
+    fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
   else
-    arraySort(fsArr, fsSortByNameCompareFunc);
+    g_array_sort(fsArr, fsSortByNameCompareFunc);
 
   /* Find the last MSP in the list - new MSPs will be tagged on to the end of this. We also
    * want to keep a record of the last MSP that was added in case additional information needs
@@ -220,10 +221,36 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *sty
   g_string_free(line_string, TRUE) ;			    /* free everything, buffer and all. */
 
   /* Sort feature segment array by number */
-  arraySort(fsArr, fsSortByOrderCompareFunc);
+  g_array_sort(fsArr, fsSortByOrderCompareFunc);
 
   DEBUG_EXIT("parseFS");
   return ;
+}
+
+
+/* Returns true if a feature-series by the given name exists in the feature-series array and
+ * and, if so, sets index_out with its index. */
+static gboolean fsArrayFindByName(GArray *fsArray, FeatureSeries *fs, int *index_out)
+{
+  gboolean result = FALSE;
+  
+  if (fsArray)
+    {
+      int i = 0;
+      for ( ; i < fsArray->len; ++i)
+	{
+	  FeatureSeries *compareFs = &g_array_index(fsArray, FeatureSeries, i);
+	  
+	  if (!fsSortByNameCompareFunc(fs, compareFs))
+	    {
+	      result = TRUE;
+	      *index_out = i;
+	      break;
+	    }
+	}
+    }
+    
+  return result;
 }
 
 
@@ -234,36 +261,35 @@ void insertFS(MSP *msp, char *series)
 {
   if (!fsArr) 
     {
-      fsArr = arrayCreate(50, FeatureSeries);
+      fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
     }
 
   static int orderNum = 0; /* will increment this each time we add a feature series to the array */
   
-  FeatureSeries fs;
-  fs.on = 1;
-  fs.y = 0.0;
-  fs.xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
+  FeatureSeries *fs = g_malloc(sizeof(FeatureSeries));
+  fs->on = 1;
+  fs->y = 0.0;
+  fs->xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
 
-  fs.name = g_strdup(series);
+  fs->name = g_strdup(series);
 
   int i;
-  if (arrayFind(fsArr, &fs, &i, fsSortByNameCompareFunc))
+  if (fsArrayFindByName(fsArr, fs, &i))
     {
-      msp->fs = arrp(fsArr, i, FeatureSeries);
-      g_free(fs.name);
+      msp->fs = &g_array_index(fsArr, FeatureSeries, i);
+      g_free(fs->name);
+      g_free(fs);
     }
   else
     {
       /* Remember the order we added them so we can sort by it again later. */
       orderNum++;
-      fs.order = orderNum;
+      fs->order = orderNum;
 
-      arrayInsert(fsArr, &fs, fsSortByNameCompareFunc);
+      g_array_append_val(fsArr, *fs);
+//      g_array_sort(fsArr, fsSortByNameCompareFunc);
       
-      /* To do: there's a bug in here where we get the wrong pointer for msp->fs if the names in 
-       * the file are not in alphabetical order... Intend to change this to use GArray anyway... */
-      arrayFind(fsArr, &fs, &i, fsSortByNameCompareFunc);
-      msp->fs = arrp(fsArr, i, FeatureSeries);
+      msp->fs = fs;
     }
 }
 
@@ -271,7 +297,7 @@ void insertFS(MSP *msp, char *series)
 /* Read in a FASTA sequence from a FASTA file */
 char *readFastaSeq(FILE *seqfile, char *seqName)
 {
-  char *resultSeq;
+  char *resultSeq = NULL;
 
   char line[MAXLINE+1];
 
@@ -285,29 +311,21 @@ char *readFastaSeq(FILE *seqfile, char *seqName)
 
       sscanf(line, "%s", seqName);
 
-      /* Loop through the input text and copy into an auto-expandable array */
-      Array arr = arrayCreate(5000, char);
-      int i=0;
+      /* Loop through the input text and copy into an auto-expandable string */
+      GString *resultStr = g_string_sized_new(5000);
       char currentChar;
 
       while ((currentChar = fgetc(seqfile)) != '\n') 
         {
           if (isalpha(currentChar) || currentChar == SEQUENCE_CHAR_GAP || currentChar == SEQUENCE_CHAR_STOP) 
             {
-              array(arr, i++, char) = currentChar;
+	      g_string_append_c(resultStr, currentChar);
             }
         }
       
-      /* Allocate enough space in the result string, and copy the array contents into it */
-      resultSeq = g_malloc(arrayMax(arr)+1);
-      char *resultPos = resultSeq;
-      
-      for (i = 0; i < arrayMax(arr);) 
-        {
-          *resultPos++ = arr(arr, i++, char);
-        }
-      
-      arrayDestroy(arr);
+      /* Set the result string and free the GString (but don't free its data) */
+      resultSeq = resultStr->str;
+      g_string_free(resultStr, FALSE);
     }
   else
     {
@@ -419,7 +437,7 @@ static void parseLook(MSP *msp, char *s)
 	    msp->fsShape = parseShape(cp);
 	}
 	else 
-	    messout("Unrecognised Look: %s", cp);
+	    g_critical("Unrecognised Look: %s", cp);
 	
 	cp = strtok(0, "," );
     }
@@ -433,7 +451,7 @@ static void getDesc(MSP *msp, char *s1, char *s2)
     char *cp;
     
     if (!(cp = strstr(s1, s2))) {
-	messout("Can't find back %s in %s", s2, s1);
+	g_critical("Can't find back %s in %s", s2, s1);
 	return;
     }
 
@@ -511,8 +529,7 @@ static void parseEXBLXSEQBL(MSP **lastMsp, MSP **mspList, BlxParserState parserS
 	     &score, qframe, &qStart, &qEnd, 
 	     &sStart, &sEnd, sName) != 7)
     {
-      g_critical("Incomplete MSP data in input file.\n");
-      abort() ;
+      g_error("Incomplete MSP data in input file.\n");
     }
 
   /* MSPcrunch gives sframe for tblastn - restore qframe */
@@ -719,7 +736,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
 {
   DEBUG_ENTER("parseEXBLXSEQBLExtended (opts='%s')", opts);
   
-  BOOL result = FALSE ;
+  gboolean result = FALSE ;
   int  qlen, slen;
   char *cp;
   char *line ;
@@ -745,8 +762,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
 	     qframe, &qStart, &qEnd, 
 	     sframe, &sStart, &sEnd, sName) != 8)
     {
-      g_critical("Incomplete MSP data in input file.\n");
-      abort() ;
+      g_error("Incomplete MSP data in input file.\n");
     }
 
   /* MSPcrunch gives sframe for tblastn - restore qframe */
@@ -932,7 +948,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
 /* Comparison function to sort two Feature Series by the order number stored in the FeatureSeries
  * struct. Returns -1 if the first item is before the second, 1 if the second is first, or 0 if 
  * they are equal.  */
-static int fsSortByOrderCompareFunc(void *fs1_in, void *fs2_in)
+static gint fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 {
   int result = 0;
 
@@ -949,7 +965,7 @@ static int fsSortByOrderCompareFunc(void *fs1_in, void *fs2_in)
 
 
 /* Comparison function to sort two Features Series by name. */
-static int fsSortByNameCompareFunc(void *fs1_in, void *fs2_in)
+static gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 {
   FeatureSeries *fs1 = (FeatureSeries *)fs1_in;
   FeatureSeries *fs2 = (FeatureSeries *)fs2_in;
@@ -971,10 +987,10 @@ static char *nextLine(FILE *file, GString *line_string)
 {
   enum {BLX_BUF_SIZE = 4096} ;				    /* Vague guess at initial length. */
   char *result = NULL ;
-  BOOL line_finished ;
+  gboolean line_finished ;
   char buffer[BLX_BUF_SIZE] ;
 
-  messAssert(file) ;
+  g_assert(file) ;
 
   line_finished = FALSE ;
   while (!line_finished)
@@ -1099,15 +1115,17 @@ static gboolean parseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
  * 
  * text following Description must not contain ';'. Moves text to first
  * char after ';'. */
-static BOOL parseDescription(char **text, MSP *msp)
+static gboolean parseDescription(char **text, MSP *msp)
 {
-  BOOL result = TRUE ;
+  gboolean result = TRUE ;
   char *cp ;
 
   cp = strtok(NULL, ";") ;
 
   if (cp && *cp)
-    msp->desc = strnew(cp, 0) ;
+    {
+      msp->desc = g_strdup(cp) ;
+    }
 
   return result ;
 }
@@ -1297,8 +1315,7 @@ static void parseFsHsp(char *line, char *opts, MSP **lastMsp, MSP **mspList, GLi
 	     sName, sframe+1, &sStart, &sEnd,
 	     seq) != 10)
     {
-      g_critical("Error parsing data, type FS_HSP: \"%s\"\n", line);
-      abort();
+      g_error("Error parsing data, type FS_HSP: \"%s\"\n", line);
     }
   
   /* Get the strand and frame from the frame strings */
@@ -1361,8 +1378,7 @@ static void parseFsSeg(char *line, char *opts, MSP **lastMsp, MSP **mspList, GLi
   if (sscanf(line, "%d%s%s%d%d%s",
 	     &score, qName, series, &qStart, &qEnd, look) != 6)
     {
-      g_critical("Error parsing data, type FS_SEG: \"%s\"\n", line);
-      abort();
+      g_error("Error parsing data, type FS_SEG: \"%s\"\n", line);
     }
   
   
@@ -1399,8 +1415,7 @@ static void parseFsGff(char *line, char *opts, MSP **lastMsp, MSP **mspList, GLi
 	     qName, series, look, &qStart, &qEnd, scorestring, 
 	     qframe+1, qframe+2) != 8)
     {
-      g_critical("Error parsing data, type FS_GFF: \"%s\"\n", line);
-      abort();
+      g_error("Error parsing data, type FS_GFF: \"%s\"\n", line);
     }
   
   int score = UNSET_INT;
@@ -1447,30 +1462,41 @@ static void parseFsXyHeader(char *line, char *opts, MSP **lastMsp, MSP **mspList
   /* # FS type=XY <sequencename> <seriesname> <look> [annotation] */
   if (sscanf(line+13, "%s%s%s", qName, series, look) != 3)
     {
-      g_critical("Error parsing data, type XY: \"%s\"\n", line);
-      abort();
+      g_error("Error parsing data, type XY: \"%s\"\n", line);
     }
   
   if (!seq1name || !seq2name)
-    g_error("Sequencenames not provided\n");
+    {
+      g_error("Sequencenames not provided\n");
+    }
   
   if (!strcasecmp(qName, seq1name) || !strcmp(qName, "@1"))
     {
       if (!seq1 || !*seq1)
-	g_error("Sequence for %s not provided\n", qName);
+        {
+          g_error("Sequence for %s not provided\n", qName);
+        }
+        
       seqlen = strlen(*seq1);
     }
   else if (!strcasecmp(qName, seq2name) || !strcmp(qName, "@2"))
     {
       if (!seq2 || !*seq2)
-	g_error("Sequence for %s not provided\n", qName);
+        {
+          g_error("Sequence for %s not provided\n", qName);
+        }
+
       seqlen = strlen(*seq2);
     }
   else
-    g_error("Invalid sequence name: %s\n", qName);
+    {
+      g_error("Invalid sequence name: %s\n", qName);
+    }
   
   if (!seqlen)
-    g_error("Sequence for %s is empty\n", qName);
+    { 
+      g_error("Sequence for %s is empty\n", qName);
+    }
 
   /* Create an MSP to put the data in */
   GError *error = NULL;
@@ -1483,10 +1509,13 @@ static void parseFsXyHeader(char *line, char *opts, MSP **lastMsp, MSP **mspList
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
   /* Add additional MSP information */
-  msp->xy = arrayCreate(seqlen, int);
+  msp->xy = g_array_sized_new(TRUE, FALSE, sizeof(int), seqlen);
+  
   for (i = 0; i < seqlen; i++)
-    { 
-      array(msp->xy, i, int) = XY_NOT_FILLED;
+    {
+      int *iPtr = g_malloc(sizeof(int));
+      *iPtr = XY_NOT_FILLED;
+      g_array_append_val(msp->xy, *iPtr);
     }
   
   msp->fsShape = BLXCURVE_INTERPOLATE; /* default */
@@ -1507,10 +1536,11 @@ static void parseFsXyData(char *line, MSP *msp)
   int x, y;
   if (sscanf(line, "%d%d", &x, &y) != 2) 
     {
-      g_critical("Error parsing data file, type FS_XY_BODY: \"%s\"\n", line);
-      abort();
+      g_error("Error parsing data file, type FS_XY_BODY: \"%s\"\n", line);
     }
-  array(msp->xy, x-1, int) = y;
+    
+  int *xyVal = &g_array_index(msp->xy, int, x - 1);
+  *xyVal = y;
 }
 
 
@@ -1525,8 +1555,7 @@ static void parseFsSeqHeader(char *line,
   
   if (sscanf(line+14, "%s%s", qname, series) != 2) 
     {
-      g_critical("Error parsing data file, type FS_SEQ_HEADER: \"%s\"\n", line);
-      abort();
+      g_error("Error parsing data file, type FS_SEQ_HEADER: \"%s\"\n", line);
     }
   
   /* We need to allocate a string to read the seqeunce data in to. We want to allocate the releavant

@@ -27,15 +27,17 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.28 2010-07-21 11:23:02 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.29 2010-07-23 14:29:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
 #define DEF_BLXVIEW_H
 
-#include <wh/regular.h>
 #include <gtk/gtk.h>
 
+#ifdef ACEDB
+#include <wh/regular.h>
+#endif
 
 /* Only used in pephomolcol.c, would be good to get rid of this.... */
 #define FULLNAMESIZE               255
@@ -236,7 +238,7 @@ typedef struct _MSP
   FeatureSeries     *fs;           /* Feature series that this MSP belongs to */
   int               fsColor;       /* Color to draw this MSP in the feature series */
   BlxCurveShape     fsShape;       /* Shape data for drawing feature series curves, i.e. XY type PARTIAL or INTERPOLATE shapes */
-  Array             xy;            /* For XY plot feature series */
+  GArray            *xy;            /* For XY plot feature series */
 
   
 #ifdef ACEDB
@@ -255,7 +257,7 @@ int                                blxview(char *refSeq,
                                            char *opts, 
 	                                   PfetchParams *pfetch, 
                                            char *align_types, 
-                                           BOOL External) ;
+                                           gboolean External) ;
 
 
 #endif /*  !defined DEF_BLXVIEW_H */

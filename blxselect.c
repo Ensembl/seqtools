@@ -1,6 +1,6 @@
 /*  Last edited: Feb 14 10:47 2008 (edgrif) */
 
-/* $Id: blxselect.c,v 1.7 2010-07-01 15:46:45 gb10 Exp $ */
+/* $Id: blxselect.c,v 1.8 2010-07-23 14:29:26 gb10 Exp $ */
 
 /* BLXSELECT - select seqbl/exblx files for blixem in a user-friendly way
  *
@@ -38,6 +38,7 @@
 #include <wh/menu.h>
 #include <wh/key.h>
 #include <SeqTools/blixem_.h>
+#include <SeqTools/utilities.h>
 
 #define MAXLENGTH 1000
 #define boxColor LIGHTGRAY
@@ -55,7 +56,8 @@ static char   qname[FULLNAMESIZE+1],
               opts[32]=" M      d";
 static int    zeroOK=1, lastbox=0, items=0, itemsPerCol, *gargc, backgColor = LIGHTGRAY ;
 static Graph  g;
-static Array  names, selected;
+static GArray *namesArray;
+static GArray *selectedArray;
 static MSP    *MSPlist;
 
 static void   Help(void);
@@ -79,9 +81,12 @@ static MENUOPT menu[] = {
 
 static void Help(void)
 {
-    if (zeroOK) *zeroString = 0; 
+    if (zeroOK)
+      {
+        *zeroString = 0; 
+      }
 
-    graphMessage (messprintf("\
+    char *message = blxprintf("\
 Blixelect - the Blixem file chooser.\n\
 \n\
 Version %s\n\
@@ -100,20 +105,29 @@ RIGHT MOUSE BUTTON:\n\
   Menu.\n\
 \n\n\
 KEYSTROKES:\n\
-  Arrow keys: Go to next sequence to view in Blixem.", blixelectVersion, zeroString));
+  Arrow keys: Go to next sequence to view in Blixem.", blixelectVersion, zeroString);
+
+  graphMessage (message);
+  
+  g_free(message);
 }
 
 
 static void callBlixem(box)
 {
-    char *name, seqfilename[MAXLINE+1], HSPfilename[MAXLINE+1];
-    FILE         *seqfile, *HSPfile;
+    char seqfilename[MAXLINE+1];
+    char HSPfilename[MAXLINE+1];
+    FILE *seqfile;
+    FILE *HSPfile;
 
-    if (box > arrayMax(names)) return;
+    if (box > namesArray->len) 
+      {
+	return;
+      }
 
     box--;
 
-    name = arr(names, box, char*); 
+    const char *name = g_array_index(namesArray, char*, box); 
 
     strncpy(seqfilename, name, MAXLINE);
     strcat(seqfilename, SEQEXT);
@@ -153,16 +167,23 @@ static void boxPick (int box, double x_unused, double y_unused, int modifier_unu
     if (!box) return;
 
     if (box == lastbox)
+      {
 	callBlixem(box);
+      }
     else
-    {
+      {
 	/* Turn last box off */
-	if (lastbox) {
-	    if (array(selected, lastbox, int))
+	if (lastbox) 
+	  {
+	    if (g_array_index(selectedArray, int, lastbox))
+	      {
 		graphBoxDraw(lastbox, BLACK, RED);
+	      }
 	    else
+	      { 
 		graphBoxDraw(lastbox, BLACK, boxColor);
-	}
+	      }
+	  }
 
 	/* Turn this box on */
 	graphBoxDraw(box, WHITE, BLACK);
@@ -185,13 +206,17 @@ static void keypressed (int key, int unused)
     default: return;
     }
 
-    if (box < 1 || box > arrayMax(names)) return;
+    if (box < 1 || box > namesArray->len) return;
 
     /* Turn last box off */
-    if (array(selected, lastbox, int))
+    if (g_array_index(selectedArray, int, lastbox))
+      {
 	graphBoxDraw(lastbox, BLACK, RED);
+      }
     else
+      {
 	graphBoxDraw(lastbox, BLACK, boxColor);
+      }
 
     /* Turn this box on */
     graphBoxDraw(box, WHITE, BLACK);
@@ -231,29 +256,51 @@ static void seqblmenu(FILE *file)
 {
     char   text[MAXLINE+1], *c ;
     int    i, x, y, len, maxLen=0, n, box;
-    Array  counts;
     float  nx, ny;
 
-    names = arrayCreate(10, char*);
-    counts = arrayCreate(10, int);
+    namesArray = g_array_sized_new(TRUE, FALSE, sizeof(char*), 10);
+    GArray *countsArray = g_array_sized_new(TRUE, FALSE, sizeof(int), 10);
 
     while (!feof (file))
-    { 
-	if (!fgets (text, MAXLINE, file)) break;
-	if ((c = (char *)strchr(text, '\n'))) *c = 0;
+      { 
+	if (!fgets (text, MAXLINE, file)) 
+	  {
+	    break;
+	  } 
+	  
+	c = strchr(text, '\n');
+	if (c)
+	  {
+	    *c = 0;
+	  }
+	  
 	len = strlen(text);
 	n = countHSP(text);
-	if (len && (n || zeroOK)) {
-	    if (len > maxLen) maxLen = len;
-	    array(names, items, char*) = g_malloc(len+1);
-	    strcpy(array(names, items, char*), text); 
-	    array(counts, items, int) = n;
+	
+	if (len && (n || zeroOK))
+	  {
+	    if (len > maxLen)
+	      { 
+		maxLen = len;
+	      }
+	      
+	    char **name = &g_array_index(namesArray, char*, items);
+	    *name = g_malloc(len + 1);
+	    strcpy(*name, text); 
+	    
+	    int *count = &g_array_index(countsArray, int, items);
+	    *count = n;
+
 	    items++;
-	}
-    }
+	  }
+      }
+      
     fclose (file);
 
-    g = graphCreate (TEXT_FULL_SCROLL, messprintf("Blixelect - the Blixem file chooser (File: %s, %d seqs)", list, items), 0, 0, 0.7, 0.5);
+    char *title = blxprintf("Blixelect - the Blixem file chooser (File: %s, %d seqs)", list, items);
+    g = graphCreate (TEXT_FULL_SCROLL, title, 0, 0, 0.7, 0.5);
+    g_free(title);
+  
     graphRegister (PICK, boxPick);
     graphRegister (KEYBOARD, keypressed);
     Menu = menuInitialise ("blixelect", (MENUSPEC*)menu) ;
@@ -284,8 +331,14 @@ static void seqblmenu(FILE *file)
 	}
 	
 	box = graphBoxStart();
-	graphText (messprintf("%3d %s", arr(counts, i, int), arr(names, i, char*)),
-		   1+x*(maxLen+6), 1.5+y);
+	
+	const char *name = g_array_index(namesArray, char*, i);
+	int count = g_array_index(countsArray, int, i);
+	
+        char *displayText = blxprintf("%3d %s", count, name);
+	graphText (displayText, 1 + x * (maxLen + 6), 1.5 + y);
+        g_free(displayText);
+		   
 	graphBoxEnd(); 
 	graphBoxDraw(box, BLACK, boxColor);
 	y++;
@@ -293,7 +346,7 @@ static void seqblmenu(FILE *file)
 
     graphButton("Help", Help, 0.5, 0.1);
 
-    selected = arrayCreate(items+1, int);
+    selectedArray = g_array_sized_new(TRUE, FALSE, sizeof(int), items+1);
     
     graphRedraw() ;
 }
@@ -376,33 +429,63 @@ int main(int argc, char **argv)
 }
 
 
-void doselect(void) {
-    if (!lastbox) return;
-    array(selected, lastbox, int) = 1;
-    graphBoxDraw(lastbox, BLACK, RED);
+void doselect(void) 
+{
+  if (!lastbox)
+    {
+      return;
+    }
+    
+  int *selected = &g_array_index(selectedArray, int, lastbox);
+  *selected = 1;
+  
+  graphBoxDraw(lastbox, BLACK, RED);
 }
-void unselect(void) {
-    if (!lastbox) return;
-    array(selected, lastbox, int) = 0;
-    graphBoxDraw(lastbox, BLACK, boxColor);
-}
-void printSelected(void) {
-    int i;
 
-    for (i = 1; i < arrayMax(selected); i++)
-	if (arr(selected, i, int)) printf("%s\n", arr(names, i-1, char*));
+void unselect(void) 
+{
+  if (!lastbox) 
+    {
+      return;
+    }
+    
+  int *selected = &g_array_index(selectedArray, int, lastbox);
+  *selected = 0;
+  
+  graphBoxDraw(lastbox, BLACK, boxColor);
 }
-void exchangeSelected(void) {
-    int i;
 
-    for (i = 1; i <= items; i++) {
-	if (arr(selected, i, int)) {
-	    arr(selected, i, int) = 0;
-	    graphBoxDraw(i, BLACK, boxColor);
-	}
-	else {
-	    arr(selected, i, int) = 1;
-	    graphBoxDraw(i, BLACK, RED);
+void printSelected(void)
+{
+  int i;
+
+  for (i = 1; i < selectedArray->len; i++)
+    {
+      if (g_array_index(selectedArray, int, i)) 
+	{
+	  const char *name = g_array_index(namesArray, char*, i - 1);
+	  printf("%s\n", name);
 	}
     }
+}
+
+void exchangeSelected(void) 
+{
+  int i;
+
+  for (i = 1; i <= items; i++) 
+    {
+      int *selected = &g_array_index(selectedArray, int, i);
+      
+      if (*selected) 
+	{
+	  *selected = 0;
+	  graphBoxDraw(i, BLACK, boxColor);
+	}
+      else
+        {
+	  *selected = 1;
+	  graphBoxDraw(i, BLACK, RED);
+	}
+    } 
 }

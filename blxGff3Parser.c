@@ -28,6 +28,7 @@
 #include <SeqTools/blxGff3Parser_.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/blixem_.h>
+#include <string.h>
 
 
 /* Error codes and domain */
@@ -82,8 +83,7 @@ void parseGff3Header(const int lineNum,
     {
       if (sscanf(line_string->str, "##sequence-region%s%d%d", qName, &qStart, &qEnd) < 1)
         {
-          g_critical("Error parsing data file, type GFF_3_HEADER: \"%s\"\n", line_string->str);
-          abort();
+          g_error("Error parsing data file, type GFF_3_HEADER: \"%s\"\n", line_string->str);
         }
       
       DEBUG_OUT("Found reference sequence name=%s [start=%d, end=%d]\n", qName, qStart, qEnd);
@@ -177,8 +177,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
   
   if (sscanf(line, ">%s", seqName) != 1)
     {
-      g_critical("Error parsing data file, type FASTA_SEQ_HEADER: \"%s\"\n", line);
-      abort();
+      g_error("Error parsing data file, type FASTA_SEQ_HEADER: \"%s\"\n", line);
     }
 
   /* The reference sequence name should already be set */

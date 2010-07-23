@@ -12,8 +12,8 @@
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
-#include <wh/smap.h>
 #include <gtk/gtkcellrenderertext.h>
+#include <stdlib.h>
 
 
 #define SEQUENCE_CELL_RENDERER_NAME	"SequenceCellRenderer"
@@ -538,7 +538,7 @@ static char getMatchSeqBase(BlxSequence *blxSeq, const int sIdx, const BlxSeqTyp
 {
   char result = SEQUENCE_CHAR_PAD;
   
-  if (blxSeq && blxSeq->sequence && blxSeq->sequence->str && sIdx < blxSeq->sequence->len)
+  if (blxSeq && blxSeq->sequence && blxSeq->sequence->str && sIdx <= blxSeq->sequence->len)
     {
       result = blxSeq->sequence->str[sIdx - 1];
       result = convertBaseToCorrectCase(result, seqType);

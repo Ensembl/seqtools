@@ -7,6 +7,11 @@
  */
 
 #include "SeqTools/utilities.h"
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+#include <stdlib.h>
+#include <wh/regular.h> /* for messout */
 
 static CallbackData*	  widgetGetCallbackData(GtkWidget *widget);
 
@@ -1255,6 +1260,80 @@ char *blxSequenceGetSeq(const BlxSequence *seq)
   return (seq && seq->sequence ? seq->sequence->str : NULL);
 }
 
+
+/* Find a BlxSequence by its full name (must be an exact match but is case insensitive) */
+static BlxSequence* blxSequenceFindByName(const char *name, GList *allSeqs)
+{
+  BlxSequence *result = NULL;
+  GList *listItem = allSeqs;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(listItem->data);
+      
+      if (stringsEqual(curSeq->fullName, name, FALSE))
+        {
+          result = curSeq;
+          break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Get the "parent" sequence of the given protein variant. Assumes the variant
+ * contains a dash '-' in the name followed by the variant number as a digit. 
+ * e.g. SW:P51531-2.2. The function looks for a sequence with the same name but
+ * with this dash and the following digit(s) (up to the end of the name or the '.'
+ * if there is one) removed. Returns NULL if no parent was found. */
+BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs)
+{
+  BlxSequence *result = NULL;
+  
+  const char *variantName = blxSequenceGetFullName(variant);
+  char *parentName = g_strdup(variantName);
+  char *insertPoint = strchr(parentName, '-');
+  
+  if (insertPoint)
+    {
+      /* Replace '-' by terminating char, in case there's nothing else to copy in. */
+      *insertPoint = '\0';
+      
+      /* The insert point is where we'll copy into. Create another pointer that we'll increment
+       * until we find a '.' and then we'll copy from that point. */
+      char *copyPoint = insertPoint;
+      ++copyPoint;
+      
+      gboolean foundRestartPoint = FALSE; /* set to true when we find where to start copying from again */
+      
+      while (copyPoint && *copyPoint != '\0')
+        {
+          if (foundRestartPoint)
+            {
+              *insertPoint = *copyPoint;
+              ++insertPoint;
+            }
+          else if (*copyPoint == '.')
+            {
+              foundRestartPoint = TRUE;
+              *insertPoint = *copyPoint;
+              ++insertPoint;
+            }
+          
+          ++copyPoint;
+        }
+    
+      *insertPoint = '\0';
+    
+      result = blxSequenceFindByName(parentName, allSeqs);
+      g_free(parentName);
+    }
+  
+  return result;
+}
+
+
 /* Frees all memory used by a BlxSequence */
 void destroyBlxSequence(BlxSequence *seq)
 {
@@ -1631,7 +1710,7 @@ int wildcardSearch(const char *textToSearch, const char *searchStr)
 		return s ? 1 + (s-textToSearch) : 1 ;
 	      }
 	    
-	    while (freeupper(*textChar) != freeupper(*searchChar))
+	    while (toupper(*textChar) != toupper(*searchChar))
 	      {
 		if (*textChar)
 		  textChar++;
@@ -1652,7 +1731,7 @@ int wildcardSearch(const char *textToSearch, const char *searchStr)
 	    
 	default:
 	  {
-	    if (freeupper(*searchChar++) != freeupper(*textChar++))
+	    if (toupper(*searchChar++) != toupper(*textChar++))
 	      {
 		if(!star)
 		  {
@@ -1991,29 +2070,28 @@ void prefixError(GError *error, char *formatStr, ...)
 //  g_prefix_error(error, prefixStr);  /* Only from GLib v2.16 */
 
   if (error)
-  {
-    va_list argp;
-    va_start(argp, formatStr);
-    
-    /* Print the prefix text and args into a new string. We're not sure how much space we need
-     * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
-     * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
-    const int len = strlen(formatStr) + 200;
-    char tmpStr[len];
-    vsnprintf(tmpStr, len, formatStr, argp);
+    {
+      va_list argp;
+      va_start(argp, formatStr);
+      
+      /* Print the prefix text and args into a new string. We're not sure how much space we need
+       * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
+       * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
+      const int len = strlen(formatStr) + 200;
+      char tmpStr[len];
+      vsnprintf(tmpStr, len, formatStr, argp);
 
-    va_end(argp);
+      va_end(argp);
 
-    /* Append the error message */
-    char *resultStr = g_malloc(len + strlen(error->message));
-    snprintf(resultStr, len, "%s%s", tmpStr, error->message);
-    
-    /* Replace the error message text with the new string. */
-    g_free(error->message);
-    error->message = resultStr;
+      /* Append the error message */
+      char *resultStr = g_malloc(len + strlen(error->message));
+      snprintf(resultStr, len, "%s%s", tmpStr, error->message);
+      
+      /* Replace the error message text with the new string. */
+      g_free(error->message);
+      error->message = resultStr;
   }
 }
-
 
 
 /* Tag the given postfix string onto the end of the given error's message */
@@ -2152,6 +2230,24 @@ void drawHighlightBox(GdkDrawable *drawable,
 }
 
 
+/* Create a given string from the given format and args. Like printf but it creates a string
+ * of the correct length for you. The result should be free'd with g_free. */
+char* blxprintf(char *formatStr, ...)
+{
+  va_list argp;
+  va_start(argp, formatStr);
+
+  /* Print the format text and args into a new string. We're not sure how much space we need
+   * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
+   * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
+  const int len = strlen(formatStr) + 200;
+  char *resultStr = g_malloc(len);
+  vsnprintf(resultStr, len, formatStr, argp);
+  
+  va_end(argp);
+
+  return resultStr;
+}
 
 
 /***********************************************************

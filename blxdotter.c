@@ -12,7 +12,9 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/dotter.h>
-
+#include <string.h>
+#include <stdlib.h>
+#include <regular.h> /* for getSystemName etc. */
 
 #define DEFAULT_DOTTER_RANGE_SELF	2000
 

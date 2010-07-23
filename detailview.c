@@ -13,6 +13,9 @@
 #include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
 #include <gtk/gtk.h>
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
 
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
 #define SORT_BY_NAME_STRING		"Name"
