@@ -878,17 +878,15 @@ static void treeCreateProperties(GtkWidget *widget,
  *                       Tree events                       *
  ***********************************************************/
 
-/* Utility to translate the coords in the given event from coords relative to the source
- * widget to coords relative to the destination widget, and then propagate the event to the
- * dest widget. */
+/* Find the position of the left edge of the source widget wrt the dest widget and offset 
+ * the event by this amount, then propagate the event to the dest widget. This allows us
+ * to get the correct x coord on the parent widget for a click on the child widget. */
 static void propagateEventButton(GtkWidget *srcWidget, GtkWidget *destWidget, GdkEventButton *event)
 {
-  /* Find the position of 0,0 of the source widget wrt the dest widget and offset by this amount. */
-  int xOffset, yOffset;
-  gtk_widget_translate_coordinates(srcWidget, destWidget, 0, 0, &xOffset, &yOffset);
+  int xOffset;
+  gtk_widget_translate_coordinates(srcWidget, destWidget, 0, 0, &xOffset, NULL);
   
   event->x += xOffset;
-  event->y += yOffset;  
   
   gtk_propagate_event(destWidget, (GdkEvent*)event);
 }
@@ -1216,7 +1214,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
     };
   
   if (!handled)
-    {
+    { 
       propagateEventButton(tree, treeGetDetailView(tree), event);
     }
   
