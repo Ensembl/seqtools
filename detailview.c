@@ -3367,23 +3367,11 @@ static void GFind(GtkButton *button, gpointer data)
   showFindDialog(detailViewGetBlxWindow(detailView));
 }
 
-//static void GGroup(GtkButton *button, gpointer data)
-//{
-//  GtkWidget *detailView = GTK_WIDGET(data);
-//  showGroupsDialog(detailViewGetBlxWindow(detailView), TRUE);
-//}
-
-//static void GCopy(GtkButton *button, gpointer data)
-//{
-//  GtkWidget *detailView = GTK_WIDGET(data);
-//  copySelectionToClipboard(detailViewGetBlxWindow(detailView));
-//}
-//
-//static void GPaste(GtkButton *button, gpointer data)
-//{
-//  GtkWidget *detailView = GTK_WIDGET(data);
-//  requestDefaultClipboardText(findSeqsFromClipboard, detailViewGetBlxWindow(detailView));
-//}
+static void GInfo(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  showInfoDialog(detailViewGetBlxWindow(detailView));
+}
 
 static void GGoto(GtkButton *button, gpointer data)
 {
@@ -3888,9 +3876,9 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, ">",  NULL,	"Scroll forward one index (.)",	    (GtkSignalFunc)GscrollRight1,   detailView);
   makeToolbarButton(toolbar, ">>", NULL,	"Scroll forward one page (Ctrl-.)", (GtkSignalFunc)GscrollRightBig, detailView);
   
-  /* Find/copy/paste */
-  makeToolbarButton(toolbar, "Find", GTK_STOCK_FIND,    "Find sequences (f, Ctrl-F)",		  (GtkSignalFunc)GFind,  detailView);
-//  makeToolbarButton(toolbar, "Groups", NULL,  "Group sequences (g, Ctrl-G)",		  (GtkSignalFunc)GGroup,  detailView);
+  /* Find/Msp-info */
+  makeToolbarButton(toolbar, "Find",          GTK_STOCK_FIND,    "Find sequences (f, Ctrl-F)",                      (GtkSignalFunc)GFind,  detailView);
+  makeToolbarButton(toolbar, "Sequence info", GTK_STOCK_INFO,    "Display info about the selected sequence(s) (i)", (GtkSignalFunc)GInfo,  detailView);
 
   /* Strand toggle button */
   if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)

@@ -1140,6 +1140,26 @@ char *mspGetStrain(const MSP const *msp)
   return (msp && msp->sSequence && msp->sSequence->strain ? msp->sSequence->strain->str : NULL);
 }
 
+/* Return all the stored info about an MSP (name, description, organism etc.) in a single
+ * string. The result should be free'd by the caller using g_free. If allowNewlines is true
+ * data will be separated by newlines, otherwise it will be returned as a single line. */
+char *mspGetInfo(const MSP const *msp, const gboolean allowNewlines)
+{
+  char *result = NULL;
+  
+  if (msp)
+    {
+      GString *resultStr = g_string_new("");
+
+      g_string_append_printf(resultStr, "%d - %d [%d - %d]", msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+
+      result = resultStr->str;
+      g_string_free(resultStr, FALSE);
+    }
+  
+  return result;
+}
+
 
 /* Return a char representation of a strand, i.e. "+" for forward strand, "-" for
  * reverse, or "." for none. */
@@ -1260,6 +1280,68 @@ char *blxSequenceGetSeq(const BlxSequence *seq)
   return (seq && seq->sequence ? seq->sequence->str : NULL);
 }
 
+static char *blxSequenceGetOrganism(const BlxSequence *seq)
+{
+  return (seq && seq->organism ? seq->organism->str : "");
+}
+
+static char *blxSequenceGetGeneName(const BlxSequence *seq)
+{
+  return (seq && seq->geneName ? seq->geneName->str : "");
+}
+
+static char *blxSequenceGetTissueType(const BlxSequence *seq)
+{
+  return (seq && seq->tissueType ? seq->tissueType->str : "");
+}
+
+static char *blxSequenceGetStrain(const BlxSequence *seq)
+{
+  return (seq && seq->strain ? seq->strain->str : "");
+}
+
+
+/* Return all the stored info about a blx sequenece (description, organism, tissue type etc.) 
+ * in a single string. The result should be free'd by the caller using g_free. If 'allowNewlines'
+ * is true the data is separated with newline characters, otherwise with tabs (i.e. pass as false
+ * if returned string is to be shown as a single line). The dataLoaded flag should be passed as
+ * false if the optional data has not been loaded yet. */
+char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded)
+{
+  char *result = NULL;
+  
+  if (blxSeq)
+    {
+      GString *resultStr = g_string_new("");
+      char separator = allowNewlines ? '\n' : '\t';
+      char strand = blxSeq->strand == BLXSTRAND_REVERSE ? '-' : '+';
+      char unloadedStr[] = "(optional data not loaded)";
+      
+      g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSeq->fullName, strand, separator);
+      g_string_append_printf(resultStr, "ORGANISM:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetOrganism(blxSeq), separator);
+      g_string_append_printf(resultStr, "GENE NAME:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetGeneName(blxSeq), separator);
+      g_string_append_printf(resultStr, "TISSUE TYPE:\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetTissueType(blxSeq), separator);
+      g_string_append_printf(resultStr, "STRAIN:\t\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetStrain(blxSeq), separator);
+      
+      /* Loop through the MSPs and show their info */
+      g_string_append(resultStr, "ALIGNMENTS:\t\t");
+      GList *mspItem = blxSeq->mspList;
+      
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          const MSP const *msp = (const MSP const *)(mspItem->data);
+          g_string_append_printf(resultStr, "%s\t", mspGetInfo(msp, FALSE));
+        }
+
+      /* Add a final separator after the alignments line*/
+      g_string_append_printf(resultStr, "%c", separator);
+      
+      result = resultStr->str;
+      g_string_free(resultStr, FALSE);
+    }
+  
+  return result;
+}
 
 /* Find a BlxSequence by its full name (must be an exact match but is case insensitive) */
 static BlxSequence* blxSequenceFindByName(const char *name, GList *allSeqs)

@@ -1546,6 +1546,48 @@ void showFindDialog(GtkWidget *blxWindow)
 }
 
 
+/* Show the 'Info' dialog, which displays info about the currently-selected sequence(s) */
+void showInfoDialog(GtkWidget *blxWindow)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Sequence info", 
+						  NULL, 
+						  GTK_DIALOG_DESTROY_WITH_PARENT,
+						  GTK_STOCK_CLOSE,
+						  GTK_RESPONSE_REJECT,
+						  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_REJECT);
+
+  int width = blxWindow->allocation.width * 0.7;
+  int height = blxWindow->allocation.height * 0.9;
+  
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  /* Compile the message text from the selected sequence(s) */
+  GString *resultStr = g_string_new("");
+  const gboolean dataLoaded = blxContextGetFlag(bc, BLXFLAG_EMBL_DATA_LOADED);
+  GList *seqItem = bc->selectedSeqs;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      char *seqText = blxSequenceGetInfo(blxSeq, TRUE, dataLoaded);
+      g_string_append_printf(resultStr, "%s\n\n", seqText);
+      g_free(seqText);
+    }
+  
+  GtkWidget *child = createScrollableTextView(resultStr->str, TRUE, blxWindow->style->font_desc, TRUE, &height, NULL);
+                             
+  gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
+  
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
+  gtk_widget_show_all(dialog);
+  
+  g_string_free(resultStr, TRUE);
+}
+
+
 /* Toggle the bump state. Currently only the exon view can be bumped, so this just
  * affects that. */
 static void toggleBumpState(GtkWidget *blxWindow)
@@ -3691,6 +3733,12 @@ static gboolean onKeyPressT(GtkWidget *window, const gboolean ctrlModifier, cons
   return TRUE;
 }
 
+static gboolean onKeyPressI(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
+{
+  showInfoDialog(window);
+  return TRUE;
+}
+
 static gboolean onKeyPressNumber(GtkWidget *window, const int number, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
   togglePaneVisibility(window, number, ctrlModifier, shiftModifier);
@@ -3755,7 +3803,10 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
 	
       case GDK_t:	    /* fall through */
       case GDK_T:	    result = onKeyPressT(window, ctrlModifier, shiftModifier);		      break;
-	
+
+      case GDK_i:	    /* fall through */
+      case GDK_I:	    result = onKeyPressI(window, ctrlModifier, shiftModifier);		      break;
+
       case GDK_1:	    /* fall through */
       case GDK_exclam:	    result = onKeyPressNumber(window, 1, ctrlModifier, shiftModifier);	      break;
 

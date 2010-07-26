@@ -190,6 +190,7 @@ char*                 mspGetOrganism(const MSP const *msp);
 char*                 mspGetGeneName(const MSP const *msp);
 char*                 mspGetTissueType(const MSP const *msp);
 char*                 mspGetStrain(const MSP const *msp);
+char*                 mspGetInfo(const MSP const *msp, const gboolean allowNewlines);
 
 char                  getStrandAsChar(const BlxStrand strand);
 
@@ -280,6 +281,7 @@ const char*	      blxSequenceGetShortName(const BlxSequence *seq);
 int		      blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
+char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
 
 void		      destroyBlxSequence(BlxSequence *seq);
 
