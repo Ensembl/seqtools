@@ -151,6 +151,7 @@ void			  showSettingsDialog(GtkWidget *blxWindow);
 void			  showViewPanesDialog(GtkWidget *blxWindow);
 void			  showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups);
 void			  showFindDialog(GtkWidget *blxWindow);
+void                      showInfoDialog(GtkWidget *blxWindow);
 void			  showAboutDialog(GtkWidget *blxWindow);
 
 void			  blxWindowRedrawAll(GtkWidget *blxWindow);
