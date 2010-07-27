@@ -699,7 +699,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 
 	  const int idx = minIdx - rd->displayRange->min;
 
-	  int x, y;
+	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 	  
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
@@ -716,7 +716,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  
 	  const int idx = maxIdx + 1 - rd->displayRange->min;
 
-	  int x, y;
+	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
@@ -921,7 +921,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   int segmentIdx = 0;
   for ( ; segmentIdx < segmentLen; ++segmentIdx)
     {
-      int x, y;
+      int x = UNSET_INT, y = UNSET_INT;
       getCoordsForBaseIdx(segmentIdx, &segmentRange, data, &x, &y);
       
       /* Find the base in the match sequence and draw the background color according to how well it matches */
