@@ -1247,7 +1247,10 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
 	    BlxViewContext *bc = treeGetContext(tree);
-	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK));
+            gboolean showSnpTrack = !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK);
+            
+	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, showSnpTrack);
+            detailViewUpdateShowSnpTrack(detailView, showSnpTrack);
 	  }
 	
 	handled = TRUE;

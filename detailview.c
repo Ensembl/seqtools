@@ -596,9 +596,14 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
   
   if (GTK_IS_LABEL(header))
     {
-      /* For straightforward labels, just update the font description. */
+      /* For straightforward labels, just update the font size. */
       GtkWidget *detailView = GTK_WIDGET(data);
-      gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
+      
+      PangoFontDescription *dvFont = detailViewGetFontDesc(detailView);
+      int newSize = pango_font_description_get_size(dvFont);
+
+      pango_font_description_set_size(header->style->font_desc, newSize);
+      gtk_widget_modify_font(header, header->style->font_desc);
     }
   else if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME) || !strcmp(widgetName, DNA_TRACK_HEADER_NAME))
     {
@@ -949,6 +954,9 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
 {
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+  detailViewRedrawAll(detailView);
+  
+  refreshDialog(BLXDIALOG_SETTINGS, detailViewGetBlxWindow(detailView));
 }
 
 
@@ -2920,7 +2928,10 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	  {
 	    /* Double-click: toggle SNP track visibility */
 	    BlxViewContext *bc = detailViewGetContext(detailView);
-	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK));
+            gboolean showSnpTrack = !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK);
+            
+	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, showSnpTrack);
+            detailViewUpdateShowSnpTrack(detailView, showSnpTrack);
 	  }
 
 	handled = TRUE;
@@ -3352,19 +3363,19 @@ static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
 static void GHelp(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  showHelpDialog(detailViewGetBlxWindow(detailView));
+  showHelpDialog(detailViewGetBlxWindow(detailView), TRUE);
 }
 
 static void GSettings(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  showSettingsDialog(detailViewGetBlxWindow(detailView));
+  showSettingsDialog(detailViewGetBlxWindow(detailView), TRUE);
 }
 
 static void GFind(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
-  showFindDialog(detailViewGetBlxWindow(detailView));
+  showFindDialog(detailViewGetBlxWindow(detailView), TRUE);
 }
 
 static void GInfo(GtkButton *button, gpointer data)

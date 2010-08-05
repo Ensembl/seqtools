@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.55 2010-07-23 14:29:26 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.56 2010-08-05 08:55:05 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -142,7 +142,7 @@ MSP score codes:
 char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
-static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, CommandLineOptions *options, char *net_id, int port, const gboolean External) ;
+static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -402,11 +402,12 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
 /* Performs the work of fetching the given list of sequence via pfetch */
 static gboolean pfetchSequences(GList *seqsToFetch, 
                                 GList *seqList, 
-                                char *net_id, 
+                                const char *net_id, 
                                 int port,
                                 const gboolean parseOptionalData,
                                 const gboolean parseSequenceData,
                                 const gboolean External,
+                                const BlxSeqType seqType,
                                 GError **error)
 {
   gboolean success = FALSE;
@@ -416,13 +417,13 @@ static gboolean pfetchSequences(GList *seqsToFetch,
       if (parseSequenceData && !parseOptionalData)
         {
           /* Just parse the minimal EMBL file containing just the fasta sequence */
-          success = populateFastaDataPfetch(seqsToFetch, net_id, port, External) ;
+          success = populateFastaDataPfetch(seqsToFetch, net_id, port, External, seqType, error) ;
         }
       else if (parseOptionalData)
         {
           /* This first call tries fetching the full EMBL entry and parses
            * additional information such as organism and tissue-type */
-          success = populateFullDataPfetch(seqsToFetch, net_id, port, External) ;
+          success = populateFullDataPfetch(seqsToFetch, net_id, port, External, seqType, error) ;
           
           /* If we were requested to populate the sequence fasta data but there are still 
            * some empty sequences (which is likely in protein matches because pfetch -F 
@@ -434,7 +435,7 @@ static gboolean pfetchSequences(GList *seqsToFetch,
               
               if (g_list_length(remainingSeqs) > 0)
                 {
-                  success = populateFastaDataPfetch(remainingSeqs, net_id, port, External) ;
+                  success = populateFastaDataPfetch(remainingSeqs, net_id, port, External, seqType, error) ;
                 }
               
               g_list_free(remainingSeqs);
@@ -450,6 +451,97 @@ static gboolean pfetchSequences(GList *seqsToFetch,
 }
 
 
+#ifdef PFETCH_HTML
+static gboolean pfetchSequencesHttp(GList *seqsToFetch, 
+                                    GList *seqList, 
+                                    const gboolean parseOptionalData,
+                                    const gboolean parseSequenceData,
+                                    const BlxSeqType seqType,
+                                    GError **error)
+{
+  gboolean success = FALSE;
+
+  if (parseSequenceData && !parseOptionalData)
+    {
+      success = populateSequenceDataHtml(seqsToFetch, seqType, FALSE);
+    }
+  else if (parseOptionalData)
+    {
+      /* This first call tries fetching the full EMBL entry and parses
+       * additional information such as organism and tissue-type */
+      success = populateSequenceDataHtml(seqsToFetch, seqType, TRUE);
+      
+      /* If we were requested to populate the sequence fasta data but there are still 
+       * some empty sequences (which is likely in protein matches because pfetch -F 
+       * fails for protein variants), try fetching the EMBL entry containing just the 
+       * fasta sequence. */
+      if (success && parseSequenceData)
+        {
+          GList *remainingSeqs = getSeqsToPopulate(seqList, TRUE, FALSE);
+          
+          if (g_list_length(remainingSeqs) > 0)
+            {
+              success = populateSequenceDataHtml(remainingSeqs, seqType, FALSE) ;
+            }
+          
+          g_list_free(remainingSeqs);
+        }
+    }
+
+  return success;
+}
+#endif
+
+
+/* Utility to get the parent sequence of the given variant, if it is not already set.
+ * returns true if the returned parent is not null. */
+static gboolean getParent(BlxSequence *variant, BlxSequence **parent, GList *allSeqs)
+{
+  if (*parent == NULL)
+    {
+      *parent = blxSequenceGetVariantParent(variant, allSeqs);
+    }
+  
+  return (*parent != NULL);
+}
+
+
+/* This function loops through all sequences in the given list and if any sequence is 
+ * missing the optional-column data (organism, tissue-type etc.) then it looks for the
+ * parent of the sequence and copies it from there, if found. */
+static void populateMissingDataFromParent(GList *seqList)
+{
+  GList *seqItem = seqList;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(seqItem->data);
+      BlxSequence *parent = NULL;
+      
+      /* For each optional column, check if the data in the BlxSequence is null */
+      if (!curSeq->organism && getParent(curSeq, &parent, seqList) && parent->organism && parent->organism->str)
+        {
+          curSeq->organism = g_string_new(parent->organism->str);
+        }
+      
+      if (!curSeq->geneName && getParent(curSeq, &parent, seqList) && parent->geneName && parent->geneName->str)
+        {
+          curSeq->geneName = g_string_new(parent->geneName->str);
+        }
+      
+      if (!curSeq->tissueType && getParent(curSeq, &parent, seqList) && parent->tissueType && parent->tissueType->str)
+        {
+          curSeq->tissueType = g_string_new(parent->tissueType->str);
+        }
+      
+      if (!curSeq->strain && getParent(curSeq, &parent, seqList) && parent->strain && parent->strain->str)
+        {
+          curSeq->strain = g_string_new(parent->strain->str);
+        }
+    }
+}
+
+
 /* This function actually performs the work of fetching the given list of sequences.
  * The first argument is the list of sequences to fetch and the second is the list of all
  * sequences. */
@@ -457,7 +549,7 @@ gboolean fetchSequences(GList *seqsToFetch,
                         GList *seqList,
                         char *fetchMode, 
                         const BlxSeqType seqType,
-                        char *net_id, 
+                        const char *net_id, 
                         int port, 
                         const gboolean parseOptionalData,
                         const gboolean parseSequenceData,
@@ -470,31 +562,26 @@ gboolean fetchSequences(GList *seqsToFetch,
     {
       if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0)
         {  
-          pfetchSequences(seqsToFetch, seqList, net_id, port, parseOptionalData, parseSequenceData, External, error);
+          success = pfetchSequences(seqsToFetch, seqList, net_id, port, parseOptionalData, parseSequenceData, External, seqType, error);
 	}
 #ifdef PFETCH_HTML 
       else if (strcmp(fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
 	{
-          if (parseSequenceData)
-            {
-              success = populateFastaDataHtml(seqsToFetch, seqType) ;
-              
-              if (parseOptionalData)
-                {
-                  g_set_error(error, BLX_ERROR, 1, "Fetching optional data is not implemented yet in pfetch-http mode.\n");
-                }
-            }
-          else if (parseOptionalData)
-            {
-              g_set_error(error, BLX_ERROR, 1, "Fetching optional data is not implemented yet in pfetch-http mode.\n");
-              success = FALSE;
-            }
+          success = pfetchSequencesHttp(seqsToFetch, seqList, parseOptionalData, parseSequenceData, seqType, error);
 	}
 #endif
       else
         {
           g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
         }
+    }
+    
+  /* If there are any seqs left that do not have their optional data populated
+   * they are likely to be protein variants. See if we can find their parent 
+   * sequence and copy the data from there. */
+  if (success && parseOptionalData)
+    {
+      populateMissingDataFromParent(seqsToFetch);
     }
   
   return success;
@@ -509,7 +596,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch,
                                       const BlxSeqType seqType,
                                       GList *seqList, /* list of BlxSequence structs for all required sequences */
                                       char **fetchMode,
-                                      char **net_id,
+                                      const char **net_id,
                                       int *port)
 {
   gboolean success = TRUE;
@@ -552,8 +639,16 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch,
  *             pfetch struct to locate the pfetch server).
  *
  */
-int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist, GList *seqList,
-            char *opts, PfetchParams *pfetch, char *align_types, gboolean External)
+gboolean blxview(char *refSeq, 
+                 char *refSeqName, 
+                 int start, 
+                 int qOffset, 
+                 MSP *msplist, 
+                 GList *seqList,
+                 char *opts, 
+                 PfetchParams *pfetch, 
+                 char *align_types, 
+                 gboolean External)
 {
   if (blixemWindow)
     gtk_widget_destroy(blixemWindow) ;
@@ -580,7 +675,7 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
   
   blxviewGetOpts(opts, refSeq, &options);
   
-  char *net_id = NULL;
+  const char *net_id = NULL;
   int port = UNSET_INT;
   gboolean status = blxviewFetchSequences(pfetch, External, options.parseFullEmblInfo, options.seqType, seqList, &options.fetchMode, &net_id, &port);
   
@@ -591,8 +686,8 @@ int blxview(char *refSeq, char *refSeqName, int start, int qOffset, MSP *msplist
     {
       blviewCreate(opts, align_types, padseq, seqList, &options, net_id, port, External) ;
     }
-
-  return 0;
+  
+  return status;
 }
 
 
@@ -602,7 +697,7 @@ static void blviewCreate(char *opts,
 			 const char *paddingSeq,
                          GList *seqList,
 			 CommandLineOptions *options,
-                         char *net_id,
+                         const char *net_id,
                          int port,
                          const gboolean External)
 {
@@ -985,9 +1080,11 @@ void blviewRedraw(void)
 }
 
 
+/* Reset any global variables / singleton instances */
 void blviewResetGlobals()
 {
   blixemWindow = NULL;
+  destroyMessageList();
 }
 
 
@@ -1109,6 +1206,7 @@ BlxStyle* createBlxStyle(const char *styleName,
   if (tmpError)
     {
       g_free(style);
+      style = NULL;
       prefixError(tmpError, "Error creating style '%s'. ", styleName);
       g_propagate_error(error, tmpError);
     }

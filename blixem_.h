@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.46 2010-07-23 14:29:25 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.47 2010-08-05 08:55:05 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -317,13 +317,13 @@ void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
-gboolean                           populateFastaDataHtml(GList *seqsToFetch, BlxSeqType seqType) ;
-gboolean                           populateFastaDataPfetch(GList *seqsToFetch, char* pfetchIP, int port, gboolean External) ;
-gboolean                           populateFullDataPfetch(GList *seqsToFetch, char *pfetchIP, int port, gboolean External);
+gboolean                           populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const gboolean loadOptionalData) ;
+gboolean                           populateFastaDataPfetch(GList *seqsToFetch, const char* pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error) ;
+gboolean                           populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error);
 gboolean                           blxInitConfig(char *config_file, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
-gboolean                           blxConfigGetPFetchSocketPrefs(char **node, int *port) ;
+gboolean                           blxConfigGetPFetchSocketPrefs(const char **node, int *port) ;
 
 /* translate.c */
 char*                              blxTranslate(char *seq, char **code);
@@ -353,13 +353,13 @@ BlxColor*			   getBlxColor(GArray *defaultColors, const BlxColorId colorId);
 GdkColor*			   getGdkColor(BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
-void                               setupFetchMode(PfetchParams *pfetch, char **fetchMode, char **net_id, int *port);
+void                               setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port);
 
 gboolean                           fetchSequences(GList *seqsToFetch, 
                                                   GList *seqList,
                                                   char *fetchMode, 
                                                   const BlxSeqType seqType,
-                                                  char *net_id, 
+                                                  const char *net_id, 
                                                   int port, 
                                                   const gboolean parseOptionalData,
                                                   const gboolean parseSequenceData,

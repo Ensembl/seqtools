@@ -18,7 +18,7 @@
 #include <gtk/gtk.h>
 
 
-void			showDotterDialog(GtkWidget *blxWindow);
+void			showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront);
 gboolean		callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **error);
 
 

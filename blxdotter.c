@@ -251,9 +251,16 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
 
   if (destroy)
     {
-      g_free(dialogData);
-      gtk_widget_destroy(GTK_WIDGET(dialog));
+      /* The dialog is persistent so hide it rather than destroying it. */
+      gtk_widget_hide_all(GTK_WIDGET(dialog));
     }
+}
+
+
+static void onDestroyDotterDialog(GtkWidget *dialog, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  g_free(dialogData);
 }
 
 
@@ -336,23 +343,83 @@ static GtkWidget* createTextEntry(GtkTable *table,
 }
 
 
-/* Pop up a dialog to allow the user to edit dotter parameters and launch dotter */
-void showDotterDialog(GtkWidget *blxWindow)
+/* Utility to get the title for the dotter dialog. Uses the selected sequence name if a single
+ * sequence is selected, or shows <no sequences> or <multiple sequences>. The result should be
+ * free'd with g_free. */
+static const char* getDotterTitle(const BlxViewContext *bc)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Dotter settings", 
-						  GTK_WINDOW(blxWindow), 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_CANCEL,
-						  GTK_RESPONSE_REJECT,
-						  GTK_STOCK_SAVE,
-						  GTK_RESPONSE_APPLY,
-						  GTK_STOCK_EXECUTE,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
+  const char *result = NULL;
+  
+  GString *resultStr = g_string_new("Dotter sequence: ");
+  
+  const int numSeqs = g_list_length(bc->selectedSeqs);
+  
+  if (numSeqs == 1)
+    {
+      const BlxSequence *blxSeq = (const BlxSequence*)(bc->selectedSeqs->data);
+      g_string_append(resultStr, blxSequenceGetDisplayName(blxSeq));
+    }
+  else if (numSeqs < 1)
+    {
+      g_string_append(resultStr, "<no sequences selected>");
+    }
+  else
+    {
+      g_string_append(resultStr, "<multiple sequences>");
+    }
+  
+  result = resultStr->str;
+  g_string_free(resultStr, FALSE);
+  
+  return result;
+}
+
+
+/* Pop up a dialog to allow the user to edit dotter parameters and launch dotter */
+void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxDialogId dialogId = BLXDIALOG_DOTTER;
+  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  
+  static DotterDialogData *dialogData = NULL;
+  
+  const char *title = getDotterTitle(bc);
+  
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons(title, 
+                                           GTK_WINDOW(blxWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_CANCEL,
+                                           GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_SAVE,
+                                           GTK_RESPONSE_APPLY,
+                                           GTK_STOCK_EXECUTE,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
+
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      /* Create the dialog data struct first time round, but re-populate it each time. Create 
+       * a destructor function that will free the struct. */
+      dialogData = g_malloc(sizeof(DotterDialogData));
+      g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(onDestroyDotterDialog), dialogData);
+      
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
+    }
+  else
+    {
+      /* Refresh the dialog by clearing its contents an re-creating it */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+      
+      gtk_window_set_title(GTK_WINDOW(dialog), title);
+    }
   
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const int spacing = 4;
 
   /* Create a container for the child widgets */
@@ -404,7 +471,6 @@ void showDotterDialog(GtkWidget *blxWindow)
   gtk_box_pack_start(vbox3, hspsButton, FALSE, FALSE, 0);
   
   /* Create the data struct we need to pass to the toggled callback, and connect signals */
-  DotterDialogData *dialogData = g_malloc(sizeof(DotterDialogData));
   dialogData->blxWindow = blxWindow;
   dialogData->autoButton = autoButton;
   dialogData->manualButton = manualButton;
@@ -430,8 +496,6 @@ void showDotterDialog(GtkWidget *blxWindow)
   g_signal_connect(G_OBJECT(selfButton), "toggled", G_CALLBACK(onSelfButtonToggled), dialogData);
   g_signal_connect(G_OBJECT(hspsButton), "toggled", G_CALLBACK(onHspsButtonToggled), dialogData);
   
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
-  
   /* Set the initial state of the toggle buttons and entry widgets */
   if (bc->autoDotter)
     {
@@ -445,6 +509,11 @@ void showDotterDialog(GtkWidget *blxWindow)
     }
   
   gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
 }
 
 

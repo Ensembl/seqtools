@@ -244,18 +244,22 @@ GtkWidget*	      showMessageDialog(const char *title,
 					const gboolean wrapText,
                                         const gboolean useMarkup,
 					PangoFontDescription *fontDesc,
-                                        GtkTextBuffer **textBuffer);
+                                        GtkTextView **textView);
+
+void			destroyMessageList();
 
 GtkWidget*		createScrollableTextView(const char *messageText,
 						 const gboolean wrapText,
 						 PangoFontDescription *fontDesc,
                                                  const gboolean useMarkup,
 						 int *height,
-                                                 GtkTextBuffer **textBufferOut);
+                                                 GtkTextView **textViewOut);
 				    
 void		      widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);
 void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
+void                  onCloseDialog(GtkDialog *dialog, gpointer data);
+void                  dialogClearContentArea(GtkDialog *dialog);
 
 void		      setPrimaryClipboardText(const char *text);
 void		      setDefaultClipboardText(const char *text);

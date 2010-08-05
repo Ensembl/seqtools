@@ -319,6 +319,7 @@ static void                       blxWindowFindDnaString(GtkWidget *blxWindow, c
 static GList*                     findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error);
 static int                        getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft);
 static GList*                     findSeqsFromName(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error);
+static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 
 
 
@@ -390,6 +391,42 @@ static const char developerMenuDescription[] =
 /***********************************************************
  *			   Utilities			   *
  ***********************************************************/
+
+/* Gets the dialog widget for the given dialog id. Returns null if the widget has not
+ * been created yet. */
+GtkWidget* getPersistentDialog(const BlxViewContext *bc, const BlxDialogId dialogId)
+{
+  GtkWidget *result = NULL;
+  
+  if (bc->dialogList[dialogId])
+    {
+      result = bc->dialogList[dialogId];
+    }
+
+  return result;
+}
+
+/* Add a newly-created dialog to the list of persistent dialogs. The dialog should not
+ * exist in the list yet. */
+void addPersistentDialog(BlxViewContext *bc, const BlxDialogId dialogId, GtkWidget *widget)
+{
+  if (dialogId == BLXDIALOG_NOT_PERSISTENT)
+    {
+      g_warning("Code error: cannot add a dialog with ID %d. Dialog will not be persistent.\n", dialogId);
+    }
+  else
+    {
+      if (bc->dialogList[dialogId])
+        {
+          g_warning("Creating a dialog that already exists. Old dialog will be destroyed. Dialog ID=%d.\n", dialogId);
+          gtk_widget_destroy(bc->dialogList[dialogId]);
+          bc->dialogList[dialogId] = NULL;
+        }
+
+      bc->dialogList[dialogId] = widget;
+    }
+}
+
 
 /* Return true if the current user is in our list of developers. */
 static gboolean userIsDeveloper()
@@ -1079,14 +1116,32 @@ static void createExonButtons(GtkWidget *exonView, const char *visLabel, const c
 
 
 /* Shows the "View panes" dialog. This dialog allows the user to show/hide certain portions of the window. */
-void showViewPanesDialog(GtkWidget *blxWindow)
+void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("View panes", 
-						  GTK_WINDOW(blxWindow), 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxDialogId dialogId = BLXDIALOG_VIEW;
+  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("View panes", 
+                                           GTK_WINDOW(blxWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
+
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+    }
+  else
+    {
+      /* Clear contents and re-create */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
@@ -1122,9 +1177,13 @@ void showViewPanesDialog(GtkWidget *blxWindow)
       createTreeVisibilityButton(dv, blxWindowGetInactiveStrand(blxWindow), frame, dvSubBox);
     }
   
-  /* Connect signals and show */
-  g_signal_connect(dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
+  
   gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
 }
 
 
@@ -1515,34 +1574,49 @@ static void onFindDnaString(GtkWidget *button, const gint responseId, gpointer d
 
 
 /* Show the 'Find' dialog */
-void showFindDialog(GtkWidget *blxWindow)
+void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Find sequences", 
-						  GTK_WINDOW(blxWindow), 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_GO_BACK,
-						  BLX_RESPONSE_BACK,
-						  GTK_STOCK_GO_FORWARD,
-						  BLX_RESPONSE_FORWARD,
-						  GTK_STOCK_CLOSE,
-						  GTK_RESPONSE_REJECT,
-                                                  GTK_STOCK_OK,
-                                                  GTK_RESPONSE_ACCEPT,
-						  NULL);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxDialogId dialogId = BLXDIALOG_FIND;
+  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
   
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Find sequences", 
+                                           GTK_WINDOW(blxWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_GO_BACK,
+                                           BLX_RESPONSE_BACK,
+                                           GTK_STOCK_GO_FORWARD,
+                                           BLX_RESPONSE_FORWARD,
+                                           GTK_STOCK_CLOSE,
+                                           GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
+  
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
-  GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+      GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
   
-  GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "Sequence _name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
-  createRadioButton(contentArea, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
-  createRadioButton(contentArea, button1, "Sequence name _list search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
-  
-  /* Connect signals and show */
-  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), button1);
+      GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "Sequence _name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
+      createRadioButton(contentArea, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
+      createRadioButton(contentArea, button1, "Sequence name _list search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+      
+      gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+    }
   
   gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
 }
 
 
@@ -2122,6 +2196,9 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
       blxContext->matchSetGroup->hidden = FALSE;
 
       blxWindowGroupsChanged(blxWindow);
+      
+      /* Refresh the groups dialog, if it happens to be open */
+      refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
 }
 
@@ -2157,6 +2234,9 @@ static void toggleMatchSet(GtkWidget *blxWindow)
       g_list_free(blxContext->matchSetGroup->seqList);
       blxContext->matchSetGroup->seqList = NULL;
       blxWindowGroupsChanged(blxWindow);
+
+      /* Refresh the groups dialog, if it happens to be open */
+      refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
   else
     {
@@ -2209,7 +2289,7 @@ static void onButtonClickedDeleteAllGroups(GtkWidget *button, gpointer data)
       blxWindowDeleteAllSequenceGroups(blxWindow);
       
       /* Close the dialog, because there are no groups left to display. */
-      gtk_widget_destroy(GTK_WIDGET(dialogWindow));
+      gtk_widget_hide_all(GTK_WIDGET(dialogWindow));
     }
 }
 
@@ -2232,15 +2312,7 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
   if (response == GTK_RESPONSE_ACCEPT)
     {
       blxWindowDeleteSequenceGroup(blxWindow, group);
-      
-      /* Refresh the dialog by closing and re-opening. (Not ideal because it doesn't
-       * remember the position). Only re-open if there are still some groups existing. */
-      gtk_widget_destroy(GTK_WIDGET(dialogWindow));
-      
-      if (blxWindowGroupsExist(blxWindow))
-	{
-	  showGroupsDialog(blxWindow, TRUE);
-	}
+      refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
 }
 
@@ -2368,6 +2440,34 @@ static gboolean onSwitchPageGroupsDialog(GtkNotebook *notebook, GtkNotebookPage 
 }
 
 
+/* Utility to find and return a notebook child of the given widget. Assumes there is only
+ * one - if there are more it will just return the first found. Returns NULL if not found. */
+static GtkNotebook* containerGetChildNotebook(GtkContainer *container)
+{
+  GtkNotebook *result = NULL;
+  
+  GList *child = gtk_container_get_children(container);
+  
+  for ( ; child; child = child->next)
+    {
+      GtkWidget *childWidget = GTK_WIDGET(child->data);
+      
+      if (GTK_IS_NOTEBOOK(childWidget))
+        {
+          result = GTK_NOTEBOOK(childWidget);
+          break;
+        }
+      else if (GTK_IS_CONTAINER(childWidget))
+       {
+         /* recurse */
+         containerGetChildNotebook(GTK_CONTAINER(childWidget));
+       }
+    }
+  
+  return result;
+}
+
+
 /* Callback called when user responds to groups dialog */
 void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
@@ -2375,9 +2475,15 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
   gboolean refresh = FALSE;
   
   /* If a notebook was passed, only call callbacks for widgets in the active tab */
-  GtkNotebook *notebook = GTK_NOTEBOOK(data);
-  guint pageNo = gtk_notebook_get_current_page(notebook);
-  GtkWidget *page = gtk_notebook_get_nth_page(notebook, pageNo);
+  GtkNotebook *notebook = containerGetChildNotebook(GTK_CONTAINER(dialog->vbox));
+               
+  if (!notebook)
+    {
+      g_warning("Expected Groups dialog to contain a notebook widget. Dialog may not refresh properly.\n");
+    }
+
+  guint pageNo = notebook ? gtk_notebook_get_current_page(notebook) : 0;
+  GtkWidget *page = notebook ? gtk_notebook_get_nth_page(notebook, pageNo) : NULL;
   
   switch (responseId)
   {
@@ -2405,16 +2511,13 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
   
   if (destroy)
     {
-      gtk_widget_destroy(GTK_WIDGET(dialog));
+      /* Groups dialog is persistent, so hide it rather than destroying it */
+      gtk_widget_hide_all(GTK_WIDGET(dialog));
     }
   else if (refresh)
     {
-      /* Re-create the dialog, opening it on the Edit Groups page */
-      GtkWindow *dialogWindow = GTK_WINDOW(dialog);
-      GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-  
-      gtk_widget_destroy(GTK_WIDGET(dialog));
-      showGroupsDialog(blxWindow, TRUE);
+      GtkWidget *blxWindow = GTK_WIDGET(data);
+      refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
 }
 
@@ -2423,24 +2526,41 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
  * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
  * 'editGroups' argument is true and groups exist, the 'Edit Groups' tab is displayed by default;
  * otherwise the 'Create Groups' tab is shown. */
-void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups)
+void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gboolean bringToFront)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Groups", 
-						  GTK_WINDOW(blxWindow), 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_CANCEL,
-						  GTK_RESPONSE_REJECT,
-						  GTK_STOCK_APPLY,
-						  GTK_RESPONSE_APPLY,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxDialogId dialogId = BLXDIALOG_GROUPS;
+  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
   
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  const gboolean seqsSelected = g_list_length(blxContext->selectedSeqs) > 0;
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Groups", 
+                                           GTK_WINDOW(blxWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_CANCEL,
+                                           GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_APPLY,
+                                           GTK_RESPONSE_APPLY,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
 
-  const int numRows = g_list_length(blxContext->sequenceGroups) + 2; /* +2 for header row and delete-all button */
-  const gboolean groupsExist = blxWindowGroupsExist(blxWindow);
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      /* Make sure we only connect the response event once */
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseGroupsDialog), blxWindow);
+    }
+  else
+    {
+      /* Refresh by deleting the dialog contents and re-creating them. */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
+  
+  const gboolean seqsSelected = g_list_length(bc->selectedSeqs) > 0;
+
+  const int numRows = g_list_length(bc->sequenceGroups) + 2; /* +2 for header row and delete-all button */
   
 
   /* Create tabbed pages */
@@ -2493,17 +2613,25 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups)
   
   /* Connect signals and show */
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseGroupsDialog), notebook);
   g_signal_connect(notebook, "switch-page", G_CALLBACK(onSwitchPageGroupsDialog), dialog);
   
   gtk_widget_show_all(dialog);
-  
-  /* If user has asked to edit groups (and some groups exist), make the second tab
-   * the default and the 'close' button the default action. (Must do this after showing
-   * the child widgets due to a GTK legacy whereby the notebook won't change tabs otherwise.) */
-  if (editGroups && groupsExist)
+
+  if (editGroups && notebook && blxWindowGroupsExist(blxWindow))
     {
-      gtk_notebook_next_page(GTK_NOTEBOOK(notebook));
+      gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook), 1); /* 'edit' page is the 2nd page */
+    }
+  else
+    {
+      gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook), 0); /* 'create' page is the 1st page */
+    }
+  
+  if (bringToFront)
+    {
+      /* If user has asked to edit groups (and some groups exist), make the second tab
+       * the default and the 'close' button the default action. (Must do this after showing
+       * the child widgets due to a GTK legacy whereby the notebook won't change tabs otherwise.) */
+      gtk_window_present(GTK_WINDOW(dialog));
     }
 }
 
@@ -3073,26 +3201,95 @@ static void createUnalignedSeqButtons(GtkWidget *parent, GtkWidget *detailView, 
 }
 
 
-/* Shows the "Settings" dialog. */
-void showSettingsDialog(GtkWidget *blxWindow)
+/* Refresh the given dialog, if it is open */
+void refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
-						  GTK_WINDOW(blxWindow), 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_CANCEL,
-						  GTK_RESPONSE_REJECT,
-						  GTK_STOCK_APPLY,
-						  GTK_RESPONSE_APPLY,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
+  /* This is a bit crude but does the job: if the dialog is visible, just call its
+   * 'show' function to re-create its contents. Only need to do anything for persistent
+   * dialogs. Note that we don't want to bring the dialog to the front, just refresh it in
+   * case the user looks at it again. */
+  if (blxWindow)
+    {
+      const BlxViewContext *bc = blxWindowGetContext(blxWindow);
+      GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+      
+      if (dialog && GTK_WIDGET_VISIBLE(dialog))
+        {
+           switch (dialogId)
+             {
+               case BLXDIALOG_SETTINGS:
+                 showSettingsDialog(blxWindow, FALSE);
+                 break;
+                 
+               case BLXDIALOG_HELP:
+                 showHelpDialog(blxWindow, FALSE);
+                 break;
+
+               case BLXDIALOG_FIND:
+                 showFindDialog(blxWindow, FALSE);
+                 break;
+
+               case BLXDIALOG_VIEW:
+                 showViewPanesDialog(blxWindow, FALSE);
+                 break;
+
+               case BLXDIALOG_DOTTER:
+                 showDotterDialog(blxWindow, FALSE);
+                 break;
+                 
+               case BLXDIALOG_GROUPS:
+                 showGroupsDialog(blxWindow, TRUE, FALSE); /* show the 'edit' pane because we've got here by adding/deleting a group */
+                 break;
+                 
+               default:
+                 break;
+             };
+        }
+    }
+  else
+    {
+      g_warning("Could not refresh dialog [ID=%d]; parent window not found.\n", dialogId);
+    }
+}
+
+
+/* Show/refresh the "Settings" dialog. */
+void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxDialogId dialogId = BLXDIALOG_SETTINGS;
+  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
   
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
+                                           GTK_WINDOW(blxWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_CANCEL,
+                                           GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_APPLY,
+                                           GTK_RESPONSE_APPLY,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
+
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+    }
+  else
+    {
+      /* Need to refresh the dialog contents, so clear and re-create content area */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
+
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
 
   int borderWidth = 12;
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Create separate pages for general settings and colors */
   GtkWidget *notebook = gtk_notebook_new();
@@ -3128,9 +3325,13 @@ void showSettingsDialog(GtkWidget *blxWindow)
   createCheckButton(GTK_BOX(appearancePage), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
   createColorButtons(appearancePage, blxWindow, borderWidth);
 
-  /* Connect signals and show */
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
+  
   gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
 }
 
 
@@ -3318,40 +3519,66 @@ void onResponseHelpDialog(GtkDialog *dialog, gint responseId, gpointer data)
   
   if (destroy)
     {
-      gtk_widget_destroy(GTK_WIDGET(dialog));
+      /* If it's a persistent dialog, just hide it, otherwise destroy it */
+      const gboolean isPersistent = GPOINTER_TO_INT(data);
+      
+      if (isPersistent)
+        {
+          gtk_widget_hide_all(GTK_WIDGET(dialog));
+        }
+      else
+        {
+          gtk_widget_destroy(GTK_WIDGET(dialog));
+        }
     }
 }
 
 
-void showHelpDialog(GtkWidget *blxWindow)
+void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  char *messageText = blxprintf(HELP_TEXT1, blixemVersion);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxDialogId dialogId = BLXDIALOG_HELP;
+  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  
+  if (!dialog)
+    {
+      /* Create the dialog */
+      dialog = gtk_dialog_new_with_buttons("Help", 
+                                           NULL, 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_ABOUT,
+                                           GTK_RESPONSE_HELP,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
 
-  /* Set a pretty big initial size */
-  const int width = blxWindow->allocation.width * 0.7;
-  const int maxHeight = blxWindow->allocation.height * 0.9;
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+
+      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+      /* Set a pretty big initial size. */
+      const int width = blxWindow->allocation.width * 0.7;
+      int height = blxWindow->allocation.height * 0.9;
+      char *messageText = blxprintf(HELP_TEXT1, blixemVersion);
+
+      GtkWidget *child = createScrollableTextView(messageText, TRUE, blxWindow->style->font_desc, TRUE, &height, NULL);
+      
+      g_free(messageText);
+
+      gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+      gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
   
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Help", 
-						  NULL, 
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_ABOUT,
-						  GTK_RESPONSE_HELP,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
-  
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
-  int height = maxHeight;
-  GtkWidget *child = createScrollableTextView(messageText, TRUE, blxWindow->style->font_desc, TRUE, &height, NULL);
-  
-  gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
-  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
-  
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseHelpDialog), NULL);
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseHelpDialog), GINT_TO_POINTER(TRUE));
+    }
+      
   gtk_widget_show_all(dialog);
   
-  g_free(messageText);
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
 }
 
 
@@ -3372,7 +3599,7 @@ static void onQuit(GtkAction *action, gpointer data)
 static void onHelpMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  showHelpDialog(blxWindow);
+  showHelpDialog(blxWindow, TRUE);
 }
 
 
@@ -3380,7 +3607,7 @@ static void onHelpMenu(GtkAction *action, gpointer data)
 static void onViewMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  showViewPanesDialog(blxWindow);
+  showViewPanesDialog(blxWindow, TRUE);
 }
 
 
@@ -3388,7 +3615,7 @@ static void onViewMenu(GtkAction *action, gpointer data)
 static void onCreateGroupMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  showGroupsDialog(blxWindow, FALSE);
+  showGroupsDialog(blxWindow, FALSE, TRUE);
 }
 
 
@@ -3396,7 +3623,7 @@ static void onCreateGroupMenu(GtkAction *action, gpointer data)
 static void onEditGroupsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  showGroupsDialog(blxWindow, TRUE);
+  showGroupsDialog(blxWindow, TRUE, TRUE);
 }
 
 /* Called when the user selects the 'Toggle match set' option, or hits the relevant shortcut key */
@@ -3410,7 +3637,7 @@ static void onToggleMatchSet(GtkAction *action, gpointer data)
 static void onSettingsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  showSettingsDialog(blxWindow);
+  showSettingsDialog(blxWindow, TRUE);
 }
 
 
@@ -3418,7 +3645,7 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
 static void onDotterMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  showDotterDialog(blxWindow);
+  showDotterDialog(blxWindow, TRUE);
 }
 
 
@@ -3685,7 +3912,7 @@ static gboolean onKeyPressF(GtkWidget *window, const gboolean ctrlModifier, cons
 {
   if (ctrlModifier)
     {
-      showFindDialog(window);
+      showFindDialog(window, TRUE);
     }
   else
     {
@@ -3724,6 +3951,10 @@ static gboolean onKeyPressG(GtkWidget *window, const gboolean ctrlModifier, cons
 static gboolean onKeyPressB(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
   toggleBumpState(window);
+  
+  /* Refresh the view dialog, if it is open */
+  refreshDialog(BLXDIALOG_VIEW, window);
+  
   return TRUE;
 }
 
@@ -3742,6 +3973,10 @@ static gboolean onKeyPressI(GtkWidget *window, const gboolean ctrlModifier, cons
 static gboolean onKeyPressNumber(GtkWidget *window, const int number, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
   togglePaneVisibility(window, number, ctrlModifier, shiftModifier);
+  
+  /* Refresh the view dialog, if it is open */
+  refreshDialog(BLXDIALOG_VIEW, window);
+  
   return TRUE;
 }
 
@@ -3912,7 +4147,7 @@ static void onDestroyBlxWindow(GtkWidget *widget)
       g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", NULL);
     }
 
-  /* Reset the global pointer to the blxWindow */
+  /* Reset any globals */
   blviewResetGlobals();
   
   gtk_main_quit();
@@ -4096,6 +4331,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
+  createBlxColor(bc, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   
   g_free(defaultBgColorStr);
 }
@@ -4107,7 +4343,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const char *paddingSeq,
                                               GList *seqList,
 					      GtkWidget *widget,
-                                              char *net_id,
+                                              const char *net_id,
                                               int port,
                                               const gboolean External)
 {
@@ -4161,6 +4397,13 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   /* Set any specific flags that we want initialised to TRUE */
   blxContextSetFlag(blxContext, BLXFLAG_LIMIT_UNALIGNED_BASES, TRUE);
   blxContextSetFlag(blxContext, BLXFLAG_EMBL_DATA_LOADED, options->parseFullEmblInfo);
+  
+  /* Null out all the entries in the dialogs list */
+  int dialogId = 0;
+  for ( ; dialogId < BLXDIALOG_NUM_DIALOGS; ++dialogId)
+    {
+      blxContext->dialogList[dialogId] = NULL;
+    }
   
   return blxContext;
 }
@@ -4488,6 +4731,9 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow)
   GString *displayText = blxWindowGetSelectedSeqNames(blxWindow);
   setPrimaryClipboardText(displayText->str);
   g_string_free(displayText, TRUE);
+  
+  /* Refresh the dotter dialog, if it happens to be open */
+  refreshDialog(BLXDIALOG_DOTTER, blxWindow);
 }
 
 
@@ -4871,7 +5117,7 @@ static int calculateMspData(MSP *mspList, BlxViewContext *bc)
 GtkWidget* createBlxWindow(CommandLineOptions *options, 
                            const char *paddingSeq, 
                            GList *seqList, 
-                           char *net_id, 
+                           const char *net_id, 
                            int port,
                            const gboolean External)
 {
@@ -4902,7 +5148,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the main blixem window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setStyleProperties(window);
-  
+
+  /* Set the message handlers again and pass the window, now we know it */
+  g_log_set_default_handler(defaultMessageHandler, window);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, window);
+
   /* Create a vertical box to pack everything in */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(window), vbox);

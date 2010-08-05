@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.20 2010-07-23 14:29:26 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.21 2010-08-05 08:55:05 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -35,13 +35,7 @@
 #include <SeqTools/utilities.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
-#include <wh/regular.h>
 
-
-/* scrolled message window max messages. */
-enum {BLIXEM_MESG_NUM = 50} ;
-
-static void msgPopupsCB(BOOL msg_list) ;
 
 
 /* Some globals.... */
@@ -205,6 +199,7 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
   if (error && *error)
     {
       prefixError(*error, "Error reading key file '%s'. ", keyFileName);
+      postfixError(*error, "\n");
     }
   
   return result;
@@ -290,9 +285,6 @@ int main(int argc, char **argv)
    */
   g_log_set_default_handler(defaultMessageHandler, NULL);
   g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
-
-  messSetMsgInfo(argv[0], BLIXEM_TITLE_STRING) ;
-
 
   /* Stick version info. into usage string. */
   usage = g_malloc(strlen(usageText) + strlen(blixemVersion) + 10) ;
@@ -408,7 +400,6 @@ int main(int argc, char **argv)
   /* Old style graph init is still required for calling dotter from blixem */
   graphInit(&argc, argv) ;
   gexInit(&argc, argv);
-  gexSetMessPrefs(FALSE, BLIXEM_MESG_NUM, msgPopupsCB) ;  /* for control of popup or mesglist */
 
   /* Set up program configuration. */
   if (!blxInitConfig(config_file, &error))
@@ -556,40 +547,14 @@ int main(int argc, char **argv)
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  blxview(refSeq, refSeqName, displayStart, qOffset, mspList, seqList, opts, pfetch, align_types, TRUE);
-  gtk_main();
+  if (blxview(refSeq, refSeqName, displayStart, qOffset, mspList, seqList, opts, pfetch, align_types, TRUE))
+    {
+      gtk_main();
+    }
     
   /* We should not get here.... */
   return (EXIT_FAILURE) ;
 }
-
-
-
-
-/* 
- *                    Internal functions.
- */
-
-
-
-
-/* Enables user to switch between seeing informational messages in popups
- * or in a scrolled window. */
-static void msgPopupsCB(BOOL msg_list)
-{
-  int list_length ;
-
-  if (msg_list)
-    list_length = BLIXEM_MESG_NUM ;
-  else
-    list_length = 0 ;
-
-  gexSetMessPopUps(msg_list, list_length) ;
-
-  return ;
-}
-
-
 
 
 

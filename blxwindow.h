@@ -60,6 +60,25 @@ typedef enum
   } BlxFlag;
 
 
+/* This enum contains IDs for all the persistent dialogs in the application, and should be used
+ * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList
+ * array will contain null entries until the dialogs are created for the first time */
+typedef enum
+  {
+    BLXDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
+    
+    BLXDIALOG_HELP,                 /* The Help dialog */
+    BLXDIALOG_SETTINGS,             /* The Settings dialog */
+    BLXDIALOG_FIND,                 /* The Find dialog */
+    BLXDIALOG_GROUPS,               /* The Groups dialog */
+    BLXDIALOG_VIEW,                 /* The View dialog */
+    BLXDIALOG_DOTTER,               /* The Dotter dialog */
+    
+    BLXDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
+  } BlxDialogId;
+
+
+
 /* A Blixem View context, containing all status information required to draw the blixem view */
 typedef struct _BlxViewContext
 {
@@ -81,7 +100,7 @@ typedef struct _BlxViewContext
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
   
   gboolean displayRev;		    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
-  char *net_id;                     /* pfetch-socket net id */
+  const char *net_id;               /* pfetch-socket net id */
   int port;                         /* pfetch-socket port */
   gboolean external;                /* True if Blixem was run externally or false if it was run internally from another program */
   
@@ -98,6 +117,7 @@ typedef struct _BlxViewContext
   gboolean usePrintColors;	    /* Whether to use print colors (i.e. black and white) */
   
   GArray *blxFlags;		    /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
+  GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
 } BlxViewContext;
 
 
@@ -146,13 +166,17 @@ int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);
 void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
 
-void			  showHelpDialog(GtkWidget *blxWindow);
-void			  showSettingsDialog(GtkWidget *blxWindow);
-void			  showViewPanesDialog(GtkWidget *blxWindow);
-void			  showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups);
-void			  showFindDialog(GtkWidget *blxWindow);
-void                      showInfoDialog(GtkWidget *blxWindow);
+void                      refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow);
+void			  showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void			  showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void			  showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void			  showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gboolean bringToFront);
+void			  showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront);
 void			  showAboutDialog(GtkWidget *blxWindow);
+void                      showInfoDialog(GtkWidget *blxWindow);
+
+GtkWidget*                getPersistentDialog(const BlxViewContext *bc, const BlxDialogId dialogId);
+void                      addPersistentDialog(BlxViewContext *bc, const BlxDialogId dialogId, GtkWidget *widget);
 
 void			  blxWindowRedrawAll(GtkWidget *blxWindow);
 
@@ -169,7 +193,12 @@ gchar*			  getSequenceSegment(BlxViewContext *bc,
 					     const gboolean translateResult,
 					     GError **error);
   
-GtkWidget*		  createBlxWindow(CommandLineOptions *options, const char *paddingSeq, GList *seqList, char *net_id, int port, const gboolean External);
+GtkWidget*		  createBlxWindow(CommandLineOptions *options, 
+					  const char *paddingSeq, 
+					  GList *seqList, 
+					  const char *net_id, 
+					  int port, 
+					  const gboolean External);
 
 
 #endif /* _blxwindow_included_ */

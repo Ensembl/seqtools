@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.29 2010-07-23 14:29:26 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.30 2010-08-05 08:55:05 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -183,6 +183,7 @@ typedef enum
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
     BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
     BLXCOLOR_TREE_GRID_LINES,/* color of the tree grid lines (i.e. column separator lines) */
+    BLXCOLOR_CLIP_MARKER,   /* color of the marker line used to indicate a match has been clipped */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;
@@ -248,16 +249,16 @@ typedef struct _MSP
 
 
 /* Function to show blixem window, can be called from any application. */
-int                                blxview(char *refSeq, 
-                                           char *refSeqName,
-	                                   int start, 
-                                           int qOffset, 
-                                           MSP *msplist, 
-                                           GList *seqList, 
-                                           char *opts, 
-	                                   PfetchParams *pfetch, 
-                                           char *align_types, 
-                                           gboolean External) ;
+gboolean                            blxview(char *refSeq, 
+                                            char *refSeqName,
+	                                    int start, 
+                                            int qOffset, 
+                                            MSP *msplist, 
+                                            GList *seqList, 
+                                            char *opts, 
+	                                    PfetchParams *pfetch, 
+                                            char *align_types, 
+                                            gboolean External) ;
 
 
 #endif /*  !defined DEF_BLXVIEW_H */

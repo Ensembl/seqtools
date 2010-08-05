@@ -57,6 +57,7 @@ typedef struct _RenderData
     GdkColor *exonBoundaryColorEnd;
     GdkColor *polyAColor;
     GdkColor *polyAColorSelected;
+    GdkColor *clipMarkerColor;
     int exonBoundaryWidth;
     GdkLineStyle exonBoundaryStyleStart;
     GdkLineStyle exonBoundaryStyleEnd;
@@ -875,6 +876,33 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
 }
 
 
+/* If the current MSP has been clipped (i.e. extends outside the current reference
+ * sequence range) then draw a marker at the clip point so that the user knows there
+ * is more data for the match that isn't shown. */
+static void drawClippedMarker(const MSP const *msp,
+			      const int qIdx, 
+			      const int segmentIdx, 
+			      const IntRange const *segmentRange,
+			      const int x, 
+			      const int y, 
+			      RenderData *data)
+{
+  /* Check if we're at the very first/last index in the reference sequence range */
+  if (qIdx == data->bc->refSeqRange.min && msp->qRange.min < qIdx)
+    {
+      int gapWidth = roundNearest((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
+      gdk_gc_set_foreground(data->gc, data->clipMarkerColor);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, gapWidth, data->charHeight);
+    }
+  else if (qIdx == data->bc->refSeqRange.max && msp->qRange.max > qIdx)
+    {
+      int gapWidth = roundNearest((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
+      gdk_gc_set_foreground(data->gc, data->clipMarkerColor);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x + data->charWidth - gapWidth, y, gapWidth, data->charHeight);
+    }
+}
+
+
 static void drawDnaSequence(SequenceCellRenderer *renderer,
 			    MSP *msp,
 			    GtkWidget *tree,
@@ -931,6 +959,9 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       /* If there is an insertion (i.e. extra bases on the match sequence) between this 
        * and the previous coord, draw a marker */
       drawInsertionMarker(sIdx, lastFoundSIdx, qIdx, lastFoundQIdx, x, y, data);
+
+      /* If this match has been clipped, draw a marker to indicate as such */
+      drawClippedMarker(msp, qIdx, segmentIdx, &segmentRange, x, y, data);
 
       if (sIdx != UNSET_INT)
 	{
@@ -1007,6 +1038,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
     getGdkColor(BLXCOLOR_EXON_END, bc->defaultColors, FALSE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_POLYA_TAIL, bc->defaultColors, FALSE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_POLYA_TAIL, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_CLIP_MARKER, bc->defaultColors, FALSE, bc->usePrintColors),
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
     detailViewProperties->exonBoundaryLineStyleEnd,
