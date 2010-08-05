@@ -1599,8 +1599,6 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       addPersistentDialog(bc, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
-      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-
       GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
   
       GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "Sequence _name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
@@ -1610,6 +1608,8 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
     }
+
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
   gtk_widget_show_all(dialog);
   
@@ -3556,8 +3556,6 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       addPersistentDialog(bc, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
-      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-
       /* Set a pretty big initial size. */
       const int width = blxWindow->allocation.width * 0.7;
       int height = blxWindow->allocation.height * 0.9;
@@ -3573,6 +3571,8 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseHelpDialog), GINT_TO_POINTER(TRUE));
     }
       
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
   gtk_widget_show_all(dialog);
   
   if (bringToFront)
