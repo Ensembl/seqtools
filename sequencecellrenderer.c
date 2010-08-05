@@ -887,18 +887,40 @@ static void drawClippedMarker(const MSP const *msp,
 			      const int y, 
 			      RenderData *data)
 {
+  gboolean clipStart = FALSE;
+  gboolean clipEnd = FALSE;
+  
   /* Check if we're at the very first/last index in the reference sequence range */
   if (qIdx == data->bc->refSeqRange.min && msp->qRange.min < qIdx)
     {
-      int gapWidth = roundNearest((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
-      gdk_gc_set_foreground(data->gc, data->clipMarkerColor);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, gapWidth, data->charHeight);
+      if (data->bc->displayRev)
+        {
+          clipEnd = TRUE;
+        }
+      else
+        {
+          clipStart = TRUE;
+        }
     }
   else if (qIdx == data->bc->refSeqRange.max && msp->qRange.max > qIdx)
     {
+      if (data->bc->displayRev)
+        {
+          clipStart = TRUE;
+        }
+      else
+        {
+          clipEnd = TRUE;
+        }
+    }
+
+  if (clipStart || clipEnd)
+    {
       int gapWidth = roundNearest((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
+      const int xPos = clipStart ? x : x + data->charWidth - gapWidth;
+
       gdk_gc_set_foreground(data->gc, data->clipMarkerColor);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x + data->charWidth - gapWidth, y, gapWidth, data->charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, xPos, y, gapWidth, data->charHeight);
     }
 }
 
