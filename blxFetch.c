@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.31 2010-08-05 08:55:05 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.32 2010-08-05 09:58:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1028,16 +1028,16 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
 	{
 	  double proportionOk = (float)numSucceeded / (float)numRequested;
 
-	  /* We don't display an error message unless lots of sequences don't get fetched
-	   * because users find it annoying as most of the time they don't mind if the
-	   * odd sequence isn't fetched successfully. */
+	  /* We don't display a critical error message when fetching the full EMBL file because we're
+           * going to re-try fetching just the fasta data anyway. Display a warning, or just an info
+           * message if a small proportion failed */
 	  if (proportionOk < 0.5)
             {
-              g_critical("pfetch sent back %d when %d requested\n", numSucceeded, numRequested) ;
+              g_warning("pfetch of full EMBL entries sent back %d when %d requested\n", numSucceeded, numRequested) ;
             }
 	  else
             {
-              g_message("pfetch sent back %d when %d requested\n", numSucceeded, numRequested) ;
+              g_message("pfetch of full EMBL entries sent back %d when %d requested\n", numSucceeded, numRequested) ;
             }
 	}
     }
