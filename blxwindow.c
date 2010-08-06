@@ -4112,6 +4112,7 @@ static void destroyBlxContext(BlxViewContext **bc)
       
       destroyMspList(&((*bc)->mspList));
       destroyBlxSequenceList(&((*bc)->matchSeqs));
+      blxDestroyGffTypeList(&((*bc)->supportedTypes));
       
       /* Free the context struct itself */
       g_free((*bc));
@@ -4342,6 +4343,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *fullDisplayRange,
 					      const char *paddingSeq,
                                               GList *seqList,
+                                              GSList *supportedTypes,
 					      GtkWidget *widget,
                                               const char *net_id,
                                               int port,
@@ -4365,6 +4367,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->paddingSeq = paddingSeq;
   blxContext->fetchMode = g_strdup(options->fetchMode);
   blxContext->matchSeqs = seqList;
+  blxContext->supportedTypes = supportedTypes;
   
   blxContext->displayRev = FALSE;
   blxContext->net_id = net_id;
@@ -5117,6 +5120,7 @@ static int calculateMspData(MSP *mspList, BlxViewContext *bc)
 GtkWidget* createBlxWindow(CommandLineOptions *options, 
                            const char *paddingSeq, 
                            GList *seqList, 
+                           GSList *supportedTypes,
                            const char *net_id, 
                            int port,
                            const gboolean External)
@@ -5169,7 +5173,16 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 								      0,   /* page increment dynamically set based on display range */
 								      0)); /* page size dunamically set based on display range */
   
-  BlxViewContext *blxContext = blxWindowCreateContext(options, &refSeqRange, &fullDisplayRange, paddingSeq, seqList, window, net_id, port, External);
+  BlxViewContext *blxContext = blxWindowCreateContext(options, 
+                                                      &refSeqRange, 
+                                                      &fullDisplayRange, 
+                                                      paddingSeq, 
+                                                      seqList, 
+                                                      supportedTypes,
+                                                      window, 
+                                                      net_id, 
+                                                      port, 
+                                                      External);
   
   const int lowestId = calculateMspData(options->mspList, blxContext);
   

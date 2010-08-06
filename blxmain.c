@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.21 2010-08-05 08:55:05 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.22 2010-08-06 13:08:34 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -510,7 +510,9 @@ int main(int argc, char **argv)
     }
   
   GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
-  parseFS(&mspList, FSfile, opts, &seqList, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+  GSList* supportedTypes = blxCreateSupportedGffTypeList();
+
+  parseFS(&mspList, FSfile, opts, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
   
   if (FSfile != stdin)
     {
@@ -525,7 +527,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&mspList, xtra_file, opts, &seqList, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+      parseFS(&mspList, xtra_file, opts, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
       fclose(xtra_file) ;
     }
 
@@ -547,7 +549,7 @@ int main(int argc, char **argv)
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  if (blxview(refSeq, refSeqName, displayStart, qOffset, mspList, seqList, opts, pfetch, align_types, TRUE))
+  if (blxview(refSeq, refSeqName, displayStart, qOffset, mspList, seqList, supportedTypes, opts, pfetch, align_types, TRUE))
     {
       gtk_main();
     }

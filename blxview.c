@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.56 2010-08-05 08:55:05 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.57 2010-08-06 13:08:34 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -142,7 +142,7 @@ MSP score codes:
 char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
-static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
+static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -645,6 +645,7 @@ gboolean blxview(char *refSeq,
                  int qOffset, 
                  MSP *msplist, 
                  GList *seqList,
+                 GSList *supportedTypes,
                  char *opts, 
                  PfetchParams *pfetch, 
                  char *align_types, 
@@ -684,7 +685,7 @@ gboolean blxview(char *refSeq,
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, padseq, seqList, &options, net_id, port, External) ;
+      blviewCreate(opts, align_types, padseq, seqList, supportedTypes, &options, net_id, port, External) ;
     }
   
   return status;
@@ -696,6 +697,7 @@ static void blviewCreate(char *opts,
 			 char *align_types, 
 			 const char *paddingSeq,
                          GList *seqList,
+                         GSList *supportedTypes,
 			 CommandLineOptions *options,
                          const char *net_id,
                          int port,
@@ -704,7 +706,7 @@ static void blviewCreate(char *opts,
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createBlxWindow(options, paddingSeq, seqList, net_id, port, External);
+      blixemWindow = createBlxWindow(options, paddingSeq, seqList, supportedTypes, net_id, port, External);
 
       gboolean pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       

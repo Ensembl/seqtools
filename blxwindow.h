@@ -95,6 +95,7 @@ typedef struct _BlxViewContext
 
   MSP *mspList;			    /* List of all MSPs. */
   GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
+  GSList *supportedTypes;           /* List of supported GFF types */
   gboolean gappedHsp;		    
   const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
@@ -196,6 +197,7 @@ gchar*			  getSequenceSegment(BlxViewContext *bc,
 GtkWidget*		  createBlxWindow(CommandLineOptions *options, 
 					  const char *paddingSeq, 
 					  GList *seqList, 
+                                          GSList *supportedTypes,
 					  const char *net_id, 
 					  int port, 
 					  const gboolean External);

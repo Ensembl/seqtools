@@ -31,20 +31,24 @@
 #include <gtk/gtk.h>
 #include <SeqTools/blixem_.h>
 
-/* Some defines for parsing stuff....may need v2 and v3 versions of these. */
-enum {GFF_MANDATORY_FIELDS = 8, GFF_MAX_FIELD_CHARS = 50, GFF_MAX_FREETEXT_CHARS = 5000} ;
-
-
-
-/* possible states for parsing GFF file, rather trivial in fact.... */
-typedef enum {BLXGFF_PARSE_HEADER, BLXGFF_PARSE_BODY,
-	      BLXGFF_PARSE_SEQUENCE, BLXGFF_PARSE_ERROR} BlxGFFParseState ;
-
 
 /* We follow glib convention in error domain naming:
  *          "The error domain is called <NAMESPACE>_<MODULE>_ERROR" */
 #define BLX_GFF_ERROR "BLX_GFF_ERROR"
 
+
+/* This struct contains info about a GFF type: its name and SO id, and the blixem
+ * type that it corresponds to */
+typedef struct _BlxGffType
+  {
+    char *name;         /* the type name as given in the GFF file, e.g. nucleotide_match */
+    char *soId;         /* the type's SO Id, as given in the GFF file, e.g. SO:0000347 */
+    BlxMspType blxType; /* the Blixem object type that the GFF type corresponds to */
+  } BlxGffType;
+
+
+
+/* External functions */
 void parseGff3Header(const int lineNum,
                      MSP **lastMsp, 
 		     MSP **mspList, 
@@ -61,6 +65,7 @@ void parseGff3Body(const int lineNum,
 		   char *opts, 
 		   GString *line_string, 
 		   GList **seqList,
+                   GSList *supportedTypes,
                    GSList *styles);
 
 void parseFastaSeqHeader(char *line, const int lineNum,

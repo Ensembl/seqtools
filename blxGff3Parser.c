@@ -47,7 +47,7 @@ typedef enum {
 } BlxDotterError;
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, const char *opts, MSP *msp, GList **seqList, GSList *styles, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, const char *opts, MSP *msp, GList **seqList, GSList *supportedTypes, GSList *styles, GError **error);
 static void           parseAttributes(char *attributes, MSP *msp, GList **seqList, const char *opts, const int lineNum, GError **error);
 static void           parseTagDataPair(char *text, MSP *msp, char **sequence, BlxStrand *strand, char **gapString, GList **seqList, const int lineNum, GError **error);
 static void           parseNameTag(char *data, MSP *msp, const int lineNum, GError **error);
@@ -55,10 +55,84 @@ static void           parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GL
 static void           parseGapString(char *text, const char *opts, MSP *msp, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
-static void           parseMspType(char *token, MSP *msp, GError **error);
+static void           parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error);
 static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int numFrames, int *q, int *s, GError **error);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 static void           validateMsp(const MSP *msp, GError **error);
+static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
+static void           destroyGffType(BlxGffType **gffType);
+
+
+
+/* Free all memory used by the given list of supported GFF types */
+void blxDestroyGffTypeList(GSList **supportedTypes)
+{
+  GSList *item = *supportedTypes;
+  
+  for ( ; item; item = item->next)
+    {
+      BlxGffType *gffType = (BlxGffType*)(item->data);
+      destroyGffType(&gffType);
+    }
+  
+  g_slist_free(*supportedTypes);
+  *supportedTypes = NULL;
+}
+
+
+/* Create the list of supported types */
+GSList* blxCreateSupportedGffTypeList()
+{
+  GSList *supportedTypes = NULL;
+  
+  addGffType(&supportedTypes, "match", "SO:0000343", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "match_part", "SO:0000039", BLXMSP_MATCH);
+  
+  addGffType(&supportedTypes, "match_set", "SO:0000038", BLXMSP_MATCH_SET);
+  
+  addGffType(&supportedTypes, "CDS", "SO:0000316", BLXMSP_EXON_CDS);
+  addGffType(&supportedTypes, "UTR", "SO:0000203", BLXMSP_EXON_UTR);
+
+  addGffType(&supportedTypes, "exon", "SO:0000147", BLXMSP_EXON_UNK);
+  addGffType(&supportedTypes, "intron", "SO:0000188", BLXMSP_INTRON);
+  
+  addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_SNP);
+  addGffType(&supportedTypes, "polyA_sequence", "SO:0000610", BLXMSP_POLYA_TAIL);
+  
+  return supportedTypes;
+}
+
+
+/* Get the internal blixem type from the given GFF type (as either the type name or
+ * the SO id) */
+static BlxMspType getBlxType(GSList *supportedTypes, const char *typeStr, GError **error)
+{
+  BlxMspType result = BLXMSP_INVALID;
+
+  /* Loop through the supported types and see if the requested type matches the name or SO id */
+  GSList *item = supportedTypes;
+  
+  for ( ; item; item = item->next)
+    {
+      BlxGffType *gffType = (BlxGffType*)(item->data);
+      
+      if (stringsEqual(typeStr, gffType->name, FALSE) || stringsEqual(typeStr, gffType->soId, FALSE))
+        {
+          result = gffType->blxType;
+          break;
+        }
+    }
+  
+  /* Check if it was found... */
+  if (result == BLXMSP_INVALID)
+  {
+    g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' in input file.\n", typeStr);
+  }
+  
+  return result;
+}
 
 
 /* Parse GFF3 header information */
@@ -117,6 +191,7 @@ void parseGff3Body(const int lineNum,
 		   char *opts, 
 		   GString *line_string, 
 		   GList **seqList,
+                   GSList *supportedTypes,
                    GSList *styles)
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
@@ -126,7 +201,7 @@ void parseGff3Body(const int lineNum,
   MSP *msp = createEmptyMsp(lastMsp, mspList);
 
   GError *error = NULL;
-  parseGffColumns(line_string, lineNum, opts, msp, seqList, styles, &error);
+  parseGffColumns(line_string, lineNum, opts, msp, seqList, supportedTypes, styles, &error);
   
   if (!error)
     {
@@ -209,108 +284,11 @@ void parseFastaSeqHeader(char *line, const int lineNum,
  *                  Internal functions
  *********************************************************/
 
-static gboolean isNucleotideMatch(char *text)
-{
-  return (stringsEqual(text, "nucleotide_match", FALSE) || stringsEqual(text, "SO:0000347", FALSE));
-}
-
-static gboolean isProteinMatch(char *text)
-{
-  return (stringsEqual(text, "protein_match", FALSE) || stringsEqual(text, "SO:0000349", FALSE));
-}
-
-static gboolean isMatchPart(char *text)
-{
-  return (stringsEqual(text, "match_part", FALSE) || stringsEqual(text, "SO:0000039", FALSE));
-}
-
-static gboolean isMatchSet(char *text)
-{
-  return (stringsEqual(text, "match_set", FALSE) || stringsEqual(text, "SO:0000038", FALSE));
-}
-
-static gboolean isMatch(char *text)
-{
-  return (isNucleotideMatch(text) || 
-          isProteinMatch(text) || 
-          isMatchPart(text) ||
-          isMatchSet(text) ||
-          stringsEqual(text, "match", FALSE) || stringsEqual(text, "SO:0000343", FALSE));
-}
-
-static gboolean isCds(char *text)
-{
-  return (stringsEqual(text, "CDS", FALSE) || stringsEqual(text, "SO:0000316", FALSE));
-}
-
-static gboolean isUtr(char *text)
-{
-  return (stringsEqual(text, "UTR", FALSE) || stringsEqual(text, "SO:0000203", FALSE));
-}
-
-static gboolean isExon(char *text)
-{
-  return (stringsEqual(text, "exon", FALSE) || stringsEqual(text, "SO:0000147", FALSE));
-}
-
-static gboolean isIntron(char *text)
-{
-  return (stringsEqual(text, "intron", FALSE) || stringsEqual(text, "SO:0000188", FALSE));
-}
-
-static gboolean isSnp(char *text)
-{
-  return (stringsEqual(text, "SNP", FALSE) || stringsEqual(text, "SO:0000694", FALSE));
-}
-
-static gboolean isPolyATail(char *text)
-{
-  return (stringsEqual(text, "polyA_sequence", FALSE) || stringsEqual(text, "SO:0000610", FALSE));
-}
-
-
 
 /* Get the MSP type from a string continaing a valid GFF3 type name */
-static void parseMspType(char *token, MSP *msp, GError **error)
+static void parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error)
 {
-  msp->type = BLXMSP_INVALID;
-
-  if (isMatchSet(token))
-    {
-      msp->type = BLXMSP_MATCH_SET;
-    }
-  else if (isMatch(token))
-    {
-      msp->type = BLXMSP_MATCH;
-    }
-  else if (isExon(token))
-    {
-      msp->type = BLXMSP_EXON_UNK;
-    }
-  else if (isCds(token))
-    {
-      msp->type = BLXMSP_EXON_CDS;
-    }
-  else if (isUtr(token))
-    {
-      msp->type = BLXMSP_EXON_UTR;
-    }
-  else if (isIntron(token))
-    {
-      msp->type = BLXMSP_INTRON;
-    }
-  else if (isSnp(token))
-    {
-      msp->type = BLXMSP_SNP;
-    }
-  else if (isPolyATail(token))
-    {
-      msp->type = BLXMSP_POLYA_TAIL;
-    }
-  else
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unexpected MSP type '%s' in input file.", token);
-    }
+  msp->type = getBlxType(supportedTypes, token, error);
 }
 
 
@@ -342,7 +320,14 @@ static BlxStrand readStrand(char *token, GError **error)
 
 
 /* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
-static void parseGffColumns(GString *line_string, const int lineNum, const char *opts, MSP *msp, GList **seqList, GSList *styles, GError **error)
+static void parseGffColumns(GString *line_string, 
+                            const int lineNum, 
+                            const char *opts, 
+                            MSP *msp, 
+                            GList **seqList,
+                            GSList *supportedTypes,
+                            GSList *styles, 
+                            GError **error)
 {
     /* Split the line into its tab-separated columns. We should get 9 of them */
   char **tokens = g_strsplit_set(line_string->str, "\t", -1);   /* -1 means do all tokens. */
@@ -365,7 +350,7 @@ static void parseGffColumns(GString *line_string, const int lineNum, const char 
 	  reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING); 
 	}
 	
-      parseMspType(tokens[2], msp, &tmpError);
+      parseMspType(tokens[2], msp, supportedTypes, &tmpError);
     }
     
   if (!tmpError)
@@ -380,7 +365,7 @@ static void parseGffColumns(GString *line_string, const int lineNum, const char 
 
   if (!tmpError)
     {
-      msp->qFrame = convertStringToInt(tokens[7]);
+      msp->qFrame = convertStringToInt(tokens[7]) + 1;
   
       /* Parse the optional attributes */
       char *attributes = tokens[8];
@@ -775,4 +760,32 @@ static void validateMsp(const MSP *msp, GError **error)
     }
 }
     
-    
+   
+/* Create a gff type with the given info and add it to the given list */
+static void addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType)
+{
+  BlxGffType *gffType = g_malloc(sizeof *gffType);
+  
+  gffType->name = g_strdup(name);
+  gffType->soId = g_strdup(soId);
+  gffType->blxType = blxType;
+  
+  *supportedTypes = g_slist_prepend(*supportedTypes, gffType);
+}
+
+
+/* Free all memory used by the given gff type */
+static void destroyGffType(BlxGffType **gffType)
+{
+  if (gffType && *gffType)
+    {
+      g_free((*gffType)->name);
+      g_free((*gffType)->soId);
+      
+      g_free(*gffType);
+      *gffType = NULL;
+    }
+}
+
+
+

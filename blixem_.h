@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.47 2010-08-05 08:55:05 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.48 2010-08-06 13:08:34 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -299,7 +299,7 @@ void                               selectFeatures(void);
 float                              fsTotalHeight(MSP *msplist);
 
 /* blxparser.c */
-void                               parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *styles,
+void                               parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *supportedTypes, GSList *styles,
 	                                   char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset) ;
 void                               insertFS(MSP *msp, char *series);
 gboolean                           mspHasFs(const MSP *msp);  
@@ -324,6 +324,11 @@ gboolean                           blxInitConfig(char *config_file, GError **err
 GKeyFile*                          blxGetConfig(void) ;
 gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
 gboolean                           blxConfigGetPFetchSocketPrefs(const char **node, int *port) ;
+
+
+/* blxGff3Parser.c */
+GSList*                            blxCreateSupportedGffTypeList();
+void                               blxDestroyGffTypeList(GSList **supportedTypes);
 
 /* translate.c */
 char*                              blxTranslate(char *seq, char **code);
