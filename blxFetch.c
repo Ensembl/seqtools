@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.32 2010-08-05 09:58:54 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.33 2010-08-06 10:15:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -170,7 +170,6 @@ typedef struct
   
   /* Additional fields for parsing full EMBL entries */
   char section_id[3];                                       /* 2-letter ID at the start of the line indicating the current section */
-  gboolean ignore_newlines;                                 /* Set to true when inside e.g. the sequence section, where newline chars should be igonored */
   gboolean found_end_quote;                                 /* Set to true when we're parsing a quoted section and we come across what looks like an end quote */
   GString *tag_name;                                        /* When parsing the FT section, the current tag name is stored this field */
 } PFetchSequenceStruct, *PFetchSequence ;
@@ -263,11 +262,11 @@ static void                     pfetchParseSequenceFileBuffer(const char *buffer
                                                               ProgressBar bar, const int numRequested,int *numFetched, int *numSucceeded, 
                                                               const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status, GError **error);
 
-static gboolean                 pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, BlxEmblParserState *parserState);
+static gboolean                 pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, GString *tagName, BlxEmblParserState *parserState);
 
 static void                     pfetchParseEmblFileBuffer(const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
                                                           ProgressBar bar, const int numRequested, int *numFetched, int *numSucceeded, char *sectionId,
-                                                          GString *tagName, gboolean *ignoreNewlines, gboolean *foundEndQuote,
+                                                          GString *tagName, gboolean *foundEndQuote,
                                                           const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status);
 
 static gboolean                 pfetchFinishSequence(BlxSequence *currentSeq, const BlxSeqType seqType, const int numRequested, int *numFetched, int *numSucceeded, 
@@ -276,7 +275,7 @@ static gboolean                 pfetchFinishSequence(BlxSequence *currentSeq, co
 static void                     pfetchFinishEmblFile(BlxSequence **currentSeq, GList **currentSeqItem, const int numRequested, int *numFetched, 
                                                      int *numSucceeded, ProgressBar bar, const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status);
 
-static gboolean                 pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState);
+static void                     pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState);
 
 
 /* Some local globals.... */
@@ -671,7 +670,6 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
       fetch_data.section_id[0] = ' ';
       fetch_data.section_id[1] = ' ';
       fetch_data.section_id[2] = '\0';
-      fetch_data.ignore_newlines = FALSE;
       fetch_data.found_end_quote = FALSE;
       fetch_data.tag_name = g_string_new("");
       
@@ -984,9 +982,6 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
        * the following string to parse the tag name into */
       GString *tagName = g_string_new("");
       
-      /* Certain sections are multi-line and we need to ignore newline characters in them */
-      gboolean ignoreNewlines = FALSE;
-      
       /* When we're in a quoted section, this is used to flag that we've found a second quote that
        * we think is the end of the quoted section. However, a double quote means an escaped quote, so
        * if the next char is also a quote, we know we need to include it in the text and carry on parsing. */
@@ -1011,7 +1006,6 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
                                     &numSucceeded, 
                                     sectionId,
                                     tagName,
-                                    &ignoreNewlines,
                                     &foundEndQuote,
                                     seqType,
                                     &parserState, 
@@ -1023,6 +1017,8 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
 
       destroyProgressBar(bar);
       bar = NULL ;
+      
+      g_string_free(tagName, TRUE);
 
       if (status && numSucceeded != numRequested)
 	{
@@ -1528,7 +1524,6 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
                                 &fetch_data->num_succeeded, 
                                 fetch_data->section_id,
                                 fetch_data->tag_name,
-                                &fetch_data->ignore_newlines,
                                 &fetch_data->found_end_quote,
                                 fetch_data->seq_type,
                                 &fetch_data->parser_state,
@@ -2206,7 +2201,10 @@ static void pfetchParseSequenceFileBuffer(const char *buffer,
 
 /* Get the parser state from the given two-letter at at the start of an EMBL file line.
  * Returns true if we need to move to the next sequence. */
-static gboolean pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, BlxEmblParserState *parserState)
+static gboolean pfetchGetParserStateFromId(const char *sectionId, 
+                                           BlxSequence *currentSeq, 
+                                           GString *tagName,
+                                           BlxEmblParserState *parserState)
 {
   gboolean finishSequence = FALSE;
   
@@ -2232,7 +2230,17 @@ static gboolean pfetchGetParserStateFromId(const char *sectionId, BlxSequence *c
     }
   else if (stringsEqual(sectionId, "FT", TRUE))
     {
-      *parserState = PARSING_FEATURE_TYPE;
+      if (tagName && tagName->len)
+        {
+          /* If the tag name is already set we must be in the middle of parsing a multi-line tag, 
+           * so continue with that tag */
+          pfetchGetParserStateFromTagName(tagName, parserState);
+        }
+      else
+        {
+          /* We'll parse the general FT section looking for a tag name */
+          *parserState = PARSING_FEATURE_TYPE;
+        }
     }
   else if (stringsEqual(sectionId, "//", TRUE))
     {
@@ -2273,7 +2281,6 @@ static void pfetchProcessEmblBufferChar(const char curChar,
                                         GList **currentSeqItem,
                                         char *sectionId,
                                         GString *tagName,
-                                        gboolean *ignoreNewlines,
                                         gboolean *foundEndQuote,
                                         const BlxSeqType seqType,
                                         BlxEmblParserState *parserState, 
@@ -2294,7 +2301,7 @@ static void pfetchProcessEmblBufferChar(const char curChar,
         /* Only one more char to read from the ID. */
         sectionId[1] = curChar;
         
-        if (pfetchGetParserStateFromId(sectionId, *currentSeq, parserState))
+        if (pfetchGetParserStateFromId(sectionId, *currentSeq, tagName, parserState))
           {
             /* finish the current seq and move to the next */
             pfetchFinishEmblFile(currentSeq, currentSeqItem, numRequested, numFetched, numSucceeded, bar, seqType, parserState, status);
@@ -2312,7 +2319,6 @@ static void pfetchProcessEmblBufferChar(const char curChar,
           {
             sectionId[0] = curChar;
             *parserState = PARSING_ID; /* continue parsing to read the other '/' */
-            *ignoreNewlines = FALSE;
           }
         else
           {
@@ -2345,7 +2351,6 @@ static void pfetchProcessEmblBufferChar(const char curChar,
         if (curChar == '/')
           {
             *parserState = PARSING_FT_TAG_NAME;
-            g_string_truncate(tagName, 0);
           }
         
         break;
@@ -2355,7 +2360,7 @@ static void pfetchProcessEmblBufferChar(const char curChar,
       {
         if (curChar == '=') /* signals the end of the tag */
           {
-            *ignoreNewlines = pfetchGetParserStateFromTagName(tagName, parserState);
+            pfetchGetParserStateFromTagName(tagName, parserState);
           }
         else
           {
@@ -2370,7 +2375,7 @@ static void pfetchProcessEmblBufferChar(const char curChar,
         /* Look for the start quote before we start parsing the tag properly */
         if (curChar == '"')
           {
-            *ignoreNewlines = pfetchGetParserStateFromTagName(tagName, parserState);
+            pfetchGetParserStateFromTagName(tagName, parserState);
           }
         
         break;
@@ -2406,7 +2411,6 @@ static void pfetchParseEmblFileBuffer(const char *buffer,
                                       int *numSucceeded,
                                       char *sectionId,
                                       GString *tagName,
-                                      gboolean *ignoreNewlines,
                                       gboolean *foundEndQuote,
                                       const BlxSeqType seqType,
                                       BlxEmblParserState *parserState, 
@@ -2431,27 +2435,26 @@ static void pfetchParseEmblFileBuffer(const char *buffer,
       const char curChar = buffer[i];
 
       /* Special treatment if we've previously found an end quote: if this char is NOT also
-       * a quote, then it means it genuinely was an end quote, so we finish the ignore-newlines
-       * section. (It is important to do this before we check for newlines below!). Currently
-       * this is only used in FT tag sections, so the state simply goes back to looking for the
-       * start of the next FT tag. */
+       * a quote, then it means it genuinely was an end quote, so we finish the FT tag that
+       * we were reading (by setting the tag name to null). We return to parsing the general FT
+       * section in case there are any more tags. */
       if (*foundEndQuote && curChar != '"')
         {
-          *ignoreNewlines = FALSE;
+          g_string_truncate(tagName, 0);
           *foundEndQuote = FALSE;
           *parserState = PARSING_FEATURE_TYPE;
         }
       
+
       /* Newline character means we need to re-read the 2-letter ID at the start of the
        * line to find out what section we're in. Ignore newlines in the sequence body, though,
        * because it spans several lines and does not have an ID on each line. */
-      if (curChar == '\n' && *ignoreNewlines == FALSE)
+      if (curChar == '\n' && *parserState != PARSING_SEQUENCE)
         {
           /* If we were previously in the sequence header, the next line is the sequence body */
           if (*parserState == PARSING_SEQUENCE_HEADER)
             {
               *parserState = PARSING_SEQUENCE;
-              *ignoreNewlines = TRUE;
             }
           else
             {
@@ -2469,7 +2472,6 @@ static void pfetchParseEmblFileBuffer(const char *buffer,
                                       currentSeqItem, 
                                       sectionId, 
                                       tagName, 
-                                      ignoreNewlines, 
                                       foundEndQuote,
                                       seqType,
                                       parserState, 
@@ -2483,10 +2485,8 @@ static void pfetchParseEmblFileBuffer(const char *buffer,
  * the parser state accordingly. Sets the parser state to PARSING_IGNORE if this
  * is not a tag we care about. Returns true if we've entered a free text section
  * where newline characters should be ignored. */
-static gboolean pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState)
+static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState)
 {
-  gboolean ignoreNewlines = TRUE;
-  
   if (stringsEqual(tagName->str, "tissue_type", TRUE))
     {
       if (*parserState == PARSING_FT_TAG_NAME)
@@ -2511,11 +2511,10 @@ static gboolean pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserS
     }
   else
     {
+      /* Ignore this tag. Reset the tag name to zero-length so we know to start again. */
       *parserState = PARSING_IGNORE;
-      ignoreNewlines = FALSE;
+      g_string_truncate(tagName, 0);
     }
-  
-  return ignoreNewlines;
 }
 
 
@@ -2569,7 +2568,14 @@ static void appendCharToString(const char curChar, GString **result)
   
   if (*result)
     {
-      g_string_append_c(*result, curChar);
+      /* Don't add multiple consecutive whitespace characters */
+      const int len = (*result)->len;
+      const char *str = (*result)->str;
+
+      if (!isWhitespaceChar(curChar) || len < 0 || !isWhitespaceChar(str[len - 1]))
+        {
+          g_string_append_c(*result, curChar);
+        }
     }
 }
 
