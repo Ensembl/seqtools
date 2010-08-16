@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.33 2010-08-06 10:15:13 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.34 2010-08-16 09:03:17 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -2189,7 +2189,7 @@ static void pfetchParseSequenceFileBuffer(const char *buffer,
           *parserState = PARSING_FINISHED ;
           *status = FALSE ;
           
-          g_set_error(error, BLX_ERROR, 1, err_msg->str);
+          g_set_error(error, BLX_ERROR, 1, "%s", err_msg->str);
           
           g_string_free(err_msg, TRUE) ;
           
@@ -2600,11 +2600,6 @@ static gboolean pfetchFinishSequence(BlxSequence *currentSeq, const BlxSeqType s
   if (pfetch_ok)
     {
       *numSucceeded += 1;
-      
-      if (seqType == BLXSEQ_DNA && currentSeq->strand == BLXSTRAND_REVERSE)
-        {
-          blxComplement(currentSeq->sequence->str);
-        }
     }
   else if (currentSeq && currentSeq->sequence)
     {

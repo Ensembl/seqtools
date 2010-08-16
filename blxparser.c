@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.33 2010-08-06 13:08:34 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.34 2010-08-16 09:03:17 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -212,10 +212,19 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *sup
 	{
 	  continue; 
 	}
-
-      parseBody(line, lineNum, opts, &msp, line_string, 
-                seq1, seq1name, seq2, seq2name, &parserState, MSPlist, seqList, supportedTypes,
-                styles, &readSeq, &readSeqLen, &readSeqMaxLen);
+	
+      if (parserState == PARSER_START)
+	{
+	  /* If first line was not a valid header, it's an error */
+	  parserState = PARSER_ERROR;
+	  g_critical("Invalid header line '%s'.\n", line);
+	}
+      else
+	{
+	  parseBody(line, lineNum, opts, &msp, line_string, 
+		    seq1, seq1name, seq2, seq2name, &parserState, MSPlist, seqList, supportedTypes,
+		    styles, &readSeq, &readSeqLen, &readSeqMaxLen);
+	}
     }
 
   g_string_free(line_string, TRUE) ;			    /* free everything, buffer and all. */
@@ -1174,10 +1183,25 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState
   
   gboolean processed = FALSE;
   
-  if (!strncasecmp(line, "##gff-version   3", 17))
+  if (!strncasecmp(line, "##gff-version", 13))
     {
-      *parserState = GFF_3_HEADER ;
-      processed = TRUE;
+      /* Check it's GFF version 3. Loop past any whitespace first. */
+      char *cp = line + 13;
+      while (cp && (*cp == ' ' || *cp == '\t'))
+	{
+	  ++cp;
+	} 
+    
+      if (*cp != '3')
+	{
+	  *parserState = PARSER_ERROR;
+	  g_critical("Error parsing GFF file: GFF version '%s' is not supported (only version 3 is supported).", cp);
+	}
+      else
+	{
+	  *parserState = GFF_3_HEADER ;
+	  processed = TRUE;
+	}
     }
   else if (!strncasecmp(line, "##FASTA", 7))
     {
@@ -1250,6 +1274,19 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState
     {
       g_error("Unrecognised SFS type: %s\n", line);
     }
+  else if (*line == '#' && *parserState == GFF_3_HEADER)
+    {
+      /* If we're in a GFF header we want to take a look at additional comment lines;
+       * otherwise we ignore additional comments. */
+      processed = TRUE ;
+    }
+  else if (*parserState == GFF_3_HEADER)
+    {
+      /* We were processing GFF3 header lines (which all start with '#'), but this line does not
+       * start with '#', so it must be the start of the GFF3 body. */
+      *parserState = GFF_3_BODY;
+      processed = FALSE;
+    }
   else if (*line == '#')
     {
       /* Very ugly; only for backwards compatibility */
@@ -1270,24 +1307,15 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState
 	  opts[BLXOPT_HSP_GAPS] = 'G';
 	}
       else if (!strncasecmp(line, "# DESC ", 7) &&
-	       (*parserState == FS_HSP_BODY || *parserState == FS_GSP_HEADER || *parserState == SEQBL_BODY))
+	       (*parserState == FS_HSP_BODY || *parserState == FS_GSP_HEADER || 
+		*parserState == SEQBL_BODY))
 	{
 	  if (msp)
 	    getDesc(msp, line, msp->sname);
 	}
-      
-      /* If we're in a GFF header we want to take a look at additional comment lines;
-       * otherwise we ignore additional comments. */
-      processed = *parserState == GFF_3_HEADER ? FALSE : TRUE ;
+	
+      processed = TRUE;
     }
-  else if (*parserState == GFF_3_HEADER)
-    {
-      /* We were processing GFF3 header lines (which all start with '#'), but this line does not
-       * start with '#', so it must be the start of the GFF3 body. */
-      *parserState = GFF_3_BODY;
-      processed = FALSE;
-    }
-
 
   DEBUG_EXIT("parseHeaderLine returning processed = %d, (parserState = %d)", processed, *parserState);
   return processed ;

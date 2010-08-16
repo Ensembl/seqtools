@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.57 2010-08-06 13:08:34 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.58 2010-08-16 09:03:17 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -361,6 +361,11 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
       
       opt++;
     }
+
+  if (!options->refSeq)
+    {
+      g_error("Error: reference sequence not specified.\n");
+    }
   
   if (options->blastMode == BLXMODE_UNSET)
     {
@@ -623,6 +628,20 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch,
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
   
+  /* So far we only have the forward strand version of each sequence. We must complement any 
+   * that need the reverse strand */
+   GList *seqItem = seqList;
+   
+   for ( ; seqItem; seqItem = seqItem->next)
+     {
+        BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+        
+        if (blxSeq && blxSeq->strand == BLXSTRAND_REVERSE && blxSeq->sequence && blxSeq->sequence->str)
+          {
+            blxComplement(blxSeq->sequence->str);
+          }
+     }
+  
   return success;
 }
 
@@ -765,40 +784,49 @@ static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
  * reverse strand. Returns the new BlxSequence */
 BlxSequence* addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *sequence, GError **error)
 {
+  BlxSequence *blxSeq = NULL;
+  
   char *name = mspGetSeqName(msp);
 
-  /* If this is an exon or intron the match strand is not applicable. The exon should 
-   * be in the same direction as the ref seq, so use the ref seq strand. */
-  if (mspIsExon(msp) || mspIsIntron(msp))
+  if (name)
     {
-      strand = msp->qStrand;
+      /* If this is an exon or intron the match strand is not applicable. The exon should 
+       * be in the same direction as the ref seq, so use the ref seq strand. */
+      if (mspIsExon(msp) || mspIsIntron(msp))
+        {
+          strand = msp->qStrand;
+        }
+    
+      /* See if this strand for this sequence already exists. */
+      blxSeq = findBlxSequence(*seqList, name, strand);
+      
+      if (!blxSeq)
+        {
+          /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
+          blxSeq = createEmptyBlxSequence(name);
+          *seqList = g_list_prepend(*seqList, blxSeq);
+          
+          blxSeq->strand = strand;
+          
+          /* Set whether the sequence data is required by any of this sequence's MSPs */
+          blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsPolyATail(msp) || mspIsSnp(msp);
+        }
+      
+      g_free(name);
+      
+      /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
+      blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
+      
+      /* Set a pointer to the BlxSequence from the MSP */
+      msp->sSequence = blxSeq;
+      
+      /* Add the sequence data */
+      addBlxSequenceData(blxSeq, sequence, error);
     }
-  
-  /* See if this strand for this sequence already exists. */
-  BlxSequence *blxSeq = findBlxSequence(*seqList, name, strand);
-  
-  if (!blxSeq)
+  else
     {
-      /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
-      blxSeq = createEmptyBlxSequence(name);
-      *seqList = g_list_prepend(*seqList, blxSeq);
-      
-      blxSeq->strand = strand;
-      
-      /* Set whether the sequence data is required by any of this sequence's MSPs */
-      blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsPolyATail(msp) || mspIsSnp(msp);
+      g_set_error(error, BLX_ERROR, 1, "Sequence name not set.\n");
     }
-  
-  g_free(name);
-  
-  /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
-  blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
-  
-  /* Set a pointer to the BlxSequence from the MSP */
-  msp->sSequence = blxSeq;
-  
-  /* Add the sequence data */
-  addBlxSequenceData(blxSeq, sequence, error);
   
   return blxSeq;
 }
@@ -831,23 +859,12 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
       if (!blxSeq->sequence)
         {
           /* Sequence does not yet exist, so add it */
-          if (blxSeq->strand == BLXSTRAND_REVERSE)
-            {
-              blxComplement(sequence) ;
-            }
-
           blxSeq->sequence = g_string_new(sequence);
           sequenceUsed = TRUE;
           }
       else if (error && *error)
         {
-          /* Sequence already exists. Validate that it's the same as the existing one.
-           * (Remember to complement the passed in one if the existing one is complemented.) */
-          if (blxSeq->strand == BLXSTRAND_REVERSE)
-            {
-              blxComplement(sequence);
-            }
-            
+          /* Sequence already exists. Validate that it's the same as the existing one. */
           if (!stringsEqual(sequence, blxSeq->sequence->str, FALSE))
             {
               g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSeq->fullName);
