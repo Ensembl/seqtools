@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.34 2010-08-16 09:03:17 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.35 2010-08-17 09:34:43 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -2168,7 +2168,7 @@ static void pfetchParseSequenceFileBuffer(const char *buffer,
           gboolean pfetch_ok = pfetchFinishSequence(*currentSeq, seqType, numRequested, numFetched, numSucceeded, parserState);
           pfetchGetNextSequence(currentSeq, currentSeqItem, bar, numRequested, *numFetched, pfetch_ok, status, parserState);
         }
-      else if (isValidIupacChar(buffer[i], seqType))
+      else
         {
           /* First time round we need to create the sequence string */
           if ((*currentSeq)->sequence == NULL)
@@ -2176,24 +2176,8 @@ static void pfetchParseSequenceFileBuffer(const char *buffer,
               (*currentSeq)->sequence = g_string_new("");
             }
           
-          /* Append this character */
+          /* Append this character to the sequence string */
           g_string_append_c((*currentSeq)->sequence, buffer[i]);
-        }
-      else
-        {
-          GString *err_msg = g_string_sized_new(lenReceived * 2) ;
-          g_string_append_printf(err_msg, "Bad char in input stream: '%c'; stream was: \"", buffer[i]) ;
-          err_msg = g_string_append_len(err_msg, buffer, lenReceived) ;
-          g_string_append(err_msg, "\"") ;
-          
-          *parserState = PARSING_FINISHED ;
-          *status = FALSE ;
-          
-          g_set_error(error, BLX_ERROR, 1, "%s", err_msg->str);
-          
-          g_string_free(err_msg, TRUE) ;
-          
-          *status = FALSE ;
         }
     }
 }
@@ -2595,7 +2579,16 @@ static gboolean pfetchFinishSequence(BlxSequence *currentSeq, const BlxSeqType s
     }
   
   /* The pfetch failed if our sequence is null or equal to "no match". */
-  gboolean pfetch_ok = (currentSeq && currentSeq->sequence && strcmp(currentSeq->sequence->str, "no match"));
+  gboolean pfetch_ok = FALSE;
+  
+  if (currentSeq && currentSeq->sequence && currentSeq->sequence->str)
+    { 
+      int len = min(strlen(currentSeq->sequence->str), 8);
+      if (strncasecmp(currentSeq->sequence->str, "no match", len))
+	{
+	  pfetch_ok = TRUE;
+	}
+    }
   
   if (pfetch_ok)
     {
