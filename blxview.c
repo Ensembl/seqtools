@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.59 2010-08-24 12:27:59 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.60 2010-08-24 15:00:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -144,6 +144,7 @@ char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
 static MSP*            createEmptyMsp(MSP **lastMsp, MSP **mspList);
+static void            finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts);
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -512,38 +513,31 @@ static gboolean getParent(BlxSequence *variant, BlxSequence **parent, GList *all
 }
 
 
-/* This function loops through all sequences in the given list and if any sequence is 
- * missing the optional-column data (organism, tissue-type etc.) then it looks for the
- * parent of the sequence and copies it from there, if found. */
-static void populateMissingDataFromParent(GList *seqList)
+/* This function checks if the given sequence is missing its optional data (such as organism
+ * and gene name) and, if so, looks for the parent sequence and copies the data from there. */
+static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList)
 {
-  GList *seqItem = seqList;
+  BlxSequence *parent = NULL;
   
-  for ( ; seqItem; seqItem = seqItem->next)
+  /* For each optional column, check if the data in the BlxSequence is null */
+  if (!curSeq->organism && getParent(curSeq, &parent, seqList) && parent->organism && parent->organism->str)
     {
-      BlxSequence *curSeq = (BlxSequence*)(seqItem->data);
-      BlxSequence *parent = NULL;
-      
-      /* For each optional column, check if the data in the BlxSequence is null */
-      if (!curSeq->organism && getParent(curSeq, &parent, seqList) && parent->organism && parent->organism->str)
-        {
-          curSeq->organism = g_string_new(parent->organism->str);
-        }
-      
-      if (!curSeq->geneName && getParent(curSeq, &parent, seqList) && parent->geneName && parent->geneName->str)
-        {
-          curSeq->geneName = g_string_new(parent->geneName->str);
-        }
-      
-      if (!curSeq->tissueType && getParent(curSeq, &parent, seqList) && parent->tissueType && parent->tissueType->str)
-        {
-          curSeq->tissueType = g_string_new(parent->tissueType->str);
-        }
-      
-      if (!curSeq->strain && getParent(curSeq, &parent, seqList) && parent->strain && parent->strain->str)
-        {
-          curSeq->strain = g_string_new(parent->strain->str);
-        }
+      curSeq->organism = g_string_new(parent->organism->str);
+    }
+  
+  if (!curSeq->geneName && getParent(curSeq, &parent, seqList) && parent->geneName && parent->geneName->str)
+    {
+      curSeq->geneName = g_string_new(parent->geneName->str);
+    }
+  
+  if (!curSeq->tissueType && getParent(curSeq, &parent, seqList) && parent->tissueType && parent->tissueType->str)
+    {
+      curSeq->tissueType = g_string_new(parent->tissueType->str);
+    }
+  
+  if (!curSeq->strain && getParent(curSeq, &parent, seqList) && parent->strain && parent->strain->str)
+    {
+      curSeq->strain = g_string_new(parent->strain->str);
     }
 }
 
@@ -582,14 +576,6 @@ gboolean fetchSequences(GList *seqsToFetch,
         }
     }
     
-  /* If there are any seqs left that do not have their optional data populated
-   * they are likely to be protein variants. See if we can find their parent 
-   * sequence and copy the data from there. */
-  if (success && parseOptionalData)
-    {
-      populateMissingDataFromParent(seqsToFetch);
-    }
-  
   return success;
 }
 
@@ -700,6 +686,11 @@ gboolean blxview(char *refSeq,
   int port = UNSET_INT;
   gboolean status = blxviewFetchSequences(pfetch, External, options.parseFullEmblInfo, options.seqType, seqList, &options.fetchMode, &net_id, &port);
   
+  if (status)
+    {
+      /* Construct missing data and do any other required processing now we have all the sequence data */
+      finaliseBlxSequences(&msplist, &seqList, opts);
+    }
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
@@ -961,96 +952,89 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
 /* Construct any missing transcript data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
+static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
 {
-  /* Loop through all BlxSequences */
-  GList *seqItem = *seqList;
   GError *tmpError = NULL;
+
+  const MSP *prevMsp = NULL;
+  const MSP *prevExon = NULL;
   
-  for ( ; seqItem; seqItem = seqItem->next)
+  MSP *curExon = NULL;
+  MSP *curCds = NULL;
+  MSP *curUtr = NULL;
+
+  /* Loop through all MSPs on this sequence (which must be sorted by position on the
+   * ref seq - createNewMsp automatically sorts them for us) and create any missing 
+   * exon/cds/utr/introns. */
+  GList *mspItem = blxSeq->mspList;
+
+  for ( ; mspItem; mspItem = mspItem->next)
     {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-    
-      const MSP *prevMsp = NULL;
-      const MSP *prevExon = NULL;
-      
-      MSP *curExon = NULL;
-      MSP *curCds = NULL;
-      MSP *curUtr = NULL;
-
-      /* Loop through all MSPs on this sequence (which must be sorted by position on the
-       * ref seq - createNewMsp automatically sorts them for us) and create any missing 
-       * exon/cds/utr/introns. */
-      GList *mspItem = blxSeq->mspList;
-
-      for ( ; mspItem; mspItem = mspItem->next)
+      MSP *msp = (MSP*)(mspItem->data);
+              
+      /* Only consider exons and introns */
+      if (mspIsExon(msp) || mspIsIntron(msp))
         {
-          MSP *msp = (MSP*)(mspItem->data);
-          	  
-          /* Only consider exons and introns */
-          if (mspIsExon(msp) || mspIsIntron(msp))
+          /* See if there was a gap between this exon and the previous one. There's a gap if
+           * we've hit an intron, or if we have two exons with space between them, or if 
+           * we're at the first or last exon and there's a gap to the end of the transcript. */
+          gboolean foundGap = prevMsp && (mspIsIntron(prevMsp) || prevMsp->qRange.max < msp->qRange.min);
+          foundGap |= (!prevMsp && blxSeq->qRange.min < msp->qRange.min);
+          foundGap |= (mspItem->next == NULL && blxSeq->qRange.max > msp->qRange.max);
+
+          if (foundGap || mspItem->next == NULL)
             {
-              /* See if there was a gap between this exon and the previous one. There's a gap if
-               * we've hit an intron, or if we have two exons with space between them, or if 
-	       * we're at the first or last exon and there's a gap to the end of the transcript. */
-              gboolean foundGap = prevMsp && (mspIsIntron(prevMsp) || prevMsp->qRange.max < msp->qRange.min);
-	      foundGap |= (!prevMsp && blxSeq->qRange.min < msp->qRange.min);
-	      foundGap |= (mspItem->next == NULL && blxSeq->qRange.max > msp->qRange.max);
-
-              if (foundGap || mspItem->next == NULL)
+              if (mspItem->next == NULL)
                 {
-		  if (mspItem->next == NULL)
-		    {
-		      /* Normally curExon etc. refer to the complete set of exons/cds/utrs before the
-                       * gap we've just found. At the end, though, make sure we include the last MSP in
-                       * the current set of exons/cds/utrs */
-		      if (msp->type == BLXMSP_EXON)
-			curExon = msp;
-		      else if (msp->type == BLXMSP_CDS)
-			curCds = msp;
-		      else if (msp->type == BLXMSP_UTR)
-			curUtr = msp;
-		    }
-
-                  /* We've found a gap between exons. First, see if the current exon/cds or utr
-                   * is missing and construct it if possible. Also do this if we're at the last MSP. */
-                  createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, lastMsp, mspList, seqList, opts, &tmpError);
-                  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
-                  
-                  copyCdsReadingFrame(curExon, curCds, curUtr);
-		}
-		  
-	      if (foundGap)
-		{
-                  /* We're moving to the next exon so set the prev exon pointer and reset the
-                   * current values. If we don't have the full exon (e.g. if we only have cds OR UTR)
-                   * then we cannot construct the intron, so leave prevExon as NULL to indicate this. */
-                  prevExon = curExon;
-                  curExon = NULL;
-                  curCds = NULL;
-                  curUtr = NULL;
-                  
-                  /* Create an intron, unless there's already one here */
-                  if (prevExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
-                    {
-                      createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, blxSeq->idTag,
-                                   NULL, prevExon->qRange.max, msp->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
-                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
-                      
-                      reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
-                    }
+                  /* Normally curExon etc. refer to the complete set of exons/cds/utrs before the
+                   * gap we've just found. At the end, though, make sure we include the last MSP in
+                   * the current set of exons/cds/utrs */
+                  if (msp->type == BLXMSP_EXON)
+                    curExon = msp;
+                  else if (msp->type == BLXMSP_CDS)
+                    curCds = msp;
+                  else if (msp->type == BLXMSP_UTR)
+                    curUtr = msp;
                 }
+
+              /* We've found a gap between exons. First, see if the current exon/cds or utr
+               * is missing and construct it if possible. Also do this if we're at the last MSP. */
+              createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, lastMsp, mspList, seqList, opts, &tmpError);
+              reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
               
-              if (msp->type == BLXMSP_EXON)
-                curExon = msp;
-              else if (msp->type == BLXMSP_CDS)
-                curCds = msp;
-              else if (msp->type == BLXMSP_UTR)
-                curUtr = msp;
-              
-              /* Remember the last object */
-              prevMsp = msp;
+              copyCdsReadingFrame(curExon, curCds, curUtr);
             }
+              
+          if (foundGap)
+            {
+              /* We're moving to the next exon so set the prev exon pointer and reset the
+               * current values. If we don't have the full exon (e.g. if we only have cds OR UTR)
+               * then we cannot construct the intron, so leave prevExon as NULL to indicate this. */
+              prevExon = curExon;
+              curExon = NULL;
+              curCds = NULL;
+              curUtr = NULL;
+              
+              /* Create an intron, unless there's already one here */
+              if (prevExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
+                {
+                  createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, blxSeq->idTag,
+                               NULL, prevExon->qRange.max, msp->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
+                  
+                  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+                }
+            }
+          
+          if (msp->type == BLXMSP_EXON)
+            curExon = msp;
+          else if (msp->type == BLXMSP_CDS)
+            curCds = msp;
+          else if (msp->type == BLXMSP_UTR)
+            curUtr = msp;
+          
+          /* Remember the last object */
+          prevMsp = msp;
         }
     }
 }
@@ -1118,29 +1102,75 @@ int findMspListQExtent(GList *mspList, const gboolean findMin)
 }
 
 
+/* The parsed gene name generally contains extra info that we're not interested in. This function
+ * tries to extract just the part of the info that we're interested in. */
+static void processGeneName(BlxSequence *blxSeq)
+{
+  /* Data is usually in the format: "Name=SMARCA2; Synonyms=BAF190B, BRM, SNF2A, SNF2L2;"
+   * Therefore, look for the Name tag and extract everything up to the ; or end of line.
+   * If there is no name tag, just include everything */
+  
+  if (blxSeq && blxSeq->geneName && blxSeq->geneName->str)
+    {
+      char *startPtr = strstr(blxSeq->geneName->str, "Name=");
+      
+      if (!startPtr)
+        {
+          startPtr = strstr(blxSeq->geneName->str, "name=");
+        }
+        
+      if (startPtr)
+        {
+          startPtr += 5;
+          char *endPtr = strchr(startPtr, ';');
+          const int numChars = endPtr ? endPtr - startPtr : strlen(startPtr);
+          
+          char *result = g_malloc((numChars + 1) * sizeof(char));
+          
+          g_utf8_strncpy(result, startPtr, numChars);
+          result[numChars] = 0;
+          
+          g_string_free(blxSeq->geneName, TRUE);
+          blxSeq->geneName = g_string_new(result);
+        }
+    }
+}
+
+
 /* Find the first/last base in an entire sequence, if not already set. For transcripts, the
  * range should already be set from the parent transcript item. For matches, get the start/end
  * of the first/last MSP in the sequence */
-static void findSequenceExtents(GList *seqList)
+static void findSequenceExtents(BlxSequence *blxSeq)
 {
-  GList *seqItem = seqList;
-  
-  for ( ; seqItem; seqItem = seqItem->next)
-    {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-
-      blxSeq->qRange.min = findMspListQExtent(blxSeq->mspList, TRUE);
-      blxSeq->qRange.max = findMspListQExtent(blxSeq->mspList, FALSE);
-    }
+  blxSeq->qRange.min = findMspListQExtent(blxSeq->mspList, TRUE);
+  blxSeq->qRange.max = findMspListQExtent(blxSeq->mspList, FALSE);
 }
 
 
 /* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
  * data and the introns etc. */
-void finaliseBlxSequences(MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
+static void finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts)
 {
-  findSequenceExtents(*seqList);
-  constructTranscriptData(lastMsp, mspList, seqList, opts);
+  /* Find the last msp in the list */
+  MSP *lastMsp = *mspList;
+  
+  while (lastMsp && lastMsp->next)
+    {
+      lastMsp = lastMsp->next;
+    }
+
+  /* Loop through all BlxSequences */
+  GList *seqItem = *seqList;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      
+      findSequenceExtents(blxSeq);
+      constructTranscriptData(blxSeq, &lastMsp, mspList, seqList, opts);
+      populateMissingDataFromParent(blxSeq, *seqList);
+      processGeneName(blxSeq);
+    }
 }
 
 

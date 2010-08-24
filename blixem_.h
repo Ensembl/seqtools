@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.49 2010-08-24 12:27:59 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.50 2010-08-24 15:00:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -289,7 +289,6 @@ typedef enum
 /* blxview.c */
 void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
-void                               finaliseBlxSequences(MSP **lastMsp, MSP **mspList, GList **seqList, char *opts);
 int				   findMspListSExtent(GList *mspList, const gboolean findMin);
 int				   findMspListQExtent(GList *mspList, const gboolean findMin);
 

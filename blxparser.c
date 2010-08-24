@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.35 2010-08-24 12:27:59 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.36 2010-08-24 15:00:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -231,9 +231,6 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *sup
 
   /* Sort feature segment array by number */
   g_array_sort(fsArr, fsSortByOrderCompareFunc);
-
-  /* Construct missing transcript data, e.g. if we have a transcript and exons we can construct the introns. */
-  finaliseBlxSequences(&msp, MSPlist, seqList, opts);
 
   DEBUG_EXIT("parseFS");
   return ;
