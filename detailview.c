@@ -1250,7 +1250,7 @@ static const MSP* sequenceGetNextMsp(const MSP const *msp,
   
   if (!found && error)
     {
-      g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", msp->sname, blxSeq->fullName);
+      g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", mspGetSName(msp), blxSeq->fullName);
     }
   
   return result;
@@ -1414,8 +1414,12 @@ static void mspGetSpliceSiteCoords(const MSP const *msp,
 {
   const gboolean revStrand = (mspGetRefStrand(msp) != BLXSTRAND_FORWARD);
   
+  /* Ignore the termini (i.e. 5' end of first exon and 3' end of last exon) */
+  const gboolean getMin = (msp->sSequence && msp->qRange.min != msp->sSequence->qRange.min);
+  const gboolean getMax = (msp->sSequence && msp->qRange.max != msp->sSequence->qRange.max);
+  
   /* See if the min coord is within the given range */
-  if (valueWithinRange(msp->qRange.min, qRange) && msp->qRange.min >= bc->refSeqRange.min + 2)
+  if (getMin && valueWithinRange(msp->qRange.min, qRange) && msp->qRange.min >= bc->refSeqRange.min + 2)
     {
       /* Find out if the adjacent bases are canonical/non-canonical. */
       BlxCanonical canonical = isMspSpliceSiteCanonical(msp, blxSeq, TRUE, revStrand, bc, spliceSites);
@@ -1426,7 +1430,7 @@ static void mspGetSpliceSiteCoords(const MSP const *msp,
     }
   
   /* See if the max coord is within the given range */
-  if (valueWithinRange(msp->qRange.max, qRange) && msp->qRange.max <= bc->refSeqRange.max - 2)
+  if (getMax && valueWithinRange(msp->qRange.max, qRange) && msp->qRange.max <= bc->refSeqRange.max - 2)
     {
       /* Find out if they are canonical/non-canonical */
       BlxCanonical canonical = isMspSpliceSiteCanonical(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
@@ -1472,7 +1476,7 @@ GHashTable* getIntronBasesToHighlight(GtkWidget *detailView,
           const MSP const *msp = (const MSP const *)(mspItem->data);
           
           /* Only look at MSPs within the given strand */
-          if ((mspIsBlastMatch(msp) || mspIsExon(msp)) && mspGetRefStrand(msp) == qStrand)
+          if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON) && mspGetRefStrand(msp) == qStrand)
             {
               mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
             }
@@ -2594,9 +2598,9 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       
       /* Add the splice sites that we want Blixem to identify as canonical */
       properties->spliceSites = NULL;
+      addBlxSpliceSite(&properties->spliceSites, "GT", "AG", FALSE);
       addBlxSpliceSite(&properties->spliceSites, "GC", "AG", FALSE);
       addBlxSpliceSite(&properties->spliceSites, "AT", "AC", TRUE);
-//      addBlxSpliceSite(&properties->spliceSites, "GT", "AG", FALSE);
 
       /* Set initial display range to something valid but only 1 base wide. Then if we try to do any 
        * calculations on the range before it gets set properly, it won't have much work to do. */
@@ -3167,8 +3171,10 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
     {
       MSP *msp = (MSP*)(mspListItem->data);
 
-      /* Check its in the sequence list (if given), and is a valid match or exon */
-      if ((mspIsExon(msp) || mspIsBlastMatch(msp)) &&
+      /* Check its in the sequence list (if given), is a valid match or exon, and is in a visible
+       * layer */
+      if (mspLayerIsVisible(msp) &&
+          (mspIsExon(msp) || mspIsBlastMatch(msp)) &&
 	  (!searchData->seqList || g_list_find(searchData->seqList, msp->sSequence)))
 	{
 	  /* Get the offset of the msp coords from the given start coord and find the smallest,
@@ -4042,7 +4048,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 	    }
 	  else
 	    {
-	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", msp->sname, msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qframe);
+	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qframe);
 	    }
 	}
     }

@@ -39,10 +39,12 @@ typedef struct _RenderData
     const gboolean highlightDiffs;
     GdkDrawable *drawable;
     GtkWidget *blxWindow;
-    GdkColor *exonColorCds;
-    GdkColor *exonColorCdsSelected;
-    GdkColor *exonColorUtr;
-    GdkColor *exonColorUtrSelected;
+    GdkColor *exonColor;
+    GdkColor *exonColorSelected;
+    GdkColor *cdsColor;
+    GdkColor *cdsColorSelected;
+    GdkColor *utrColor;
+    GdkColor *utrColorSelected;
     GdkColor *insertionColor;
     GdkColor *insertionColorSelected;
     GdkColor *matchColor;
@@ -481,10 +483,22 @@ static void highlightSelectedBase(const int selectedBaseIdx,
 /* Utility to get the exon color based on whether it is CDS/UTR and whether it is selected */
 static GdkColor* getExonFillColor(const MSP const *msp, const gboolean isSelected, RenderData *data)
 {
-  if (msp->type == BLXMSP_EXON_CDS)
-    return (isSelected ? data->exonColorCdsSelected : data->exonColorCds);
-  else /* UTR and undefined exon types */
-    return (isSelected ? data->exonColorUtrSelected : data->exonColorUtr);
+  GdkColor *result = NULL;
+
+  if (msp->type == BLXMSP_EXON)
+    {
+      result = (isSelected ? data->exonColorSelected : data->exonColor);
+    }
+  else if (msp->type == BLXMSP_CDS)
+    {
+      result = (isSelected ? data->cdsColorSelected : data->cdsColor);
+    }
+  else
+    {
+      result = (isSelected ? data->utrColorSelected : data->utrColor);
+    }
+    
+  return result;
 }
 
 
@@ -495,27 +509,30 @@ static void drawExon(SequenceCellRenderer *renderer,
 		     GtkWidget *tree,
 		     RenderData *data)
 {
-  IntRange segmentRange = getVisibleMspRange(msp, data);
-  const int segmentLen = segmentRange.max - segmentRange.min + 1;
-
-  int x, y;
-  getCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
-  const int width = segmentLen * data->charWidth;
-
-  /* Just draw one big rectangle the same color for the whole thing. Color depends if row selected. */
-  GdkColor *color = getExonFillColor(msp, data->seqSelected, data);
-  gdk_gc_set_foreground(data->gc, color);
-  drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, data->charHeight);
-  
-  /* If a base is selected, highlight it. Its color depends on whether it the base is within the exon range or not. */
-  if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
+  if (mspLayerIsVisible(msp))
     {
-      /* Negate the color if double-selected (i.e. if the row is selected as well) */
-      GdkColor *color = getExonFillColor(msp, !data->seqSelected, data);
-      highlightSelectedBase(data->selectedBaseIdx, color, data);
+      IntRange segmentRange = getVisibleMspRange(msp, data);
+      const int segmentLen = segmentRange.max - segmentRange.min + 1;
+
+      int x, y;
+      getCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
+      const int width = segmentLen * data->charWidth;
+
+      /* Just draw one big rectangle the same color for the whole thing. Color depends if row selected. */
+      GdkColor *color = getExonFillColor(msp, data->seqSelected, data);
+      gdk_gc_set_foreground(data->gc, color);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, data->charHeight);
+      
+      /* If a base is selected, highlight it. Its color depends on whether it the base is within the exon range or not. */
+      if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
+        {
+          /* Negate the color if double-selected (i.e. if the row is selected as well) */
+          GdkColor *color = getExonFillColor(msp, !data->seqSelected, data);
+          highlightSelectedBase(data->selectedBaseIdx, color, data);
+        }
+      
+      drawVisibleExonBoundaries(tree, data);
     }
-  
-  drawVisibleExonBoundaries(tree, data);
 } 
 
 
@@ -956,7 +973,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   if (!refSeqSegment)
     {
       g_assert(error);
-      prefixError(error, "Could not draw alignment for sequence '%s'. ", msp->sname);
+      prefixError(error, "Could not draw alignment for sequence '%s'. ", mspGetSName(msp));
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       return;
     }
@@ -1042,10 +1059,12 @@ static void drawMsps(SequenceCellRenderer *renderer,
     highlightDiffs,
     widgetGetDrawable(tree),
     detailViewProperties->blxWindow,
-    getGdkColor(BLXCOLOR_EXON_CDS, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOLOR_EXON_CDS, bc->defaultColors, TRUE, bc->usePrintColors),
-    getGdkColor(BLXCOLOR_EXON_UTR, bc->defaultColors, FALSE, bc->usePrintColors),
-    getGdkColor(BLXCOLOR_EXON_UTR, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_FILL, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_EXON_FILL, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_CDS_FILL, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_CDS_FILL, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_UTR_FILL, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_UTR_FILL, bc->defaultColors, TRUE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_INSERTION, bc->defaultColors, FALSE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_INSERTION, bc->defaultColors, TRUE, bc->usePrintColors),
     highlightDiffs ? mismatchColor : matchColor,

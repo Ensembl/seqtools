@@ -34,7 +34,7 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.4 2010-02-04 11:43:13 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.5 2010-08-24 12:27:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
@@ -60,7 +60,7 @@ void dotter(
 	int   qoff,	   /* Optional, may be NULL
 			      Coordinate offset of horisontal sequence */
 
-	char *subjectname, /* Optional, may be NULL 
+	const char *subjectname, /* Optional, may be NULL 
 			      Name of vertical sequence */
 
 	char *subjectseq,  /* Mandatory, NULL terminated string

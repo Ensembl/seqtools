@@ -51,7 +51,7 @@ void		    callFuncOnAllBigPictureGrids(GtkWidget *widget,
 						 gpointer data);
 
 gint		    convertValueToGridPos(GtkWidget *grid, 
-					  const gint value);
+					  const gdouble value);
 
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
 					 BlxStrand strand);

@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.31 2010-08-06 13:08:34 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.32 2010-08-24 12:27:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -63,12 +63,18 @@ typedef struct
 #define BLX_DESCRIPTION_TAG        "Description"
 #define BLX_SEQUENCE_TAG           "Sequence"
 
-/* Utility struct to hold a range of integers */
+/* Utility structs to hold a range of integers/doubles */
 typedef struct _IntRange
   {
     int min;
     int max;
   } IntRange ;
+
+typedef struct _DoubleRange
+  {
+    gdouble min;
+    gdouble max;
+  } DoubleRange ;
   
 
 /* Fundamental strand direction. */
@@ -83,6 +89,8 @@ typedef enum
 /* Structure that contains information about a sequence */
 typedef struct _BlxSequence
 {
+  char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
+
   char *fullName;                  /* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
   char *shortName;                 /* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
   char *variantName;               /* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
@@ -95,6 +103,7 @@ typedef struct _BlxSequence
   BlxStrand strand;                /* which strand of the sequence this is */
   GString *sequence;               /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
+  IntRange qRange;		   /* the extent of the sequence on the ref sequence */ 
   
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
@@ -127,10 +136,11 @@ typedef enum
     
     BLXMSP_MATCH,                  /* A match (i.e. alignment) */
     BLXMSP_MATCH_SET,              /* The parent of a set of matches. Can be used to specify generic properties such as color. */
-    BLXMSP_EXON_CDS,               /* Exon (coding section) */
-    BLXMSP_EXON_UTR,               /* Exon (untranslated region i.e. non-coding section) */
-    BLXMSP_EXON_UNK,               /* Exon (unknown type) */
+    BLXMSP_CDS,                    /* CDS (coding) region of an exon */
+    BLXMSP_UTR,                    /* UTR (untranslated) region of an exon */
+    BLXMSP_EXON,		   /* Exon */
     BLXMSP_INTRON,                 /* Intron */
+    BLXMSP_TRANSCRIPT,		   /* Transcript */
     BLXMSP_POLYA_TAIL,		   /* polyA tail */
     
     BLXMSP_SNP,                    /* Single Nucleotide Polymorphism */
@@ -151,33 +161,33 @@ typedef enum
 
 typedef enum 
   {
-    BLXCOLOR_MIN,		  /* dummy value so that we don't get a zero ID */
+    BLXCOLOR_MIN,           /* dummy value so that we don't get a zero ID */
   
-    BLXCOLOR_BACKGROUND,	  /* background color of the widgets */
-    BLXCOLOR_REF_SEQ,	  /* default background color for the reference sequence */  
-    BLXCOLOR_MATCH,	  /* background color for an exact match */
-    BLXCOLOR_CONS,	  /* background color for a conserved match */
-    BLXCOLOR_MISMATCH,	  /* background color for a mismatch */
-    BLXCOLOR_EXON_CDS,	  /* background color for an exon (coding region) */
-    BLXCOLOR_EXON_UTR,	  /* background color for an exon (non-coding/untranslated region) */
-    BLXCOLOR_INSERTION,	  /* color for an insertion marker */
-    BLXCOLOR_EXON_START,	  /* color for the start boundary line of an exon */
-    BLXCOLOR_EXON_END,  	  /* color for the end boundary line of an exon */
-    BLXCOLOR_CODON,	  /* color in which to highlight the nucleotides for the currently-selected codon */
-    BLXCOLOR_MET,		  /* background color for MET codons in the three frame translation */
-    BLXCOLOR_STOP,	  /* background color for STOP codons in the three frame translation */
-    BLXCOLOR_GRID_LINE,	  /* color of the gridlines in the big picture grids */
-    BLXCOLOR_GRID_TEXT,	  /* color of the text in the big picture grids */
+    BLXCOLOR_BACKGROUND,    /* background color of the widgets */
+    BLXCOLOR_REF_SEQ,       /* default background color for the reference sequence */  
+    BLXCOLOR_MATCH,         /* background color for an exact match */
+    BLXCOLOR_CONS,          /* background color for a conserved match */
+    BLXCOLOR_MISMATCH,      /* background color for a mismatch */
+    BLXCOLOR_INSERTION,     /* color for an insertion marker */
+    BLXCOLOR_EXON_START,    /* color for the start boundary line of an exon */
+    BLXCOLOR_EXON_END,      /* color for the end boundary line of an exon */
+    BLXCOLOR_CODON,         /* color in which to highlight the nucleotides for the currently-selected codon */
+    BLXCOLOR_MET,           /* background color for MET codons in the three frame translation */
+    BLXCOLOR_STOP,          /* background color for STOP codons in the three frame translation */
+    BLXCOLOR_GRID_LINE,     /* color of the gridlines in the big picture grids */
+    BLXCOLOR_GRID_TEXT,     /* color of the text in the big picture grids */
     BLXCOLOR_HIGHLIGHT_BOX, /* color of the highlight box in the big picture */
-    BLXCOLOR_PREVIEW_BOX,	  /* color of the preview box in the big picture */
-    BLXCOLOR_MSP_LINE,	  /* color of the MSP lines in the big picture */
-    BLXCOLOR_SNP,		  /* background color for SNPs */
-    BLXCOLOR_GROUP,	  /* default highlight color for generic groups */
-    BLXCOLOR_MATCH_SET,	  /* default highlight color for the special match-set group */
-    BLXCOLOR_EXON_FILL_CDS, /* fill color for an exon in the big picture (coding region) */
-    BLXCOLOR_EXON_FILL_UTR, /* fill color for an exon in the big picture (non-coding/untranslated region) */
-    BLXCOLOR_EXON_LINE_CDS, /* line color for an exon in the big picture (coding region) */
-    BLXCOLOR_EXON_LINE_UTR, /* line color for an exon in the big picture (non-coding/untranslated region) */
+    BLXCOLOR_PREVIEW_BOX,   /* color of the preview box in the big picture */
+    BLXCOLOR_MSP_LINE,      /* color of the MSP lines in the big picture */
+    BLXCOLOR_SNP,           /* background color for SNPs */
+    BLXCOLOR_GROUP,         /* default highlight color for generic groups */
+    BLXCOLOR_MATCH_SET,     /* default highlight color for the special match-set group */
+    BLXCOLOR_EXON_FILL,     /* fill color for an exon in the big picture */
+    BLXCOLOR_EXON_LINE,     /* line color for an exon in the big picture */
+    BLXCOLOR_CDS_FILL,      /* fill color for a CDS in the big picture (coding region) */
+    BLXCOLOR_CDS_LINE,      /* line color for a CDS in the big picture (coding region) */
+    BLXCOLOR_UTR_FILL,      /* fill color for an UTR in the big picture (non-coding/untranslated region) */
+    BLXCOLOR_UTR_LINE,      /* line color for an UTR in the big picture (non-coding/untranslated region) */
     BLXCOLOR_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
     BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
@@ -215,8 +225,9 @@ typedef struct _MSP
 {
   struct _MSP       *next;
   BlxMspType        type;          /* See enum above */
-  int               score;
-  int               id;
+  gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
+  gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
+  int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
 
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   char              qframe[8];     /* obsolete - use qFrame and qStrand instead */

@@ -226,7 +226,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	  MSP *msp = (MSP*)(subjectSeq->mspList->data);
 
 	  gtk_list_store_set(store, &iter,
-			     BLXCOL_SEQNAME, msp->sname,
+			     BLXCOL_SEQNAME, mspGetSName(msp),
 			     BLXCOL_SOURCE, msp->source,
 			     BLXCOL_ORGANISM, NULL,
 			     BLXCOL_GENE_NAME, NULL,
@@ -251,11 +251,11 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 			     BLXCOL_TISSUE_TYPE, NULL,
 			     BLXCOL_STRAIN, NULL,
 			     BLXCOL_GROUP, NULL,
-			     BLXCOL_SCORE, NULL,
-			     BLXCOL_ID, NULL,
-			     BLXCOL_START, NULL,
+			     BLXCOL_SCORE, 0.0,
+			     BLXCOL_ID, 0.0,
+			     BLXCOL_START, blxSequenceGetStart(subjectSeq),
 			     BLXCOL_SEQUENCE, subjectSeq->mspList,
-			     BLXCOL_END, NULL,
+			     BLXCOL_END, blxSequenceGetEnd(subjectSeq),
 			     -1);
 	}
     }
@@ -732,9 +732,12 @@ static gboolean isMspVisible(const MSP const *msp,
 			     const IntRange const *displayRange,
 			     const int numUnalignedBases)
 {
-  /* We only display blast matches or exons (or polyA tails, if the MSP's sequence is 
+  /* Check if the MSP is in a visible layer */
+  gboolean result = mspLayerIsVisible(msp);
+
+  /* The tree view only displays blast matches or exons (or polyA tails, if the MSP's sequence is 
    * selected) */
-  gboolean result = mspIsBlastMatch(msp) || mspIsExon(msp) ||
+  result &= mspIsBlastMatch(msp) || mspIsExon(msp) ||
 		    (mspIsPolyATail(msp) && blxWindowIsSeqSelected(blxWindow, msp->sSequence));
 		    
   /* Check that it is in this tree's frame and strand */
@@ -1498,7 +1501,7 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
       mspGList = g_list_append(NULL, msp);
       
       gtk_list_store_set(store, &iter,
-			 BLXCOL_SEQNAME, msp->sname,
+			 BLXCOL_SEQNAME, mspGetSName(msp),
 			 BLXCOL_SOURCE, msp->source,
                          BLXCOL_ORGANISM, NULL,
                          BLXCOL_GENE_NAME, NULL,
@@ -1548,14 +1551,14 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
       if (maxLen > 2)
 	{
 	  /* Ignore any text before the colon (if there is one) */
-	  char *name = strchr(msp->sname, ':');
+	  const char *name = strchr(mspGetSName(msp), ':');
 	  if (name)
 	    {
 	      name++; /* start from the char after the colon */
 	    }
 	  else
 	    {
-	      name = msp->sname; /* use the full name */
+	      name = mspGetSName(msp); /* use the full name */
 	    }
 
 	  /* Abbreviate the name to fit the column */
@@ -1593,20 +1596,20 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
 				     gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  gboolean displayRev = treeGetDisplayRev(tree);
-  
-  /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
+
+  /* Get the MSPs in this row */
   GList	*mspGList = treeGetMsps(model, iter);
   
-  if (g_list_length(mspGList) == 1)
-    {
-      MSP *msp = (MSP*)(mspGList->data);
-      
+  if (g_list_length(mspGList) > 0)
+    {  
       /* We want to display the min coord if we're in the same direction as the q strand,
        * or the max coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
+      const MSP const *msp = (const MSP const *)(mspGList->data);
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      int coord = (displayRev != sameDirection) ? msp->sRange.min : msp->sRange.max;
+      const gboolean findMin = (treeGetDisplayRev(tree) != sameDirection);
+      
+      const int coord = findMspListSExtent(mspGList, findMin);
 
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -1628,21 +1631,21 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
 				   gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
-  gboolean displayRev = treeGetDisplayRev(tree);
-  
-  /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
+
+  /* Get the MSPs in this row */
   GList	*mspGList = treeGetMsps(model, iter);
   
-  if (g_list_length(mspGList) == 1)
-    {
-      MSP *msp = (MSP*)(mspGList->data);
-      
+  if (g_list_length(mspGList) > 0)
+    {  
       /* We want to display the max coord if we're in the same direction as the q strand,
        * or the min coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
+      const MSP const *msp = (const MSP const *)(mspGList->data);
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      int coord = (displayRev != sameDirection) ? msp->sRange.max : msp->sRange.min;
+      const gboolean findMin = (treeGetDisplayRev(tree) == sameDirection);
       
+      const int coord = findMspListSExtent(mspGList, findMin);
+
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
       g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
@@ -1663,8 +1666,19 @@ static void cellDataFunctionScoreCol(GtkTreeViewColumn *column,
 {
   /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
   GList	*mspGList = treeGetMsps(model, iter);
-  
-  if (g_list_length(mspGList) != 1)
+
+  if (g_list_length(mspGList) == 1)
+    {
+      const MSP const *msp = (const MSP const *)(mspGList->data);
+      const gdouble score = msp->score;
+      char displayText[numDigitsInInt((int)score) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
+      
+//      sprintf(displayText, "%1.1f", score); 
+      sprintf(displayText, "%d", (int)score); 
+      
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+    }
+  else
     {
       g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
     }
@@ -1681,7 +1695,18 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
   /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
   GList	*mspGList = treeGetMsps(model, iter);
   
-  if (g_list_length(mspGList) != 1)
+    if (g_list_length(mspGList) == 1)
+    {
+      const MSP const *msp = (const MSP const *)(mspGList->data);
+      const gdouble id = msp->id;
+      char displayText[numDigitsInInt((int)id) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
+      
+//      sprintf(displayText, "%1.1f", id); 
+      sprintf(displayText, "%d", (int)id); 
+
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+    }
+  else
     {
       g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
     }
@@ -2345,11 +2370,11 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
         break;
         
       case BLXCOL_SCORE:
-        result = multipleMsps ? 0 : msp1->score - msp2->score;
+        result = multipleMsps ? 0 : (int)(msp1->score - msp2->score);
         break;
 	
       case BLXCOL_ID:
-        result = multipleMsps ? 0 : msp1->id - msp2->id;
+        result = multipleMsps ? 0 : (int)(msp1->id - msp2->id);
         break;
 
       case BLXCOL_START:

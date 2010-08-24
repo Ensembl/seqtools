@@ -83,13 +83,13 @@ static int gridGetNumVCells(GtkWidget *grid)
 
 
 /* Convert an ID% value to the y coord on the given grid */
-gint convertValueToGridPos(GtkWidget *grid, const gint value)
+gint convertValueToGridPos(GtkWidget *grid, const gdouble value)
 {
   /* The top line of the grid is drawn one cell height down from the top of the grid border */
   GridProperties *properties = gridGetProperties(grid);
   
-  IntRange *valRange = bigPictureGetPercentIdRange(properties->bigPicture);
-  gdouble percent = (gdouble)(valRange->max - value) / (gdouble)(valRange->max - valRange->min);
+  DoubleRange *valRange = bigPictureGetPercentIdRange(properties->bigPicture);
+  gdouble percent = (valRange->max - value) / (valRange->max - valRange->min);
   
   /* Make sure we do the multiplication on doubles before rounding to int */
   gint result = properties->gridRect.y + roundNearest((gdouble)properties->gridRect.height * percent);
@@ -145,15 +145,18 @@ static void drawHorizontalGridLines(GtkWidget *grid,
                                     GdkDrawable *drawable,
                                     GdkGC *gc,
 				    const gint numCells, 
-				    const gint rangePerCell, 
-				    const gint maxVal, 
+				    const gdouble rangePerCell, 
+				    const gdouble maxVal, 
 				    const GdkColor const *textColor,
 				    const GdkColor const *lineColor)
 {
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-  
+
   const gint rightBorder = properties->gridRect.x + properties->gridRect.width;
+  
+  /* Show decimal places if the range per cell is a fraction of a percent */
+  const gboolean showDecimal = (rangePerCell < 1.0);
   
   gint vCell = 0;
   for ( ; vCell <= numCells; ++vCell)
@@ -161,11 +164,18 @@ static void drawHorizontalGridLines(GtkWidget *grid,
       gint y = properties->gridRect.y + (gint)((gdouble)vCell * gridGetCellHeight(grid));
       
       /* Label this gridline with the %ID */
-      gint percent = maxVal - (rangePerCell * vCell);
+      gdouble percent = maxVal - (rangePerCell * vCell);
       gdk_gc_set_foreground(gc, textColor);
-      
-      char text[bigPictureProperties->leftBorderChars + 1];
-      sprintf(text, "%d%%", percent);
+      char text[bigPictureProperties->leftBorderChars + 3]; /* +3 to include decimal point, 1dp, and terminating nul */
+
+      if (showDecimal)
+        {
+          sprintf(text, "%1.1f%%", percent);
+        }
+      else
+        {
+          sprintf(text, "%d%%", (int)percent);
+        }
       
       PangoLayout *layout = gtk_widget_create_pango_layout(grid, text);
       gdk_draw_layout(drawable, gc, 0, y - gridGetCellHeight(grid)/2, layout);
@@ -377,7 +387,7 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
 
   /* Calculate some factors for scaling */
-  const gint percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
+  const gdouble percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
   const gint numVCells = gridGetNumVCells(grid);
 
   GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);

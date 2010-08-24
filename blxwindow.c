@@ -214,7 +214,7 @@ The settings menu can be accessed by right-clicking and selecting Settings, or b
 \t•\t<b>Invert Sort Order</b>:\t\tReverse the default sort order. (Note that some columns sort ascending by default (e.g. name, start, end) and some sort descending (score and ID). This option reverses that sort order.)\n\
 \t•\t<b>Highlight Differences</b>:When this option is set, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.\n\
 \t•\t<b>Show SNP Track</b>:Shows the SNP track.\n\
-\t•\t<b>Show Splice Sites</b>:Shows splice sites for the currently-selected alignment(s).  Splice sites are highlighted on the reference sequence in green (for canonical) or red (for non-canonical).  Blixem identifies GC-AG and AT-AC introns as canonical.\n\
+\t•\t<b>Show Splice Sites</b>:Shows splice sites for the currently-selected alignment(s).  Splice sites are highlighted on the reference sequence in green (for canonical) or red (for non-canonical).  Blixem identifies GT-AG, GC-AG and AT-AC introns as canonical.\n\
 \t•\t<b>Columns</b>:\t\t\tEdit the width of columns in pixels.  Set the width to 0 to hide a column. Click the 'Load optional data' button to load the data for the optional columns such as organism and tissue-type - then set the width of these columns to non-zero values to view the data. Once optional data is loaded you can also sort by it. Note that optional data is loaded on startup for DNA matches but not for protein matches, because the latter can be slow.\n\
 \t•\t<b>Grid properties</b>:\t\t\tSet the maximum/minimum %ID values show in the big picture.  Expand or contract the grid scale by adjusting '%ID per cell'.\n\
 \n\
@@ -2938,7 +2938,7 @@ static void onIdPerCellChanged(GtkWidget *widget, const gint responseId, gpointe
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
-  const int newValue = convertStringToInt(text);
+  const gdouble newValue = g_strtod(text, NULL);
   bigPictureSetIdPerCell(bigPicture, newValue);
 }
 
@@ -2948,7 +2948,7 @@ static void onMaxPercentIdChanged(GtkWidget *widget, const gint responseId, gpoi
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
-  const int newValue = convertStringToInt(text);
+  const gdouble newValue = g_strtod(text, NULL);
   bigPictureSetMaxPercentId(bigPicture, newValue);
 }
 
@@ -2957,35 +2957,65 @@ static void onMinPercentIdChanged(GtkWidget *widget, const gint responseId, gpoi
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
-  const int newValue = convertStringToInt(text);
+  const gdouble newValue = g_strtod(text, NULL);
   bigPictureSetMinPercentId(bigPicture, newValue);
 }
 
 
-/* Utility to create a text entry widget displaying the given integer value. The
+///* Utility to create a text entry widget displaying the given integer value. The
+// * given callback will be called when the user OK's the dialog that this widget 
+// * is a child of. */
+//static void createTextEntryFromInt(GtkWidget *parent, 
+//				   const char *title, 
+//				   const int value, 
+//				   BlxResponseCallback callbackFunc, 
+//				   gpointer callbackData)
+//{
+//  /* Pack label and text entry into a vbox */
+//  GtkWidget *vbox = createVBoxWithBorder(parent, 4, FALSE, NULL);
+//
+//  GtkWidget *label = gtk_label_new(title);
+//  gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
+//
+//  GtkWidget *entry = gtk_entry_new();
+//  gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
+//
+//  char *displayText = convertIntToString(value);
+//  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+//
+//  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
+//  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+//
+//  widgetSetCallbackData(entry, callbackFunc, callbackData);
+//  
+//  g_free(displayText);
+//}
+
+
+/* Utility to create a text entry widget displaying the given double value. The
  * given callback will be called when the user OK's the dialog that this widget 
  * is a child of. */
-static void createTextEntryFromInt(GtkWidget *parent, 
-				   const char *title, 
-				   const int value, 
-				   BlxResponseCallback callbackFunc, 
-				   gpointer callbackData)
+static void createTextEntryFromDouble(GtkWidget *parent, 
+                                      const char *title, 
+                                      const gdouble value, 
+                                      BlxResponseCallback callbackFunc, 
+                                      gpointer callbackData)
 {
   /* Pack label and text entry into a vbox */
   GtkWidget *vbox = createVBoxWithBorder(parent, 4, FALSE, NULL);
-
+  
   GtkWidget *label = gtk_label_new(title);
   gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
-
+  
   GtkWidget *entry = gtk_entry_new();
   gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
-
-  char *displayText = convertIntToString(value);
+  
+  char *displayText = convertDoubleToString(value);
   gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-
+  
   gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-
+  
   widgetSetCallbackData(entry, callbackFunc, callbackData);
   
   g_free(displayText);
@@ -3001,11 +3031,11 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 
   /* Arrange the widgets horizontally */
   GtkWidget *hbox = createHBoxWithBorder(frame, 12);
-  const IntRange const *percentIdRange = bigPictureGetPercentIdRange(bigPicture);
+  const DoubleRange const *percentIdRange = bigPictureGetPercentIdRange(bigPicture);
   
-  createTextEntryFromInt(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
-  createTextEntryFromInt(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
-  createTextEntryFromInt(hbox, "Min %ID", percentIdRange->min, onMinPercentIdChanged, bigPicture);
+  createTextEntryFromDouble(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
+  createTextEntryFromDouble(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
+  createTextEntryFromDouble(hbox, "Min %ID", percentIdRange->min, onMinPercentIdChanged, bigPicture);
 }
 
 
@@ -4298,14 +4328,15 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc, BLXCOLOR_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
   
   /* exons */
-  createBlxColor(bc, BLXCOLOR_EXON_CDS, "Exon (CDS)", "Exon color in alignment list (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_EXON_UTR, "Exon (UTR)", "Exon color in alignment list (non-coding)", BLX_LIGHT_RED, BLX_LIGHT_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
   createBlxColor(bc, BLXCOLOR_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_EXON_FILL_CDS, "Exon fill color (CDS)", "Exon fill color in big picture (coding)", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_EXON_FILL_UTR, "Exon fill color (UTR)", "Exon fill color in big picture (non-coding)", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_EXON_LINE_CDS, "Exon line color (CDS)", "Exon line color in big picture (coding)", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
-  createBlxColor(bc, BLXCOLOR_EXON_LINE_UTR, "Exon line color (UTR)", "Exon line color in big picture (non-coding)", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
+
+  createBlxColor(bc, BLXCOLOR_EXON_FILL, "Exon fill color", "Exon fill color in big picture", BLX_YELLOW, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_EXON_LINE, "Exon line color", "Exon line color in big picture", BLX_BLUE, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color in big picture", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
+  createBlxColor(bc, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
   
   /* codons */
   createBlxColor(bc, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_LIGHT_SKY_BLUE, BLX_LIGHT_GREY, NULL, NULL);
@@ -4908,12 +4939,10 @@ static void calcID(MSP *msp, BlxViewContext *bc)
   const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
   const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
   
-  msp->id = UNSET_INT;
+  msp->id = 0.0;
   
   if (mspIsBlastMatch(msp))
     {
-      msp->id = 0;
-      
       /* If there is no sequence data, leave the ID as zero */
       const char *matchSeq = mspGetMatchSeq(msp);
 
@@ -4939,7 +4968,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           
           if (!refSeqSegment)
             {
-	      prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", msp->sname, msp->sRange.min, msp->sRange.max);
+	      prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", mspGetSName(msp), msp->sRange.min, msp->sRange.max);
               reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
               return;
             }
@@ -5033,13 +5062,63 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                 }
             }
           
-          msp->id = (int)((100.0 * numMatchingChars / totalNumChars) + 0.5);
+          msp->id = (100.0 * numMatchingChars / totalNumChars);
           
           g_free(refSeqSegment);
         }
     }
   
   return ;
+}
+
+
+/* Calculate the reference sequence reading frame that the given MSP belongs to, if not
+ * already set. Requires either the phase to be set, or the frame to already be set; otherwise
+ * assumes a phase of 0 and gives a warning. */
+static void calcReadingFrame(MSP *msp, const BlxViewContext *bc)
+{
+  /* Always calculate frame if the phase is known, because the old code that used to pass the
+   * reading frame seemed to occasionally pass an incorrect reading frame. */
+  if (msp->phase != UNSET_INT || msp->qFrame == UNSET_INT)
+    {
+      if (msp->phase == UNSET_INT)
+        {
+          g_warning("Phase is not specified for MSP '%s' (q=%d-%d; s=%d-%d) - assuming phase 0.\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+          msp->phase = 0;
+        }
+      
+      /* Get the first coord of the first complete codon. This is the start coord (5' end) of the match
+       * plus the phase (if non-zero), which initially gets stored in the qFrame field in the MSP... */
+      const int coord = mspGetQStart(msp) + msp->phase;
+
+      /* Find the reading frame that this coord belongs in. This is the same as the base number within
+       * reading frame 1. */
+      int frame = UNSET_INT;
+      const gboolean invertCoords = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
+
+      convertDnaIdxToDisplayIdx(coord, bc->seqType, 1, bc->numFrames, invertCoords, &bc->refSeqRange, &frame);
+      
+      if (frame != UNSET_INT)
+        {
+          if (msp->qFrame != UNSET_INT && msp->qFrame != frame && bc->seqType == BLXSEQ_PEPTIDE)
+            {
+              g_warning("Calculated reading frame '%d' differs from parsed reading frame '%d'; using calculated frame (%s).\n", frame, msp->qFrame, mspGetSName(msp));
+            }
+            
+          msp->qFrame = frame;
+        }
+    }
+
+  if (msp->qFrame == UNSET_INT)
+    {
+      g_warning("Reading frame is not set for MSP '%s' (q=%d-%d; s=%d-%d) - setting to 1.\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+      msp->qFrame = 1;
+    }
+
+  /* Messy, for backwards compatibility... set the frame number in the qframe string */
+  char *frameStr = convertIntToString(msp->qFrame);
+  msp->qframe[2] = frameStr[0];
+  g_free(frameStr);
 }
 
 
@@ -5063,32 +5142,10 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
       curRange->qStart += offset;
       curRange->qEnd += offset;
     }
-  
-  /* Calculate the q frame that this MSP should appear in; that is, the frame in which
-   * the first coord of the match will be base 1. (We can find the base number within
-   * frame 1 and the required frame number is simply the same as that.) */
-  /* to do: do this for exons as well; we need more info though because exons don't
-   * necessarily start at base1 in their frame. */
-  if (bc->seqType == BLXSEQ_PEPTIDE && mspIsBlastMatch(msp))
-    {
-      const gboolean reverseStrand = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
-      
-      int frame = UNSET_INT;
-      convertDnaIdxToDisplayIdx(mspGetQStart(msp), bc->seqType, 1, bc->numFrames, reverseStrand, &bc->refSeqRange, &frame);
-      
-      char *frameStr = convertIntToString(frame);
 
-      if (frame != msp->qFrame)
-	{
-	  printf("Warning: calculated match frame as %d but frame in input file is %d. Sequence %s [%d - %d]\n",
-		 frame, msp->qFrame, msp->sname, msp->sRange.min, msp->sRange.max);
-	}  
-      
-      msp->qFrame = frame;
-      msp->qframe[2] = frameStr[0];
-      g_free(frameStr);
-    }
-  
+  /* Calculate the ref seq reading frame this match should be shown against */
+  calcReadingFrame(msp, bc);
+
   /* Calculate the ID */
   if (mspIsBlastMatch(msp))
     {
@@ -5097,16 +5154,16 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
 }
 
 
-static int calculateMspData(MSP *mspList, BlxViewContext *bc)
+static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
 {
   MSP *msp = mspList;
-  int lowestId = UNSET_INT;
+  gdouble lowestId = -1.0;
   
   for ( ; msp; msp = msp->next)
     {
       calcMspData(msp, bc);
       
-      if (mspIsBlastMatch(msp) && (lowestId == UNSET_INT || msp->id < lowestId))
+      if (mspIsBlastMatch(msp) && (lowestId == -1.0 || msp->id < lowestId))
 	{
 	  lowestId = msp->id;
 	}
@@ -5184,7 +5241,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       port, 
                                                       External);
   
-  const int lowestId = calculateMspData(options->mspList, blxContext);
+  const gdouble lowestId = calculateMspData(options->mspList, blxContext);
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
 

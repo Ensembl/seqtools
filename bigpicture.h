@@ -34,8 +34,8 @@ typedef struct _BigPictureProperties
     int roundTo;		/* The number of bases to round grid lines to the nearest multiple of */
 
     int numVCells;		/* The number of cells in the grid vertically */
-    int idPerCell;		/* The percent ID to show per vertical cell */
-    IntRange percentIdRange;	/* The max and min %ID values displayed */
+    gdouble idPerCell;		/* The percent ID to show per vertical cell */
+    DoubleRange percentIdRange;	/* The max and min %ID values displayed */
 
     int previewBoxCentre;	/* The base that the preview box is centered on (or UNSET_INT if no preview box) */
     
@@ -82,14 +82,14 @@ GtkWidget*		      bigPictureGetGridHeader(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetDetailView(GtkWidget *bigPicture);
 BlxSeqType		      bigPictureGetSeqType(GtkWidget *bigPicture);
 int			      bigPictureGetNumFrames(GtkWidget *bigPicture);
-int			      bigPictureGetIdPerCell(GtkWidget *bigPicture);
-IntRange*		      bigPictureGetPercentIdRange(GtkWidget *bigPicture);
+gdouble			      bigPictureGetIdPerCell(GtkWidget *bigPicture);
+DoubleRange*		      bigPictureGetPercentIdRange(GtkWidget *bigPicture);
 int			      bigPictureGetNumVCells(GtkWidget *bigPicture);
 BlxViewContext*		      bigPictureGetContext(GtkWidget *bigPicture);
 
-void			      bigPictureSetIdPerCell(GtkWidget *bigPicture, const int idPerCell);
-void			      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const int newValue);
-void			      bigPictureSetMinPercentId(GtkWidget *bigPicture, const int newValue);
+void			      bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell);
+void			      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue);
+void			      bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue);
 void                          bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
@@ -128,7 +128,7 @@ GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
 					       const int bigPictZoom,
-					       const int lowestId);
+					       const gdouble lowestId);
 
 
 #endif /* _big_picture_included_ */

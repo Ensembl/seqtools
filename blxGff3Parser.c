@@ -47,18 +47,44 @@ typedef enum {
 } BlxDotterError;
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, const char *opts, MSP *msp, GList **seqList, GSList *supportedTypes, GSList *styles, GError **error);
-static void           parseAttributes(char *attributes, MSP *msp, GList **seqList, const char *opts, const int lineNum, GError **error);
-static void           parseTagDataPair(char *text, MSP *msp, char **sequence, BlxStrand *strand, char **gapString, GList **seqList, const int lineNum, GError **error);
-static void           parseNameTag(char *data, MSP *msp, const int lineNum, GError **error);
-static void           parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqList, const int lineNum, GError **error);
+/* Utility struct to compile GFF fields and attributes into */
+typedef struct _BlxGffData 
+  {
+    /* standard fields */
+    char *qName;	/* ref seq name */
+    char *source;	/* source */
+    BlxMspType mspType;	/* type */
+    int qStart;		/* start coord on the ref seq */
+    int qEnd;		/* end coord on the ref seq */
+    gdouble score;	/* score */
+    BlxStrand qStrand;	/* ref seq strand */
+    int phase;		/* phase */
+    
+    /* Attributes */
+    char *sName;	/* target name */
+    BlxStrand sStrand;	/* target sequence strand */
+    int sStart;		/* target start coord */
+    int sEnd;		/* target end coord */
+    char *idTag;	/* ID of the item */
+    char *parentIdTag;	/* Parent ID of the item */
+    char *sequence;	/* sequence data */
+    char *gapString;	/* the gaps cigar string */
+  } BlxGffData;
+
+
+
+static void           parseGffColumns(GString *line_string, const int lineNum, const char *opts, GList **seqList, GSList *supportedTypes, GSList *styles, BlxGffData *gffData, GError **error);
+static void           parseAttributes(char *attributes, GList **seqList, const char *opts, const int lineNum, BlxGffData *gffData, GError **error);
+static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
+static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
+static void           parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseGapString(char *text, const char *opts, MSP *msp, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
-static void           parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error);
+//static void           parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error);
 static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int numFrames, int *q, int *s, GError **error);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
-static void           validateMsp(const MSP *msp, GError **error);
+//static void           validateMsp(const MSP *msp, GError **error);
 static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
 static void           destroyGffType(BlxGffType **gffType);
 
@@ -92,10 +118,15 @@ GSList* blxCreateSupportedGffTypeList()
   
   addGffType(&supportedTypes, "match_set", "SO:0000038", BLXMSP_MATCH_SET);
   
-  addGffType(&supportedTypes, "CDS", "SO:0000316", BLXMSP_EXON_CDS);
-  addGffType(&supportedTypes, "UTR", "SO:0000203", BLXMSP_EXON_UTR);
+  addGffType(&supportedTypes, "transcript", "SO:0000673", BLXMSP_TRANSCRIPT);
+  addGffType(&supportedTypes, "primary_transcript", "SO:0000185", BLXMSP_TRANSCRIPT);
+  addGffType(&supportedTypes, "processed_transcript", "SO:0000233", BLXMSP_TRANSCRIPT);
+  addGffType(&supportedTypes, "mRNA", "SO:0000234", BLXMSP_TRANSCRIPT);
 
-  addGffType(&supportedTypes, "exon", "SO:0000147", BLXMSP_EXON_UNK);
+  addGffType(&supportedTypes, "CDS", "SO:0000316", BLXMSP_CDS);
+  addGffType(&supportedTypes, "UTR", "SO:0000203", BLXMSP_UTR);
+  addGffType(&supportedTypes, "exon", "SO:0000147", BLXMSP_EXON);
+
   addGffType(&supportedTypes, "intron", "SO:0000188", BLXMSP_INTRON);
   
   addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_SNP);
@@ -183,6 +214,89 @@ void parseGff3Header(const int lineNum,
 }
 
 
+/* Create a blixem object from the given parsed GFF data. Creates an MSP if the type is
+ * exon or match, or a BlxSequence if the type is transcript. Does nothing for other types. */
+static void createBlixemObject(BlxGffData *gffData, 
+			       MSP **lastMsp, 
+			       MSP **mspList, 
+			       GList **seqList, 
+			       GSList *styles,
+			       char *opts, 
+			       GError **error)
+{
+  if (!gffData)
+    {
+      return;
+    }
+    
+  GError *tmpError = NULL;
+
+  if (typeIsExon(gffData->mspType) || gffData->mspType == BLXMSP_MATCH)
+    {
+      if (!gffData->sName && !gffData->parentIdTag)
+	{
+	  g_set_error(error, BLX_ERROR, 1, "Target/name/parent-ID must be specified for exons and alignments.\n");
+	  return;
+	}
+	
+      /* Get the id corresponding to the BlxSequence: we want the parent if it's an exon, or the
+       * ID for this item if it's a transcript or match */
+      char *idTag = typeIsExon(gffData->mspType) ? gffData->parentIdTag : gffData->idTag;
+      
+      /* For exons and transcripts, the target strand is irrelevant - use the ref seq strand */
+      if (gffData->mspType != BLXMSP_MATCH)
+	{
+	  gffData->sStrand = gffData->qStrand;
+	}
+
+      MSP *msp = createNewMsp(lastMsp, 
+			      mspList, 
+			      seqList, 
+			      gffData->mspType, 
+			      gffData->source,
+			      gffData->score, 
+                              gffData->phase,
+			      idTag,
+			      gffData->qName, 
+			      gffData->qStart, 
+			      gffData->qEnd, 
+			      gffData->qStrand, 
+			      UNSET_INT,
+			      gffData->sName, 
+			      gffData->sStart, 
+			      gffData->sEnd, 
+			      gffData->sStrand, 
+			      gffData->sequence, 
+			      opts, 
+			      &tmpError);
+
+    if (!tmpError)
+	{ 
+	  /* Get the style based on the source */
+	  msp->style = getBlxStyle(gffData->source, styles, &tmpError);
+	  
+	  if (tmpError)
+	    {
+	      /* style errors are not critical */
+	      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+	    }
+
+	  /* populate the gaps array */
+	  parseGapString(gffData->gapString, opts, msp, &tmpError);
+	}    
+    }
+  else if (gffData->mspType == BLXMSP_TRANSCRIPT)
+    {
+      addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, seqList, gffData->sequence, NULL, &tmpError);
+    }
+    
+  if (tmpError)
+    {
+      g_propagate_error(error, tmpError);
+    }
+}
+
+
 /* Parse GFF3 data */
 void parseGff3Body(const int lineNum,
                    MSP **lastMsp, 
@@ -196,36 +310,21 @@ void parseGff3Body(const int lineNum,
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
-  /* Data goes into a new MSP */
-  MSP *prevMsp = *lastMsp;
-  MSP *msp = createEmptyMsp(lastMsp, mspList);
-
+  /* Parse the data into a temporary struct */
+  BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
+			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL};
+		      
   GError *error = NULL;
-  parseGffColumns(line_string, lineNum, opts, msp, seqList, supportedTypes, styles, &error);
+  parseGffColumns(line_string, lineNum, opts, seqList, supportedTypes, styles, &gffData, &error);
   
+  /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      validateMsp(msp, &error);
+      createBlixemObject(&gffData, lastMsp, mspList, seqList, styles, opts, &error);
     }
   
   if (error)
     {
-      /* Destroy the incomplete msp and remove it from the list */
-      if (prevMsp)
-        {
-          prevMsp->next = NULL;
-          *lastMsp = prevMsp;
-        }
-      else
-        {
-          /* List was empty */
-          *mspList = NULL;
-        }
-      
-      destroyMspData(msp);
-      g_free(msp);
-      msp = NULL;
-
       prefixError(error, "[line %d] Error parsing GFF data. ", lineNum);
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
@@ -285,13 +384,6 @@ void parseFastaSeqHeader(char *line, const int lineNum,
  *********************************************************/
 
 
-/* Get the MSP type from a string continaing a valid GFF3 type name */
-static void parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error)
-{
-  msp->type = getBlxType(supportedTypes, token, error);
-}
-
-
 /* Get the strand enum from a string containing '+' for the forward strand, '-' for the
  * reverse strand or '.' if no strand is specified */
 static BlxStrand readStrand(char *token, GError **error)
@@ -323,10 +415,10 @@ static BlxStrand readStrand(char *token, GError **error)
 static void parseGffColumns(GString *line_string, 
                             const int lineNum, 
                             const char *opts, 
-                            MSP *msp, 
                             GList **seqList,
                             GSList *supportedTypes,
                             GSList *styles, 
+			    BlxGffData *gffData,
                             GError **error)
 {
     /* Split the line into its tab-separated columns. We should get 9 of them */
@@ -339,37 +431,38 @@ static void parseGffColumns(GString *line_string,
 
   if (!tmpError)
     {
-      msp->qname = g_ascii_strup(tokens[0], -1);
-      msp->source = g_strdup(tokens[1]);
-      msp->style = getBlxStyle(msp->source, styles, &tmpError);
+      gffData->qName = tokens[0] ? g_ascii_strup(tokens[0], -1) : NULL;
+      gffData->source = tokens[1] && strcmp(tokens[1], ".") ? g_strdup(tokens[1]) : NULL;
       
       if (tmpError)
 	{
 	  /* An error getting the style is not critical so report it and clear the error */
-	  prefixError(tmpError, "[line %d] Error getting style for MSP (default styles will be used instead). ", lineNum);
+	  prefixError(tmpError, "[line %d] Error getting style (default styles will be used instead). ", lineNum);
 	  reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING); 
 	}
 	
-      parseMspType(tokens[2], msp, supportedTypes, &tmpError);
+      gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
     }
     
   if (!tmpError)
     {
-      int qStart = convertStringToInt(tokens[3]);
-      int qEnd = convertStringToInt(tokens[4]);
-      intrangeSetValues(&msp->qRange, qStart, qEnd);
+      gffData->qStart = convertStringToInt(tokens[3]);
+      gffData->qEnd = convertStringToInt(tokens[4]);
       
-      msp->score = convertStringToInt(tokens[5]);
-      msp->qStrand = readStrand(tokens[6], &tmpError);
+      gffData->score = g_strtod(tokens[5], NULL);
+      gffData->qStrand = readStrand(tokens[6], &tmpError);
     }
 
   if (!tmpError)
     {
-      msp->qFrame = convertStringToInt(tokens[7]) + 1;
+      if (stringsEqual(tokens[7], ".", TRUE))
+        gffData->phase = 0;
+      else
+        gffData->phase = convertStringToInt(tokens[7]);
   
       /* Parse the optional attributes */
       char *attributes = tokens[8];
-      parseAttributes(attributes, msp, seqList, opts, lineNum, &tmpError);
+      parseAttributes(attributes, seqList, opts, lineNum, gffData, &tmpError);
     }
     
   if (tmpError)
@@ -384,46 +477,25 @@ static void parseGffColumns(GString *line_string,
 /* Parse the given text, which contains attributes of the format "tag=data". The data
  * can contain multiple values, separated by spaces. Space characters within the data must 
  * be escaped. Populates the match sequence into 'sequence' if found in one of the attributes. */
-static void parseAttributes(char *attributes, MSP *msp, GList **seqList, const char *opts, const int lineNum, GError **error)
+static void parseAttributes(char *attributes, 
+			    GList **seqList, 
+			    const char *opts, 
+			    const int lineNum, 
+			    BlxGffData *gffData,
+			    GError **error)
 {
   /* Attributes are separated by semi colons */
   char **tokens = g_strsplit_set(attributes, ";", -1);   /* -1 means do all tokens. */
 
-  /* Loop through all the tags and read their data. The Target data will be read into 
-   * the MSP and a BlxSequence (either a new or existing one). The actual sequence data will be
-   * read from a different tag, but it requires that the Target tag is processed first so that the
-   * BlxSequence exists. Remember both the BlxSequence and the sequence data so we can consolidate 
-   * them. Also, the "gaps" string cannnot be processed until the Target tag has been processed because
-   * we need certain information about the match sequence before we know how to process it, so just
-   * remember the gaps string on the first pass through. */
-  char *sequence = NULL;
-  BlxStrand strand = BLXSTRAND_NONE;
-  char *gapString = NULL;
+  /* Loop through all the tags and read their data. */
   char **token = tokens;
   GError *tmpError = NULL;
   
   while (token && *token && **token && !tmpError)
     {
-      parseTagDataPair(*token, msp, &sequence, &strand, &gapString, seqList, lineNum, &tmpError);
+      parseTagDataPair(*token, lineNum, seqList, gffData, &tmpError);
       reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
       ++token;
-    }
-
-  /* Create the BlxSequence for this MSP (or add it to an existing one of the same name, if exists) */
-  if (!tmpError)
-    {
-      addBlxSequence(msp, strand, seqList, sequence, &tmpError);
-    }
-  
-  /* Parse the gaps string */
-  if (!tmpError && gapString)
-    {
-      parseGapString(gapString, opts, msp, &tmpError);
-    }
-  else if (gapString)
-    {
-      g_free(gapString);
-      gapString = NULL;
     }
 
   if (tmpError)
@@ -436,13 +508,10 @@ static void parseAttributes(char *attributes, MSP *msp, GList **seqList, const c
 
 
 /* Parse a tag/data pair of the format "tag=data" */
-static void parseTagDataPair(char *text, 
-                             MSP *msp, 
-                             char **sequence, 
-			     BlxStrand *strand,
-                             char **gapString,
-                             GList **seqList, 
+static void parseTagDataPair(char *text,
                              const int lineNum,
+                             GList **seqList, 
+			     BlxGffData *gffData, 
                              GError **error)
 {
   DEBUG_ENTER("parseTagDataPair(text='%s')", text);
@@ -458,19 +527,27 @@ static void parseTagDataPair(char *text,
       /* Call the relevant function to parse data for this tag */
       if (!strcmp(tokens[0], "Name"))
         {
-          parseNameTag(tokens[1], msp, lineNum, &tmpError);
+          parseNameTag(tokens[1], &gffData->sName, lineNum, &tmpError);
         }
       else if (!strcmp(tokens[0], "Target"))
         {
-          parseTargetTag(tokens[1], msp, strand, seqList, lineNum, &tmpError);
+          parseTargetTag(tokens[1], lineNum, seqList, gffData, &tmpError);
         }
       else if (!strcmp(tokens[0], "sequence"))
         {
-          *sequence = g_strdup(tokens[1]);
+          gffData->sequence = g_strdup(tokens[1]);
         }
       else if (!strcmp(tokens[0], "Gap"))
         {
-          *gapString = g_strdup(tokens[1]);
+          gffData->gapString = g_strdup(tokens[1]);
+        }
+      else if (!strcmp(tokens[0], "ID"))
+        {
+          gffData->idTag = g_strdup(tokens[1]);
+        }
+      else if (!strcmp(tokens[0], "Parent"))
+        {
+	  gffData->parentIdTag = g_strdup(tokens[1]);
         }
       else
         {
@@ -491,21 +568,24 @@ static void parseTagDataPair(char *text,
 
 
 /* Parse the data from the 'Name' tag */
-static void parseNameTag(char *data, MSP *msp, const int lineNum, GError **error)
+static void parseNameTag(char *data, char **sName, const int lineNum, GError **error)
 {
-  if (!msp->sname)
-    {
-      msp->sname = g_ascii_strup(data, -1);
-    }
-  else if (!stringsEqual(data, msp->sname, FALSE))
-    {
-      g_warning("[line %d] Warning: Name attribute '%s' differs from previously-set MSP name '%s'. Ignoring new value.\n", lineNum, data, msp->sname);
+  if (data)
+    { 
+      if (*sName == NULL)
+	{
+	  *sName = g_ascii_strup(data, -1);
+	}
+      else if (!stringsEqual(data, *sName, FALSE))
+	{
+	  g_warning("[line %d] Warning: Name attribute '%s' differs from previously-set name '%s'. Ignoring new value.\n", lineNum, data, *sName);
+	}
     }
 }
 
 
 /* Parse the data from a 'Target' tag */
-static void parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqList, const int lineNum, GError **error)
+static void parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error)
 {
   /* Split on spaces */
   char **tokens = g_strsplit_set(data, " ", -1); /* -1 means all tokens */
@@ -515,29 +595,28 @@ static void parseTargetTag(char *data, MSP *msp, BlxStrand *strand, GList **seqL
   
   if (!tmpError)
     {
-      if (!msp->sname)
+      if (gffData->sName == NULL)
         {
-          msp->sname = g_ascii_strup(tokens[0], -1);
+          gffData->sName = tokens[0] ? g_ascii_strup(tokens[0], -1) : NULL;
         }
-      else if (!stringsEqual(msp->sname, tokens[0], FALSE))
+      else if (!stringsEqual(gffData->sName, tokens[0], FALSE))
         {
-          g_warning("[line %d] Warning: Target name '%s' differs from previously-set MSP name '%s'. Overriding old value.\n", lineNum, tokens[0], msp->sname);
+          g_warning("[line %d] Warning: Target name '%s' differs from previously-set name '%s'. Overriding old value.\n", lineNum, tokens[0], gffData->sName);
 
           /* It's easiest if the Target tag overrides other values, because this is where we set
            * the name in the BlxSequence. */
-          g_free(msp->sname);
-          msp->sname = g_ascii_strup(tokens[0], -1);
+          g_free(gffData->sName);
+          gffData->sName = tokens[0] ? g_ascii_strup(tokens[0], -1) : NULL;
         }
       
-      const int sStart = convertStringToInt(tokens[1]);
-      const int sEnd = convertStringToInt(tokens[2]);
-      intrangeSetValues(&msp->sRange, sStart, sEnd);
+      gffData->sStart = convertStringToInt(tokens[1]);
+      gffData->sEnd = convertStringToInt(tokens[2]);
       
       if (numTokens == 4)
         {
-          *strand = readStrand(tokens[3], &tmpError);
+          gffData->sStrand = readStrand(tokens[3], &tmpError);
         }
-      }
+     }
   
    if (tmpError)
      {
@@ -577,13 +656,12 @@ static int getNumFrames(const char *opts, GError **error)
 }
 
 
-/* Parse the data from a 'Gap' tag, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
- * Frees the given gap string when finished with. */
+/* Parse the data from the "gaps" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
+ * Populates the Gaps array in the given MSP. Frees the given gap string when finished with. */
 static void parseGapString(char *text, const char *opts, MSP *msp, GError **error)
 {
   if (!text)
     {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TAG, "Gaps string is empty.\n");
       return;
     }
   
@@ -721,46 +799,6 @@ static int validateNumTokens(char **tokens, const int minReqd, const int maxReqd
 }
 
 
-/* Check the given MSP has been populated with valid data. Sets the error if not. */
-static void validateMsp(const MSP *msp, GError **error)
-{
-  g_assert(error && !*error);
-  
-  if (!msp)
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "MSP is null.\n");
-    }
-  else if (msp->type == BLXMSP_INVALID)
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "MSP type is invalid.\n");
-    }
-  else if (!msp->qname)
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Reference sequence for MSP is not set.\n");
-    }
-  else if (msp->qRange.min == UNSET_INT || msp->qRange.max == UNSET_INT)
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Reference sequence coords are not set.\n");
-    }
-  else if (msp->qStrand == BLXSTRAND_NONE)
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Reference sequence strand not specified.\n");
-    }
-  else if (mspHasSName(msp) && !msp->sname)
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Match sequence name is null.\n");
-    }
-  else if (mspHasSCoords(msp) && (msp->sRange.min == UNSET_INT || msp->sRange.max == UNSET_INT))
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Match sequence coords are not set.\n");
-    }
-  else if (mspHasSStrand(msp) && mspGetMatchStrand(msp) == BLXSTRAND_NONE) /* if coords are set, we also need to know the direction */
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_MSP, "Match sequence strand is not set.\n");
-    }
-}
-    
-   
 /* Create a gff type with the given info and add it to the given list */
 static void addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType)
 {

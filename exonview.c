@@ -16,7 +16,9 @@
 #include <string.h>
 
 #define DEFAULT_EXON_HEIGHT			 10
-#define	DEFAULT_EXON_YPAD			 7
+#define DEFAULT_EXON_HEIGHT_BUMPED		 7
+#define	DEFAULT_EXON_YPAD			 4
+#define	DEFAULT_EXON_YPAD_BUMPED		 4
 
 typedef struct _ExonViewProperties
   {
@@ -48,6 +50,7 @@ typedef struct _DrawData
     const BlxSeqType seqType;
     gboolean expanded;		      /* whether exon view is expaned or compressed */
     gboolean normalOnly;	      /* Only draw "normal" MSPs, i.e. thse that are not selected and are not in a group */
+    int yPad;			      /* y padding */
     int y;			      /* y position to draw this exon at (constant if view compressed; increases if view bumped) */
     int height;			      /* height of exon box */
   } DrawData;
@@ -160,6 +163,9 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
   /* Check it's an exon or intron */
   gboolean showMsp = mspIsExon(msp) || mspIsIntron(msp);
   
+  /* Check it's in a visible layer */
+  showMsp &= mspLayerIsVisible(msp);
+  
   /* Check it's the correct strand */
   showMsp &= (mspGetRefStrand(msp) == drawData->strand);
   
@@ -196,7 +202,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
   /* If the view is expanded, increase the y-coord for the next sequence */
   if (seqDrawn && drawData->expanded)
     {
-      drawData->y += drawData->height + DEFAULT_EXON_YPAD;
+      drawData->y += drawData->height + drawData->yPad;
     }
 }
 
@@ -236,6 +242,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     bc->seqType,
     properties->expanded,
     FALSE,
+    properties->yPad,
     properties->exonViewRect.y,
     properties->exonViewRect.height
   };
@@ -258,11 +265,11 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
       g_list_foreach(bc->selectedSeqs, drawExonIntronItem, &drawData);
       
       /* Increment the y value when finished, because we calculate the view height based on this */
-      drawData.y += drawData.height + DEFAULT_EXON_YPAD;
+      drawData.y += drawData.height + drawData.yPad;
     }
 
   /* Set the height based on the height of the exons that were actually drawn */
-  const int newHeight = drawData.y - properties->exonViewRect.y + DEFAULT_EXON_YPAD;
+  const int newHeight = drawData.y - properties->exonViewRect.y + drawData.yPad;
   gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
   
   g_object_unref(gc);
@@ -313,7 +320,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	}
     }
   
-  const int newHeight = (numExons * (DEFAULT_EXON_HEIGHT + DEFAULT_EXON_YPAD)) + (2 * DEFAULT_EXON_YPAD);
+  const int newHeight = (numExons * (properties->exonViewRect.height + properties->yPad)) + (2 * properties->yPad);
   
   gtk_widget_set_size_request(exonView, -1, newHeight);
 }
@@ -425,6 +432,17 @@ void exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded)
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   properties->expanded = expanded;
 
+  if (expanded)
+    {
+      properties->yPad = DEFAULT_EXON_YPAD_BUMPED;
+      properties->exonViewRect.height = DEFAULT_EXON_HEIGHT_BUMPED;
+    }
+  else 
+    {
+      properties->yPad = DEFAULT_EXON_YPAD;
+      properties->exonViewRect.height = DEFAULT_EXON_HEIGHT;
+    }
+  
   calculateExonViewHeight(exonView);
   bigPictureRedrawAll(properties->bigPicture);
 }

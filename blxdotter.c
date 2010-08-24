@@ -1056,14 +1056,14 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
   g_free(querySeqSegmentTemp);
   
   /* Get the match sequence name (chopping off the letters before the colon, if there is one). */
-  char *dotterSName = strchr(firstMsp->sname, ':');
+  const char *dotterSName = strchr(mspGetSName(firstMsp), ':');
   if (dotterSName)
     {
       dotterSName++;
     }
   else
     {
-      dotterSName = firstMsp->sname;
+      dotterSName = mspGetSName(firstMsp);
     }
   
   const int offset = min(dotterStart, dotterEnd) - 1;

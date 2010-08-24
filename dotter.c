@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.10 2010-07-23 14:29:26 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.11 2010-08-24 12:27:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -181,7 +181,7 @@ char *dotterVersion = "3.1",
 
 typedef struct
 {
-  char *name ;
+  const char *name ;
   int start, end ;
   char strand ;
   MSP *msp_start, *msp_end ;
@@ -515,7 +515,7 @@ void dotter (char  type,
 	     const char *queryname,
 	     char *queryseq,
 	     int   qoff,
-	     char *subjectname,
+	     const char *subjectname,
 	      char *subjectseq,
 	      int   soff,
 	      int   qcenter,
@@ -1649,9 +1649,9 @@ static void XdrawSEG(MSP *msp, float offset)
 	graphLine(ex, TopBorder, ex, TopBorder+slen4-2);
     }
 
-    graphFillRectangle(sx, offset, ex, offset - (float)msp->score/100*fonth);
+    graphFillRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
     graphColor(BLACK);
-    graphRectangle(sx, offset, ex, offset - (float)msp->score/100*fonth);
+    graphRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
 
     graphColor(BLACK);
     if (fsAnnBottomOn && msp->desc) {
@@ -1723,9 +1723,9 @@ static void YdrawSEG(MSP *msp, float offset)
 	graphLine(LeftBorder, ex, LeftBorder+qlen4-2, ex);
     }
 
-    graphFillRectangle(offset, sx, offset - (float)msp->score/100*fonth, ex);
+    graphFillRectangle(offset, sx, offset - msp->score/100.0 * fonth, ex);
     graphColor(BLACK);
-    graphRectangle    (offset, sx, offset - (float)msp->score/100*fonth, ex);
+    graphRectangle    (offset, sx, offset - msp->score/100.0 * fonth, ex);
 
     graphColor(BLACK);
     if (fsAnnRightOn && msp->desc) {
@@ -1850,7 +1850,7 @@ static void drawGenes(MSP *msp)
     {    
       height = boxHeight;
 
-      if (msp->score < 0 || mspHasFs(msp))
+      if (msp->score < 0.0 || mspHasFs(msp))
 	{
 	  sx = seq2graphX(mspGetQStart(msp));
 	  ex = seq2graphX(mspGetQEnd(msp));
@@ -1860,12 +1860,12 @@ static void drawGenes(MSP *msp)
 	  else
 	    y = forward_y ;
 
-	  if (msp->score == -1) /* EXON */
+	  if (msp->score == -1.0) /* EXON */
 	    {
 	      oldcolor = graphColor(BLUE); 
 	      graphRectangle(sx, y, ex, y + height);
 	    }
-	  else if (msp->score == -2) /* INTRON */
+	  else if (msp->score == -2.0) /* INTRON */
 	    {
 	      oldcolor = graphColor(BLUE); 
 	      midx = 0.5 * (sx + ex) ;
@@ -1878,9 +1878,9 @@ static void drawGenes(MSP *msp)
 		continue;
 
 	      /* Adjust height to score */
-	      if (msp->score)
+	      if (msp->score > 0)
 		{
-		  height = boxHeight*(float)msp->score/100.0;
+		  height = boxHeight * msp->score/100.0;
 		}
 
 	      if (fsBottomOn && (isHorizontalMSP(msp) || (selfcomp && isVerticalMSP(msp))))
@@ -1928,12 +1928,12 @@ static void drawGenes(MSP *msp)
                   x += 20;
                 }
 		
-	      if (msp->score == -1) /* EXON */
+	      if (msp->score == -1.0) /* EXON */
 	        {
 		  oldcolor = graphColor(BLUE); 
 		  graphRectangle(x, sy, x + height, ey);
 		}
-	      else if (msp->score == -2) /* INTRON */
+	      else if (msp->score == -2.0) /* INTRON */
 		{
 		  oldcolor = graphColor(BLUE); 
 		  midy = 0.5 * (sy + ey) ;
@@ -2032,9 +2032,9 @@ static void drawAllFeatures(MSP *msp)
 	    continue;
 
 	  /* Adjust height to score */
-	  if (msp->score)
+	  if (msp->score > 0)
 	    {
-	      height = boxHeight*(float)msp->score/100.0;
+	      height = boxHeight * msp->score / 100.0;
 	    }
 
 	  if (fsBottomOn && (isHorizontalMSP(msp) || (selfcomp && isVerticalMSP(msp))))
@@ -2175,12 +2175,12 @@ static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
 		  x = LeftBorder + qlen4 + 10;
 		  if (msp->qStrand != strand) x += 20;
 		
-		  if (msp->score == -1) /* EXON */
+		  if (msp->score == -1.0) /* EXON */
 		    {
 		      oldcolor = graphColor(BLUE); 
 		      graphRectangle(x, sy, x + height, ey);
 		    }
-		  else if (msp->score == -2) /* INTRON */
+		  else if (msp->score == -2.0) /* INTRON */
 		    {
 		      oldcolor = graphColor(BLUE); 
 		      midy = 0.5 * (sy + ey) ;
@@ -2240,7 +2240,7 @@ static void getGenePositionsCB(gpointer data, gpointer user_data)
   /* We need genes added according to strand... */
   if (msp->qframe[1] == strand_genes->strand)
     {
-      char *curr_name = NULL ;
+      const char *curr_name = NULL ;
       int curr_length ;
 
       if (strand_genes->strand == '+')
@@ -2259,10 +2259,10 @@ static void getGenePositionsCB(gpointer data, gpointer user_data)
 
       /* If there's no gene or we are starting a new gene then just add to the list,
        * otherwise record latest msp end position. */
-      if (!gene_list || strncmp(msp->sname, curr_name, curr_length) != 0)
+      if (!gene_list || strncmp(mspGetSName(msp), curr_name, curr_length) != 0)
 	{
 	  gene = g_new0(GeneDataStruct, 1) ;
-	  gene->name = msp->sname ;
+	  gene->name = mspGetSName(msp) ;
 	  gene->start = mspGetSStart(msp) ;
 	  gene->end = mspGetSEnd(msp) ;
 	  gene->strand = msp->qframe[1] ;
@@ -2405,11 +2405,11 @@ static void drawMSPGene(MSP *msp, float y_offset)
   sx = seq2graphX(mspGetQStart(msp));
   ex = seq2graphX(mspGetQEnd(msp));
 
-  if (msp->score == -1) /* EXON */
+  if (msp->score == -1.0) /* EXON */
     {
       graphRectangle(sx, y_offset, ex, y_offset + height);
     }
-  else if (msp->score == -2) /* INTRON */
+  else if (msp->score == -2.0) /* INTRON */
     {
 
       midx = 0.5 * (sx + ex) ;
@@ -2486,10 +2486,10 @@ static void graphPixelLine(int strength, int sx, int sy, int ex, int ey)
 }
 
 
-static int score2color(int score)
+static int score2color(gdouble score)
 {
-    if (score < 75) return DARKRED;
-    if (score < 100) return MAGENTA;
+    if (score < 75.0) return DARKRED;
+    if (score < 100.0) return MAGENTA;
     return RED;
 }
 
@@ -2552,11 +2552,10 @@ static void drawBlastHSPs(void)
 {
   int i,
 	sx, ex, sy, ey, /* Screen coordinates [0..n] */
-	strength, matchlen, shift;
-    char 
-	strand, *MSPsname;
-    MSP 
-	*msp;
+	matchlen, shift;
+    char strand;
+    const char *MSPsname;
+    MSP *msp;
 
     strand = reversedScale ? '-' : '+';
 
@@ -2567,10 +2566,10 @@ static void drawBlastHSPs(void)
 
     for (msp = MSPlist; msp;  msp = msp->next)
     {    
-      if ((MSPsname = strchr(msp->sname, ':')))
+      if ((MSPsname = strchr(mspGetSName(msp), ':')))
 	MSPsname++;
       else
-	MSPsname = msp->sname;
+	MSPsname = mspGetSName(msp);
 
       if (!strcmp(MSPsname, sname))
 	{
@@ -2642,7 +2641,7 @@ static void drawBlastHSPs(void)
 	    }
 	    else if (BlastMode == BLASTGREY) {
 		/* strength = win*msp->score/abs(msp->send - msp->sstart); */
-		strength = msp->score;
+		int strength = (int)msp->score;
 		graphPixelLine(strength, sx, sy, ex, ey);
 	    }
 	    else {
@@ -3538,9 +3537,9 @@ int findCommand (char *command, char **retp)
 #endif
 }
 
-static void stringProtect(FILE *file, char *string)
+static void stringProtect(FILE *file, const char *string)
 {
-  char *cp;
+  const char *cp;
  
   fputc(' ', file);
   fputc('"', file);
@@ -3607,14 +3606,14 @@ static void callDotter(int dotterZoom, int xstart, int ystart, int xend, int yen
       {
 	if (msp->type == BLXMSP_FS_SEG)
 	  {
-	    fprintf(pipe, "%d %d %d %d %d %d", 
+	    fprintf(pipe, "%d %f %d %d %d %d", 
 		    msp->type,
 		    msp->score, 
 		    msp->fsColor, 
 		    mspGetQStart(msp) +MSPoffset,
 		    mspGetQEnd(msp)   +MSPoffset,
 		    msp->fs ? msp->fs->order : 0);
-	    stringProtect(pipe, msp->sname);
+	    stringProtect(pipe, mspGetSName(msp));
 	    stringProtect(pipe, msp->sframe);
 	    stringProtect(pipe, msp->qname);
 	    stringProtect(pipe, msp->qframe);

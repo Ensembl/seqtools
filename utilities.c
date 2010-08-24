@@ -438,13 +438,34 @@ void getDropShadowColor(GdkColor *origColor, GdkColor *result)
 }
 
 
+gboolean typeIsExon(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_CDS || mspType == BLXMSP_UTR || mspType == BLXMSP_EXON);
+}
+
+
 gboolean mspIsExon(const MSP const *msp)
 {
-  return (msp && 
-          (msp->type == BLXMSP_EXON_CDS ||
-           msp->type == BLXMSP_EXON_UTR || 
-           msp->type == BLXMSP_EXON_UNK));
+  return (msp && typeIsExon(msp->type));
 }
+
+
+/* Determine whether the given msp is in a visible layer */
+gboolean mspLayerIsVisible(const MSP const *msp)
+{
+  gboolean result = TRUE;
+
+  /* Currently only applicable to exons. Show plain exons OR their CDS/UTR sections,
+   * but not both. The plan is to add some options to toggle layers on and off, but for 
+   * now just hard code this. */
+  if (msp->type == BLXMSP_EXON /* msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR */)
+    {
+      result = FALSE;
+    }
+    
+  return result;
+}
+
 
 /* Determine whether the given MSP is in a coding region or untranslated region. For 
  * exons, this is determined by the exon type. For introns, we have to look at the
@@ -468,7 +489,7 @@ static const GdkColor* mspGetIntronColor(const MSP const *msp,
     {
       const MSP *curMsp = (const MSP *)(mspItem->data);
     
-      if (mspIsExon(curMsp))
+      if (mspIsExon(curMsp) && mspLayerIsVisible(curMsp))
         {
           const int curOffset = mspGetQStart(curMsp) - mspGetQStart(msp);
         
@@ -485,8 +506,8 @@ static const GdkColor* mspGetIntronColor(const MSP const *msp,
         }
     }
 
-  gboolean prevIsUtr = prevExon && prevExon->type == BLXMSP_EXON_UTR;
-  gboolean nextIsUtr = nextExon && nextExon->type == BLXMSP_EXON_UTR;
+  gboolean prevIsUtr = prevExon && prevExon->type == BLXMSP_UTR;
+  gboolean nextIsUtr = nextExon && nextExon->type == BLXMSP_UTR;
 
   /* if either exon is UTR, the intron is UTR */
   if (prevIsUtr)
@@ -509,11 +530,11 @@ static const GdkColor* mspGetIntronColor(const MSP const *msp,
     }
   else
     {
-      /* No exon exists adjacent to this intron: default to UTR for want of anything better to do. */
+      /* No exon exists adjacent to this intron: default to generic exon color for want of anything better to do. */
       if (fill)
-        result = getGdkColor(BLXCOLOR_EXON_FILL_UTR, defaultColors, selected, usePrintColors);
+        result = getGdkColor(BLXCOLOR_EXON_FILL, defaultColors, selected, usePrintColors);
       else
-        result = getGdkColor(BLXCOLOR_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
+        result = getGdkColor(BLXCOLOR_EXON_LINE, defaultColors, selected, usePrintColors);
     }
               
   return result;
@@ -968,6 +989,52 @@ int mspGetSEnd(const MSP const *msp)
   return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max : msp->sRange.min);
 }
 
+/* Return the match sequence name. (Gets it from the BlxSequence if the MSP itself doesn't have
+ * a name) */
+const char *mspGetSName(const MSP const *msp)
+{
+  const char *result = NULL;
+  
+  if (msp)
+    {
+      if (msp->sname)
+	{
+	  result = msp->sname;
+	}
+      else if (msp->sSequence)
+	{
+	  result = blxSequenceGetFullName(msp->sSequence);
+	}
+    }
+  
+  return result;
+}
+
+/* Get the transcript name for an old-style exon/intron. These were postfixed with 'x' or 'i' 
+ * to indicate exon and intron; we need to remove this postfix in order to find the real transcript
+ * name so that we can group exons and introns from the same transcript together in the same BlxSequence.
+ * If not an exon or intron, just returns a copy of the msp name. The result should be free'd with g_free. */
+char* mspGetExonTranscriptName(const MSP *msp)
+{
+  char *name = g_strdup(msp->sname);
+  
+  if (name)
+    {
+    int i = strlen(name) - 1;
+    
+    if (mspIsExon(msp) && (name[i] == 'x' || name[i] == 'X'))
+      {
+      name[i] = '\0';
+      }
+    else if (mspIsIntron(msp) && (name[i] == 'i' || name[i] == 'I'))
+      {
+      name[i] = '\0';
+      }
+    }
+  
+  return name;
+}
+
 /* Return the length of the match sequence that the given MSP lies on */
 int mspGetMatchSeqLen(const MSP const *msp)
 {
@@ -1008,30 +1075,6 @@ BlxStrand mspGetMatchStrand(const MSP const *msp)
 const char* mspGetMatchSeq(const MSP const *msp)
 {
   return blxSequenceGetSeq(msp->sSequence);
-}
-
-/* Get the sequence name for an MSP. This removes the postfixed 'x' or 'i' from
- * exon and intron names; otherwise it just returns a copy of the name in the MSP.
- * The result should be free'd with g_free. */
-char* mspGetSeqName(const MSP *msp)
-{
-  char *name = g_strdup(msp->sname);
-  
-  if (name)
-    {
-    int i = strlen(name) - 1;
-    
-    if (mspIsExon(msp) && (name[i] == 'x' || name[i] == 'X'))
-      {
-      name[i] = '\0';
-      }
-    else if (mspIsIntron(msp) && (name[i] == 'i' || name[i] == 'I'))
-      {
-      name[i] = '\0';
-      }
-    }
-  
-  return name;
 }
 
 
@@ -1106,16 +1149,16 @@ const GdkColor* mspGetColor(const MSP const *msp,
       /* Use the default color for this MSP's type */
       switch (msp->type)
         {
-          case BLXMSP_EXON_UNK:
-            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL_CDS : BLXCOLOR_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
+          case BLXMSP_EXON:
+            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL : BLXCOLOR_EXON_LINE, defaultColors, selected, usePrintColors);
             break;
             
-          case BLXMSP_EXON_CDS:
-            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL_CDS : BLXCOLOR_EXON_LINE_CDS, defaultColors, selected, usePrintColors);
+            case BLXMSP_CDS:
+            result = getGdkColor(fill ? BLXCOLOR_CDS_FILL : BLXCOLOR_CDS_LINE, defaultColors, selected, usePrintColors);
             break;
 
-          case BLXMSP_EXON_UTR:
-            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL_UTR : BLXCOLOR_EXON_LINE_UTR, defaultColors, selected, usePrintColors);
+          case BLXMSP_UTR:
+            result = getGdkColor(fill ? BLXCOLOR_UTR_FILL : BLXCOLOR_UTR_LINE, defaultColors, selected, usePrintColors);
             break;
             
           case BLXMSP_INTRON:
@@ -1287,6 +1330,18 @@ int blxSequenceGetLength(const BlxSequence *seq)
   return (seq && seq->sequence ? seq->sequence->len : 0);
 }
 
+/* Get the start extent of the sequence on the ref sequence */
+int blxSequenceGetStart(const BlxSequence *seq)
+{
+  return seq->qRange.min;
+}
+
+/* Get the end extend of the sequence on the ref sequence */
+int blxSequenceGetEnd(const BlxSequence *seq)
+{
+  return seq->qRange.max;
+}
+
 /* Get the sequence data for the given blxsequence */
 char *blxSequenceGetSeq(const BlxSequence *seq)
 {
@@ -1449,24 +1504,48 @@ void destroyBlxSequence(BlxSequence *seq)
 }
 
 
+/* Set the name of a BlxSequence (also sets the short name etc. Does nothing if the 
+ * name is already set.) */
+void blxSequenceSetName(BlxSequence *seq, const char *fullName)
+{  
+  if (fullName && !seq->fullName)
+    {
+      seq->fullName = fullName ? g_strdup(fullName) : NULL;
+      
+      /* The variant name: just cut off the prefix chars. We can use a pointer into
+       * the original string. */
+      seq->variantName = g_strdup(getSeqVariantName(fullName));
+      
+      /* The short name: cut off the prefix chars (before the ':') and the variant
+       * number (after the '.'). Need to duplicate the string to change the end of it. */
+      seq->shortName = g_strdup(seq->variantName);
+      char *cutPoint = strchr(seq->shortName, '.');
+      
+      if (cutPoint)
+	{
+	  *cutPoint = '\0';
+	}
+    }
+}
+
+
 /* Utility to create a BlxSequence with the given name. */
-BlxSequence* createEmptyBlxSequence(char *fullName)
+BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error)
 {
+  if (!fullName && !idTag)
+    {
+      g_set_error(error, BLX_ERROR, 1, "Cannot create sequence: ID or name must be specified.");
+      return NULL;
+    }
+  
   BlxSequence *seq = g_malloc(sizeof(BlxSequence));
   
-  seq->fullName = g_strdup(fullName);
-  
-  /* The variant name: just cut off the prefix chars. We can use a pointer into
-   * the original string. */
-  seq->variantName = g_strdup(getSeqVariantName(fullName));
-  
-  /* The short name: cut off the prefix chars (before the ':') and the variant
-   * number (after the '.'). Need to duplicate the string to change the end of it. */
-  seq->shortName = g_strdup(seq->variantName);
-  char *cutPoint = strchr(seq->shortName, '.');
-  
-  if (cutPoint)
-    *cutPoint = '\0';
+  seq->idTag = idTag ? g_strdup(idTag) : NULL;
+
+  seq->fullName = NULL;
+  seq->variantName = NULL;
+  seq->shortName = NULL;
+  blxSequenceSetName(seq, fullName);
 
   seq->mspList = NULL;
   seq->sequence = NULL;
@@ -1513,6 +1592,15 @@ char* convertIntToString(const int value)
 {
   char result[numDigitsInInt(value) + 1];
   sprintf(result, "%d", value);
+  return g_strdup(result);
+}
+
+
+/* Converts the given double to a string. The result must be free'd with g_free */
+char* convertDoubleToString(const gdouble value)
+{
+  char result[numDigitsInInt((int)value) + 3]; /* the +3 includes decimal point, one decimal place, and terminating null */
+  sprintf(result, "%1.1f", value);
   return g_strdup(result);
 }
 
@@ -1944,7 +2032,15 @@ gboolean stringsEqual(const char *str1, const char *str2, const gboolean caseSen
 {
   gboolean result = FALSE;
   
-  if (caseSensitive)
+  if (!str1 && !str2)
+    {
+      result = TRUE;
+    }
+  else if (!str1 || !str2)
+    {
+      result = FALSE;
+    }
+  else if (caseSensitive)
     {
       result = !strcmp(str1, str2);
     }
@@ -2111,9 +2207,9 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-/* Returns the pointer to the BlxSequence that matches the given sequence name and
- * strand. Returns NULL if no match was found. */
-BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const BlxStrand reqdStrand)
+/* Returns the pointer to the BlxSequence that matches the given strand and sequence name/tag.
+ * Returns NULL if no match was found. */
+BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand)
 {
   BlxSequence *result = NULL;
   
@@ -2124,7 +2220,9 @@ BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const BlxStra
     {
       BlxSequence *currentSeq = (BlxSequence*)(listItem->data);
 
-      if (!strcmp(currentSeq->fullName, reqdName) && currentSeq->strand == reqdStrand)
+      if (currentSeq->strand == reqdStrand &&
+          ( (reqdName && currentSeq->fullName && !strcmp(currentSeq->fullName, reqdName)) ||
+	    (reqdIdTag && currentSeq->idTag && !strcmp(currentSeq->idTag, reqdIdTag)) ))
 	{
 	  result = currentSeq;
 	  break;

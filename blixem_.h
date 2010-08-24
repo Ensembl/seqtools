@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.48 2010-08-06 13:08:34 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.49 2010-08-24 12:27:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -278,8 +278,8 @@ typedef enum
     G_TYPE_STRING,              /* tissue type */ \
     G_TYPE_STRING,              /* strain */      \
     G_TYPE_STRING,              /* group */       \
-    G_TYPE_INT,                 /* score */       \
-    G_TYPE_INT,                 /* id */          \
+    G_TYPE_DOUBLE,              /* score */       \
+    G_TYPE_DOUBLE,              /* id */          \
     G_TYPE_INT,                 /* start */       \
     G_TYPE_POINTER,             /* sequence */    \
     G_TYPE_INT                  /* end */
@@ -289,6 +289,9 @@ typedef enum
 /* blxview.c */
 void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
+void                               finaliseBlxSequences(MSP **lastMsp, MSP **mspList, GList **seqList, char *opts);
+int				   findMspListSExtent(GList *mspList, const gboolean findMin);
+int				   findMspListQExtent(GList *mspList, const gboolean findMin);
 
 /* dotter.c */
 void                               argvAdd(int *argc, char ***argv, char *s);
@@ -336,10 +339,9 @@ void                               blxComplement(char *seq) ;
 char*                              revComplement(char *comp, char *seq) ;
 
 /* Create/destroy sequences and MSPs */
-MSP*                               createEmptyMsp(MSP **lastMsp, MSP **mspList);
-MSP*                               createNewMsp(MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, const int score, 
-                                                const char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
-                                                const char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
+MSP*                               createNewMsp(MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const int phase,
+                                                char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
+                                                char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
                                                 char *opts, GError **error);  
 
 void                               destroyMspList(MSP **mspList);
@@ -348,7 +350,7 @@ void                               destroyBlxSequenceList(GList **seqList);
 void                               blviewResetGlobals();
 
 void                               addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*                       addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *sequence, GError **error);
+BlxSequence*                       addBlxSequence(const char *name, const char *idTag, BlxStrand strand, GList **seqList, char *sequence, MSP *msp, GError **error);
 
 BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *fillColorSelected, const char *fillColorPrint, const char *fillColorPrintSelected, const char *lineColor, const char *lineColorSelected, const char *lineColorPrint, const char *lineColorPrintSelected, GError **error);
 void                               destroyBlxStyle(BlxStyle *style);

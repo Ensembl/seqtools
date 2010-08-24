@@ -136,6 +136,8 @@ void		      getDropShadowColor(GdkColor *origColor, GdkColor *result);
 void		      convertToGrayscale(GdkColor *origColor, GdkColor *result);
 void		      adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *result);
 
+gboolean              mspLayerIsVisible(const MSP const *msp);
+gboolean              typeIsExon(const BlxMspType mspType);
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
 gboolean	      mspIsSnp(const MSP const *msp);
@@ -175,7 +177,8 @@ int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
 const char*           mspGetMatchSeq(const MSP const *msp);
-char*		      mspGetSeqName(const MSP *msp);
+const char*	      mspGetSName(const MSP *msp);
+char*                 mspGetExonTranscriptName(const MSP *msp);
 const IntRange const* mspGetRefCoords(const MSP const *msp);
 const IntRange const* mspGetMatchCoords(const MSP const *msp);
 int		      mspGetQStart(const MSP const *msp);
@@ -194,8 +197,8 @@ char*                 mspGetInfo(const MSP const *msp, const gboolean allowNewli
 
 char                  getStrandAsChar(const BlxStrand strand);
 
-BlxSequence*          createEmptyBlxSequence(char *fullName);
-BlxSequence*          findBlxSequence(GList *seqList, const char *reqdName, const BlxStrand reqdStrand);
+BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
+BlxSequence*          findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand);
 
 int                   roundNearest(const double val);
 int		      roundToValue(const int inputVal, const int roundTo);
@@ -232,6 +235,7 @@ int		      gapCoord(const MSP *msp,
 int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 
 char*		      convertIntToString(const int value);
+char*                 convertDoubleToString(const gdouble value);
 int		      convertStringToInt(const char *inputStr);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
@@ -278,6 +282,7 @@ gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageT
 
 const char*	      getSeqVariantName(const char *longName);
 char*		      getSeqShortName(const char *longName);
+void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*	      blxSequenceGetFullName(const BlxSequence *seq);
 const char*	      blxSequenceGetVariantName(const BlxSequence *seq);
 const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);
@@ -286,6 +291,8 @@ int		      blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
 char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
+int		      blxSequenceGetStart(const BlxSequence *seq);
+int		      blxSequenceGetEnd(const BlxSequence *seq);
 
 void		      destroyBlxSequence(BlxSequence *seq);
 

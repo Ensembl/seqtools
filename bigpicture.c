@@ -574,10 +574,15 @@ void calculateNumVCells(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
-  const int idRangeLen = properties->percentIdRange.max - properties->percentIdRange.min;
+  if (properties->idPerCell == 0.0)
+    {
+      g_warning("%%ID per cell setting is 0. Cannot calculate number of cells.\n");
+      return;
+    }
   
-  properties->numVCells = ceil((double)idRangeLen / (double)properties->idPerCell); 
-  
+  const double idRangeLen = properties->percentIdRange.max - properties->percentIdRange.min;
+  properties->numVCells = ceil(idRangeLen / properties->idPerCell); 
+
   if (properties->numVCells < MIN_NUM_V_CELLS)
     {
       properties->numVCells = MIN_NUM_V_CELLS;
@@ -786,7 +791,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 				       GtkWidget *revExonView,
 				       int previewBoxCentre,
 				       const int initialZoom,
-				       const int lowestId)
+				       const gdouble lowestId)
 {
   if (bigPicture)
     { 
@@ -806,7 +811,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->numVCells = UNSET_INT;
       properties->idPerCell = DEFAULT_PERCENT_ID_PER_CELL;
       properties->percentIdRange.min = lowestId;
-      properties->percentIdRange.max = DEFAULT_GRID_PERCENT_ID_MAX;
+      properties->percentIdRange.max = (gdouble)DEFAULT_GRID_PERCENT_ID_MAX;
 
       properties->previewBoxCentre = previewBoxCentre;
       properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
@@ -981,13 +986,13 @@ int bigPictureGetNumFrames(GtkWidget *bigPicture)
   return blxWindowGetNumFrames(blxWindow);
 }
 
-int bigPictureGetIdPerCell(GtkWidget *bigPicture)
+gdouble bigPictureGetIdPerCell(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   return properties->idPerCell;
 }
 
-void bigPictureSetIdPerCell(GtkWidget *bigPicture, const int idPerCell)
+void bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   properties->idPerCell = idPerCell;
@@ -1000,20 +1005,20 @@ int bigPictureGetNumVCells(GtkWidget *bigPicture)
   return properties->numVCells;
 }
 
-IntRange* bigPictureGetPercentIdRange(GtkWidget *bigPicture)
+DoubleRange* bigPictureGetPercentIdRange(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   return &properties->percentIdRange;
 }
 
-void bigPictureSetMaxPercentId(GtkWidget *bigPicture, const int newValue)
+void bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   properties->percentIdRange.max = newValue;
   updateOnPercentIdChanged(bigPicture);
 }
 
-void bigPictureSetMinPercentId(GtkWidget *bigPicture, const int newValue)
+void bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   properties->percentIdRange.min = newValue;
@@ -1074,7 +1079,7 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
 			    const int initialZoom,
-			    const int lowestId)
+			    const gdouble lowestId)
 {
   /* Create the main big picture widget, which will contain all of the 
    * individual big-picture grids, plus a header. */

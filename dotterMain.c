@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.10 2010-08-06 13:08:34 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.11 2010-08-24 12:27:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -165,7 +165,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char s
    *msp->sframe = seq;
    msp->fsColor = DARKGREEN;
    msp->type = BLXMSP_FS_SEG;
-   msp->score = 100;
+   msp->score = 100.0;
    insertFS(msp, "chain_separator");
 }		      
 
@@ -378,7 +378,7 @@ int main(int argc, char **argv)
 	    while (*cp == ' ') cp++;
 	    msp->type = strtol(cp, &cp, 10);
 	    while (*cp == ' ') cp++;
-	    msp->score = strtol(cp, &cp, 10);
+	    msp->score = g_strtod(cp, &cp);
 	    while (*cp == ' ') cp++;
 	    msp->fsColor = strtol(cp, &cp, 10);
 	    while (*cp == ' ') cp++;

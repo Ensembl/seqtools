@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.58 2010-08-16 09:03:17 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.59 2010-08-24 12:27:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -143,6 +143,7 @@ char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
 static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
+static MSP*            createEmptyMsp(MSP **lastMsp, MSP **mspList);
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -782,28 +783,28 @@ static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
  * for the forward and reverse strands of the same sequence. The passed-in sequence 
  * should always be forwards, and we reverse complement it here if we need the 
  * reverse strand. Returns the new BlxSequence */
-BlxSequence* addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *sequence, GError **error)
+BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand strand, GList **seqList, char *sequence, MSP *msp, GError **error)
 {
   BlxSequence *blxSeq = NULL;
   
-  char *name = mspGetSeqName(msp);
-
-  if (name)
+  if (name || idTag)
     {
       /* If this is an exon or intron the match strand is not applicable. The exon should 
        * be in the same direction as the ref seq, so use the ref seq strand. */
-      if (mspIsExon(msp) || mspIsIntron(msp))
+      if (msp && (mspIsExon(msp) || mspIsIntron(msp)))
         {
           strand = msp->qStrand;
         }
     
-      /* See if this strand for this sequence already exists. */
-      blxSeq = findBlxSequence(*seqList, name, strand);
+      /* See if this strand for this sequence already exists. Horrible hack for backwards compatibility:
+       * if the msp is an exon/intron, cut off the old-style 'x' or 'i' postfix from the name, if it has one. */
+      char *seqName = msp ? mspGetExonTranscriptName(msp) : g_strdup(name);
+      blxSeq = findBlxSequence(*seqList, seqName, idTag, strand);
       
       if (!blxSeq)
         {
           /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
-          blxSeq = createEmptyBlxSequence(name);
+          blxSeq = createEmptyBlxSequence(seqName, idTag, NULL);
           *seqList = g_list_prepend(*seqList, blxSeq);
           
           blxSeq->strand = strand;
@@ -812,23 +813,334 @@ BlxSequence* addBlxSequence(MSP *msp, BlxStrand strand, GList **seqList, char *s
           blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsPolyATail(msp) || mspIsSnp(msp);
         }
       
-      g_free(name);
+      if (seqName && !blxSeq->fullName)
+	{
+	  /* It's possible that the BlxSequence was created without a name if we found an
+	   * unnamed child exon before we found the parent transcript, so set the name if we have it. */
+	  blxSequenceSetName(blxSeq, seqName);
+	}
       
-      /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
-      blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
-      
-      /* Set a pointer to the BlxSequence from the MSP */
-      msp->sSequence = blxSeq;
+      if (msp)
+        {
+          /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
+          blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
+          msp->sSequence = blxSeq;
+        }
       
       /* Add the sequence data */
       addBlxSequenceData(blxSeq, sequence, error);
+      
+      if (msp)
+        {
+          g_free(seqName);
+        }
     }
   else
     {
-      g_set_error(error, BLX_ERROR, 1, "Sequence name not set.\n");
+      g_set_error(error, BLX_ERROR, 1, "Sequence name or parent ID must be set.\n");
     }
   
   return blxSeq;
+}
+
+
+/* Exons and UTRs don't have phase, but we want to display them in the same reading frame
+ * as the CDS, if there is one, so if we have a corresponding CDS copy its reading frame data. */
+static void copyCdsReadingFrame(MSP *exon, MSP *cds, MSP *utr)
+{
+  if (cds && exon)
+    {
+      exon->qFrame = cds->qFrame;
+      exon->phase = cds->phase;
+    }
+
+  if (cds && utr)
+    {
+      utr->qFrame = cds->qFrame;
+      utr->phase = cds->phase;
+    }
+}
+
+
+/* Utility used by constructTranscriptData to create a missing exon/cds/utr given 
+ * two others out of the three - i.e. if we have an overlapping exon and cds we can
+ * construct the corresponding utr. If created, the new msp is added to the given 
+ * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
+ * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
+static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr, 
+                                    BlxSequence *blxSeq, MSP **lastMsp, MSP **mspList, GList **seqList, 
+                                    char *opts, GError **error)
+{
+  BlxMspType newType = BLXMSP_INVALID;
+  MSP **ptrToUpdate = NULL;
+  int newStart = UNSET_INT;
+  int newEnd = UNSET_INT;
+
+  if (!*exon && (*cds || *utr))
+    {
+      /* The exon spans both the cds and utr */
+      if (*cds && *utr)
+        {
+          newStart = min((*cds)->qRange.min, (*utr)->qRange.min);
+          newEnd = max((*cds)->qRange.max, (*utr)->qRange.max);
+          newType = BLXMSP_EXON;
+          ptrToUpdate = exon;
+        }
+      else if (*cds)
+        {
+          newStart = (*cds)->qRange.min;
+          newEnd = (*cds)->qRange.max;
+          newType = BLXMSP_EXON;
+          ptrToUpdate = exon;
+        }
+      else
+        {
+          newStart = (*utr)->qRange.min;
+          newEnd = (*utr)->qRange.max;
+          newType = BLXMSP_EXON;
+          ptrToUpdate = exon;
+        }
+    }
+  else if (!*cds && *exon && *utr)
+    {
+      /* The cds is the range of the exon that is not in the utr */
+      if ((*utr)->qRange.max < (*exon)->qRange.max)
+        {
+          newStart = (*utr)->qRange.max + 1;
+          newEnd = (*exon)->qRange.max;
+          newType = BLXMSP_CDS;
+          ptrToUpdate = cds;
+        }
+      else if ((*exon)->qRange.min < (*utr)->qRange.min)
+        {
+          newStart = (*exon)->qRange.min;
+          newEnd = (*utr)->qRange.min - 1;
+          newType = BLXMSP_CDS;
+          ptrToUpdate = cds;
+        }
+    }
+  else if (!*utr && *exon && *cds)
+    {
+      /* The utr is the range of the exon that is not in the cds */
+      if ((*exon)->qRange.min < (*cds)->qRange.min)
+        {
+          newStart = (*exon)->qRange.min;
+          newEnd = (*cds)->qRange.min - 1;
+          newType = BLXMSP_UTR;
+          ptrToUpdate = utr;
+        }
+      else if ((*cds)->qRange.max < (*exon)->qRange.max)
+        {
+          newStart = (*cds)->qRange.max + 1;
+          newEnd = (*exon)->qRange.max;
+          newType = BLXMSP_UTR;
+          ptrToUpdate = utr;
+        }
+    }
+  
+  if (newType != BLXMSP_INVALID)
+    {
+      /* Create the new exon/cds/utr */
+      DEBUG_OUT("Creating MSP for transcript '%s' of type %d.\n", blxSeq->fullName, newType);
+      
+      GError *tmpError = NULL;
+      
+      *ptrToUpdate = createNewMsp(lastMsp, mspList, seqList, newType, NULL, 0,  UNSET_INT, blxSeq->idTag,
+                                  NULL, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+                                  UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
+      
+      if (tmpError)
+        {
+          prefixError(tmpError, "Error constructing missing exon/cds/utr [type='%d']", newType);
+          g_propagate_error(error, tmpError);
+        }
+    }
+}
+
+
+/* Construct any missing transcript data, i.e.
+ *   - if we have a transcript and exons we can construct the introns;
+ *   - if we have exons and CDSs we can construct the UTRs */
+static void constructTranscriptData(MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
+{
+  /* Loop through all BlxSequences */
+  GList *seqItem = *seqList;
+  GError *tmpError = NULL;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+    
+      const MSP *prevMsp = NULL;
+      const MSP *prevExon = NULL;
+      
+      MSP *curExon = NULL;
+      MSP *curCds = NULL;
+      MSP *curUtr = NULL;
+
+      /* Loop through all MSPs on this sequence (which must be sorted by position on the
+       * ref seq - createNewMsp automatically sorts them for us) and create any missing 
+       * exon/cds/utr/introns. */
+      GList *mspItem = blxSeq->mspList;
+
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          MSP *msp = (MSP*)(mspItem->data);
+          	  
+          /* Only consider exons and introns */
+          if (mspIsExon(msp) || mspIsIntron(msp))
+            {
+              /* See if there was a gap between this exon and the previous one. There's a gap if
+               * we've hit an intron, or if we have two exons with space between them, or if 
+	       * we're at the first or last exon and there's a gap to the end of the transcript. */
+              gboolean foundGap = prevMsp && (mspIsIntron(prevMsp) || prevMsp->qRange.max < msp->qRange.min);
+	      foundGap |= (!prevMsp && blxSeq->qRange.min < msp->qRange.min);
+	      foundGap |= (mspItem->next == NULL && blxSeq->qRange.max > msp->qRange.max);
+
+              if (foundGap || mspItem->next == NULL)
+                {
+		  if (mspItem->next == NULL)
+		    {
+		      /* Normally curExon etc. refer to the complete set of exons/cds/utrs before the
+                       * gap we've just found. At the end, though, make sure we include the last MSP in
+                       * the current set of exons/cds/utrs */
+		      if (msp->type == BLXMSP_EXON)
+			curExon = msp;
+		      else if (msp->type == BLXMSP_CDS)
+			curCds = msp;
+		      else if (msp->type == BLXMSP_UTR)
+			curUtr = msp;
+		    }
+
+                  /* We've found a gap between exons. First, see if the current exon/cds or utr
+                   * is missing and construct it if possible. Also do this if we're at the last MSP. */
+                  createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, lastMsp, mspList, seqList, opts, &tmpError);
+                  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+                  
+                  copyCdsReadingFrame(curExon, curCds, curUtr);
+		}
+		  
+	      if (foundGap)
+		{
+                  /* We're moving to the next exon so set the prev exon pointer and reset the
+                   * current values. If we don't have the full exon (e.g. if we only have cds OR UTR)
+                   * then we cannot construct the intron, so leave prevExon as NULL to indicate this. */
+                  prevExon = curExon;
+                  curExon = NULL;
+                  curCds = NULL;
+                  curUtr = NULL;
+                  
+                  /* Create an intron, unless there's already one here */
+                  if (prevExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
+                    {
+                      createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, blxSeq->idTag,
+                                   NULL, prevExon->qRange.max, msp->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
+                      
+                      reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+                    }
+                }
+              
+              if (msp->type == BLXMSP_EXON)
+                curExon = msp;
+              else if (msp->type == BLXMSP_CDS)
+                curCds = msp;
+              else if (msp->type == BLXMSP_UTR)
+                curUtr = msp;
+              
+              /* Remember the last object */
+              prevMsp = msp;
+            }
+        }
+    }
+}
+
+
+/* Given a list of msps, find the min or max s coords, according to the given flag. */
+int findMspListSExtent(GList *mspList, const gboolean findMin)
+{
+  int result = UNSET_INT;
+  gboolean first = TRUE;
+  
+  GList *mspItem = mspList;
+  
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP const *msp = (const MSP const*)(mspItem->data);
+      
+      if (first)
+	{
+	  result = findMin ? msp->sRange.min : msp->sRange.max;
+	  first = FALSE;
+	}
+      else if (findMin && msp->sRange.min < result)
+	{
+	  result = msp->sRange.min;
+	}
+      else if (!findMin && msp->sRange.max > result)
+	{
+	  result = msp->sRange.max;
+	}
+    }
+    
+  return result;
+}
+
+
+/* Given a list of msps, find the min or max q coords, according to the given flag. */
+int findMspListQExtent(GList *mspList, const gboolean findMin)
+{
+  int result = UNSET_INT;
+  gboolean first = TRUE;
+  
+  GList *mspItem = mspList;
+  
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP const *msp = (const MSP const*)(mspItem->data);
+      
+      if (first)
+	{
+	  result = findMin ? msp->qRange.min : msp->qRange.max;
+	  first = FALSE;
+	}
+      else if (findMin && msp->qRange.min < result)
+	{
+	  result = msp->qRange.min;
+	}
+      else if (!findMin && msp->qRange.max > result)
+	{
+	  result = msp->qRange.max;
+	}
+    }
+    
+  return result;
+}
+
+
+/* Find the first/last base in an entire sequence, if not already set. For transcripts, the
+ * range should already be set from the parent transcript item. For matches, get the start/end
+ * of the first/last MSP in the sequence */
+static void findSequenceExtents(GList *seqList)
+{
+  GList *seqItem = seqList;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+
+      blxSeq->qRange.min = findMspListQExtent(blxSeq->mspList, TRUE);
+      blxSeq->qRange.max = findMspListQExtent(blxSeq->mspList, FALSE);
+    }
+}
+
+
+/* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
+ * data and the introns etc. */
+void finaliseBlxSequences(MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
+{
+  findSequenceExtents(*seqList);
+  constructTranscriptData(lastMsp, mspList, seqList, opts);
 }
 
 
@@ -888,13 +1200,16 @@ MSP* createNewMsp(MSP **lastMsp,
                   MSP **mspList,
                   GList **seqList,
                   const BlxMspType mspType,
-                  const int score,
-                  const char *qName,
+		  char *source,
+                  const gdouble score,
+                  const int phase,
+		  char *idTag,
+                  char *qName,
                   const int qStart,
                   const int qEnd,
                   const BlxStrand qStrand,
                   const int qFrame,
-                  const char *sName,
+                  char *sName,
                   const int sStart,
                   const int sEnd,
                   BlxStrand sStrand,
@@ -905,17 +1220,25 @@ MSP* createNewMsp(MSP **lastMsp,
   MSP *msp = createEmptyMsp(lastMsp, mspList);
   
   msp->type = mspType;
-  msp->score = score;
+  msp->score = score; 
+  msp->source = source;
+  msp->phase = phase;
   
-  msp->qname = g_strdup(qName);
+  msp->qname = qName;
   
   msp->qFrame = qFrame;
   msp->qStrand = qStrand;
   
-  msp->sname = g_ascii_strup(sName, -1);
+  msp->sname = sName ? g_ascii_strup(sName, -1) : NULL;
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
+  
+  /* We know the phase for matches is always 0, so set it if not already given. */
+  if (phase == UNSET_INT && mspIsBlastMatch(msp))
+    {
+      msp->phase = 0;
+    }
   
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -930,7 +1253,7 @@ MSP* createNewMsp(MSP **lastMsp,
   sprintf(msp->sframe, "(%c%d)", getStrandAsChar(sStrand), 1);
   
   /* Add/create a BlxSequence for this MSP's sequence name */
-  addBlxSequence(msp, sStrand, seqList, sequence, error);
+  addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
 
   if (error && *error)
     {
@@ -945,16 +1268,18 @@ MSP* createNewMsp(MSP **lastMsp,
 /* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values.
  * Add it into the given MSP list and make the end pointer ('lastMsp') point to the new
  * end of the list. Returns a pointer to the newly-created MSP */
-MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
+static MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 {
   MSP *msp = (MSP *)g_malloc(sizeof(MSP));
   
   msp->next = NULL;
   msp->type = BLXMSP_INVALID;
-  msp->score = 0;
-  msp->id = 0;
+  msp->score = 0.0;
+  msp->id = 0.0;
+  msp->phase = UNSET_INT;
   
   msp->qname = NULL;
+  msp->qFrame = UNSET_INT;
   
   msp->qframe[0] = '(';
   msp->qframe[1] = '+';
@@ -1251,7 +1576,7 @@ BlxStyle* getBlxStyle(const char *styleName, GSList *styles, GError **error)
 {
   BlxStyle *result = NULL;
 
-  if (strcmp(styleName, ".") != 0)
+  if (styleName && strcmp(styleName, ".") != 0)
     {
       GSList *item = styles;
       
@@ -1265,7 +1590,6 @@ BlxStyle* getBlxStyle(const char *styleName, GSList *styles, GError **error)
 	    }
 	}
 	
-      /* Set the error if we failed to find the style name */
       if (!result)
 	{
 	  g_set_error(error, BLX_ERROR, 1, "Requested style '%s' does not exist.\n", styleName);
