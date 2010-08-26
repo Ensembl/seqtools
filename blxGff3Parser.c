@@ -683,8 +683,10 @@ static void parseGapString(char *text, const char *opts, MSP *msp, GError **erro
   const int qDirection = qForward ? 1 : -1;
   const int sDirection = sForward ? 1 : -1;
 
-  int q = qForward ? msp->qRange.min : msp->qRange.max;
-  int s = sForward ? msp->sRange.min : msp->sRange.max;
+  /* Start at one beyond the edge of the range, because it will be incremented (or decremented if
+   * direction is reverse) when we construct the first range. */
+  int q = qForward ? msp->qRange.min - 1 : msp->qRange.max + 1;
+  int s = sForward ? msp->sRange.min - 1 : msp->sRange.max + 1;
   
   char **token = tokens;
 
@@ -742,9 +744,17 @@ static void parseCigarStringSection(const char *text,
   const int numPeptides = convertStringToInt(text+1);
   const int numNucleotides = numPeptides * numFrames;
 
+//  /* to do: hack to make blixem work the with currently-wrong data from zmap. take this out and use the above. */
+//  const int numNucleotides = convertStringToInt(text+1);
+//  const int numPeptides= numNucleotides / numFrames;
+
   if (text[0] == 'M' || text[0] == 'm')
     {
-      /* Create a match range between the old coords and the new. */
+      /* We were at the end of the previous range or gap, so move to the next coord, where our range will start */
+      *q += qDirection;
+      *s += sDirection;
+
+      /* Find the coords at the end of the range. */
       int newQ = *q + (qDirection * (numNucleotides - 1));
       int newS = *s + (sDirection * (numPeptides - 1));
       
@@ -763,19 +773,11 @@ static void parseCigarStringSection(const char *text,
     {
       /* Deletion from the subject sequence: increase the q coord by the number of nucleotides. */
       *q += qDirection * numNucleotides;
-      
-      /* Move both to the next coord, so we're at the correct start coord for the next range */
-      *q += qDirection * 1;
-      *s += sDirection * 1;
     }
   else if (text[0] == 'I' || text[0] == 'i')
     {
       /* Insertion on the subject sequence: increase the s coord by the number of peptides. */
       *s += sDirection * numPeptides;
-      
-      /* Move both to the next coord, so we're at the correct start coord for the next range */
-      *q += qDirection * 1;
-      *s += sDirection * 1;
     }
   else if (text[0] == 'f' || text[0] == 'F' || text[0] == 'r' || text[0] == 'R')
     {
