@@ -24,7 +24,9 @@
 #define MIN_NUM_V_CELLS			1	  /* minimum number of vertical cells to show in the grid */
 #define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2	  /* this provides space between highlight box and the top/bottom of the grid */
 #define MIN_HIGHLIGHT_BOX_WIDTH         5         /* minimum width of the highlight box */
-
+#define GRID_SCALE_MIN_ID_PER_CELL      0.1       /* minimum %ID per grid cell */
+#define GRID_SCALE_MIN                  0         /* minimum possible value for grid scale */
+#define GRID_SCALE_MAX                  100       /* maximum possible value for grid scale */
 
 /* Local function declarations */
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
@@ -995,8 +997,16 @@ gdouble bigPictureGetIdPerCell(GtkWidget *bigPicture)
 void bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  properties->idPerCell = idPerCell;
-  updateOnPercentIdChanged(bigPicture);
+  
+  if (idPerCell < GRID_SCALE_MIN_ID_PER_CELL)
+    {
+      g_critical("Cannot set ID per cell less than %1.1f.\n", GRID_SCALE_MIN_ID_PER_CELL);
+    }
+  else
+    {
+      properties->idPerCell = idPerCell;
+      updateOnPercentIdChanged(bigPicture);
+    }
 }
 
 int bigPictureGetNumVCells(GtkWidget *bigPicture)
@@ -1014,15 +1024,47 @@ DoubleRange* bigPictureGetPercentIdRange(GtkWidget *bigPicture)
 void bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  properties->percentIdRange.max = newValue;
-  updateOnPercentIdChanged(bigPicture);
+  
+  if (newValue < GRID_SCALE_MIN)
+    {
+      g_critical("Cannot set grid scale less than %d.\n", GRID_SCALE_MIN);
+    }
+  else if (newValue > GRID_SCALE_MAX)
+    {
+      g_critical("Cannot set grid scale greater than %d.\n", GRID_SCALE_MAX);
+    }
+  else if (newValue < properties->percentIdRange.min)
+    {
+      g_critical("Cannot set grid maximum to %1.1f because this is less than the grid minimum of %1.1f.\n", (double)newValue, (double)properties->percentIdRange.min);
+    }
+  else
+    {
+      properties->percentIdRange.max = newValue;
+      updateOnPercentIdChanged(bigPicture);
+    }
 }
 
 void bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  properties->percentIdRange.min = newValue;
-  updateOnPercentIdChanged(bigPicture);
+  
+  if (newValue < GRID_SCALE_MIN)
+    {
+      g_critical("Cannot set grid scale less than %d.\n", GRID_SCALE_MIN);
+    }
+  else if (newValue > GRID_SCALE_MAX)
+    {
+      g_critical("Cannot set grid scale greater than %d.\n", GRID_SCALE_MAX);
+    }
+  else if (newValue > properties->percentIdRange.max)
+    {
+      g_critical("Cannot set grid minimum to %1.1f because this is greater than the grid maximum of %1.1f.\n", (double)newValue, (double)properties->percentIdRange.max);
+    }
+  else
+    {    
+      properties->percentIdRange.min = newValue;
+      updateOnPercentIdChanged(bigPicture);
+    }
 }
 
 /***********************************************************
