@@ -178,6 +178,7 @@ BlxStrand	      mspGetRefStrand(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
 const char*           mspGetMatchSeq(const MSP const *msp);
 const char*	      mspGetSName(const MSP *msp);
+char*		      mspGetSummaryInfo(const MSP const *msp);
 char*                 mspGetExonTranscriptName(const MSP *msp);
 const IntRange const* mspGetRefCoords(const MSP const *msp);
 const IntRange const* mspGetMatchCoords(const MSP const *msp);
@@ -193,7 +194,7 @@ char*                 mspGetOrganism(const MSP const *msp);
 char*                 mspGetGeneName(const MSP const *msp);
 char*                 mspGetTissueType(const MSP const *msp);
 char*                 mspGetStrain(const MSP const *msp);
-char*                 mspGetInfo(const MSP const *msp, const gboolean allowNewlines);
+char*                 mspGetCoordsAsString(const MSP const *msp);
 
 char                  getStrandAsChar(const BlxStrand strand);
 
@@ -237,8 +238,10 @@ int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 char*		      convertIntToString(const int value);
 char*                 convertDoubleToString(const gdouble value);
 int		      convertStringToInt(const char *inputStr);
+gboolean	      isWhitespaceChar(const char curChar);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
+gboolean	      isValidIupacChar(const char inputChar, const BlxSeqType seqType);
 
 GtkWidget*	      showMessageDialog(const char *title,  
 					const char *messageText,
@@ -296,9 +299,6 @@ int		      blxSequenceGetEnd(const BlxSequence *seq);
 
 void		      destroyBlxSequence(BlxSequence *seq);
 
-void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
-void		      popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
-
 void		      prefixError(GError *error, char *prefixStr, ...);
 void                  postfixError(GError *error, char *formatStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
@@ -312,6 +312,7 @@ void		      debugLogLevel(const int increaseAmt);
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
 char*                 blxprintf(char *formatStr, ...);
+void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
 
 
 void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,

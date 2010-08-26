@@ -16,6 +16,9 @@
 #include <string.h>
 
 
+#define DETAIL_VIEW_STATUSBAR_CONTEXT     "statusBarCtx"
+
+
 /* Local function declarations */
 static GtkWidget*	treeGetDetailView(GtkWidget *tree);
 static gboolean		onSelectionChangedTree(GObject *selection, gpointer data);
@@ -306,6 +309,17 @@ static GtkTreeModel* treeGetVisibleDataModel(GtkTreeView *tree)
    * if there is one, otherwise it will be the original data model. */
   assertTree(GTK_WIDGET(tree));
   return gtk_tree_view_get_model(tree);
+}
+
+/* Get the status bar that this tree should report details about moused-over rows to.
+ * This may be different to the main window status bar. */
+static GtkStatusbar* treeGetStatusBar(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  return GTK_STATUSBAR(dvProperties->statusBar);
+  
+  //GTK_STATUSBAR(treeGetContext(tree)->statusBar);
 }
 
 /* For the given tree view, return the base data model i.e. all data in the tree
@@ -881,6 +895,22 @@ static void treeCreateProperties(GtkWidget *widget,
  *                       Tree events                       *
  ***********************************************************/
 
+/* Handler for when vertical scrollbar for the tree has changed (either value or range) */
+static void onScrollChangedTree(GtkObject *object, gpointer data)
+{
+  GtkWidget *tree = GTK_WIDGET(data);
+  
+  /* Remove any message from the detail-view status bar, because this shows info for the
+   * currently-moused-over item, which may have changed now we've scrolled. */
+   GtkStatusbar *statusBar = treeGetStatusBar(tree);
+   
+   if (statusBar)
+     {
+       guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+       gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+     }
+}
+
 /* Find the position of the left edge of the source widget wrt the dest widget and offset 
  * the event by this amount, then propagate the event to the dest widget. This allows us
  * to get the correct x coord on the parent widget for a click on the child widget. */
@@ -1434,11 +1464,61 @@ static gboolean onScrollTree(GtkWidget *tree, GdkEventScroll *event, gpointer da
 
 static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer data)
 {
-  propagateEventMotion(tree, treeGetDetailView(tree), event);
-  return FALSE;
+  if (!(event->state & GDK_BUTTON1_MASK) &&
+      !(event->state & GDK_BUTTON2_MASK) &&
+      !(event->state & GDK_BUTTON3_MASK) &&
+      !(event->state & GDK_BUTTON4_MASK) &&
+      !(event->state & GDK_BUTTON5_MASK))
+    {
+      GtkStatusbar *statusBar = treeGetStatusBar(tree);
+      
+      /* Remove any previous message */
+      guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+      gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+      
+      /* Add details about the current row that is being hovered over */
+      int bin_x = event->x, bin_y = event->y;
+//      gtk_tree_view_convert_widget_to_bin_window_coords(GTK_TREE_VIEW(tree), event->x, event->y, &bin_x, &bin_y); //only from GTK v2.12
+      
+      GtkTreePath *path = NULL;
+      GtkTreeViewColumn *column = NULL;
+      
+      if (gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(tree), bin_x, bin_y, &path, &column, NULL, NULL))
+	{
+	  GtkTreeIter iter;
+	  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+	  gtk_tree_model_get_iter(model, &iter, path);
+
+	  GList *mspList = treeGetMsps(model, &iter);
+	  
+	  if (g_list_length(mspList) == 1)
+	    {
+	      const MSP const *msp = (const MSP const*)(mspList->data);
+	      
+	      char *displayText = mspGetSummaryInfo(msp);
+	      
+	      if (displayText)
+		{
+		  gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+		  g_free(displayText);
+		}
+	    }
+	  else if (g_list_length(mspList) > 0)
+	    {
+	      gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, "<multiple sequences>");
+	    }
+	}
+	
+      return TRUE;
+    }
+  else
+    {
+      propagateEventMotion(tree, treeGetDetailView(tree), event);
+      return FALSE;
+    }
 }
 
-
+ 
 static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, gpointer data)
 {
   GtkWidget *tree = GTK_WIDGET(data);
@@ -1481,6 +1561,12 @@ static gboolean onEnterTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 
 static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer data)
 {
+  /* Remove any message that was added by mousing over the tree rows */
+  GtkStatusbar *statusBar = treeGetStatusBar(tree);
+  guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+
+  gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+
   /* Return true to stop the default handler re-drawing when the focus changes */
   return TRUE;
 }
@@ -2193,6 +2279,25 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 }
 
 
+///* Tooltip function for detail-view trees */
+//static gboolean onQueryTooltip(GtkWidget *tree, gint x, gint y, gboolean keyboard_mode, GtkTooltip *tooltip, gpointer data)
+//{
+//  int binx, biny;
+//  gtk_tree_view_convert_widget_to_bin_window_coords(GTK_TREE_VIEW(tree), x, y, &binx, &biny);
+//  
+//  GtkTreeViewColumn *column = NULL;
+//  gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(tree), binx, biny, NULL, &column, NULL, NULL);
+//  
+//  if (column == gtk_tree_view_get_column(GTK_TREE_VIEW(tree), BLXCOL_SEQNAME))
+//    {
+//        gtk_tooltip_set_text(tooltip, "hello");
+//
+//    }
+//  
+//  return TRUE;
+//}
+
+
 /* Create the columns. Returns a list of header info for the column headers */
 static GList* createTreeColumns(GtkWidget *tree, 
                                 GtkWidget *detailView,
@@ -2247,7 +2352,9 @@ static GList* createTreeColumns(GtkWidget *tree,
   /* Set a tooltip to display the sequence name. To do: at the moment this shows
    * the tooltip when hovering anywhere over the tree: really we probably just
    * want to show it when hovering over the name column. */
-  /* gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree), BLXCOL_SEQNAME); */ /* only in GTK 2.12 and higher */
+//  gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree), BLXCOL_SEQNAME); /* only in GTK 2.12 and higher */
+//  gtk_widget_set_has_tooltip(tree, TRUE);
+//  g_signal_connect(G_OBJECT(tree), "query-tooltip", G_CALLBACK(onQueryTooltip), NULL);
 
   return treeColumns;
 }
@@ -2535,6 +2642,10 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   gtk_widget_set_name(scrollWin, DETAIL_VIEW_TREE_CONTAINER_NAME);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
   gtk_container_add(GTK_CONTAINER(scrollWin), tree);
+
+  GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollWin));
+  g_signal_connect(G_OBJECT(adjustment), "changed", G_CALLBACK(onScrollChangedTree), tree);
+  g_signal_connect(G_OBJECT(adjustment), "value-changed", G_CALLBACK(onScrollChangedTree), tree);
 
   /* Create a header, and put the tree and header in a vbox. This vbox is the outermost
    * container for the tree */

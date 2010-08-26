@@ -17,7 +17,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#define DEFAULT_WINDOW_BORDER_WIDTH      10   /* used to change the default border width around the blixem window */
+#define DEFAULT_WINDOW_BORDER_WIDTH      1   /* used to change the default border width around the blixem window */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
@@ -4376,11 +4376,14 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
                                               GList *seqList,
                                               GSList *supportedTypes,
 					      GtkWidget *widget,
+					      GtkWidget *statusBar,
                                               const char *net_id,
                                               int port,
                                               const gboolean External)
 {
   BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
+  
+  blxContext->statusBar = statusBar;
   
   blxContext->refSeq = options->refSeq;
   blxContext->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
@@ -5122,27 +5125,11 @@ static void calcReadingFrame(MSP *msp, const BlxViewContext *bc)
 }
 
 
-/* Calculate the ID, q coordinates and q frame for the given MSP and store 
+/* Calculate the ID and q frame for the given MSP and store 
  * them in the MSP struct. Returns the calculated ID (or UNSET_INT if this msp
  * is not a blast match). */
 static void calcMspData(MSP *msp, BlxViewContext *bc)
-{
-  /* Convert the input coords (which are 1-based within the ref sequence section
-   * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
-  int offset = bc->refSeqRange.min - 1;
-  msp->qRange.min += offset;
-  msp->qRange.max += offset;
-  
-  /* Gap coords are also 1-based, so convert those too */
-  GSList *rangeItem = msp->gaps;
-
-  for ( ; rangeItem; rangeItem = rangeItem->next)
-    {
-      CoordRange *curRange = (CoordRange*)(rangeItem->data);
-      curRange->qStart += offset;
-      curRange->qEnd += offset;
-    }
-
+{  
   /* Calculate the ref seq reading frame this match should be shown against */
   calcReadingFrame(msp, bc);
 
@@ -5230,6 +5217,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 								      0,   /* page increment dynamically set based on display range */
 								      0)); /* page size dunamically set based on display range */
   
+  /* Create a status bar */
+  GtkWidget *statusBar = gtk_statusbar_new();
+  gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), TRUE);
+  setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
+
   BlxViewContext *blxContext = blxWindowCreateContext(options, 
                                                       &refSeqRange, 
                                                       &fullDisplayRange, 
@@ -5237,6 +5229,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       seqList, 
                                                       supportedTypes,
                                                       window, 
+						      statusBar,
                                                       net_id, 
                                                       port, 
                                                       External);
@@ -5270,7 +5263,10 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
-  
+
+  /* Put the statusbar at the bottom */
+  gtk_box_pack_start(GTK_BOX(vbox), statusBar, FALSE, TRUE, 0);
+
   /* Set required data for the blixem window */
   blxWindowCreateProperties(options,
 			    blxContext,

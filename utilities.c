@@ -13,18 +13,27 @@
 #include <stdlib.h>
 
 
-/* A struct used to record warning/error messages */
-typedef struct _BlxMessage
-  {
-    char *text;
-    time_t timestamp;
-    GLogLevelFlags logLevel;
-  } BlxMessage;
+/* Test char to see if it's a iupac dna/peptide code. */
+#define ISIUPACDNA(BASE) \
+(((BASE) == 'a' || (BASE) == 'c'|| (BASE) == 'g' || (BASE) == 't'       \
+  || (BASE) == 'u' || (BASE) == 'r'|| (BASE) == 'y' || (BASE) == 'm'    \
+  || (BASE) == 'k' || (BASE) == 'w'|| (BASE) == 's' || (BASE) == 'b'    \
+  || (BASE) == 'd' || (BASE) == 'h'|| (BASE) == 'v'                     \
+  || (BASE) == 'n' || (BASE) == SEQUENCE_CHAR_GAP || (BASE) == SEQUENCE_CHAR_PAD))
+
+#define ISIUPACPEPTIDE(PEPTIDE) \
+(((PEPTIDE) == 'A' || (PEPTIDE) == 'B'|| (PEPTIDE) == 'C' || (PEPTIDE) == 'D'       \
+  || (PEPTIDE) == 'E' || (PEPTIDE) == 'F'|| (PEPTIDE) == 'G' || (PEPTIDE) == 'H'    \
+  || (PEPTIDE) == 'I' || (PEPTIDE) == 'K'|| (PEPTIDE) == 'L' || (PEPTIDE) == 'M'    \
+  || (PEPTIDE) == 'N' || (PEPTIDE) == 'P'|| (PEPTIDE) == 'Q' || (PEPTIDE) == 'R'    \
+  || (PEPTIDE) == 'S' || (PEPTIDE) == 'T'|| (PEPTIDE) == 'U' || (PEPTIDE) == 'V'    \
+  || (PEPTIDE) == 'W' || (PEPTIDE) == 'X'|| (PEPTIDE) == 'Y' || (PEPTIDE) == 'Z'    \
+  || (PEPTIDE) == SEQUENCE_CHAR_STOP || (PEPTIDE) == SEQUENCE_CHAR_GAP || (PEPTIDE) == SEQUENCE_CHAR_PAD))
+
+
 
 
 static CallbackData*	  widgetGetCallbackData(GtkWidget *widget);
-static void               displayMessageAsList(GSList *messageList, const gboolean bringToFront, gpointer data);
-static char*              blxMessageGetDisplayText(const BlxMessage *msg, const gboolean incTimestamp);
 
 
 
@@ -222,7 +231,7 @@ int getRangeCentre(const IntRange const *range)
  * Returns false if the given value is an unset int or the given range is null */
 gboolean valueWithinRange(const int value, const IntRange const *range)
 {
-  return (value != UNSET_INT && range != NULL && value >= range->min && value <= range->max);
+  return (range != NULL && value >= range->min && value <= range->max);
 }
 
 
@@ -1010,6 +1019,16 @@ const char *mspGetSName(const MSP const *msp)
   return result;
 }
 
+
+static void appendTextIfNonNull(GString *gstr, const char *separator, const char *text)
+{
+  if (text)
+    {
+      g_string_append_printf(gstr, "%s%s", separator, text);
+    }
+}
+
+
 /* Get the transcript name for an old-style exon/intron. These were postfixed with 'x' or 'i' 
  * to indicate exon and intron; we need to remove this postfix in order to find the real transcript
  * name so that we can group exons and introns from the same transcript together in the same BlxSequence.
@@ -1196,10 +1215,9 @@ char *mspGetStrain(const MSP const *msp)
   return (msp && msp->sSequence && msp->sSequence->strain ? msp->sSequence->strain->str : NULL);
 }
 
-/* Return all the stored info about an MSP (name, description, organism etc.) in a single
- * string. The result should be free'd by the caller using g_free. If allowNewlines is true
- * data will be separated by newlines, otherwise it will be returned as a single line. */
-char *mspGetInfo(const MSP const *msp, const gboolean allowNewlines)
+
+/* Return the coords of an MSP as a string. The result should be free'd with g_free */
+char *mspGetCoordsAsString(const MSP const *msp)
 {
   char *result = NULL;
   
@@ -1209,6 +1227,31 @@ char *mspGetInfo(const MSP const *msp, const gboolean allowNewlines)
 
       g_string_append_printf(resultStr, "%d - %d [%d - %d]", msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
 
+      result = resultStr->str;
+      g_string_free(resultStr, FALSE);
+    }
+  
+  return result;
+}
+
+
+/* Return summary info about a given MSP (e.g. for displaying in the status bar). The
+ * result should be free'd with g_free. */
+char* mspGetSummaryInfo(const MSP const *msp)
+{
+  char *result = NULL;
+  
+  if (msp)
+    {
+      GString *resultStr = g_string_new("");
+      const char *separator = ";  ";
+      
+      g_string_append_printf(resultStr, "%s", mspGetSName(msp));
+      appendTextIfNonNull(resultStr, separator, mspGetOrganism(msp));
+      appendTextIfNonNull(resultStr, separator, mspGetGeneName(msp));
+      appendTextIfNonNull(resultStr, separator, mspGetTissueType(msp));
+      appendTextIfNonNull(resultStr, separator, mspGetStrain(msp));
+      
       result = resultStr->str;
       g_string_free(resultStr, FALSE);
     }
@@ -1398,7 +1441,7 @@ char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, cons
       for ( ; mspItem; mspItem = mspItem->next)
         {
           const MSP const *msp = (const MSP const *)(mspItem->data);
-          g_string_append_printf(resultStr, "%s\t", mspGetInfo(msp, FALSE));
+          g_string_append_printf(resultStr, "%s\t", mspGetCoordsAsString(msp));
         }
 
       /* Add a final separator after the alignments line*/
@@ -1609,6 +1652,13 @@ char* convertDoubleToString(const gdouble value)
 int convertStringToInt(const char *inputStr)
 {
   return atoi(inputStr);
+}
+
+
+/* Utility to return true if the given char is a whitespace char */
+gboolean isWhitespaceChar(const char curChar)
+{
+  return (curChar == ' ' || curChar == '\t');
 }
 
 
@@ -2287,329 +2337,6 @@ gint runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText)
 }
 
 
-/* Default handler for GLib log messages (e.g. from g_message() etc.) */
-void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
-{
-  printf("%s", (char*)message);
-}
-
-
-/* Internal function to get a pointer to the useScrolledMessages flag. Creates the flag the first 
- * time it is requested.  */
-static gboolean* getUseScrolledMessagesPtr()
-{
-  static gboolean useScrolledMessages = FALSE;
-  return &useScrolledMessages;
-}
-
-
-/* Access function to set the 'use scrolled messages' flag */
-static gboolean getUseScrolledMessages()
-{
-  return *getUseScrolledMessagesPtr();
-}
-
-/* Access function to set the 'use scrolled messages' flag */
-static void setUseScrolledMessages(const gboolean newValue)
-{
-  gboolean *useScrolledMessages = getUseScrolledMessagesPtr();
-  *useScrolledMessages = newValue;
-}
-
-
-/* Called when user requests to view messages as a list */
-static void onSetUseScrolledMessages(GtkWidget *button, const gint responseId, gpointer data)
-{
-  const gboolean useScrolledMessages = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  setUseScrolledMessages(useScrolledMessages);
-}
-
-
-/* Called when user requests to view messages as popups */
-static void onSetUsePopupMessages(GtkWidget *button, const gint responseId, gpointer data)
-{
-  const gboolean usePopupMessages = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  setUseScrolledMessages(!usePopupMessages);
-}
-
-
-/* Utility to return the stock icon to use for a dialog for a given message severity */
-static char* getDialogIcon(GLogLevelFlags log_level)
-{
-  char *result = NULL;
-  
-  switch (log_level)
-    {
-      case G_LOG_LEVEL_ERROR:
-        result = GTK_STOCK_DIALOG_ERROR;
-        break;
-        
-      case G_LOG_LEVEL_CRITICAL:
-      case G_LOG_LEVEL_WARNING:
-        result = GTK_STOCK_DIALOG_WARNING;
-        break;
-        
-      default:
-        result = GTK_STOCK_DIALOG_INFO;
-    }
-    
-  return result;
-}
-
-
-/* Display a warning/error message as a popup */
-static void displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, gpointer data)
-{
-  GtkWindow *parent = data ? GTK_WINDOW(data) : NULL;
-  
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Error", 
-						  parent, 
-						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
-  
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 12);
-  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), vbox, TRUE, TRUE, 0);
-
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 12);
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-  
-  GtkWidget *image = gtk_image_new_from_stock(getDialogIcon(log_level), GTK_ICON_SIZE_DIALOG);
-  gtk_box_pack_start(GTK_BOX(hbox), image, TRUE, TRUE, 0);
-
-  GtkWidget *label = gtk_label_new(message);
-  gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-
-  GtkWidget *button = gtk_check_button_new_with_mnemonic("Switch to _scrolled message window");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), getUseScrolledMessages());
-  widgetSetCallbackData(button, onSetUseScrolledMessages, NULL);
-  gtk_box_pack_start(GTK_BOX(vbox), button, TRUE, TRUE, 0);
-
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
-
-  gtk_widget_show_all(vbox);
-  
-  /* Block until the user clears the dialog */
-  gtk_dialog_run(GTK_DIALOG(dialog));
-}
-
-
-/* Add each BlxMessage in the given list to the given text buffer */
-static void addMessagesToBuffer(GSList *messageList, 
-                                GtkTextBuffer *textBuffer, 
-                                GtkTextTag *normalTag, 
-                                GtkTextTag *highlightTag)
-{
-  GSList *msgItem = messageList;  
-  
-  for ( ; msgItem; msgItem = msgItem->next)
-    {
-      const BlxMessage *msg = (const BlxMessage*)(msgItem->data);
-      
-      /* If it's the last in the list, highlight it. */
-      GtkTextTag *tag = (msgItem->next == NULL ? highlightTag : normalTag);
-      
-      char *displayText = blxMessageGetDisplayText(msg, TRUE);
-      
-      GtkTextIter endIter;
-      gtk_text_buffer_get_end_iter(textBuffer, &endIter);
-      gtk_text_buffer_insert_with_tags(textBuffer, &endIter, displayText, -1, tag, NULL);
-      
-      g_free(displayText);
-    }
-}
-
-
-/* Display a warning/error message in the scrolled message list */
-static void displayMessageAsList(GSList *messageList, const gboolean bringToFront, gpointer data)
-{
-  static GtkWidget *dialog = NULL;
-  static GtkWidget *button = NULL;
-  static GtkTextView *textView = NULL;
-  static GtkTextBuffer *textBuffer = NULL;
-  static GtkTextTag *normalTag = NULL;       /* for normal text */
-  static GtkTextTag *highlightTag = NULL;    /* for highlighting text */
-
-  if (!dialog)
-    {
-      dialog = gtk_dialog_new_with_buttons("Errors", 
-                                           NULL, 
-                                           GTK_DIALOG_DESTROY_WITH_PARENT,
-                                           GTK_STOCK_OK,
-                                           GTK_RESPONSE_ACCEPT,
-                                           NULL);
-      
-      /* Hide the widget instead of destroying it when it is closed */
-      g_signal_connect(G_OBJECT(dialog), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
-      
-      GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-      gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), vbox, TRUE, TRUE, 0);
-      
-      /* Create the text view */
-      int width = 600;
-      int height = 180;
-      
-      GtkWidget *child = createScrollableTextView(NULL, FALSE, NULL, TRUE, &height, &textView);
-      gtk_box_pack_start(GTK_BOX(vbox), child, TRUE, TRUE, 0);
-      gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
-      textBuffer = gtk_text_view_get_buffer(textView);
-      
-      /* Always show the horizontal scrollbar, otherwise it can cover the last line in the list
-       * when it magically appears */
-      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(child), GTK_POLICY_ALWAYS, GTK_POLICY_AUTOMATIC);
-      
-      /* Add some tags for normal/highlighted text */
-      normalTag = gtk_text_buffer_create_tag(textBuffer, NULL, "foreground", "#000000", NULL);
-      highlightTag = gtk_text_buffer_create_tag(textBuffer, NULL, "foreground", "#ff0000", NULL);
-      
-      /* Create a button to allow user to switch back to popup messages */
-      button = gtk_check_button_new_with_mnemonic("Switch to _popup messages");
-      widgetSetCallbackData(button, onSetUsePopupMessages, NULL);
-      gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
-    }
-  else
-    {
-      /* Delete contents of text buffer */
-      GtkTextIter startIter;
-      GtkTextIter endIter;
-      gtk_text_buffer_get_start_iter(textBuffer, &startIter);
-      gtk_text_buffer_get_end_iter(textBuffer, &endIter);
-      
-      gtk_text_buffer_delete(textBuffer, &startIter, &endIter);
-    }
-  
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), !getUseScrolledMessages());
-
-  addMessagesToBuffer(messageList, textBuffer, normalTag, highlightTag);
-
-  /* Don't bring the dialog to the front if it was already open, unless specifically requested. */
-  gtk_widget_show_all(dialog);
-
-  if (bringToFront || !GTK_WIDGET_VISIBLE(dialog))
-    {
-      gtk_window_present(GTK_WINDOW(dialog));
-    }
-  
-  /* Scroll to the last line in the text view. We must make sure the text view height has
-   * been calculated first or gtk_text_view_scroll_to_iter might not do the correct thing. */
-  while(gtk_events_pending()) 
-    {
-      gtk_main_iteration();
-    }
-
-  GtkTextIter textIter;
-  gtk_text_buffer_get_end_iter(textBuffer, &textIter);
-  gtk_text_view_scroll_to_iter(textView, &textIter, 0.0, FALSE, 0.0, 0.0);
-}
-
-
-/* Create a BlxMessage. Result should be destroyed with destroyBlxMessage. Timestamps the
- * message with the current system time. */
-static BlxMessage* createBlxMessage(const char *text, const GLogLevelFlags logLevel)
-{
-  BlxMessage *blxMessage = g_malloc(sizeof(BlxMessage));
-  
-  blxMessage->text = g_strdup(text);
-  blxMessage->timestamp = time(NULL);
-  blxMessage->logLevel = logLevel;
-  
-  return blxMessage;
-}
-
-/* free the memory used by a blxMessage */
-static void destroyBlxMessage(BlxMessage **blxMessage)
-{
-  if (blxMessage && *blxMessage)
-    {
-      if ((*blxMessage)->text)
-	{
-	  g_free((*blxMessage)->text);
-	}
-    
-      g_free(*blxMessage);
-    }
-}
-
-/* Get the display text for a message, including the timestamp if 'incTimestamp' is true.
- * The result should be free'd with g_free */
-static char* blxMessageGetDisplayText(const BlxMessage *msg, const gboolean incTimestamp)
-{
-  /* Use ctime to format the timestamp but cut off the newline char at the end. */
-  char *timeText = g_strdup(ctime(&msg->timestamp));
-  char *cutPoint = strchr(timeText, '\n');
-  if (cutPoint)
-    {
-      *cutPoint = '\0';
-    }
-
-  char separatorText[] = " - "; /* separates timestamp from message body */
-  
-  char *result = g_malloc(strlen(msg->text) + strlen(separatorText) + strlen(timeText) + 1);
-  
-  sprintf(result, "%s%s%s", timeText, separatorText, msg->text);
-  
-  return result;
-}
-
-
-/* Get the message list. Creates the list the first time it is requested. */
-static GSList** getMessageList()
-{
-  static GSList *messageList = NULL;
-  
-  return &messageList;
-}
-
-
-/* Clear the message list, freeing any memory that it uses */
-void destroyMessageList()
-{
-  GSList **messageList = getMessageList();
-  
-  if (messageList && *messageList)
-    {
-      GSList *msgItem = *messageList;
-      for ( ; msgItem; msgItem = msgItem->next)
-	{
-	  BlxMessage *blxMessage = (BlxMessage*)(msgItem->data);
-	  destroyBlxMessage(&blxMessage);
-	}
-      
-      g_slist_free(*messageList);
-      *messageList = NULL;
-    }
-}
-
-
-/* Default handler for critical GLib log messages (i.e. from g_error and g_critical.) */
-void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
-{
-  /* Display message to screen */
-  printf("***%s", (char*)message);
- 
-  /* Record each message in a list */
-  GSList **messageList = getMessageList();
-  
-  BlxMessage *blxMessage = createBlxMessage(message, log_level);
-  *messageList = g_slist_append(*messageList, blxMessage);
-  
-  /* Display as popup or in a scrolled list, whichever method is active */
-  if (getUseScrolledMessages())
-    {
-      displayMessageAsList(*messageList, FALSE, data);
-    }
-  else
-    {
-      displayMessageAsPopup(message, log_level, data);
-    }
-}
-
-
 /* If error is non-null, tag the given prefix string onto the start of the given 
  * error's message. If error is null, do nothing. */
 void prefixError(GError *error, char *formatStr, ...)
@@ -2794,6 +2521,46 @@ char* blxprintf(char *formatStr, ...)
   va_end(argp);
 
   return resultStr;
+}
+
+
+
+/* Returns true if the given char is a valid IUPAC character of the given type */
+gboolean isValidIupacChar(const char inputChar, const BlxSeqType seqType)
+{
+  gboolean isValidChar = FALSE;
+
+  if (seqType == BLXSEQ_DNA)
+    {
+      /* Convert to correct case and then check if this letter is a valid base */
+      char cp = tolower(inputChar);
+      isValidChar = ISIUPACDNA(cp);
+    }
+  else if (seqType == BLXSEQ_PEPTIDE)
+    {
+      /* Convert to correct case and then check if this letter is a valid peptide */
+      char cp = toupper(inputChar);
+      isValidChar = ISIUPACPEPTIDE(cp);
+    }
+
+  return isValidChar;
+}
+
+
+/* Set the shadow style for the given status bar. Give the shadow style as described
+ * in the GTK documentation but as a string, e.g. "GTK_SHADOW_IN". */
+void setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle)
+{
+  const char name[] = "StatusbarName";
+  gtk_widget_set_name(statusBar, name);
+
+  char parseString[500];
+  sprintf(parseString, "style \"detailViewStatusbar\"\n"
+          "{\n"
+          "GtkStatusbar::shadow-type	      = %s\n"
+          "}"
+          "widget \"*%s*\" style \"detailViewStatusbar\"", shadowStyle, name);
+  gtk_rc_parse_string(parseString);
 }
 
 

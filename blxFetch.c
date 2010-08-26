@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.35 2010-08-17 09:34:43 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.36 2010-08-26 11:11:20 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -185,25 +185,6 @@ typedef struct
 #endif
 
 
-
-/* Test char to see if it's a iupac dna/peptide code. */
-#define ISIUPACDNA(BASE) \
-(((BASE) == 'a' || (BASE) == 'c'|| (BASE) == 'g' || (BASE) == 't'       \
-  || (BASE) == 'u' || (BASE) == 'r'|| (BASE) == 'y' || (BASE) == 'm'    \
-  || (BASE) == 'k' || (BASE) == 'w'|| (BASE) == 's' || (BASE) == 'b'    \
-  || (BASE) == 'd' || (BASE) == 'h'|| (BASE) == 'v'                     \
-  || (BASE) == 'n' || (BASE) == SEQUENCE_CHAR_GAP || (BASE) == SEQUENCE_CHAR_PAD))
-
-#define ISIUPACPEPTIDE(PEPTIDE) \
-(((PEPTIDE) == 'A' || (PEPTIDE) == 'B'|| (PEPTIDE) == 'C' || (PEPTIDE) == 'D'       \
-  || (PEPTIDE) == 'E' || (PEPTIDE) == 'F'|| (PEPTIDE) == 'G' || (PEPTIDE) == 'H'    \
-  || (PEPTIDE) == 'I' || (PEPTIDE) == 'K'|| (PEPTIDE) == 'L' || (PEPTIDE) == 'M'    \
-  || (PEPTIDE) == 'N' || (PEPTIDE) == 'P'|| (PEPTIDE) == 'Q' || (PEPTIDE) == 'R'    \
-  || (PEPTIDE) == 'S' || (PEPTIDE) == 'T'|| (PEPTIDE) == 'U' || (PEPTIDE) == 'V'    \
-  || (PEPTIDE) == 'W' || (PEPTIDE) == 'X'|| (PEPTIDE) == 'Y' || (PEPTIDE) == 'Z'    \
-  || (PEPTIDE) == SEQUENCE_CHAR_STOP || (PEPTIDE) == SEQUENCE_CHAR_GAP || (PEPTIDE) == SEQUENCE_CHAR_PAD))
-
-
 #ifdef PFETCH_HTML 
 static gboolean getPFetchUserPrefs(PFetchUserPrefsStruct *pfetch) ;
 static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
@@ -246,7 +227,6 @@ static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean disp
 /* Pfetch local functions */
 static void                     appendCharToString(const char curChar, GString **result);
 static void                     appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString **result);
-static gboolean                 isWhitespaceChar(const char curChar);
 
 static gboolean                 pfetchInit(char *pfetchOptions, GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, int *sock);
 static void                     checkProgressBar(ProgressBar bar, BlxEmblParserState *parserState, gboolean *status);
@@ -1253,28 +1233,6 @@ static gboolean socketSend (int sock, char *text)
   g_free(tmp) ;
 
   return status ;
-}
-
-
-/* Returns true if the given char is a valid IUPAC character of the given type */
-static gboolean isValidIupacChar(const char inputChar, const BlxSeqType seqType)
-{
-  gboolean isValidChar = FALSE;
-
-  if (seqType == BLXSEQ_DNA)
-    {
-      /* Convert to correct case and then check if this letter is a valid base */
-      char cp = tolower(inputChar);
-      isValidChar = ISIUPACDNA(cp);
-    }
-  else if (seqType == BLXSEQ_PEPTIDE)
-    {
-      /* Convert to correct case and then check if this letter is a valid peptide */
-      char cp = toupper(inputChar);
-      isValidChar = ISIUPACPEPTIDE(cp);
-    }
-
-  return isValidChar;
 }
 
 
@@ -2308,7 +2266,7 @@ static void pfetchProcessEmblBufferChar(const char curChar,
           {
             /* Add the character to the end of the sequence, but only if it is a valid IUPAC character
              * (because we want to ignore whitespace, newlines and digits). */
-            if (ISIUPACDNA(curChar) || ISIUPACPEPTIDE(curChar))
+            if (isValidIupacChar(curChar, seqType))
               {
                 appendCharToString(curChar, &((*currentSeq)->sequence));
               }
@@ -2529,13 +2487,6 @@ static void appendCharToQuotedString(const char curChar, gboolean *foundEndQuote
     {
       appendCharToString(curChar, result);
     }
-}
-
-
-/* Utility to return true if the given char is a whitespace char */
-static gboolean isWhitespaceChar(const char curChar)
-{
-  return (curChar == ' ' || curChar == '\t');
 }
 
 

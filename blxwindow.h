@@ -83,6 +83,8 @@ typedef enum
 /* A Blixem View context, containing all status information required to draw the blixem view */
 typedef struct _BlxViewContext
 {
+  GtkWidget *statusBar;		    /* The Blixem window's status bar */
+
   char *refSeq;			    /* The reference sequence (always forward strand, always DNA sequence) */
   const char *refSeqName;	    /* The name of the reference sequence */
   IntRange refSeqRange;		    /* The range of the reference sequence */

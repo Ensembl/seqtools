@@ -2564,6 +2564,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GList *revStrandTrees,
 				       GtkWidget *header,
 				       GtkWidget *feedbackBox,
+				       GtkWidget *statusBar,
 				       GList *columnList,
 				       GtkAdjustment *adjustment, 
 				       const int startCoord,
@@ -2584,6 +2585,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->revStrandTrees = revStrandTrees;
       properties->header = header;
       properties->feedbackBox = feedbackBox;
+      properties->statusBar = statusBar;
       properties->columnList = columnList;
       properties->adjustment = adjustment;
       properties->selectedBaseIdx = UNSET_INT;
@@ -3193,7 +3195,6 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 	    {
 	      currentBest = offset2;
 	    }
-
 	  if (currentBest > 0)
 	    {
 	      gboolean useNew = FALSE;
@@ -3231,7 +3232,7 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
   BlxViewContext *bc = detailViewGetContext(detailView);
   
   const int searchDirection = (searchRight != bc->displayRev) ? 1 : -1;
-  
+
   MatchSearchData searchData = {startDnaIdx, 
 				searchRight, 
 				searchDirection, 
@@ -3287,7 +3288,7 @@ void prevMatch(GtkWidget *detailView, GList *seqList)
   int startCoord = detailViewGetSelectedBaseIdx(detailView);
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
   
-  if (startCoord == UNSET_INT || startDnaIdx == UNSET_INT || !valueWithinRange(startCoord, displayRange))
+  if (!valueWithinRange(startCoord, displayRange))
     {
       startCoord = getRangeCentre(displayRange);
       
@@ -3310,7 +3311,7 @@ void nextMatch(GtkWidget *detailView, GList *seqList)
   int startCoord = detailViewGetSelectedBaseIdx(detailView);
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
   
-  if (startCoord == UNSET_INT || startDnaIdx == UNSET_INT || !valueWithinRange(startCoord, displayRange))
+  if (!valueWithinRange(startCoord, displayRange))
     {
       startCoord = getRangeCentre(displayRange);
       
@@ -3384,11 +3385,11 @@ static void GFind(GtkButton *button, gpointer data)
   showFindDialog(detailViewGetBlxWindow(detailView), TRUE);
 }
 
-static void GInfo(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showInfoDialog(detailViewGetBlxWindow(detailView));
-}
+//static void GInfo(GtkButton *button, gpointer data)
+//{
+//  GtkWidget *detailView = GTK_WIDGET(data);
+//  showInfoDialog(detailViewGetBlxWindow(detailView));
+//}
 
 static void GGoto(GtkButton *button, gpointer data)
 {
@@ -3807,6 +3808,25 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
 }
 
 
+/* Create the status bar for the detail-view toolbar. (This feeds back info to the user 
+ * about the currently-moused-over sequence.) */
+static GtkWidget* createStatusBar(GtkToolbar *toolbar)
+{
+  GtkWidget *statusBar = gtk_statusbar_new() ;
+  gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), FALSE);
+
+  /* Make it expandable so we use all available space. Set minimum size to be 0
+   * because it's better to show it small than not at all. */
+  gtk_widget_set_size_request(statusBar, 0, -1) ;
+  GtkToolItem *item = addToolbarWidget(toolbar, statusBar) ;
+  gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
+
+  setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
+
+  return statusBar;
+}
+
+
 /* Creates a single button for the detail-view toolbar. */
 static void makeToolbarButton(GtkToolbar *toolbar,
 			      char *label,
@@ -3861,7 +3881,8 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
 					    BlxBlastMode mode,
 					    const BlxColumnId sortColumn,
                                             GList *columnList,
-					    GtkWidget **feedbackBox)
+					    GtkWidget **feedbackBox,
+					    GtkWidget **statusBar)
 {
   GtkToolbar *toolbar = NULL;
   GtkWidget *toolbarContainer = createEmptyButtonBar(detailView, &toolbar);
@@ -3895,7 +3916,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   
   /* Find/Msp-info */
   makeToolbarButton(toolbar, "Find",          GTK_STOCK_FIND,    "Find sequences (f, Ctrl-F)",                      (GtkSignalFunc)GFind,  detailView);
-  makeToolbarButton(toolbar, "Sequence info", GTK_STOCK_INFO,    "Display info about the selected sequence(s) (i)", (GtkSignalFunc)GInfo,  detailView);
+//  makeToolbarButton(toolbar, "Sequence info", GTK_STOCK_INFO,    "Display info about the selected sequence(s) (i)", (GtkSignalFunc)GInfo,  detailView);
 
   /* Strand toggle button */
   if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)
@@ -3903,8 +3924,8 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
       makeToolbarButton(toolbar, "Toggle strand", GTK_STOCK_REFRESH, "Toggle strand (t)", (GtkSignalFunc)GToggleStrand, detailView);
     }
 
-  /* Feedback box */
   *feedbackBox = createFeedbackBox(toolbar);
+  *statusBar = createStatusBar(toolbar);
 
   return toolbarContainer;
 }
@@ -4121,9 +4142,10 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
   GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, columnList, singleSnpTrack);
 
-  /* Create the toolbar. We need to remember the feedback box. */
+  /* Create the toolbar. We need to remember the feedback box and status bar so we can set them in the properties. */
   GtkWidget *feedbackBox = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortColumn, columnList, &feedbackBox);
+  GtkWidget *statusBar = NULL;
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortColumn, columnList, &feedbackBox, &statusBar);
   
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
@@ -4138,7 +4160,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			columnList,
 			refSeqName,
 			!singleSnpTrack);
-  
+    
   /* Put everything in a vbox, and pack it into the blixem window. */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), buttonBar, FALSE, TRUE, 0);
@@ -4161,6 +4183,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			     revStrandTrees,
 			     header,
 			     feedbackBox, 
+			     statusBar,
 			     columnList,
 			     adjustment, 
 			     startCoord,

@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.36 2010-08-24 15:00:03 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.37 2010-08-26 11:11:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -86,7 +86,7 @@ static void         parseSeqData(char *line, char ***readSeq, int *readSeqLen, i
 
 static gboolean	    parseGaps(char **text, MSP *msp, const gboolean hasGapsTag) ;
 static gboolean	    parseDescription(char **text, MSP *msp_unused) ;
-static char*	    parseSequence(char **text, MSP *msp) ;
+static char*	    parseSequence(char **text, MSP *msp, const char *opts) ;
 static void	    parseLook(MSP *msp, char *s) ;
 
 static BlxMspType   getMspTypeFromScore(const int score);
@@ -910,7 +910,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
 		      slen = mspGetSRangeLen(msp) / 3;
 		    }
                   
-                  sequence = parseSequence(&seq_pos, msp);
+                  sequence = parseSequence(&seq_pos, msp, opts);
                   result = (sequence != NULL);
                   
 		  if (!result)
@@ -1140,34 +1140,73 @@ static gboolean parseDescription(char **text, MSP *msp)
 }
 
 
+/* Find out the sequence type (nucleotide or peptide) based on the old-style options string */
+static BlxSeqType getSeqTypeFromOpts(const char *opts, GError **error)
+{
+  BlxSeqType result = BLXSEQ_INVALID;
+  
+  switch (opts[BLXOPT_MODE])
+    {
+      case 'X': /* fall through */
+      case 'L':
+        result = BLXSEQ_PEPTIDE;
+        break;
+        
+      case 'N': /* fall through */
+      case 'T': /* fall through */
+      case 'P':
+        result = BLXSEQ_DNA;
+        break;
+        
+      default:
+        g_set_error(error, BLX_ERROR, 1, "Unknown blast mode '%c' in options. Expected X, L, N, T or P.\n", opts[BLXOPT_MODE]);
+        break;
+    };
+  
+  return result;
+}
+
+
 /* Description, should just be plain text, format is:
  * 
  * "Sequence text ; "
  * 
  * text following Sequence must not contain ';'. Moves text to first
  * char after ';'. */
-static char* parseSequence(char **text, MSP *msp)
+static char* parseSequence(char **text, MSP *msp, const char *opts)
 {
   char *result = NULL;
-  char *cp = *text ;
 
-  cp = strtok(NULL, "\t ") ;				    /* skip "Sequence" */
+  char *startPtr = *text ;
+  startPtr = strtok(NULL, "\t ") ;				    /* skip "Sequence" */
 
-  size_t origLen = strlen(cp);
-  size_t validLen = strspn(cp, "acgtnACGTN"); 
+  const int origLen = (int)strlen(startPtr);
   
-  if (validLen < 1 || validLen < strlen(cp))
+  int validLen = 0;
+  char *cp = startPtr;
+  
+  GError *tmpError = NULL;
+  BlxSeqType seqType = getSeqTypeFromOpts(opts, tmpError);
+  reportAndClearIfError(&tmpError, G_LOG_LEVEL_ERROR);
+  
+  while (isValidIupacChar(*cp, seqType))
     {
-      g_error("Error parsing %s, coords are %d -> %d (%d), but valid length sequence is only %d (out of total length supplied = %d).\n",
-		mspGetSName(msp), msp->sRange.min, msp->sRange.max, msp->sRange.max - msp->sRange.min, (int)validLen, (int)origLen) ;
+      ++cp;
+      ++validLen;
+    }
+  
+  if (validLen < 1 || validLen < strlen(startPtr))
+    {
+      g_error("Error parsing sequence data for MSP '%s'; sequence is only valid up to %d (out of length %d).\n",
+		mspGetSName(msp), origLen, validLen) ;
     }
   else
     {
       result = g_malloc(validLen + 1) ;
 	  
-      if (sscanf(cp, "%s", result) != 1)
+      if (sscanf(startPtr, "%s", result) != 1)
 	{
-	  g_error("Error parsing %s\n", cp) ;
+	  g_error("Error parsing sequence data '%s' for MSP '%s'\n", startPtr, mspGetSName(msp)) ;
 	}
     }
 

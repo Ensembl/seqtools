@@ -640,18 +640,18 @@ static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
     {
       /* Check if sequence is stored internally (i.e. it was passed from acedb) */
-      g_message("Looking for sequence stored internally... ");
+      g_debug("Looking for sequence stored internally... ");
     
       dotterSSeq = g_strdup(blxSequenceGetSeq(blxSeq));
       
       if (!dotterSSeq)
 	{
-	  g_message("not found.\n");
+	  g_debug("not found.\n");
 	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", blxSequenceGetFullName(blxSeq));
 	  return FALSE;
 	}
 
-      g_message("found.\n");
+      g_debug("found.\n");
       
       /* If the match is on the reverse s strand, we need to modify it, because
        * dotter does not currently handle it. */
@@ -912,7 +912,7 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
       fetchstr = hprintf(0, "%s -q '%s'", fetch_prog, seqname) ;
     }
 
-  g_message("%sing %s...\n", fetch_prog, seqname);
+  g_debug("%sing %s...\n", fetch_prog, seqname);
 
   /* Try and get the sequence, if we overrun the buffer then we need to try again. */
   FILE *pipe = (FILE*)popen(fetchstr, "r");

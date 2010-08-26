@@ -536,18 +536,6 @@ static void drawExon(SequenceCellRenderer *renderer,
 } 
 
 
-/* Place the given character into the given string at the given index, then increment the index.
- * The given string may be null, in which case this function does nothing. */
-static void insertChar(char *text1, int *i, char charToAdd, MSP *msp)
-{
-  if (text1)
-    {
-      text1[*i] = charToAdd;
-      *i = *i + 1;
-    }
-}
-
-
 /* Get the base from the given sequence at the given index. Converts to
  * upper or lower case as appropriate for the sequence type. The given index is
  * assumed to be 1-based. If the given BlxSequence has null sequence data, then
@@ -661,6 +649,10 @@ static void drawBase(MSP *msp,
     {
       /* Add this character into the display text */
       displayText[segmentIdx] = sBase;
+    }
+  else
+    {
+      displayText[segmentIdx] = ' ';
     }
 }
 
@@ -1010,7 +1002,8 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
     }
 
   /* Null-terminate the string */
-  insertChar(displayText, &segmentIdx, '\0', msp);
+  displayText[segmentLen] = '\0';
+//  insertChar(displayText, &segmentIdx, '\0', msp);
 
   /* Draw the sequence text */
   drawSequenceText(tree, displayText, &segmentRange, data);
