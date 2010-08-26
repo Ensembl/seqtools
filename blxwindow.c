@@ -59,24 +59,15 @@ typedef struct _BlxWindowProperties
 \n\
 <span foreground=\"blue\">\
 <b><big>What's new</big></b>\n\
-\t•\t<b><i>Bump exons</i></b>: see the 'View' dialog or hit the 'b' keyboard shortcut.\n\
-\t•\t<b><i>DNA search</i></b>: see the 'Find' dialog.\n\
-\t•\tShow <b><i>unaligned sequence</i></b>: see the 'Settings' dialog.\n\
-\t•\tChange <b><i>column widths</i></b>: see the 'Settings' dialog.\n\
-\t•\tChange the <b><i>grid scale</i></b>: see the 'Settings' dialog.\n\
-\t•\tHighlight <b><i>splice sites</i></b> for the selected alignment(s): see the 'Settings' dialog.\n\
-\t•\tFetching a <b><i>protein variant</i></b> now displays the FASTA sequence if the full EMBL file cannot be found.\n\
-\t•\t<b><i>Load additional data</i></b> such as organism and tissue-type: see the 'Settings' dialog.\n\
-\t•\tThe <b><i>Escape</i></b> key now cancels the current base selection.\n\
-\t•\t<b><i>Reference sequence highlighting</i></b>: the section of reference sequence corresponding to the currently-selected alignment(s) is now highlighted.\n\
-\t•\tThe <b><i>detail-view range</i></b> is now highlighted by background shading rather than a blue outline box.\n\
-\t•\t(Show SNP track: this option is not supported yet.)\n\
+\t•\t<b><i>Status bar</i></b>: There is now a status bar at the bottom of the window, which shows non-critical messages and warnings.\n\
+\t•\t<b><i>Moused-over item feedback</i></b>: There is now an additional feedback area on the toolbar that shows information about the currently moused-over item.\n\
+\t•\t<b><i>Grid scale</i></b>: The grid scale now has a finer level of granularity; you can set %ID per cell to as low as 0.1 (see the Settings dialog).\n\
 </span>\
 \n\
 \n\
 <b><big>Fetch</big></b>\n\
 \t•\tDouble-click a row to fetch a sequence.\n\
-\t•\tIn the Settings dialog, click the 'Load optional data' button to fetch additional information such as organism and tissue-type. This data can be viewed by enabling the corresponding column.\n\
+\t•\tIn the Settings dialog, click the 'Load optional data' button to fetch additional information such as organism and tissue-type. This data can be viewed by enabling the corresponding column and is also displayed in the feedback area of the toolbar when a sequence is moused-over.\n\
 \n\
 \n\
 <b><big>Main menu</big></b>\n\
@@ -157,6 +148,18 @@ Right-click anywhere in the Blixem window to pop up the main menu.  The menu opt
 \t•\tYou can perform a fast find on sequence name(s) in the selection buffer by hitting the 'f' shortcut key.\n\
 \n\
 \n\
+<b><big>Feedback about current items</big></b>\n\
+There are two feedback boxes on the toolbar that display information about current items:\n\
+\t•\tThe first shows info about the currently selected-alignment and/or the currently-selected index.\n\
+\t•\tThe second shows info about the currently moused-over alignemnt. As a minimum this will display the sequence name. It will also show additional data such as organism and tissue type if available - if not already loaded, this data can be loaded by clicking the 'Load optional data' button on the Settings dialog.\n\
+\n\
+\n\
+<b><big>Messages/Warnings</big></b>\n\
+\t•\tThe status bar at the bottom of the window shows all messages and warnings, including non-critical messages.\n\
+\t•\tCritical messages are also displayed in a popup dialog or message list.\n\
+\t•\tThe user may switch between popup dialogs or the message list by selecting the 'Switch to scrolled message window' on the popup dialog or the 'Switch to popup messages' check box on the message list.\n\
+\n\
+\n\
 <b><big>Groups</big></b>\n\
 Alignments can be grouped together so that they can be sorted/highlighted/hidden etc.\n\
 \n\
@@ -216,7 +219,7 @@ The settings menu can be accessed by right-clicking and selecting Settings, or b
 \t•\t<b>Show SNP Track</b>:Shows the SNP track.\n\
 \t•\t<b>Show Splice Sites</b>:Shows splice sites for the currently-selected alignment(s).  Splice sites are highlighted on the reference sequence in green (for canonical) or red (for non-canonical).  Blixem identifies GT-AG, GC-AG and AT-AC introns as canonical.\n\
 \t•\t<b>Columns</b>:\t\t\tEdit the width of columns in pixels.  Set the width to 0 to hide a column. Click the 'Load optional data' button to load the data for the optional columns such as organism and tissue-type - then set the width of these columns to non-zero values to view the data. Once optional data is loaded you can also sort by it. Note that optional data is loaded on startup for DNA matches but not for protein matches, because the latter can be slow.\n\
-\t•\t<b>Grid properties</b>:\t\t\tSet the maximum/minimum %ID values show in the big picture.  Expand or contract the grid scale by adjusting '%ID per cell'.\n\
+\t•\t<b>Grid properties</b>:\t\t\tSet the maximum/minimum %ID values shown in the big picture.  Expand or contract the grid scale by adjusting '%ID per cell'.  The ID per cell can be set to as low as 0.1.  Note that setting a low ID-per-cell can result in a large number of cells and hence a very large grid, and Blixem is not currently very clever about dealing with this.\n\
 \n\
 \n\
 <b><big>Color key</big></b>\n\
