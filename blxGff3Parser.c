@@ -456,7 +456,7 @@ static void parseGffColumns(GString *line_string,
   if (!tmpError)
     {
       if (stringsEqual(tokens[7], ".", TRUE))
-        gffData->phase = 0;
+        gffData->phase = UNSET_INT;
       else
         gffData->phase = convertStringToInt(tokens[7]);
   
@@ -537,7 +537,7 @@ static void parseTagDataPair(char *text,
         {
           gffData->sequence = g_strdup(tokens[1]);
         }
-      else if (!strcmp(tokens[0], "Gap"))
+      else if (!strcmp(tokens[0], "Gap") || !strcmp(tokens[0], "Gaps")) /* to do: get rid of "Gaps" once zmap starts supporting the correct keyword "Gap" */
         {
           gffData->gapString = g_strdup(tokens[1]);
         }
@@ -726,6 +726,8 @@ static void parseGapString(char *text, const char *opts, MSP *msp, GError **erro
  *   M8 indicates a match of 8 places, so we increase both coords by 8;
  *   I2 indicates an insertion in the Subject sequence of 2 bases, so we increase the s coord by 2;
  *   D3 indicates a deletion from the Subject sequence of 3 bases, so we increase the q coord by 3. 
+ *
+ *  qDirection and sDirection are 1 if coords are in an increasing direction or -1 if decreasing.
  */
 static void parseCigarStringSection(const char *text, 
                                     MSP *msp, 
@@ -736,14 +738,15 @@ static void parseCigarStringSection(const char *text,
                                     int *s,
                                     GError **error)
 {
-  /* Get the digit part of the string */
-  const int numBases = convertStringToInt(text+1);
-  
+  /* Get the digit part of the string, which indicates the number of peptides. */
+  const int numPeptides = convertStringToInt(text+1);
+  const int numNucleotides = numPeptides * numFrames;
+
   if (text[0] == 'M' || text[0] == 'm')
     {
-      /* Create a match range between the old coords and the new */
-      int newQ = *q + qDirection * ( ((numBases - 1) * numFrames) + numFrames - 1);  /* convert to nucleotide coords */
-      int newS = *s + sDirection *(numBases - 1);
+      /* Create a match range between the old coords and the new. */
+      int newQ = *q + (qDirection * (numNucleotides - 1));
+      int newS = *s + (sDirection * (numPeptides - 1));
       
       CoordRange *newRange = g_malloc(sizeof(CoordRange));
       msp->gaps = g_slist_append(msp->gaps, newRange);
@@ -758,13 +761,21 @@ static void parseCigarStringSection(const char *text,
     }
   else if (text[0] == 'D' || text[0] == 'd')
     {
-      *q += qDirection * ( ((numBases + 1) * numFrames) - numFrames + 1);    /* convert to nucleotide coords */
-      *s += sDirection;
+      /* Deletion from the subject sequence: increase the q coord by the number of nucleotides. */
+      *q += qDirection * numNucleotides;
+      
+      /* Move both to the next coord, so we're at the correct start coord for the next range */
+      *q += qDirection * 1;
+      *s += sDirection * 1;
     }
   else if (text[0] == 'I' || text[0] == 'i')
     {
-      *q += qDirection * (numFrames - numFrames + 1);    /* convert to nucleotide coords */
-      *s += sDirection * (numBases + 1);
+      /* Insertion on the subject sequence: increase the s coord by the number of peptides. */
+      *s += sDirection * numPeptides;
+      
+      /* Move both to the next coord, so we're at the correct start coord for the next range */
+      *q += qDirection * 1;
+      *s += sDirection * 1;
     }
   else if (text[0] == 'f' || text[0] == 'F' || text[0] == 'r' || text[0] == 'R')
     {
@@ -776,7 +787,7 @@ static void parseCigarStringSection(const char *text,
     }
 }
 
-                           
+
 /* Validate the number of tokens in a given list. Checks that there are between 'min' and 'max' 
  * tokens. If not, set the error. Returns the number of tokens. */
 static int validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error)

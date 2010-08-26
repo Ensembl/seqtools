@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.61 2010-08-26 11:11:21 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.62 2010-08-26 16:35:28 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1315,8 +1315,16 @@ MSP* createNewMsp(MSP **lastMsp,
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
   
-  /* We know the phase for matches is always 0, so set it if not already given. */
-  if (phase == UNSET_INT && mspIsBlastMatch(msp))
+  /* Check that a phase wasn't passed in for anything that's not an exon. (Technically it
+   * should be anything that's not a CDS, but we copy the CDS phase to exons/UTRs so we 
+   * can calculate which reading frame to display them in.) */
+  if (!mspIsExon(msp) && msp->phase != UNSET_INT)
+    {
+      g_warning("Warning: MSP '%s' (%d-%d) has phase '%d' specified but only CDS types should have phase (MSP type=%d).\n", msp->sname, msp->qRange.min, msp->qRange.max, msp->phase, msp->type);
+    }
+
+  /* Alignments don't have a phase, so set it to 0 so that it gets ignored in our reading-frame calculation. */
+  if (mspIsBlastMatch(msp) && msp->phase == UNSET_INT)
     {
       msp->phase = 0;
     }
