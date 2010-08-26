@@ -33,7 +33,11 @@
 
 
 
-static CallbackData*	  widgetGetCallbackData(GtkWidget *widget);
+static CallbackData*            widgetGetCallbackData(GtkWidget *widget);
+static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
+static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
+static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
+static char*                    blxSequenceGetStrain(const BlxSequence *seq);
 
 
 
@@ -1020,11 +1024,15 @@ const char *mspGetSName(const MSP const *msp)
 }
 
 
-static void appendTextIfNonNull(GString *gstr, const char *separator, const char *text)
+/* Append the contents of the second GString to the first GString, if the second is non-null,
+ * including the given separator before the second GString is appended. Pass the separator
+ * as an empty string if no separation is required. */
+static void appendTextIfNonNull(GString *gstr, const char *separator, const GString *text)
 {
-  if (text)
+  if (text && text->str)
     {
-      g_string_append_printf(gstr, "%s%s", separator, text);
+      g_assert(separator);
+      g_string_append_printf(gstr, "%s%s", separator, text->str);
     }
 }
 
@@ -1235,22 +1243,22 @@ char *mspGetCoordsAsString(const MSP const *msp)
 }
 
 
-/* Return summary info about a given MSP (e.g. for displaying in the status bar). The
+/* Return summary info about a given BlxSequence (e.g. for displaying in the status bar). The
  * result should be free'd with g_free. */
-char* mspGetSummaryInfo(const MSP const *msp)
+char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
 {
   char *result = NULL;
   
-  if (msp)
+  if (blxSeq)
     {
       GString *resultStr = g_string_new("");
       const char *separator = ";  ";
       
-      g_string_append_printf(resultStr, "%s", mspGetSName(msp));
-      appendTextIfNonNull(resultStr, separator, mspGetOrganism(msp));
-      appendTextIfNonNull(resultStr, separator, mspGetGeneName(msp));
-      appendTextIfNonNull(resultStr, separator, mspGetTissueType(msp));
-      appendTextIfNonNull(resultStr, separator, mspGetStrain(msp));
+      g_string_append_printf(resultStr, "%s", blxSeq->fullName);
+      appendTextIfNonNull(resultStr, separator, blxSeq->organism);
+      appendTextIfNonNull(resultStr, separator, blxSeq->geneName);
+      appendTextIfNonNull(resultStr, separator, blxSeq->tissueType);
+      appendTextIfNonNull(resultStr, separator, blxSeq->strain);
       
       result = resultStr->str;
       g_string_free(resultStr, FALSE);

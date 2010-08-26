@@ -1491,22 +1491,23 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
 
 	  GList *mspList = treeGetMsps(model, &iter);
 	  
-	  if (g_list_length(mspList) == 1)
+	  if (g_list_length(mspList) > 0)
 	    {
 	      const MSP const *msp = (const MSP const*)(mspList->data);
 	      
-	      char *displayText = mspGetSummaryInfo(msp);
+              /* Note: this assumes that all MSPs in this row are in the same BlxSequence.
+               * If there are more, it will just show data for the first BlxSequence found. */
+              if (msp->sSequence)
+                {
+                  char *displayText = blxSequenceGetSummaryInfo(msp->sSequence);
 	      
-	      if (displayText)
-		{
-		  gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
-		  g_free(displayText);
-		}
-	    }
-	  else if (g_list_length(mspList) > 0)
-	    {
-	      gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, "<multiple sequences>");
-	    }
+                  if (displayText)
+                    {
+                      gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+                      g_free(displayText);
+                    }
+                }
+            }
 	}
 	
       return TRUE;

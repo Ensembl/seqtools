@@ -178,7 +178,7 @@ BlxStrand	      mspGetRefStrand(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
 const char*           mspGetMatchSeq(const MSP const *msp);
 const char*	      mspGetSName(const MSP *msp);
-char*		      mspGetSummaryInfo(const MSP const *msp);
+char*		      blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
 char*                 mspGetExonTranscriptName(const MSP *msp);
 const IntRange const* mspGetRefCoords(const MSP const *msp);
 const IntRange const* mspGetMatchCoords(const MSP const *msp);
