@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.22 2010-08-06 13:08:34 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.23 2010-08-27 13:14:07 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -54,11 +54,13 @@ static char *usageText ="\n\
  Copyright (c) 2009-2010: Genome Research Ltd.\n\
 \n\
 \n\
-  Usage: blixem [options] <sequencefile> <datafile> [X options] \n\
+  Usage: blixem [options] [<sequencefile>] <datafile> [X options] \n\
 \n\
  Both <sequencefile> and <datafile> can be substituted by \"-\"\n\
  for reading from stdin (pipe).  If <sequencefile> is piped, the first\n\
  line should contain the sequence name and the second the sequence itself.\n\
+ If <sequencefile> is ommitted, <datafile> should contain the reference\n\
+ sequence in FASTA format.\n\
 \n\
  Options:\n\
  -s <mode>  Sorting mode at startup.\n\
@@ -76,7 +78,6 @@ static char *usageText ="\n\
  -c <file>  Read configuration options from 'file'.\n\
  -k <file>  Read color/style options from key-value file 'file'. (See GLib Key-value-file-parser documentation.)\n\
  -S <n>     Start display at position n.\n\
- -F <file>  Read in query sequence and data from <file> (replaces sequencefile).\n\
  -h         Help and more options.\n\
  -o <optstring>\n\
             Blixem options, e.g. -o \"MBr\". You'll have to read the source code for details.\n\
@@ -251,8 +252,6 @@ int main(int argc, char **argv)
   int displayStart = 0;
   int qOffset = 0;
   int install = 1;
-  gboolean singleFile = FALSE;        /* if true, there is a single file containing both the query 
-                                         sequence and the alignment data */
   
   int          optc;
   extern int   optind;
@@ -308,7 +307,6 @@ int main(int argc, char **argv)
 	  key_file = strnew(optarg, 0) ;
           break;
 	case 'F': 
-	  singleFile = TRUE;        
 	  strcpy(FSfilename, optarg);
 	  break;
 	case 'h': 
@@ -383,10 +381,11 @@ int main(int argc, char **argv)
 	}
     }
 
-  if (argc-optind < 2 && !singleFile)
+  /* We expect one or two input files, or 0 input files if the FSfilename was already set with the -F option */
+  const int numFiles = argc - optind;
+  if (!(numFiles == 1 || numFiles == 2 || (numFiles == 0 && *FSfilename != '\0')))
     {
       fprintf(stderr, "%s\n", usage); 
-
       exit(EXIT_FAILURE);
     }
 
@@ -410,11 +409,15 @@ int main(int argc, char **argv)
   /* Read in the key file, if there is one */
   GSList *styles = blxReadStylesFile(key_file, &error);
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-  
-  if (!singleFile)
+
+  if (numFiles == 1)
     {
-      /* The query sequence is in a separate file. */
-      
+      /* We have a single file containing both the aligments and the ref seq */
+      strcpy(FSfilename, argv[optind]);
+    }
+  else if (numFiles == 2)
+    {
+      /* The ref seq is in a separate file. Read it in now. */
       strcpy(seqfilename, argv[optind]);
       strcpy(FSfilename, argv[optind+1]);
 
