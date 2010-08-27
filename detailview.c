@@ -2011,13 +2011,17 @@ static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *alloc
    * window size changes. Find its new width and cache it. All trees should resize
    * in the same manner, so their columns should be the same size. */
   GtkWidget *tree = detailViewGetFirstTree(detailView);
-  GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), BLXCOL_SEQUENCE);
+  
+  if (tree && GTK_WIDGET_VISIBLE(tree))
+    {
+      GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), BLXCOL_SEQUENCE);
 
-  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
-  columnInfo->width = gtk_tree_view_column_get_width(column);
-      
-  /* Perform updates required on the sequence col after its size has changed */
-  updateSeqColumnSize(detailView);
+      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+      columnInfo->width = gtk_tree_view_column_get_width(column);
+          
+      /* Perform updates required on the sequence col after its size has changed */
+      updateSeqColumnSize(detailView);
+    }
 }
 
 

@@ -1635,7 +1635,7 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
   /* Get the MSP(s) for this row. They should all have the same sequence name. */
   GList	*mspGList = treeGetMsps(model, iter);
 
-  if (g_list_length(mspGList) > 0)
+  if (GTK_WIDGET_VISIBLE(tree) && g_list_length(mspGList) > 0)
     {
       MSP *msp = (MSP*)(mspGList->data);
 
