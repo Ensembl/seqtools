@@ -54,7 +54,6 @@ typedef struct
     const IntRange const *refSeqRange;	/* the full range of the reference sequence */
     GList *seqList;			/* only search matches in these sequences */
 
-    int frame;				/* the frame of the current tree we're looking at MSPs in */
     int offset;				/* the offset of the found MSP */
     int foundFrame;			/* which ref seq frame the MSP we chose is in */
     int foundBase;			/* the base number of the DNA coord we chose within the foundFrame */
@@ -3173,8 +3172,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
     {
       MSP *msp = (MSP*)(mspListItem->data);
 
-      /* Check its in the sequence list (if given), is a valid match or exon, and is in a visible
-       * layer */
+      /* Check its in the sequence list (if given), is a valid match or exon, and is in a visible layer */
       if (mspLayerIsVisible(msp) &&
           (mspIsExon(msp) || mspIsBlastMatch(msp)) &&
 	  (!searchData->seqList || g_list_find(searchData->seqList, msp->sSequence)))
@@ -3184,7 +3182,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 	  const int offset1 = (msp->qRange.min - searchData->startDnaIdx) * searchData->searchDirection;
 	  const int offset2 = (msp->qRange.max - searchData->startDnaIdx) * searchData->searchDirection;
 	  
-	  int currentFrame = searchData->frame;
+	  int currentFrame = msp->qFrame;
 	  int currentBest = UNSET_INT;
 	  
 	  if (offset1 > 0 && (offset2 <= 0 || offset2 >= offset1))
@@ -3243,15 +3241,14 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 				seqList,
 				UNSET_INT,
 				UNSET_INT,
-				UNSET_INT,
 				UNSET_INT};
 
   /* Loop through the MSPs in all visible trees */
-  searchData.frame = 1;
+  int frame = 1;
 
-  for (  ; searchData.frame <= searchData.numFrames; ++searchData.frame)
+  for (  ; frame <= searchData.numFrames; ++frame)
     {
-      GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_FORWARD, searchData.frame);
+      GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_FORWARD, frame);
       GtkWidget *tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
       
       if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */
@@ -3260,7 +3257,7 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 	  gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
 	}
 
-      treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_REVERSE, searchData.frame);
+      treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_REVERSE, frame);
       tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
       
       if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */

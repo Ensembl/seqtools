@@ -212,21 +212,33 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, GtkCallback func, gpoin
 
 
 /* Add a BlxSequence to as a row in the given tree store */
-static void addSequenceStructToRow(gpointer listItemData, gpointer data)
+static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
 {
-  BlxSequence *subjectSeq = (BlxSequence*)listItemData;
+  /* Only add msps that are in the correct strand for this tree (since the same 
+   * sequence may have matches against both ref seq strands) */
+  GList *mspsToAdd = NULL;
+  GList *mspItem = blxSeq->mspList;
+  const BlxStrand treeStrand = treeGetStrand(tree);
   
-  if (subjectSeq && subjectSeq->mspList && g_list_length(subjectSeq->mspList) > 0)
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      MSP *msp  = (MSP*)(mspItem->data);
+      if (msp->qStrand == treeStrand)
+        {
+          mspsToAdd = g_list_prepend(mspsToAdd, msp);
+        }
+    }
+  
+  if (g_list_length(mspsToAdd) > 0)
     {
       /* Add a row to the tree store */
-      GtkListStore *store = GTK_LIST_STORE(data);
       GtkTreeIter iter;
       gtk_list_store_append(store, &iter);
       
-      if (g_list_length(subjectSeq->mspList) == 1)
+      if (g_list_length(mspsToAdd) == 1)
 	{
 	  /* Only one MSP - get specific info about this MSP. */
-	  MSP *msp = (MSP*)(subjectSeq->mspList->data);
+	  MSP *msp = (MSP*)(mspsToAdd->data);
 
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, mspGetSName(msp),
@@ -239,7 +251,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 			     BLXCOL_SCORE, msp->score,
 			     BLXCOL_ID, msp->id,
 			     BLXCOL_START, msp->sRange.min,
-			     BLXCOL_SEQUENCE, subjectSeq->mspList,
+			     BLXCOL_SEQUENCE, mspsToAdd,
 			     BLXCOL_END, msp->sRange.max,
 			     -1);
 	}
@@ -247,7 +259,7 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 	{
 	  /* Add generic info about the sequence */
 	  gtk_list_store_set(store, &iter,
-			     BLXCOL_SEQNAME, blxSequenceGetDisplayName(subjectSeq),
+			     BLXCOL_SEQNAME, blxSequenceGetDisplayName(blxSeq),
 			     BLXCOL_SOURCE, NULL,
 			     BLXCOL_ORGANISM, NULL,
 			     BLXCOL_GENE_NAME, NULL,
@@ -256,9 +268,9 @@ static void addSequenceStructToRow(gpointer listItemData, gpointer data)
 			     BLXCOL_GROUP, NULL,
 			     BLXCOL_SCORE, 0.0,
 			     BLXCOL_ID, 0.0,
-			     BLXCOL_START, blxSequenceGetStart(subjectSeq),
-			     BLXCOL_SEQUENCE, subjectSeq->mspList,
-			     BLXCOL_END, blxSequenceGetEnd(subjectSeq),
+			     BLXCOL_START, blxSequenceGetStart(blxSeq),
+			     BLXCOL_SEQUENCE, mspsToAdd,
+			     BLXCOL_END, blxSequenceGetEnd(blxSeq),
 			     -1);
 	}
     }
@@ -278,9 +290,14 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
 
   /* Add the rows - one row per sequence. Use the list we've already compiled of all
    * sequences as BlxSequences */
-  GList *seqList = blxWindowGetAllMatchSeqs(treeGetBlxWindow(tree));
-  g_list_foreach(seqList, addSequenceStructToRow, store);
-
+  GList *seqItem = blxWindowGetAllMatchSeqs(treeGetBlxWindow(tree));
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      addSequenceToTree(blxSeq, tree, store);
+    }
+  
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
   gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(filter), (GtkTreeModelFilterVisibleFunc)isTreeRowVisible, tree, NULL);
@@ -1574,7 +1591,7 @@ static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 
 
 /* Add a row to the given tree containing the given MSP */
-static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
+void addMspToTree(GtkWidget *tree, MSP *msp)
 {
   if (tree)
     {
@@ -1602,15 +1619,6 @@ static void addMspToTreeRow(MSP *msp, GtkWidget *tree)
 			 BLXCOL_END, msp->sRange.max,
 			 -1);
    }
-}
-
-
-/* Add the given msp as a row in the given tree view, and also adds it to the
- * tree's hash tables. */
-void addMspToTree(GtkWidget *tree, MSP *msp)
-{
-  /* Add the MSP as an individual row */
-  addMspToTreeRow(msp, tree);
 }
 
 
