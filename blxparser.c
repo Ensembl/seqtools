@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.37 2010-08-26 11:11:21 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.38 2010-08-27 12:25:14 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1186,7 +1186,7 @@ static char* parseSequence(char **text, MSP *msp, const char *opts)
   char *cp = startPtr;
   
   GError *tmpError = NULL;
-  BlxSeqType seqType = getSeqTypeFromOpts(opts, tmpError);
+  BlxSeqType seqType = getSeqTypeFromOpts(opts, &tmpError);
   reportAndClearIfError(&tmpError, G_LOG_LEVEL_ERROR);
   
   while (isValidIupacChar(*cp, seqType))
@@ -1315,9 +1315,8 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState
     }
   else if (*line == '#' && *parserState == GFF_3_HEADER)
     {
-      /* If we're in a GFF header we want to take a look at additional comment lines;
-       * otherwise we ignore additional comments. */
-      processed = TRUE ;
+      /* If we're in a GFF header we want to take a look at additional comment lines. */
+      processed = FALSE ;
     }
   else if (*parserState == GFF_3_HEADER)
     {

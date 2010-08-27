@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.32 2010-08-24 12:27:59 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.33 2010-08-27 12:25:14 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -138,8 +138,8 @@ typedef enum
     BLXMSP_MATCH_SET,              /* The parent of a set of matches. Can be used to specify generic properties such as color. */
     BLXMSP_CDS,                    /* CDS (coding) region of an exon */
     BLXMSP_UTR,                    /* UTR (untranslated) region of an exon */
-    BLXMSP_EXON,		   /* Exon */
     BLXMSP_INTRON,                 /* Intron */
+    BLXMSP_EXON,		   /* Exon (should appear AFTER CDS and UTR for sorting, as required by constructTranscriptData) */
     BLXMSP_TRANSCRIPT,		   /* Transcript */
     BLXMSP_POLYA_TAIL,		   /* polyA tail */
     

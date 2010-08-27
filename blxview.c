@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.62 2010-08-26 16:35:28 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.63 2010-08-27 12:25:14 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -780,13 +780,26 @@ static void blviewCreate(char *opts,
  ***********************************************************/
 
 /* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
- * if a = b; positive value if a > b. */
+ * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
+ * the BlxMspType enum. */
 static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 {
+  gint result = 0;
+
   const MSP const *msp1 = (const MSP const*)a;
   const MSP const *msp2 = (const MSP const*)b;
   
-  return msp1->qRange.min -  msp2->qRange.min;
+  if (msp1->qRange.min == msp2->qRange.min)
+    {
+      /* Sort by type. Lower type numbers should appear first. */
+      result = msp2->type - msp1->type;
+    }
+  else 
+    {
+      result = msp1->qRange.min -  msp2->qRange.min;
+    }
+  
+  return result;
 }
 
 /* Add or create a BlxSequence struct, creating the BlxSequence if one does not
@@ -886,6 +899,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   MSP **ptrToUpdate = NULL;
   int newStart = UNSET_INT;
   int newEnd = UNSET_INT;
+  int newPhase = UNSET_INT;
 
   if (!*exon && (*cds || *utr))
     {
@@ -894,6 +908,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = min((*cds)->qRange.min, (*utr)->qRange.min);
           newEnd = max((*cds)->qRange.max, (*utr)->qRange.max);
+          newPhase = (*cds)->phase;
           newType = BLXMSP_EXON;
           ptrToUpdate = exon;
         }
@@ -901,6 +916,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*cds)->qRange.min;
           newEnd = (*cds)->qRange.max;
+          newPhase = (*cds)->phase;
           newType = BLXMSP_EXON;
           ptrToUpdate = exon;
         }
@@ -908,6 +924,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*utr)->qRange.min;
           newEnd = (*utr)->qRange.max;
+          newPhase = (*utr)->phase;
           newType = BLXMSP_EXON;
           ptrToUpdate = exon;
         }
@@ -919,6 +936,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*utr)->qRange.max + 1;
           newEnd = (*exon)->qRange.max;
+          newPhase = (*exon)->phase;
           newType = BLXMSP_CDS;
           ptrToUpdate = cds;
         }
@@ -926,6 +944,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*exon)->qRange.min;
           newEnd = (*utr)->qRange.min - 1;
+          newPhase = (*exon)->phase;
           newType = BLXMSP_CDS;
           ptrToUpdate = cds;
         }
@@ -937,6 +956,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*exon)->qRange.min;
           newEnd = (*cds)->qRange.min - 1;
+          newPhase = (*cds)->phase;
           newType = BLXMSP_UTR;
           ptrToUpdate = utr;
         }
@@ -944,6 +964,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*cds)->qRange.max + 1;
           newEnd = (*exon)->qRange.max;
+          newPhase = (*cds)->phase;
           newType = BLXMSP_UTR;
           ptrToUpdate = utr;
         }
@@ -956,7 +977,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(lastMsp, mspList, seqList, newType, NULL, 0,  UNSET_INT, blxSeq->idTag,
+      *ptrToUpdate = createNewMsp(lastMsp, mspList, seqList, newType, NULL, 0,  newPhase, blxSeq->idTag,
                                   NULL, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
       
@@ -987,74 +1008,73 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
    * ref seq - createNewMsp automatically sorts them for us) and create any missing 
    * exon/cds/utr/introns. */
   GList *mspItem = blxSeq->mspList;
-
-  for ( ; mspItem; mspItem = mspItem->next)
+  gboolean finished = FALSE;
+  
+  while (!finished)
     {
-      MSP *msp = (MSP*)(mspItem->data);
+      MSP *msp = mspItem ? (MSP*)(mspItem->data) : NULL;
               
       /* Only consider exons and introns */
-      if (mspIsExon(msp) || mspIsIntron(msp))
+      if (mspIsExon(msp) || mspIsIntron(msp) || !msp)
         {
           /* See if there was a gap between this exon and the previous one. There's a gap if
-           * we've hit an intron, or if we have two exons with space between them, or if 
-           * we're at the first or last exon and there's a gap to the end of the transcript. */
-          gboolean foundGap = prevMsp && (mspIsIntron(prevMsp) || prevMsp->qRange.max < msp->qRange.min);
-          foundGap |= (!prevMsp && blxSeq->qRange.min < msp->qRange.min);
-          foundGap |= (mspItem->next == NULL && blxSeq->qRange.max > msp->qRange.max);
-
-          if (foundGap || mspItem->next == NULL)
+           * we have two exons with space between them, or if we're at the first or last exon 
+           * and there's a gap to the end of the transcript. */
+          gboolean foundGap = FALSE;
+          
+          if (msp && 
+              ((prevMsp && prevMsp->qRange.max < msp->qRange.min) ||
+               (!prevMsp && blxSeq->qRange.min < msp->qRange.min) ||
+               ((mspItem->next == NULL && blxSeq->qRange.max > msp->qRange.max))))
             {
-              if (mspItem->next == NULL)
-                {
-                  /* Normally curExon etc. refer to the complete set of exons/cds/utrs before the
-                   * gap we've just found. At the end, though, make sure we include the last MSP in
-                   * the current set of exons/cds/utrs */
-                  if (msp->type == BLXMSP_EXON)
-                    curExon = msp;
-                  else if (msp->type == BLXMSP_CDS)
-                    curCds = msp;
-                  else if (msp->type == BLXMSP_UTR)
-                    curUtr = msp;
-                }
+              foundGap = TRUE;
+            }
 
-              /* We've found a gap between exons. First, see if the current exon/cds or utr
+          if (foundGap || msp == NULL)
+            {
+              /* We've found a gap between exons, or reached the end. First, see if the current exon/cds or utr
                * is missing and construct it if possible. Also do this if we're at the last MSP. */
               createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, lastMsp, mspList, seqList, opts, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
-              
               copyCdsReadingFrame(curExon, curCds, curUtr);
-            }
-              
-          if (foundGap)
-            {
-              /* We're moving to the next exon so set the prev exon pointer and reset the
-               * current values. If we don't have the full exon (e.g. if we only have cds OR UTR)
-               * then we cannot construct the intron, so leave prevExon as NULL to indicate this. */
-              prevExon = curExon;
-              curExon = NULL;
-              curCds = NULL;
-              curUtr = NULL;
-              
-              /* Create an intron, unless there's already one here */
-              if (prevExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
+
+              /* Create an intron in the gap, unless there's already one here */
+              if (prevExon && curExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, blxSeq->idTag,
-                               NULL, prevExon->qRange.max, msp->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+                               NULL, prevExon->qRange.max, curExon->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
+
+              /* We're moving past the gap, so reset the pointers */
+              prevExon = curExon;
+              curExon = NULL;
+              curCds = NULL;
+              curUtr = NULL;
             }
           
-          if (msp->type == BLXMSP_EXON)
+          if (msp && msp->type == BLXMSP_EXON)
             curExon = msp;
-          else if (msp->type == BLXMSP_CDS)
+          else if (msp && msp->type == BLXMSP_CDS)
             curCds = msp;
-          else if (msp->type == BLXMSP_UTR)
+          else if (msp && msp->type == BLXMSP_UTR)
             curUtr = msp;
-          
-          /* Remember the last object */
+
+          /* Remember the last MSP we saw */
           prevMsp = msp;
+          
+          /* Proceed to the next MSP. We allow an extra loop with a NULL mspItem at the end, and then finish. */
+          if (mspItem)
+            mspItem = mspItem->next;
+          else
+            finished = TRUE;
+        } 
+      else
+        {
+          /* Something that's not an exon/intron. Skip this BlxSequence. */
+          finished = TRUE;
         }
     }
 }

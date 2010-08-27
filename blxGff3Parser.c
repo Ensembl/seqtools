@@ -349,33 +349,35 @@ void parseFastaSeqHeader(char *line, const int lineNum,
 {
   char seqName[MAXLINE + 1];
   
+  /* Read the ref seq name from the header line */
   if (sscanf(line, ">%s", seqName) != 1)
     {
       g_error("Error parsing data file, type FASTA_SEQ_HEADER: \"%s\"\n", line);
     }
 
-  /* The reference sequence name should already be set */
-  if (refSeqName && stringsEqual(refSeqName, seqName, FALSE))
+  /* Set the name, if not already set */
+  if (*refSeqName == '\0')
     {
-      /* Only bother if the reference sequence is not already populated */
-      if (*refSeq == NULL)
-        {
-          *readSeq = refSeq;
-          *readSeqMaxLen = MAXLINE;
-          **readSeq = g_malloc(*readSeqMaxLen + 1);
-          *readSeqLen = 0;
-        }
+      strcpy(refSeqName, seqName);
+    }
+  else if (!stringsEqual(refSeqName, seqName, FALSE))
+    {
+      g_warning("Reference sequence name is '%s' but the name in the FASTA data is '%s'; ignoring the FASTA data name.\n");
+    }
+
+  /* Now allocate memory for the sequence data (if the sequence is not already populated) */
+  if (*refSeq == NULL)
+    {
+      *readSeq = refSeq;
+      *readSeqMaxLen = MAXLINE;
+      **readSeq = g_malloc(*readSeqMaxLen + 1);
+      *readSeqLen = 0;
+    }
       
-      /* Update the parser state so that we proceed to parse the sequence data next. (Even if
-       * we're not populating the ref seq, we still need to loop over these lines. Leaving the
-       * readSeqLen as unset will mean that the fasta sequence parser will ignore the input.) */
-      *parserState = FASTA_SEQ_BODY;
-    }
-  else
-    {
-      g_critical("[line %d] Failed to parse FASTA sequence: unrecognised sequence name '%s'\n", lineNum, seqName);
-      *parserState = PARSER_ERROR;
-    }
+  /* Update the parser state so that we proceed to parse the sequence data next. (Even if
+   * we're not populating the ref seq, we still need to loop over these lines. Leaving the
+   * readSeqLen as unset will mean that the fasta sequence parser will ignore the input.) */
+  *parserState = FASTA_SEQ_BODY;
 }
 
 
