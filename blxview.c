@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.63 2010-08-27 12:25:14 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.64 2010-08-31 11:42:05 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -133,7 +133,8 @@ MSP score codes:
 
 
 
-#define MAXALIGNLEN 10000
+#define MAXALIGNLEN                   10000
+#define ORGANISM_PREFIX_SEPARATOR     "  "
 
 
 /* A struct used to record warning/error messages */
@@ -155,6 +156,7 @@ static void            blviewCreate(char *opts, char *align_types, const char *p
 static MSP*            createEmptyMsp(MSP **lastMsp, MSP **mspList);
 static void            finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts, const int offset);
 static void            processGeneName(BlxSequence *blxSeq);
+static void            processOrganism(BlxSequence *blxSeq);
 static void            displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, gpointer data);
 static void            displayMessageAsList(GSList *messageList, const gboolean bringToFront, gpointer data);
 static BlxMessage*     createBlxMessage(const char *text, const GLogLevelFlags logLevel);
@@ -608,6 +610,7 @@ gboolean fetchSequences(GList *seqsToFetch,
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
       populateMissingDataFromParent(blxSeq, seqList);
       processGeneName(blxSeq);
+      processOrganism(blxSeq);
     }
   
   return success;
@@ -1176,6 +1179,56 @@ static void processGeneName(BlxSequence *blxSeq)
     }
 }
 
+
+/* Add a prefix to the given BlxSequence's organism field, e.g. change "Homo sapiens (human)" 
+ * to "Hs - Homo sapiens (human)". This is so that we can have a very narrow column that just 
+ * displays the prefix part of the field. */
+static void processOrganism(BlxSequence *blxSeq)
+{
+  if (blxSeq && blxSeq->organism && blxSeq->organism->str)
+    {
+      /* To create the alias, we'll take the first letter of each word until we hit a non-alpha
+       * character, e.g. the alias for "Homo sapiens (human)" would be "Hs" */
+      int srcIdx = 0;
+      int srcLen = strlen(blxSeq->organism->str);
+      
+      int destIdx = 0;
+      int destLen = 5; /* limit the length of the alias */
+      char alias[destLen + 1];
+      
+      gboolean startWord = TRUE;
+      
+      for ( ; srcIdx < srcLen && destIdx < destLen; ++srcIdx)
+        {
+          if (blxSeq->organism->str[srcIdx] == ' ')
+            {
+              startWord = TRUE;
+            }
+          else if (g_ascii_isalpha(blxSeq->organism->str[srcIdx]))
+            {
+              if (startWord)
+                {
+                  alias[destIdx] = blxSeq->organism->str[srcIdx];
+                  ++destIdx;
+                  startWord = FALSE;
+                }
+            }
+          else
+            {
+              /* Finish if we've hit a char that's not an alpha char or space. */
+              break;
+            }
+        }
+
+      alias[destIdx] = '\0';
+      
+      if (destIdx > 0)
+        {
+          g_string_prepend(blxSeq->organism, ORGANISM_PREFIX_SEPARATOR);
+          g_string_prepend(blxSeq->organism, alias);
+        }
+    }
+}
 
 /* Find the first/last base in an entire sequence, if not already set. For transcripts, the
  * range should already be set from the parent transcript item. For matches, get the start/end
