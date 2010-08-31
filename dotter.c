@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.12 2010-08-31 15:30:55 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.13 2010-08-31 15:46:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1769,7 +1769,8 @@ static void YdrawSEGxy(MSP *msp, float offset)
 
 static int isHorizontalMSP(MSP *msp) {
 
-    if (!msp->qname) messcrash("No qname set in MSP - I need this to associate it with one of the sequences");
+    if (!msp->qname)
+      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
 
     if (!strcasecmp(msp->qname, qname) || !strcmp(msp->qname, "@1"))
         return 1;
@@ -1780,7 +1781,8 @@ static int isHorizontalMSP(MSP *msp) {
 
 static int isVerticalMSP(MSP *msp) {
 
-    if (!msp->qname) messcrash("No qname set in MSP - I need this to associate it with one of the sequences");
+    if (!msp->qname) 
+      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
 
     if (!strcasecmp(msp->qname, sname) || !strcmp(msp->qname, "@2"))
         return 1;

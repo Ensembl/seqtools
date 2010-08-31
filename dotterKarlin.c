@@ -1,5 +1,5 @@
 /*  Last edited: Oct 26 10:45 2003 (edgrif) */
-/* $Id: dotterKarlin.c,v 1.2 2010-08-31 15:30:55 gb10 Exp $ */
+/* $Id: dotterKarlin.c,v 1.3 2010-08-31 15:46:31 gb10 Exp $ */
 
 /*
  -------------------------------------------------------------
@@ -31,11 +31,8 @@
 
 */
 
-#include <ctype.h>
-#include "regular.h"
-#include "graph.h"
-#include "gex.h"
 #include "dotter_.h"
+#include <gtk/gtk.h>
 
 
 #define MAXIT 20	/* Maximum number of iterations used in calculating K */

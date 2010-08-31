@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.12 2010-08-31 15:30:55 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.13 2010-08-31 15:46:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -237,11 +237,6 @@ static char* getUsageText()
 
 int main(int argc, char **argv)
 {
-  /* Set the message handlers */
-  g_log_set_default_handler(defaultMessageHandler, NULL);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
-
-
   DotterOptions options = {0, 0, 0, UNSET_INT, UNSET_INT, 0, 0, 1, 0, 0, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
   
   char   
@@ -570,7 +565,7 @@ int main(int argc, char **argv)
           }
 	else if(!(file = fopen(options.FSfilename, "r")))
           {
-	    messcrash("Cannot open %s\n", options.FSfilename);
+	    g_error("Cannot open %s\n", options.FSfilename);
           }
 	
         GList *seqList = NULL; /* parser compiles a list of BlxSequences into here; not required for dotter */
@@ -625,6 +620,11 @@ int main(int argc, char **argv)
 
     if (!options.savefile)
       {
+        /* Set the message handlers. (Do this here because we don't want graphical dialog
+         * boxes for batch mode.) */
+        g_log_set_default_handler(defaultMessageHandler, NULL);
+        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
+        
 	dotter(type, opts, options.qname, qseq, options.qoffset, options.sname, sseq, options.soffset, 
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, 0, options.winsize, options.pixelFacset) ;
@@ -635,12 +635,7 @@ int main(int argc, char **argv)
       }
     else
       {
-	/* stop graphical dialog boxes in batch mode. */
-	struct messContextStruct nullContext = { NULL, NULL };
-	messOutRegister(nullContext);
-	messErrorRegister (nullContext);
-	messExitRegister(nullContext);
-	messCrashRegister (nullContext);
+        /* Batch mode */
 	dotter(type, opts, options.qname, qseq, options.qoffset, options.sname, sseq, options.soffset, 
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, 0, options.winsize, options.pixelFacset);
