@@ -26,19 +26,14 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.13 2010-08-31 15:46:31 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.14 2010-08-31 16:09:28 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <wh/regular.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
 #include <SeqTools/utilities.h>
-#include <SeqTools/blixem_.h>
 #include <SeqTools/dotter_.h>
-#include <SeqTools/utilities.h>
 
 #define UNSET_INT  -1
 

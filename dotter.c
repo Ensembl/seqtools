@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.13 2010-08-31 15:46:31 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.14 2010-08-31 16:09:28 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -137,13 +137,9 @@
    prof -pixie -h -only calcWindow dotter dotter.Addrs dotter.Counts
 */
 
-#include <ctype.h>
-#include <wh/regular.h>
 #include <wh/aceio.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
-#include <wh/key.h>
-#include <wh/menu.h>
 #include <SeqTools/blixem_.h>
 #include <SeqTools/dotter_.h>
 #include <SeqTools/utilities.h>
@@ -3907,19 +3903,8 @@ static void toggleGrid(void)
 
 static void initGreyramp(void)
 {
-/*
-    float 
-	minScore,		/ * score/residue * /
-	maxScore;		/ * score/residue * /
-
-    float
-	offset;			/ * Disused idea for compensating for raised 
-				   noise levels in compressed images * /
-*/
-    int 
-	min = 40, 
-	max = 100;
-
+    int min = 40;
+    int max = 100;
     
     if (greyRampSwap) {
 
@@ -3934,29 +3919,6 @@ static void initGreyramp(void)
     }
 
     return;
-
-
-    /* The pixelFac is set so that a pixel value of 50 = exp_res_score.
-       Therefore, the stuff below is obsolete.  * /
-    
-    minScore = 0.8 * exp_res_score;
-    maxScore = 2.0 * exp_res_score;
-
-    offset = log((double)zoom*zoom)/(Lambda*win);
-
-    printf("exp_res_score=%.2f => minScore=%.2f, maxScore=%.2f; offset=%.2f\n", 
-	   exp_res_score, minScore, maxScore, offset);
-
-    min = (maxScore  +offset)*(float)pixelFac;
-    max = (minScore  +offset)*(float)pixelFac;
-
-    if (min < 0) min = 0;
-    if (min > 255) min = 255;
-
-    if (max < 0) max = 0;
-    if (max > 255) max = 255;
-
-    graphGreyRamp(max, min);*/
 }
 
 
