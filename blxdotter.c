@@ -1004,20 +1004,15 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
       return FALSE;
     }
   
-  /* Get the match sequence. Blixem uses g_malloc consistently now to allocate 
-   * strings but unfortunately dotter will free this string with messfree, so 
-   * we need to copy the result into a string allocated with messalloc. */
+  /* Get the match sequence. */
   GError *tmpError = NULL;
-  char *dotterSSeqTemp = getDotterSSeq(blxWindow, &tmpError);
-  if (!dotterSSeqTemp)
+  char *dotterSSeq = getDotterSSeq(blxWindow, &tmpError);
+
+  if (!dotterSSeq)
     {
       g_propagate_error(error, tmpError);
       return FALSE;
     }
-  
-  char *dotterSSeq = messalloc(strlen(dotterSSeqTemp) + 1);
-  strcpy(dotterSSeq, dotterSSeqTemp);
-  g_free(dotterSSeqTemp);
   
   /* Get the coords */
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
@@ -1031,29 +1026,24 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
   const BlxStrand strand = bc->seqType == BLXSEQ_DNA ? mspGetRefStrand(firstMsp) : blxWindowGetActiveStrand(blxWindow);
   const int frame = mspGetRefFrame(firstMsp, bc->seqType);
 
-  char *querySeqSegmentTemp = getSequenceSegment(bc,
-						 bc->refSeq,
-						 dotterStart,
-						 dotterEnd, 
-						 strand,
-						 BLXSEQ_DNA,	  /* calculated dotter coords are always in terms of DNA seq */
-						 frame,
-						 FALSE,		  /* input coords are always left-to-right, even if display reversed */
-						 bc->displayRev,  /* whether to reverse */
-						 bc->displayRev,  /* whether to allow rev strands to be complemented */
-						 FALSE,		  /* don't allow translation to a peptide seq */
-						 &tmpError);
+  char *querySeqSegment = getSequenceSegment(bc,
+                                             bc->refSeq,
+                                             dotterStart,
+                                             dotterEnd, 
+                                             strand,
+                                             BLXSEQ_DNA,	  /* calculated dotter coords are always in terms of DNA seq */
+                                             frame,
+                                             FALSE,		  /* input coords are always left-to-right, even if display reversed */
+                                             bc->displayRev,  /* whether to reverse */
+                                             bc->displayRev,  /* whether to allow rev strands to be complemented */
+                                             FALSE,		  /* don't allow translation to a peptide seq */
+                                             &tmpError);
   
-  if (!querySeqSegmentTemp)
+  if (!querySeqSegment)
     {
       g_propagate_error(error, tmpError);
       return FALSE;
     }
-  
-  /* Again, dotter will free this with messfree, so we need to pass a string allocated with messalloc */
-  char *querySeqSegment = messalloc(strlen(querySeqSegmentTemp) + 1);
-  strcpy(querySeqSegment, querySeqSegmentTemp);
-  g_free(querySeqSegmentTemp);
   
   /* Get the match sequence name (chopping off the letters before the colon, if there is one). */
   const char *dotterSName = strchr(mspGetSName(firstMsp), ':');

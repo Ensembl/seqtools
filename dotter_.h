@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Sep 15 08:36 2006 (edgrif)
  * Created: Thu Aug 26 17:17:58 1999 (fw)
- * CVS info:   $Id: dotter_.h,v 1.3 2010-05-19 10:27:32 gb10 Exp $
+ * CVS info:   $Id: dotter_.h,v 1.4 2010-08-31 15:30:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -35,38 +35,17 @@
 
 #include <SeqTools/dotter.h>
 
-#define AAID_MIN	1	/* Smallest letter value in binary alphabet */
-#define AAID_MAX	24	/* Maximum letter value in binary alphabet */
-#define AAID_CNT	24	/* Number of letters in alphabet */
-#define AAID_NAR	(AAID_MAX+1)
-#define AAID_IGNORE	(AAID_MAX+3)
+#define NR                    23 		        /* Not A residue */
+#define NA                    24 		        /* Not A residue */
 
-#define NA 24 		        /* Not A residue */
-#define EL (NA+1)		/* End of Line */
-#define ES (NA+2)		/* End of Sequence */
-#define IC AAID_IGNORE	/* Ignore this Character */
-
-#define UNKNOWN_AA_CHR	'X'
-#define STOP_AA_CHR	'*'
-#define GAP_AA_CHR '-'
-
-#define NR 23 		        /* Not A residue */
 #if !defined(NAMESIZE)
 #define NAMESIZE 10
 #endif
 
-char *translate(char *seq, char **code);
 extern char *stdcode1[];        /* 1-letter amino acid translation code */
 
 int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, char *qseq, char *sseq, 
 		       double *exp_res_score, double *Lambda);
-
-#if !defined BELVU
-/* Horrifically the headers for belvu, dotter and blixem all include each other for
- * inappropriate reasons..there should some common headers/.o files and all would be
- * well.... */
-void fatal(char *format, ...);
-#endif
 
 void argvAdd(int *argc, char ***argv, char *s);
 

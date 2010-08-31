@@ -28,13 +28,13 @@
  *
  *   dotter(type, 0, 0, qseq, 0, 0, sseq, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
  *
- *   NOTE: qseq and sseq must be messalloc'ed in the calling routine.  
- *   They are messfree'd by Dotter.
+ *   NOTE: qseq and sseq must be g_malloc'ed in the calling routine.  
+ *   They are g_free'd by Dotter.
  *
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.5 2010-08-24 12:27:59 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.6 2010-08-31 15:30:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
@@ -55,7 +55,7 @@ void dotter(
 				    Name of Horizontal sequence */
 	
 	char *queryseq,	   /* Mandatory, NULL terminated string
-			      Horisontal sequence - messfree'd by Dotter */
+			      Horisontal sequence - g_free'd by Dotter */
 
 	int   qoff,	   /* Optional, may be NULL
 			      Coordinate offset of horisontal sequence */
@@ -64,7 +64,7 @@ void dotter(
 			      Name of vertical sequence */
 
 	char *subjectseq,  /* Mandatory, NULL terminated string
-			      vertical sequence - messfree'd by Dotter */
+			      vertical sequence - g_free'd by Dotter */
 
 	int   soff,	   /* Optional, may be NULL 
 			      Coordinate offset of horisontal sequence */

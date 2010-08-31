@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.11 2010-08-24 12:27:59 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.12 2010-08-31 15:30:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -37,7 +37,8 @@
 #include <wh/gex.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/blixem_.h>
-#include <wh/dotter_.h>
+#include <SeqTools/dotter_.h>
+#include <SeqTools/utilities.h>
 
 #define UNSET_INT  -1
 
@@ -122,7 +123,7 @@ static char *stringUnprotect(char **textp, char *target)
   
   if (!target)
     {
-      target = messalloc(count+1);
+      target = g_malloc(count+1);
       goto redo;
     }
   
@@ -141,20 +142,20 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char s
        *cp;
 
    if (!*MSPlist) {
-       *MSPlist = (MSP *)messalloc(sizeof(MSP));
+       *MSPlist = (MSP *)g_malloc(sizeof(MSP));
        msp = *MSPlist;
    }
    else {
      msp = *MSPlist;
      while(msp->next) msp = msp->next;
-     msp->next = (MSP *)messalloc(sizeof(MSP));
+     msp->next = (MSP *)g_malloc(sizeof(MSP));
      msp = msp->next;
    }
 
-   msp->qname = messalloc(strlen(name)+1);
+   msp->qname = g_malloc(strlen(name)+1);
    strcpy(msp->qname, name);
 
-   msp->desc = messalloc(strlen(desc)+1);
+   msp->desc = g_malloc(strlen(desc)+1);
    strcpy(msp->desc, desc);
    if ((cp = (char *)strchr(msp->desc, ' ')))
      *cp = 0;
@@ -227,7 +228,7 @@ static char* getUsageText()
 #endif
   ;
   
-  usage = messalloc(strlen(usageText) + strlen(dotterVersion) + strlen(cc_date) + 20);
+  usage = g_malloc(strlen(usageText) + strlen(dotterVersion) + strlen(cc_date) + 20);
   sprintf(usage, "%s%s, compiled %s\n", usageText, dotterVersion, cc_date);
   
   return usage;
@@ -236,6 +237,11 @@ static char* getUsageText()
 
 int main(int argc, char **argv)
 {
+  /* Set the message handlers */
+  g_log_set_default_handler(defaultMessageHandler, NULL);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
+
+
   DotterOptions options = {0, 0, 0, UNSET_INT, UNSET_INT, 0, 0, 1, 0, 0, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
   
   char   
@@ -270,24 +276,24 @@ int main(int argc, char **argv)
       switch (optc) 
         {
           case 'b': 
-            options.savefile = messalloc(strlen(optarg)+1);
+            options.savefile = g_malloc(strlen(optarg)+1);
             strcpy(options.savefile, optarg);         break;
           case 'c': opts[1] = 'C';              break;
           case 'D': opts[0] = ' ';              break;
           case 'f': 
-            options.FSfilename = messalloc(strlen(optarg)+1);
+            options.FSfilename = g_malloc(strlen(optarg)+1);
             strcpy(options.FSfilename, optarg);       break;
           case 'F': 
             options.seqInSFS = 1;        
-            options.FSfilename = messalloc(strlen(optarg)+1);
+            options.FSfilename = g_malloc(strlen(optarg)+1);
             strcpy(options.FSfilename, optarg);       break;
           case 'H': opts[2] = 'H';              break;
           case 'i': options.install = 0;                break;
           case 'l': 
-            options.loadfile = messalloc(strlen(optarg)+1);
+            options.loadfile = g_malloc(strlen(optarg)+1);
             strcpy(options.loadfile, optarg);         break;
           case 'M': 
-            options.mtxfile = messalloc(strlen(optarg)+1);
+            options.mtxfile = g_malloc(strlen(optarg)+1);
             strcpy(options.mtxfile, optarg);          break;
           case 'm': options.memoryLimit = atof(optarg); break;
           case 'p': options.pixelFacset = atoi(optarg); break;
@@ -297,19 +303,19 @@ int main(int argc, char **argv)
           case 's': options.soffset = atoi(optarg);     break;
           case 'S': 
             options.selfcall = 1;
-            options.qname = messalloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
+            options.qname = g_malloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
             options.qlen = atoi(argv[optind+1]);
-            options.sname = messalloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
+            options.sname = g_malloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
             options.slen = atoi(argv[optind+3]);
-            dotterBinary = messalloc(strlen(argv[optind+4])+1);
+            dotterBinary = g_malloc(strlen(argv[optind+4])+1);
             strcpy(dotterBinary, argv[optind+4]);
                                               break;
           case 'W': 
-            options.winsize = messalloc(strlen(optarg)+1);
+            options.winsize = g_malloc(strlen(optarg)+1);
             strcpy(options.winsize, optarg);          break;
           case 'w': opts[1] = 'W';              break;
           case 'z': options.dotterZoom = atoi(optarg);  break;
-          default : fatal("Illegal option");
+          default : g_error("Illegal option");
       }
     }
   
@@ -327,7 +333,7 @@ int main(int argc, char **argv)
 	for (i = optind+2; i < argc; i++)
 	    len += strlen(argv[i])+1;
 	
-	Xoptions = messalloc(len+1);
+	Xoptions = g_malloc(len+1);
 	
 	for (i = optind+2; i < argc; i++) {
 	    strcat(Xoptions, argv[i]);
@@ -337,20 +343,20 @@ int main(int argc, char **argv)
 
     if (options.selfcall) /* Dotter calling dotter */
       {
-	qseq = (char *)messalloc(options.qlen+1);
-	sseq = (char *)messalloc(options.slen+1);
+	qseq = (char *)g_malloc(options.qlen+1);
+	sseq = (char *)g_malloc(options.slen+1);
 
         int l = fread(qseq, 1, options.qlen, stdin); 
 	if (l != options.qlen) 
           {
-	    fatal("Only read %d chars to qseq, expected %d", l, options.qlen);
+	    g_error("Only read %d chars to qseq, expected %d", l, options.qlen);
           }
 	qseq[options.qlen] = 0;
 
         l = fread(sseq, 1, options.slen, stdin);
 	if (l != options.slen) 
           {
-	    fatal("Only read %d chars to sseq, expected %d", l, options.slen);
+	    g_error("Only read %d chars to sseq, expected %d", l, options.slen);
           }
 	sseq[options.slen] = 0;
 
@@ -365,12 +371,12 @@ int main(int argc, char **argv)
 	    
 	    if (!MSPlist) 
               {
-		MSPlist = (MSP *)messalloc(sizeof(MSP));
+		MSPlist = (MSP *)g_malloc(sizeof(MSP));
 		msp = MSPlist;
               }
 	    else
               {
-		msp->next = (MSP *)messalloc(sizeof(MSP));
+		msp->next = (MSP *)g_malloc(sizeof(MSP));
 		msp = msp->next;
               }
 	    
@@ -420,7 +426,7 @@ int main(int argc, char **argv)
 	qfilename = argv[optind];
 	fseek(qfile, 0, SEEK_END);
 	options.qlen = ftell(qfile);
-	qseq = (char *)messalloc(options.qlen+1);
+	qseq = (char *)g_malloc(options.qlen+1);
 	fseek(qfile, 0, SEEK_SET);
       
 	if ((cp = (char *)strrchr(argv[optind], '/')))
@@ -440,7 +446,7 @@ int main(int argc, char **argv)
 	sfilename = argv[optind+1];
 	fseek(sfile, 0, SEEK_END);
 	options.slen = ftell(sfile);
-	sseq = (char *)messalloc(options.slen+1);
+	sseq = (char *)g_malloc(options.slen+1);
 	fseek(sfile, 0, SEEK_SET);
       
 	if ((cp = (char *)strrchr(argv[optind]+1, '/')))
@@ -474,8 +480,8 @@ int main(int argc, char **argv)
                 cq++;
                 if (++l == 1) 
                   {
-                    options.qname = messalloc(strlen(cq)+1); strNamecpy(options.qname, cq);
-                    firstdesc = messalloc(strlen(cq)+1);
+                    options.qname = g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
+                    firstdesc = g_malloc(strlen(cq)+1);
                     strcpy(firstdesc, cq);
                   }
                 else
@@ -489,7 +495,7 @@ int main(int argc, char **argv)
                         addBreakline (&MSPlist, qfilename, firstdesc, 0, '1');
                         
                         /* change sequence name to filename */
-                        options.qname = messalloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
+                        options.qname = g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
                       }
                     
                     addBreakline (&MSPlist, qfilename, cq, count, '1');
@@ -521,8 +527,8 @@ int main(int argc, char **argv)
 	    if ((cq = (char *)strchr(line, '>'))) {
 		cq++;
 		if (++l == 1) {
-		    options.sname = messalloc(strlen(cq)+1); strNamecpy(options.sname, cq);
-		    firstdesc = messalloc(strlen(cq)+1);
+		    options.sname = g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
+		    firstdesc = g_malloc(strlen(cq)+1);
 		    strcpy(firstdesc, cq);
 		}
 		else {
@@ -535,7 +541,7 @@ int main(int argc, char **argv)
 		        addBreakline (&MSPlist, sfilename, firstdesc, 0, '2');
 			
 			/* change sequence name to filename */
-			options.sname = messalloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
+			options.sname = g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
 		    }
 		    addBreakline (&MSPlist, sfilename, cq, count, '2');
 		}
@@ -591,19 +597,22 @@ int main(int argc, char **argv)
 	printf("\nDetected sequence types: DNA vs. Protein\n");
 	type = 'X';
       }
-    else fatal("Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
-
+    else
+      {
+        g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
+      }
+      
     if (options.revcompq) 
       {
 	if (type != 'X')
           {
-	    fatal("Revcomp'ing horizontal_sequence only needed in DNA vs. Protein");
+	    g_error("Revcomp'ing horizontal_sequence only needed in DNA vs. Protein");
           }
 	else 
           {
-	    cc = messalloc(options.qlen+1);
+	    cc = g_malloc(options.qlen+1);
 	    revComplement(cc, qseq);
-	    messfree(qseq);
+	    g_free(qseq);
 	    qseq = cc;
           }
       }

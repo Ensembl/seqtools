@@ -1,5 +1,5 @@
 /*  Last edited: Oct 26 10:45 2003 (edgrif) */
-/* $Id: dotterKarlin.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $ */
+/* $Id: dotterKarlin.c,v 1.2 2010-08-31 15:30:55 gb10 Exp $ */
 
 /*
  -------------------------------------------------------------
@@ -36,8 +36,6 @@
 #include "graph.h"
 #include "gex.h"
 #include "dotter_.h"
-
-#define NA 24 		        /* Not A residue */
 
 
 #define MAXIT 20	/* Maximum number of iterations used in calculating K */
@@ -214,31 +212,31 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
     /* Check that scores and their associated probabilities are valid     */
 
     if (low >= 0.) {
-	messout("Karlin-Altschul statistics error: There must be at least one negative score in the substitution matrix.");
+	g_critical("Karlin-Altschul statistics error: There must be at least one negative score in the substitution matrix.");
 	return -1.0;
     }
 
     for (i=range=high-low; i > -low && pr[i] == 0.0; --i);
     if (i <= -low) {
-	messout("Karlin-Altschul statistics error: A positive score is impossible in the context of the scoring scheme, the residue composition of the query sequence, and the residue composition assumed for the database.");
+	g_critical("Karlin-Altschul statistics error: A positive score is impossible in the context of the scoring scheme, the residue composition of the query sequence, and the residue composition assumed for the database.");
 	return -1.0;
     }
 
     for (sum=i=0; i<=range; sum += pr[i++])
 	if (pr[i] < 0.) {
-	    messout("Karlin-Altschul statistics error: Negative probabilities for scores are disallowed.");
+	    g_critical("Karlin-Altschul statistics error: Negative probabilities for scores are disallowed.");
 	    return -1.0;
 	}
 
     if (sum<0.99995 || sum>1.00005)
 	printf("Score probabilities sum to %.5lf and will be normalized to 1.", sum);
 
-    p = (double *)messalloc(sizeof(*p) * (range+1));
+    p = (double *)g_malloc(sizeof(*p) * (range+1));
     for (Sum=low,i=0; i<=range; ++i)
 	Sum += i*(p[i]=pr[i]/sum);
 
     if (Sum >= 0.) {
-	messout("Karlin/Altschul statistics failed due to non-negative expected score: %#0.3lg", Sum);
+	g_critical("Karlin/Altschul statistics failed due to non-negative expected score: %#0.3lg", Sum);
 	return Sum;
     }
 
@@ -280,7 +278,7 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
     }
     Sum = 0.;
     lo = hi = 0;
-    P = (double *)messalloc(MAXIT* (range+1) * sizeof(*P));
+    P = (double *)g_malloc(MAXIT* (range+1) * sizeof(*P));
     *P = sum = oldsum = oldsum2 = 1.;
     for (j=0;  j<MAXIT && sum > SUMLIMIT; oldsum = sum, Sum += sum /= ++j) {
 	first = last = range;
@@ -307,12 +305,12 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
     ratio = oldsum / oldsum2;
     if (ratio >= (1.0 - SUMLIMIT*0.001))
       {
-	messerror ("Value calculated for K was too high due to insufficient iterations.  "
+	g_critical ("Value calculated for K was too high due to insufficient iterations.  "
 		   "Fudging it.") ;
 	*K = 0.1 ;
 	goto OKExit ;
 /* was:
-        fatal("Value calculated for K was too high due to insufficient iterations.  "
+        g_error("Value calculated for K was too high due to insufficient iterations.  "
        	      "Alternatively, the expected average score is insufficiently negative.") ;
 */
       }
@@ -331,8 +329,8 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 
 OKExit:
 	   
-    messfree(p);
-    messfree(P);
+    g_free(p);
+    g_free(P);
     return 0;		/* Parameters calculated successfully */
 }
 
@@ -353,10 +351,10 @@ int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, char *qseq, char
 	qij, exp_MSP_score, sum;
     
     
-    n1 = (int *)messalloc((abetsize+4)*sizeof(int));
-    n2 = (int *)messalloc((abetsize+4)*sizeof(int));
-    fq1 = (double *)messalloc((abetsize+4)*sizeof(double));
-    fq2 = (double *)messalloc((abetsize+4)*sizeof(double));
+    n1 = (int *)g_malloc((abetsize+4)*sizeof(int));
+    n2 = (int *)g_malloc((abetsize+4)*sizeof(int));
+    fq1 = (double *)g_malloc((abetsize+4)*sizeof(double));
+    fq2 = (double *)g_malloc((abetsize+4)*sizeof(double));
     
 
     /* Find high and lows score in score matrix */
@@ -400,7 +398,7 @@ int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, char *qseq, char
 
     /* Calculate probability of each score */
     range = highs - lows;
-    prob = (double *)messalloc(sizeof(double)*(range+1));
+    prob = (double *)g_malloc(sizeof(double)*(range+1));
     for (i = 0; i <= range; ++i) prob[i] = 0.0;
     
     for (i = 0; i < abetsize; ++i)
@@ -413,7 +411,7 @@ int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, char *qseq, char
 
     if ((*exp_res_score = karlin(lows, highs, prob, Lambda, &K, &H)))
       {
-	messout("Setting ad hoc values to winsize=%d and expected score=%.3f", 25, *exp_res_score);
+	g_critical("Setting ad hoc values to winsize=%d and expected score=%.3f", 25, *exp_res_score);
 	return 25;
       }
     
@@ -444,11 +442,11 @@ int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, char *qseq, char
 	   *exp_res_score, retval);
 
 
-    messfree(prob);
-    messfree(n1);
-    messfree(n2);
-    messfree(fq1);
-    messfree(fq2);
+    g_free(prob);
+    g_free(n1);
+    g_free(n2);
+    g_free(fq1);
+    g_free(fq2);
 
     return retval;
 }

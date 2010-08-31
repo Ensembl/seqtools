@@ -249,7 +249,7 @@
  * HISTORY:
  * Last edited: May 28 11:43 2008 (edgrif)
  * Created: Aug 03 1994 (Erik.Sonnhammer@cgb.ki.se)
- * CVS info:   $Id: belvu.c,v 1.1 2009-11-03 18:28:23 edgrif Exp $
+ * CVS info:   $Id: belvu.c,v 1.2 2010-08-31 15:30:55 gb10 Exp $
 */
 
 
@@ -291,8 +291,6 @@
 #include <wh/graph.h>
 #include <wh/gex.h>
 #include <wh/key.h>
-#define BELVU						    /* Fix horrible include mess in dotter_.h */
-#include <wh/dotter_.h>
 #include <wh/menu.h>
 
 

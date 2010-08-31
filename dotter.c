@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.11 2010-08-24 12:27:59 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.12 2010-08-31 15:30:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -246,6 +246,7 @@ static int gArrayGetLen(GArray *array);
 #define drawBlastHSPlineStr   "Draw Blast HSPs (red lines)"
 #define drawBlastHSPlinefStr  "Draw Blast HSPs (colour = f(score))"
 #define togglePixelmapStr     "Pixelmap"
+
 
 static void dotterRampChange(BOOL isDrag);
 static MENU dotterMenu ;
@@ -532,7 +533,7 @@ void dotter (char  type,
 {
   int  i;
 
-  messalloccheck();
+//  messalloccheck();
 
   /* Reset global statics */
   resfac = PixelmapON = 1;
@@ -552,7 +553,7 @@ void dotter (char  type,
     blastx = 1; 
     resfac = 3; 
     abetsize = 20;  break;
-  default: fatal("Invalid sequence type passed to Dotter: %c", type);
+  default: g_error("Invalid sequence type passed to Dotter: %c", type);
   }
   
   /* Option parsing */
@@ -597,18 +598,18 @@ void dotter (char  type,
   handle = handleCreate();
   banner = (char *)handleAlloc(0, handle, 1000);
 
-  qname = messalloc(strlen(queryname)+1); strcpy(qname, queryname);
+  qname = g_malloc(strlen(queryname)+1); strcpy(qname, queryname);
   qseq = queryseq;
   qoffset = qoff;
 
-  sname = messalloc(strlen(subjectname)+1); strcpy(sname, subjectname);
+  sname = g_malloc(strlen(subjectname)+1); strcpy(sname, subjectname);
   sseq = subjectseq;
   soffset = soff;
   MSPlist = MSPs;
   MSPoffset = MSPoff;
   
-  if (!(qlen = strlen(qseq))) fatal("queryseq is empty");
-  if (!(slen = strlen(sseq))) fatal("subjectseq is empty");
+  if (!(qlen = strlen(qseq))) g_error("queryseq is empty");
+  if (!(slen = strlen(sseq))) g_error("subjectseq is empty");
 
   for (i = 0; i < qlen; i++) qseq[i] = freeupper(qseq[i]);
   for (i = 0; i < slen; i++) sseq[i] = freeupper(sseq[i]);
@@ -652,7 +653,7 @@ void dotter (char  type,
   if (savefile) 
     {
       if (!(saveFil = fopen (savefile, "wb")))
-	fatal("Failed to open %s", savefile);
+	g_error("Failed to open %s", savefile);
     }
 	
 
@@ -682,17 +683,17 @@ void dotter (char  type,
       if (qlen4 % 4)
 	qlen4 += 4-(qlen4 % 4);
       if (qlen/resfac > qlen4*zoom)
-	fatal("qlen/resfac > qlen4*zoom (%d > %d (%d*%d))",
+	g_error("qlen/resfac > qlen4*zoom (%d > %d (%d*%d))",
 	      qlen/resfac, qlen4*zoom, qlen4, zoom);
 
       slen4 = (int)ceil((double)slen/zoom);
       if (slen4 % 4)
 	slen4 += 4-(slen4 % 4);
       if (slen > slen4*zoom)
-	fatal("slen > slen4*zoom (%d > %d (%d*%d))", slen, slen4, zoom, slen4*zoom);
+	g_error("slen > slen4*zoom (%d > %d (%d*%d))", slen, slen4, zoom, slen4*zoom);
 
       datalen = slen4*qlen4;
-      data = (UCHAR *)messalloc(datalen);
+      data = (UCHAR *)g_malloc(datalen);
     }
 
   if (savefile)
@@ -835,21 +836,6 @@ static void setMenuCheckmarks(void)
 }
 
 
-void fatal(char *format, ...)
-{
-    va_list  ap;
-
-    printf("\nFATAL ERROR: "); 
-
-    va_start(ap, format);
-    vprintf(format, ap);
-    va_end(ap);
-
-    printf("\n"); 
-    exit(1);
-}
-
-
 static void Help(void)
 {
     graphMessage (messprintf("\
@@ -976,12 +962,12 @@ static void loadPlot(char *loadfile)
 	format;
 
     if (!(fil = fopen (loadfile, "rb")))
-	fatal("Failed to open %s", loadfile);
+	g_error("Failed to open %s", loadfile);
 
-    if ((fread(&format, 1, 1, fil)) != 1) fatal("reading file %s", loadfile);
-    if ((fread(&zoom,   1, 4, fil)) != 4) fatal("reading file %s", loadfile);
-    if ((fread(&qlen4,  1, 4, fil)) != 4) fatal("reading file %s", loadfile);
-    if ((fread(&slen4,  1, 4, fil)) != 4) fatal("reading file %s", loadfile);
+    if ((fread(&format, 1, 1, fil)) != 1) g_error("reading file %s", loadfile);
+    if ((fread(&zoom,   1, 4, fil)) != 4) g_error("reading file %s", loadfile);
+    if ((fread(&qlen4,  1, 4, fil)) != 4) g_error("reading file %s", loadfile);
+    if ((fread(&slen4,  1, 4, fil)) != 4) g_error("reading file %s", loadfile);
 #ifdef ALPHA
     reversebytes(&zoom, 4);
     reversebytes(&qlen4, 4);
@@ -996,19 +982,19 @@ static void loadPlot(char *loadfile)
     }
     else if (format == 2) 
     {
-	if ((fread(&pixelFac, 1, 4, fil)) != 4) fatal("reading file %s", loadfile);
-	if ((fread(&win,      1, 4, fil)) != 4) fatal("reading file %s", loadfile);
-	if ((fread(&MNlen, 1, 4, fil)) != 4) fatal("reading file %s", loadfile);
+	if ((fread(&pixelFac, 1, 4, fil)) != 4) g_error("reading file %s", loadfile);
+	if ((fread(&win,      1, 4, fil)) != 4) g_error("reading file %s", loadfile);
+	if ((fread(&MNlen, 1, 4, fil)) != 4) g_error("reading file %s", loadfile);
 #ifdef ALPHA
 	reversebytes(&pixelFac, 4);
 	reversebytes(&win, 4);
 	reversebytes(&MNlen, 4);
 #endif
-	if ((fread(&MATRIX_NAME, 1, MNlen, fil)) != MNlen) fatal("reading file %s", loadfile);
+	if ((fread(&MATRIX_NAME, 1, MNlen, fil)) != MNlen) g_error("reading file %s", loadfile);
 	MATRIX_NAME[MNlen] = 0;
 	for (i = 0; i < 24; i++)
 	    for (j = 0; j < 24; j++) {
-		if ((fread(&mtx, 1, 4, fil)) != 4) fatal("reading file %s", loadfile);
+		if ((fread(&mtx, 1, 4, fil)) != 4) g_error("reading file %s", loadfile);
 #ifdef ALPHA
 		reversebytes(&mtx, 4);
 #endif
@@ -1017,21 +1003,21 @@ static void loadPlot(char *loadfile)
 	dotstart = MNlen + 2329;
     }
     else 
-	fatal("Unknown dotter file format version: %d", format);
+	g_error("Unknown dotter file format version: %d", format);
 
     fseek(fil, 0, SEEK_END);
     n = ftell(fil);
 
     if (n-dotstart != qlen4*slen4)
-	fatal("Wrong number of pixels in %s: %d. Expected %d * %-d = %d\n", 
+	g_error("Wrong number of pixels in %s: %d. Expected %d * %-d = %d\n", 
 	      loadfile, n, qlen4, slen4, qlen4*slen4);
 
     datalen = slen4*qlen4;
-    data = (UCHAR *)messalloc(datalen);
+    data = (UCHAR *)g_malloc(datalen);
     fseek(fil, dotstart, SEEK_SET);
 
     if ((n = fread(data, 1, qlen4*slen4, fil)) != qlen4*slen4)
-	fatal("Read wrong number of pixels from %s: %d. Expected %d * %-d = %d\n", 
+	g_error("Read wrong number of pixels from %s: %d. Expected %d * %-d = %d\n", 
 	      loadfile, n, qlen4, slen4, qlen4*slen4);
     
     fclose(fil);
@@ -1260,7 +1246,7 @@ static void calcWindow(void)
 			    dotpos = qlen4*dotposs + dotposq;
 
 			    if (dotpos < 0 || dotpos >= datalen) {
-				messerror ( "Pixel out of bounds (%d) in blastx: %d\n",
+				g_critical ( "Pixel out of bounds (%d) in blastx: %d\n",
 					datalen-1, dotpos);
 			    }
 			    else {
@@ -1321,7 +1307,7 @@ static void calcWindow(void)
 			dotpos = qlen4*dotposs + dotposq;
 
 			if (dotpos < 0 || dotpos > datalen-1) {
-			    messerror ( "Pixel out of bounds (%d) in blastp/blastn-forw: %d\n", 
+			    g_critical ( "Pixel out of bounds (%d) in blastp/blastn-forw: %d\n", 
 				    datalen-1, dotpos);
 			}
 			else {
@@ -1392,7 +1378,7 @@ static void calcWindow(void)
 			dotpos = qlen4*dotposs + dotposq;
 			
 			if (dotpos < 0 || dotpos >= datalen) {
-			    messerror ( "Pixel out of bounds (%d) in blastn-rev: %d\n",
+			    g_critical ( "Pixel out of bounds (%d) in blastn-rev: %d\n",
 				    datalen-1, dotpos);
 			}
 			else {
@@ -1419,10 +1405,10 @@ static void calcWindow(void)
 		dotposCopy = qlen4*q + s;
 
 		if (dotpos < 0 || dotpos >= datalen)
-		    messerror ( "Source pixel out of bounds (%d) in mirrorCopy: %d\n",
+		    g_critical ( "Source pixel out of bounds (%d) in mirrorCopy: %d\n",
 				datalen-1, dotpos);
 		if (dotposCopy < 0 || dotposCopy >= datalen)
-		    messerror ( "Destination pixel out of bounds (%d) in mirrorCopy: %d\n",
+		    g_critical ( "Destination pixel out of bounds (%d) in mirrorCopy: %d\n",
 				datalen-1, dotposCopy);
 		data[dotposCopy] = data[dotpos];
 	    }
@@ -1430,7 +1416,7 @@ static void calcWindow(void)
     }
 
     handleDestroy(calcHandle);
-    messalloccheck();
+//    messalloccheck();
     pixelmap_done = 1;
 }
 
@@ -2474,8 +2460,8 @@ static void graphPixelLine(int strength, int sx, int sy, int ex, int ey)
 	    dotpos = qlen4*(y) + x;
 
 	    if (dotpos < 0 || dotpos > datalen-1) {
-		messout("Pixel out of bounds (0-%d) in graphPixelLine: %d."
-			"Crash imminent.", datalen-1, dotpos);
+		g_critical("Pixel out of bounds (0-%d) in graphPixelLine: %d."
+                           "Crash imminent.", datalen-1, dotpos);
 	    }
 	    else
 	    {
@@ -2645,7 +2631,7 @@ static void drawBlastHSPs(void)
 		graphPixelLine(strength, sx, sy, ex, ey);
 	    }
 	    else {
-		messout("Unknown BlastMode = bug -> contact Erik");
+		g_critical("Unknown BlastMode = bug -> contact Sanger");
 	    }
 	}
     }
@@ -3180,14 +3166,14 @@ static void initAlignment(void)
 
     {
 	/* static int warned=0;
-	if (!warned) messout("The residue colours of the Aligment tool have been corrupted by Jean."
+	if (!warned) g_critical("The residue colours of the Aligment tool have been corrupted by Jean."
 			     " Send complaints to mieg@kaa.crbm.cnrs-mop.fr");
 	warned=1;*/
     }
 
     if (!CrosshairON)
       {
-	messout("Turn on the crosshair !");
+	g_critical("Turn on the crosshair !");
 	return;
       }
     
@@ -3482,7 +3468,7 @@ int findCommand (char *command, char **retp)
 
     /* Don't use csh - fails if the path is not set in .cshrc * /
     if (access(csh, X_OK)) {
-	messout("Could not find %s", csh);
+	g_critical("Could not find %s", csh);
 	return 0;
     }
     if (!(pipe = (FILE *)popen(messprintf("%s -cf \"which %s\"", csh, command), "r"))) {
@@ -3504,7 +3490,7 @@ int findCommand (char *command, char **retp)
 	return 0;
     */
     
-    path = messalloc(strlen(getenv("PATH"))+1);
+    path = g_malloc(strlen(getenv("PATH"))+1);
     /* Don't free 'path' since it changes later on - never mind, 
        we're only calling it once */
 
@@ -3575,7 +3561,7 @@ static void callDotter(int dotterZoom, int xstart, int ystart, int xend, int yen
     if (!dotterBinary) { 
 	printf("Looking for Dotter ...\n");
 	if (!findCommand("dotter", &(dotterBinary))) {
-	    messout("Failed to zoom in - %s.  "
+	    g_critical("Failed to zoom in - %s.  "
 		    "($PATH=%s)", dotterBinary, getenv("PATH"));
 	    dotterBinary = 0;
 	    return;
@@ -3758,18 +3744,18 @@ static void initWindow(char *winsize)
 
     if (!winsize || freeupper(*winsize) == 'K') {
 	if (win < 3) {
-	    messout("Karlin/Altschul estimate of window size = %d ignored. Using 10 instead.\n", win);
+	    g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 10 instead.\n", win);
 	    win = 10;
 	}
 	if (win > 50) {
-	    messout("Karlin/Altschul estimate of window size = %d ignored. Using 50 instead.\n", win);
+	    g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 50 instead.\n", win);
 	    win = 50;
 	}
 	return;
     }
 
     if (!atoi(winsize))
-	fatal("Bad window size specification: %s", winsize);
+	g_error("Bad window size specification: %s", winsize);
     win = atoi(winsize);
 }
 
@@ -3811,17 +3797,17 @@ static void dotterDestroy(void)
 	}
     }
 
-  /* Free stuff messalloc'ed in calling routine (usually blixem or dotterMain) */
-  messfree(qseq);
-  messfree(sseq);
+  /* Free stuff g_malloc'ed in calling routine (usually blixem or dotterMain) */
+  g_free(qseq);
+  g_free(sseq);
 
   /* Don't free MSP's since that will screw blixem up !!! */
   
   if (graphActivate(dotterGraph))
     graphClear();
 
-  messfree(data);
-  messfree(HSPpixels);
+  g_free(data);
+  g_free(HSPpixels);
   
   if (graphActivate(alnGraph))
     {
@@ -4053,7 +4039,7 @@ static void dotterRedraw(void)
 	if (!HSPpixels)
 	  { 
 	    int i;
-	    HSPpixels = (UCHAR *)messalloc(datalen);
+	    HSPpixels = (UCHAR *)g_malloc(datalen);
 	    for (i=0; i < datalen; i++)
 	      HSPpixels[i] = 0;
 	  }
@@ -4065,7 +4051,7 @@ static void dotterRedraw(void)
     if (HSPgaps && !gapwarned)
       {
 	graphRedraw();
-	messout("Note: gapped HSPs are shown ungapped in Dotter.");
+	g_critical("Note: gapped HSPs are shown ungapped in Dotter.");
 	gapwarned = 1;
       }
     }
@@ -4106,7 +4092,7 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     
     if (!(fil = fopen(mtxfile, "r")) &&
 	!(fil = fopen(messprintf("%s/%s", getenv("BLASTMAT"), mtxfile), "r")))
-	fatal("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.", mtxfile);
+	g_error("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.", mtxfile);
     
     /* Ignore header ... */
     while (!feof(fil) && *line == '#') 
@@ -4116,14 +4102,16 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     for (row = 0; row < 24; row++)
     {
 	if (!(fgets(line, 1024, fil)))
-	    fatal("Wrong number of rows in matrix file: %d (should be 24).", row);
+	    g_error("Wrong number of rows in matrix file: %d (should be 24).", row);
 
 	p = strtok(line, " \t\n");
 	for (col = 0; col < 24; col++) 
 	{
 	    while (*p == '*' || isalpha((int) *p))
 		p = strtok(NULL, " \t\n");
-	    if (!p) fatal("Error on row %d in matrix file.", row);
+          
+	    if (!p) 
+              g_error("Error on row %d in matrix file.", row);
 
 	    MATRIX[row][col] = atoi(p);
 
