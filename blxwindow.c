@@ -4988,7 +4988,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
             {
               /* Ungapped alignments. */
               totalNumChars = (msp->qRange.max - msp->qRange.min + 1) / bc->numFrames;
-              
+
               if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
                 {
                   int i = 0;
@@ -5016,7 +5016,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           else
             {
               /* Gapped alignments. */
-              
+
               /* To do tblastn and tblastx is not imposssible but would like to work from
                * examples to get it right.... */
               if (bc->blastMode == BLXMODE_TBLASTN)
@@ -5046,6 +5046,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                        * We need to translate the first coord in the range (which is in terms of the full
                        * reference sequence) into coords in the cut-down ref sequence. */
                       int q_start = qForward ? (qRangeMin - msp->qRange.min) / bc->numFrames : (msp->qRange.max - qRangeMax) / bc->numFrames;
+                      const int qLen = strlen(refSeqSegment);
                       
                       /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
                        * through sseq if we have the forward strand or backwards if we have the reverse strand,
@@ -5053,7 +5054,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                       int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
                       
                       int sIdx = s_start, qIdx = q_start ;
-                      while ((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1))
+                      while (((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1)) && qIdx < qLen)
                         {
                           if (toupper(matchSeq[sIdx]) == toupper(refSeqSegment[qIdx]))
                             numMatchingChars++ ;

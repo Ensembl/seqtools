@@ -362,7 +362,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
     }
   else if (!stringsEqual(refSeqName, seqName, FALSE))
     {
-      g_warning("Reference sequence name is '%s' but the name in the FASTA data is '%s'; ignoring the FASTA data name.\n");
+      g_warning("Reference sequence name is '%s' but the name in the FASTA data is '%s'; ignoring the FASTA data name.\n", refSeqName, seqName);
     }
 
   /* Now allocate memory for the sequence data (if the sequence is not already populated) */
