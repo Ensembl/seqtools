@@ -87,9 +87,9 @@ DoubleRange*		      bigPictureGetPercentIdRange(GtkWidget *bigPicture);
 int			      bigPictureGetNumVCells(GtkWidget *bigPicture);
 BlxViewContext*		      bigPictureGetContext(GtkWidget *bigPicture);
 
-void			      bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell);
-void			      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue);
-void			      bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue);
+gboolean                      bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell);
+gboolean		      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue);
+gboolean		      bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue);
 void                          bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);

@@ -1811,32 +1811,54 @@ void widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback func, gpointer
     }
 }
 
-/* Get the CallbackData struct for this widget, if it has one, and call it. */
-static void widgetCallCallback(GtkWidget *widget, const gint responseId)
+/* Get the CallbackData struct for this widget, if it has one, and call it. Returns false if
+ * there was an error */
+static gboolean widgetCallCallback(GtkWidget *widget, const gint responseId)
 {
+  gboolean result = TRUE;
   CallbackData *callbackData = widgetGetCallbackData(widget);
   
   if (callbackData && callbackData->func)
     {
-      callbackData->func(widget, responseId, callbackData->data);
+      result = callbackData->func(widget, responseId, callbackData->data);
     }
+  
+  return result;
 }
 
 /* Call the stored CallbackData callbacks (if any exist) for this widget and
- * all of its children. The response ID is passed as the user data */
-void widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
+ * all of its children. The response ID is passed as the user data. Returns false if
+ * any callback returns an error. */
+gboolean widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
 {
+  gboolean result = TRUE;
+  
   if (widget && GTK_IS_WIDGET(widget))
     {
       gint responseId = GPOINTER_TO_INT(data);
       
-      widgetCallCallback(widget, responseId);
+      if (!widgetCallCallback(widget, responseId))
+        {
+          result = FALSE;
+        }
   
       if (GTK_IS_CONTAINER(widget))
 	{
-	  gtk_container_foreach(GTK_CONTAINER(widget), widgetCallAllCallbacks, data);
+          GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+          
+          for ( ; childItem; childItem = childItem->next)
+            {
+              GtkWidget *child = GTK_WIDGET(childItem->data);
+              
+              if (!widgetCallAllCallbacks(child, data))
+                {
+                  result = FALSE;
+                }
+            }
 	}
     }
+  
+  return result;
 }
 
 
@@ -1850,8 +1872,8 @@ void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
-      widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      destroy = TRUE;
+      /* Destroy if successful */
+      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
       break;
       
     case GTK_RESPONSE_APPLY:

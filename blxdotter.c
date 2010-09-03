@@ -49,7 +49,7 @@ typedef enum {
 
 
 /* Local function declarations */
-static gboolean	      getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, const gboolean callOnSelf, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
+static gboolean	      getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, const gboolean callOnSelf, const gboolean autoDotter, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static char*	      fetchSeqRaw(const char *seqname, const char *fetchMode);
@@ -65,42 +65,71 @@ static gboolean	      callDotterSelf(GtkWidget *blxWindow, GError **error);
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It sets the dotter mode according to the toggle state of the 
  * "auto" button. */
-static void onSaveDotterMode(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onSaveDotterMode(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   blxContext->autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  return TRUE;
 }
 
 
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It saves the start parameter that was entered (if manual dotter
  * params are being used). */
-static void onSaveDotterStart(GtkWidget *entry, const gint responseId, gpointer data)
+static gboolean onSaveDotterStart(GtkWidget *entry, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   /* Only save the parameter if we are using manual parameters */
-  if (!blxContext->autoDotter)
+  if (!bc->autoDotter)
     {
-      blxContext->dotterStart = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      const int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      
+      if (valueWithinRange(newVal, &bc->refSeqRange))
+        {
+          bc->dotterStart = newVal;
+        }
+      else
+        {
+          result = FALSE;
+          g_critical("Start value %d is outside reference sequence range %d -> %d. Value not saved.\n", newVal, bc->refSeqRange.min, bc->refSeqRange.max);
+        }
     }  
+  
+  return result;
 }
 
-static void onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointer data)
+static gboolean onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Only save the parameter if we are using manual parameters */
-  if (!blxContext->autoDotter)
+  if (!bc->autoDotter)
     {
-      blxContext->dotterEnd = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      const int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      
+      if (valueWithinRange(newVal, &bc->refSeqRange))
+        {
+          bc->dotterEnd = newVal;
+        }
+      else
+        {
+          result = FALSE;
+          g_critical("End value %d is outside reference sequence range %d -> %d. Value not saved.\n", newVal, bc->refSeqRange.min, bc->refSeqRange.max);
+        }
     }  
+  
+  return result;
 }
 
-static void onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpointer data)
+static gboolean onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -110,6 +139,8 @@ static void onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpointer d
     {
       blxContext->dotterZoom = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
     }  
+  
+  return TRUE;
 }
 
 
@@ -187,7 +218,9 @@ static void onSelfButtonToggled(GtkWidget *button, gpointer data)
   
   /* Recalculate auto start/end */
   int autoStart = UNSET_INT, autoEnd = UNSET_INT;
-  getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, &autoStart, &autoEnd, NULL, NULL);
+  const gboolean autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
+
+  getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, autoDotter, &autoStart, &autoEnd, NULL, NULL);
 
   if (autoStart == UNSET_INT)
     autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
@@ -229,8 +262,23 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
   switch (responseId)
     {
       case GTK_RESPONSE_ACCEPT:
-	widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-	destroy = dialogData->callOnSelf ? callDotterSelf(dialogData->blxWindow, &error) : callDotter(dialogData->blxWindow, dialogData->hspsOnly, &error);
+        /* Only continue to call dotter if saving the values is successful */
+	if (widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId)))
+          {
+            if (dialogData->callOnSelf)
+              {
+                destroy = callDotterSelf(dialogData->blxWindow, &error);
+              }
+            else
+              {
+                destroy = callDotter(dialogData->blxWindow, dialogData->hspsOnly, &error);
+              }
+          }
+        else
+          {
+            destroy = FALSE; /* there was an error, so leave the dialog open */
+          }
+        
 	break;
 	
       case GTK_RESPONSE_APPLY:
@@ -274,7 +322,7 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
     {
       /* Recalculate auto start/end in case user has selected a different sequence */
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
-      getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, &autoStart, &autoEnd, NULL, NULL);
+      getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, TRUE, &autoStart, &autoEnd, NULL, NULL);
 
       if (autoStart == UNSET_INT)
 	autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
@@ -484,8 +532,8 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
    * is still open: the auto range does not update automatically for the new sequence. To 
    * mitigate this, connect the 'clicked' signal as well as the toggle signal, so that they can
    * click on the 'auto' toggle button and have it refresh, even if that button is already selected.*/
-  g_signal_connect(G_OBJECT(autoButton), "toggled", G_CALLBACK(onRadioButtonToggled), dialogData);
-  g_signal_connect(G_OBJECT(manualButton), "toggled", G_CALLBACK(onRadioButtonToggled), dialogData);
+//  g_signal_connect(G_OBJECT(autoButton), "toggled", G_CALLBACK(onRadioButtonToggled), dialogData);
+//  g_signal_connect(G_OBJECT(manualButton), "toggled", G_CALLBACK(onRadioButtonToggled), dialogData);
   g_signal_connect(G_OBJECT(autoButton), "clicked", G_CALLBACK(onRadioButtonToggled), dialogData);
   g_signal_connect(G_OBJECT(manualButton), "clicked", G_CALLBACK(onRadioButtonToggled), dialogData);
   
@@ -543,11 +591,12 @@ char getDotterMode(const BlxBlastMode blastMode)
 }
 
 
-/* Get the start/end coords. If the autoDotter flag is set, calculate coords
+/* Get the start/end coords. If the passed autoDotter flag is true, calculate coords
  * automatically - otherwise use the stored manual coords */
 static gboolean getDotterRange(GtkWidget *blxWindow, 
 			       const char *dotterSSeq, 
 			       const gboolean callOnSelf,
+                               const gboolean autoDotter,
 			       int *dotterStart, 
 			       int *dotterEnd, 
 			       int *dotterZoom, 
@@ -558,7 +607,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
   gboolean success = TRUE;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  if (!bc->autoDotter)
+  if (!autoDotter)
     {
       /* Use manual coords */
       if (dotterStart) *dotterStart = bc->dotterStart;
@@ -1016,7 +1065,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
   
   /* Get the coords */
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
-  if (!getDotterRange(blxWindow, dotterSSeq, FALSE, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
+  if (!getDotterRange(blxWindow, dotterSSeq, FALSE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
     {
       g_propagate_error(error, tmpError);
       return FALSE;
@@ -1103,7 +1152,7 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   int dotterZoom = 0;
   
   GError *tmpError = NULL;
-  if (!getDotterRange(blxWindow, NULL, TRUE, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
+  if (!getDotterRange(blxWindow, NULL, TRUE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
     {
       g_propagate_error(error, tmpError);
       return FALSE;

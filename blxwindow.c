@@ -1294,8 +1294,10 @@ static GList* findSeqsFromList(GtkWidget *blxWindow, const char *inputText, cons
 
 /* Callback called when requested to find sequences from a sequence name. Selects
  * the sequences and scrolls to the start of the first match in the selection */
-static void onFindSeqsFromName(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onFindSeqsFromName(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   const char *inputText = NULL;
   
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
@@ -1309,7 +1311,11 @@ static void onFindSeqsFromName(GtkWidget *button, const gint responseId, gpointe
   GError *error = NULL;
   GList *seqList = findSeqsFromName(blxWindow, inputText, FALSE, &error);
   
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (error)
+    {
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      result = FALSE;
+    }
   
   if (seqList)
     {
@@ -1331,13 +1337,17 @@ static void onFindSeqsFromName(GtkWidget *button, const gint responseId, gpointe
           firstMatch(blxWindowGetDetailView(blxWindow), seqList);
         }
     }
+    
+  return result;
 }
 
 
 /* Callback called when requested to find sequences from a given list. Selects
  * the sequences ands scrolls to the start of the first match in the selection. */
-static void onFindSeqsFromList(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onFindSeqsFromList(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   const char *inputText = NULL;
   
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
@@ -1351,7 +1361,11 @@ static void onFindSeqsFromList(GtkWidget *button, const gint responseId, gpointe
   GError *error = NULL;
   GList *seqList = findSeqsFromList(blxWindow, inputText, FALSE, &error);
 
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (error)
+    {
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      result = FALSE;
+    }
   
   if (seqList)
     {
@@ -1370,6 +1384,8 @@ static void onFindSeqsFromList(GtkWidget *button, const gint responseId, gpointe
           firstMatch(blxWindowGetDetailView(blxWindow), seqList);
         }
     }
+  
+  return result;
 }
 
 
@@ -1526,8 +1542,10 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
 /* Callback called when requested to search for a DNA string. If found, sets the currently-
  * selected base index to the coord where the matching string starts. The text entry for the
  * search string is passed as the callback data. */
-static void onFindDnaString(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onFindDnaString(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   /* Get the search string from the text entry. If the toggle button is not active, call
    * blxWindowFindDnaString with a NULL search string to "cancel" any previous searches
    * so that "findAgain" will not attempt to perform a DNA search). */
@@ -1540,6 +1558,7 @@ static void onFindDnaString(GtkWidget *button, const gint responseId, gpointer d
       if (!searchStr || strlen(searchStr) < 1)
         {
           g_critical("DNA search failed. The search string was empty.\n");
+          result = FALSE;
         }
     }
 
@@ -1570,9 +1589,12 @@ static void onFindDnaString(GtkWidget *button, const gint responseId, gpointer d
   
   if (error)
     {
+      result = FALSE;
       prefixError(error, "DNA search failed. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
+  
+  return result;
 }
 
 
@@ -1852,8 +1874,10 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
 
 
 /* This function sets the sequence-group-name text based on the given text entry widget */
-static void onGroupNameChanged(GtkWidget *widget, const gint responseId, gpointer data)
+static gboolean onGroupNameChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+
   GtkEntry *entry = GTK_ENTRY(widget);
   SequenceGroup *group = (SequenceGroup*)data;
   
@@ -1863,6 +1887,7 @@ static void onGroupNameChanged(GtkWidget *widget, const gint responseId, gpointe
     {
       g_critical("Invalid group name '%s' entered; reverting to previous group name '%s'.", newName, group->groupName);
       gtk_entry_set_text(entry, group->groupName);
+      result = FALSE;
     }
   else
     {
@@ -1871,13 +1896,17 @@ static void onGroupNameChanged(GtkWidget *widget, const gint responseId, gpointe
       
       group->groupName = g_strdup(newName);
     }
+  
+  return result;
 }
 
 
 /* This function is called when the sequence-group-order text entry widget's
  * value has changed. It sets the new order number in the group. */
-static void onGroupOrderChanged(GtkWidget *widget, const gint responseId, gpointer data)
+static gboolean onGroupOrderChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   GtkEntry *entry = GTK_ENTRY(widget);
   SequenceGroup *group = (SequenceGroup*)data;
   
@@ -1889,6 +1918,7 @@ static void onGroupOrderChanged(GtkWidget *widget, const gint responseId, gpoint
       char *orderStr = convertIntToString(group->order);
       gtk_entry_set_text(entry, orderStr);
       g_free(orderStr);
+      result = FALSE;
     }
   else
     {
@@ -1899,13 +1929,17 @@ static void onGroupOrderChanged(GtkWidget *widget, const gint responseId, gpoint
 
       blxWindowGroupsChanged(blxWindow);
     }
+  
+  return result;
 }
 
 
 /* This callback is called when the dialog settings are applied. It sets the hidden
  * status of the passed groupo based on the toggle button's state */
-static void onGroupHiddenToggled(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onGroupHiddenToggled(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   SequenceGroup *group = (SequenceGroup*)data;
   group->hidden = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
 
@@ -1914,13 +1948,17 @@ static void onGroupHiddenToggled(GtkWidget *button, const gint responseId, gpoin
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
 
   blxWindowGroupsChanged(blxWindow);
+  
+  return result;
 }
 
 
 /* This callback is called when the toggle button for a group's "highlighted" flag is toggled.
  * It updates the group's highlighted flag according to the button's new status. */
-static void onGroupHighlightedToggled(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onGroupHighlightedToggled(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   SequenceGroup *group = (SequenceGroup*)data;
   group->highlighted = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   
@@ -1931,12 +1969,16 @@ static void onGroupHighlightedToggled(GtkWidget *button, const gint responseId, 
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
   
   blxWindowRedrawAll(blxWindow);
+  
+  return result;
 }
 
 
 /* Called when the user has changed the color of a group in the 'edit groups' dialog */
-static void onGroupColorChanged(GtkWidget *button, const gint responseId, gpointer data)
-{
+static gboolean onGroupColorChanged(GtkWidget *button, const gint responseId, gpointer data)
+{  
+  gboolean result = TRUE;
+  
   SequenceGroup *group = (SequenceGroup*)data;
   gtk_color_button_get_color(GTK_COLOR_BUTTON(button), &group->highlightColor);
   gdk_colormap_alloc_color(gdk_colormap_get_system(), &group->highlightColor, TRUE, TRUE);
@@ -1945,6 +1987,8 @@ static void onGroupColorChanged(GtkWidget *button, const gint responseId, gpoint
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(button)));
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   blxWindowRedrawAll(blxWindow);
+  
+  return result;
 }
 
 
@@ -2072,8 +2116,10 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 
 /* If the given radio button is enabled, add a group based on the curently-
  * selected sequences. */
-static void addGroupFromSelection(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean addGroupFromSelection(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     {  
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
@@ -2088,19 +2134,24 @@ static void addGroupFromSelection(GtkWidget *button, const gint responseId, gpoi
 	}
       else
 	{
+          result = FALSE;
 	  g_critical("Warning: cannot create group; no sequences are currently selected");
 	}
     }
+  
+  return result;
 }
 
 
 /* If the given radio button is enabled, add a group based on the search text
  * in the given text entry. */
-static void addGroupFromName(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean addGroupFromName(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     {
-      return;
+      return result;
     }
   
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
@@ -2111,7 +2162,11 @@ static void addGroupFromName(GtkWidget *button, const gint responseId, gpointer 
   GError *error = NULL;
   GList *seqList = findSeqsFromName(blxWindow, inputText, FALSE, &error);
 
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (error)
+    {
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      result = FALSE;
+    }
 
   if (seqList)
     {
@@ -2120,6 +2175,8 @@ static void addGroupFromName(GtkWidget *button, const gint responseId, gpointer 
 
       createSequenceGroup(blxWindow, seqList, FALSE, NULL);
     }
+  
+  return result;
 }
 
 
@@ -2160,7 +2217,6 @@ static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText)
     {
       g_list_free(seqList);
       seqList = NULL;
-      g_critical("No valid sequence names in buffer '%s'\n", inputText);
     }
   
   return seqList;
@@ -2250,11 +2306,13 @@ static void toggleMatchSet(GtkWidget *blxWindow)
 
 /* If the given radio button is enabled, add a group based on the list of sequences
  * in the given text entry. */
-static void addGroupFromList(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean addGroupFromList(GtkWidget *button, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     {
-      return;
+      return result;
     }
   
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
@@ -2266,7 +2324,11 @@ static void addGroupFromList(GtkWidget *button, const gint responseId, gpointer 
   GError *error = NULL;
   GList *seqList = findSeqsFromList(blxWindow, inputText, FALSE, &error);
   
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (error)
+    {
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      result = FALSE;
+    }
   
   if (seqList)
     {
@@ -2275,6 +2337,8 @@ static void addGroupFromList(GtkWidget *button, const gint responseId, gpointer 
 
       createSequenceGroup(blxWindow, seqList, FALSE, NULL);
     }
+  
+  return result;
 }
 
 
@@ -2491,8 +2555,7 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
-      widgetCallAllCallbacks(page, GINT_TO_POINTER(responseId));
-      destroy = TRUE;
+      destroy = widgetCallAllCallbacks(page, GINT_TO_POINTER(responseId));
       refresh = FALSE;
       break;
 
@@ -2767,8 +2830,10 @@ static void createCheckButton(GtkBox *box,
 
 
 /* Callback to be called when the user has entered a new column size */
-static void onColumnSizeChanged(GtkWidget *widget, const gint responseId, gpointer data)
+static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   GtkEntry *entry = GTK_ENTRY(widget);
   DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
   
@@ -2785,6 +2850,8 @@ static void onColumnSizeChanged(GtkWidget *widget, const gint responseId, gpoint
       callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
       resizeDetailViewHeaders(detailView);
     }
+  
+  return result;
 }
 
 
@@ -2937,31 +3004,31 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 
 
 /* Callback to be called when the user has entered a new percent-ID per cell */
-static void onIdPerCellChanged(GtkWidget *widget, const gint responseId, gpointer data)
+static gboolean onIdPerCellChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   const gdouble newValue = g_strtod(text, NULL);
-  bigPictureSetIdPerCell(bigPicture, newValue);
+  return bigPictureSetIdPerCell(bigPicture, newValue);
 }
 
  
 /* Callback to be called when the user has entered a new maximum percent-ID to display */
-static void onMaxPercentIdChanged(GtkWidget *widget, const gint responseId, gpointer data)
+static gboolean onMaxPercentIdChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   const gdouble newValue = g_strtod(text, NULL);
-  bigPictureSetMaxPercentId(bigPicture, newValue);
+  return bigPictureSetMaxPercentId(bigPicture, newValue);
 }
 
 /* Callback to be called when the user has entered a new minimum percent-ID to display */
-static void onMinPercentIdChanged(GtkWidget *widget, const gint responseId, gpointer data)
+static gboolean onMinPercentIdChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   GtkWidget *bigPicture = GTK_WIDGET(data);  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   const gdouble newValue = g_strtod(text, NULL);
-  bigPictureSetMinPercentId(bigPicture, newValue);
+  return bigPictureSetMinPercentId(bigPicture, newValue);
 }
 
 
@@ -3043,7 +3110,7 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 
 
 /* Callback called when user has changed a blixem color */
-static void onChangeBlxColor(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onChangeBlxColor(GtkWidget *button, const gint responseId, gpointer data)
 {
   GdkColor *color = (GdkColor*)data;
   
@@ -3055,11 +3122,13 @@ static void onChangeBlxColor(GtkWidget *button, const gint responseId, gpointer 
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   blxWindowRedrawAll(blxWindow);
+  
+  return TRUE;
 }
 
 
 /* Callback called when user has changed the blixem background color */
-static void onChangeBackgroundColor(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onChangeBackgroundColor(GtkWidget *button, const gint responseId, gpointer data)
 {
   GdkColor *color = (GdkColor*)data;
   
@@ -3071,6 +3140,8 @@ static void onChangeBackgroundColor(GtkWidget *button, const gint responseId, gp
   GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   onUpdateBackgroundColor(blxWindow);
+  
+  return TRUE;
 }
 
 
@@ -3182,13 +3253,15 @@ static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
 
 /* Callback called when the user has changed the number of additional bases to show when the
  * 'show unaligned bases' option is enabled. */
-static void onSetNumUnalignedBases(GtkWidget *entry, const gint responseId, gpointer data)
+static gboolean onSetNumUnalignedBases(GtkWidget *entry, const gint responseId, gpointer data)
 {
   const char *numStr = gtk_entry_get_text(GTK_ENTRY(entry));
   int numBases = convertStringToInt(numStr);
   
   GtkWidget *detailView = GTK_WIDGET(data);
   detailViewSetNumUnalignedBases(detailView, numBases);
+  
+  return TRUE;
 }
 
 

@@ -87,8 +87,8 @@
 #define BLX_BURLYWOOD	      "#deb887"
 #define BLX_TAN		      "#d2b48c"
 
-/* Function pointer for callback functions used by widgets on dialog boxes */
-typedef void (*BlxResponseCallback)(GtkWidget *widget, const gint responseId, gpointer data);
+/* Function pointer for callback functions used by widgets on dialog boxes. */
+typedef gboolean (*BlxResponseCallback)(GtkWidget *widget, const gint responseId, gpointer data);
 
 /* This struct holds generic callback information. It can be stored as a widget
  * property and called on the widget on request (e.g. by a dialog when it applies changes). */
@@ -263,7 +263,7 @@ GtkWidget*		createScrollableTextView(const char *messageText,
                                                  GtkTextView **textViewOut);
 				    
 void		      widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);
-void		      widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
+gboolean              widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
 void                  onCloseDialog(GtkDialog *dialog, gpointer data);
 void                  dialogClearContentArea(GtkDialog *dialog);

@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.36 2010-08-26 11:11:20 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.37 2010-09-03 11:15:38 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1867,7 +1867,7 @@ void setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id,
 
 
 /* Callback called when the sort order has been changed in the drop-down box */
-static void onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
+static gboolean onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   BlxViewContext *bc = (BlxViewContext*)data;
   GtkComboBox *combo = GTK_COMBO_BOX(widget);
@@ -1899,6 +1899,8 @@ static void onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointe
             }
         }
     }
+    
+  return TRUE;
 }
 
 

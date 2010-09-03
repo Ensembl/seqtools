@@ -994,8 +994,9 @@ gdouble bigPictureGetIdPerCell(GtkWidget *bigPicture)
   return properties->idPerCell;
 }
 
-void bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell)
+gboolean bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell)
 {
+  gboolean result = FALSE;
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
   if (idPerCell < GRID_SCALE_MIN_ID_PER_CELL)
@@ -1006,7 +1007,10 @@ void bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell)
     {
       properties->idPerCell = idPerCell;
       updateOnPercentIdChanged(bigPicture);
+      result = TRUE;
     }
+  
+  return result;
 }
 
 int bigPictureGetNumVCells(GtkWidget *bigPicture)
@@ -1021,8 +1025,9 @@ DoubleRange* bigPictureGetPercentIdRange(GtkWidget *bigPicture)
   return &properties->percentIdRange;
 }
 
-void bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue)
+gboolean bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue)
 {
+  gboolean result = FALSE;
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
   if (newValue < GRID_SCALE_MIN)
@@ -1041,11 +1046,15 @@ void bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue)
     {
       properties->percentIdRange.max = newValue;
       updateOnPercentIdChanged(bigPicture);
+      result = TRUE;
     }
+  
+  return result;
 }
 
-void bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue)
+gboolean bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue)
 {
+  gboolean result = FALSE;
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
   if (newValue < GRID_SCALE_MIN)
@@ -1064,7 +1073,10 @@ void bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue)
     {    
       properties->percentIdRange.min = newValue;
       updateOnPercentIdChanged(bigPicture);
+      result = TRUE;
     }
+  
+  return result;
 }
 
 /***********************************************************

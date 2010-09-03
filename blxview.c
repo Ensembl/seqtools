@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.64 2010-08-31 11:42:05 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.65 2010-09-03 11:15:38 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -167,8 +167,8 @@ static char*           blxMessageGetDisplayText(const BlxMessage *msg, const gbo
 static void            addMessagesToBuffer(GSList *messageList, GtkTextBuffer *textBuffer, GtkTextTag *normalTag, GtkTextTag *highlightTag);
 static gboolean        getUseScrolledMessages();
 static void            setUseScrolledMessages(const gboolean newValue);
-static void            onSetUseScrolledMessages(GtkWidget *button, const gint responseId, gpointer data);
-static void            onSetUsePopupMessages(GtkWidget *button, const gint responseId, gpointer data);
+static gboolean        onSetUseScrolledMessages(GtkWidget *button, const gint responseId, gpointer data);
+static gboolean        onSetUsePopupMessages(GtkWidget *button, const gint responseId, gpointer data);
 static char*           getDialogIcon(GLogLevelFlags log_level);
 static void            printMessageToStatusbar(const gchar *message, gpointer data);
 
@@ -2140,18 +2140,20 @@ static void setUseScrolledMessages(const gboolean newValue)
 
 
 /* Called when user requests to view messages as a list */
-static void onSetUseScrolledMessages(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onSetUseScrolledMessages(GtkWidget *button, const gint responseId, gpointer data)
 {
   const gboolean useScrolledMessages = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   setUseScrolledMessages(useScrolledMessages);
+  return TRUE;
 }
 
 
 /* Called when user requests to view messages as popups */
-static void onSetUsePopupMessages(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onSetUsePopupMessages(GtkWidget *button, const gint responseId, gpointer data)
 {
   const gboolean usePopupMessages = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   setUseScrolledMessages(!usePopupMessages);
+  return TRUE;
 }
 
 
