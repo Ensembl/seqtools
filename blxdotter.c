@@ -193,9 +193,12 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
   const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
+
+  const int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, 1, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   
-  char *startString = convertIntToString(bc->displayRev ? displayRange->max : displayRange->min);
-  char *endString = convertIntToString(bc->displayRev ? displayRange->min : displayRange->max);
+  char *startString = convertIntToString(qStart);
+  char *endString = convertIntToString(qEnd);
   
   gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
   gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
