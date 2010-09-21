@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.65 2010-09-03 11:15:38 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.66 2010-09-21 12:50:43 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -767,7 +767,13 @@ static void blviewCreate(char *opts,
       blxWindowSelectSeq(blixemWindow, options->mspList->sSequence);
       
       GError *error = NULL;
-      callDotter(blixemWindow, FALSE, &error);
+      char *dotterSSeq = getDotterSSeq(blixemWindow, &error);
+      
+      if (!error)
+        {
+          callDotter(blixemWindow, FALSE, dotterSSeq, &error);
+        }
+        
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
 

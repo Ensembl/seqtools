@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.37 2010-09-03 11:15:38 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.38 2010-09-21 12:50:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -574,7 +574,7 @@ static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean disp
    * return anything with the -F option, so if it fails we need to re-try without -F so
    * that at least we can display the fasta sequence. */
   GString *command = g_string_sized_new(100);
-  g_string_append_printf(command, "pfetch --client=acedb_%s_%s -F '%s' &", g_get_host_name(), g_get_user_name(), seqName);
+  g_string_append_printf(command, "pfetch --client=%s_%s_%s -F '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
   
   GString *resultText = getExternalCommandOutput(command->str);
 
@@ -583,7 +583,7 @@ static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean disp
       g_string_truncate(command, 0);
       g_string_truncate(resultText, 0);
 
-      g_string_append_printf(command, "pfetch --client=acedb_%s_%s -C '%s' &", g_get_host_name(), g_get_user_name(), seqName);
+      g_string_append_printf(command, "pfetch --client=%s_%s_%s -C '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
       resultText = getExternalCommandOutput(command->str);
     }
   

@@ -5376,7 +5376,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
 
   /* Realise the widgets */
-  printf("Starting Blixem\n");
+  g_debug("Running %s\n", g_get_prgname());
   gtk_widget_show_all(window);
 
   /* If the options don't say to show the reverse strand grid, hide it now. (This must be done

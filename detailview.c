@@ -181,7 +181,7 @@ static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_famil
   if (match_family)
     {
       result = pango_font_family_get_name(match_family);
-      printf("Using fixed-width font '%s'\n", result);
+      g_debug("Using fixed-width font '%s'\n", result);
     }
   else
     {

@@ -20,17 +20,19 @@
 
 typedef struct _DotterDialogData
   {
-    GtkWidget *blxWindow;
+    GtkWidget *blxWindow;           /* pointer to the main blixem window */
     
-    GtkWidget *autoButton;
-    GtkWidget *manualButton;
+    GtkWidget *autoButton;          /* the radio button on the dialog for automatic dotter parameters */
+    GtkWidget *manualButton;        /* the radio button on the dialog for manual dotter parameters */
 
-    GtkWidget *startEntry;
-    GtkWidget *endEntry;
-    GtkWidget *zoomEntry;
+    GtkWidget *startEntry;          /* the text entry box on the dialog for the start coord */
+    GtkWidget *endEntry;            /* the text entry box on the dialog for the end coord */
+    GtkWidget *zoomEntry;           /* the text entry box on the dialog for the zoom value */
     
-    gboolean callOnSelf;
-    gboolean hspsOnly;
+    gboolean callOnSelf;            /* whether to call dotter on the query seq versus itself */
+    gboolean hspsOnly;              /* whether to call dotter on HSPs only */
+    
+    char *dotterSSeq;               /* the match sequence to call dotter on */
   } DotterDialogData;
 
 
@@ -44,7 +46,8 @@ typedef enum {
   BLX_DOTTER_ERROR_NOT_FOUND,	      /* failed to find the sequence */
   BLX_DOTTER_ERROR_NO_REF_SEQ,	      /* failed to find the query sequence segment */
   BLX_DOTTER_ERROR_INTERNAL_SEQ,      /* using internally-stored sequence (because fetch failed) */
-  BLX_DOTTER_ERROR_NO_MATCHES	      /* there are no matches on the requested sequence */
+  BLX_DOTTER_ERROR_NO_MATCHES,        /* there are no matches on the requested sequence */
+  BLX_DOTTER_ERROR_NO_SEQ_DATA        /* the match sequence has no sequence data (e.g. if could not pfetch it) */
 } BlxDotterError;
 
 
@@ -54,7 +57,6 @@ static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterS
 static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static char*	      fetchSeqRaw(const char *seqname, const char *fetchMode);
 static char*	      fetchSequence(const char *seqname, char *fetch_prog);
-static char*	      getDotterSSeq(GtkWidget *blxWindow, GError **error);
 static gboolean	      callDotterSelf(GtkWidget *blxWindow, GError **error);
 
 
@@ -223,7 +225,7 @@ static void onSelfButtonToggled(GtkWidget *button, gpointer data)
   int autoStart = UNSET_INT, autoEnd = UNSET_INT;
   const gboolean autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
 
-  getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, autoDotter, &autoStart, &autoEnd, NULL, NULL);
+  getDotterRange(dialogData->blxWindow, dialogData->dotterSSeq, dialogData->callOnSelf, autoDotter, &autoStart, &autoEnd, NULL, NULL);
 
   if (autoStart == UNSET_INT)
     autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
@@ -274,7 +276,7 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
               }
             else
               {
-                destroy = callDotter(dialogData->blxWindow, dialogData->hspsOnly, &error);
+                destroy = callDotter(dialogData->blxWindow, dialogData->hspsOnly, dialogData->dotterSSeq, &error);
               }
           }
         else
@@ -325,7 +327,7 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
     {
       /* Recalculate auto start/end in case user has selected a different sequence */
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
-      getDotterRange(dialogData->blxWindow, getDotterSSeq(dialogData->blxWindow, NULL), dialogData->callOnSelf, TRUE, &autoStart, &autoEnd, NULL, NULL);
+      getDotterRange(dialogData->blxWindow, dialogData->dotterSSeq, dialogData->callOnSelf, TRUE, &autoStart, &autoEnd, NULL, NULL);
 
       if (autoStart == UNSET_INT)
 	autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
@@ -530,6 +532,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   dialogData->zoomEntry = zoomEntry;
   dialogData->callOnSelf = FALSE;
   dialogData->hspsOnly = FALSE;
+  dialogData->dotterSSeq = getDotterSSeq(blxWindow, NULL);
   
   /* There is an issue if the user selects a different sequence while the dotter dialog
    * is still open: the auto range does not update automatically for the new sequence. To 
@@ -648,8 +651,8 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
  * This function assumes that if multiple MSPs are selected, that they are all for 
  * the same match sequence. Returns null if no MSPs are selected, with details of the error
  * in 'error'.  If the sequence was found but there were warnings, it returns non-null with
- * the warnings in 'error'. */
-static char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
+ * the warnings in 'error'. The return value should be free'd with g_free */
+char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
   
@@ -956,8 +959,8 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
     {
       /* --client gives logging information to pfetch server,
        * -q  Sequence only output (one line) */
-      fetchstr = hprintf(0, "%s --client=acedb_%s_%s -q '%s' &",
-			 fetch_prog, getSystemName(), getLogin(TRUE), seqname) ;
+      fetchstr = hprintf(0, "%s --client=%s_%s_%s -q '%s' &",
+			 fetch_prog, g_get_prgname(), getSystemName(), getLogin(TRUE), seqname) ;
     }
   else
     {
@@ -1028,7 +1031,7 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
 
 
 /* Call dotter. Returns true if dotter was called; false if we quit trying. */
-gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **error)
+gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterSSeqIn, GError **error)
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -1056,18 +1059,22 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, GError **erro
       return FALSE;
     }
   
-  /* Get the match sequence. */
-  GError *tmpError = NULL;
-  char *dotterSSeq = getDotterSSeq(blxWindow, &tmpError);
-
-  if (!dotterSSeq)
+  /* Make a copy of the match sequence, because dotter takes ownership of this. */
+  char *dotterSSeq = NULL;
+  if (dotterSSeqIn)
     {
-      g_propagate_error(error, tmpError);
+      dotterSSeq = g_strdup(dotterSSeqIn);
+    }
+  else
+    {
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQ_DATA, "No sequence data for this sequence.\n");
       return FALSE;
     }
   
   /* Get the coords */
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
+  GError *tmpError = NULL;
+  
   if (!getDotterRange(blxWindow, dotterSSeq, FALSE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
     {
       g_propagate_error(error, tmpError);
