@@ -1090,6 +1090,20 @@ static gboolean mspHasPolyATail(const MSP const *msp, const MSP const *mspList)
 }
 
 
+/* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
+ * this MSP has one. */
+gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP const *mspList)
+{
+  gboolean result = mspHasPolyATail(msp, mspList);
+  
+  /* See if the coord is outside the 3' end of the alignment range (i.e. is greater than the
+   * max coord if we're on the forward strand or less than the min coord if on the reverse). */
+  result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->qRange.max) ||
+             (mspGetRefStrand(msp) == BLXSTRAND_REVERSE && coord < msp->qRange.min));
+
+  return result;
+}
+
 /* Get the full range of the given MSP that we want to display, in s coords. This will generally 
  * be the coords of the alignment but could extend outside this range we are displaying unaligned 
  * portions of the match sequence or polyA tails etc. */

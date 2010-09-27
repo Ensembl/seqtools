@@ -583,14 +583,25 @@ static void drawBase(MSP *msp,
    * (If it is selected in both, show it in the normal color) */
   gboolean selected = (displayIdx == data->selectedBaseIdx) != data->seqSelected;
 
-  if (*qIdx < msp->qRange.min || *qIdx > msp->qRange.max)
+  if (!valueWithinRange(*qIdx, &msp->qRange))
     {
       /* We're outside the alignment range. There might still be a base to display if
-       * we're displaying unaligned parts of the match sequence; otherwise, we show nothing. */
+       * we're displaying unaligned parts of the match sequence or polyA tails; otherwise, we 
+       * show nothing. */
       if (*sIdx != UNSET_INT)
 	{
-	  sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
-	  baseBgColor = selected ? data->unalignedSeqColorSelected : data->unalignedSeqColor;
+          sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
+
+          if (data->bc->flags[BLXFLAG_SHOW_POLYA] && 
+              (!data->bc->flags[BLXFLAG_SHOW_POLYA_SELECTED] || data->seqSelected) &&
+              mspCoordInPolyATail(*qIdx, msp, data->bc->mspList))
+            {
+              baseBgColor = selected ? data->polyAColorSelected : data->polyAColor;
+            }
+          else
+            {
+              baseBgColor = selected ? data->unalignedSeqColorSelected : data->unalignedSeqColor;
+            }
 	}
     }
   else if (*sIdx == UNSET_INT)
