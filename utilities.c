@@ -565,7 +565,7 @@ gboolean mspIsSnp(const MSP const *msp)
 
 gboolean mspIsPolyATail(const MSP const *msp)
 {
-  return (msp && msp->type == BLXMSP_POLYA_TAIL);
+  return (msp && msp->type == BLXMSP_POLYA_SIG_SEQ);
 }
 
 gboolean mspIsBlastMatch(const MSP const *msp)

@@ -67,7 +67,7 @@
 #define BLX_LIGHTER_RED	      "#ff5353"
 #define BLX_LIGHT_RED	      "#ff7373"
 #define BLX_DARK_RED	      "#800000"
-#define BLX_VERY_DARK_RED     "#A00000"
+#define BLX_VERY_DARK_RED     "#400000"
 #define BLX_ORANGE	      "#ffa500"
 #define BLX_LIGHT_ORANGE      "#FFCF55"
 #define BLX_DUSK_ORANGE	      "#D7BA94"

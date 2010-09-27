@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.66 2010-09-21 12:50:43 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.67 2010-09-27 10:19:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -978,6 +978,15 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           ptrToUpdate = utr;
         }
     }
+  else if (*exon)
+    {
+      /* We just have an exon. Assume it is all utr. */
+      newStart = (*exon)->qRange.min;
+      newEnd = (*exon)->qRange.max;
+      newPhase = 0;
+      newType = BLXMSP_UTR;
+      ptrToUpdate = utr;
+    }
   
   if (newType != BLXMSP_INVALID)
     {
@@ -1051,7 +1060,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
               if (prevExon && curExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, blxSeq->idTag,
-                               NULL, prevExon->qRange.max, curExon->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+                               NULL, prevExon->qRange.max + 1, curExon->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
@@ -1393,20 +1402,6 @@ MSP* createNewMsp(MSP **lastMsp,
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
-  
-  /* Check that a phase wasn't passed in for anything that's not an exon. (Technically it
-   * should be anything that's not a CDS, but we copy the CDS phase to exons/UTRs so we 
-   * can calculate which reading frame to display them in.) */
-  if (!mspIsExon(msp) && msp->phase != UNSET_INT)
-    {
-      g_warning("Warning: MSP '%s' (%d-%d) has phase '%d' specified but only CDS types should have phase (MSP type=%d).\n", msp->sname, msp->qRange.min, msp->qRange.max, msp->phase, msp->type);
-    }
-
-  /* Alignments don't have a phase, so set it to 0 so that it gets ignored in our reading-frame calculation. */
-  if (mspIsBlastMatch(msp) && msp->phase == UNSET_INT)
-    {
-      msp->phase = 0;
-    }
   
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -1760,7 +1755,20 @@ BlxStyle* getBlxStyle(const char *styleName, GSList *styles, GError **error)
 	
       if (!result)
 	{
-	  g_set_error(error, BLX_ERROR, 1, "Requested style '%s' does not exist.\n", styleName);
+          /* Only report the same missing style once */
+          static GSList *seenStyles = NULL;
+          GSList *item = seenStyles;
+          gboolean seen = FALSE;
+          for ( ; item && !seen; item = item->next)
+            {
+              seen = stringsEqual((char*)(item->data), styleName, FALSE);
+            }
+          
+          if (!seen)
+            {
+              seenStyles = g_slist_append(seenStyles, g_strdup(styleName));
+              g_set_error(error, BLX_ERROR, 1, "Requested style '%s' does not exist.\n", styleName);
+            }
 	}
     }
 

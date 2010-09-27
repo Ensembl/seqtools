@@ -130,7 +130,8 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "intron", "SO:0000188", BLXMSP_INTRON);
   
   addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_SNP);
-  addGffType(&supportedTypes, "polyA_sequence", "SO:0000610", BLXMSP_POLYA_TAIL);
+  addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIG_SEQ);
+  addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
   
   return supportedTypes;
 }
@@ -429,7 +430,7 @@ static void parseGffColumns(GString *line_string,
   /* This error should get set if there is a fatal error reading this line. */
   GError *tmpError = NULL;
 
-  validateNumTokens(tokens, 9, 9, &tmpError);
+  validateNumTokens(tokens, 8, 9, &tmpError);
 
   if (!tmpError)
     {
@@ -458,13 +459,26 @@ static void parseGffColumns(GString *line_string,
   if (!tmpError)
     {
       if (stringsEqual(tokens[7], ".", TRUE))
-        gffData->phase = UNSET_INT;
+        {
+          gffData->phase = 0;
+          
+          if (gffData->mspType == BLXMSP_CDS)
+            {
+              g_warning("[line %d] CDS type does not have phase specified.\n", lineNum);
+            }
+        }
       else
-        gffData->phase = convertStringToInt(tokens[7]);
+        {
+          gffData->phase = convertStringToInt(tokens[7]);
+        }
   
       /* Parse the optional attributes */
       char *attributes = tokens[8];
-      parseAttributes(attributes, seqList, opts, lineNum, gffData, &tmpError);
+      
+      if (attributes)
+        {
+          parseAttributes(attributes, seqList, opts, lineNum, gffData, &tmpError);
+        }
     }
     
   if (tmpError)
