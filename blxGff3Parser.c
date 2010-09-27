@@ -232,9 +232,15 @@ static void createBlixemObject(BlxGffData *gffData,
     
   GError *tmpError = NULL;
 
-  if (typeIsExon(gffData->mspType) || gffData->mspType == BLXMSP_MATCH)
+  if (gffData->mspType == BLXMSP_TRANSCRIPT)
     {
-      if (!gffData->sName && !gffData->parentIdTag)
+      /* For transcript types, don't create an MSP, but do create a sequence */
+      addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, seqList, gffData->sequence, NULL, &tmpError);
+    }
+  else
+    {
+      /* For all other types, create an MSP */
+      if (!gffData->sName && !gffData->parentIdTag && (typeIsExon(gffData->mspType) || typeIsMatch(gffData->mspType)))
 	{
 	  g_set_error(error, BLX_ERROR, 1, "Target/name/parent-ID must be specified for exons and alignments.\n");
 	  return;
@@ -285,10 +291,6 @@ static void createBlixemObject(BlxGffData *gffData,
 	  /* populate the gaps array */
 	  parseGapString(gffData->gapString, opts, msp, &tmpError);
 	}    
-    }
-  else if (gffData->mspType == BLXMSP_TRANSCRIPT)
-    {
-      addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, seqList, gffData->sequence, NULL, &tmpError);
     }
     
   if (tmpError)

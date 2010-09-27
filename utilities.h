@@ -87,6 +87,30 @@
 #define BLX_BURLYWOOD	      "#deb887"
 #define BLX_TAN		      "#d2b48c"
 
+
+/* This enum contains a list of all the boolean options that the user can toggle on/off */
+typedef enum
+  {
+    BLXFLAG_MIN,		    /* Start index for looping through flags */
+  
+    BLXFLAG_SQUASH_MATCHES,	    /* Puts all MSPs from the same sequence on the same row in the detail view */
+    BLXFLAG_INVERT_SORT,	    /* Inverts the default sort order */
+    BLXFLAG_HIGHLIGHT_DIFFS,	    /* Hides matching bases and highlights mis-matching ones */
+    BLXFLAG_SHOW_SNP_TRACK,	    /* Shows the SNP track */
+    BLXFLAG_SHOW_UNALIGNED,	    /* Shows additional bits of the match sequence that are not part of the aligned section */
+    BLXFLAG_SHOW_UNALIGNED_SELECTED,/* Only show unaligned bits of sequence for the currently-selected sequence(s) */
+    BLXFLAG_LIMIT_UNALIGNED_BASES,  /* If the show-unaligned-sequence option is on, limits how many bases from the unaligned sequence are shown */
+    BLXFLAG_SHOW_POLYA,             /* Show polyA tails */
+    BLXFLAG_SHOW_POLYA_SELECTED,    /* Only show polyA tails for the currently-selected sequence(s) */
+    BLXFLAG_SHOW_SPLICE_SITES,	    /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
+    BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
+    BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
+    
+    BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
+  } BlxFlag;
+
+
+
 /* Function pointer for callback functions used by widgets on dialog boxes. */
 typedef gboolean (*BlxResponseCallback)(GtkWidget *widget, const gint responseId, gpointer data);
 
@@ -138,6 +162,8 @@ void		      adjustColorBrightness(GdkColor *origColor, const double factor, GdkC
 
 gboolean              mspLayerIsVisible(const MSP const *msp);
 gboolean              typeIsExon(const BlxMspType mspType);
+gboolean              typeIsIntron(const BlxMspType mspType);
+gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
 gboolean	      mspIsSnp(const MSP const *msp);
@@ -198,8 +224,21 @@ char*                 mspGetGeneName(const MSP const *msp);
 char*                 mspGetTissueType(const MSP const *msp);
 char*                 mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
-void                  mspGetFullSRange(const MSP const *msp, const gboolean showUnalignedSeq, const gboolean limitUnalignedBases, const int numUnalignedBases, IntRange *sSeqRange);
-void                  mspGetFullQRange(const MSP const *msp, const gboolean showUnalignedSeq, const gboolean limitUnalignedBases, const int numUnalignedBases, const int numFrames, IntRange *sSeqRange);
+
+void                  mspGetFullSRange(const MSP const *msp, 
+                                       const gboolean seqSelected,
+                                       const gboolean *flags,
+                                       const int numUnalignedBases, 
+                                       const MSP const *mspList,
+                                       IntRange *sSeqRange);
+
+void                  mspGetFullQRange(const MSP const *msp, 
+                                       const gboolean seqSelected,
+                                       const gboolean *flags,
+                                       const int numUnalignedBases, 
+                                       const MSP const *mspList,
+                                       const int numFrames, 
+                                       IntRange *sSeqRange);
 
 char                  getStrandAsChar(const BlxStrand strand);
 
@@ -234,9 +273,10 @@ int		      gapCoord(const MSP *msp,
 			       const int numFrames, 
 			       const BlxStrand strand, 
 			       const gboolean displayRev,
-			       const gboolean showUnalignedSeq,
-			       const gboolean limitUnalignedBases,
-			       const gboolean numUnalignedBases);
+                               const gboolean seqSelected,
+                               const int numUnalignedBases,
+                               gboolean *flags,
+                               const MSP const *mspList);
 
 int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 

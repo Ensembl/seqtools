@@ -638,7 +638,7 @@ static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const BlxColumnId col
 	break;
     };
 
-  if (blxContextGetFlag(bc, BLXFLAG_INVERT_SORT))
+  if (bc->flags[BLXFLAG_INVERT_SORT])
     {
       result = (result == GTK_SORT_ASCENDING) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
     }
@@ -687,11 +687,10 @@ static gboolean isMspVisible(const MSP const *msp,
     {
       /* Check the MSP in the current display range. Get the full MSP display range including
        * any portions outside the actual alignment. */
-      const gboolean showUnalignedSeq = blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ);
-      const gboolean limitUnalignedBases = blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES);
+      const gboolean seqSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
     
       IntRange mspDisplayRange;
-      mspGetFullQRange(msp, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, bc->numFrames, &mspDisplayRange);
+      mspGetFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->mspList, bc->numFrames, &mspDisplayRange);
 
       /* Convert q coords to display coords */
       const int idx1 = convertDnaIdxToDisplayIdx(mspDisplayRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
@@ -1212,9 +1211,9 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
 	    BlxViewContext *bc = treeGetContext(tree);
-            gboolean showSnpTrack = !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK);
+            gboolean showSnpTrack = !bc->flags[BLXFLAG_SHOW_SNP_TRACK];
             
-	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, showSnpTrack);
+	    bc->flags[BLXFLAG_SHOW_SNP_TRACK] = showSnpTrack;
             detailViewUpdateShowSnpTrack(detailView, showSnpTrack);
 	  }
 	

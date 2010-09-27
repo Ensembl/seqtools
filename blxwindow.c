@@ -1664,7 +1664,7 @@ void showInfoDialog(GtkWidget *blxWindow)
   
   /* Compile the message text from the selected sequence(s) */
   GString *resultStr = g_string_new("");
-  const gboolean dataLoaded = blxContextGetFlag(bc, BLXFLAG_EMBL_DATA_LOADED);
+  const gboolean dataLoaded = bc->flags[BLXFLAG_EMBL_DATA_LOADED];
   GList *seqItem = bc->selectedSeqs;
   
   for ( ; seqItem; seqItem = seqItem->next)
@@ -2724,30 +2724,6 @@ static GtkWidget* dialogChildGetBlxWindow(GtkWidget *child)
 }
 
 
-/* Set the given flag to the given value */
-void blxContextSetFlag(BlxViewContext *bc, const BlxFlag flag, const gboolean newValue)
-{
-  gboolean *value = &g_array_index(bc->blxFlags, gboolean, flag);
-  *value = newValue;
-}
-
-
-/* Get the value of the given flag */
-gboolean blxContextGetFlag(const BlxViewContext *bc, const BlxFlag flag)
-{
-  gboolean result = g_array_index(bc->blxFlags, gboolean, flag);
-  
-  /* Special case for the show-unaligned-sequnece option: only allow this to be true if
-   * squash matches is off, because they don't work well together */
-  if (result && flag == BLXFLAG_SHOW_UNALIGNED_SEQ && blxContextGetFlag(bc, BLXFLAG_SQUASH_MATCHES))
-    {
-      result = FALSE;
-    }
-  
-  return result;
-}
-
-
 /* Updates the given flag from the given button. The passed in widget is the toggle button and
  * the data is an enum indicating which flag was toggled. Returns the new value that was set.
  * Returns the new value that was set. */
@@ -2759,7 +2735,7 @@ static gboolean setFlagFromButton(GtkWidget *button, gpointer data)
   BlxFlag flag = GPOINTER_TO_INT(data);
   const gboolean newValue = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   
-  blxContextSetFlag(bc, flag, newValue);
+  bc->flags[flag] = newValue;
   
   return newValue;
 }
@@ -2888,7 +2864,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   if (success)
     {
       /* Set the flag to say that the data has now been loaded */
-      blxContextSetFlag(bc, BLXFLAG_EMBL_DATA_LOADED, TRUE);
+      bc->flags[BLXFLAG_EMBL_DATA_LOADED] = TRUE;
       
       /* Disable the button so user can't try to load data again. */
       gtk_widget_set_sensitive(button, FALSE);
@@ -2922,7 +2898,7 @@ static GtkWidget* createColumnLoadDataButton(GtkBox *box, GtkWidget *detailView)
   gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 12);
 
   BlxViewContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
-  const gboolean dataLoaded = blxContextGetFlag(bc, BLXFLAG_EMBL_DATA_LOADED);
+  const gboolean dataLoaded = bc->flags[BLXFLAG_EMBL_DATA_LOADED];
   
   GtkWidget *button = gtk_button_new_with_label(LOAD_DATA_TEXT);
   gtk_widget_set_sensitive(button, !dataLoaded); /* only enable if data not yet loaded */
@@ -3213,24 +3189,38 @@ static void onTogglePrintColors(GtkWidget *button, gpointer data)
 }
 
 
-/* Callback function called when the 'Show unaligned sequence' button is toggled */
+/* Callback function called when the 'Show unaligned sequence' button is toggled. Could be consolidated
+ * with onShowPolyAToggled (we'd just need to pass both the sub-container and the flag in the user
+ * data)  */
 static void onShowUnalignedSeqToggled(GtkWidget *button, gpointer data)
 {
   /* Get the new value */
-  const gboolean showUnalignedSeq = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED_SEQ));
+  const gboolean active = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED));
   
   /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
   GtkWidget *subComponents = GTK_WIDGET(data);
-  gtk_widget_set_sensitive(subComponents, showUnalignedSeq); 
+  gtk_widget_set_sensitive(subComponents, active); 
   
-  /* Get the detail view from the main window */
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-  /* Update the value */
-  detailViewUpdateShowUnalignedSeq(detailView, showUnalignedSeq);
+  blxWindowRedrawAll(blxWindow);
 }
 
+
+/* Callback function called when the 'Show polyA tails' button is toggled. Could be consolidated
+ * with onShowUnalignedSeqToggled (we'd just need to pass both the sub-container and the flag in the user
+ * data) */
+static void onShowPolyAToggled(GtkWidget *button, gpointer data)
+{
+  /* Get the new value */
+  const gboolean active = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_POLYA));
+  
+  /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
+  GtkWidget *subComponents = GTK_WIDGET(data);
+  gtk_widget_set_sensitive(subComponents, active); 
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  blxWindowRedrawAll(blxWindow);
+}
 
 /* Callback function called when the 'Limit unaligned bases' button is toggled */
 static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
@@ -3265,27 +3255,20 @@ static gboolean onSetNumUnalignedBases(GtkWidget *entry, const gint responseId, 
 }
 
 
-/* Create option buttons for enabling/disabling display of unaligned sequence */
-static void createUnalignedSeqButtons(GtkWidget *parent, GtkWidget *detailView, BlxViewContext *bc)
+/* Create the check button for the 'limit number of unaligned bases' option on the settings dialog
+ * and pack it into the given container. */
+static void createLimitUnalignedBasesButton(GtkContainer *parent, GtkWidget *detailView, BlxViewContext *bc)
 {
-  const gboolean showUnalignedSeq = blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ);
-  
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(parent), vbox, FALSE, FALSE, 0);
-
-  /* Create an hbox for the sub-components. Create it now so we can pass it to the main toggle
-   * button callback, but don't pack it in the container till we've added the other. */
+  /* Create an hbox for the "limit to so-many bases" option, which has a check button, text
+   * entry and some labels. Pack the hbox into the given parent. */
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_widget_set_sensitive(hbox, showUnalignedSeq); 
-
-  /* Main check button to enable/disable the option */
-  createCheckButton(GTK_BOX(vbox), "Show _unaligned sequence (only works if Squash Matches is off)", showUnalignedSeq, G_CALLBACK(onShowUnalignedSeqToggled), hbox);
-
-  /* Text entry box to specify the limit */
+  gtk_container_add(parent, hbox);
+  
+  /* Create a text entry box so the user can enter the number of bases */
   GtkWidget *entry = gtk_entry_new();
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
   widgetSetCallbackData(entry, onSetNumUnalignedBases, detailView);
-
+  
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   char *numStr = convertIntToString(properties->numUnalignedBases);
   
@@ -3294,16 +3277,49 @@ static void createUnalignedSeqButtons(GtkWidget *parent, GtkWidget *detailView, 
   g_free(numStr);
   
   /* Check button to enable/disable setting the limit */
-  GtkWidget *button = gtk_check_button_new_with_mnemonic("_Limit to ");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES));
+  GtkWidget *button = gtk_check_button_new_with_mnemonic("Li_mit to ");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), bc->flags[BLXFLAG_LIMIT_UNALIGNED_BASES]);
   g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onLimitUnalignedBasesToggled), entry);
-
+  
   /* Pack it all in the hbox */
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new("   "), FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new(" additional bases"), FALSE, FALSE, 0);
+}
+
+
+/* Create a "parent" option button that has a vbox container for "sub-components", i.e. more 
+ * option buttons (or other dialog widgets) that will be enabled only when the parent option is
+ * active. Returns the container for the sub-options, which should be packed with the sub-option widgets. */
+static GtkContainer* createParentCheckButton(GtkWidget *parent, 
+                                             GtkWidget *detailView,
+                                             BlxViewContext *bc,
+                                             const char *label,
+                                             const gboolean active,
+                                             GCallback callbackFunc)
+{
+  /* We'll the main button and any sub-components into a vbox */
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(parent), vbox, FALSE, FALSE, 0);
+
+  /* Create a vbox for the sub-components. Create the vbox now so we can pass it to the main toggle
+   * button callback, but don't pack it in the container till we've added the main check button. The sub
+   * components are only active if the main check button is active. */
+  GtkWidget *subContainer = gtk_vbox_new(FALSE, 0);
+  gtk_widget_set_sensitive(subContainer, active); 
+  
+  /* Main check button to enable/disable the option. This call puts it in the vbox. */
+  createCheckButton(GTK_BOX(vbox), label, active, callbackFunc, subContainer);
+
+  /* Now add the subcomponent container to the vbox. Bit of a hack - put it inside an hbox with 
+   * a blank label preceeding it, so that the sub-components appear offset to the right slightly
+   * from the main button. */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new("   "), FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), subContainer, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+  
+  return GTK_CONTAINER(subContainer);
 }
 
 
@@ -3410,12 +3426,21 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* Display options */
   GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   
-  createCheckButton(GTK_BOX(vbox1), "_Squash matches", blxContextGetFlag(bc, BLXFLAG_SQUASH_MATCHES), G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
-  createUnalignedSeqButtons(vbox1, detailView, bc);
-  createCheckButton(GTK_BOX(vbox1), "_Invert sort order", blxContextGetFlag(bc, BLXFLAG_INVERT_SORT), G_CALLBACK(onSortOrderToggled), GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
-  createCheckButton(GTK_BOX(vbox1), "_Highlight differences", blxContextGetFlag(bc, BLXFLAG_HIGHLIGHT_DIFFS), G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
-  createCheckButton(GTK_BOX(vbox1), "Show SN_P track", blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK), G_CALLBACK(onShowSnpTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_SNP_TRACK));
-  createCheckButton(GTK_BOX(vbox1), "Show Sp_lice Sites for selected seqs", blxContextGetFlag(bc, BLXFLAG_SHOW_SPLICE_SITES), G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
+  createCheckButton(GTK_BOX(vbox1), "_Squash matches", bc->flags[BLXFLAG_SQUASH_MATCHES], G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
+  
+  /* show-polyA-tails option and its sub-options */
+  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", bc->flags[BLXFLAG_SHOW_POLYA], G_CALLBACK(onShowPolyAToggled));
+  createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SELECTED));
+
+  /* show-unaligned-sequence option and its sub-options */
+  GtkContainer *unalignContainer = createParentCheckButton(vbox1, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", bc->flags[BLXFLAG_SHOW_UNALIGNED], G_CALLBACK(onShowUnalignedSeqToggled));
+  createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
+  createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED_SELECTED));
+
+  createCheckButton(GTK_BOX(vbox1), "_Invert sort order", bc->flags[BLXFLAG_INVERT_SORT], G_CALLBACK(onSortOrderToggled), GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
+  createCheckButton(GTK_BOX(vbox1), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
+  createCheckButton(GTK_BOX(vbox1), "Show SN_P track", bc->flags[BLXFLAG_SHOW_SNP_TRACK], G_CALLBACK(onShowSnpTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_SNP_TRACK));
+  createCheckButton(GTK_BOX(vbox1), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
   
   GtkWidget *pfetchBox = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Fetch mode");
   createPfetchDropDownBox(GTK_BOX(pfetchBox), blxWindow);
@@ -4211,11 +4236,6 @@ static void destroyBlxContext(BlxViewContext **bc)
 	  (*bc)->defaultColors = NULL;
 	}
     
-      if ((*bc)->blxFlags)
-	{
-	  g_array_free((*bc)->blxFlags, FALSE);
-	}
-      
       destroyMspList(&((*bc)->mspList));
       destroyBlxSequenceList(&((*bc)->matchSeqs));
       blxDestroyGffTypeList(&((*bc)->supportedTypes));
@@ -4498,18 +4518,17 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   createBlxColors(blxContext, widget);
   
-  blxContext->blxFlags = g_array_sized_new(FALSE, TRUE, sizeof(gboolean), BLXFLAG_NUM_FLAGS);
-  
   /* Initialise all the flags to false */
   int flag = BLXFLAG_MIN + 1;
   for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
     {
-      blxContextSetFlag(blxContext, flag, FALSE);
+      blxContext->flags[flag] = FALSE;
     }
   
   /* Set any specific flags that we want initialised to TRUE */
-  blxContextSetFlag(blxContext, BLXFLAG_LIMIT_UNALIGNED_BASES, TRUE);
-  blxContextSetFlag(blxContext, BLXFLAG_EMBL_DATA_LOADED, options->parseFullEmblInfo);
+  blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_POLYA_SELECTED] = TRUE;
+  blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;

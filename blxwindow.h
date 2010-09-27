@@ -42,25 +42,6 @@ typedef struct _CommandLineOptions
 } CommandLineOptions;
 
 
-/* This enum contains a list of all the boolean options that the user can toggle on/off */
-typedef enum
-  {
-    BLXFLAG_MIN,		    /* Start index for looping through flags */
-  
-    BLXFLAG_SQUASH_MATCHES,	    /* Puts all MSPs from the same sequence on the same row in the detail view */
-    BLXFLAG_INVERT_SORT,	    /* Inverts the default sort order */
-    BLXFLAG_HIGHLIGHT_DIFFS,	    /* Hides matching bases and highlights mis-matching ones */
-    BLXFLAG_SHOW_SNP_TRACK,	    /* Shows the SNP track */
-    BLXFLAG_SHOW_UNALIGNED_SEQ,	    /* Shows additional bits of the match sequence that are not part of the aligned section */
-    BLXFLAG_LIMIT_UNALIGNED_BASES,  /* If the above option is on, limits how many bases from the unaligned sequence are shown */
-    BLXFLAG_SHOW_SPLICE_SITES,	    /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
-    BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
-    BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
-    
-    BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
-  } BlxFlag;
-
-
 /* This enum contains IDs for all the persistent dialogs in the application, and should be used
  * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList
  * array will contain null entries until the dialogs are created for the first time */
@@ -120,7 +101,7 @@ typedef struct _BlxViewContext
   GArray *defaultColors;	    /* Default colors used by Blixem */
   gboolean usePrintColors;	    /* Whether to use print colors (i.e. black and white) */
   
-  GArray *blxFlags;		    /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
+  gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
   GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
 } BlxViewContext;
 
@@ -152,9 +133,6 @@ SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSeque
 const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
 int			  blxWindowGetOffset(GtkWidget *blxWindow);
 BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
-
-void			  blxContextSetFlag(BlxViewContext *bc, const BlxFlag flag, const gboolean newValue);
-gboolean		  blxContextGetFlag(const BlxViewContext *bc, const BlxFlag flag);
 
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
 void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);

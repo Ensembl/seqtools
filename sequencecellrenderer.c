@@ -64,6 +64,7 @@ typedef struct _RenderData
     GdkLineStyle exonBoundaryStyleStart;
     GdkLineStyle exonBoundaryStyleEnd;
     gboolean showUnalignedSeq;
+    gboolean showUnalignedSelected;
     gboolean limitUnalignedBases;
     int numUnalignedBases;
   } RenderData;
@@ -576,8 +577,7 @@ static void drawBase(MSP *msp,
   const int displayIdx = segmentRange->min + segmentIdx;
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   
-  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, 
-		   data->showUnalignedSeq, data->limitUnalignedBases, data->numUnalignedBases);
+  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, data->seqSelected, data->numUnalignedBases, data->bc->flags, data->bc->mspList);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */
@@ -814,7 +814,7 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
 {
   /* Find the full display range of the MSP including any portions of unaligned sequence etc. */
   IntRange result;
-  mspGetFullQRange(msp, data->showUnalignedSeq, data->limitUnalignedBases, data->numUnalignedBases, data->bc->numFrames, &result);
+  mspGetFullQRange(msp, data->seqSelected, data->bc->flags, data->numUnalignedBases, data->bc->mspList, data->bc->numFrames, &result);
   
   /* Convert to display coords */
   const int idx1 = convertDnaIdxToDisplayIdx(result.min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
@@ -978,7 +978,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeProperties->detailView);
   BlxViewContext *bc = blxWindowGetContext(detailViewProperties->blxWindow);
   
-  const gboolean highlightDiffs = blxContextGetFlag(bc, BLXFLAG_HIGHLIGHT_DIFFS); /* swap match/mismatch colors if this is true */
+  const gboolean highlightDiffs = bc->flags[BLXFLAG_HIGHLIGHT_DIFFS]; /* swap match/mismatch colors if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
   const BlxSequence *seq = firstMsp ? firstMsp->sSequence : NULL;
 
@@ -1029,8 +1029,9 @@ static void drawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyleStart,
     detailViewProperties->exonBoundaryLineStyleEnd,
-    blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ),
-    blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES),
+    bc->flags[BLXFLAG_SHOW_UNALIGNED],
+    bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED],
+    bc->flags[BLXFLAG_LIMIT_UNALIGNED_BASES],
     detailViewProperties->numUnalignedBases
   };  
   

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.68 2010-09-27 11:55:15 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.69 2010-09-27 17:16:11 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1415,8 +1415,11 @@ MSP* createNewMsp(MSP **lastMsp,
   sprintf(msp->qframe, "(%c%d)", getStrandAsChar(qStrand), qFrame);
   sprintf(msp->sframe, "(%c%d)", getStrandAsChar(sStrand), 1);
   
-  /* Add/create a BlxSequence for this MSP's sequence name */
-  addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
+  /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
+  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType))
+    {
+      addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
+    }
 
   if (error && *error)
     {

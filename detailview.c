@@ -620,7 +620,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
 	  /* SNP track */
 	  BlxViewContext *bc = detailViewGetContext(detailView);
 	
-	  if (!blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK))
+	  if (!bc->flags[BLXFLAG_SHOW_SNP_TRACK])
 	    {
 	      /* SNP track is hidden, so set the height to 0 */
 	      gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, 0);
@@ -806,13 +806,13 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
 	  if (qIdx != UNSET_INT)
 	    {
 	      GList *mspListItem = seq->mspList;
+              const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
 	      
 	      for ( ; mspListItem; mspListItem = mspListItem->next)
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev,
-				  FALSE, FALSE, UNSET_INT);/* don't show unaligned base coords */
+		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev, TRUE, numUnalignedBases, bc->flags, bc->mspList);
 
 		  if (sIdx != UNSET_INT)
 		    {
@@ -956,14 +956,6 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
   detailViewRedrawAll(detailView);
   
   refreshDialog(BLXDIALOG_SETTINGS, detailViewGetBlxWindow(detailView));
-}
-
-
-/* Set the value of the 'Show Unaligned Sequence' flag */
-void detailViewUpdateShowUnalignedSeq(GtkWidget *detailView, const gboolean showUnalignedSeq)
-{
-  /* Just re-draw */
-  gtk_widget_queue_draw(detailView);
 }
 
 
@@ -1456,7 +1448,7 @@ GHashTable* getIntronBasesToHighlight(GtkWidget *detailView,
   
   /* We only highlight nucleotides, so there is nothing to do if we're showing a peptide sequence,
    * or if the show-splice-sites option is disabled. */
-  if (seqType == BLXSEQ_PEPTIDE || !blxContextGetFlag(bc, BLXFLAG_SHOW_SPLICE_SITES))
+  if (seqType == BLXSEQ_PEPTIDE || !bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
     {
       return result;
     }
@@ -1862,7 +1854,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  if (!blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK))
+  if (!bc->flags[BLXFLAG_SHOW_SNP_TRACK])
     {
       return;
     }
@@ -2936,9 +2928,9 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	  {
 	    /* Double-click: toggle SNP track visibility */
 	    BlxViewContext *bc = detailViewGetContext(detailView);
-            gboolean showSnpTrack = !blxContextGetFlag(bc, BLXFLAG_SHOW_SNP_TRACK);
+            gboolean showSnpTrack = !bc->flags[BLXFLAG_SHOW_SNP_TRACK];
             
-	    blxContextSetFlag(bc, BLXFLAG_SHOW_SNP_TRACK, showSnpTrack);
+	    bc->flags[BLXFLAG_SHOW_SNP_TRACK] = showSnpTrack;
             detailViewUpdateShowSnpTrack(detailView, showSnpTrack);
 	  }
 

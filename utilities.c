@@ -489,6 +489,16 @@ gboolean typeIsExon(const BlxMspType mspType)
   return (mspType == BLXMSP_CDS || mspType == BLXMSP_UTR || mspType == BLXMSP_EXON);
 }
 
+gboolean typeIsIntron(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_INTRON);
+}
+
+gboolean typeIsMatch(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_MATCH);
+}
+
 
 gboolean mspIsExon(const MSP const *msp)
 {
@@ -872,9 +882,10 @@ int gapCoord(const MSP *msp,
 	     const int numFrames, 
 	     const BlxStrand strand, 
 	     const gboolean displayRev,
-	     const gboolean showUnalignedSeq,
-	     const gboolean limitUnalignedBases,
-	     const int numUnalignedBases)
+             const gboolean seqSelected,
+             const int numUnalignedBases,
+             gboolean *flags,
+             const MSP const *mspList)
 {
   int result = UNSET_INT;
   
@@ -940,7 +951,7 @@ int gapCoord(const MSP *msp,
           /* Get the full display range of the match sequence. If the result is still out of range
            * then there's nothing to show for this qIdx. */
           IntRange fullSRange;
-          mspGetFullSRange(msp, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, &fullSRange);
+          mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, mspList, &fullSRange);
 
 	  if (!valueWithinRange(result, &fullSRange))
 	    {
@@ -1049,32 +1060,80 @@ const char *mspGetSName(const MSP const *msp)
 }
 
 
+/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. */
+static gboolean mspHasPolyATail(const MSP const *msp, const MSP const *mspList)
+{
+  /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
+   * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
+   * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
+  const MSP *curMsp = mspList;
+  gboolean found = FALSE;
+   
+  for ( ; !found && curMsp; curMsp = curMsp->next)
+    {
+      if (mspIsPolyASite(curMsp))
+        {
+          const int qEnd = mspGetQEnd(msp);
+          
+          if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+            {
+              found = (qEnd == curMsp->qRange.min);
+            }
+          else
+            {
+              found = (qEnd == curMsp->qRange.min + 1);
+            }
+        }
+    }
+  
+  return found;
+}
+
+
 /* Get the full range of the given MSP that we want to display, in s coords. This will generally 
  * be the coords of the alignment but could extend outside this range we are displaying unaligned 
  * portions of the match sequence or polyA tails etc. */
 void mspGetFullSRange(const MSP const *msp, 
-                      const gboolean showUnalignedSeq,
-                      const gboolean limitUnalignedBases, 
+                      const gboolean seqSelected,
+                      const gboolean *flags,
                       const int numUnalignedBases, 
+                      const MSP const *mspList,
                       IntRange *result)
 {
   /* Normally we just display the part of the sequence in the alignment */
   result->min = msp->sRange.min;
   result->max = msp->sRange.max;
   
-  if (showUnalignedSeq && mspGetMatchSeq(msp)) /* must have the sequence data to be able to do this... */
+  if (flags[BLXFLAG_SHOW_UNALIGNED] && mspGetMatchSeq(msp) && (!flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || seqSelected))
     {
       /* We're displaying additional unaligned sequence outside the alignment range. Get 
        * the full range of the match sequence */
       result->min = 1;
       result->max = mspGetMatchSeqLen(msp);
   
-      if (limitUnalignedBases)
+      if (flags[BLXFLAG_LIMIT_UNALIGNED_BASES])
         {
           /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
            * to the range we found above, though). */
           result->min = max(result->min, msp->sRange.min - numUnalignedBases);
           result->max = min(result->max, msp->sRange.max + numUnalignedBases);
+        }
+    }
+    
+  if (flags[BLXFLAG_SHOW_POLYA] && mspHasPolyATail(msp, mspList) && (!flags[BLXFLAG_SHOW_POLYA_SELECTED] || seqSelected))
+    {
+      /* We're displaying polyA tails, so override the 3' end coord with the full extent of
+       * the s sequence if there is a polyA site here. The 3' end is the min q coord if the
+       * match is on forward ref seq strand or the max coord if on the reverse. */
+      const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
+      
+      if (sameDirection)
+        {
+          result->max = mspGetMatchSeqLen(msp);
+        }
+      else
+        {
+          result->min = 1;
         }
     }
 }
@@ -1084,9 +1143,10 @@ void mspGetFullSRange(const MSP const *msp,
  * be the coords of the alignment but could extend outside this range we are displaying unaligned 
  * portions of the match sequence or polyA tails etc. */
 void mspGetFullQRange(const MSP const *msp, 
-                      const gboolean showUnalignedSeq,
-                      const gboolean limitUnalignedBases, 
+                      const gboolean seqSelected,
+                      const gboolean *flags,
                       const int numUnalignedBases, 
+                      const MSP const *mspList,
                       const int numFrames,
                       IntRange *result)
 {
@@ -1094,11 +1154,11 @@ void mspGetFullQRange(const MSP const *msp,
   result->min = msp->qRange.min;
   result->max = msp->qRange.max;
 
-  if (showUnalignedSeq)
+  if (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA])
     {
-
+      /* Get the full display range of the MSP including any unaligned portions of the match sequence. */
       IntRange fullSRange;
-      mspGetFullSRange(msp, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, &fullSRange);
+      mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, mspList, &fullSRange);
       
       /* Find the offset of the start and end of the full range compared to the alignment range and
        * offset the ref seq range by the same amount. We need to multiply by the number of reading
