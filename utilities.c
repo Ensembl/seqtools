@@ -239,6 +239,13 @@ gboolean valueWithinRange(const int value, const IntRange const *range)
 }
 
 
+/* Return true if two IntRanges overlap */
+gboolean rangesOverlap(const IntRange const *range1, const IntRange const *range2)
+{
+  return (range1->min <= range2->max && range1->max >= range2->min);
+}
+
+
 /* Utility to bounds-limit the given value to within the given range */
 void boundsLimitValue(int *value, const IntRange const *range)
 {
@@ -251,6 +258,32 @@ void boundsLimitValue(int *value, const IntRange const *range)
     {
       *value = range->max;
     }
+}
+
+
+/* Utility to bounds-limit the first range to within the second. Maintains the length
+ * of the range if possible by shifting the range. */
+void boundsLimitRange(IntRange *range, const IntRange const *limit)
+{
+  const int len = getRangeLength(range);
+  
+  if (range->min < limit->min)
+    {
+      range->min = limit->min;
+      range->max = range->min + len;
+    }
+  
+  if (range->max > limit->max)
+    {
+      range->max = limit->max;
+      range->min = range->max - len;
+      
+      /* If limit is shorter than range, we'll have gone lower than the min again */
+      boundsLimitValue(&range->min, limit);
+    }
+  
+  
+  boundsLimitValue(&range->max, limit);
 }
 
 
@@ -563,9 +596,14 @@ gboolean mspIsSnp(const MSP const *msp)
   return (msp && msp->type == BLXMSP_SNP);
 }
 
-gboolean mspIsPolyATail(const MSP const *msp)
+gboolean mspIsPolyASite(const MSP const *msp)
 {
-  return (msp && msp->type == BLXMSP_POLYA_SIG_SEQ);
+  return (msp && msp->type == BLXMSP_POLYA_SITE);
+}
+
+gboolean mspIsPolyASignal(const MSP const *msp)
+{
+  return (msp && msp->type == BLXMSP_POLYA_SIGNAL);
 }
 
 gboolean mspIsBlastMatch(const MSP const *msp)
@@ -580,24 +618,24 @@ gboolean mspHasSName(const MSP const *msp)
 }
 
 /* Whether the MSP requires subject sequence coords to be set. Only matches 
- * and exons have coords on the subject sequence. (to do: is this optional for exons?) */
+ * have coords on the subject sequence */
 gboolean mspHasSCoords(const MSP const *msp)
 {
-  return mspIsExon(msp) || mspIsBlastMatch(msp) || mspIsPolyATail(msp);
+  return mspIsBlastMatch(msp);
 }
 
 /* Whether the MSP requires subject sequence strand to be set. Only matches 
- * require strand on the subject sequence, although exons may have them set. */
+ * require strand on the subject sequence. */
 gboolean mspHasSStrand(const MSP const *msp)
 {
-  return mspIsBlastMatch(msp) || mspIsPolyATail(msp);
+  return mspIsBlastMatch(msp);
 }
 
 /* Whether the MSP requires the actual sequence data for the subject sequence. Only
  * matches require the sequence data. */
 gboolean mspHasSSeq(const MSP  const *msp)
 {
-  return mspIsBlastMatch(msp) || mspIsPolyATail(msp);
+  return mspIsBlastMatch(msp);
 }
 
 
@@ -840,7 +878,7 @@ int gapCoord(const MSP *msp,
 {
   int result = UNSET_INT;
   
-  if (mspIsBlastMatch(msp) || mspIsExon(msp) || mspIsPolyATail(msp))
+  if (mspIsBlastMatch(msp) || mspIsExon(msp))
     {
       const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
       const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
@@ -880,28 +918,10 @@ int gapCoord(const MSP *msp,
 	}
       else if (!inGapsRange && mspIsBlastMatch(msp))
 	{
-	  /* The q index is outside the alignment range but the option to show unaligned sequence 
-	  * is enabled, so extend the range to include the allowed number of extra bases (or the 
-	  * full range of the match sequence, if no limit is set), and check if the q index is 
-	  * within that. */
-	  int sMin = msp->sRange.min;
-	  int sMax = msp->sRange.max;
+          /* The q index is outside the alignment range but the option to show unaligned sequence 
+           * is enabled, so check if the q index is within the full display range including 
+           * any unaligned portions of the sequence that we're displaying. */
 
-	  if (!inGapsRange && showUnalignedSeq && mspGetMatchSeq(msp))
-	    {
-	      /* Get the full range of the match sequence */
-	      sMin = 1;
-	      sMax = mspGetMatchSeqLen(msp);
-	      
-	      if (limitUnalignedBases)
-		{
-		  /* Include up to 'numUnalignedBases' each side of the MSP range. (Make sure
-		   * this doesn't take us outside the full range of the match sequence, though.) */
-		  sMin = max(sMin, msp->sRange.min - numUnalignedBases);
-		  sMax = min(sMax, msp->sRange.max + numUnalignedBases);
-		}
-	    }
-	    
 	  if (qIdx < msp->qRange.min)
 	    {
 	      /* Find the offset backwards from the low coord and subtract it from the low end
@@ -917,8 +937,12 @@ int gapCoord(const MSP *msp,
 	      result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
 	    }
 
-	  /* If the result is still out of range, there's nothing to show for this qIdx. */
-	  if (result < sMin || result > sMax)
+          /* Get the full display range of the match sequence. If the result is still out of range
+           * then there's nothing to show for this qIdx. */
+          IntRange fullSRange;
+          mspGetFullSRange(msp, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, &fullSRange);
+
+	  if (!valueWithinRange(result, &fullSRange))
 	    {
 	      result = UNSET_INT;
 	    }
@@ -942,6 +966,7 @@ int gapCoord(const MSP *msp,
   
   return result;
 }
+
 
 
 /***********************************************************
@@ -1021,6 +1046,70 @@ const char *mspGetSName(const MSP const *msp)
     }
   
   return result;
+}
+
+
+/* Get the full range of the given MSP that we want to display, in s coords. This will generally 
+ * be the coords of the alignment but could extend outside this range we are displaying unaligned 
+ * portions of the match sequence or polyA tails etc. */
+void mspGetFullSRange(const MSP const *msp, 
+                      const gboolean showUnalignedSeq,
+                      const gboolean limitUnalignedBases, 
+                      const int numUnalignedBases, 
+                      IntRange *result)
+{
+  /* Normally we just display the part of the sequence in the alignment */
+  result->min = msp->sRange.min;
+  result->max = msp->sRange.max;
+  
+  if (showUnalignedSeq && mspGetMatchSeq(msp)) /* must have the sequence data to be able to do this... */
+    {
+      /* We're displaying additional unaligned sequence outside the alignment range. Get 
+       * the full range of the match sequence */
+      result->min = 1;
+      result->max = mspGetMatchSeqLen(msp);
+  
+      if (limitUnalignedBases)
+        {
+          /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
+           * to the range we found above, though). */
+          result->min = max(result->min, msp->sRange.min - numUnalignedBases);
+          result->max = min(result->max, msp->sRange.max + numUnalignedBases);
+        }
+    }
+}
+
+
+/* Get the full range of the given MSP that we want to display, in q coords. This will generally 
+ * be the coords of the alignment but could extend outside this range we are displaying unaligned 
+ * portions of the match sequence or polyA tails etc. */
+void mspGetFullQRange(const MSP const *msp, 
+                      const gboolean showUnalignedSeq,
+                      const gboolean limitUnalignedBases, 
+                      const int numUnalignedBases, 
+                      const int numFrames,
+                      IntRange *result)
+{
+  /* Default to the alignment range so we can exit quickly if there are no special cases */
+  result->min = msp->qRange.min;
+  result->max = msp->qRange.max;
+
+  if (showUnalignedSeq)
+    {
+
+      IntRange fullSRange;
+      mspGetFullSRange(msp, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, &fullSRange);
+      
+      /* Find the offset of the start and end of the full range compared to the alignment range and
+       * offset the ref seq range by the same amount. We need to multiply by the number of reading
+       * frames because q coords are in nucleotides and s coords are in peptides. */
+      const int startOffset = (msp->sRange.min - fullSRange.min) * numFrames;
+      const int endOffset = (fullSRange.max - msp->sRange.max) * numFrames;
+
+      const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
+      result->min -= sameDirection ? startOffset : endOffset;
+      result->max += sameDirection ? endOffset : startOffset;
+    }
 }
 
 

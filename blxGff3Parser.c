@@ -130,7 +130,7 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "intron", "SO:0000188", BLXMSP_INTRON);
   
   addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_SNP);
-  addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIG_SEQ);
+  addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
   
   return supportedTypes;

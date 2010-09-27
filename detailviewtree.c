@@ -663,96 +663,6 @@ void resortTree(GtkWidget *tree, gpointer data)
 }
 
 
-
-static void mspGetVisibleRange(const MSP const *msp,
-			       const BlxViewContext *bc,
-			       const gboolean showUnalignedSeq,
-			       const gboolean limitUnalignedBases,
-			       const int numUnalignedBases,
-			       IntRange *qRange_out, 
-			       IntRange *sRange_out)
-{
-  if (showUnalignedSeq && mspIsBlastMatch(msp))
-    {
-      /* We need to include some/all unaligned parts of the match sequence too. 
-       * First, get the full range of the match sequence. */
-      int sMin = 1;
-      int sMax = mspGetMatchSeqLen(msp);
-      
-      if (limitUnalignedBases)
-        {
-          /* Limit the range to the start/end of the alignment but with the given number of additional 
-           * bases. Make sure we don't go outside the range the full match sequence range, though. */
-          sMin = max(sMin, msp->sRange.min - numUnalignedBases);
-          sMax = min(sMax, msp->sRange.max + numUnalignedBases);
-        }
-      
-      if (sRange_out)
-        {
-          sRange_out->min = sMin;
-          sRange_out->max = sMax;
-        }
-      
-      if (qRange_out)
-        {
-          /* Find out how much the new s coords are offset from the start/end of the MSP range */
-          int startOffset = msp->sRange.min - sMin;
-          int endOffset = sMax - msp->sRange.max;
-
-          /* Get the q coords. The s coords are in terms of display coords so we need the q coords in 
-           * display coords too. Note that the conversion may invert the coords, so we have to work out 
-           * which is the max/min again. */
-          const int qFrame = mspGetRefFrame(msp, bc->seqType);
-          
-          const int qIdx1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-          const int qIdx2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-          
-          int qMin = min(qIdx1, qIdx2);
-          int qMax = max(qIdx1, qIdx2);
-          
-          /* Adjust the q coords by the offset. If the strands are in opposite directions, or if
-           * the display is reversed (which inverts the q coords), then we need to apply the offset
-           * at the opposite end of the reference sequence. */
-          const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-          
-          if (sameDirection != bc->displayRev)
-            {
-              qMin -= startOffset;
-              qMax += endOffset;
-            }
-          else
-            {
-              qMin -= endOffset;
-              qMax += startOffset;
-            }
-          
-          qRange_out->min = qMin;
-          qRange_out->max = qMax;
-        }
-    }
-  else
-    {
-      /* Just return the coords */
-      if (qRange_out)
-        {
-          const int qFrame = mspGetRefFrame(msp, bc->seqType);
-
-          const int qIdx1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-          const int qIdx2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-          
-          qRange_out->min = min(qIdx1, qIdx2);
-          qRange_out->max = max(qIdx1, qIdx2);
-        }
-      
-      if (sRange_out)
-        {
-          sRange_out->min = msp->sRange.min;
-          sRange_out->max = msp->sRange.max;
-        }
-    }
-}
-
-
 /* Utility that returns true if the given MSP is currently shown in the tree with the given
  * strand/frame */
 static gboolean isMspVisible(const MSP const *msp, 
@@ -766,25 +676,30 @@ static gboolean isMspVisible(const MSP const *msp,
   /* Check if the MSP is in a visible layer */
   gboolean result = mspLayerIsVisible(msp);
 
-  /* The tree view only displays blast matches or exons (or polyA tails, if the MSP's sequence is 
-   * selected) */
-  result &= mspIsBlastMatch(msp) || mspIsExon(msp) ||
-		    (mspIsPolyATail(msp) && blxWindowIsSeqSelected(blxWindow, msp->sSequence));
+  /* The tree view only displays blast matches or exons */
+  result &= mspIsBlastMatch(msp) || mspIsExon(msp);
 		    
   /* Check that it is in this tree's frame and strand */
   result &= (mspGetRefStrand(msp) == strand);
   result &= (mspGetRefFrame(msp, bc->seqType) == frame);
   
-  /* Check it's in the current display range */
   if (result)
     {
-      IntRange qRange;
+      /* Check the MSP in the current display range. Get the full MSP display range including
+       * any portions outside the actual alignment. */
       const gboolean showUnalignedSeq = blxContextGetFlag(bc, BLXFLAG_SHOW_UNALIGNED_SEQ);
       const gboolean limitUnalignedBases = blxContextGetFlag(bc, BLXFLAG_LIMIT_UNALIGNED_BASES);
     
-      mspGetVisibleRange(msp, bc, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, &qRange, NULL);
+      IntRange mspDisplayRange;
+      mspGetFullQRange(msp, showUnalignedSeq, limitUnalignedBases, numUnalignedBases, bc->numFrames, &mspDisplayRange);
 
-      result &= (qRange.min <= displayRange->max && qRange.max >= displayRange->min);
+      /* Convert q coords to display coords */
+      const int idx1 = convertDnaIdxToDisplayIdx(mspDisplayRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+      const int idx2 = convertDnaIdxToDisplayIdx(mspDisplayRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+      
+      intrangeSetValues(&mspDisplayRange, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
+      
+      result &= rangesOverlap(&mspDisplayRange, displayRange);
     }
     
   return result;

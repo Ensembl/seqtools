@@ -141,7 +141,8 @@ gboolean              typeIsExon(const BlxMspType mspType);
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
 gboolean	      mspIsSnp(const MSP const *msp);
-gboolean	      mspIsPolyATail(const MSP const *msp);
+gboolean	      mspIsPolyASite(const MSP const *msp);
+gboolean	      mspIsPolyASignal(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);
 
 gboolean              mspHasSName(const MSP const *msp);
@@ -154,7 +155,9 @@ void		      getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeM
 int		      getRangeLength(const IntRange const *range);
 int		      getRangeCentre(const IntRange const *range);
 gboolean	      valueWithinRange(const int value, const IntRange const *range);
+gboolean              rangesOverlap(const IntRange const *range1, const IntRange const *range2);
 void		      boundsLimitValue(int *value, const IntRange const *range);
+void                  boundsLimitRange(IntRange *range, const IntRange const *limit);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
 int		      convertDisplayIdxToDnaIdx(const int inputIdx, 
@@ -195,6 +198,8 @@ char*                 mspGetGeneName(const MSP const *msp);
 char*                 mspGetTissueType(const MSP const *msp);
 char*                 mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
+void                  mspGetFullSRange(const MSP const *msp, const gboolean showUnalignedSeq, const gboolean limitUnalignedBases, const int numUnalignedBases, IntRange *sSeqRange);
+void                  mspGetFullQRange(const MSP const *msp, const gboolean showUnalignedSeq, const gboolean limitUnalignedBases, const int numUnalignedBases, const int numFrames, IntRange *sSeqRange);
 
 char                  getStrandAsChar(const BlxStrand strand);
 

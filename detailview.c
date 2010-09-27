@@ -962,8 +962,7 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
 /* Set the value of the 'Show Unaligned Sequence' flag */
 void detailViewUpdateShowUnalignedSeq(GtkWidget *detailView, const gboolean showUnalignedSeq)
 {
-  /* Refilter and re-draw */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  /* Just re-draw */
   gtk_widget_queue_draw(detailView);
 }
 
@@ -4056,8 +4055,8 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   
   for ( ; msp; msp = msp->next)
     {
-      /* Only add matches/exons/polyA-tails to trees */
-      if (mspIsBlastMatch(msp) || mspIsExon(msp) || mspIsPolyATail(msp))
+      /* Only add matches/exons to trees */
+      if (mspIsBlastMatch(msp) || mspIsExon(msp))
 	{
 	  /* Find the tree that this MSP should belong to based on its reading frame and strand */
 	  BlxStrand strand = mspGetRefStrand(msp);

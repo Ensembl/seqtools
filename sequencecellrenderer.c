@@ -599,16 +599,6 @@ static void drawBase(MSP *msp,
       sBase = SEQUENCE_CHAR_GAP;
       baseBgColor = selected ? data->mismatchColorSelected : data->mismatchColor;
     }
-  else if (mspIsPolyATail(msp))
-    {
-      /* Special treatment for bases inside a polyA tail: only show polyA tails if the sequence
-       * is selected. */
-      if (data->seqSelected)
-	{
-	  baseBgColor = selected ? data->polyAColorSelected : data->polyAColor;
-	  sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
-	}
-    }
   else
     {
       /* There is a base in the match sequence. See if it matches the ref sequence */
@@ -822,63 +812,26 @@ static void drawSequenceText(GtkWidget *tree,
  * range has UNSET_INTs if no part of the msp is visible. */
 static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
 {
-  IntRange result = {UNSET_INT, UNSET_INT};
-  const gboolean sameDirection = mspGetRefStrand(msp) == mspGetMatchStrand(msp);
+  /* Find the full display range of the MSP including any portions of unaligned sequence etc. */
+  IntRange result;
+  mspGetFullQRange(msp, data->showUnalignedSeq, data->limitUnalignedBases, data->numUnalignedBases, data->bc->numFrames, &result);
   
-  /* Find the start/end of the MSP in terms of the display coords */
-  const int idx1 = convertDnaIdxToDisplayIdx(msp->qRange.min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-  const int idx2 = convertDnaIdxToDisplayIdx(msp->qRange.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-  
-  /* Get the min/max coord */
-  int minIdx = min(idx1, idx2);
-  int maxIdx = max(idx1, idx2);
+  /* Convert to display coords */
+  const int idx1 = convertDnaIdxToDisplayIdx(result.min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
+  const int idx2 = convertDnaIdxToDisplayIdx(result.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
 
-  /* If we're displaying additional bases from the unaligned part of the match sequence, add those 
-   * bases here (not applicable to exons) */
-  if (data->showUnalignedSeq && mspIsBlastMatch(msp))
+  intrangeSetValues(&result, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
+
+  if (rangesOverlap(&result, data->displayRange))
     {
-      const int seqLen = mspGetMatchSeqLen(msp);
-      
-      /* Find the offset to the start/end of the sequence */
-      int startOffset = msp->sRange.min - 1;
-      int endOffset = seqLen - msp->sRange.max;
-      
-      if (data->limitUnalignedBases)
-        {
-          /* Limit the offset to the given number of bases */
-          startOffset = min(startOffset, data->numUnalignedBases);
-          endOffset = min(endOffset, data->numUnalignedBases);
-        }
-
-      if (sameDirection != data->bc->displayRev)
-	{
-	  minIdx -= startOffset;
-	  maxIdx += endOffset;
-	}
-      else
-	{
-	  maxIdx += startOffset;
-	  minIdx -= endOffset;
-	}
+      /* Limit the returned range to the display range. */
+      boundsLimitRange(&result, data->displayRange);
     }
-  
-  /* Check it's in the visible range. */
-  if (maxIdx >= data->displayRange->min && minIdx <= data->displayRange->max)
+  else
     {
-      /* Limit the range of indices in the match sequence to those within the display range. */
-
-      if (minIdx < data->displayRange->min)
-	{
-	  minIdx = data->displayRange->min;
-	}
-      
-      if (maxIdx > data->displayRange->max)
-	{
-	  maxIdx = data->displayRange->max;
-	}
-      
-      result.min = minIdx;
-      result.max = maxIdx;
+      /* No portion of the MSP range is in the display range, so return UNSET_INTs */
+      result.min = UNSET_INT;
+      result.max = UNSET_INT;
     }
 
   return result;
@@ -1097,7 +1050,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
 	    {
 	      drawExon(renderer, msp, tree, &data);
 	    }
-	  else if (mspIsBlastMatch(msp) || mspIsPolyATail(msp))
+	  else if (mspIsBlastMatch(msp))
 	    {
 	      drawDnaSequence(renderer, msp, tree, &data);
 	    }

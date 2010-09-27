@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.67 2010-09-27 10:19:59 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.68 2010-09-27 11:55:15 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -843,7 +843,7 @@ BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand stran
           blxSeq->strand = strand;
           
           /* Set whether the sequence data is required by any of this sequence's MSPs */
-          blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsPolyATail(msp) || mspIsSnp(msp);
+          blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsSnp(msp);
         }
       
       if (seqName && !blxSeq->fullName)

@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.34 2010-09-27 10:19:59 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.35 2010-09-27 11:55:15 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -141,7 +141,7 @@ typedef enum
     BLXMSP_INTRON,                 /* Intron */
     BLXMSP_EXON,		   /* Exon (should appear AFTER CDS and UTR for sorting, as required by constructTranscriptData) */
     BLXMSP_TRANSCRIPT,		   /* Transcript */
-    BLXMSP_POLYA_SIG_SEQ,          /* polyA signal sequence */
+    BLXMSP_POLYA_SIGNAL,           /* polyA signal sequence */
     BLXMSP_POLYA_SITE,             /* polyA site */
     
     BLXMSP_SNP,                    /* Single Nucleotide Polymorphism */
