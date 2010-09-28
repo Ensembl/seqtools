@@ -836,7 +836,7 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
   if (rangesOverlap(&result, data->displayRange))
     {
       /* Limit the returned range to the display range. */
-      boundsLimitRange(&result, data->displayRange);
+      boundsLimitRange(&result, data->displayRange, FALSE);
     }
   else
     {

@@ -261,25 +261,33 @@ void boundsLimitValue(int *value, const IntRange const *range)
 }
 
 
-/* Utility to bounds-limit the first range to within the second. Maintains the length
- * of the range if possible by shifting the range. */
-void boundsLimitRange(IntRange *range, const IntRange const *limit)
+/* Utility to bounds-limit the first range to within the second. If maintainLen is true, maintains
+ * the length of the range if possible by shifting the range. */
+void boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen)
 {
   const int len = getRangeLength(range);
   
   if (range->min < limit->min)
     {
       range->min = limit->min;
-      range->max = range->min + len;
+      
+      if (maintainLen)
+        {
+          range->max = range->min + len;
+        }
     }
   
   if (range->max > limit->max)
     {
       range->max = limit->max;
-      range->min = range->max - len;
       
-      /* If limit is shorter than range, we'll have gone lower than the min again */
-      boundsLimitValue(&range->min, limit);
+      if (maintainLen)
+        {
+          range->min = range->max - len;
+
+          /* If limit is shorter than range, we'll have gone lower than the min again */
+          boundsLimitValue(&range->min, limit);
+       }
     }
   
   

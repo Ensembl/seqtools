@@ -184,7 +184,7 @@ int		      getRangeCentre(const IntRange const *range);
 gboolean	      valueWithinRange(const int value, const IntRange const *range);
 gboolean              rangesOverlap(const IntRange const *range1, const IntRange const *range2);
 void		      boundsLimitValue(int *value, const IntRange const *range);
-void                  boundsLimitRange(IntRange *range, const IntRange const *limit);
+void                  boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
 int		      convertDisplayIdxToDnaIdx(const int inputIdx, 
