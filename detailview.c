@@ -29,7 +29,8 @@
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
 #define DEFAULT_SNP_CONNECTOR_HEIGHT	0
-#define DEFAULT_NUM_UNALIGNED_BASES     5    /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
+#define DEFAULT_NUM_UNALIGNED_BASES     5     /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
+#define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
 
 /* Define the columns' default widths and titles. */
 #define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
@@ -1434,6 +1435,68 @@ static void mspGetSpliceSiteCoords(const MSP const *msp,
 }
 
 
+/* This looks through all of the polyA signals and sees if any of them are in the given display
+ * range (in nucleotide coords) and whether we want to display them. If the 'display polyA signals for
+ * selected sequences only' option is enabled, then any selected sequence MSPs that have polyA tails
+ * should be passed in the given GSList. Any coords within a relevant polyA signal range are added to
+ * the given hash table with the BlxColorId that they should be drawn with. */
+static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *polyATailMsps, const BlxStrand qStrand, const IntRange const *qRange, GHashTable *result)
+{
+  /* We've more work to do if showing polyA signals (unless we're only showing them for selected
+   * sequences and there were no relevant selected sequences) */
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
+    {
+      /* Loop through all polyA signals */
+      const MSP const *sigMsp = bc->mspList;
+      BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
+      const int direction = (qStrand == BLXSTRAND_REVERSE ? -1 : 1);
+      
+      for ( ; sigMsp; sigMsp = sigMsp->next)
+        {
+          /* Only interested if it's a polyA signal with the correct strand and is within the display range. */
+          if (sigMsp->type == BLXMSP_POLYA_SIGNAL && sigMsp->qStrand == qStrand && rangesOverlap(&sigMsp->qRange, qRange))
+            {
+              gboolean addSignal = FALSE;
+              
+              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
+                {
+                  /* We're only interested in polyA signals that are 50 bases upstream of one of our polyA-tail MSPs */
+                  GSList *item = polyATailMsps;
+                  
+                  for ( ; item && !addSignal; item = item->next)
+                    {
+                      const MSP const *tailMsp = (const MSP const*)(item->data);
+                      const int qEnd = mspGetQEnd(tailMsp);
+                      const int qStart = qEnd - direction * POLYA_SIG_BASES_UPSTREAM;
+                      
+                      IntRange upstreamRange;
+                      intrangeSetValues(&upstreamRange, qStart, qEnd); /* sorts out which is min and which is max */
+                                        
+                      addSignal = rangesOverlap(&sigMsp->qRange, &upstreamRange);
+                    }
+                }
+              else
+                {
+                  /* Add all signals that are in the display range */
+                  addSignal = TRUE;
+                }
+            
+              if (addSignal)
+                {
+                  /* Add each base in the polyA signal range to the hash table. This may overwrite
+                   * splice site bases that we previously found, which is fine (something has to take priority). */
+                  int i = sigMsp->qRange.min;
+                  for ( ; i <= sigMsp->qRange.max; ++i)
+                    {
+                      g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 /* This function looks for special bases in the reference sequence header to highlight and stores their
  * coords in the returned hash table with the BlxColorId (converted to a gpointer with GINT_TO_POINTER)
  * of the fill color they should be drawn with. These special coords include splice sites and polyA signals. */
@@ -1448,31 +1511,50 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
   const BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* We only highlight nucleotides, so there is nothing to do if we're showing a peptide sequence,
-   * or if the show-splice-sites option is disabled. */
-  if (seqType == BLXSEQ_PEPTIDE || !bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
+   * or if the show-splice-sites or show-polyA-signals options are disabled. */
+  if (seqType == BLXSEQ_PEPTIDE || 
+      (!bc->flags[BLXFLAG_SHOW_SPLICE_SITES] && !bc->flags[BLXFLAG_SHOW_POLYA_SIG]))
     {
       return result;
     }
   
+  /* Loop through the selected sequences. If showing polyA signals for selected sequences, we'll 
+   * compile a list of MSPs we're interested in seeing polyA signals for (i.e. those with polyA tails) */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GList *seqItem = blxWindowGetSelectedSeqs(blxWindow);
+  GSList *polyATailMsps = NULL;
   
   for ( ; seqItem; seqItem = seqItem->next)
     {
       const BlxSequence *blxSeq = (const BlxSequence*)(seqItem->data);
       GList *mspItem = blxSeq->mspList;
-      
+     
+      /* Loop through all MSPs for this sequence */ 
       for ( ; mspItem; mspItem = mspItem->next)
         {
-          const MSP const *msp = (const MSP const *)(mspItem->data);
+          MSP *msp = (MSP*)(mspItem->data);
           
-          /* Only look at MSPs within the given strand */
+          /* Only look at matches/exons on the correct strand */
           if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON) && mspGetRefStrand(msp) == qStrand)
             {
-              mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
+              if (bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
+                {
+                  mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
+                }
+              
+              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
+                {
+                   if (mspHasPolyATail(msp, bc->mspList))
+                     {
+                       polyATailMsps = g_slist_append(polyATailMsps, msp);
+                     }
+                }
             }
         }
     }
+  
+  /* Now check the polyA signals and see if any of them are in range. */
+  getPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
   
   return result;
 }

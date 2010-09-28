@@ -1069,27 +1069,32 @@ const char *mspGetSName(const MSP const *msp)
 
 
 /* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. */
-static gboolean mspHasPolyATail(const MSP const *msp, const MSP const *mspList)
+gboolean mspHasPolyATail(const MSP const *msp, const MSP const *mspList)
 {
-  /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
-   * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
-   * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
-  const MSP *curMsp = mspList;
   gboolean found = FALSE;
-   
-  for ( ; !found && curMsp; curMsp = curMsp->next)
+
+  /* Only matches have polyA tails. */
+  if (mspIsBlastMatch(msp))
     {
-      if (mspIsPolyASite(curMsp))
+      /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
+       * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
+       * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
+      const MSP *curMsp = mspList;
+       
+      for ( ; !found && curMsp; curMsp = curMsp->next)
         {
-          const int qEnd = mspGetQEnd(msp);
-          
-          if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+          if (mspIsPolyASite(curMsp))
             {
-              found = (qEnd == curMsp->qRange.min);
-            }
-          else
-            {
-              found = (qEnd == curMsp->qRange.min + 1);
+              const int qEnd = mspGetQEnd(msp);
+              
+              if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+                {
+                  found = (qEnd == curMsp->qRange.min);
+                }
+              else
+                {
+                  found = (qEnd == curMsp->qRange.min + 1);
+                }
             }
         }
     }

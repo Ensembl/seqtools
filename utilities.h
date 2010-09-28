@@ -177,6 +177,7 @@ gboolean              mspHasSName(const MSP const *msp);
 gboolean              mspHasSSeq(const MSP  const *msp);
 gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
+gboolean              mspHasPolyATail(const MSP const *msp, const MSP const *mspList);
 gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP const *mspList);
 
 void		      getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
