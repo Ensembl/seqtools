@@ -314,7 +314,7 @@ static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existin
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
 
-static void			  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
+static GtkWidget*		  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
 static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
 static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
 
@@ -2725,8 +2725,7 @@ static GtkWidget* dialogChildGetBlxWindow(GtkWidget *child)
 
 
 /* Updates the given flag from the given button. The passed in widget is the toggle button and
- * the data is an enum indicating which flag was toggled. Returns the new value that was set.
- * Returns the new value that was set. */
+ * the data is an enum indicating which flag was toggled. Returns the new value that was set. */
 static gboolean setFlagFromButton(GtkWidget *button, gpointer data)
 {
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
@@ -2789,12 +2788,13 @@ static void onShowSnpTrackToggled(GtkWidget *button, gpointer data)
 }
 
 
-/* Utility to create a check button with certain given properties, and to pack it into the parent */
-static void createCheckButton(GtkBox *box, 
-			      const char *mnemonic, 
-			      const gboolean isActive, 
-			      GCallback callback, 
-			      gpointer data)
+/* Utility to create a check button with certain given properties, and to pack it into the parent.
+ * Returns the new button. */
+static GtkWidget* createCheckButton(GtkBox *box, 
+                                    const char *mnemonic, 
+                                    const gboolean isActive, 
+                                    GCallback callback, 
+                                    gpointer data)
 {
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
@@ -2802,6 +2802,8 @@ static void createCheckButton(GtkBox *box,
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   
   g_signal_connect(G_OBJECT(button), "toggled", callback, data);
+  
+  return button;
 }
 
 
@@ -3211,8 +3213,11 @@ static void onShowUnalignedSeqToggled(GtkWidget *button, gpointer data)
  * data) */
 static void onShowPolyAToggled(GtkWidget *button, gpointer data)
 {
-  /* Get the new value */
-  const gboolean active = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_POLYA));
+  /* Get the new value and set the show-polya-tails flag */
+  const gboolean active = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE));
+  
+  /* Also set the show-polya-signals flag. (These could be separated out if we wanted to control them separately) */
+  setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
   
   /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
   GtkWidget *subComponents = GTK_WIDGET(data);
@@ -3428,9 +3433,10 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   createCheckButton(GTK_BOX(vbox1), "_Squash matches", bc->flags[BLXFLAG_SQUASH_MATCHES], G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
   
-  /* show-polyA-tails option and its sub-options */
-  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", bc->flags[BLXFLAG_SHOW_POLYA], G_CALLBACK(onShowPolyAToggled));
-  createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SELECTED));
+  /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
+  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", bc->flags[BLXFLAG_SHOW_POLYA_SITE], G_CALLBACK(onShowPolyAToggled));
+  GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
+  g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
 
   /* show-unaligned-sequence option and its sub-options */
   GtkContainer *unalignContainer = createParentCheckButton(vbox1, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", bc->flags[BLXFLAG_SHOW_UNALIGNED], G_CALLBACK(onShowUnalignedSeqToggled));
@@ -4527,7 +4533,8 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   /* Set any specific flags that we want initialised to TRUE */
   blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_POLYA_SELECTED] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
   
   /* Null out all the entries in the dialogs list */

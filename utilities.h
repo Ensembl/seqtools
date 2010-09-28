@@ -100,8 +100,10 @@ typedef enum
     BLXFLAG_SHOW_UNALIGNED,	    /* Shows additional bits of the match sequence that are not part of the aligned section */
     BLXFLAG_SHOW_UNALIGNED_SELECTED,/* Only show unaligned bits of sequence for the currently-selected sequence(s) */
     BLXFLAG_LIMIT_UNALIGNED_BASES,  /* If the show-unaligned-sequence option is on, limits how many bases from the unaligned sequence are shown */
-    BLXFLAG_SHOW_POLYA,             /* Show polyA tails */
-    BLXFLAG_SHOW_POLYA_SELECTED,    /* Only show polyA tails for the currently-selected sequence(s) */
+    BLXFLAG_SHOW_POLYA_SITE,        /* Show polyA tails */
+    BLXFLAG_SHOW_POLYA_SITE_SELECTED,/* Only show polyA tails for the currently-selected sequence(s) */
+    BLXFLAG_SHOW_POLYA_SIG,         /* Show polyA signals in the reference sequence */
+    BLXFLAG_SHOW_POLYA_SIG_SELECTED,/* Only show polyA signals for the currently-selected sequence(s) */
     BLXFLAG_SHOW_SPLICE_SITES,	    /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
     BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */

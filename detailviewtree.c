@@ -918,7 +918,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
   
-  GHashTable *intronBases = getIntronBasesToHighlight(detailView, &qRange, bc->seqType, strand);
+  GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, bc->seqType, strand);
 
   const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
   int displayIdx = properties->displayRange.min;
@@ -934,7 +934,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
       const int y = 0;
 
-      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, y, intronBases);
+      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, y, basesToHighlight);
       
       dnaIdx += incrementValue;
       ++displayIdx;

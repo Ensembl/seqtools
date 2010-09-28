@@ -18,15 +18,6 @@
 #define SNP_TRACK_HEADER_NAME		"SNP track header"
 #define DNA_TRACK_HEADER_NAME		"DNA track header"
 
-/* This enum is used to define integer values to mean "canonical" and "non canonical". The values
- * are converted to pointers to be used in a hash table, so they must be non-zero, or the hash table
- * will treat them as null */
-typedef enum
-  {
-    BLX_IS_CANONICAL = 1,
-    BLX_NOT_CANONICAL = 2
-  } BlxCanonical;
-
 
 /* This struct describes a column in the detail view. Multiple widgets (i.e. headers
  * and tree columns) in the detail view must all have columns that share the same
@@ -185,7 +176,7 @@ void			seqColHeaderSetRow(GtkWidget *header, const int frame);
 int			seqColHeaderGetRow(GtkWidget *header);
 int			seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames);
 
-GHashTable*             getIntronBasesToHighlight(GtkWidget *detailView, const IntRange const *displayRange, const BlxSeqType seqType, const BlxStrand strand);
+GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const IntRange const *displayRange, const BlxSeqType seqType, const BlxStrand strand);
 
 void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
 gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);

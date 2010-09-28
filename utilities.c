@@ -1142,7 +1142,7 @@ void mspGetFullSRange(const MSP const *msp,
         }
     }
     
-  if (flags[BLXFLAG_SHOW_POLYA] && mspHasPolyATail(msp, mspList) && (!flags[BLXFLAG_SHOW_POLYA_SELECTED] || seqSelected))
+  if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp, mspList) && (!flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] || seqSelected))
     {
       /* We're displaying polyA tails, so override the 3' end coord with the full extent of
        * the s sequence if there is a polyA site here. The 3' end is the min q coord if the
@@ -1176,7 +1176,7 @@ void mspGetFullQRange(const MSP const *msp,
   result->min = msp->qRange.min;
   result->max = msp->qRange.max;
 
-  if (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA])
+  if (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE])
     {
       /* Get the full display range of the MSP including any unaligned portions of the match sequence. */
       IntRange fullSRange;

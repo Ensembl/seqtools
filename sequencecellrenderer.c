@@ -592,8 +592,8 @@ static void drawBase(MSP *msp,
 	{
           sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
 
-          if (data->bc->flags[BLXFLAG_SHOW_POLYA] && 
-              (!data->bc->flags[BLXFLAG_SHOW_POLYA_SELECTED] || data->seqSelected) &&
+          if (data->bc->flags[BLXFLAG_SHOW_POLYA_SITE] && 
+              (!data->bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] || data->seqSelected) &&
               mspCoordInPolyATail(*qIdx, msp, data->bc->mspList))
             {
               baseBgColor = selected ? data->polyAColorSelected : data->polyAColor;

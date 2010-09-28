@@ -1250,15 +1250,15 @@ static const MSP* sequenceGetNextMsp(const MSP const *msp,
 /* Determine whether the bases at the other end of the intron for the start/end of 
  * the given MSP are canonical. 'canonicalStart' and 'canonicalEnd' contain the two bases to look
  * for at the start/end of the next/previous MSP to determine if the result is canonical. */
-static BlxCanonical mspIsSpliceSiteCanonicalOtherEnd(const MSP const *msp,
-                                                     const BlxSequence *blxSeq,
-                                                     const gboolean isMinCoord, 
-                                                     const gboolean revStrand,
-                                                     const gboolean donor,
-                                                     const BlxViewContext *bc,
-                                                     const BlxSpliceSite *spliceSite)
+static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP const *msp,
+                                                 const BlxSequence *blxSeq,
+                                                 const gboolean isMinCoord, 
+                                                 const gboolean revStrand,
+                                                 const gboolean donor,
+                                                 const BlxViewContext *bc,
+                                                 const BlxSpliceSite *spliceSite)
 {
-  BlxCanonical result = BLX_NOT_CANONICAL;
+  gboolean result = FALSE;
  
   /* Get the previous MSP if we're looking at the min coord of the current MSP, or 
    * the next MSP if we're at the end */
@@ -1275,7 +1275,7 @@ static BlxCanonical mspIsSpliceSiteCanonicalOtherEnd(const MSP const *msp,
 
       if (stringsEqual(bases, canonicalBases, FALSE))
         {
-          result = BLX_IS_CANONICAL;
+          result = TRUE;
         }
     }
   
@@ -1350,14 +1350,14 @@ static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gbo
 /* Determines whether the intron splice sites for the given MSP are canonical or not.
  * We look for GC-AG or AT-AC introns. The latter must have both ends of the intron matching
  * to be canonical. GC is the donor site and AG is the acceptor site. */
-static BlxCanonical isMspSpliceSiteCanonical(const MSP const *msp, 
-                                             const BlxSequence *blxSeq, 
-                                             const gboolean isMinCoord, 
-                                             const gboolean revStrand,
-                                             const BlxViewContext *bc,
-                                             GSList *spliceSites)
+static gboolean isMspSpliceSiteCanonical(const MSP const *msp, 
+                                         const BlxSequence *blxSeq, 
+                                         const gboolean isMinCoord, 
+                                         const gboolean revStrand,
+                                         const BlxViewContext *bc,
+                                         GSList *spliceSites)
 {
-  BlxCanonical result = BLX_NOT_CANONICAL;
+  gboolean result = FALSE;
 
   GSList *item = spliceSites;
   for ( ; item; item = item->next)
@@ -1382,7 +1382,7 @@ static BlxCanonical isMspSpliceSiteCanonical(const MSP const *msp,
             }
           else
             {
-              result = BLX_IS_CANONICAL;
+              result = TRUE;
             }
         }
     }
@@ -1412,31 +1412,32 @@ static void mspGetSpliceSiteCoords(const MSP const *msp,
   if (getMin && valueWithinRange(msp->qRange.min, qRange) && msp->qRange.min >= bc->refSeqRange.min + 2)
     {
       /* Find out if the adjacent bases are canonical/non-canonical. */
-      BlxCanonical canonical = isMspSpliceSiteCanonical(msp, blxSeq, TRUE, revStrand, bc, spliceSites);
-      
+      const gboolean canonical = isMspSpliceSiteCanonical(msp, blxSeq, TRUE, revStrand, bc, spliceSites);
+      BlxColorId colorId = canonical ? BLXCOLOR_CANONICAL : BLXCOLOR_NON_CANONICAL;
+
       /* Insert the two coords into the hash table */
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 2), GINT_TO_POINTER(canonical));
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 1), GINT_TO_POINTER(canonical));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 2), GINT_TO_POINTER(colorId));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 1), GINT_TO_POINTER(colorId));
     }
   
   /* See if the max coord is within the given range */
   if (getMax && valueWithinRange(msp->qRange.max, qRange) && msp->qRange.max <= bc->refSeqRange.max - 2)
     {
       /* Find out if they are canonical/non-canonical */
-      BlxCanonical canonical = isMspSpliceSiteCanonical(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
+      const gboolean canonical = isMspSpliceSiteCanonical(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
+      BlxColorId colorId = canonical ? BLXCOLOR_CANONICAL : BLXCOLOR_NON_CANONICAL;
       
       /* Insert the two coords into the hash table */
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 1), GINT_TO_POINTER(canonical));
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 2), GINT_TO_POINTER(canonical));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 1), GINT_TO_POINTER(colorId));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 2), GINT_TO_POINTER(colorId));
     }
 }
 
 
-/* This function looks at all selected exons/matches in all of the given ref seq range and compiles a
- * list of the 2 nucleotides at the start/end of the adjacent introns and whether they are canonical/
- * non-canonical. It only considers MSPs that are on the given ref seq strand and only does anything
- * if the show-splice-sites option is enabled. */
-GHashTable* getIntronBasesToHighlight(GtkWidget *detailView, 
+/* This function looks for special bases in the reference sequence header to highlight and stores their
+ * coords in the returned hash table with the BlxColorId (converted to a gpointer with GINT_TO_POINTER)
+ * of the fill color they should be drawn with. These special coords include splice sites and polyA signals. */
+GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView, 
                                       const IntRange const *qRange, 
                                       const BlxSeqType seqType,
                                       const BlxStrand qStrand)
@@ -1527,7 +1528,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
   
   /* Find out if there are any bases in the introns that need highlighting. */
-  GHashTable *intronBases = getIntronBasesToHighlight(detailView, &qRange, BLXSEQ_DNA, activeStrand);
+  GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, BLXSEQ_DNA, activeStrand);
   
   int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
   int displayLen = qRange.max - qRange.min + 1;
@@ -1549,7 +1550,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       const int x = displayTextPos * properties->charWidth;
       const char base = displayText[displayTextPos];
 
-      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, intronBases);
+      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, basesToHighlight);
       
       /* Increment indices */
       ++displayTextPos;
@@ -1762,7 +1763,7 @@ void drawHeaderChar(BlxViewContext *bc,
 		    GdkGC *gc,
 		    const int x,
 		    const int y,
-                    GHashTable *intronBases)
+                    GHashTable *basesToHighlight)
 {
   GdkColor *fillColor = NULL;
   GdkColor *outlineColor = NULL;
@@ -1773,21 +1774,13 @@ void drawHeaderChar(BlxViewContext *bc,
   gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, dnaIdx, strand, frame, seqType);
   const gboolean shadeBackground = (displayIdxSelected != inSelectedMspRange);
   
-  /* If there are any intron bases that need highlighting check if this coord is one of them */
-  gpointer hashValue = g_hash_table_lookup(intronBases, GINT_TO_POINTER(dnaIdx));
+  /* Check if this coord already has a special color stored for it */
+  gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(dnaIdx));
   
   if (hashValue)
     {
-      BlxCanonical canonical = GPOINTER_TO_INT(hashValue);
-
-      if (canonical == BLX_IS_CANONICAL)
-        {
-          fillColor = getGdkColor(BLXCOLOR_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
-        }
-      else
-        {
-          fillColor = getGdkColor(BLXCOLOR_NON_CANONICAL, bc->defaultColors, shadeBackground, bc->usePrintColors);
-        }
+      BlxColorId colorId = GPOINTER_TO_INT(hashValue);
+      fillColor = getGdkColor(colorId, bc->defaultColors, shadeBackground, bc->usePrintColors);
     }
   
   if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected || shadeBackground))
