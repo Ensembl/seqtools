@@ -330,6 +330,8 @@ int		      parseMatchLine(const char *inputText,
 
 GList*		      parseMatchList(const char *inputText);
 
+GtkWidget*	      getNamedChildWidget(GtkWidget *widget, const gchar *searchName);
+
 gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
 
 const char*	      getSeqVariantName(const char *longName);

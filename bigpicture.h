@@ -124,7 +124,7 @@ int			      getRightCoordFromCentre(const int centreCoord,
 void			      refreshGridOrder(GtkWidget *bigPicture);
 
 GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
-					       GtkWidget *container,
+					       GtkContainer *parent,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
 					       const int bigPictZoom,

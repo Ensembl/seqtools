@@ -1846,6 +1846,32 @@ gboolean isWhitespaceChar(const char curChar)
 }
 
 
+/* Get the child of the given widget that has the given name (which could be the given 
+ * widget itself.) Assumes there is only one, so returns the first one found. */
+GtkWidget* getNamedChildWidget(GtkWidget *widget, const gchar *searchName)
+{
+  GtkWidget *result = NULL;
+  const gchar *widgetName = gtk_widget_get_name(widget);
+ 
+  if (stringsEqual(widgetName, searchName, TRUE))
+    {
+      result = widget;
+    }
+  else if (GTK_IS_CONTAINER(widget))
+    {
+      /* recurse over children until we find the detail view (assumes there is only one!) */
+      GList *child = gtk_container_get_children(GTK_CONTAINER(widget));
+      
+      for ( ; child && !result; child = child->next)
+	{
+	  GtkWidget *childWidget = GTK_WIDGET(child->data);
+	  result = getNamedChildWidget(childWidget, searchName);
+	}
+    }
+    
+  return result;
+}
+
 /***********************************************************
  *			   Dialogs			   *
  ***********************************************************/

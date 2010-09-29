@@ -18,6 +18,7 @@
 #include <math.h>
 
 #define DETAIL_VIEW_TOOLBAR_NAME	"DetailViewToolbarName"
+#define DETAIL_VIEW_WIDGET_NAME		"DetailViewWidget"
 #define SORT_BY_NAME_STRING		"Name"
 #define SORT_BY_SCORE_STRING		"Score"
 #define SORT_BY_ID_STRING		"Identity"
@@ -369,86 +370,59 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
  * actual trees, it may contain their containers (e.g. if they live in scrolled windows). 'first'
  * indicates that this is the first (set of) tree(s) added. This information is used to determine
  * which pane to put the tree in and/or whether the first tree in the list should have headers. */
-static void addTreesToDetailView(GtkContainer *detailView, 
-				 GList *treeList, 
-				 const gboolean first)
+static void addTreesToDetailViewPane(GtkPaned *panedWin, 
+				     GList *treeList, 
+				     const gboolean first)
 {
-  /* Currently we expect the detail view to be a paned widget */
-  if (GTK_IS_PANED(detailView))
-    {
-      int numTrees = g_list_length(treeList);
-      
-      if (numTrees == 1)
-	{
-	  /* Two panes, one tree. Use 'first' flags to decide which pane to put it in */
-	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
-	  
-	  if (first)
-	    {
-	      gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
-	    }
-	  else
-	    {
-	      gtk_paned_pack2(GTK_PANED(detailView), tree1, TRUE, TRUE);
-	    }
-	}
-      else if (numTrees == 2)
-	{
-	  /* Two panes, two trees. Easy - put one in each. */
-	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
-	  GtkWidget *tree2 = GTK_WIDGET(treeList->next->data);
-	  
-	  gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
-	  gtk_paned_pack2(GTK_PANED(detailView), tree2, TRUE, TRUE);
-	}
-      else if (numTrees > 2)
-	{
-	  /* Two panes, three trees. Put one tree in pane 1. There should be a
-	   * nested widget in pane 2 that we can put the remaining trees in. */
-	  GtkWidget *tree1 = GTK_WIDGET(treeList->data);
-	  gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
-
-	  GtkWidget *nestedPanedWidget = findNestedPanedWidget(detailView);
-	  
-	  if (nestedPanedWidget)
-	    {
-	      /* Create a new list containing the remaining trees and call this 
-	       * function again on the nested paned widget. */
-	      GList *remainingTrees = NULL;
-	      GList *nextTree = treeList->next;
-	      while (nextTree)
-		{
-		  remainingTrees = g_list_append(remainingTrees, nextTree->data);
-		  nextTree = nextTree->next;
-		}
-	      
-	      /* Pass 'first' as false to make sure we don't add any more headers */
-	      addTreesToDetailView(GTK_CONTAINER(nestedPanedWidget), remainingTrees, FALSE);
-	    }
-	}
-    }
-  else
-    {
-      g_error("Unexpected detail view type: expected a paned widget. Could not add child trees.\n");
-    }
-}
-
-
-/* Remove the given widget from the detail view. Does NOT remove nested paned
- * widgets, but does remove THEIR children. */
-static void removeFromDetailView(GtkWidget *widget, gpointer data)
-{
-  GtkContainer *parent = GTK_CONTAINER(data);
+  int numTrees = g_list_length(treeList);
   
-  if (!GTK_IS_PANED(widget))
+  if (numTrees == 1)
     {
-      gtk_container_remove(parent, widget);
+      /* Two panes, one tree. Use 'first' flags to decide which pane to put it in */
+      GtkWidget *tree1 = GTK_WIDGET(treeList->data);
+      
+      if (first)
+	{
+	  gtk_paned_pack1(panedWin, tree1, TRUE, TRUE);
+	}
+      else
+	{
+	  gtk_paned_pack2(panedWin, tree1, TRUE, TRUE);
+	}
     }
-  else
+  else if (numTrees == 2)
     {
-      /* This widget is a nested paned widget. Leave it in the heirarchy, but 
-       * recurse to remove all its child widgets. */
-      gtk_container_foreach(GTK_CONTAINER(widget), removeFromDetailView, widget);
+      /* Two panes, two trees. Easy - put one in each. */
+      GtkWidget *tree1 = GTK_WIDGET(treeList->data);
+      GtkWidget *tree2 = GTK_WIDGET(treeList->next->data);
+      
+      gtk_paned_pack1(panedWin, tree1, TRUE, TRUE);
+      gtk_paned_pack2(panedWin, tree2, TRUE, TRUE);
+    }
+  else if (numTrees > 2)
+    {
+      /* Two panes, three trees. Put one tree in pane 1. There should be a
+       * nested widget in pane 2 that we can put the remaining trees in. */
+      GtkWidget *tree1 = GTK_WIDGET(treeList->data);
+      gtk_paned_pack1(panedWin, tree1, TRUE, TRUE);
+
+      GtkWidget *nestedPanedWidget = findNestedPanedWidget(GTK_CONTAINER(panedWin));
+      
+      if (nestedPanedWidget)
+	{
+	  /* Create a new list containing the remaining trees and call this 
+	   * function again on the nested paned widget. */
+	  GList *remainingTrees = NULL;
+	  GList *nextTree = treeList->next;
+	  while (nextTree)
+	    {
+	      remainingTrees = g_list_append(remainingTrees, nextTree->data);
+	      nextTree = nextTree->next;
+	    }
+	  
+	  /* Pass 'first' as false to make sure we don't add any more headers */
+	  addTreesToDetailViewPane(GTK_PANED(nestedPanedWidget), remainingTrees, FALSE);
+	}
     }
 }
 
@@ -529,19 +503,31 @@ static void refreshTreeOrder(GtkWidget *detailView)
   BlxViewContext *bc = detailViewGetContext(detailView);
   gboolean toggled = detailViewGetDisplayRev(detailView);
 
-  gtk_container_foreach(GTK_CONTAINER(detailView), removeAllTreesFromContainer, detailView);
+  /* Get the direct parent of the trees */
+  GtkWidget *detailViewContainer = getNamedChildWidget(detailView, DETAIL_VIEW_WIDGET_NAME);
+
+  gtk_container_foreach(GTK_CONTAINER(detailView), removeAllTreesFromContainer, detailViewContainer);
+
+  /* Extract the named detail-view widget, which is the direct parent of the trees. This 
+   * should be a paned window. */
+  GtkWidget *panedWin = getNamedChildWidget(detailView, DETAIL_VIEW_WIDGET_NAME);
+
+  if (!GTK_IS_PANED(panedWin))
+    {
+      g_error("Unexpected detail view type: expected a paned widget. Could not add child trees.\n");
+    }
 
   if (bc->seqType == BLXSEQ_DNA)
     {
       /* Add both trees - the order they're added will depend on whether the display is toggled or not. */
-      addTreesToDetailView(GTK_CONTAINER(detailView), properties->fwdStrandTrees, !toggled);
-      addTreesToDetailView(GTK_CONTAINER(detailView), properties->revStrandTrees, toggled);
+      addTreesToDetailViewPane(GTK_PANED(panedWin), properties->fwdStrandTrees, !toggled);
+      addTreesToDetailViewPane(GTK_PANED(panedWin), properties->revStrandTrees, toggled);
     }
   else if (bc->seqType == BLXSEQ_PEPTIDE)
     {
       /* Only add one set of trees - the reverse strand if toggled, the forward strand if not. */
       GList *treeList = toggled ? properties->revStrandTrees : properties->fwdStrandTrees;
-      addTreesToDetailView(GTK_CONTAINER(detailView), treeList, TRUE);
+      addTreesToDetailViewPane(GTK_PANED(panedWin), treeList, TRUE);
     }
   
   /* Must show all child widgets because some of them may not have been in this parent before.
@@ -3760,7 +3746,7 @@ static void buttonDetach(GtkHandleBox *handlebox, GtkWidget *toolbar, gpointer d
  * pointer to the actual toolbar and returns a pointer to the container of
  * the toolbar, if different (i.e. the widget that will be packed into the
  * parent container). */
-static GtkWidget* createEmptyButtonBar(GtkWidget *parent, GtkToolbar **toolbar)
+static GtkWidget* createEmptyButtonBar(GtkToolbar **toolbar)
 {
   /* Create a handle box for the toolbar and add it to the window */
   GtkWidget *handleBox = gtk_handle_box_new();
@@ -3952,7 +3938,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
 					    GtkWidget **statusBar)
 {
   GtkToolbar *toolbar = NULL;
-  GtkWidget *toolbarContainer = createEmptyButtonBar(detailView, &toolbar);
+  GtkWidget *toolbarContainer = createEmptyButtonBar(&toolbar);
   
   /* Help */
   makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GHelp,		  detailView);
@@ -4002,7 +3988,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
  * given). The first tree gets associated with grid1 and appended to list1, and the second
  * with grid2 and list2. If hasHeaders is true, the first tree will have visible headers. */
 static void createTwoPanedTrees(GtkWidget *detailView,
-				GtkWidget *container, 
+				GtkPaned *panedWin, 
 				GtkCellRenderer *renderer,
 				GtkWidget *grid1, 
 				GtkWidget *grid2,
@@ -4018,10 +4004,10 @@ static void createTwoPanedTrees(GtkWidget *detailView,
   GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, refSeqName, frame1, includeSnpTrack);
   GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, refSeqName, frame2, includeSnpTrack);
   
-  if (container)
+  if (panedWin)
     {
-      gtk_paned_pack1(GTK_PANED(container), tree1, TRUE, TRUE);
-      gtk_paned_pack2(GTK_PANED(container), tree2, TRUE, TRUE);
+      gtk_paned_pack1(GTK_PANED(panedWin), tree1, TRUE, TRUE);
+      gtk_paned_pack2(GTK_PANED(panedWin), tree2, TRUE, TRUE);
     }
 }
 
@@ -4030,6 +4016,7 @@ static void createTwoPanedTrees(GtkWidget *detailView,
  * two panes in the widget, so two of the trees will be placed in a second, nested
  * paned widget. */
 static void createThreePanedTrees(GtkWidget *detailView,
+				  GtkPaned *panedWin,
 				  GtkCellRenderer *renderer,
 				  GtkWidget *grid,
 				  GList **list,
@@ -4045,14 +4032,14 @@ static void createThreePanedTrees(GtkWidget *detailView,
    * The first tree has headers. */
   GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, refSeqName, frame1, includeSnpTrack);
 
-  GtkWidget *nestedPanedWidget = NULL;
+  GtkPaned *nestedPanedWidget = NULL;
   if (addToDetailView)
     {
-      gtk_paned_pack1(GTK_PANED(detailView), tree1, TRUE, TRUE);
+      gtk_paned_pack1(GTK_PANED(panedWin), tree1, TRUE, TRUE);
       
       /* Create another paned widget and place it in pane 2 */
-      nestedPanedWidget = gtk_vpaned_new();
-      gtk_paned_pack2(GTK_PANED(detailView), nestedPanedWidget, TRUE, TRUE);
+      nestedPanedWidget = GTK_PANED(gtk_vpaned_new());
+      gtk_paned_pack2(panedWin, GTK_WIDGET(nestedPanedWidget), TRUE, TRUE);
     }
   
   /* Create two more trees (and place them in the nested paned widget, if it is not null). 
@@ -4064,6 +4051,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
 /* Create the trees for the detail view, creating sub-panes if necessary depending
  * on how many trees we need */
 static void createDetailViewPanes(GtkWidget *detailView, 
+				  GtkPaned *panedWin,
 				  GtkCellRenderer *renderer,
 				  GtkWidget *fwdStrandGrid, 
 				  GtkWidget *revStrandGrid, 
@@ -4079,7 +4067,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
     {
       /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse. */
       createTwoPanedTrees(detailView, 
-			  detailView, 
+			  panedWin, 
 			  renderer,
 			  fwdStrandGrid, 
 			  revStrandGrid, 
@@ -4096,8 +4084,8 @@ static void createDetailViewPanes(GtkWidget *detailView,
     {
       /* Protein matches: we need 3 trees for the 3 reading frames for EACH strand (although only
        * one set of trees will be displayed at a time). */
-      createThreePanedTrees(detailView, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, columnList, refSeqName, includeSnpTrack);
-      createThreePanedTrees(detailView, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, columnList, refSeqName, includeSnpTrack);
+      createThreePanedTrees(detailView, panedWin, renderer, fwdStrandGrid, fwdStrandTrees, seqType, TRUE, columnList, refSeqName, includeSnpTrack);
+      createThreePanedTrees(detailView, panedWin, renderer, revStrandGrid, revStrandTrees, seqType, FALSE, columnList, refSeqName, includeSnpTrack);
     }
 }
 
@@ -4177,7 +4165,7 @@ static const char* findDetailViewFont(GtkWidget *detailView)
 
 
 GtkWidget* createDetailView(GtkWidget *blxWindow,
-			    GtkWidget *container,
+			    GtkContainer *parent,
 			    GtkAdjustment *adjustment, 
 			    GtkWidget *fwdStrandGrid, 
 			    GtkWidget *revStrandGrid,
@@ -4196,7 +4184,11 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
    * trees might be a direct child of this or a grandchild/grand-grandchild, so we will need
    * to look at all children recursively and check if they're the correct type. (We'll give 
    * all of our detail-view trees the same name so that we can identify them.) */
-  GtkWidget *detailView = gtk_vpaned_new();
+  GtkWidget *detailView = gtk_vbox_new(FALSE, 0);
+  gtk_container_add(parent, detailView);
+  
+  GtkWidget *panedWin = gtk_vpaned_new();
+  gtk_widget_set_name(panedWin, DETAIL_VIEW_WIDGET_NAME);
 
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
@@ -4217,6 +4209,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
   createDetailViewPanes(detailView, 
+			GTK_PANED(panedWin),
 			renderer,
 			fwdStrandGrid, 
 			revStrandGrid, 
@@ -4228,14 +4221,10 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			refSeqName,
 			!singleSnpTrack);
     
-  /* Put everything in a vbox, and pack it into the blixem window. */
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), buttonBar, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), detailView, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(detailView), buttonBar, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(detailView), header, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(detailView), panedWin, TRUE, TRUE, 0);
 
-  gtk_box_pack_start(GTK_BOX(container), vbox, TRUE, TRUE, 0);
-  
   /* Connect signals */
   gtk_widget_add_events(detailView, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);

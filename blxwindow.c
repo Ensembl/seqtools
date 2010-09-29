@@ -937,6 +937,10 @@ static void toggleGridVisibility(GtkWidget *blxWindow, const int number)
       
       GtkWidget *grid = useFwdGrid ? bigPictureGetFwdGrid(bigPicture) : bigPictureGetRevGrid(bigPicture);
       widgetSetHidden(grid, !widgetGetHidden(grid));
+
+      /* It's probably overkill to call refreshGridOrder here but I can't seem to find another way
+       * to force the paned window to shrink to take into account newly-hidden widgets */
+      refreshGridOrder(bigPicture);
     }
 }
 
@@ -951,6 +955,10 @@ static void toggleExonViewVisibility(GtkWidget *blxWindow, const int number)
       
       GtkWidget *exonView = useFwdExonView ? bigPictureGetFwdExonView(bigPicture) : bigPictureGetRevExonView(bigPicture);
       widgetSetHidden(exonView, !widgetGetHidden(exonView));
+
+      /* It's probably overkill to call refreshGridOrder here but I can't seem to find another way
+       * to force the paned window to shrink to take into account newly-hidden widgets */
+      refreshGridOrder(bigPicture);
     }
 }
 
@@ -3959,6 +3967,36 @@ static gboolean onButtonPressBlxWindow(GtkWidget *window, GdkEventButton *event,
 }
 
 
+/* Mouse button handler for the paned window containing the big picture and detail view */
+static gboolean onButtonPressPanedWin(GtkWidget *panedWin, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->button)
+    {
+    case 1: /* left button */
+      {
+	if (event->type == GDK_2BUTTON_PRESS) /* double-click */
+	  {
+	    /* When the user double-clicks the paned window separator, reset the splitter position
+	     * (i.e. so that gets automatically positioned based on the child widgets' size)
+	     * to do: This makes the splitter jump temporarily to the desired position but then it
+	     * immediately jumps back, so I'm leaving it out for now */
+	    /* gtk_paned_set_position(GTK_PANED(panedWin), 100); */
+	    handled = TRUE;
+	  }
+
+	break;
+      }
+      
+    default:
+      break;
+    };
+    
+  return handled;
+}
+
+
 /* Handlers for specific key presses */
 static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
@@ -5344,15 +5382,19 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   GtkWidget *fwdStrandGrid = NULL, *revStrandGrid = NULL;
 
+  /* Create the two main sections - the big picture and detail view - in a paned window */
+  GtkWidget *panedWin = gtk_vpaned_new();
+  gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
+
   GtkWidget *bigPicture = createBigPicture(window,
-					   vbox, 
+					   GTK_CONTAINER(panedWin),
 					   &fwdStrandGrid, 
 					   &revStrandGrid,
 					   options->bigPictZoom,
 					   lowestId);
 
   GtkWidget *detailView = createDetailView(window,
-					   vbox, 
+					   GTK_CONTAINER(panedWin),
 					   detailAdjustment, 
 					   fwdStrandGrid, 
 					   revStrandGrid,
@@ -5385,6 +5427,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 			    paddingSeq);
   
   /* Connect signals */
+  g_signal_connect(G_OBJECT(panedWin), "button-press-event", G_CALLBACK(onButtonPressPanedWin), window);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBlxWindow), mainmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBlxWindow), NULL);
   

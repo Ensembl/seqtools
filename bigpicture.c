@@ -27,6 +27,9 @@
 #define GRID_SCALE_MIN_ID_PER_CELL      0.1       /* minimum %ID per grid cell */
 #define GRID_SCALE_MIN                  0         /* minimum possible value for grid scale */
 #define GRID_SCALE_MAX                  100       /* maximum possible value for grid scale */
+#define BIG_PICTURE_GRID_HEADER_NAME	"BigPictureGridHeader"
+#define BIG_PICTURE_WIDGET_NAME		"BigPictureWidget" /* name of the direct parent of the grids etc. */
+#define MAX_BIG_PICTURE_HEIGHT_RATIO	0.4	  /* max height of the big picture wrt the whole window size */
 
 /* Local function declarations */
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
@@ -325,27 +328,28 @@ void refreshGridOrder(GtkWidget *bigPicture)
   g_object_ref(fwdExonView);
   g_object_ref(revExonView);
   
-  /* Remove them */
-  gtk_container_remove(GTK_CONTAINER(bigPicture), fwdStrandGrid);
-  gtk_container_remove(GTK_CONTAINER(bigPicture), revStrandGrid);
-  gtk_container_remove(GTK_CONTAINER(bigPicture), fwdExonView);
-  gtk_container_remove(GTK_CONTAINER(bigPicture), revExonView);
+  /* Find the direct container of the grids etc and remove them */
+  GtkWidget *bpContainer = getNamedChildWidget(bigPicture, BIG_PICTURE_WIDGET_NAME);
+  gtk_container_remove(GTK_CONTAINER(bpContainer), fwdStrandGrid);
+  gtk_container_remove(GTK_CONTAINER(bpContainer), revStrandGrid);
+  gtk_container_remove(GTK_CONTAINER(bpContainer), fwdExonView);
+  gtk_container_remove(GTK_CONTAINER(bpContainer), revExonView);
   
   /* Add them back, with the forward-strand grid at the top and the reverse-strand grid
    * at the bottom, or vice versa if the strands are toggled. */
   if (bigPictureGetDisplayRev(bigPicture))
     {
-      addChildToBigPicture(bigPicture, revStrandGrid, FALSE);
-      addChildToBigPicture(bigPicture, revExonView, FALSE);
-      addChildToBigPicture(bigPicture, fwdExonView, FALSE);
-      addChildToBigPicture(bigPicture, fwdStrandGrid, TRUE);
+      addChildToBigPicture(bpContainer, revStrandGrid, FALSE);
+      addChildToBigPicture(bpContainer, revExonView, FALSE);
+      addChildToBigPicture(bpContainer, fwdExonView, FALSE);
+      addChildToBigPicture(bpContainer, fwdStrandGrid, FALSE);
     }
   else
     {
-      addChildToBigPicture(bigPicture, fwdStrandGrid, FALSE);
-      addChildToBigPicture(bigPicture, fwdExonView, FALSE);
-      addChildToBigPicture(bigPicture, revExonView, FALSE);
-      addChildToBigPicture(bigPicture, revStrandGrid, TRUE);
+      addChildToBigPicture(bpContainer, fwdStrandGrid, FALSE);
+      addChildToBigPicture(bpContainer, fwdExonView, FALSE);
+      addChildToBigPicture(bpContainer, revExonView, FALSE);
+      addChildToBigPicture(bpContainer, revStrandGrid, FALSE);
     }
   
   /* Decrease the ref count again */
@@ -744,6 +748,63 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRecta
 }
 
 
+/* Recursively loop through the children of the given widget and sum the heights of any
+ * that are grid or exon-view widgets. */
+static int getBigPictureChildrenHeights(GtkWidget *widget, const int heightIn)
+{
+  GList *child = gtk_container_get_children(GTK_CONTAINER(widget));
+  int height = heightIn;
+  
+  for ( ; child; child = child->next)
+    {
+      GtkWidget *childWidget = GTK_WIDGET(child->data);
+
+      if (GTK_WIDGET_VISIBLE(childWidget))
+	{
+	  const gchar *name = gtk_widget_get_name(childWidget);
+      
+	  if (stringsEqual(name, BIG_PICTURE_GRID_NAME, TRUE) || 
+	      stringsEqual(name, BIG_PICTURE_EXON_VIEW_NAME, TRUE) ||
+	      stringsEqual(name, BIG_PICTURE_GRID_HEADER_NAME, TRUE))
+	    {
+	      height += childWidget->allocation.height;
+	    }
+	  else if (GTK_IS_CONTAINER(childWidget))
+	    {
+	      height += getBigPictureChildrenHeights(childWidget, height);
+	    }
+	}
+    }
+    
+  return height;
+}
+
+
+/* Calculate the size of the big picture's children and set its size request to fit them in
+ * but don't go greater than the maximum. This is called when the exon view or grids change size
+ * etc. to make sure we only use as much space as necessary. Note that because the big picture
+ * is in a paned window this does not have an effect if the user has changed (i.e. specifically
+ * set) the pane size, which makes sense but it would be nice to have some way to be able to 
+ * revert to the original behaviour */
+static void bigPictureRecalculateSize(GtkWidget *bigPicture)
+{
+  int height = getBigPictureChildrenHeights(bigPicture, 0);
+  height += 4; /* not sure where this extra space comes from (padding or something?) */
+
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+  int maxHeight = blxWindow->allocation.height * MAX_BIG_PICTURE_HEIGHT_RATIO;
+  
+  height = min(height, maxHeight);
+  gtk_widget_set_size_request(bigPicture, -1, height);
+}
+
+
+static void onSizeAllocateBigPicture(GtkWidget *bigPicture, GtkAllocation *allocation, gpointer data)
+{
+  bigPictureRecalculateSize(bigPicture);
+}
+
+
 /***********************************************************
  *                       Properties                        *
  ***********************************************************/
@@ -1107,6 +1168,7 @@ static GtkWidget* createButton(GtkWidget *container, char *label, char *tooltip,
 static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 {
   GtkWidget *header = gtk_layout_new(NULL, NULL);
+  gtk_widget_set_name(header, BIG_PICTURE_GRID_HEADER_NAME);
   
   /* Create the header buttons. Put them in an hbox */
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
@@ -1129,16 +1191,21 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 
 
 GtkWidget* createBigPicture(GtkWidget *blxWindow, 
-			    GtkWidget *container,
+			    GtkContainer *parent,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
 			    const int initialZoom,
 			    const gdouble lowestId)
 {
   /* Create the main big picture widget, which will contain all of the 
-   * individual big-picture grids, plus a header. */
-  GtkWidget *bigPicture = gtk_vbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(container), bigPicture, FALSE, TRUE, 0);
+   * individual big-picture grids, plus a header, in a scrollable vbox. */
+  GtkWidget *bigPicture = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(bigPicture), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_container_add(parent, bigPicture);
+   
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(bigPicture), vbox);
+  gtk_widget_set_name(vbox, BIG_PICTURE_WIDGET_NAME);
   
   /* Our big picture needs to have a header plus 3 panes:
    * 1. the top grid (fwd strand);
@@ -1146,7 +1213,7 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
    * 3. bottom grid (reverse strand) */
   
   GtkWidget *header = createBigPictureGridHeader(bigPicture);
-  addChildToBigPicture(bigPicture, header, FALSE);
+  addChildToBigPicture(vbox, header, FALSE);
 
   *fwdStrandGrid = createBigPictureGrid(bigPicture, BLXSTRAND_FORWARD);
   *revStrandGrid = createBigPictureGrid(bigPicture, BLXSTRAND_REVERSE);
@@ -1155,10 +1222,12 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
   GtkWidget *revExonView = createExonView(bigPicture, BLXSTRAND_REVERSE);
   
   /* By default, make the forward strand the top grid */
-  addChildToBigPicture(bigPicture, *fwdStrandGrid, FALSE);
-  addChildToBigPicture(bigPicture, fwdExonView, FALSE);
-  addChildToBigPicture(bigPicture, revExonView, FALSE);
-  addChildToBigPicture(bigPicture, *revStrandGrid, TRUE);
+  addChildToBigPicture(vbox, *fwdStrandGrid, FALSE);
+  addChildToBigPicture(vbox, fwdExonView, FALSE);
+  addChildToBigPicture(vbox, revExonView, FALSE);
+  addChildToBigPicture(vbox, *revStrandGrid, FALSE);
+
+  g_signal_connect(G_OBJECT(bigPicture), "size-allocate", G_CALLBACK(onSizeAllocateBigPicture), NULL);
 
   /* Set the big picture properties */
   bigPictureCreateProperties(bigPicture, 

@@ -201,7 +201,7 @@ void			drawHeaderChar(BlxViewContext *bc,
                                        GHashTable *intronBases);
 
 GtkWidget*		createDetailView(GtkWidget *blxWindow,
-					 GtkWidget *container,
+                                         GtkContainer *parent,
 					 GtkAdjustment *adjustment, 
 					 GtkWidget *fwdStrandGrid, 
 					 GtkWidget *revStrandGrid,
