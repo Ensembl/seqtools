@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.71 2010-09-30 13:23:03 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.72 2010-09-30 14:11:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1075,13 +1075,13 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
                 {
                   /* Create an intron to span the gap */
                   newRange.min = prevExon->qRange.max + 1;
-                  newRange.max = curExon->qRange.min;
+                  newRange.max = curExon->qRange.min - 1;
                 }
               else if (!prevExon && curExon && blxSeq->qRange.min < curExon->qRange.min && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the start */
                   newRange.min = blxSeq->qRange.min;
-                  newRange.max = curExon->qRange.min;
+                  newRange.max = curExon->qRange.min - 1;
                 }
               else if (msp == NULL && curExon && blxSeq->qRange.max > curExon->qRange.max && !mspIsIntron(prevMsp))
                 {
