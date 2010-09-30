@@ -1514,9 +1514,18 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
       GtkTreeIter iter;
       gtk_list_store_append(store, &iter);
       
-      /* The SequenceCellRenderer expects a GList of MSPs, so put our MSP in a list */
+      /* The SequenceCellRenderer expects a GList of MSPs, so put our MSP in a list. For exons,
+       * we want to add the child CDS/UTRs rather than the exon itself, so use the child list. */
       GList *mspGList = NULL;
-      mspGList = g_list_append(NULL, msp);
+      
+      if (msp->type == BLXMSP_EXON && g_list_length(msp->childMsps) > 0)
+        {
+          mspGList = msp->childMsps;
+        }
+      else
+        {
+          mspGList = g_list_append(NULL, msp);
+        }
       
       gtk_list_store_set(store, &iter,
 			 BLXCOL_SEQNAME, mspGetSName(msp),

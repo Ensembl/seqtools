@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.69 2010-09-27 17:16:11 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.70 2010-09-30 11:44:52 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1005,6 +1005,20 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           g_propagate_error(error, tmpError);
         }
     }
+    
+  /* We should now have all the bits. Set the relationship data. */
+  if (*exon && (*cds || *utr))
+    {
+      if (*cds)
+        (*exon)->childMsps = g_list_append((*exon)->childMsps, *cds);
+        
+      if (*utr)
+        (*exon)->childMsps = g_list_append((*exon)->childMsps, *utr);
+    }
+  else
+    {
+      g_debug("Incomplete transcript\n");
+    }
 }
 
 
@@ -1041,9 +1055,8 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
           gboolean foundGap = FALSE;
           
           if (msp && 
-              ((prevMsp && prevMsp->qRange.max < msp->qRange.min) ||
-               (!prevMsp && blxSeq->qRange.min < msp->qRange.min) ||
-               ((mspItem->next == NULL && blxSeq->qRange.max > msp->qRange.max))))
+              ((prevMsp && !rangesOverlap(&prevMsp->qRange, &msp->qRange)) ||
+               (!prevMsp && blxSeq->qRange.min < msp->qRange.min)))
             {
               foundGap = TRUE;
             }
@@ -1056,13 +1069,33 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
               copyCdsReadingFrame(curExon, curCds, curUtr);
 
-              /* Create an intron in the gap, unless there's already one here */
+              IntRange newRange = {UNSET_INT, UNSET_INT};
+              
               if (prevExon && curExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
+                  /* Create an intron to span the gap */
+                  newRange.min = prevExon->qRange.max + 1;
+                  newRange.max = curExon->qRange.min;
+                }
+              else if (!prevExon && curExon && blxSeq->qRange.min < curExon->qRange.min && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
+                {
+                  /* Create an intron at the start */
+                  newRange.min = blxSeq->qRange.min;
+                  newRange.max = curExon->qRange.min;
+                }
+              else if (msp == NULL && curExon && blxSeq->qRange.max > curExon->qRange.max && !mspIsIntron(prevMsp))
+                {
+                  /* Create an intron at the end */
+                  newRange.min = curExon->qRange.max + 1;
+                  newRange.max = blxSeq->qRange.max;
+                }
+              
+              if (newRange.min != UNSET_INT && newRange.max != UNSET_INT)
+                {
                   createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, blxSeq->idTag,
-                               NULL, prevExon->qRange.max + 1, curExon->qRange.min, blxSeq->strand, UNSET_INT, blxSeq->fullName,
-                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
-                  
+                              NULL, newRange.min, newRange.max, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+                              UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
+              
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
 
@@ -1439,6 +1472,7 @@ static MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   MSP *msp = (MSP *)g_malloc(sizeof(MSP));
   
   msp->next = NULL;
+  msp->childMsps = NULL;
   msp->type = BLXMSP_INVALID;
   msp->score = 0.0;
   msp->id = 0.0;

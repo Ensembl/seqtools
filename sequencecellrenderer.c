@@ -691,7 +691,7 @@ static void getCoordsForBaseIdx(const int segmentIdx,
  * coords are within the current display range */
 static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 {
-  if (msp && mspIsExon(msp))
+  if (msp && (msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR))
     {
       /* Get the msp's start/end in terms of the display coords */
       const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);

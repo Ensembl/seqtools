@@ -454,6 +454,11 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
     }
 
   bigPictureRedrawAll(bigPicture);
+ 
+  /* This call to refreshGridOrder is not strictly necessary but is included because I can't find
+   * another way to force the big picture pane to resize when the exon view shrinks, even though 
+   * set_size_request is called on the exon views in calculateExonViewHeight above. */
+  refreshGridOrder(bigPicture); 
 }
 
 
@@ -802,6 +807,7 @@ static void bigPictureRecalculateSize(GtkWidget *bigPicture)
 static void onSizeAllocateBigPicture(GtkWidget *bigPicture, GtkAllocation *allocation, gpointer data)
 {
   bigPictureRecalculateSize(bigPicture);
+  bigPictureRedrawAll(bigPicture);
 }
 
 
