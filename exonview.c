@@ -526,7 +526,7 @@ static gboolean onButtonReleaseExonView(GtkWidget *exonView, GdkEventButton *eve
 
 static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, gpointer data)
 {
-  if (event->state == GDK_BUTTON2_MASK) /* middle button */
+  if (event->state & GDK_BUTTON2_MASK) /* middle button */
     {
       /* Draw a preview box at the mouse pointer location */
       showPreviewBox(exonViewGetBigPicture(exonView), event->x);
