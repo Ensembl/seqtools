@@ -128,16 +128,16 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
   const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
   const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
   
-  if (valueWithinRange(coord1, data->displayRange) || valueWithinRange(coord2, data->displayRange))
+  IntRange mspDisplayRange;
+  intrangeSetValues(&mspDisplayRange, coord1, coord2); /* sorts out which is min and max */
+  
+  if (rangesOverlap(&mspDisplayRange, data->displayRange))
     {
       drawn = TRUE;
 
       /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the max coord + 1 */
-      const int minCoord = min(coord1, coord2);
-      const int maxCoord = max(coord1, coord2) + 1;
-      
-      int xMin = convertBaseIdxToGridPos(minCoord, data->exonViewRect, data->displayRange);
-      int xMax = convertBaseIdxToGridPos(maxCoord, data->exonViewRect, data->displayRange);
+      const int xMin = convertBaseIdxToGridPos(mspDisplayRange.min, data->exonViewRect, data->displayRange);
+      const int xMax = convertBaseIdxToGridPos(mspDisplayRange.max + 1, data->exonViewRect, data->displayRange);
       
       int x = xMin;
       int width = xMax - xMin;
@@ -306,7 +306,10 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	      const int startCoord = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
 	      const int endCoord = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
 	      
-	      if (valueWithinRange(startCoord, displayRange) || valueWithinRange(endCoord, displayRange))
+              IntRange mspDisplayRange;
+              intrangeSetValues(&mspDisplayRange, startCoord, endCoord);
+              
+              if (rangesOverlap(&mspDisplayRange, displayRange))
 		{
 		  ++numExons;
 		  break; /* break inner loop and move to next sequence */
