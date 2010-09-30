@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.70 2010-09-30 11:44:52 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.71 2010-09-30 13:23:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1055,7 +1055,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
           gboolean foundGap = FALSE;
           
           if (msp && 
-              ((prevMsp && !rangesOverlap(&prevMsp->qRange, &msp->qRange)) ||
+              ((prevMsp && mspIsExon(prevMsp) && !rangesOverlap(&prevMsp->qRange, &msp->qRange)) ||
                (!prevMsp && blxSeq->qRange.min < msp->qRange.min)))
             {
               foundGap = TRUE;

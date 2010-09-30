@@ -2341,6 +2341,46 @@ static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *
   return result;
 }
 
+/* Sort comparison function for sorting by the start position on the reference sequence */
+static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *tree)
+{
+  gint result = 0;
+
+  if (treeGetDisplayRev(tree))
+    {
+      /* Display is reversed (i.e. numbers shown descending) so use compare on the max coord
+       * and look for the max */
+      result = msp2->qRange.max - msp1->qRange.max;
+    }
+  else 
+    {
+      result = msp1->qRange.min - msp2->qRange.min;
+    }
+
+  return result;
+}
+
+/* Sort comparison function for sorting by the start position on the reference sequence
+ * when we have multiple MSPs to compare */
+static gint sortByStartCompareFuncMultiple(GList *mspList1, GList *mspList2, const gboolean msp1Fwd, const gboolean msp2Fwd, GtkWidget *tree)
+{
+  gint result = 0;
+
+  const gboolean displayRev = treeGetDisplayRev(tree);
+
+  const int coord1 = findMspListQExtent(mspList1, !displayRev); /* find min coord unless display rev */
+  const int coord2 = findMspListQExtent(mspList2, !displayRev);
+
+  result = coord1 - coord2;
+
+  if (displayRev)
+    {
+      /* Display is reversed (i.e. numbers shown descending) so reverse the result */
+      result *= -1;
+    }
+
+  return result;
+}
 
 /* Sort comparison function for sorting by string values. Allows NULL values and
  * sorts them AFTER non-null values. Comparison is case-insensitive. */
@@ -2417,7 +2457,10 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
         break;
 
       case BLXCOL_START:
-        result = multipleMsps ? 0 : msp1->qRange.min - msp2->qRange.min;
+        if (multipleMsps)
+          result = sortByStartCompareFuncMultiple(mspGList1, mspGList2, msp1->qStrand == BLXSTRAND_FORWARD, msp2->qStrand == BLXSTRAND_FORWARD, tree);
+        else
+          result = sortByStartCompareFunc(msp1, msp2, tree);
         break;
 
       case BLXCOL_GROUP:

@@ -3137,8 +3137,10 @@ void toggleStrand(GtkWidget *detailView)
   refreshTreeOrder(detailView);
   refreshGridOrder(bigPicture);
 
-  /* Redraw the tree and detail-view headers */
+  /* Redraw the tree and detail-view headers. Also need to resort because if the display is
+   * reversed it affects sorting by position. */
   refreshDetailViewHeaders(detailView);
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   gtk_widget_queue_draw(detailView);
   
