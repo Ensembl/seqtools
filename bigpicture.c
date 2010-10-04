@@ -90,27 +90,41 @@ gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRang
 }
 
 
+/* Invert the given coord's position within the given range. Only invert if the bool is true; otherwise
+ * returns the original coord */
+static int invertCoord(const int coord, const IntRange const *range, const gboolean invert)
+{
+  int result = invert ? range->max - coord + range->min : coord;
+  return result;
+}
+
+
 /* Convert a base index to an x coord within the given rectangle. Returns the number of pixels 
  * from the left edge (including the start of the rectangle) to where the base lies. displayRev 
  * should be passed as true if the display is toggled (i.e. low values on the right and high 
- * values on the left). */
-gint convertBaseIdxToGridPos(const gint baseIdx, 
+ * values on the left). Clips the result to the rectangle if clip is true */
+gint convertBaseIdxToGridPos(const gint dnaIdx, 
 			     const GdkRectangle const *rect, 
-			     const IntRange const *displayRange)
+			     const IntRange const *dnaDispRange,
+                             const gboolean displayRev,
+                             const gboolean clip)
 {
   gint result = UNSET_INT;
   
-  gdouble numBasesFromEdge = (gdouble)(baseIdx - displayRange->min); /* 0-based index from edge */
-  if (numBasesFromEdge < 0)
+  int baseIdx = invertCoord(dnaIdx, dnaDispRange, displayRev);
+  
+  gdouble numBasesFromEdge = (gdouble)(baseIdx - dnaDispRange->min); /* 0-based index from edge */
+
+  if (clip && numBasesFromEdge < 0)
     {
       numBasesFromEdge = 0;
     }
   
-  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rect->width, displayRange));
+  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rect->width, dnaDispRange));
   
   result = rect->x + pixelsFromEdge;
   
-  if (result > rect->x + rect->width)
+  if (clip && result > rect->x + rect->width)
     {
       result = rect->x + rect->width;
     }
@@ -188,13 +202,16 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+  
+  /* Get the display range in dna coords */
+  IntRange dnaDispRange;
+  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
 
   const int direction = bc->displayRev ? -1 : 1; /* to subtract instead of add when display reversed */
   
-  /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
-   * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
+  /* Get the first base index and round it to a nice round number. We'll offset all of the gridlines 
+   * by the distance between this and the real start coord. */
+  const int firstBaseIdx = roundToValue(dnaDispRange.min, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
   const gint bottomBorder = headerProperties->headerRect.y + headerProperties->headerRect.height;
@@ -211,8 +228,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int x = convertBaseIdxToGridPos(displayIdx, &headerProperties->headerRect, &bpProperties->displayRange);
+      const int x = convertBaseIdxToGridPos(baseIdx, &headerProperties->headerRect, &dnaDispRange, bc->displayRev, TRUE);
       
       if (x > minX && x < maxX)
 	{
@@ -667,16 +683,25 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 }
 
 
-/* Convert an x coord on the given widget to a base index */
-gint convertWidgetPosToBaseIdx(const gint widgetPos, 
-                               const GdkRectangle const *displayRect,  
-                               const IntRange const *displayRange)
+/* Convert an x coord on the given widget to a base index (in nucleotide coords) */
+static gint convertWidgetPosToBaseIdx(const gint widgetPos, 
+                                      const GdkRectangle const *displayRect,  
+                                      const IntRange const *dnaDispRange,
+                                      const gboolean displayRev)
 {
   gint result = UNSET_INT;
   
   int distFromEdge = (int)((gdouble)widgetPos - (gdouble)displayRect->x);
-  int basesFromEdge = distFromEdge / pixelsPerBase(displayRect->width, displayRange);
-  result = displayRange->min + basesFromEdge;
+  int basesFromEdge = distFromEdge / pixelsPerBase(displayRect->width, dnaDispRange);
+  
+  if (displayRev)
+    {
+      result = dnaDispRange->max - basesFromEdge;
+    }
+  else
+    {
+      result = dnaDispRange->min + basesFromEdge;
+    }
   
   return result;
 }
@@ -687,15 +712,19 @@ gint convertWidgetPosToBaseIdx(const gint widgetPos,
  * Only does anything if the preview box centre is set. */
 void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, GdkRectangle *displayRect, GdkRectangle *highlightRect)
 {
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(bigPicture);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
   
-  if (bigPictureProperties->previewBoxCentre == UNSET_INT)
+  if (bpProperties->previewBoxCentre == UNSET_INT)
     {
       return;
     }
 
-  int previewBoxCentre = bigPictureProperties->previewBoxCentre;
-  const IntRange const *displayRange = &bigPictureProperties->displayRange;
+  int previewBoxCentre = bpProperties->previewBoxCentre;
+  
+  /* Get the display range in dna coords */
+  IntRange dnaDispRange;
+  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
   
   /* Find the x coord for the left edge of the preview box (or the right edge, if
    * the display is right-to-left). */
@@ -703,15 +732,14 @@ void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, Gdk
   
   /* Convert it to the base index and back again so that we get it rounded to the position of
    * the nearest base. */
-  int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, displayRange);
-  int xRounded = convertBaseIdxToGridPos(baseIdx, displayRect, displayRange);
+  int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
+  int xRounded = convertBaseIdxToGridPos(baseIdx, displayRect, &dnaDispRange, bc->displayRev, TRUE);
   
   /* The other dimensions of the preview box are the same as the current highlight box. */
   GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
 
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
   GdkColor *previewBoxColor = getGdkColor(BLXCOLOR_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-  drawHighlightBox(drawable, &previewRect, bigPictureProperties->previewBoxLineWidth, previewBoxColor);
+  drawHighlightBox(drawable, &previewRect, bpProperties->previewBoxLineWidth, previewBoxColor);
 }
 
 
@@ -732,22 +760,28 @@ void showPreviewBox(GtkWidget *bigPicture, const int x)
  * the preview box.  */
 void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect)
 {
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+  
+  /* Get the display range in dna coords */
+  IntRange dnaDispRange;
+  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
   
   /* Find the base index where the new scroll range will start. This is the leftmost
    * edge of the preview box if numbers increase in the normal left-to-right direction, 
    * or the rightmost edge if the display is reversed. */
-  int x = getLeftCoordFromCentre(xCentre, highlightRect->width, displayRect);
-  int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, displayRange);
+  const int x = getLeftCoordFromCentre(xCentre, highlightRect->width, displayRect);
+  const int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
   
   /* Clear the preview box */
   bigPictureSetPreviewBoxCentre(bigPicture, UNSET_INT);
   
   /* Update the detail view's scroll pos to start at the new base. The base index is in terms of
-   * the display coords, so the coord's sequence type is whatever the displayed sequence type is */
+   * the nucleotide coords so we need to convert to display coords */
+  const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  
   GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
-  const BlxSeqType seqType = detailViewGetSeqType(detailView);  /* displayed seq type */
-  setDetailViewStartIdx(detailView, baseIdx, seqType);
+  setDetailViewStartIdx(detailView, displayIdx, bc->seqType);
   
   gtk_widget_queue_draw(bigPicture);
 }

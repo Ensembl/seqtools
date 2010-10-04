@@ -97,8 +97,6 @@ void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean
 void			      calculateNumVCells(GtkWidget *bigPicture);
 void			      bigPictureRedrawAll(GtkWidget *bigPicture);
 
-gint                          convertWidgetPosToBaseIdx(const gint widgetPos, const GdkRectangle const *displayRect, const IntRange const *displayRange);
-
 void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 void                          showPreviewBox(GtkWidget *bigPicture, const int x);
 void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
@@ -109,9 +107,11 @@ void			      zoomWholeBigPicture(GtkWidget *bigPicture);
 gdouble			      pixelsPerBase(const gint displayWidth, 
 					    const IntRange const *displayRange);
 
-gint			      convertBaseIdxToGridPos(const gint baseIdx, 
+gint			      convertBaseIdxToGridPos(const gint dnaIdx, 
 						      const GdkRectangle const *gridRect, 
-						      const IntRange const *displayRange);
+						      const IntRange const *dnaDispRange,
+                                                      const gboolean displayRev,
+                                                      const gboolean clip);
 
 int			      getLeftCoordFromCentre(const int centreCoord, 
 						     const int width, 

@@ -14,6 +14,7 @@
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define DEFAULT_EXON_HEIGHT			 10
 #define DEFAULT_EXON_HEIGHT_BUMPED		 7
@@ -31,6 +32,8 @@ typedef struct _ExonViewProperties
     
     GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
     GdkRectangle highlightRect;       /* The area that the highlight box will cover (indicating the current detail-view display range) */
+    
+    int exonHeight;                   /* the height of an individual exon */ 
   } ExonViewProperties;
 
 
@@ -86,23 +89,36 @@ void callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data)
 
 
 /* Draw an exon */
-static void drawExon(const MSP const *msp, GdkDrawable *drawable, DrawData *data, const BlxSequence *blxSeq, const gboolean isSelected, int x, int y, int width, int height)
+static void drawExon(const MSP const *msp, 
+                     DrawData *data, 
+                     const BlxSequence *blxSeq, 
+                     const gboolean isSelected, 
+                     const int x, 
+                     const int y,
+                     const int width,
+                     const int height)
 {
   /* Draw the fill rectangle */
   const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE);
   gdk_gc_set_foreground(data->gc, fillColor);
-  gdk_draw_rectangle(drawable, data->gc, TRUE, x, y, width, height);
+  gdk_draw_rectangle(data->drawable, data->gc, TRUE, x, y, width, height);
   
   /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
   const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE);
   gdk_gc_set_foreground(data->gc, lineColor);
-  gdk_draw_rectangle(drawable, data->gc, FALSE, x, y, width, height);
-  
+  gdk_draw_rectangle(data->drawable, data->gc, FALSE, x, y, width, height);
 }
 
 
 /* Draw an intron */
-static void drawIntron(const MSP const *msp, GdkDrawable *drawable, DrawData *data, const BlxSequence *blxSeq, const gboolean isSelected, int x, int y, int width, int height)
+static void drawIntron(const MSP const *msp, 
+                       DrawData *data, 
+                       const BlxSequence *blxSeq, 
+                       const gboolean isSelected, 
+                       const int x, 
+                       const int y, 
+                       const int width, 
+                       const int height)
 {
   const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE);
   gdk_gc_set_foreground(data->gc, lineColor);
@@ -110,9 +126,18 @@ static void drawIntron(const MSP const *msp, GdkDrawable *drawable, DrawData *da
   int xMid = x + roundNearest((double)width / 2.0);
   int xEnd = x + width;
   int yMid = y + roundNearest((double)height / 2.0);
+
+  /* Only draw the individual sections if they are in range. For some reason they get drawn in 
+   * the wrong place otherwise. */
+  if (xMid >= data->exonViewRect->x && x <= data->exonViewRect->x + data->exonViewRect->width)
+    {
+      gdk_draw_line(data->drawable, data->gc, x, yMid, xMid, y);
+    }
   
-  gdk_draw_line(drawable, data->gc, x, yMid, xMid, y);
-  gdk_draw_line(drawable, data->gc, xMid, y, xEnd, yMid);
+  if (xEnd >= data->exonViewRect->x && xMid <= data->exonViewRect->x + data->exonViewRect->width)
+    {
+      gdk_draw_line(data->drawable, data->gc, xMid, y, xEnd, yMid);
+    }
 }
 
 
@@ -131,26 +156,39 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
   IntRange mspDisplayRange;
   intrangeSetValues(&mspDisplayRange, coord1, coord2); /* sorts out which is min and max */
   
+  /* Include an extra coord either side because we draw slightly over the edges */
+  --mspDisplayRange.min;
+  ++mspDisplayRange.max;
+  
   if (rangesOverlap(&mspDisplayRange, data->displayRange))
     {
       drawn = TRUE;
 
-      /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the max coord + 1 */
-      const int xMin = convertBaseIdxToGridPos(mspDisplayRange.min, data->exonViewRect, data->displayRange);
-      const int xMax = convertBaseIdxToGridPos(mspDisplayRange.max + 1, data->exonViewRect, data->displayRange);
+      /* Get the display range in dna coords */
+      IntRange dnaDispRange;
+      convertDisplayRangeToDnaRange(data->displayRange, data->bc->seqType, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, &dnaDispRange);
       
-      int x = xMin;
-      int width = xMax - xMin;
+      /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the end coord + 1
+       * (or end - 1 if the end coord is the lower value) */
+      const int direction = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD) ? 1 : -1;
+      const int qStart = mspGetQStart(msp);
+      const int qEnd = mspGetQEnd(msp) + direction;
+      
+      const int x1 = convertBaseIdxToGridPos(qStart, data->exonViewRect, &dnaDispRange, data->bc->displayRev, FALSE);
+      const int x2 = convertBaseIdxToGridPos(qEnd, data->exonViewRect, &dnaDispRange, data->bc->displayRev, FALSE);
+      
+      int x = min(x1, x2);
+      int width = abs(x1 - x2);
       int y = data->y;
       int height = data->height;
       
       if (mspIsExon(msp))
 	{
-	  drawExon(msp, data->drawable, data, blxSeq, isSelected, x, y, width, height);
+	  drawExon(msp, data, blxSeq, isSelected, x, y, width, height);
 	}
       else if (mspIsIntron(msp))
 	{
-	  drawIntron(msp, data->drawable, data, blxSeq, isSelected, x, y, width, height);
+	  drawIntron(msp, data, blxSeq, isSelected, x, y, width, height);
 	}
     }
   
@@ -225,9 +263,14 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
                    bigPictureProperties->highlightBoxMinWidth, 
                    highlightBoxColor);
 
+  /* Set a clip rectangle for drawing the exons and introns (because they are drawn "over the
+   * edges" to make sure intron lines have the correct slope etc.) */
+  GdkGC *gc = gdk_gc_new(drawable);
+  gdk_gc_set_clip_origin(gc, 0, 0);
+  gdk_gc_set_clip_rectangle(gc, &properties->exonViewRect);
+  
   /* Draw the exons and introns. Since we could have a lot of them in the loop, extract all the
    * info we need now and pass it around so we don't have to look for this stuff each time. */
-  GdkGC *gc = gdk_gc_new(drawable);
   
   DrawData drawData = {
     drawable,
@@ -245,7 +288,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     FALSE,
     properties->yPad,
     properties->exonViewRect.y,
-    properties->exonViewRect.height
+    properties->exonHeight
   };
   
   /* If the view is compressed (i.e. exons will overlap each other), then
@@ -324,32 +367,35 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	}
     }
   
-  const int newHeight = (numExons * (properties->exonViewRect.height + properties->yPad)) + (2 * properties->yPad);
+  properties->exonViewRect.height = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
   
-  gtk_widget_set_size_request(exonView, -1, newHeight);
+  gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
 }
 
 
 void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
+  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
   
-  /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
-   * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
+  /* Get the big picture display range in dna coords */
+  IntRange bpRange;
+  convertDisplayRangeToDnaRange(bigPictureGetDisplayRange(properties->bigPicture), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
+
+  /* Get the detail view display range in dna coords */
+  IntRange dvRange;
   GtkWidget *detailView = bigPictureGetDetailView(properties->bigPicture);
-  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+  convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
   
-  if (adjustment)
-    {
-      IntRange *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
-      int firstBaseIdx = adjustment->value;
-      
-      properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->exonViewRect, displayRange);
-      properties->highlightRect.y = 0; //properties->exonViewRect.y - bigPictureProperties->highlightBoxYPad;
-      
-      properties->highlightRect.width = roundNearest((gdouble)adjustment->page_size * pixelsPerBase(properties->exonViewRect.width, displayRange));
-      properties->highlightRect.height = exonView->allocation.height; //properties->exonViewRect.height + (2 * bigPictureProperties->highlightBoxYPad);
-    }
+  /* Calculate how many pixels from the left edge of the widget to the first base in the range. */
+  const int x1 = convertBaseIdxToGridPos(dvRange.min, &properties->exonViewRect, &bpRange, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToGridPos(dvRange.max, &properties->exonViewRect, &bpRange, bc->displayRev, TRUE);
+  
+  properties->highlightRect.x = min(x1, x2);
+  properties->highlightRect.y = 0;
+  
+  properties->highlightRect.width = abs(x1 - x2);
+  properties->highlightRect.height = exonView->allocation.height;
 }
 
 
@@ -404,6 +450,8 @@ static void exonViewCreateProperties(GtkWidget *exonView,
       properties->exonViewRect.y      = DEFAULT_EXON_YPAD;
       properties->exonViewRect.width  = 0;
       properties->exonViewRect.height = DEFAULT_EXON_HEIGHT;
+
+      properties->exonHeight          = DEFAULT_EXON_HEIGHT;
       
       gtk_widget_set_size_request(exonView, 0, DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
 
@@ -439,12 +487,12 @@ void exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded)
   if (expanded)
     {
       properties->yPad = DEFAULT_EXON_YPAD_BUMPED;
-      properties->exonViewRect.height = DEFAULT_EXON_HEIGHT_BUMPED;
+      properties->exonHeight = DEFAULT_EXON_HEIGHT_BUMPED;
     }
   else 
     {
       properties->yPad = DEFAULT_EXON_YPAD;
-      properties->exonViewRect.height = DEFAULT_EXON_HEIGHT;
+      properties->exonHeight = DEFAULT_EXON_HEIGHT;
     }
   
   calculateExonViewHeight(exonView);

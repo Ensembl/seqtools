@@ -15,6 +15,7 @@
 #include <SeqTools/utilities.h>
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"
@@ -107,11 +108,15 @@ static void drawVerticalGridLines(GtkWidget *grid,
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
   
+    /* Get the display range in dna coords */
+  IntRange dnaDispRange;
+  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
+
   const int direction = bc->displayRev ? -1 : 1; /* to subtract instead of add when display reversed */
   
   /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
    * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min,bc-> seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
@@ -128,8 +133,7 @@ static void drawVerticalGridLines(GtkWidget *grid,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int x = convertBaseIdxToGridPos(displayIdx, &properties->gridRect, &bpProperties->displayRange);
+      const int x = convertBaseIdxToGridPos(baseIdx, &properties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
 
       if (x > minX && x < maxX)
 	{
@@ -200,20 +204,15 @@ void calculateMspLineDimensions(GtkWidget *grid,
   BlxViewContext *bc = gridGetContext(grid);
   GridProperties *gridProperties = gridGetProperties(grid);
 
-  const IntRange const *displayRange = bigPictureGetDisplayRange(gridProperties->bigPicture);
-  const int frame = mspGetRefFrame(msp, bc->seqType);
+  /* Get the display range in dna coords */
+  IntRange dnaDispRange;
+  convertDisplayRangeToDnaRange(gridGetDisplayRange(grid), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
 
-  /* Find the coordinates of the start and end base in this match sequence, and convert to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int x1 = convertBaseIdxToGridPos(msp->qRange.min, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToGridPos(msp->qRange.max, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
   
-  /* Convert the coords to grid positions. The grid positions we use are for the left edge
-   * of the coord, so to draw the end coord inclusively we need to increase the max coord by 1 */
-  const int minCoord = min(coord1, coord2);
-  const int maxCoord = max(coord1, coord2) + 1;
-  
-  int xMin = convertBaseIdxToGridPos(minCoord, &gridProperties->gridRect, displayRange);
-  int xMax = convertBaseIdxToGridPos(maxCoord, &gridProperties->gridRect, displayRange);
+  const int xMin = min(x1, x2);
+  const int xMax = max(x1, x2);
 
   if (x)
     {
@@ -420,14 +419,25 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
   if (adjustment)
     {
       BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
+      BlxViewContext *bc = gridGetContext(grid);
 
-      IntRange *displayRange = gridGetDisplayRange(grid);
-      int firstBaseIdx = adjustment->value;
+      /* Get the grid display range in dna coords */
+      IntRange gridRange;
+      convertDisplayRangeToDnaRange(gridGetDisplayRange(grid), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &gridRange);
 
-      properties->highlightRect.x = convertBaseIdxToGridPos(firstBaseIdx, &properties->gridRect, displayRange);
-      properties->highlightRect.y = 0; //properties->gridRect.y - bigPictureProperties->highlightBoxYPad;
+      /* Get the detail view display range in dna coords */
+      GtkWidget *detailView = gridGetDetailView(grid);
+      IntRange dvRange;
+      convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
+
+      /* Get the x coords for the start and end of the detail view display range */
+      const int x1 = convertBaseIdxToGridPos(dvRange.min, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
+      const int x2 = convertBaseIdxToGridPos(dvRange.max, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
       
-      properties->highlightRect.width = roundNearest((gdouble)adjustment->page_size * pixelsPerBase(properties->gridRect.width, displayRange));
+      properties->highlightRect.x = min(x1, x2);
+      properties->highlightRect.y = 0;
+      
+      properties->highlightRect.width = abs(x1 - x2);
       properties->highlightRect.height = properties->gridRect.height + (bigPictureProperties->charHeight / 2) + properties->mspLineHeight + (2 * bigPictureProperties->highlightBoxYPad);
     }
 }

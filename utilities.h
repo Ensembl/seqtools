@@ -190,6 +190,13 @@ void		      boundsLimitValue(int *value, const IntRange const *range);
 void                  boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
+void                  convertDisplayRangeToDnaRange(const IntRange const * displayRange, 
+                                                    const BlxSeqType displaySeqType,
+                                                    const int numFrames,
+                                                    const gboolean displayRev,
+                                                    const IntRange const *refSeqRange,
+                                                    IntRange *result);
+
 int		      convertDisplayIdxToDnaIdx(const int inputIdx, 
 						const BlxSeqType inputIdxType,
 						const int frame, 

@@ -741,6 +741,20 @@ char getRefSeqBase(char *refSeq,
 }
 
 
+/* Convert the given range of display coords to dna coords */
+void convertDisplayRangeToDnaRange(const IntRange const * displayRange, 
+                                   const BlxSeqType displaySeqType,
+                                   const int numFrames,
+                                   const gboolean displayRev,
+                                   const IntRange const *refSeqRange,
+                                   IntRange *result)
+{
+  const int q1 = convertDisplayIdxToDnaIdx(displayRange->min, displaySeqType, 1, 1, numFrames, displayRev, refSeqRange); /* 1st base in 1st reading frame */
+  const int q2 = convertDisplayIdxToDnaIdx(displayRange->max, displaySeqType, numFrames, numFrames, numFrames, displayRev, refSeqRange); /* last base in last frame */
+  intrangeSetValues(result, q1, q2);
+}
+
+
 /* Given an index into the displayed sequence, a reading frame, and the base number within that
  * reading frame, return the index into the DNA sequence that will give the equivalent DNA base.
  * If the display sequence is a peptide sequence, it will convert the coord to a DNA coord. If the
