@@ -103,30 +103,33 @@ static void drawExon(const MSP const *msp,
   gint xEnd = x + widthIn;
   gint width = widthIn;
   
-  const gint xMin = data->exonViewRect->x - 1;
-  const gint xMax = data->exonViewRect->x + data->exonViewRect->width + 1;
+  const gint xMin = data->exonViewRect->x;
+  const gint xMax = data->exonViewRect->x + data->exonViewRect->width;
   
-  if (xStart < xMin)
+  if (xStart <= xMax && xEnd >= xMin)
     {
-      xStart = xMin;
-      width = xEnd - xStart;
-    }
+      if (xStart < xMin)
+        {
+          xStart = xMin - 1;
+          width = xEnd - xStart;
+        }
 
-  if (xEnd > xMax)
-    {
-      xEnd = xMax;
-      width = xEnd - xStart;
-    }
+      if (xEnd > xMax)
+        {
+          xEnd = xMax + 1;
+          width = xEnd - xStart;
+        }
 
-  /* Draw the fill rectangle */
-  const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE);
-  gdk_gc_set_foreground(data->gc, fillColor);
-  gdk_draw_rectangle(data->drawable, data->gc, TRUE, x, y, width, height);
-  
-  /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
-  const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE);
-  gdk_gc_set_foreground(data->gc, lineColor);
-  gdk_draw_rectangle(data->drawable, data->gc, FALSE, x, y, width, height);
+      /* Draw the fill rectangle */
+      const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE);
+      gdk_gc_set_foreground(data->gc, fillColor);
+      gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, y, width, height);
+      
+      /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
+      const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE);
+      gdk_gc_set_foreground(data->gc, lineColor);
+      gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, y, width, height);
+    }
 }
 
 
@@ -165,10 +168,10 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
           int newWidth = abs(xEnd - xStart);
           int newHeight = abs(y2 - y1) * newWidth / clipRect->width;
           
-          if (yEnd > yStart)
-            yEnd = yStart + newHeight;
+          if (yStart > yEnd)
+            yEnd = yStart - newHeight;
           else
-            yStart = yEnd + newHeight;
+            yStart = yEnd - newHeight;
         }
       
       gdk_draw_line(data->drawable, data->gc, xStart, yStart, xEnd, yEnd);
@@ -219,26 +222,20 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
   IntRange mspDisplayRange;
   intrangeSetValues(&mspDisplayRange, coord1, coord2); /* sorts out which is min and max */
   
-  /* Include an extra coord either side because we draw slightly over the edges */
-  --mspDisplayRange.min;
-  ++mspDisplayRange.max;
-  
   if (rangesOverlap(&mspDisplayRange, data->displayRange))
     {
       drawn = TRUE;
-
+      
       /* Get the display range in dna coords */
       IntRange dnaDispRange;
       convertDisplayRangeToDnaRange(data->displayRange, data->bc->seqType, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, &dnaDispRange);
       
-      /* The grid pos gives the left edge of the coord, so to be inclusive we draw to the end coord + 1
-       * (or end - 1 if the end coord is the lower value) */
-      const int direction = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD) ? 1 : -1;
-      const int qStart = mspGetQStart(msp);
-      const int qEnd = mspGetQEnd(msp) + direction;
+      /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
+      const int qStart = msp->qRange.min;
+      const int qEnd = msp->qRange.max + 1;
       
-      const gint x1 = convertBaseIdxToGridPos(qStart, data->exonViewRect, &dnaDispRange, data->bc->displayRev, TRUE);
-      const gint x2 = convertBaseIdxToGridPos(qEnd, data->exonViewRect, &dnaDispRange, data->bc->displayRev, TRUE);
+      const gint x1 = convertBaseIdxToGridPos(qStart, data->exonViewRect, &dnaDispRange, data->bc->displayRev, FALSE);
+      const gint x2 = convertBaseIdxToGridPos(qEnd, data->exonViewRect, &dnaDispRange, data->bc->displayRev, FALSE);
 
       gint x = min(x1, x2);
       gint width = abs(x1 - x2);
@@ -452,7 +449,7 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
   
   /* Calculate how many pixels from the left edge of the widget to the first base in the range. */
   const int x1 = convertBaseIdxToGridPos(dvRange.min, &properties->exonViewRect, &bpRange, bc->displayRev, TRUE);
-  const int x2 = convertBaseIdxToGridPos(dvRange.max, &properties->exonViewRect, &bpRange, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToGridPos(dvRange.max + 1, &properties->exonViewRect, &bpRange, bc->displayRev, TRUE);
   
   properties->highlightRect.x = min(x1, x2);
   properties->highlightRect.y = 0;

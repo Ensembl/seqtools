@@ -432,7 +432,7 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
 
       /* Get the x coords for the start and end of the detail view display range */
       const int x1 = convertBaseIdxToGridPos(dvRange.min, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToGridPos(dvRange.max, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
+      const int x2 = convertBaseIdxToGridPos(dvRange.max + 1, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
       
       properties->highlightRect.x = min(x1, x2);
       properties->highlightRect.y = 0;
