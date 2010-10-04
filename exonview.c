@@ -93,11 +93,31 @@ static void drawExon(const MSP const *msp,
                      DrawData *data, 
                      const BlxSequence *blxSeq, 
                      const gboolean isSelected, 
-                     const int x, 
-                     const int y,
-                     const int width,
-                     const int height)
+                     const gint x, 
+                     const gint y,
+                     const gint widthIn,
+                     const gint height)
 {
+  /* Clip to the drawing area (or just beyond, so we don't get end lines where the exon doesn't really end) */
+  gint xStart = x;
+  gint xEnd = x + widthIn;
+  gint width = widthIn;
+  
+  const gint xMin = data->exonViewRect->x - 1;
+  const gint xMax = data->exonViewRect->x + data->exonViewRect->width + 1;
+  
+  if (xStart < xMin)
+    {
+      xStart = xMin;
+      width = xEnd - xStart;
+    }
+
+  if (xEnd > xMax)
+    {
+      xEnd = xMax;
+      width = xEnd - xStart;
+    }
+
   /* Draw the fill rectangle */
   const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE);
   gdk_gc_set_foreground(data->gc, fillColor);
@@ -110,34 +130,77 @@ static void drawExon(const MSP const *msp,
 }
 
 
+/* Utility to actually draw the line for an intron. Clips it if necessary, maintaining the same
+ * angle for the line */
+static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const gint x2, const gint y2, GdkRectangle *clipRect)
+{
+  /* Only draw anything if at least part of the line is within range. We are only ever called with
+   * y values that are in range so don't bother checking them. */
+  const gint xMax = clipRect->x + clipRect->width;
+  
+  if (x1 <= xMax && x2 >= clipRect->x)
+    {
+      int xStart = x1;
+      int xEnd = x2;
+      int yStart = y1;
+      int yEnd = y2;
+      gboolean clip = FALSE;
+      
+      /* Clip the start/end x values if out of range */
+      if (xStart < clipRect->x)
+        {
+          xStart = clipRect->x;
+          clip = TRUE;
+        }
+
+      if (xEnd > xMax)
+        {
+          xEnd = xMax;
+          clip = TRUE;
+        }
+        
+      if (clip)
+        {
+          /* Reduce the height by the same amount as the width has reduced */
+          int newWidth = abs(xEnd - xStart);
+          int newHeight = abs(y2 - y1) * newWidth / clipRect->width;
+          
+          if (yEnd > yStart)
+            yEnd = yStart + newHeight;
+          else
+            yStart = yEnd + newHeight;
+        }
+      
+      gdk_draw_line(data->drawable, data->gc, xStart, yStart, xEnd, yEnd);
+    }
+}
+
+
 /* Draw an intron */
 static void drawIntron(const MSP const *msp, 
                        DrawData *data, 
                        const BlxSequence *blxSeq, 
                        const gboolean isSelected, 
-                       const int x, 
-                       const int y, 
-                       const int width, 
-                       const int height)
+                       const gint x, 
+                       const gint y, 
+                       const gint width, 
+                       const gint height)
 {
   const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE);
   gdk_gc_set_foreground(data->gc, lineColor);
 
-  int xMid = x + roundNearest((double)width / 2.0);
-  int xEnd = x + width;
-  int yMid = y + roundNearest((double)height / 2.0);
+  int yTop = y;
+  int yBottom = y + roundNearest((double)height / 2.0);
 
-  /* Only draw the individual sections if they are in range. For some reason they get drawn in 
-   * the wrong place otherwise. */
-  if (xMid >= data->exonViewRect->x && x <= data->exonViewRect->x + data->exonViewRect->width)
-    {
-      gdk_draw_line(data->drawable, data->gc, x, yMid, xMid, y);
-    }
-  
-  if (xEnd >= data->exonViewRect->x && xMid <= data->exonViewRect->x + data->exonViewRect->width)
-    {
-      gdk_draw_line(data->drawable, data->gc, xMid, y, xEnd, yMid);
-    }
+  /* Draw the first section, from the given x to the mid point, sloping up */
+  int xStart = x;
+  int xEnd = x + roundNearest((double)width / 2.0);
+  drawIntronLine(data, xStart, yBottom, xEnd, yTop, data->exonViewRect);
+
+  /* Draw the second section, from the mid point to the end, sloping down */
+  xStart  = xEnd;
+  xEnd = x + width;
+  drawIntronLine(data, xStart, yTop, xEnd, yBottom, data->exonViewRect);
 }
 
 
@@ -174,13 +237,13 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
       const int qStart = mspGetQStart(msp);
       const int qEnd = mspGetQEnd(msp) + direction;
       
-      const int x1 = convertBaseIdxToGridPos(qStart, data->exonViewRect, &dnaDispRange, data->bc->displayRev, FALSE);
-      const int x2 = convertBaseIdxToGridPos(qEnd, data->exonViewRect, &dnaDispRange, data->bc->displayRev, FALSE);
-      
-      int x = min(x1, x2);
-      int width = abs(x1 - x2);
-      int y = data->y;
-      int height = data->height;
+      const gint x1 = convertBaseIdxToGridPos(qStart, data->exonViewRect, &dnaDispRange, data->bc->displayRev, TRUE);
+      const gint x2 = convertBaseIdxToGridPos(qEnd, data->exonViewRect, &dnaDispRange, data->bc->displayRev, TRUE);
+
+      gint x = min(x1, x2);
+      gint width = abs(x1 - x2);
+      gint y = data->y;
+      gint height = data->height;
       
       if (mspIsExon(msp))
 	{
