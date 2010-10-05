@@ -126,10 +126,14 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "CDS", "SO:0000316", BLXMSP_CDS);
   addGffType(&supportedTypes, "UTR", "SO:0000203", BLXMSP_UTR);
   addGffType(&supportedTypes, "exon", "SO:0000147", BLXMSP_EXON);
-
   addGffType(&supportedTypes, "intron", "SO:0000188", BLXMSP_INTRON);
   
-  addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_SNP);
+  addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_VARIATION);
+  addGffType(&supportedTypes, "substitution", "SO:1000002", BLXMSP_VARIATION);
+  addGffType(&supportedTypes, "insertion", "SO:0000694", BLXMSP_VARIATION);
+  addGffType(&supportedTypes, "deletion", "SO:0000694", BLXMSP_VARIATION);
+  addGffType(&supportedTypes, "sequence_alteration", "SO:0001059", BLXMSP_VARIATION);
+
   addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
   

@@ -73,7 +73,7 @@ static int		      detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 
 static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
 static int		      snpTrackGetStrand(GtkWidget *snpTrack);
-static int		      getSnpDisplayCoord(const MSP *msp, const gboolean expandSnps, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange const *refSeqRange, int *snpStart, int *snpEnd, int *baseNum);
+static void		      getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange const *refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 
 static void		      detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
 static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
@@ -1079,27 +1079,42 @@ void selectClickedSnp(GtkWidget *snpTrack,
       
       for ( ; msp; msp = msp->next)
 	{
-	  if (mspIsSnp(msp))
+	  if (mspIsVariation(msp))
 	    {
-	      /* Get the SNP coord, and the range of display coords where this SNP is shown */
-	      IntRange snpDisplayRange;
-	      int baseNum = UNSET_INT;
-	      const int snpDisplayIdx = getSnpDisplayCoord(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &snpDisplayRange.min, &snpDisplayRange.max, &baseNum);
-	      
-	      gboolean found = expandSnps
-		? valueWithinRange(clickedDisplayIdx, &snpDisplayRange)
-	        : (snpDisplayRange.min == clickedDisplayIdx && baseNum == clickedBase);
+	      /* Get the variation coords in terms of display coords, and also the 'expanded' range
+               * of coords where the variation is displayed */
+	      IntRange mspDisplayRange, mspExpandedRange;
+	      getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &mspDisplayRange, &mspExpandedRange);
+
+              const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, 1, clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+              gboolean found = FALSE;
+              int idxToSelect = UNSET_INT, baseToSelect = UNSET_INT;
+              
+              if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange))
+                {
+                  /* We clicked inside this MSP on the variation track. Select the first coord in
+                   * the MSP. */
+                  found = TRUE;
+                  idxToSelect = mspDisplayRange.min;
+                  baseToSelect = 1;
+                }
+              else if (!expandSnps && valueWithinRange(clickedDnaIdx, &msp->qRange))
+                {
+                  /* We clicked on a coord in the ref seq header that is affected by this variation.
+                   * Select the clicked coord. */
+		  found = TRUE;
+                  idxToSelect = clickedDisplayIdx;
+                  baseToSelect = clickedBase;
+                }
 	      
 	      if (found)
 		{
 		  snpList = g_list_prepend(snpList, msp->sSequence);
-		  
-		  /* Select the SNP coord */
-		  detailViewSetSelectedBaseIdx(detailView, snpDisplayIdx, activeFrame, baseNum, TRUE, FALSE);
+		  detailViewSetSelectedBaseIdx(detailView, idxToSelect, activeFrame, baseToSelect, TRUE, FALSE);
 
 		  if (reCentre)
 		    {
-		      const int newStart = snpDisplayIdx - (getRangeLength(&properties->displayRange) / 2);
+		      const int newStart = idxToSelect - (getRangeLength(&properties->displayRange) / 2);
 		      setDetailViewStartIdx(detailView, newStart, bc->seqType);
 		    }
 		}
@@ -1646,72 +1661,62 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
 }
 
 
-/* Utility to find the display coord that a SNP lies on. If expandSnps is true, 
- * it means that if the SNP contains more than one alternative, these will be 
+/* Utility to find the display coord(s) that a variation lies on. If expand is true, 
+ * it means that if the variation contains more than one alternative, and these will be 
  * displayed horizontally across the display, taking up more width than where 
- * the actual SNP coord lies). The start/end display range will take this into 
- * account. If expandSnps is false, the range will just be the actual SNP coord.
- * We also return the base number of the msp coord within the active frame, if requested.*/
-static int getSnpDisplayCoord(const MSP *msp, 
-			      const gboolean expandSnps,
-			      const BlxSeqType seqType, 
-			      const int numFrames,
-			      const gboolean displayRev, 
-			      const int activeFrame,
-			      const IntRange const *refSeqRange,
-			      int *snpStart,
-			      int *snpEnd,
-			      int *baseNum)
+ * the actual variation coords lie. expandedRange will take this into account. displayRange 
+ * always returns the actual msp start/end in display coords. */
+static void getVariationDisplayRange(const MSP *msp, 
+                                     const gboolean expand,
+                                     const BlxSeqType seqType, 
+                                     const int numFrames,
+                                     const gboolean displayRev, 
+                                     const int activeFrame,
+                                     const IntRange const *refSeqRange,
+                                     IntRange *displayRange,
+                                     IntRange *expandedRange)
 {
-  /* Conver the SNP index to a display coord */
-  int base = UNSET_INT;
-  const int displayIdx = convertDnaIdxToDisplayIdx(mspGetQStart(msp), seqType, activeFrame, numFrames, displayRev, refSeqRange, &base);
+  /* Convert the MSP coords to display coords */
+  int base1, base2;
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, seqType, activeFrame, numFrames, displayRev, refSeqRange, &base1);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, seqType, activeFrame, numFrames, displayRev, refSeqRange, &base2);
 
+  intrangeSetValues(displayRange, coord1, coord2);
+  
   /* The calculated display index will be different depending on which reading frame is 
-   * active. However, we always want to display the SNP in the same position, so adjust 
-   * the display range so that we have coords in terms of frame 1. Return the real SNP display
-   * index too, though - we need this so that we can highlight the selected display index and
+   * active. However, we always want to display the variation in the same position, so adjust 
+   * the display range so that we have coords in terms of frame 1. Return the real variation display
+   * coords too, though - we need this so that we can highlight the selected display index and
    * still have the correct frame and base highlighted. */
-  int adjustedIdx = displayIdx;
-  if (base > (numFrames - activeFrame + 1))
+  int adjustedIdx1 = coord1;
+  if (base1 > (numFrames - activeFrame + 1))
     {
-      ++adjustedIdx;
+      ++adjustedIdx1;
     }
   
-  if (baseNum)
+  int adjustedIdx2 = coord2;
+  if (base2 > (numFrames - activeFrame + 1))
     {
-      *baseNum = base;
+      ++adjustedIdx2;
     }
-
-  int startIdx = adjustedIdx;
-  int endIdx = adjustedIdx; /* currently we only deal with substitutions, i.e. length==1 */
   
-  if (expandSnps && mspGetMatchSeq(msp))
+  intrangeSetValues(expandedRange, adjustedIdx1, adjustedIdx2);
+  
+  if (expand && mspGetMatchSeq(msp))
     {
-      /* Expand the SNP range so that we display its entire sequence. We'll position 
-       * the SNP so that the middle of its sequence lies at this coord */
+      /* Expand the variation range so that we display its entire sequence. We'll position 
+       * the variation so that the middle of its sequence lies at the centre coord of its ref seq range */
       const int numChars = strlen(mspGetMatchSeq(msp));
-      startIdx = adjustedIdx - ceil((double)numChars / 2.0) + 1;
-      endIdx = startIdx + numChars - 1;
+      const int offset = (int)((double)numChars / 2.0);
+      expandedRange->min -= offset;
+      expandedRange->max = expandedRange->min + numChars - 1;
     }
-
-  if (snpStart)
-    {
-      *snpStart = startIdx;
-    }
-  
-  if (snpEnd)
-    {
-      *snpEnd = endIdx;
-    }
-  
-  return displayIdx;
 }
 
 
 /* Determine whether the given coord in the given frame/strand is affected by
- * a SNP */
-static gboolean coordAffectedBySnp(const int dnaIdx, const BlxStrand strand, const MSP *mspList)
+ * a variation */
+static gboolean coordAffectedByVariation(const int dnaIdx, const BlxStrand strand, const MSP *mspList)
 {
   gboolean result = FALSE;
   
@@ -1720,13 +1725,10 @@ static gboolean coordAffectedBySnp(const int dnaIdx, const BlxStrand strand, con
   
   for ( ; msp; msp = msp->next)
     {
-      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand)
-	{
-	  if (mspGetQStart(msp) == dnaIdx)
-	    {
-	      result = TRUE;
-	      break;
-	    }
+      if (mspIsVariation(msp) && mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+        {
+          result = TRUE;
+          break;
 	}
     }
   
@@ -1868,7 +1870,7 @@ void drawHeaderChar(BlxViewContext *bc,
         }
     }
 
-  if (showSnps && coordAffectedBySnp(dnaIdx, strand, bc->mspList))
+  if (showSnps && coordAffectedByVariation(dnaIdx, strand, bc->mspList))
     {
       /* The coord is affected by a SNP. Outline it in the "selected" SNP color
        * (which is darker than the normal color) */
@@ -1941,16 +1943,16 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   
   for ( ; msp; msp = msp->next)
     {
-      if (mspIsSnp(msp) && mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
+      if (mspIsVariation(msp) && mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
 	{
 	  /* Get the range of display coords where this SNP will appear */
-	  int startIdx = UNSET_INT, endIdx = UNSET_INT;
-	  getSnpDisplayCoord(msp, TRUE, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &startIdx, &endIdx, NULL);
+          IntRange mspDisplayRange, mspExpandedRange;
+	  getVariationDisplayRange(msp, TRUE, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &mspDisplayRange, &mspExpandedRange);
 
-	  /* See if any of the SNP coords are in the current display range */
-	  if (valueWithinRange(startIdx, &properties->displayRange) || valueWithinRange(endIdx, &properties->displayRange))
+	  /* See if the variation is in the current display range */
+	  if (rangesOverlap(&mspExpandedRange, &properties->displayRange))
 	    {
-	      int x = leftMargin + ((startIdx - properties->displayRange.min) * properties->charWidth);
+	      int x = leftMargin + ((mspExpandedRange.min - properties->displayRange.min) * properties->charWidth);
 	      const int width = strlen(mspGetMatchSeq(msp)) * properties->charWidth;
 	      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
 	      

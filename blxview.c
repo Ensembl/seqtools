@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.72 2010-09-30 14:11:59 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.73 2010-10-05 15:23:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -843,7 +843,8 @@ BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand stran
           blxSeq->strand = strand;
           
           /* Set whether the sequence data is required by any of this sequence's MSPs */
-          blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsSnp(msp);
+          blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsVariation(msp);
+          blxSeq->optionalDataReqd |= mspIsBlastMatch(msp);
         }
       
       if (seqName && !blxSeq->fullName)
@@ -863,10 +864,7 @@ BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand stran
       /* Add the sequence data */
       addBlxSequenceData(blxSeq, sequence, error);
       
-      if (msp)
-        {
-          g_free(seqName);
-        }
+      g_free(seqName);
     }
   else
     {
@@ -1449,7 +1447,7 @@ MSP* createNewMsp(MSP **lastMsp,
   sprintf(msp->sframe, "(%c%d)", getStrandAsChar(sStrand), 1);
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
-  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType))
+  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsVariation(mspType))
     {
       addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
     }
@@ -1654,14 +1652,17 @@ GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const
           /* Check if sequence data was requested and is not already set. */
           getSeq = (getSequenceData && blxSeq->sequence == NULL);
 
-          /* Check if optional data was requested and is not already set. We can assume that
-           * if any of the data fields is set then the parsing has been done for all of them
-           * (and any remaining empty fields just don't have that data available) */
-          getSeq |= (getOptionalData && 
-                     !blxSeq->organism &&
-                     !blxSeq->geneName &&
-                     !blxSeq->tissueType &&
-                     !blxSeq->strain);
+          if (blxSeq->optionalDataReqd)
+            {
+              /* Check if optional data was requested and is not already set. We can assume that
+               * if any of the data fields is set then the parsing has been done for all of them
+               * (and any remaining empty fields just don't have that data available) */
+              getSeq |= (getOptionalData && 
+                         !blxSeq->organism &&
+                         !blxSeq->geneName &&
+                         !blxSeq->tissueType &&
+                         !blxSeq->strain);
+            }
           
           if (getSeq)
             {

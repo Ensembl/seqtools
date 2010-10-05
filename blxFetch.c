@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.38 2010-09-21 12:50:42 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.39 2010-10-05 15:23:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -2164,15 +2164,15 @@ static gboolean pfetchGetParserStateFromId(const char *sectionId,
           *parserState = PARSING_SEQUENCE_HEADER;
         }
     }
-  else if (stringsEqual(sectionId, "OS", TRUE))
+  else if (stringsEqual(sectionId, "OS", TRUE) && currentSeq->optionalDataReqd)
     {
       *parserState = PARSING_ORGANISM;
     }
-  else if (stringsEqual(sectionId, "GN", TRUE))
+  else if (stringsEqual(sectionId, "GN", TRUE) && currentSeq->optionalDataReqd)
     {
       *parserState = PARSING_GENE_NAME;
     }
-  else if (stringsEqual(sectionId, "FT", TRUE))
+  else if (stringsEqual(sectionId, "FT", TRUE) && currentSeq->optionalDataReqd)
     {
       if (tagName && tagName->len)
         {

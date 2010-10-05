@@ -507,6 +507,11 @@ gboolean typeIsMatch(const BlxMspType mspType)
   return (mspType == BLXMSP_MATCH);
 }
 
+gboolean typeIsVariation(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_VARIATION);
+}
+
 
 gboolean mspIsExon(const MSP const *msp)
 {
@@ -606,12 +611,21 @@ static const GdkColor* mspGetIntronColor(const MSP const *msp,
 
 gboolean mspIsIntron(const MSP const *msp)
 {
-  return (msp && msp->type == BLXMSP_INTRON);
+  return (msp && typeIsIntron(msp->type));
 }
 
-gboolean mspIsSnp(const MSP const *msp)
+gboolean mspIsVariation(const MSP const *msp)
 {
-  return (msp && msp->type == BLXMSP_SNP);
+  return (msp && typeIsVariation(msp->type));
+}
+
+gboolean mspIsZeroLenVariation(const MSP const *msp)
+{
+  /* Insertions are the only zero-length variations we deal with (i.e. they affect a site between 
+   * two coords rather than any coord directly). An insertion will have '-' as the first letter in
+   * its sequence (the format is, say, -/A for an insertion, A/G for a substitution, A/- for a deletion
+   * or A/-/G etc for mixed) */
+  return (mspIsVariation(msp) && msp->sSequence && msp->sSequence->sequence && msp->sSequence->sequence->str && msp->sSequence->sequence->str[0] == '-');
 }
 
 gboolean mspIsPolyASite(const MSP const *msp)
@@ -1791,6 +1805,7 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   seq->mspList = NULL;
   seq->sequence = NULL;
   seq->sequenceReqd = FALSE;
+  seq->optionalDataReqd = FALSE;
   
   seq->organism = NULL;
   seq->geneName = NULL;

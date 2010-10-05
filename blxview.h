@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.36 2010-09-30 11:44:52 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.37 2010-10-05 15:23:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -103,6 +103,7 @@ typedef struct _BlxSequence
   BlxStrand strand;                /* which strand of the sequence this is */
   GString *sequence;               /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
+  gboolean optionalDataReqd;       /* whether the optional data is required (e.g. it is not applicable to exons/snps etc.) */
   IntRange qRange;		   /* the extent of the sequence on the ref sequence */ 
   
   GList *mspList;                  /* list of MSPs from this sequence */
@@ -144,10 +145,10 @@ typedef enum
     BLXMSP_POLYA_SIGNAL,           /* polyA signal sequence */
     BLXMSP_POLYA_SITE,             /* polyA site */
     
-    BLXMSP_SNP,                    /* Single Nucleotide Polymorphism */
+    BLXMSP_VARIATION,              /* Variation (i.e. deletion, insertion, SNP or substitution) */
     
-    BLXMSP_HSP,                    /*  */
-    BLXMSP_GSP,                    /*  */
+    BLXMSP_HSP,                    /* Old type - no longer needed? */
+    BLXMSP_GSP,                    /* Old type - no longer needed? */
 
     BLXMSP_FS_SEG,                 /* Feature Series Segment */
     BLXMSP_XY_PLOT                 /* x/y coordinates - for plotting feature-series curves */
