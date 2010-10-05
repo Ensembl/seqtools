@@ -147,33 +147,32 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
       int xEnd = x2;
       int yStart = y1;
       int yEnd = y2;
-      gboolean clip = FALSE;
       
       /* Clip the start/end x values if out of range */
       if (xStart < clipRect->x)
         {
+          const int origWidth = abs(xEnd - xStart);
+        
           xStart = clipRect->x;
-          clip = TRUE;
+
+          const int newWidth = abs(xEnd - xStart);
+          const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth); /* negative if yend < ystart */
+          
+          yStart = yEnd - newHeight;
         }
 
       if (xEnd > xMax)
         {
+          const int origWidth = abs(xEnd - xStart);
+
           xEnd = xMax;
-          clip = TRUE;
+
+          const int newWidth = abs(xEnd - xStart);
+          const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth);
+          
+          yEnd = yStart + newHeight;
         }
         
-      if (clip)
-        {
-          /* Reduce the height by the same amount as the width has reduced */
-          int newWidth = abs(xEnd - xStart);
-          int newHeight = abs(y2 - y1) * newWidth / clipRect->width;
-          
-          if (yStart > yEnd)
-            yEnd = yStart - newHeight;
-          else
-            yStart = yEnd - newHeight;
-        }
-      
       gdk_draw_line(data->drawable, data->gc, xStart, yStart, xEnd, yEnd);
     }
 }
