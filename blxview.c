@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.74 2010-10-05 15:51:21 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.75 2010-10-05 17:40:20 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1019,7 +1019,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(lastMsp, mspList, seqList, newType, NULL, 0,  newPhase, blxSeq->idTag,
+      *ptrToUpdate = createNewMsp(lastMsp, mspList, seqList, newType, NULL, 0,  newPhase, NULL, blxSeq->idTag,
                                   NULL, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
       
@@ -1116,7 +1116,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
               
               if (newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, blxSeq->idTag,
+                  createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
                               NULL, newRange.min, newRange.max, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
               
@@ -1429,6 +1429,7 @@ MSP* createNewMsp(MSP **lastMsp,
 		  char *source,
                   const gdouble score,
                   const int phase,
+                  char *url,
 		  char *idTag,
                   char *qName,
                   const int qStart,
@@ -1449,6 +1450,7 @@ MSP* createNewMsp(MSP **lastMsp,
   msp->score = score; 
   msp->source = source;
   msp->phase = phase;
+  msp->url = url;
   
   msp->qname = qName;
   
@@ -1501,6 +1503,7 @@ static MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->score = 0.0;
   msp->id = 0.0;
   msp->phase = UNSET_INT;
+  msp->url = NULL;
   
   msp->qname = NULL;
   msp->qFrame = UNSET_INT;

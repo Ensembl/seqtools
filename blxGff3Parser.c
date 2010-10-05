@@ -53,6 +53,7 @@ typedef struct _BlxGffData
     /* standard fields */
     char *qName;	/* ref seq name */
     char *source;	/* source */
+    char *url;          /* URL */
     BlxMspType mspType;	/* type */
     int qStart;		/* start coord on the ref seq */
     int qEnd;		/* end coord on the ref seq */
@@ -268,6 +269,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->source,
 			      gffData->score, 
                               gffData->phase,
+                              gffData->url,
 			      idTag,
 			      gffData->qName, 
 			      gffData->qStart, 
@@ -319,7 +321,7 @@ void parseGff3Body(const int lineNum,
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
   /* Parse the data into a temporary struct */
-  BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
+  BlxGffData gffData = {NULL, NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
 			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL};
 		      
   GError *error = NULL;
@@ -556,10 +558,6 @@ static void parseTagDataPair(char *text,
         {
           parseTargetTag(tokens[1], lineNum, seqList, gffData, &tmpError);
         }
-      else if (!strcmp(tokens[0], "sequence"))
-        {
-          gffData->sequence = g_strdup(tokens[1]);
-        }
       else if (!strcmp(tokens[0], "Gap") || !strcmp(tokens[0], "Gaps")) /* to do: get rid of "Gaps" once zmap starts supporting the correct keyword "Gap" */
         {
           gffData->gapString = g_strdup(tokens[1]);
@@ -571,6 +569,14 @@ static void parseTagDataPair(char *text,
       else if (!strcmp(tokens[0], "Parent"))
         {
 	  gffData->parentIdTag = g_strdup(tokens[1]);
+        }
+      else if (!strcmp(tokens[0], "sequence"))
+        {
+          gffData->sequence = g_strdup(tokens[1]);
+        }
+      else if (!strcmp(tokens[0], "url"))
+        {
+          gffData->url = g_strdup(tokens[1]);
         }
       else
         {

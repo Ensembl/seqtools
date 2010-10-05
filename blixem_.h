@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.52 2010-08-26 12:18:15 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.53 2010-10-05 17:40:20 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -342,7 +342,7 @@ char*                              revComplement(char *comp, char *seq) ;
 
 /* Create/destroy sequences and MSPs */
 MSP*                               createNewMsp(MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const int phase,
-                                                char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
+                                                char *url, char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
                                                 char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
                                                 char *opts, GError **error);  
 

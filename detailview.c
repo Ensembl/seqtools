@@ -826,18 +826,23 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
 	{
 	  g_string_append_printf(resultString, "%s", seqName);
 	}
+        
+      if (seq->type == BLXSEQUENCE_VARIATION && seq->sequence && seq->sequence->str)
+        {
+          g_string_append_printf(resultString, " : %s", seq->sequence->str);
+        }
     }
   else if (qIdx != UNSET_INT)
     {
       g_string_append_printf(resultString, "%s", noSeqText); 
     }
     
-  if (sLen != UNSET_INT)
+  if (sLen != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
     {
       g_string_append_printf(resultString, "(%d)", sLen);
     }
 
-  if (sIdx != UNSET_INT)
+  if (sIdx != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
     {
       g_string_append_printf(resultString, " : %d", sIdx);
     }

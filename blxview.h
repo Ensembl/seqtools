@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.38 2010-10-05 15:51:21 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.39 2010-10-05 17:40:20 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -243,6 +243,7 @@ typedef struct _MSP
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
+  char              *url;          /* link to more info about the MSP, if relevant */
 
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   char              qframe[8];     /* obsolete - use qFrame and qStrand instead */
