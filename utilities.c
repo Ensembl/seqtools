@@ -1794,7 +1794,8 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
     }
   
   BlxSequence *seq = g_malloc(sizeof(BlxSequence));
-  
+
+  seq->type = BLXSEQUENCE_UNSET;
   seq->idTag = idTag ? g_strdup(idTag) : NULL;
 
   seq->fullName = NULL;
@@ -1804,8 +1805,6 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
 
   seq->mspList = NULL;
   seq->sequence = NULL;
-  seq->sequenceReqd = FALSE;
-  seq->optionalDataReqd = FALSE;
   
   seq->organism = NULL;
   seq->geneName = NULL;
@@ -1813,6 +1812,19 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   seq->strain = NULL;
   
   return seq;
+}
+
+
+/* Returns true if the given BlxSequence requires sequence data to be set. */
+gboolean blxSequenceRequiresSeqData(const BlxSequence *blxSeq)
+{
+  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_VARIATION);
+}
+
+/* Returns true if the given BlxSequence uses optional data. */
+gboolean blxSequenceRequiresOptionalData(const BlxSequence *blxSeq)
+{
+  return (blxSeq->type == BLXSEQUENCE_MATCH);
 }
 
 

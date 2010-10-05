@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.38 2010-08-27 12:25:14 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.39 2010-10-05 15:51:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -903,7 +903,7 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
                       g_error("Bad description data\n");
                     }
 		}
-	      else if ((parserState == SEQBL_X_BODY || mspIsSnp(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
+	      else if ((parserState == SEQBL_X_BODY || mspIsVariation(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
 		{
 		  if (*opts == 'L')
 		    {
@@ -1782,7 +1782,7 @@ static BlxMspType getMspTypeFromScore(const int score)
     }
   else if (score == -3)
     {
-      result = BLXMSP_SNP;
+      result = BLXMSP_VARIATION;
     }
 
   return result;  

@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.37 2010-10-05 15:23:02 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.38 2010-10-05 15:51:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -86,9 +86,23 @@ typedef enum
   } BlxStrand ;
 
 
-/* Structure that contains information about a sequence */
+/* Type definition for BlxSequences */
+typedef enum
+{
+  BLXSEQUENCE_UNSET,
+  BLXSEQUENCE_TRANSCRIPT,         /* transcript (i.e. collection of exons and introns) */
+  BLXSEQUENCE_MATCH,              /* match sequence (i.e. collection of matches) */
+  BLXSEQUENCE_VARIATION           /* variation (i.e. insertion, deletion or substitution) */
+} BlxSequenceType;
+
+
+/* Structure that contains information about a "sequence" (bit of a misnomer because it also includes
+ * transcripts etc. for which it doesn't actually contain any sequence data. Really this is just a
+ * parent object for collections of MSPs). */
 typedef struct _BlxSequence
 {
+  BlxSequenceType type;            /* What type of collection of MSPs this is */
+
   char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
 
   char *fullName;                  /* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
@@ -102,8 +116,6 @@ typedef struct _BlxSequence
   
   BlxStrand strand;                /* which strand of the sequence this is */
   GString *sequence;               /* the actual sequence data */
-  gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
-  gboolean optionalDataReqd;       /* whether the optional data is required (e.g. it is not applicable to exons/snps etc.) */
   IntRange qRange;		   /* the extent of the sequence on the ref sequence */ 
   
   GList *mspList;                  /* list of MSPs from this sequence */

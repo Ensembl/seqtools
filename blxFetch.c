@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.39 2010-10-05 15:23:02 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.40 2010-10-05 15:51:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -928,8 +928,8 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch, const char *pfetchIP, int p
  *  - can be called after the fasta sequence data is already populated:
  *    in that case it will ignore the sequence data and just populate
  *    the additional data.
- *  - sequence data will also be ignored for sequences that have the
- *    sequenceReqd flag set to false
+ *  - sequence data will also be ignored for sequences that do not 
+ *    require sequence data
  */
 gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error)
 {
@@ -2155,7 +2155,7 @@ static gboolean pfetchGetParserStateFromId(const char *sectionId,
   if (stringsEqual(sectionId, "SQ", TRUE))
     {
       /* Skip the sequence section if the sequence is already populated or not required. */
-      if (currentSeq->sequence && (currentSeq->sequence->str || !currentSeq->sequenceReqd))
+      if (currentSeq->sequence && (currentSeq->sequence->str || !blxSequenceRequiresSeqData(currentSeq)))
         {
           *parserState = PARSING_IGNORE;
         }
@@ -2164,15 +2164,15 @@ static gboolean pfetchGetParserStateFromId(const char *sectionId,
           *parserState = PARSING_SEQUENCE_HEADER;
         }
     }
-  else if (stringsEqual(sectionId, "OS", TRUE) && currentSeq->optionalDataReqd)
+  else if (stringsEqual(sectionId, "OS", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
       *parserState = PARSING_ORGANISM;
     }
-  else if (stringsEqual(sectionId, "GN", TRUE) && currentSeq->optionalDataReqd)
+  else if (stringsEqual(sectionId, "GN", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
       *parserState = PARSING_GENE_NAME;
     }
-  else if (stringsEqual(sectionId, "FT", TRUE) && currentSeq->optionalDataReqd)
+  else if (stringsEqual(sectionId, "FT", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
       if (tagName && tagName->len)
         {

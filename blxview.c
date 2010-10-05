@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.73 2010-10-05 15:23:02 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.74 2010-10-05 15:51:21 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -811,6 +811,28 @@ static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
   return result;
 }
 
+
+static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
+{
+  BlxSequenceType result = BLXSEQUENCE_UNSET;
+  
+  if (mspIsBlastMatch(msp))
+    {
+      result = BLXSEQUENCE_MATCH;
+    }
+  else if (mspIsExon(msp) || mspIsIntron(msp))
+    {
+      result = BLXSEQUENCE_TRANSCRIPT;
+    }
+  else if (mspIsVariation(msp))
+    {
+      result = BLXSEQUENCE_VARIATION;
+    }
+
+  return result;
+}
+
+
 /* Add or create a BlxSequence struct, creating the BlxSequence if one does not
  * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
  * for the forward and reverse strands of the same sequence. The passed-in sequence 
@@ -839,12 +861,7 @@ BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand stran
           /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
           blxSeq = createEmptyBlxSequence(seqName, idTag, NULL);
           *seqList = g_list_prepend(*seqList, blxSeq);
-          
           blxSeq->strand = strand;
-          
-          /* Set whether the sequence data is required by any of this sequence's MSPs */
-          blxSeq->sequenceReqd |= mspIsBlastMatch(msp) || mspIsVariation(msp);
-          blxSeq->optionalDataReqd |= mspIsBlastMatch(msp);
         }
       
       if (seqName && !blxSeq->fullName)
@@ -859,6 +876,15 @@ BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand stran
           /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
           blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
           msp->sSequence = blxSeq;
+          
+          if (blxSeq->type == BLXSEQUENCE_UNSET)
+            {
+              blxSeq->type = getBlxSequenceTypeForMsp(msp);
+            }
+          else if (blxSeq->type != getBlxSequenceTypeForMsp(msp))
+            {
+              g_warning("Adding MSP of type %d to parent of type %d (expected parent type to be %d)\n", msp->type, blxSeq->type, getBlxSequenceTypeForMsp(msp));
+            }
         }
       
       /* Add the sequence data */
@@ -1366,7 +1392,7 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
   
   gboolean sequenceUsed = FALSE;
   
-  if (blxSeq && blxSeq->sequenceReqd)
+  if (blxSeq && blxSequenceRequiresSeqData(blxSeq))
     {
       if (!blxSeq->sequence)
         {
@@ -1644,31 +1670,23 @@ GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const
     {
       BlxSequence *blxSeq = (BlxSequence*)(inputItem->data);
       
-      gboolean getSeq = FALSE;
-      
-      /* We only want to get data for blast matches, which have the sequenceReqd flag set. */
-      if (blxSeq->sequenceReqd)
-        {
-          /* Check if sequence data was requested and is not already set. */
-          getSeq = (getSequenceData && blxSeq->sequence == NULL);
+      /* Check if sequence data was requested and is not already set. */
+      gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && getSequenceData && blxSeq->sequence == NULL);
 
-          if (blxSeq->optionalDataReqd)
-            {
-              /* Check if optional data was requested and is not already set. We can assume that
-               * if any of the data fields is set then the parsing has been done for all of them
-               * (and any remaining empty fields just don't have that data available) */
-              getSeq |= (getOptionalData && 
-                         !blxSeq->organism &&
-                         !blxSeq->geneName &&
-                         !blxSeq->tissueType &&
-                         !blxSeq->strain);
-            }
-          
-          if (getSeq)
-            {
-              resultList = g_list_prepend(resultList, blxSeq);
-            }
-          }
+      /* Check if optional data was requested and is not already set. We can assume that
+       * if any of the data fields is set then the parsing has been done for all of them
+       * (and any remaining empty fields just don't have that data available) */
+      getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
+                 getOptionalData && 
+                 !blxSeq->organism &&
+                 !blxSeq->geneName &&
+                 !blxSeq->tissueType &&
+                 !blxSeq->strain);
+      
+      if (getSeq)
+        {
+          resultList = g_list_prepend(resultList, blxSeq);
+        }
     }
 
   return resultList;
