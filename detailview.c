@@ -1707,8 +1707,16 @@ static void getVariationDisplayRange(const MSP *msp,
       /* Expand the variation range so that we display its entire sequence. We'll position 
        * the variation so that the middle of its sequence lies at the centre coord of its ref seq range */
       const int numChars = strlen(mspGetMatchSeq(msp));
-      const int offset = (int)((double)numChars / 2.0);
-      expandedRange->min -= offset;
+      
+      int offset = (int)((double)numChars / 2.0);
+      
+      if (numChars % 2 == 0)
+        {
+          /* Shift to the right by one if we've got an even number of chars */
+          --offset;
+        }
+      
+      expandedRange->min = getRangeCentre(expandedRange) - offset;
       expandedRange->max = expandedRange->min + numChars - 1;
     }
 }
