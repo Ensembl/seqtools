@@ -211,7 +211,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   
   /* Get the first base index and round it to a nice round number. We'll offset all of the gridlines 
    * by the distance between this and the real start coord. */
-  const int firstBaseIdx = roundToValue(dnaDispRange.min, bpProperties->roundTo);
+  const int firstBaseIdx = roundToValue(bc->displayRev ? dnaDispRange.max : dnaDispRange.min, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
   const gint bottomBorder = headerProperties->headerRect.y + headerProperties->headerRect.height;
