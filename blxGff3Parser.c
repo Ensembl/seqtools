@@ -129,6 +129,7 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "intron", "SO:0000188", BLXMSP_INTRON);
   
   addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_VARIATION);
+  addGffType(&supportedTypes, "copy_number_variation", "SO:0001019", BLXMSP_VARIATION);
   addGffType(&supportedTypes, "substitution", "SO:1000002", BLXMSP_VARIATION);
   addGffType(&supportedTypes, "insertion", "SO:0000694", BLXMSP_VARIATION);
   addGffType(&supportedTypes, "deletion", "SO:0000694", BLXMSP_VARIATION);
