@@ -144,6 +144,8 @@ void			  blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const g
 void			  blxWindowSelectionChanged(GtkWidget *blxWindow);
 BlxSequence*		  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
+gboolean                  blxContextIsSeqSelected(BlxViewContext *bc, const BlxSequence *seq);
+
 int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);
 void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);

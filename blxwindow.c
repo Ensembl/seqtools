@@ -4968,18 +4968,24 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 }
 
 
-/* Returns true if the given sequence is selected */
-gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq)
+gboolean blxContextIsSeqSelected(BlxViewContext *bc, const BlxSequence *seq)
 {
   GList *foundItem = NULL;
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  
-  if (blxContext)
+
+  if (bc)
     {
-      foundItem = g_list_find(blxContext->selectedSeqs, seq);
+      foundItem = g_list_find(bc->selectedSeqs, seq);
     }
   
   return (foundItem != NULL);
+}
+
+
+/* Returns true if the given sequence is selected */
+gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq)
+{
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContextIsSeqSelected(blxContext, seq);
 }
 
 

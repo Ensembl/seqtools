@@ -1715,8 +1715,19 @@ static void getVariationDisplayRange(const MSP *msp,
 
 
 /* Determine whether the given coord in the given frame/strand is affected by
- * a variation */
-static gboolean coordAffectedByVariation(const int dnaIdx, const BlxStrand strand, const MSP *mspList)
+ * a variation. Sets whether to draw the start/end/top/bottom boundaries for the coord
+ * when outlining it by the extent of the found variation. Also sets drawBackground to true
+ * if the background of the base should be highlighted in the variation color (i.e. if the base
+ * is part of a selected variation). */
+static gboolean coordAffectedByVariation(const int dnaIdx,
+                                         const BlxStrand strand, 
+                                         const MSP *mspList, 
+                                         BlxViewContext *bc,
+                                         gboolean *drawStartBoundary, 
+                                         gboolean *drawEndBoundary, 
+                                         gboolean *drawTopBoundary, 
+                                         gboolean *drawBottomBoundary,
+                                         gboolean *drawBackground)
 {
   gboolean result = FALSE;
   
@@ -1728,6 +1739,32 @@ static gboolean coordAffectedByVariation(const int dnaIdx, const BlxStrand stran
       if (mspIsVariation(msp) && mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
         {
           result = TRUE;
+          
+          /* We draw the start boundary of this base if it's the first base in the variation's range 
+           * and the end boundary if it's the last, unless it's a zero-length feature, i.e. an insertion
+           * site; in this case we draw a line to the right of the coord in the direction of the
+           * reference sequence (i.e. to give just a vertical line at the site, not an outline around the bases) */
+          const gboolean isFirst = (dnaIdx == msp->qRange.min);
+          const gboolean isLast = (dnaIdx == msp->qRange.max);
+          const gboolean isZeroLen = mspIsZeroLenVariation(msp);
+          
+          *drawStartBoundary = (isZeroLen ? isLast : isFirst);
+          *drawEndBoundary = (isZeroLen ? isFirst : isLast);
+
+          /* Swap left and right if the display is reversed */
+          if (bc->displayRev)
+            {
+              gboolean tmp = *drawStartBoundary;
+              *drawStartBoundary = *drawEndBoundary;
+              *drawEndBoundary = tmp;
+            }
+
+          *drawTopBoundary = !isZeroLen;
+          *drawBottomBoundary = !isZeroLen;
+
+          /* Highlight the background if the variation is selected (unless it's a zero-length variation) */
+          *drawBackground = !isZeroLen && blxContextIsSeqSelected(bc, msp->sSequence);
+          
           break;
 	}
     }
@@ -1744,7 +1781,11 @@ static void drawRectangle(GdkDrawable *drawable,
 			  const int x, 
 			  const int y,
 			  const int width, 
-			  const int height)
+			  const int height,
+                          const gboolean drawLeft,
+                          const gboolean drawRight,
+                          const gboolean drawTop,
+                          const gboolean drawBottom)
 {
   const int lineWidth = 1;
   
@@ -1758,7 +1799,23 @@ static void drawRectangle(GdkDrawable *drawable,
     {
       gdk_gc_set_foreground(gc, outlineColor);
       gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-      gdk_draw_rectangle(drawable, gc, FALSE, x, y, width - lineWidth, height - lineWidth);
+      
+      int w = width - lineWidth;
+      int h = height - lineWidth;
+      
+      if (drawLeft)
+        gdk_draw_line(drawable, gc, x, y, x, y + h);
+        
+      if (drawRight)
+        gdk_draw_line(drawable, gc, x + w, y, x + w, y + h);
+
+      if (drawTop)
+        gdk_draw_line(drawable, gc, x, y, x + w, y);
+
+      if (drawBottom)
+        gdk_draw_line(drawable, gc, x, y + h, x + w, y + h);
+
+      //gdk_draw_rectangle(drawable, gc, FALSE, x, y, width - lineWidth, height - lineWidth);
     }
 }
 
@@ -1837,7 +1894,10 @@ void drawHeaderChar(BlxViewContext *bc,
 {
   GdkColor *fillColor = NULL;
   GdkColor *outlineColor = NULL;
-  
+
+  /* If drawing an outline, these can be set to false to omit certain parts of the outline */
+  gboolean drawLeft = TRUE, drawRight = TRUE, drawTop = TRUE, drawBottom = TRUE;
+
   /* Shade the background if the base is selected XOR if the base is within the range of a 
    * selected sequence. (If both conditions are true we don't shade, to give the effect of an
    * inverted selection color.) */
@@ -1870,18 +1930,23 @@ void drawHeaderChar(BlxViewContext *bc,
         }
     }
 
-  if (showSnps && coordAffectedByVariation(dnaIdx, strand, bc->mspList))
+  if (showSnps)
     {
-      /* The coord is affected by a SNP. Outline it in the "selected" SNP color
-       * (which is darker than the normal color) */
-      outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
-      
-      /* If the SNP is selected, also fill it with the SNP color (using the
-       * "unselected" SNP color, which is lighter than the outline). */
-      if (dnaIdxSelected)
-	{
-	  fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, FALSE, bc->usePrintColors);
-	}
+      gboolean drawBackground = TRUE;
+    
+      if (coordAffectedByVariation(dnaIdx, strand, bc->mspList, bc, &drawLeft, &drawRight, &drawTop, &drawBottom, &drawBackground))
+        {
+          /* The coord is affected by a SNP. Outline it in the "selected" SNP color
+           * (which is darker than the normal color) */
+          outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
+          
+          /* If the SNP is selected, also fill it with the SNP color (using the
+           * "unselected" SNP color, which is lighter than the outline). */
+          if (drawBackground)
+            {
+              fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, shadeBackground, bc->usePrintColors);
+            }
+        }
     }
   
   if (!fillColor)
@@ -1904,7 +1969,7 @@ void drawHeaderChar(BlxViewContext *bc,
     }
   
   
-  drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight);
+  drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight, drawLeft, drawRight, drawTop, drawBottom);
 }
 
 
@@ -1963,7 +2028,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      GdkColor *fillColor = isSelected ? getGdkColor(BLXCOLOR_SNP, bc->defaultColors, FALSE, bc->usePrintColors) : NULL;
 	      
 	      /* Draw the background rectangle for the char */
-	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, properties->charHeight);
+	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, properties->charHeight, TRUE, TRUE, TRUE, TRUE);
 	      
 	      /* Draw the text */
 	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, mspGetMatchSeq(msp));
