@@ -376,7 +376,6 @@ void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle
 char*                 blxprintf(char *formatStr, ...);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
 
-
 void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,
                                                    GtkTextIter   *iter,
                                                    const gchar   *markup);
@@ -392,5 +391,10 @@ void    gtk_text_buffer_set_markup_with_tag       (GtkTextBuffer *buffer,
 
 void    gtk_text_buffer_set_markup                (GtkTextBuffer *buffer,
                                                    const gchar   *markup);
+
+
+/* seqtoolsWebBrowser.c */
+gboolean              seqtoolsLaunchWebBrowser(char *link, GError **error);
+
 
 #endif /* _utilities_h_included_ */

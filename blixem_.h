@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.53 2010-10-05 17:40:20 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.54 2010-10-06 10:55:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -329,6 +329,7 @@ gboolean                           blxInitConfig(char *config_file, GError **err
 GKeyFile*                          blxGetConfig(void) ;
 gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
 gboolean                           blxConfigGetPFetchSocketPrefs(const char **node, int *port) ;
+gboolean                           blxConfigGetPFetchWWWPrefs();
 
 
 /* blxGff3Parser.c */

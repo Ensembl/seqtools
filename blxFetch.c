@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.40 2010-10-05 15:51:21 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.41 2010-10-06 10:55:13 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -361,73 +361,73 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 }
 
 
-#if !defined(ACEDB)
-/* Find an executable and return its complete pathname.
- */
-static int findCommand (char *command, const char **retp)
-{
-#if !defined(NO_POPEN)
-  static char retstr[1025] ;
-  char *path, file[1025], retval;
-  int found=0;
-  
-  /* Don't use csh - fails if the path is not set in .cshrc * /
-   if (access(csh, X_OK)) {
-   messout("Could not find %s", csh);
-   return 0;
-   }
-   if (!(pipe = (FILE *)popen(messprintf("%s -cf \"which %s\"", csh, command), "r"))) {
-   return 0;
-   }
-   
-   while (!feof(pipe))
-   fgets(retval, 1024, pipe);
-   retval[1024] = 0;
-   pclose(pipe);
-   
-   if (cp = strchr(retval, '\n')) *cp = 0;
-   if (retp) *retp = retval;
-   
-   / * Check if whatever "which" returned is an existing and executable file * /
-   if (!access(retval, F_OK) && !access(retval, X_OK))
-   return 1;
-   else
-   return 0;
-   */
-  
-  path = g_malloc(strlen(g_getenv("PATH"))+1);
-  /* Don't free 'path' since it changes later on - never mind, 
-   we're only calling it once */
-  
-  strcpy(path, g_getenv("PATH"));
-  path = strtok(path, ":");
-  while (path) {
-    strcpy(file, path);
-    strcat(file,"/");
-    strcat(file, command);
-    if (!access(file, F_OK) && !access(file, X_OK)) {
-      found = 1;
-      break;
-    }
-    
-    path = strtok(0, ":");
-  }
-  
-  if (found) {
-    strcpy(retstr, file);
-    retval = 1;
-  }
-  else {
-    strcpy(retstr, "Can't find executable in path");
-    retval = 0;
-  }
-  
-  if (retp) *retp = retstr;
-  return retval;
-  
-#endif
-}
-#endif
+//#if !defined(ACEDB)
+///* Find an executable and return its complete pathname.
+// */
+//static int findCommand (char *command, const char **retp)
+//{
+//#if !defined(NO_POPEN)
+//  static char retstr[1025] ;
+//  char *path, file[1025], retval;
+//  int found=0;
+//  
+//  /* Don't use csh - fails if the path is not set in .cshrc * /
+//   if (access(csh, X_OK)) {
+//   messout("Could not find %s", csh);
+//   return 0;
+//   }
+//   if (!(pipe = (FILE *)popen(messprintf("%s -cf \"which %s\"", csh, command), "r"))) {
+//   return 0;
+//   }
+//   
+//   while (!feof(pipe))
+//   fgets(retval, 1024, pipe);
+//   retval[1024] = 0;
+//   pclose(pipe);
+//   
+//   if (cp = strchr(retval, '\n')) *cp = 0;
+//   if (retp) *retp = retval;
+//   
+//   / * Check if whatever "which" returned is an existing and executable file * /
+//   if (!access(retval, F_OK) && !access(retval, X_OK))
+//   return 1;
+//   else
+//   return 0;
+//   */
+//  
+//  path = g_malloc(strlen(g_getenv("PATH"))+1);
+//  /* Don't free 'path' since it changes later on - never mind, 
+//   we're only calling it once */
+//  
+//  strcpy(path, g_getenv("PATH"));
+//  path = strtok(path, ":");
+//  while (path) {
+//    strcpy(file, path);
+//    strcat(file,"/");
+//    strcat(file, command);
+//    if (!access(file, F_OK) && !access(file, X_OK)) {
+//      found = 1;
+//      break;
+//    }
+//    
+//    path = strtok(0, ":");
+//  }
+//  
+//  if (found) {
+//    strcpy(retstr, file);
+//    retval = 1;
+//  }
+//  else {
+//    strcpy(retstr, "Can't find executable in path");
+//    retval = 0;
+//  }
+//  
+//  if (retp) *retp = retstr;
+//  return retval;
+//  
+//#endif
+//}
+//#endif
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
@@ -438,6 +438,7 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
 #endif
 {
   const char *fetchMode = blxWindowGetFetchMode(blxWindow);
+  GError *error = NULL;
   
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
     {
@@ -457,39 +458,9 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
     }
   else if (!strcmp(fetchMode, BLX_FETCH_WWW_EFETCH))
     {
-#ifdef ACEDB
-      char *command = blxprintf("%s%s", URL, seqName);
-      graphWebBrowser (command);
-      g_free(command);
-#else
-      {
-	const char *browser = g_getenv("BLIXEM_WWW_BROWSER");
-
-	if (!browser)
-	  {
-	    printf("Looking for WWW browsers ...\n");
-	    if (!findCommand("netscape", &browser) &&
-		!findCommand("Netscape", &browser) &&
-		!findCommand("Mosaic", &browser) &&
-		!findCommand("mosaic", &browser) &&
-		!findCommand("xmosaic", &browser) &&
-		!findCommand("firefox", &browser) &&
-		!findCommand("Safari", &browser))
-	      {
-		g_warning("Couldn't find any WWW browser.  Looked for "
-			  "netscape, Netscape, Mosaic, xmosaic, mosaic, firefox & Safari. "
-			  "System message: \"%s\"\n", browser);
-		return;
-	      }
-	  }
-	printf("Using WWW browser %s\n", browser);
-	fflush(stdout);
-        
-        char *command = blxprintf("%s %s%s&", browser, URL, seqName);
-	system(command);
-        g_free(command);
-      }
-#endif
+        char *link = blxprintf("%s%s", URL, seqName);
+	seqtoolsLaunchWebBrowser(link, &error);
+        g_free(link);
     }
 #ifdef ACEDB
   else if (!strcmp(fetchMode, BLX_FETCH_ACEDB))
@@ -502,14 +473,11 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
     }
 #endif
   else
-    g_critical("Unknown fetchMode: %s", fetchMode);
-
-  if (!URL)
     {
-      char *tmpUrl = g_malloc(256);
-      strcpy(tmpUrl, "http://www.sanger.ac.uk/cgi-bin/seq-query?");
-      URL = tmpUrl;
+      g_critical("Unknown fetchMode: %s", fetchMode);
     }
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
   return ;
 }
@@ -525,7 +493,7 @@ void blxFindInitialFetchMode(char *fetchMode)
     {
       strcpy(fetchMode, BLX_FETCH_PFETCH);
     }
-  else if ((URL = g_getenv("BLIXEM_FETCH_WWW")))
+  else if (g_getenv("BLIXEM_FETCH_WWW"))
     {
       strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
     }
@@ -1108,6 +1076,7 @@ gboolean blxConfigGetPFetchSocketPrefs(const char **node, int *port)
   return result ;
 }
 
+/* Set the preferences for pfetch mode from the config file */
 gboolean blxConfigSetPFetchSocketPrefs(char *node, int port)
 {
   gboolean result = TRUE ;				    /* Can't fail. */
@@ -1124,6 +1093,43 @@ gboolean blxConfigSetPFetchSocketPrefs(char *node, int port)
   return result ;
 }
 
+/* Set the preferences for pfetch-www mode from the config file */
+gboolean blxConfigGetPFetchWWWPrefs()
+{
+  gboolean result = TRUE ;				    /* Can't fail. */
+  
+  /* Try the environment var first */
+  URL = g_getenv("BLIXEM_FETCH_WWW");
+
+  if (!URL)
+    {
+      GKeyFile *key_file = blxGetConfig() ;
+
+      if (key_file && g_key_file_has_group(key_file, PFETCH_PROXY_GROUP))
+        {
+          /* Note that this call will create the URL if it doesn't exist but will
+           * overwrite any existing value. */
+          GError *error = NULL;
+
+          char *tmpUrl = g_malloc(256);
+          tmpUrl = g_key_file_get_string(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_LOCATION, &error) ;
+          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+          
+          URL = blxprintf("%s?request=", tmpUrl);
+          g_free(tmpUrl);
+        }
+          
+      if (!URL || *URL == '\0')
+        {
+          char *tmpUrl = g_malloc(256);
+          strcpy(tmpUrl, "http://www.sanger.ac.uk/cgi-bin/seq-query?");
+          URL = tmpUrl;
+        }
+    }
+
+
+  return result ;
+}
 
 
 
@@ -1838,15 +1844,15 @@ static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, con
 /* Set up the fetch mode. Sets the fetch-mode, and also net_id and port if relevant */
 void setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port)
 {
-  /* First, set the fetch mode */
-  if (pfetch)
+  /* Set up the pfetch and www-pfetch config from the file / env vars etc. We need
+   * to set them up even if we're not using that mode initially, because the user can 
+   * change the mode */
+  blxConfigGetPFetchWWWPrefs();
+
+  /* Set the fetch mode */
+  if (pfetch && blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
     {
-      /* If pfetch struct then this sets fetch mode to pfetch. */
-      
-      if (blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
-	{
-	  *fetchMode = BLX_FETCH_PFETCH;
-	}
+      *fetchMode = BLX_FETCH_PFETCH;
     }
   else
     {
