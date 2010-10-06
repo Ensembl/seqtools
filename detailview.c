@@ -3539,13 +3539,13 @@ static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
 }
 
 
-static void GHelp(GtkButton *button, gpointer data)
+static void GShowHelp(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   showHelpDialog(detailViewGetBlxWindow(detailView), TRUE);
 }
 
-static void GSettings(GtkButton *button, gpointer data)
+static void GShowSettings(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   showSettingsDialog(detailViewGetBlxWindow(detailView), TRUE);
@@ -4060,13 +4060,13 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   GtkWidget *toolbarContainer = createEmptyButtonBar(&toolbar);
   
   /* Help */
-  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GHelp,		  detailView);
+  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GShowHelp,		  detailView);
 
   /* Combo box for sorting */
   createSortBox(toolbar, detailView, sortColumn, columnList);
 
   /* Settings button */
-  makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",		 (GtkSignalFunc)GSettings,	  detailView);
+  makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",		 (GtkSignalFunc)GShowSettings,	  detailView);
 
   /* Zoom buttons */
   makeToolbarButton(toolbar, "Zoom in",		GTK_STOCK_ZOOM_IN,  "Zoom in (=)",		 (GtkSignalFunc)onZoomInDetailView, detailView);
