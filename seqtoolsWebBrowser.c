@@ -49,7 +49,7 @@ typedef struct
 
 static char *findBrowser(BrowserConfig browsers, BrowserConfig *browser_out, GError **error) ;
 static void makeBrowserCmd(GString *cmd, BrowserConfig best_browser, char *url) ;
-static char *translateURLChars(char *orig_link) ;
+static char *translateURLChars(const char *orig_link) ;
 gboolean seqtools_g_string_replace(GString *string, char *target, char *source);
 
 
@@ -119,7 +119,7 @@ static GQuark err_domain_G = 0 ;
  * @param    error             pointer to NULL GError pointer for return of errors.
  * @return   gboolean          TRUE if launch of browser successful.
  */
-gboolean seqtoolsLaunchWebBrowser(char *link, GError **error)
+gboolean seqtoolsLaunchWebBrowser(const char *link, GError **error)
 {
   gboolean result = FALSE ;
   BrowserConfig best_browser = NULL ;
@@ -294,7 +294,7 @@ static void makeBrowserCmd(GString *cmd, BrowserConfig best_browser, char *url)
  *
  *    mh17: second thoughts: don't use, these rely on quoting: thrid thoughts: no amount of escaped quoting seems to work
  */
-static char *translateURLChars(char *orig_link)
+static char *translateURLChars(const char *orig_link)
 {
   char *url = NULL ;
   

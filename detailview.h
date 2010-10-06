@@ -181,6 +181,17 @@ GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const I
 void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
 gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
+gboolean                coordAffectedByVariation(const int dnaIdx,
+                                                 const BlxStrand strand, 
+                                                 const MSP *mspList, 
+                                                 BlxViewContext *bc,
+                                                 const MSP **msp,
+                                                 gboolean *drawStartBoundary, 
+                                                 gboolean *drawEndBoundary, 
+                                                 gboolean *drawTopBoundary, 
+                                                 gboolean *drawBottomBoundary,
+                                                 gboolean *drawBackground);
+
 void			drawHeaderChar(BlxViewContext *bc,
 				       DetailViewProperties *properties,
 				       const int dnaIdx,

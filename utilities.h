@@ -230,6 +230,7 @@ int		      mspGetQStart(const MSP const *msp);
 int		      mspGetQEnd(const MSP const *msp);
 int		      mspGetSStart(const MSP const *msp);
 int		      mspGetSEnd(const MSP const *msp);
+char*                 mspGetSSeq(const MSP const *msp);
 int		      mspGetQRangeLen(const MSP const *msp);
 int		      mspGetSRangeLen(const MSP const *msp);
 int		      mspGetMatchSeqLen(const MSP const *msp);
@@ -394,7 +395,8 @@ void    gtk_text_buffer_set_markup                (GtkTextBuffer *buffer,
 
 
 /* seqtoolsWebBrowser.c */
-gboolean              seqtoolsLaunchWebBrowser(char *link, GError **error);
+gboolean              seqtoolsLaunchWebBrowser(const char *link, GError **error);
+gboolean              seqtools_g_string_replace(GString *string, char *target, char *source);
 
 
 #endif /* _utilities_h_included_ */

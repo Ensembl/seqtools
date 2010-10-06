@@ -1401,6 +1401,7 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
       !(event->state & GDK_BUTTON4_MASK) &&
       !(event->state & GDK_BUTTON5_MASK))
     {
+      /* Feed back details about the currently-hovered over row in the detail-view statusbar area */
       GtkStatusbar *statusBar = treeGetStatusBar(tree);
       
       /* Remove any previous message */
@@ -1450,21 +1451,86 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
     }
 }
 
- 
+
+/* Get the display index at the given position in the tree header */
+static int treeHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *tree, const int x, const int y)
+{
+  int baseIdx = UNSET_INT;
+  
+  GtkWidget *detailView = treeGetDetailView(tree);
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (x >= 0 && x <= header->allocation.width)
+    {
+      /* Get the 0-based char index at x */
+      gint charWidth = detailViewGetCharWidth(detailView);
+      int charIdx = (int)((double)x / (double)charWidth);
+      
+      /* Add the start of the scroll range to convert this to the display index */
+      baseIdx = charIdx + adjustment->value;
+    }
+  else if (x < 0)
+    {
+      baseIdx = adjustment->value;
+    }
+  else if (x > header->allocation.width)
+    {
+      baseIdx = adjustment->value = adjustment->page_size;
+    }
+  
+  return baseIdx;
+}
+
+
 static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, gpointer data)
 {
+  gboolean handled = FALSE;
   GtkWidget *tree = GTK_WIDGET(data);
-  
-  /* The start of the header widget is at the start of the sequence column, so offset the
-   * coords before propagating to the detail view */
-  GtkWidget *detailView = treeGetDetailView(tree);
-  IntRange xRange;
-  detailViewGetColumnXCoords(detailView, BLXCOL_SEQUENCE, &xRange);
-  event->x += xRange.min;
 
-  propagateEventMotion(tree, treeGetDetailView(tree), event);
-  
-  return FALSE;
+  if (event->state & GDK_BUTTON2_MASK)
+    {
+      /* Propagate the event to the detail view. The start of the header widget is at 
+       * the start of the sequence column, so offset the coords before propagating. */
+      GtkWidget *detailView = treeGetDetailView(tree);
+      IntRange xRange;
+      detailViewGetColumnXCoords(detailView, BLXCOL_SEQUENCE, &xRange);
+      event->x += xRange.min;
+
+      propagateEventMotion(tree, treeGetDetailView(tree), event);
+      handled = FALSE;
+    }
+  else
+    {
+      /* If we're hovering over a base that's affected by a variation, then feed back info
+       * about the variation to the user. */
+      
+      /* First remove any previous message from the feedback area */
+      GtkStatusbar *statusBar = treeGetStatusBar(tree);
+      guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+      gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+      
+      /* Get the index we're hovering over */
+      const int displayIdx = treeHeaderGetCoordAtPos(header, tree, event->x, event->y);
+      GtkWidget *detailView = treeGetDetailView(tree);
+      BlxViewContext *bc = treeGetContext(tree);
+
+      const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, bc->seqType, detailViewGetActiveFrame(detailView), treeGetFrame(tree), bc->numFrames, bc->displayRev, &bc->refSeqRange);
+
+      /* See if there's a variation here */
+      const MSP *msp = NULL;
+
+      if (coordAffectedByVariation(dnaIdx, treeGetStrand(tree), bc->mspList, bc, &msp, NULL, NULL, NULL, NULL, NULL))
+        {
+          if (msp && mspGetSName(msp))
+            {
+              char *displayText = mspGetSSeq(msp) ? blxprintf("%s : %s", mspGetSName(msp), mspGetSSeq(msp)) : blxprintf("%s", mspGetSName(msp));
+              gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+              g_free(displayText);
+            }
+        }
+    }
+      
+  return handled;
 }
 
 
@@ -1491,18 +1557,36 @@ static gboolean onEnterTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 }
 
 
-static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer data)
+/* Clear the detail-view feedback area */
+static void clearStatusbar(GtkWidget *tree)
 {
-  /* Remove any message that was added by mousing over the tree rows */
   GtkStatusbar *statusBar = treeGetStatusBar(tree);
   guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
-
   gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+}
 
+
+static gboolean onLeaveTree(GtkWidget *tree, GdkEventCrossing *event, gpointer data)
+{
+  /* Remove any statusbar message that was added by mousing over the tree rows */
+  clearStatusbar(tree);
+  
   /* Return true to stop the default handler re-drawing when the focus changes */
   return TRUE;
 }
 
+static gboolean onLeaveTreeHeader(GtkWidget *header, GdkEventCrossing *event, gpointer data)
+{
+  /* Remove any statusbar message that was added by mousing over the tree header */
+  GtkWidget *tree = GTK_WIDGET(data);
+  GtkStatusbar *statusBar = treeGetStatusBar(tree);
+  guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+  
+  gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+  
+  /* Return true to stop the default handler re-drawing when the focus changes */
+  return TRUE;
+}
 
 /* Add a row to the given tree containing the given MSP */
 void addMspToTree(GtkWidget *tree, MSP *msp)
@@ -2157,14 +2241,16 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 
           gtk_widget_add_events(columnHeader, GDK_BUTTON_PRESS_MASK);
           gtk_widget_add_events(columnHeader, GDK_BUTTON_RELEASE_MASK);
-          gtk_widget_add_events(columnHeader, GDK_BUTTON2_MOTION_MASK);
+          gtk_widget_add_events(columnHeader, GDK_POINTER_MOTION_MASK);
+          gtk_widget_add_events(columnHeader, GDK_LEAVE_NOTIFY);
           g_signal_connect(G_OBJECT(columnHeader), "button-press-event",    G_CALLBACK(onButtonPressTreeHeader), tree);
           g_signal_connect(G_OBJECT(columnHeader), "button-release-event",  G_CALLBACK(onButtonReleaseTreeHeader), tree);
           g_signal_connect(G_OBJECT(columnHeader), "motion-notify-event",   G_CALLBACK(onMouseMoveTreeHeader), tree);
-          
+          g_signal_connect(G_OBJECT(columnHeader), "leave-notify-event",    G_CALLBACK(onLeaveTreeHeader), tree);
+
 	  break;
 	}
-	
+
       case BLXCOL_START:
 	{
 	  /* The start column header displays the start index of the current display range */
@@ -2653,7 +2739,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(tree), "drag-end",		    G_CALLBACK(onDragEndTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "drag-motion",	    G_CALLBACK(onDragMotionTree),	NULL);
   g_signal_connect(G_OBJECT(tree), "expose-event",	    G_CALLBACK(onExposeDetailViewTree), NULL);
-  
+
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
   g_signal_connect(G_OBJECT(selection), "changed", G_CALLBACK(onSelectionChangedTree), tree);
   

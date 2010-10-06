@@ -1732,15 +1732,16 @@ static void getVariationDisplayRange(const MSP *msp,
  * when outlining it by the extent of the found variation. Also sets drawBackground to true
  * if the background of the base should be highlighted in the variation color (i.e. if the base
  * is part of a selected variation). */
-static gboolean coordAffectedByVariation(const int dnaIdx,
-                                         const BlxStrand strand, 
-                                         const MSP *mspList, 
-                                         BlxViewContext *bc,
-                                         gboolean *drawStartBoundary, 
-                                         gboolean *drawEndBoundary, 
-                                         gboolean *drawTopBoundary, 
-                                         gboolean *drawBottomBoundary,
-                                         gboolean *drawBackground)
+gboolean coordAffectedByVariation(const int dnaIdx,
+                                  const BlxStrand strand, 
+                                  const MSP *mspList, 
+                                  BlxViewContext *bc,
+                                  const MSP **mspOut, /* the variation we found */
+                                  gboolean *drawStartBoundary, 
+                                  gboolean *drawEndBoundary, 
+                                  gboolean *drawTopBoundary, 
+                                  gboolean *drawBottomBoundary,
+                                  gboolean *drawBackground)
 {
   gboolean result = FALSE;
   
@@ -1753,6 +1754,9 @@ static gboolean coordAffectedByVariation(const int dnaIdx,
         {
           result = TRUE;
           
+          if (mspOut)
+            *mspOut = msp;
+          
           /* We draw the start boundary of this base if it's the first base in the variation's range 
            * and the end boundary if it's the last, unless it's a zero-length feature, i.e. an insertion
            * site; in this case we draw a line to the right of the coord in the direction of the
@@ -1760,23 +1764,22 @@ static gboolean coordAffectedByVariation(const int dnaIdx,
           const gboolean isFirst = (dnaIdx == msp->qRange.min);
           const gboolean isLast = (dnaIdx == msp->qRange.max);
           const gboolean isZeroLen = mspIsZeroLenVariation(msp);
-          
-          *drawStartBoundary = (isZeroLen ? isLast : isFirst);
-          *drawEndBoundary = (isZeroLen ? isFirst : isLast);
 
-          /* Swap left and right if the display is reversed */
-          if (bc->displayRev)
-            {
-              gboolean tmp = *drawStartBoundary;
-              *drawStartBoundary = *drawEndBoundary;
-              *drawEndBoundary = tmp;
-            }
+          if (drawStartBoundary)
+            *drawStartBoundary = (isZeroLen != bc->displayRev ? isLast : isFirst);
+            
+          if (drawEndBoundary)
+            *drawEndBoundary = (isZeroLen != bc->displayRev ? isFirst : isLast);
 
-          *drawTopBoundary = !isZeroLen;
-          *drawBottomBoundary = !isZeroLen;
+          if (drawTopBoundary)
+            *drawTopBoundary = !isZeroLen;
+            
+          if (drawBottomBoundary)
+            *drawBottomBoundary = !isZeroLen;
 
           /* Highlight the background if the variation is selected (unless it's a zero-length variation) */
-          *drawBackground = !isZeroLen && blxContextIsSeqSelected(bc, msp->sSequence);
+          if (drawBackground)
+            *drawBackground = !isZeroLen && blxContextIsSeqSelected(bc, msp->sSequence);
           
           break;
 	}
@@ -1947,7 +1950,7 @@ void drawHeaderChar(BlxViewContext *bc,
     {
       gboolean drawBackground = TRUE;
     
-      if (coordAffectedByVariation(dnaIdx, strand, bc->mspList, bc, &drawLeft, &drawRight, &drawTop, &drawBottom, &drawBackground))
+      if (coordAffectedByVariation(dnaIdx, strand, bc->mspList, bc, NULL, &drawLeft, &drawRight, &drawTop, &drawBottom, &drawBackground))
         {
           /* The coord is affected by a SNP. Outline it in the "selected" SNP color
            * (which is darker than the normal color) */
@@ -2914,19 +2917,53 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
   {
     case 1:
     {
-      /* Select the SNP that was clicked on.  */
       GtkWidget *detailView = GTK_WIDGET(data);
-      blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
-
-      /* The SNP track is not the same width as the sequence column, so pass the
-       * sequence column header so that we can convert to the correct coords */
-      DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
-
-      selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
+      GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
       
-      refreshDetailViewHeaders(detailView);
-      callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
-      
+      if (event->type == GDK_BUTTON_PRESS) /* first click */
+        {
+          /* Select the variation that was clicked on.  */
+          blxWindowDeselectAllSeqs(blxWindow);
+
+          /* The SNP track is not the same width as the sequence column, so pass the
+           * sequence column header so that we can convert to the correct coords */
+          DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+
+          selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
+          
+          refreshDetailViewHeaders(detailView);
+          callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+        }      
+      else if (event->type == GDK_2BUTTON_PRESS) /* double-click */
+        {
+          /* If a variation was double-clicked, open its URL in a browser. If multiple are selected,
+           * use the last-selected one. */
+          GList *seqItem = g_list_last(blxWindowGetSelectedSeqs(blxWindow));
+          
+          if (seqItem)
+            {
+              BlxSequence *seq = (BlxSequence*)(seqItem->data);
+              
+              /* (The url lives in the MSP, and there is only one MSP in a BlxSequence for a variation,
+               * so perhaps the url should be moved to the BlxSequence...) */
+              if (seq->type == BLXSEQUENCE_VARIATION && g_list_length(seq->mspList) > 0)
+                {
+                  const MSP const *msp = (const MSP const *)(seq->mspList->data);
+                  
+                  if (msp->url)
+                    {
+                      GError *error = NULL;
+                      seqtoolsLaunchWebBrowser(msp->url, &error);
+                      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+                    }
+                  else
+                    {
+                      g_warning("Variation '%s' does not have a URL.\n", mspGetSName(msp));
+                    }
+                }
+            }
+        }
+
       handled = TRUE;
       break;
     }

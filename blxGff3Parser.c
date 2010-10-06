@@ -532,6 +532,31 @@ static void parseAttributes(char *attributes,
 }
 
 
+/* Utility to remove any GFF3 escape characters from the given string and replace them with
+ * the real characters they represent. Takes into account special chars for generic attributes,
+ * and also the Target-name and ID attributes if requested */
+static void replaceGff3EscapeChars(char **text, const gboolean targetNameAtt, const gboolean idAtt)
+{
+  GString *gstr = g_string_new(*text);
+
+  seqtools_g_string_replace(gstr, "%3b", ";");
+  seqtools_g_string_replace(gstr, "%3d", "=");
+  seqtools_g_string_replace(gstr, "%09", "\t");
+
+  /* Target-name and ID attributes additionally have whitespace escaped */
+  if (targetNameAtt || idAtt)
+    seqtools_g_string_replace(gstr, "%20", " ");
+    
+  /* ID attribute additional has ">" escaped */
+  if (idAtt)
+    seqtools_g_string_replace(gstr, "%e3", ">");
+    
+  g_free(*text);
+  *text = gstr->str;
+  g_string_free(gstr, FALSE);
+}
+
+
 /* Parse a tag/data pair of the format "tag=data" */
 static void parseTagDataPair(char *text,
                              const int lineNum,
@@ -577,6 +602,7 @@ static void parseTagDataPair(char *text,
       else if (!strcmp(tokens[0], "url"))
         {
           gffData->url = g_strdup(tokens[1]);
+          replaceGff3EscapeChars(&gffData->url, FALSE, FALSE);
         }
       else
         {

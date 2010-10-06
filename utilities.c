@@ -1074,6 +1074,11 @@ int mspGetSEnd(const MSP const *msp)
   return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max : msp->sRange.min);
 }
 
+char* mspGetSSeq(const MSP const *msp)
+{
+  return (msp && msp->sSequence && msp->sSequence->sequence ? msp->sSequence->sequence->str : NULL);
+}
+
 /* Return the match sequence name. (Gets it from the BlxSequence if the MSP itself doesn't have
  * a name) */
 const char *mspGetSName(const MSP const *msp)
