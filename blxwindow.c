@@ -5199,8 +5199,11 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                       int sIdx = s_start, qIdx = q_start ;
                       while (((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1)) && qIdx < qLen)
                         {
-                          if (toupper(matchSeq[sIdx]) == toupper(refSeqSegment[qIdx]))
-                            numMatchingChars++ ;
+                          /* Check that qIdx is not less that 0, which could happen if we have somehow got duff data. */
+                          if (qIdx >= 0 && toupper(matchSeq[sIdx]) == toupper(refSeqSegment[qIdx]))
+                            {
+                              numMatchingChars++ ;
+                            }
                           
                           /* Move to the next base. The refSeqSegment is always forward, but we might have to
                            * traverse the s sequence in reverse. */

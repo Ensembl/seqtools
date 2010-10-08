@@ -459,6 +459,16 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       /* Create the dialog data struct first time round, but re-populate it each time. Create 
        * a destructor function that will free the struct. */
       dialogData = g_malloc(sizeof(DotterDialogData));
+      dialogData->blxWindow = NULL;
+      dialogData->autoButton = NULL;
+      dialogData->manualButton = NULL;
+      dialogData->startEntry = NULL;
+      dialogData->endEntry = NULL;
+      dialogData->zoomEntry = NULL;
+      dialogData->callOnSelf = FALSE;
+      dialogData->hspsOnly = FALSE;
+      dialogData->dotterSSeq = NULL;
+
       g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(onDestroyDotterDialog), dialogData);
       
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
@@ -532,6 +542,13 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   dialogData->zoomEntry = zoomEntry;
   dialogData->callOnSelf = FALSE;
   dialogData->hspsOnly = FALSE;
+  
+  if (dialogData->dotterSSeq)
+    {
+      g_free(dialogData->dotterSSeq);
+      dialogData->dotterSSeq = NULL;
+    }
+  
   dialogData->dotterSSeq = getDotterSSeq(blxWindow, NULL);
   
   /* There is an issue if the user selects a different sequence while the dotter dialog
