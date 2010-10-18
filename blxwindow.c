@@ -5234,48 +5234,39 @@ static void calcReadingFrame(MSP *msp, const BlxViewContext *bc)
    * used to pass the reading frame in exblx files seemed to occasionally pass an incorrect reading frame. */
   if (!mspIsIntron(msp))
     {
-      if (msp->phase != UNSET_INT || msp->qFrame == UNSET_INT)
+      /* Get the first coord of the first complete codon. This is the start coord (5' end) of the match
+       * plus (or minus) the phase (if non-zero), which initially gets stored in the qFrame field in the MSP... */
+      const int direction = (msp->qStrand == BLXSTRAND_FORWARD ? 1 : -1);
+      const int coord = mspGetQStart(msp) + (direction * msp->phase);
+
+      /* Find the reading frame that this coord belongs in. This is the same as the base number within
+       * reading frame 1. */
+      int frame = UNSET_INT;
+      const gboolean invertCoords = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
+
+      convertDnaIdxToDisplayIdx(coord, bc->seqType, 1, bc->numFrames, invertCoords, &bc->refSeqRange, &frame);
+      
+      if (frame != UNSET_INT)
         {
-          if (msp->phase == UNSET_INT)
-            {
-              g_warning("Phase is not specified for MSP '%s' (q=%d-%d; s=%d-%d) - assuming phase 0.\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
-              msp->phase = 0;
-            }
-          
-          /* Get the first coord of the first complete codon. This is the start coord (5' end) of the match
-           * plus the phase (if non-zero), which initially gets stored in the qFrame field in the MSP... */
-          const int coord = mspGetQStart(msp) + msp->phase;
-
-          /* Find the reading frame that this coord belongs in. This is the same as the base number within
-           * reading frame 1. */
-          int frame = UNSET_INT;
-          const gboolean invertCoords = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
-
-          convertDnaIdxToDisplayIdx(coord, bc->seqType, 1, bc->numFrames, invertCoords, &bc->refSeqRange, &frame);
-          
-          if (frame != UNSET_INT)
-            {
-              if (msp->qFrame != UNSET_INT && msp->qFrame != frame && bc->seqType == BLXSEQ_PEPTIDE)
-                {
-                  g_warning("Calculated reading frame '%d' differs from parsed reading frame '%d'; using calculated frame (%s).\n", frame, msp->qFrame, mspGetSName(msp));
-                }
-                
-              msp->qFrame = frame;
-            }
+          msp->qFrame = frame;
         }
 
       if (msp->qFrame == UNSET_INT)
         {
-          g_warning("Reading frame is not set for MSP '%s' (q=%d-%d; s=%d-%d) - setting to 1.\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+          g_warning("Reading frame could not be calculated for MSP '%s' (q=%d-%d; s=%d-%d) - setting to 1.\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
           msp->qFrame = 1;
         }
-
-      /* Messy, for backwards compatibility... set the frame number in the qframe string */
+    }
+  
+  /* Messy, for backwards compatibility... set the frame number in the qframe string */
+  if (msp->qFrame != UNSET_INT)
+    {
       char *frameStr = convertIntToString(msp->qFrame);
       msp->qframe[2] = frameStr[0];
       g_free(frameStr);
     }
 }
+
 
 
 /* Calculate the ID and q frame for the given MSP and store 

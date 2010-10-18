@@ -1700,46 +1700,50 @@ static BlxSequence* blxSequenceFindByName(const char *name, GList *allSeqs)
 BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs)
 {
   BlxSequence *result = NULL;
-  
+
   const char *variantName = blxSequenceGetFullName(variant);
-  char *parentName = g_strdup(variantName);
-  char *insertPoint = strchr(parentName, '-');
   
-  if (insertPoint)
+  if (variantName)
     {
-      /* Replace '-' by terminating char, in case there's nothing else to copy in. */
-      *insertPoint = '\0';
-      
-      /* The insert point is where we'll copy into. Create another pointer that we'll increment
-       * until we find a '.' and then we'll copy from that point. */
-      char *copyPoint = insertPoint;
-      ++copyPoint;
-      
-      gboolean foundRestartPoint = FALSE; /* set to true when we find where to start copying from again */
-      
-      while (copyPoint && *copyPoint != '\0')
-        {
-          if (foundRestartPoint)
-            {
-              *insertPoint = *copyPoint;
-              ++insertPoint;
-            }
-          else if (*copyPoint == '.')
-            {
-              foundRestartPoint = TRUE;
-              *insertPoint = *copyPoint;
-              ++insertPoint;
-            }
-          
-          ++copyPoint;
-        }
-    
-      *insertPoint = '\0';
-    
-      result = blxSequenceFindByName(parentName, allSeqs);
-      g_free(parentName);
-    }
+      char *parentName = g_strdup(variantName);
+      char *insertPoint = strchr(parentName, '-');
   
+      if (insertPoint)
+        {
+          /* Replace '-' by terminating char, in case there's nothing else to copy in. */
+          *insertPoint = '\0';
+          
+          /* The insert point is where we'll copy into. Create another pointer that we'll increment
+           * until we find a '.' and then we'll copy from that point. */
+          char *copyPoint = insertPoint;
+          ++copyPoint;
+          
+          gboolean foundRestartPoint = FALSE; /* set to true when we find where to start copying from again */
+          
+          while (copyPoint && *copyPoint != '\0')
+            {
+              if (foundRestartPoint)
+                {
+                  *insertPoint = *copyPoint;
+                  ++insertPoint;
+                }
+              else if (*copyPoint == '.')
+                {
+                  foundRestartPoint = TRUE;
+                  *insertPoint = *copyPoint;
+                  ++insertPoint;
+                }
+              
+              ++copyPoint;
+            }
+        
+          *insertPoint = '\0';
+        
+          result = blxSequenceFindByName(parentName, allSeqs);
+          g_free(parentName);
+        }
+    }
+      
   return result;
 }
 

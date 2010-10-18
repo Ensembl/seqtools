@@ -292,7 +292,9 @@ static void createBlixemObject(BlxGffData *gffData,
 	  if (tmpError)
 	    {
 	      /* style errors are not critical */
-	      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+	      //reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+              g_error_free(tmpError);
+              tmpError = NULL;
 	    }
 
 	  /* populate the gaps array */
