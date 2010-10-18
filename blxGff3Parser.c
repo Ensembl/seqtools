@@ -601,6 +601,10 @@ static void parseTagDataPair(char *text,
         {
           gffData->sequence = g_strdup(tokens[1]);
         }
+      else if (!strcmp(tokens[0], "variant_sequence"))
+        {
+          gffData->sequence = g_strdup(tokens[1]);
+        }
       else if (!strcmp(tokens[0], "url"))
         {
           gffData->url = g_strdup(tokens[1]);
