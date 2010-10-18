@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.75 2010-10-05 17:40:20 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.76 2010-10-18 14:06:53 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1595,6 +1595,12 @@ void destroyMspData(MSP *msp)
     {
       g_array_free(msp->xy, TRUE);
       msp->xy = NULL;
+    }
+    
+  if (msp->url)
+    {
+      g_free(msp->url);
+      msp->url = NULL;
     }
 }
 
