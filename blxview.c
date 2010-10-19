@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.77 2010-10-19 09:34:22 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.78 2010-10-19 09:52:54 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1038,10 +1038,6 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         
       if (*utr)
         (*exon)->childMsps = g_list_append((*exon)->childMsps, *utr);
-    }
-  else
-    {
-      g_debug("Incomplete transcript\n");
     }
 }
 

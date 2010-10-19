@@ -5246,9 +5246,19 @@ static void calcReadingFrame(MSP *msp, const BlxViewContext *bc)
 
       convertDnaIdxToDisplayIdx(coord, bc->seqType, 1, bc->numFrames, invertCoords, &bc->refSeqRange, &frame);
       
-      if (frame != UNSET_INT)
+      if (frame > 0)
         {
-          msp->qFrame = frame;
+          /* Only set the frame if not already set. Give a warning if current value is different to calculated
+           * value, except for exons where this is expected with the old file format where we do not pass phase */
+          if (msp->qFrame > 0 && msp->qFrame != frame && mspIsBlastMatch(msp) && bc->seqType == BLXSEQ_PEPTIDE)
+            {
+              g_warning("MSP '%s' (q=%d-%d; s=%d-%d) has reading frame '%d' but calculated frame was '%d'\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qFrame, frame);
+            }
+              
+          if (msp->qFrame <= 0)
+            {
+              msp->qFrame = frame;
+            }
         }
 
       if (msp->qFrame == UNSET_INT)
