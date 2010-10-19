@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.76 2010-10-18 14:06:53 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.77 2010-10-19 09:34:22 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -932,7 +932,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   MSP **ptrToUpdate = NULL;
   int newStart = UNSET_INT;
   int newEnd = UNSET_INT;
-  int newPhase = UNSET_INT;
+  int newPhase = 0;
 
   if (!*exon && (*cds || *utr))
     {
@@ -1116,7 +1116,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
               
               if (newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
+                  createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, 0, NULL, blxSeq->idTag,
                               NULL, newRange.min, newRange.max, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
               
@@ -1502,7 +1502,7 @@ static MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->type = BLXMSP_INVALID;
   msp->score = 0.0;
   msp->id = 0.0;
-  msp->phase = UNSET_INT;
+  msp->phase = 0;
   msp->url = NULL;
   
   msp->qname = NULL;
