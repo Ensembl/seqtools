@@ -12,6 +12,7 @@
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxmsp.h>
 #include <gtk/gtk.h>
 #include <string.h>
 #include <stdlib.h>
@@ -81,7 +82,6 @@ static gboolean		      widgetIsTree(GtkWidget *widget);
 static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
 static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
 static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
-static const char*	      findDetailViewFont(GtkWidget *detailView);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
 
@@ -106,88 +106,6 @@ int detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId)
   if (columnInfo)
     {
       result = columnInfo->width;
-    }
-  
-  return result;
-}
-
-
-/* Tries to return a fixed font from the list given in pref_families, returns
- * TRUE if it succeeded in finding a matching font, FALSE otherwise.
- * The list of preferred fonts is treated with most preferred first and least
- * preferred last.  The function will attempt to return the most preferred font
- * it finds.
- *
- * @param widget         Needed to get a context, ideally should be the widget you want to
- *                       either set a font in or find out about a font for.
- * @param pref_families  List of font families (as text strings).
- * @param points         Size of font in points.
- * @param weight         Weight of font (e.g. PANGO_WEIGHT_NORMAL)
- * @param font_out       If non-NULL, the font is returned.
- * @param desc_out       If non-NULL, the font description is returned.
- * @return               TRUE if font found, FALSE otherwise.
- */
-static const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families)
-{
-  /* Find all the font families available */
-  PangoContext *context = gtk_widget_get_pango_context(widget) ;
-  PangoFontFamily **families;
-  gint n_families;
-  pango_context_list_families(context, &families, &n_families) ;
-  
-  /* Loop through the available font families looking for one in our preferred list */
-  gboolean found_most_preferred = FALSE;
-  gint most_preferred = g_list_length(pref_families);
-  PangoFontFamily *match_family = NULL;
-
-  gint family;
-  for (family = 0 ; (family < n_families && !found_most_preferred) ; family++)
-    {
-      const gchar *name = pango_font_family_get_name(families[family]) ;
-      
-      /* Look for this font family in our list of preferred families */
-      GList *pref = g_list_first(pref_families) ;
-      gint current = 1;
-      
-      while(pref)
-	{
-	  char *pref_font = (char *)pref->data ;
-	  
-	  if (g_ascii_strncasecmp(name, pref_font, strlen(pref_font)) == 0
-#if GLIB_MAJOR_VERSION >= 1 && GLIB_MINOR_VERSION >= 4
-	      && pango_font_family_is_monospace(families[family])
-#endif
-	      )
-	    {
-	      /* We prefer ones nearer the start of the list */
-              if(current <= most_preferred)
-                {
-		  most_preferred = current;
-		  match_family = families[family];
-
-                  if(most_preferred == 1)
-		    {
-		      found_most_preferred = TRUE;
-		    }
-                }
-
-	      break;
-	    }
-	  
-	  pref = g_list_next(pref);
-	  ++current;
-	}
-    }
-
-  const char *result = NULL;
-  if (match_family)
-    {
-      result = pango_font_family_get_name(match_family);
-      g_debug("Using fixed-width font '%s'\n", result);
-    }
-  else
-    {
-      g_critical("Could not find a fixed-width font. Alignments may not be displayed correctly.\n");
     }
   
   return result;
@@ -1090,11 +1008,11 @@ void selectClickedSnp(GtkWidget *snpTrack,
                * of coords where the variation is displayed */
 	      IntRange mspDisplayRange, mspExpandedRange;
 	      getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &mspDisplayRange, &mspExpandedRange);
-
+	      
               const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, 1, clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
               gboolean found = FALSE;
               int idxToSelect = UNSET_INT, baseToSelect = UNSET_INT;
-              
+	      
               if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange))
                 {
                   /* We clicked inside this MSP on the variation track. Select the first coord in
@@ -1116,7 +1034,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
 		{
 		  snpList = g_list_prepend(snpList, msp->sSequence);
 		  detailViewSetSelectedBaseIdx(detailView, idxToSelect, activeFrame, baseToSelect, TRUE, FALSE);
-
+		  
 		  if (reCentre)
 		    {
 		      const int newStart = idxToSelect - (getRangeLength(&properties->displayRange) / 2);
@@ -1574,21 +1492,29 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Find the segment of the ref sequence to display (complemented if this tree is
-   * displaying the reverse strand, and reversed if the display is toggled) */
+   * displaying the reverse strand, and reversed if the display is toggled). Ref seq
+   * coords are in nucleotides, so convert display range to nucleotide coords. */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  
+  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);	  /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
+  IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
+  
   GError *error = NULL;
-
-  gchar *segmentToDisplay = getSequenceSegment(bc,
-					       bc->refSeq,
-					       displayRange->min, 
-					       displayRange->max, 
+  
+  gchar *segmentToDisplay = getSequenceSegment(bc->refSeq,
+                                               &qRange,
 					       strand, 
-					       bc->seqType,
+					       BLXSEQ_DNA,      /* ref seq is always in nucleotide coords */
+                                               BLXSEQ_DNA,      /* required segment is in nucleotide coords */
 					       frame, 
+					       bc->numFrames,
+					       &bc->refSeqRange,
+					       bc->blastMode,
+					       bc->geneticCode,
 					       bc->displayRev,
 					       bc->displayRev,
 					       bc->displayRev,
-					       FALSE,
 					       &error);
   
   if (!segmentToDisplay)
@@ -1597,6 +1523,11 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       prefixError(error, "Could not draw DNA header. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       return;
+    }
+  else
+    {
+      /* If there's an error but the sequence was still returned it's a non-critical warning */
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
     
     
@@ -1608,16 +1539,10 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
 
   gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
   
-  /* Loop forward/backward through the display range depending on which strand we're viewing.
-   * We need to convert display coords to actual coords on the ref sequence */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);	  /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
-  
-  IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
-  
   /* Find out if there are any bases in the introns that need highlighting. */
   GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, BLXSEQ_DNA, activeStrand);
   
+  /* We'll loop forward/backward through the display range depending on which strand we're viewing */
   int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
   int displayLen = qRange.max - qRange.min + 1;
   char displayText[displayLen + 1];
@@ -1673,11 +1598,11 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
  * always returns the actual msp start/end in display coords. */
 static void getVariationDisplayRange(const MSP *msp, 
                                      const gboolean expand,
-                                     const BlxSeqType seqType, 
-                                     const int numFrames,
-                                     const gboolean displayRev, 
-                                     const int activeFrame,
-                                     const IntRange const *refSeqRange,
+			      const BlxSeqType seqType, 
+			      const int numFrames,
+			      const gboolean displayRev, 
+			      const int activeFrame,
+			      const IntRange const *refSeqRange,
                                      IntRange *displayRange,
                                      IntRange *expandedRange)
 {
@@ -1704,7 +1629,7 @@ static void getVariationDisplayRange(const MSP *msp,
     {
       ++adjustedIdx2;
     }
-  
+
   intrangeSetValues(expandedRange, adjustedIdx1, adjustedIdx2);
   
   if (expand && mspGetMatchSeq(msp))
@@ -1712,15 +1637,15 @@ static void getVariationDisplayRange(const MSP *msp,
       /* Expand the variation range so that we display its entire sequence. We'll position 
        * the variation so that the middle of its sequence lies at the centre coord of its ref seq range */
       const int numChars = strlen(mspGetMatchSeq(msp));
-      
+
       int offset = (int)((double)numChars / 2.0);
-      
+  
       if (numChars % 2 == 0)
         {
           /* Shift to the right by one if we've got an even number of chars */
           --offset;
         }
-      
+  
       expandedRange->min = getRangeCentre(expandedRange) - offset;
       expandedRange->max = expandedRange->min + numChars - 1;
     }
@@ -1751,7 +1676,7 @@ gboolean coordAffectedByVariation(const int dnaIdx,
   for ( ; msp; msp = msp->next)
     {
       if (mspIsVariation(msp) && mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
-        {
+	{
           result = TRUE;
           
           if (mspOut)
@@ -1782,7 +1707,7 @@ gboolean coordAffectedByVariation(const int dnaIdx,
             *drawBackground = !isZeroLen && blxContextIsSeqSelected(bc, msp->sSequence);
           
           break;
-	}
+        }
     }
   
   return result;
@@ -1910,7 +1835,7 @@ void drawHeaderChar(BlxViewContext *bc,
 {
   GdkColor *fillColor = NULL;
   GdkColor *outlineColor = NULL;
-
+  
   /* If drawing an outline, these can be set to false to omit certain parts of the outline */
   gboolean drawLeft = TRUE, drawRight = TRUE, drawTop = TRUE, drawBottom = TRUE;
 
@@ -2249,14 +2174,9 @@ static void onZoomOutDetailView(GtkButton *button, gpointer data)
  * the font size is changed by zooming in/out of the detail view. */
 static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc)
 {
-  /* Calculate the row height from the font metrics */
-  PangoContext *context = gtk_widget_get_pango_context(detailView);
-  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-  
-  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  gint charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
-  
-  pango_font_metrics_unref(metrics);
+  /* Calculate the row height from the font size */
+  gint charWidth = UNSET_INT, charHeight = UNSET_INT;
+  getFontCharSize(detailView, fontDesc, &charWidth, &charHeight);
   
   /* Cache these results, because we use them often for calculations */
   detailViewCacheFontSize(detailView, charWidth, charHeight);
@@ -2713,7 +2633,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       DetailViewProperties *properties = g_malloc(sizeof *properties);
 
       /* Find a fixed-width font */
-      const char *fontFamily = findDetailViewFont(detailView);
+      const char *fontFamily = findFixedWidthFont(detailView);
       PangoFontDescription *fontDesc = pango_font_description_copy(detailView->style->font_desc);
       pango_font_description_set_family(fontDesc, fontFamily);
       
@@ -2916,57 +2836,57 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
   switch (event->button)
   {
     case 1:
-    {
-      GtkWidget *detailView = GTK_WIDGET(data);
-      GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-      
-      if (event->type == GDK_BUTTON_PRESS) /* first click */
-        {
-          /* Select the variation that was clicked on.  */
-          blxWindowDeselectAllSeqs(blxWindow);
+      {
+        GtkWidget *detailView = GTK_WIDGET(data);
+        GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
 
-          /* The SNP track is not the same width as the sequence column, so pass the
-           * sequence column header so that we can convert to the correct coords */
-          DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+        if (event->type == GDK_BUTTON_PRESS) /* first click */
+          {
+            /* Select the variation that was clicked on.  */
+            blxWindowDeselectAllSeqs(blxWindow);
 
-          selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
-          
-          refreshDetailViewHeaders(detailView);
-          callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
-        }      
-      else if (event->type == GDK_2BUTTON_PRESS) /* double-click */
-        {
-          /* If a variation was double-clicked, open its URL in a browser. If multiple are selected,
-           * use the last-selected one. */
-          GList *seqItem = g_list_last(blxWindowGetSelectedSeqs(blxWindow));
-          
-          if (seqItem)
-            {
-              BlxSequence *seq = (BlxSequence*)(seqItem->data);
-              
-              /* (The url lives in the MSP, and there is only one MSP in a BlxSequence for a variation,
-               * so perhaps the url should be moved to the BlxSequence...) */
-              if (seq->type == BLXSEQUENCE_VARIATION && g_list_length(seq->mspList) > 0)
-                {
-                  const MSP const *msp = (const MSP const *)(seq->mspList->data);
-                  
-                  if (msp->url)
-                    {
-                      GError *error = NULL;
-                      seqtoolsLaunchWebBrowser(msp->url, &error);
-                      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-                    }
-                  else
-                    {
-                      g_warning("Variation '%s' does not have a URL.\n", mspGetSName(msp));
-                    }
-                }
-            }
-        }
+            /* The SNP track is not the same width as the sequence column, so pass the
+             * sequence column header so that we can convert to the correct coords */
+            DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
 
-      handled = TRUE;
-      break;
-    }
+            selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
+            
+            refreshDetailViewHeaders(detailView);
+            callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+          }      
+        else if (event->type == GDK_2BUTTON_PRESS) /* double-click */
+          {
+            /* If a variation was double-clicked, open its URL in a browser. If multiple are selected,
+             * use the last-selected one. */
+            GList *seqItem = g_list_last(blxWindowGetSelectedSeqs(blxWindow));
+            
+            if (seqItem)
+              {
+                BlxSequence *seq = (BlxSequence*)(seqItem->data);
+                
+                /* (The url lives in the MSP, and there is only one MSP in a BlxSequence for a variation,
+                 * so perhaps the url should be moved to the BlxSequence...) */
+                if (seq->type == BLXSEQUENCE_VARIATION && g_list_length(seq->mspList) > 0)
+                  {
+                    const MSP const *msp = (const MSP const *)(seq->mspList->data);
+                    
+                    if (msp->url)
+                      {
+                        GError *error = NULL;
+                        seqtoolsLaunchWebBrowser(msp->url, &error);
+                        reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+                      }
+                    else
+                      {
+                        g_warning("Variation '%s' does not have a URL.\n", mspGetSName(msp));
+                      }
+                  }
+              }
+          }
+
+        handled = TRUE;
+        break;
+      }
   }
   
   return handled;
@@ -3849,58 +3769,6 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 }
 
 
-static void buttonAttach(GtkHandleBox *handlebox, GtkWidget *toolbar, gpointer data)
-{
-  gtk_widget_set_usize(toolbar, 1, -2);
-}
-
-
-static void buttonDetach(GtkHandleBox *handlebox, GtkWidget *toolbar, gpointer data)
-{
-  gtk_widget_set_usize(toolbar, -1, -2);
-}
-
-
-/* Create an empty toolbar with our prefered settings. Sets the given
- * pointer to the actual toolbar and returns a pointer to the container of
- * the toolbar, if different (i.e. the widget that will be packed into the
- * parent container). */
-static GtkWidget* createEmptyButtonBar(GtkToolbar **toolbar)
-{
-  /* Create a handle box for the toolbar and add it to the window */
-  GtkWidget *handleBox = gtk_handle_box_new();
-  
-  /* Create the toolbar */
-  *toolbar = GTK_TOOLBAR(gtk_toolbar_new());
-  gtk_toolbar_set_tooltips(*toolbar, TRUE);
-  gtk_toolbar_set_show_arrow(*toolbar, TRUE);
-  gtk_toolbar_set_icon_size(*toolbar, GTK_ICON_SIZE_MENU);
-  gtk_toolbar_set_style(*toolbar, GTK_TOOLBAR_ICONS);
-
-  /* Set the style property that controls the spacing */
-  gtk_widget_set_name(GTK_WIDGET(*toolbar), DETAIL_VIEW_TOOLBAR_NAME);
-  char parseString[500];
-  sprintf(parseString, "style \"packedToolbar\"\n"
-	  "{\n"
-	  "GtkToolbar::space-size = 0\n"
-	  "GtkToolbar::button-relief = GTK_RELIEF_NONE\n"
-	  "}"
-	  "widget \"*%s*\" style \"packedToolbar\"", DETAIL_VIEW_TOOLBAR_NAME);
-  gtk_rc_parse_string(parseString);
-  
-  
-  /* next three lines stop toolbar forcing the size of a blixem window */
-  g_signal_connect(GTK_OBJECT(handleBox), "child-attached", G_CALLBACK(buttonAttach), NULL);
-  g_signal_connect(GTK_OBJECT(handleBox), "child-detached", G_CALLBACK(buttonDetach), NULL);
-  gtk_widget_set_usize(GTK_WIDGET(*toolbar), 1, -2);
-  
-  /* Add the toolbar to the handle box */
-  gtk_container_add(GTK_CONTAINER(handleBox), GTK_WIDGET(*toolbar));
-  
-  return handleBox;
-}
-
-
 /* Add an option for the sorting drop-down box */
 static GtkTreeIter* addSortBoxItem(GtkTreeStore *store, 
 				  GtkTreeIter *parent, 
@@ -3996,36 +3864,6 @@ static GtkWidget* createStatusBar(GtkToolbar *toolbar)
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
 
   return statusBar;
-}
-
-
-/* Creates a single button for the detail-view toolbar. */
-static void makeToolbarButton(GtkToolbar *toolbar,
-			      char *label,
-			      char *stockId,
-			      char *tooltip,
-			      GtkSignalFunc callback_func,
-			      gpointer data)
-{
-  GtkStockItem stockItem;
-  GtkToolItem *tool_button = NULL;
-  
-  if (stockId && gtk_stock_lookup(stockId, &stockItem))
-    {
-      tool_button = gtk_tool_button_new_from_stock(stockId);
-      gtk_tool_button_set_label(GTK_TOOL_BUTTON(tool_button), label);
-    }
-  else
-    {
-      tool_button = gtk_tool_button_new(NULL, label);
-    }
-  
-  gtk_toolbar_insert(toolbar, tool_button, -1);	    /* -1 means "append" to the toolbar. */
-
-  gtk_tool_item_set_homogeneous(tool_button, FALSE);
-  gtk_tool_item_set_tooltip(tool_button, toolbar->tooltips, tooltip, NULL);
-  
-  gtk_signal_connect(GTK_OBJECT(tool_button), "clicked", GTK_SIGNAL_FUNC(callback_func), data);
 }
 
 
@@ -4255,31 +4093,6 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   /* Also create a second data store that will store one sequence per row (as opposed to one
    * MSP per row). This data store will be switched in when the user selects 'squash matches'. */
   callFuncOnAllDetailViewTrees(detailView, addSequencesToTree, NULL);
-}
-
-
-/* We need a fixed-width font for displaying alignments. Find one from a 
- * list of possibilities. */
-static const char* findDetailViewFont(GtkWidget *detailView)
-{
-  GList *fixed_font_list = NULL ;
-
-  fixed_font_list = g_list_append(fixed_font_list, "andale mono");
-  fixed_font_list = g_list_append(fixed_font_list, "Lucida sans typewriter");
-  fixed_font_list = g_list_append(fixed_font_list, "deja vu sans mono");
-  fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera sans mono");
-  fixed_font_list = g_list_append(fixed_font_list, "monaco");
-  fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier 10 pitch");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier new");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier");
-  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
-  fixed_font_list = g_list_append(fixed_font_list, "fixed");
-  
-  const char *fontFamily = findFixedWidthFontFamily(detailView, fixed_font_list);
-  g_list_free(fixed_font_list);
-  
-  return fontFamily;
 }
 
 

@@ -26,14 +26,17 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.14 2010-08-31 16:09:28 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.15 2010-10-22 11:58:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <wh/graph.h>
-#include <wh/gex.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxGff3Parser.h>
+#include <SeqTools/blxparser.h>
 #include <SeqTools/dotter_.h>
+#include <string.h>
+#include <stdlib.h>
+#include <getopt.h>
 
 #define UNSET_INT  -1
 
@@ -159,7 +162,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char s
 
    msp->qRange.min = msp->qRange.max = pos;
    *msp->sframe = seq;
-   msp->fsColor = DARKGREEN;
+   msp->fsColor = 0;
    msp->type = BLXMSP_FS_SEG;
    msp->score = 100.0;
    insertFS(msp, "chain_separator");
@@ -233,7 +236,7 @@ static char* getUsageText()
 int main(int argc, char **argv)
 {
   DotterOptions options = {0, 0, 0, UNSET_INT, UNSET_INT, 0, 0, 1, 0, 0, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
-  
+
   char   
       *qseq=0, *sseq=0, line[MAXLINE+1],
       *cp, *cc, *cq, type, 
@@ -247,7 +250,8 @@ int main(int argc, char **argv)
                                S  start with swapped greyramptool
                             */
   FILE *qfile, *sfile;
-  MSP *MSPlist=0;
+  MSP *MSPlist = NULL;
+  GList *seqList = NULL;
   MSP *msp;
 
   
@@ -311,8 +315,7 @@ int main(int argc, char **argv)
   
     if (!options.savefile)
       {
-	graphInit(&argc, argv);
-	gexInit(&argc, argv);
+	gtk_init(&argc, &argv);
       }
 
     /* Store X options for zooming in */
@@ -421,11 +424,11 @@ int main(int argc, char **argv)
       
 	if ((cp = (char *)strrchr(argv[optind], '/')))
           {
-            options.qname = strnew(cp+1, 0);
+            options.qname = g_strdup(cp+1);
           }
 	else
           {
-            options.qname = strnew(argv[optind], 0);
+            options.qname = g_strdup(argv[optind]);
           }
 
 	if (!(sfile = fopen(argv[optind+1], "r"))) 
@@ -441,11 +444,11 @@ int main(int argc, char **argv)
       
 	if ((cp = (char *)strrchr(argv[optind]+1, '/')))
           {
-            options.sname = strnew(cp+1, 0);
+            options.sname = g_strdup(cp+1);
           }
 	else
           {
-            options.sname = strnew(argv[optind+1], 0);
+            options.sname = g_strdup(argv[optind+1]);
           }
 
 	/* Read in the sequences */
@@ -563,7 +566,6 @@ int main(int argc, char **argv)
 	    g_error("Cannot open %s\n", options.FSfilename);
           }
 	
-        GList *seqList = NULL; /* parser compiles a list of BlxSequences into here; not required for dotter */
         GSList *supportedTypes = blxCreateSupportedGffTypeList();
 
 	parseFS(&MSPlist, file, dummyopts, &seqList, supportedTypes, NULL, &qseq, options.qname, &sseq, options.sname, options.qoffset);
@@ -613,6 +615,9 @@ int main(int argc, char **argv)
         argvAdd(&argc, &argv, "-install");
       }
 
+    const BlxStrand qStrand = options.revcompq ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
+    const BlxStrand sStrand = BLXSTRAND_FORWARD;
+
     if (!options.savefile)
       {
         /* Set the message handlers. (Do this here because we don't want graphical dialog
@@ -620,20 +625,18 @@ int main(int argc, char **argv)
         g_log_set_default_handler(defaultMessageHandler, NULL);
         g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
         
-	dotter(type, opts, options.qname, qseq, options.qoffset, options.sname, sseq, options.soffset, 
+	dotter(type, opts, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
-               options.dotterZoom, MSPlist, 0, options.winsize, options.pixelFacset) ;
+               options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset) ;
 
-	graphLoop(0) ;
-
-	graphFinish () ;
+        gtk_main();
       }
     else
       {
         /* Batch mode */
-	dotter(type, opts, options.qname, qseq, options.qoffset, options.sname, sseq, options.soffset, 
+	dotter(type, opts, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
-               options.dotterZoom, MSPlist, 0, options.winsize, options.pixelFacset);
+               options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset);
       }
 
     return (0) ;

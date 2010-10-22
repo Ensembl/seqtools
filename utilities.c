@@ -13,6 +13,10 @@
 #include <stdlib.h>
 
 
+#define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
+
+
+
 /* Test char to see if it's a iupac dna/peptide code. */
 #define ISIUPACDNA(BASE) \
 (((BASE) == 'a' || (BASE) == 'c'|| (BASE) == 'g' || (BASE) == 't'       \
@@ -34,10 +38,6 @@
 
 
 static CallbackData*            widgetGetCallbackData(GtkWidget *widget);
-static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
-static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
-static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
-static char*                    blxSequenceGetStrain(const BlxSequence *seq);
 
 
 
@@ -223,11 +223,17 @@ int getRangeLength(const IntRange const *range)
   return (range->max - range->min + 1);
 }
 
-
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
 int getRangeCentre(const IntRange const *range)
 {
   return range->min + ((range->max - range->min) / 2);
+}
+
+/* Utility to set the given range to the given length, centred on the given coord */
+void centreRangeOnCoord(IntRange *range, const int coord, const int length)
+{
+  range->min = coord - (length / 2);
+  range->max = range->min + length;
 }
 
 
@@ -325,6 +331,10 @@ int numDigitsInInt(int val)
 }
 
 
+/***********************************************************
+ *		         Colors				   * 
+ ***********************************************************/
+
 /* Creates a GdkColor from the given color string in hex format, e.g. "#00ffbe". Returns false
  * and sets 'error' if there was a problem */
 gboolean getColorFromString(const char *colorStr, GdkColor *color, GError **error)
@@ -346,7 +356,7 @@ gboolean getColorFromString(const char *colorStr, GdkColor *color, GError **erro
     {
       g_free(color);
       color = NULL;
-      g_set_error(error, BLX_ERROR, 1, "Error parsing color string '%s'\n", colorStr);
+      g_set_error(error, SEQTOOLS_ERROR, 1, "Error parsing color string '%s'\n", colorStr);
     }
     
   return ok;
@@ -492,182 +502,199 @@ void getDropShadowColor(GdkColor *origColor, GdkColor *result)
 }
 
 
-gboolean typeIsExon(const BlxMspType mspType)
+/* Return a pointer to the BlxColor with the given id */
+BlxColor* getBlxColor(GArray *defaultColors, const int colorId)
 {
-  return (mspType == BLXMSP_CDS || mspType == BLXMSP_UTR || mspType == BLXMSP_EXON);
-}
+  BlxColor *result = &g_array_index(defaultColors, BlxColor, colorId);
 
-gboolean typeIsIntron(const BlxMspType mspType)
-{
-  return (mspType == BLXMSP_INTRON);
-}
-
-gboolean typeIsMatch(const BlxMspType mspType)
-{
-  return (mspType == BLXMSP_MATCH);
-}
-
-gboolean typeIsVariation(const BlxMspType mspType)
-{
-  return (mspType == BLXMSP_VARIATION);
-}
-
-
-gboolean mspIsExon(const MSP const *msp)
-{
-  return (msp && typeIsExon(msp->type));
-}
-
-
-/* Determine whether the given msp is in a visible layer */
-gboolean mspLayerIsVisible(const MSP const *msp)
-{
-  gboolean result = TRUE;
-
-  /* Currently only applicable to exons. Show plain exons OR their CDS/UTR sections,
-   * but not both. The plan is to add some options to toggle layers on and off, but for 
-   * now just hard code this. */
-  if (msp->type == BLXMSP_EXON /* msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR */)
+  if (!result)
     {
-      result = FALSE;
+      printf("Warning: color ID %d not found in the default colors array.\n", colorId);
     }
-    
+  
   return result;
 }
 
 
-/* Determine whether the given MSP is in a coding region or untranslated region. For 
- * exons, this is determined by the exon type. For introns, we have to look at the
- * adjacent exons to determine whether to show them as CDS or UTR - only show it as
- * CDS if there is a CDS exon on both sides of the intron. */
-static const GdkColor* mspGetIntronColor(const MSP const *msp, 
-					 GArray *defaultColors,
-					 const BlxSequence *blxSeq,
-					 const gboolean selected,
-					 const gboolean usePrintColors,
-					 const gboolean fill)
+/* Lookup the BlxColor with the given id in the given hash table and return a 
+ * pointer to the gdk color with the given properties */
+GdkColor* getGdkColor(const int colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors)
 {
-  const GdkColor *result = NULL;
+  GdkColor *result = NULL;
   
-  /* Find the nearest exons before and after this MSP */
-  const MSP *prevExon = NULL;
-  const MSP *nextExon = NULL;
-
-  GList *mspItem = blxSeq->mspList;
-  for ( ; mspItem; mspItem = mspItem->next)
+  BlxColor *blxColor = getBlxColor(defaultColors, colorId);
+  
+  if (blxColor)
     {
-      const MSP *curMsp = (const MSP *)(mspItem->data);
-    
-      if (mspIsExon(curMsp) && mspLayerIsVisible(curMsp))
-        {
-          const int curOffset = mspGetQStart(curMsp) - mspGetQStart(msp);
-        
-          if (curOffset < 0 && (!prevExon || curOffset > mspGetQStart(prevExon) - mspGetQStart(msp)))
-            {
-              /* Current MSP is before our MSP and is the smallest offset so far */
-              prevExon = curMsp;
-            }
-          else if (curOffset > 0 && (!nextExon || curOffset < mspGetQStart(nextExon) - mspGetQStart(msp)))
-            {
-              /* Current MSP is after our MSP and is the smallest offset so far */
-              nextExon = curMsp;
-            }
-        }
-    }
-
-  gboolean prevIsUtr = prevExon && prevExon->type == BLXMSP_UTR;
-  gboolean nextIsUtr = nextExon && nextExon->type == BLXMSP_UTR;
-
-  /* if either exon is UTR, the intron is UTR */
-  if (prevIsUtr)
-    {
-      result = mspGetColor(prevExon, defaultColors, blxSeq, selected, usePrintColors, fill);
-    }
-  else if (nextIsUtr)
-    {
-      result = mspGetColor(nextExon, defaultColors, blxSeq, selected, usePrintColors, fill);
-    }
-  else if (prevExon)
-    {
-      /* Both exons (or the sole exon, if only one exists) are CDS, so the intron is CDS */
-      result = mspGetColor(prevExon, defaultColors, blxSeq, selected, usePrintColors, fill);
-    }
-  else if (nextExon)
-    {
-      /* This is the only exon and it is CDS, so make the intron CDS */
-      result = mspGetColor(nextExon, defaultColors, blxSeq, selected, usePrintColors, fill);
+      if (usePrintColors)
+	{
+	  result = selected ? &blxColor->printSelected : &blxColor->print;
+	}
+      else
+	{
+	  result = selected ? &blxColor->selected : &blxColor->normal;
+	}
     }
   else
     {
-      /* No exon exists adjacent to this intron: default to generic exon color for want of anything better to do. */
-      if (fill)
-        result = getGdkColor(BLXCOLOR_EXON_FILL, defaultColors, selected, usePrintColors);
-      else
-        result = getGdkColor(BLXCOLOR_EXON_LINE, defaultColors, selected, usePrintColors);
+      printf("Error: requested invalid color ID %d", colorId);
     }
-              
+  
   return result;
 }
 
-gboolean mspIsIntron(const MSP const *msp)
+
+/* This basically does what gdk_color_to_string does, but that function isn't available in
+ * older versions of GDK... */
+char* convertColorToString(GdkColor *color)
 {
-  return (msp && typeIsIntron(msp->type));
+  //  char *result = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
+  //  return result;
+  
+  /* Need to make sure the color is allocated (otherwise the 'pixel' field may be zero) */
+  gboolean failures[1];
+  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
+  
+  const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
+  
+  char *result = g_malloc(sizeof(char) * hexLen);
+  sprintf(result, "#%x", color->pixel);
+  
+  return result;
 }
 
-gboolean mspIsVariation(const MSP const *msp)
+
+/* Free all memory used by a BlxColor */
+void destroyBlxColor(BlxColor *blxColor)
 {
-  return (msp && typeIsVariation(msp->type));
+  if (blxColor)
+    {
+      g_free(blxColor->name);
+      g_free(blxColor->desc);
+    }
 }
 
-gboolean mspIsZeroLenVariation(const MSP const *msp)
+/* Create a BlxColor. The result should be destroyed with destroyBlxColor. Returns
+ * NULL if there was any problem. If "selected" state colors are not passed, this function
+ * calculates a slightly darker shade of the normal color to use for when it is selected.
+ * Inserts the new color into the given list */
+void createBlxColor(GArray *defaultColors,
+		    int colorId,
+		    const char *name, 
+		    const char *desc, 
+		    const char *normalCol, 
+		    const char *printCol,
+		    const char *normalColSelected,
+		    const char *printColSelected)
 {
-  /* Insertions are the only zero-length variations we deal with (i.e. they affect a site between 
-   * two coords rather than any coord directly). An insertion will have '-' as the first letter in
-   * its sequence (the format is, say, -/A for an insertion, A/G for a substitution, A/- for a deletion
-   * or A/-/G etc for mixed) */
-  return (mspIsVariation(msp) && msp->sSequence && msp->sSequence->sequence && msp->sSequence->sequence->str && msp->sSequence->sequence->str[0] == '-');
+  BlxColor *result = &g_array_index(defaultColors, BlxColor, colorId);
+  
+  result->transparent = FALSE;
+  GError *error = NULL;
+  
+  if (!normalCol)
+    {
+      result->transparent = TRUE;
+    }
+  else if (getColorFromString(normalCol, &result->normal, &error)) 
+    {
+      /* find a "selected" version of it, if not passed one */
+      if (normalColSelected)
+	{
+	  if (!getColorFromString(normalColSelected, &result->selected, &error))
+	    {
+	      prefixError(error, "Error getting 'selected' color: using normal color instead. ");
+	      reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
+	      result->selected = result->normal;
+	    }
+	}
+    else
+	{
+	  getSelectionColor(&result->normal, &result->selected); 
+	}
+    
+    /* Parse the print color */
+    if (getColorFromString(printCol, &result->print, &error))
+      {
+	/* find a "selected" version of it, if not passed one */
+	if (printColSelected)
+	  {
+	    if (!getColorFromString(printColSelected, &result->printSelected, &error))
+	      {
+		prefixError(error, "Error getting print color for selected items: using normal print color instead. ");
+		reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
+		result->printSelected = result->print;
+	      }
+	  }
+	else
+	  {
+	    getSelectionColor(&result->print, &result->printSelected); 
+	  }
+	}
+      else
+	{
+	/* Error parsing the print color: use the normal color but give a warning */
+	prefixError(error, "Error getting print colors: using normal colors instead. ");
+	reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
+	result->print = result->normal;
+	result->printSelected = result->selected;
+	}
+    }
+  else
+    {
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+      g_free(result);
+      result = NULL;
+    }
+  
+  if (result)
+    {
+      /* Set the other properties */
+      result->name = g_strdup(name);
+      result->desc = g_strdup(desc);
+    }
 }
 
-gboolean mspIsPolyASite(const MSP const *msp)
+
+/* Calculate how many pixels wide a base is */
+gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRange)
 {
-  return (msp && msp->type == BLXMSP_POLYA_SITE);
+  gdouble displayLen = (gdouble)(displayRange->max - displayRange->min) + 1;
+  return ((gdouble)displayWidth / displayLen);
 }
 
-gboolean mspIsPolyASignal(const MSP const *msp)
-{
-  return (msp && msp->type == BLXMSP_POLYA_SIGNAL);
-}
 
-gboolean mspIsBlastMatch(const MSP const *msp)
+/* Convert a base index to an x coord within the given rectangle. Returns the number of pixels 
+ * from the left edge (including the start of the rectangle) to where the base lies. displayRev 
+ * should be passed as true if the display is reversed (i.e. low values on the right and high 
+ * values on the left). Clips the result to the rectangle if clip is true */
+gint convertBaseIdxToRectPos(const gint dnaIdx, 
+			     const GdkRectangle const *rect, 
+			     const IntRange const *dnaDispRange,
+                             const gboolean displayRev,
+                             const gboolean clip)
 {
-  return (msp && msp->type == BLXMSP_MATCH);
-}
-
-/* Whether the msp has a Target name (i.e. Subject sequence name) */
-gboolean mspHasSName(const MSP const *msp)
-{
-  return TRUE;
-}
-
-/* Whether the MSP requires subject sequence coords to be set. Only matches 
- * have coords on the subject sequence */
-gboolean mspHasSCoords(const MSP const *msp)
-{
-  return mspIsBlastMatch(msp);
-}
-
-/* Whether the MSP requires subject sequence strand to be set. Only matches 
- * require strand on the subject sequence. */
-gboolean mspHasSStrand(const MSP const *msp)
-{
-  return mspIsBlastMatch(msp);
-}
-
-/* Whether the MSP requires the actual sequence data for the subject sequence. Only
- * matches require the sequence data. */
-gboolean mspHasSSeq(const MSP  const *msp)
-{
-  return mspIsBlastMatch(msp);
+  gint result = UNSET_INT;
+  
+  int baseIdx = invertCoord(dnaIdx, dnaDispRange, displayRev);
+  
+  gdouble numBasesFromEdge = (gdouble)(baseIdx - dnaDispRange->min); /* 0-based index from edge */
+  
+  if (clip && numBasesFromEdge < 0)
+    {
+    numBasesFromEdge = 0;
+    }
+  
+  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rect->width, dnaDispRange));
+  
+  result = rect->x + pixelsFromEdge;
+  
+  if (clip && result > rect->x + rect->width)
+    {
+    result = rect->x + rect->width;
+    }
+  
+  return result;
 }
 
 
@@ -774,7 +801,7 @@ void convertDisplayRangeToDnaRange(const IntRange const * displayRange,
  * If the display sequence is a peptide sequence, it will convert the coord to a DNA coord. If the
  * display is reversed, the display coord will be inverted. */
 int convertDisplayIdxToDnaIdx(const int displayIdx, 
-			      const BlxSeqType displaySeqType,
+			      const BlxSeqType srcSeqType,
 			      const int frame, 
 			      const int baseNum, 
 			      const int numFrames,
@@ -783,24 +810,21 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
 {
   int dnaIdx = displayIdx;
   
-  if (displayIdx != UNSET_INT)
+  if (srcSeqType == BLXSEQ_PEPTIDE)
     {
-      if (displaySeqType == BLXSEQ_PEPTIDE)
-	{
-	  /* Convert the input peptide coord to a dna coord */
-	  dnaIdx = (displayIdx * numFrames) - numFrames + frame + baseNum - 1;
+      /* Convert the input peptide coord to a dna coord */
+      dnaIdx = (displayIdx * numFrames) - numFrames + frame + baseNum - 1;
 
-	  /* Convert from 1-based coord to real coords */
-	  dnaIdx += refSeqRange->min - 1;
-	}
-      
-      /* If the display is reversed, we need to invert the result. (For example, if the 
+      /* Convert from 1-based coord to real coords */
+//	  dnaIdx += refSeqRange->min - 1 + 2;
+    }
+  
+  if (displayRev)
+    {
+      /* If the display is reversed, we need to invert the result. For example, if the 
        * result is index '2' out of the range '12345', then we convert it to '4', which is the
        * equivalent position in the range '54321'. */
-      if (displayRev)
-	{
-	  dnaIdx = refSeqRange->max - dnaIdx + refSeqRange->min;
-	}
+      dnaIdx = refSeqRange->max - dnaIdx + refSeqRange->min;
     }
 
   return dnaIdx;
@@ -822,43 +846,40 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 {
   int displayIdx = dnaIdx;
   
-  if (dnaIdx != UNSET_INT)
+  /* If the display is reversed (i.e. showing increasing values from right-to-left),
+   * invert the index (i.e. as if it were the normal left-to-right index for this
+   * same position - for example, if the index is '4' out of the range '54321', convert
+   * it to '2', which is the equivalent position in the range '12345'. */
+  if (displayRev)
     {
-      /* If the display is reversed (i.e. showing increasing values from right-to-left),
-       * invert the index (i.e. as if it were the normal left-to-right index for this
-       * same position - for example, if the index is '4' out of the range '54321', convert
-       * it to '2', which is the equivalent position in the range '12345'. */
-      if (displayRev)
-	{
-	  displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
-	}
-      
-      if (displaySeqType == BLXSEQ_PEPTIDE)
-	{
-	  /* Must convert to 1-based coords to get correct reading frame (because that's
-	   * the coordinate system used in blixem's input files). */
-	  displayIdx -= dnaIdxRange->min - 1;
+      displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
+    }
+  
+  if (displaySeqType == BLXSEQ_PEPTIDE)
+    {
+      /* Must convert to 1-based coords to get correct reading frame (because reading frame 1
+       * starts at coord 1). */
+//	  displayIdx -= dnaIdxRange->min - 1;
 
-	  /* We're displaying peptides, so convert the dna coord to a peptide coord */
-	  gdouble fraction = ((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames) ;
-	  displayIdx = ceil(fraction);
+      /* We're displaying peptides, so convert the dna coord to a peptide coord */
+      gdouble fraction = ((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames) ;
+      displayIdx = ceil(fraction);
+  
+      /* Find the base number of this DNA coord within the codon, if requested */
+      if (baseNum)
+        {
+          *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
       
-	  /* Find the base number of this DNA coord within the codon, if requested */
-	  if (baseNum)
-	    {
-	      *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
-	  
-	      if (*baseNum < 1)
-		{
-		  *baseNum += numFrames;
-		}
-	    }
-	}
-      else if (baseNum)
-	{
-	  /* For dna sequences, we only have one reading frame */
-	  *baseNum = 1;
-	}
+          if (*baseNum < 1)
+            {
+              *baseNum += numFrames;
+            }
+        }
+    }
+  else if (baseNum)
+    {
+      /* For dna sequences, we only have one reading frame */
+      *baseNum = 1;
     }
   
   return displayIdx;
@@ -907,415 +928,8 @@ int getEndDnaCoord(const IntRange const *displayRange,
 }
 
 
-/* Given a base index on the query sequence, find the corresonding base 
- * in subject sequence. The return value is always UNSET_INT if there is not
- * a corresponding base at this position. However, in this case the start/end
- * of the sequence (or nearest gap) is returned in the nearestIdx argument. If
- * the base exists then the return idx and nearestIdx will be the same. 
- * nearestIdx can be null if not required. */
-int gapCoord(const MSP *msp, 
-	     const int qIdx, 
-	     const int numFrames, 
-	     const BlxStrand strand, 
-	     const gboolean displayRev,
-             const gboolean seqSelected,
-             const int numUnalignedBases,
-             gboolean *flags,
-             const MSP const *mspList)
-{
-  int result = UNSET_INT;
-  
-  if (mspIsBlastMatch(msp) || mspIsExon(msp))
-    {
-      const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-      const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
-      const gboolean sameDirection = (qForward == sForward);
-      const gboolean inGapsRange = (qIdx >= msp->qRange.min && qIdx <= msp->qRange.max);
-      
-      if (msp->gaps && g_slist_length(msp->gaps) >= 1 && inGapsRange)
-	{
-	  /* Gapped alignment. Look to see if x lies inside one of the "gaps" ranges. */
-          GSList *rangeItem = msp->gaps;
-
-	  for ( ; rangeItem ; rangeItem = rangeItem->next)
-	    {
-	      CoordRange *curRange = (CoordRange*)(rangeItem->data);
-	      
-	      int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-	      getCoordRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-	      
-	      /* We've "found" the value if it's in or before this range. Note that the
-	       * the range values are in decreasing order if the q strand is reversed. */
-	      gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
-	      
-	      if (found)
-		{
-		  gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
-		  
-		  if (inRange)
-		    {
-		      /* It's inside this range. Calculate the actual index. */
-		      int offset = (qIdx - qRangeMin) / numFrames;
-		      result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
-		    }
-
-		  break;
-		}
-	    }
-	}
-      else if (!inGapsRange && mspIsBlastMatch(msp))
-	{
-          /* The q index is outside the alignment range but the option to show unaligned sequence 
-           * is enabled, so check if the q index is within the full display range including 
-           * any unaligned portions of the sequence that we're displaying. */
-
-	  if (qIdx < msp->qRange.min)
-	    {
-	      /* Find the offset backwards from the low coord and subtract it from the low end
-	       * of the s coord range (or add it to the high end, if the directions are opposite). */
-	      const int offset = (msp->qRange.min - qIdx) / numFrames;
-	      result = sameDirection ? msp->sRange.min - offset : msp->sRange.max + offset;
-	    }
-	  else
-	    {
-	      /* Find the offset forwards from the high coord and add it to the high end of the
-	       * s coord range (or subtract it from the low end, if the directions are opposite). */
-	      const int offset = (qIdx - msp->qRange.max) / numFrames;
-	      result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
-	    }
-
-          /* Get the full display range of the match sequence. If the result is still out of range
-           * then there's nothing to show for this qIdx. */
-          IntRange fullSRange;
-          mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, mspList, &fullSRange);
-
-	  if (!valueWithinRange(result, &fullSRange))
-	    {
-	      result = UNSET_INT;
-	    }
-	}
-      else
-	{
-	  /* If strands are in the same direction, find the offset from qRange.min and add it to 
-	   * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
-	   * subtract it from sRange.max. Note that the offset could be negative if we're outside
-	   * the alignment range. */
-	  int offset = (qIdx - msp->qRange.min)/numFrames ;
-	  result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
-	  
-	  if (result < msp->sRange.min || result > msp->sRange.max)
-	    {
-	      result = UNSET_INT;
-	    }
-
-	}
-    }
-  
-  return result;
-}
-
-
-
-/***********************************************************
- *		MSP data access functions		   * 
- ***********************************************************/
-
-/* Get the range of coords of the alignment on the reference sequence */
-const IntRange const *mspGetRefCoords(const MSP const *msp)
-{
-  return &msp->qRange;
-}
-
-/* Get the range of coords of the alignment on the match sequence */
-const IntRange const *mspGetMatchCoords(const MSP const *msp)
-{
-  return &msp->sRange;
-}
-
-/* Return the length of the range of alignment coords on the ref seq */
-int mspGetQRangeLen(const MSP const *msp)
-{
-  return msp->qRange.max - msp->qRange.min + 1;
-}
-
-/* Return the length of the range of alignment coords on the match seq */
-int mspGetSRangeLen(const MSP const *msp)
-{
-  return msp->sRange.max - msp->sRange.min + 1;
-}
-
-/* Get the start (5 prime) coord of the alignment on the reference sequence. This is
- * the lowest value coord if the strand is forwards or the highest if it is reverse. */
-int mspGetQStart(const MSP const *msp)
-{
-  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.max : msp->qRange.min);
-}
-
-/* Get the end (3 prime) coord of the alignment on the reference sequence. This is
- * the highest value coord if the strand is forwards or the lowest if it is reverse. */
-int mspGetQEnd(const MSP const *msp)
-{
-  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.min : msp->qRange.max);
-}
-
-/* Get the start coord of the alignment on the match sequence. This is
- * the lowest value coord if the match strand is the same direction as the ref seq strand,
- * or the highest value coord otherwise. */
-int mspGetSStart(const MSP const *msp)
-{
-  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.min : msp->sRange.max);
-}
-
-/* Get the end coord of the alignment on the match sequence. This is
- * the highest value coord if the match strand is in the same direction as the ref seq strand, 
- * or the lowest value coord otherwise. */
-int mspGetSEnd(const MSP const *msp)
-{
-  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max : msp->sRange.min);
-}
-
-char* mspGetSSeq(const MSP const *msp)
-{
-  return (msp && msp->sSequence && msp->sSequence->sequence ? msp->sSequence->sequence->str : NULL);
-}
-
-/* Return the match sequence name. (Gets it from the BlxSequence if the MSP itself doesn't have
- * a name) */
-const char *mspGetSName(const MSP const *msp)
-{
-  const char *result = NULL;
-  
-  if (msp)
-    {
-      if (msp->sname)
-	{
-	  result = msp->sname;
-	}
-      else if (msp->sSequence)
-	{
-	  result = blxSequenceGetFullName(msp->sSequence);
-	}
-    }
-  
-  return result;
-}
-
-
-/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. */
-gboolean mspHasPolyATail(const MSP const *msp, const MSP const *mspList)
-{
-  gboolean found = FALSE;
-
-  /* Only matches have polyA tails. */
-  if (mspIsBlastMatch(msp))
-    {
-      /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
-       * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
-       * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
-      const MSP *curMsp = mspList;
-       
-      for ( ; !found && curMsp; curMsp = curMsp->next)
-        {
-          if (mspIsPolyASite(curMsp))
-            {
-              const int qEnd = mspGetQEnd(msp);
-              
-              if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
-                {
-                  found = (qEnd == curMsp->qRange.min);
-                }
-              else
-                {
-                  found = (qEnd == curMsp->qRange.min + 1);
-                }
-            }
-        }
-    }
-  
-  return found;
-}
-
-
-/* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
- * this MSP has one. */
-gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP const *mspList)
-{
-  gboolean result = mspHasPolyATail(msp, mspList);
-  
-  /* See if the coord is outside the 3' end of the alignment range (i.e. is greater than the
-   * max coord if we're on the forward strand or less than the min coord if on the reverse). */
-  result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->qRange.max) ||
-             (mspGetRefStrand(msp) == BLXSTRAND_REVERSE && coord < msp->qRange.min));
-
-  return result;
-}
-
-/* Get the full range of the given MSP that we want to display, in s coords. This will generally 
- * be the coords of the alignment but could extend outside this range we are displaying unaligned 
- * portions of the match sequence or polyA tails etc. */
-void mspGetFullSRange(const MSP const *msp, 
-                      const gboolean seqSelected,
-                      const gboolean *flags,
-                      const int numUnalignedBases, 
-                      const MSP const *mspList,
-                      IntRange *result)
-{
-  /* Normally we just display the part of the sequence in the alignment */
-  result->min = msp->sRange.min;
-  result->max = msp->sRange.max;
-  
-  if (flags[BLXFLAG_SHOW_UNALIGNED] && mspGetMatchSeq(msp) && (!flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || seqSelected))
-    {
-      /* We're displaying additional unaligned sequence outside the alignment range. Get 
-       * the full range of the match sequence */
-      result->min = 1;
-      result->max = mspGetMatchSeqLen(msp);
-  
-      if (flags[BLXFLAG_LIMIT_UNALIGNED_BASES])
-        {
-          /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
-           * to the range we found above, though). */
-          result->min = max(result->min, msp->sRange.min - numUnalignedBases);
-          result->max = min(result->max, msp->sRange.max + numUnalignedBases);
-        }
-    }
-    
-  if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp, mspList) && (!flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] || seqSelected))
-    {
-      /* We're displaying polyA tails, so override the 3' end coord with the full extent of
-       * the s sequence if there is a polyA site here. The 3' end is the min q coord if the
-       * match is on forward ref seq strand or the max coord if on the reverse. */
-      const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-      
-      if (sameDirection)
-        {
-          result->max = mspGetMatchSeqLen(msp);
-        }
-      else
-        {
-          result->min = 1;
-        }
-    }
-}
-
-
-/* Get the full range of the given MSP that we want to display, in q coords. This will generally 
- * be the coords of the alignment but could extend outside this range we are displaying unaligned 
- * portions of the match sequence or polyA tails etc. */
-void mspGetFullQRange(const MSP const *msp, 
-                      const gboolean seqSelected,
-                      const gboolean *flags,
-                      const int numUnalignedBases, 
-                      const MSP const *mspList,
-                      const int numFrames,
-                      IntRange *result)
-{
-  /* Default to the alignment range so we can exit quickly if there are no special cases */
-  result->min = msp->qRange.min;
-  result->max = msp->qRange.max;
-
-  if (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE])
-    {
-      /* Get the full display range of the MSP including any unaligned portions of the match sequence. */
-      IntRange fullSRange;
-      mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, mspList, &fullSRange);
-      
-      /* Find the offset of the start and end of the full range compared to the alignment range and
-       * offset the ref seq range by the same amount. We need to multiply by the number of reading
-       * frames because q coords are in nucleotides and s coords are in peptides. */
-      const int startOffset = (msp->sRange.min - fullSRange.min) * numFrames;
-      const int endOffset = (fullSRange.max - msp->sRange.max) * numFrames;
-
-      const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-      result->min -= sameDirection ? startOffset : endOffset;
-      result->max += sameDirection ? endOffset : startOffset;
-    }
-}
-
-
-/* Append the contents of the second GString to the first GString, if the second is non-null,
- * including the given separator before the second GString is appended. Pass the separator
- * as an empty string if no separation is required. */
-static void appendTextIfNonNull(GString *gstr, const char *separator, const GString *text)
-{
-  if (text && text->str)
-    {
-      g_assert(separator);
-      g_string_append_printf(gstr, "%s%s", separator, text->str);
-    }
-}
-
-
-/* Get the transcript name for an old-style exon/intron. These were postfixed with 'x' or 'i' 
- * to indicate exon and intron; we need to remove this postfix in order to find the real transcript
- * name so that we can group exons and introns from the same transcript together in the same BlxSequence.
- * If not an exon or intron, just returns a copy of the msp name. The result should be free'd with g_free. */
-char* mspGetExonTranscriptName(const MSP *msp)
-{
-  char *name = g_strdup(msp->sname);
-  
-  if (name)
-    {
-    int i = strlen(name) - 1;
-    
-    if (mspIsExon(msp) && (name[i] == 'x' || name[i] == 'X'))
-      {
-      name[i] = '\0';
-      }
-    else if (mspIsIntron(msp) && (name[i] == 'i' || name[i] == 'I'))
-      {
-      name[i] = '\0';
-      }
-    }
-  
-  return name;
-}
-
-/* Return the length of the match sequence that the given MSP lies on */
-int mspGetMatchSeqLen(const MSP const *msp)
-{
-  return blxSequenceGetLength(msp->sSequence);
-}
-
-/* Return the reading frame of the ref sequence that the given MSP is a match against */
-int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
-{
-  int result = UNSET_INT;
-  
-  if (seqType == BLXSEQ_DNA)
-    {
-      /* Ignore the frame in  the msp. For DNA matches we only have one frame on each strand. */
-      result = 1;
-    }
-  else
-    {
-      result = msp->qFrame;
-    }
-  
-  return result;
-}
-
-/* Return the strand of the ref sequence that the given MSP is a match against */
-BlxStrand mspGetRefStrand(const MSP const *msp)
-{
-  return msp->qStrand;
-}
-
-/* Return the strand of the match sequence that the given MSP is a match on */
-BlxStrand mspGetMatchStrand(const MSP const *msp)
-{
-  return msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE;
-}
-
-/* Get the match sequence for the given MSP */
-const char* mspGetMatchSeq(const MSP const *msp)
-{
-  return blxSequenceGetSeq(msp->sSequence);
-}
-
-
 /* For the given BlxColor, return a pointer to the GdkColor that meets the given criteria */
-static const GdkColor *blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors)
+const GdkColor *blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors)
 {
   const GdkColor *result = NULL;
   
@@ -1342,137 +956,6 @@ static const GdkColor *blxColorGetColor(const BlxColor *blxColor, const gboolean
 	}
     }
     
-  return result;
-}
-
-
-/* Return the color matching the given properties from the given style */
-static const GdkColor *styleGetColor(const BlxStyle *style, const gboolean selected, const gboolean usePrintColors, const gboolean fill)
-{
-  const GdkColor *result = NULL;
-  
-  if (fill)
-    {
-      result = blxColorGetColor(&style->fillColor, selected, usePrintColors);
-    }
-  else
-    {
-      result = blxColorGetColor(&style->lineColor, selected, usePrintColors);
-    }
-  return result;
-}
-
-
-/* Get the color for drawing the given MSP (If 'selected' is true, returns
- * the color when the MSP is selected.). Returns the fill color if 'fill' is 
- * true, otherwise the line color */
-const GdkColor* mspGetColor(const MSP const *msp, 
-			    GArray *defaultColors, 
-			    const BlxSequence *blxSeq,
-			    const gboolean selected, 
-			    const gboolean usePrintColors, 
-			    const gboolean fill)
-{
-  const GdkColor *result = NULL;
-  
-  if (msp->style)
-    {
-      result = styleGetColor(msp->style, selected, usePrintColors, fill);
-    }
-
-  if (!result)
-    {
-      /* Use the default color for this MSP's type */
-      switch (msp->type)
-        {
-          case BLXMSP_EXON:
-            result = getGdkColor(fill ? BLXCOLOR_EXON_FILL : BLXCOLOR_EXON_LINE, defaultColors, selected, usePrintColors);
-            break;
-            
-            case BLXMSP_CDS:
-            result = getGdkColor(fill ? BLXCOLOR_CDS_FILL : BLXCOLOR_CDS_LINE, defaultColors, selected, usePrintColors);
-            break;
-
-          case BLXMSP_UTR:
-            result = getGdkColor(fill ? BLXCOLOR_UTR_FILL : BLXCOLOR_UTR_LINE, defaultColors, selected, usePrintColors);
-            break;
-            
-          case BLXMSP_INTRON:
-             result = mspGetIntronColor(msp, defaultColors, blxSeq, selected, usePrintColors, fill);
-             break;
-             
-          default:
-            break;
-        };
-    }
-  
-  return result;
-}
-
-
-/* Get functions from msps for various sequence properties. Result is owned by the sequence
- * and should not be free'd. Returns NULL if the property is not set. */
-char *mspGetOrganism(const MSP const *msp)
-{
-  return (msp && msp->sSequence && msp->sSequence->organism ? msp->sSequence->organism->str : NULL);
-}
-
-char *mspGetGeneName(const MSP const *msp)
-{
-  return (msp && msp->sSequence && msp->sSequence->geneName ? msp->sSequence->geneName->str : NULL);
-}
-
-char *mspGetTissueType(const MSP const *msp)
-{
-  return (msp && msp->sSequence && msp->sSequence->tissueType ? msp->sSequence->tissueType->str : NULL);
-}
-
-char *mspGetStrain(const MSP const *msp)
-{
-  return (msp && msp->sSequence && msp->sSequence->strain ? msp->sSequence->strain->str : NULL);
-}
-
-
-/* Return the coords of an MSP as a string. The result should be free'd with g_free */
-char *mspGetCoordsAsString(const MSP const *msp)
-{
-  char *result = NULL;
-  
-  if (msp)
-    {
-      GString *resultStr = g_string_new("");
-
-      g_string_append_printf(resultStr, "%d - %d [%d - %d]", msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
-
-      result = resultStr->str;
-      g_string_free(resultStr, FALSE);
-    }
-  
-  return result;
-}
-
-
-/* Return summary info about a given BlxSequence (e.g. for displaying in the status bar). The
- * result should be free'd with g_free. */
-char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
-{
-  char *result = NULL;
-  
-  if (blxSeq)
-    {
-      GString *resultStr = g_string_new("");
-      const char *separator = ";  ";
-      
-      g_string_append_printf(resultStr, "%s", blxSeq->fullName);
-      appendTextIfNonNull(resultStr, separator, blxSeq->organism);
-      appendTextIfNonNull(resultStr, separator, blxSeq->geneName);
-      appendTextIfNonNull(resultStr, separator, blxSeq->tissueType);
-      appendTextIfNonNull(resultStr, separator, blxSeq->strain);
-      
-      result = resultStr->str;
-      g_string_free(resultStr, FALSE);
-    }
-  
   return result;
 }
 
@@ -1555,285 +1038,8 @@ char* getSeqShortName(const char *longName)
 
       result[destIdx] = '\0';
     }
-  
-  return result;
-}
-
-
-/* Return the full name of a BlxSequence (including prefix and variant) */
-const char *blxSequenceGetFullName(const BlxSequence *seq)
-{
-  return seq->fullName;
-}
-
-/* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
-const char *blxSequenceGetVariantName(const BlxSequence *seq)
-{
-  return seq->variantName;
-}
-
-/* Return the display name of a BlxSequence (same as full name for now) */
-const char *blxSequenceGetDisplayName(const BlxSequence *seq)
-{
-  return seq->fullName;
-}
-
-/* Return the short name of a BlxSequence (excludes prefix and variant number) */
-const char *blxSequenceGetShortName(const BlxSequence *seq)
-{
-  return seq->shortName;
-}
-
-/* Return the length of the given blxsequence's sequence data */
-int blxSequenceGetLength(const BlxSequence *seq)
-{
-  return (seq && seq->sequence ? seq->sequence->len : 0);
-}
-
-/* Get the start extent of the sequence on the ref sequence */
-int blxSequenceGetStart(const BlxSequence *seq)
-{
-  return seq->qRange.min;
-}
-
-/* Get the end extend of the sequence on the ref sequence */
-int blxSequenceGetEnd(const BlxSequence *seq)
-{
-  return seq->qRange.max;
-}
-
-/* Get the sequence data for the given blxsequence */
-char *blxSequenceGetSeq(const BlxSequence *seq)
-{
-  return (seq && seq->sequence ? seq->sequence->str : NULL);
-}
-
-static char *blxSequenceGetOrganism(const BlxSequence *seq)
-{
-  return (seq && seq->organism ? seq->organism->str : "");
-}
-
-static char *blxSequenceGetGeneName(const BlxSequence *seq)
-{
-  return (seq && seq->geneName ? seq->geneName->str : "");
-}
-
-static char *blxSequenceGetTissueType(const BlxSequence *seq)
-{
-  return (seq && seq->tissueType ? seq->tissueType->str : "");
-}
-
-static char *blxSequenceGetStrain(const BlxSequence *seq)
-{
-  return (seq && seq->strain ? seq->strain->str : "");
-}
-
-
-/* Return all the stored info about a blx sequenece (description, organism, tissue type etc.) 
- * in a single string. The result should be free'd by the caller using g_free. If 'allowNewlines'
- * is true the data is separated with newline characters, otherwise with tabs (i.e. pass as false
- * if returned string is to be shown as a single line). The dataLoaded flag should be passed as
- * false if the optional data has not been loaded yet. */
-char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded)
-{
-  char *result = NULL;
-  
-  if (blxSeq)
-    {
-      GString *resultStr = g_string_new("");
-      char separator = allowNewlines ? '\n' : '\t';
-      char strand = blxSeq->strand == BLXSTRAND_REVERSE ? '-' : '+';
-      char unloadedStr[] = "(optional data not loaded)";
-      
-      g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSeq->fullName, strand, separator);
-      g_string_append_printf(resultStr, "ORGANISM:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetOrganism(blxSeq), separator);
-      g_string_append_printf(resultStr, "GENE NAME:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetGeneName(blxSeq), separator);
-      g_string_append_printf(resultStr, "TISSUE TYPE:\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetTissueType(blxSeq), separator);
-      g_string_append_printf(resultStr, "STRAIN:\t\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetStrain(blxSeq), separator);
-      
-      /* Loop through the MSPs and show their info */
-      g_string_append(resultStr, "ALIGNMENTS:\t\t");
-      GList *mspItem = blxSeq->mspList;
-      
-      for ( ; mspItem; mspItem = mspItem->next)
-        {
-          const MSP const *msp = (const MSP const *)(mspItem->data);
-          g_string_append_printf(resultStr, "%s\t", mspGetCoordsAsString(msp));
-        }
-
-      /* Add a final separator after the alignments line*/
-      g_string_append_printf(resultStr, "%c", separator);
-      
-      result = resultStr->str;
-      g_string_free(resultStr, FALSE);
-    }
-  
-  return result;
-}
-
-/* Find a BlxSequence by its full name (must be an exact match but is case insensitive) */
-static BlxSequence* blxSequenceFindByName(const char *name, GList *allSeqs)
-{
-  BlxSequence *result = NULL;
-  GList *listItem = allSeqs;
-  
-  for ( ; listItem; listItem = listItem->next)
-    {
-      BlxSequence *curSeq = (BlxSequence*)(listItem->data);
-      
-      if (stringsEqual(curSeq->fullName, name, FALSE))
-        {
-          result = curSeq;
-          break;
-        }
-    }
-  
-  return result;
-}
-
-
-/* Get the "parent" sequence of the given protein variant. Assumes the variant
- * contains a dash '-' in the name followed by the variant number as a digit. 
- * e.g. SW:P51531-2.2. The function looks for a sequence with the same name but
- * with this dash and the following digit(s) (up to the end of the name or the '.'
- * if there is one) removed. Returns NULL if no parent was found. */
-BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs)
-{
-  BlxSequence *result = NULL;
-
-  const char *variantName = blxSequenceGetFullName(variant);
-  
-  if (variantName)
-    {
-      char *parentName = g_strdup(variantName);
-      char *insertPoint = strchr(parentName, '-');
-  
-      if (insertPoint)
-        {
-          /* Replace '-' by terminating char, in case there's nothing else to copy in. */
-          *insertPoint = '\0';
-          
-          /* The insert point is where we'll copy into. Create another pointer that we'll increment
-           * until we find a '.' and then we'll copy from that point. */
-          char *copyPoint = insertPoint;
-          ++copyPoint;
-          
-          gboolean foundRestartPoint = FALSE; /* set to true when we find where to start copying from again */
-          
-          while (copyPoint && *copyPoint != '\0')
-            {
-              if (foundRestartPoint)
-                {
-                  *insertPoint = *copyPoint;
-                  ++insertPoint;
-                }
-              else if (*copyPoint == '.')
-                {
-                  foundRestartPoint = TRUE;
-                  *insertPoint = *copyPoint;
-                  ++insertPoint;
-                }
-              
-              ++copyPoint;
-            }
-        
-          *insertPoint = '\0';
-        
-          result = blxSequenceFindByName(parentName, allSeqs);
-          g_free(parentName);
-        }
-    }
       
   return result;
-}
-
-
-/* Frees all memory used by a BlxSequence */
-void destroyBlxSequence(BlxSequence *seq)
-{
-  if (seq)
-    {
-      g_free(seq->fullName);
-      g_free(seq->variantName);
-      g_free(seq->shortName);
-      
-      if (seq->sequence)      g_string_free(seq->sequence, TRUE);
-      if (seq->organism)      g_string_free(seq->organism, TRUE);
-      if (seq->geneName)      g_string_free(seq->geneName, TRUE);
-      if (seq->tissueType)    g_string_free(seq->tissueType, TRUE);
-      if (seq->strain)        g_string_free(seq->strain, TRUE);
-      
-      g_free(seq);
-    }
-}
-
-
-/* Set the name of a BlxSequence (also sets the short name etc. Does nothing if the 
- * name is already set.) */
-void blxSequenceSetName(BlxSequence *seq, const char *fullName)
-{  
-  if (fullName && !seq->fullName)
-    {
-      seq->fullName = fullName ? g_strdup(fullName) : NULL;
-      
-      /* The variant name: just cut off the prefix chars. We can use a pointer into
-       * the original string. */
-      seq->variantName = g_strdup(getSeqVariantName(fullName));
-      
-      /* The short name: cut off the prefix chars (before the ':') and the variant
-       * number (after the '.'). Need to duplicate the string to change the end of it. */
-      seq->shortName = g_strdup(seq->variantName);
-      char *cutPoint = strchr(seq->shortName, '.');
-      
-      if (cutPoint)
-	{
-	  *cutPoint = '\0';
-	}
-    }
-}
-
-
-/* Utility to create a BlxSequence with the given name. */
-BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error)
-{
-  if (!fullName && !idTag)
-    {
-      g_set_error(error, BLX_ERROR, 1, "Cannot create sequence: ID or name must be specified.");
-      return NULL;
-    }
-  
-  BlxSequence *seq = g_malloc(sizeof(BlxSequence));
-
-  seq->type = BLXSEQUENCE_UNSET;
-  seq->idTag = idTag ? g_strdup(idTag) : NULL;
-
-  seq->fullName = NULL;
-  seq->variantName = NULL;
-  seq->shortName = NULL;
-  blxSequenceSetName(seq, fullName);
-
-  seq->mspList = NULL;
-  seq->sequence = NULL;
-  
-  seq->organism = NULL;
-  seq->geneName = NULL;
-  seq->tissueType = NULL;
-  seq->strain = NULL;
-  
-  return seq;
-}
-
-
-/* Returns true if the given BlxSequence requires sequence data to be set. */
-gboolean blxSequenceRequiresSeqData(const BlxSequence *blxSeq)
-{
-  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_VARIATION);
-}
-
-/* Returns true if the given BlxSequence uses optional data. */
-gboolean blxSequenceRequiresOptionalData(const BlxSequence *blxSeq)
-{
-  return (blxSeq->type == BLXSEQUENCE_MATCH);
 }
 
 
@@ -1873,11 +1079,16 @@ char* convertIntToString(const int value)
 }
 
 
-/* Converts the given double to a string. The result must be free'd with g_free */
-char* convertDoubleToString(const gdouble value)
+/* Converts the given double to a string. The result must be free'd with g_free. Numdp specifies the
+ * number of decimal places to show */
+char* convertDoubleToString(const gdouble value, const int numDp)
 {
-  char result[numDigitsInInt((int)value) + 3]; /* the +3 includes decimal point, one decimal place, and terminating null */
-  sprintf(result, "%1.1f", value);
+  char format[numDp + 5];
+  sprintf(format, "%%1.%df", numDp);
+  
+  char result[numDigitsInInt((int)value) + numDp + 2]; /* the +2 includes the and terminating null */
+  
+  sprintf(result, format, value);
   return g_strdup(result);
 }
 
@@ -2185,6 +1396,42 @@ void dialogClearContentArea(GtkDialog *dialog)
     }
   
 //  gtk_container_foreach(GTK_CONTAINER(contentArea), destroyWidget, NULL);
+}
+
+
+/* Gets the dialog widget for the given dialog id. Returns null if the widget has not
+ * been created yet. */
+GtkWidget* getPersistentDialog(GtkWidget* dialogList[], const int dialogId)
+{
+  GtkWidget *result = NULL;
+  
+  if (dialogList[dialogId])
+    {
+      result = dialogList[dialogId];
+    }
+  
+  return result;
+}
+
+/* Add a newly-created dialog to the list of persistent dialogs. The dialog should not
+ * exist in the list yet. */
+void addPersistentDialog(GtkWidget* dialogList[], const int dialogId, GtkWidget *widget)
+{
+  if (dialogId == 0)
+    {
+      g_warning("Code error: cannot add a dialog with ID %d. Dialog will not be persistent.\n", dialogId);
+    }
+  else
+    {
+      if (dialogList[dialogId])
+        {
+          g_warning("Creating a dialog that already exists. Old dialog will be destroyed. Dialog ID=%d.\n", dialogId);
+          gtk_widget_destroy(dialogList[dialogId]);
+          dialogList[dialogId] = NULL;
+        }
+      
+      dialogList[dialogId] = widget;
+    }
 }
 
 
@@ -2539,32 +1786,6 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-/* Returns the pointer to the BlxSequence that matches the given strand and sequence name/tag.
- * Returns NULL if no match was found. */
-BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand)
-{
-  BlxSequence *result = NULL;
-  
-  /* Loop through all sequences in the list */
-  GList *listItem = seqList;
-  
-  for ( ; listItem; listItem = listItem->next)
-    {
-      BlxSequence *currentSeq = (BlxSequence*)(listItem->data);
-
-      if (currentSeq->strand == reqdStrand &&
-          ( (reqdName && currentSeq->fullName && !strcmp(currentSeq->fullName, reqdName)) ||
-	    (reqdIdTag && currentSeq->idTag && !strcmp(currentSeq->idTag, reqdIdTag)) ))
-	{
-	  result = currentSeq;
-	  break;
-	}
-    }
-  
-  return result;
-}
-
-
 /* Create and cache a blank pixmap drawable in the given widget */
 GdkDrawable* createBlankPixmap(GtkWidget *widget)
 {
@@ -2843,6 +2064,378 @@ void setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle)
           "}"
           "widget \"*%s*\" style \"detailViewStatusbar\"", shadowStyle, name);
   gtk_rc_parse_string(parseString);
+}
+
+
+
+/* Copy a segment of the given sequence into a new string. The result must be
+ * free'd with g_free by the caller. The given indices must be 0-based. */
+static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const int idx2)
+{
+
+  const int minIdx = min(idx1, idx2);
+  const int maxIdx = max(idx1, idx2);
+  
+  const int segmentLen = maxIdx - minIdx + 1;
+
+  gchar *segment = g_malloc(sizeof(gchar) * segmentLen + 1);
+
+  
+  strncpy(segment, inputSeq + minIdx, segmentLen);
+  segment[segmentLen] = '\0';
+
+  return segment;
+}
+
+
+
+/* Copy a segment of the given sequence (which is always the DNA sequence and
+ * always the forward strand).
+ *
+ * The result is complemented if the reverse strand is requested, but only if
+ * the allowComplement flag allows it.
+ * 
+ * The result is translated to a peptide sequence if the destination seq type 
+ * is peptide.
+ *
+ * The result is reversed if the reverseResult flag is true (regardless of the
+ * strand requested - this is because the caller often wants the result in the
+ * opposite direction to that indicated by the strand, because the display may be
+ * reversed, so we leave it up to the caller to decide).
+ */
+gchar *getSequenceSegment(const char const *dnaSequence,
+                          IntRange *qRangeIn,                  /* the range to extract, in nucleotide coords */
+			  const BlxStrand strand,
+			  const BlxSeqType srcSeqType,        /* whether input sequence is nucleotide or peptide */
+			  const BlxSeqType destSeqType,       /* whether result sequence should be nucleotide or peptide */
+			  const int frame,
+			  const int numFrames, 
+			  const IntRange const *refSeqRange,
+			  const BlxBlastMode blastMode,
+			  char **geneticCode,
+			  const gboolean displayRev,
+			  const gboolean reverseResult,
+			  const gboolean allowComplement,
+			  GError **error)
+{
+  gchar *result = NULL;
+  GError *tmpError = NULL;
+  
+  if (destSeqType == BLXSEQ_DNA && srcSeqType == BLXSEQ_PEPTIDE)
+    {
+      /* We shouldn't try to convert from peptide to nucleotide. If we get here it's a coding error */
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Error: requested conversion of peptide sequence to nucleotide sequence.\n");
+      return result;
+    }
+  
+  IntRange qRange = {qRangeIn->min, qRangeIn->max};
+  
+  if (qRange.min < refSeqRange->min || qRange.max > refSeqRange->max)
+    {
+      /* We might request up to 3 bases beyond the end of the range if we want to 
+       * show a partial triplet at the start/end. (It's a bit tricky for the caller to
+       * specify the exact bases they want here so we allow it but just limit it to 
+       * the actual range so that they can't index beyond the end of the range.) Any
+       * further out than one triplet is probably indicative of an error, so give a warning. */
+      if (qRange.min < refSeqRange->min - (numFrames + 1) || qRange.max > refSeqRange->max + (numFrames + 1))
+	{
+          g_set_error(&tmpError, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Requested query sequence %d - %d out of available range: %d - %d.\n", qRange.min, qRange.max, refSeqRange->min, refSeqRange->max);
+	}
+      
+      if (qRange.min < refSeqRange->min)
+        {
+          qRange.min = refSeqRange->min;
+        }
+      
+      if (qRange.max > refSeqRange->max)
+        {
+          qRange.max = refSeqRange->max;
+        }
+    }
+  
+  /* Get 0-based indices into the sequence */
+  const int idx1 = qRange.min - refSeqRange->min;
+  const int idx2 = qRange.max - refSeqRange->min;
+
+  /* Copy the required segment from the ref seq. Must pass 0-based indices into the sequence */
+  result = copySeqSegment(dnaSequence, idx1, idx2);
+
+  /* If a nucleotide seq, complement if this is the reverse strand (and if allowed). NB the old code didn't used to do
+   * this for tblastn or blastp modes so I've kept that behaviour, but I'm not sure why it is that way. */
+  if (srcSeqType == BLXSEQ_DNA && strand == BLXSTRAND_REVERSE && allowComplement && blastMode != BLXMODE_TBLASTN && blastMode != BLXMODE_BLASTP)
+    {
+      blxComplement(result);
+      
+      if (!result)
+        {
+          g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Error getting sequence segment: Failed to complement the reference sequence for the range %d - %d.\n", qRange.min, qRange.max);
+          g_free(result);
+          return NULL;
+        }
+    }
+  
+  /* Reverse if requested. */
+  if (reverseResult)
+    {
+      g_strreverse(result);
+    }
+
+  /* Translate if we're going from a nucleotide seq to a peptide seq */
+  if (srcSeqType == BLXSEQ_DNA && destSeqType == BLXSEQ_PEPTIDE)
+    {
+      char *tmp = blxTranslate(result, geneticCode);
+	  
+      g_free(result); /* delete the original because it's no longer required */
+      result = tmp;
+	  
+      if (!result)
+        {
+          g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT,
+                      "Error getting the sequence segment: Failed to translate the DNA sequence for the reference sequence range %d - %d\n", 
+                      qRange.min, qRange.max) ;
+          
+          return NULL;
+        }
+    }
+  
+  if (!result)
+    {
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Failed to find sequence segment for the range %d - %d\n", qRange.min, qRange.max);
+    }
+  
+  if (tmpError && *error != NULL)
+    {
+      prefixError(*error, tmpError->message);
+    }
+  else if (tmpError)
+    {
+      g_propagate_error(error, tmpError);
+    }
+
+  return result;
+}
+
+
+/* Invert the given coord's position within the given range. Only invert if the bool is true; otherwise
+ * returns the original coord */
+int invertCoord(const int coord, const IntRange const *range, const gboolean invert)
+{
+  int result = invert ? range->max - coord + range->min : coord;
+  return result;
+}
+
+
+
+/* Tries to return a fixed font from the list given in pref_families, returns
+ * TRUE if it succeeded in finding a matching font, FALSE otherwise.
+ * The list of preferred fonts is treated with most preferred first and least
+ * preferred last.  The function will attempt to return the most preferred font
+ * it finds.
+ *
+ * @param widget         Needed to get a context, ideally should be the widget you want to
+ *                       either set a font in or find out about a font for.
+ * @param pref_families  List of font families (as text strings).
+ * @param points         Size of font in points.
+ * @param weight         Weight of font (e.g. PANGO_WEIGHT_NORMAL)
+ * @param font_out       If non-NULL, the font is returned.
+ * @param desc_out       If non-NULL, the font description is returned.
+ * @return               TRUE if font found, FALSE otherwise.
+ */
+const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families)
+{
+  /* Find all the font families available */
+  PangoContext *context = gtk_widget_get_pango_context(widget) ;
+  PangoFontFamily **families;
+  gint n_families;
+  pango_context_list_families(context, &families, &n_families) ;
+  
+  /* Loop through the available font families looking for one in our preferred list */
+  gboolean found_most_preferred = FALSE;
+  gint most_preferred = g_list_length(pref_families);
+  PangoFontFamily *match_family = NULL;
+
+  gint family;
+  for (family = 0 ; (family < n_families && !found_most_preferred) ; family++)
+    {
+      const gchar *name = pango_font_family_get_name(families[family]) ;
+      
+      /* Look for this font family in our list of preferred families */
+      GList *pref = g_list_first(pref_families) ;
+      gint current = 1;
+      
+      while(pref)
+	{
+	  char *pref_font = (char *)pref->data ;
+	  
+	  if (g_ascii_strncasecmp(name, pref_font, strlen(pref_font)) == 0
+#if GLIB_MAJOR_VERSION >= 1 && GLIB_MINOR_VERSION >= 4
+	      && pango_font_family_is_monospace(families[family])
+#endif
+	      )
+	    {
+	      /* We prefer ones nearer the start of the list */
+              if(current <= most_preferred)
+                {
+		  most_preferred = current;
+		  match_family = families[family];
+
+                  if(most_preferred == 1)
+		    {
+		      found_most_preferred = TRUE;
+		    }
+                }
+
+	      break;
+	    }
+	  
+	  pref = g_list_next(pref);
+	  ++current;
+	}
+    }
+
+  const char *result = NULL;
+  if (match_family)
+    {
+      result = pango_font_family_get_name(match_family);
+      g_debug("Using fixed-width font '%s'\n", result);
+    }
+  else
+    {
+      g_critical("Could not find a fixed-width font. Alignments may not be displayed correctly.\n");
+    }
+  
+  return result;
+}
+
+
+/* We need a fixed-width font for displaying alignments. Find one from a 
+ * list of possibilities. */
+const char* findFixedWidthFont(GtkWidget *widget)
+{
+  GList *fixed_font_list = NULL ;
+
+  fixed_font_list = g_list_append(fixed_font_list, "andale mono");
+  fixed_font_list = g_list_append(fixed_font_list, "Lucida sans typewriter");
+  fixed_font_list = g_list_append(fixed_font_list, "deja vu sans mono");
+  fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera sans mono");
+  fixed_font_list = g_list_append(fixed_font_list, "monaco");
+  fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier 10 pitch");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier new");
+  fixed_font_list = g_list_append(fixed_font_list, "Courier");
+  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
+  fixed_font_list = g_list_append(fixed_font_list, "fixed");
+  
+  const char *fontFamily = findFixedWidthFontFamily(widget, fixed_font_list);
+  g_list_free(fixed_font_list);
+  
+  return fontFamily;
+}
+
+
+/* Utility to get the character width and height of a given pango font */
+void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gint *width, gint *height)
+{
+  PangoContext *context = gtk_widget_get_pango_context(widget);
+  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+  
+  if (height)
+    {
+      *height = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
+    }
+  
+  if (width)
+    {
+      *width = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
+    }
+  
+  pango_font_metrics_unref(metrics);
+}
+
+
+
+/***********************************************************
+ *                      Toolbars
+***********************************************************/
+
+static void buttonAttach(GtkHandleBox *handlebox, GtkWidget *toolbar, gpointer data)
+{
+  gtk_widget_set_usize(toolbar, 1, -2);
+}
+
+
+static void buttonDetach(GtkHandleBox *handlebox, GtkWidget *toolbar, gpointer data)
+{
+  gtk_widget_set_usize(toolbar, -1, -2);
+}
+
+/* Create an empty toolbar with our prefered settings. Sets the given
+ * pointer to the actual toolbar and returns a pointer to the container of
+ * the toolbar, if different (i.e. the widget that will be packed into the
+ * parent container). */
+GtkWidget* createEmptyButtonBar(GtkToolbar **toolbar)
+{
+  /* Create a handle box for the toolbar and add it to the window */
+  GtkWidget *handleBox = gtk_handle_box_new();
+  
+  /* Create the toolbar */
+  *toolbar = GTK_TOOLBAR(gtk_toolbar_new());
+  gtk_toolbar_set_tooltips(*toolbar, TRUE);
+  gtk_toolbar_set_show_arrow(*toolbar, TRUE);
+  gtk_toolbar_set_icon_size(*toolbar, GTK_ICON_SIZE_MENU);
+  gtk_toolbar_set_style(*toolbar, GTK_TOOLBAR_ICONS);
+  
+  /* Set the style property that controls the spacing */
+  gtk_widget_set_name(GTK_WIDGET(*toolbar), SEQTOOLS_TOOLBAR_NAME);
+  char parseString[500];
+  sprintf(parseString, "style \"packedToolbar\"\n"
+	  "{\n"
+	  "GtkToolbar::space-size = 0\n"
+	  "GtkToolbar::button-relief = GTK_RELIEF_NONE\n"
+	  "}"
+	  "widget \"*%s*\" style \"packedToolbar\"", SEQTOOLS_TOOLBAR_NAME);
+  gtk_rc_parse_string(parseString);
+  
+  
+  /* next three lines stop toolbar forcing the size of a blixem window */
+  g_signal_connect(GTK_OBJECT(handleBox), "child-attached", G_CALLBACK(buttonAttach), NULL);
+  g_signal_connect(GTK_OBJECT(handleBox), "child-detached", G_CALLBACK(buttonDetach), NULL);
+  gtk_widget_set_usize(GTK_WIDGET(*toolbar), 1, -2);
+  
+  /* Add the toolbar to the handle box */
+  gtk_container_add(GTK_CONTAINER(handleBox), GTK_WIDGET(*toolbar));
+  
+  return handleBox;
+}
+
+
+/* Creates a single button on the given toolbar. */
+void makeToolbarButton(GtkToolbar *toolbar,
+                       char *label,
+                       char *stockId,
+                       char *tooltip,
+                       GtkSignalFunc callback_func,
+                       gpointer data)
+{
+  GtkStockItem stockItem;
+  GtkToolItem *tool_button = NULL;
+  
+  if (stockId && gtk_stock_lookup(stockId, &stockItem))
+    {
+      tool_button = gtk_tool_button_new_from_stock(stockId);
+      gtk_tool_button_set_label(GTK_TOOL_BUTTON(tool_button), label);
+    }
+  else
+    {
+      tool_button = gtk_tool_button_new(NULL, label);
+    }
+  
+  gtk_toolbar_insert(toolbar, tool_button, -1);	    /* -1 means "append" to the toolbar. */
+  
+  gtk_tool_item_set_homogeneous(tool_button, FALSE);
+  gtk_tool_item_set_tooltip(tool_button, toolbar->tooltips, tooltip, NULL);
+  
+  gtk_signal_connect(GTK_OBJECT(tool_button), "clicked", GTK_SIGNAL_FUNC(callback_func), data);
 }
 
 

@@ -34,13 +34,13 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.6 2010-08-31 15:30:55 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.7 2010-10-22 11:58:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
 #define DEF_DOTTER_H
 
-#include "SeqTools/blxview.h"   /* For MSP struct */
+#include "SeqTools/blxmsp.h"
 
 void dotter(
 	char  type,        /* Mandatory, one of { P, N, X } 
@@ -60,6 +60,8 @@ void dotter(
 	int   qoff,	   /* Optional, may be NULL
 			      Coordinate offset of horisontal sequence */
 
+	const BlxStrand refSeqStrand, /* which strand of the reference sequence was passed */
+
 	const char *subjectname, /* Optional, may be NULL 
 			      Name of vertical sequence */
 
@@ -68,6 +70,8 @@ void dotter(
 
 	int   soff,	   /* Optional, may be NULL 
 			      Coordinate offset of horisontal sequence */
+
+	const BlxStrand matchSeqStrand, /* which strand of the match sequence was passed */
 
 	int   qcenter,	   /* Optional, may be NULL 
 			      Coordinate to centre horisontal sequence on */
@@ -84,7 +88,7 @@ void dotter(
 	char *mtxfile,	   /* Optional, may be NULL 
 			      Filename to load score matrix from */
 
-	float memoryLimit, /* Optional, may be NULL 
+	double memoryLimit, /* Optional, may be NULL 
 			      Maximum Mb allowed for dotplot */
 
 	int   zoomFac,	   /* Optional, may be NULL
@@ -94,6 +98,9 @@ void dotter(
 	MSP *MSPs,	   /* Optional, may be NULL
 			      List of MSPs containing genes and blast matches */
 
+	GList *seqList,	   /* Optional, may be NULL
+			      List of all match sequences, as BlxSequences */
+	    
 	int   MSPoff,	   /* Optional, may be NULL
 			      Coordinate offset of MSPs */
 

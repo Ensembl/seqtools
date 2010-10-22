@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.14 2010-08-31 16:09:28 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.15 2010-10-22 11:58:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -138,11 +138,11 @@
 */
 
 #include <wh/aceio.h>
-#include <wh/graph.h>
-#include <wh/gex.h>
-#include <SeqTools/blixem_.h>
+#include <wh/version.h>
 #include <SeqTools/dotter_.h>
+#include <SeqTools/seqtoolsExonView.h>
 #include <SeqTools/utilities.h>
+#include <gdk/gdkkeysyms.h>
 
 
 /* tint stuff used to be in graph.h, now local - rd 960524
@@ -150,261 +150,274 @@
    could rename #define's more sensibly now
 */
 
-#define TINT_WHITE      0x00
-#define TINT_HIGHLIGHT1 0x01	/* highest priority, dna highlighting */
-#define TINT_HIGHLIGHT2 0x02	/* highlight friends */
-#define TINT_RED        0x04 
-#define TINT_LIGHTGRAY  0x08 
-#define TINT_MAGENTA    0x10 
-#define TINT_CYAN       0x20 
-#define TINT_LIGHTGREEN 0x40 
-#define TINT_YELLOW     0x80 
+//#define TINT_WHITE      0x00
+//#define TINT_HIGHLIGHT1 0x01	/* highest priority, dna highlighting */
+//#define TINT_HIGHLIGHT2 0x02	/* highlight friends */
+//#define TINT_RED        0x04 
+//#define TINT_LIGHTGRAY  0x08 
+//#define TINT_MAGENTA    0x10 
+//#define TINT_CYAN       0x20 
+//#define TINT_LIGHTGREEN 0x40 
+//#define TINT_YELLOW     0x80 
 
-static int tints[8] = { LIGHTRED, MIDBLUE, RED, LIGHTGRAY, 
-			MAGENTA, CYAN, LIGHTGREEN, YELLOW } ;
+//static int tints[8] = { LIGHTRED, MIDBLUE, RED, LIGHTGRAY, 
+//			MAGENTA, CYAN, LIGHTGREEN, YELLOW } ;
 
-#define LeftBorder 70		/* x-pos of y-axis' 0-position */
-#define TopBorder 65		/* y-pos of x-axis' 0-position */
-#define DEFAULTALIGNLEN 125
-#define MAXALIGNLEN 501
-
-#define max(a,b) (((a) > (b)) ? (a) : (b))
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-
-char *dotterVersion = "3.1",
-     *Xoptions=0;
+#define MAX_WINDOW_WIDTH_FRACTION             0.7 /* max init width of dotter window as fraction of screen size */
+#define MAX_WINDOW_HEIGHT_FRACTION            0.7 /* max init height of dotter window as fraction of screen size */
 
 
-typedef struct
+char *Xoptions=0;
+
+
+//typedef struct
+//{
+//  const char *name ;
+//  int start, end ;
+//  char strand ;
+//  MSP *msp_start, *msp_end ;
+//  float y_pos ;
+//} GeneDataStruct, *GeneData ;
+//
+//typedef struct
+//{
+//  GList *forward_genes ;
+//  GList *reverse_genes ;
+//  char strand  ;
+//} GeneStrandStruct, *GeneStrand ;
+//
+
+
+/* Struct containing properties for a dotter window */
+typedef struct _DotterProperties
 {
-  const char *name ;
-  int start, end ;
-  char strand ;
-  MSP *msp_start, *msp_end ;
-  float y_pos ;
-} GeneDataStruct, *GeneData ;
-
-typedef struct
-{
-  GList *forward_genes ;
-  GList *reverse_genes ;
-  char strand  ;
-} GeneStrandStruct, *GeneStrand ;
+  GtkWidget *greyrampTool;                  /* the greyramp tool */
+  GtkWidget *alignmentTool;		    /* the alignment tool */
+  GtkWidget *dotplot;                       /* the dotplot drawing area */
+  
+  DotterWindowContext *dotterWinCtx;
+} DotterProperties;
 
 
+#define DOTTER_HELP_TEXT "\
+<b><big>DOTTER</big></b>\n\
+A dot-matrix program with dynamic threshold control suited for genomic DNA and protein sequence analysis\n\
+\n\
+\n\
+<b><big>Mouse controls</big></b>\n\
+ - Left button: position crosshair.\n\
+ - Middle button: drag to zoom in to a region.\n\
+\n\
+\n\
+<b><big>Keyboard shortcuts</big></b>\n\
+ - Arrow keys: move crosshair one dot in arrow direction\n\
+ - &lt; &gt; : move crosshair along diagonals\n\
+ - { } : move along reverse diagonals\n\
+\n\
+Hold down Shift to move by nucleotides rather than whole peptides.\n\
+\n\
+\n\
+<b><big>Settings</big></b>\n\
+ - Zoom: enter a higher value to zoom out. A value of 1 means 100%%, 2 means 50%% etc. A fraction of 1 can be entered to zoom in (e.g. 0.5 for a 200%% zoom), but the display will appear stretched.\n\
+ - Horizontal range: enter the min and max coords to display on the horizontal scale. Note that this will be limited to the horizontal sequence range that dotter was started up with.\n\
+ - Vertical range: enter the min and max coords to display on the vertical scale. Note that this will be limited to the vertical sequence range that dotter was started up with.\n\
+ - Sliding window size: affects cut-off limit for how dots are drawn\n\
+\n\
+\n\
+<b><big>Residue colours (alignment tool)</big></b>\n\
+Cyan      = Identical Residue.\n\
+DarkBlue  = Positive Score.\n\
+No colour = Negative score.\n\
+\n\
+\n\
+<b><big>Session details</big></b>\n\
+Sliding window length = %d\n\
+Pixel values = %d x score/residue\n\
+Matrix = %s\n\
+Zoom (compression) factor = %f\n\
+"
 
-extern void colorMap (void) ;
-static void setWindow (void) ;
-static void initAlignment(void);
-static void keyboard (int key, int modifier_unused);
-static void savePlot(void);
-static void togglePrintColors(void);
-static void setAlnLen(void);
-static void drawBlastHSPgray(void);
-static void drawBlastHSPline(void);
-static void drawBlastHSPlinef(void);
-static void dotterRedraw(void);
-static void togglePixelmap(void);
-static void toggleCrosshair(void);
-static void toggleCrosshairPos(void);
-static void toggleCrosshairFullscreen(void);
-static void toggleGrid(void);
-static void clearHSPs(void);
-static void initCrosshair(void);
-static void callDotterParams(void);
+
+
+static void showSettingsDialog(GtkWidget *dotterWindow);
 static void readmtx(int mtx[24][24], char *mtxfile);
 static void mtxcpy(int mtx[24][24], int BLOSUM62[24][24]);
 static void DNAmatrix(int mtx[24][24]);
-static void dotterPrint(void);
-static void Help(void);
-static void dotterDestroy(void) ;
-static void loadPlot(char *loadfile) ;
-static void initWindow(char *winsize) ;
-static void calcWindow(void) ;
-static void drawAllFeatures(MSP *msp) ;
-static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth) ;
-gint compareMSPs(gconstpointer a, gconstpointer b) ;
-static void getGenePositionsCB(gpointer data, gpointer user_data) ;
-gint compareGenes(gconstpointer a, gconstpointer b) ;
-static void setYoffsets(GList *first, float min_offset, float max_offset) ;
-static void drawGenesCB(gpointer data, gpointer user_data) ;
-static void drawMSPGene(MSP *msp, float y_offset) ;
-//static void printMSP(gpointer data, gpointer user_data) ;
-//static void printGene(gpointer data, gpointer user_data) ;
-static int gArrayGetLen(GArray *array);
+//static void drawAllFeatures(MSP *msp) ;
+//static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth) ;
+//gint compareMSPs(gconstpointer a, gconstpointer b) ;
+//static void getGenePositionsCB(gpointer data, gpointer user_data) ;
+//gint compareGenes(gconstpointer a, gconstpointer b) ;
+//static void setYoffsets(GList *first, float min_offset, float max_offset) ;
+//static void drawGenesCB(gpointer data, gpointer user_data) ;
+//static void drawMSPGene(MSP *msp, float y_offset) ;
+//static int gArrayGetLen(GArray *array);
 
+static void		      showGreyrampTool(GtkWidget *dotterWindow);
+static void		      showAlignmentTool(GtkWidget *dotterWindow);
+static GtkWidget*	      createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot);
+static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
+static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
+static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
+//static void                   stringProtect(FILE *file, const char *string);
+static gboolean               onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data);
 
-#define toggleCrosshairStr    "Crosshair"
-#define toggleCrosshairPosStr "Crosshair coordinates"
-#define toggleCrosshairFullscreenStr "Crosshair over whole window"
-#define toggleGridStr         "Grid"
-#define drawBlastHSPgrayStr   "Draw Blast HSPs (gray pixels)"
-#define drawBlastHSPlineStr   "Draw Blast HSPs (red lines)"
-#define drawBlastHSPlinefStr  "Draw Blast HSPs (colour = f(score))"
-#define togglePixelmapStr     "Pixelmap"
+static void createDotterInstance(DotterContext *dotterCtx,
+                                 DotterWindowContext *dotterWinCtx,
+                                 const char *loadFileName,
+                                 const char *saveFileName,
+                                 const gboolean hspsOn,
+                                 const char* winsizeIn,
+                                 const int pixelFacIn,
+                                 const int zoomFacIn,
+                                 const int qcenter,
+                                 const int scenter,
+                                 const gboolean greyramSwap);
 
+static void                       onQuitMenu(GtkAction *action, gpointer data);
+static void                       onSavePlotMenu(GtkAction *action, gpointer data);
+static void                       onPrintMenu(GtkAction *action, gpointer data);
+static void                       onSettingsMenu(GtkAction *action, gpointer data);
+static void                       onShowGreyrampMenu(GtkAction *action, gpointer data);
+static void                       onShowAlignmentMenu(GtkAction *action, gpointer data);
+static void                       onToggleCrosshairMenu(GtkAction *action, gpointer data);
+static void                       onToggleCoordsMenu(GtkAction *action, gpointer data);
+static void                       onToggleFullscreenMenu(GtkAction *action, gpointer data);
+static void                       onTogglePixelmapMenu(GtkAction *action, gpointer data);
+static void                       onToggleGridMenu(GtkAction *action, gpointer data);
+static void                       onHelpMenu(GtkAction *action, gpointer data);
+static void                       onAboutMenu(GtkAction *action, gpointer data);
 
-static void dotterRampChange(BOOL isDrag);
-static MENU dotterMenu ;
-static MENUOPT mainMenu[] = {  
-  {graphDestroy,     "Quit"},
-  {Help,             "Help"},
-  {gexRampTool,    "Greyramp Tool"},
-  {initAlignment,    "Alignment Tool"},
-  {dotterPrint,      "Print"},
-  {toggleCrosshair,   toggleCrosshairStr},
-  {toggleCrosshairPos,toggleCrosshairPosStr},
-  {toggleCrosshairFullscreen, toggleCrosshairFullscreenStr},
-  {toggleGrid,        toggleGridStr},
-  {selectFeatures,    selectFeaturesStr},
-  {menuSpacer,       ""},
-  {callDotterParams, "Zoom in with parameter control"},
-  {savePlot,         "Save current plot"},
-/*    {loadFeaturesPrompt,"Load features from file"},*/
-  {setWindow,        "Change size of sliding window"},
-  {menuSpacer,       ""},
-  {drawBlastHSPgray, drawBlastHSPgrayStr},
-  {drawBlastHSPline, drawBlastHSPlineStr},
-  {drawBlastHSPlinef,drawBlastHSPlinefStr},
-  {clearHSPs,        "Remove HSPs"},
-  {togglePixelmap,   togglePixelmapStr},
-  {0, 0}
-} ;
-
-static MENUOPT alnmenu[] =
-{
-  {graphDestroy,        "Quit"},
-  {graphPrint,          "Print"},
-  {togglePrintColors,   "Toggle colours for printing"},
-  {setAlnLen,           "Set Alignment length"},
-  {0, 0}
+/* Menu builders: the action entry list lists menu actions for all menus */
+static const GtkActionEntry menuEntries[] = {
+{ "Quit",             NULL, "_Quit",                      "<control>Q",	"Quit dotter",                    G_CALLBACK(onQuitMenu)},
+{ "SavePlot",         NULL, "_Save plot",                 NULL,         "Save plot",                      G_CALLBACK(onSavePlotMenu)},
+{ "Print",            NULL, "_Print",                     "<control>P",	"Print",                          G_CALLBACK(onPrintMenu)},
+{ "Settings",         NULL, "Settings",                   "<control>S", "Set dotter parameters",          G_CALLBACK(onSettingsMenu)},
+{ "ShowGreyramp",     NULL, "_Greyramp tool",             "<control>G",	"Show the greyramp tool",         G_CALLBACK(onShowGreyrampMenu)},
+{ "ShowAlignment",    NULL, "_Alignment tool",            "<control>A",	"Show the alignment tool",        G_CALLBACK(onShowAlignmentMenu)},
+{ "Help",             NULL, "_Help",                      "<control>H",	"Dotter Help",                    G_CALLBACK(onHelpMenu)},
+{ "About",            NULL, "_About",                     NULL,         "About Dotter",                   G_CALLBACK(onAboutMenu)}
 };
 
-enum { BLASTNOTHING, BLASTRED, BLASTFUNC, BLASTGREY };
+/* Toggle-able menu entries are listed here: */
+static const GtkToggleActionEntry toggleMenuEntries[] = {
+{ "ToggleCrosshair",  NULL, "Crosshair",             NULL,         "Show the crosshair",             G_CALLBACK(onToggleCrosshairMenu),  TRUE},
+{ "ToggleCoords",     NULL, "Crosshair label",       NULL,         "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),     TRUE},
+{ "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,         "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu), TRUE},
+{ "TogglePixmap",     NULL, "Pixelmap",              NULL,         "Show the pixelmap",              G_CALLBACK(onTogglePixelmapMenu),   TRUE},
+{ "ToggleGrid",       NULL, "Gridlines",             NULL,         "Show grid lines",                G_CALLBACK(onToggleGridMenu),       FALSE}
+};
+
+/* Radio-button menu entries are listed here: */
+static const GtkRadioActionEntry radioMenuEntries[] = {
+{ "HspsOff",    NULL, "HSPs off",                     NULL,         "Hide Blast HSPs",                                    DOTTER_HSPS_OFF},
+{ "HspsGrey",   NULL, "Draw HSPs (greyramp)",         NULL,         "Draw Blast HSPs as greyramp",                        DOTTER_HSPS_GREYSCALE},
+{ "HspsLine",   NULL, "Draw HSPs (red lines)",        NULL,         "Draw Blast HSPs as solid red lines",                 DOTTER_HSPS_LINE},
+{ "HspsFunc",   NULL, "Draw HSPs (color = f(score))", NULL,         "Draw Blast HSPs with color as a function of score",  DOTTER_HSPS_FUNC}
+};
+
+
+/* Menu descriptions - these define the layouts of the individual menus */
+static const char fileMenuDescription[] =
+"<ui>"
+"  <popup name='File'>"
+"      <menuitem action='SavePlot'/>"
+"      <separator/>"
+"      <menuitem action='Print'/>"
+"      <separator/>"
+"      <menuitem action='Quit'/>"
+"  </popup>"
+"</ui>";
+
+static const char editMenuDescription[] =
+"<ui>"
+"  <popup name='Edit'>"
+"      <menuitem action='Settings'/>"
+"  </popup>"
+"</ui>";
+
+static const char viewMenuDescription[] =
+"<ui>"
+"  <popup name='View'>"
+"      <menuitem action='ShowGreyramp'/>"
+"      <menuitem action='ShowAlignment'/>"
+"      <separator/>"
+"      <menuitem action='ToggleCrosshair'/>"
+"      <menuitem action='ToggleCoords'/>"
+"      <menuitem action='ToggleFullscreen'/>"
+"      <separator/>"
+"      <menuitem action='TogglePixmap'/>"
+"      <menuitem action='ToggleGrid'/>"
+"      <separator/>"
+"      <menuitem action='HspsOff'/>"
+"      <menuitem action='HspsGrey'/>"
+"      <menuitem action='HspsLine'/>"
+"      <menuitem action='HspsFunc'/>"
+"  </popup>"
+"</ui>";
+
+static const char helpMenuDescription[] =
+"<ui>"
+"  <popup name='Help'>"
+"      <menuitem action='Help'/>"
+"      <menuitem action='About'/>"
+"  </popup>"
+"</ui>";
+
+/* The right-click context menu offers all the above on a single menu (to maintain historic behaviour) */
+static const char contextMenuDescription[] =
+"<ui>"
+"  <popup name='Context'>"
+"      <menuitem action='Quit'/>"
+"      <menuitem action='Help'/>"
+"      <menuitem action='SavePlot'/>"
+"      <menuitem action='Print'/>"
+"      <separator/>"
+"      <menuitem action='Settings'/>"
+"      <separator/>"
+"      <menuitem action='ShowGreyramp'/>"
+"      <menuitem action='ShowAlignment'/>"
+"      <separator/>"
+"      <menuitem action='ToggleCrosshair'/>"
+"      <menuitem action='ToggleCoords'/>"
+"      <menuitem action='ToggleFullscreen'/>"
+"      <separator/>"
+"      <menuitem action='TogglePixmap'/>"
+"      <menuitem action='ToggleGrid'/>"
+"      <separator/>"
+"      <menuitem action='HspsOff'/>"
+"      <menuitem action='HspsGrey'/>"
+"      <menuitem action='HspsLine'/>"
+"      <menuitem action='HspsFunc'/>"
+"  </popup>"
+"</ui>";
+
+
 
 /* Global variables */
+char *dotterVersion = DOTTER_VERSION_COMPILE ;
+char *dotterBinary = NULL;
 
-static int    MATRIX[24][24],
-              qlen,	/* query residues (horizontal sequence) */
-              qlen4,	/* query Pixels (pixelmap length) */
-              slen,	/* subject residues (vertical sequence) */
-              slen4,	/* subject Pixels (pixelmap height) */
-              qoffset,  /* Difference between displayed q coord and position in qseq */
-              soffset,	/* Difference between displayed s coord and position in sseq  */
-              qseqbox, xqseqbox[3], sseqbox, qposbox, sposbox,
-              qseqboxCrick, sseqboxCrick, qposboxCrick, sposboxCrick, 
-              oldcolor, 
-              backgColor=LIGHTGRAY, alnBackgColor=TINT_LIGHTGRAY, 
-              vLineBox, hLineBox, CrosshairPosBox,
-              win,		/* The length of the sliding window */
-              abetsize,		/* The alphabet size (20 or 4) */
-              blastp, blastn, blastx,
-              zoom,		/* Zoomfactor = 1 ... */
-              oldx, oldy,
-              selfcomp,
-              Display_selfcomp,
-              watsonOnly,
-              crickOnly,
-              resfac,	/* Residue factor. 3 for DNA-Protein, 1 otherwise */
-              reversedScale,
-              plusmin,
-              RightBorder,
-              MSPoffset,	/* Difference between real MSP coord and coord stored in MSP */
-              CrosshairON = 1,
-              CrosshairPosON = 1,
-              CrosshairFullscreenON = 1,
-              PixelmapON,
-              pixelmap_done,
-              pixelFac,
-              datalen, 
-              ALIGNLEN = DEFAULTALIGNLEN,      /* use an odd number please */
-              gridOn = 0,
-              BlastHSPsOn = 0,
-              BlastMode = BLASTNOTHING,
-              printMode = 0,
-              HSPgaps = 0,
-              fsBoxStart,
-              fsRightOn = 1,
-              fsBottomOn = 1,
-              fsAnnRightOn = 1,
-              fsAnnBottomOn = 1,
-              fsEndLinesOn = 0,
-              alignmentInitialized = 0,
-              greyRampSwap = 0;
+static int    MATRIX[24][24];
+//              MSPoffset,	/* Difference between real MSP coord and coord stored in MSP */
+//              HSPgaps = 0.
+//              fsBoxStart,
+//              fsRightOn = 1,
+//              fsBottomOn = 1,
+//              fsAnnRightOn = 1,
+//              fsAnnBottomOn = 1,
+//              fsEndLinesOn = 0;
 
-       Graph  dotterGraph=0;
-static Graph  alnGraph=0, fsGraph=0;
-static UCHAR *data, *HSPpixels=0 ;
-static char  *qseq, *sseq, *qname, *sname,
-  qpos[10], spos[10],
-  qseqDisp[MAXALIGNLEN+1],
-  xqseqDisp[3][MAXALIGNLEN+1],
-  sseqDisp[MAXALIGNLEN+1],
-  qseqDispCrick[MAXALIGNLEN+1],
-  sseqDispCrick[MAXALIGNLEN+1],
-  qcolors[MAXALIGNLEN+1], xqcolors[3][MAXALIGNLEN+1], scolors[MAXALIGNLEN+1],
-  qcolorsCrick[MAXALIGNLEN+1], scolorsCrick[MAXALIGNLEN+1],
-  *qrevcompl=0, *pepqseq[3],
-  CrosshairPosText[100],
-  MATRIX_NAME[81] = "",
-  fsPlotHeighttx[10],
-  *banner;
+//static Graph  fsGraph=0;
 
-char         *dotterBinary=0;
+#define MAXALIGNLEN 501
 
-static double rectx, oldrectx, recty, oldrecty, exp_res_score, Lambda;
-static float  crossx, crossy, oldLinew;
+//static char fsPlotHeighttx[10];
+
        float fsPlotHeight=2.0;	/* The height of feature series XY plots */
-static int fontw, fonth;		/* fontwidth, fontheight (in pixels) */
-static FILE  *saveFil;
 static MSP   *MSPlist=0;     /* List of MSPs - the first object contains data */
-static MSP   *msp;
-static STORE_HANDLE  handle;
-
-
-int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
-	= {
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,23,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR, 0,20, 4, 3, 6,13, 7, 8, 9,NR,11,10,12, 2,NR,
-	14, 5, 1,15,16,NR,19,17,22,18,21,NR,NR,NR,NR,NR,
-	NR, 0,20, 4, 3, 6,13, 7, 8, 9,NR,11,10,12, 2,NR,
-	14, 5, 1,15,16,NR,19,17,22,18,21,NR,NR,NR,NR,NR,
-
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-	NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR 
-};
-
-int atob[]	/* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
-	= {
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,24,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
-	15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA,
-	NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
-	15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA,
-
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA 
-};
-char aa_btoa[]	/* binary-to-ASCII translation table */
-	= "-ARNDCQEGHILKMFPSTWYVBZX*" ;
+//static MSP   *msp;
 
 /*  BLOSUM62 930809
 
@@ -437,57 +450,7 @@ int BLOSUM62[24][24] = {
  };
 
 
-
-double aafq[20]	/* Amino acid residue frequencies used by S. Altschul */
-	= {.081, .057, .045, .054, .015, .039, .061, .068, .022, .057,
-	   .093, .056, .025, .040, .049, .068, .058, .013, .032, .067 } ;
-
-#define NN 5
-
-int ntob[] = {
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN, 0,NN, 1,NN,NN,NN, 2,NN,NN,NN,NN,NN,NN, 4,NN,
-        NN,NN,NN,NN, 3,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN, 0,NN, 1,NN,NN,NN, 2,NN,NN,NN,NN,NN,NN, 4,NN,
-        NN,NN,NN,NN, 3,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
-};
-
-int ntob_compl[] = {
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN, 3,NN, 2,NN,NN,NN, 1,NN,NN,NN,NN,NN,NN, 4,NN,
-        NN,NN,NN,NN, 0,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN, 3,NN, 2,NN,NN,NN, 1,NN,NN,NN,NN,NN,NN, 4,NN,
-        NN,NN,NN,NN, 0,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
-};
-
-/* binary-to-ASCII translation table */
-char bton[] = "ACGTN*";
-
-GArray *fsArr = NULL;  /* Stores Feature Series - the actual segments are stored
+GArray *fsArr = NULL;  /* Stores Feature Series - t he actual segments are stored
 			   as MSPs, using these fields:
 			   msp->sframe  = [1..2] sequence
 			   msp->qstart = segment start
@@ -498,12 +461,423 @@ GArray *fsArr = NULL;  /* Stores Feature Series - the actual segments are stored
 			   */
 
 
+/***********************************************************
+ *                       Properties                        *
+ ***********************************************************/
+
+/* Create the colors that Dotter will use for various specific purposes */
+static void createDotterColors(DotterContext *dc)
+{
+  /* Initialise the array with empty BlxColor structs */
+  dc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), DOTCOLOR_NUM_COLORS);
+  int i = DOTCOLOR_MIN + 1;
+  
+  for ( ; i < DOTCOLOR_NUM_COLORS; ++i)
+    {
+      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
+      blxColor->name = NULL;
+      blxColor->desc = NULL;
+      g_array_append_val(dc->defaultColors, *blxColor);
+    }
+    
+  /* matches */
+  createBlxColor(dc->defaultColors, DOTCOLOR_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00c3b0", NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
+  
+  /* exons */
+  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_FILL, "Exon fill color", "Exon fill color", BLX_YELLOW, BLX_GREY, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_LINE, "Exon line color", "Exon outline color", BLX_BLUE, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_LINE, "CDS line color", "Coding section outline color", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_FILL, "UTR fill color", "Untranslated region fill color", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_LINE, "UTR line color", "Untranslated region outline color", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
+
+  /* dot plot */
+  createBlxColor(dc->defaultColors, DOTCOLOR_CROSSHAIR, "Crosshair", "Color of the crosshair on the dot plot", BLX_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_GRID, "Grid", "Line color of the grid on the dot plot", BLX_LIGHT_RED, BLX_LIGHT_GREY, NULL, NULL);
+
+  /* greyramp */
+  createBlxColor(dc->defaultColors, DOTCOLOR_THRESHOLD_MARKER, "Greyramp threshold marker color", "Outline color of the threshold marker on the greyramp tool", BLX_RED, BLX_BLACK, BLX_GREEN, BLX_GREY);
+  createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_LINE, "Greyramp marker outline color", "Outline color of the triangle markers on the greyramp tool", BLX_BLACK, BLX_BLACK, BLX_GREEN, BLX_GREY);
+  createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_FILL, "Greyramp marker fill color", "Fill color of the triangle markers on the greyramp tool", BLX_WHITE, BLX_WHITE, NULL, NULL);
+}
 
 
+/* Get the initial zoom factor, calculating it if the passed-in zoom is 0 */
+static gdouble getInitZoomFactor(DotterContext *dc, const gdouble zoomFacIn, const int qLen, const int sLen)
+{
+  DEBUG_ENTER("getInitZoomFactor");
 
-/* 
- *               External routines.
- */
+  gdouble result = zoomFacIn;
+  
+  if (result <= 0)
+    {
+      if (dc->memoryLimit)
+        {
+          result = (int)sqrt((qLen / dc->numFrames / 1e6 * sLen - 1e-6) / dc->memoryLimit) + 1;
+        }
+      else
+        {
+          g_error("Cannot calculate zoom; division by 0 (memory limit is 0).\n");
+        }
+    }
+  
+  DEBUG_EXIT("getInitZoomFactor returning %d", result);
+  return result;
+}
+
+
+static DotterContext* createDotterContext(BlxBlastMode blastMode, 
+					  const char *refSeqName,
+					  char *refSeq,
+                                          const BlxStrand refSeqStrand,
+					  const char *matchSeqName,
+					  char *matchSeq,
+                                          const BlxStrand matchSeqStrand,
+					  const int refSeqOffset,
+					  const int matchSeqOffset,
+					  const gboolean hozScaleRev,
+					  const gboolean vertScaleRev,
+					  const gboolean selfComp,
+					  const gboolean displayMirror,
+					  const gboolean watsonOnly,
+					  const gboolean crickOnly,
+                                          MSP *mspList,
+					  GList *seqList,
+                                          int matrix[24][24],
+                                          char *matrixName,
+                                          const double memoryLimit)
+{
+  DotterContext *result = g_malloc(sizeof *result);
+  
+  result->blastMode = blastMode;
+  result->displaySeqType = (blastMode == BLXMODE_BLASTN) ? BLXSEQ_DNA : BLXSEQ_PEPTIDE;
+  result->numFrames = (blastMode == BLXMODE_BLASTX) ? 3 : 1;
+  result->geneticCode = stdcode1;
+  mtxcpy(result->matrix, matrix);
+  result->matrixName = matrixName;
+  result->mspList = mspList;
+  result->seqList = seqList;
+  result->windowList = NULL;
+  
+  result->watsonOnly = watsonOnly;
+  result->crickOnly = crickOnly;
+  
+  /* Set the fixed-width font */
+  GtkWidget *tmp = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  const char *fontFamily = findFixedWidthFont(tmp);
+  result->fontDesc = pango_font_description_copy(tmp->style->font_desc);
+  pango_font_description_set_family(result->fontDesc, fontFamily);
+  getFontCharSize(tmp, result->fontDesc, &result->charWidth, &result->charHeight);
+  gtk_widget_destroy(tmp);
+  
+  result->refSeqName = g_strdup(refSeqName);
+  result->refSeq = refSeq; /* take ownership of passed-in seq */
+  result->refSeqRev = NULL;
+  result->refSeqType = (blastMode == BLXMODE_BLASTP ? BLXSEQ_PEPTIDE : BLXSEQ_DNA);
+  
+  /* for dna ref sequences, reverse-complement the ref seq */
+  if (result->refSeqType == BLXSEQ_DNA && result->refSeq)
+    {
+      result->refSeqRev = g_malloc(strlen(result->refSeq) + 1);
+      revComplement(result->refSeqRev, result->refSeq);
+    }
+  else if (result->refSeq)
+    {
+      /* Just reverse it */
+      result->refSeqRev = g_strdup(result->refSeq);
+      g_strreverse(result->refSeqRev);
+    }
+  
+  result->refSeqStrand = refSeqStrand;
+
+  result->matchSeqName = g_strdup(matchSeqName);
+  result->matchSeq = matchSeq; /* take ownership of passed-in seq */
+  result->matchSeqRev = NULL;
+  result->matchSeqType = (blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
+  result->matchSeqStrand = matchSeqStrand;
+  
+  /* Reverse/comp match seq if applicable */
+  if (result->matchSeqType == BLXSEQ_DNA && result->matchSeqStrand == BLXSTRAND_REVERSE && result->matchSeq)
+    {
+      result->matchSeqRev = g_malloc(strlen(result->matchSeq) + 1);
+      revComplement(result->matchSeqRev, result->matchSeq);
+    }
+  else if (result->matchSeqStrand == BLXSTRAND_REVERSE && result->matchSeq)
+    {
+      /* Peptide sequence. Just reverse */
+      result->matchSeqRev = g_strdup(result->matchSeq);
+      g_strreverse(result->matchSeqRev);
+    }
+  
+  if (result->blastMode == BLXMODE_BLASTX) 
+    {
+      /* Create the 3 frame translations (for the strand we're interested in only). */
+      char *refSeqToUse = (result->refSeqStrand == BLXSTRAND_REVERSE ? result->refSeqRev : result->refSeq);
+      
+      int i = 0;
+      for (i = 0; i < result->numFrames; i++)
+        {
+          result->peptideSeqs[i] = blxTranslate(refSeqToUse + i, result->geneticCode);
+        }
+    }
+  
+  result->refSeqFullRange.min = refSeqOffset + 1;
+  result->refSeqFullRange.max = refSeqOffset + strlen(refSeq);
+  result->matchSeqFullRange.min = matchSeqOffset + 1;
+  result->matchSeqFullRange.max = matchSeqOffset + strlen(matchSeq);
+  
+  result->hozScaleRev = hozScaleRev;
+  result->vertScaleRev = vertScaleRev;
+
+  result->selfComp = selfComp;
+  result->displayMirror = displayMirror;
+  
+  result->memoryLimit = memoryLimit;
+  
+  result->defaultColors = NULL;
+  result->usePrintColors = FALSE;  
+  
+  createDotterColors(result);
+  
+  /* Calculate the height and width of the horizontal and vertical scales */
+  const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min), numDigitsInInt(result->matchSeqFullRange.max));
+  result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT + (leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
+  result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + result->charHeight + SCALE_LINE_WIDTH;
+  
+  return result;
+}
+
+
+static void destroyDotterContext(DotterContext *dc)
+{
+  DEBUG_ENTER("destroyDotterContext");
+
+  if (dc)
+    {
+    if (dc->blastMode == BLXMODE_BLASTX)
+      {
+	int i = 1;
+	for ( ; i < dc->numFrames; i++)
+	  {
+	    g_free(dc->peptideSeqs[i]);
+	    dc->peptideSeqs[i] = NULL;
+	  }
+      }
+    
+    /* Free stuff g_malloc'ed in calling routine (usually blixem or dotterMain) */
+    g_free(dc->refSeq);
+    dc->refSeq = NULL;
+    
+    g_free(dc->refSeqName);
+    dc->refSeqName = NULL;
+    
+    g_free(dc->matchSeq);
+    dc->matchSeq = NULL;
+    
+    g_free(dc->matchSeqName);
+    dc->matchSeqName = NULL;
+
+    /* Don't free MSP's since that will screw blixem up !!! */
+    
+      if (dc->matrixName)
+        {
+          g_free(dc->matrixName);
+          dc->matrixName = NULL;
+        }
+    }  
+  
+  DEBUG_EXIT("destroyDotterContext returning ");
+}
+
+static void destroyDotterWindowContext(DotterWindowContext *dwc)
+{
+  DEBUG_ENTER("destroyDotterWindowContext");
+  /* nothing to do */
+  
+  DEBUG_EXIT("destroyDotterWindowContext returning ");
+}
+
+static DotterProperties* dotterGetProperties(GtkWidget *dotterWindow)
+{
+  return dotterWindow ? (DotterProperties*)(g_object_get_data(G_OBJECT(dotterWindow), "DotterProperties")) : NULL;
+}
+
+static void onDestroyDotterWindow(GtkWidget *dotterWindow)
+{
+  DEBUG_ENTER("onDestroyDotterWindow");
+
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  if (properties)
+    {
+      if (properties->greyrampTool)
+        {
+          gtk_widget_destroy(properties->greyrampTool);
+          properties->greyrampTool = NULL;
+        }
+
+      if (properties->alignmentTool)
+        {
+          gtk_widget_destroy(properties->alignmentTool);
+          properties->alignmentTool = NULL;
+        }
+    
+      if (properties->dotterWinCtx)
+	{
+	  if (properties->dotterWinCtx->dotterCtx && properties->dotterWinCtx->dotterCtx->windowList)
+	    {
+	      properties->dotterWinCtx->dotterCtx->windowList = g_slist_remove(properties->dotterWinCtx->dotterCtx->windowList, dotterWindow);
+
+	      if (g_slist_length(properties->dotterWinCtx->dotterCtx->windowList) < 1)
+		{
+		  /* It's the last window in the context, so destroy the context */
+		  g_slist_free(properties->dotterWinCtx->dotterCtx->windowList);
+		  properties->dotterWinCtx->dotterCtx->windowList = NULL;
+		  destroyDotterContext(properties->dotterWinCtx->dotterCtx);
+		}
+	    }
+	
+	  destroyDotterWindowContext(properties->dotterWinCtx);
+	  properties->dotterWinCtx = NULL;
+	}
+
+      g_free(properties);
+      properties = NULL;
+      g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", NULL);
+    }
+  
+  DEBUG_EXIT("onDestroyDotterWindow returning ");
+}
+
+
+/* Close all windows associated with the given dotter context */
+static void dotterContextCloseAllWindows(DotterContext *dc)
+{
+  /* Copy the list because pointers are removed from the original
+   * list when we destroy windows. */
+  GSList *winList = g_slist_copy(dc->windowList);
+  GSList *winItem = winList;
+  
+  for ( ; winItem; winItem = winItem->next)
+    {
+      GtkWidget *window = GTK_WIDGET(winItem->data);
+      gtk_widget_destroy(window);
+    }
+  
+  g_slist_free(winList);
+}
+
+
+static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
+                                                      const IntRange const *refSeqRange,
+                                                      const IntRange const *matchSeqRange,
+                                                      const gdouble zoomFacIn)
+{
+  DotterWindowContext *result = g_malloc(sizeof *result);
+  
+  result->dotterCtx = dotterCtx;
+  
+  result->refSeqRange.min = refSeqRange->min;
+  result->refSeqRange.max = refSeqRange->max;
+  result->matchSeqRange.min = matchSeqRange->min;
+  result->matchSeqRange.max = matchSeqRange->max;
+
+  result->refCoord = UNSET_INT;
+  result->matchCoord = UNSET_INT;
+  
+  result->zoomFactor = getInitZoomFactor(dotterCtx, zoomFacIn, getRangeLength(refSeqRange), getRangeLength(matchSeqRange));
+  
+  /* Null out all the entries in the dialogs list */
+  int dialogId = 0;
+  for ( ; dialogId < DOTDIALOG_NUM_DIALOGS; ++dialogId)
+    {
+      result->dialogList[dialogId] = NULL;
+    }
+  
+  return result;
+}
+
+/* properties specific to a particular dotter window */
+static void dotterCreateProperties(GtkWidget *dotterWindow, 
+				   GtkWidget *greyrampTool, 
+				   GtkWidget *alignmentTool,
+                                   GtkWidget *dotplot,
+                                   DotterWindowContext *dotterWinCtx)
+{
+  DEBUG_ENTER("dotterCreateProperties");
+
+  if (dotterWindow)
+    {
+      DotterProperties *properties = g_malloc(sizeof *properties);
+
+      properties->greyrampTool = greyrampTool;
+      properties->alignmentTool = alignmentTool;
+      properties->dotplot = dotplot;
+      properties->dotterWinCtx = dotterWinCtx;
+      
+      g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", properties);
+      g_signal_connect(G_OBJECT(dotterWindow), "destroy", G_CALLBACK(onDestroyDotterWindow), NULL); 
+    }
+  
+  DEBUG_EXIT("dotterCreateProperties returning ");
+}
+
+
+/* Utility to extract the dotter context from the dotter window properties */
+static DotterContext* dotterGetContext(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  return properties ? properties->dotterWinCtx->dotterCtx : NULL;
+}
+
+
+/* Perform required updates following a change to the currently-selected coords */
+static void updateOnSelectedCoordsChanged(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  /* Make sure the coords are in range */
+  boundsLimitValue(&properties->dotterWinCtx->refCoord, &properties->dotterWinCtx->refSeqRange);
+  boundsLimitValue(&properties->dotterWinCtx->matchCoord, &properties->dotterWinCtx->matchSeqRange);
+  
+  /* Update the alignment view and dotplot */
+  updateAlignmentRange(properties->alignmentTool, properties->dotterWinCtx);
+  
+  /* Refresh all widgets */
+  refreshAll(dotterWindow, NULL);
+}
+
+
+/* Set the initial currently-selected ref seq and match seq coords (i.e. the coords 
+ * where the crosshair is centred) */
+static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, const int matchCoord)
+{
+  DEBUG_ENTER("setInitSelectedCoords");
+
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  if (valueWithinRange(refCoord, &dwc->refSeqRange))
+    dwc->refCoord = refCoord;
+  else
+    dwc->refCoord = getRangeCentre(&dwc->refSeqRange);
+
+  if (valueWithinRange(matchCoord, &dwc->matchSeqRange))
+    dwc->matchCoord = matchCoord;
+  else
+    dwc->matchCoord = getRangeCentre(&dwc->matchSeqRange);
+  
+  updateOnSelectedCoordsChanged(dotterWindow);
+  
+  DEBUG_EXIT("setInitSelectedCoords returning ");
+}
+
+
+/***********************************************************
+ *                    External routines                    *
+ ***********************************************************/
 
 
 
@@ -512,45 +886,56 @@ void dotter (char  type,
 	     const char *queryname,
 	     char *queryseq,
 	     int   qoff,
+	     const BlxStrand refSeqStrand,
 	     const char *subjectname,
 	      char *subjectseq,
 	      int   soff,
+	     const BlxStrand matchSeqStrand,
 	      int   qcenter,
 	      int   scenter,
-	      char *savefile,
-	      char *loadfile,
+	      char *saveFileName,
+	      char *loadFileName,
 	      char *mtxfile,
-	      float memoryLimit,
-	      int   zoomFac,
+	      double memoryLimit,
+	      int   zoomFacIn,
 	      MSP  *MSPs,
+	      GList *seqList,
 	      int   MSPoff,
-	      char *winsize,
-	      int   pixelFacset)
+	      char *winsizeIn,
+	      int   pixelFacIn)
 {
-  int  i;
-
-//  messalloccheck();
-
-  /* Reset global statics */
-  resfac = PixelmapON = 1;
-  blastp = blastn = blastx = selfcomp =
-    Display_selfcomp = watsonOnly = crickOnly = reversedScale = pixelmap_done = 0;
-  BlastHSPsOn = 0;
-  saveFil = 0;
+  g_debug("Calling dotter: type=%c, opts=%s, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d\n",
+          type, opts, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
+  
+  BlxBlastMode blastMode = BLXMODE_UNSET;
+  gboolean hspsOn = FALSE;
+  gboolean selfComp = FALSE;
+  gboolean displayMirror = TRUE;
+  gboolean watsonOnly = FALSE;
+  gboolean crickOnly = FALSE;
+  gboolean hspGaps = FALSE;
 
   switch(type) {
   case 'P':  
-    blastp = 1; 
-    abetsize = 20;  break;
+    blastMode = BLXMODE_BLASTP;
+    break;
+      
   case 'N':  
-    blastn = 1; 
-    abetsize = 4;   break;
+    blastMode = BLXMODE_BLASTN;
+    break;
+      
   case 'X':  
-    blastx = 1; 
-    resfac = 3; 
-    abetsize = 20;  break;
-  default: g_error("Invalid sequence type passed to Dotter: %c", type);
+    blastMode = BLXMODE_BLASTX;
+    break;
+      
+  default: 
+      g_error("Invalid sequence type passed to Dotter: %c", type);
+      break;
   }
+  
+  gboolean greyrampSwap = FALSE;
+  gboolean hozScaleRev = FALSE;
+  gboolean vertScaleRev = FALSE;
   
   /* Option parsing */
   if (opts)
@@ -558,194 +943,249 @@ void dotter (char  type,
       {
 	switch (*opts)
 	  {
-	  case 'D': Display_selfcomp = 1; break;
-	  case 'R': reversedScale = 1;    break;
+	  case 'D': 
+              displayMirror = FALSE;
+              break;
+              
+	    case 'R': 
+              hozScaleRev = TRUE;    
+              break;
+              
 	  case 'H': 
-	    BlastHSPsOn = 1;         
-	    PixelmapON = 0;             break;
-	  case 'W': watsonOnly = 1;       break;
-	  case 'C': crickOnly = 1;        break;
-	  case 'G': HSPgaps = 1;          break;
-	  case 'S': greyRampSwap = 1;     break;
-	  case 'L': fsEndLinesOn = 1;     break;
+              hspsOn = TRUE;         
+              break;
+              
+	  case 'W': watsonOnly = TRUE;       break;
+	  case 'C': crickOnly = TRUE;        break;
+	  case 'G': hspGaps = TRUE;          break;
+	  case 'S': greyrampSwap = TRUE;  break;
+//	  case 'L': fsEndLinesOn = 1;     break;
 	  }
 	opts++;
       }
 
-  plusmin = ( reversedScale ? -1 : 1 );
-    
-  if (graphActivate(dotterGraph))
+  MSPlist = MSPs;
+  //MSPoffset = MSPoff;
+  
+  const int qlen = strlen(queryseq);
+  const int slen = strlen(subjectseq);
+  
+  if (qlen < 1) g_error("queryseq is empty");
+  if (slen < 1) g_error("subjectseq is empty");
+
+  int i = 0;
+  for (i = 0; i < qlen; i++) queryseq[i] = freeupper(queryseq[i]);
+  for (i = 0; i < slen; i++) subjectseq[i] = freeupper(subjectseq[i]);
+
+  if (!memoryLimit) 
     {
-      dotterDestroy();
-
-      /* Don't free data or HSPpixels, since every time rawImage 
-	 is called with new data, a new XImage struct is added to gSubDev->images.
-	 These are later free'd by XDestroyImage in graphSubDevDestroy.
-
-	 However, memory allocated this way never seems to be entirely free'd
-	 by graphDestroy, in the sense that it's not always reused. 
-	 Maybe an illusion? */
-	
-      /* free(data);
-	 if (HSPpixels) free(HSPpixels);*/
+      memoryLimit = 0.5; /* Mb */
     }
 
-  HSPpixels = 0;
-  handle = handleCreate();
-  banner = (char *)handleAlloc(0, handle, 1000);
-
-  qname = g_malloc(strlen(queryname)+1); strcpy(qname, queryname);
-  qseq = queryseq;
-  qoffset = qoff;
-
-  sname = g_malloc(strlen(subjectname)+1); strcpy(sname, subjectname);
-  sseq = subjectseq;
-  soffset = soff;
-  MSPlist = MSPs;
-  MSPoffset = MSPoff;
-  
-  if (!(qlen = strlen(qseq))) g_error("queryseq is empty");
-  if (!(slen = strlen(sseq))) g_error("subjectseq is empty");
-
-  for (i = 0; i < qlen; i++) qseq[i] = freeupper(qseq[i]);
-  for (i = 0; i < slen; i++) sseq[i] = freeupper(sseq[i]);
-
-  if (!memoryLimit) memoryLimit = 0.5; /* Mb */
-
-  if (!strcmp(qseq, sseq)) selfcomp = 1;
-
-  if (blastn && !watsonOnly) {
-    /* Reverse and complement qseq for drawAlignment */
-    qrevcompl = handleAlloc(0, handle, qlen+1);
-    revComplement(qrevcompl, qseq) ;
-    /*for (i = 0; i < qlen; i++) qrevcompl[i] = bton[ntob_compl[qseq[qlen-i-1]]];
-      qrevcompl[qlen] = 0;*/
-  }
-    
-  if (blastx) {
-    for (i = 0; i < 3; i++)
-      pepqseq[i] = blxTranslate(qseq+i, stdcode1);
-  }
-
+  if (!strcmp(queryseq, subjectseq)) 
+    selfComp = TRUE;
 
   /* Get score matrix */
-  if (mtxfile) {
-    readmtx(MATRIX, mtxfile);
-    strncpy(MATRIX_NAME, mtxfile, 80);
-  }
-  else {
-    if (blastn) {
+  char *matrixName = g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
+  
+  if (mtxfile)	
+    {
+      readmtx(MATRIX, mtxfile);
+      strncpy(matrixName, mtxfile, MAX_MATRIX_NAME_LENGTH);
+    }
+  else if (blastMode == BLXMODE_BLASTN) 
+    {
       DNAmatrix(MATRIX);
-      strcpy(MATRIX_NAME, "DNA+5/-4");
-    }
-    else {
-      mtxcpy(MATRIX, BLOSUM62);
-      strcpy(MATRIX_NAME, "BLOSUM62");
-    }
-  }
-
-
-  /* Don't do batch processing if output file can't be opened */
-  if (savefile) 
-    {
-      if (!(saveFil = fopen (savefile, "wb")))
-	g_error("Failed to open %s", savefile);
-    }
-	
-
-  if (loadfile)
-    {
-      /* Load existing dotplot file */
-      loadPlot(loadfile);
-    }
-  else 
-    {
-      initWindow(winsize);
-
-      /* Set pixelFac so that exp_res_score is at 1/5 of the range. 
-       * This positions exp_res_score at 51.2
-       */
-      if (pixelFacset)
-	pixelFac = pixelFacset;
-      else
-	pixelFac = 0.2*256/exp_res_score;
-	
-      if (!zoomFac)
-	zoom = (int)sqrt((qlen/resfac/1e6*slen - 1e-6)/memoryLimit) + 1;
-      else
-	zoom = zoomFac;
-
-      qlen4 = (int)ceil((double)qlen/resfac/zoom);
-      if (qlen4 % 4)
-	qlen4 += 4-(qlen4 % 4);
-      if (qlen/resfac > qlen4*zoom)
-	g_error("qlen/resfac > qlen4*zoom (%d > %d (%d*%d))",
-	      qlen/resfac, qlen4*zoom, qlen4, zoom);
-
-      slen4 = (int)ceil((double)slen/zoom);
-      if (slen4 % 4)
-	slen4 += 4-(slen4 % 4);
-      if (slen > slen4*zoom)
-	g_error("slen > slen4*zoom (%d > %d (%d*%d))", slen, slen4, zoom, slen4*zoom);
-
-      datalen = slen4*qlen4;
-      data = (UCHAR *)g_malloc(datalen);
-    }
-
-  if (savefile)
-    {
-      calcWindow();
-      savePlot();
+      strcpy(matrixName, "DNA+5/-4");
     }
   else
     {
-      dotterMenu = menuInitialise ("dotter", (MENUSPEC*)mainMenu) ;
-      if (!MSPlist)
-	menuSuppress (dotterMenu, drawBlastHSPgrayStr);
-      menuSetFlags(menuItem(dotterMenu, selectFeaturesStr), MENUFLAG_HIDE);
-
-      if (qcenter < 1 || qcenter > qlen)
-	{
-	  oldx = qlen/resfac/2;
-	  crossx = oldx/zoom + LeftBorder;
-	}
-      else
-	{
-	  crossx = LeftBorder + qcenter/resfac/zoom;
-	  oldx = qcenter;
-	}
-
-      if (scenter < 1 || scenter > slen)
-	{
-	  oldy = slen/2;
-	  crossy = oldy/zoom + TopBorder;
-	}
-      else
-	{
-	  crossy = TopBorder + scenter/zoom;
-	  oldy = scenter;
-	}
-	
-      RightBorder = LeftBorder-1 + qlen4 - qlen % 4;
-	
-      if (fsArr) /* feature-series array exists */
-	{
-	  CrosshairFullscreenON = 1;
-	}
-	
-      if (!loadfile && !BlastHSPsOn)
-	{
-	  calcWindow();
-	}
-
-      dotterRedraw();	/* Note: must be after calcWindow; used to be before in AW to fail early */
+      mtxcpy(MATRIX, BLOSUM62);
+      strcpy(matrixName, "BLOSUM62");
     }
 
+  /* Don't do batch processing if output file can't be opened */
+  if (saveFileName) 
+    {
+      if (!fopen (saveFileName, "wb"))
+	g_error("Failed to open %s", saveFileName);
+    }
+  
+  /* Create the main dotter context (shared properties for all dotter windows in this process) */
+  DotterContext *dotterCtx = createDotterContext(blastMode, queryname, queryseq, refSeqStrand, 
+                                                 subjectname, subjectseq, matchSeqStrand,
+                                                 qoff, soff, hozScaleRev, vertScaleRev, 
+                                                 selfComp, displayMirror, watsonOnly, crickOnly,
+                                                 MSPlist, seqList, MATRIX, matrixName, memoryLimit);
+
+  /* Create a context specific to the initial dotter window */
+  DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, zoomFacIn);
+
+  /* Create the widgets */
+  createDotterInstance(dotterCtx, 
+                       dotterWinCtx,
+                       loadFileName,
+                       saveFileName,
+                       hspsOn,
+                       winsizeIn,
+                       pixelFacIn,
+                       zoomFacIn,
+                       qcenter,
+                       scenter,
+                       greyrampSwap);
 
   return ;
 }
 
 
+/* Create all the widgets for a dotter instance. Uses the existing dotter context. Multiple
+ * instances (i.e. multiple dotter windows) can exist that share the same main context but display
+ * a different range of coords etc,. This creates the widgets and shows them. */
+static void createDotterInstance(DotterContext *dotterCtx,
+                                 DotterWindowContext *dotterWinCtx,
+                                 const char *loadFileName,
+                                 const char *saveFileName,
+                                 const gboolean hspsOn,
+                                 const char* winsizeIn,
+                                 const int pixelFacIn,
+                                 const int zoomFacIn,
+                                 const int qcenter,
+                                 const int scenter,
+                                 const gboolean greyrampSwap)
+{
+  DEBUG_ENTER("createDotterInstance");
+
+  GtkWidget *dotplot = NULL;
+  GtkWidget *dotplotWidget = createDotplot(dotterWinCtx, 
+                                           loadFileName,
+                                           saveFileName,
+                                           hspsOn,
+                                           winsizeIn,
+                                           pixelFacIn,
+                                           zoomFacIn,
+                                           qcenter,
+                                           scenter,
+                                           &dotplot);
+  
+  /* Only create the graphical elements if there is a graphical dotplot widget */
+  if (dotplotWidget)
+    {
+      GtkWidget *greyrampTool = createGreyrampTool(dotterCtx, 40, 100, greyrampSwap);
+      registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
+      
+      GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx);
+  
+      const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
+      GtkWidget *dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot);
+
+      /* Use the same key press handler for the alignment tool as the main dotter window. Connect it
+       * here so we can pass the main window as data. */
+      gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
+      g_signal_connect(G_OBJECT(alignmentTool), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
+
+      /* Keep track of all the windows we create, so that we can destroy the DotterContext when
+       * the last one is closed */
+      dotterCtx->windowList = g_slist_append(dotterCtx->windowList, dotterWindow);
+      
+      dotterCreateProperties(dotterWindow, greyrampTool, alignmentTool, dotplot, dotterWinCtx);
+      DotterProperties *properties = dotterGetProperties(dotterWindow);
+      
+      setInitSelectedCoords(dotterWindow, qcenter, scenter);
+      
+      updateGreyMap(properties->greyrampTool);
+    }
+  
+  DEBUG_EXIT("createDotterInstance returning ");
+}
+
+
+/* Open another dotter window, internal to the existing process (i.e. using the same sequences
+ * etc. but just displaying a different range). */
+void callDotterInternal(DotterContext *dc, 
+                        const IntRange const *refSeqRange,
+                        const IntRange const *matchSeqRange,
+                        const gdouble zoomFactor)
+{
+  DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor);
+  createDotterInstance(dc, dwc, NULL, NULL, FALSE, NULL, 0, 0, 0, 0, FALSE);
+}
+
+
+//void dotterCallDotter(DotterContext *dc, int dotterZoom, int xstart, int ystart, int xend, int yend)
+//{
+//  
+//  
+//  /* old code that used to start a new process... */
+//#if 0 //!defined(NO_POPEN)
+//  
+//  if (xstart < 1)  xstart = 1;
+//  if (xend > qlen) xend = getRangeLength(&dc->refSeqFullRange);
+//  if (ystart < 1)  ystart = 1;
+//  if (yend > slen) yend = getRangeLength(&dc->matchSeqFullRange);
+//  
+//  /* Open pipe to new dotterBinary */
+//  if (!dotterBinary) 
+//    { 
+//      printf("Looking for Dotter ...\n");
+//      
+//      if (!findCommand("dotter", &(dotterBinary))) 
+//        {
+//          g_critical("Failed to zoom in - %s.  ($PATH=%s)", dotterBinary, getenv("PATH"));
+//          dotterBinary = 0;
+//          return;
+//        }
+//    }
+//  
+//  printf("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, xstart, ystart, xend, yend);
+//  fflush(stdout);
+//  
+//  char *pipeText = blxprintf("/bin/csh -cf \"%s -z %d -q %d -s %d -S '%s' %d '%s' %d %s %s\"", 
+//                             dotterBinary, 
+//                             dotterZoom, 
+//                             xstart - 1 + dc->refSeqFullRange.min - 1, 
+//                             ystart - 1 + dc->matchSeqFullRange.min - 1, 
+//                             dc->refSeqName, 
+//                             xend - xstart + 1, 
+//                             dc->matchSeqName, 
+//                             yend - ystart + 1,
+//                             dotterBinary,
+//                             (Xoptions ? Xoptions : ""));
+//  
+//  g_debug("Sending to pipe: %s\n", pipeText);
+//  
+//  FILE *pipe = (FILE *)popen(pipeText, "w");
+//  
+//  fwrite(dc->refSeq + xstart - 1, 1, xend - xstart + 1, pipe);
+//  fwrite(dc->matchSeq + ystart - 1, 1, yend - ystart + 1, pipe);
+//  
+//  /* Pass on features */
+//  MSP *msp = NULL;
+//
+//  for (msp = MSPlist; msp; msp = msp->next) 
+//    {
+//      if (msp->type == BLXMSP_FS_SEG)
+//        {
+//          fprintf(pipe, "%d %f %d %d %d %d", 
+//                  msp->type,
+//                  msp->score, 
+//                  msp->fsColor, 
+//                  mspGetQStart(msp) +MSPoffset,
+//                  mspGetQEnd(msp)   +MSPoffset,
+//                  msp->fs ? msp->fs->order : 0);
+//          stringProtect(pipe, mspGetSName(msp));
+//          stringProtect(pipe, msp->sframe);
+//          stringProtect(pipe, msp->qname);
+//          stringProtect(pipe, msp->qframe);
+//          stringProtect(pipe, msp->desc);
+//          fputc('\n', pipe);
+//        }
+//    }
+//  
+//  fprintf(pipe, "%c\n", EOF);
+//  fflush(pipe);
+//#endif
+//}
+//
 
 char Seqtype(char *seq)
 {
@@ -805,66 +1245,6 @@ static void rmExp(void){}
 */
 
 
-static void menuCheck(MENU menu, int mode, int thismode, char *str)
-{
-    if (mode == thismode)
-	menuSetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
-    else
-	menuUnsetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
-
-    menuSetFlags(menuItem(menu, str), MENUFLAG_TOGGLE);
-
-}
-static void setMenuCheckmarks(void)
-{
-    menuCheck(dotterMenu, 1, CrosshairON, toggleCrosshairStr);
-    menuCheck(dotterMenu, 1, CrosshairPosON, toggleCrosshairPosStr);
-    menuCheck(dotterMenu, 1, CrosshairFullscreenON, toggleCrosshairFullscreenStr);
-    menuCheck(dotterMenu, 1, gridOn, toggleGridStr);
-
-    menuCheck(dotterMenu, BlastMode, BLASTGREY, drawBlastHSPgrayStr);
-    menuCheck(dotterMenu, BlastMode, BLASTRED, drawBlastHSPlineStr);
-    menuCheck(dotterMenu, BlastMode, BLASTFUNC, drawBlastHSPlinefStr);
-
-    menuCheck(dotterMenu, 1, PixelmapON, togglePixelmapStr);
-
-    graphNewMenu(dotterMenu);
-}
-
-
-static void Help(void)
-{
-    graphMessage (messprintf("\
-Dotter, version %s\n\
-Copyright (C) Erik Sonnhammer\n\
-and Richard Durbin, 1995\n\
-\n\n\
-Sliding window length = %d\n\
-Pixel values = %d x score/residue\n\
-Matrix = %s\n\
-Zoom (compression) factor = %d\n\
-\n\
-LEFT MOUSE BUTTON:\n\
-  Position crosshair.\n\
-\n\
-MIDDLE MOUSE BUTTON:\n\
-  Zoom in region.\n\
-\n\
-RIGHT MOUSE BUTTON:\n\
-  Menu.\n\
-\n\n\
-KEYSTROKES:\n\
-  Arrow keys: move up/down/left/right\n\
-  < > : move along diagonals\n\
-  { } : move along reverse diagonals\n\
-\n\n\
-RESIDUE COLOURS in alignment tool:\n\
-  Cyan      = Identical Residue.\n\
-  DarkBlue  = Positive Score.\n\
-  No colour = Negative score.\n", dotterVersion, win, pixelFac, MATRIX_NAME, zoom));
-}
-
-
 /* REVERSEBYTES changes order of n bytes at location ptr
 */
 void reversebytes(void *ptr, int n)
@@ -879,651 +1259,6 @@ void reversebytes(void *ptr, int n)
 }
 
 
-/* SAVEPLOT writes a 1 byte fileformat first, various params and then the dot-matrix
-*/
-static void savePlot(void)
-{
-    static char 
-	dirName[DIR_BUFFER_SIZE], fileName[FIL_BUFFER_SIZE] ;
-    int 
-	i, j,
-	batch=1,
-	MNlen, MNlenSave,
-	mtx;
-    UCHAR 
-	format = 2;
-
-
-    if (!saveFil) {
-	if (!(saveFil = filqueryopen(dirName, fileName, "dotter","w", 
-				     "Save as file: (adds .dotter to filename)")))
-	    return ;
-
-	batch = 0;
-    }
-
-    MNlen = MNlenSave = strlen(MATRIX_NAME);
-
-#ifdef ALPHA
-    reversebytes(&zoom, 4);
-    reversebytes(&qlen4, 4);
-    reversebytes(&slen4, 4);
-    reversebytes(&pixelFac, 4);
-    reversebytes(&win, 4);
-    reversebytes(&MNlenSave, 4);
-#endif
-
-    fwrite(&format,    1, 1, saveFil);
-    fwrite(&zoom,      1, 4, saveFil);
-    fwrite(&qlen4,     1, 4, saveFil);
-    fwrite(&slen4,     1, 4, saveFil);
-    fwrite(&pixelFac,  1, 4, saveFil); /* New feature of format 2  */
-    fwrite(&win,       1, 4, saveFil); /* New feature of format 2  */
-    fwrite(&MNlenSave, 1, 4, saveFil); /* New feature of format 2  */
-    fwrite(&MATRIX_NAME, 1, MNlen, saveFil); /* New feature of format 2  */
-    for (i = 0; i < 24; i++)
-	for (j = 0; j < 24; j++) {
-	    mtx = MATRIX[i][j];
-#ifdef ALPHA
-	    reversebytes(&mtx, 4);
-#endif
-	    fwrite(&mtx, 1, 4, saveFil); /* New feature of format 2  */
-	}
-
-#ifdef ALPHA
-    reversebytes(&zoom, 4);
-    reversebytes(&qlen4, 4);
-    reversebytes(&slen4, 4);
-    reversebytes(&pixelFac, 4);
-    reversebytes(&win, 4);
-#endif
-    
-    fwrite(data, 1, qlen4*slen4, saveFil);
-
-    fclose(saveFil);
-    saveFil = 0;
-}
-
-
-static void loadPlot(char *loadfile)
-{
-    FILE 
-	*fil;
-    int 
-	i, j, n, 
-	dotstart = 0,
-	MNlen,
-	mtx;
-    UCHAR 
-	format;
-
-    if (!(fil = fopen (loadfile, "rb")))
-	g_error("Failed to open %s", loadfile);
-
-    if ((fread(&format, 1, 1, fil)) != 1) g_error("reading file %s", loadfile);
-    if ((fread(&zoom,   1, 4, fil)) != 4) g_error("reading file %s", loadfile);
-    if ((fread(&qlen4,  1, 4, fil)) != 4) g_error("reading file %s", loadfile);
-    if ((fread(&slen4,  1, 4, fil)) != 4) g_error("reading file %s", loadfile);
-#ifdef ALPHA
-    reversebytes(&zoom, 4);
-    reversebytes(&qlen4, 4);
-    reversebytes(&slen4, 4);
-#endif
-
-    if (format == 1) {
-	dotstart = 13;
-	/* Don't actually know these variables for sure - guess the most common */
-	pixelFac = 50;
-	win = 25;
-    }
-    else if (format == 2) 
-    {
-	if ((fread(&pixelFac, 1, 4, fil)) != 4) g_error("reading file %s", loadfile);
-	if ((fread(&win,      1, 4, fil)) != 4) g_error("reading file %s", loadfile);
-	if ((fread(&MNlen, 1, 4, fil)) != 4) g_error("reading file %s", loadfile);
-#ifdef ALPHA
-	reversebytes(&pixelFac, 4);
-	reversebytes(&win, 4);
-	reversebytes(&MNlen, 4);
-#endif
-	if ((fread(&MATRIX_NAME, 1, MNlen, fil)) != MNlen) g_error("reading file %s", loadfile);
-	MATRIX_NAME[MNlen] = 0;
-	for (i = 0; i < 24; i++)
-	    for (j = 0; j < 24; j++) {
-		if ((fread(&mtx, 1, 4, fil)) != 4) g_error("reading file %s", loadfile);
-#ifdef ALPHA
-		reversebytes(&mtx, 4);
-#endif
-		MATRIX[i][j] = mtx;
-	    }
-	dotstart = MNlen + 2329;
-    }
-    else 
-	g_error("Unknown dotter file format version: %d", format);
-
-    fseek(fil, 0, SEEK_END);
-    n = ftell(fil);
-
-    if (n-dotstart != qlen4*slen4)
-	g_error("Wrong number of pixels in %s: %d. Expected %d * %-d = %d\n", 
-	      loadfile, n, qlen4, slen4, qlen4*slen4);
-
-    datalen = slen4*qlen4;
-    data = (UCHAR *)g_malloc(datalen);
-    fseek(fil, dotstart, SEEK_SET);
-
-    if ((n = fread(data, 1, qlen4*slen4, fil)) != qlen4*slen4)
-	g_error("Read wrong number of pixels from %s: %d. Expected %d * %-d = %d\n", 
-	      loadfile, n, qlen4, slen4, qlen4*slen4);
-    
-    fclose(fil);
-
-    printf("I read your dotter dotplot file %s.\n", loadfile);
-    if (format == 1) 
-	printf("It was in the old format 1, so the windowsize and pixel factor had to be guessed.\n");
-    fflush(stdout);
-}
-
-/*
-void loadFeaturesDotter(FILE* fil)
-{
-    loadFeatures(fil, &MSPlist);
-
-    dotterRedraw();
-    if (fsGraph) selectFeatures();
-}
-
-
-static void loadFeaturesPrompt(void)
-{
-    FILE *fil;
-    static char dirName[DIR_BUFFER_SIZE], fileName[FIL_BUFFER_SIZE];
-
-    if (!(fil = filqueryopen(dirName, fileName, "","r", "Load file: "))) return;
-
-    loadFeaturesDotter(fil);
-}
-*/
-
-
-/* INITMATRIX calculates the min, max and mean score of the given matrix.
-   Archaic and not needed any more.
-* /
-static void initMatrix (void)
-{
-    int i, j, x, sum ;
-
-    minScore = maxScore = sum = 0 ;
-    for (i = 0 ; i < abetsize ; i++)
-	for (j = 0 ; j < abetsize ; j++)
-	    { 
-		x = MATRIX[i][j];
-		if (x < minScore) minScore = x;
-		if (x > maxScore) maxScore = x;
-		sum += x;
-	    }
-	
-    meanScore = (float)sum/(abetsize*abetsize);
-
-    if (blastn)
-	printf("DNA");
-    else
-	printf("Protein");
-
-    printf(" score matrix: Max score= %d, Min score= %d, Mean score= %.2f\n", 
-	   maxScore, minScore, meanScore);
-}
-*/
-
-
-/* CALCWINDOW puts the max diagonal for each pixel into *data
- ************************************************************/
-static void calcWindow(void)
-{
-    STORE_HANDLE calcHandle;
-
-    register int 
-	q, s, qmax,     /* Loop variables */
-	*newsum,	/* New sum pointer */
-	*oldsum,	/* Old sum pointer */
-	*delrow,	/* Pointer to scoreVec, row to remove */
-	*addrow,	/* Pointer to scoreVec, row to add */
-	dotpos, dotposq, dotposs;
-    
-    int 
-	**scoreVec = NULL,     /* Array of precalculated scores for qseq residues */
-        *sIndex,	/* Array of binary coded sseq residues */
-	ql,	        /* query position in local submatrix (of one pixel) */
-	sl,	        /* subject position in local submatrix (of one pixel) */
-	i, min, sec, frame, pepqseqlen, 
-	*zero = NULL, *sum1 = NULL, *sum2 = NULL,
-	win2 = win/2, 
-	val;
-
-    float 
-	dots,	        /* total number of dots (millions) */
-	speed;          /* speed in Mdots/seconds */
-
-    UCHAR 
-	*dot, dotValue;
-
-    calcHandle = handleCreate();
-    
-    speed = 17.2;  /* SGI MIPS R10000 (clobber) */
-    /* speed = 5.7;  DEC Alpha AXP 3000/700 */
-    /* speed = 3.7;  SGI R4400: */
-    dots = qlen/1e6*slen;
-    if (selfcomp) dots /= 2;
-    if (blastn && !(watsonOnly || crickOnly)) dots *= 2;
-    if (blastx) dots *= 3;
-
-    min = (int)(dots/speed/60);
-    sec = (int)(dots/speed) - min*60;
-    printf("%d vs. %d residues => %.2f million dots. ",
-	   qlen, slen, dots);
-
-    if (min+sec >= 2) {
-	printf("(Takes ");
-
-	if (min)
-	    printf("%d:%.2d minutes", min, sec);
-	else 
-	    printf("%d seconds", sec);
-    
-	printf(" on an SGI MIPS R10000)");
-    }
-
-    printf("\n");
-    fflush(stdout);
-
-    /* Initialize lookup tables for faster execution */
-    sIndex = (int *) handleAlloc(0, calcHandle, slen * sizeof(int)) ;
-
-    if (blastp)
-    {
-	zero = (int *)handleAlloc(0, calcHandle, qlen * sizeof(int));
-	sum1 = (int *)handleAlloc(0, calcHandle, qlen * sizeof(int));
-	sum2 = (int *)handleAlloc(0, calcHandle, qlen * sizeof(int));
-
-	scoreVec = (int**) handleAlloc(0, calcHandle, 25*sizeof(int*));
-	for (i = 0; i < 25; i++)
-	    scoreVec[i] = (int*) handleAlloc(0, calcHandle, qlen*sizeof(int));
-	
-	for (i = 0; i < 24; i++)
-	    for (q = 0; q < qlen; q++)
-		scoreVec[i][q] = MATRIX[i][atob[(int)qseq[q]]-1];
-	
-	/* Non-protein symbols in scorevector */
-	for (q = 0; q < qlen; q++) scoreVec[24][q] = MATRIX[23][23];
-	
-	for (s = 0; s < slen; s++) sIndex[s] = atob[(int)sseq[s]]-1;
-    }
-    else if (blastn) 
-    {
-	zero = (int *)handleAlloc(0, calcHandle, qlen * sizeof(int));
-	sum1 = (int *)handleAlloc(0, calcHandle, qlen * sizeof(int));
-	sum2 = (int *)handleAlloc(0, calcHandle, qlen * sizeof(int));
-
-	scoreVec = (int**) handleAlloc(0, calcHandle, 6*sizeof(int*));
-	
-	for (i = 0; i < 6; i++)
-	    scoreVec[i] = (int*) handleAlloc(0, calcHandle, qlen*sizeof(int));
-	/* Fill the scoreVec below depending on which strand */
-
-	    
-	for (s = 0 ; s < slen ; s++) sIndex[s] = ntob[(int)sseq[s]];
-    }
-    
-    /* Reset background */
-    for (i = 0; i < slen4*qlen4 ; i++) data[i] = 0;
-
-
-    if (blastx)
-    {
-	zero = (int *)handleAlloc(0, calcHandle, qlen/3*sizeof(int));
-	sum1 = (int *)handleAlloc(0, calcHandle, qlen/3*sizeof(int));
-	sum2 = (int *)handleAlloc(0, calcHandle, qlen/3*sizeof(int));
-
-	scoreVec = (int**) handleAlloc(0, calcHandle, 25*sizeof(int *));
-	for (i = 0; i < 25; i++)
-	    scoreVec[i] = (int*) handleAlloc(0, calcHandle, qlen/3*sizeof(int));
-	
-	/* Non-protein symbols in scorevector */
-	for (q = 0; q < qlen/3; q++) scoreVec[24][q] = MATRIX[23][23];
-	
-	for (s = 0; s < slen; s++) sIndex[s] = atob[(int)sseq[s]]-1;
-
-	for (frame = 0; frame < 3; frame++)
-	{
-	    pepqseqlen = strlen(pepqseq[frame]);
-	    for (i = 0; i < 24; i++)
-		for (q = 0; q < pepqseqlen; q++)
-		    scoreVec[i][q] = MATRIX[i][atob[(int)pepqseq[frame][q]]-1];
-
-	    for (i = 0; i<pepqseqlen; i++) {
-		sum1[i] = 0;
-		sum2[i] = 0;
-	    }
-
-	    for (s = 0; s < slen; ++s)
-	    {   
-		if (s & 1) {
-		    newsum = sum1 ;
-		    oldsum = sum2 ;
-		}
-		else {
-		    newsum = sum2 ;
-		    oldsum = sum1 ;
-		}
-
-		if (s >= win) delrow = scoreVec[sIndex[s-win]];
-		else delrow = zero;
-
-		addrow = scoreVec[sIndex[s]];
-		*newsum = *addrow++;
-		
-		qmax = min(win, pepqseqlen);
-		for (q = 1; q < qmax ; ++q)
-		    *++newsum = *oldsum++ + *addrow++;
-		
-		qmax = pepqseqlen;
-		for ( ; q < qmax ; ++q) {
-		    *++newsum = *oldsum++ + *addrow++ - *delrow++ ;
-		    if (*newsum > 0 && s >= win) 
-		    {
-			dotposq = (q-win2)/zoom;
-			dotposs = (s-win2)/zoom;
-			    
-			/* Only fill half the submatrix */
-			ql = q-win2 - dotposq*zoom;
-			sl = s-win2 - dotposs*zoom;
-			if (sl >= ql)
-			{
-			    dotpos = qlen4*dotposs + dotposq;
-
-			    if (dotpos < 0 || dotpos >= datalen) {
-				g_critical ( "Pixel out of bounds (%d) in blastx: %d\n",
-					datalen-1, dotpos);
-			    }
-			    else {
-				val = *newsum * pixelFac / win;
-				dotValue = (val > 255 ? 255 : (UCHAR)val);
-				dot = &data[dotpos];
-				if (dotValue > *dot) *dot = dotValue;
-			    }
-			}
-		    }
-		}
-	    }
-	}
-    }
-
-    if (blastp || (blastn && !crickOnly)) 
-    {
-	if (blastn)
-	    for (i = 0; i < 6; i++)
-		for (q = 0; q < qlen; q++)
-		    scoreVec[i][q] = MATRIX[i][ntob[(int)qseq[q]]];
-
-	for (s = 0; s < slen; ++s)
-	{ 
-	    if (s & 1) {
-		newsum = sum1 ;
-		oldsum = sum2 ;
-	    }
-	    else {
-		newsum = sum2 ;
-		oldsum = sum1 ;
-	    }
-
-	    if (s >= win) delrow = scoreVec[sIndex[s-win]];
-	    else delrow = zero;
-
-	    addrow = scoreVec[sIndex[s]];
-	    *newsum = *addrow++;
-
-	    qmax = min(win, qlen);
-	    for (q = 1; q < qmax ; ++q)
-		*++newsum = *oldsum++ + *addrow++;
-
-	    qmax = (selfcomp ? s+1 : qlen);
-	    for ( ; q < qmax ; ++q) 
-	    {
-		*++newsum = *oldsum++ + *addrow++ - *delrow++;
-		if (*newsum > 0 && s >= win) 
-		{
-		    dotposq = (q-win2)/zoom;
-		    dotposs = (s-win2)/zoom;
-		    
-		    /* Only fill half the submatrix */
-		    ql = q-win2 - dotposq*zoom;
-		    sl = s-win2 - dotposs*zoom;
-		    if (sl >= ql)
-		    {
-			dotpos = qlen4*dotposs + dotposq;
-
-			if (dotpos < 0 || dotpos > datalen-1) {
-			    g_critical ( "Pixel out of bounds (%d) in blastp/blastn-forw: %d\n", 
-				    datalen-1, dotpos);
-			}
-			else {
-			    /* Keep the max dot value of all diagonals in this pixel */
-			    val = *newsum * pixelFac / win;
-			    dotValue = (val > 255 ? 255 : (UCHAR)val);
-			    dot = &data[dotpos];
-			    if (dotValue > *dot) *dot = dotValue;
-			}
-		    }
-		}
-	    }
-	}
-    }
-
-
-    if (blastn && !watsonOnly) 
-    {
-	if (blastn)
-	    for (i = 0; i < 6; i++)
-		for (q = 0; q < qlen; q++)
-		    scoreVec[i][q] = MATRIX[i][ntob_compl[(int)qseq[q]]];
-
-	for (i = 0; i<qlen; i++) {
-	    sum1[i] = 0;
-	    sum2[i] = 0;
-	}
-
-	for (s = slen-1; s >= 0; --s)
-	{ 
-	    if (s & 1) {
-		newsum = sum1 ;
-		oldsum = sum2 ;
-	    }
-	    else {
-		newsum = sum2 ;
-		oldsum = sum1 ;
-	    }
-
-	    if (s < slen-win) delrow = scoreVec[sIndex[s+win]];
-	    else delrow = zero;
-
-	    addrow = scoreVec[sIndex[s]];
-	    *newsum = *addrow++;
-
-	    qmax = min(win, qlen);
-	    for (q = 1; q < qmax ; ++q)
-		*++newsum = *oldsum++ + *addrow++;
-
-	    qmax = (selfcomp ? s+1 : qlen);
-	    for ( ; q < qmax ; ++q) {
-		*++newsum = *oldsum++ + *addrow++ - *delrow++ ;
-		if (*newsum > 0 && s <= slen-win) 
-		{
-		    dotposq = (q-win2)/zoom;
-
-		    dotposs = (s+win2)/zoom;
-
-		    /* Only fill half the submatrix */
-		    ql = q-win2 - dotposq*zoom;
-
-		    /* Set the origin (0,0) to the bottom left corner of submatrix
-		       Ugly but correct. Zoom = pixels/submatrix */
-		    sl = zoom-1 - (s+win2 - dotposs*zoom);
-		    
-		    if (sl >= ql)
-		    {
-			dotpos = qlen4*dotposs + dotposq;
-			
-			if (dotpos < 0 || dotpos >= datalen) {
-			    g_critical ( "Pixel out of bounds (%d) in blastn-rev: %d\n",
-				    datalen-1, dotpos);
-			}
-			else {
-			    val = *newsum * pixelFac / win;
-			    dotValue = (val > 255 ? 255 : (UCHAR)val);
-			    dot = &data[dotpos];
-			    if (dotValue > *dot) *dot = dotValue;
-			}
-		    }
-		}
-	    }
-	}
-    }
-
-    if (selfcomp && Display_selfcomp) {
-	/* Copy mirror image */
-
-	int dotposCopy;
-	
-	for (s = 0; s < slen4; ++s) { 
-	    for (q = 0; q < s ; ++q) {
-		
-		dotpos = qlen4*s + q;
-		dotposCopy = qlen4*q + s;
-
-		if (dotpos < 0 || dotpos >= datalen)
-		    g_critical ( "Source pixel out of bounds (%d) in mirrorCopy: %d\n",
-				datalen-1, dotpos);
-		if (dotposCopy < 0 || dotposCopy >= datalen)
-		    g_critical ( "Destination pixel out of bounds (%d) in mirrorCopy: %d\n",
-				datalen-1, dotposCopy);
-		data[dotposCopy] = data[dotpos];
-	    }
-	}
-    }
-
-    handleDestroy(calcHandle);
-//    messalloccheck();
-    pixelmap_done = 1;
-}
-
-
-void findScaleUnit (float cutoff, float *u, float *sub)
-{
-  float unit = *u ;
-  float subunit = *u ;
-
-  if (cutoff < 0)
-    cutoff = -cutoff ;
-
-  while (unit < cutoff)
-    { unit *= 2 ;
-      subunit *= 5 ;
-      if (unit >= cutoff)
-	break ;
-      unit *= 2.5000001 ;	/* safe rounding */
-      if (unit >= cutoff)
-	break ;
-      unit *= 2 ;
-      subunit *= 2 ;
-    }
-  subunit /= 10 ;
-  if (subunit > *sub)
-    *sub = subunit ;
-  *u = unit ;
-}
-
-
-static void drawScale(void)
-{
-  int i, x, y,
-    TickStart;			/* First minor tick   */
-  float unit=1,		/* Major tick unit */
-    subunit=1;		/* First Major tick   */
-  
-  graphRectangle(LeftBorder-1, TopBorder-1, LeftBorder-1+qlen4, TopBorder-1+slen4);
-  
-  /* QSEQ */
-  /* min 100 pixels between major ticks */
-  findScaleUnit(100*zoom*resfac, &unit, &subunit);
-  y = TopBorder -1;
-  
-  graphTextFormat(FIXED_WIDTH);
-  
-  if (!qoffset) 
-    TickStart = 0;
-  else 
-    TickStart = subunit*ceil(qoffset/subunit);
-  
-  for (i = TickStart; i < qlen+qoffset; i += subunit)
-    {
-      if (reversedScale) 
-	x = RightBorder - (i-qoffset)/zoom/resfac;
-      else 
-	x = LeftBorder-1 + ceil((float)(i-qoffset)/zoom/resfac);
-      
-      graphLine(x, y, x, y-5); /* Minor tick */
-      
-      /* Major tick */
-      if (!(i % (int)unit))
-	{
-	  graphLine(x, y, x, y-10);
-	  graphText(messprintf("%d", i), x-4, y-25);
-	}
-      
-      if (gridOn && x != LeftBorder-1)
-	{
-	  graphColor(LIGHTRED);
-	  graphLine(x, y+1, x, y+slen4-1);
-	  graphColor(BLACK);
-	}
-    }
-  
-    /* SSEQ */
-    /* min 50 pixels between major ticks */
-    unit = subunit = 1;
-    findScaleUnit(50*zoom, &unit, &subunit);
-    x = LeftBorder - 1;
-
-    if (!soffset) 
-	TickStart = 0;
-    else 
-	TickStart = subunit*ceil(soffset/subunit);
-
-    for (i = TickStart; i < slen+soffset; i += subunit) 
-    {
-	y = TopBorder-1 + (i-soffset)/zoom;
-
-	graphLine(x, y, x-5, y); /* Minor tick */
-
-	/* Major tick */
-	if (!(i % (int)unit))
-	  {
-	    graphLine(x, y, x-10, y);
-	    graphText(messprintf("%7d", i), 0, y-6);
-	  }
-
-	if (gridOn && y != TopBorder-1)
-	  {
-	    graphColor(LIGHTRED);
-	    graphLine(x+1, y, x+qlen4-1, y);
-	    graphColor(BLACK);
-	  }
-    }
-
-    graphTextFormat(PLAIN_FORMAT);
-}
-
-
 /* Utility to return the Feature Series that the given MSP belongs to */
 static FeatureSeries* mspGetFeatureSeries(const MSP *msp)
 {
@@ -1532,11 +1267,11 @@ static FeatureSeries* mspGetFeatureSeries(const MSP *msp)
 
 
 /* Returns true if this MSP is part of a Feature Series and that feature series is currently displayed */
-static gboolean mspShowFs(const MSP *msp)
-{
-  FeatureSeries *fs = mspGetFeatureSeries(msp);
-  return (fs && fs->on);
-}
+//static gboolean mspShowFs(const MSP *msp)
+//{
+//  FeatureSeries *fs = mspGetFeatureSeries(msp);
+//  return (fs && fs->on);
+//}
 
 
 /* Return the y position of the lower edge of a feature-series MSP, given its height.
@@ -1589,821 +1324,672 @@ float mspGetFsRightEdge(MSP *msp, float *maxx, float height)
 }
 
 
-static float seq2graphX(int pos)
-{
-    float x;
-
-    x = ceil((float)(pos + MSPoffset - qoffset)/zoom/resfac);
-
-    if (reversedScale)
-	x = RightBorder - x;
-    else
-	x += LeftBorder-1;
-
-    return x;
-}
-
-static float seq2graphY(int pos)
-{
-    float y;
-
-    y = ceil((float)(pos - soffset)/zoom);
-    
-    y += TopBorder-1;
-
-    return y;
-}
-
-
-static void XdrawSEG(MSP *msp, float offset)
-{
-    /* Horizontal axis */
-
-    float  
-	sx = seq2graphX(mspGetQStart(msp)), 
-	ex = seq2graphX(mspGetQEnd(msp));
-    
-    offset += TopBorder + slen4 -1;
-    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
-
-    if (fsEndLinesOn) {
-	graphLine(sx, TopBorder, sx, TopBorder+slen4-2);
-	graphLine(ex, TopBorder, ex, TopBorder+slen4-2);
-    }
-
-    graphFillRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
-    graphColor(BLACK);
-    graphRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
-
-    graphColor(BLACK);
-    if (fsAnnBottomOn && msp->desc) {
-	graphText(msp->desc, sx, offset);
-    }    
-    graphColor(oldcolor); graphLinewidth(oldLinew);
-}
-
-
-static void XdrawSEGxy(MSP *msp, float offset)
-{
-    int i, inNotFilled=0, descShown=0;
-    float  
-	x, y, 
-	xold=0, yold=0;
-
-    offset += TopBorder + slen4 -1;
-    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
-
-    for (i = 0; i < qlen; i++)
-      {
-	const int xyVal = g_array_index(msp->xy, int, i);
-
-	if (xyVal == XY_NOT_FILLED)
-	  {
-	    inNotFilled = 1;
-	  }
-	else
-	  {
-	    x = seq2graphX(i);
-	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
-	    
-	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE))
-	      {
-	        graphLine(xold, yold, x, y);
-		
-		if (fsAnnBottomOn && msp->desc && !descShown)
-		  {
-		    int linecolor = graphColor(BLACK);
-		    graphText(msp->desc, xold, offset);
-		    graphColor(linecolor);
-		    descShown = 1;
-		  }
-	      }
-		
-	    xold = x;
-	    yold = y;
-	    inNotFilled = 0;
-	  }
-      }
-    
-    graphColor(oldcolor); graphLinewidth(oldLinew);
-}
-
-
-static void YdrawSEG(MSP *msp, float offset)
-{
-    /* Vertical axis */
-
-    float  
-	sx = seq2graphY(mspGetQStart(msp)), 
-	ex = seq2graphY(mspGetQEnd(msp));
-    
-    offset += LeftBorder + qlen4 -1;
-    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
-
-    if (fsEndLinesOn) {
-	graphLine(LeftBorder, sx, LeftBorder+qlen4-2, sx);
-	graphLine(LeftBorder, ex, LeftBorder+qlen4-2, ex);
-    }
-
-    graphFillRectangle(offset, sx, offset - msp->score/100.0 * fonth, ex);
-    graphColor(BLACK);
-    graphRectangle    (offset, sx, offset - msp->score/100.0 * fonth, ex);
-
-    graphColor(BLACK);
-    if (fsAnnRightOn && msp->desc) {
-	graphText(msp->desc, offset, sx);
-    }    
-    graphColor(oldcolor); graphLinewidth(oldLinew);
-}
-
-
-static void YdrawSEGxy(MSP *msp, float offset)
-{
-    int i, inNotFilled=0, descShown=0;
-    float  
-	x, y, 
-	xold=0, yold=0;
-
-    offset += LeftBorder + qlen4 -1;
-    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
-
-    for (i = 0; i < qlen; i++)
-      {
-	const int xyVal = g_array_index(msp->xy, int, i);
-	
-	if (xyVal == XY_NOT_FILLED)
-	  {
-	    inNotFilled = 1;
-	  }
-	else
-	  {
-	    x = seq2graphY(i);
-	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
-	    
-	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) 
-	      {
-		graphLine(yold, xold, y, x);
-		
-		if (fsAnnRightOn && msp->desc && !descShown) 
-		  {
-		    int linecolor = graphColor(BLACK);
-		    graphText(msp->desc, offset, xold);
-		    graphColor(linecolor);
-		    descShown = 1;
-		  }
-	      }
-
-	    xold = x;
-	    yold = y;
-	    inNotFilled = 0;
-	  }
-      }
-    
-    graphColor(oldcolor); graphLinewidth(oldLinew);
-}
-
-
-static int isHorizontalMSP(MSP *msp) {
-
-    if (!msp->qname)
-      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
-
-    if (!strcasecmp(msp->qname, qname) || !strcmp(msp->qname, "@1"))
-        return 1;
-    else
-        return 0;
-}
-
-
-static int isVerticalMSP(MSP *msp) {
-
-    if (!msp->qname) 
-      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
-
-    if (!strcasecmp(msp->qname, sname) || !strcmp(msp->qname, "@2"))
-        return 1;
-    else
-        return 0;
-}
-
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-static void drawGenes(MSP *msp)
-{
-  float sx, ex, sy, ey, midx, midy, x, y, 
-    height,		/* box height/width */
-    boxHeight=10,
-    textHeight,
-    oldLinew;
-  int i;
-  float posx=0, posy=0;		/* Next series to be drawn */
-
-  float forward_y, reverse_y ;
-
-
-  forward_y = TopBorder + slen4 + 10 ;
-  reverse_y = forward_y + 30 ;
-
-
-  if (fsArr)
-    {
-      /* Loop through each feature-series in the feature-series array and set coords to 0 */
-      for (i = 0; i < gArrayGetLen(fsArr); i++)
-	{
-	  FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-	  fs->y = fs->x = 0;
-	}
-    }
-
-  textHeight = fonth;
-  boxHeight = fonth;
-
-  oldLinew = graphLinewidth(1);
-
-
-  BlxStrand strand = BLXSTRAND_NONE;
-  
-  if (selfcomp || !reversedScale) 
-    strand = BLXSTRAND_FORWARD;
-  else 
-    strand = BLXSTRAND_REVERSE;
-
-
-  for (; msp; msp = msp->next)
-    {    
-      height = boxHeight;
-
-      if (msp->score < 0.0 || mspHasFs(msp))
-	{
-	  sx = seq2graphX(mspGetQStart(msp));
-	  ex = seq2graphX(mspGetQEnd(msp));
-
-	  if (msp->qStrand != strand)
-	    y = reverse_y ;
-	  else
-	    y = forward_y ;
-
-	  if (msp->score == -1.0) /* EXON */
-	    {
-	      oldcolor = graphColor(BLUE); 
-	      graphRectangle(sx, y, ex, y + height);
-	    }
-	  else if (msp->score == -2.0) /* INTRON */
-	    {
-	      oldcolor = graphColor(BLUE); 
-	      midx = 0.5 * (sx + ex) ;
-	      graphLine (sx, y + height/2, midx, y) ;
-	      graphLine (ex, y + height/2, midx, y) ;
-	    }
-	  else if (mspHasFs(msp)) /* FEATURE SEGMENT - COLOURED BOX OR LINE */
-	    {
-              if (!mspShowFs(msp))
-		continue;
-
-	      /* Adjust height to score */
-	      if (msp->score > 0)
-		{
-		  height = boxHeight * msp->score/100.0;
-		}
-
-	      if (fsBottomOn && (isHorizontalMSP(msp) || (selfcomp && isVerticalMSP(msp))))
-		{
-		  /* HORIZONTAL AXIS (X) */
-		    
-		  if (msp->type == BLXMSP_XY_PLOT)
-		    {
-		      XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
-		    }
-		  else if (msp->type == BLXMSP_FS_SEG)
-		    {
-		      XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
-		    }
-		}
-
-	      if (fsRightOn &&  (isVerticalMSP(msp) || (selfcomp && isHorizontalMSP(msp))))
-		{
-		/* VERTICAL AXIS (Y) */
-
-		if (msp->type == BLXMSP_XY_PLOT)
-		  {
-		    YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
-		  }
-		else if (msp->type == BLXMSP_FS_SEG)
-		  {
-		    YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
-		  }
-		}
-	    }
-
-
-	  if (selfcomp) /* Draw the boxes on vertical axes too */
-	    {
-	      sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
-	      ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
-		
-	      sy += TopBorder-1;
-	      ey += TopBorder-1;
-		
-	      x = LeftBorder + qlen4 + 10;
-              
-	      if (msp->qStrand != strand)
-                {
-                  x += 20;
-                }
-		
-	      if (msp->score == -1.0) /* EXON */
-	        {
-		  oldcolor = graphColor(BLUE); 
-		  graphRectangle(x, sy, x + height, ey);
-		}
-	      else if (msp->score == -2.0) /* INTRON */
-		{
-		  oldcolor = graphColor(BLUE); 
-		  midy = 0.5 * (sy + ey) ;
-		  graphLine (x + height/2, sy, x, midy) ;
-		  graphLine (x + height/2, ey, x, midy) ;
-		}
-	    }
-
-	  graphColor(oldcolor); 
-	  graphLinewidth(oldLinew);
-	}
-    }
-
-  return ;
-}
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-
-static void drawAllFeatures(MSP *msp)
-{
-  float sx, ex, 
-    y, 
-    height,		/* box height/width */
-    boxHeight=10,
-    textHeight,
-    oldLinew;
-  int i;
-  float posx=0, posy=0;		/* Next series to be drawn */
-
-  int top, bottom ;
-  float feature_boundary, feature_top, feature_bottom, feature_strand ;
-  float forward_y, reverse_y, depth ;
-  float old_line_width ;
-
-
-  /* Set forward/reverse strand gene drawing positions. */
-  graphGetBounds(&top, &bottom) ;
-  feature_boundary = 3.0 ;				    /* Allows for line thickness etc... */
-  feature_top = TopBorder + slen4 ;
-  feature_bottom = bottom ;
-  feature_strand = feature_top + ((feature_bottom - feature_top + 1) / 2) ;
-
-  forward_y = feature_top + feature_boundary ;
-  reverse_y = feature_strand + feature_boundary ;
-  depth = (feature_strand - feature_boundary) - (feature_top + feature_boundary) - fonth ;
-
-
-  /* Draw a strand separator. */
-  old_line_width = graphLinewidth(2) ;
-  graphLine(LeftBorder - 1, feature_strand, LeftBorder - 1 + qlen4, feature_strand) ;
-  graphLinewidth(old_line_width) ;
-
-
-  /* Now draw the genes. */
-  drawGenes(msp, forward_y, reverse_y, depth) ;
-
-
-  if (fsArr)
-    {
-      /* Loop through each feature-series in the feature-series array and set coords to 0 */
-      for (i = 0; i < gArrayGetLen(fsArr); i++)
-	{
-	  FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-	  fs->y = fs->x = 0;
-	}
-    }
-
-  textHeight = fonth;
-  boxHeight = fonth;
-
-  oldLinew = graphLinewidth(1);
-
-  BlxStrand strand = BLXSTRAND_NONE;
-  
-  if (selfcomp || !reversedScale) 
-    strand = BLXSTRAND_FORWARD;
-  else 
-    strand = BLXSTRAND_REVERSE;
-
-
-  for (; msp; msp = msp->next)
-    {    
-      height = boxHeight;
-
-      if (mspHasFs(msp))
-	{
-	  sx = seq2graphX(mspGetQStart(msp));
-	  ex = seq2graphX(mspGetQEnd(msp));
-
-	  if (msp->qStrand != strand)
-	    y = reverse_y ;
-	  else
-	    y = forward_y ;
-
-          if (!mspShowFs(msp))
-	    continue;
-
-	  /* Adjust height to score */
-	  if (msp->score > 0)
-	    {
-	      height = boxHeight * msp->score / 100.0;
-	    }
-
-	  if (fsBottomOn && (isHorizontalMSP(msp) || (selfcomp && isVerticalMSP(msp))))
-	    {
-	      /* HORIZONTAL AXIS (X) */
-		    
-	      if (msp->type == BLXMSP_XY_PLOT)
-		{
-		  XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
-		}
-	      else if (msp->type == BLXMSP_FS_SEG)
-		{
-		  XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
-		}
-	    }
-
-	  if (fsRightOn &&  (isVerticalMSP(msp) || (selfcomp && isHorizontalMSP(msp))))
-	    {
-	      /* VERTICAL AXIS (Y) */
-
-	      if (msp->type == BLXMSP_XY_PLOT)
-		{
-		  YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
-		}
-	      else if (msp->type == BLXMSP_FS_SEG)
-		{
-		  YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
-		}
-	    }
-
-	  graphColor(oldcolor); 
-	  graphLinewidth(oldLinew);
-	}
-    }
-
-  return ;
-}
-
-
-static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
-{
-  gboolean bump_genes = FALSE ;				    /* Make this user settable... */
-
-  float height,		/* box height/width */
-    sy, ey, midy, x, y, oldLinew ;
-
-  height = fonth ;
-
-  oldLinew = graphLinewidth(1);
-
-  BlxStrand strand = BLXSTRAND_NONE;
-  if (selfcomp || !reversedScale) 
-    strand = BLXSTRAND_FORWARD;
-  else 
-    strand = BLXSTRAND_REVERSE;
-
-
-  if (bump_genes)
-    {
-      MSP *gene_msp, *tmp ;
-      GList *exon_intron_list = NULL ;
-      GeneStrandStruct strand_genes = {NULL} ;
-
-      /* MSP's are in any old order and only some are exons/introns, here we make a list of
-       * intron/exon MSP's and then sort that list into transcripts for drawing... */
-
-      /* Sort all introns/exons by gene and position within gene. */
-      gene_msp = tmp = msp ;
-      for ( ; tmp ; tmp = tmp->next)
-	{
-	  if (tmp->score < 0)
-	    exon_intron_list = g_list_append(exon_intron_list, tmp) ;
-	}
-      exon_intron_list = g_list_sort(exon_intron_list, compareMSPs) ;
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-      g_list_foreach(exon_intron_list, printMSP, NULL) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-
-      /* Produce two lists, one for each strand, of genes sorted by position from the sorted intron/exon list. */
-      strand_genes.strand = '+' ;
-      g_list_foreach(exon_intron_list, getGenePositionsCB, &strand_genes) ;
-      strand_genes.forward_genes = g_list_sort(strand_genes.forward_genes, compareGenes) ;
-      strand_genes.forward_genes = g_list_first(strand_genes.forward_genes) ;
-
-      strand_genes.strand = '-' ;
-      g_list_foreach(exon_intron_list, getGenePositionsCB, &strand_genes) ;
-      strand_genes.reverse_genes = g_list_sort(strand_genes.reverse_genes, compareGenes) ;
-      strand_genes.reverse_genes = g_list_first(strand_genes.reverse_genes) ;
-
-      /* Set y offsets for forward and reverse stranded genes. */
-      setYoffsets(strand_genes.forward_genes, forward_y, forward_y + depth) ;
-      setYoffsets(strand_genes.reverse_genes, reverse_y, reverse_y + depth) ;
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-      printf("Forward:\n") ;
-      g_list_foreach(strand_genes.forward_genes, printGene, NULL) ;
-      printf("Reverse:\n") ;
-      g_list_foreach(strand_genes.reverse_genes, printGene, NULL) ;
-      printf("\n") ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-      /* Draw the strands. */
-      oldcolor = graphColor(BLUE); 
-      g_list_foreach(strand_genes.forward_genes, drawGenesCB, &strand_genes) ;
-
-      oldcolor = graphColor(MAGENTA); 
-      g_list_foreach(strand_genes.reverse_genes, drawGenesCB, &strand_genes) ;
-
-      graphColor(oldcolor); 
-
-    }
-  else
-    {
-      for (; msp; msp = msp->next)
-	{    
-	  if (msp->score < 0)
-	    {
-	      if (msp->qStrand != strand)
-		y = reverse_y ;
-	      else
-		y = forward_y ;
-
-	      oldcolor = graphColor(BLUE); 
-	      drawMSPGene(msp, y) ;
-
-	      if (selfcomp) /* Draw the boxes on vertical axes too */
-		{
-		  sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
-		  ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
-		
-		  sy += TopBorder-1;
-		  ey += TopBorder-1;
-		
-		  x = LeftBorder + qlen4 + 10;
-		  if (msp->qStrand != strand) x += 20;
-		
-		  if (msp->score == -1.0) /* EXON */
-		    {
-		      oldcolor = graphColor(BLUE); 
-		      graphRectangle(x, sy, x + height, ey);
-		    }
-		  else if (msp->score == -2.0) /* INTRON */
-		    {
-		      oldcolor = graphColor(BLUE); 
-		      midy = 0.5 * (sy + ey) ;
-		      graphLine (x + height/2, sy, x, midy) ;
-		      graphLine (x + height/2, ey, x, midy) ;
-		    }
-		}
-
-	      graphColor(oldcolor) ;
-	    }
-	}
-    }
-
-  graphLinewidth(oldLinew) ;
-
-  return ;
-}
+//static float seq2graphX(int pos)
+//{
+//    float x;
+//
+//    x = ceil((float)(pos + MSPoffset - qoffset)/zoom/resfac);
+//
+//    if (reversedScale)
+//	x = RightBorder - x;
+//    else
+//	x += LeftBorder-1;
+//
+//    return x;
+//}
+//
+//static float seq2graphY(int pos)
+//{
+//    float y;
+//
+//    y = ceil((float)(pos - soffset)/zoom);
+//    
+//    y += TopBorder-1;
+//
+//    return y;
+//}
+
+
+//static void XdrawSEG(MSP *msp, float offset)
+//{
+//    /* Horizontal axis */
+//
+//    float  
+//	sx = seq2graphX(mspGetQStart(msp)), 
+//	ex = seq2graphX(mspGetQEnd(msp));
+//    
+//    offset += TopBorder + slen4 -1;
+//    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+//
+//    if (fsEndLinesOn) {
+//	graphLine(sx, TopBorder, sx, TopBorder+slen4-2);
+//	graphLine(ex, TopBorder, ex, TopBorder+slen4-2);
+//    }
+//
+//    graphFillRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
+//    graphColor(BLACK);
+//    graphRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
+//
+//    graphColor(BLACK);
+//    if (fsAnnBottomOn && msp->desc) {
+//	graphText(msp->desc, sx, offset);
+//    }    
+//    graphColor(oldcolor); graphLinewidth(oldLinew);
+//}
+
+
+//static void XdrawSEGxy(MSP *msp, float offset)
+//{
+//    int i, inNotFilled=0, descShown=0;
+//    float  
+//	x, y, 
+//	xold=0, yold=0;
+//
+//    offset += TopBorder + slen4 -1;
+//    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+//
+//    for (i = 0; i < qlen; i++)
+//      {
+//	const int xyVal = g_array_index(msp->xy, int, i);
+//
+//	if (xyVal == XY_NOT_FILLED)
+//	  {
+//	    inNotFilled = 1;
+//	  }
+//	else
+//	  {
+//	    x = seq2graphX(i);
+//	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+//	    
+//	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE))
+//	      {
+//	        graphLine(xold, yold, x, y);
+//		
+//		if (fsAnnBottomOn && msp->desc && !descShown)
+//		  {
+//		    int linecolor = graphColor(BLACK);
+//		    graphText(msp->desc, xold, offset);
+//		    graphColor(linecolor);
+//		    descShown = 1;
+//		  }
+//	      }
+//		
+//	    xold = x;
+//	    yold = y;
+//	    inNotFilled = 0;
+//	  }
+//      }
+//    
+//    graphColor(oldcolor); graphLinewidth(oldLinew);
+//}
+//
+//
+//static void YdrawSEG(MSP *msp, float offset)
+//{
+//    /* Vertical axis */
+//
+//    float  
+//	sx = seq2graphY(mspGetQStart(msp)), 
+//	ex = seq2graphY(mspGetQEnd(msp));
+//    
+//    offset += LeftBorder + qlen4 -1;
+//    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+//
+//    if (fsEndLinesOn) {
+//	graphLine(LeftBorder, sx, LeftBorder+qlen4-2, sx);
+//	graphLine(LeftBorder, ex, LeftBorder+qlen4-2, ex);
+//    }
+//
+//    graphFillRectangle(offset, sx, offset - msp->score/100.0 * fonth, ex);
+//    graphColor(BLACK);
+//    graphRectangle    (offset, sx, offset - msp->score/100.0 * fonth, ex);
+//
+//    graphColor(BLACK);
+//    if (fsAnnRightOn && msp->desc) {
+//	graphText(msp->desc, offset, sx);
+//    }    
+//    graphColor(oldcolor); graphLinewidth(oldLinew);
+//}
+//
+//
+//static void YdrawSEGxy(MSP *msp, float offset)
+//{
+//    int i, inNotFilled=0, descShown=0;
+//    float  
+//	x, y, 
+//	xold=0, yold=0;
+//
+//    offset += LeftBorder + qlen4 -1;
+//    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+//
+//    for (i = 0; i < qlen; i++)
+//      {
+//	const int xyVal = g_array_index(msp->xy, int, i);
+//	
+//	if (xyVal == XY_NOT_FILLED)
+//	  {
+//	    inNotFilled = 1;
+//	  }
+//	else
+//	  {
+//	    x = seq2graphY(i);
+//	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+//	    
+//	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) 
+//	      {
+//		graphLine(yold, xold, y, x);
+//		
+//		if (fsAnnRightOn && msp->desc && !descShown) 
+//		  {
+//		    int linecolor = graphColor(BLACK);
+//		    graphText(msp->desc, offset, xold);
+//		    graphColor(linecolor);
+//		    descShown = 1;
+//		  }
+//	      }
+//
+//	    xold = x;
+//	    yold = y;
+//	    inNotFilled = 0;
+//	  }
+//      }
+//    
+//    graphColor(oldcolor); graphLinewidth(oldLinew);
+//}
+
+
+//static int isHorizontalMSP(MSP *msp) {
+//
+//    if (!msp->qname)
+//      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
+//
+//    if (!strcasecmp(msp->qname, qname) || !strcmp(msp->qname, "@1"))
+//        return 1;
+//    else
+//        return 0;
+//}
+//
+//
+//static int isVerticalMSP(MSP *msp) {
+//
+//    if (!msp->qname) 
+//      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
+//
+//    if (!strcasecmp(msp->qname, sname) || !strcmp(msp->qname, "@2"))
+//        return 1;
+//    else
+//        return 0;
+//}
+
+
+//static void drawAllFeatures(MSP *msp)
+//{
+//  float sx, ex, 
+//    y, 
+//    height,		/* box height/width */
+//    boxHeight=10,
+//    textHeight,
+//    oldLinew;
+//  int i;
+//  float posx=0, posy=0;		/* Next series to be drawn */
+//
+//  int top, bottom ;
+//  float feature_boundary, feature_top, feature_bottom, feature_strand ;
+//  float forward_y, reverse_y, depth ;
+//  float old_line_width ;
+//
+//
+//  /* Set forward/reverse strand gene drawing positions. */
+//  graphGetBounds(&top, &bottom) ;
+//  feature_boundary = 3.0 ;				    /* Allows for line thickness etc... */
+//  feature_top = TopBorder + slen4 ;
+//  feature_bottom = bottom ;
+//  feature_strand = feature_top + ((feature_bottom - feature_top + 1) / 2) ;
+//
+//  forward_y = feature_top + feature_boundary ;
+//  reverse_y = feature_strand + feature_boundary ;
+//  depth = (feature_strand - feature_boundary) - (feature_top + feature_boundary) - fonth ;
+//
+//
+//  /* Draw a strand separator. */
+//  old_line_width = graphLinewidth(2) ;
+//  graphLine(LeftBorder - 1, feature_strand, LeftBorder - 1 + qlen4, feature_strand) ;
+//  graphLinewidth(old_line_width) ;
+//
+//
+//  /* Now draw the genes. */
+//  drawGenes(msp, forward_y, reverse_y, depth) ;
+//
+//
+//  if (fsArr)
+//    {
+//      /* Loop through each feature-series in the feature-series array and set coords to 0 */
+//      for (i = 0; i < gArrayGetLen(fsArr); i++)
+//	{
+//	  FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//	  fs->y = fs->x = 0;
+//	}
+//    }
+//
+//  textHeight = fonth;
+//  boxHeight = fonth;
+//
+//  oldLinew = graphLinewidth(1);
+//
+//  BlxStrand strand = BLXSTRAND_NONE;
+//  
+//  if (selfcomp || !reversedScale) 
+//    strand = BLXSTRAND_FORWARD;
+//  else 
+//    strand = BLXSTRAND_REVERSE;
+//
+//
+//  for (; msp; msp = msp->next)
+//    {    
+//      height = boxHeight;
+//
+//      if (mspHasFs(msp))
+//	{
+//	  sx = seq2graphX(mspGetQStart(msp));
+//	  ex = seq2graphX(mspGetQEnd(msp));
+//
+//	  if (msp->qStrand != strand)
+//	    y = reverse_y ;
+//	  else
+//	    y = forward_y ;
+//
+//          if (!mspShowFs(msp))
+//	    continue;
+//
+//	  /* Adjust height to score */
+//	  if (msp->score > 0)
+//	    {
+//	      height = boxHeight * msp->score / 100.0;
+//	    }
+//
+//	  if (fsBottomOn && (isHorizontalMSP(msp) || (selfcomp && isVerticalMSP(msp))))
+//	    {
+//	      /* HORIZONTAL AXIS (X) */
+//		    
+//	      if (msp->type == BLXMSP_XY_PLOT)
+//		{
+//		  XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
+//		}
+//	      else if (msp->type == BLXMSP_FS_SEG)
+//		{
+//		  XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
+//		}
+//	    }
+//
+//	  if (fsRightOn &&  (isVerticalMSP(msp) || (selfcomp && isHorizontalMSP(msp))))
+//	    {
+//	      /* VERTICAL AXIS (Y) */
+//
+//	      if (msp->type == BLXMSP_XY_PLOT)
+//		{
+//		  YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
+//		}
+//	      else if (msp->type == BLXMSP_FS_SEG)
+//		{
+//		  YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
+//		}
+//	    }
+//
+//	  graphColor(oldcolor); 
+//	  graphLinewidth(oldLinew);
+//	}
+//    }
+//
+//  return ;
+//}
+
+
+//static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
+//{
+//  gboolean bump_genes = FALSE ;				    /* Make this user settable... */
+//
+//  float height,		/* box height/width */
+//    sy, ey, midy, x, y, oldLinew ;
+//
+//  height = fonth ;
+//
+//  oldLinew = graphLinewidth(1);
+//
+//  BlxStrand strand = BLXSTRAND_NONE;
+//  if (selfcomp || !reversedScale) 
+//    strand = BLXSTRAND_FORWARD;
+//  else 
+//    strand = BLXSTRAND_REVERSE;
+//
+//
+//  if (bump_genes)
+//    {
+//      MSP *gene_msp, *tmp ;
+//      GList *exon_intron_list = NULL ;
+//      GeneStrandStruct strand_genes = {NULL} ;
+//
+//      /* MSP's are in any old order and only some are exons/introns, here we make a list of
+//       * intron/exon MSP's and then sort that list into transcripts for drawing... */
+//
+//      /* Sort all introns/exons by gene and position within gene. */
+//      gene_msp = tmp = msp ;
+//      for ( ; tmp ; tmp = tmp->next)
+//	{
+//	  if (tmp->score < 0)
+//	    exon_intron_list = g_list_append(exon_intron_list, tmp) ;
+//	}
+//      exon_intron_list = g_list_sort(exon_intron_list, compareMSPs) ;
+//
+//
+//#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
+//      g_list_foreach(exon_intron_list, printMSP, NULL) ;
+//#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+//
+//
+//      /* Produce two lists, one for each strand, of genes sorted by position from the sorted intron/exon list. */
+//      strand_genes.strand = '+' ;
+//      g_list_foreach(exon_intron_list, getGenePositionsCB, &strand_genes) ;
+//      strand_genes.forward_genes = g_list_sort(strand_genes.forward_genes, compareGenes) ;
+//      strand_genes.forward_genes = g_list_first(strand_genes.forward_genes) ;
+//
+//      strand_genes.strand = '-' ;
+//      g_list_foreach(exon_intron_list, getGenePositionsCB, &strand_genes) ;
+//      strand_genes.reverse_genes = g_list_sort(strand_genes.reverse_genes, compareGenes) ;
+//      strand_genes.reverse_genes = g_list_first(strand_genes.reverse_genes) ;
+//
+//      /* Set y offsets for forward and reverse stranded genes. */
+//      setYoffsets(strand_genes.forward_genes, forward_y, forward_y + depth) ;
+//      setYoffsets(strand_genes.reverse_genes, reverse_y, reverse_y + depth) ;
+//
+//
+//#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
+//      printf("Forward:\n") ;
+//      g_list_foreach(strand_genes.forward_genes, printGene, NULL) ;
+//      printf("Reverse:\n") ;
+//      g_list_foreach(strand_genes.reverse_genes, printGene, NULL) ;
+//      printf("\n") ;
+//#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+//
+//      /* Draw the strands. */
+//      oldcolor = graphColor(BLUE); 
+//      g_list_foreach(strand_genes.forward_genes, drawGenesCB, &strand_genes) ;
+//
+//      oldcolor = graphColor(MAGENTA); 
+//      g_list_foreach(strand_genes.reverse_genes, drawGenesCB, &strand_genes) ;
+//
+//      graphColor(oldcolor); 
+//
+//    }
+//  else
+//    {
+//      for (; msp; msp = msp->next)
+//	{    
+//	  if (msp->score < 0)
+//	    {
+//	      if (msp->qStrand != strand)
+//		y = reverse_y ;
+//	      else
+//		y = forward_y ;
+//
+//	      oldcolor = graphColor(BLUE); 
+//	      drawMSPGene(msp, y) ;
+//
+//	      if (selfcomp) /* Draw the boxes on vertical axes too */
+//		{
+//		  sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
+//		  ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
+//		
+//		  sy += TopBorder-1;
+//		  ey += TopBorder-1;
+//		
+//		  x = LeftBorder + qlen4 + 10;
+//		  if (msp->qStrand != strand) x += 20;
+//		
+//		  if (msp->score == -1.0) /* EXON */
+//		    {
+//		      oldcolor = graphColor(BLUE); 
+//		      graphRectangle(x, sy, x + height, ey);
+//		    }
+//		  else if (msp->score == -2.0) /* INTRON */
+//		    {
+//		      oldcolor = graphColor(BLUE); 
+//		      midy = 0.5 * (sy + ey) ;
+//		      graphLine (x + height/2, sy, x, midy) ;
+//		      graphLine (x + height/2, ey, x, midy) ;
+//		    }
+//		}
+//
+//	      graphColor(oldcolor) ;
+//	    }
+//	}
+//    }
+//
+//  graphLinewidth(oldLinew) ;
+//
+//  return ;
+//}
 
 
 /* A GCompareFunc() to compare gene MSPs.... */
-gint compareMSPs(gconstpointer a, gconstpointer b)
-{
-  int result = 0 ;
-  MSP *msp_a = (MSP *)a, *msp_b = (MSP *)b ;
-
-  if (!(result = strcmp(msp_a->sname, msp_b->sname)))
-    {
-      if (mspGetSStart(msp_a) < mspGetSStart(msp_b))
-	result = -1 ;
-      else if (mspGetSStart(msp_a) > mspGetSStart(msp_b))
-	result = 1 ;
-      else
-	{
-	  /* I actually don't think this should ever happen as it means either there are
-	   * duplicates or worse there are overlapping introns/exons within a gene.... */
-	  if (mspGetSEnd(msp_a) < mspGetSEnd(msp_b))
-	    result = -1 ;
-	  else if (mspGetSEnd(msp_a) > mspGetSEnd(msp_b))
-	    result = 1 ;
-	  else
-	    result = 0 ;
-	}
-    }
-
-  return result ;
-}
-
-
-/* A GFunc() to record start/end of genes. */
-static void getGenePositionsCB(gpointer data, gpointer user_data)
-{
-  MSP *msp = (MSP *)data ;
-  GeneStrand strand_genes = (GeneStrand)user_data ;
-  GList *gene_list ;
-  GeneData gene ;
-
-  /* We need genes added according to strand... */
-  if (msp->qframe[1] == strand_genes->strand)
-    {
-      const char *curr_name = NULL ;
-      int curr_length ;
-
-      if (strand_genes->strand == '+')
-	gene_list = strand_genes->forward_genes ;
-      else
-	gene_list = strand_genes->reverse_genes ;
-
-      if (gene_list)
-	{
-	  /* Look at last element, this is the last gene we added. */
-	  gene_list = g_list_last(gene_list) ;
-
-	  curr_name = (((GeneData)(gene_list->data))->name) ;
-	  curr_length = strlen(curr_name) - 1 ;
-	}
-
-      /* If there's no gene or we are starting a new gene then just add to the list,
-       * otherwise record latest msp end position. */
-      if (!gene_list || strncmp(mspGetSName(msp), curr_name, curr_length) != 0)
-	{
-	  gene = g_new0(GeneDataStruct, 1) ;
-	  gene->name = mspGetSName(msp) ;
-	  gene->start = mspGetSStart(msp) ;
-	  gene->end = mspGetSEnd(msp) ;
-	  gene->strand = msp->qframe[1] ;
-	  gene->msp_start = msp ;
-
-	  gene_list = g_list_append(gene_list, gene) ;
-	}
-      else
-	{
-	  gene = (GeneData)(gene_list->data) ;
-
-	  gene->end = mspGetSEnd(msp) ;
-	  gene->msp_end = msp ;
-	}
-
-      if (strand_genes->strand == '+')
-	strand_genes->forward_genes = gene_list ;
-      else
-	strand_genes->reverse_genes = gene_list ;
-    }
-
-  return ;
-}
+//gint compareMSPs(gconstpointer a, gconstpointer b)
+//{
+//  int result = 0 ;
+//  MSP *msp_a = (MSP *)a, *msp_b = (MSP *)b ;
+//
+//  if (!(result = strcmp(msp_a->sname, msp_b->sname)))
+//    {
+//      if (mspGetSStart(msp_a) < mspGetSStart(msp_b))
+//	result = -1 ;
+//      else if (mspGetSStart(msp_a) > mspGetSStart(msp_b))
+//	result = 1 ;
+//      else
+//	{
+//	  /* I actually don't think this should ever happen as it means either there are
+//	   * duplicates or worse there are overlapping introns/exons within a gene.... */
+//	  if (mspGetSEnd(msp_a) < mspGetSEnd(msp_b))
+//	    result = -1 ;
+//	  else if (mspGetSEnd(msp_a) > mspGetSEnd(msp_b))
+//	    result = 1 ;
+//	  else
+//	    result = 0 ;
+//	}
+//    }
+//
+//  return result ;
+//}
 
 
+///* A GFunc() to record start/end of genes. */
+//static void getGenePositionsCB(gpointer data, gpointer user_data)
+//{
+//  MSP *msp = (MSP *)data ;
+//  GeneStrand strand_genes = (GeneStrand)user_data ;
+//  GList *gene_list ;
+//  GeneData gene ;
+//
+//  /* We need genes added according to strand... */
+//  if (msp->qframe[1] == strand_genes->strand)
+//    {
+//      const char *curr_name = NULL ;
+//      int curr_length ;
+//
+//      if (strand_genes->strand == '+')
+//	gene_list = strand_genes->forward_genes ;
+//      else
+//	gene_list = strand_genes->reverse_genes ;
+//
+//      if (gene_list)
+//	{
+//	  /* Look at last element, this is the last gene we added. */
+//	  gene_list = g_list_last(gene_list) ;
+//
+//	  curr_name = (((GeneData)(gene_list->data))->name) ;
+//	  curr_length = strlen(curr_name) - 1 ;
+//	}
+//
+//      /* If there's no gene or we are starting a new gene then just add to the list,
+//       * otherwise record latest msp end position. */
+//      if (!gene_list || strncmp(mspGetSName(msp), curr_name, curr_length) != 0)
+//	{
+//	  gene = g_new0(GeneDataStruct, 1) ;
+//	  gene->name = mspGetSName(msp) ;
+//	  gene->start = mspGetSStart(msp) ;
+//	  gene->end = mspGetSEnd(msp) ;
+//	  gene->strand = msp->qframe[1] ;
+//	  gene->msp_start = msp ;
+//
+//	  gene_list = g_list_append(gene_list, gene) ;
+//	}
+//      else
+//	{
+//	  gene = (GeneData)(gene_list->data) ;
+//
+//	  gene->end = mspGetSEnd(msp) ;
+//	  gene->msp_end = msp ;
+//	}
+//
+//      if (strand_genes->strand == '+')
+//	strand_genes->forward_genes = gene_list ;
+//      else
+//	strand_genes->reverse_genes = gene_list ;
+//    }
+//
+//  return ;
+//}
+//
+//
 
 /* A GCompareFunc() to compare genes for position.... */
-gint compareGenes(gconstpointer a, gconstpointer b)
-{
-  int result = 0 ;
-  GeneData gene_a = (GeneData)a, gene_b = (GeneData)b ;
-
-  if (gene_a->strand == '+' && gene_b->strand == '-')
-    result = -1 ;
-  else if (gene_a->strand == '-' && gene_b->strand == '+')
-    result = 1 ;
-  else
-    {
-      if (gene_a->start < gene_b->start)
-	result = -1 ;
-      else if (gene_a->start > gene_b->start)
-	result = 1 ;
-      else
-	result = 0 ;
-    }
-
-  return result ;
-}
-
-
-
-static void setYoffsets(GList *gene_list, float min_offset, float max_offset)
-{
-  GList *curr_ptr, *next_ptr ;
-  float curr_y = 0.0, bump_incr = 0.5 ;
+//gint compareGenes(gconstpointer a, gconstpointer b)
+//{
+//  int result = 0 ;
+//  GeneData gene_a = (GeneData)a, gene_b = (GeneData)b ;
+//
+//  if (gene_a->strand == '+' && gene_b->strand == '-')
+//    result = -1 ;
+//  else if (gene_a->strand == '-' && gene_b->strand == '+')
+//    result = 1 ;
+//  else
+//    {
+//      if (gene_a->start < gene_b->start)
+//	result = -1 ;
+//      else if (gene_a->start > gene_b->start)
+//	result = 1 ;
+//      else
+//	result = 0 ;
+//    }
+//
+//  return result ;
+//}
 
 
-  /* Go through the gene list comparing, reordering and assigning y offsets to the genes
-   * so they can be drawn without overlapping. */
-  curr_ptr = gene_list ;
-  next_ptr = curr_ptr->next ;
-  curr_y = min_offset - bump_incr ;
 
-  /* Go through all genes. */
-  while (curr_ptr)
-    {
-      GList *list_ptr = g_list_first(gene_list) ;
+//static void setYoffsets(GList *gene_list, float min_offset, float max_offset)
+//{
+//  GList *curr_ptr, *next_ptr ;
+//  float curr_y = 0.0, bump_incr = 0.5 ;
+//
+//
+//  /* Go through the gene list comparing, reordering and assigning y offsets to the genes
+//   * so they can be drawn without overlapping. */
+//  curr_ptr = gene_list ;
+//  next_ptr = curr_ptr->next ;
+//  curr_y = min_offset - bump_incr ;
+//
+//  /* Go through all genes. */
+//  while (curr_ptr)
+//    {
+//      GList *list_ptr = g_list_first(gene_list) ;
+//
+//      /* For each gene look at all the preceding genes and to decide its y offset so it is
+//       * bumped correctly. */
+//      while (list_ptr)
+//	{
+//	  GeneData list_gene = (GeneData)list_ptr->data ;
+//	  GeneData curr_gene = (GeneData)curr_ptr->data ;
+//
+//	  if (list_ptr == curr_ptr)
+//	    {
+//	      /* This gene overlaps all previous ones and needs a new offset. */
+//	      curr_y += bump_incr ;
+//	      if (curr_y > max_offset)
+//		curr_y = max_offset ;
+//
+//	      curr_gene->y_pos = curr_y ;
+//	      break ;
+//	    }
+//	  else if (curr_gene->start > list_gene->end)
+//	    {
+//	      /* This gene coes not overlap the list gene so give is the same offset. */
+//	      curr_gene->y_pos = list_gene->y_pos ;
+//
+//	      if (list_ptr->next != curr_ptr)
+//		{
+//		  list_ptr = g_list_remove(list_ptr, curr_gene) ;
+//		  list_ptr = g_list_insert_before(gene_list, list_ptr->next, curr_gene) ;
+//		}
+//
+//	      break ;
+//	    }
+//	  else
+//	    {
+//	      /* This gene overlaps the list gene so move on to the next one. */
+//	      list_ptr = g_list_next(list_ptr) ;
+//	    }
+//	}
+//
+//      /* update curr/next until we get to the end of the list... */
+//      if ((curr_ptr = next_ptr))
+//	next_ptr = curr_ptr->next ;
+//    }
+//
+//  return ;
+//}
+//
 
-      /* For each gene look at all the preceding genes and to decide its y offset so it is
-       * bumped correctly. */
-      while (list_ptr)
-	{
-	  GeneData list_gene = (GeneData)list_ptr->data ;
-	  GeneData curr_gene = (GeneData)curr_ptr->data ;
-
-	  if (list_ptr == curr_ptr)
-	    {
-	      /* This gene overlaps all previous ones and needs a new offset. */
-	      curr_y += bump_incr ;
-	      if (curr_y > max_offset)
-		curr_y = max_offset ;
-
-	      curr_gene->y_pos = curr_y ;
-	      break ;
-	    }
-	  else if (curr_gene->start > list_gene->end)
-	    {
-	      /* This gene coes not overlap the list gene so give is the same offset. */
-	      curr_gene->y_pos = list_gene->y_pos ;
-
-	      if (list_ptr->next != curr_ptr)
-		{
-		  list_ptr = g_list_remove(list_ptr, curr_gene) ;
-		  list_ptr = g_list_insert_before(gene_list, list_ptr->next, curr_gene) ;
-		}
-
-	      break ;
-	    }
-	  else
-	    {
-	      /* This gene overlaps the list gene so move on to the next one. */
-	      list_ptr = g_list_next(list_ptr) ;
-	    }
-	}
-
-      /* update curr/next until we get to the end of the list... */
-      if ((curr_ptr = next_ptr))
-	next_ptr = curr_ptr->next ;
-    }
-
-  return ;
-}
-
-
-/* A GFunc() to record start/end of genes. */
-static void drawGenesCB(gpointer data, gpointer user_data_unused)
-{
-  GeneData gene = (GeneData)data ;
-  MSP *msp ;
-
-  msp = gene->msp_start ;
-  do
-    {
-      drawMSPGene(msp, gene->y_pos) ;
-
-      msp = msp->next ;
-    } while (msp && msp != gene->msp_end) ;
-
-  return ;
-}
-
-
-static void drawMSPGene(MSP *msp, float y_offset)
-{
-  float height,		/* box height/width */
-    sx, ex, midx ;
-
-  height = fonth ;
-
-  sx = seq2graphX(mspGetQStart(msp));
-  ex = seq2graphX(mspGetQEnd(msp));
-
-  if (msp->score == -1.0) /* EXON */
-    {
-      graphRectangle(sx, y_offset, ex, y_offset + height);
-    }
-  else if (msp->score == -2.0) /* INTRON */
-    {
-
-      midx = 0.5 * (sx + ex) ;
-      graphLine (sx, y_offset + height/2, midx, y_offset) ;
-      graphLine (ex, y_offset + height/2, midx, y_offset) ;
-    }
-
-  return ;
-}
-
+///* A GFunc() to record start/end of genes. */
+//static void drawGenesCB(gpointer data, gpointer user_data_unused)
+//{
+//  GeneData gene = (GeneData)data ;
+//  MSP *msp ;
+//
+//  msp = gene->msp_start ;
+//  do
+//    {
+//      drawMSPGene(msp, gene->y_pos) ;
+//
+//      msp = msp->next ;
+//    } while (msp && msp != gene->msp_end) ;
+//
+//  return ;
+//}
+//
+//
+//static void drawMSPGene(MSP *msp, float y_offset)
+//{
+//  float height,		/* box height/width */
+//    sx, ex, midx ;
+//
+//  height = fonth ;
+//
+//  sx = seq2graphX(mspGetQStart(msp));
+//  ex = seq2graphX(mspGetQEnd(msp));
+//
+//  if (msp->score == -1.0) /* EXON */
+//    {
+//      graphRectangle(sx, y_offset, ex, y_offset + height);
+//    }
+//  else if (msp->score == -2.0) /* INTRON */
+//    {
+//
+//      midx = 0.5 * (sx + ex) ;
+//      graphLine (sx, y_offset + height/2, midx, y_offset) ;
+//      graphLine (ex, y_offset + height/2, midx, y_offset) ;
+//    }
+//
+//  return ;
+//}
+//
 
 //static void printMSP(gpointer data, gpointer user_data)
 //{
@@ -2429,1030 +2015,238 @@ static void drawMSPGene(MSP *msp, float y_offset)
 //}
 
 
-
-
-static void graphPixelLine(int strength, int sx, int sy, int ex, int ey)
-{
-    int i, inc, len, dotpos, x, y;
-    UCHAR dotValue;
-
-    if (sx < ex) 
-	inc = 1;
-    else
-	inc = -1;
-
-    len = abs(ex - sx +1);
-    
-    if (strength < 256)
-	dotValue = (UCHAR)strength;
-    else 
-	dotValue = 255;
-
-    for (i = 0; i < len; i++)
-    {
-	x = sx + i*inc;
-	y = sy + i;
-
-	if (x >= 0 && x < qlen4 && sy >= 0 && sy < slen4) 
-	{
-	    dotpos = qlen4*(y) + x;
-
-	    if (dotpos < 0 || dotpos > datalen-1) {
-		g_critical("Pixel out of bounds (0-%d) in graphPixelLine: %d."
-                           "Crash imminent.", datalen-1, dotpos);
-	    }
-	    else
-	    {
-		if (dotValue > HSPpixels[dotpos]) HSPpixels[dotpos] = dotValue;
-	    }
-	}
-    }
-}
-
-
-static int score2color(gdouble score)
-{
-    if (score < 75.0) return DARKRED;
-    if (score < 100.0) return MAGENTA;
-    return RED;
-}
-
-
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-/* currently unused, was for setting line widths according to score. */
-static int score2width(int score)
-{
-    if (score < 75) return 1;
-    if (score < 100) return 2;
-    return 3;
-}
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-
-
-int illegalSubmatrix(int sx, int sy, int shift)
-{
-    int dotposq, dotposs, ql, sl;
-
-    dotposq = (sx+shift)/zoom;
-    dotposs = (sy+shift)/zoom;
-    
-    ql = (sx+shift) - dotposq*zoom;
-    sl = (sy+shift) - dotposs*zoom;
-
-    if (sl >= ql) 
-	return 0;		/* legal */
-    else 
-	return 1;		/* illegal */
-}
-
-
-int illegalSubmatrixRev(int sx, int sy, int shift)
-{
-    int dotposq, dotposs, ql, sl;
-
-    dotposq = (sx-shift)/zoom;
-    dotposs = (sy+shift)/zoom;
-    
-    ql = (sx-shift) - dotposq*zoom;
-
-    /* Set the origin (0,0) to the bottom left corner of submatrix
-       Zoom = pixels/submatrix */
-    sl = zoom-1 - (sy - dotposs*zoom);
-
-    if (sl >= ql) 
-	return 0;		/* legal */
-    else 
-	return 1;		/* illegal */
-}
-
-
-/* Notes:
- * msp->[qs][start|end] coordinates go [1..n+1] while real dots go [0..n]
- * In other words, msp-coords [6,6] will make a dot at [5,5].
- */
-static void drawBlastHSPs(void)
-{
-  int i,
-	sx, ex, sy, ey, /* Screen coordinates [0..n] */
-	matchlen, shift;
-    char strand;
-    const char *MSPsname;
-    MSP *msp;
-
-    strand = reversedScale ? '-' : '+';
-
-    if (BlastMode == BLASTNOTHING) BlastMode = BLASTRED;
-
-    if (BlastMode == BLASTGREY) /* Reset background */
-	for (i=0; i < datalen; i++) HSPpixels[i] = 0;
-
-    for (msp = MSPlist; msp;  msp = msp->next)
-    {    
-      if ((MSPsname = strchr(mspGetSName(msp), ':')))
-	MSPsname++;
-      else
-	MSPsname = mspGetSName(msp);
-
-      if (!strcmp(MSPsname, sname))
-	{
-	  matchlen = mspGetSRangeLen(msp) / zoom;
-	    
-
-/* printf("\n%s: %d,%d - %d,%d\n", 
-       msp->sname, msp->qstart, msp->sstart, msp->qend, msp->send);
-*/
-
-	    if (mspGetQStart(msp) < mspGetQEnd(msp)) {
-
-		sx = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/resfac) -1;
-		sy = mspGetSStart(msp) - soffset -1;
-
-		/* Check if we're in an illegal part of submatrix
-		 * - We only want to compress in legal submatrix parts */
-		shift = 0;
-		while(illegalSubmatrix(sx, sy, shift)) shift++;
-
-		sx = (sx + shift)/zoom -shift;
-		sy = (sy + shift)/zoom -shift;
-		
-		ex = sx + (matchlen-1);
-	    }
-	    else {
-		sx = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/resfac) -1;
-		sy = mspGetSStart(msp) - soffset -1;
-
-		/* Check if we're in an illegal part of submatrix
-		 * - We only want to compress in legal submatrix parts */
-		shift = 0;
-		while(illegalSubmatrixRev(sx, sy, shift)) shift++;
-
-		sx = (sx - shift)/zoom + shift;
-		sy = (sy + shift)/zoom - shift;
-		
-		ex = sx - (matchlen-1);
-
-		/* sx = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/resfac);
-		sx = sx/zoom - 1;
-		ex = sx - (matchlen-1);
-		sy = (msp->sstart - soffset)/zoom - 1;*/
-
-	    }
-
-	    if (reversedScale) {
-		sx = RightBorder-LeftBorder - sx;
-		ex = RightBorder-LeftBorder - ex;
-	    }
-
-	    ey = sy + matchlen-1;
-	    
-	    if (BlastMode == BLASTRED) {
-		graphColor(RED);
-		graphLinewidth(1 /* score2width(msp->score) */);
-
-		graphLine(LeftBorder + sx, TopBorder + sy,
-			  LeftBorder + ex, TopBorder + ey);
-		graphColor(BLACK);
-	    }
-	    else if (BlastMode == BLASTFUNC) {
-		graphColor(score2color(msp->score));
-		graphLinewidth(1);
-
-		graphLine(LeftBorder + sx, TopBorder + sy,
-			  LeftBorder + ex, TopBorder + ey);
-		graphColor(BLACK);
-	    }
-	    else if (BlastMode == BLASTGREY) {
-		/* strength = win*msp->score/abs(msp->send - msp->sstart); */
-		int strength = (int)msp->score;
-		graphPixelLine(strength, sx, sy, ex, ey);
-	    }
-	    else {
-		g_critical("Unknown BlastMode = bug -> contact Sanger");
-	    }
-	}
-    }
-
-}
-
-static void drawBlastHSPgray()
-{
-    BlastMode = BLASTGREY;
-
-    BlastHSPsOn = 1;
-    dotterRedraw();
-}
-static void drawBlastHSPline()
-{
-    BlastMode = BLASTRED;
-
-    BlastHSPsOn = 1;
-    dotterRedraw();
-}
-static void drawBlastHSPlinef(void)
-{
-    BlastMode = BLASTFUNC;
-
-    BlastHSPsOn = 1;
-    dotterRedraw();
-}
-static void clearHSPs(void)
-{
-    BlastMode = BLASTNOTHING;
-
-    BlastHSPsOn = 0;
-    dotterRedraw();
-}
-
-
-/* x and y real sequence coordinates */
-static void setQposSpos(int x, int y)
-{
-  int position ;
-
-  if (reversedScale)
-    position = qlen - x*resfac + qoffset ;
-  else
-    position = x*resfac + 1 + qoffset ;
-
-  sprintf(qpos, "%d", position) ;
-
-
-  sprintf(spos, "%d", y+1 + soffset);
-
-  return ;  
-}
-
-
-/* DRAWALIGNMENT draws the alignment of the diagonal at the crosshair
- * Note: x and y are in sequence positions (Real sequence, starting at 0)
- */
-static void drawAlignment(int x, int y)
-{
-    int    i, frame;
-    char  *q, *s, *qrc;
-
-    if (x < 0) x = 0;
-    else if (x > qlen-1) x = qlen-1;
-    if (y < 0) y = 0;
-    else if (y > slen-1) y = slen-1;
-
-    oldx = x;
-    oldy = y;
-
-    if (!graphActivate(alnGraph))
-      return;
-
-    q = qseq + x - ALIGNLEN/2;
-    s = sseq + y - ALIGNLEN/2;
-
-    setQposSpos(x, y);
-
-    if (blastp || (blastn && !crickOnly)) 
-    {
-	for (i = 0; i < ALIGNLEN; i++) 
-	{
-	    qcolors[i] = scolors[i] = alnBackgColor;
-
-	    qseqDisp[i] = sseqDisp[i] = 0;
-	    
-	    /* Handle sticky ends */
-	    if (q+i < qseq || q+i > qseq+qlen-1) {
-		qseqDisp[i] = ' ';
-		if (s+i >= sseq && s+i <= sseq+slen-1) { 
-		    sseqDisp[i] = s[i];
-		}
-	    }
-	    if (s+i < sseq || s+i > sseq+slen-1) {
-		sseqDisp[i] = ' ';
-		if (q+i >= qseq && q+i <= qseq+qlen-1) { 
-		    qseqDisp[i] = q[i];
-		}
-	    }
-	    
-	    if (qseqDisp[i] || sseqDisp[i]) continue;
-	    
-	    qseqDisp[i] = q[i];
-	    sseqDisp[i] = s[i];
-	    
-	    /* Highlight matching residues */
-	    if (blastp) {
-		if (q[i] == s[i])
-		    qcolors[i] = scolors[i] = TINT_CYAN;
-		else if ( MATRIX[atob[(int)q[i]]-1 ][ atob[(int)s[i]]-1 ] > 0)
-		    qcolors[i] = scolors[i] = TINT_HIGHLIGHT2;
-	    }
-	    else if (blastn && q[i] == s[i])
-		qcolors[i] = scolors[i] = TINT_CYAN;
-
-	}
-
-	graphBoxDraw(qseqbox, BLACK, backgColor);
-	graphBoxDraw(sseqbox, BLACK, backgColor);
-	
-	graphBoxDraw(qposbox, BLACK, backgColor);
-	graphBoxDraw(sposbox, BLACK, backgColor);
-    }
-
-    /* Crick strand - qseq reversed and complemented */
-
-    if (blastn && !watsonOnly)
-    {
-
-	qrc = qrevcompl + qlen-1 - x - ALIGNLEN/2;
-
-	for (i = 0; i < ALIGNLEN; i++) 
-	{
-	    qcolorsCrick[i] = scolorsCrick[i] = alnBackgColor; /* i.e. Background */
-
-	    qseqDispCrick[i] = sseqDispCrick[i] = 0;
-
-	    /* Handle sticky ends */
-	    if (qrc+i < qrevcompl || qrc+i > qrevcompl+qlen-1) {
-		qseqDispCrick[i] = ' ';
-		if (s+i >= sseq && s+i <= sseq+slen-1) { 
-		    sseqDispCrick[i] = s[i];
-		}
-	    }
-	    if (s+i < sseq || s+i > sseq+slen-1) {
-		sseqDispCrick[i] = ' ';
-		if (qrc+i >= qrevcompl && qrc+i <= qrevcompl+qlen-1) { 
-		    qseqDispCrick[i] = qrc[i];
-		}
-	    }
-	    
-	    if (qseqDispCrick[i] || sseqDispCrick[i]) continue;
-	    
-	    qseqDispCrick[i] = qrc[i];
-	    sseqDispCrick[i] = s[i];
-	    
-	    /* Highlight matching residues */
-	    if (qrc[i] == s[i])
-		qcolorsCrick[i] = scolorsCrick[i] = TINT_CYAN;
-	}
-
-	graphBoxDraw(qseqboxCrick, BLACK, backgColor);
-	graphBoxDraw(sseqboxCrick, BLACK, backgColor);
-	
-	graphBoxDraw(qposboxCrick, BLACK, backgColor);
-	graphBoxDraw(sposboxCrick, BLACK, backgColor);
-
-    }
-    
-    if (blastx)
-    {
-	for (i = 0; i < ALIGNLEN; i++) scolors[i] = alnBackgColor;
-
-	for (frame = 0; frame < 3; frame++)
-	{
-	    for (i = 0; i < ALIGNLEN; i++) 
-	    {
-		q = pepqseq[frame] + x - ALIGNLEN/2;
-
-		xqcolors[frame][i] = alnBackgColor;
-
-		xqseqDisp[frame][i] = sseqDisp[i] = 0;
-	    
-		/* Handle sticky ends */
-		if (q+i < pepqseq[frame] || q+i > pepqseq[frame]+qlen/3-1) {
-		    xqseqDisp[frame][i] = ' ';
-		    if (s+i >= sseq && s+i <= sseq+slen-1) { 
-			sseqDisp[i] = s[i];
-		    }
-		}
-		if (s+i < sseq || s+i > sseq+slen-1) {
-		    sseqDisp[i] = ' ';
-		    if (q+i >= pepqseq[frame] && q+i <= pepqseq[frame]+qlen/3-1) { 
-			xqseqDisp[frame][i] = q[i];
-		    }
-		}
-	    
-		if (xqseqDisp[frame][i] || sseqDisp[i]) continue;
-	    
-		xqseqDisp[frame][i] = q[i];
-		sseqDisp[i] = s[i];
-	    
-		/* Highlight matching residues */
-		if (q[i] == s[i])
-		    xqcolors[frame][i] = scolors[i] = TINT_CYAN;
-		else if ( MATRIX[atob[(int)q[i]]-1 ][ atob[(int)s[i]]-1 ] > 0 ) {
-		    xqcolors[frame][i] = TINT_HIGHLIGHT2;
-		    if (scolors[i] != TINT_CYAN) scolors[i] = TINT_HIGHLIGHT2;
-		}
-	    }
-	    graphBoxDraw(xqseqbox[frame], BLACK, backgColor);
-	}
-	graphBoxDraw(qposbox, BLACK, backgColor);
-
-	graphBoxDraw(sseqbox, BLACK, backgColor);
-	graphBoxDraw(sposbox, BLACK, backgColor);
-    }
-
-    graphActivate(dotterGraph);
-}
-
-
-static void togglePrintColors(void)
-{
-    backgColor = (backgColor == LIGHTGRAY ?  WHITE : LIGHTGRAY);
-    alnBackgColor = (alnBackgColor == TINT_LIGHTGRAY ?  TINT_WHITE : TINT_LIGHTGRAY);
-    initAlignment();
-}
-
-
-static void dotterPrint(void)
-{
-    printMode = 1;
-    dotterRedraw();
-
-    graphPrint();
-
-    printMode = 0;
-    dotterRedraw();
-}
-
-
-static void setAlnLen(void)
-{
-  ACEIN len_in;
-
-  if (!(len_in = messPrompt ("Give Alignment length", 
-			     messprintf("%d", ALIGNLEN), 
-			     "iz", 0)))
-    return;
-
-  aceInInt (len_in, &ALIGNLEN);
-  aceInDestroy (len_in);
-
-  if (!(ALIGNLEN % 2)) ALIGNLEN++;
-  
-  if (ALIGNLEN > MAXALIGNLEN) ALIGNLEN = MAXALIGNLEN;
-  else if (ALIGNLEN < 0) ALIGNLEN = DEFAULTALIGNLEN ;
-  
-  initAlignment();
-
-  return;
-} /* setAlnLen */
-
-
-static void fsSelFinish(void)
-{
-#ifndef DOTTER
-    if (blixemWindow) blviewRedraw();
-#endif
-    if (graphActivate(dotterGraph)) dotterRedraw();
-}
-
-
-static void fsSelAll(void)
-{
-  int i;
-  graphActivate(fsGraph);
-  
-  for (i = 0; i < gArrayGetLen(fsArr); i++) 
-    {
-      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-      fs->on = 1;
-      graphBoxDraw(fsBoxStart+i, WHITE, BLACK);
-    }
-    
-  fsSelFinish();
-}
-
-static void fsSelNone(void)
-{
-  int i;
-  graphActivate(fsGraph);
-  
-  for (i = 0; i < gArrayGetLen(fsArr); i++) 
-    {
-      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-      fs->on = 0;
-      graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
-    }
-    
-  fsSelFinish();
-}
-
-static void fsSelNoCurves(void)
-{
-  int i;
-  graphActivate(fsGraph);
-  
-  for (i = 0; i < gArrayGetLen(fsArr); i++) 
-    {
-      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-      
-      if (fs->xy) 
-	{
-	  fs->on = 0;
-	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
-	}
-    }
-    
-  fsSelFinish();
-}
-
-static void fsSelNoSegments(void)
-{
-  int i;
-  graphActivate(fsGraph);
-  
-  for (i = 0; i < gArrayGetLen(fsArr); i++) 
-    {
-      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-      
-      if (!fs->xy) 
-	{
-	  fs->on = 0;
-	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
-	}
-    }
-    
-  fsSelFinish();
-}
-
-static void fsToggleBottom(void)
-{
-    fsBottomOn = !fsBottomOn;
-    selectFeatures();
-    fsSelFinish();
-}
-static void fsToggleRight(void)
-{
-    fsRightOn = !fsRightOn;
-    selectFeatures();
-    fsSelFinish();
-}
-static void fsToggleAnnBottom(void)
-{
-    fsAnnBottomOn = !fsAnnBottomOn;
-    selectFeatures();
-    fsSelFinish();
-}
-static void fsToggleAnnRight(void)
-{
-    fsAnnRightOn = !fsAnnRightOn;
-    selectFeatures();
-    fsSelFinish();
-}
-static void fsToggleEndLines(void)
-{
-    fsEndLinesOn = !fsEndLinesOn;
-    selectFeatures();
-    fsSelFinish();
-}
-static void fsSel(int box, double x_unused, double y_unused, int modifier_unused)
-{
-    if (box-fsBoxStart < 0 || box-fsBoxStart > gArrayGetLen(fsArr))
-	return;
-    
-    FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, box - fsBoxStart);
-    int *on = &fs->on;
-
-    graphActivate(fsGraph);
-
-
-    if (*on) {
-	*on = 0;
-	graphBoxDraw(box, BLACK, WHITE);
-    }
-    else {
-	*on = 1;
-	graphBoxDraw(box, WHITE, BLACK);
-    }
-
-    fsSelFinish();
-}
-static void setfsPlotHeight(char *cp)
-{
-    fsPlotHeight = atof(cp);
-#ifndef DOTTER
-    if (blixemWindow) blviewRedraw();
-#endif
-    if (graphActivate(dotterGraph)) dotterRedraw();
-}
-    
-
-void selectFeatures(void)
-{
-  int i, box;
-  float y=1.0;
-
-  if (!graphActivate(fsGraph))
-    {
-      fsGraph = graphCreate (TEXT_SCROLL, "Feature Series Selection Tool", 0, 0, 0.4, 0.6);
-    }
-  graphPop();
-  graphRegister(PICK, fsSel);
-
-  if (dotterGraph) {
-
-    box = graphButton("Show bottom series", fsToggleBottom, 1, y);
-    if (!fsBottomOn) graphBoxDraw(box, BLACK, WHITE);
-    else graphBoxDraw(box, WHITE, BLACK);
-    y += 1.5;
-
-    box = graphButton("Show right series", fsToggleRight, 1, y);
-    if (!fsRightOn) graphBoxDraw(box, BLACK, WHITE);
-    else graphBoxDraw(box, WHITE, BLACK);
-    y += 1.5;
-
-    box = graphButton("Show bottom annotations", fsToggleAnnBottom, 1, y);
-    if (!fsAnnBottomOn) graphBoxDraw(box, BLACK, WHITE);
-    else graphBoxDraw(box, WHITE, BLACK);
-    y += 1.5;
-
-    box = graphButton("Show right annotations", fsToggleAnnRight, 1, y);
-    if (!fsAnnRightOn) graphBoxDraw(box, BLACK, WHITE);
-    else graphBoxDraw(box, WHITE, BLACK);
-    y += 1.5;
-
-    box = graphButton("Draw lines at segment ends", fsToggleEndLines, 1, y);
-    if (!fsEndLinesOn) graphBoxDraw(box, BLACK, WHITE);
-    else graphBoxDraw(box, WHITE, BLACK);
-    y += 2;
-  }
-
-  sprintf(fsPlotHeighttx, "%.1f", fsPlotHeight);
-  graphText("Height of curves (XY series):", 1, y);
-  graphTextScrollEntry (fsPlotHeighttx, 6, 4, 31, y, setfsPlotHeight);
-  y += 2;
-
-  graphLinewidth(0.1);
-  graphLine(0, y, 2000, y);
-  y += 0.5;
-
-  graphText("Pick to select/unselect series", 1, y);
-  y += 1.5;
-  graphButton("All", fsSelAll, 1, y);
-  graphButton("No curves", fsSelNoCurves, 13, y);
-  graphButton("No segments", fsSelNoSegments, 24, y);
-  fsBoxStart = 1+graphButton("None", fsSelNone, 6, y);
-  y += 2;
-
-  graphTextBounds(50, gArrayGetLen(fsArr) * 1.5 + y + 5);
-
-  for (i = 0; i < gArrayGetLen(fsArr); i++)
-    {
-      float  margin = 0.1;
-      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-
-      box = graphBoxStart();
-      graphText(fs->name, 1, y);      
-      graphRectangle(1 - margin, y - margin, 1 + margin + strlen(fs->name), y + 1 + margin);
-      graphBoxEnd();
-
-      if (!fs->on) 
-	{
-	  graphBoxDraw(box, BLACK, WHITE);
-	}
-      else 
-	{
-	  graphBoxDraw(box, WHITE, BLACK);
-	}
-	
-      y += 1.5;
-    }
-
-  graphRedraw();
-
-  return ;
-}
-
-
-float fsTotalHeight(MSP *msplist)
-{
-    int i;
-    float maxy = 0;
-	
-    if (!fsArr || !gArrayGetLen(fsArr))
-      {
-	return 0.0;
-      }
-
-    for (i = 0; i < gArrayGetLen(fsArr); i++) 
-      {
-	FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-	fs->y = fs->x = 0;
-      }
-	
-    for (msp = msplist; msp; msp = msp->next) 
-      {
-        if (mspShowFs(msp))
-	  {
-	    if (msp->type == BLXMSP_XY_PLOT) 
-	      {
-		mspGetFsBottomEdge(msp, &maxy, fsPlotHeight+1);
-	      }
-	    else if (msp->type == BLXMSP_FS_SEG) 
-	      {
-		mspGetFsBottomEdge(msp, &maxy, 1+1);
-	      }
-	  }
-      }
-    
-    return maxy + 2;
-}
-
-
-static void initAlignment(void)
-{
-    float x, y;
-    int i, frame, height=0;
-
-    {
-	/* static int warned=0;
-	if (!warned) g_critical("The residue colours of the Aligment tool have been corrupted by Jean."
-			     " Send complaints to mieg@kaa.crbm.cnrs-mop.fr");
-	warned=1;*/
-    }
-
-    if (!CrosshairON)
-      {
-	g_critical("Turn on the crosshair !");
-	return;
-      }
-    
-    graphActivate(dotterGraph);
-    graphBoxDim (vLineBox, &x, 0, 0, 0);
-    graphBoxDim (hLineBox, 0, &y, 0, 0);
-
-    if (!graphActivate(alnGraph))
-    {
-      BOOL oldMap = graphSetInstallMap(TRUE);
-      alnGraph = graphCreate (TEXT_SCROLL, "Dotter - Alignment Tool", 0, 0, 1.25, 0.25);
-      graphMenu(alnmenu);
-      graphRegister(KEYBOARD, keyboard);
-      graphSetInstallMap(oldMap);
-    }
-
-    graphPop();
-    graphClear();
-    
-    if (blastp)
-	height = 7;
-    else if (blastn) {
-	if (watsonOnly) height = 7;
-	else height = 14;
-    }
-    else if (blastx) 
-	height = 9;
-
-    graphTextBounds(MAXALIGNLEN, height);
-    graphColor(backgColor); 
-    graphRectangle(0, 0, 1000, 1000);
-    graphColor(BLACK);
-	
-    for (i = 0; i < MAXALIGNLEN; i++)
-      {
-	qseqDisp[i] = sseqDisp[i] =
-	  xqseqDisp[0][i] = xqseqDisp[1][i] = xqseqDisp[2][i] =
-	  qseqDispCrick[i] = sseqDispCrick[i] = 0;
-      }
-
-    /* Maybe do this instead * /
-    qseqDisp = handleAlloc(0, handle, MAXALIGNLEN+1);
-    xqseqDisp[0] = handleAlloc(0, handle, MAXALIGNLEN+1);
-    xqseqDisp[1] = handleAlloc(0, handle, MAXALIGNLEN+1);
-    xqseqDisp[2] = handleAlloc(0, handle, MAXALIGNLEN+1);
-    sseqDisp = handleAlloc(0, handle, MAXALIGNLEN+1);
-    qseqDispCrick = handleAlloc(0, handle, MAXALIGNLEN+1);
-    sseqDispCrick = handleAlloc(0, handle, MAXALIGNLEN+1);
-    */
-
-    if (blastx)
-    {
-	/* Draw static features */
-	graphText(messprintf("%s 1:", qname), 0.5, 3);
-	graphText(messprintf("%s 2:", qname), 0.5, 4);
-	graphText(messprintf("%s 3:", qname), 0.5, 5);
-	graphText(messprintf("%s:", sname), 0.5, 6);
-	graphLine(NAMESIZE+4 + (float)ALIGNLEN/2, 2, NAMESIZE+4 + (float)ALIGNLEN/2, 8);
-	
-	/* alignment boxes */
-	for (frame = 0; frame < 3; frame++)
-	{
-	    xqseqbox[frame] = graphBoxStart();
-	    graphColorSquares (xqcolors[frame], NAMESIZE+4, 3+frame, ALIGNLEN, 1, tints);
-	    graphTextPtr     (xqseqDisp[frame], NAMESIZE+4, 3+frame, ALIGNLEN);
-	    graphBoxEnd ();
-	}
-
-	sseqbox = graphBoxStart();
-	graphColorSquares (scolors, NAMESIZE+4, 6, ALIGNLEN, 1, tints);
-	graphTextPtr     (sseqDisp, NAMESIZE+4, 6, ALIGNLEN);
-	graphBoxEnd ();
-
-	/* coordinate boxes */
-	qposbox = graphBoxStart();
-	graphTextPtr (qpos, NAMESIZE + ALIGNLEN/2+2, 1, 10);
-	graphBoxEnd ();
-	sposbox = graphBoxStart();
-	graphTextPtr (spos, NAMESIZE + ALIGNLEN/2+2, 8, 10);
-	graphBoxEnd ();
-    }
-
-    if (blastp || (blastn && !crickOnly)) 
-    {
-	/* Draw static features */
-	graphText(messprintf("%s:", qname), 0.5, 3);
-	graphText(messprintf("%s:", sname), 0.5, 4);
-	graphLine(NAMESIZE+2 + (float)ALIGNLEN/2, 2, NAMESIZE+2 + (float)ALIGNLEN/2, 6);
-	
-	/* alignment boxes */
-	qseqbox = graphBoxStart();
-	graphColorSquares (qcolors, NAMESIZE+2, 3, ALIGNLEN, 1, tints);
-	graphTextPtr     (qseqDisp, NAMESIZE+2, 3, ALIGNLEN);
-	graphBoxEnd ();
-	sseqbox = graphBoxStart();
-	graphColorSquares (scolors, NAMESIZE+2, 4, ALIGNLEN, 1, tints);
-	graphTextPtr     (sseqDisp, NAMESIZE+2, 4, ALIGNLEN);
-	graphBoxEnd ();
-	    
-	/* coordinate boxes */
-	qposbox = graphBoxStart();
-	graphTextPtr (qpos, NAMESIZE + ALIGNLEN/2+2, 1, 10);
-	graphBoxEnd ();
-	sposbox = graphBoxStart();
-	graphTextPtr (spos, NAMESIZE + ALIGNLEN/2+2, 6, 10);
-	graphBoxEnd ();
-    }
-
-    if (blastn && !watsonOnly)
-    {
-	/* Draw static features */
-	graphText("RevComp:", 0.5, 10);
-	graphText(messprintf("%s:", sname), 0.5, 11);
-	graphLine(NAMESIZE+2 + (float)ALIGNLEN/2, 9, NAMESIZE+2 + (float)ALIGNLEN/2, 13);
-	
-	/* alignment boxes */
-	qseqboxCrick = graphBoxStart();
-	graphColorSquares (qcolorsCrick, NAMESIZE+2, 10, ALIGNLEN, 1, tints);
-	graphTextPtr     (qseqDispCrick, NAMESIZE+2, 10, ALIGNLEN);
-	graphBoxEnd ();
-	sseqboxCrick = graphBoxStart();
-	graphColorSquares (scolorsCrick, NAMESIZE+2, 11, ALIGNLEN, 1, tints);
-	graphTextPtr     (sseqDispCrick, NAMESIZE+2, 11, ALIGNLEN);
-	graphBoxEnd ();
-	
-	/* coordinate boxes */
-	qposboxCrick = graphBoxStart();
-	graphTextPtr (qpos, NAMESIZE + ALIGNLEN/2+2, 8, 10);
-	graphBoxEnd ();
-	sposboxCrick = graphBoxStart();
-	graphTextPtr (spos, NAMESIZE + ALIGNLEN/2+2, 13, 10);
-	graphBoxEnd ();
-    }    
-    
-    graphBoxDraw(0, backgColor, backgColor);
-    graphRedraw();
-    drawAlignment((int)(x-LeftBorder)*zoom, (int)(y-TopBorder)*zoom);
-}
-
-
-static void toggleCrosshair(void)
-{
-  if (CrosshairON)
-    {
-      CrosshairON  = 0;
-    }
-  else
-    {
-      CrosshairON  = 1;
-    }
-
-  dotterRedraw();
-
-  return ;
-}
-
-static void toggleCrosshairPos(void)
-{
-    CrosshairPosON = (CrosshairPosON ? 0 : 1);
-    dotterRedraw();
-}
-
-static void toggleCrosshairFullscreen(void)
-{
-    CrosshairFullscreenON = !CrosshairFullscreenON;
-    dotterRedraw();
-}
-
-
-static void drawCrosshair(float x, float y)
-{
-  if (CrosshairON)
-    {
-      if (CrosshairFullscreenON)
-	{
-	  graphBoxShift(hLineBox, 0.0, y);
-	  graphBoxShift(vLineBox, x, 0.0);
-	}
-      else
-	{
-	  graphBoxShift(hLineBox, LeftBorder, y);
-	  graphBoxShift(vLineBox, x, TopBorder);
-	}
-
-      if (CrosshairPosON)
-	{
-	  sprintf(CrosshairPosText, "%s, %s", qpos, spos);
-	  graphBoxShift(CrosshairPosBox, x+10, y+10);
-	}
-    }
-
-  crossx = x;
-  crossy = y;
-
-  return ;
-}
-
-
-static void dotterRampChange(BOOL isDrag)
-{
-  if (!isDrag)
-    {
-      if(gridOn || fsEndLinesOn || BlastHSPsOn)
-	dotterRedraw();
-      else
-	drawAllFeatures(MSPlist);
-    }
- 
-  if (hLineBox && vLineBox)
-    drawCrosshair(crossx, crossy);
-}
-
-static void boundaries(double *x, double *y)
-{
-  if (*x < LeftBorder)
-    *x = LeftBorder;
-  else if (*x > LeftBorder + qlen4)
-    *x = LeftBorder + qlen4 ;
-
-  if (*y < TopBorder)
-    *y = TopBorder ;
-  else if (*y > TopBorder + slen4)
-    *y = TopBorder + slen4 ;
-
-  return ;
-}
-
-
-static void LeftDrag (double x, double y) 
-{
-    boundaries(&x, &y);
-    setQposSpos((int)(x-LeftBorder)*zoom, (int)(y-TopBorder)*zoom);
-    drawCrosshair(x, y);
-    drawAlignment((int)(x-LeftBorder)*zoom, (int)(y-TopBorder)*zoom);
-}
-
-
-static void LeftDown (double x, double y) 
-{ 
-    if (!CrosshairON) return;
-    
-    boundaries(&x, &y);
-    setQposSpos((int)(x-LeftBorder)*zoom, (int)(y-TopBorder)*zoom);
-    drawCrosshair(x, y);
-    drawAlignment((int)(x-LeftBorder)*zoom, (int)(y-TopBorder)*zoom);
-
-    graphRegister (LEFT_DRAG, LeftDrag);
-}
-
-
-/* KEYBOARD handles x, y coords in sequence units! (Mouse does it in screen units)
-*/
-static void keyboard (int key, int modifier_unused)
-{
-    int x, y;
-
-    switch (key) {
-    case UP_KEY:   x = oldx;    y = oldy -1;   break;
-    case DOWN_KEY: x = oldx;	y = oldy+1;    break;
-    case LEFT_KEY: x = oldx-1;	y = oldy;      break;
-    case RIGHT_KEY: x = oldx+1; y = oldy;      break;
-    case '>':	x = oldx+1 ;	y = oldy+1 ;   break ;
-    case '<':	x = oldx-1 ;	y = oldy-1 ;   break ;
-    case '}':	x = oldx+1 ;	y = oldy-1 ;   break ;
-    case '{':	x = oldx-1 ;	y = oldy+1 ;   break ;
-    default: return;
-    }
-
-    if (x < 0) x = 0;
-    else if (x > qlen/resfac-1) x = qlen/resfac-1;
-    if (y < 0) y = 0;
-    else if (y > slen-1) y = slen-1;
-
-    graphActivate(dotterGraph);
-    setQposSpos(x, y);
-    drawCrosshair((float)x/zoom+LeftBorder, (float)y/zoom+TopBorder);
-    drawAlignment(x, y);
-
-    oldx = x;
-    oldy = y;
-}
+//static void fsSelAll(void)
+//{
+//  int i;
+//  graphActivate(fsGraph);
+//  
+//  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+//    {
+//      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//      fs->on = 1;
+//      graphBoxDraw(fsBoxStart+i, WHITE, BLACK);
+//    }
+//}
+//
+//static void fsSelNone(void)
+//{
+//  int i;
+//  graphActivate(fsGraph);
+//  
+//  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+//    {
+//      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//      fs->on = 0;
+//      graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+//    }
+//}
+//
+//static void fsSelNoCurves(void)
+//{
+//  int i;
+//  graphActivate(fsGraph);
+//  
+//  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+//    {
+//      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//      
+//      if (fs->xy) 
+//	{
+//	  fs->on = 0;
+//	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+//	}
+//    }
+//}
+//
+//static void fsSelNoSegments(void)
+//{
+//  int i;
+//  graphActivate(fsGraph);
+//  
+//  for (i = 0; i < gArrayGetLen(fsArr); i++) 
+//    {
+//      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//      
+//      if (!fs->xy) 
+//	{
+//	  fs->on = 0;
+//	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+//	}
+//    }
+//}
+//
+//static void fsToggleBottom(void)
+//{
+//    fsBottomOn = !fsBottomOn;
+//    selectFeatures();
+//}
+//static void fsToggleRight(void)
+//{
+//    fsRightOn = !fsRightOn;
+//    selectFeatures();
+//}
+//static void fsToggleAnnBottom(void)
+//{
+//    fsAnnBottomOn = !fsAnnBottomOn;
+//    selectFeatures();
+//}
+//static void fsToggleAnnRight(void)
+//{
+//    fsAnnRightOn = !fsAnnRightOn;
+//    selectFeatures();
+//}
+//static void fsToggleEndLines(void)
+//{
+//    fsEndLinesOn = !fsEndLinesOn;
+//    selectFeatures();
+//}
+//static void fsSel(int box, double x_unused, double y_unused, int modifier_unused)
+//{
+//    if (box-fsBoxStart < 0 || box-fsBoxStart > gArrayGetLen(fsArr))
+//	return;
+//    
+//    FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, box - fsBoxStart);
+//    int *on = &fs->on;
+//
+//    graphActivate(fsGraph);
+//
+//
+//    if (*on) {
+//	*on = 0;
+//	graphBoxDraw(box, BLACK, WHITE);
+//    }
+//    else {
+//	*on = 1;
+//	graphBoxDraw(box, WHITE, BLACK);
+//    }
+//
+//}
+//static void setfsPlotHeight(char *cp)
+//{
+//    fsPlotHeight = atof(cp);
+//}
+//    
+//
+//void selectFeatures(void)
+//{
+//  int i, box;
+//  float y=1.0;
+//
+//  if (!graphActivate(fsGraph))
+//    {
+//      fsGraph = graphCreate (TEXT_SCROLL, "Feature Series Selection Tool", 0, 0, 0.4, 0.6);
+//    }
+//  graphPop();
+//  graphRegister(PICK, fsSel);
+//
+//  if (1 /* dotterWindow */) {
+//
+//    box = graphButton("Show bottom series", fsToggleBottom, 1, y);
+//    if (!fsBottomOn) graphBoxDraw(box, BLACK, WHITE);
+//    else graphBoxDraw(box, WHITE, BLACK);
+//    y += 1.5;
+//
+//    box = graphButton("Show right series", fsToggleRight, 1, y);
+//    if (!fsRightOn) graphBoxDraw(box, BLACK, WHITE);
+//    else graphBoxDraw(box, WHITE, BLACK);
+//    y += 1.5;
+//
+//    box = graphButton("Show bottom annotations", fsToggleAnnBottom, 1, y);
+//    if (!fsAnnBottomOn) graphBoxDraw(box, BLACK, WHITE);
+//    else graphBoxDraw(box, WHITE, BLACK);
+//    y += 1.5;
+//
+//    box = graphButton("Show right annotations", fsToggleAnnRight, 1, y);
+//    if (!fsAnnRightOn) graphBoxDraw(box, BLACK, WHITE);
+//    else graphBoxDraw(box, WHITE, BLACK);
+//    y += 1.5;
+//
+//    box = graphButton("Draw lines at segment ends", fsToggleEndLines, 1, y);
+//    if (!fsEndLinesOn) graphBoxDraw(box, BLACK, WHITE);
+//    else graphBoxDraw(box, WHITE, BLACK);
+//    y += 2;
+//  }
+//
+//  sprintf(fsPlotHeighttx, "%.1f", fsPlotHeight);
+//  graphText("Height of curves (XY series):", 1, y);
+//  graphTextScrollEntry (fsPlotHeighttx, 6, 4, 31, y, setfsPlotHeight);
+//  y += 2;
+//
+//  graphLinewidth(0.1);
+//  graphLine(0, y, 2000, y);
+//  y += 0.5;
+//
+//  graphText("Pick to select/unselect series", 1, y);
+//  y += 1.5;
+//  graphButton("All", fsSelAll, 1, y);
+//  graphButton("No curves", fsSelNoCurves, 13, y);
+//  graphButton("No segments", fsSelNoSegments, 24, y);
+//  fsBoxStart = 1+graphButton("None", fsSelNone, 6, y);
+//  y += 2;
+//
+//  graphTextBounds(50, gArrayGetLen(fsArr) * 1.5 + y + 5);
+//
+//  for (i = 0; i < gArrayGetLen(fsArr); i++)
+//    {
+//      float  margin = 0.1;
+//      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//
+//      box = graphBoxStart();
+//      graphText(fs->name, 1, y);      
+//      graphRectangle(1 - margin, y - margin, 1 + margin + strlen(fs->name), y + 1 + margin);
+//      graphBoxEnd();
+//
+//      if (!fs->on) 
+//	{
+//	  graphBoxDraw(box, BLACK, WHITE);
+//	}
+//      else 
+//	{
+//	  graphBoxDraw(box, WHITE, BLACK);
+//	}
+//	
+//      y += 1.5;
+//    }
+//
+//  graphRedraw();
+//
+//  return ;
+//}
+//
+//
+//float fsTotalHeight(MSP *msplist)
+//{
+//    int i;
+//    float maxy = 0;
+//	
+//    if (!fsArr || !gArrayGetLen(fsArr))
+//      {
+//	return 0.0;
+//      }
+//
+//    for (i = 0; i < gArrayGetLen(fsArr); i++) 
+//      {
+//	FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//	fs->y = fs->x = 0;
+//      }
+//	
+//    for (msp = msplist; msp; msp = msp->next) 
+//      {
+//        if (mspShowFs(msp))
+//	  {
+//	    if (msp->type == BLXMSP_XY_PLOT) 
+//	      {
+//		mspGetFsBottomEdge(msp, &maxy, fsPlotHeight+1);
+//	      }
+//	    else if (msp->type == BLXMSP_FS_SEG) 
+//	      {
+//		mspGetFsBottomEdge(msp, &maxy, 1+1);
+//	      }
+//	  }
+//      }
+//    
+//    return maxy + 2;
+//}
 
 
 /* Find an executable and return its complete pathname.
@@ -3511,7 +2305,7 @@ int findCommand (char *command, char **retp)
 	retval = 1;
     }
     else {
-	strcpy(retstr, "Can't find executable 'dotter' in path");
+	strcpy(retstr, "Can't find executable 'dotter' in path.\n");
 	retval = 0;
     }
 
@@ -3521,530 +2315,351 @@ int findCommand (char *command, char **retp)
 #endif
 }
 
-static void stringProtect(FILE *file, const char *string)
+//static void stringProtect(FILE *file, const char *string)
+//{
+//  const char *cp;
+// 
+//  fputc(' ', file);
+//  fputc('"', file);
+//  if (string)
+//    for(cp = string; *cp; cp++)
+//      {
+//	if (*cp == '"' || *cp == '$')
+//	  fputc('$', file);
+//	fputc(*cp, file);
+//      }
+//  fputc('"', file);
+//  
+//}
+
+
+/* Callbacks to be called when the dotter parameters have changed. */
+static gboolean onZoomFactorChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
-  const char *cp;
- 
-  fputc(' ', file);
-  fputc('"', file);
-  if (string)
-    for(cp = string; *cp; cp++)
-      {
-	if (*cp == '"' || *cp == '$')
-	  fputc('$', file);
-	fputc(*cp, file);
-      }
-  fputc('"', file);
+  gboolean result = FALSE;
   
-}
-
-static void callDotter(int dotterZoom, int xstart, int ystart, int xend, int yend)
-{
-#if !defined(NO_POPEN)
-    FILE *pipe;
-    static char *noname = "NoName", *qnam, *snam ;
-    MSP *msp;
-
-    /* Need a name for correct number of arguments */
-    qnam = (*qname ? qname : noname);
-    snam = (*sname ? sname : noname);
-
-    if (xstart < 1)  xstart = 1;
-    if (xend > qlen) xend = qlen;
-    if (ystart < 1)  ystart = 1;
-    if (yend > slen) yend = slen;
-
-
-    /* Open pipe to new dotterBinary */
-    if (!dotterBinary) { 
-	printf("Looking for Dotter ...\n");
-	if (!findCommand("dotter", &(dotterBinary))) {
-	    g_critical("Failed to zoom in - %s.  "
-		    "($PATH=%s)", dotterBinary, getenv("PATH"));
-	    dotterBinary = 0;
-	    return;
-	}
-    }
-    printf("Calling %s with region: %d,%d - %d,%d\n", 
-	   dotterBinary, xstart, ystart, xend, yend);
-    fflush(stdout);
-
-    pipe = (FILE *)popen(messprintf("/bin/csh -cf \"%s -z %d -q %d -s %d -S '%s' %d '%s' %d %s %s\"", 
-				    dotterBinary, 
-				    dotterZoom, 
-				    xstart-1+qoffset, 
-				    ystart-1+soffset, 
-				    qnam, 
-				    xend-xstart+1, 
-				    snam, 
-				    yend-ystart+1,
-				    dotterBinary,
-				    (Xoptions ? Xoptions : "")), 
-			 "w");
-
-    fwrite(qseq+xstart-1, 1, xend-xstart+1, pipe);
-    fwrite(sseq+ystart-1, 1, yend-ystart+1, pipe);
-
-    /* Pass on features */
-    for (msp = MSPlist; msp; msp = msp->next) 
-      {
-	if (msp->type == BLXMSP_FS_SEG)
-	  {
-	    fprintf(pipe, "%d %f %d %d %d %d", 
-		    msp->type,
-		    msp->score, 
-		    msp->fsColor, 
-		    mspGetQStart(msp) +MSPoffset,
-		    mspGetQEnd(msp)   +MSPoffset,
-		    msp->fs ? msp->fs->order : 0);
-	    stringProtect(pipe, mspGetSName(msp));
-	    stringProtect(pipe, msp->sframe);
-	    stringProtect(pipe, msp->qname);
-	    stringProtect(pipe, msp->qframe);
-	    stringProtect(pipe, msp->desc);
-	    fputc('\n', pipe);
-	  }
-      }
-
-    fprintf(pipe, "%c\n", EOF);
-    fflush(pipe);
-#endif
-}
-
-
-static void callDotterParams(void)
-{
-  static int dotterZoom=0, xstart=0, ystart=0, xend=0, yend=0;
-  ACEIN params_in;
-
-  params_in = messPrompt ("Dotter parameters: zoom (compression) factor, "
-			  "xstart, ystart, xend, yend", 
-			  messprintf("%d %d %d %d %d", 
-				     dotterZoom,
-				     xstart, ystart, xend, yend),
-			  "iiiiiz", 0);
-  if (!params_in)
-    return;
-
-  aceInInt(params_in, &dotterZoom);
-  aceInInt(params_in, &xstart);
-  aceInInt(params_in, &ystart);
-  aceInInt(params_in, &xend);
-  aceInInt(params_in, &yend);
-  aceInDestroy (params_in);
-
-  callDotter(dotterZoom, xstart, ystart, xend, yend);
-
-  return;
-} /* callDotterParams */
-
-
-static void MiddleUp (double x, double y) 
-{
-  int  xstart, ystart, xend, yend, t ;
-
-  boundaries(&x, &y);
-
-  if (oldrectx)
-    {
-      graphXorLine(rectx, recty, rectx, oldrecty);
-      graphXorLine(rectx, recty, oldrectx, recty);
-      graphXorLine(oldrectx, recty, oldrectx, oldrecty);
-      graphXorLine(rectx, oldrecty, oldrectx, oldrecty);
-    }
-
-  if (x < rectx)
-    {
-      t = rectx;
-      rectx = x;
-      x = t;
-    }
-
-  if (y < recty)
-    {
-      t = recty;
-      recty = y;
-      y = t;
-    }
-
-  xstart = (rectx-LeftBorder)*zoom*resfac;
-  ystart = (recty-TopBorder)*zoom;
-
-  xend = (x-LeftBorder)*zoom*resfac;
-  yend = (y-TopBorder)*zoom;
-
-  /* Ignore small mouse moves as they are likely to be accidental or cancelled clicks... */
-  if (xend-xstart > 10 && yend-ystart > 10)
-    {
-      callDotter(0, xstart, ystart, xend, yend) ;
-    }
-
-  return ;
-}
-
-
-static void MiddleDrag (double x, double y) 
-{
-    boundaries(&x, &y);
-
-    if (oldrectx) {
-	graphXorLine(rectx, recty, rectx, oldrecty);
-	graphXorLine(rectx, recty, oldrectx, recty);
-	graphXorLine(oldrectx, recty, oldrectx, oldrecty);
-	graphXorLine(rectx, oldrecty, oldrectx, oldrecty);
-    }
-    
-    graphXorLine(rectx, recty, rectx, y);
-    graphXorLine(rectx, recty, x, recty);
-    graphXorLine(x, recty, x, y);
-    graphXorLine(rectx, y, x, y);
-
-    oldrectx = x;
-    oldrecty = y;
-}
-
-static void MiddleDown (double x, double y) 
-{ 
-    boundaries(&x, &y);
-
-    rectx = x;
-    recty = y;
-    oldrectx = oldrecty = 0;
-
-    graphRegister (MIDDLE_DRAG, MiddleDrag);
-    graphRegister (MIDDLE_UP, MiddleUp);
-}
-
-
-static void initWindow(char *winsize)
-{
-    double 
-	exp1, exp2, exp3;
-    int
-	win1, win2, win3;
-
-    /* Call winsizeFromlambdak even if we don't want to set the window
-       size in order to get the other parameters (exp_res_score) */
-
-    if (blastx) {
-	win1 = winsizeFromlambdak(MATRIX, atob_0, abetsize, pepqseq[0], sseq, &exp1, &Lambda);
-	win2 = winsizeFromlambdak(MATRIX, atob_0, abetsize, pepqseq[1], sseq, &exp2, &Lambda);
-	win3 = winsizeFromlambdak(MATRIX, atob_0, abetsize, pepqseq[2], sseq, &exp3, &Lambda);
-	exp_res_score = (exp1 + exp2 + exp3)/3.0;
-	win = (win1 + win2 + win3)/3.0;
-    }
-    else if (blastn)
-	win = winsizeFromlambdak(MATRIX, ntob, abetsize, qseq, sseq, &exp_res_score, &Lambda);
-    else
-	win = winsizeFromlambdak(MATRIX, atob_0, abetsize, qseq, sseq, &exp_res_score, &Lambda);
-    
-
-
-    if (!winsize || freeupper(*winsize) == 'K') {
-	if (win < 3) {
-	    g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 10 instead.\n", win);
-	    win = 10;
-	}
-	if (win > 50) {
-	    g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 50 instead.\n", win);
-	    win = 50;
-	}
-	return;
-    }
-
-    if (!atoi(winsize))
-	g_error("Bad window size specification: %s", winsize);
-    win = atoi(winsize);
-}
-
-
-static void setWindow(void)
-{
-  ACEIN size_in;
-
-  if (!(size_in = messPrompt ("Give window size", 
-			      messprintf("%d", win), 
-			      "iz", 0)))
-    return;
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
   
-  aceInInt(size_in, &win) ;
-  aceInDestroy (size_in);
-
-  calcWindow();
-  dotterRedraw();
-    
-    /*    
-       sprintf(banner, "%s (horizontal) vs %s (vertical).  Window = %d, Pixel values = %d x score/residue, Matrix = %s", 
-       qname, sname, win, pixelFac, MATRIX_NAME);
-       graphBoxDraw(bannerbox, BLACK, WHITE);
-       */  
-}
-
-
-static void dotterDestroy(void)
-{
-  int i;
-  /* Free Dotter stuff */
-  handleDestroy(handle);
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  gdouble newValue = g_strtod(text, NULL);
   
-  if (blastx)
+  if (newValue <= 0)
     {
-      for (i = 0; i < 3; i++)
-	{
-	  g_free(pepqseq[i]);
-	}
-    }
-
-  /* Free stuff g_malloc'ed in calling routine (usually blixem or dotterMain) */
-  g_free(qseq);
-  g_free(sseq);
-
-  /* Don't free MSP's since that will screw blixem up !!! */
-  
-  if (graphActivate(dotterGraph))
-    graphClear();
-
-  g_free(data);
-  g_free(HSPpixels);
-  
-  if (graphActivate(alnGraph))
-    {
-      graphDestroy() ;
-      alignmentInitialized = 0 ;
-    }
-
-  if (graphActivate(fsGraph))
-    graphDestroy();
-  /* if (graphActivate(rampGraph)) graphDestroy();*/
-
-  return ;
-}
-
-
-static void initCrosshair(void)
-{
-  if (!CrosshairON)
-    {
-      menuSetFlags(menuItem(dotterMenu, toggleCrosshairPosStr), MENUFLAG_HIDE);
-      menuSetFlags(menuItem(dotterMenu, toggleCrosshairFullscreenStr), MENUFLAG_HIDE);
+      g_critical("Zoom factor must be greater than zero.\n");
     }
   else
     {
-      menuUnsetFlags(menuItem(dotterMenu, toggleCrosshairPosStr), MENUFLAG_HIDE);
-      menuUnsetFlags(menuItem(dotterMenu, toggleCrosshairFullscreenStr), MENUFLAG_HIDE);
+      properties->dotterWinCtx->zoomFactor = newValue;
+      result = TRUE;
+    }
+  
+  return result;
+}
 
-      /* Set up crosshair boxes ***********************/
-      graphColor(BLUE);
-	
-      if (!CrosshairFullscreenON)
-	{
-	  hLineBox = graphBoxStart();
-	  graphLine(LeftBorder, crossy, LeftBorder-2+qlen4, crossy);
-	  graphBoxEnd();
-	
-	  vLineBox = graphBoxStart();
-	  graphLine(crossx, TopBorder, crossx, TopBorder-2+slen4);
-	  graphBoxEnd();
-	}
-      else
-	{
-	  int nx, ny;
+static gboolean onQStartChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  int newValue = convertStringToInt(text);
+  
+  if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
+    g_warning("Limiting reference sequence start to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+  
+  boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
+  
+  properties->dotterWinCtx->refSeqRange.min = newValue;
+  
+  return TRUE;
+}
 
-	  graphGetBounds(&nx, &ny) ;
+static gboolean onQEndChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  int newValue = convertStringToInt(text);
+  
+  if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
+    g_warning("Limiting reference sequence end to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
 
-	  hLineBox = graphBoxStart();
-	  graphLine(0.0, crossy, (float)nx+1000, crossy);
-	  graphBoxEnd();
+  boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
+  
+  properties->dotterWinCtx->refSeqRange.max = newValue;
+  
+  return TRUE;
+}
+
+static gboolean onSStartChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  int newValue = convertStringToInt(text);
+  
+  if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
+    g_warning("Limiting vertical sequence start to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+
+  boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
+  
+  properties->dotterWinCtx->matchSeqRange.min = newValue;
+  
+  return TRUE;
+}
+
+static gboolean onSEndChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  int newValue = convertStringToInt(text);
+  
+  if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
+    g_warning("Limiting vertical sequence end to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+
+  boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
+  
+  properties->dotterWinCtx->matchSeqRange.max = newValue;
+  
+  return TRUE;
+}
+
+static gboolean onSlidingWinSizeChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  gboolean result = FALSE;
+  
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  int newValue = convertStringToInt(text);
+
+  GError *error = NULL;
+  dotplotSetSlidingWinSize(properties->dotplot, newValue, &error);
+  
+  if (error)
+    {
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+    }
+  else
+    {
+      result = TRUE;
+    }
+  
+  return result;
+}
+
+
+/* Create a text entry box initialised with the given double */
+static void createTextEntryFromDouble(GtkWidget *dotterWindow,
+                                      GtkTable *table, 
+                                      const int row,
+                                      const int col,
+                                      const int xpad,
+                                      const int ypad,
+                                      const char *mnemonic,
+                                      const double value,
+                                      BlxResponseCallback callback)
+{
+  if (mnemonic)
+    {
+      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
+      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
+      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+    }
+  
+  GtkWidget *entry = gtk_entry_new();
+  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+
+  /* Only display decimal places if not a whole number */
+  const int numDp = value - (int)value > 0 ? 1 : 0;
+  
+  char *displayText = convertDoubleToString(value, numDp);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
+
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  widgetSetCallbackData(entry, callback, dotterWindow);
+}
+
+/* Create a text entry box initialised with the given integer */
+static void createTextEntryFromInt(GtkWidget *dotterWindow,
+                                   GtkTable *table, 
+                                   const int row,
+                                   const int col,
+                                   const int xpad,
+                                   const int ypad,
+                                   const char *mnemonic,
+                                   const int value,
+                                   BlxResponseCallback callback)
+{
+  if (mnemonic)
+    {
+      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
+      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
+      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+    }
+  
+  GtkWidget *entry = gtk_entry_new();
+  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  
+  char *displayText = convertIntToString(value);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
+
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  widgetSetCallbackData(entry, callback, dotterWindow);
+}
+
+
+/* Callback when we receive a response for the settings dialog */
+static void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  GtkWidget *dotterWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      /* Destroy if successful */
+      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      redrawAll(dotterWindow, NULL);
+      break;
       
-	  vLineBox = graphBoxStart();
-	  graphLine(crossx, 0.0, crossx, (float)ny+1000);
-	  graphBoxEnd();
-	}
-
-      if (CrosshairPosON)
-	{
-	  setQposSpos((int)(crossx-LeftBorder)*zoom, (int)(crossy-TopBorder)*zoom);
-	  sprintf(CrosshairPosText, "%s, %s", qpos, spos);
-	  CrosshairPosBox = graphBoxStart();
-	  graphTextPtr(CrosshairPosText, crossx+10, crossy+10, 25);
-	  graphBoxEnd();
-	  graphBoxDraw(CrosshairPosBox, BLUE, TRANSPARENT);
-	}
-	
-      graphColor(BLACK);
-    }
-
-  return ;
-}
-
-
-static void togglePixelmap(void)
-{
-    if (!PixelmapON) 
-    {
-	if (!pixelmap_done) {
-	    calcWindow();
-	}
-	PixelmapON = 1;
-    }
-    else 
-	PixelmapON = 0;
-
-    dotterRedraw();
-}
-
-
-static void toggleGrid(void)
-{
-    gridOn = (gridOn ? 0 : 1);
-    dotterRedraw();
-}
-
-
-static void initGreyramp(void)
-{
-    int min = 40;
-    int max = 100;
-    
-    if (greyRampSwap) {
-
-      gexRampSet(min, max);
-      gexRampTool();
-
-    }
-    else {
-      gexRampSet(max, min);
-      gexRampTool();
-
-    }
-
-    return;
-}
-
-
-static void dotterRedraw(void)
-{
-  static int bannerPos;
-
-  if (!graphActivate(dotterGraph))
-    {
-      float w, h, fw, fh;
-      int pw, ph;
-      BOOL oldMap = graphSetInstallMap(TRUE);
-
-
-      /* (rbrusk): should initialize these for all new dotterGraphs...*/
-      vLineBox = hLineBox = 0 ;
-
-      graphScreenSize(&w, &h, &fw, &fh, &pw, &ph);
-
-      fonth = ph/fh;
-      fontw = pw/fw;
-
-      dotterGraph = graphCreate (PIXEL_SCROLL, 
-				 messprintf("Dotter %s vs. %s", qname, sname), 
-				 0, 0, 
-				 (LeftBorder+qlen4+60 + fsTotalHeight(MSPlist)*fonth + (MSPlist ? 40:0))*w/pw, 
-				 (TopBorder +slen4+60 + fsTotalHeight(MSPlist)*fonth + (MSPlist ? 40:0))*h/ph) ;
-
-      graphNewMenu (dotterMenu);
-
-      /* The menu toggle stuff is all wrong - there's been a misunderstanding
-	 I've done the minium to make it work, but it needs to be fixed 
-	 properly - srk */
-      /* Why must setMenuCheckmarks() be here? - esr */
-      setMenuCheckmarks();
-      graphRegister(MIDDLE_DOWN, MiddleDown) ;
-      graphRegister(KEYBOARD, keyboard);
-      graphRegister(DESTROY, dotterDestroy ); 
-      graphRegister(LEFT_DOWN, LeftDown);
-      graphRegister(RAMP_CHANGE, dotterRampChange);
-      initGreyramp();
-
-      graphActivate(dotterGraph);
-      graphSetInstallMap(oldMap);
-
-    }
-
-  graphClear();
-  graphPop();
-
-  if (fsArr)
-    {
-      menuUnsetFlags(menuItem(dotterMenu, selectFeaturesStr), MENUFLAG_HIDE);
-    }
-
-    
-  /*    sprintf(banner, "%s (horizontal) vs. %s (vertical).  Window = %d, Pixel values = %d x score/residue, Matrix = %s",
-	qname, sname, win, pixelFac, MATRIX_NAME);
-	graphTextPtr(banner, 5, 5, strlen(banner)+5);
-  */
-    
-  sprintf(banner, "%s (horizontal) vs. %s (vertical)", qname, sname);
-  bannerPos = (strlen(banner)*fontw < qlen ? LeftBorder : 10);
-  graphText(banner, bannerPos, 5);
-  if (!printMode)
-    graphButton("About", Help, bannerPos, 20);
-    
-  graphPixelBounds(LeftBorder+qlen4+60 + fsTotalHeight(MSPlist)*fonth + (MSPlist ? 40:0), 
-		   TopBorder +slen4+60 + fsTotalHeight(MSPlist)*fonth + (MSPlist ? 40:0));
-
-  if (PixelmapON && !(BlastHSPsOn && BlastMode == BLASTGREY))
-    {
-      graphPixelsRaw ((unsigned char *)data, qlen4, slen4, qlen4, LeftBorder, TopBorder);
-    }
-	
-  if (BlastHSPsOn)
-    {
-      static int gapwarned = 0;
-
-    if (BlastMode == BLASTGREY)
-      {
-	if (!HSPpixels)
-	  { 
-	    int i;
-	    HSPpixels = (UCHAR *)g_malloc(datalen);
-	    for (i=0; i < datalen; i++)
-	      HSPpixels[i] = 0;
-	  }
-	graphPixelsRaw ((unsigned char *)HSPpixels, qlen4, slen4, qlen4, LeftBorder, TopBorder);
-      }
-
-    drawBlastHSPs();
-    
-    if (HSPgaps && !gapwarned)
-      {
-	graphRedraw();
-	g_critical("Note: gapped HSPs are shown ungapped in Dotter.");
-	gapwarned = 1;
-      }
-    }
-
-  initCrosshair();
-  drawScale();
-  drawAllFeatures(MSPlist);
+    case GTK_RESPONSE_APPLY:
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      redrawAll(dotterWindow, NULL);
+      destroy = FALSE;
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
   
-  graphRedraw();
+  if (destroy)
+    {
+      /* If it's a persistent dialog, just hide it, otherwise destroy it */
+      const gboolean isPersistent = GPOINTER_TO_INT(data);
+      
+      if (isPersistent)
+        {
+          gtk_widget_hide_all(GTK_WIDGET(dialog));
+        }
+      else
+        {
+          gtk_widget_destroy(GTK_WIDGET(dialog));
+        }
+    }
+}
 
-  if (graphActivate(alnGraph)) 
-    graphPop();
+
+/* Pop up a dialog to allow the user to set the dotter parameters */
+static void showSettingsDialog(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  const DotterDialogId dialogId = DOTDIALOG_SETTINGS;
+  GtkWidget *dialog = getPersistentDialog(dwc->dialogList, dialogId);
+  
+  if (!dialog)
+    {
+      /* Create the dialog */
+      dialog = gtk_dialog_new_with_buttons("Settings", 
+                                           GTK_WINDOW(dotterWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           GTK_STOCK_CANCEL,
+                                           GTK_RESPONSE_REJECT,
+                                           NULL);
+      
+      /* These 2 calls are required to make the dialog persistent... */
+      addPersistentDialog(dwc->dialogList, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseSettingsDialog), GINT_TO_POINTER(TRUE));
+    }
   else
     {
-      if (!alignmentInitialized && !getenv("ACEDB_PROJECT"))
-	{
-	  initAlignment() ;
-	  alignmentInitialized = 1 ;
-	}
+      /* Clear contents and re-create */
+      dialogClearContentArea(GTK_DIALOG(dialog));
     }
 
-  gexRampPop();
+  const int numRows = 4;
+  const int numCols = 3;
+  const int xpad = 2;
+  const int ypad = 2;
+  
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(table));
+  
+  createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
+  createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "_Horizontal range: ", dwc->refSeqRange.min, onQStartChanged);
+  createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, dwc->refSeqRange.max, onQEndChanged);
+  createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", dwc->matchSeqRange.min, onSStartChanged);
+  createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, dwc->matchSeqRange.max, onSEndChanged);
+  createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+  
 
-  if (graphActivate(fsGraph)) 
-    graphPop() ;
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  gtk_widget_show_all(dialog);
+  gtk_window_present(GTK_WINDOW(dialog));
+  
+  return;
+}
 
-  graphActivate(dotterGraph);
 
-  return ;
+/* Redraw the main dotter window, the alignment tool and the greyramp tool. Re-calculates borders etc. */
+static void redrawAll(GtkWidget *dotterWindow, gpointer data)
+{
+  gtk_widget_queue_draw(dotterWindow);
+  
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  /* Check the range values are the correct way round. */
+  sortValues(&dwc->refSeqRange.min, &dwc->refSeqRange.max, TRUE);
+  sortValues(&dwc->matchSeqRange.min, &dwc->matchSeqRange.max, TRUE);
+  
+  if (properties)
+    {
+      gtk_widget_queue_draw(properties->greyrampTool);
+      gtk_widget_queue_draw(properties->alignmentTool);
+      redrawDotplot(properties->dotplot);
+    }
+}
+
+
+/* Refresh the main dotter window, the alignment tool and the greyramp tool. Clears any cached
+ * pixmaps but does not recalculate borders etc. */
+static void refreshAll(GtkWidget *dotterWindow, gpointer data)
+{
+  gtk_widget_queue_draw(dotterWindow);
+  
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  if (properties)
+    {
+      gtk_widget_queue_draw(properties->greyrampTool);
+      gtk_widget_queue_draw(properties->alignmentTool);
+      refreshDotplot(properties->dotplot);
+    }
 }
 
 
@@ -4139,9 +2754,620 @@ void argvAdd(int *argc, char ***argv, char *s)
 
 
 /* Utility to get the length of the given GArray. Returns 0 if array is null. */
-static int gArrayGetLen(GArray *array)
+//static int gArrayGetLen(GArray *array)
+//{
+//  return (array ? array->len : 0);
+//}
+
+
+/***********************************************************
+ *               Show/hide parts of the view               *
+ ***********************************************************/
+
+/* Show the greyramp tool, bringing it to the front. Create it if it doesn't exist */
+static void showGreyrampTool(GtkWidget *dotterWindow)
 {
-  return (array ? array->len : 0);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  if (properties->greyrampTool && GTK_IS_WIDGET(properties->greyrampTool))
+    {
+      gtk_widget_show_all(properties->greyrampTool);
+      
+      if (GTK_IS_WINDOW(properties->greyrampTool))
+	{
+	  gtk_window_present(GTK_WINDOW(properties->greyrampTool));
+	}
+    }
+  else
+    {
+      properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx->dotterCtx, 40, 100, FALSE);
+    }
 }
+
+
+/* Show the alignment tool, bringing it to the front. Create it if it doesn't exist */
+static void showAlignmentTool(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  if (properties->alignmentTool && GTK_IS_WIDGET(properties->alignmentTool))
+    {
+      gtk_widget_show_all(properties->alignmentTool);
+      
+      if (GTK_IS_WINDOW(properties->alignmentTool))
+	{
+	  gtk_window_present(GTK_WINDOW(properties->alignmentTool));
+	}
+    }
+  else
+    {
+      properties->alignmentTool = createAlignmentTool(properties->dotterWinCtx);
+    }
+}
+
+
+/***********************************************************
+ *                       Help Dialog                       *
+ ***********************************************************/
+
+/* Returns a string which is the name of the Blixem application. */
+static char *dotterGetAppName(void)
+{
+  return DOTTER_TITLE ;
+}
+
+/* Returns a copyright string for the Dotter application. */
+static char *dotterGetCopyrightString(void)
+{
+  return DOTTER_COPYRIGHT_STRING ;
+}
+
+/* Returns the Dotter website URL. */
+static char *dotterGetWebSiteString(void)
+{
+  return DOTTER_WEBSITE_STRING ;
+}
+
+/* Returns a comments string for the Dotter application. */
+static char *dotterGetCommentsString(void)
+{
+  return DOTTER_COMMENTS_STRING(DOTTER_TITLE, DOTTER_VERSION, DOTTER_RELEASE, DOTTER_UPDATE) ;
+}
+
+/* Returns a license string for the dotter application. */
+static char *dotterGetLicenseString(void)
+{
+  return DOTTER_LICENSE_STRING ;
+}
+
+/* Returns a string representing the Version/Release/Update of the Dotter code. */
+static char *dotterGetVersionString(void)
+{
+  return DOTTER_VERSION_STRING ;
+}
+
+/* Shows the 'About' dialog */
+static void showAboutDialog(GtkWidget *parent)
+{
+#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
+  const gchar *authors[] = {DOTTER_AUTHOR_LIST, NULL} ;
+  
+  gtk_show_about_dialog(GTK_WINDOW(parent),
+			"authors", authors,
+			"comments", dotterGetCommentsString(), 
+			"copyright", dotterGetCopyrightString(),
+			"license", dotterGetLicenseString(),
+			"name", dotterGetAppName(),
+			"version", dotterGetVersionString(),
+			"website", dotterGetWebSiteString(),
+			NULL) ;
+#endif
+  
+  return ;
+}
+
+
+static void onResponseHelpDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      destroy = TRUE;
+      break;
+      
+    case GTK_RESPONSE_HELP:
+      showAboutDialog(NULL);
+      destroy = FALSE;
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      /* If it's a persistent dialog, just hide it, otherwise destroy it */
+      const gboolean isPersistent = GPOINTER_TO_INT(data);
+      
+      if (isPersistent)
+        {
+          gtk_widget_hide_all(GTK_WIDGET(dialog));
+        }
+      else
+        {
+          gtk_widget_destroy(GTK_WIDGET(dialog));
+        }
+    }
+}
+
+
+static void showHelpDialog(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  const DotterDialogId dialogId = DOTDIALOG_HELP;
+  
+  GtkWidget *dialog = getPersistentDialog(dwc->dialogList, dialogId);
+  
+  if (!dialog)
+    {
+      /* Create the dialog */
+      dialog = gtk_dialog_new_with_buttons("Help", 
+                                           NULL, 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_ABOUT,
+                                           GTK_RESPONSE_HELP,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
+
+      /* These 2 calls are required to make the dialog persistent... */
+      addPersistentDialog(dwc->dialogList, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseHelpDialog), GINT_TO_POINTER(TRUE));
+    }
+  else
+    {
+      /* Clear contents and re-create */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
+      
+  const int width = dotterWindow->allocation.width * 0.5;
+  int height = dotterWindow->allocation.height * 0.7;
+
+  DotterContext *dc = dwc->dotterCtx;
+
+  char *messageText = blxprintf(DOTTER_HELP_TEXT, 
+                                dotplotGetSlidingWinSize(properties->dotplot), 
+                                dotplotGetPixelFac(properties->dotplot), 
+                                dc->matrixName, 
+                                dwc->zoomFactor);
+  
+  GtkWidget *child = createScrollableTextView(messageText, TRUE, dotterWindow->style->font_desc, TRUE, &height, NULL);
+  
+  g_free(messageText);
+  
+  gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
+  
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  gtk_widget_show_all(dialog);
+  gtk_window_present(GTK_WINDOW(dialog));
+}
+
+
+/***********************************************************
+ *                          Events                         *
+ ***********************************************************/
+
+static void onQuitMenu(GtkAction *action, gpointer data)
+{
+  /* Close all associated windows */
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterContext *dc = dotterGetContext(dotterWindow);
+  dotterContextCloseAllWindows(dc);
+}
+
+static void onSavePlotMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  GError *error = NULL;
+  savePlot(properties->dotplot, NULL, &error);
+  
+  prefixError(error, "Error saving plot. ");
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+}
+
+static void onPrintMenu(GtkAction *action, gpointer data)
+{
+//  GtkWidget *dotterWindow = GTK_WIDGET(data);
+}
+
+static void onSettingsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  showSettingsDialog(dotterWindow);
+}
+
+static void onHelpMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  showHelpDialog(dotterWindow);
+}
+
+static void onAboutMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  showAboutDialog(dotterWindow);
+}
+
+static void onShowGreyrampMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  showGreyrampTool(dotterWindow);
+}
+
+static void onShowAlignmentMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  showAlignmentTool(dotterWindow);
+}
+
+static void onToggleCrosshairMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  toggleCrosshairOn(properties->dotplot);
+}
+
+static void onToggleCoordsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  toggleCrosshairCoordsOn(properties->dotplot);
+}
+
+static void onToggleFullscreenMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  toggleCrosshairFullscreen(properties->dotplot);
+}
+
+static void onTogglePixelmapMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  dotplotTogglePixelmap(properties->dotplot);
+}
+
+static void onToggleGridMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  dotplotToggleGrid(properties->dotplot);
+}
+
+static void onToggleHspMode(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  const DotterHspMode hspMode = gtk_radio_action_get_current_value(current);
+  setHspMode(properties->dotplot, hspMode);
+}
+
+//static void GHelp(GtkButton *button, gpointer data)
+//{
+//  GtkWidget *dotterWindow = GTK_WIDGET(data);
+//  showHelpDialog(dotterWindow);
+//}
+
+
+/* Mouse button handler */
+static gboolean onButtonPressDotter(GtkWidget *window, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
+    {
+      GtkMenu *contextMenu = GTK_MENU(data);
+      gtk_menu_popup (contextMenu, NULL, NULL, NULL, NULL, event->button, event->time);
+    }
+  else if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
+    {
+      /* If the dot-plot was clicked the selected coords will have changed. Perform required updates. */
+      updateOnSelectedCoordsChanged(window);
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+
+/* Mouse move handler */
+static gboolean onMouseMoveDotter(GtkWidget *window, GdkEventMotion *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  if (event->state & GDK_BUTTON1_MASK)  /* left-drag */
+    {
+      /* If the dot-plot was clicked the selected coords will have changed. Perform required updates. */
+      updateOnSelectedCoordsChanged(window);
+      handled = TRUE;
+    }
+
+  return handled;
+}
+
+
+/* Get the factor to convert between nucleotide and display (e.g. peptide) coords, or 1 if no
+ * conversion is necessary */
+int getResFactor(DotterContext *dc, const gboolean horizontal)
+{
+  return horizontal && dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1;
+}
+
+
+/* Move the given sequence coord by the given number of coords (which can be negative to move 
+ * in the decreasing direction. 'horizontal' indicates whether it's the horizontal or vertical
+ * sequence that we're modifying and 'reverse' indicates whether that sequence's scale is shown reversed. */
+static void incrementCoord(GtkWidget *dotterWindow, 
+			   DotterContext *dc,
+			   int *coord, 
+			   const gboolean reverse, 
+			   const gboolean horizontal, 
+			   const gboolean convertCoords,
+			   const int numCoords)
+{
+  const int incValue = convertCoords ? numCoords * getResFactor(dc, horizontal) : numCoords;
+
+  if (reverse)
+    {
+      *coord -= incValue;
+    }
+  else
+    {
+      *coord += incValue;
+    }
+  
+  updateOnSelectedCoordsChanged(dotterWindow);
+}
+
+
+/* Handle up/down key presses */
+static gboolean onKeyPressUpDown(GtkWidget *dotterWindow, const gboolean isUp, const gboolean modifier)
+{
+  /* Increment/decrement the vertical (i.e. match) sequence coord */
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  const int numCoords = isUp ? -1 : 1;
+  
+  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->matchCoord, dwc->dotterCtx->vertScaleRev, FALSE, !modifier, numCoords);  
+  return TRUE;
+}
+
+
+/* Handle left/right key presses */
+static gboolean onKeyPressLeftRight(GtkWidget *dotterWindow, const gboolean isLeft, const gboolean modifier)
+{
+  /* Increment/decrement the horizontal (i.e. reference) sequence coord */
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  const int numCoords = isLeft ? -1 : 1;
+  
+  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->refCoord, dwc->dotterCtx->hozScaleRev, TRUE, !modifier, numCoords);
+  return TRUE;
+}
+
+/* Handle comma/period key presses */
+static gboolean onKeyPressCommaPeriod(GtkWidget *dotterWindow, const gboolean isComma, const gboolean modifier)
+{
+  /* Increment/decrement both sequence coords */
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->refCoord, dwc->dotterCtx->hozScaleRev, TRUE, !modifier, isComma ? -1 : 1);
+  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->matchCoord, dwc->dotterCtx->vertScaleRev, FALSE, !modifier, isComma ? -1 : 1);
+  return TRUE;
+}
+
+/* Handle left/right square bracket presses */
+static gboolean onKeyPressLeftRightBracket(GtkWidget *dotterWindow, const gboolean isLeft, const gboolean modifier)
+{
+  /* Increment the horizontal and decrement the vertical, or vice versa */
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->refCoord, dwc->dotterCtx->hozScaleRev, TRUE, !modifier, isLeft ? -1 : 1);
+  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->matchCoord, dwc->dotterCtx->vertScaleRev, FALSE, !modifier, isLeft ? 1 : -1);
+  return TRUE;
+}
+
+
+/* Key press handler for dotter windows (including main window and alignment tool etc.). The widget
+ * that the key press was initiated on is passed as 'widget' and the main window is passed as 'data' */
+gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  
+  //  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
+const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
+  //  const gboolean altModifier = (event->state & GDK_MOD1_MASK) == GDK_MOD1_MASK;
+  
+  switch (event->keyval)
+    {
+      case GDK_Up:            handled = onKeyPressUpDown(dotterWindow, TRUE, shiftModifier);        break;
+      case GDK_Down:          handled = onKeyPressUpDown(dotterWindow, FALSE, shiftModifier);       break;
+        
+      case GDK_Left:          handled = onKeyPressLeftRight(dotterWindow, TRUE, shiftModifier);     break;
+      case GDK_Right:         handled = onKeyPressLeftRight(dotterWindow, FALSE, shiftModifier);    break;
+        
+      case GDK_comma:         handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
+      case GDK_less:          handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
+      case GDK_period:        handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
+      case GDK_greater:       handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
+        
+      case GDK_bracketleft:   handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);	  break;
+      case GDK_braceleft:     handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);	  break;
+      case GDK_bracketright:  handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);	  break;
+      case GDK_braceright:    handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);	  break;
+        
+      default: break;
+  }
+  
+  return handled;
+}
+
+
+/***********************************************************
+ *                      Initialisation                     *
+ ***********************************************************/
+
+/* Create the UI manager for the menus */
+static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspMode)
+{
+  GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
+  
+  gtk_action_group_add_actions(action_group, menuEntries, G_N_ELEMENTS (menuEntries), window);
+  gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS (toggleMenuEntries), window);
+  gtk_action_group_add_radio_actions(action_group, radioMenuEntries, G_N_ELEMENTS (radioMenuEntries), hspMode, G_CALLBACK(onToggleHspMode), window);
+  
+  GtkUIManager *ui_manager = gtk_ui_manager_new ();
+  gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
+  GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
+  gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
+  
+  return ui_manager;
+}
+
+
+/* Create a menu. Optionally add it to the given menu bar with the given label */
+static GtkWidget* createDotterMenu(GtkWidget *window, 
+                                   const char *menuDescription, 
+                                   const char *menuLabel, 
+                                   const char *path, 
+                                   GtkMenuBar *menuBar,
+                                   GtkUIManager *ui_manager)
+{
+  GError *error = NULL;
+  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+    {
+      prefixError(error, "Building menus failed: ");
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+    }
+  
+  GtkWidget *menu = gtk_ui_manager_get_widget (ui_manager, path);
+  
+  if (menuBar)
+    {
+      GtkWidget *menuItem = gtk_menu_item_new_with_mnemonic(menuLabel);
+      gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuItem), menu);
+      gtk_menu_bar_append(menuBar, menuItem);
+    }
+  
+  return menu;
+}
+
+
+/* Create the dotter menu bar, and also creates a context menu if requested. */
+static GtkWidget *createDotterMenuBar(GtkWidget *window, const DotterHspMode hspMode, GtkUIManager *uiManager)
+{
+  GtkWidget *menuBar = gtk_menu_bar_new();
+  
+  createDotterMenu(window, fileMenuDescription, "_File", "/File", GTK_MENU_BAR(menuBar), uiManager);
+  createDotterMenu(window, editMenuDescription, "_Edit", "/Edit", GTK_MENU_BAR(menuBar), uiManager);
+  createDotterMenu(window, viewMenuDescription, "_View", "/View", GTK_MENU_BAR(menuBar), uiManager);
+  createDotterMenu(window, helpMenuDescription, "_Help", "/Help", GTK_MENU_BAR(menuBar), uiManager);
+  
+  return menuBar;
+}
+
+
+///* Create the dotter window toolbar */
+//static GtkWidget* createDotterWindowToolbar(GtkWidget *dotterWindow)
+//{
+//  GtkToolbar *toolbar = NULL;
+//  GtkWidget *toolbarContainer = createEmptyButtonBar(&toolbar);
+//  
+//  /* Just contains a 'help' button for now. */
+//  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP, "Help (Ctrl-H)", (GtkSignalFunc)GHelp, dotterWindow);
+//  
+//  return toolbarContainer;
+//}
+
+
+static GtkWidget* createDotterWindow(DotterContext *dc, 
+				     DotterWindowContext *dwc,
+                                     const DotterHspMode hspMode, 
+                                     GtkWidget *greyrampTool, 
+                                     GtkWidget *dotplotContainer, 
+                                     GtkWidget *dotplot)
+{
+  DEBUG_ENTER("createDotterWindow");
+
+  GtkWidget *dotterWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  char *title = blxprintf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
+  gtk_window_set_title(GTK_WINDOW(dotterWindow), title);
+  g_free(title);
+  
+  /* Create the menu bar, and a right-click context menu */
+  GtkUIManager *uiManager = createUiManager(dotterWindow, hspMode);
+  GtkWidget *menuBar = createDotterMenuBar(dotterWindow, hspMode, uiManager);
+  GtkWidget *contextMenu = createDotterMenu(dotterWindow, contextMenuDescription, "Context", "/Context", NULL, uiManager);
+  
+  /* We'll put everything in a vbox */
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(vbox));
+
+  gtk_box_pack_start(GTK_BOX(vbox), menuBar, FALSE, FALSE, 0);
+//  gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), dotplotContainer, TRUE, TRUE, 0);
+
+  
+  gtk_widget_add_events(dotterWindow, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_add_events(dotterWindow, GDK_POINTER_MOTION_MASK);
+  g_signal_connect(G_OBJECT(dotterWindow), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
+  g_signal_connect(G_OBJECT(dotterWindow), "button-press-event", G_CALLBACK(onButtonPressDotter), contextMenu);
+  g_signal_connect(G_OBJECT(dotterWindow), "motion-notify-event", G_CALLBACK(onMouseMoveDotter), NULL);
+  
+  /* Set the default window size based on the dotplot/exon widget size, up to a max based on screen size */
+  GdkScreen *screen = gtk_widget_get_screen(dotterWindow);
+  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
+  const int maxHeight = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
+  
+  int width = dotplotGetImageWidth(dotplot) + 100;
+  int height = dotplotGetImageHeight(dotplot) + 100;
+  height += 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
+  
+  width = min(width, maxWidth);
+  height = min(height, maxHeight);
+  
+  gtk_window_set_default_size(GTK_WINDOW(dotterWindow), width, height);
+  
+  gtk_widget_show_all(dotterWindow);
+  
+  DEBUG_EXIT("createDotterWindow returning ");
+  return dotterWindow;
+}
+
+
+
 
 /**************************** eof ***************************/

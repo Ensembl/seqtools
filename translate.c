@@ -28,7 +28,7 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.7 2010-06-11 09:29:48 gb10 Exp $
+ * CVS info:   $Id: translate.c,v 1.8 2010-10-22 11:58:59 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -57,7 +57,7 @@
  * 
  * Returns a ptr to the translation string on success, or NULL on failure.
  */
-char *blxTranslate(char  *seq, char **code)
+char *blxTranslate(const char *seq, char **code)
 {
   char *aaseq = NULL ;					    /* RETURN: the translation */
   int   codon;						    /* index for codon         */

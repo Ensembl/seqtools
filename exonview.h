@@ -6,6 +6,9 @@
  *
  */
 
+#ifndef _exon_view_included_
+#define _exon_view_included_
+
 #include <gtk/gtk.h>
 #include <SeqTools/blixem_.h>
 
@@ -22,3 +25,5 @@ void		exonViewToggleExpanded(GtkWidget *exonView);
 void            callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data);
 void		calculateExonViewHeight(GtkWidget *exonView);
 void            calculateExonViewHighlightBoxBorders(GtkWidget *exonView);
+
+#endif /* _exon_view_included_ */

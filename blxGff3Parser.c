@@ -25,9 +25,10 @@
  *-------------------------------------------------------------------
  */
 
-#include <SeqTools/blxGff3Parser_.h>
+#include <SeqTools/blxGff3Parser.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/blixem_.h>
+#include <SeqTools/blxmsp.h>
 #include <string.h>
 
 

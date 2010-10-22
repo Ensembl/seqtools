@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.41 2010-10-06 10:55:13 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.42 2010-10-22 11:58:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -53,6 +53,7 @@
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
+#include <SeqTools/blixem_.h>
 #include <wh/regular.h>
 
 #ifdef PFETCH_HTML 
@@ -428,8 +429,8 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 //#endif
 //}
 //#endif
-
-
+  
+   
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
 #ifdef ACEDB
 void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
@@ -458,9 +459,9 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
     }
   else if (!strcmp(fetchMode, BLX_FETCH_WWW_EFETCH))
     {
-        char *link = blxprintf("%s%s", URL, seqName);
-	seqtoolsLaunchWebBrowser(link, &error);
-        g_free(link);
+      char *link = blxprintf("%s%s", URL, seqName);
+      seqtoolsLaunchWebBrowser(link, &error);
+      g_free(link);
     }
 #ifdef ACEDB
   else if (!strcmp(fetchMode, BLX_FETCH_ACEDB))
@@ -1093,11 +1094,12 @@ gboolean blxConfigSetPFetchSocketPrefs(char *node, int port)
   return result ;
 }
 
+
 /* Set the preferences for pfetch-www mode from the config file */
 gboolean blxConfigGetPFetchWWWPrefs()
 {
   gboolean result = TRUE ;				    /* Can't fail. */
-  
+
   /* Try the environment var first */
   URL = g_getenv("BLIXEM_FETCH_WWW");
 
@@ -1114,11 +1116,11 @@ gboolean blxConfigGetPFetchWWWPrefs()
           char *tmpUrl = g_malloc(256);
           tmpUrl = g_key_file_get_string(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_LOCATION, &error) ;
           reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-          
+
           URL = blxprintf("%s?request=", tmpUrl);
           g_free(tmpUrl);
         }
-          
+
       if (!URL || *URL == '\0')
         {
           char *tmpUrl = g_malloc(256);
@@ -1130,10 +1132,6 @@ gboolean blxConfigGetPFetchWWWPrefs()
 
   return result ;
 }
-
-
-
-
 
 
 /* 
@@ -1848,7 +1846,7 @@ void setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id,
    * to set them up even if we're not using that mode initially, because the user can 
    * change the mode */
   blxConfigGetPFetchWWWPrefs();
-
+      
   /* Set the fetch mode */
   if (pfetch && blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
     {

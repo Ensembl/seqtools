@@ -13,6 +13,8 @@
 #include <SeqTools/blxdotter.h>
 #include <SeqTools/exonview.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxGff3Parser.h>
+#include <SeqTools/blxmsp.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h>
@@ -306,8 +308,6 @@ static void			  onDestroyBlxWindow(GtkWidget *widget);
 
 static BlxStrand		  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
-static void			  destroyBlxColor(BlxColor *blxCol);
-
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
 static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, BlxResponseCallback callbackFunc, GtkWidget *blxWindow);
@@ -395,42 +395,6 @@ static const char developerMenuDescription[] =
  *			   Utilities			   *
  ***********************************************************/
 
-/* Gets the dialog widget for the given dialog id. Returns null if the widget has not
- * been created yet. */
-GtkWidget* getPersistentDialog(const BlxViewContext *bc, const BlxDialogId dialogId)
-{
-  GtkWidget *result = NULL;
-  
-  if (bc->dialogList[dialogId])
-    {
-      result = bc->dialogList[dialogId];
-    }
-
-  return result;
-}
-
-/* Add a newly-created dialog to the list of persistent dialogs. The dialog should not
- * exist in the list yet. */
-void addPersistentDialog(BlxViewContext *bc, const BlxDialogId dialogId, GtkWidget *widget)
-{
-  if (dialogId == BLXDIALOG_NOT_PERSISTENT)
-    {
-      g_warning("Code error: cannot add a dialog with ID %d. Dialog will not be persistent.\n", dialogId);
-    }
-  else
-    {
-      if (bc->dialogList[dialogId])
-        {
-          g_warning("Creating a dialog that already exists. Old dialog will be destroyed. Dialog ID=%d.\n", dialogId);
-          gtk_widget_destroy(bc->dialogList[dialogId]);
-          bc->dialogList[dialogId] = NULL;
-        }
-
-      bc->dialogList[dialogId] = widget;
-    }
-}
-
-
 /* Return true if the current user is in our list of developers. */
 static gboolean userIsDeveloper()
 {
@@ -450,171 +414,6 @@ static gboolean userIsDeveloper()
         }
     }
 
-  return result;
-}
-
-
-/* Copy a segment of the given sequence into a new string. The result must be
- * free'd with g_free by the caller. The given indices must be 0-based. */
-static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const int idx2)
-{
-  const int minIdx = min(idx1, idx2);
-  const int maxIdx = max(idx1, idx2);
-  
-  const int segmentLen = maxIdx - minIdx + 1;
-  gchar *segment = g_malloc(sizeof(gchar) * segmentLen + 1);
-  
-  strncpy(segment, inputSeq + minIdx, segmentLen);
-  segment[segmentLen] = '\0';
-  
-  return segment;
-}
-
-
-/* Copy a segment of the given sequence (which is always the DNA sequence and
- * always the forward strand).
- *
- * The result is complemented if the reverse strand is requested, but only if
- * the allowComplement flag allows it.
- * 
- * The result is translated to a peptide sequence if the blast mode is protein 
- * matches, but only if the allowTranslate flag allows it.
- *
- * The result is reversed if the reverseResult flag is true (regardless of the
- * strand requested - this is because the caller often wants the result in the
- * opposite direction to that indicated by the strand, because the display may be
- * reversed, so we leave it up to the caller to decide).
- */
-gchar *getSequenceSegment(BlxViewContext *bc,
-			  const char const *dnaSequence,
-			  const int coord1, 
-			  const int coord2,
-			  const BlxStrand strand,
-			  const BlxSeqType inputCoordType,
-			  const int frame,
-			  const gboolean displayRev,
-			  const gboolean reverseResult,
-			  const gboolean allowComplement,
-			  const gboolean allowTranslate,
-			  GError **error)
-{
-  gchar *result = NULL;
-
-  /* Convert input coord to ref seq coords and find the min/max */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(coord1, inputCoordType, frame, 1, bc->numFrames, displayRev, &bc->refSeqRange);		  /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(coord2, inputCoordType, frame, bc->numFrames, bc->numFrames, displayRev, &bc->refSeqRange); /* last base in frame */
-  int qMin = min(qIdx1, qIdx2);
-  int qMax = max(qIdx1, qIdx2);
-  
-  /* Check that the requested segment is within the sequence's range */
-  if (qMin < bc->refSeqRange.min || qMax > bc->refSeqRange.max)
-    {
-      /* We might request up to 3 bases beyond the end of the range if we want to 
-       * show a partial triplet at the start/end. (It's a bit tricky for the caller to
-       * specify the exact bases they want here so we allow it but just limit it to 
-       * the actual range so that they can't index beyond the end of the range.) Any
-       * further out than one triplet is probably indicative of an error, so give a warning. */
-      if (qMin < bc->refSeqRange.min - (bc->numFrames + 1) || qMax > bc->refSeqRange.max + (bc->numFrames + 1))
-	{
-	  if (inputCoordType == BLXSEQ_PEPTIDE)
-	    g_warning("Requested query sequence %d - %d out of available range: %d - %d. Input coords on peptide sequence were %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max, coord1, coord2);
-	  else
-	    g_warning("Requested query sequence %d - %d out of available range: %d - %d\n", qMin, qMax, bc->refSeqRange.min, bc->refSeqRange.max);
-	}
-      
-      if (qMax > bc->refSeqRange.max)
-	qMax = bc->refSeqRange.max;
-	
-      if (qMin < bc->refSeqRange.min)
-	qMin = bc->refSeqRange.min;
-    }
-  
-  /* Get 0-based indices into the sequence */
-  const int idx1 = qMin - bc->refSeqRange.min;
-  const int idx2 = qMax - bc->refSeqRange.min;
-  
-  /* Copy the portion of interest from the reference sequence and translate as necessary */
-  const BlxBlastMode mode = bc->blastMode;
-  
-  if (mode == BLXMODE_BLASTP || mode == BLXMODE_TBLASTN)
-    {
-      /* Just get a straight copy of this segment from the ref seq. Must pass 0-based
-       * indices into the sequence */
-      result = copySeqSegment(dnaSequence, idx1, idx2);
-      
-      if (reverseResult)
-	{
-	  g_strreverse(result);
-	}
-    }
-  else
-    {
-      /* Get the segment of the ref seq, adjusted as necessary for this strand */
-      gchar *segment = NULL;
-      
-      if (strand == BLXSTRAND_FORWARD)
-	{
-	  /* Straight copy of the ref seq segment */
-	  segment = copySeqSegment(dnaSequence, idx1, idx2);
-	}
-      else
-	{
-	  /* Get the segment of the ref seq and then complement it */
-	  segment = copySeqSegment(dnaSequence, idx1, idx2);
-	  
-	  if (allowComplement)
-	    {
-	      blxComplement(segment);
-	  
-	      if (!segment)
-		{
-		  g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_SEGMENT, 
-			      "Error getting sequence segment: Failed to complement the reference sequence for the range %d - %d.\n", 
-			      qMin, qMax);
-		  
-		  g_free(segment);
-		  g_free(result);
-		  return NULL;
-		}
-	    }
-	}
-      
-      if (reverseResult)
-	{
-	  g_strreverse(segment);
-	}
-      
-      if (mode == BLXMODE_BLASTN || !allowTranslate)
-	{
-	  /* Just return the segment of DNA sequence */
-	  result = segment;
-	}
-      else
-	{
-	  /* Translate the DNA sequence to a peptide sequence */
-	  result = blxTranslate(segment, bc->geneticCode);
-	  
-	  g_free(segment); /* delete this because we're not returning it */
-	  segment = NULL;
-	  
-	  if (!result)
-	    {
-	      g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_SEGMENT,
-			  "Error getting the sequence segment: Failed to translate the DNA sequence for the reference sequence range %d - %d\n", 
-			  qMin, qMax) ;
-	      
-	      g_free(segment);
-	      g_free(result);
-	      return NULL;
-	    }
-	}
-    }
-  
-  if (!result)
-    {
-      g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_SEGMENT, "Failed to find sequence segment for the range %d - %d\n", qMin, qMax);
-    }
-  
   return result;
 }
 
@@ -1131,7 +930,7 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_VIEW;
-  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
   if (!dialog)
     {
@@ -1143,7 +942,7 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            NULL);
 
       /* These calls are required to make the dialog persistent... */
-      addPersistentDialog(bc, dialogId, dialog);
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
@@ -1611,7 +1410,7 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_FIND;
-  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
   if (!dialog)
     {
@@ -1629,7 +1428,7 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            NULL);
   
       /* These calls are required to make the dialog persistent... */
-      addPersistentDialog(bc, dialogId, dialog);
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
@@ -2604,7 +2403,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_GROUPS;
-  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
   if (!dialog)
     {
@@ -2620,7 +2419,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
                                            NULL);
 
       /* These calls are required to make the dialog persistent... */
-      addPersistentDialog(bc, dialogId, dialog);
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       /* Make sure we only connect the response event once */
@@ -3066,7 +2865,7 @@ static void createTextEntryFromDouble(GtkWidget *parent,
   GtkWidget *entry = gtk_entry_new();
   gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
   
-  char *displayText = convertDoubleToString(value);
+  char *displayText = convertDoubleToString(value, 1);
   gtk_entry_set_text(GTK_ENTRY(entry), displayText);
   
   gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
@@ -3345,8 +3144,8 @@ void refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow)
    * case the user looks at it again. */
   if (blxWindow)
     {
-      const BlxViewContext *bc = blxWindowGetContext(blxWindow);
-      GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+      BlxViewContext *bc = blxWindowGetContext(blxWindow);
+      GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
       
       if (dialog && GTK_WIDGET_VISIBLE(dialog))
         {
@@ -3393,7 +3192,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_SETTINGS;
-  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
   if (!dialog)
     {
@@ -3409,7 +3208,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            NULL);
 
       /* These calls are required to make the dialog persistent... */
-      addPersistentDialog(bc, dialogId, dialog);
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
@@ -3683,7 +3482,7 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_HELP;
-  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
   if (!dialog)
     {
@@ -3698,7 +3497,7 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            NULL);
 
       /* These calls are required to make the dialog persistent... */
-      addPersistentDialog(bc, dialogId, dialog);
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
       /* Set a pretty big initial size. */
@@ -3797,7 +3596,7 @@ static void onDotterMenu(GtkAction *action, gpointer data)
 /* Called when the user selects the 'Select Features' menu option, or hits the relevant shortcut key */
 static void onSelectFeaturesMenu(GtkAction *action, gpointer data)
 {
-  selectFeatures();
+//  selectFeatures();
 }
 
 
@@ -4325,119 +4124,6 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 }
 
 
-/* Free all memory used by a blixem color */
-static void destroyBlxColor(BlxColor *blxColor)
-{
-  if (blxColor)
-    {
-      g_free(blxColor->name);
-      g_free(blxColor->desc);
-    }
-}
-
-
-/* Create a Blixem color. The result should be destroyed with destroyBlxColor. Returns
- * NULL if there was any problem. If "selected" state colors are not passed, this function
- * calculates a slightly darker shade of the normal color to use for when it is selected.
- * Inserts the new color into the given list */
-static void createBlxColor(BlxViewContext *bc,
-			   BlxColorId colorId,
-			   const char *name, 
-			   const char *desc, 
-			   const char *normalCol, 
-			   const char *printCol,
-			   const char *normalColSelected,
-			   const char *printColSelected)
-{
-  BlxColor *result = &g_array_index(bc->defaultColors, BlxColor, colorId);
-				    
-  result->transparent = FALSE;
-  GError *error = NULL;
-  
-  if (!normalCol)
-    {
-      result->transparent = TRUE;
-    }
-  else if (getColorFromString(normalCol, &result->normal, &error)) 
-    {
-      /* find a "selected" version of it, if not passed one */
-      if (normalColSelected)
-	{
-	  if (!getColorFromString(normalColSelected, &result->selected, &error))
-	    {
-              prefixError(error, "Error getting 'selected' color: using normal color instead. ");
-              reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
-	      result->selected = result->normal;
-	    }
-	}
-      else
-	{
-	  getSelectionColor(&result->normal, &result->selected); 
-	}
-      
-      /* Parse the print color */
-      if (getColorFromString(printCol, &result->print, &error))
-	{
-	  /* find a "selected" version of it, if not passed one */
-	  if (printColSelected)
-	    {
-	      if (!getColorFromString(printColSelected, &result->printSelected, &error))
-		{
-		  prefixError(error, "Error getting print color for selected items: using normal print color instead. ");
-                  reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
-		  result->printSelected = result->print;
-		}
-	    }
-	  else
-	    {
-	      getSelectionColor(&result->print, &result->printSelected); 
-	    }
-	}
-      else
-	{
-	  /* Error parsing the print color: use the normal color but give a warning */
-          prefixError(error, "Error getting print colors: using normal colors instead. ");
-          reportAndClearIfError(&error, G_LOG_LEVEL_MESSAGE);
-	  result->print = result->normal;
-	  result->printSelected = result->selected;
-	}
-    }
-  else
-    {
-      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
-      g_free(result);
-      result = NULL;
-    }
-
-  if (result)
-    {
-      /* Set the other properties */
-      result->name = g_strdup(name);
-      result->desc = g_strdup(desc);
-    }
-}
-
-
-/* This basically does what gdk_color_to_string does, but that function isn't available in
- * older versions of GDK... */
-static char* convertColorToString(GdkColor *color)
-{
-//  char *result = gdk_color_to_string(&widget->style->bg[GTK_STATE_NORMAL]);
-//  return result;
-
-  /* Need to make sure the color is allocated (otherwise the 'pixel' field may be zero) */
-  gboolean failures[1];
-  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
-
-  const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
-  
-  char *result = g_malloc(sizeof(char) * hexLen);
-  sprintf(result, "#%x", color->pixel);
-  
-  return result;
-}
-
-
 /* Create the colors that blixem will use for various specific purposes */
 static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 {
@@ -4456,54 +4142,54 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* Get the default background color of our widgets (i.e. that inherited from the theme).
    * Convert it to a string so we can use the same creation function as the other colors */
   char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
-  createBlxColor(bc, BLXCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
   
   /* reference sequence */
-  createBlxColor(bc, BLXCOLOR_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, "#d0d000", NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_LIGHT_GREY, "#d0d000", NULL);
   
   /* matches */
-  createBlxColor(bc, BLXCOLOR_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00c3b0", NULL);
-  createBlxColor(bc, BLXCOLOR_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
-  createBlxColor(bc, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
-  createBlxColor(bc, BLXCOLOR_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00c3b0", NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_DARK_GREY, NULL, NULL);
   
   /* exons */
-  createBlxColor(bc, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
 
-  createBlxColor(bc, BLXCOLOR_EXON_FILL, "Exon fill color", "Exon fill color in big picture", BLX_YELLOW, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_EXON_LINE, "Exon line color", "Exon line color in big picture", BLX_BLUE, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color in big picture", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
-  createBlxColor(bc, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_FILL, "Exon fill color", "Exon fill color in big picture", BLX_YELLOW, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_LINE, "Exon line color", "Exon line color in big picture", BLX_BLUE, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color in big picture", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
   
   /* codons */
-  createBlxColor(bc, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_LIGHT_SKY_BLUE, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_STOP, "STOP codons", "MET codons", BLX_LIGHT_SALMON, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_LIGHT_SKY_BLUE, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_STOP, "STOP codons", "MET codons", BLX_LIGHT_SALMON, BLX_LIGHT_GREY, NULL, NULL);
   
   /* SNPs */
-  createBlxColor(bc, BLXCOLOR_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
 
   /* Big Picture */
-  createBlxColor(bc, BLXCOLOR_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", "#c7c7c7", BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", "#b1b1b1", BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
+  createBlxColor(bc->defaultColors, BLXCOLOR_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", "#c7c7c7", BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", "#b1b1b1", BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
 
   /* groups */
-  createBlxColor(bc, BLXCOLOR_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_LIGHT_GREY, NULL, NULL);
   
   /* misc */
-  createBlxColor(bc, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
-  createBlxColor(bc, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
+  createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   
   g_free(defaultBgColorStr);
 }
@@ -4971,7 +4657,7 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 gboolean blxContextIsSeqSelected(BlxViewContext *bc, const BlxSequence *seq)
 {
   GList *foundItem = NULL;
-
+  
   if (bc)
     {
       foundItem = g_list_find(bc->selectedSeqs, seq);
@@ -5101,17 +4787,21 @@ static void calcID(MSP *msp, BlxViewContext *bc)
            * strand. This means that where there is no gaps array the comparison is trivial
            * as coordinates can be ignored and the two sequences just whipped through. */
           GError *error = NULL;
+          IntRange qRange;
+          intrangeSetValues(&qRange, msp->qRange.min, msp->qRange.max); /* make a copy because it will be updated */
           
-          char *refSeqSegment = getSequenceSegment(bc,
-                                                   bc->refSeq,
-                                                   msp->qRange.min, 
-                                                   msp->qRange.max, 
+          char *refSeqSegment = getSequenceSegment(bc->refSeq,
+                                                   &qRange,
                                                    mspGetRefStrand(msp), 
-                                                   BLXSEQ_DNA, /* msp q coords are always on the dna sequence */
+                                                   BLXSEQ_DNA,        /* msp q coords are always nucleotide coords */
+                                                   bc->seqType,       /* required seq type is the display seq type */
                                                    mspGetRefFrame(msp, bc->seqType),
+						   bc->numFrames,
+						   &bc->refSeqRange,
+						   bc->blastMode,
+						   bc->geneticCode,
                                                    bc->displayRev,
                                                    !qForward,
-                                                   TRUE,
                                                    TRUE,
                                                    &error);
           
@@ -5121,6 +4811,11 @@ static void calcID(MSP *msp, BlxViewContext *bc)
               reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
               return;
             }
+	  else
+	    {
+	      /* If there's an error but the sequence was still returned it's a non-critical warning */
+	      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+	    }
           
           /* We need to find the number of characters that match out of the total number */
           int numMatchingChars = 0;
@@ -5130,7 +4825,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           if (numGaps == 0)
             {
               /* Ungapped alignments. */
-              totalNumChars = (msp->qRange.max - msp->qRange.min + 1) / bc->numFrames;
+              totalNumChars = (qRange.max - qRange.min + 1) / bc->numFrames;
 
               if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
                 {
@@ -5188,14 +4883,14 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                       /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
                        * We need to translate the first coord in the range (which is in terms of the full
                        * reference sequence) into coords in the cut-down ref sequence. */
-                      int q_start = qForward ? (qRangeMin - msp->qRange.min) / bc->numFrames : (msp->qRange.max - qRangeMax) / bc->numFrames;
+                      int q_start = qForward ? (qRangeMin - qRange.min) / bc->numFrames : (qRange.max - qRangeMax) / bc->numFrames;
                       const int qLen = strlen(refSeqSegment);
                       
                       /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
                        * through sseq if we have the forward strand or backwards if we have the reverse strand,
                        * so start from the lower or upper end accordingly. */
                       int s_start = sForward ? sRangeMin - 1 : sRangeMax - 1 ;
-                      
+
                       int sIdx = s_start, qIdx = q_start ;
                       while (((sForward && sIdx < sRangeMax) || (!sForward && sIdx >= sRangeMin - 1)) && qIdx < qLen)
                         {
@@ -5204,7 +4899,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                             {
                               numMatchingChars++ ;
                             }
-                          
+
                           /* Move to the next base. The refSeqSegment is always forward, but we might have to
                            * traverse the s sequence in reverse. */
                           ++qIdx ;
@@ -5222,6 +4917,58 @@ static void calcID(MSP *msp, BlxViewContext *bc)
     }
   
   return ;
+}
+
+
+/* Get the offset required from the given base to give the coord that is the first base in 
+ * the first codon of reading frame 1 (or the last codon in reading frame 3 for the reverse strand) */
+static int getOffsetToCodonStart(const int coord, const int numFrames, const BlxStrand strand)
+{
+  int offset = 0;
+
+  if (strand == BLXSTRAND_FORWARD)
+    {
+      /* If the sequence is 
+       *     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ...
+       * then the calculated base below will be
+       *     0, 1, 2, 0, 1, 2, 0, 1, 2, 0,  1, ...
+       * so we have to offset the coords by the following values to get to a base1 coord
+       *     0, 2, 1, 0, 2, 1, 0, 2, 1, 0,  2, ...
+       */
+      
+      int base = ((coord - 1) % numFrames); /* 0, 1 or 2 */
+      offset = numFrames - base;            /* 3, 2 or 1 */
+      
+      if (offset >= numFrames)
+        offset -= numFrames;                /* 0, 2 or 1 */
+    }
+  else
+    {
+      /* I'm not sure if there is a convention for where the reading frame starts in the reverse
+       * strand, so I've made up my own convention. It essentially means that we want the first 
+       * coord in the reversed sequence to be the last base in the last reading frame, i.e. base 3 in frame 3.
+       *
+       * If the forward strand coords are
+       *             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+       * then the have the following base numbers for each frame
+       * frame 1:    1, 2, 3, 1, 2, 3, 1, 2, 3, 1,  2
+       * frame 2:    3, 1, 2, 3, 1, 2, 3, 1, 2, 3,  1
+       * frame 3:    2, 3, 1, 2, 3, 1, 2, 3, 1, 2,  3 (I've included up to coord 11 so we end at base 3 in frame 3)
+       *
+       * Looking at frame 1 in reverse we have
+       *             11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+       *              2,  1, 3, 2, 1, 3, 2, 1, 3, 2, 1
+       *
+       * Base 3 in frame 3 is base 2 in frame 1, so this is where we want to start. The offsets we need
+       * to get to a frame1-base2 coord are:
+       *              0,  2, 1, 0, 2, 1, 0, 2, 1, 0, 2
+       */
+      
+      int base = (coord + 1) % numFrames;   /* 0, 2 or 1 */
+      offset = base;
+    }
+  
+  return offset;
 }
 
 
@@ -5248,15 +4995,30 @@ static void calcReadingFrame(MSP *msp, const BlxViewContext *bc)
       
       if (frame > 0)
         {
-          /* Only set the frame if not already set. Give a warning if current value is different to calculated
-           * value, except for exons where this is expected with the old file format where we do not pass phase */
-          if (msp->qFrame > 0 && msp->qFrame != frame && mspIsBlastMatch(msp) && bc->seqType == BLXSEQ_PEPTIDE)
+          if (msp->qFrame > 0 && mspIsExon(msp))
             {
-              g_warning("MSP '%s' (q=%d-%d; s=%d-%d) has reading frame '%d' but calculated frame was '%d'\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qFrame, frame);
-            }
+              /* Frame is already set. This means we have the old exblx file format, which does not provide phase for exons
+               * so we must use the reading frame that was passed in the file. However, this used to assume that the first base
+               * in the ref seq was base 1 in reading frame 1, which is not always the case (we now calculate the correct reading frame
+               * based on mod3 of the coord). Therefore, we must offset the given frame if the first coord is not base1 in frame1. */
+              const int startCoord = (msp->qStrand == BLXSTRAND_REVERSE ? bc->refSeqRange.max : bc->refSeqRange.min);
+              const int offset = getOffsetToCodonStart(startCoord, bc->numFrames, msp->qStrand);
+              msp->qFrame += offset;
               
-          if (msp->qFrame <= 0)
+              if (msp->qFrame > bc->numFrames)
+                {
+                  msp->qFrame -= bc->numFrames;
+                }
+              
+              if (msp->qFrame != frame && bc->seqType == BLXSEQ_PEPTIDE)
+                {
+                  g_warning("MSP '%s' (q=%d-%d; s=%d-%d) has reading frame '%d' but calculated frame was '%d'\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qFrame, frame);
+                }
+            }
+          else
             {
+              /* We either have the new file format which provides phase or it's not an exon so phase 
+               * is not applicable, so we can trust the calculated value. */
               msp->qFrame = frame;
             }
         }

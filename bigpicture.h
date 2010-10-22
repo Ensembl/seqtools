@@ -104,15 +104,6 @@ void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, co
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
 
-gdouble			      pixelsPerBase(const gint displayWidth, 
-					    const IntRange const *displayRange);
-
-gint			      convertBaseIdxToGridPos(const gint dnaIdx, 
-						      const GdkRectangle const *gridRect, 
-						      const IntRange const *dnaDispRange,
-                                                      const gboolean displayRev,
-                                                      const gboolean clip);
-
 int			      getLeftCoordFromCentre(const int centreCoord, 
 						     const int width, 
 						     const GdkRectangle *outerRect);

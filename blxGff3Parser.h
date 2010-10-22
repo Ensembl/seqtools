@@ -1,4 +1,4 @@
-/*  File: blxGff3parser_.h
+/*  File: blxGff3parser.h
  *  Author: Gemma Barson (gb10@sanger.ac.uk)
  *  Copyright (c) 2010: Genome Research Ltd.
  *-------------------------------------------------------------------
@@ -72,5 +72,8 @@ void parseFastaSeqHeader(char *line, const int lineNum,
                          char **refSeq, char *refSeqName,
                          char ***readSeq, int *readSeqLen, int *readSeqMaxLen,
                          BlxParserState *parserState);
-
+			 
+			 
+GSList*                            blxCreateSupportedGffTypeList();
+void                               blxDestroyGffTypeList(GSList **supportedTypes);
 #endif /* BLX_GFF_P_H */

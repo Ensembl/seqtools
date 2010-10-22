@@ -27,12 +27,14 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.23 2010-08-27 13:14:07 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.24 2010-10-22 11:58:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <SeqTools/blixem_.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxparser.h>
+#include <SeqTools/blxGff3Parser.h>
 #include <wh/graph.h>
 #include <wh/gex.h>
 

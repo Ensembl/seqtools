@@ -10,10 +10,14 @@
 #define _utilities_h_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blixem_.h>
 
 #define UNSET_INT                     -1   /* this value indicates an unset integer */
 #define DEFAULT_LABEL_X_PAD           0    /* default x padding to use for header labels */
+
+/* Really the buffers that use this should be dynamic but I'm not going to do that, this
+ * code is so poor that it doesn't warrant the effort.... */
+#define NAMESIZE      12
+#define MAXLINE       10000
 
 
 #define max(a,b)        (((a) > (b)) ? (a) : (b))
@@ -39,6 +43,23 @@
 #define DEBUG_EXIT(format, args...)
 #endif
 
+/* Generic SeqTools error domain */
+#define SEQTOOLS_ERROR g_quark_from_string("SeqTools")
+
+/* Error codes */
+typedef enum
+{
+  SEQTOOLS_ERROR_PARSING_COLOR,	      /* error parsing color string */
+  SEQTOOLS_ERROR_SEQ_SEGMENT	      /* error getting the requested segment of a sequence */
+} SeqToolsError;
+
+
+/* Special characters for displaying in sequences */
+#define SEQUENCE_CHAR_GAP    '.'   /* represents a gap in the match sequence */
+#define SEQUENCE_CHAR_PAD    '-'   /* used for padding when the sequence is unavailable */
+#define SEQUENCE_CHAR_BLANK  '-'   /* used to display a blank when we're not interested in what the actual base is */
+#define SEQUENCE_CHAR_STOP   '*'   /* STOP codon */
+#define SEQUENCE_CHAR_MET    'M'   /* MET codon */
 
 
 /* Color strings that can be passed to create a GdkColor */
@@ -87,6 +108,69 @@
 #define BLX_BURLYWOOD	      "#deb887"
 #define BLX_TAN		      "#d2b48c"
 
+
+typedef struct _BlxColor
+  {
+    char *name;			  /* meaningful name for the color e.g. "Match" */
+    char *desc;			  /* meaningful description for what the color is used for e.g. "background color for exact matches" */
+    gboolean transparent;	  /* if this is true, the colors below are not specified and the background color should be used instead */
+    
+    GdkColor normal;		  /* the color in normal operation */
+    GdkColor selected;		  /* the color in a selected state */
+    GdkColor print;		  /* the color used for printing */
+    GdkColor printSelected;	  /* the selected-state color used for printing */
+  } BlxColor;
+  
+  
+/* Define a drawing style for an MSP */
+typedef struct _BlxStyle
+  {
+    char *styleName;
+    BlxColor fillColor;
+    BlxColor lineColor;
+  } BlxStyle;
+
+/* Utility structs to hold a range of integers/doubles */
+typedef struct _IntRange
+  {
+    int min;
+    int max;
+  } IntRange ;
+
+typedef struct _DoubleRange
+  {
+    gdouble min;
+    gdouble max;
+  } DoubleRange ;
+  
+
+/* Fundamental strand direction. */
+typedef enum
+  {
+    BLXSTRAND_NONE, 
+    BLXSTRAND_FORWARD, 
+    BLXSTRAND_REVERSE
+  } BlxStrand ;
+  
+/* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
+typedef enum
+  {
+    BLXSEQ_INVALID, 
+    BLXSEQ_DNA, 
+    BLXSEQ_PEPTIDE
+  } BlxSeqType ;
+
+/* Fundamental blast mode used */
+typedef enum
+  {
+    BLXMODE_UNSET, 
+    BLXMODE_BLASTX, 
+    BLXMODE_TBLASTX, 
+    BLXMODE_BLASTN, 
+    BLXMODE_TBLASTN, 
+    BLXMODE_BLASTP
+  } BlxBlastMode ;
+  
 
 /* This enum contains a list of all the boolean options that the user can toggle on/off */
 typedef enum
@@ -162,30 +246,11 @@ void		      getDropShadowColor(GdkColor *origColor, GdkColor *result);
 void		      convertToGrayscale(GdkColor *origColor, GdkColor *result);
 void		      adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *result);
 
-gboolean              mspLayerIsVisible(const MSP const *msp);
-gboolean              typeIsExon(const BlxMspType mspType);
-gboolean              typeIsIntron(const BlxMspType mspType);
-gboolean              typeIsMatch(const BlxMspType mspType);
-gboolean              typeIsVariation(const BlxMspType mspType);
-gboolean	      mspIsExon(const MSP const *msp);
-gboolean	      mspIsIntron(const MSP const *msp);
-gboolean	      mspIsVariation(const MSP const *msp);
-gboolean	      mspIsZeroLenVariation(const MSP const *msp);
-gboolean	      mspIsPolyASite(const MSP const *msp);
-gboolean	      mspIsPolyASignal(const MSP const *msp);
-gboolean	      mspIsBlastMatch(const MSP const *msp);
-
-gboolean              mspHasSName(const MSP const *msp);
-gboolean              mspHasSSeq(const MSP  const *msp);
-gboolean              mspHasSCoords(const MSP const *msp);
-gboolean              mspHasSStrand(const MSP const *msp);
-gboolean              mspHasPolyATail(const MSP const *msp, const MSP const *mspList);
-gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP const *mspList);
-
 void		      getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
 int		      getRangeLength(const IntRange const *range);
 int		      getRangeCentre(const IntRange const *range);
+void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
 gboolean	      valueWithinRange(const int value, const IntRange const *range);
 gboolean              rangesOverlap(const IntRange const *range1, const IntRange const *range2);
 void		      boundsLimitValue(int *value, const IntRange const *range);
@@ -215,51 +280,7 @@ int		      convertDnaIdxToDisplayIdx(const int dnaIdx,
 						const IntRange const *dnaIdxRange,
 						int *baseNum);
 
-int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
-BlxStrand	      mspGetRefStrand(const MSP const *msp);
-BlxStrand	      mspGetMatchStrand(const MSP const *msp);
-const char*           mspGetMatchSeq(const MSP const *msp);
-const char*	      mspGetSName(const MSP *msp);
-char*		      blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
-gboolean              blxSequenceRequiresSeqData(const BlxSequence *blxSeq);
-gboolean              blxSequenceRequiresOptionalData(const BlxSequence *blxSeq);
-char*                 mspGetExonTranscriptName(const MSP *msp);
-const IntRange const* mspGetRefCoords(const MSP const *msp);
-const IntRange const* mspGetMatchCoords(const MSP const *msp);
-int		      mspGetQStart(const MSP const *msp);
-int		      mspGetQEnd(const MSP const *msp);
-int		      mspGetSStart(const MSP const *msp);
-int		      mspGetSEnd(const MSP const *msp);
-char*                 mspGetSSeq(const MSP const *msp);
-int		      mspGetQRangeLen(const MSP const *msp);
-int		      mspGetSRangeLen(const MSP const *msp);
-int		      mspGetMatchSeqLen(const MSP const *msp);
-const GdkColor*       mspGetColor(const MSP const *msp, GArray *defaultColors, const BlxSequence *blxSeq, const gboolean selected, const gboolean usePrintColors, const gboolean fill);
-char*                 mspGetOrganism(const MSP const *msp);
-char*                 mspGetGeneName(const MSP const *msp);
-char*                 mspGetTissueType(const MSP const *msp);
-char*                 mspGetStrain(const MSP const *msp);
-char*                 mspGetCoordsAsString(const MSP const *msp);
-
-void                  mspGetFullSRange(const MSP const *msp, 
-                                       const gboolean seqSelected,
-                                       const gboolean *flags,
-                                       const int numUnalignedBases, 
-                                       const MSP const *mspList,
-                                       IntRange *sSeqRange);
-
-void                  mspGetFullQRange(const MSP const *msp, 
-                                       const gboolean seqSelected,
-                                       const gboolean *flags,
-                                       const int numUnalignedBases, 
-                                       const MSP const *mspList,
-                                       const int numFrames, 
-                                       IntRange *sSeqRange);
-
 char                  getStrandAsChar(const BlxStrand strand);
-
-BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
-BlxSequence*          findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand);
 
 int                   roundNearest(const double val);
 int		      roundToValue(const int inputVal, const int roundTo);
@@ -284,25 +305,17 @@ int		      getEndDnaCoord(const IntRange const *displayRange,
 				     const int numFrames,
 				     const IntRange const *refSeqRange);
 
-int		      gapCoord(const MSP *msp, 
-			       const int qIdx, 
-			       const int numFrames, 
-			       const BlxStrand strand, 
-			       const gboolean displayRev,
-                               const gboolean seqSelected,
-                               const int numUnalignedBases,
-                               gboolean *flags,
-                               const MSP const *mspList);
-
 int		      wildcardSearch(const char *textToSearch, const char *searchStr);
 
 char*		      convertIntToString(const int value);
-char*                 convertDoubleToString(const gdouble value);
+char*                 convertDoubleToString(const gdouble value, const int numDp);
 int		      convertStringToInt(const char *inputStr);
 gboolean	      isWhitespaceChar(const char curChar);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
 gboolean	      isValidIupacChar(const char inputChar, const BlxSeqType seqType);
+
+int                   invertCoord(const int coord, const IntRange const *range, const gboolean invert);
 
 GtkWidget*	      showMessageDialog(const char *title,  
 					const char *messageText,
@@ -328,6 +341,8 @@ gboolean              widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
 void                  onCloseDialog(GtkDialog *dialog, gpointer data);
 void                  dialogClearContentArea(GtkDialog *dialog);
+GtkWidget*            getPersistentDialog(GtkWidget* dialogList[], const int dialogId);
+void                  addPersistentDialog(GtkWidget* dialogList[], const int dialogId, GtkWidget *widget);
 
 void		      setPrimaryClipboardText(const char *text);
 void		      setDefaultClipboardText(const char *text);
@@ -348,19 +363,6 @@ gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageT
 
 const char*	      getSeqVariantName(const char *longName);
 char*		      getSeqShortName(const char *longName);
-void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
-const char*	      blxSequenceGetFullName(const BlxSequence *seq);
-const char*	      blxSequenceGetVariantName(const BlxSequence *seq);
-const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);
-const char*	      blxSequenceGetShortName(const BlxSequence *seq);
-int		      blxSequenceGetLength(const BlxSequence *seq);
-char*                 blxSequenceGetSeq(const BlxSequence *seq);
-BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
-char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
-int		      blxSequenceGetStart(const BlxSequence *seq);
-int		      blxSequenceGetEnd(const BlxSequence *seq);
-
-void		      destroyBlxSequence(BlxSequence *seq);
 
 void		      prefixError(GError *error, char *prefixStr, ...);
 void                  postfixError(GError *error, char *formatStr, ...);
@@ -376,6 +378,58 @@ void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle
 
 char*                 blxprintf(char *formatStr, ...);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
+
+BlxColor*	      getBlxColor(GArray *defaultColors, const int colorId);
+GdkColor*	      getGdkColor(int colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
+const GdkColor*	      blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
+char*		      convertColorToString(GdkColor *color);
+void		      destroyBlxColor(BlxColor *blxColor);
+
+void		      createBlxColor(GArray *defaultColors,
+				     int colorId,
+				     const char *name, 
+				     const char *desc, 
+				     const char *normalCol, 
+				     const char *printCol,
+				     const char *normalColSelected,
+				     const char *printColSelected);
+
+gdouble		      pixelsPerBase(const gint displayWidth, 
+				    const IntRange const *displayRange);
+
+gint		      convertBaseIdxToRectPos(const gint dnaIdx, 
+					      const GdkRectangle const *rect, 
+					      const IntRange const *dnaDispRange,
+					      const gboolean displayRev,
+					      const gboolean clip);
+
+gchar*			  getSequenceSegment(const char const *dnaSequence,
+                                             IntRange *qRange,
+					     const BlxStrand strand,
+					     const BlxSeqType srcSeqType,
+					     const BlxSeqType destSeqType,
+					     const int frame,
+					     const int numFrames,
+					     const IntRange const *refSeqRange,
+					     const BlxBlastMode blastMode,
+					     char **geneticCode,
+					     const gboolean displayRev,
+					     const gboolean reverseResult,
+					     const gboolean allowComplement,
+					     GError **error);
+
+const char*			   findFixedWidthFont(GtkWidget *widget);
+const char*			   findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families);
+void                               getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gint *width, gint *height);
+
+GtkWidget*                         createEmptyButtonBar(GtkToolbar **toolbar);
+void                               makeToolbarButton(GtkToolbar *toolbar, char *label, char *stockId, char *tooltip, GtkSignalFunc callback_func, gpointer data);
+
+/* blxTranslate.c */
+char*                              blxTranslate(const char *seq, char **code);
+void                               blxComplement(char *seq) ;    
+char*                              revComplement(char *comp, char *seq) ;
+
 
 void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,
                                                    GtkTextIter   *iter,

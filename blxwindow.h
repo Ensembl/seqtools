@@ -159,23 +159,7 @@ void			  showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront);
 void			  showAboutDialog(GtkWidget *blxWindow);
 void                      showInfoDialog(GtkWidget *blxWindow);
 
-GtkWidget*                getPersistentDialog(const BlxViewContext *bc, const BlxDialogId dialogId);
-void                      addPersistentDialog(BlxViewContext *bc, const BlxDialogId dialogId, GtkWidget *widget);
-
 void			  blxWindowRedrawAll(GtkWidget *blxWindow);
-
-gchar*			  getSequenceSegment(BlxViewContext *bc,
-					     const char const *dnaSequence,
-					     const int coord1, 
-					     const int coord2,
-					     const BlxStrand strand,
-					     const BlxSeqType inputCoordType,
-					     const int frame,
-					     const gboolean displayRev,
-					     const gboolean reverseResult,
-					     const gboolean allowComplement,
-					     const gboolean translateResult,
-					     GError **error);
   
 GtkWidget*		  createBlxWindow(CommandLineOptions *options, 
 					  const char *paddingSeq, 

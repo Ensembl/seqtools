@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.78 2010-10-19 09:52:54 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.79 2010-10-22 11:58:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -126,6 +126,7 @@ MSP score codes:
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/blxdotter.h>
+#include <SeqTools/blxmsp.h>
 
 #ifdef ACEDB
 #include <wh/regular.h>
@@ -1114,8 +1115,8 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
                 {
                   createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, 0, NULL, blxSeq->idTag,
                               NULL, newRange.min, newRange.max, blxSeq->strand, UNSET_INT, blxSeq->fullName,
-                              UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
-              
+                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
+                  
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
 
@@ -1355,7 +1356,7 @@ static void finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts, con
       
       /* So far we only have the forward strand version of each sequence. We must complement any 
        * that need the reverse strand */
-      if (blxSeq && blxSeq->strand == BLXSTRAND_REVERSE && blxSeq->sequence && blxSeq->sequence->str)
+      if (blxSeq && blxSeq->type == BLXSEQUENCE_MATCH && blxSeq->strand == BLXSTRAND_REVERSE && blxSeq->sequence && blxSeq->sequence->str)
         {
           blxComplement(blxSeq->sequence->str);
         }
@@ -1592,7 +1593,7 @@ void destroyMspData(MSP *msp)
       g_array_free(msp->xy, TRUE);
       msp->xy = NULL;
     }
-    
+
   if (msp->url)
     {
       g_free(msp->url);
@@ -1683,11 +1684,11 @@ GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const
        * (and any remaining empty fields just don't have that data available) */
       getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
                  getOptionalData && 
-                 !blxSeq->organism &&
-                 !blxSeq->geneName &&
-                 !blxSeq->tissueType &&
-                 !blxSeq->strain);
-      
+                     !blxSeq->organism &&
+                     !blxSeq->geneName &&
+                     !blxSeq->tissueType &&
+                     !blxSeq->strain);
+          
       if (getSeq)
         {
           resultList = g_list_prepend(resultList, blxSeq);
@@ -1833,54 +1834,6 @@ BlxStyle* getBlxStyle(const char *styleName, GSList *styles, GError **error)
 	}
     }
 
-  return result;
-}
-
-
-
-/* Return a pointer to the BlxColor with the given id */
-BlxColor* getBlxColor(GArray *defaultColors, const BlxColorId colorId)
-{
-  BlxColor *result = &g_array_index(defaultColors, BlxColor, colorId);
-
-  if (result && result->transparent)
-    {
-      /* return the background color instead */
-      result = &g_array_index(defaultColors, BlxColor, BLXCOLOR_BACKGROUND);
-    }
-  else if (!result)
-    {
-      printf("Warning: color ID %d not found in the default colors array.\n", colorId);
-    }
-  
-  return result;
-}
-
-
-/* Lookup the BlxColor with the given id in the given hash table and return a 
- * pointer to the gdk color with the given properties */
-GdkColor* getGdkColor(const BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors)
-{
-  GdkColor *result = NULL;
-  
-  BlxColor *blxColor = getBlxColor(defaultColors, colorId);
-  
-  if (blxColor)
-    {
-      if (usePrintColors)
-	{
-	  result = selected ? &blxColor->printSelected : &blxColor->print;
-	}
-      else
-	{
-	  result = selected ? &blxColor->selected : &blxColor->normal;
-	}
-    }
-  else
-    {
-      printf("Error: requested invalid color ID %d", colorId);
-    }
-  
   return result;
 }
 

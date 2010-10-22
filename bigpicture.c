@@ -69,70 +69,6 @@ void bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre)
 }
 
 
-/* Utility to get the height and (approx) width of the given widget's font */
-static void getFontCharSize(GtkWidget *widget, int *charWidth, int *charHeight)
-{
-  PangoContext *context = gtk_widget_get_pango_context(widget);
-  PangoFontMetrics *metrics = pango_context_get_metrics (context,
-							 widget->style->font_desc,
-							 pango_context_get_language (context));
-  *charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-  *charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
-  pango_font_metrics_unref(metrics);
-}
-
-
-/* Calculate how many pixels wide a base is */
-gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRange)
-{
-  gdouble displayLen = (gdouble)(displayRange->max - displayRange->min) + 1;
-  return ((gdouble)displayWidth / displayLen);
-}
-
-
-/* Invert the given coord's position within the given range. Only invert if the bool is true; otherwise
- * returns the original coord */
-static int invertCoord(const int coord, const IntRange const *range, const gboolean invert)
-{
-  int result = invert ? range->max - coord + range->min : coord;
-  return result;
-}
-
-
-/* Convert a base index to an x coord within the given rectangle. Returns the number of pixels 
- * from the left edge (including the start of the rectangle) to where the base lies. displayRev 
- * should be passed as true if the display is toggled (i.e. low values on the right and high 
- * values on the left). Clips the result to the rectangle if clip is true */
-gint convertBaseIdxToGridPos(const gint dnaIdx, 
-			     const GdkRectangle const *rect, 
-			     const IntRange const *dnaDispRange,
-                             const gboolean displayRev,
-                             const gboolean clip)
-{
-  gint result = UNSET_INT;
-  
-  int baseIdx = invertCoord(dnaIdx, dnaDispRange, displayRev);
-  
-  gdouble numBasesFromEdge = (gdouble)(baseIdx - dnaDispRange->min); /* 0-based index from edge */
-
-  if (clip && numBasesFromEdge < 0)
-    {
-      numBasesFromEdge = 0;
-    }
-  
-  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rect->width, dnaDispRange));
-  
-  result = rect->x + pixelsFromEdge;
-  
-  if (clip && result > rect->x + rect->width)
-    {
-      result = rect->x + rect->width;
-    }
-  
-  return result;
-}
-
-
 /* Function to round the given value to the nearest "nice" value, from the given
  * list of values to round by. Returns the value it rounded to the nearest of. */
 static int roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo)
@@ -228,7 +164,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int x = convertBaseIdxToGridPos(baseIdx, &headerProperties->headerRect, &dnaDispRange, bc->displayRev, TRUE);
+      const int x = convertBaseIdxToRectPos(baseIdx, &headerProperties->headerRect, &dnaDispRange, bc->displayRev, TRUE);
       
       if (x > minX && x < maxX)
 	{
@@ -685,7 +621,7 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 
 /* Convert an x coord on the given widget to a base index (in nucleotide coords) */
 static gint convertWidgetPosToBaseIdx(const gint widgetPos, 
-                                      const GdkRectangle const *displayRect,  
+                               const GdkRectangle const *displayRect,  
                                       const IntRange const *dnaDispRange,
                                       const gboolean displayRev)
 {
@@ -733,7 +669,7 @@ void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, Gdk
   /* Convert it to the base index and back again so that we get it rounded to the position of
    * the nearest base. */
   int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
-  int xRounded = convertBaseIdxToGridPos(baseIdx, displayRect, &dnaDispRange, bc->displayRev, TRUE);
+  int xRounded = convertBaseIdxToRectPos(baseIdx, displayRect, &dnaDispRange, bc->displayRev, TRUE);
   
   /* The other dimensions of the preview box are the same as the current highlight box. */
   GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
@@ -929,7 +865,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->displayRange.max = UNSET_INT;
       
       /* Calculate the font size */
-      getFontCharSize(bigPicture, &properties->charWidth, &properties->charHeight);
+      getFontCharSize(bigPicture, bigPicture->style->font_desc, &properties->charWidth, &properties->charHeight);
       
       /* Create the list of "nice round values" to round the grid header values to.
        * Create the list in reverse order (i.e. highest values first). */

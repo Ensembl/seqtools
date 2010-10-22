@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.54 2010-10-06 10:55:13 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.55 2010-10-22 11:58:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -34,11 +34,8 @@
 
 #include <gtk/gtk.h>
 #include <SeqTools/blxview.h>
+#include <SeqTools/utilities.h>
 #include <wh/version.h>
-
-#ifdef ACEDB
-#include <wh/regular.h>
-#endif
 
 
 /*            blixem program version and information.                        */
@@ -47,7 +44,7 @@
 
 #define BLIXEM_VERSION 4
 #define BLIXEM_RELEASE 0
-#define BLIXEM_UPDATE  3
+#define BLIXEM_UPDATE  4
 #define BLIXEM_VERSION_NUMBER	   UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
 #define BLIXEM_VERSION_STRING	   UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
 #define BLIXEM_TITLE_STRING	   UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
@@ -105,56 +102,50 @@ BLIXEM_AUTHOR_TEXT "\n"
 #endif
 
 
-/* Special characters for displaying in sequences */
-#define SEQUENCE_CHAR_GAP    '.'   /* represents a gap in the match sequence */
-#define SEQUENCE_CHAR_PAD    '-'   /* used for padding when the sequence is unavailable */
-#define SEQUENCE_CHAR_BLANK  '-'   /* used to display a blank when we're not interested in what the actual base is */
-#define SEQUENCE_CHAR_STOP   '*'   /* STOP codon */
-#define SEQUENCE_CHAR_MET    'M'   /* MET codon */
+/* The following are used to define default colors for certain types of features in Blixem.
+ * One of several different actual colors from the BlxColor struct may be used depending 
+ * on state, e.g. we use a different color if "print colors" (i.e. black and 
+ * white mode) is on. */
 
-#define selectFeaturesStr          "Feature series selection tool"
-#define XY_NOT_FILLED -1000        /* Magic value meaning "value not provided" */
-
-/* Really the buffers that use this should be dynamic but I'm not going to do that, this
- * code is so poor that it doesn't warrant the effort.... */
-#define NAMESIZE      12
-#define LONG_NAMESIZE 1000
-#define INITDBSEQLEN  50000        /* Initial estimate of max database sequence length */
-#define MAXLINE       10000
-
-
-/* Main Blixem error domain */
-#define BLX_ERROR g_quark_from_string("Blixem")
-
-/* Error codes */
-typedef enum
+typedef enum 
   {
-    BLX_ERROR_SEQ_SEGMENT,	      /* error finding sequence segment */
-    BLX_ERROR_EMPTY_STRING,           /* error code for when user entered a zero-length string */
-    BLX_ERROR_STRING_NOT_FOUND,       /* error code for when a search string is not found */
-    BLX_ERROR_SEQ_NAME_NOT_FOUND,     /* the sequence name(s) being searched for were not found */
-    BLX_ERROR_SEQ_DATA_MISMATCH       /* same sequence was parsed more than once and data does not match */
-  } BlxError;
+    BLXCOLOR_MIN,           /* dummy value so that we don't get a zero ID */
+  
+    BLXCOLOR_BACKGROUND,    /* background color of the widgets */
+    BLXCOLOR_REF_SEQ,       /* default background color for the reference sequence */  
+    BLXCOLOR_MATCH,         /* background color for an exact match */
+    BLXCOLOR_CONS,          /* background color for a conserved match */
+    BLXCOLOR_MISMATCH,      /* background color for a mismatch */
+    BLXCOLOR_INSERTION,     /* color for an insertion marker */
+    BLXCOLOR_EXON_START,    /* color for the start boundary line of an exon */
+    BLXCOLOR_EXON_END,      /* color for the end boundary line of an exon */
+    BLXCOLOR_CODON,         /* color in which to highlight the nucleotides for the currently-selected codon */
+    BLXCOLOR_MET,           /* background color for MET codons in the three frame translation */
+    BLXCOLOR_STOP,          /* background color for STOP codons in the three frame translation */
+    BLXCOLOR_GRID_LINE,     /* color of the gridlines in the big picture grids */
+    BLXCOLOR_GRID_TEXT,     /* color of the text in the big picture grids */
+    BLXCOLOR_HIGHLIGHT_BOX, /* color of the highlight box in the big picture */
+    BLXCOLOR_PREVIEW_BOX,   /* color of the preview box in the big picture */
+    BLXCOLOR_MSP_LINE,      /* color of the MSP lines in the big picture */
+    BLXCOLOR_SNP,           /* background color for SNPs */
+    BLXCOLOR_GROUP,         /* default highlight color for generic groups */
+    BLXCOLOR_MATCH_SET,     /* default highlight color for the special match-set group */
+    BLXCOLOR_EXON_FILL,     /* fill color for an exon in the big picture */
+    BLXCOLOR_EXON_LINE,     /* line color for an exon in the big picture */
+    BLXCOLOR_CDS_FILL,      /* fill color for a CDS in the big picture (coding region) */
+    BLXCOLOR_CDS_LINE,      /* line color for a CDS in the big picture (coding region) */
+    BLXCOLOR_UTR_FILL,      /* fill color for an UTR in the big picture (non-coding/untranslated region) */
+    BLXCOLOR_UTR_LINE,      /* line color for an UTR in the big picture (non-coding/untranslated region) */
+    BLXCOLOR_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
+    BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
+    BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
+    BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
+    BLXCOLOR_TREE_GRID_LINES,/* color of the tree grid lines (i.e. column separator lines) */
+    BLXCOLOR_CLIP_MARKER,   /* color of the marker line used to indicate a match has been clipped */
 
+    BLXCOL_NUM_COLORS
+  } BlxColorId;
 
-/* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
-typedef enum
-  {
-    BLXSEQ_INVALID, 
-    BLXSEQ_DNA, 
-    BLXSEQ_PEPTIDE
-  } BlxSeqType ;
-
-/* Fundamental blast mode used */
-typedef enum
-  {
-    BLXMODE_UNSET, 
-    BLXMODE_BLASTX, 
-    BLXMODE_TBLASTX, 
-    BLXMODE_BLASTN, 
-    BLXMODE_TBLASTN, 
-    BLXMODE_BLASTP
-  } BlxBlastMode ;
 
 /* Structure representing a group of sequences. This groups several BlxSequences together and 
  * sets various flags so that we can hide/highlight/etc all of the sequences in a group. */
@@ -304,9 +295,6 @@ void                               selectFeatures(void);
 float                              fsTotalHeight(MSP *msplist);
 
 /* blxparser.c */
-void                               parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *supportedTypes, GSList *styles,
-	                                   char **seq1, char *seq1name, char **seq2, char *seq2name, const int qOffset) ;
-void                               insertFS(MSP *msp, char *series);
 gboolean                           mspHasFs(const MSP *msp);  
 char*                              readFastaSeq(FILE *seqfile, char *qname);
 
@@ -332,15 +320,6 @@ gboolean                           blxConfigGetPFetchSocketPrefs(const char **no
 gboolean                           blxConfigGetPFetchWWWPrefs();
 
 
-/* blxGff3Parser.c */
-GSList*                            blxCreateSupportedGffTypeList();
-void                               blxDestroyGffTypeList(GSList **supportedTypes);
-
-/* translate.c */
-char*                              blxTranslate(char *seq, char **code);
-void                               blxComplement(char *seq) ;    
-char*                              revComplement(char *comp, char *seq) ;
-
 /* Create/destroy sequences and MSPs */
 MSP*                               createNewMsp(MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const int phase,
                                                 char *url, char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
@@ -358,9 +337,6 @@ BlxSequence*                       addBlxSequence(const char *name, const char *
 BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *fillColorSelected, const char *fillColorPrint, const char *fillColorPrintSelected, const char *lineColor, const char *lineColorSelected, const char *lineColorPrint, const char *lineColorPrintSelected, GError **error);
 void                               destroyBlxStyle(BlxStyle *style);
 BlxStyle*                          getBlxStyle(const char *styleName, GSList *styles, GError **error);
-
-BlxColor*			   getBlxColor(GArray *defaultColors, const BlxColorId colorId);
-GdkColor*			   getGdkColor(BlxColorId colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
 void                               setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port);
@@ -381,7 +357,6 @@ extern char      *blixemVersion;
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */
 extern int       aa_atob[];
 extern int       PAM120[23][23];
-extern GArray    *fsArr;		   /* in dotter.c */
 extern int       dotterGraph;
 extern float     fsPlotHeight;
 extern GtkWidget *blixemWindow;

@@ -11,6 +11,7 @@
 #include <SeqTools/detailview.h>
 #include <SeqTools/detailviewtree.h>
 #include <SeqTools/blxwindow.h>
+#include <SeqTools/blxmsp.h>
 #include <SeqTools/utilities.h>
 #include <gtk/gtkcellrenderertext.h>
 #include <stdlib.h>
@@ -820,7 +821,7 @@ static void drawSequenceText(GtkWidget *tree,
 
 
 /* Get the range of the msp that is inside the currently displayed range. The returned
- * range has UNSET_INTs if no part of the msp is visible. */
+ * range has UNSET_INTs if no part of the msp is visible. Returned coords are in display coords. */
 static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
 {
   /* Find the full display range of the MSP including any portions of unaligned sequence etc. */
@@ -912,17 +913,25 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       return;
     }
   
+  /* The ref seq is in nucleotide coords, so convert the segment coords to nucleotide coords */
+  const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  IntRange qRange;
+  intrangeSetValues(&qRange, coord1, coord2);
+
   GError *error = NULL;
-  gchar *refSeqSegment = getSequenceSegment(data->bc,
-					    data->bc->refSeq,
-					    segmentRange.min, 
-					    segmentRange.max, 
+  gchar *refSeqSegment = getSequenceSegment(data->bc->refSeq,
+                                            &qRange,
 					    data->qStrand, 
-					    data->bc->seqType,
+                                            BLXSEQ_DNA,               /* ref seq is always in nucleotide coords */
+					    data->bc->seqType,        /* required segment is in display coords */
 					    data->qFrame, 
+					    data->bc->numFrames,
+					    &data->bc->refSeqRange,
+					    data->bc->blastMode,
+					    data->bc->geneticCode,
 					    data->bc->displayRev,
 					    data->bc->displayRev,
-					    TRUE,
 					    TRUE,
 					    &error);
 
@@ -932,6 +941,11 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
       prefixError(error, "Could not draw alignment for sequence '%s'. ", mspGetSName(msp));
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       return;
+    }
+  else
+    {
+      /* If there's an error but the sequence was still returned it's a non-critical warning */
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
     
   /* We'll populate a string with the characters we want to display as we loop through the indices. */

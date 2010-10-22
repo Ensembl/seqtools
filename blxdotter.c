@@ -11,6 +11,7 @@
 #include <SeqTools/bigpicture.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxmsp.h>
 #include <SeqTools/dotter.h>
 #include <string.h>
 #include <stdlib.h>
@@ -47,7 +48,8 @@ typedef enum {
   BLX_DOTTER_ERROR_NO_REF_SEQ,	      /* failed to find the query sequence segment */
   BLX_DOTTER_ERROR_INTERNAL_SEQ,      /* using internally-stored sequence (because fetch failed) */
   BLX_DOTTER_ERROR_NO_MATCHES,        /* there are no matches on the requested sequence */
-  BLX_DOTTER_ERROR_NO_SEQ_DATA        /* the match sequence has no sequence data (e.g. if could not pfetch it) */
+  BLX_DOTTER_ERROR_NO_SEQ_DATA,       /* the match sequence has no sequence data (e.g. if could not pfetch it) */
+  BLX_DOTTER_ERROR_INVALID_STRAND     /* there are no match sequences on the correct strand */
 } BlxDotterError;
 
 
@@ -313,7 +315,17 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
 static void onDestroyDotterDialog(GtkWidget *dialog, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  g_free(dialogData);
+  
+  if (dialogData)
+    {
+      if (dialogData->dotterSSeq)
+        {
+          g_free(dialogData->dotterSSeq);
+          dialogData->dotterSSeq = NULL;
+        }
+      
+      g_free(dialogData);
+    }
 }
 
 
@@ -433,7 +445,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_DOTTER;
-  GtkWidget *dialog = getPersistentDialog(bc, dialogId);
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
   static DotterDialogData *dialogData = NULL;
   
@@ -453,7 +465,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            NULL);
 
       /* These calls are required to make the dialog persistent... */
-      addPersistentDialog(bc, dialogId, dialog);
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       /* Create the dialog data struct first time round, but re-populate it each time. Create 
@@ -470,7 +482,6 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       dialogData->dotterSSeq = NULL;
 
       g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(onDestroyDotterDialog), dialogData);
-      
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
     }
   else
@@ -548,7 +559,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       g_free(dialogData->dotterSSeq);
       dialogData->dotterSSeq = NULL;
     }
-  
+
   dialogData->dotterSSeq = getDotterSSeq(blxWindow, NULL);
   
   /* There is an issue if the user selects a different sequence while the dotter dialog
@@ -653,7 +664,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
       else
 	success = smartDotterRange(blxWindow, dotterSSeq, dotterStart, dotterEnd, &tmpError);
 
-      if (error && *error)
+      if (error && tmpError)
 	{
 	  g_propagate_error(error, tmpError);
 	  prefixError(*error, "Failed to calculate dotter coordinates. ");
@@ -691,22 +702,6 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
     {
       const char *fetchMode = bc->fetchMode;
       dotterSSeq = fetchSeqRaw(blxSequenceGetFullName(blxSeq), fetchMode);
-      
-      /* If the match is on the reverse s strand, we need to modify it, because
-       * dotter does not currently handle it. */
-      if (dotterSSeq && g_list_length(blxSeq->mspList) > 0)
-	{
-	  const MSP *msp = (const MSP*)(blxSeq->mspList->data);
-	  const gboolean displayRev = bc->displayRev;
-	  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-	  
-	  if (qForward && displayRev)
-	    {
-	      /* This should be consolidated with the code below */
-	      blxComplement(dotterSSeq);
-	      //g_strreverse(dotterSSeq);
-	    }
-	}
     }
 
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
@@ -725,27 +720,12 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 
       g_debug("found.\n");
       
-      /* If the match is on the reverse s strand, we need to modify it, because
-       * dotter does not currently handle it. */
-      if (dotterSSeq && g_list_length(blxSeq->mspList) > 0)
-	{
-	  const MSP *msp = (const MSP*)(blxSeq->mspList->data);
-	  const gboolean displayRev = bc->displayRev;
-	  const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
-	  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-	  const gboolean sameDirection = (qForward == sForward);
-	  
-	  if (bc->seqType == BLXSEQ_DNA && ((sameDirection && displayRev) || (!sForward && !displayRev)))
-	    {
-	      /* Complementing the match sequence here maintains existing dotter behaviour.
-	       * However, I think this is wrong - the match shows agains the wrong strand
-	       * in the alignment view in dotter. I think we should reverse it here and
-	       * not complement it; however, then the dot view shows the match in the 
-	       * wrong place, because it doesn't currently handle reverse s coords. */
-	      blxComplement(dotterSSeq);
-	      //g_strreverse(dotterSSeq);
-	    }
-	}
+      /* Dotter expects the passed sequence to be forwards and un-complemented but if this is
+       * the reverse strand the sequence will be complemented, so un-complement it. */
+      if (blxSeq->strand == BLXSTRAND_REVERSE)
+        {
+          blxComplement(dotterSSeq);
+        }
     }
 
   if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
@@ -1076,6 +1056,27 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
       return FALSE;
     }
   
+  /* We will display the active strand as the main strand in dotter */
+  const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
+
+  if (bc->seqType == BLXSEQ_PEPTIDE)
+    {
+      GList *mspItem = selectedSeq->mspList;
+      gboolean found = FALSE;
+      
+      for ( ; mspItem && !found; mspItem = mspItem->next)
+        {
+          const MSP const *msp = (const MSP const *)(mspItem->data);
+          found = (msp->qStrand == qStrand);
+        }
+      
+      if (!found)
+        {
+          g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_INVALID_STRAND, "You must select a match sequence on the active strand, or toggle strands first.\n");
+          return FALSE;
+        }
+    }
+  
   /* Make a copy of the match sequence, because dotter takes ownership of this. */
   char *dotterSSeq = NULL;
   if (dotterSSeqIn)
@@ -1099,26 +1100,34 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
     }
   
   /* Get the section of reference sequence that we're interested in */
-  const BlxStrand strand = bc->seqType == BLXSEQ_DNA ? mspGetRefStrand(firstMsp) : blxWindowGetActiveStrand(blxWindow);
   const int frame = mspGetRefFrame(firstMsp, bc->seqType);
+  IntRange dotterRange;
+  intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
 
-  char *querySeqSegment = getSequenceSegment(bc,
-                                             bc->refSeq,
-                                             dotterStart,
-                                             dotterEnd, 
-                                             strand,
-                                             BLXSEQ_DNA,	  /* calculated dotter coords are always in terms of DNA seq */
+  char *querySeqSegment = getSequenceSegment(bc->refSeq,
+                                             &dotterRange,
+                                             BLXSTRAND_FORWARD,   /* always pass forward strand to dotter */
+                                             BLXSEQ_DNA,	  /* calculated dotter coords are always nucleotide coords */
+                                             BLXSEQ_DNA,          /* required sequence is in nucleotide coords */
                                              frame,
+					     bc->numFrames,
+					     &bc->refSeqRange,
+					     bc->blastMode,
+					     bc->geneticCode,
                                              FALSE,		  /* input coords are always left-to-right, even if display reversed */
-                                             bc->displayRev,  /* whether to reverse */
-                                             bc->displayRev,  /* whether to allow rev strands to be complemented */
-                                             FALSE,		  /* don't allow translation to a peptide seq */
+                                             FALSE,               /* always pass forward strand to dotter */
+                                             FALSE,               /* always pass forward strand to dotter */
                                              &tmpError);
   
   if (!querySeqSegment)
     {
       g_propagate_error(error, tmpError);
       return FALSE;
+    }
+  else
+    {
+      /* If there's an error but the sequence was still returned it's a non-critical warning */
+      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
     }
   
   /* Get the match sequence name (chopping off the letters before the colon, if there is one). */
@@ -1132,7 +1141,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
       dotterSName = mspGetSName(firstMsp);
     }
   
-  const int offset = min(dotterStart, dotterEnd) - 1;
+  const int offset = dotterRange.min - 1;
   
   /* Get the options */
   static char opts[] = "     ";
@@ -1149,8 +1158,8 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   printf("  query sequence: name -  %s, offset - %d\n"
 	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
   
-  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, dotterSName, dotterSSeq, 0,
-	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, 0, 0, 0);
+  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, qStrand, dotterSName, dotterSSeq, 0,
+	 selectedSeq->strand, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
   
   return TRUE;
 }
@@ -1201,26 +1210,35 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
     }
 
   /* Get the section of reference sequence that we're interested in */
-  const BlxStrand strand = blxWindowGetActiveStrand(blxWindow);
+  const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
   const int frame = 1;
-  
-  char *querySeqSegmentTemp = getSequenceSegment(bc,
-						 bc->refSeq,
-						 dotterStart,
-						 dotterEnd, 
-						 strand,
-						 BLXSEQ_DNA,	  /* calculated dotter coords are always in terms of DNA seq */
+  IntRange dotterRange;
+  intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
+    
+  char *querySeqSegmentTemp = getSequenceSegment(bc->refSeq,
+						 &dotterRange,
+						 qStrand,
+						 BLXSEQ_DNA,	  /* calculated dotter coords are always in nucleotide coords */
+                                                 BLXSEQ_DNA,      /* required sequence is in nucleotide coords */
 						 frame,
+						 bc->numFrames,
+						 &bc->refSeqRange,
+						 bc->blastMode,
+						 bc->geneticCode,
 						 FALSE,		  /* input coords are always left-to-right, even if display reversed */
 						 bc->displayRev,  /* whether to reverse */
 						 bc->displayRev,  /* whether to allow rev strands to be complemented */
-						 FALSE,		  /* don't allow translation to a peptide seq */
 						 &tmpError);
   
   if (!querySeqSegmentTemp)
     {
       g_propagate_error(error, tmpError);
       return FALSE;
+    }
+  else
+    {
+      /* If there's an error but the sequence was still returned it's a non-critical warning */
+      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
     }
   
   /* dotter will free this memory with messfree, so we need to pass a string allocated with messalloc */
@@ -1232,12 +1250,12 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   char *dotterSSeq = messalloc(strlen(querySeqSegment) + 1);
   strcpy(dotterSSeq, querySeqSegment);
 
-  int offset = min(dotterStart, dotterEnd) - 1;
+  int offset = dotterRange.min - 1;
 
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
-  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, bc->refSeqName, dotterSSeq, offset,
-	 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, 0, 0, 0);
+  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, BLXSTRAND_FORWARD, bc->refSeqName, dotterSSeq, offset,
+	 BLXSTRAND_FORWARD, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
   
   return TRUE;
 }

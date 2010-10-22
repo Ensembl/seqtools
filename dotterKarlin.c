@@ -1,5 +1,5 @@
 /*  Last edited: Oct 26 10:45 2003 (edgrif) */
-/* $Id: dotterKarlin.c,v 1.3 2010-08-31 15:46:31 gb10 Exp $ */
+/* $Id: dotterKarlin.c,v 1.4 2010-10-22 11:58:58 gb10 Exp $ */
 
 /*
  -------------------------------------------------------------
@@ -31,8 +31,10 @@
 
 */
 
-#include "dotter_.h"
+#include "SeqTools/dotter_.h"
 #include <gtk/gtk.h>
+#include <math.h>
+#include <stdlib.h>
 
 
 #define MAXIT 20	/* Maximum number of iterations used in calculating K */
@@ -333,7 +335,7 @@ OKExit:
 
 
 /* Adapted from blastp.c */
-int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, char *qseq, char *sseq, 
+int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
 		       double *exp_res_score, double *Lambda)
 {
     int    
@@ -370,17 +372,17 @@ int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, char *qseq, char
     for (i = 0; qseq[i]; ++i)
       {
 	/* only count unambiguous letters */
-	if (tob[qseq[i]] < abetsize )
+	if (tob[(int)qseq[i]] < abetsize )
 	  {
-	    n1[tob[qseq[i]]]++;
+	    n1[tob[(int)qseq[i]]]++;
 	    qlen++;
 	  }
       }
     for (i = 0; i < abetsize; ++i) n2[i] = 0;
     for (i = 0; sseq[i]; ++i) {
 	/* only count unambiguous letters */
-	if (tob[sseq[i]] != NA ) {
-	    n2[tob[sseq[i]]]++;
+	if (tob[(int)sseq[i]] != NA ) {
+	    n2[tob[(int)sseq[i]]]++;
 	    slen++;
 	}
     }

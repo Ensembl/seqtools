@@ -133,7 +133,7 @@ static void drawVerticalGridLines(GtkWidget *grid,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int x = convertBaseIdxToGridPos(baseIdx, &properties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
+      const int x = convertBaseIdxToRectPos(baseIdx, &properties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
 
       if (x > minX && x < maxX)
 	{
@@ -182,6 +182,10 @@ static void drawHorizontalGridLines(GtkWidget *grid,
         }
       
       PangoLayout *layout = gtk_widget_create_pango_layout(grid, text);
+
+      int width = UNSET_INT, height = UNSET_INT;
+      pango_layout_get_pixel_size(layout, &width, &height);
+      
       gdk_draw_layout(drawable, gc, 0, y - gridGetCellHeight(grid)/2, layout);
       g_object_unref(layout);
       
@@ -208,12 +212,12 @@ void calculateMspLineDimensions(GtkWidget *grid,
   IntRange dnaDispRange;
   convertDisplayRangeToDnaRange(gridGetDisplayRange(grid), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
 
-  const int x1 = convertBaseIdxToGridPos(msp->qRange.min, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
-  const int x2 = convertBaseIdxToGridPos(msp->qRange.max, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
+  const int x1 = convertBaseIdxToRectPos(msp->qRange.min, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToRectPos(msp->qRange.max, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
   
   const int xMin = min(x1, x2);
   const int xMax = max(x1, x2);
-
+  
   if (x)
     {
       *x = xMin;
@@ -429,14 +433,14 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
       GtkWidget *detailView = gridGetDetailView(grid);
       IntRange dvRange;
       convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
-
+      
       /* Get the x coords for the start and end of the detail view display range */
-      const int x1 = convertBaseIdxToGridPos(dvRange.min, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToGridPos(dvRange.max + 1, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
+      const int x1 = convertBaseIdxToRectPos(dvRange.min, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
+      const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
       
       properties->highlightRect.x = min(x1, x2);
       properties->highlightRect.y = 0;
-      
+
       properties->highlightRect.width = abs(x1 - x2);
       properties->highlightRect.height = properties->gridRect.height + (bigPictureProperties->charHeight / 2) + properties->mspLineHeight + (2 * bigPictureProperties->highlightBoxYPad);
     }
