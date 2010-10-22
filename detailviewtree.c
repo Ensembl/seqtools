@@ -12,6 +12,7 @@
 #include <SeqTools/sequencecellrenderer.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxmsp.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 
@@ -887,20 +888,44 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   
   const gboolean showSnps = treeHasSnpHeader(tree);
   
-  /* Find the segment of the ref seq to display. */
+  /* Find the segment of the ref seq to display. Ref seq is in nucleotide coords so convert the 
+   * display range to nucleotide coords. */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); 
+  IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
+
+  /* The q range may be outside the ref seq range if we are at the start/end and we have included
+   * "missing" bases to make up complete codons. Adjust to within the range, but maintain the same
+   * base number within the reading frame. */
+  int offset = 0;
+  
+  while (qRange.min < bc->refSeqRange.min)
+    {
+      qRange.min += bc->numFrames;
+      ++offset;
+    }
+
+  while (qRange.max > bc->refSeqRange.max)
+    {
+      qRange.max -= bc->numFrames;
+      ++offset;
+    }
+  
   GError *error = NULL;
   
-  gchar *segmentToDisplay = getSequenceSegment(bc,
-					       bc->refSeq,
-					       properties->displayRange.min, 
-					       properties->displayRange.max, 
+  gchar *segmentToDisplay = getSequenceSegment(bc->refSeq,
+                                               &qRange,
 					       strand, 
-					       bc->seqType,
+					       BLXSEQ_DNA,      /* input ref seq is always in nucleotide coords */
+                                               bc->seqType,     /* required segment is in display coords */
 					       frame, 
+					       bc->numFrames,
+					       &bc->refSeqRange,
+					       bc->blastMode,
+					       bc->geneticCode,
 					       bc->displayRev,
 					       bc->displayRev,	/* show backwards if display reversed */
 					       TRUE,		/* always complement reverse strand */
-					       TRUE,		/* always translate peptide sequences */
 					       &error);
   
   if (!segmentToDisplay)
@@ -910,14 +935,19 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
       return;
     }
+  else
+    {
+      /* If there's an error but the sequence was still returned it's a non-critical warning */
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+    }
   
   GdkGC *gc = gdk_gc_new(drawable);
+
+  /* Offset the x coord where we'll start drawing if we did not start at the beginning of the display range. */
+  int xStart = offset * properties->charWidth;
+  const int yStart = 0;
   
-  /* Find out if there are any bases in the introns that need highlighting. */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
-  
+  /* Find out if there are any special bases that need highlighting. */
   GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, bc->seqType, strand);
 
   const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
@@ -928,13 +958,12 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
     {
       /* Set the background color depending on whether this base is selected or
        * is affected by a SNP */
-      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx - offset);
       const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
       
-      const int x = (displayIdx - properties->displayRange.min) * properties->charWidth;
-      const int y = 0;
+      const int x = xStart + (displayIdx - properties->displayRange.min) * properties->charWidth;
 
-      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, y, basesToHighlight);
+      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, yStart, basesToHighlight);
       
       dnaIdx += incrementValue;
       ++displayIdx;
@@ -946,7 +975,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   
   if (layout)
     {
-      gtk_paint_layout(headerWidget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
+      gtk_paint_layout(headerWidget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, xStart, yStart, layout);
       g_object_unref(layout);
     }
   
@@ -1451,7 +1480,6 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
     }
 }
 
-
 /* Get the display index at the given position in the tree header */
 static int treeHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *tree, const int x, const int y)
 {
@@ -1579,14 +1607,11 @@ static gboolean onLeaveTreeHeader(GtkWidget *header, GdkEventCrossing *event, gp
 {
   /* Remove any statusbar message that was added by mousing over the tree header */
   GtkWidget *tree = GTK_WIDGET(data);
-  GtkStatusbar *statusBar = treeGetStatusBar(tree);
-  guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+  clearStatusbar(tree);
   
-  gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
-  
-  /* Return true to stop the default handler re-drawing when the focus changes */
   return TRUE;
 }
+
 
 /* Add a row to the given tree containing the given MSP */
 void addMspToTree(GtkWidget *tree, MSP *msp)
@@ -1608,7 +1633,7 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
         }
       else
         {
-          mspGList = g_list_append(NULL, msp);
+      mspGList = g_list_append(NULL, msp);
         }
       
       gtk_list_store_set(store, &iter,
@@ -2247,7 +2272,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
           g_signal_connect(G_OBJECT(columnHeader), "button-release-event",  G_CALLBACK(onButtonReleaseTreeHeader), tree);
           g_signal_connect(G_OBJECT(columnHeader), "motion-notify-event",   G_CALLBACK(onMouseMoveTreeHeader), tree);
           g_signal_connect(G_OBJECT(columnHeader), "leave-notify-event",    G_CALLBACK(onLeaveTreeHeader), tree);
-
+          
 	  break;
 	}
 

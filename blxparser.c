@@ -34,13 +34,15 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.41 2010-10-19 09:34:22 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.42 2010-10-22 12:04:03 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
 #include <wh/colours.h>
 #include <SeqTools/utilities.h>
-#include <SeqTools/blxGff3Parser_.h>
+#include <SeqTools/blxmsp.h>
+#include <SeqTools/blxGff3Parser.h>
+#include <SeqTools/blxparser.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -92,9 +94,6 @@ static void	    parseLook(MSP *msp, char *s) ;
 static BlxMspType   getMspTypeFromScore(const int score);
 static void	    getDesc(MSP *msp, const char *s1, const char *s2) ;
 static char*	    prepSeq(const int sStart, char *inputSeq, char *opts) ;
-
-static gint	    fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in) ;
-static gint	    fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in) ;
 
 static void         getStrandAndFrameFromString(char *text, BlxStrand *strand, int *frame);
 static void         checkReversedSubjectAllowed(const MSP *msp, const char *opts);
@@ -234,72 +233,6 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList **seqList, GSList *sup
 
   DEBUG_EXIT("parseFS");
   return ;
-}
-
-
-/* Returns true if a feature-series by the given name exists in the feature-series array and
- * and, if so, sets index_out with its index. */
-static gboolean fsArrayFindByName(GArray *fsArray, FeatureSeries *fs, int *index_out)
-{
-  gboolean result = FALSE;
-  
-  if (fsArray)
-    {
-      int i = 0;
-      for ( ; i < fsArray->len; ++i)
-	{
-	  FeatureSeries *compareFs = &g_array_index(fsArray, FeatureSeries, i);
-	  
-	  if (!fsSortByNameCompareFunc(fs, compareFs))
-	    {
-	      result = TRUE;
-	      *index_out = i;
-	      break;
-	    }
-	}
-    }
-    
-  return result;
-}
-
-
-/* Insert the given MSP into the Feature Series of the given name. If the Feature Series
- * does not exist yet, create it. Also, if the Feature Series array does not exist yet, create
- * that too. */
-void insertFS(MSP *msp, char *series)
-{
-  if (!fsArr) 
-    {
-      fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
-    }
-
-  static int orderNum = 0; /* will increment this each time we add a feature series to the array */
-  
-  FeatureSeries *fs = g_malloc(sizeof(FeatureSeries));
-  fs->on = 1;
-  fs->y = 0.0;
-  fs->xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
-
-  fs->name = g_strdup(series);
-
-  int i;
-  if (fsArrayFindByName(fsArr, fs, &i))
-    {
-      msp->fs = &g_array_index(fsArr, FeatureSeries, i);
-      g_free(fs->name);
-      g_free(fs);
-    }
-  else
-    {
-      /* Remember the order we added them so we can sort by it again later. */
-      orderNum++;
-      fs->order = orderNum;
-
-      g_array_append_val(fsArr, *fs);
-//      g_array_sort(fsArr, fsSortByNameCompareFunc);
-      
-      msp->fs = fs;
-    }
 }
 
 
@@ -952,39 +885,6 @@ static void parseEXBLXSEQBLExtended(MSP **lastMsp, MSP **mspList, BlxParserState
   DEBUG_EXIT("parseEXBLXSEQBLExtended");
   return ;
 }
-
-
-/* Comparison function to sort two Feature Series by the order number stored in the FeatureSeries
- * struct. Returns -1 if the first item is before the second, 1 if the second is first, or 0 if 
- * they are equal.  */
-static gint fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
-{
-  int result = 0;
-
-  FeatureSeries *fs1 = (FeatureSeries *)fs1_in;
-  FeatureSeries *fs2 = (FeatureSeries *)fs2_in;
-
-  if (fs1->order < fs2->order)
-    result = -1;
-  else if (fs1->order > fs2->order)
-    result = 1;
-  
-  return result;
-}
-
-
-/* Comparison function to sort two Features Series by name. */
-static gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
-{
-  FeatureSeries *fs1 = (FeatureSeries *)fs1_in;
-  FeatureSeries *fs2 = (FeatureSeries *)fs2_in;
-
-  /*printf("%s - %s : %d\n", fs1->name, fs2->name,  strcmp(fs1->name, fs2->name));*/
-
-  return strcmp(fs1->name, fs2->name);
-}
-
-
 
 
 /* Read a line from a file, gets the whole line no matter how big...until you run out
