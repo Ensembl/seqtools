@@ -1142,15 +1142,25 @@ static void doCalculateImage(const BlxStrand qStrand,
                              int *sIndex,
                              int *sum1,
                              int *sum2,
-                             int *oldsum,
-                             int *newsum,
-                             int *zero,
-                             int *addrow,
-                             int *delrow)
+                             int *zero)
 {
   DotterContext *dc = dwc->dotterCtx;
-  
+  const int pixelmapLen = properties->imageWidth * properties->imageHeight;
+
   register int qIdx, sIdx, qmax, dotpos, dotposq, dotposs;
+  
+  register int *newsum;	/* The current row of scores being calculated */
+  register int *oldsum;	/* Remembers the previous row of calculated scores */
+  register int *delrow;	/* Pointer to the row in scoreVec to subtract */
+  register int *addrow;	/* Pointer to the row in scoreVec to add */
+  
+  /* Reset the sum vectors */
+  int idx = 0;
+  for ( ; idx < pepQSeqLen; ++idx) 
+    {
+      sum1[idx] = 0;
+      sum2[idx] = 0;
+    }
   
   /* Get the range of valid calculations (excluding the initial sliding window size, where we don't have enough 
    * info to calculate the average properly - exclude the winsize at the start if fwd or the end if reverse) */
@@ -1165,7 +1175,7 @@ static void doCalculateImage(const BlxStrand qStrand,
   for (sIdx = sStart ; sIdx >= 0 && sIdx < slen; sIdx += incrementVal)
     {   
       /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
-       * same two vectors here to save having to keep allocating memory) */
+       * same two vectors (sum1 and sum2) here to save having to keep allocating memory) */
       oldsum = (sIdx & 1) ? sum2 : sum1;
       newsum = (sIdx & 1) ? sum1 : sum2;
       
@@ -1215,11 +1225,10 @@ static void doCalculateImage(const BlxStrand qStrand,
               if (sPosLocal >= qPosLocal)
                 {
                   dotpos = properties->imageWidth*dotposs + dotposq;
-                  const int pixelmapLen = properties->imageWidth * properties->imageHeight;
                   
                   if (dotpos < 0 || dotpos >= pixelmapLen) 
                     {
-                      g_critical ( "Pixel out of bounds (%d) in blastx: %d\n", pixelmapLen-1, dotpos);
+                      g_critical ( "Pixel %d out of bounds. Pixelmap len=%d, mode =%d, ref sequqnece strand=%s\n", dotpos, pixelmapLen, dc->blastMode, (qStrand == BLXSTRAND_REVERSE ? "reverse" : "forward"));
                     }
                   else
                     {
@@ -1288,13 +1297,8 @@ static void calculateImage(DotplotProperties *properties)
 
   g_assert(properties->slidingWinSize > 0);
   
-  register int 
-  qIdx, sIdx,     /* Loop variables */
-  *newsum,	/* New sum pointer */
-  *oldsum,	/* Old sum pointer */
-  *delrow,	/* Pointer to scoreVec, row to remove */
-  *addrow,	/* Pointer to scoreVec, row to add */
-  dotpos;
+  register int qIdx, sIdx;     /* Loop variables */
+  register int dotpos;
   
   GSList *dataList = NULL;
   
@@ -1328,7 +1332,8 @@ static void calculateImage(DotplotProperties *properties)
   int *sIndex = allocMemoryToList(&dataList, slen * sizeof(int));
   populateMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
   
-  /* Allocate some vectors for use in averaging the values for whole rows at a time, and initialise them to zero. */
+  /* Allocate some vectors for use in averaging the values for whole rows at a time. Initialise the
+   * 'zero' array now but leave the sum arrays because these will be reset in doCalculateWindow. */
   int *zero = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
   int *sum1 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
   int *sum2 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
@@ -1337,8 +1342,6 @@ static void calculateImage(DotplotProperties *properties)
   for (idx = 0; idx < pepQSeqLen; ++idx) 
     {
       zero[idx] = 0;
-      sum1[idx] = 0;
-      sum2[idx] = 0;
     }
 
   if (dc->blastMode == BLXMODE_BLASTX)
@@ -1350,45 +1353,34 @@ static void calculateImage(DotplotProperties *properties)
         {
           doCalculateImage(BLXSTRAND_FORWARD, 1, 0, frame,
                            dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
-                           scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
+                           scoreVec, sIndex, sum1, sum2, zero);
+
         }
     }
   else if (dc->blastMode == BLXMODE_BLASTP) 
     {
-      /* Protein -> Protein matches. Straightforward comparison of each sequence. */
+      /* Protein -> Protein matches. Straightforward comparison of the two sequences. */
       doCalculateImage(BLXSTRAND_FORWARD, 1, 0, 0,
                        dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
-                       scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
+                       scoreVec, sIndex, sum1, sum2, zero);
     }
   else if (dc->blastMode == BLXMODE_BLASTN)
     {
       /* Nucleotide -> Nucleotide matches. Calculate the result for each strand of the reference
        * sequence, and use the overall max values. */
       
-      /* Watson strand */
       if (!dc->crickOnly)
         {
           doCalculateImage(BLXSTRAND_FORWARD, 1, 0, 0,
                           dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
-                          scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
+                          scoreVec, sIndex, sum1, sum2, zero);
         }
 
-      /* Crick strand */
       if (!dc->watsonOnly)
         {
-          /* If the sum arrays have already been used for the watson strand we need to re-zero them */
-          if (!dc->crickOnly)
-            {
-              for (idx = 0; idx < pepQSeqLen; ++idx) 
-                {
-                  sum1[idx] = 0;
-                  sum2[idx] = 0;
-                }
-            }            
-          
           doCalculateImage(BLXSTRAND_REVERSE, -1, slen - 1, 0,
                            dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
-                           scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
+                           scoreVec, sIndex, sum1, sum2, zero);
         }
     }
 
@@ -2129,12 +2121,9 @@ static void setHspPixmapStrength(int strength, int sx, int sy, int ex, int ey, D
       if (x >= 0 && x < width && sy >= 0 && sy < height) 
 	{
           const int dotpos = width * (y) + x;
-          
-          if (dotpos < 0 || dotpos > pixelmapLen-1) 
-            {
-              g_critical("Pixel out of bounds (0-%d) in setHspPixmapStrength: %d. Crash imminent.", pixelmapLen - 1, dotpos);
-            }
-          else if (dotValue > properties->hspPixmap[dotpos]) 
+
+          /* Use the new value if greater than the existing value. Ignore pixels out of range. */
+          if (dotpos >= 0 && dotpos < pixelmapLen && dotValue > properties->hspPixmap[dotpos]) 
             {
               properties->hspPixmap[dotpos] = dotValue;
             }
@@ -2232,11 +2221,17 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
       *ex = *sx - (matchlen-1);
     }
   
-  //      if (reversedScale) 
-  //        {
-  //          *sx = RightBorder-LeftBorder - *sx;
-  //          *ex = RightBorder-LeftBorder - *ex;
-  //        }
+  if (dc->hozScaleRev) 
+    {
+      *sx = properties->plotRect.width - *sx;
+      *ex = properties->plotRect.width - *ex;
+    }
+
+  if (dc->vertScaleRev) 
+    {
+      *sy = properties->plotRect.height - *sy;
+      *ey = properties->plotRect.height - *ey;
+    }
   
   *ey = *sy + matchlen - 1;
 }
@@ -2480,7 +2475,7 @@ void dotplotUpdateGreymap(GtkWidget *dotplot, gpointer data)
     {
       transformGreyRampImage(properties->image, properties->hspPixmap, properties);
     }
-  else
+  else if (properties->pixelmap)
     {
       transformGreyRampImage(properties->image, properties->pixelmap, properties);
     }
