@@ -44,26 +44,26 @@ NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
 NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR 
 };
 
-static int atob[]	/* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
-= {
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,24,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA, /* A, B, C, D, ..., P */
-15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA, /* Q, R, S, T, ... */
-NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA, /* a, b, c, d, ..., p */
-15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA, /* q, r, s, t, ... */
-
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA 
-};
+//static int atob[]	/* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
+//= {
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,24,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA, /* A, B, C, D, ..., P */
+//15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA, /* Q, R, S, T, ... */
+//NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA, /* a, b, c, d, ..., p */
+//15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA, /* q, r, s, t, ... */
+//
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA 
+//};
 
 char aa_btoa[]	/* binary-to-ASCII translation table */
 = "-ARNDCQEGHILKMFPSTWYVBZX*" ;
@@ -969,17 +969,28 @@ static void destroyListData(GSList *dataList)
 
 /* Get a base in the horizontal (reference) sequence. The given index is zero-based within our
  * current display range. */
-static char getHozSeqBase(DotterWindowContext *dwc, const int idx)
+static char getHozSeqBase(DotterWindowContext *dwc, const int idx, const int frame, const int offset)
 {
   DotterContext *dc = dwc->dotterCtx;
 
-  /* Reverse the sequence if the scale is reversed */
-  const int coord = dc->hozScaleRev ? dwc->refSeqRange.max - idx : dwc->refSeqRange.min + idx;
+  char result;
+
+  if (dc->blastMode == BLXMODE_BLASTX)
+    {
+      result = dc->peptideSeqs[frame][idx + offset];
+    }
+  else
+    {
+      /* Reverse the sequence if the scale is reversed */
+      const int coord = dc->hozScaleRev ? dwc->refSeqRange.max - idx : dwc->refSeqRange.min + idx;
+      
+      /* Complement the sequence if it's the reverse strand */
+      const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA);
+
+      result = getRefSeqBase(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
+    }
   
-  /* Complement the sequence if it's the reverse strand */
-  const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA);
-  
-  return getRefSeqBase(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
+  return result;
 }
 
 
@@ -996,6 +1007,90 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
   const gboolean complement = FALSE;
   
   return getRefSeqBase(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
+}
+
+
+/* Get the array of binary values for the match sequence, usd by calculateImage */
+static void getMatchSeqBinaryVals(DotterWindowContext *dwc, const int slen, const int translationTable[], int *sIndex)
+{
+  int sIdx = 0;
+  
+  for ( ; sIdx < slen; ++sIdx) 
+    {
+      const char sBase = getVertSeqBase(dwc, sIdx);
+      const int asciiVal = (int)sBase;
+      const int aminoAcidId = translationTable[asciiVal];
+      sIndex[sIdx] = aminoAcidId;
+    }
+}
+
+
+/* Create the score vector that is used by calculateImage. Allocates memory but does not populate it
+ * except for the not-a-residue entry) */
+static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, GSList **dataList, int ***scoreVecPtr)
+{
+  DotterContext *dc = dwc->dotterCtx;
+  
+  *scoreVecPtr = allocMemoryToList(dataList, vecLen * sizeof(int*));
+  int **scoreVec = *scoreVecPtr;
+
+  /* Allocate memory for each row in the score vector. Each row is the length of the ref sequence */
+  int rowIdx = 0;
+  for ( ; rowIdx < vecLen; ++rowIdx)
+    {
+      scoreVec[rowIdx] = allocMemoryToList(dataList, qlen * sizeof(int));
+    }
+
+  if (dc->blastMode != BLXMODE_BLASTN)
+    {
+      /* Populate non-protein symbols in scorevector */
+      int qIdx = 0;
+      for (qIdx = 0; qIdx < qlen; ++qIdx) 
+        {
+          scoreVec[vecLen - 1][qIdx] = dc->matrix[vecLen - 2][vecLen - 2];
+        }
+    }
+}
+
+
+static void populateScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, const int frame, const int offset, const int translationTable[], int **scoreVec)
+{
+  DotterContext *dc = dwc->dotterCtx;
+  
+  /* Loop through each row */
+  int rowIdx = 0;
+  for (rowIdx = 0; rowIdx < vecLen - 1; ++rowIdx)
+    {
+      /* Loop through each index on the row */
+      int qIdx = 0;
+      for (qIdx = 0; qIdx < qlen; ++qIdx)
+        {
+          const char qBase = getHozSeqBase(dwc, qIdx, frame, offset);
+          const int asciiVal = (int)qBase;
+          const int aminoAcidId = translationTable[asciiVal];
+          const int score = dc->matrix[rowIdx][aminoAcidId]; /* score of this base in the q seq wrt the current amino acid ID 'i' */
+          
+          scoreVec[rowIdx][qIdx] = score;
+        }
+    }
+}
+
+
+/* Return the translation table required for a sequence of the given type and strand */
+static int* getTranslationTable(const BlxSeqType seqType, const BlxStrand strand)
+{
+  int *result = NULL;
+  
+  if (seqType == BLXSEQ_PEPTIDE)
+    {
+      result = atob_0;
+    }
+  else
+    {
+      result = (strand == BLXSTRAND_REVERSE ? ntob_compl : ntob);
+    }
+     
+  return result;
 }
 
 
@@ -1072,47 +1167,12 @@ static void calculateImage(DotplotProperties *properties)
   const int resFactor = (dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1);
   const int pepQSeqLen = qlen / resFactor;
   const int pepQSeqOffset = qOffset / resFactor;
+  const int vecLen = (dc->blastMode == BLXMODE_BLASTN ? 6 : 25);
 
+  createScoreVec(dwc, vecLen, pepQSeqLen, &dataList, &scoreVec);
+  getMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
   
-  if (dc->blastMode == BLXMODE_BLASTP)
-    {
-      scoreVec = allocMemoryToList(&dataList, 25*sizeof(int*));
-    
-      for (i = 0; i < 25; ++i)
-        scoreVec[i] = allocMemoryToList(&dataList, qlen*sizeof(int));
-      
-      for (i = 0; i < 24; ++i)
-        {
-          for (qIdx = 0; qIdx < qlen; ++qIdx)
-            {
-              scoreVec[i][qIdx] = dc->matrix[i][atob[(int)getHozSeqBase(dwc, qIdx)]-1];
-            }
-        }
-      
-      /* Non-protein symbols in scorevector */
-      for (qIdx = 0; qIdx < qlen; ++qIdx) 
-	scoreVec[24][qIdx] = dc->matrix[23][23];
-      
-      for (sIdx = 0; sIdx < slen; ++sIdx) 
-        {
-          sIndex[sIdx] = atob[(int)getVertSeqBase(dwc, sIdx)]-1;
-        }
-    }
-  else if (dc->blastMode == BLXMODE_BLASTN) 
-    {
-      scoreVec = allocMemoryToList(&dataList, 6*sizeof(int*));
-      
-      for (i = 0; i < 6; i++)
-        scoreVec[i] = allocMemoryToList(&dataList, qlen*sizeof(int));
-      /* Fill the scoreVec below depending on which strand */
-      
-      
-      for (sIdx = 0 ; sIdx < slen ; ++sIdx) 
-        {
-          sIndex[sIdx] = ntob[(int)getVertSeqBase(dwc, sIdx)];
-        }
-    }
-  
+  /* Allocate some vectors for use in averaging the values for whole rows at a time. */
   int *zero = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
   int *sum1 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
   int *sum2 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
@@ -1126,52 +1186,19 @@ static void calculateImage(DotplotProperties *properties)
 
   if (dc->blastMode == BLXMODE_BLASTX)
     {
-      scoreVec = allocMemoryToList(&dataList, 25*sizeof(int *));
-      for (i = 0; i < 25; i++)
-        scoreVec[i] = allocMemoryToList(&dataList, qlen/3*sizeof(int));
-      
-      /* Non-protein symbols in scorevector */
-      for (qIdx = 0; qIdx < qlen/3; ++qIdx) 
-        {
-          scoreVec[24][qIdx] = dc->matrix[23][23];
-        }
-      
-      for (sIdx = 0; sIdx < slen; ++sIdx) 
-        {
-          const char sBase = getVertSeqBase(dwc, sIdx);
-          const int asciiVal = (int)sBase;
-          const int aminoAcidId = atob_0[asciiVal];
-          sIndex[sIdx] = aminoAcidId;
-        }
-      
       for (frame = 0; frame < dc->numFrames; ++frame)
         {
-          for (i = 0; i < 24; i++)
-            {
-              for (qIdx = 0; qIdx < pepQSeqLen; ++qIdx)
-                {
-                  const char qBase =  dc->peptideSeqs[frame][qIdx + pepQSeqOffset];
-                  const int asciiVal = (int)qBase;
-                  const int aminoAcidId = atob_0[asciiVal];
-                  const int score = dc->matrix[i][aminoAcidId]; /* score of this base in the q seq wrt the current amino acid ID 'i' */
-                  
-                  scoreVec[i][qIdx] = score;
-                }
-            }
-          
+          /* Re-populate the score vector for this reading frame */
+          populateScoreVec(dwc, vecLen, pepQSeqLen, frame, pepQSeqOffset, atob_0, scoreVec);
+        
           for (sIdx = 0; sIdx < slen; ++sIdx)
             {   
-              if (sIdx & 1) 
-                {
-                  newsum = sum1 ;
-                  oldsum = sum2 ;
-                }
-              else
-                {
-                  newsum = sum2 ;
-                  oldsum = sum1 ;
-                }
+              /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
+               * same two vectors here to save having to keep allocating memory) */
+              oldsum = (sIdx & 1) ? sum2 : sum1;
+              newsum = (sIdx & 1) ? sum1 : sum2;
               
+              /* We delete the last value that was slidingWinSize away (or zero if not at slidingWinSize yet) */
               if (sIdx >= properties->slidingWinSize) 
                 {
                   delrow = scoreVec[sIndex[sIdx - properties->slidingWinSize]];
@@ -1181,21 +1208,30 @@ static void calculateImage(DotplotProperties *properties)
                   delrow = zero;
                 }
               
+              /* We add the pre-calculated value from the score vector for the current amino acid */
               addrow = scoreVec[sIndex[sIdx]];
-              *newsum = *addrow++;
+              *newsum = *addrow;
+              ++addrow;
               
               qmax = min(properties->slidingWinSize, pepQSeqLen);
               
               for (qIdx = 1; qIdx < qmax ; ++qIdx)
                 {
-                  *++newsum = *oldsum++ + *addrow++;
+                  ++newsum;
+                  *newsum = *oldsum + *addrow;
+                  ++oldsum;
+                  ++addrow;
                 }
               
               qmax = pepQSeqLen;
               
               for ( ; qIdx < qmax ; ++qIdx) 
                 {
-                  *++newsum = *oldsum++ + *addrow++ - *delrow++ ;
+                  ++newsum;
+                  *newsum = *oldsum + *addrow - *delrow;
+                  ++oldsum;
+                  ++addrow;
+                  ++delrow;
                   
                   if (*newsum > 0 && sIdx >= properties->slidingWinSize) 
                     {
@@ -1237,29 +1273,14 @@ static void calculateImage(DotplotProperties *properties)
 
   if (dc->blastMode == BLXMODE_BLASTP || (dc->blastMode == BLXMODE_BLASTN && !dc->crickOnly)) 
     {
-      if (dc->blastMode == BLXMODE_BLASTN)
-        {
-          for (i = 0; i < 6; i++)
-            {
-	      for (qIdx = 0; qIdx < qlen; ++qIdx)
-                {
-                   scoreVec[i][qIdx] = dc->matrix[i][ntob[(int)getHozSeqBase(dwc, qIdx)]];
-                }
-            }
-        }
+      populateScoreVec(dwc, vecLen, pepQSeqLen, 1, 0, getTranslationTable(dc->refSeqType, BLXSTRAND_FORWARD), scoreVec);
 
       for (sIdx = 0; sIdx < slen; ++sIdx)
         { 
-          if (sIdx & 1) 
-            {
-              newsum = sum1 ;
-              oldsum = sum2 ;
-            }
-          else 
-            {
-              newsum = sum2 ;
-              oldsum = sum1 ;
-            }
+          /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
+           * same two vectors here to save having to keep allocating memory) */
+          oldsum = (sIdx & 1) ? sum2 : sum1;
+          newsum = (sIdx & 1) ? sum1 : sum2;
           
           if (sIdx >= properties->slidingWinSize) 
             {
@@ -1324,17 +1345,8 @@ static void calculateImage(DotplotProperties *properties)
   
   if (dc->blastMode == BLXMODE_BLASTN && !dc->watsonOnly) 
     {
-      if (dc->blastMode == BLXMODE_BLASTN)
-        {
-          for (i = 0; i < 6; i++)
-            {
-              for (qIdx = 0; qIdx < qlen; qIdx++)
-                {
-                  scoreVec[i][qIdx] = dc->matrix[i][ntob_compl[(int)getHozSeqBase(dwc, qIdx)]];
-                }
-            }
-        }
-      
+      populateScoreVec(dwc, vecLen, pepQSeqLen, 1, 0, getTranslationTable(dc->refSeqType, BLXSTRAND_REVERSE), scoreVec);
+
       for (i = 0; i<qlen; i++) 
         {
           sum1[i] = 0;
@@ -1343,16 +1355,10 @@ static void calculateImage(DotplotProperties *properties)
       
       for (sIdx = slen-1; sIdx >= 0; --sIdx)
         { 
-          if (sIdx & 1) 
-            {
-              newsum = sum1 ;
-              oldsum = sum2 ;
-            }
-          else
-            {
-              newsum = sum2 ;
-              oldsum = sum1 ;
-            }
+          /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
+           * same two vectors here to save having to keep allocating memory) */
+          oldsum = (sIdx & 1) ? sum2 : sum1;
+          newsum = (sIdx & 1) ? sum1 : sum2;
           
           if (sIdx < slen-properties->slidingWinSize) 
             {
