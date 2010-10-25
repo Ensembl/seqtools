@@ -1010,8 +1010,8 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
 }
 
 
-/* Get the array of binary values for the match sequence, usd by calculateImage */
-static void getMatchSeqBinaryVals(DotterWindowContext *dwc, const int slen, const int translationTable[], int *sIndex)
+/* Populate the array of binary values for the match sequence (used by calculateImage) */
+static void populateMatchSeqBinaryVals(DotterWindowContext *dwc, const int slen, const int translationTable[], int *sIndex)
 {
   int sIdx = 0;
   
@@ -1094,38 +1094,159 @@ static int* getTranslationTable(const BlxSeqType seqType, const BlxStrand strand
 }
 
 
-/* This function calculates the data that will be put into the dotplot image. It puts the max
- * diagonal for each pixel into *pixelmap */
-static void calculateImage(DotplotProperties *properties)
+static int* getRowToDelete(const int sIdx, const int slen, const int *sIndex, int **scoreVec, int *zero, const int slidingWinSize, const BlxStrand strand)
 {
-  DEBUG_ENTER("calculateImage");
+  int *delrow = NULL;
+  
+  if (strand == BLXSTRAND_REVERSE)
+    {
+      if (sIdx < slen - slidingWinSize) 
+        {
+          delrow = scoreVec[sIndex[sIdx + slidingWinSize]];
+        }
+      else
+        {
+          delrow = zero;
+        }
+    }
+  else
+    {
+      if (sIdx >= slidingWinSize) 
+        {
+          delrow = scoreVec[sIndex[sIdx - slidingWinSize]];
+        }
+      else
+        {
+          delrow = zero;
+        }
+    } 
+  
+  return delrow;
+}
 
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+/* This does the work for calculateImage, for a particular strand and reading frame of the reference sequence */
+static void doCalculateImage(const BlxStrand qStrand, 
+                             const int incrementVal, 
+                             const int sStart, 
+                             const int frame,
+                             DotterWindowContext *dwc,
+                             DotplotProperties *properties,
+                             const int pepQSeqLen,
+                             const int pepQSeqOffset,
+                             const int slen,
+                             const int qlen,
+                             const int vecLen,
+                             const int win2,
+                             int **scoreVec,
+                             int *sIndex,
+                             int *sum1,
+                             int *sum2,
+                             int *oldsum,
+                             int *newsum,
+                             int *zero,
+                             int *addrow,
+                             int *delrow)
+{
+  DotterContext *dc = dwc->dotterCtx;
   
-  g_assert(properties->slidingWinSize > 0);
+  register int qIdx, sIdx, qmax, dotpos, dotposq, dotposs;
   
-  register int 
-  qIdx, sIdx, qmax,     /* Loop variables */
-  *newsum,	/* New sum pointer */
-  *oldsum,	/* Old sum pointer */
-  *delrow,	/* Pointer to scoreVec, row to remove */
-  *addrow,	/* Pointer to scoreVec, row to add */
-  dotpos, dotposq, dotposs;
+  /* Get the range of valid calculations (excluding the initial sliding window size, where we don't have enough 
+   * info to calculate the average properly - exclude the winsize at the start if fwd or the end if reverse) */
+  IntRange validRange;
+  validRange.min = (qStrand == BLXSTRAND_REVERSE ? 0 : properties->slidingWinSize);
+  validRange.max = (qStrand == BLXSTRAND_REVERSE ? slen - properties->slidingWinSize : slen);
   
-  int 
-  i, min, sec, frame, 
-  win2 = properties->slidingWinSize/2;
+  /* Re-populate the score vector for this reading frame */
+  populateScoreVec(dwc, vecLen, pepQSeqLen, frame, pepQSeqOffset, getTranslationTable(dc->displaySeqType, qStrand), scoreVec);
   
-  GSList *dataList = NULL;
-  
+  /* Loop through each base in the match sequence */
+  for (sIdx = sStart ; sIdx >= 0 && sIdx < slen; sIdx += incrementVal)
+    {   
+      /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
+       * same two vectors here to save having to keep allocating memory) */
+      oldsum = (sIdx & 1) ? sum2 : sum1;
+      newsum = (sIdx & 1) ? sum1 : sum2;
+      
+      delrow = getRowToDelete(sIdx, slen, sIndex, scoreVec, zero, properties->slidingWinSize, qStrand);
+      
+      /* We add the pre-calculated value from the score vector for the current amino acid */
+      addrow = scoreVec[sIndex[sIdx]];
+      *newsum = *addrow;
+      ++addrow;
+      
+      qmax = min(properties->slidingWinSize, pepQSeqLen);
+      
+      for (qIdx = 1; qIdx < qmax ; ++qIdx)
+        {
+          ++newsum;
+          *newsum = *oldsum + *addrow;
+          ++oldsum;
+          ++addrow;
+        }
+      
+      qmax = (dc->blastMode != BLXMODE_BLASTX && dc->selfComp ? sIdx + 1 : pepQSeqLen);
+      
+      for ( ; qIdx < qmax ; ++qIdx) 
+        {
+          ++newsum;
+          *newsum = *oldsum + *addrow - *delrow;
+          ++oldsum;
+          ++addrow;
+          ++delrow;
+          
+          if (*newsum > 0 && valueWithinRange(sIdx, &validRange)) 
+            {
+              dotposq = (qIdx - win2)/dwc->zoomFactor;
+              dotposs = (sIdx - (incrementVal * win2))/dwc->zoomFactor;
+              
+              /* Only fill half the submatrix */
+              const int qPosLocal = qIdx - win2 - (dotposq * dwc->zoomFactor);  /* query position in local submatrix (of one pixel) */
+              int sPosLocal = sIdx - (incrementVal * win2) - (dotposs * dwc->zoomFactor);  /* subject position in local submatrix (of one pixel) */
+              
+              if (qStrand == BLXSTRAND_REVERSE)
+                {
+                  /* Set the origin (0,0) to the bottom left corner of submatrix
+                   Ugly but correct. Zoom = pixels/submatrix */
+                  sPosLocal = dwc->zoomFactor - 1 - sPosLocal;
+                }
+              
+              if (sPosLocal >= qPosLocal)
+                {
+                  dotpos = properties->imageWidth*dotposs + dotposq;
+                  const int pixelmapLen = properties->imageWidth * properties->imageHeight;
+                  
+                  if (dotpos < 0 || dotpos >= pixelmapLen) 
+                    {
+                      g_critical ( "Pixel out of bounds (%d) in blastx: %d\n", pixelmapLen-1, dotpos);
+                    }
+                  else
+                    {
+                      /* Keep the max dot value of all diagonals in this pixel */
+                      const int val = *newsum * properties->pixelFac / properties->slidingWinSize;
+                      unsigned char dotValue = (val > 255 ? 255 : (unsigned char)val);
+                      unsigned char *curDot = &properties->pixelmap[dotpos];
+                      
+                      if (dotValue > *curDot)
+                        {
+                          *curDot = dotValue;
+                        }
+                    }
+                }
+            }
+        } 
+    }
+}
+
+
+/* Print some debug info for the calculateImage function to stdout */
+static void printCalculateImageStats(DotterContext *dc, const int qlen, const int slen)
+{
   double speed = 17.2;  /* Speed in Mdots/seconds. SGI MIPS R10000 (clobber) */
   /* speed = 5.7;  DEC Alpha AXP 3000/700 */
   /* speed = 3.7;  SGI R4400: */
   
-  const int qlen = getRangeLength(&dwc->refSeqRange);
-  const int slen = getRangeLength(&dwc->matchSeqRange);
-
   double numDots = qlen/1e6*slen; /* total number of dots (millions) */
   
   if (dc->selfComp) 
@@ -1137,294 +1258,140 @@ static void calculateImage(DotplotProperties *properties)
   if (dc->blastMode == BLXMODE_BLASTX) 
     numDots *= 3;
   
-  min = (int)(numDots/speed/60);
-  sec = (int)(numDots/speed) - min*60;
+  int min = (int)(numDots/speed/60);
+  int sec = (int)(numDots/speed) - min*60;
   
   printf("%d vs. %d residues => %.2f million dots. ", qlen, slen, numDots);
   
-  if (min+sec >= 2) {
-    printf("(Takes ");
-    
-    if (min)
-      printf("%d:%.2d minutes", min, sec);
-    else 
-      printf("%d seconds", sec);
-    
-    printf(" on an SGI MIPS R10000)");
-  }
+  if (min+sec >= 2) 
+    {
+      printf("(Takes ");
+      
+      if (min)
+        printf("%d:%.2d minutes", min, sec);
+      else 
+        printf("%d seconds", sec);
+      
+      printf(" on an SGI MIPS R10000)");
+    }
   
   printf("\n");
   fflush(stdout);
+}
 
-  /* Initialize lookup tables for faster execution */
-  int *sIndex = allocMemoryToList(&dataList, slen * sizeof(int)) ; /* match sequence as binary values (i.e. amino-acid IDs 0 -> 23) */
-  int **scoreVec = NULL;                                           /* array of precalculated scores for qseq residues */
+
+/* This function calculates the data that will be put into the dotplot image. It puts the max
+ * diagonal for each pixel into *pixelmap */
+static void calculateImage(DotplotProperties *properties)
+{
+  DEBUG_ENTER("calculateImage");
+
+  g_assert(properties->slidingWinSize > 0);
+  
+  register int 
+  qIdx, sIdx,     /* Loop variables */
+  *newsum,	/* New sum pointer */
+  *oldsum,	/* Old sum pointer */
+  *delrow,	/* Pointer to scoreVec, row to remove */
+  *addrow,	/* Pointer to scoreVec, row to add */
+  dotpos;
+  
+  GSList *dataList = NULL;
+  
+  /* Extract some often-used data */
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+  const int qlen = getRangeLength(&dwc->refSeqRange);
+  const int slen = getRangeLength(&dwc->matchSeqRange);
+  const int win2 = properties->slidingWinSize/2;
+
+  /* Print some statistics about what we're about to do */
+  printCalculateImageStats(dc, qlen, slen);
   
   /* Find the offset of the current display range within the full range of the bit of reference sequence we have */
-  const int qOffset = dc->refSeqStrand == BLXSTRAND_REVERSE ? dc->refSeqFullRange.max - dwc->refSeqRange.max : dwc->refSeqRange.min - dc->refSeqFullRange.min;
+  const int qOffset = dc->refSeqStrand == BLXSTRAND_REVERSE 
+    ? dc->refSeqFullRange.max - dwc->refSeqRange.max
+    : dwc->refSeqRange.min - dc->refSeqFullRange.min;
   
   /* Convert from nucleotides to peptides, if applicable */
   const int resFactor = (dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1);
   const int pepQSeqLen = qlen / resFactor;
   const int pepQSeqOffset = qOffset / resFactor;
-  const int vecLen = (dc->blastMode == BLXMODE_BLASTN ? 6 : 25);
+  const int vecLen = (dc->displaySeqType == BLXSEQ_DNA ? 6 : 25);
 
+  /* Initialize lookup tables for faster execution. scoreVec is an array of precalculated 
+   * scores for qseq residues. sIndex contains the match sequence forward strand bases as 
+   * binary values (i.e. amino-acid IDs 0 -> 23) */
+  int **scoreVec = NULL;
   createScoreVec(dwc, vecLen, pepQSeqLen, &dataList, &scoreVec);
-  getMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
+
+  int *sIndex = allocMemoryToList(&dataList, slen * sizeof(int));
+  populateMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
   
-  /* Allocate some vectors for use in averaging the values for whole rows at a time. */
+  /* Allocate some vectors for use in averaging the values for whole rows at a time, and initialise them to zero. */
   int *zero = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
   int *sum1 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
   int *sum2 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
 
-  for (i = 0; i < pepQSeqLen; ++i) 
+  int idx = 0;
+  for (idx = 0; idx < pepQSeqLen; ++idx) 
     {
-      zero[i] = 0;
-      sum1[i] = 0;
-      sum2[i] = 0;
+      zero[idx] = 0;
+      sum1[idx] = 0;
+      sum2[idx] = 0;
     }
 
   if (dc->blastMode == BLXMODE_BLASTX)
     {
-      for (frame = 0; frame < dc->numFrames; ++frame)
+      /* Protein -> Nucleotide matches. Calculate the result for each reqding frame of the
+       * reference sequence, and use the overall max values. */
+      int frame = 0;
+      for ( ; frame < dc->numFrames; ++frame)
         {
-          /* Re-populate the score vector for this reading frame */
-          populateScoreVec(dwc, vecLen, pepQSeqLen, frame, pepQSeqOffset, atob_0, scoreVec);
-        
-          for (sIdx = 0; sIdx < slen; ++sIdx)
-            {   
-              /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
-               * same two vectors here to save having to keep allocating memory) */
-              oldsum = (sIdx & 1) ? sum2 : sum1;
-              newsum = (sIdx & 1) ? sum1 : sum2;
-              
-              /* We delete the last value that was slidingWinSize away (or zero if not at slidingWinSize yet) */
-              if (sIdx >= properties->slidingWinSize) 
-                {
-                  delrow = scoreVec[sIndex[sIdx - properties->slidingWinSize]];
-                }
-              else
-                {
-                  delrow = zero;
-                }
-              
-              /* We add the pre-calculated value from the score vector for the current amino acid */
-              addrow = scoreVec[sIndex[sIdx]];
-              *newsum = *addrow;
-              ++addrow;
-              
-              qmax = min(properties->slidingWinSize, pepQSeqLen);
-              
-              for (qIdx = 1; qIdx < qmax ; ++qIdx)
-                {
-                  ++newsum;
-                  *newsum = *oldsum + *addrow;
-                  ++oldsum;
-                  ++addrow;
-                }
-              
-              qmax = pepQSeqLen;
-              
-              for ( ; qIdx < qmax ; ++qIdx) 
-                {
-                  ++newsum;
-                  *newsum = *oldsum + *addrow - *delrow;
-                  ++oldsum;
-                  ++addrow;
-                  ++delrow;
-                  
-                  if (*newsum > 0 && sIdx >= properties->slidingWinSize) 
-                    {
-                      dotposq = (qIdx-win2)/dwc->zoomFactor;
-                      dotposs = (sIdx-win2)/dwc->zoomFactor;
-                      
-                      /* Only fill half the submatrix */
-                      const int qPosLocal = qIdx-win2 - dotposq*dwc->zoomFactor;  /* query position in local submatrix (of one pixel) */
-                      const int sPosLocal = sIdx-win2 - dotposs*dwc->zoomFactor;  /* subject position in local submatrix (of one pixel) */
-                      
-                      if (sPosLocal >= qPosLocal)
-                        {
-                          dotpos = properties->imageWidth*dotposs + dotposq;
-                          
-                          const int pixelmapLen = properties->imageWidth * properties->imageHeight;
-                          
-                          if (dotpos < 0 || dotpos >= pixelmapLen) 
-                            {
-                              g_critical ( "Pixel out of bounds (%d) in blastx: %d\n",
-                                          pixelmapLen-1, dotpos);
-                            }
-                          else
-                            {
-                              const int val = *newsum * properties->pixelFac / properties->slidingWinSize;
-                              unsigned char dotValue = (val > 255 ? 255 : (unsigned char)val);
-                              unsigned char *curDot = &properties->pixelmap[dotpos];
-                              
-                              if (dotValue > *curDot)
-                                {
-                                  *curDot = dotValue;
-                                }
-                            }
-                        }
-                    }
-                } 
-            }
+          doCalculateImage(BLXSTRAND_FORWARD, 1, 0, frame,
+                           dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
+                           scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
         }
     }
-
-  if (dc->blastMode == BLXMODE_BLASTP || (dc->blastMode == BLXMODE_BLASTN && !dc->crickOnly)) 
+  else if (dc->blastMode == BLXMODE_BLASTP) 
     {
-      populateScoreVec(dwc, vecLen, pepQSeqLen, 1, 0, getTranslationTable(dc->refSeqType, BLXSTRAND_FORWARD), scoreVec);
-
-      for (sIdx = 0; sIdx < slen; ++sIdx)
-        { 
-          /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
-           * same two vectors here to save having to keep allocating memory) */
-          oldsum = (sIdx & 1) ? sum2 : sum1;
-          newsum = (sIdx & 1) ? sum1 : sum2;
-          
-          if (sIdx >= properties->slidingWinSize) 
-            {
-              delrow = scoreVec[sIndex[sIdx-properties->slidingWinSize]];
-            }
-          else
-            {
-              delrow = zero;
-            }
-
-          addrow = scoreVec[sIndex[sIdx]];
-          *newsum = *addrow++;
-
-          
-          qmax = min(properties->slidingWinSize, qlen);
-          for (qIdx = 1; qIdx < qmax ; ++qIdx)
-            *++newsum = *oldsum++ + *addrow++;
-          
-          qmax = (dc->selfComp ? sIdx + 1 : qlen);
-          
-          for ( ; qIdx < qmax ; ++qIdx) 
-            {
-              *++newsum = *oldsum++ + *addrow++ - *delrow++;
-              
-              if (*newsum > 0 && sIdx >= properties->slidingWinSize) 
-                {
-                  dotposq = (qIdx-win2)/dwc->zoomFactor;
-                  dotposs = (sIdx-win2)/dwc->zoomFactor;
-                  
-                  /* Only fill half the submatrix */
-                  const int qPosLocal = qIdx-win2 - dotposq*dwc->zoomFactor;  /* query position in local submatrix (of one pixel) */
-                  const int sPosLocal = sIdx-win2 - dotposs*dwc->zoomFactor;  /* subject position in local submatrix (of one pixel) */
-                  
-                  if (sPosLocal >= qPosLocal)
-                    {
-                      dotpos = properties->imageWidth*dotposs + dotposq;
-                      
-                      const int pixelmapLen = properties->imageWidth * properties->imageHeight;
-
-                      if (dotpos < 0 || dotpos > pixelmapLen-1) 
-                        {
-                          g_critical ( "Pixel out of bounds (%d) in blastp/blastn-forw: %d\n", 
-                                      pixelmapLen-1, dotpos);
-                        }
-                      else 
-                        {
-                          /* Keep the max dot value of all diagonals in this pixel */
-                          const int val = *newsum * properties->pixelFac / properties->slidingWinSize;
-                          unsigned char dotValue = (val > 255 ? 255 : (unsigned char)val);
-                          unsigned char *curDot = &properties->pixelmap[dotpos];
-                          
-                          if (dotValue > *curDot) 
-                            {
-                              *curDot = dotValue;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+      /* Protein -> Protein matches. Straightforward comparison of each sequence. */
+      doCalculateImage(BLXSTRAND_FORWARD, 1, 0, 0,
+                       dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
+                       scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
     }
-  
-  if (dc->blastMode == BLXMODE_BLASTN && !dc->watsonOnly) 
+  else if (dc->blastMode == BLXMODE_BLASTN)
     {
-      populateScoreVec(dwc, vecLen, pepQSeqLen, 1, 0, getTranslationTable(dc->refSeqType, BLXSTRAND_REVERSE), scoreVec);
-
-      for (i = 0; i<qlen; i++) 
-        {
-          sum1[i] = 0;
-          sum2[i] = 0;
-        }
+      /* Nucleotide -> Nucleotide matches. Calculate the result for each strand of the reference
+       * sequence, and use the overall max values. */
       
-      for (sIdx = slen-1; sIdx >= 0; --sIdx)
-        { 
-          /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
-           * same two vectors here to save having to keep allocating memory) */
-          oldsum = (sIdx & 1) ? sum2 : sum1;
-          newsum = (sIdx & 1) ? sum1 : sum2;
-          
-          if (sIdx < slen-properties->slidingWinSize) 
-            {
-              delrow = scoreVec[sIndex[sIdx + properties->slidingWinSize]];
-            }
-          else
-            {
-              delrow = zero;
-            }
-          
-          addrow = scoreVec[sIndex[sIdx]];
-          *newsum = *addrow++;
+      /* Watson strand */
+      if (!dc->crickOnly)
+        {
+          doCalculateImage(BLXSTRAND_FORWARD, 1, 0, 0,
+                          dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
+                          scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
+        }
 
-          qmax = min(properties->slidingWinSize, qlen);
-          
-          for (qIdx = 1; qIdx < qmax ; ++qIdx)
+      /* Crick strand */
+      if (!dc->watsonOnly)
+        {
+          /* If the sum arrays have already been used for the watson strand we need to re-zero them */
+          if (!dc->crickOnly)
             {
-              *++newsum = *oldsum++ + *addrow++;
-            }
-          
-          qmax = (dc->selfComp ? sIdx + 1 : qlen);
-          
-          for ( ; qIdx < qmax ; ++qIdx) 
-            {
-              *++newsum = *oldsum++ + *addrow++ - *delrow++ ;
-              
-              if (*newsum > 0 && sIdx <= slen-properties->slidingWinSize) 
+              for (idx = 0; idx < pepQSeqLen; ++idx) 
                 {
-                  dotposq = (qIdx - win2)/dwc->zoomFactor;
-                  
-                  dotposs = (sIdx + win2)/dwc->zoomFactor;
-                  
-                  /* Only fill half the submatrix */
-                  const int qPosLocal = qIdx - win2 - dotposq*dwc->zoomFactor;  /* query position in local submatrix (of one pixel) */
-                  
-                  /* Set the origin (0,0) to the bottom left corner of submatrix
-                   Ugly but correct. Zoom = pixels/submatrix */
-                  const int sPosLocal = dwc->zoomFactor-1 - (sIdx + win2 - dotposs * dwc->zoomFactor);  /* subject position in local submatrix (of one pixel) */
-                  
-                  if (sPosLocal >= qPosLocal)
-                    {
-                      dotpos = properties->imageWidth*dotposs + dotposq;
-                      const int pixelmapLen = properties->imageWidth * properties->imageHeight;
-
-                      if (dotpos < 0 || dotpos >= pixelmapLen) 
-                        {
-                          g_critical ( "Pixel out of bounds (%d) in blastn-rev: %d\n",
-                                      pixelmapLen-1, dotpos);
-                        }
-                      else 
-                        {
-                          const int val = *newsum * properties->pixelFac / properties->slidingWinSize;
-                          unsigned char dotValue = (val > 255 ? 255 : (unsigned char)val);
-                          unsigned char *curDot = &properties->pixelmap[dotpos];
-                          
-                          if (dotValue > *curDot)
-                            {
-                              *curDot = dotValue;
-                            }
-                        }
-                    }
+                  sum1[idx] = 0;
+                  sum2[idx] = 0;
                 }
-            }
+            }            
+          
+          doCalculateImage(BLXSTRAND_REVERSE, -1, slen - 1, 0,
+                           dwc, properties, pepQSeqLen, pepQSeqOffset, slen, qlen, vecLen, win2,
+                           scoreVec, sIndex, sum1, sum2, oldsum, newsum, zero, addrow, delrow);
         }
     }
-  
+
   if (dc->selfComp && dc->displayMirror) 
     {
       /* Copy mirror image */
