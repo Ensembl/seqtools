@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.79 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.80 2010-10-26 16:51:11 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -154,7 +154,6 @@ char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
 static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
-static MSP*            createEmptyMsp(MSP **lastMsp, MSP **mspList);
 static void            finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts, const int offset);
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
@@ -1467,10 +1466,6 @@ MSP* createNewMsp(MSP **lastMsp,
       sStrand = qStrand;
     }
   
-  /* Dotter still uses the old text versions of strand and frame, so create them here */
-  sprintf(msp->qframe, "(%c%d)", getStrandAsChar(qStrand), qFrame);
-  sprintf(msp->sframe, "(%c%d)", getStrandAsChar(sStrand), 1);
-  
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsVariation(mspType))
     {
@@ -1479,84 +1474,9 @@ MSP* createNewMsp(MSP **lastMsp,
 
   if (error && *error)
     {
-      prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d %s], match seq = '%s' [%d - %d %s]). ",
-                  qName, qStart, qEnd, msp->qframe, sName, sStart, sEnd, msp->sframe);
+      prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d], match seq = '%s' [%d - %d]). ",
+                  qName, qStart, qEnd, sName, sStart, sEnd);
     }
-  
-  return msp;
-}
-
-
-/* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values.
- * Add it into the given MSP list and make the end pointer ('lastMsp') point to the new
- * end of the list. Returns a pointer to the newly-created MSP */
-static MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
-{
-  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
-  
-  msp->next = NULL;
-  msp->childMsps = NULL;
-  msp->type = BLXMSP_INVALID;
-  msp->score = 0.0;
-  msp->id = 0.0;
-  msp->phase = 0;
-  msp->url = NULL;
-  
-  msp->qname = NULL;
-  msp->qFrame = UNSET_INT;
-  
-  msp->qframe[0] = '(';
-  msp->qframe[1] = '+';
-  msp->qframe[2] = '1';
-  msp->qframe[3] = ')';
-  msp->qframe[4] = '\0';
-  
-  msp->qRange.min = 0;
-  msp->qRange.max = 0;
-  
-  msp->sSequence = NULL;
-  msp->sname = NULL;
-  
-  msp->sRange.min = 0;
-  msp->sRange.max = 0;
-  
-  msp->sframe[0] = '(';
-  msp->sframe[1] = '+';
-  msp->sframe[2] = '1';
-  msp->sframe[3] = ')';
-  msp->sframe[4] = '\0';
-  
-  msp->desc = NULL;
-  msp->source = NULL;
-
-  msp->style = NULL;
-
-  msp->fs = NULL;
-  msp->fsColor = 0;
-  msp->fsShape = BLXCURVE_BADSHAPE;
-  
-  msp->xy = NULL;
-  msp->gaps = NULL;
-  
-#ifdef ACEDB
-  msp->key = 0;
-#endif
-  
-  /* Add it to the list */
-  if (!*mspList) 
-    {
-      /* Nothing in the list yet: make this the first entry */
-      *mspList = msp;
-    }
-  
-  if (*lastMsp)
-    {
-      /* Tag it on to the end of the list */
-      (*lastMsp)->next = msp;
-    }
-  
-  /* Make the 'lastMsp' pointer point to the new end of the list */
-  *lastMsp = msp;
   
   return msp;
 }

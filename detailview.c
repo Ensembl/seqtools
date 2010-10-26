@@ -4081,7 +4081,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 	    }
 	  else
 	    {
-	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d], q frame=%s)\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qframe);
+	      printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d])\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
 	    }
 	}
     }

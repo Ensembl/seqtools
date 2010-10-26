@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.17 2010-10-26 13:30:26 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.18 2010-10-26 16:51:12 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -521,7 +521,7 @@ static gdouble getInitZoomFactor(DotterContext *dc, const gdouble zoomFacIn, con
         }
     }
   
-  DEBUG_EXIT("getInitZoomFactor returning %d", result);
+  DEBUG_EXIT("getInitZoomFactor returning %f", result);
   return result;
 }
 

@@ -2190,7 +2190,7 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
   if (mspGetQStart(msp) < mspGetQEnd(msp)) 
     {
       *sx = ceil((double)(mspGetQStart(msp) - (dwc->refSeqRange.min - 1)) / dc->numFrames) - 1;
-      *sy = mspGetSStart(msp) - dwc->matchSeqRange.min;
+      *sy = msp->sRange.min - dwc->matchSeqRange.min;
       
       /* Check if we're in an illegal part of submatrix. We only want to compress in legal submatrix parts */
       int shift = 0;
@@ -2199,15 +2199,15 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
           shift++;
         }
       
-      *sx = (*sx + shift) / dwc->zoomFactor -shift;
-      *sy = (*sy + shift) / dwc->zoomFactor -shift;
+      *sx = (*sx + shift) / dwc->zoomFactor - shift;
+      *sy = (*sy + shift) / dwc->zoomFactor - shift;
       
       *ex = *sx + (matchlen-1);
     }
   else 
     {
       *sx = ceil((float)(mspGetQStart(msp) - (dwc->refSeqRange.min - 1)) / dc->numFrames) -1;
-      *sy = mspGetSStart(msp) - dwc->matchSeqRange.min;
+      *sy = msp->sRange.min - dwc->matchSeqRange.min;
       
       /* Check if we're in an illegal part of submatrix. We only want to compress in legal submatrix parts */
       int shift = 0;
@@ -2224,7 +2224,7 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
   
   if (dc->hozScaleRev) 
     {
-      *sx = properties->plotRect.width - *sx;
+      *sx = properties->plotRect.width - *sx
       *ex = properties->plotRect.width - *ex;
     }
 

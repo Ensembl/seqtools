@@ -5029,14 +5029,6 @@ static void calcReadingFrame(MSP *msp, const BlxViewContext *bc)
           msp->qFrame = 1;
         }
     }
-  
-  /* Messy, for backwards compatibility... set the frame number in the qframe string */
-  if (msp->qFrame != UNSET_INT)
-    {
-      char *frameStr = convertIntToString(msp->qFrame);
-      msp->qframe[2] = frameStr[0];
-      g_free(frameStr);
-    }
 }
 
 

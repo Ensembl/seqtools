@@ -11,6 +11,7 @@
 #define _blxmsp_included_
 
 #include <SeqTools/utilities.h>
+#include <stdlib.h>
 
 #ifdef ACEDB
 #include <wh/regular.h>
@@ -132,14 +133,12 @@ typedef struct _MSP
   char		    *url;
   
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
-  char              qframe[8];     /* obsolete - use qFrame and qStrand instead */
   IntRange	    qRange;	   /* the range of coords on the ref sequence where the alignment lies */
   BlxStrand         qStrand;       /* which strand on the reference sequence the match is on */
   int               qFrame;        /* which frame on the reference sequence the match is on */
   
   BlxSequence       *sSequence;    /* pointer to a struct holding info about the sequence/strand this match is from */
   char              *sname;        /* sequence name (could be different to the sequence name in the blxSequence e.g. exons have a postfixed 'x') */
-  char              sframe[8];     /* obsolete - use sStrand instead */
   IntRange	    sRange;	   /* the range of coords on the match sequence where the alignment lies */
   
   char              *desc;         /* Optional description text for the MSP */
@@ -234,6 +233,13 @@ gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
 gboolean              mspHasPolyATail(const MSP const *msp, const MSP const *mspList);
 gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP const *mspList);
+
+void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *reqdRange);
+BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
+void                  writeMspToOutput(FILE *pipe, const MSP const *msp);
+void                  readMspFromText(MSP *msp, char *text);
+
+MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 
 void                  insertFS(MSP *msp, char *series);
 

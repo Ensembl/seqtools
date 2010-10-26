@@ -1156,26 +1156,11 @@ gboolean callDotterExternal(BlxViewContext *bc,
   fwrite(dotterSSeq, 1, slen, pipe);
   
   /* Pass on features */
-  MSP *msp = bc->mspList;
-
-  for ( ; msp; msp = msp->next) 
+  GList *seqItem = bc->matchSeqs;
+  for ( ; seqItem; seqItem = seqItem->next) 
     {
-      if (msp->type == BLXMSP_FS_SEG)
-        {
-          fprintf(pipe, "%d %f %d %d %d %d", 
-                  msp->type,
-                  msp->score, 
-                  msp->fsColor, 
-                  mspGetQStart(msp),
-                  mspGetQEnd(msp),
-                  msp->fs ? msp->fs->order : 0);
-          stringProtect(pipe, mspGetSName(msp));
-          stringProtect(pipe, msp->sframe);
-          stringProtect(pipe, msp->qname);
-          stringProtect(pipe, msp->qframe);
-          stringProtect(pipe, msp->desc);
-          fputc('\n', pipe);
-        }
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      writeBlxSequenceToOutput(pipe, blxSeq, refSeqRange);
     }
   
   fprintf(pipe, "%c\n", EOF);

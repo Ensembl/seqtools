@@ -8,6 +8,7 @@
  */
 
 #include "SeqTools/blxmsp.h"
+#include "SeqTools/utilities.h"
 #include <string.h>
 
 static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
@@ -1101,21 +1102,21 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
 {  
   if (fullName && !seq->fullName)
     {
-    seq->fullName = fullName ? g_strdup(fullName) : NULL;
-    
-    /* The variant name: just cut off the prefix chars. We can use a pointer into
-     * the original string. */
-    seq->variantName = g_strdup(getSeqVariantName(fullName));
-    
-    /* The short name: cut off the prefix chars (before the ':') and the variant
-     * number (after the '.'). Need to duplicate the string to change the end of it. */
-    seq->shortName = g_strdup(seq->variantName);
-    char *cutPoint = strchr(seq->shortName, '.');
-    
-    if (cutPoint)
-      {
-      *cutPoint = '\0';
-      }
+      seq->fullName = fullName ? g_strdup(fullName) : NULL;
+      
+      /* The variant name: just cut off the prefix chars. We can use a pointer into
+       * the original string. */
+      seq->variantName = g_strdup(getSeqVariantName(fullName));
+      
+      /* The short name: cut off the prefix chars (before the ':') and the variant
+       * number (after the '.'). Need to duplicate the string to change the end of it. */
+      seq->shortName = g_strdup(seq->variantName);
+      char *cutPoint = strchr(seq->shortName, '.');
+      
+      if (cutPoint)
+        {
+          *cutPoint = '\0';
+        }
     }
 }
 
@@ -1123,12 +1124,6 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
 /* Utility to create a BlxSequence with the given name. */
 BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error)
 {
-  if (!fullName && !idTag)
-    {
-      g_set_error(error, BLX_ERROR, 1, "Cannot create sequence: ID or name must be specified.");
-      return NULL;
-    }
-  
   BlxSequence *seq = g_malloc(sizeof(BlxSequence));
   
   seq->type = BLXSEQUENCE_UNSET;
@@ -1151,6 +1146,237 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   return seq;
 }
 
+/* returns true if the given msp should be output */
+static gboolean outputMsp(const MSP const *msp, IntRange *validRange)
+{
+  return ((msp->type == BLXMSP_FS_SEG || msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR || msp->type == BLXMSP_INTRON || msp->type == BLXMSP_MATCH)
+           && rangesOverlap(&msp->qRange, validRange));
+}
+
+static int countMspsToOutput(const BlxSequence const *blxSeq, IntRange *validRange)
+{
+  int numMsps = 0;
+  
+  GList *mspItem = blxSeq->mspList;
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP const *msp = (const MSP const *)(mspItem->data);
+      
+      if (outputMsp(msp, validRange))
+        ++numMsps;
+    }
+  
+  return numMsps;
+}
 
 
+/* write data from the given blxsequence to the given output pipe. if validRange is given, only 
+ * blxsequences that overlap that range will be output */
+void writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *validRange)
+{
+  gboolean outputSeq = (blxSeq && (blxSeq->type == BLXSEQUENCE_TRANSCRIPT || blxSeq->type == BLXSEQUENCE_MATCH));
+  
+  int numMsps = countMspsToOutput(blxSeq, validRange);
+  outputSeq &= numMsps > 0; /* only output the sequence if it has some valid msps */
+  
+  if (outputSeq)
+    {
+      fprintf(pipe, "%d %d %d",
+              blxSeq->type,
+              blxSeq->strand,
+              numMsps); /* output number of msps so we know how many to read in */
+      
+      stringProtect(pipe, blxSeq->fullName);
+      stringProtect(pipe, blxSeq->idTag);
+      
+      fputc('\n', pipe);
+      
+      /* now output the msps */
+      GList *mspItem = blxSeq->mspList;
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          const MSP const *msp = (const MSP const *)(mspItem->data);
+          
+          if (outputMsp(msp, validRange))
+            {
+              writeMspToOutput(pipe, msp);
+            }
+        }
+    }
+}
 
+
+/* increment the given char pointer until it is not whitespace */
+static void nextChar(char **curChar)
+{
+  while (**curChar == ' ')
+    ++(*curChar);
+}
+
+
+/* read in a blxsequence from the given text. */
+BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
+{
+  DEBUG_ENTER("readBlxSequenceFromText(text=%s)", text);
+
+  char *curChar = text;
+  
+  GError *error = NULL;
+  BlxSequence *blxSeq = createEmptyBlxSequence(NULL, BLXSEQUENCE_UNSET, &error);
+  
+  if (error)
+    {
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      DEBUG_EXIT("readBlxSequenceFromText returning NULL");
+      return NULL;
+    }
+  
+  nextChar(&curChar);
+  
+  blxSeq->type = strtol(curChar, &curChar, 10);
+  nextChar(&curChar);
+
+  blxSeq->strand = strtol(curChar, &curChar, 10);
+  nextChar(&curChar);
+
+  *numMsps = strtol(curChar, &curChar, 10);
+  nextChar(&curChar);
+  
+  blxSeq->fullName = stringUnprotect(&curChar, NULL);
+  blxSeq->idTag = stringUnprotect(&curChar, NULL);
+  
+  DEBUG_EXIT("readBlxSequenceFromText returning numMsps=%d", *numMsps);
+  return blxSeq;
+}
+
+
+/* write data from the given msp to the given output pipe. */
+void writeMspToOutput(FILE *pipe, const MSP const *msp)
+{
+  fprintf(pipe, "%d %f %d %d %d %d %d %d %d %d", 
+          msp->type,
+          msp->score, 
+          msp->phase,
+          msp->fsColor, 
+          msp->qRange.min,
+          msp->qRange.max,
+          msp->sRange.min,
+          msp->sRange.max,
+          msp->qStrand,
+          msp->qFrame);
+  stringProtect(pipe, msp->qname);
+  stringProtect(pipe, msp->sname);
+  stringProtect(pipe, msp->desc);
+  fputc('\n', pipe);
+}
+
+
+/* Read in an msp from the given text. the text is in the format as written by writeMspToFile  */
+void readMspFromText(MSP *msp, char *text)
+{
+  DEBUG_ENTER("readMspFromText(text=%s)", text);
+
+  char *curChar = text;
+
+  nextChar(&curChar);
+  msp->type = strtol(curChar, &curChar, 10);
+
+  nextChar(&curChar);
+  msp->score = g_strtod(curChar, &curChar);
+
+  nextChar(&curChar);
+  msp->phase = strtol(curChar, &curChar, 10);
+
+  nextChar(&curChar);
+  msp->fsColor = strtol(curChar, &curChar, 10);
+
+  /* ref seq range */
+  nextChar(&curChar);
+  const int qStart = strtol(curChar, &curChar, 10); 
+  nextChar(&curChar);
+  const int qEnd = strtol(curChar, &curChar, 10); 
+  intrangeSetValues(&msp->qRange, qStart, qEnd);
+
+  /* match seq range */
+  nextChar(&curChar);
+  const int sStart = strtol(curChar, &curChar, 10); 
+  nextChar(&curChar);
+  const int sEnd = strtol(curChar, &curChar, 10); 
+  intrangeSetValues(&msp->sRange, sStart, sEnd);
+  
+  nextChar(&curChar);
+  msp->qStrand = strtol(curChar, &curChar, 10);
+
+  nextChar(&curChar);
+  msp->qFrame = strtol(curChar, &curChar, 10);
+
+  nextChar(&curChar);
+  msp->qname = stringUnprotect(&curChar, NULL);
+  msp->sname = stringUnprotect(&curChar, NULL);
+  msp->desc = stringUnprotect(&curChar, NULL);
+
+  DEBUG_EXIT("readMspFromText returning");
+}
+
+
+/* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values.
+ * Add it into the given MSP list and make the end pointer ('lastMsp') point to the new
+ * end of the list. Returns a pointer to the newly-created MSP */
+MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
+{
+  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
+  
+  msp->next = NULL;
+  msp->childMsps = NULL;
+  msp->type = BLXMSP_INVALID;
+  msp->score = 0.0;
+  msp->id = 0.0;
+  msp->phase = 0;
+  msp->url = NULL;
+  
+  msp->qname = NULL;
+  msp->qFrame = UNSET_INT;
+  
+  msp->qRange.min = 0;
+  msp->qRange.max = 0;
+  
+  msp->sSequence = NULL;
+  msp->sname = NULL;
+  
+  msp->sRange.min = 0;
+  msp->sRange.max = 0;
+  
+  msp->desc = NULL;
+  msp->source = NULL;
+  
+  msp->style = NULL;
+  
+  msp->fs = NULL;
+  msp->fsColor = 0;
+  msp->fsShape = BLXCURVE_BADSHAPE;
+  
+  msp->xy = NULL;
+  msp->gaps = NULL;
+  
+#ifdef ACEDB
+  msp->key = 0;
+#endif
+  
+  /* Add it to the list */
+  if (!*mspList) 
+    {
+      /* Nothing in the list yet: make this the first entry */
+      *mspList = msp;
+    }
+  
+  if (*lastMsp)
+    {
+      /* Tag it on to the end of the list */
+      (*lastMsp)->next = msp;
+    }
+  
+  /* Make the 'lastMsp' pointer point to the new end of the list */
+  *lastMsp = msp;
+  
+  return msp;
+}

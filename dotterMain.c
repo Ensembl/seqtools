@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.16 2010-10-26 13:30:26 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.17 2010-10-26 16:51:12 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -34,6 +34,7 @@
 #include <SeqTools/blxGff3Parser.h>
 #include <SeqTools/blxparser.h>
 #include <SeqTools/dotter_.h>
+#include <SeqTools/blxmsp.h>
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -93,7 +94,7 @@ static void strNamecpy(char *dest, char *src)
 }
 
 
-static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char seq)
+static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const int sFrame)
 {
    MSP   
        *msp;
@@ -122,7 +123,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char s
      *cp = 0;
 
    msp->qRange.min = msp->qRange.max = pos;
-   *msp->sframe = seq;
+//   msp->sFrame = sFrame;
    msp->fsColor = 0;
    msp->type = BLXMSP_FS_SEG;
    msp->score = 100.0;
@@ -201,14 +202,13 @@ int main(int argc, char **argv)
 
   char   
       *qseq=0, *sseq=0, line[MAXLINE+1],
-      *cp, *cc, *cq, type, 
+      *curChar, *cc, *cq, type, 
       *firstdesc, *qfilename, *sfilename,
       text[MAXLINE+1];
 
   FILE *qfile, *sfile;
   MSP *MSPlist = NULL;
   GList *seqList = NULL;
-  MSP *msp;
 
   
   int          optc;
@@ -290,7 +290,7 @@ int main(int argc, char **argv)
 	}
     }
 
-    if (options.selfcall) /* Dotter calling dotter */
+    if (options.selfcall) /* Blixem/Dotter calling dotter */
       {
 	qseq = (char *)g_malloc(options.qlen+1);
 	sseq = (char *)g_malloc(options.slen+1);
@@ -310,53 +310,41 @@ int main(int argc, char **argv)
 	sseq[options.slen] = 0;
 
 	/* Read in MSPs */
+        DEBUG_OUT("Reading MSPs\n");
+        MSP *lastMsp = NULL;
+        
 	while (!feof (stdin))
           { 
-	    char *cp;
+            /* read in the blxsequences. they are separated by newlines */
 	    if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF)
-              {
-                break;
-              }
-	    
-	    if (!MSPlist) 
-              {
-		MSPlist = (MSP *)g_malloc(sizeof(MSP));
-		msp = MSPlist;
-              }
-	    else
-              {
-		msp->next = (MSP *)g_malloc(sizeof(MSP));
-		msp = msp->next;
-              }
-	    
-	    cp = text;
-	    while (*cp == ' ') cp++;
-	    msp->type = strtol(cp, &cp, 10);
-	    while (*cp == ' ') cp++;
-	    msp->score = g_strtod(cp, &cp);
-	    while (*cp == ' ') cp++;
-	    msp->fsColor = strtol(cp, &cp, 10);
-	    while (*cp == ' ') cp++;
-	    const int qStart = strtol(cp, &cp, 10); 
-	    while (*cp == ' ') cp++;
-	    const int qEnd = strtol(cp, &cp, 10); 
-	    while (*cp == ' ') cp++;
-	    msp->fs = NULL;
-            strtol(cp, &cp, 10);
-	    msp->sname = stringUnprotect(&cp, NULL);
-	    stringUnprotect(&cp, msp->sframe);
-	    msp->qname = stringUnprotect(&cp, NULL);
-	    stringUnprotect(&cp, msp->qframe);
-	    msp->desc = stringUnprotect(&cp, NULL);
+              break;
 
-	    intrangeSetValues(&msp->qRange, qStart, qEnd);
+	    int numMsps = 0;
+            BlxSequence *blxSeq = readBlxSequenceFromText(text, &numMsps);
+            seqList = g_list_append(seqList, blxSeq);
+            
+            /* read in the msps for this blx sequence and add them to the msplist */
+            int i = 0;
+            for ( ; i < numMsps; ++i)
+              {
+                /* msps are also separated by newlines */
+                if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF)
+                  break;
 
-	    /* really horrible hack */
-	    if (msp->type == BLXMSP_FS_SEG)
-	      {
-		insertFS(msp, "chain_separator");
-		options.fsEndLinesOn = TRUE;
-	      }
+                MSP *msp = createEmptyMsp(&lastMsp, &MSPlist);
+                readMspFromText(msp, text);
+                
+                /* add the msp to the blxsequence */
+                blxSeq->mspList = g_list_append(blxSeq->mspList, msp);
+                msp->sSequence = blxSeq;
+                
+                /* really horrible hack */
+                if (msp->type == BLXMSP_FS_SEG)
+                  {
+                    insertFS(msp, "chain_separator");
+                    options.fsEndLinesOn = TRUE;
+                  }
+              }
           }
 	fclose(stdin);
       }
@@ -378,9 +366,9 @@ int main(int argc, char **argv)
 	qseq = (char *)g_malloc(options.qlen+1);
 	fseek(qfile, 0, SEEK_SET);
       
-	if ((cp = (char *)strrchr(argv[optind], '/')))
+	if ((curChar = (char *)strrchr(argv[optind], '/')))
           {
-            options.qname = g_strdup(cp+1);
+            options.qname = g_strdup(curChar+1);
           }
 	else
           {
@@ -398,9 +386,9 @@ int main(int argc, char **argv)
 	sseq = (char *)g_malloc(options.slen+1);
 	fseek(sfile, 0, SEEK_SET);
       
-	if ((cp = (char *)strrchr(argv[optind]+1, '/')))
+	if ((curChar = (char *)strrchr(argv[optind]+1, '/')))
           {
-            options.sname = g_strdup(cp+1);
+            options.sname = g_strdup(curChar+1);
           }
 	else
           {
@@ -441,13 +429,13 @@ int main(int argc, char **argv)
                         options.fsEndLinesOn = TRUE;
 
                         /* Second sequence - add break line to mark first sequence */
-                        addBreakline (&MSPlist, qfilename, firstdesc, 0, '1');
+                        addBreakline (&MSPlist, qfilename, firstdesc, 0, 1);
                         
                         /* change sequence name to filename */
                         options.qname = g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
                       }
                     
-                    addBreakline (&MSPlist, qfilename, cq, count, '1');
+                    addBreakline (&MSPlist, qfilename, cq, count, 1);
                   }
               }
             else 
@@ -487,12 +475,12 @@ int main(int argc, char **argv)
 			options.fsEndLinesOn = TRUE;
 
 		        /* Second sequence - add break line to mark first sequence */
-		        addBreakline (&MSPlist, sfilename, firstdesc, 0, '2');
+		        addBreakline (&MSPlist, sfilename, firstdesc, 0, 2);
 			
 			/* change sequence name to filename */
 			options.sname = g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
 		    }
-		    addBreakline (&MSPlist, sfilename, cq, count, '2');
+		    addBreakline (&MSPlist, sfilename, cq, count, 2);
 		}
 	    }
 	    else 
