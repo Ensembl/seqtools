@@ -1100,6 +1100,7 @@ gboolean callDotterExternal(BlxViewContext *bc,
                             char *refSeqSegment,
                             const char *dotterSName,
                             char *dotterSSeq,
+                            const gboolean hspsOnly,
                             char *Xoptions,
                             GError **error)
 {
@@ -1133,12 +1134,13 @@ gboolean callDotterExternal(BlxViewContext *bc,
   g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, xstart, ystart, xend, yend);
   fflush(stdout);
   
-  char *pipeText = blxprintf("/bin/csh -cf \"%s -z %d -q %d -s %d %s -S '%s' %d '%s' %d %s %s\"", 
+  char *pipeText = blxprintf("/bin/csh -cf \"%s -z %d -q %d -s %d%s%s -S '%s' %d '%s' %d %s %s\"", 
                              dotterBinary, 
                              dotterZoom, 
                              xstart - 1, 
                              ystart - 1, 
-                             bc->displayRev ? "-r" : "",
+                             bc->displayRev ? " -r" : "",
+                             hspsOnly ? " -H" : "",
                              bc->refSeqName, 
                              qlen, 
                              dotterSName, 
@@ -1315,7 +1317,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   printf("  query sequence: name -  %s, offset - %d\n"
 	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
 
-  return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, NULL, error);
+  return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, hspsOnly, NULL, error);
   
 //  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, qStrand, dotterSName, dotterSSeq, 0,
 //	 selectedSeq->strand, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
@@ -1408,7 +1410,7 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
 
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
-  callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, 0, error);
+  callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, FALSE, NULL, error);
   
 //  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, BLXSTRAND_FORWARD, bc->refSeqName, dotterSSeq, offset,
 //	 BLXSTRAND_FORWARD, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
