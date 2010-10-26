@@ -1133,6 +1133,74 @@ GtkWidget* getNamedChildWidget(GtkWidget *widget, const gchar *searchName)
   return result;
 }
 
+
+/* Send a string to a file, "protecting" it by placing quotes around it and escaping quotes
+ * inside it. */
+void stringProtect(FILE *file, const char *string)
+{
+  const char *cp;
+ 
+  fputc(' ', file);
+  fputc('"', file);
+  if (string)
+    for(cp = string; *cp; ++cp)
+      {
+	if (*cp == '"' || *cp == '$')
+	  fputc('$', file);
+	fputc(*cp, file);
+      }
+  fputc('"', file);
+  
+}
+
+
+/* Read a protected string */
+char *stringUnprotect(char **textp, char *target)
+{
+  char *cp, *cpd;
+  int count = 0;
+
+ redo:
+  cp = *textp;
+  cpd = target;
+  
+  while (*cp)
+    {
+      if (*cp == '"')
+	{
+	  cp++;						    /* skip quote */
+	  break ;
+	}
+      else
+	cp++ ;
+    }
+
+  while (*cp != '"' && *cp)
+    {
+      if (*cp == '$')
+	cp++;
+
+      if (cpd)
+	*cpd++ = *cp;
+      else
+	count++;
+
+      cp++;
+    }
+  
+  if (!target)
+    {
+      target = g_malloc(count+1);
+      goto redo;
+    }
+  
+  *cp = '\0' ;
+  *textp = cp+1; /* skip quote */
+
+  return target;
+}
+
+
 /***********************************************************
  *			   Dialogs			   *
  ***********************************************************/

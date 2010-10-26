@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.16 2010-10-26 09:17:06 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.17 2010-10-26 13:30:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -259,7 +259,6 @@ static GtkWidget*	      createDotterWindow(DotterContext *dc, DotterWindowContex
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
-//static void                   stringProtect(FILE *file, const char *string);
 static gboolean               onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data);
 
 static void createDotterInstance(DotterContext *dotterCtx,
@@ -397,7 +396,6 @@ static const char contextMenuDescription[] =
 
 /* Global variables */
 char *dotterVersion = DOTTER_VERSION_COMPILE ;
-char *dotterBinary = NULL;
 
 static int    MATRIX[24][24];
 //              MSPoffset,	/* Difference between real MSP coord and coord stored in MSP */
@@ -882,7 +880,7 @@ static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, c
 
 
 void dotter (char  type,
-	     char *opts,
+	     DotterOptions *options,
 	     const char *queryname,
 	     char *queryseq,
 	     int   qoff,
@@ -904,16 +902,11 @@ void dotter (char  type,
 	      char *winsizeIn,
 	      int   pixelFacIn)
 {
-  g_debug("Calling dotter: type=%c, opts=%s, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d\n",
-          type, opts, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
+  g_debug("Calling dotter: type=%c, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d\n",
+          type, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
   
   BlxBlastMode blastMode = BLXMODE_UNSET;
-  gboolean hspsOn = FALSE;
   gboolean selfComp = FALSE;
-  gboolean displayMirror = TRUE;
-  gboolean watsonOnly = FALSE;
-  gboolean crickOnly = FALSE;
-  gboolean hspGaps = FALSE;
 
   switch(type) {
   case 'P':  
@@ -933,39 +926,7 @@ void dotter (char  type,
       break;
   }
   
-  gboolean greyrampSwap = FALSE;
-  gboolean hozScaleRev = FALSE;
-  gboolean vertScaleRev = FALSE;
-  
-  /* Option parsing */
-  if (opts)
-    while (*opts)
-      {
-	switch (*opts)
-	  {
-	  case 'D': 
-              displayMirror = FALSE;
-              break;
-              
-	    case 'R': 
-              hozScaleRev = TRUE;    
-              break;
-              
-	  case 'H': 
-              hspsOn = TRUE;         
-              break;
-              
-	  case 'W': watsonOnly = TRUE;       break;
-	  case 'C': crickOnly = TRUE;        break;
-	  case 'G': hspGaps = TRUE;          break;
-	  case 'S': greyrampSwap = TRUE;  break;
-//	  case 'L': fsEndLinesOn = 1;     break;
-	  }
-	opts++;
-      }
-
   MSPlist = MSPs;
-  //MSPoffset = MSPoff;
   
   const int qlen = strlen(queryseq);
   const int slen = strlen(subjectseq);
@@ -1014,8 +975,8 @@ void dotter (char  type,
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
   DotterContext *dotterCtx = createDotterContext(blastMode, queryname, queryseq, refSeqStrand, 
                                                  subjectname, subjectseq, matchSeqStrand,
-                                                 qoff, soff, hozScaleRev, vertScaleRev, 
-                                                 selfComp, displayMirror, watsonOnly, crickOnly,
+                                                 qoff, soff, options->hozScaleRev, options->vertScaleRev, 
+                                                 selfComp, options->mirrorImage, options->watsonOnly, options->crickOnly,
                                                  MSPlist, seqList, MATRIX, matrixName, memoryLimit);
 
   /* Create a context specific to the initial dotter window */
@@ -1026,13 +987,13 @@ void dotter (char  type,
                        dotterWinCtx,
                        loadFileName,
                        saveFileName,
-                       hspsOn,
+                       options->hspsOnly,
                        winsizeIn,
                        pixelFacIn,
                        zoomFacIn,
                        qcenter,
                        scenter,
-                       greyrampSwap);
+                       options->swapGreyramp);
 
   return ;
 }
@@ -1111,82 +1072,6 @@ void callDotterInternal(DotterContext *dc,
 }
 
 
-//void dotterCallDotter(DotterContext *dc, int dotterZoom, int xstart, int ystart, int xend, int yend)
-//{
-//  
-//  
-//  /* old code that used to start a new process... */
-//#if 0 //!defined(NO_POPEN)
-//  
-//  if (xstart < 1)  xstart = 1;
-//  if (xend > qlen) xend = getRangeLength(&dc->refSeqFullRange);
-//  if (ystart < 1)  ystart = 1;
-//  if (yend > slen) yend = getRangeLength(&dc->matchSeqFullRange);
-//  
-//  /* Open pipe to new dotterBinary */
-//  if (!dotterBinary) 
-//    { 
-//      printf("Looking for Dotter ...\n");
-//      
-//      if (!findCommand("dotter", &(dotterBinary))) 
-//        {
-//          g_critical("Failed to zoom in - %s.  ($PATH=%s)", dotterBinary, getenv("PATH"));
-//          dotterBinary = 0;
-//          return;
-//        }
-//    }
-//  
-//  printf("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, xstart, ystart, xend, yend);
-//  fflush(stdout);
-//  
-//  char *pipeText = blxprintf("/bin/csh -cf \"%s -z %d -q %d -s %d -S '%s' %d '%s' %d %s %s\"", 
-//                             dotterBinary, 
-//                             dotterZoom, 
-//                             xstart - 1 + dc->refSeqFullRange.min - 1, 
-//                             ystart - 1 + dc->matchSeqFullRange.min - 1, 
-//                             dc->refSeqName, 
-//                             xend - xstart + 1, 
-//                             dc->matchSeqName, 
-//                             yend - ystart + 1,
-//                             dotterBinary,
-//                             (Xoptions ? Xoptions : ""));
-//  
-//  g_debug("Sending to pipe: %s\n", pipeText);
-//  
-//  FILE *pipe = (FILE *)popen(pipeText, "w");
-//  
-//  fwrite(dc->refSeq + xstart - 1, 1, xend - xstart + 1, pipe);
-//  fwrite(dc->matchSeq + ystart - 1, 1, yend - ystart + 1, pipe);
-//  
-//  /* Pass on features */
-//  MSP *msp = NULL;
-//
-//  for (msp = MSPlist; msp; msp = msp->next) 
-//    {
-//      if (msp->type == BLXMSP_FS_SEG)
-//        {
-//          fprintf(pipe, "%d %f %d %d %d %d", 
-//                  msp->type,
-//                  msp->score, 
-//                  msp->fsColor, 
-//                  mspGetQStart(msp) +MSPoffset,
-//                  mspGetQEnd(msp)   +MSPoffset,
-//                  msp->fs ? msp->fs->order : 0);
-//          stringProtect(pipe, mspGetSName(msp));
-//          stringProtect(pipe, msp->sframe);
-//          stringProtect(pipe, msp->qname);
-//          stringProtect(pipe, msp->qframe);
-//          stringProtect(pipe, msp->desc);
-//          fputc('\n', pipe);
-//        }
-//    }
-//  
-//  fprintf(pipe, "%c\n", EOF);
-//  fflush(pipe);
-//#endif
-//}
-//
-
 char Seqtype(char *seq)
 {
     char *aminos      = "ABCDEFGHIKLMNPQRSTVWXYZ*";
@@ -1259,11 +1144,11 @@ void reversebytes(void *ptr, int n)
 }
 
 
-/* Utility to return the Feature Series that the given MSP belongs to */
-static FeatureSeries* mspGetFeatureSeries(const MSP *msp)
-{
-  return msp->fs;
-}
+///* Utility to return the Feature Series that the given MSP belongs to */
+//static FeatureSeries* mspGetFeatureSeries(const MSP *msp)
+//{
+//  return msp->fs;
+//}
 
 
 /* Returns true if this MSP is part of a Feature Series and that feature series is currently displayed */
@@ -1277,51 +1162,51 @@ static FeatureSeries* mspGetFeatureSeries(const MSP *msp)
 /* Return the y position of the lower edge of a feature-series MSP, given its height.
    Calculate it if it is not set yet. Updates the max y coord to be the lower edge of
    this MSP. Returns 0 if the MSP is not in a Feature Series */
-float mspGetFsBottomEdge(MSP *msp, float *maxy, float height)
-{
-  float result = 0;
-  
-  FeatureSeries *fs = mspGetFeatureSeries(msp);
-  
-  if (fs)
-    {
-      result = fs->y;
-
-      if (!result)
-        {
-          *maxy += height;
-          fs->y = *maxy;
-          result = *maxy;
-        }
-    }
-  
-  return result;
-}
+//float mspGetFsBottomEdge(MSP *msp, float *maxy, float height)
+//{
+//  float result = 0;
+//  
+//  FeatureSeries *fs = mspGetFeatureSeries(msp);
+//  
+//  if (fs)
+//    {
+//      result = fs->y;
+//
+//      if (!result)
+//        {
+//          *maxy += height;
+//          fs->y = *maxy;
+//          result = *maxy;
+//        }
+//    }
+//  
+//  return result;
+//}
 
 
 /* Return the x position of the rightmost edge of a feature-series MSP, given its height.
    Calculae it if it is not yet set. Updates the max x coord to be the rightmost edge of
    this MSP. Returns 0 if the MSP is not in a FeatureSeries */
-float mspGetFsRightEdge(MSP *msp, float *maxx, float height)
-{
-  float result = 0;
-
-  FeatureSeries *fs = mspGetFeatureSeries(msp);
-
-  if (fs)
-    {
-      result = fs->x;
-      
-      if (!result)
-        {
-          *maxx += height;
-          fs->x = *maxx;
-          result = *maxx;
-        }
-    }
-  
-  return result;
-}
+//float mspGetFsRightEdge(MSP *msp, float *maxx, float height)
+//{
+//  float result = 0;
+//
+//  FeatureSeries *fs = mspGetFeatureSeries(msp);
+//
+//  if (fs)
+//    {
+//      result = fs->x;
+//      
+//      if (!result)
+//        {
+//          *maxx += height;
+//          fs->x = *maxx;
+//          result = *maxx;
+//        }
+//    }
+//  
+//  return result;
+//}
 
 
 //static float seq2graphX(int pos)
@@ -2246,90 +2131,6 @@ float mspGetFsRightEdge(MSP *msp, float *maxx, float height)
 //      }
 //    
 //    return maxy + 2;
-//}
-
-
-/* Find an executable and return its complete pathname.
- */
-int findCommand (char *command, char **retp)
-{
-#if !defined(NO_POPEN)
-    static char retstr[1025] ;
-    char *path, file[1025], retval;
-    int found=0;
-
-    /* Don't use csh - fails if the path is not set in .cshrc * /
-    if (access(csh, X_OK)) {
-	g_critical("Could not find %s", csh);
-	return 0;
-    }
-    if (!(pipe = (FILE *)popen(messprintf("%s -cf \"which %s\"", csh, command), "r"))) {
-	return 0;
-    }
-
-    while (!feof(pipe))
-	fgets(retval, 1024, pipe);
-    retval[1024] = 0;
-    pclose(pipe);
-
-    if (cp = strchr(retval, '\n')) *cp = 0;
-    if (retp) *retp = retval;
-
-    / * Check if whatever "which" returned is an existing and executable file * /
-    if (!access(retval, F_OK) && !access(retval, X_OK))
-        return 1;
-    else
-	return 0;
-    */
-    
-    path = g_malloc(strlen(getenv("PATH"))+1);
-    /* Don't free 'path' since it changes later on - never mind, 
-       we're only calling it once */
-
-    strcpy(path, getenv("PATH"));
-    path = strtok(path, ":");
-    while (path) {
-	strcpy(file, path);
-	strcat(file,"/");
-	strcat(file, command);
-	if (!access(file, F_OK) && !access(file, X_OK)) {
-	    found = 1;
-	    break;
-	}
-
-	path = strtok(0, ":");
-    }
-
-    if (found) {
-	strcpy(retstr, file);
-	retval = 1;
-    }
-    else {
-	strcpy(retstr, "Can't find executable 'dotter' in path.\n");
-	retval = 0;
-    }
-
-    if (retp) *retp = retstr;
-    return retval;
-
-#endif
-}
-
-//static void stringProtect(FILE *file, const char *string)
-//{
-//  const char *cp;
-// 
-//  fputc(' ', file);
-//  fputc('"', file);
-//  if (string)
-//    for(cp = string; *cp; cp++)
-//      {
-//	if (*cp == '"' || *cp == '$')
-//	  fputc('$', file);
-//	fputc(*cp, file);
-//      }
-//  fputc('"', file);
-//  
 //}
 
 

@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.15 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.16 2010-10-26 13:30:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -41,32 +41,38 @@
 #define UNSET_INT  -1
 
 
-typedef struct _DotterOptions
-  {
-    int qoffset;
-    int soffset; 
-    int selfcall;
-    int qlen;
-    int slen;
-    int revcompq;
-    int dotterZoom;
-    int install : 1;
-    int pixelFacset;
-    int seqInSFS;
-    
-    float memoryLimit;
-    
-    char *savefile;
-    char *loadfile;
-    char *FSfilename;
-    char *mtxfile;
-    
-    char *winsize;
-    
-    char *qname;
-    char *sname;
-  } DotterOptions;
-
+static void setDefaultOptions(DotterOptions *options)
+{
+  options->qoffset = 0;
+  options->soffset = 0;
+  options->selfcall = FALSE;
+  options->qlen = UNSET_INT;
+  options->slen = UNSET_INT;
+  options->dotterZoom = 0;
+  options->install = 1;
+  options->pixelFacset = 0;
+  options->seqInSFS = 0;
+  
+  options->memoryLimit = 0.0;
+  
+  options->savefile = NULL;
+  options->loadfile = NULL;
+  options->FSfilename = NULL;
+  options->mtxfile = NULL;
+  options->winsize = NULL;
+  options->qname = NULL;
+  options->sname = NULL;
+  
+  options->mirrorImage = TRUE;
+  options->watsonOnly = FALSE;
+  options->crickOnly = FALSE;
+  options->hspsOnly = FALSE;
+  options->swapGreyramp = FALSE;
+  options->fsEndLinesOn = FALSE;
+  options->hspGaps = FALSE;
+  options->hozScaleRev = FALSE;
+  options->vertScaleRev = FALSE;
+}
 
 
 static void strNamecpy(char *dest, char *src)
@@ -86,52 +92,7 @@ static void strNamecpy(char *dest, char *src)
   return ;
 }
 
-static char *stringUnprotect(char **textp, char *target)
-{
-  char *cp, *cpd;
-  int count = 0;
 
- redo:
-  cp = *textp;
-  cpd = target;
-  
-  while (*cp)
-    {
-      if (*cp == '"')
-	{
-	  cp++;						    /* skip quote */
-	  break ;
-	}
-      else
-	cp++ ;
-    }
-
-  while (*cp != '"' && *cp)
-    {
-      if (*cp == '$')
-	cp++;
-
-      if (cpd)
-	*cpd++ = *cp;
-      else
-	count++;
-
-      cp++;
-    }
-  
-  if (!target)
-    {
-      target = g_malloc(count+1);
-      goto redo;
-    }
-  
-  *cp = '\0' ;
-  *textp = cp+1; /* skip quote */
-
-  return target;
-}
-
-  
 static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, char seq)
 {
    MSP   
@@ -235,7 +196,8 @@ static char* getUsageText()
 
 int main(int argc, char **argv)
 {
-  DotterOptions options = {0, 0, 0, UNSET_INT, UNSET_INT, 0, 0, 1, 0, 0, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+  DotterOptions options;
+  setDefaultOptions(&options);
 
   char   
       *qseq=0, *sseq=0, line[MAXLINE+1],
@@ -243,12 +205,6 @@ int main(int argc, char **argv)
       *firstdesc, *qfilename, *sfilename,
       text[MAXLINE+1];
 
-  char opts[] = "D    ";    /* D  display mirror image
-                               W  only watson strand
-                               C  only crick strand
-                               H  only HSPs
-                               S  start with swapped greyramptool
-                            */
   FILE *qfile, *sfile;
   MSP *MSPlist = NULL;
   GList *seqList = NULL;
@@ -260,7 +216,7 @@ int main(int argc, char **argv)
   extern char *optarg;
   char        *optstring="b:cDf:F:Hil:M:m:p:q:Rrs:SW:wz:";
 
-  extern char *dotterBinary;
+  static char *dotterBinary = NULL;
 
   char *usage = getUsageText();
 
@@ -271,43 +227,43 @@ int main(int argc, char **argv)
         {
           case 'b': 
             options.savefile = g_malloc(strlen(optarg)+1);
-            strcpy(options.savefile, optarg);         break;
-          case 'c': opts[1] = 'C';              break;
-          case 'D': opts[0] = ' ';              break;
+            strcpy(options.savefile, optarg);           break;
+          case 'c': options.crickOnly = TRUE;           break;
+          case 'D': options.mirrorImage = FALSE;        break;
           case 'f': 
             options.FSfilename = g_malloc(strlen(optarg)+1);
-            strcpy(options.FSfilename, optarg);       break;
+            strcpy(options.FSfilename, optarg);         break;
           case 'F': 
             options.seqInSFS = 1;        
             options.FSfilename = g_malloc(strlen(optarg)+1);
-            strcpy(options.FSfilename, optarg);       break;
-          case 'H': opts[2] = 'H';              break;
+            strcpy(options.FSfilename, optarg);         break;
+          case 'H': options.hspsOnly = TRUE;            break;
           case 'i': options.install = 0;                break;
           case 'l': 
             options.loadfile = g_malloc(strlen(optarg)+1);
-            strcpy(options.loadfile, optarg);         break;
+            strcpy(options.loadfile, optarg);           break;
           case 'M': 
             options.mtxfile = g_malloc(strlen(optarg)+1);
-            strcpy(options.mtxfile, optarg);          break;
+            strcpy(options.mtxfile, optarg);            break;
           case 'm': options.memoryLimit = atof(optarg); break;
           case 'p': options.pixelFacset = atoi(optarg); break;
           case 'q': options.qoffset = atoi(optarg);     break;
-          case 'R': opts[3] = 'S';              break;
-          case 'r': options.revcompq = 1;               break;
+          case 'R': options.swapGreyramp = TRUE;        break;
+          case 'r': options.hozScaleRev = TRUE;         break;
           case 's': options.soffset = atoi(optarg);     break;
           case 'S': 
-            options.selfcall = 1;
+            options.selfcall = TRUE;
             options.qname = g_malloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
             options.qlen = atoi(argv[optind+1]);
             options.sname = g_malloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
             options.slen = atoi(argv[optind+3]);
             dotterBinary = g_malloc(strlen(argv[optind+4])+1);
             strcpy(dotterBinary, argv[optind+4]);
-                                              break;
+                                                        break;
           case 'W': 
             options.winsize = g_malloc(strlen(optarg)+1);
-            strcpy(options.winsize, optarg);          break;
-          case 'w': opts[1] = 'W';              break;
+            strcpy(options.winsize, optarg);            break;
+          case 'w': options.watsonOnly = TRUE;          break;
           case 'z': options.dotterZoom = atoi(optarg);  break;
           default : g_error("Illegal option");
       }
@@ -399,7 +355,7 @@ int main(int argc, char **argv)
 	    if (msp->type == BLXMSP_FS_SEG)
 	      {
 		insertFS(msp, "chain_separator");
-		opts[4] = 'L';
+		options.fsEndLinesOn = TRUE;
 	      }
           }
 	fclose(stdin);
@@ -482,7 +438,7 @@ int main(int argc, char **argv)
                   /* Multiple sequences - add break lines */
                     if (l == 2) 
                       {
-                        opts[4] = 'L';
+                        options.fsEndLinesOn = TRUE;
 
                         /* Second sequence - add break line to mark first sequence */
                         addBreakline (&MSPlist, qfilename, firstdesc, 0, '1');
@@ -528,7 +484,7 @@ int main(int argc, char **argv)
 		  /* Multiple sequences - add break lines */
 
 		    if (l == 2) {
-			opts[4] = 'L';
+			options.fsEndLinesOn = TRUE;
 
 		        /* Second sequence - add break line to mark first sequence */
 		        addBreakline (&MSPlist, sfilename, firstdesc, 0, '2');
@@ -594,29 +550,15 @@ int main(int argc, char **argv)
         g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
       }
       
-    if (options.revcompq) 
-      {
-	if (type != 'X')
-          {
-	    g_error("Revcomp'ing horizontal_sequence only needed in DNA vs. Protein");
-          }
-	else 
-          {
-	    cc = g_malloc(options.qlen+1);
-	    revComplement(cc, qseq);
-	    g_free(qseq);
-	    qseq = cc;
-          }
-      }
+    /* to do: pass in actual strand rather than assuming it's reversed if display is reversed? */
+    const BlxStrand qStrand = options.hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
+    const BlxStrand sStrand = BLXSTRAND_FORWARD;
 
     /* Add -install for private colormaps */
     if (options.install) 
       {
         argvAdd(&argc, &argv, "-install");
       }
-
-    const BlxStrand qStrand = options.revcompq ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-    const BlxStrand sStrand = BLXSTRAND_FORWARD;
 
     if (!options.savefile)
       {
@@ -625,7 +567,7 @@ int main(int argc, char **argv)
         g_log_set_default_handler(defaultMessageHandler, NULL);
         g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
         
-	dotter(type, opts, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
+	dotter(type, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset) ;
 
@@ -634,7 +576,7 @@ int main(int argc, char **argv)
     else
       {
         /* Batch mode */
-	dotter(type, opts, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
+	dotter(type, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset);
       }

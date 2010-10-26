@@ -34,7 +34,7 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.7 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.8 2010-10-26 13:30:26 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
@@ -42,14 +42,52 @@
 
 #include "SeqTools/blxmsp.h"
 
+
+/* Options specifying the initial state for dotter */
+typedef struct _DotterOptions
+  {
+    int qoffset;
+    int soffset; 
+    gboolean selfcall;
+    int qlen;
+    int slen;
+    int dotterZoom;
+    int install : 1;
+    int pixelFacset;
+    int seqInSFS;
+    
+    float memoryLimit;
+    
+    char *savefile;
+    char *loadfile;
+    char *FSfilename;
+    char *mtxfile;
+    
+    char *winsize;
+    
+    char *qname;
+    char *sname;
+    
+    gboolean mirrorImage;     /* display mirror image in self comparisons (i.e. so we only have to calculate half of the dot-plot) */
+    gboolean watsonOnly;      /* only show the watson (forward) strand of the ref seq */
+    gboolean crickOnly;       /* only show the crick (reverse) strand of the ref seq */
+    gboolean hspsOnly;        /* only draw HSPs (i.e. don't calculate the dot-plot, just draw lines where we know HSPs should be) */
+    gboolean swapGreyramp;    /* swap the default black/white points on the greyramp tool (inverts the colors) */
+    gboolean fsEndLinesOn;    /* to do: not used? */
+    gboolean hspGaps;         /* to do: not used? */
+    gboolean hozScaleRev;     /* revese the horizontal scale */
+    gboolean vertScaleRev;    /* revese the vertical scale */
+  } DotterOptions;
+
+
 void dotter(
 	char  type,        /* Mandatory, one of { P, N, X } 
 			      P -> Protein-Protein
 			      N -> DNA-DNA
 			      X -> DNA-Protein */
 	
-	char *opts,        /* Optional, may be NULL 
-			      Various options for display features */
+	DotterOptions *options, /* Optional, may be NULL 
+                                   Various options for display features */
 
 	const char *queryname,   /* Optional, may be NULL 
 				    Name of Horizontal sequence */
@@ -108,10 +146,6 @@ void dotter(
 
 	int   pixelFacset  /* Preset pixel factor */
 );
-
-
-/* Find an executable and return its complete pathname. */
-int findCommand (char *command, char **retp) ;
 
 
 #endif /*  !defined DEF_DOTTER_H */

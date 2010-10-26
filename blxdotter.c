@@ -49,7 +49,8 @@ typedef enum {
   BLX_DOTTER_ERROR_INTERNAL_SEQ,      /* using internally-stored sequence (because fetch failed) */
   BLX_DOTTER_ERROR_NO_MATCHES,        /* there are no matches on the requested sequence */
   BLX_DOTTER_ERROR_NO_SEQ_DATA,       /* the match sequence has no sequence data (e.g. if could not pfetch it) */
-  BLX_DOTTER_ERROR_INVALID_STRAND     /* there are no match sequences on the correct strand */
+  BLX_DOTTER_ERROR_INVALID_STRAND,    /* there are no match sequences on the correct strand */
+  BLX_DOTTER_ERROR_NO_EXE             /* no dotter executable found */
 } BlxDotterError;
 
 
@@ -1025,6 +1026,162 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
  *		      Functions to call dotter                     *
  *******************************************************************/
 
+/* Find an executable and return its complete pathname.
+ */
+static int findCommand (char *command, char **retp)
+{
+#if !defined(NO_POPEN)
+  static char retstr[1025] ;
+  char *path, file[1025], retval;
+  int found=0;
+  
+  /* Don't use csh - fails if the path is not set in .cshrc * /
+   if (access(csh, X_OK)) {
+   g_critical("Could not find %s", csh);
+   return 0;
+   }
+   if (!(pipe = (FILE *)popen(messprintf("%s -cf \"which %s\"", csh, command), "r"))) {
+   return 0;
+   }
+   
+   while (!feof(pipe))
+   fgets(retval, 1024, pipe);
+   retval[1024] = 0;
+   pclose(pipe);
+   
+   if (cp = strchr(retval, '\n')) *cp = 0;
+   if (retp) *retp = retval;
+   
+   / * Check if whatever "which" returned is an existing and executable file * /
+   if (!access(retval, F_OK) && !access(retval, X_OK))
+   return 1;
+   else
+   return 0;
+   */
+  
+  path = g_malloc(strlen(getenv("PATH"))+1);
+  /* Don't free 'path' since it changes later on - never mind, 
+   we're only calling it once */
+  
+  strcpy(path, getenv("PATH"));
+  path = strtok(path, ":");
+  while (path) {
+    strcpy(file, path);
+    strcat(file,"/");
+    strcat(file, command);
+    if (!access(file, F_OK) && !access(file, X_OK)) {
+      found = 1;
+      break;
+    }
+    
+    path = strtok(0, ":");
+  }
+  
+  if (found) {
+    strcpy(retstr, file);
+    retval = 1;
+  }
+  else {
+    strcpy(retstr, "Can't find executable 'dotter' in path.\n");
+    retval = 0;
+  }
+  
+  if (retp) *retp = retstr;
+  return retval;
+  
+#endif
+}
+
+
+/* Call dotter as an external process */
+gboolean callDotterExternal(BlxViewContext *bc,
+                            int dotterZoom, 
+                            IntRange *refSeqRange,
+                            char *refSeqSegment,
+                            const char *dotterSName,
+                            char *dotterSSeq,
+                            char *Xoptions,
+                            GError **error)
+{
+#if !defined(NO_POPEN)
+
+  const int qlen = strlen(refSeqSegment);
+  const int slen = strlen(dotterSSeq);
+  
+  boundsLimitRange(refSeqRange, &bc->refSeqRange, FALSE);
+
+  int xstart = refSeqRange->min;
+  int xend = refSeqRange->max;
+  int ystart = 1;
+  int yend = slen;
+  
+  static char *dotterBinary = NULL;
+  
+  /* Open pipe to new dotterBinary */
+  if (!dotterBinary) 
+    { 
+      printf("Looking for Dotter ...\n");
+      
+      if (!findCommand("dotter", &(dotterBinary))) 
+        {
+          g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_EXE, "No dotter executable found in path.\n$PATH=%s\n", getenv("PATH"));
+          dotterBinary = NULL;
+          return FALSE;
+        }
+    }
+  
+  g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, xstart, ystart, xend, yend);
+  fflush(stdout);
+  
+  char *pipeText = blxprintf("/bin/csh -cf \"%s -z %d -q %d -s %d %s -S '%s' %d '%s' %d %s %s\"", 
+                             dotterBinary, 
+                             dotterZoom, 
+                             xstart - 1, 
+                             ystart - 1, 
+                             bc->displayRev ? "-r" : "",
+                             bc->refSeqName, 
+                             qlen, 
+                             dotterSName, 
+                             slen,
+                             dotterBinary,
+                             (Xoptions ? Xoptions : ""));
+  
+  g_debug("Sending to pipe: %s\n", pipeText);
+  
+  FILE *pipe = (FILE *)popen(pipeText, "w");
+  
+  fwrite(refSeqSegment, 1, qlen, pipe);
+  fwrite(dotterSSeq, 1, slen, pipe);
+  
+  /* Pass on features */
+  MSP *msp = bc->mspList;
+
+  for ( ; msp; msp = msp->next) 
+    {
+      if (msp->type == BLXMSP_FS_SEG)
+        {
+          fprintf(pipe, "%d %f %d %d %d %d", 
+                  msp->type,
+                  msp->score, 
+                  msp->fsColor, 
+                  mspGetQStart(msp),
+                  mspGetQEnd(msp),
+                  msp->fs ? msp->fs->order : 0);
+          stringProtect(pipe, mspGetSName(msp));
+          stringProtect(pipe, msp->sframe);
+          stringProtect(pipe, msp->qname);
+          stringProtect(pipe, msp->qframe);
+          stringProtect(pipe, msp->desc);
+          fputc('\n', pipe);
+        }
+    }
+  
+  fprintf(pipe, "%c\n", EOF);
+  fflush(pipe);
+#endif
+  
+  return TRUE;
+}
 
 
 /* Call dotter. Returns true if dotter was called; false if we quit trying. */
@@ -1144,24 +1301,26 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   const int offset = dotterRange.min - 1;
   
   /* Get the options */
-  static char opts[] = "     ";
-  opts[0] = bc->displayRev ? 'R' : ' ';
-  opts[1] = hspsOnly ? 'H' : ' ';
-  opts[2] = bc->gappedHsp ? 'G' : ' ';
+//  static char opts[] = "     ";
+//  opts[0] = bc->displayRev ? 'R' : ' ';
+//  opts[1] = hspsOnly ? 'H' : ' ';
+//  opts[2] = bc->gappedHsp ? 'G' : ' ';
   
   /* Get the mode */
-  char type = getDotterMode(bc->blastMode);
+//  char type = getDotterMode(bc->blastMode);
   
   /* Get the list of all MSPs */
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   
   printf("  query sequence: name -  %s, offset - %d\n"
 	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
+
+  return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, NULL, error);
   
-  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, qStrand, dotterSName, dotterSSeq, 0,
-	 selectedSeq->strand, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
+//  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, qStrand, dotterSName, dotterSSeq, 0,
+//	 selectedSeq->strand, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
   
-  return TRUE;
+//  return TRUE;
 }
 
 
@@ -1195,7 +1354,7 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
     }
   
   /* Set the options string (no options are required) */
-  static char opts[] = "     ";
+//  static char opts[] = "     ";
 
   /* Set the type */
   char type = ' ';
@@ -1215,22 +1374,22 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   IntRange dotterRange;
   intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
     
-  char *querySeqSegmentTemp = getSequenceSegment(bc->refSeq,
-						 &dotterRange,
-						 qStrand,
-						 BLXSEQ_DNA,	  /* calculated dotter coords are always in nucleotide coords */
-                                                 BLXSEQ_DNA,      /* required sequence is in nucleotide coords */
-						 frame,
-						 bc->numFrames,
-						 &bc->refSeqRange,
-						 bc->blastMode,
-						 bc->geneticCode,
-						 FALSE,		  /* input coords are always left-to-right, even if display reversed */
-						 bc->displayRev,  /* whether to reverse */
-						 bc->displayRev,  /* whether to allow rev strands to be complemented */
-						 &tmpError);
+  char *querySeqSegment = getSequenceSegment(bc->refSeq,
+                                             &dotterRange,
+                                             qStrand,
+                                             BLXSEQ_DNA,	  /* calculated dotter coords are always in nucleotide coords */
+                                             BLXSEQ_DNA,      /* required sequence is in nucleotide coords */
+                                             frame,
+                                             bc->numFrames,
+                                             &bc->refSeqRange,
+                                             bc->blastMode,
+                                             bc->geneticCode,
+                                             FALSE,		  /* input coords are always left-to-right, even if display reversed */
+                                             bc->displayRev,  /* whether to reverse */
+                                             bc->displayRev,  /* whether to allow rev strands to be complemented */
+                                             &tmpError);
   
-  if (!querySeqSegmentTemp)
+  if (!querySeqSegment)
     {
       g_propagate_error(error, tmpError);
       return FALSE;
@@ -1241,21 +1400,18 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
       reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
     }
   
-  /* dotter will free this memory with messfree, so we need to pass a string allocated with messalloc */
-  char *querySeqSegment = messalloc(strlen(querySeqSegmentTemp) + 1);
-  strcpy(querySeqSegment, querySeqSegmentTemp);
-  g_free(querySeqSegmentTemp);
-  
   /* Make a copy of the reference sequence segment to pass as the match sequence */
   char *dotterSSeq = messalloc(strlen(querySeqSegment) + 1);
   strcpy(dotterSSeq, querySeqSegment);
 
-  int offset = dotterRange.min - 1;
+//  int offset = dotterRange.min - 1;
 
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
-  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, BLXSTRAND_FORWARD, bc->refSeqName, dotterSSeq, offset,
-	 BLXSTRAND_FORWARD, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
+  callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, 0, error);
+  
+//  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, BLXSTRAND_FORWARD, bc->refSeqName, dotterSSeq, offset,
+//	 BLXSTRAND_FORWARD, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
   
   return TRUE;
 }
