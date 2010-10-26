@@ -2224,7 +2224,7 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
   
   if (dc->hozScaleRev) 
     {
-      *sx = properties->plotRect.width - *sx
+      *sx = properties->plotRect.width - *sx;
       *ex = properties->plotRect.width - *ex;
     }
 
