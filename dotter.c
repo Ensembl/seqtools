@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.15 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.16 2010-10-26 09:17:06 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -301,12 +301,12 @@ static const GtkActionEntry menuEntries[] = {
 };
 
 /* Toggle-able menu entries are listed here: */
-static const GtkToggleActionEntry toggleMenuEntries[] = {
+static GtkToggleActionEntry toggleMenuEntries[] = {
+{ "TogglePixmap",     NULL, "Pixelmap",              NULL,         "Show the pixelmap",              G_CALLBACK(onTogglePixelmapMenu),   TRUE},
+{ "ToggleGrid",       NULL, "Gridlines",             NULL,         "Show grid lines",                G_CALLBACK(onToggleGridMenu),       FALSE},
 { "ToggleCrosshair",  NULL, "Crosshair",             NULL,         "Show the crosshair",             G_CALLBACK(onToggleCrosshairMenu),  TRUE},
 { "ToggleCoords",     NULL, "Crosshair label",       NULL,         "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),     TRUE},
-{ "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,         "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu), TRUE},
-{ "TogglePixmap",     NULL, "Pixelmap",              NULL,         "Show the pixelmap",              G_CALLBACK(onTogglePixelmapMenu),   TRUE},
-{ "ToggleGrid",       NULL, "Gridlines",             NULL,         "Show grid lines",                G_CALLBACK(onToggleGridMenu),       FALSE}
+{ "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,         "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu), TRUE}
 };
 
 /* Radio-button menu entries are listed here: */
@@ -666,7 +666,7 @@ static void destroyDotterContext(DotterContext *dc)
 	  }
       }
     
-    /* Free stuff g_malloc'ed in calling routine (usually blixem or dotterMain) */
+    /* Free stuff g_malloc'ed in calling routine (usually dotterMain) */
     g_free(dc->refSeq);
     dc->refSeq = NULL;
     
@@ -679,7 +679,7 @@ static void destroyDotterContext(DotterContext *dc)
     g_free(dc->matchSeqName);
     dc->matchSeqName = NULL;
 
-    /* Don't free MSP's since that will screw blixem up !!! */
+    /* To do: free MSP's */
     
       if (dc->matrixName)
         {
@@ -2810,7 +2810,7 @@ static void showAlignmentTool(GtkWidget *dotterWindow)
  *                       Help Dialog                       *
  ***********************************************************/
 
-/* Returns a string which is the name of the Blixem application. */
+/* Returns a string which is the name of the Dotter application. */
 static char *dotterGetAppName(void)
 {
   return DOTTER_TITLE ;
@@ -3245,6 +3245,11 @@ static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspM
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   
+  /* If the HSPs are on initially then we're in hspOnly mode, so we don't show the pixmap; therefore,
+   * set the toggled state of the pixelmap menu option (first in the toggleMenuEntries list) to be false
+   * if HSPs are on. */
+  toggleMenuEntries[0].is_active = (hspMode == 0);  
+  
   gtk_action_group_add_actions(action_group, menuEntries, G_N_ELEMENTS (menuEntries), window);
   gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS (toggleMenuEntries), window);
   gtk_action_group_add_radio_actions(action_group, radioMenuEntries, G_N_ELEMENTS (radioMenuEntries), hspMode, G_CALLBACK(onToggleHspMode), window);
@@ -3258,7 +3263,7 @@ static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspM
 }
 
 
-/* Create a menu. Optionally add it to the given menu bar with the given label */
+/* Create a menu. Optionally add it to the given menu bar, if menuBar is not null, with the given label */
 static GtkWidget* createDotterMenu(GtkWidget *window, 
                                    const char *menuDescription, 
                                    const char *menuLabel, 
@@ -3286,7 +3291,7 @@ static GtkWidget* createDotterMenu(GtkWidget *window,
 }
 
 
-/* Create the dotter menu bar, and also creates a context menu if requested. */
+/* Create the dotter menu bar. */
 static GtkWidget *createDotterMenuBar(GtkWidget *window, const DotterHspMode hspMode, GtkUIManager *uiManager)
 {
   GtkWidget *menuBar = gtk_menu_bar_new();
@@ -3298,19 +3303,6 @@ static GtkWidget *createDotterMenuBar(GtkWidget *window, const DotterHspMode hsp
   
   return menuBar;
 }
-
-
-///* Create the dotter window toolbar */
-//static GtkWidget* createDotterWindowToolbar(GtkWidget *dotterWindow)
-//{
-//  GtkToolbar *toolbar = NULL;
-//  GtkWidget *toolbarContainer = createEmptyButtonBar(&toolbar);
-//  
-//  /* Just contains a 'help' button for now. */
-//  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP, "Help (Ctrl-H)", (GtkSignalFunc)GHelp, dotterWindow);
-//  
-//  return toolbarContainer;
-//}
 
 
 static GtkWidget* createDotterWindow(DotterContext *dc, 
@@ -3337,7 +3329,6 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(vbox));
 
   gtk_box_pack_start(GTK_BOX(vbox), menuBar, FALSE, FALSE, 0);
-//  gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), dotplotContainer, TRUE, TRUE, 0);
 
   

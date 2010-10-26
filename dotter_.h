@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Sep 15 08:36 2006 (edgrif)
  * Created: Thu Aug 26 17:17:58 1999 (fw)
- * CVS info:   $Id: dotter_.h,v 1.5 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: dotter_.h,v 1.6 2010-10-26 09:17:06 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -99,7 +99,7 @@ typedef enum _DotterHspMode
     DOTTER_HSPS_GREYSCALE           /* HSPs are drawn as greyscale, overriding the dot-plot */
   } DotterHspMode;
 
-/* The following are used to define default colors for certain types of features in Blixem.
+/* The following are used to define default colors for certain types of features in Dotter.
  * One of several different actual colors from the BlxColor struct may be used depending 
  * on state, e.g. we use a different color if "print colors" (i.e. black and 
  * white mode) is on. */

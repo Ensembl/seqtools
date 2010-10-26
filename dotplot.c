@@ -1,6 +1,6 @@
 /*
  *  dotplot.c
- *  blixem
+ *  dotter
  *
  *  Created by Gemma Barson on 08/09/2010.
  *  Copyright 2010 Sanger Institute. All rights reserved.
@@ -452,6 +452,7 @@ void dotplotTogglePixelmap(GtkWidget *dotplot)
     {
       /* The dot-plot pixelmap doesn't exist yet so create it */
       initPixmap(&properties->pixelmap, properties->image->width, properties->image->height);
+      calculateImage(properties);
     }
   
   if (properties->hspMode != DOTTER_HSPS_GREYSCALE)

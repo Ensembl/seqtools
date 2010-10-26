@@ -1,6 +1,6 @@
 /*
  *  alignmenttool.c
- *  blixem
+ *  dotter
  *
  *  Created by Gemma Barson on 02/09/2010.
  *  Copyright 2010 Sanger Institute. All rights reserved.
