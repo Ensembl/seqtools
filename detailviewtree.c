@@ -2471,6 +2471,23 @@ static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *
   return result;
 }
 
+/* Sort comparison function for sorting by doubles */
+static gint sortByDoubleCompareFunc(const MSP *msp1, const MSP *msp2)
+{
+  gint result = 0;
+  
+  gdouble dResult = msp1->id - msp2->id;
+  
+  if (dResult == 0)
+    result = 0;
+  else if (dResult > 0)
+    result = 1;
+  else 
+    result = -1;
+  
+  return result;
+}
+
 /* Sort comparison function for sorting by the start position on the reference sequence
  * when we have multiple MSPs to compare */
 static gint sortByStartCompareFuncMultiple(GList *mspList1, GList *mspList2, const gboolean msp1Fwd, const gboolean msp2Fwd, GtkWidget *tree)
@@ -2564,7 +2581,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
         break;
 	
       case BLXCOL_ID:
-        result = multipleMsps ? 0 : (int)(msp1->id - msp2->id);
+        result = multipleMsps ? 0 : sortByDoubleCompareFunc(msp1, msp2);
         break;
 
       case BLXCOL_START:
