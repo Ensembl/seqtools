@@ -721,24 +721,24 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
       properties->imageWidth = getImageDimension(properties, TRUE);
       properties->imageHeight = getImageDimension(properties, FALSE);
       properties->lineLen = properties->imageWidth;
-      
+      properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+
       DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
     
       if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
         {
           /* Initialise the HSPs pixmap */
           initPixmap(&properties->hspPixmap, properties->imageWidth, properties->imageHeight);
+          transformGreyRampImage(properties->image, properties->pixelmap, properties);
         }
       else if (properties->pixelmapOn)
         {
           /* Initialise and populate the pixmap */
           initPixmap(&properties->pixelmap, properties->imageWidth, properties->imageHeight);
           calculateImage(properties);
+          transformGreyRampImage(properties->image, properties->pixelmap, properties);
         }
     }
-  
-  /* Create the image */
-  properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
   
   if (saveFileName)
     {
