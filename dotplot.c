@@ -172,11 +172,12 @@ static GdkColormap*               insertGreyRamp (DotplotProperties *properties)
 static void                       transformGreyRampImage(GdkImage *image, unsigned char *pixmap, DotplotProperties *properties);
 static void                       initPixmap(unsigned char **pixmap, const int width, const int height);
 static const char*                getShortMspName(const MSP const *msp);
-static void                       setHspPixmapStrength(int strength, int sx, int sy, int ex, int ey, DotplotProperties *properties);
+static void                       calculateImageHsps(int strength, int sx, int sy, int ex, int ey, DotplotProperties *properties);
 static void                       getMspScreenCoords(const MSP const *msp, DotplotProperties *properties, int *sx, int *ex, int *sy, int *ey);
 static void                       setCoordsFromPos(GtkWidget *dotplot, const int x, const int y);
 static void                       getCoordsFromPos(GtkWidget *dotplot, const int x, const int y, int *refCoord, int *matchCoord);
-static void			  getPosFromCoords(GtkWidget *dotplot, int *x, int *y);
+static void			  getPosFromSelectedCoords(GtkWidget *dotplot, int *x, int *y);
+static void                       getPosFromCoords(DotplotProperties *properties, int qCoord, int sCoord, int *x, int *y);
 static void                       setPoint(GdkPoint *point, const int x, const int y, GdkRectangle *rect);
 static gdouble                    getScaleFactor(DotplotProperties *properties, const gboolean horizontal);
 static void                       initWindow(const char *winsizeIn, DotplotProperties *properties);
@@ -403,7 +404,7 @@ void setHspMode(GtkWidget *dotplot, DotterHspMode hspMode)
               
               /* Draw as greyscale pixmap */
               const int strength = (int)msp->score;
-              setHspPixmapStrength(strength, sx, sy, ex, ey, properties);
+              calculateImageHsps(strength, sx, sy, ex, ey, properties);
             }
           
           /* Overwrite the image with the HSP pixmap */
@@ -2009,7 +2010,7 @@ static void drawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       gdk_gc_set_foreground(gc, lineColor);
       
       int x = UNSET_INT, y = UNSET_INT;
-      getPosFromCoords(dotplot, &x, &y);
+      getPosFromSelectedCoords(dotplot, &x, &y);
 
       /* Calculate the total size of the dotplot, including padding and labels etc */
       const int totalWidth = properties->plotRect.x + properties->plotRect.width + DEFAULT_X_PADDING + SCALE_LINE_WIDTH;
@@ -2098,10 +2099,19 @@ static const char* getShortMspName(const MSP const *msp)
 }
 
 
-static void setHspPixmapStrength(int strength, int sx, int sy, int ex, int ey, DotplotProperties *properties)
+static void calculateImageHsps(int strength, int sx, int sy, int ex, int ey, DotplotProperties *properties)
 {
-  const int inc = (sx < ex) ? 1 : -1;
-  const int len = (ex - sx) * inc + 1;
+  /* Get zero-based coords from the edge of the drawing rectangle */
+  sx -= properties->plotRect.x;
+  ex -= properties->plotRect.x;
+  sy -= properties->plotRect.y;
+  ey -= properties->plotRect.y;
+  
+  const int xInc = (sx < ex) ? 1 : -1;
+  const int xLen = (ex - sx) * xInc + 1;
+  const int yInc = (sy < ey) ? 1 : -1;
+  const int yLen = (ey - sy) * yInc + 1;
+  
   const int width = properties->image->width;
   const int height = properties->image->height;
   const int pixelmapLen = width * height;
@@ -2114,12 +2124,12 @@ static void setHspPixmapStrength(int strength, int sx, int sy, int ex, int ey, D
     dotValue = NUM_COLORS - 1;
   
   int i = 0;
-  for (i = 0; i < len; i++)
+  for (i = 0; i < xLen && i < yLen; ++i)
     {
-      const int x = sx + i * inc;
-      const int y = sy + i;
+      const int x = sx + i * xInc;
+      const int y = sy + i * yInc;
       
-      if (x >= 0 && x < width && sy >= 0 && sy < height) 
+      if (x >= 0 && x < width && y >= 0 && y < height) 
 	{
           const int dotpos = width * (y) + x;
 
@@ -2133,127 +2143,21 @@ static void setHspPixmapStrength(int strength, int sx, int sy, int ex, int ey, D
 }
 
 
-static gboolean illegalSubmatrix(int sx, int sy, int shift, DotplotProperties *properties)
-{
-  gboolean isIllegal = FALSE;
-  
-  int dotposq, dotposs, ql, sl;
-  
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-  dotposq = (sx+shift) / dwc->zoomFactor;
-  dotposs = (sy+shift) / dwc->zoomFactor;
-  
-  ql = (sx+shift) - dotposq * dwc->zoomFactor;
-  sl = (sy+shift) - dotposs * dwc->zoomFactor;
-  
-  if (sl >= ql) 
-    isIllegal = FALSE;		/* legal */
-  else 
-    isIllegal = TRUE;		/* illegal */
-  
-  return isIllegal;
-}
-
-
-static gboolean illegalSubmatrixRev(int sx, int sy, int shift, DotplotProperties *properties)
-{
-  gboolean isIllegal = FALSE;
-
-  int dotposq, dotposs, ql, sl;
-  
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-  dotposq = (sx-shift) / dwc->zoomFactor;
-  dotposs = (sy+shift) / dwc->zoomFactor;
-  
-  ql = (sx-shift) - dotposq * dwc->zoomFactor;
-  
-  /* Set the origin (0,0) to the bottom left corner of submatrix
-   Zoom = pixels/submatrix */
-  sl = dwc->zoomFactor - 1 - (sy - dotposs * dwc->zoomFactor);
-  
-  if (sl >= ql) 
-    isIllegal = FALSE;		/* legal */
-  else 
-    isIllegal = TRUE;		/* illegal */
-  
-  return isIllegal;
-}
-
-
 /* Utility to get the screen coords for the start and end coords of the given MSP */
 static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properties, int *sx, int *ex, int *sy, int *ey)
 {
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
-  int qStart = mspGetQStart(msp);
-  int qEnd = mspGetQEnd(msp);
-  int sMin = msp->sRange.min;
-  int sMax = msp->sRange.max;
+  const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
 
-  const int matchlen = (sMax - sMin + 1) / dwc->zoomFactor;
+  const int qStart = msp->qRange.min;
+  const int qEnd = msp->qRange.max;
+  const int sStart = sameDirection ? msp->sRange.min : msp->sRange.max;
+  const int sEnd = sameDirection ? msp->sRange.max : msp->sRange.min;
 
-  if (qStart < qEnd) 
-    {
-      *sx = ceil((double)(qStart - (dwc->refSeqRange.min - 1)) / dc->numFrames) - 1;
-      *sy = sMin - dwc->matchSeqRange.min;
-      
-      /* Check if we're in an illegal part of submatrix. We only want to compress in legal submatrix parts */
-      int shift = 0;
-      while(illegalSubmatrix(*sx, *sy, shift, properties)) 
-        {
-          shift++;
-        }
-      
-      *sx = (*sx + shift) / dwc->zoomFactor - shift;
-      *sy = (*sy + shift) / dwc->zoomFactor - shift;
-      
-      *ex = *sx + (matchlen-1);
-    }
-  else 
-    {
-      *sx = ceil((float)(qStart - (dwc->refSeqRange.min - 1)) / dc->numFrames) -1;
-      *sy = sMax - dwc->matchSeqRange.min;
-      
-      /* Check if we're in an illegal part of submatrix. We only want to compress in legal submatrix parts */
-      int shift = 0;
-      while(illegalSubmatrixRev(*sx, *sy, shift, properties)) 
-        {
-          shift++;
-        }
-      
-      *sx = (*sx - shift) / dwc->zoomFactor + shift;
-      *sy = (*sy + shift) / dwc->zoomFactor - shift;
-      
-      *ex = *sx - (matchlen-1);
-    }
-  
-  /* If the match seq is the reverse strand, swap the start and end x coords */
-  if (dc->matchSeqStrand == BLXSTRAND_REVERSE)
-    {
-      int tmp = *sx;
-      *sx = *ex;
-      *ex = tmp;
-    }
-  
-  /* If either scale is reversed, invert the coords for that scale */
-  if (dc->hozScaleRev) 
-    {
-      *sx = properties->plotRect.width - *sx;
-      *ex = properties->plotRect.width - *ex;
-    }
-
-  if (dc->vertScaleRev) 
-    {
-      *sy = properties->plotRect.height - *sy;
-      *ey = properties->plotRect.height - *ey;
-    }
-  
-  *ey = *sy + matchlen - 1;
+  getPosFromCoords(properties, qStart, sStart, sx, sy);
+  getPosFromCoords(properties, qEnd, sEnd, ex, ey);
 }
+  
 
-
-/* Draw HSPs, if they are enabled */
 static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
@@ -2283,11 +2187,8 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
           /* Not an MSP from our sequence */
           continue;
         }
-      
+        
       getMspScreenCoords(msp, properties, &sx, &ex, &sy, &ey);
-      
-      const int x = properties->plotRect.x;
-      const int y = properties->plotRect.y;
       
       if (properties->hspMode == DOTTER_HSPS_LINE) 
         {
@@ -2297,7 +2198,7 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
           gdk_colormap_alloc_color(gdk_colormap_get_system(), &hspLineColor, TRUE, TRUE);
           gdk_gc_set_foreground(gc, &hspLineColor);
 
-          gdk_draw_line(drawable, gc, x + sx, y + sy, x + ex, y + ey);
+          gdk_draw_line(drawable, gc, sx, sy, ex, ey);
         }
       else if (properties->hspMode == DOTTER_HSPS_FUNC)
         {
@@ -2320,7 +2221,7 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
           gdk_colormap_alloc_color(gdk_colormap_get_system(), &scoreColor, TRUE, TRUE);
           gdk_gc_set_foreground(gc, &scoreColor);
           
-          gdk_draw_line(drawable, gc, x + sx, y + sy, x + ex, y + ey);
+          gdk_draw_line(drawable, gc, sx, sy, ex, ey);
         }
     }
 }
@@ -2562,10 +2463,9 @@ static void setCoordsFromPos(GtkWidget *dotplot, const int x, const int y)
 }  
 
 
-/* Get the x,y position of the currently selected coords */
-static void getPosFromCoords(GtkWidget *dotplot, int *x, int *y)
+/* Get the x,y position of the given coords */
+static void getPosFromCoords(DotplotProperties *properties, int qCoord, int sCoord, int *x, int *y)
 {
-  DotplotProperties *properties = dotplotGetProperties(dotplot);
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
@@ -2574,21 +2474,31 @@ static void getPosFromCoords(GtkWidget *dotplot, int *x, int *y)
 
   if (dc->hozScaleRev)
     {
-      *x = properties->plotRect.x + (dwc->refSeqRange.max - dwc->refCoord) / hScaleFactor;
+      *x = properties->plotRect.x + (dwc->refSeqRange.max - qCoord) / hScaleFactor;
     }
   else
     {
-      *x = properties->plotRect.x + (dwc->refCoord - dwc->refSeqRange.min) / hScaleFactor;
+      *x = properties->plotRect.x + (qCoord - dwc->refSeqRange.min) / hScaleFactor;
     }
 
   if (dc->vertScaleRev)
     {
-      *y = properties->plotRect.y + (dwc->matchSeqRange.max - dwc->matchCoord) / vScaleFactor;
+      *y = properties->plotRect.y + (dwc->matchSeqRange.max - sCoord) / vScaleFactor;
     }
   else
     {
-      *y = properties->plotRect.y + (dwc->matchCoord - dwc->matchSeqRange.min) / vScaleFactor;
+      *y = properties->plotRect.y + (sCoord - dwc->matchSeqRange.min) / vScaleFactor;
     }
+}
+
+
+/* Get the x,y position of the currently selected coords */
+static void getPosFromSelectedCoords(GtkWidget *dotplot, int *x, int *y)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  getPosFromCoords(properties, dwc->refCoord, dwc->matchCoord, x, y);
 }
 
 
