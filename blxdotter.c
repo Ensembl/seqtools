@@ -50,7 +50,9 @@ typedef enum {
   BLX_DOTTER_ERROR_NO_MATCHES,        /* there are no matches on the requested sequence */
   BLX_DOTTER_ERROR_NO_SEQ_DATA,       /* the match sequence has no sequence data (e.g. if could not pfetch it) */
   BLX_DOTTER_ERROR_INVALID_STRAND,    /* there are no match sequences on the correct strand */
-  BLX_DOTTER_ERROR_NO_EXE             /* no dotter executable found */
+  BLX_DOTTER_ERROR_NO_EXE,            /* no dotter executable found */
+  BLX_DOTTER_ERROR_PIPE,	      /* error opening pipe */
+  BLX_DOTTER_ERROR_FORK		      /* error forking process */
 } BlxDotterError;
 
 
@@ -668,7 +670,6 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
       if (error && tmpError)
 	{
 	  g_propagate_error(error, tmpError);
-	  prefixError(*error, "Failed to calculate dotter coordinates. ");
 	}
     }
   
@@ -767,6 +768,7 @@ static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
  * hits can occur over a much wider range than the user is looking at, so the function
  * attempts to find the range of hits that corresponds to what the user can see.
  * Returns TRUE if it managed to find sequences and set a sensible range, FALSE otherwise.
+ * Returns true but sets the error if there is a warning.
  * NOTE: This function assumes that only a single sequence can be selected at any one time. */
 static gboolean smartDotterRange(GtkWidget *blxWindow,
 				 const char *dotterSSeq, 
@@ -854,7 +856,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 	}
     }
 
-  if (qMin == UNSET_INT)
+  if (qMin == UNSET_INT && qMax == UNSET_INT)
     {
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, 
 		  "Could not find any matches on the '%c' strand of the selected sequence '%s'.", 
@@ -876,31 +878,52 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       qMax += extend ;
     }
 
-  /* Keep it within bounds */
+  /* Keep it within bounds. */
   boundsLimitValue(&qMin, &bc->refSeqRange);
   boundsLimitValue(&qMax, &bc->refSeqRange);
 
-  /* Apply min and max limits:  min 500 residues, max 10 Mb dots */
-  int numDnaCoords = qMax - qMin;
-  int midCoord = qMin + numDnaCoords/2;
+  /* Apply min and max limits:  min 500 residues, max 10 Mb dots. */
+  int qLen = qMax - qMin;
+  int midCoord = qMin + qLen/2;
 
-  if (numDnaCoords < 500)
+  if (qLen < 500)
     {
-      numDnaCoords = 500;
+      qLen = 500;
     }
 
-  const int numPeptideCoords = (bc->seqType == BLXSEQ_PEPTIDE) ? numDnaCoords / bc->numFrames : numDnaCoords;
-  if (numDnaCoords * numPeptideCoords > 1e7)
+  const int sLen = blxSequenceGetLength(selectedSeq);
+  if (qLen * sLen > 1e7)
     {
-      numDnaCoords = 1e7 / numPeptideCoords;
+      qLen = 1e7 / sLen;
     }
 
-  qMin = midCoord - (numDnaCoords / 2) ;
-  qMax = midCoord + (numDnaCoords / 2) ;
+  qMin = midCoord - (qLen / 2) ;
+  qMax = midCoord + (qLen / 2) ;
 
   /* Bounds check again */
   boundsLimitValue(&qMin, &bc->refSeqRange);
   boundsLimitValue(&qMax, &bc->refSeqRange);
+
+  /* Check that there are MSPs within the modified range. Set a warning if not. */
+  gboolean found = FALSE;
+  mspListItem = selectedSeq->mspList;  
+  
+  for ( ; mspListItem ; mspListItem = mspListItem->next)
+    {
+      const MSP *msp = (MSP*)(mspListItem->data);
+      
+      if ((msp->qStrand == activeStrand || bc->blastMode == BLXMODE_BLASTN) &&
+           msp->qRange.min <= qMax && msp->qRange.max >= qMin)
+	{
+	  found = TRUE;
+	  break;
+	}
+    }
+
+  if (!found)
+    {
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, "There were no matches within the trimmed range.\n");
+    }
 
   /* Return the start/end. The values start low and end high in normal 
    * left-to-right display, or vice-versa if the display is reversed. */
@@ -1093,6 +1116,66 @@ static int findCommand (char *command, char **retp)
 }
 
 
+/* This actually executes the dotter child process */
+static void callDotterChildProcess(char *dotterBinary, 
+				   const int dotterZoom,
+				   const int qstart,
+				   const int sstart,
+				   const int qlen,
+				   const int slen,
+				   const gboolean hspsOnly,
+				   const BlxStrand sStrand,
+				   int *pipes, 
+				   BlxViewContext *bc,
+				   const char *dotterSName,
+				   char *Xoptions)
+{
+  /* Create the argument list */
+  GSList *argList = NULL;
+  argList = g_slist_append(argList, dotterBinary);
+  argList = g_slist_append(argList, "-z");
+  argList = g_slist_append(argList, convertIntToString(dotterZoom));
+  argList = g_slist_append(argList, "-q");
+  argList = g_slist_append(argList, convertIntToString(qstart));
+  argList = g_slist_append(argList, "-s");
+  argList = g_slist_append(argList, convertIntToString(sstart));
+  
+  if (bc->displayRev)		    argList = g_slist_append(argList, "-r");
+  if (sStrand == BLXSTRAND_REVERSE) argList = g_slist_append(argList, "-v");
+  if (hspsOnly)			    argList = g_slist_append(argList, "-H");
+  
+  argList = g_slist_append(argList, "-S");
+  argList = g_slist_append(argList, bc->refSeqName);
+  argList = g_slist_append(argList, convertIntToString(qlen));
+  argList = g_slist_append(argList, dotterSName);
+  argList = g_slist_append(argList, convertIntToString(slen));
+  argList = g_slist_append(argList, dotterBinary);
+  argList = g_slist_append(argList, Xoptions);
+  argList = g_slist_append(argList, NULL);
+
+  /* Convert the list to an array */
+  char *args[g_slist_length(argList)];
+  GSList *item = argList;
+  int i = 0;
+  for ( ; item; item = item->next)
+    {
+      char *arg = (char*)(item->data);
+      args[i] = arg;
+      ++i;
+      printf(", %s", arg  );
+    }
+    
+  DEBUG_OUT("Executing dotter\n");
+
+  close(pipes[1]);
+  dup2(pipes[0], 0);
+  close(pipes[0]);
+  
+  execv(args[0], args);
+  exit(1);
+}
+
+
 /* Call dotter as an external process */
 gboolean callDotterExternal(BlxViewContext *bc,
                             int dotterZoom, 
@@ -1100,6 +1183,7 @@ gboolean callDotterExternal(BlxViewContext *bc,
                             char *refSeqSegment,
                             const char *dotterSName,
                             char *dotterSSeq,
+			    const BlxStrand sStrand,
                             const gboolean hspsOnly,
                             char *Xoptions,
                             GError **error)
@@ -1133,38 +1217,54 @@ gboolean callDotterExternal(BlxViewContext *bc,
   
   g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, xstart, ystart, xend, yend);
   fflush(stdout);
-  
-  char *pipeText = blxprintf("/bin/csh -cf \"%s -z %d -q %d -s %d%s%s -S '%s' %d '%s' %d %s %s\"", 
-                             dotterBinary, 
-                             dotterZoom, 
-                             xstart - 1, 
-                             ystart - 1, 
-                             bc->displayRev ? " -r" : "",
-                             hspsOnly ? " -H" : "",
-                             bc->refSeqName, 
-                             qlen, 
-                             dotterSName, 
-                             slen,
-                             dotterBinary,
-                             (Xoptions ? Xoptions : ""));
-  
-  g_debug("Sending to pipe: %s\n", pipeText);
-  
-  FILE *pipe = (FILE *)popen(pipeText, "w");
-  
-  fwrite(refSeqSegment, 1, qlen, pipe);
-  fwrite(dotterSSeq, 1, slen, pipe);
-  
-  /* Pass on features */
-  GList *seqItem = bc->matchSeqs;
-  for ( ; seqItem; seqItem = seqItem->next) 
+
+  /* Pass on the features via pipes. */
+  int pipes[2];
+  if (pipe (pipes))
     {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      writeBlxSequenceToOutput(pipe, blxSeq, refSeqRange);
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_PIPE, "Error opening pipe to Dotter.\n");
+      return FALSE;
     }
+
+  /* Create the child process */
+  pid_t pid = fork();
+  bc->spawnedProcesses = g_slist_append(bc->spawnedProcesses, GINT_TO_POINTER(pid));
   
-  fprintf(pipe, "%c\n", EOF);
-  fflush(pipe);
+  if (pid < 0)
+    {
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_FORK, "Error forking process for Dotter.\n");
+      return FALSE;
+    }
+  else if (pid == 0)
+    {
+      /* Child process. Execute dotter */
+      callDotterChildProcess(dotterBinary, dotterZoom, xstart - 1, ystart - 1, qlen, slen, 
+			     hspsOnly, sStrand, pipes, bc, dotterSName, Xoptions);
+    }
+  else
+    {
+      g_debug("Spawned process %d\n", pid);
+      DEBUG_OUT("Piping sequences to dotter\n");
+      
+      close(pipes[0]);
+      FILE *pipe = fdopen(pipes[1], "w");
+
+      /* Pass the sequences */
+      fwrite(refSeqSegment, 1, qlen, pipe);
+      fwrite(dotterSSeq, 1, slen, pipe);
+      
+      /* Pass the features */
+      DEBUG_OUT("Piping features to dotter\n");
+      GList *seqItem = bc->matchSeqs;
+      for ( ; seqItem; seqItem = seqItem->next) 
+	{
+	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+	  writeBlxSequenceToOutput(pipe, blxSeq, refSeqRange);
+	}
+      
+      fprintf(pipe, "%c\n", EOF);
+      fflush(pipe);
+    }
 #endif
   
   return TRUE;
@@ -1235,18 +1335,35 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   
   /* Get the coords */
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
-  GError *tmpError = NULL;
+  GError *rangeError = NULL;
   
-  if (!getDotterRange(blxWindow, dotterSSeq, FALSE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
+  gboolean ok = getDotterRange(blxWindow, dotterSSeq, FALSE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &rangeError);
+
+  if (!ok)
     {
-      g_propagate_error(error, tmpError);
+      prefixError(rangeError, "Error calculating dotter range. ");
+      g_propagate_error(error, rangeError);
       return FALSE;
+    }
+  else if (ok && rangeError)
+    {
+      /* There was a warning when calculating the range. Ask the user if they want to continue. */
+      prefixError(rangeError, "Warning: ");
+      postfixError(rangeError, "Continue?");
+
+      ok = (runConfirmationBox(blxWindow, "Warning", rangeError->message) == GTK_RESPONSE_ACCEPT);
+      g_error_free(rangeError);
+      rangeError = NULL;
+      
+      if (!ok)
+	return FALSE;
     }
   
   /* Get the section of reference sequence that we're interested in */
   const int frame = mspGetRefFrame(firstMsp, bc->seqType);
   IntRange dotterRange;
   intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
+  GError *seqError = NULL;
 
   char *querySeqSegment = getSequenceSegment(bc->refSeq,
                                              &dotterRange,
@@ -1261,17 +1378,17 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
                                              FALSE,		  /* input coords are always left-to-right, even if display reversed */
                                              FALSE,               /* always pass forward strand to dotter */
                                              FALSE,               /* always pass forward strand to dotter */
-                                             &tmpError);
+                                             &seqError);
   
   if (!querySeqSegment)
     {
-      g_propagate_error(error, tmpError);
+      g_propagate_error(error, seqError);
       return FALSE;
     }
   else
     {
-      /* If there's an error but the sequence was still returned it's a non-critical warning */
-      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+      /* If there was an error set but the sequence was still returned then it's a non-critical warning */
+      reportAndClearIfError(&seqError, G_LOG_LEVEL_WARNING);
     }
   
   /* Get the match sequence name (chopping off the letters before the colon, if there is one). */
@@ -1302,7 +1419,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   printf("  query sequence: name -  %s, offset - %d\n"
 	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
 
-  return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, hspsOnly, NULL, error);
+  return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, selectedSeq->strand, hspsOnly, NULL, error);
   
 //  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, qStrand, dotterSName, dotterSSeq, 0,
 //	 selectedSeq->strand, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
@@ -1395,13 +1512,11 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
 
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
-  callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, FALSE, NULL, error);
+  callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, BLXSTRAND_FORWARD, FALSE, NULL, error);
   
 //  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, BLXSTRAND_FORWARD, bc->refSeqName, dotterSSeq, offset,
 //	 BLXSTRAND_FORWARD, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
   
   return TRUE;
 }
-
-
 

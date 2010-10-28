@@ -1149,7 +1149,7 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
 /* returns true if the given msp should be output */
 static gboolean outputMsp(const MSP const *msp, IntRange *validRange)
 {
-  return ((msp->type == BLXMSP_FS_SEG || msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR || msp->type == BLXMSP_INTRON || msp->type == BLXMSP_MATCH)
+  return ((msp->type == BLXMSP_FS_SEG || mspIsExon(msp) || mspIsIntron(msp) || mspIsBlastMatch(msp))
            && rangesOverlap(&msp->qRange, validRange));
 }
 

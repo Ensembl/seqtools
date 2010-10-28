@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.17 2010-10-26 16:51:12 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.18 2010-10-28 10:58:57 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -163,6 +163,7 @@ static char* getUsageText()
  -H             Do not calculate dotplot at startup.\n\
  -R             Reversed Greyramp tool at start.\n\
  -r             Reverse and complement horizontal_sequence (DNA vs Protein)\n\
+ -v             Reverse and complement vertical_sequence (DNA vs Protein)\n\
  -D             Don't display mirror image in self comparisons\n\
  -w             For DNA: horizontal_sequence top strand only (Watson)\n\
  -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
@@ -214,15 +215,26 @@ int main(int argc, char **argv)
   int          optc;
   extern int   optind;
   extern char *optarg;
-  char        *optstring="b:cDf:F:Hil:M:m:p:q:Rrs:SW:wz:";
+  char        *optstring="b:cDf:F:Hil:M:m:p:q:Rrs:SvW:wz:";
 
   static char *dotterBinary = NULL;
 
   char *usage = getUsageText();
 
-    
+  /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
+   * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
+   * strand is reversed then the horizontal scale is reversed as well. (Because the 'active' (top) strand
+   * in Blixem is always the reverse strand if the display is reversed. Note that for DNA matches both 
+   * strands are always shown anyway, so the -r option essentially just swaps which strand is shown at 
+   * the top of the alignment tool, and of course reverses the direction of the display.)
+   * The vertical scale was never originally designed to be reversed in dotter. I've 
+   * added the vertScaleRev flag in case we might want to do this in the future, but this is currently
+   * always set to false, even if we have the reverse match seq strand (which is indicated with the -v option). */
+  BlxStrand qStrand = BLXSTRAND_FORWARD;
+  BlxStrand sStrand = BLXSTRAND_FORWARD;
+
   while ((optc = getopt(argc, argv, optstring)) != EOF)
-    {
+    {printf("%c", optc);
       switch (optc) 
         {
           case 'b': 
@@ -249,7 +261,9 @@ int main(int argc, char **argv)
           case 'p': options.pixelFacset = atoi(optarg); break;
           case 'q': options.qoffset = atoi(optarg);     break;
           case 'R': options.swapGreyramp = TRUE;        break;
-          case 'r': options.hozScaleRev = TRUE;         break;
+          case 'r': 
+	    options.hozScaleRev = TRUE;
+	    qStrand = BLXSTRAND_REVERSE;		break;
           case 's': options.soffset = atoi(optarg);     break;
           case 'S': 
             options.selfcall = TRUE;
@@ -260,6 +274,7 @@ int main(int argc, char **argv)
             dotterBinary = g_malloc(strlen(argv[optind+4])+1);
             strcpy(dotterBinary, argv[optind+4]);
                                                         break;
+          case 'v': sStrand = BLXSTRAND_REVERSE;	break;
           case 'W': 
             options.winsize = g_malloc(strlen(optarg)+1);
             strcpy(options.winsize, optarg);            break;
@@ -268,7 +283,7 @@ int main(int argc, char **argv)
           default : g_error("Illegal option");
       }
     }
-  
+
     if (!options.savefile)
       {
 	gtk_init(&argc, &argv);
@@ -538,10 +553,6 @@ int main(int argc, char **argv)
         g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
       }
       
-    /* to do: pass in actual strand rather than assuming it's reversed if display is reversed? */
-    const BlxStrand qStrand = options.hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-    const BlxStrand sStrand = BLXSTRAND_FORWARD;
-
     /* Add -install for private colormaps */
     if (options.install) 
       {

@@ -4046,6 +4046,25 @@ BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
 }
 
 
+/* Kill all processes spawned from blixem */
+static void killAllSpawned(BlxViewContext *bc)
+{
+  GSList *processes = bc->spawnedProcesses;
+  
+  for ( ; processes; processes = processes->next)
+    {
+      pid_t pid = GPOINTER_TO_INT(processes->data);
+      kill(pid, 9);
+    }
+    
+  if (bc->spawnedProcesses)
+    {
+      g_slist_free(bc->spawnedProcesses);
+      bc->spawnedProcesses = NULL;
+    }
+}
+
+
 static void destroyBlxContext(BlxViewContext **bc)
 {
   if (bc && *bc)
@@ -4082,6 +4101,7 @@ static void destroyBlxContext(BlxViewContext **bc)
       destroyMspList(&((*bc)->mspList));
       destroyBlxSequenceList(&((*bc)->matchSeqs));
       blxDestroyGffTypeList(&((*bc)->supportedTypes));
+      killAllSpawned(*bc);
       
       /* Free the context struct itself */
       g_free((*bc));
@@ -4267,6 +4287,8 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
     {
       blxContext->dialogList[dialogId] = NULL;
     }
+    
+  blxContext->spawnedProcesses = NULL;
   
   return blxContext;
 }

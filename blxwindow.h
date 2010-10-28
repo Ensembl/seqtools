@@ -103,6 +103,7 @@ typedef struct _BlxViewContext
   
   gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
   GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
+  GSList *spawnedProcesses;			  /* List of processes spawned by Blixem */
 } BlxViewContext;
 
 

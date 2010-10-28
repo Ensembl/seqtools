@@ -2185,12 +2185,18 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
 {
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  const int matchlen = mspGetSRangeLen(msp) / dwc->zoomFactor;
   
-  if (mspGetQStart(msp) < mspGetQEnd(msp)) 
+  int qStart = mspGetQStart(msp);
+  int qEnd = mspGetQEnd(msp);
+  int sMin = msp->sRange.min;
+  int sMax = msp->sRange.max;
+
+  const int matchlen = (sMax - sMin + 1) / dwc->zoomFactor;
+
+  if (qStart < qEnd) 
     {
-      *sx = ceil((double)(mspGetQStart(msp) - (dwc->refSeqRange.min - 1)) / dc->numFrames) - 1;
-      *sy = msp->sRange.min - dwc->matchSeqRange.min;
+      *sx = ceil((double)(qStart - (dwc->refSeqRange.min - 1)) / dc->numFrames) - 1;
+      *sy = sMin - dwc->matchSeqRange.min;
       
       /* Check if we're in an illegal part of submatrix. We only want to compress in legal submatrix parts */
       int shift = 0;
@@ -2206,8 +2212,8 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
     }
   else 
     {
-      *sx = ceil((float)(mspGetQStart(msp) - (dwc->refSeqRange.min - 1)) / dc->numFrames) -1;
-      *sy = msp->sRange.min - dwc->matchSeqRange.min;
+      *sx = ceil((float)(qStart - (dwc->refSeqRange.min - 1)) / dc->numFrames) -1;
+      *sy = sMax - dwc->matchSeqRange.min;
       
       /* Check if we're in an illegal part of submatrix. We only want to compress in legal submatrix parts */
       int shift = 0;
@@ -2222,6 +2228,15 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
       *ex = *sx - (matchlen-1);
     }
   
+  /* If the match seq is the reverse strand, swap the start and end x coords */
+  if (dc->matchSeqStrand == BLXSTRAND_REVERSE)
+    {
+      int tmp = *sx;
+      *sx = *ex;
+      *ex = tmp;
+    }
+  
+  /* If either scale is reversed, invert the coords for that scale */
   if (dc->hozScaleRev) 
     {
       *sx = properties->plotRect.width - *sx;
@@ -2250,7 +2265,11 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
     }
   
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+  
+  /* we'll clip the hsp lines to the dotplot drawing area */
   GdkGC *gc = gdk_gc_new(drawable);
+  gdk_gc_set_clip_origin(gc, 0, 0);
+  gdk_gc_set_clip_rectangle(gc, &properties->plotRect);
   
   /* Loop through all MSPs */
   MSP *msp = dc->mspList;
@@ -2259,7 +2278,7 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
   for (msp = dc->mspList; msp;  msp = msp->next)
     {    
       const char *mspName = getShortMspName(msp);
-      if (strcmp(mspName, dc->matchSeqName))
+      if (strcmp(mspName, dc->matchSeqName) != 0)
         {
           /* Not an MSP from our sequence */
           continue;
