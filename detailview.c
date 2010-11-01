@@ -624,6 +624,9 @@ void updateDetailViewFontDesc(GtkWidget *detailView)
 {
   PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
   
+  gtk_widget_modify_font(detailView, fontDesc);
+  callFuncOnAllDetailViewTrees(detailView, (GtkCallback)gtk_widget_modify_font, fontDesc);
+  
   updateCellRendererFont(detailView, fontDesc);
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
@@ -2697,8 +2700,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 
       /* Find a fixed-width font */
       const char *fontFamily = findFixedWidthFont(detailView);
-      PangoFontDescription *fontDesc = pango_font_description_new();
-      pango_font_description_set_family(fontDesc, fontFamily);
+      PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
       pango_font_description_set_size(fontDesc, pango_font_description_get_size(detailView->style->font_desc));
       
       properties->blxWindow = blxWindow;
