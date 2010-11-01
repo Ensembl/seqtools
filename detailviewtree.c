@@ -17,9 +17,6 @@
 #include <string.h>
 
 
-#define DETAIL_VIEW_STATUSBAR_CONTEXT     "statusBarCtx"
-
-
 /* Local function declarations */
 static GtkWidget*	treeGetDetailView(GtkWidget *tree);
 static gboolean		onSelectionChangedTree(GObject *selection, gpointer data);
@@ -691,7 +688,7 @@ static gboolean isMspVisible(const MSP const *msp,
       const gboolean seqSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
     
       IntRange mspDisplayRange;
-      mspGetFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->mspList, bc->numFrames, &mspDisplayRange);
+      mspGetFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &mspDisplayRange);
 
       /* Convert q coords to display coords */
       const int idx1 = convertDnaIdxToDisplayIdx(mspDisplayRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
@@ -886,7 +883,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
-  const gboolean showSnps = treeHasSnpHeader(tree);
+  const gboolean highlightSnps = treeHasSnpHeader(tree) && bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
   
   /* Find the segment of the ref seq to display. Ref seq is in nucleotide coords so convert the 
    * display range to nucleotide coords. */
@@ -963,7 +960,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       
       const int x = xStart + (displayIdx - properties->displayRange.min) * properties->charWidth;
 
-      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, displayIdxSelected, displayIdxSelected, TRUE, showSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, yStart, basesToHighlight);
+      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, FALSE, displayIdxSelected, displayIdxSelected, TRUE, highlightSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, yStart, basesToHighlight);
       
       dnaIdx += incrementValue;
       ++displayIdx;
@@ -1228,22 +1225,32 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
-	    /* Select the SNP that was clicked on.  */
-	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
-	    int clickedBase = 1; /* only get in here for DNA matches; so frame/base number is always one */
+	    /* If variations are highlighted, select the variation that was clicked on, if any.  */
+	    BlxViewContext *bc = treeGetContext(tree);
 
-	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
+            if (bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
+              {
+                blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
+                int clickedBase = 1; /* only get in here for DNA matches; so frame/base number is always one */
+
+                selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
-	    refreshDetailViewHeaders(detailView);
-	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+                refreshDetailViewHeaders(detailView);
+                callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+              }
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
+            /* Double click. Show/hide the variations track (and highlight variations in the ref
+             * sequence, if not already highighted). */
 	    BlxViewContext *bc = treeGetContext(tree);
-            gboolean showSnpTrack = !bc->flags[BLXFLAG_SHOW_SNP_TRACK];
+            const gboolean showTrack = !bc->flags[BLXFLAG_SHOW_VARIATION_TRACK];
+	    bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = showTrack;
             
-	    bc->flags[BLXFLAG_SHOW_SNP_TRACK] = showSnpTrack;
-            detailViewUpdateShowSnpTrack(detailView, showSnpTrack);
+            if (showTrack)
+              bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS] = TRUE;
+            
+            detailViewUpdateShowSnpTrack(detailView, showTrack);
 	  }
 	
 	handled = TRUE;
@@ -1530,31 +1537,17 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
   else
     {
       /* If we're hovering over a base that's affected by a variation, then feed back info
-       * about the variation to the user. */
-      
-      /* First remove any previous message from the feedback area */
-      GtkStatusbar *statusBar = treeGetStatusBar(tree);
-      guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
-      gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
-      
-      /* Get the index we're hovering over */
-      const int displayIdx = treeHeaderGetCoordAtPos(header, tree, event->x, event->y);
-      GtkWidget *detailView = treeGetDetailView(tree);
+       * about the variation to the user. Only applicable if we're showing a nucleotide sequence. */
       BlxViewContext *bc = treeGetContext(tree);
-
-      const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, bc->seqType, detailViewGetActiveFrame(detailView), treeGetFrame(tree), bc->numFrames, bc->displayRev, &bc->refSeqRange);
-
-      /* See if there's a variation here */
-      const MSP *msp = NULL;
-
-      if (coordAffectedByVariation(dnaIdx, treeGetStrand(tree), bc->mspList, bc, &msp, NULL, NULL, NULL, NULL, NULL))
+      
+      if (bc->seqType == BLXSEQ_DNA)
         {
-          if (msp && mspGetSName(msp))
-            {
-              char *displayText = mspGetSSeq(msp) ? blxprintf("%s : %s", mspGetSName(msp), mspGetSSeq(msp)) : blxprintf("%s", mspGetSName(msp));
-              gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
-              g_free(displayText);
-            }
+          /* Get the index we're hovering over */
+          GtkWidget *detailView = treeGetDetailView(tree);
+          const int displayIdx = treeHeaderGetCoordAtPos(header, tree, event->x, event->y);
+          const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, bc->seqType, detailViewGetActiveFrame(detailView), treeGetFrame(tree), bc->numFrames, bc->displayRev, &bc->refSeqRange);
+          
+          updateFeedbackAreaNucleotide(detailView, dnaIdx, treeGetStrand(tree));
         }
     }
       

@@ -225,6 +225,7 @@ void parseGff3Header(const int lineNum,
 /* Create a blixem object from the given parsed GFF data. Creates an MSP if the type is
  * exon or match, or a BlxSequence if the type is transcript. Does nothing for other types. */
 static void createBlixemObject(BlxGffData *gffData, 
+                               GList* featureLists[],
 			       MSP **lastMsp, 
 			       MSP **mspList, 
 			       GList **seqList, 
@@ -263,7 +264,8 @@ static void createBlixemObject(BlxGffData *gffData,
 	  gffData->sStrand = gffData->qStrand;
 	}
 
-      MSP *msp = createNewMsp(lastMsp, 
+      MSP *msp = createNewMsp(featureLists,
+                              lastMsp, 
 			      mspList, 
 			      seqList, 
 			      gffData->mspType, 
@@ -312,6 +314,7 @@ static void createBlixemObject(BlxGffData *gffData,
 
 /* Parse GFF3 data */
 void parseGff3Body(const int lineNum,
+                   GList* featureLists[],
                    MSP **lastMsp, 
 		   MSP **mspList, 
 		   BlxParserState *parserState, 
@@ -333,7 +336,7 @@ void parseGff3Body(const int lineNum,
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, lastMsp, mspList, seqList, styles, opts, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, opts, &error);
     }
   
   if (error)

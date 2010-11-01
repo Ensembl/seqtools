@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.24 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.25 2010-11-01 15:31:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -514,10 +514,16 @@ int main(int argc, char **argv)
       g_error("Cannot open %s\n", FSfilename);
     }
   
+  /* Parser compiles lists of MSPs per type into the following array. Initialise each GList in the array to NULL */
+  GList* featureLists[BLXMSP_NUM_TYPES];
+  int typeId = 0;
+  for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+    featureLists[typeId] = NULL;
+  
   GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
   GSList* supportedTypes = blxCreateSupportedGffTypeList();
 
-  parseFS(&mspList, FSfile, opts, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+  parseFS(&mspList, FSfile, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
   
   if (FSfile != stdin)
     {
@@ -532,7 +538,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&mspList, xtra_file, opts, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+      parseFS(&mspList, xtra_file, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
       fclose(xtra_file) ;
     }
 
@@ -554,7 +560,7 @@ int main(int argc, char **argv)
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  if (blxview(refSeq, refSeqName, displayStart, qOffset, mspList, seqList, supportedTypes, opts, pfetch, align_types, TRUE))
+  if (blxview(refSeq, refSeqName, displayStart, qOffset, featureLists, mspList, seqList, supportedTypes, opts, pfetch, align_types, TRUE))
     {
       gtk_main();
     }

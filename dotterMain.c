@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.18 2010-10-28 10:58:57 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.19 2010-11-01 15:31:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -210,7 +210,15 @@ int main(int argc, char **argv)
   FILE *qfile, *sfile;
   MSP *MSPlist = NULL;
   GList *seqList = NULL;
-
+  
+  /* MSPlist above is obsolete and should be replaced by featureLists, which contains all the MSPs
+   * but in GLists in an array indexed by type. Initialise each GList to NULL. */
+  GList* featureLists[BLXMSP_NUM_TYPES];
+  int typeId = 0;
+  for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+    {
+      featureLists[typeId] = NULL;
+    }
   
   int          optc;
   extern int   optind;
@@ -348,6 +356,9 @@ int main(int argc, char **argv)
 
                 MSP *msp = createEmptyMsp(&lastMsp, &MSPlist);
                 readMspFromText(msp, text);
+                
+                /* add it to the relevant feature list. Use prepend because it is quicker */
+                featureLists[msp->type] = g_list_prepend(featureLists[msp->type], msp);
                 
                 /* add the msp to the blxsequence */
                 blxSeq->mspList = g_list_append(blxSeq->mspList, msp);
@@ -527,7 +538,7 @@ int main(int argc, char **argv)
 	
         GSList *supportedTypes = blxCreateSupportedGffTypeList();
 
-	parseFS(&MSPlist, file, dummyopts, &seqList, supportedTypes, NULL, &qseq, options.qname, &sseq, options.sname, options.qoffset);
+	parseFS(&MSPlist, file, dummyopts, featureLists, &seqList, supportedTypes, NULL, &qseq, options.qname, &sseq, options.sname, options.qoffset);
         
         blxDestroyGffTypeList(&supportedTypes);
       }

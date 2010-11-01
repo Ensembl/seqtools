@@ -17,6 +17,7 @@
 #define HEADER_CONTAINER_NAME		"header container"
 #define SNP_TRACK_HEADER_NAME		"SNP track header"
 #define DNA_TRACK_HEADER_NAME		"DNA track header"
+#define DETAIL_VIEW_STATUSBAR_CONTEXT   "statusBarCtx"
 
 
 /* This struct describes a column in the detail view. Multiple widgets (i.e. headers
@@ -141,6 +142,7 @@ void			detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColu
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll, const gboolean scrollMinimum);
 void			updateFeedbackBox(GtkWidget *detailView);
+void                    updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand);
 void			toggleStrand(GtkWidget *detailView);
 
 void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
@@ -183,13 +185,11 @@ gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventE
 
 gboolean                coordAffectedByVariation(const int dnaIdx,
                                                  const BlxStrand strand, 
-                                                 const MSP *mspList, 
                                                  BlxViewContext *bc,
                                                  const MSP **msp,
                                                  gboolean *drawStartBoundary, 
                                                  gboolean *drawEndBoundary, 
-                                                 gboolean *drawTopBoundary, 
-                                                 gboolean *drawBottomBoundary,
+                                                 gboolean *drawJoiningLines, 
                                                  gboolean *drawBackground);
 
 void			drawHeaderChar(BlxViewContext *bc,
@@ -199,6 +199,7 @@ void			drawHeaderChar(BlxViewContext *bc,
 				       const BlxStrand strand, 
                                        const int frame,
 				       const BlxSeqType seqType,
+				       const gboolean topToBottom, 
 				       const gboolean displayIdxSelected, 
 				       const gboolean dnaIdxSelected, 
 				       const gboolean showBackground,

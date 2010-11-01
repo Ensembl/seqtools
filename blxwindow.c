@@ -36,7 +36,6 @@ typedef struct _CompareSeqData
     GList *matchList;
   } SeqSearchData;
 
-
 /* Properties specific to the blixem window */
 typedef struct _BlxWindowProperties
   {
@@ -2594,8 +2593,8 @@ static void onSortOrderToggled(GtkWidget *button, gpointer data)
 }
 
 
-/* Callback function called when the 'Show SNP track' button is toggled */
-static void onShowSnpTrackToggled(GtkWidget *button, gpointer data)
+/* Callback function called when the 'Show Variation track' button is toggled */
+static void onShowVariationTrackToggled(GtkWidget *button, gpointer data)
 {
   const gboolean showSnpTrack = setFlagFromButton(button, data);
   
@@ -3009,40 +3008,15 @@ static void onTogglePrintColors(GtkWidget *button, gpointer data)
 }
 
 
-/* Callback function called when the 'Show unaligned sequence' button is toggled. Could be consolidated
- * with onShowPolyAToggled (we'd just need to pass both the sub-container and the flag in the user
- * data)  */
-static void onShowUnalignedSeqToggled(GtkWidget *button, gpointer data)
+/* Callback function called when the parent button of a set of sub-buttons is toggled. Enables/disables
+ * the child buttons depending on whether the parent is now active or not. The container widget of the
+ * child buttons is passed as the user data. */
+static void onParentBtnToggled(GtkWidget *button, gpointer data)
 {
-  /* Get the new value */
-  const gboolean active = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED));
-  
-  /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
+  const gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   GtkWidget *subComponents = GTK_WIDGET(data);
-  gtk_widget_set_sensitive(subComponents, active); 
-  
-  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  blxWindowRedrawAll(blxWindow);
-}
 
-
-/* Callback function called when the 'Show polyA tails' button is toggled. Could be consolidated
- * with onShowUnalignedSeqToggled (we'd just need to pass both the sub-container and the flag in the user
- * data) */
-static void onShowPolyAToggled(GtkWidget *button, gpointer data)
-{
-  /* Get the new value and set the show-polya-tails flag */
-  const gboolean active = setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE));
-  
-  /* Also set the show-polya-signals flag. (These could be separated out if we wanted to control them separately) */
-  setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
-  
-  /* Enable/disable the sub-options. Their widgets are all in the container passed as the data. */
-  GtkWidget *subComponents = GTK_WIDGET(data);
   gtk_widget_set_sensitive(subComponents, active); 
-  
-  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  blxWindowRedrawAll(blxWindow);
 }
 
 /* Callback function called when the 'Limit unaligned bases' button is toggled */
@@ -3118,8 +3092,7 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
                                              GtkWidget *detailView,
                                              BlxViewContext *bc,
                                              const char *label,
-                                             const gboolean active,
-                                             GCallback callbackFunc)
+                                             const BlxFlag flag)
 {
   /* We'll the main button and any sub-components into a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -3128,11 +3101,14 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
   /* Create a vbox for the sub-components. Create the vbox now so we can pass it to the main toggle
    * button callback, but don't pack it in the container till we've added the main check button. The sub
    * components are only active if the main check button is active. */
+  const gboolean active = bc->flags[flag];
   GtkWidget *subContainer = gtk_vbox_new(FALSE, 0);
   gtk_widget_set_sensitive(subContainer, active); 
   
-  /* Main check button to enable/disable the option. This call puts it in the vbox. */
-  createCheckButton(GTK_BOX(vbox), label, active, callbackFunc, subContainer);
+  /* Main check button to enable/disable the option. This call puts it in the vbox. Set two callbacks:
+   * one to update the flag, and one to enable/disable the child buttons. */
+  GtkWidget *btn = createCheckButton(GTK_BOX(vbox), label, active, G_CALLBACK(onParentBtnToggled), subContainer);
+  g_signal_connect(G_OBJECT(btn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(flag));
 
   /* Now add the subcomponent container to the vbox. Bit of a hack - put it inside an hbox with 
    * a blank label preceeding it, so that the sub-components appear offset to the right slightly
@@ -3325,26 +3301,34 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* GENERAL PAGE */
   GtkWidget *mainVBox = createVBoxWithBorder(settingsPage, borderWidth, FALSE, NULL);
 
-  /* Display options */
-  GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
-  
-  createCheckButton(GTK_BOX(vbox1), "_Squash matches", bc->flags[BLXFLAG_SQUASH_MATCHES], G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
-  
+  /* Features */
+  GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Features");
+
+  GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS);
+  createCheckButton(GTK_BOX(variationContainer), "Show varations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
+
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
-  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", bc->flags[BLXFLAG_SHOW_POLYA_SITE], G_CALLBACK(onShowPolyAToggled));
+  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE);
   GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
   g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
+  
 
+  /* Display options */
+  GtkWidget *vbox2 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
+  
   /* show-unaligned-sequence option and its sub-options */
-  GtkContainer *unalignContainer = createParentCheckButton(vbox1, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", bc->flags[BLXFLAG_SHOW_UNALIGNED], G_CALLBACK(onShowUnalignedSeqToggled));
+  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED);
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
   createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED_SELECTED));
 
-  createCheckButton(GTK_BOX(vbox1), "_Invert sort order", bc->flags[BLXFLAG_INVERT_SORT], G_CALLBACK(onSortOrderToggled), GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
-  createCheckButton(GTK_BOX(vbox1), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
-  createCheckButton(GTK_BOX(vbox1), "Show SN_P track", bc->flags[BLXFLAG_SHOW_SNP_TRACK], G_CALLBACK(onShowSnpTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_SNP_TRACK));
-  createCheckButton(GTK_BOX(vbox1), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
+  createCheckButton(GTK_BOX(vbox2), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
+
+  createCheckButton(GTK_BOX(vbox2), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
+  createCheckButton(GTK_BOX(vbox2), "_Squash matches", bc->flags[BLXFLAG_SQUASH_MATCHES], G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
+  createCheckButton(GTK_BOX(vbox2), "_Invert sort order", bc->flags[BLXFLAG_INVERT_SORT], G_CALLBACK(onSortOrderToggled), GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
+
   
+  /* Other boxes */
   GtkWidget *pfetchBox = createHBoxWithBorder(mainVBox, borderWidth, TRUE, "Settings");
   createFontSelectionButton(GTK_BOX(pfetchBox), blxWindow);
   createPfetchDropDownBox(GTK_BOX(pfetchBox), blxWindow);
@@ -4310,6 +4294,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
 					      const char *paddingSeq,
+                                              GList* featureLists[],
                                               GList *seqList,
                                               GSList *supportedTypes,
 					      GtkWidget *widget,
@@ -4330,6 +4315,11 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->fullDisplayRange.max = fullDisplayRange->max;
   
   blxContext->mspList = options->mspList;
+  
+  int typeId = 0;
+  for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+    blxContext->featureLists[typeId] = featureLists[typeId];
+  
   blxContext->geneticCode = options->geneticCode;
   blxContext->blastMode = options->blastMode;
   blxContext->seqType = options->seqType;
@@ -5184,6 +5174,7 @@ static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
 /* Create the main blixem window */
 GtkWidget* createBlxWindow(CommandLineOptions *options, 
                            const char *paddingSeq, 
+                           GList* featureLists[],
                            GList *seqList, 
                            GSList *supportedTypes,
                            const char *net_id, 
@@ -5247,6 +5238,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       &refSeqRange, 
                                                       &fullDisplayRange, 
                                                       paddingSeq, 
+                                                      featureLists,
                                                       seqList, 
                                                       supportedTypes,
                                                       window, 

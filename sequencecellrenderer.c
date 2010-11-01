@@ -578,7 +578,7 @@ static void drawBase(MSP *msp,
   const int displayIdx = segmentRange->min + segmentIdx;
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   
-  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, data->seqSelected, data->numUnalignedBases, data->bc->flags, data->bc->mspList);
+  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, data->seqSelected, data->numUnalignedBases, data->bc->flags, data->bc->featureLists[BLXMSP_POLYA_SITE]);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */
@@ -595,7 +595,7 @@ static void drawBase(MSP *msp,
 
           if (data->bc->flags[BLXFLAG_SHOW_POLYA_SITE] && 
               (!data->bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] || data->seqSelected) &&
-              mspCoordInPolyATail(*qIdx, msp, data->bc->mspList))
+              mspCoordInPolyATail(*qIdx, msp, data->bc->featureLists[BLXMSP_POLYA_SITE]))
             {
               baseBgColor = selected ? data->polyAColorSelected : data->polyAColor;
             }
@@ -826,7 +826,7 @@ static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
 {
   /* Find the full display range of the MSP including any portions of unaligned sequence etc. */
   IntRange result;
-  mspGetFullQRange(msp, data->seqSelected, data->bc->flags, data->numUnalignedBases, data->bc->mspList, data->bc->numFrames, &result);
+  mspGetFullQRange(msp, data->seqSelected, data->bc->flags, data->numUnalignedBases, data->bc->featureLists[BLXMSP_POLYA_SITE], data->bc->numFrames, &result);
   
   /* Convert to display coords */
   const int idx1 = convertDnaIdxToDisplayIdx(result.min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);

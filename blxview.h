@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.40 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.41 2010-11-01 15:31:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -69,6 +69,7 @@ gboolean                            blxview(char *refSeq,
                                             char *refSeqName,
 	                                    int start, 
                                             int qOffset, 
+                                            GList* featureLists[],
                                             MSP *msplist, 
                                             GList *seqList, 
                                             GSList *supportedTypes,

@@ -61,7 +61,9 @@ typedef enum
   BLXMSP_GSP,                    /*  */
   
   BLXMSP_FS_SEG,                 /* Feature Series Segment */
-  BLXMSP_XY_PLOT                 /* x/y coordinates - for plotting feature-series curves */
+  BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves */
+  
+  BLXMSP_NUM_TYPES               /* the number of MSP types. MUST BE LAST IN LIST */
 } BlxMspType;
 
 
@@ -202,22 +204,6 @@ char*                 mspGetTissueType(const MSP const *msp);
 char*                 mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
 
-void                  mspGetFullSRange(const MSP const *msp, 
-                                       const gboolean seqSelected,
-                                       const gboolean *flags,
-                                       const int numUnalignedBases, 
-                                       const MSP const *mspList,
-                                       IntRange *sSeqRange);
-
-void                  mspGetFullQRange(const MSP const *msp, 
-                                       const gboolean seqSelected,
-                                       const gboolean *flags,
-                                       const int numUnalignedBases, 
-                                       const MSP const *mspList,
-                                       const int numFrames, 
-                                       IntRange *sSeqRange);
-
-
 gboolean              mspLayerIsVisible(const MSP const *msp);
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
@@ -231,8 +217,8 @@ gboolean              mspHasSName(const MSP const *msp);
 gboolean              mspHasSSeq(const MSP  const *msp);
 gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
-gboolean              mspHasPolyATail(const MSP const *msp, const MSP const *mspList);
-gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP const *mspList);
+gboolean              mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList);
+gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GList const *polyASiteList);
 
 void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *reqdRange);
 BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
@@ -242,16 +228,6 @@ void                  readMspFromText(MSP *msp, char *text);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 
 void                  insertFS(MSP *msp, char *series);
-
-int		      gapCoord(const MSP *msp, 
-			       const int qIdx, 
-			       const int numFrames, 
-			       const BlxStrand strand, 
-			       const gboolean displayRev,
-                               const gboolean seqSelected,
-                               const int numUnalignedBases,
-                               gboolean *flags,
-                               const MSP const *mspList);
 
 /* Feature series */
 gint		      fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);

@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.80 2010-10-26 16:51:11 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.81 2010-11-01 15:31:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -153,8 +153,8 @@ typedef struct _BlxMessage
 char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
-static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
-static void            finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts, const int offset);
+static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
+static void            finaliseBlxSequences(GList *featureLists[], MSP **mspList, GList **seqList, char *opts, const int offset);
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
 static void            displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, gpointer data);
@@ -672,6 +672,7 @@ gboolean blxview(char *refSeq,
                  char *refSeqName, 
                  int start, 
                  int qOffset, 
+                 GList* featureLists[],
                  MSP *msplist, 
                  GList *seqList,
                  GSList *supportedTypes,
@@ -712,14 +713,14 @@ gboolean blxview(char *refSeq,
   if (status)
     {
       /* Construct missing data and do any other required processing now we have all the sequence data */
-      finaliseBlxSequences(&msplist, &seqList, opts, qOffset);
+      finaliseBlxSequences(featureLists, &msplist, &seqList, opts, qOffset);
     }
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, padseq, seqList, supportedTypes, &options, net_id, port, External) ;
+      blviewCreate(opts, align_types, padseq, featureLists, seqList, supportedTypes, &options, net_id, port, External) ;
     }
   
   return status;
@@ -730,6 +731,7 @@ gboolean blxview(char *refSeq,
 static void blviewCreate(char *opts, 
 			 char *align_types, 
 			 const char *paddingSeq,
+                         GList* featureLists[],
                          GList *seqList,
                          GSList *supportedTypes,
 			 CommandLineOptions *options,
@@ -740,7 +742,7 @@ static void blviewCreate(char *opts,
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createBlxWindow(options, paddingSeq, seqList, supportedTypes, net_id, port, External);
+      blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, net_id, port, External);
 
       gboolean pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
       
@@ -925,7 +927,7 @@ static void copyCdsReadingFrame(MSP *exon, MSP *cds, MSP *utr)
  * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
  * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
 static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr, 
-                                    BlxSequence *blxSeq, MSP **lastMsp, MSP **mspList, GList **seqList, 
+                                    BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
                                     char *opts, GError **error)
 {
   BlxMspType newType = BLXMSP_INVALID;
@@ -1019,7 +1021,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(lastMsp, mspList, seqList, newType, NULL, 0,  newPhase, NULL, blxSeq->idTag,
+      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, 0,  newPhase, NULL, blxSeq->idTag,
                                   NULL, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
       
@@ -1045,7 +1047,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
 /* Construct any missing transcript data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
+static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
 {
   GError *tmpError = NULL;
 
@@ -1085,7 +1087,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
             {
               /* We've found a gap between exons, or reached the end. First, see if the current exon/cds or utr
                * is missing and construct it if possible. Also do this if we're at the last MSP. */
-              createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, lastMsp, mspList, seqList, opts, &tmpError);
+              createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, featureLists, lastMsp, mspList, seqList, opts, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
               copyCdsReadingFrame(curExon, curCds, curUtr);
 
@@ -1112,7 +1114,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, MSP **lastMsp, MSP **ms
               
               if (newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, 0, NULL, blxSeq->idTag,
+                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, 0, NULL, blxSeq->idTag,
                               NULL, newRange.min, newRange.max, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
                   
@@ -1331,7 +1333,7 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
 
 /* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
  * data and the introns etc. */
-static void finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts, const int offset)
+static void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, char *opts, const int offset)
 {
   /* Loop through all MSPs and adjust their coords by the offest. Remember the last in the list */
   MSP *msp = *mspList;
@@ -1361,7 +1363,7 @@ static void finaliseBlxSequences(MSP **mspList, GList **seqList, char *opts, con
         }
       
       findSequenceExtents(blxSeq);
-      constructTranscriptData(blxSeq, &lastMsp, mspList, seqList, opts);
+      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList, opts);
     }
 }
 
@@ -1414,11 +1416,14 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
 
 
 /* Allocates memory for an MSP and initialise all its fields to the given values.
- * Adds it into the given MSP list and makes the end pointer ('lastMsp') point to the new
- * end of the list. Returns a pointer to the newly-created MSP. Also creates a BlxSequence
+ * For backwards compatibility, adds it into the given MSP list and makes the end pointer
+ * ('lastMsp') point to the new end of the list. We will hopefully get rid of mspList eventually
+ * and replace it by featureLists. The new msp is added to the relevant list in the featureLists
+ * array according to its type. Returns a pointer to the newly-created MSP. Also creates a BlxSequence
  * for this MSP's sequence name (or adds the MSP to the existing one, if it exists already), 
  * and adds that BlxSequence to the given seqList. Takes ownership of 'sequence'. */
-MSP* createNewMsp(MSP **lastMsp, 
+MSP* createNewMsp(GList* featureLists[],
+                  MSP **lastMsp, 
                   MSP **mspList,
                   GList **seqList,
                   const BlxMspType mspType,
@@ -1457,6 +1462,9 @@ MSP* createNewMsp(MSP **lastMsp,
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
+  
+  /* Add it to the relevant feature list. Use prepend because it is quicker */
+  featureLists[msp->type] = g_list_prepend(featureLists[msp->type], msp);
   
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -1560,6 +1568,197 @@ void destroyBlxSequenceList(GList **seqList)
   
   g_list_free(*seqList);
   *seqList = NULL;
+}
+
+
+/* Get the full range of the given MSP that we want to display, in s coords. This will generally 
+ * be the coords of the alignment but could extend outside this range we are displaying unaligned 
+ * portions of the match sequence or polyA tails etc. */
+void mspGetFullSRange(const MSP const *msp, 
+                      const gboolean seqSelected,
+                      const gboolean *flags,
+                      const int numUnalignedBases, 
+                      const GList const *polyASiteList,
+                      IntRange *result)
+{
+  /* Normally we just display the part of the sequence in the alignment */
+  result->min = msp->sRange.min;
+  result->max = msp->sRange.max;
+  
+  if (flags[BLXFLAG_SHOW_UNALIGNED] && mspGetMatchSeq(msp) && (!flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || seqSelected))
+    {
+      /* We're displaying additional unaligned sequence outside the alignment range. Get 
+       * the full range of the match sequence */
+      result->min = 1;
+      result->max = mspGetMatchSeqLen(msp);
+      
+      if (flags[BLXFLAG_LIMIT_UNALIGNED_BASES])
+        {
+          /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
+           * to the range we found above, though). */
+          result->min = max(result->min, msp->sRange.min - numUnalignedBases);
+          result->max = min(result->max, msp->sRange.max + numUnalignedBases);
+        }
+    }
+  
+  if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp, polyASiteList) && (!flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] || seqSelected))
+    {
+      /* We're displaying polyA tails, so override the 3' end coord with the full extent of
+       * the s sequence if there is a polyA site here. The 3' end is the min q coord if the
+       * match is on forward ref seq strand or the max coord if on the reverse. */
+      const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
+      
+      if (sameDirection)
+        {
+          result->max = mspGetMatchSeqLen(msp);
+        }
+      else
+        {
+          result->min = 1;
+        }
+    }
+}
+
+
+/* Get the full range of the given MSP that we want to display, in q coords. This will generally 
+ * be the coords of the alignment but could extend outside this range we are displaying unaligned 
+ * portions of the match sequence or polyA tails etc. */
+void mspGetFullQRange(const MSP const *msp, 
+                      const gboolean seqSelected,
+                      const gboolean *flags,
+                      const int numUnalignedBases, 
+                      const GList const *polyASiteList,
+                      const int numFrames,
+                      IntRange *result)
+{
+  /* Default to the alignment range so we can exit quickly if there are no special cases */
+  result->min = msp->qRange.min;
+  result->max = msp->qRange.max;
+  
+  if (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE])
+    {
+      /* Get the full display range of the MSP including any unaligned portions of the match sequence. */
+      IntRange fullSRange;
+      mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, polyASiteList, &fullSRange);
+      
+      /* Find the offset of the start and end of the full range compared to the alignment range and
+       * offset the ref seq range by the same amount. We need to multiply by the number of reading
+       * frames because q coords are in nucleotides and s coords are in peptides. */
+      const int startOffset = (msp->sRange.min - fullSRange.min) * numFrames;
+      const int endOffset = (fullSRange.max - msp->sRange.max) * numFrames;
+      
+      const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
+      result->min -= sameDirection ? startOffset : endOffset;
+      result->max += sameDirection ? endOffset : startOffset;
+    }
+}
+
+
+/* Given a base index on the query sequence, find the corresonding base 
+ * in subject sequence. The return value is always UNSET_INT if there is not
+ * a corresponding base at this position. However, in this case the start/end
+ * of the sequence (or nearest gap) is returned in the nearestIdx argument. If
+ * the base exists then the return idx and nearestIdx will be the same. 
+ * nearestIdx can be null if not required. */
+int gapCoord(const MSP *msp, 
+	     const int qIdx, 
+	     const int numFrames, 
+	     const BlxStrand strand, 
+	     const gboolean displayRev,
+             const gboolean seqSelected,
+             const int numUnalignedBases,
+             gboolean *flags,
+             const GList const *polyASiteList)
+{
+  int result = UNSET_INT;
+  
+  if (mspIsBlastMatch(msp) || mspIsExon(msp))
+    {
+      const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
+      const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
+      const gboolean sameDirection = (qForward == sForward);
+      const gboolean inGapsRange = (qIdx >= msp->qRange.min && qIdx <= msp->qRange.max);
+      
+      if (msp->gaps && g_slist_length(msp->gaps) >= 1 && inGapsRange)
+        {
+          /* Gapped alignment. Look to see if x lies inside one of the "gaps" ranges. */
+          GSList *rangeItem = msp->gaps;
+          
+          for ( ; rangeItem ; rangeItem = rangeItem->next)
+            {
+              CoordRange *curRange = (CoordRange*)(rangeItem->data);
+              
+              int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+              getCoordRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+              
+              /* We've "found" the value if it's in or before this range. Note that the
+               * the range values are in decreasing order if the q strand is reversed. */
+              gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
+              
+              if (found)
+                {
+                  gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
+                  
+                  if (inRange)
+                    {
+                      /* It's inside this range. Calculate the actual index. */
+                      int offset = (qIdx - qRangeMin) / numFrames;
+                      result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
+                    }
+                  
+                  break;
+                }
+            }
+        }
+      else if (!inGapsRange && mspIsBlastMatch(msp))
+        {
+          /* The q index is outside the alignment range but the option to show unaligned sequence 
+           * is enabled, so check if the q index is within the full display range including 
+           * any unaligned portions of the sequence that we're displaying. */
+          
+          if (qIdx < msp->qRange.min)
+            {
+              /* Find the offset backwards from the low coord and subtract it from the low end
+               * of the s coord range (or add it to the high end, if the directions are opposite). */
+              const int offset = (msp->qRange.min - qIdx) / numFrames;
+              result = sameDirection ? msp->sRange.min - offset : msp->sRange.max + offset;
+            }
+          else
+            {
+              /* Find the offset forwards from the high coord and add it to the high end of the
+               * s coord range (or subtract it from the low end, if the directions are opposite). */
+              const int offset = (qIdx - msp->qRange.max) / numFrames;
+              result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
+            }
+          
+          /* Get the full display range of the match sequence. If the result is still out of range
+           * then there's nothing to show for this qIdx. */
+          IntRange fullSRange;
+          mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, polyASiteList, &fullSRange);
+          
+          if (!valueWithinRange(result, &fullSRange))
+            {
+              result = UNSET_INT;
+            }
+        }
+      else
+        {
+          /* If strands are in the same direction, find the offset from qRange.min and add it to 
+           * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
+           * subtract it from sRange.max. Note that the offset could be negative if we're outside
+           * the alignment range. */
+          int offset = (qIdx - msp->qRange.min)/numFrames ;
+          result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
+          
+          if (result < msp->sRange.min || result > msp->sRange.max)
+            {
+              result = UNSET_INT;
+            }
+          
+        }
+    }
+  
+  return result;
 }
 
 

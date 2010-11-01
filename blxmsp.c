@@ -193,114 +193,6 @@ gboolean mspHasSSeq(const MSP  const *msp)
 }
 
 
-/* Given a base index on the query sequence, find the corresonding base 
- * in subject sequence. The return value is always UNSET_INT if there is not
- * a corresponding base at this position. However, in this case the start/end
- * of the sequence (or nearest gap) is returned in the nearestIdx argument. If
- * the base exists then the return idx and nearestIdx will be the same. 
- * nearestIdx can be null if not required. */
-int gapCoord(const MSP *msp, 
-	     const int qIdx, 
-	     const int numFrames, 
-	     const BlxStrand strand, 
-	     const gboolean displayRev,
-             const gboolean seqSelected,
-             const int numUnalignedBases,
-             gboolean *flags,
-             const MSP const *mspList)
-{
-  int result = UNSET_INT;
-  
-  if (mspIsBlastMatch(msp) || mspIsExon(msp))
-    {
-    const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-    const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
-    const gboolean sameDirection = (qForward == sForward);
-    const gboolean inGapsRange = (qIdx >= msp->qRange.min && qIdx <= msp->qRange.max);
-    
-    if (msp->gaps && g_slist_length(msp->gaps) >= 1 && inGapsRange)
-      {
-      /* Gapped alignment. Look to see if x lies inside one of the "gaps" ranges. */
-      GSList *rangeItem = msp->gaps;
-      
-      for ( ; rangeItem ; rangeItem = rangeItem->next)
-	{
-	CoordRange *curRange = (CoordRange*)(rangeItem->data);
-	
-	int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-	getCoordRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-	
-	/* We've "found" the value if it's in or before this range. Note that the
-	 * the range values are in decreasing order if the q strand is reversed. */
-	gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
-	
-	if (found)
-	  {
-	  gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
-	  
-	  if (inRange)
-	    {
-	    /* It's inside this range. Calculate the actual index. */
-	    int offset = (qIdx - qRangeMin) / numFrames;
-	    result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
-	    }
-	  
-	  break;
-	  }
-	}
-      }
-    else if (!inGapsRange && mspIsBlastMatch(msp))
-      {
-      /* The q index is outside the alignment range but the option to show unaligned sequence 
-       * is enabled, so check if the q index is within the full display range including 
-       * any unaligned portions of the sequence that we're displaying. */
-      
-      if (qIdx < msp->qRange.min)
-	{
-	/* Find the offset backwards from the low coord and subtract it from the low end
-	 * of the s coord range (or add it to the high end, if the directions are opposite). */
-	const int offset = (msp->qRange.min - qIdx) / numFrames;
-	result = sameDirection ? msp->sRange.min - offset : msp->sRange.max + offset;
-	}
-      else
-	{
-	/* Find the offset forwards from the high coord and add it to the high end of the
-	 * s coord range (or subtract it from the low end, if the directions are opposite). */
-	const int offset = (qIdx - msp->qRange.max) / numFrames;
-	result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
-	}
-      
-      /* Get the full display range of the match sequence. If the result is still out of range
-       * then there's nothing to show for this qIdx. */
-      IntRange fullSRange;
-      mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, mspList, &fullSRange);
-      
-      if (!valueWithinRange(result, &fullSRange))
-	{
-	result = UNSET_INT;
-	}
-      }
-    else
-      {
-      /* If strands are in the same direction, find the offset from qRange.min and add it to 
-       * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
-       * subtract it from sRange.max. Note that the offset could be negative if we're outside
-       * the alignment range. */
-      int offset = (qIdx - msp->qRange.min)/numFrames ;
-      result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
-      
-      if (result < msp->sRange.min || result > msp->sRange.max)
-	{
-	result = UNSET_INT;
-	}
-      
-      }
-    }
-  
-  return result;
-}
-
-
 /***********************************************************
  *		MSP data access functions		   * 
  ***********************************************************/
@@ -665,35 +557,34 @@ void insertFS(MSP *msp, char *series)
 
 
 
-/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. */
-gboolean mspHasPolyATail(const MSP const *msp, const MSP const *mspList)
+/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
+ * list should be a list containing all polya sites (and only polya sites) */
+gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
 {
   gboolean found = FALSE;
   
   /* Only matches have polyA tails. */
   if (mspIsBlastMatch(msp))
     {
-    /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
-     * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
-     * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
-    const MSP *curMsp = mspList;
-    
-    for ( ; !found && curMsp; curMsp = curMsp->next)
-      {
-      if (mspIsPolyASite(curMsp))
-	{
-	const int qEnd = mspGetQEnd(msp);
-	
-	if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
-	  {
-	  found = (qEnd == curMsp->qRange.min);
-	  }
-	else
-	  {
-	  found = (qEnd == curMsp->qRange.min + 1);
-	  }
-	}
-      }
+      /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
+       * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
+       * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
+      const GList *item = polyASiteList;
+      
+      for ( ; !found && item; item = item->next)
+          {
+            const MSP const *curPolyASite = (const MSP const*)(item->data);
+            const int qEnd = mspGetQEnd(msp);
+            
+            if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+              {
+                found = (qEnd == curPolyASite->qRange.min);
+              }
+            else
+              {
+                found = (qEnd == curPolyASite->qRange.min + 1);
+              }
+        }
     }
   
   return found;
@@ -702,9 +593,9 @@ gboolean mspHasPolyATail(const MSP const *msp, const MSP const *mspList)
 
 /* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
  * this MSP has one. */
-gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP const *mspList)
+gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const GList *polyASiteList)
 {
-  gboolean result = mspHasPolyATail(msp, mspList);
+  gboolean result = mspHasPolyATail(msp, polyASiteList);
   
   /* See if the coord is outside the 3' end of the alignment range (i.e. is greater than the
    * max coord if we're on the forward strand or less than the min coord if on the reverse). */
@@ -713,89 +604,6 @@ gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const MSP co
   
   return result;
 }
-
-/* Get the full range of the given MSP that we want to display, in s coords. This will generally 
- * be the coords of the alignment but could extend outside this range we are displaying unaligned 
- * portions of the match sequence or polyA tails etc. */
-void mspGetFullSRange(const MSP const *msp, 
-                      const gboolean seqSelected,
-                      const gboolean *flags,
-                      const int numUnalignedBases, 
-                      const MSP const *mspList,
-                      IntRange *result)
-{
-  /* Normally we just display the part of the sequence in the alignment */
-  result->min = msp->sRange.min;
-  result->max = msp->sRange.max;
-  
-  if (flags[BLXFLAG_SHOW_UNALIGNED] && mspGetMatchSeq(msp) && (!flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || seqSelected))
-    {
-    /* We're displaying additional unaligned sequence outside the alignment range. Get 
-     * the full range of the match sequence */
-    result->min = 1;
-    result->max = mspGetMatchSeqLen(msp);
-    
-    if (flags[BLXFLAG_LIMIT_UNALIGNED_BASES])
-      {
-      /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
-       * to the range we found above, though). */
-      result->min = max(result->min, msp->sRange.min - numUnalignedBases);
-      result->max = min(result->max, msp->sRange.max + numUnalignedBases);
-      }
-    }
-  
-  if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp, mspList) && (!flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] || seqSelected))
-    {
-    /* We're displaying polyA tails, so override the 3' end coord with the full extent of
-     * the s sequence if there is a polyA site here. The 3' end is the min q coord if the
-     * match is on forward ref seq strand or the max coord if on the reverse. */
-    const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-    
-    if (sameDirection)
-      {
-      result->max = mspGetMatchSeqLen(msp);
-      }
-    else
-      {
-      result->min = 1;
-      }
-    }
-}
-
-
-/* Get the full range of the given MSP that we want to display, in q coords. This will generally 
- * be the coords of the alignment but could extend outside this range we are displaying unaligned 
- * portions of the match sequence or polyA tails etc. */
-void mspGetFullQRange(const MSP const *msp, 
-                      const gboolean seqSelected,
-                      const gboolean *flags,
-                      const int numUnalignedBases, 
-                      const MSP const *mspList,
-                      const int numFrames,
-                      IntRange *result)
-{
-  /* Default to the alignment range so we can exit quickly if there are no special cases */
-  result->min = msp->qRange.min;
-  result->max = msp->qRange.max;
-  
-  if (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE])
-    {
-    /* Get the full display range of the MSP including any unaligned portions of the match sequence. */
-    IntRange fullSRange;
-    mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, mspList, &fullSRange);
-    
-    /* Find the offset of the start and end of the full range compared to the alignment range and
-     * offset the ref seq range by the same amount. We need to multiply by the number of reading
-     * frames because q coords are in nucleotides and s coords are in peptides. */
-    const int startOffset = (msp->sRange.min - fullSRange.min) * numFrames;
-    const int endOffset = (fullSRange.max - msp->sRange.max) * numFrames;
-    
-    const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-    result->min -= sameDirection ? startOffset : endOffset;
-    result->max += sameDirection ? endOffset : startOffset;
-    }
-}
-
 
 
 /***********************************************************
@@ -1321,7 +1129,8 @@ void readMspFromText(MSP *msp, char *text)
 
 /* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values.
  * Add it into the given MSP list and make the end pointer ('lastMsp') point to the new
- * end of the list. Returns a pointer to the newly-created MSP */
+ * end of the list. NB the msplist is obsolete and is being replaced by featureLists, but we don't
+ * add it to a feature list yet because we don't know its type. Returns a pointer to the newly-created MSP */
 MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 {
   MSP *msp = (MSP *)g_malloc(sizeof(MSP));

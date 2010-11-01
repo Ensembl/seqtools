@@ -1,6 +1,6 @@
 /*  Last edited: Feb 14 10:47 2008 (edgrif) */
 
-/* $Id: blxselect.c,v 1.10 2010-10-22 11:58:58 gb10 Exp $ */
+/* $Id: blxselect.c,v 1.11 2010-11-01 15:31:01 gb10 Exp $ */
 
 /* BLXSELECT - select seqbl/exblx files for blixem in a user-friendly way
  *
@@ -155,11 +155,17 @@ static void callBlixem(box)
     GList *seqList = NULL;
     GSList *supportedTypes = blxCreateSupportedGffTypeList();
     
+      /* Parser compiles lists of MSPs per type into the following array. Initialise each GList in the array to NULL */
+    GList* featureLists[BLXMSP_NUM_TYPES];
+    int typeId = 0;
+    for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+      featureLists[typeId] = NULL;
+
     parseFS(&MSPlist, HSPfile, opts, &seqList, supportedTypes, NULL, &qseq, qname, &dummyseq, dummyseqname, qOffset);
     
     fclose(HSPfile);
 
-    blxview (qseq, qname, 1, qOffset, MSPlist, seqList, supportedTypes, opts, NULL, NULL, FALSE);
+    blxview (qseq, qname, 1, qOffset, featuerLists, MSPlist, seqList, supportedTypes, opts, NULL, NULL, FALSE);
 			/* FALSE means it's not an external call */
 }
 

@@ -77,7 +77,9 @@ typedef struct _BlxViewContext
   char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
   int numFrames;		    /* The number of reading frames */
 
-  MSP *mspList;			    /* List of all MSPs. */
+  MSP *mspList;                          /* List of all MSPs. Obsolete - use featureLists array instead */
+  GList* featureLists[BLXMSP_NUM_TYPES];  /* Array indexed by the BlxMspType enum. Each array entry contains a GList of all the MSPs of that type. */
+
   GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
   GSList *supportedTypes;           /* List of supported GFF types */
   gboolean gappedHsp;		    
@@ -164,6 +166,7 @@ void			  blxWindowRedrawAll(GtkWidget *blxWindow);
   
 GtkWidget*		  createBlxWindow(CommandLineOptions *options, 
 					  const char *paddingSeq, 
+                                          GList* featureLists[], 
 					  GList *seqList, 
                                           GSList *supportedTypes,
 					  const char *net_id, 

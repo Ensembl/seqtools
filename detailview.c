@@ -525,7 +525,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
 	  /* SNP track */
 	  BlxViewContext *bc = detailViewGetContext(detailView);
 	
-	  if (!bc->flags[BLXFLAG_SHOW_SNP_TRACK])
+	  if (!bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] || !bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
 	    {
 	      /* SNP track is hidden, so set the height to 0 */
 	      gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, 0);
@@ -717,7 +717,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev, TRUE, numUnalignedBases, bc->flags, bc->mspList);
+		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev, TRUE, numUnalignedBases, bc->flags, bc->featureLists[BLXMSP_POLYA_SITE]);
 
 		  if (sIdx != UNSET_INT)
 		    {
@@ -798,6 +798,40 @@ void updateFeedbackBox(GtkWidget *detailView)
   gtk_widget_queue_draw(feedbackBox);
   
   g_free(messageText);
+}
+
+
+/* This updates the detail-view feedback area with info about a given nucleotide in the reference sequence */
+void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+
+  /* First clear the existing message if there is one */
+  GtkStatusbar *statusBar = GTK_STATUSBAR(properties->statusBar);
+  guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+  gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+  
+  /* See if there's a variation at the given coord */
+  const MSP *msp = NULL;
+  
+  if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL))
+    {
+      if (msp && mspGetSName(msp))
+        {
+          char *displayText = NULL;
+          
+          /* Check we've got the sequence info to display. We should have, but if not just display the name. */
+          if (mspGetSSeq(msp))
+            displayText = blxprintf("%d  %s : %s", dnaIdx, mspGetSName(msp), mspGetSSeq(msp));
+          else
+            displayText = blxprintf("%d  %s", dnaIdx, mspGetSName(msp));
+          
+          /* Send the message to the status bar */
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+          g_free(displayText);
+        }
+    }
 }
 
 
@@ -907,10 +941,9 @@ int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const
 }
 
 
-
-/* Select the nucleotide at the given x/y position in the given header (protein
+/* Get the nucleotide at the given x/y position in the given sequence-column header (protein
  * matches only). */
-static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
+static void getSeqColHeaderClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y, int *coordOut, int *frameOut, int *baseOut)
 {
   int coord = getBaseIndexAtColCoords(x, y, detailViewGetCharWidth(detailView), detailViewGetDisplayRange(detailView));
   
@@ -954,8 +987,25 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
 	  --coord;
 	}
       
-      detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE, TRUE);
+      if (coordOut)
+        *coordOut = coord;
+      
+      if (frameOut)
+        *frameOut = frame;
+      
+      if (baseOut)
+        *baseOut = baseNum;
     }
+}
+
+
+/* Select the coord at the given x,y position in the given sequence column header */
+static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
+{
+  int coord, frame, baseNum;
+  getSeqColHeaderClickedNucleotide(header, detailView, x, y, &coord, &frame, &baseNum);
+  
+  detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE, TRUE);
 }
 
 
@@ -996,52 +1046,51 @@ void selectClickedSnp(GtkWidget *snpTrack,
       BlxViewContext *bc = blxWindowGetContext(blxWindow);
       const int activeFrame = detailViewGetActiveFrame(detailView);
       
-      /* See if there are any SNPs at this displayIdx */
+      /* Loop through all variations and see if there are any at this displayIdx */
       GList *snpList = NULL;
-      const MSP *msp = bc->mspList;
+      const GList *snpItem = bc->featureLists[BLXMSP_VARIATION];
       
-      for ( ; msp; msp = msp->next)
+      for ( ; snpItem; snpItem = snpItem->next)
 	{
-	  if (mspIsVariation(msp))
-	    {
-	      /* Get the variation coords in terms of display coords, and also the 'expanded' range
-               * of coords where the variation is displayed */
-	      IntRange mspDisplayRange, mspExpandedRange;
-	      getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &mspDisplayRange, &mspExpandedRange);
-	      
-              const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, 1, clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-              gboolean found = FALSE;
-              int idxToSelect = UNSET_INT, baseToSelect = UNSET_INT;
-	      
-              if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange))
+          const MSP const *msp = (const MSP const*)(snpItem->data);
+          
+          /* Get the variation coords in terms of display coords, and also the 'expanded' range
+           * of coords where the variation is displayed */
+          IntRange mspDisplayRange, mspExpandedRange;
+          getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &mspDisplayRange, &mspExpandedRange);
+          
+          const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, 1, clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+          gboolean found = FALSE;
+          int idxToSelect = UNSET_INT, baseToSelect = UNSET_INT;
+          
+          if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange))
+            {
+              /* We clicked inside this MSP on the variation track. Select the first coord in
+               * the MSP. */
+              found = TRUE;
+              idxToSelect = mspDisplayRange.min;
+              baseToSelect = 1;
+            }
+          else if (!expandSnps && valueWithinRange(clickedDnaIdx, &msp->qRange))
+            {
+              /* We clicked on a coord in the ref seq header that is affected by this variation.
+               * Select the clicked coord. */
+              found = TRUE;
+              idxToSelect = clickedDisplayIdx;
+              baseToSelect = clickedBase;
+            }
+          
+          if (found)
+            {
+              snpList = g_list_prepend(snpList, msp->sSequence);
+              detailViewSetSelectedBaseIdx(detailView, idxToSelect, activeFrame, baseToSelect, TRUE, FALSE);
+              
+              if (reCentre)
                 {
-                  /* We clicked inside this MSP on the variation track. Select the first coord in
-                   * the MSP. */
-                  found = TRUE;
-                  idxToSelect = mspDisplayRange.min;
-                  baseToSelect = 1;
+                  const int newStart = idxToSelect - (getRangeLength(&properties->displayRange) / 2);
+                  setDetailViewStartIdx(detailView, newStart, bc->seqType);
                 }
-              else if (!expandSnps && valueWithinRange(clickedDnaIdx, &msp->qRange))
-                {
-                  /* We clicked on a coord in the ref seq header that is affected by this variation.
-                   * Select the clicked coord. */
-		  found = TRUE;
-                  idxToSelect = clickedDisplayIdx;
-                  baseToSelect = clickedBase;
-                }
-	      
-	      if (found)
-		{
-		  snpList = g_list_prepend(snpList, msp->sSequence);
-		  detailViewSetSelectedBaseIdx(detailView, idxToSelect, activeFrame, baseToSelect, TRUE, FALSE);
-		  
-		  if (reCentre)
-		    {
-		      const int newStart = idxToSelect - (getRangeLength(&properties->displayRange) / 2);
-		      setDetailViewStartIdx(detailView, newStart, bc->seqType);
-		    }
-		}
-	    }
+            }
 	}
       
       /* Clear any existing selections and select the new SNP(s) */
@@ -1370,15 +1419,18 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
    * sequences and there were no relevant selected sequences) */
   if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
     {
-      /* Loop through all polyA signals */
-      const MSP const *sigMsp = bc->mspList;
       BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
       const int direction = (qStrand == BLXSTRAND_REVERSE ? -1 : 1);
+
+      /* Loop through all polyA signals */
+      const GList const *sigItem = bc->featureLists[BLXMSP_POLYA_SIGNAL];
       
-      for ( ; sigMsp; sigMsp = sigMsp->next)
+      for ( ; sigItem; sigItem = sigItem->next)
         {
-          /* Only interested if it's a polyA signal with the correct strand and is within the display range. */
-          if (sigMsp->type == BLXMSP_POLYA_SIGNAL && sigMsp->qStrand == qStrand && rangesOverlap(&sigMsp->qRange, qRange))
+          const MSP const *sigMsp = (const MSP const*)(sigItem->data);
+          
+          /* Only interested the polyA signal has the correct strand and is within the display range. */
+          if (sigMsp->qStrand == qStrand && rangesOverlap(&sigMsp->qRange, qRange))
             {
               gboolean addSignal = FALSE;
               
@@ -1468,7 +1520,7 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
               
               if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
                 {
-                   if (mspHasPolyATail(msp, bc->mspList))
+                   if (mspHasPolyATail(msp, bc->featureLists[BLXMSP_POLYA_SITE]))
                      {
                        polyATailMsps = g_slist_append(polyATailMsps, msp);
                      }
@@ -1535,7 +1587,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   const int activeFrame = detailViewGetActiveFrame(detailView);
   const BlxStrand activeStrand = blxWindowGetActiveStrand(blxWindow);
-  const gboolean showSnpTrack = TRUE; /* always highlight SNP positions in the DNA header */
+  const gboolean highlightSnps = bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
 
   gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
   
@@ -1563,7 +1615,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       const int x = displayTextPos * properties->charWidth;
       const char base = displayText[displayTextPos];
 
-      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, displayIdxSelected, dnaIdxSelected, FALSE, showSnpTrack, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, basesToHighlight);
+      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, TRUE, displayIdxSelected, dnaIdxSelected, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, basesToHighlight);
       
       /* Increment indices */
       ++displayTextPos;
@@ -1659,23 +1711,23 @@ static void getVariationDisplayRange(const MSP *msp,
  * is part of a selected variation). */
 gboolean coordAffectedByVariation(const int dnaIdx,
                                   const BlxStrand strand, 
-                                  const MSP *mspList, 
                                   BlxViewContext *bc,
                                   const MSP **mspOut, /* the variation we found */
                                   gboolean *drawStartBoundary, 
                                   gboolean *drawEndBoundary, 
-                                  gboolean *drawTopBoundary, 
-                                  gboolean *drawBottomBoundary,
+                                  gboolean *drawJoiningLines, 
                                   gboolean *drawBackground)
 {
   gboolean result = FALSE;
   
-  /* Loop through the MSPs and check any that are SNPs */
-  const MSP *msp = mspList;
+  /* Loop through all variations */
+  const GList *mspItem = bc->featureLists[BLXMSP_VARIATION];
   
-  for ( ; msp; msp = msp->next)
+  for ( ; mspItem; mspItem = mspItem->next)
     {
-      if (mspIsVariation(msp) && mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+      const MSP const *msp = (const MSP const*)(mspItem->data);
+      
+      if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
 	{
           result = TRUE;
           
@@ -1696,12 +1748,10 @@ gboolean coordAffectedByVariation(const int dnaIdx,
           if (drawEndBoundary)
             *drawEndBoundary = (isZeroLen != bc->displayRev ? isFirst : isLast);
 
-          if (drawTopBoundary)
-            *drawTopBoundary = !isZeroLen;
+          /* Don't draw joining lines between the start and end boundaries if it's zero-length */
+          if (drawJoiningLines)
+            *drawJoiningLines = !isZeroLen;
             
-          if (drawBottomBoundary)
-            *drawBottomBoundary = !isZeroLen;
-
           /* Highlight the background if the variation is selected (unless it's a zero-length variation) */
           if (drawBackground)
             *drawBackground = !isZeroLen && blxContextIsSeqSelected(bc, msp->sSequence);
@@ -1821,10 +1871,11 @@ void drawHeaderChar(BlxViewContext *bc,
 		    const BlxStrand strand,
                     const int frame,
 		    const BlxSeqType seqType,
+                    const gboolean topToBottom,       /* true if we're displaying bases top-to-bottom instead of left-to-right */
 		    const gboolean displayIdxSelected,
 		    const gboolean dnaIdxSelected,
 		    const gboolean showBackground,    /* whether to use default background color or leave blank */
-		    const gboolean showSnps,	      /* whether to show SNPs */
+		    const gboolean highlightSnps,     /* whether to highlight variations */
 		    const gboolean showCodons,	      /* whether to highlight DNA bases within the selected codon, for protein matches */
                     const BlxColorId defaultBgColor,  /* the default background color for the header */
 		    GdkDrawable *drawable,
@@ -1837,7 +1888,7 @@ void drawHeaderChar(BlxViewContext *bc,
   GdkColor *outlineColor = NULL;
   
   /* If drawing an outline, these can be set to false to omit certain parts of the outline */
-  gboolean drawLeft = TRUE, drawRight = TRUE, drawTop = TRUE, drawBottom = TRUE;
+  gboolean drawStart = TRUE, drawEnd = TRUE, drawJoiningLines = TRUE;
 
   /* Shade the background if the base is selected XOR if the base is within the range of a 
    * selected sequence. (If both conditions are true we don't shade, to give the effect of an
@@ -1871,11 +1922,11 @@ void drawHeaderChar(BlxViewContext *bc,
         }
     }
 
-  if (showSnps)
+  if (highlightSnps)
     {
       gboolean drawBackground = TRUE;
     
-      if (coordAffectedByVariation(dnaIdx, strand, bc->mspList, bc, NULL, &drawLeft, &drawRight, &drawTop, &drawBottom, &drawBackground))
+      if (coordAffectedByVariation(dnaIdx, strand, bc, NULL, &drawStart, &drawEnd, &drawJoiningLines, &drawBackground))
         {
           /* The coord is affected by a SNP. Outline it in the "selected" SNP color
            * (which is darker than the normal color) */
@@ -1909,13 +1960,23 @@ void drawHeaderChar(BlxViewContext *bc,
 	}
     }
   
-  
-  drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight, drawLeft, drawRight, drawTop, drawBottom);
+  if (topToBottom)
+    {
+      /* We're drawing nucleotides from top-to-bottom instead of left-to-right, so the start border is
+       * the top border and the bottom border is the end border. */
+      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight,
+                    drawJoiningLines, drawJoiningLines, drawStart, drawEnd);
+    }
+  else
+    {
+      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight,
+                    drawStart, drawEnd, drawJoiningLines, drawJoiningLines);
+    }
 }
 
 
-/* Function that does the drawing for the SNP track */
-static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
+/* Function that does the drawing for the variations track */
+static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 {
   /* Create the drawable for the widget (whether we're actually going to do any drawing or not) */
   GdkDrawable *drawable = createBlankPixmap(snpTrack);
@@ -1923,7 +1984,7 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  if (!bc->flags[BLXFLAG_SHOW_SNP_TRACK])
+  if (!bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] || !bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
     {
       return;
     }
@@ -1943,13 +2004,15 @@ static void drawSnpTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
   
-  /* Loop through all the MSPs looking for SNPs in the current display range */
-  const MSP* msp = blxWindowGetMspList(blxWindow);
+  /* Loop through all variations and see if any are in the current display range */
+  const GList *mspItem = bc->featureLists[BLXMSP_VARIATION];
   const int y = 0;
   
-  for ( ; msp; msp = msp->next)
+  for ( ; mspItem; mspItem = mspItem->next)
     {
-      if (mspIsVariation(msp) && mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
+      const MSP const *msp = (const MSP const*)(mspItem->data);
+      
+      if (mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
 	{
 	  /* Get the range of display coords where this SNP will appear */
           IntRange mspDisplayRange, mspExpandedRange;
@@ -2796,8 +2859,8 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
 }
 
 
-/* Expose handler for the SNP track header */
-static gboolean onExposeSnpTrack(GtkWidget *snpTrack, GdkEventExpose *event, gpointer data)
+/* Expose handler for the variations-track header */
+static gboolean onExposeVariationsTrack(GtkWidget *snpTrack, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *window = GTK_LAYOUT(snpTrack)->bin_window;
   
@@ -2808,7 +2871,7 @@ static gboolean onExposeSnpTrack(GtkWidget *snpTrack, GdkEventExpose *event, gpo
         {
           /* There isn't a bitmap yet. Create it now. */
 	  GtkWidget *detailView = GTK_WIDGET(data);
-          drawSnpTrack(snpTrack, detailView);
+          drawVariationsTrack(snpTrack, detailView);
 	  
 	  bitmap = widgetGetDrawable(snpTrack);
         }
@@ -3025,12 +3088,16 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
-	    /* Double-click: toggle SNP track visibility */
+	    /* Double-click: toggle variations-track visibility */
 	    BlxViewContext *bc = detailViewGetContext(detailView);
-            gboolean showSnpTrack = !bc->flags[BLXFLAG_SHOW_SNP_TRACK];
+            const gboolean showTrack = !bc->flags[BLXFLAG_SHOW_VARIATION_TRACK];
             
-	    bc->flags[BLXFLAG_SHOW_SNP_TRACK] = showSnpTrack;
-            detailViewUpdateShowSnpTrack(detailView, showSnpTrack);
+            /* If we're enabling the variations track, also make sure that variations are highlighted in the header */
+            if (showTrack)
+              bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS] = TRUE;
+            
+	    bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = showTrack;
+            detailViewUpdateShowSnpTrack(detailView, showTrack);
 	  }
 
 	handled = TRUE;
@@ -3080,11 +3147,28 @@ static gboolean onButtonReleaseSeqColHeader(GtkWidget *header, GdkEventButton *e
 
 static gboolean onMouseMoveSeqColHeader(GtkWidget *header, GdkEventMotion *event, gpointer data)
 {
+  GtkWidget *detailView = GTK_WIDGET(data);
+
   if (event->state & GDK_BUTTON2_MASK)
     {
       /* Moving mouse with middle mouse button down. Update the currently-selected base */
-      GtkWidget *detailView = GTK_WIDGET(data);
       selectClickedNucleotide(header, detailView, event->x, event->y);
+    }
+  else
+    {
+      /* Get the nucelotide we're hovering over and feedback info about that nucelotide in the
+       * feedback area */
+      int baseIdx, frame, baseNum;
+      getSeqColHeaderClickedNucleotide(header, detailView, event->x, event->y, &baseIdx, &frame, &baseNum);
+      
+      if (baseIdx != UNSET_INT && frame != UNSET_INT && baseNum != UNSET_INT)
+        {
+          BlxViewContext *bc = detailViewGetContext(detailView);
+          const int dnaIdx = convertDisplayIdxToDnaIdx(baseIdx, bc->seqType, frame, baseNum, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+          const BlxStrand strand = blxWindowGetActiveStrand(detailViewGetBlxWindow(detailView));
+          
+          updateFeedbackAreaNucleotide(detailView, dnaIdx, strand);
+        }
     }
   
   return TRUE;
@@ -3702,7 +3786,7 @@ static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
 }
 
 
-/* Create the SNP track header widget. The strand can be passed as UNSET_INT,
+/* Create the variations track header widget. The strand can be passed as UNSET_INT,
  * in which case the active strand will be used. */
 GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int strand)
 {
@@ -3713,7 +3797,7 @@ GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int
   snpTrackSetStrand(snpTrack, strand);
 
   gtk_widget_add_events(snpTrack, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(snpTrack), "expose-event", G_CALLBACK(onExposeSnpTrack), detailView);
+  g_signal_connect(G_OBJECT(snpTrack), "expose-event", G_CALLBACK(onExposeVariationsTrack), detailView);
   g_signal_connect(G_OBJECT(snpTrack), "button-press-event", G_CALLBACK(onButtonPressSnpTrack), detailView);
   
   return snpTrack;

@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.55 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.56 2010-11-01 15:31:01 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -145,6 +145,31 @@ typedef enum
 
     BLXCOL_NUM_COLORS
   } BlxColorId;
+  
+  
+/* This enum contains a list of all the boolean options that the user can toggle on/off */
+typedef enum
+  {
+    BLXFLAG_MIN,		    /* Start index for looping through flags */
+  
+    BLXFLAG_SQUASH_MATCHES,	    /* Puts all MSPs from the same sequence on the same row in the detail view */
+    BLXFLAG_INVERT_SORT,	    /* Inverts the default sort order */
+    BLXFLAG_HIGHLIGHT_DIFFS,	    /* Hides matching bases and highlights mis-matching ones */
+    BLXFLAG_HIGHLIGHT_VARIATIONS,   /* Whether to highlight bases that have variations in the reference sequence */
+    BLXFLAG_SHOW_VARIATION_TRACK,   /* Shows the Variations track */
+    BLXFLAG_SHOW_UNALIGNED,	    /* Shows additional bits of the match sequence that are not part of the aligned section */
+    BLXFLAG_SHOW_UNALIGNED_SELECTED,/* Only show unaligned bits of sequence for the currently-selected sequence(s) */
+    BLXFLAG_LIMIT_UNALIGNED_BASES,  /* If the show-unaligned-sequence option is on, limits how many bases from the unaligned sequence are shown */
+    BLXFLAG_SHOW_POLYA_SITE,        /* Show polyA tails */
+    BLXFLAG_SHOW_POLYA_SITE_SELECTED,/* Only show polyA tails for the currently-selected sequence(s) */
+    BLXFLAG_SHOW_POLYA_SIG,         /* Show polyA signals in the reference sequence */
+    BLXFLAG_SHOW_POLYA_SIG_SELECTED,/* Only show polyA signals for the currently-selected sequence(s) */
+    BLXFLAG_SHOW_SPLICE_SITES,	    /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
+    BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
+    BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
+    
+    BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
+  } BlxFlag;
 
 
 /* Structure representing a group of sequences. This groups several BlxSequences together and 
@@ -284,6 +309,30 @@ int				   findMspListSExtent(GList *mspList, const gboolean findMin);
 int				   findMspListQExtent(GList *mspList, const gboolean findMin);
 void				   defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void                               popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
+void                               mspGetFullSRange(const MSP const *msp, 
+                                                    const gboolean seqSelected,
+                                                    const gboolean *flags,
+                                                    const int numUnalignedBases, 
+                                                    const GList const *polyASiteList,
+                                                    IntRange *sSeqRange);
+
+void                                mspGetFullQRange(const MSP const *msp, 
+                                                     const gboolean seqSelected,
+                                                     const gboolean *flags,
+                                                     const int numUnalignedBases, 
+                                                     const GList const *polyASiteList,
+                                                     const int numFrames, 
+                                                     IntRange *sSeqRange);
+
+int                                 gapCoord(const MSP *msp, 
+                                             const int qIdx, 
+                                             const int numFrames, 
+                                             const BlxStrand strand, 
+                                             const gboolean displayRev,
+                                             const gboolean seqSelected,
+                                             const int numUnalignedBases,
+                                             gboolean *flags,
+                                             const GList const *polyASiteList);
 
 
 /* dotter.c */
@@ -321,7 +370,7 @@ gboolean                           blxConfigGetPFetchWWWPrefs();
 
 
 /* Create/destroy sequences and MSPs */
-MSP*                               createNewMsp(MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const int phase,
+MSP*                               createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const int phase,
                                                 char *url, char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
                                                 char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
                                                 char *opts, GError **error);  
