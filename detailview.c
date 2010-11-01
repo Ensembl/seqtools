@@ -2634,8 +2634,9 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 
       /* Find a fixed-width font */
       const char *fontFamily = findFixedWidthFont(detailView);
-      PangoFontDescription *fontDesc = pango_font_description_copy(detailView->style->font_desc);
+      PangoFontDescription *fontDesc = pango_font_description_new();
       pango_font_description_set_family(fontDesc, fontFamily);
+      pango_font_description_set_size(fontDesc, pango_font_description_get_size(detailView->style->font_desc));
       
       properties->blxWindow = blxWindow;
       properties->renderer = renderer;

@@ -645,11 +645,22 @@ static GtkWidget* createVBoxWithBorder(GtkWidget *parent,
 }
 
 /* Utility to create an hbox with the given border and pack it into the given container */
-static GtkWidget* createHBoxWithBorder(GtkWidget *parent, const int borderWidth)
+static GtkWidget* createHBoxWithBorder(GtkWidget *parent, const int borderWidth, const gboolean includeFrame, const char *frameTitle)
 {
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
   gtk_container_set_border_width(GTK_CONTAINER(hbox), borderWidth);
-  gtk_container_add(GTK_CONTAINER(parent), hbox);
+  
+  if (includeFrame)
+    {
+      GtkWidget *frame = gtk_frame_new(frameTitle);
+      gtk_container_add(GTK_CONTAINER(parent), frame);
+      gtk_container_add(GTK_CONTAINER(frame), hbox);
+    }
+  else
+    {
+      gtk_container_add(GTK_CONTAINER(parent), hbox);
+    }
+  
   return hbox;
 }
 
@@ -2885,7 +2896,7 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
   gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
 
   /* Arrange the widgets horizontally */
-  GtkWidget *hbox = createHBoxWithBorder(frame, 12);
+  GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
   const DoubleRange const *percentIdRange = bigPictureGetPercentIdRange(bigPicture);
   
   createTextEntryFromDouble(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
@@ -3187,6 +3198,70 @@ void refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow)
 }
 
 
+/* Callback called when a font has been selected */
+static void onFontSelected(GtkWidget *button, gpointer data)
+{
+  GtkFontSelectionDialog *dialog = GTK_FONT_SELECTION_DIALOG(gtk_widget_get_toplevel(button));
+  
+  GtkFontSelection *fontSeln = GTK_FONT_SELECTION(gtk_buildable_get_internal_child(GTK_BUILDABLE(dialog), gtk_builder_new(), "font_selection"));
+  PangoFontFamily *family = gtk_font_selection_get_family(fontSeln);
+  gchar *fontName = gtk_font_selection_dialog_get_font_name(dialog);
+  
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  gboolean ok = pango_font_family_is_monospace(family);
+  
+  if (!ok)
+    {
+      char *msg = blxprintf("Selected font '%s' is not a fixed-width font. Matches will probably appear unaligned. Are you sure you want to continue?", fontName);
+      gint response = runConfirmationBox(GTK_WIDGET(dialog), "Warning", msg);
+      g_free(msg);
+
+      ok = (response == GTK_RESPONSE_ACCEPT);
+    }
+  
+  if (ok)
+    {
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+      DetailViewProperties *properties = detailViewGetProperties(detailView);
+      
+      pango_font_description_free(properties->fontDesc);
+      properties->fontDesc = pango_font_description_from_string(fontName);
+      
+      updateDetailViewFontDesc(detailView);
+
+      g_debug("Set font family to '%s'\n", fontName);
+      blxWindowRedrawAll(blxWindow);
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }  
+}
+
+
+/* Callback for when the font selection button is pressed. Opens the font selection dialog */
+static void onFontSelectionButtonPressed(GtkWidget *button, gpointer data)
+{
+  GtkWidget *dialog = gtk_font_selection_dialog_new("Select fixed-width font");
+  
+  GtkWidget *okButton = gtk_font_selection_dialog_get_ok_button(GTK_FONT_SELECTION_DIALOG(dialog));
+  g_signal_connect(G_OBJECT(okButton), "pressed", G_CALLBACK(onFontSelected), data);
+
+  gtk_dialog_run(GTK_DIALOG(dialog));
+}
+
+
+/* Create a button on the settings dialog to open a font-selection dialog */
+static void createFontSelectionButton(GtkBox *parent, GtkWidget *blxWindow)
+{
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(parent, hbox, FALSE, FALSE, 0);
+
+  gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new("Change fixed-width font:   "), FALSE, FALSE, 0);
+  
+  GtkWidget *button = gtk_button_new_from_stock(GTK_STOCK_SELECT_FONT);
+  g_signal_connect(G_OBJECT(button), "pressed", G_CALLBACK(onFontSelectionButtonPressed), blxWindow);
+  gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+}
+
+
 /* Show/refresh the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
@@ -3255,7 +3330,8 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   createCheckButton(GTK_BOX(vbox1), "Show SN_P track", bc->flags[BLXFLAG_SHOW_SNP_TRACK], G_CALLBACK(onShowSnpTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_SNP_TRACK));
   createCheckButton(GTK_BOX(vbox1), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
   
-  GtkWidget *pfetchBox = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Fetch mode");
+  GtkWidget *pfetchBox = createHBoxWithBorder(mainVBox, borderWidth, TRUE, "Settings");
+  createFontSelectionButton(GTK_BOX(pfetchBox), blxWindow);
   createPfetchDropDownBox(GTK_BOX(pfetchBox), blxWindow);
   
   createColumnSizeButtons(mainVBox, detailView);
