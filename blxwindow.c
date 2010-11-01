@@ -3198,41 +3198,59 @@ void refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow)
 }
 
 
-/* Callback called when a font has been selected */
-static void onFontSelected(GtkWidget *button, gpointer data)
+/* Callback called when the user has responded to the font selection dialog */
+static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
-  GtkFontSelectionDialog *dialog = GTK_FONT_SELECTION_DIALOG(gtk_widget_get_toplevel(button));
-  
-  GtkFontSelection *fontSeln = GTK_FONT_SELECTION(gtk_buildable_get_internal_child(GTK_BUILDABLE(dialog), gtk_builder_new(), "font_selection"));
-  PangoFontFamily *family = gtk_font_selection_get_family(fontSeln);
-  gchar *fontName = gtk_font_selection_dialog_get_font_name(dialog);
-  
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  gboolean ok = pango_font_family_is_monospace(family);
-  
-  if (!ok)
+  if (responseId == GTK_RESPONSE_ACCEPT || responseId == GTK_RESPONSE_OK || responseId == GTK_RESPONSE_APPLY)
     {
-      char *msg = blxprintf("Selected font '%s' is not a fixed-width font. Matches will probably appear unaligned. Are you sure you want to continue?", fontName);
-      gint response = runConfirmationBox(GTK_WIDGET(dialog), "Warning", msg);
-      g_free(msg);
+      GtkWidget *blxWindow = GTK_WIDGET(data);
 
-      ok = (response == GTK_RESPONSE_ACCEPT);
+      /* Check that the user selected a monospace font (unfortunately there's no easy way to get the
+       * font family in older GTK versions so don't bother checking) */
+      gboolean ok = TRUE;
+      
+#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (14)
+      GtkFontSelection *fontSeln = GTK_FONT_SELECTION(gtk_buildable_get_internal_child(GTK_BUILDABLE(dialog), gtk_builder_new(), "font_selection"));
+      PangoFontFamily *family = gtk_font_selection_get_family(fontSeln);
+      ok = pango_font_family_is_monospace(family);
+#endif
+      
+      /* Get the selected font name */
+      gchar *fontName = gtk_font_selection_dialog_get_font_name(GTK_FONT_SELECTION_DIALOG(dialog));
+
+      if (!ok)
+        {
+          char *msg = blxprintf("Selected font '%s' is not a fixed-width font. Matches may not appear correctly aligned. Are you sure you want to continue?", fontName);
+          gint response = runConfirmationBox(GTK_WIDGET(dialog), "Warning", msg);
+          g_free(msg);
+
+          ok = (response == GTK_RESPONSE_ACCEPT);
+        }
+      
+      if (ok)
+        {
+          GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+          DetailViewProperties *properties = detailViewGetProperties(detailView);
+          
+          pango_font_description_free(properties->fontDesc);
+          properties->fontDesc = pango_font_description_from_string(fontName);
+          
+          updateDetailViewFontDesc(detailView);
+
+          g_debug("Set font family to '%s'\n", fontName);
+          blxWindowRedrawAll(blxWindow);
+          
+          if (responseId != GTK_RESPONSE_APPLY)
+            {
+              gtk_widget_destroy(GTK_WIDGET(dialog));
+            }
+        }
     }
-  
-  if (ok)
+  else
     {
-      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-      DetailViewProperties *properties = detailViewGetProperties(detailView);
-      
-      pango_font_description_free(properties->fontDesc);
-      properties->fontDesc = pango_font_description_from_string(fontName);
-      
-      updateDetailViewFontDesc(detailView);
-
-      g_debug("Set font family to '%s'\n", fontName);
-      blxWindowRedrawAll(blxWindow);
+      /* Cancelled */
       gtk_widget_destroy(GTK_WIDGET(dialog));
-    }  
+    }
 }
 
 
@@ -3240,11 +3258,8 @@ static void onFontSelected(GtkWidget *button, gpointer data)
 static void onFontSelectionButtonPressed(GtkWidget *button, gpointer data)
 {
   GtkWidget *dialog = gtk_font_selection_dialog_new("Select fixed-width font");
-  
-  GtkWidget *okButton = gtk_font_selection_dialog_get_ok_button(GTK_FONT_SELECTION_DIALOG(dialog));
-  g_signal_connect(G_OBJECT(okButton), "pressed", G_CALLBACK(onFontSelected), data);
-
-  gtk_dialog_run(GTK_DIALOG(dialog));
+  g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(onResponseFontSelectionDialog), data);
+  gtk_widget_show_all(dialog);
 }
 
 

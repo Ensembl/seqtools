@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.42 2010-10-22 11:58:58 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.43 2010-11-01 10:55:16 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -1930,7 +1930,7 @@ void createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow)
   gtk_box_pack_start(box, hbox, FALSE, FALSE, 0);
   
   /* Label */
-  GtkWidget *label = gtk_label_new("Select the fetch mode:    ");
+  GtkWidget *label = gtk_label_new("   Select the fetch mode:    ");
   gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
   
   /* Create a tree store for the list, and create the combo box itself */
