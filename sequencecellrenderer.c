@@ -15,6 +15,7 @@
 #include <SeqTools/utilities.h>
 #include <gtk/gtkcellrenderertext.h>
 #include <stdlib.h>
+#include <math.h>
 
 
 #define SEQUENCE_CELL_RENDERER_NAME	"SequenceCellRenderer"
@@ -34,8 +35,8 @@ typedef struct _RenderData
     const gboolean seqSelected;
     const int cellXPadding;
     const int cellYPadding;
-    const int charWidth;
-    const int charHeight;
+    const gdouble charWidth;
+    const gdouble charHeight;
     const IntRange const *displayRange;
     const gboolean highlightDiffs;
     GdkDrawable *drawable;
@@ -154,23 +155,6 @@ static void paintLayout2(GtkStyle *style,
     gtk_paint_layout (style, drawable2, state_type, use_text, area, widget, detail, x, y, layout);
 }
 
-/* Custom version of gdk_draw_rectangle that draws the same thing to two GdkDrawables */
-void drawRectangle2(GdkDrawable *drawable1,
-		    GdkDrawable *drawable2,
-		    GdkGC *gc,
-		    gboolean filled,
-		    gint x,
-		    gint y,
-		    gint width,
-		    gint height)
-{
-  if (drawable1)
-    gdk_draw_rectangle(drawable1, gc, filled, x, y, width, height);
-  
-  if (drawable2)
-    gdk_draw_rectangle(drawable2, gc, filled, x, y, width, height);
-}
-
 /* Custom version of gdk_draw_line that draws the same thing to two GdkDrawables */
 void drawLine2(GdkDrawable *drawable1,
                GdkDrawable *drawable2,
@@ -181,11 +165,52 @@ void drawLine2(GdkDrawable *drawable1,
                gint y2)
 {
   if (drawable1)
-    gdk_draw_line(drawable1, gc, x1, y1, x2, y2);
+    {
+//      cairo_t *cr = gdk_cairo_create(drawable1);
+//      cairo_set_line_width(cr, 0.5);
+//      cairo_move_to(cr, x1 + 0.5, y1);
+//      cairo_line_to(cr, x2 + 0.5, y2);
+//      cairo_stroke(cr); 
+      gdk_draw_line(drawable1, gc, x1, y1, x2, y2);
+    }
   
   if (drawable2)
-    gdk_draw_line(drawable2, gc, x1, y1, x2, y2);
+    {
+//      cairo_t *cr = gdk_cairo_create(drawable2);
+//      cairo_set_line_width(cr, 0.5);
+//      cairo_move_to(cr, x1 + 0.5, y1);
+//      cairo_line_to(cr, x2 + 0.5, y2);
+//      cairo_stroke(cr); 
+      
+      gdk_draw_line(drawable2, gc, x1, y1, x2, y2);
+    }
 }
+
+/* Custom version of gdk_draw_rectangle that draws the same thing to two GdkDrawables */
+void drawRectangle2(GdkDrawable *drawable1,
+		    GdkDrawable *drawable2,
+		    GdkGC *gc,
+		    gboolean filled,
+		    gint x,
+		    gint y,
+		    gint width,
+		    gint height)
+{
+//  cairo_t *cr = gdk_cairo_create(drawable1);
+//  cairo_rectangle(cr, x, y, width, height);
+//  cairo_fill(cr);
+  
+  if (drawable1)
+    {
+      gdk_draw_rectangle(drawable1, gc, filled, x, y, width, height);
+    }
+  
+  if (drawable2)
+    {
+      gdk_draw_rectangle(drawable2, gc, filled, x, y, width, height);
+    }
+}
+
 
 
 /***************************************************************************
@@ -477,7 +502,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
       getCoordsForBaseIdx(segmentIdx, data->displayRange, data, &x, &y);
 
       gdk_gc_set_foreground(data->gc, highlightColor);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, roundNearest(data->charWidth), roundNearest(data->charHeight));
     }
 }
 
@@ -518,12 +543,12 @@ static void drawExon(SequenceCellRenderer *renderer,
 
       int x, y;
       getCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
-      const int width = segmentLen * data->charWidth;
+      const int width = ceil((gdouble)segmentLen * data->charWidth);
 
       /* Just draw one big rectangle the same color for the whole thing. Color depends if row selected. */
       GdkColor *color = getExonFillColor(msp, data->seqSelected, data);
       gdk_gc_set_foreground(data->gc, color);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, data->charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, roundNearest(data->charHeight));
       
       /* If a base is selected, highlight it. Its color depends on whether it the base is within the exon range or not. */
       if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
@@ -644,7 +669,7 @@ static void drawBase(MSP *msp,
   if (baseBgColor)
     {
       gdk_gc_set_foreground(data->gc, baseBgColor);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, ceil(data->charWidth), roundNearest(data->charHeight));
     }
   
   if (sBase != '\0')
@@ -683,7 +708,7 @@ static void getCoordsForBaseIdx(const int segmentIdx,
   int charIdx = startPos + segmentIdx;
 
   /* Calculate the coords */
-  *x = data->cell_area->x - data->cellXPadding + (charIdx * data->charWidth);
+  *x = data->cell_area->x - data->cellXPadding + (int)((gdouble)charIdx * data->charWidth);
   *y = data->cell_area->y - data->cellYPadding;
 }
 
@@ -714,7 +739,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 	  
-          drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
+          drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
       
       if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
@@ -731,7 +756,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
 
-          drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + rd->charHeight);
+          drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
     }
   
@@ -772,7 +797,7 @@ static void drawInsertionMarker(int sIdx,
       
       /* This is not very sophisticated - just uses a fudge factor to find a suitable width and
        * draws it half over the current base and half over the previous one. */
-      int gapWidth = roundNearest((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
+      int gapWidth = roundNearest(data->charWidth * GAP_WIDTH_AS_FRACTION);
 
       if (gapWidth < MIN_GAP_WIDTH)
 	{
@@ -781,7 +806,7 @@ static void drawInsertionMarker(int sIdx,
 
       /* No selections to worry about. Draw the whole thing in the normal color */
       gdk_gc_set_foreground(data->gc, data->insertionColor);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x - gapWidth/2, y, gapWidth, data->charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x - gapWidth/2, y, gapWidth, roundNearest(data->charHeight));
     }
 }
 
@@ -890,11 +915,11 @@ static void drawClippedMarker(const MSP const *msp,
 
   if (clipStart || clipEnd)
     {
-      int gapWidth = roundNearest((gdouble)(data->charWidth) * GAP_WIDTH_AS_FRACTION);
-      const int xPos = clipStart ? x : x + data->charWidth - gapWidth;
+      gdouble gapWidth = data->charWidth * GAP_WIDTH_AS_FRACTION;
+      const int xPos = clipStart ? x : roundNearest((gdouble)x + data->charWidth - gapWidth);
 
       gdk_gc_set_foreground(data->gc, data->clipMarkerColor);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, xPos, y, gapWidth, data->charHeight);
+      drawRectangle2(data->window, data->drawable, data->gc, TRUE, xPos, y, gapWidth, roundNearest(data->charHeight));
     }
 }
 

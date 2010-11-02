@@ -80,8 +80,8 @@ typedef struct _DetailViewProperties
     int numUnalignedBases;        /* If the display-unaligned-sequence option is on, this specifies how many additional bases to show at each end of the alignment */
 
     /* Cached font sizes, needed often for calculations. */
-    int charHeight;
-    int charWidth;
+    gdouble charHeight;
+    gdouble charWidth;
         
     int exonBoundaryLineWidth;		     /* line width for exon boundaries */
     GdkLineStyle exonBoundaryLineStyleStart; /* line style for exon boundaries (marking the start of an exon) */
@@ -107,8 +107,8 @@ int			detailViewGetCellYPadding(GtkWidget *detailView);
 BlxSeqType		detailViewGetSeqType(GtkWidget *detailView);
 IntRange*		detailViewGetRefSeqRange(GtkWidget *detailView);
 GtkWidget*	        detailViewGetBlxWindow(GtkWidget *detailView);
-int			detailViewGetCharWidth(GtkWidget *detailView);
-int			detailViewGetCharHeight(GtkWidget *detailView);
+gdouble			detailViewGetCharWidth(GtkWidget *detailView);
+gdouble			detailViewGetCharHeight(GtkWidget *detailView);
 int                     detailViewGetNumUnalignedBases(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
 DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId);
@@ -121,7 +121,7 @@ DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 int			detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
 void                    detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange);
 
-int			getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange);
+int			getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange);
 
 void			prevMatch(GtkWidget *detailView, GList *seqList);
 void			nextMatch(GtkWidget *detailView, GList *seqList);

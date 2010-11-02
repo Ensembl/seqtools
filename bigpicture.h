@@ -40,8 +40,8 @@ typedef struct _BigPictureProperties
     int previewBoxCentre;	/* The base that the preview box is centered on (or UNSET_INT if no preview box) */
     
     int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
-    int charWidth;		/* The width of the characters in the big picture grids */
-    int charHeight;		/* The height of the characters in the big picture grids */
+    gdouble charWidth;		/* The width of the characters in the big picture grids */
+    gdouble charHeight;		/* The height of the characters in the big picture grids */
     
     int highlightBoxMinWidth;
     int previewBoxLineWidth;

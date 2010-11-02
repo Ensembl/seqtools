@@ -72,7 +72,7 @@ static gint gridGetCellHeight(GtkWidget *grid)
   /* Base the cell height on the font height */
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-  return bigPictureProperties->charHeight + (2 * properties->cellYPadding);
+  return roundNearest(bigPictureProperties->charHeight + (gdouble)(2 * properties->cellYPadding));
 }
 
 
@@ -442,7 +442,7 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
       properties->highlightRect.y = 0;
 
       properties->highlightRect.width = abs(x1 - x2);
-      properties->highlightRect.height = properties->gridRect.height + (bigPictureProperties->charHeight / 2) + properties->mspLineHeight + (2 * bigPictureProperties->highlightBoxYPad);
+      properties->highlightRect.height = properties->gridRect.height + roundNearest(bigPictureProperties->charHeight / 2.0) + properties->mspLineHeight + (2 * bigPictureProperties->highlightBoxYPad);
     }
 }
 
@@ -463,7 +463,7 @@ void calculateGridBorders(GtkWidget *grid)
   properties->displayRect.width = grid->allocation.width;
   
   /* Get the boundaries of the grid */
-  properties->gridRect.x = bigPictureProperties->charWidth * bigPictureProperties->leftBorderChars;
+  properties->gridRect.x = roundNearest(bigPictureProperties->charWidth * (gdouble)bigPictureProperties->leftBorderChars);
   properties->gridRect.y = bigPictureProperties->highlightBoxYPad + properties->gridYPadding;
   properties->gridRect.width = properties->displayRect.width - properties->gridRect.x;
   properties->gridRect.height = gridGetCellHeight(grid) * numVCells;

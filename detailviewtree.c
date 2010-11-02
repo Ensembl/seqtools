@@ -147,7 +147,7 @@ int treeGetCellYPadding(GtkWidget *tree)
   return detailViewGetCellYPadding(detailView);
 }
 
-static int treeGetCharWidth(GtkWidget *tree)
+static gdouble treeGetCharWidth(GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   return detailViewGetCharWidth(detailView);
@@ -941,7 +941,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GdkGC *gc = gdk_gc_new(drawable);
 
   /* Offset the x coord where we'll start drawing if we did not start at the beginning of the display range. */
-  int xStart = offset * properties->charWidth;
+  gdouble xStart = (gdouble)offset * properties->charWidth;
   const int yStart = 0;
   
   /* Find out if there are any special bases that need highlighting. */
@@ -958,7 +958,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx - offset);
       const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
       
-      const int x = xStart + (displayIdx - properties->displayRange.min) * properties->charWidth;
+      const int x = (int)((gdouble)xStart + (gdouble)(displayIdx - properties->displayRange.min) * properties->charWidth);
 
       drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, FALSE, displayIdxSelected, displayIdxSelected, TRUE, highlightSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, yStart, basesToHighlight);
       
@@ -1498,8 +1498,8 @@ static int treeHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *tree, const int
   if (x >= 0 && x <= header->allocation.width)
     {
       /* Get the 0-based char index at x */
-      gint charWidth = detailViewGetCharWidth(detailView);
-      int charIdx = (int)((double)x / (double)charWidth);
+      gdouble charWidth = detailViewGetCharWidth(detailView);
+      int charIdx = (int)((gdouble)x / charWidth);
       
       /* Add the start of the scroll range to convert this to the display index */
       baseIdx = charIdx + adjustment->value;
@@ -1665,8 +1665,8 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
       MSP *msp = (MSP*)(mspGList->data);
 
       const int colWidth = gtk_tree_view_column_get_width(column);
-      const int charWidth = treeGetCharWidth(tree);
-      const int maxLen = (int)(colWidth / charWidth);
+      const gdouble charWidth = treeGetCharWidth(tree);
+      const int maxLen = (int)((gdouble)colWidth / charWidth);
 
       if (maxLen > 2)
 	{
@@ -2077,7 +2077,7 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 
       /* Abbreviate the name */
       const char *refSeqName = blxWindowGetRefSeqName(treeGetBlxWindow(tree));
-      const int maxLen = (colWidth / treeGetCharWidth(tree));
+      const int maxLen = (int)((gdouble)colWidth / treeGetCharWidth(tree));
       
       char stringToAppend[] = "(+0)";
       stringToAppend[1] = (treeGetStrand(tree) == BLXSTRAND_FORWARD ? '+' : '-');

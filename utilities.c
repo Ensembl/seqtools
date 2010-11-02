@@ -2407,19 +2407,20 @@ const char* findFixedWidthFont(GtkWidget *widget)
 
 
 /* Utility to get the character width and height of a given pango font */
-void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gint *width, gint *height)
+void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height)
 {
   PangoContext *context = gtk_widget_get_pango_context(widget);
   PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
   
   if (height)
     {
-      *height = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
+      *height = (gdouble)(pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / (gdouble)PANGO_SCALE;
     }
   
   if (width)
     {
-      *width = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
+      *width = (gdouble)pango_font_metrics_get_approximate_digit_width(metrics) / (gdouble)PANGO_SCALE;
+      printf("font width = %d (%f points, scale=%d)\n", pango_font_metrics_get_approximate_digit_width(metrics), *width, PANGO_SCALE);
     }
   
   pango_font_metrics_unref(metrics);

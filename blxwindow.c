@@ -2261,8 +2261,8 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 
       /* Specify a min height */
       const int numLines = 4;
-      const int charHeight = detailViewGetCharHeight(blxWindowGetDetailView(blxWindow));
-      gtk_widget_set_size_request(entry, -1, charHeight * numLines);
+      const gdouble charHeight = detailViewGetCharHeight(blxWindowGetDetailView(blxWindow));
+      gtk_widget_set_size_request(entry, -1, roundNearest(charHeight * numLines));
 
       GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);

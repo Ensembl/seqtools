@@ -76,7 +76,7 @@ static void		      snpTrackSetStrand(GtkWidget *snpTrack, const int strand);
 static int		      snpTrackGetStrand(GtkWidget *snpTrack);
 static void		      getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange const *refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 
-static void		      detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight);
+static void		      detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight);
 static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		      widgetIsTree(GtkWidget *widget);
 static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
@@ -209,8 +209,8 @@ static int calcNumBasesInSequenceColumn(GtkWidget *detailView)
   colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
   
   /* Return the number of whole characters that fit in the column. */
-  gint charWidth = detailViewGetCharWidth(detailView);
-  int numChars = (int)((double)colWidth / (double)charWidth);
+  gdouble charWidth = detailViewGetCharWidth(detailView);
+  int numChars = (int)((gdouble)colWidth / charWidth);
   
   return numChars;
 }
@@ -518,7 +518,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       GtkWidget *detailView = GTK_WIDGET(data);
       gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
 
-      const int charHeight = detailViewGetCharHeight(detailView);
+      const gdouble charHeight = detailViewGetCharHeight(detailView);
       
       if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME))
 	{
@@ -534,7 +534,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
 	  else
 	    {
 	      /* Set the height to the character height plus the connector line height */
-	      const int height = charHeight + detailViewGetSnpConnectorHeight(detailView);
+	      const int height = roundNearest(charHeight + (gdouble)detailViewGetSnpConnectorHeight(detailView));
 	      gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, height);
 	      gtk_widget_set_size_request(header, -1, height);
 	    }
@@ -542,8 +542,8 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       else if (GTK_IS_LAYOUT(header))
 	{
 	  /* Normal text header. Set the height to the character height */
-	  gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, charHeight);
-	  gtk_widget_set_size_request(header, -1, charHeight);
+	  gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, roundNearest(charHeight));
+	  gtk_widget_set_size_request(header, -1, roundNearest(charHeight));
 	}
 
       gtk_widget_queue_draw(header);
@@ -927,7 +927,7 @@ void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
 }
 
 
-int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const IntRange const *displayRange)
+int getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange)
 {
   int result = UNSET_INT;
   
@@ -935,7 +935,7 @@ int getBaseIndexAtColCoords(const int x, const int y, const int charWidth, const
   
   if (x > leftEdge)
     {
-      result = (int)(((double)x - leftEdge) / (double)charWidth);
+      result = (int)(((gdouble)x - leftEdge) / charWidth);
     }
   
   result += displayRange->min;
@@ -1592,7 +1592,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   const BlxStrand activeStrand = blxWindowGetActiveStrand(blxWindow);
   const gboolean highlightSnps = bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
 
-  gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, properties->charHeight);
+  gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, roundNearest(properties->charHeight));
   
   /* Find out if there are any bases in the introns that need highlighting. */
   GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, BLXSEQ_DNA, activeStrand);
@@ -1615,7 +1615,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       /* Color the base depending on whether it is selected or affected by a SNP */
       const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
       const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
-      const int x = displayTextPos * properties->charWidth;
+      const int x = (int)((gdouble)displayTextPos * properties->charWidth);
       const char base = displayText[displayTextPos];
 
       drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, TRUE, displayIdxSelected, dnaIdxSelected, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, basesToHighlight);
@@ -1967,12 +1967,12 @@ void drawHeaderChar(BlxViewContext *bc,
     {
       /* We're drawing nucleotides from top-to-bottom instead of left-to-right, so the start border is
        * the top border and the bottom border is the end border. */
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight,
+      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
                     drawJoiningLines, drawJoiningLines, drawStart, drawEnd);
     }
   else
     {
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, properties->charWidth, properties->charHeight,
+      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
                     drawStart, drawEnd, drawJoiningLines, drawJoiningLines);
     }
 }
@@ -2024,8 +2024,8 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	  /* See if the variation is in the current display range */
 	  if (rangesOverlap(&mspExpandedRange, &properties->displayRange))
 	    {
-	      int x = leftMargin + ((mspExpandedRange.min - properties->displayRange.min) * properties->charWidth);
-	      const int width = strlen(mspGetMatchSeq(msp)) * properties->charWidth;
+	      int x = leftMargin + (int)(((gdouble)(mspExpandedRange.min - properties->displayRange.min) * properties->charWidth));
+	      const int width = ceil((gdouble)strlen(mspGetMatchSeq(msp)) * properties->charWidth);
 	      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
 	      
 	      /* Draw the outline in the default SNP color. If the SNP is selected, also
@@ -2035,7 +2035,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      GdkColor *fillColor = isSelected ? getGdkColor(BLXCOLOR_SNP, bc->defaultColors, FALSE, bc->usePrintColors) : NULL;
 	      
 	      /* Draw the background rectangle for the char */
-	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, properties->charHeight, TRUE, TRUE, TRUE, TRUE);
+	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, ceil(properties->charHeight), TRUE, TRUE, TRUE, TRUE);
 	      
 	      /* Draw the text */
 	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, mspGetMatchSeq(msp));
@@ -2115,8 +2115,8 @@ static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, co
   if (x >= xRange.min && x <= xRange.max)
     {
       /* Get the 0-based char index at x */
-      gint charWidth = detailViewGetCharWidth(detailView);
-      int charIdx = (int)(((double)x - xRange.min) / (double)charWidth);
+      gdouble charWidth = detailViewGetCharWidth(detailView);
+      int charIdx = (int)(((gdouble)x - xRange.min) / charWidth);
 
       /* Add the start of the scroll range to convert this to the display index */
       GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
@@ -2241,7 +2241,7 @@ static void onZoomOutDetailView(GtkButton *button, gpointer data)
 static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc)
 {
   /* Calculate the row height from the font size */
-  gint charWidth = UNSET_INT, charHeight = UNSET_INT;
+  gdouble charWidth, charHeight;
   getFontCharSize(detailView, fontDesc, &charWidth, &charHeight);
   
   /* Cache these results, because we use them often for calculations */
@@ -2250,7 +2250,7 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
   /* Set the row height. Subtract the padding between the cell's actual area and
    * its background area. We will render at the background area's height, so that
    * we draw over the "gaps" between the cells, giving the impression of no gaps. */
-  gint rowHeight = charHeight - (detailViewGetCellYPadding(detailView) * 2);
+  gint rowHeight = roundNearest(charHeight) - (detailViewGetCellYPadding(detailView) * 2);
 
   GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
   gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
@@ -2348,19 +2348,19 @@ int detailViewGetCellYPadding(GtkWidget *detailView)
 }
 
 /* Get the character width. */
-int detailViewGetCharWidth(GtkWidget *detailView)
+gdouble detailViewGetCharWidth(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->charWidth : 0;
+  return properties ? properties->charWidth : 0.0;
 }
 
-int detailViewGetCharHeight(GtkWidget *detailView)
+gdouble detailViewGetCharHeight(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->charHeight : 0;
+  return properties ? properties->charHeight : 0.0;
 }
 
-static void detailViewCacheFontSize(GtkWidget *detailView, int charWidth, int charHeight)
+static void detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   properties->charWidth = charWidth;
@@ -2717,8 +2717,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->selectedFrame = UNSET_INT;
       properties->selectedDnaBaseIdx = UNSET_INT;
       properties->fontDesc = fontDesc;
-      properties->charWidth = 0;
-      properties->charHeight = 0;
+      properties->charWidth = 0.0;
+      properties->charHeight = 0.0;
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
       
