@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.46 2010-11-02 16:42:11 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.47 2010-11-02 17:27:19 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -68,7 +68,7 @@ typedef enum {
 static char *	    nextLine(FILE *file, GString *line_string);
 
 
-static gboolean	    parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState *parserState);
+static gboolean	    parseHeaderLine(char *line, char *opts, MSP *msp, IntRange *seq1Range, BlxParserState *parserState);
 
 static void	    parseBody(char *line, const int lineNum, char *opts, MSP **msp, GString *line_string, char **seq1, 
                               char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
@@ -208,7 +208,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList
 	}
 
       /* Check for header info first */
-      if (parseHeaderLine(line, opts, msp, &parserState))
+      if (parseHeaderLine(line, opts, msp, seq1Range, &parserState))
 	{
 	  continue; 
 	}
@@ -244,12 +244,12 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList
       int len = strlen(*seq1);
       if (getRangeLength(seq1Range) > len)
         {
-          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len);
-          seq1Range->max = seq1Range->min + len;
+          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len - 1);
+          seq1Range->max = seq1Range->min + len - 1;
         }
       else if (getRangeLength(seq1Range) < len)
         {
-          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
+          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
         }
     }
 
@@ -1150,7 +1150,7 @@ static char* parseSequence(char **text, MSP *msp, const char *opts)
 
 /* Utility called by parseFS to parse the header info of a line from a file. Returns true if the
  * line was completely processed, false if further processing on the same line is still required */
-static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState *parserState)
+static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, IntRange *seq1Range, BlxParserState *parserState)
 {
   DEBUG_ENTER("parseHeaderLine(parserState=%d)", *parserState);
   
@@ -1285,6 +1285,23 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, BlxParserState
 	  if (msp)
 	    getDesc(msp, line, mspGetSName(msp));
 	}
+      else if (!strncasecmp(line, "# sequence-region", 17) &&
+               (*parserState == EXBLX_BODY || *parserState == EXBLX_X_BODY || *parserState == SEQBL_BODY || *parserState == SEQBL_X_BODY))
+        {
+          /* read in the reference sequence name and range */
+          char qName[MAXLINE + 1];
+          int qStart = UNSET_INT;
+          int qEnd = UNSET_INT;
+          
+          if (sscanf(line, "# sequence-region%s%d%d", qName, &qStart, &qEnd) < 3)
+            {
+              g_warning("Error parsing sequence-region line in input file. Sequence range was not set. \"%s\"\n", line);
+            }
+          else
+            {
+              intrangeSetValues(seq1Range, qStart, qEnd);
+            }
+        }
 	
       processed = TRUE;
     }

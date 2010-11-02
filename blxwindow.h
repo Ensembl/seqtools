@@ -19,7 +19,8 @@ typedef struct _CommandLineOptions
 {
   char *refSeq;			  /* the section of reference sequence we're viewing */
   const char const *refSeqName;	  /* the name of the reference sequence */
-  const int refSeqOffset;	  /* how much to offset the first ref seq coord by */
+  IntRange *refSeqRange;          /* the range of the reference sequence (before any offset is applied) */
+  const int refSeqOffset;	  /* if non-zero, all parsed coords will be offset by this amount */
   const int startCoord;		  /* which coord to start the initial display range at */
   MSP *mspList;			  /* the list of alignments */
   char **geneticCode;		  /* the genetic code */

@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.26 2010-11-02 16:20:08 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.27 2010-11-02 17:27:19 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -561,7 +561,7 @@ int main(int argc, char **argv)
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  if (blxview(refSeq, refSeqName, displayStart, qOffset, featureLists, mspList, seqList, supportedTypes, opts, pfetch, align_types, TRUE))
+  if (blxview(refSeq, refSeqName, &refSeqRange, displayStart, qOffset, featureLists, mspList, seqList, supportedTypes, opts, pfetch, align_types, TRUE))
     {
       gtk_main();
     }

@@ -27,7 +27,7 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.41 2010-11-01 15:31:01 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.42 2010-11-02 17:27:19 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
@@ -67,6 +67,7 @@ typedef struct
 /* Function to show blixem window, can be called from any application. */
 gboolean                            blxview(char *refSeq, 
                                             char *refSeqName,
+                                            IntRange *refSeqRange,
 	                                    int start, 
                                             int qOffset, 
                                             GList* featureLists[],

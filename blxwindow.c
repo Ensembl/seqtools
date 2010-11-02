@@ -5181,12 +5181,12 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                            int port,
                            const gboolean External)
 {
-  /* Get the range of the reference sequence. If this is a DNA sequence but our
-   * matches are peptide sequences, we must convert to the peptide sequence. */
-  const int refSeqLen = (int)strlen(options->refSeq);
-  IntRange refSeqRange = {options->refSeqOffset + 1, options->refSeqOffset + refSeqLen};
-  IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
+  /* Offset the reference sequence range, if an offset was specified. */ 
+  IntRange refSeqRange = {options->refSeqRange->min + options->refSeqOffset, 
+                          options->refSeqRange->max + options->refSeqOffset};
   
+  /* Get the ref seq range in display coords (DNA or peptide coords, depending on what we're displaying). */
+  IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
       fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
@@ -5196,8 +5196,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   printf("Reference sequence [%d - %d], display range [%d - %d]\n", 
 	 refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
   
-  /* Convert the start coord (which is 1-based and on the DNA sequence) to display
-   * coords (which take into account the offset and may also be peptide coords) */
+  /* Offset the start coord, if applicable, and convert it to display coords */
   int startCoord = options->startCoord + options->refSeqOffset;
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
