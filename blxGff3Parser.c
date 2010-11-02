@@ -182,7 +182,8 @@ void parseGff3Header(const int lineNum,
 		     char *opts, 
 		     GString *line_string, 
 		     GList **seqList,
-                     char *refSeqName)
+                     char *refSeqName,
+                     IntRange *refSeqRange)
 {
   DEBUG_ENTER("parseGff3Header [line=%d]", lineNum);
   
@@ -194,7 +195,7 @@ void parseGff3Header(const int lineNum,
 
   if (!strncasecmp(line_string->str, "##sequence-region", 17))
     {
-      if (sscanf(line_string->str, "##sequence-region%s%d%d", qName, &qStart, &qEnd) < 1)
+      if (sscanf(line_string->str, "##sequence-region%s%d%d", qName, &qStart, &qEnd) < 3)
         {
           g_error("Error parsing data file, type GFF_3_HEADER: \"%s\"\n", line_string->str);
         }
@@ -214,8 +215,7 @@ void parseGff3Header(const int lineNum,
           strcpy(refSeqName, qName);
         }
       
-      /* to do: do something with qstart and qend? We will find the ref seq coords from the
-       * offset and the ref seq length, so we should check that these are consistent with those... */
+      intrangeSetValues(refSeqRange, qStart, qEnd);
     }
   
   DEBUG_EXIT("parseGff3Header");

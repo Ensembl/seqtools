@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.25 2010-11-01 15:31:01 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.26 2010-11-02 16:20:08 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -520,10 +520,11 @@ int main(int argc, char **argv)
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
     featureLists[typeId] = NULL;
   
+  IntRange refSeqRange = {UNSET_INT, UNSET_INT}; /* parser populates this with ref seq range, if supplied */
   GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
   GSList* supportedTypes = blxCreateSupportedGffTypeList();
 
-  parseFS(&mspList, FSfile, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+  parseFS(&mspList, FSfile, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &refSeqRange, &dummyseq, dummyseqname) ;
   
   if (FSfile != stdin)
     {
@@ -538,7 +539,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&mspList, xtra_file, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &dummyseq, dummyseqname, qOffset) ;
+      parseFS(&mspList, xtra_file, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &refSeqRange, &dummyseq, dummyseqname) ;
       fclose(xtra_file) ;
     }
 

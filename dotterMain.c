@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.19 2010-11-01 15:31:01 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.20 2010-11-02 16:20:08 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -537,8 +537,9 @@ int main(int argc, char **argv)
           }
 	
         GSList *supportedTypes = blxCreateSupportedGffTypeList();
+        IntRange qRange = {UNSET_INT, UNSET_INT};
 
-	parseFS(&MSPlist, file, dummyopts, featureLists, &seqList, supportedTypes, NULL, &qseq, options.qname, &sseq, options.sname, options.qoffset);
+	parseFS(&MSPlist, file, dummyopts, featureLists, &seqList, supportedTypes, NULL, &qseq, options.qname, &qRange, &sseq, options.sname);
         
         blxDestroyGffTypeList(&supportedTypes);
       }

@@ -2024,7 +2024,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	  /* See if the variation is in the current display range */
 	  if (rangesOverlap(&mspExpandedRange, &properties->displayRange))
 	    {
-	      int x = leftMargin + (int)(((gdouble)(mspExpandedRange.min - properties->displayRange.min) * properties->charWidth));
+	      int x = leftMargin + (int)((gdouble)(mspExpandedRange.min - properties->displayRange.min) * properties->charWidth);
 	      const int width = ceil((gdouble)strlen(mspGetMatchSeq(msp)) * properties->charWidth);
 	      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
 	      

@@ -56,7 +56,8 @@ void parseGff3Header(const int lineNum,
 		     char *opts, 
 		     GString *line_string, 
 		     GList **seqList,
-                     char *refSeqName);
+                     char *refSeqName,
+                     IntRange *refSeqRange);
 
 void parseGff3Body(const int lineNum,
                    GList* featureLists[],

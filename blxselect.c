@@ -1,6 +1,6 @@
 /*  Last edited: Feb 14 10:47 2008 (edgrif) */
 
-/* $Id: blxselect.c,v 1.11 2010-11-01 15:31:01 gb10 Exp $ */
+/* $Id: blxselect.c,v 1.12 2010-11-02 16:20:08 gb10 Exp $ */
 
 /* BLXSELECT - select seqbl/exblx files for blixem in a user-friendly way
  *
@@ -161,7 +161,9 @@ static void callBlixem(box)
     for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
       featureLists[typeId] = NULL;
 
-    parseFS(&MSPlist, HSPfile, opts, &seqList, supportedTypes, NULL, &qseq, qname, &dummyseq, dummyseqname, qOffset);
+    IntRange qRange = {UNSET_INT, UNSET_INT}; /* parser populates this with ref seq range, if supplied */
+    
+    parseFS(&MSPlist, HSPfile, opts, &seqList, supportedTypes, NULL, &qseq, qname, &qRange, &dummyseq, dummyseqname);
     
     fclose(HSPfile);
 
