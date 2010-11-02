@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.45 2010-11-02 16:26:55 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.46 2010-11-02 16:42:11 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -232,11 +232,25 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList
   /* Sort feature segment array by number */
   g_array_sort(fsArr, fsSortByOrderCompareFunc);
   
-  /* If the seq1 range was not parsed from the file, set the default range to be 1 -> strlen */
-  if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1);
+  if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1)
     {
+      /* The seq1 range was not parsed from the file; set the default range to be 1 -> strlen */
       seq1Range->min = 1;
       seq1Range->max = strlen(*seq1);
+    }
+  else if (*seq1)
+    {
+      /* Check that the range is the same length as the sequence */
+      int len = strlen(*seq1);
+      if (getRangeLength(seq1Range) > len)
+        {
+          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len);
+          seq1Range->max = seq1Range->min + len;
+        }
+      else if (getRangeLength(seq1Range) < len)
+        {
+          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
+        }
     }
 
   DEBUG_EXIT("parseFS");
