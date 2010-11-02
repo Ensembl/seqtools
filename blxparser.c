@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.44 2010-11-02 16:20:08 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.45 2010-11-02 16:26:55 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -231,6 +231,13 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList
 
   /* Sort feature segment array by number */
   g_array_sort(fsArr, fsSortByOrderCompareFunc);
+  
+  /* If the seq1 range was not parsed from the file, set the default range to be 1 -> strlen */
+  if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1);
+    {
+      seq1Range->min = 1;
+      seq1Range->max = strlen(*seq1);
+    }
 
   DEBUG_EXIT("parseFS");
   return ;
