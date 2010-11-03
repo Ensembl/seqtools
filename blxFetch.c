@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.45 2010-11-03 15:23:56 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.46 2010-11-03 16:04:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -50,6 +50,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxwindow.h>
