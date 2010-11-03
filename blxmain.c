@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.27 2010-11-02 17:27:19 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.28 2010-11-03 15:23:56 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -35,9 +35,10 @@
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxparser.h>
 #include <SeqTools/blxGff3Parser.h>
-#include <wh/graph.h>
-#include <wh/gex.h>
-
+#include <string.h>
+#include <stdlib.h>
+#include <getopt.h>
+#include <unistd.h>
 
 
 /* Some globals.... */
@@ -297,16 +298,16 @@ int main(int argc, char **argv)
       switch (optc)
 	{
 	case 'a':
-	  align_types = hprintf(0, "%s", optarg) ;
+	  align_types = blxprintf("%s", optarg) ;
 	  break;
 	case 'b':
 	  opts[2] = 'b';
 	  break;
 	case 'c': 
-	  config_file = strnew(optarg, 0) ;
+	  config_file = g_strdup(optarg) ;
 	  break;
 	case 'k': 
-	  key_file = strnew(optarg, 0) ;
+	  key_file = g_strdup(optarg) ;
           break;
 	case 'F': 
 	  strcpy(FSfilename, optarg);
@@ -340,11 +341,7 @@ int main(int argc, char **argv)
 	  }
 	  break;
 	case 'O':
-	  /* Note that I don't do any checking of the value, this is in line */
-	  /* with the way blxview() accepts any value of offset, I just check*/
-	  /* its actually an integer.                                        */
-	  if (!(utStr2Int(optarg, &qOffset)))
-	    g_error("Bad offset argument: \"-%c %s\"\n", optc, optarg) ;
+          qOffset = convertStringToInt(optarg);
 	  break;
 	case 'p':
 	  opts[BLXOPT_MODE] = 'P';
@@ -397,10 +394,6 @@ int main(int argc, char **argv)
     argvAdd(&argc, &argv, "-install");
 
   gtk_init(&argc, &argv);
-
-  /* Old style graph init is still required for calling dotter from blixem */
-  graphInit(&argc, argv) ;
-  gexInit(&argc, argv);
 
   /* Set up program configuration. */
   if (!blxInitConfig(config_file, &error))
@@ -548,14 +541,25 @@ int main(int argc, char **argv)
   if (rm_input_files)
     {
       if(seqfilename[0] != '\0' && unlink(seqfilename) != 0)
-	g_warning("Unlink of sequence input file \"%s\" failed: %s\n",
-		  seqfilename, messSysErrorText()) ;
+        {
+          char *msg = getSystemErrorText();
+          g_warning("Unlink of sequence input file \"%s\" failed: %s\n", seqfilename, msg) ;
+          g_free(msg);
+        }
+        
       if(FSfilename[0] != '\0' && unlink(FSfilename) != 0)
-	g_warning("Unlink of MSP input file \"%s\" failed: %s\n",
-		  FSfilename, messSysErrorText()) ;
+        {
+          char *msg = getSystemErrorText();
+          g_warning("Unlink of MSP input file \"%s\" failed: %s\n", FSfilename, msg) ;
+          g_free(msg);
+        }
+        
       if (xtra_filename[0] != '\0' && unlink(xtra_filename) != 0)
-	g_warning("Unlink of extra MSP sequence input file \"%s\" failed: %s\n",
-		  xtra_filename, messSysErrorText()) ;
+        {
+          char *msg = getSystemErrorText();
+          g_warning("Unlink of extra MSP sequence input file \"%s\" failed: %s\n", xtra_filename, msg) ;
+          g_free(msg);
+        }
     }
 
   /* Now display the alignments, this call does not return. (Note that

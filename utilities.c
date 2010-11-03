@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
+#include <errno.h>
 
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
@@ -413,6 +414,23 @@ void argvAdd(int *argc, char ***argv, char *s)
     *argv = v;
 }
 
+
+char* getSystemErrorText()
+{
+  char *result = NULL;
+
+#ifdef SUN
+  /* horrible hack for Sunos/Macs(?) which are not standard C compliant */
+  result = blxprintf(SYSERR_FORMAT, errno, sys_errlist[errno]) ;
+#elif defined(MACINTOSH)
+  result = blxprintf(SYSERR_FORMAT, errno) ;
+#else
+  result = blxprintf(SYSERR_FORMAT, errno, strerror(errno)) ;
+#endif
+
+  return result;
+}
+  
 /***********************************************************
  *		         Colors				   * 
  ***********************************************************/
@@ -2507,6 +2525,47 @@ void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble 
   pango_font_metrics_unref(metrics);
 }
 
+
+/***********************************************************
+ *                      Memory
+***********************************************************/
+
+/* Create a handle. A handle is just a GSList so should be initialised to NULL */
+BlxHandle handleCreate()
+{
+  return NULL;
+}
+
+/* Utility to allocate memory of the given size with g_malloc. Returns the allocated memory and
+ * adds a pointer to it to the given handle (list), so that all memory allocated to this list can be destroyed
+ * with handleDestroy */
+gpointer handleAlloc(BlxHandle *handle, size_t numBytes)
+{
+  gpointer result = g_malloc(numBytes);
+  
+  /* prepend so that we delete data in reverse order */
+  *handle = g_slist_prepend(*handle, result); 
+
+  return result;
+}
+
+/* Utilitiy to call g_free on all elements in the given handle. Frees the handle too and sets it to null. */
+void handleDestroy(BlxHandle *handle)
+{
+  DEBUG_ENTER("handleDestroy");
+
+  GSList *listItem = *handle;
+  for ( ; listItem; listItem = listItem->next)
+    {
+      g_free(listItem->data);
+      listItem->data = NULL;
+    }
+  
+  g_slist_free(*handle);
+  *handle = NULL;
+  
+  DEBUG_EXIT("handleDestroy returning ");
+}
 
 
 /***********************************************************

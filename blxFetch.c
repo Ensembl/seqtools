@@ -38,7 +38,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.44 2010-11-02 10:46:14 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.45 2010-11-03 15:23:56 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -49,19 +49,18 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxwindow.h>
 #include <SeqTools/detailview.h>
 #include <SeqTools/blixem_.h>
-#include <wh/regular.h>
 
 #ifdef PFETCH_HTML 
 #include <libpfetch/libpfetch.h>
 #endif
 
 #ifdef ACEDB
-#include <wh/graph.h>
 #include <wh/display.h>
 #endif
 
@@ -807,7 +806,6 @@ static void pfetchHttpEntry(char *sequence_name,
 gboolean populateFastaDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error)
 {
   /* Initialise and send the requests */
-  STORE_HANDLE handle = handleCreate();
   int sock;
   
   gboolean status = pfetchInit("-q -C", seqsToFetch, pfetchIP, port, External, &sock);
@@ -878,9 +876,6 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch, const char *pfetchIP, int p
         }
     }
   
-
-  messfree(handle) ;
-  
   return status ;
 }
 
@@ -902,7 +897,6 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch, const char *pfetchIP, int p
  */
 gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error)
 {
-  STORE_HANDLE handle = handleCreate();
   int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
 
   int sock;
@@ -987,9 +981,6 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
 	}
     }
 
-
-  messfree(handle) ;
-  
   return status ;
 }
 
@@ -999,7 +990,7 @@ gboolean blxInitConfig(char *config_file, GError **error)
 {
   gboolean result = FALSE ;
 
-  messAssert(!blx_config_G) ;
+  g_assert(!blx_config_G) ;
 
   blx_config_G = g_key_file_new() ;
 
@@ -1033,7 +1024,7 @@ gboolean blxConfigSetFetchMode(char *mode)
   GKeyFile *key_file ;
 
   key_file = blxGetConfig() ;
-  messAssert(key_file) ;
+  g_assert(key_file) ;
 
   g_key_file_set_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, mode) ;
 
@@ -1048,7 +1039,7 @@ static char *blxConfigGetFetchMode(void)
   GError *error = NULL ;
 
   key_file = blxGetConfig() ;
-  messAssert(key_file) ;
+  g_assert(key_file) ;
 
   fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, &error) ;
 
@@ -1069,7 +1060,7 @@ gboolean blxConfigGetPFetchSocketPrefs(const char **node, int *port)
       *port = g_key_file_get_integer(key_file, PFETCH_SOCKET_GROUP, PFETCH_SOCKET_PORT, &error) ;
 
       /* By the time we get here _all_ the fields should have been filled in the config. */
-      messAssert(!error) ;
+      g_assert(!error) ;
 
       result = TRUE ;
     }
@@ -1084,7 +1075,7 @@ gboolean blxConfigSetPFetchSocketPrefs(char *node, int port)
   GKeyFile *key_file ;
 
   key_file = blxGetConfig() ;
-  messAssert(key_file) ;
+  g_assert(key_file) ;
 
   /* Note that these calls will create the group and key if they don't exist but will
    * overwrite any existing values. */
@@ -1189,6 +1180,7 @@ static int socketConstruct (const char *ipAddress, int port, gboolean External)
   return sock ;
 }
 
+
 static gboolean socketSend (int sock, char *text)
 {
   gboolean status = TRUE ;
@@ -1221,18 +1213,27 @@ static gboolean socketSend (int sock, char *text)
       if (errno == EPIPE || errno == ECONNRESET || errno == ENOTCONN)
 	{
 	  status = FALSE ;
-	  g_critical("Socket connection to pfetch server has failed, error was: %s\n", messSysErrorText()) ;
+          char *msg = getSystemErrorText();
+	  g_critical("Socket connection to pfetch server has failed, error was: %s\n", msg) ;
+          g_free(msg);
 	}
       else
-	g_error("Fatal error on socket connection to pfetch server, error was: %s\n", messSysErrorText()) ;
+      {
+        char *msg = getSystemErrorText();
+	g_error("Fatal error on socket connection to pfetch server, error was: %s\n", msg) ;
+        g_free(msg);
+      }
     }
   else if (bytes_written != bytes_to_send)
-    g_error("send() call should have written %d bytes, but actually wrote %d.\n",
-	      bytes_to_send, bytes_written) ;
+    {
+      g_error("send() call should have written %d bytes, but actually wrote %d.\n", bytes_to_send, bytes_written) ;
+    }
 
   /* Reset the old signal handler.                                           */
   if (sigaction(SIGPIPE, &oldsigpipe, NULL) < 0)
-    g_error("Cannot reset previous signal handler for signal SIGPIPE for socket write operations.\n") ;
+    {
+      g_error("Cannot reset previous signal handler for signal SIGPIPE for socket write operations.\n") ;
+    }
 
   g_free(tmp) ;
 
@@ -1257,7 +1258,7 @@ static gboolean getPFetchUserPrefs(PFetchUserPrefsStruct *pfetch)
       pfetch->port = g_key_file_get_integer(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_PORT, &error) ;
 
       /* By the time we get here _all_ the fields should have been filled in the config. */
-      messAssert(!error) ;
+      g_assert(!error) ;
 
       result = TRUE ;
     }
@@ -1775,7 +1776,7 @@ static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error
 	    break ;
 	  }
 	default:
-	  messAssertNotReached("Bad Copnfig key type") ;
+	  g_error("Bad Copnfig key type") ;
 	  break ;
 	}
 
@@ -2050,7 +2051,9 @@ static int pfetchReceiveBuffer(char *buffer, const int bufferSize, const int soc
     {
       /* Problem with this one - skip to the next */
       status = FALSE;
-      g_critical("Could not retrieve sequence data from pfetch server, error was: %s\n", messSysErrorText()) ;
+      char *msg = getSystemErrorText();
+      g_critical("Could not retrieve sequence data from pfetch server, error was: %s\n", msg) ;
+      g_free(msg);
     }
   else if (lenReceived == 0)
     {

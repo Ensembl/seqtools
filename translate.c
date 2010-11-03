@@ -28,15 +28,15 @@
  * HISTORY:
  * Last edited: Sep 10 16:23 2009 (edgrif)
  * Created: Tue Jan 12 11:27:29 1993 (SRE)
- * CVS info:   $Id: translate.c,v 1.8 2010-10-22 11:58:59 gb10 Exp $
+ * CVS info:   $Id: translate.c,v 1.9 2010-11-03 15:23:56 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <glib.h>
-#include <wh/mystdlib.h>
-#include <wh/regular.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/iupac.h>
+#include <glib.h>
+#include <ctype.h>
+#include <string.h>
 
 
 /* THIS FILE NEEDS RENAMING TO SOMETHING LIKE utils.c */
@@ -127,7 +127,7 @@ char *revComplement(char *comp, char *seq)
   for (pos = 0; pos < bases; pos++)
     {
       c = *bckp;
-      c = freeupper(c);
+      c = toupper(c);
 
       for (idx = 0; c != iupac[idx].sym && idx < IUPACSYMNUM; idx++);
 
@@ -142,7 +142,7 @@ char *revComplement(char *comp, char *seq)
 	}
 
       if (islower(*bckp))
-	*fwdp = freelower(*fwdp);
+	*fwdp = tolower(*fwdp);
 
       fwdp++;
       bckp--;
@@ -172,7 +172,7 @@ void blxComplement(char *seq)
   fwdp = seq;
   for (pos = 0; pos < strlen(seq); pos++)
     {
-      c = freeupper(*fwdp);
+      c = toupper(*fwdp);
 
       for (idx = 0; c != iupac[idx].sym && idx < IUPACSYMNUM; idx++);
 
@@ -185,7 +185,7 @@ void blxComplement(char *seq)
       else c = iupac[idx].symcomp;
 
       if (islower(*fwdp))
-	*fwdp = freelower(c);
+	*fwdp = tolower(c);
       else
 	*fwdp = c;
 

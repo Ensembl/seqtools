@@ -940,37 +940,6 @@ static void initWindow(const char *winsizeIn, DotplotProperties *properties)
 }
 
 
-/* Utility to allocate memory of the given size with g_malloc. Returns the allocated memory and
- * adds a pointer to it to the given list, so that all memory allocated to this list can be destroyed
- * with destroyListData */
-static gpointer allocMemoryToList(GSList **dataList, size_t numBytes)
-{
-  gpointer result = g_malloc(numBytes);
-  
-  /* prepend so that we delete data in reverse order */
-  *dataList = g_slist_prepend(*dataList, result); 
-
-  return result;
-}
-
-/* Utilitiy to call g_free on all elements in the given list. */
-static void destroyListData(GSList *dataList)
-{
-  DEBUG_ENTER("destroyListData");
-
-  GSList *listItem = dataList;
-  for ( ; listItem; listItem = listItem->next)
-    {
-      g_free(listItem->data);
-      listItem->data = NULL;
-    }
-  
-  g_slist_free(dataList);
-  
-  DEBUG_EXIT("destroyListData returning ");
-}
-
-
 /* Get a base in the horizontal (reference) sequence. The given index is zero-based within our
  * current display range. */
 static char getHozSeqBase(DotterWindowContext *dwc, const int idx, const int frame, const int offset)
@@ -1031,18 +1000,18 @@ static void populateMatchSeqBinaryVals(DotterWindowContext *dwc, const int slen,
 
 /* Create the score vector that is used by calculateImage. Allocates memory but does not populate it
  * except for the not-a-residue entry) */
-static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, GSList **dataList, int ***scoreVecPtr)
+static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, BlxHandle *handle, int ***scoreVecPtr)
 {
   DotterContext *dc = dwc->dotterCtx;
   
-  *scoreVecPtr = allocMemoryToList(dataList, vecLen * sizeof(int*));
+  *scoreVecPtr = handleAlloc(handle, vecLen * sizeof(int*));
   int **scoreVec = *scoreVecPtr;
 
   /* Allocate memory for each row in the score vector. Each row is the length of the ref sequence */
   int rowIdx = 0;
   for ( ; rowIdx < vecLen; ++rowIdx)
     {
-      scoreVec[rowIdx] = allocMemoryToList(dataList, qlen * sizeof(int));
+      scoreVec[rowIdx] = handleAlloc(handle, qlen * sizeof(int));
     }
 
   if (dc->blastMode != BLXMODE_BLASTN)
@@ -1304,7 +1273,7 @@ static void calculateImage(DotplotProperties *properties)
   register int qIdx, sIdx;     /* Loop variables */
   register int dotpos;
   
-  GSList *dataList = NULL;
+  BlxHandle handle = handleCreate();
   
   /* Extract some often-used data */
   DotterWindowContext *dwc = properties->dotterWinCtx;
@@ -1331,16 +1300,16 @@ static void calculateImage(DotplotProperties *properties)
    * scores for qseq residues. sIndex contains the match sequence forward strand bases as 
    * binary values (i.e. amino-acid IDs 0 -> 23) */
   int **scoreVec = NULL;
-  createScoreVec(dwc, vecLen, pepQSeqLen, &dataList, &scoreVec);
+  createScoreVec(dwc, vecLen, pepQSeqLen, &handle, &scoreVec);
 
-  int *sIndex = allocMemoryToList(&dataList, slen * sizeof(int));
+  int *sIndex = handleAlloc(&handle, slen * sizeof(int));
   populateMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
   
   /* Allocate some vectors for use in averaging the values for whole rows at a time. Initialise the
    * 'zero' array now but leave the sum arrays because these will be reset in doCalculateWindow. */
-  int *zero = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
-  int *sum1 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
-  int *sum2 = allocMemoryToList(&dataList, pepQSeqLen * sizeof(int));
+  int *zero = handleAlloc(&handle, pepQSeqLen * sizeof(int));
+  int *sum1 = handleAlloc(&handle, pepQSeqLen * sizeof(int));
+  int *sum2 = handleAlloc(&handle, pepQSeqLen * sizeof(int));
 
   int idx = 0;
   for (idx = 0; idx < pepQSeqLen; ++idx) 
@@ -1414,7 +1383,7 @@ static void calculateImage(DotplotProperties *properties)
         }
     }
   
-  destroyListData(dataList);
+  handleDestroy(&handle);
   
   DEBUG_EXIT("calculateImage returning ");
 }
@@ -2545,6 +2514,7 @@ static gdouble getScaleFactor(DotplotProperties *properties, const gboolean hori
 
 /* REVERSEBYTES changes order of n bytes at location ptr
  */
+#ifdef ALPHA
 static void reversebytes(void *ptr, int n)
 { 
   static char copy[256], *cp;
@@ -2555,5 +2525,6 @@ static void reversebytes(void *ptr, int n)
   
   for(i=0; i<n; i++) *cp++ = copy[n-i-1];
 }
+#endif
 
 

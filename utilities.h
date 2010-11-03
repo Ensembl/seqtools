@@ -54,6 +54,13 @@ typedef enum
 } SeqToolsError;
 
 
+#if defined(MACINTOSH)
+#define      SYSERR_FORMAT             "system error %d"
+#else
+#define      SYSERR_FORMAT             "system error %d - %s"
+#endif
+
+
 /* Special characters for displaying in sequences */
 #define SEQUENCE_CHAR_GAP    '.'   /* represents a gap in the match sequence */
 #define SEQUENCE_CHAR_PAD    '-'   /* used for padding when the sequence is unavailable */
@@ -121,6 +128,10 @@ typedef struct _BlxColor
     GdkColor printSelected;	  /* the selected-state color used for printing */
   } BlxColor;
   
+  
+/* This handle holds a list of pointers to all memory allocated via this handle. Use handleDestroy
+ * to free the handle and all its allocated memory. */
+typedef GSList* BlxHandle;
   
 /* Define a drawing style for an MSP */
 typedef struct _BlxStyle
@@ -215,6 +226,10 @@ GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 
 BlxSeqType            determineSeqType(char *seq);
 void                  argvAdd(int *argc, char ***argv, char *s);
+char*                 getSystemErrorText();
+gpointer              handleAlloc(BlxHandle *handle, size_t numBytes);
+BlxHandle             handleCreate();
+void                  handleDestroy(BlxHandle *handle);
 
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);

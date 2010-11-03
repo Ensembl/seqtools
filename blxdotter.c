@@ -980,12 +980,12 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
     {
       /* --client gives logging information to pfetch server,
        * -q  Sequence only output (one line) */
-      fetchstr = hprintf(0, "%s --client=%s_%s_%s -q '%s' &",
-			 fetch_prog, g_get_prgname(), getSystemName(), getLogin(TRUE), seqname) ;
+      fetchstr = blxprintf("%s --client=%s_%s_%s -q '%s' &",
+			   fetch_prog, g_get_prgname(), getSystemName(), getLogin(TRUE), seqname) ;
     }
   else
     {
-      fetchstr = hprintf(0, "%s -q '%s'", fetch_prog, seqname) ;
+      fetchstr = blxprintf("%s -q '%s'", fetch_prog, seqname) ;
     }
 
   g_debug("%sing %s...\n", fetch_prog, seqname);

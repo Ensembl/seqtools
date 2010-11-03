@@ -23,7 +23,7 @@
    |  Copyright (C) E Sonnhammer 1993-1997                     |
    -------------------------------------------------------------
  *
- * Exported functions: See wh/blxview.h
+ * Exported functions: See SeqTools/blxview.h
  * HISTORY:
  * Last edited: Sep 10 16:16 2009 (edgrif)
  * * Jan 10 10:35 2002 (edgrif): Fix up socket code and add various
@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.83 2010-11-03 13:39:09 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.84 2010-11-03 15:23:56 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -129,11 +129,6 @@ MSP score codes:
 #include <SeqTools/detailview.h>
 #include <SeqTools/blxdotter.h>
 #include <SeqTools/blxmsp.h>
-
-#ifdef ACEDB
-#include <wh/regular.h>
-#endif
-
 
 
 #define MAXALIGNLEN                   10000

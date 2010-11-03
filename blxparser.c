@@ -34,11 +34,10 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.47 2010-11-02 17:27:19 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.48 2010-11-03 15:23:56 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <wh/colours.h>
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxmsp.h>
 #include <SeqTools/blxGff3Parser.h>
@@ -102,6 +101,29 @@ static void         checkReversedSubjectAllowed(const MSP *msp, const char *opts
 /*
  *  Globals
  */
+
+/* These colors match those declared in systags, they must appear in the same order */	
+/* If you use more than 256 colours, code WILL break (see for instance the   */
+/* 'priority/colour' packing code in griddisp.c). This should not be a       */
+/* problem because that's a lot of colours and these colours are NOT used    */
+/* for images.                                                               */
+/*                                                                           */
+enum Colour    {WHITE, BLACK, LIGHTGRAY, DARKGRAY,
+                RED, GREEN, BLUE,
+                YELLOW, CYAN, MAGENTA,
+		LIGHTRED, LIGHTGREEN, LIGHTBLUE,
+		DARKRED, DARKGREEN, DARKBLUE,
+		PALERED, PALEGREEN, PALEBLUE,
+		PALEYELLOW, PALECYAN, PALEMAGENTA,
+		BROWN, ORANGE, PALEORANGE,
+		PURPLE, VIOLET, PALEVIOLET,
+		GRAY, PALEGRAY,
+		CERISE, MIDBLUE,
+		NUM_TRUECOLORS,
+                TRANSPARENT,	/* pseudocolour only for background */
+		FORECOLOR,	/* pseudocolor to force box->fcol after graphColor() */
+		BACKCOLOR	/* pseudocolor to force box->bcol after graphColor() */
+               } ;
 
 static char *colorNames[NUM_TRUECOLORS] =
   {
