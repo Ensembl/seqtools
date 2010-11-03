@@ -213,6 +213,9 @@ gboolean	      onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, g
 GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
 GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 
+BlxSeqType            determineSeqType(char *seq);
+void                  argvAdd(int *argc, char ***argv, char *s);
+
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
 gboolean              getColorFromString(const char *colorStr, GdkColor *color, GError **error);

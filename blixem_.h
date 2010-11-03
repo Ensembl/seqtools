@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.56 2010-11-01 15:31:01 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.57 2010-11-03 13:39:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -336,12 +336,7 @@ int                                 gapCoord(const MSP *msp,
 
 
 /* dotter.c */
-void                               argvAdd(int *argc, char ***argv, char *s);
-void                               loadFeatures(FILE* fil, MSP **msp);
-float                              mspGetFsBottomEdge(MSP *msp, float *maxy, float height);
-char                               Seqtype(char *seq);
-void                               selectFeatures(void);
-float                              fsTotalHeight(MSP *msplist);
+//void                               selectFeatures(void);
 
 /* blxparser.c */
 gboolean                           mspHasFs(const MSP *msp);  

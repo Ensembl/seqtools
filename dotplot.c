@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
-#include <wh/aceio.h>
 
 #define PIXELS_PER_MARK_X                           100   /* number of pixels between each major tick mark on the x scale */
 #define PIXELS_PER_MARK_Y                           50    /* number of pixels between each major tick mark on the y scale */
@@ -183,6 +182,9 @@ static gdouble                    getScaleFactor(DotplotProperties *properties, 
 static void                       initWindow(const char *winsizeIn, DotplotProperties *properties);
 static void                       calculateImage(DotplotProperties *properties);
 
+#ifdef ALPHA
+static void                       reversebytes(void *ptr, int n);
+#endif
 
 /***********************************************************
  *                          Properties                     *
@@ -2540,5 +2542,18 @@ static gdouble getScaleFactor(DotplotProperties *properties, const gboolean hori
   return result;
 }
 
+
+/* REVERSEBYTES changes order of n bytes at location ptr
+ */
+static void reversebytes(void *ptr, int n)
+{ 
+  static char copy[256], *cp;
+  int  i;
+  
+  cp = ptr;
+  memcpy(copy, ptr, n);  /* Note: strcpy doesn't work - stops at \0 */
+  
+  for(i=0; i<n; i++) *cp++ = copy[n-i-1];
+}
 
 

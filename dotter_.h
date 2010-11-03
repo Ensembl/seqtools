@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Sep 15 08:36 2006 (edgrif)
  * Created: Thu Aug 26 17:17:58 1999 (fw)
- * CVS info:   $Id: dotter_.h,v 1.6 2010-10-26 09:17:06 gb10 Exp $
+ * CVS info:   $Id: dotter_.h,v 1.7 2010-11-03 13:39:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -160,8 +160,8 @@ typedef struct _DotterContext
   gboolean crickOnly;                       /* true if we only display the crick strand */
   
   PangoFontDescription *fontDesc;	    /* fixed-width font to use for alignment */
-  int charWidth;                            /* the fixed-width font width */
-  int charHeight;                           /* the fixed-width font height */
+  gdouble charWidth;                        /* the fixed-width font width */
+  gdouble charHeight;                       /* the fixed-width font height */
   
   char *refSeqName;			    /* the reference sequence name */
   char *refSeq;				    /* the reference sequence forward strand */

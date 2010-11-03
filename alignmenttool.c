@@ -508,9 +508,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   /* Create the widget that will render the match sequence. Need to do this first so we can pass
    * it as data to the ref sequence widgets. */
   GtkWidget *matchSeqWidget = gtk_drawing_area_new();
-  gint charHeight = UNSET_INT;
-  getFontCharSize(alignmentTool, dc->fontDesc, NULL, &charHeight);
-  gtk_widget_set_size_request(matchSeqWidget, -1, charHeight);
+  gtk_widget_set_size_request(matchSeqWidget, -1, roundNearest(dc->charHeight));
   
   /* We need to create a list of match seqs (just one entry) and ref seqs to pass as data to the
    * ref seq and match seq respectively. */
@@ -522,7 +520,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   /* Create a header line for this strand of the reference sequence. This widget will display
    * the currently-selected ref seq coord. */
   *refSeqHeader = gtk_drawing_area_new();
-  gtk_widget_set_size_request(*refSeqHeader, -1, charHeight + SELECTED_COORD_MARKER_HEIGHT);
+  gtk_widget_set_size_request(*refSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT);
   gtk_table_attach(table, *refSeqHeader, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   g_signal_connect(G_OBJECT(*refSeqHeader), "expose-event", G_CALLBACK(onExposeRefSequenceHeader), alignmentTool);
   ++row;
@@ -549,7 +547,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
       
       /* Create the widget that will render the sequence data. */
       GtkWidget *refSeqWidget = gtk_drawing_area_new();
-      gtk_widget_set_size_request(refSeqWidget, -1, charHeight);
+      gtk_widget_set_size_request(refSeqWidget, -1, roundNearest(dc->charHeight));
       refSeqList = g_slist_append(refSeqList, refSeqWidget);
 
       sequenceCreateProperties(refSeqWidget, dc->refSeqName, sequence, dc->refSeqType, strand, 
@@ -585,7 +583,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   
   /* Create the bottom header */
   *matchSeqHeader = gtk_drawing_area_new();
-  gtk_widget_set_size_request(*matchSeqHeader, -1, charHeight + SELECTED_COORD_MARKER_HEIGHT + charHeight); /* add an extra charheight just for spacing */
+  gtk_widget_set_size_request(*matchSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT + roundNearest(dc->charHeight)); /* add an extra charheight just for spacing */
   gtk_table_attach(table, *matchSeqHeader, 2, 3, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   g_signal_connect(G_OBJECT(*matchSeqHeader), "expose-event", G_CALLBACK(onExposeMatchSequenceHeader), alignmentTool);
   ++row;
@@ -737,8 +735,10 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   int y = 0;
   int x = 0;
 
-  for ( ; displayIdx < atProperties->alignmentLen; ++displayIdx, x += dc->charWidth)
+  for ( ; displayIdx < atProperties->alignmentLen; ++displayIdx)
     {
+      x = (int)((gdouble)displayIdx * dc->charWidth);
+      
       /* Loop through the sequences to compare against and color the background of this seq according
        * to how well it matches. Exact matches take precedence over conserved matches. */
       gboolean match = FALSE;
@@ -794,12 +794,12 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
       if (match)
         {
           gdk_gc_set_foreground(gc, matchColor);
-          gdk_draw_rectangle(drawable, gc, TRUE, x, y, dc->charWidth, dc->charHeight);
+          gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
         }
       else if (consMatch)
         {
           gdk_gc_set_foreground(gc, consColor);
-          gdk_draw_rectangle(drawable, gc, TRUE, x, y, dc->charWidth, dc->charHeight);
+          gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
         }
     }  
   
@@ -821,10 +821,10 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
 
 
 /* Utility called by drawSequenceHeader to draw a marker line at the given coords */
-static void drawSequenceHeaderMarker(GdkDrawable *drawable, const int x, const int y, const int charWidth)
+static void drawSequenceHeaderMarker(GdkDrawable *drawable, const int x, const int y, const gdouble charWidth)
 {
   /* Draw a marker line below where the text will go */
-  const int x1 = x + (charWidth / 2);
+  const int x1 = x + roundNearest((charWidth / 2.0));
   
   GdkGC *gc = gdk_gc_new(drawable);
   gdk_draw_line(drawable, gc, x1, y, x1, y +  + SELECTED_COORD_MARKER_HEIGHT);
@@ -837,7 +837,7 @@ static void drawSequenceHeaderText(GtkWidget *widget,
 				   const int x, 
 				   const int y, 
 				   const int coord, 
-				   const int charWidth,
+				   const gdouble charWidth,
 				   PangoFontDescription *fontDesc)
 {
   char *displayText = convertIntToString(coord);
@@ -848,7 +848,7 @@ static void drawSequenceHeaderText(GtkWidget *widget,
   if (layout)
     {
     /* Offset the text so that the middle of the text is lined up with the coord of interest */
-    const int offset = (ceil((double)numDigitsInInt(coord) / 2.0) - 1) * charWidth;
+    const int offset = ceil((((gdouble)numDigitsInInt(coord) / 2.0) - 1) * charWidth);
     
     gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x - offset, y, layout);
     g_object_unref(layout);
@@ -887,26 +887,23 @@ static void drawSequenceHeader(GtkWidget *widget,
   /* Find the coord to display */
   const int coord = getRangeCentre(displayRange);
   
-  gint charWidth = UNSET_INT, charHeight = UNSET_INT;
-  getFontCharSize(widget, dc->fontDesc, &charWidth, &charHeight);
-  
   /* Find the position to display at. Find the position of the char at this coord */
-  int x = convertToDisplayIdx(coord - displayRange->min, horizontal, dc) * charWidth;
+  int x = (int)((gdouble)convertToDisplayIdx(coord - displayRange->min, horizontal, dc) * dc->charWidth);
   int y = 0;
 
   if (horizontal)
     {
       /* For the ref sequence, draw the marker below the label. */
-      drawSequenceHeaderText(widget, drawable, x, y, coord, charWidth, dc->fontDesc);
-      y += charHeight;
-      drawSequenceHeaderMarker(drawable, x, y, charWidth);
+      drawSequenceHeaderText(widget, drawable, x, y, coord, dc->charWidth, dc->fontDesc);
+      y += roundNearest(dc->charHeight);
+      drawSequenceHeaderMarker(drawable, x, y, dc->charWidth);
     }
   else
     {
       /* For the match sequence, draw the marker above the label */
-      drawSequenceHeaderMarker(drawable, x, y, charWidth);
+      drawSequenceHeaderMarker(drawable, x, y, dc->charWidth);
       y += SELECTED_COORD_MARKER_HEIGHT;
-      drawSequenceHeaderText(widget, drawable, x, y, coord, charWidth, dc->fontDesc);
+      drawSequenceHeaderText(widget, drawable, x, y, coord, dc->charWidth, dc->fontDesc);
     }
 }
 

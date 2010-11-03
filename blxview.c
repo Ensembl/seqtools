@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.82 2010-11-02 17:27:19 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.83 2010-11-03 13:39:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -119,6 +119,8 @@ MSP score codes:
 
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <gdk/gdkkeysyms.h>
 
 #include <SeqTools/blixem_.h>
@@ -399,7 +401,7 @@ static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options
     {
       printf("\nNo blast type specified. Detected ");
       
-      if (Seqtype(refSeq) == 'P')
+      if (determineSeqType(refSeq) == BLXSEQ_PEPTIDE)
 	{
 	  printf("protein sequence. Will try to run Blixem in blastp mode\n");
 	  setModeP(options);

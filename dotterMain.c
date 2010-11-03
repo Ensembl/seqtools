@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.20 2010-11-02 16:20:08 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.21 2010-11-03 13:39:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -545,17 +545,17 @@ int main(int argc, char **argv)
       }
 
     /* Determine sequence types */
-    if (Seqtype(qseq) == 'P' && Seqtype(sseq) == 'P') 
+    if (determineSeqType(qseq) == BLXSEQ_PEPTIDE && determineSeqType(sseq) == BLXSEQ_PEPTIDE) 
       {
 	printf("\nDetected sequence types: Protein vs. Protein\n");
 	type = 'P';
       }
-    else if (Seqtype(qseq) == 'N' && Seqtype(sseq) == 'N') 
+    else if (determineSeqType(qseq) == BLXSEQ_DNA && determineSeqType(sseq) == BLXSEQ_DNA) 
       {
 	printf("\nDetected sequence types: DNA vs. DNA\n");
 	type = 'N';
       }
-    else if (Seqtype(qseq) == 'N' && Seqtype(sseq) == 'P') 
+    else if (determineSeqType(qseq) == BLXSEQ_DNA && determineSeqType(sseq) == BLXSEQ_PEPTIDE) 
       {
 	printf("\nDetected sequence types: DNA vs. Protein\n");
 	type = 'X';

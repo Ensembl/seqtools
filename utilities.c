@@ -40,6 +40,10 @@
 static CallbackData*            widgetGetCallbackData(GtkWidget *widget);
 
 
+/***********************************************************
+ *		         Widgets			   * 
+ ***********************************************************/
+
 
 /* Functions to get/set/destroy a GdkDrawable in a widget property, if a different drawable
  * than the window is required to be drawn to. The main purpose of this is for printing
@@ -217,6 +221,10 @@ gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointe
 }
 
 
+/***********************************************************
+ *		         Ranges/values			   * 
+ ***********************************************************/
+
 /* Utility to return the length of the given range */
 int getRangeLength(const IntRange const *range)
 {
@@ -330,6 +338,80 @@ int numDigitsInInt(int val)
   return count;
 }
 
+
+/***********************************************************
+ *		         Misc                              * 
+ ***********************************************************/
+
+/* Determine (or give our best guess) the sequence type of a sequence, based on the characters it
+ * contains. Returns BLXSEQ_DNA for nucleotide sequences or BLXSEQ_PEPTIDE for peptide sequences. */
+BlxSeqType determineSeqType(char *seq)
+{
+    char *aminos      = "ABCDEFGHIKLMNPQRSTVWXYZ*";
+    char *primenuc    = "ACGTUN";
+    char *protonly    = "EFIPQZ";
+
+    /* Simplified version of Sean Eddy's */
+
+    int  pos;
+    char c;
+    int  po = 0;			/* count of protein-only */
+    int  nt = 0;			/* count of t's */
+    int  nu = 0;			/* count of u's */
+    int  na = 0;			/* count of nucleotides */
+    int  aa = 0;			/* count of amino acids */
+    int  no = 0;			/* count of others */
+  
+    /* Look at the first 300 characters
+     */
+    for (pos = 0; seq[pos] && pos < 300; pos++)
+    {
+	c = toupper(seq[pos]);
+
+	if (strchr(protonly, c)) 
+	    po++;
+	else if (strchr(primenuc, c)) {
+	    na++;
+	    if (c == 'T') nt++;
+	    else if (c == 'U') nu++;
+	}
+	else if (strchr(aminos, c)) 
+	    aa++;
+	else if (isalpha(c)) 
+	    no++;
+    }
+
+    if (po > 0) return BLXSEQ_PEPTIDE;
+    else if (na > aa) return BLXSEQ_DNA;
+    else return BLXSEQ_PEPTIDE;
+} /* determineSeqType */
+
+
+/* Use this routine to add -install in programs that use Dotter */
+void argvAdd(int *argc, char ***argv, char *s)
+{
+    char **v;
+    int i;
+
+    v = (char **)malloc(sizeof(char *)*(*argc+2));
+
+    /* Copy argv */
+    for (i = 0; i < (*argc); i++)
+	v[i] = (*argv)[i];
+
+    /* Add s */
+    v[*argc] = (char *)malloc(strlen(s)+1);
+    strcpy(v[*argc], s);
+
+    (*argc)++;
+
+    /* Terminator - ANSI C standard */
+    v[*argc] = 0;
+
+    /* free(*argv); */   /* Too risky */
+    
+    *argv = v;
+}
 
 /***********************************************************
  *		         Colors				   * 
@@ -2420,7 +2502,6 @@ void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble 
   if (width)
     {
       *width = (gdouble)pango_font_metrics_get_approximate_digit_width(metrics) / (gdouble)PANGO_SCALE;
-      printf("font width = %d (%f points, scale=%d)\n", pango_font_metrics_get_approximate_digit_width(metrics), *width, PANGO_SCALE);
     }
   
   pango_font_metrics_unref(metrics);

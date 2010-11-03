@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.19 2010-10-28 10:58:57 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.20 2010-11-03 13:39:09 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -137,13 +137,15 @@
    prof -pixie -h -only calcWindow dotter dotter.Addrs dotter.Counts
 */
 
-#include <wh/aceio.h>
 #include <wh/version.h>
 #include <SeqTools/dotter_.h>
 #include <SeqTools/seqtoolsExonView.h>
 #include <SeqTools/utilities.h>
 #include <gdk/gdkkeysyms.h>
-
+#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 /* tint stuff used to be in graph.h, now local - rd 960524
    NB colours as Erik liked them before Jean tinkered!
@@ -566,11 +568,11 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   /* Set the fixed-width font */
   GtkWidget *tmp = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   const char *fontFamily = findFixedWidthFont(tmp);
-  result->fontDesc = pango_font_description_copy(tmp->style->font_desc);
-  pango_font_description_set_family(result->fontDesc, fontFamily);
+  result->fontDesc = pango_font_description_from_string(fontFamily);
+  pango_font_description_set_size(result->fontDesc, pango_font_description_get_size(tmp->style->font_desc));
   getFontCharSize(tmp, result->fontDesc, &result->charWidth, &result->charHeight);
   gtk_widget_destroy(tmp);
-  
+         
   result->refSeqName = g_strdup(refSeqName);
   result->refSeq = refSeq; /* take ownership of passed-in seq */
   result->refSeqRev = NULL;
@@ -642,8 +644,8 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   
   /* Calculate the height and width of the horizontal and vertical scales */
   const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min), numDigitsInInt(result->matchSeqFullRange.max));
-  result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT + (leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
-  result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + result->charHeight + SCALE_LINE_WIDTH;
+  result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT + (roundNearest)((gdouble)leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
+  result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + roundNearest(result->charHeight) + SCALE_LINE_WIDTH;
   
   return result;
 }
@@ -936,8 +938,8 @@ void dotter (char  type,
   if (slen < 1) g_error("subjectseq is empty");
 
   int i = 0;
-  for (i = 0; i < qlen; i++) queryseq[i] = freeupper(queryseq[i]);
-  for (i = 0; i < slen; i++) subjectseq[i] = freeupper(subjectseq[i]);
+  for (i = 0; i < qlen; i++) queryseq[i] = toupper(queryseq[i]);
+  for (i = 0; i < slen; i++) subjectseq[i] = toupper(subjectseq[i]);
 
   if (!memoryLimit) 
     {
@@ -1075,49 +1077,6 @@ void callDotterInternal(DotterContext *dc,
 }
 
 
-char Seqtype(char *seq)
-{
-    char *aminos      = "ABCDEFGHIKLMNPQRSTVWXYZ*";
-    char *primenuc    = "ACGTUN";
-    char *protonly    = "EFIPQZ";
-
-    /* Simplified version of Sean Eddy's */
-
-    int  pos;
-    char c;
-    int  po = 0;			/* count of protein-only */
-    int  nt = 0;			/* count of t's */
-    int  nu = 0;			/* count of u's */
-    int  na = 0;			/* count of nucleotides */
-    int  aa = 0;			/* count of amino acids */
-    int  no = 0;			/* count of others */
-  
-    /* Look at the first 300 characters
-     */
-    for (pos = 0; seq[pos] && pos < 300; pos++)
-    {
-	c = freeupper(seq[pos]);
-
-	if (strchr(protonly, c)) 
-	    po++;
-	else if (strchr(primenuc, c)) {
-	    na++;
-	    if (c == 'T') nt++;
-	    else if (c == 'U') nu++;
-	}
-	else if (strchr(aminos, c)) 
-	    aa++;
-	else if (isalpha(c)) 
-	    no++;
-    }
-
-    if (po > 0) return 'P';
-    else if (na > aa) return 'N';
-    else return 'P';
-} /* Seqtype */
-
-
-
 
 /* 
  *                Internal routines.
@@ -1131,20 +1090,6 @@ char Seqtype(char *seq)
 
 static void rmExp(void){}
 */
-
-
-/* REVERSEBYTES changes order of n bytes at location ptr
-*/
-void reversebytes(void *ptr, int n)
-{ 
-  static char copy[256], *cp;
-  int  i;
-
-  cp = ptr;
-  memcpy(copy, ptr, n);  /* Note: strcpy doesn't work - stops at \0 */
-  
-  for(i=0; i<n; i++) *cp++ = copy[n-i-1];
-}
 
 
 ///* Utility to return the Feature Series that the given MSP belongs to */
@@ -2473,9 +2418,18 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     int row, col;
     char line[1025] = "#", *p;
     
+    char *mtxfileText = blxprintf("%s/%s", getenv("BLASTMAT"), mtxfile);
+  
     if (!(fil = fopen(mtxfile, "r")) &&
-	!(fil = fopen(messprintf("%s/%s", getenv("BLASTMAT"), mtxfile), "r")))
-	g_error("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.", mtxfile);
+	!(fil = fopen(mtxfileText, "r")))
+      {
+        char *msg = blxprintf("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.");
+	g_error(msg, mtxfile);
+        g_free(msg);
+      }
+  
+    g_free(mtxfileText);
+    mtxfileText = NULL;
     
     /* Ignore header ... */
     while (!feof(fil) && *line == '#') 
@@ -2527,33 +2481,6 @@ static void DNAmatrix(int mtx[24][24])
 	    else 
 		mtx[i][j] = -4;
 	}
-}
-
-
-/* Use this routine to add -install in programs that use Dotter */
-void argvAdd(int *argc, char ***argv, char *s)
-{
-    char **v;
-    int i;
-
-    v = (char **)malloc(sizeof(char *)*(*argc+2));
-
-    /* Copy argv */
-    for (i = 0; i < (*argc); i++)
-	v[i] = (*argv)[i];
-
-    /* Add s */
-    v[*argc] = (char *)malloc(strlen(s)+1);
-    strcpy(v[*argc], s);
-
-    (*argc)++;
-
-    /* Terminator - ANSI C standard */
-    v[*argc] = 0;
-
-    /* free(*argv); */   /* Too risky */
-    
-    *argv = v;
 }
 
 
