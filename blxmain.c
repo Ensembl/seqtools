@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.28 2010-11-03 15:23:56 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.29 2010-11-04 10:02:20 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -80,11 +80,11 @@ static char *usageText ="\n\
  -b         Don't start with Big Picture.\n\
  -c <file>  Read configuration options from 'file'.\n\
  -k <file>  Read color/style options from key-value file 'file'. (See GLib Key-value-file-parser documentation.)\n\
- -S <n>     Start display at position n.\n\
+ -S <n>     Start with the display centred on position n.\n\
  -h         Help and more options.\n\
  -o <optstring>\n\
             Blixem options, e.g. -o \"MBr\". You'll have to read the source code for details.\n\
- -O <n>     Sequence offset.\n\
+ -O <n>     Offset the reference sequence coordinate system by n.\n\
  -P nodeid<:port>\n\
             Causes Blixem to get sequences from a pfetch server at machine nodeid on the given port (default 22100).\n\
  -r         Remove input files after parsing, used by xace when calling blixem as a\n\
