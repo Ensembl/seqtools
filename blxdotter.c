@@ -1033,7 +1033,7 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
 
   if (fetchstr)
     {
-      messfree(fetchstr);
+      g_free(fetchstr);
     }
 
   if (outputFile)
