@@ -59,6 +59,7 @@ typedef struct _BlxGffData
     int qStart;		/* start coord on the ref seq */
     int qEnd;		/* end coord on the ref seq */
     gdouble score;	/* score */
+    gdouble percentId;  /* percent ID */
     BlxStrand qStrand;	/* ref seq strand */
     int phase;		/* phase */
     
@@ -271,6 +272,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->mspType, 
 			      gffData->source,
 			      gffData->score, 
+			      gffData->percentId, 
                               gffData->phase,
                               gffData->url,
 			      idTag,
@@ -327,7 +329,7 @@ void parseGff3Body(const int lineNum,
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
   /* Parse the data into a temporary struct */
-  BlxGffData gffData = {NULL, NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
+  BlxGffData gffData = {NULL, NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
 			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL};
 		      
   GError *error = NULL;
@@ -416,7 +418,7 @@ static BlxStrand readStrand(char *token, GError **error)
     {
       result = BLXSTRAND_REVERSE;
     }
-  else if (!strcmp(token, "."))
+  else if (!strcmp(token, ".") || !strcmp(token, "?"))
     {
       result = BLXSTRAND_NONE;
     }
@@ -467,7 +469,16 @@ static void parseGffColumns(GString *line_string,
       gffData->qStart = convertStringToInt(tokens[3]);
       gffData->qEnd = convertStringToInt(tokens[4]);
       
-      gffData->score = g_strtod(tokens[5], NULL);
+      if (!stringsEqual(tokens[5], ".", TRUE))
+        {
+          gffData->score = g_ascii_strtod(tokens[5], NULL);
+        }
+      
+      /* to do: for now, copy the score into the ID field, because for historic reasons the ID
+       * was always passed in the score column from ZMap. This should be taken out once ZMap 
+       * passes the real score in this column and the ID in a separate tag. */
+      gffData->percentId = gffData->score;
+
       gffData->qStrand = readStrand(tokens[6], &tmpError);
     }
 
@@ -576,6 +587,10 @@ static void parseTagDataPair(char *text,
         {
 	  gffData->parentIdTag = g_strdup(tokens[1]);
         }
+      else if (!strcmp(tokens[0], "percentId")) /* to do: is this tag is correct? */
+        {
+          gffData->percentId = g_ascii_strtod(tokens[1], NULL);
+        }
       else if (!strcmp(tokens[0], "sequence"))
         {
           gffData->sequence = g_strdup(tokens[1]);
@@ -589,6 +604,7 @@ static void parseTagDataPair(char *text,
 #if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 16
           gffData->url = g_uri_unescape_string(tokens[1], NULL);
 #else
+          g_warning("Cannot unescape string (requires GTK version 2.16 or greater). URL may contain unescaped characters.\n");
           gffData->url = g_strdup(tokens[1]);
 #endif
         }

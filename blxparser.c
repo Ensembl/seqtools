@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.48 2010-11-03 15:23:56 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.49 2010-11-05 12:08:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -539,7 +539,7 @@ static void parseEXBLXSEQBL(GList* featureLists[],
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
                           opts, &error);
@@ -780,7 +780,7 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame, 
                           sName, sStart, sEnd, sStrand, NULL,
                           opts, &error);
@@ -1372,7 +1372,7 @@ static void parseFsHsp(char *line, char *opts, GList* featureLists[], MSP **last
   /* Create the new MSP */
   GError *error = NULL;
 
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_HSP, NULL, score, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_HSP, NULL, score, UNSET_INT, 0, NULL,
                            NULL, qName, qStart, qEnd, qStrand, qFrame, 
                            sName, sStart, sEnd, sStrand, sSeq,
                            opts, &error);
@@ -1424,7 +1424,7 @@ static void parseFsSeg(char *line, char *opts, GList* featureLists[], MSP **last
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, UNSET_INT, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, UNSET_INT, UNSET_INT, 0, NULL,
                           NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
                           series, qStart, qEnd, BLXSTRAND_NONE, NULL,
                           opts, &error);
@@ -1474,7 +1474,7 @@ static void parseFsGff(char *line, char *opts, GList* featureLists[], MSP **last
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, score, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, score, UNSET_INT, 0, NULL,
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
                           series, qStart, qEnd, BLXSTRAND_FORWARD, NULL,
                           opts, &error);
@@ -1550,7 +1550,7 @@ static void parseFsXyHeader(char *line,
   /* Create an MSP to put the data in */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_XY_PLOT, NULL, 0, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_XY_PLOT, NULL, UNSET_INT, UNSET_INT, 0, NULL,
                           NULL, qName, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, 1,
                           series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, 
                           opts, &error);

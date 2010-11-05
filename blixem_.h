@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.57 2010-11-03 13:39:09 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.58 2010-11-05 12:08:36 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -365,7 +365,7 @@ gboolean                           blxConfigGetPFetchWWWPrefs();
 
 
 /* Create/destroy sequences and MSPs */
-MSP*                               createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const int phase,
+MSP*                               createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const gdouble percentId, const int phase,
                                                 char *url, char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
                                                 char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
                                                 char *opts, GError **error);  

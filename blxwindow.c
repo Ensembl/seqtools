@@ -4877,10 +4877,10 @@ static void calcID(MSP *msp, BlxViewContext *bc)
   const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
   const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
   
-  msp->id = 0.0;
-  
-  if (mspIsBlastMatch(msp))
+  if (mspIsBlastMatch(msp) && msp->id < 0) /* Only calculate if ID is not already set */
     {
+      msp->id = 0.0;
+
       /* If there is no sequence data, leave the ID as zero */
       const char *matchSeq = mspGetMatchSeq(msp);
 
