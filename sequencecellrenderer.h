@@ -11,7 +11,7 @@
 #ifndef _sequence_cell_renderer_included_
 #define _sequence_cell_renderer_included_
 
-#include <SeqTools/blxview.h>
+#include <SeqTools/blixem_.h>
 #include <gtk/gtk.h>
 #include <gtk/gtkcellrenderertext.h>
 

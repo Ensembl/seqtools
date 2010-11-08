@@ -76,16 +76,16 @@ typedef struct _BlxGffData
 
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, const char *opts, GList **seqList, GSList *supportedTypes, GSList *styles, BlxGffData *gffData, GError **error);
-static void           parseAttributes(char *attributes, GList **seqList, const char *opts, const int lineNum, BlxGffData *gffData, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, GSList *styles, BlxGffData *gffData, GError **error);
+static void           parseAttributes(char *attributes, GList **seqList, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
-static void           parseGapString(char *text, const char *opts, MSP *msp, GError **error);
+static void           parseGapString(char *text, MSP *msp, const int resFactor, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
 //static void           parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error);
-static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int numFrames, int *q, int *s, GError **error);
+static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int resFactor, int *q, int *s, GError **error);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 //static void           validateMsp(const MSP *msp, GError **error);
 static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
@@ -180,7 +180,6 @@ void parseGff3Header(const int lineNum,
                      MSP **lastMsp, 
 		     MSP **mspList, 
 		     BlxParserState *parserState, 
-		     char *opts, 
 		     GString *line_string, 
 		     GList **seqList,
                      char *refSeqName,
@@ -231,7 +230,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			       MSP **mspList, 
 			       GList **seqList, 
 			       GSList *styles,
-			       char *opts, 
+                               const int resFactor,
 			       GError **error)
 {
   if (!gffData)
@@ -269,7 +268,7 @@ static void createBlixemObject(BlxGffData *gffData,
                               lastMsp, 
 			      mspList, 
 			      seqList, 
-			      gffData->mspType, 
+			      gffData->mspType,
 			      gffData->source,
 			      gffData->score, 
 			      gffData->percentId, 
@@ -286,7 +285,6 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sEnd, 
 			      gffData->sStrand, 
 			      gffData->sequence, 
-			      opts, 
 			      &tmpError);
 
     if (!tmpError)
@@ -303,7 +301,7 @@ static void createBlixemObject(BlxGffData *gffData,
 	    }
 
 	  /* populate the gaps array */
-	  parseGapString(gffData->gapString, opts, msp, &tmpError);
+	  parseGapString(gffData->gapString, msp, resFactor, &tmpError);
 	}    
     }
     
@@ -320,11 +318,11 @@ void parseGff3Body(const int lineNum,
                    MSP **lastMsp, 
 		   MSP **mspList, 
 		   BlxParserState *parserState, 
-		   char *opts, 
 		   GString *line_string, 
 		   GList **seqList,
                    GSList *supportedTypes,
-                   GSList *styles)
+                   GSList *styles,
+                   const int resFactor)
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
@@ -333,12 +331,12 @@ void parseGff3Body(const int lineNum,
 			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL};
 		      
   GError *error = NULL;
-  parseGffColumns(line_string, lineNum, opts, seqList, supportedTypes, styles, &gffData, &error);
+  parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, &gffData, &error);
   
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, opts, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, resFactor, &error);
     }
   
   if (error)
@@ -434,7 +432,6 @@ static BlxStrand readStrand(char *token, GError **error)
 /* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
 static void parseGffColumns(GString *line_string, 
                             const int lineNum, 
-                            const char *opts, 
                             GList **seqList,
                             GSList *supportedTypes,
                             GSList *styles, 
@@ -503,7 +500,7 @@ static void parseGffColumns(GString *line_string,
       
       if (attributes)
         {
-          parseAttributes(attributes, seqList, opts, lineNum, gffData, &tmpError);
+          parseAttributes(attributes, seqList, lineNum, gffData, &tmpError);
         }
     }
     
@@ -521,7 +518,6 @@ static void parseGffColumns(GString *line_string,
  * be escaped. Populates the match sequence into 'sequence' if found in one of the attributes. */
 static void parseAttributes(char *attributes, 
 			    GList **seqList, 
-			    const char *opts, 
 			    const int lineNum, 
 			    BlxGffData *gffData,
 			    GError **error)
@@ -687,37 +683,9 @@ static void parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGf
 }
 
 
-/* Find out how many reading frames there are based on the options (1 for nucleotide matches, 
- * 3 for protein matches) */
-static int getNumFrames(const char *opts, GError **error)
-{
-  int result = 1;
-  
-  switch (opts[BLXOPT_MODE])
-    {
-      case 'X': /* fall through */
-      case 'L':
-        result = 3; /* protein matches: 3 frames */
-        break;
-        
-      case 'N': /* fall through */
-      case 'T': /* fall through */
-      case 'P':
-        result = 1; /* nucleotide matches: 1 frame */
-        break;
-        
-      default:
-        g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_UNKNOWN_MODE, "Unknown blast mode '%c' in options. Expected X, L, N, T or P.\n", opts[BLXOPT_MODE]);
-        break;
-    };
-  
-  return result;
-}
-
-
 /* Parse the data from the "gaps" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
  * Populates the Gaps array in the given MSP. Frees the given gap string when finished with. */
-static void parseGapString(char *text, const char *opts, MSP *msp, GError **error)
+static void parseGapString(char *text, MSP *msp, const int resFactor, GError **error)
 {
   if (!text)
     {
@@ -727,13 +695,6 @@ static void parseGapString(char *text, const char *opts, MSP *msp, GError **erro
   /* Split on spaces */
   char **tokens = g_strsplit_set(text, " ", -1); /* -1 means do all tokens */
 
-  /* Find out how many reading frames there are, based on the blast mode */
-  GError *tmpError = NULL;
-  const int numFrames = getNumFrames(opts, &tmpError);
-
-  /* getNumFrames() always returns something so if there was an error give a warning and try to continue */
-  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
-  
   /* Start at the MSP's min coord and increase values as we progress through
    * the cigar string IF the strand is forward. If it is the reverse strand, 
    * start at the max coord and decrease values. */
@@ -748,10 +709,11 @@ static void parseGapString(char *text, const char *opts, MSP *msp, GError **erro
   int s = sForward ? msp->sRange.min - 1 : msp->sRange.max + 1;
   
   char **token = tokens;
+  GError *tmpError = NULL;
 
   while (token && *token && **token && !tmpError)
     {
-      parseCigarStringSection(*token, msp, qDirection, sDirection, numFrames, &q, &s, &tmpError);
+      parseCigarStringSection(*token, msp, qDirection, sDirection, resFactor, &q, &s, &tmpError);
       
       if (tmpError)
         {
@@ -794,19 +756,16 @@ static void parseCigarStringSection(const char *text,
                                     MSP *msp, 
                                     const int qDirection, 
                                     const int sDirection, 
-                                    const int numFrames,
+                                    const int resFactor,
                                     int *q, 
                                     int *s,
                                     GError **error)
 {
-  /* Get the digit part of the string, which indicates the number of peptides. */
+  /* Get the digit part of the string, which indicates the number of display coords (peptides in peptide matches,
+   * nucleotides in nucelotide matches). */
   const int numPeptides = convertStringToInt(text+1);
-  const int numNucleotides = numPeptides * numFrames;
-
-//  /* to do: hack to make blixem work the with currently-wrong data from zmap. take this out and use the above. */
-//  const int numNucleotides = convertStringToInt(text+1);
-//  const int numPeptides= numNucleotides / numFrames;
-
+  int numNucleotides = numPeptides * resFactor;
+  
   if (text[0] == 'M' || text[0] == 'm')
     {
       /* We were at the end of the previous range or gap, so move to the next coord, where our range will start */

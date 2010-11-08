@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.85 2010-11-05 12:08:36 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.86 2010-11-08 15:52:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -150,8 +150,8 @@ typedef struct _BlxMessage
 char *blixemVersion = BLIXEM_VERSION_COMPILE ;
 
 
-static void            blviewCreate(char *opts, char *align_types, const char *paddingSeq, GList* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
-static void            finaliseBlxSequences(GList *featureLists[], MSP **mspList, GList **seqList, char *opts, const int offset);
+static void            blviewCreate(char *align_types, const char *paddingSeq, GList* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
+static void            finaliseBlxSequences(GList *featureLists[], MSP **mspList, GList **seqList, const int offset);
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
 static void            displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, gpointer data);
@@ -291,133 +291,62 @@ static char *padseq = 0;
 //}
 
 
-
-static void setModeP(CommandLineOptions *options)
+/* Check we have everything we need */
+static void validateInput(CommandLineOptions *options)
 {
-  options->blastMode = BLXMODE_BLASTP;
-  options->bigPictZoom = 10;
-}
-
-static void setModeN(CommandLineOptions *options)
-{
-  options->blastMode = BLXMODE_BLASTN;
-  options->bigPictZoom = 30;
-}
-
-static void setModeX(CommandLineOptions *options)
-{
-  options->blastMode = BLXMODE_BLASTX;
-  options->bigPictZoom = 10;
-}
-
-static void setModeT(CommandLineOptions *options)
-{
-  options->blastMode = BLXMODE_TBLASTN;
-  options->bigPictZoom = 10;
-}
-
-static void setModeL(CommandLineOptions *options)
-{
-  options->blastMode = BLXMODE_TBLASTX;
-  options->bigPictZoom = 10;
-}
-
-
-static void blxviewGetOpts(char *opts, char *refSeq, CommandLineOptions *options)
-{
-  char *opt = opts;
-  while (*opt)
-    {
-      /* Used options: 	 BFGILMNPRSTXZ-+bgrstimnop      */
-      
-      switch (*opt)
-      {
-	case 'G':
-	  /* Gapped HSPs */
-	  options->hiliteSins = options->gappedHsp = TRUE;    break;
-          
-	case 'P': setModeP(options);                  break;
-	case 'N': setModeN(options);                  break;
-	case 'X': setModeX(options);                  break;
-	case 'T': setModeT(options);                  break;
-	case 'L': setModeL(options);                  break;
-          
-	case '-':
-	  options->activeStrand = BLXSTRAND_REVERSE; break;
-	case '+':
-	  options->activeStrand = BLXSTRAND_FORWARD; break;
-	case 'B':
-	  options->bigPictON = TRUE;                 break; 
-	case 'b':
-	  options->bigPictON = FALSE;                break;
-	case 'd':
-	  options->dotterFirst = TRUE;               break;
-        case 'F':
-          options->parseFullEmblInfo = TRUE;         break;
-	case 'M':
-	  options->startNextMatch = 1;               break;
-	case 'R':
-	  options->bigPictRev = 1;                   break; /* to do: this is currently not implemented. not sure what it should do */
-	case 'r':
-	  options->bigPictRev = 0;                   break;
-	case 'Z':
-	  options->bigPictZoom = strlen(refSeq);     break;
-
-          /* Sorting... */
-        case 'I':
-	  options->sortInverted = TRUE;                   break;
-	case 'i':
-	  options->initSortColumn = BLXCOL_ID ;           break;
-	case 'n':
-	  options->initSortColumn = BLXCOL_SEQNAME ;      break;
-	case 'p':
-	  options->initSortColumn = BLXCOL_START ;        break;
-	case 's':
-	  options->initSortColumn = BLXCOL_SCORE ;        break;
-	case 't':
-	  options->initSortColumn = BLXCOL_TISSUE_TYPE ;  break;
-	case 'm':
-	  options->initSortColumn = BLXCOL_STRAIN ;       break;
-	case 'g':
-	  options->initSortColumn = BLXCOL_GENE_NAME ;    break;
-	case 'o':
-	  options->initSortColumn = BLXCOL_ORGANISM ;     break;
-      }
-      
-      opt++;
-    }
-
   if (!options->refSeq)
     {
       g_error("Error: reference sequence not specified.\n");
     }
   
-  if (options->blastMode == BLXMODE_UNSET)
+  /* if we were given the blast mode instead of seq type, determine the display sequence type */
+  if (options->seqType == BLXSEQ_INVALID && options->blastMode != BLXMODE_UNSET)
     {
-      printf("\nNo blast type specified. Detected ");
+      if (options->blastMode == BLXMODE_BLASTN)
+        options->seqType = BLXSEQ_DNA;
+      else
+        options->seqType = BLXSEQ_PEPTIDE;
+    }
+  
+  /* Check we have a valid seq type */
+  if (options->seqType == BLXSEQ_INVALID)
+    {
+      printf("\nNo sequence type specified. Detected ");
       
-      if (determineSeqType(refSeq) == BLXSEQ_PEPTIDE)
+      if (determineSeqType(options->refSeq) == BLXSEQ_PEPTIDE)
 	{
-	  printf("protein sequence. Will try to run Blixem in blastp mode\n");
-	  setModeP(options);
+	  printf("protein sequence. Will try to run Blixem in protein mode.\n");
+	  options->seqType = BLXSEQ_PEPTIDE;
 	}
       else
 	{
-	  printf("nucleotide sequence. Will try to run Blixem in blastn mode\n");
-	  setModeN(options);
+	  printf("nucleotide sequence. Will try to run Blixem in nucelotide mode.\n");
+	  options->seqType = BLXSEQ_DNA;
 	}
     }
   
-  /* Determine the sequence type and number of reading frames based on the blast mode */
-  if (options->blastMode == BLXMODE_BLASTX || options->blastMode == BLXMODE_TBLASTX)
+  /* Ideally we'd get rid of blast mode and just deal with real sequence types (ref seq type, match
+   * seq type and display type), but it's too in-built for now so make sure it's set */
+  if (options->blastMode == BLXMODE_UNSET)
+    options->blastMode = (options->seqType == BLXSEQ_DNA ? BLXMODE_BLASTN : BLXMODE_BLASTX);
+  
+  /* Set the number of reading frames */
+  if (options->seqType == BLXSEQ_PEPTIDE)
+    options->numFrames = 3;
+  else
+    options->numFrames = 1;
+  
+  /* Now we've got the ref seq, we can work out the zoom, if zooming to view the whole sequence */
+  if (options->zoomWhole)
     {
-      options->seqType = BLXSEQ_PEPTIDE;
-      options->numFrames = 3;
+      options->bigPictZoom = strlen(options->refSeq);
     }
   else
     {
-      options->seqType = BLXSEQ_DNA;
-      options->numFrames = 1;
+      if (options->seqType == BLXSEQ_DNA)
+        options->bigPictZoom = 30;
+      else
+        options->bigPictZoom = 10;
     }
   
   /* For DNA matches, always get the full EMBL file, because it doesn't seem to be any slower
@@ -658,23 +587,15 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch,
  * xace.
  *
  * Interface
- *      opts:  may contain a number of options that tell blixem to
- *             start up with different defaults
  *    pfetch:  if non-NULL, then we use pfetch instead of efetch for
  *             _all_ sequence fetching (use the node/port info. in the
  *             pfetch struct to locate the pfetch server).
  *
  */
-gboolean blxview(char *refSeq, 
-                 char *refSeqName, 
-                 IntRange *refSeqRange,
-                 int start, 
-                 int qOffset, 
+gboolean blxview(CommandLineOptions *options,
                  GList* featureLists[],
-                 MSP *msplist, 
                  GList *seqList,
                  GSList *supportedTypes,
-                 char *opts, 
                  PfetchParams *pfetch, 
                  char *align_types, 
                  gboolean External)
@@ -695,30 +616,23 @@ gboolean blxview(char *refSeq,
 	}
     }
 
-  char fetchMode[32] = BLX_FETCH_EFETCH;
-  const int startCoord = start < 1 ? 1 : start;
-  
-  CommandLineOptions options = {refSeq, refSeqName, refSeqRange, qOffset, startCoord, msplist, stdcode1,
-				BLXSTRAND_FORWARD, 10, TRUE, FALSE, BLXCOL_ID, FALSE, FALSE,
-				FALSE, FALSE, FALSE, FALSE, BLXMODE_UNSET, BLXSEQ_INVALID, 1, fetchMode};
-  
-  blxviewGetOpts(opts, refSeq, &options);
+  validateInput(options);
   
   const char *net_id = NULL;
   int port = UNSET_INT;
-  gboolean status = blxviewFetchSequences(pfetch, External, options.parseFullEmblInfo, options.seqType, seqList, &options.fetchMode, &net_id, &port);
+  gboolean status = blxviewFetchSequences(pfetch, External, options->parseFullEmblInfo, options->seqType, seqList, &options->fetchMode, &net_id, &port);
   
   if (status)
     {
       /* Construct missing data and do any other required processing now we have all the sequence data */
-      finaliseBlxSequences(featureLists, &msplist, &seqList, opts, qOffset);
+      finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->refSeqOffset);
     }
 
   /* Note that we create a blxview even if MSPlist is empty.
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(opts, align_types, padseq, featureLists, seqList, supportedTypes, &options, net_id, port, External) ;
+      blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, net_id, port, External) ;
     }
   
   return status;
@@ -726,8 +640,7 @@ gboolean blxview(char *refSeq,
 
 
 /* Initialize the display and the buttons */
-static void blviewCreate(char *opts, 
-			 char *align_types, 
+static void blviewCreate(char *align_types, 
 			 const char *paddingSeq,
                          GList* featureLists[],
                          GList *seqList,
@@ -742,12 +655,12 @@ static void blviewCreate(char *opts,
       /* Create the window */
       blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, net_id, port, External);
 
-      gboolean pep_nuc_align = (*opts == 'X' || *opts == 'N') ;
+      gboolean pep_nuc_align = (options->blastMode == BLXMODE_BLASTX || options->blastMode == BLXMODE_BLASTN);
       
       char *title = blxprintf("Blixem %s%s%s:   %s",
                               (pep_nuc_align ? "  (" : ""),
-                              (align_types ? align_types : (*opts == 'X' ? "peptide" :
-                                                            (*opts == 'N' ? "nucleotide" : ""))),
+                              (align_types ? align_types : (options->seqType == BLXSEQ_PEPTIDE ? "peptide" :
+                                                            (options->seqType == BLXSEQ_DNA ? "nucleotide" : ""))),
                               (pep_nuc_align ? " alignment)" : ""),
                               options->refSeqName);
       
@@ -926,7 +839,7 @@ static void copyCdsReadingFrame(MSP *exon, MSP *cds, MSP *utr)
  * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
 static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr, 
                                     BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
-                                    char *opts, GError **error)
+                                    GError **error)
 {
   BlxMspType newType = BLXMSP_INVALID;
   MSP **ptrToUpdate = NULL;
@@ -1021,7 +934,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, UNSET_INT, UNSET_INT, newPhase, NULL, blxSeq->idTag,
                                   NULL, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
-                                  UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
+                                  UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
       
       if (tmpError)
         {
@@ -1045,7 +958,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
 /* Construct any missing transcript data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, char *opts)
+static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   GError *tmpError = NULL;
 
@@ -1085,7 +998,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], 
             {
               /* We've found a gap between exons, or reached the end. First, see if the current exon/cds or utr
                * is missing and construct it if possible. Also do this if we're at the last MSP. */
-              createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, featureLists, lastMsp, mspList, seqList, opts, &tmpError);
+              createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, featureLists, lastMsp, mspList, seqList, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
               copyCdsReadingFrame(curExon, curCds, curUtr);
 
@@ -1114,7 +1027,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], 
                 {
                   createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
                               NULL, newRange.min, newRange.max, blxSeq->strand, UNSET_INT, blxSeq->fullName,
-                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, opts, &tmpError);
+                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
@@ -1331,7 +1244,7 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
 
 /* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
  * data and the introns etc. */
-static void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, char *opts, const int offset)
+static void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, const int offset)
 {
   /* Loop through all MSPs and adjust their coords by the offest. Remember the last in the list */
   MSP *msp = *mspList;
@@ -1361,7 +1274,7 @@ static void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **s
         }
       
       findSequenceExtents(blxSeq);
-      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList, opts);
+      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList);
     }
 }
 
@@ -1441,7 +1354,6 @@ MSP* createNewMsp(GList* featureLists[],
                   const int sEnd,
                   BlxStrand sStrand,
                   char *sequence,
-                  char *opts, 
                   GError **error)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);

@@ -4324,7 +4324,6 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->blastMode = options->blastMode;
   blxContext->seqType = options->seqType;
   blxContext->numFrames = options->numFrames;
-  blxContext->gappedHsp = options->gappedHsp;
   blxContext->paddingSeq = paddingSeq;
   blxContext->fetchMode = g_strdup(options->fetchMode);
   blxContext->matchSeqs = seqList;
@@ -4520,12 +4519,6 @@ int blxWindowGetDotterZoom(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->dotterZoom : UNSET_INT;
-}
-
-gboolean blxWindowGetGappedHsp(GtkWidget *blxWindow)
-{
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->gappedHsp : UNSET_INT;
 }
 
 const char* blxWindowGetPaddingSeq(GtkWidget *blxWindow)
@@ -5182,8 +5175,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                            const gboolean External)
 {
   /* Offset the reference sequence range, if an offset was specified. */ 
-  IntRange refSeqRange = {options->refSeqRange->min + options->refSeqOffset, 
-                          options->refSeqRange->max + options->refSeqOffset};
+  IntRange refSeqRange = {options->refSeqRange.min + options->refSeqOffset, 
+                          options->refSeqRange.max + options->refSeqOffset};
   
   /* Get the ref seq range in display coords (DNA or peptide coords, depending on what we're displaying). */
   IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
@@ -5316,13 +5309,18 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   g_debug("Running %s\n", g_get_prgname());
   gtk_widget_show_all(window);
 
-  /* If the options don't say to show the reverse strand grid, hide it now. (This must be done
-   * after showing the widgets, or it will get shown again in show_all.) */
-  if (!options->bigPictRev)
+  /* If the options say to hide the inactive strand, hide it now. (This must be done
+   * after showing the widgets, or it will get shown again in show_all.). To do: we just
+   * hide the grid at the moment; hide the detail-view pane as well?  */
+  if (options->hideInactive && options->activeStrand == BLXSTRAND_FORWARD)
+    {
+      widgetSetHidden(fwdStrandGrid, TRUE);
+    }
+  else if (options->hideInactive && options->activeStrand == BLXSTRAND_REVERSE)
     {
       widgetSetHidden(revStrandGrid, TRUE);
     }
-
+  
   /* Set the initial column widths. (This must be called after the widgets are 
    * realised because it causes the scroll range to be updated, which in turn causes
    * the big picture range to be set. The widgets must be realised before this because

@@ -27,57 +27,11 @@
  * Last edited: Aug 21 13:57 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:57:17 1999 (fw)
- * CVS info:   $Id: blxview.h,v 1.42 2010-11-02 17:27:19 gb10 Exp $
+ * CVS info:   $Id: blxview.h,v 1.43 2010-11-08 15:52:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLXVIEW_H
 #define DEF_BLXVIEW_H
-
-#include <gtk/gtk.h>
-#include <SeqTools/blxmsp.h>
-
-#ifdef ACEDB
-#include <wh/regular.h>
-#endif
-
-/* Only used in pephomolcol.c, would be good to get rid of this.... */
-#define FULLNAMESIZE               255
-
-
-/* blixem can use either efetch (default) or a pfetch server to get
- * sequences, to use pfetch node/port information must be specified. */
-typedef struct
-{
-  char *net_id ;
-  int port ;
-} PfetchParams ;
-
-
-/* Blixem can read a number of file formats which are documented in:
- * 
- * The following defines give keyword strings for these file formats
- * which should be used in code that writes these files.
- * 
- *  */
-#define BLX_GAPS_TAG               "Gaps"
-#define BLX_DESCRIPTION_TAG        "Description"
-#define BLX_SEQUENCE_TAG           "Sequence"
-
-
-/* Function to show blixem window, can be called from any application. */
-gboolean                            blxview(char *refSeq, 
-                                            char *refSeqName,
-                                            IntRange *refSeqRange,
-	                                    int start, 
-                                            int qOffset, 
-                                            GList* featureLists[],
-                                            MSP *msplist, 
-                                            GList *seqList, 
-                                            GSList *supportedTypes,
-                                            char *opts, 
-	                                    PfetchParams *pfetch, 
-                                            char *align_types, 
-                                            gboolean External) ;
 
 
 #endif /*  !defined DEF_BLXVIEW_H */

@@ -14,7 +14,6 @@
 #define _blx_dotter_h_included_
 
 
-#include <SeqTools/blxview.h>
 #include <gtk/gtk.h>
 
 

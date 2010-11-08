@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.29 2010-11-04 10:02:20 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.30 2010-11-08 15:52:47 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -41,6 +41,10 @@
 #include <unistd.h>
 
 
+/* would be good to get rid of this.... */
+#define FULLNAMESIZE               255
+
+
 /* Some globals.... */
 
 
@@ -49,7 +53,7 @@ gboolean blixem_debug_G = FALSE ;
 
 
 static char *usageText ="\n\
- Blixem - display Blast matches as a multiple alignment.\n\
+ Blixem - display multiple alignments against a reference sequence.\n\
 \n\
  Reference:  Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
  Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
@@ -57,67 +61,171 @@ static char *usageText ="\n\
  Copyright (c) 2009-2010: Genome Research Ltd.\n\
 \n\
 \n\
-  Usage: blixem [options] [<sequencefile>] <datafile> [X options] \n\
+ Usage: blixem [options] [<sequencefile>] <datafile> [X options] \n\
 \n\
- Both <sequencefile> and <datafile> can be substituted by \"-\"\n\
- for reading from stdin (pipe).  If <sequencefile> is piped, the first\n\
- line should contain the sequence name and the second the sequence itself.\n\
- If <sequencefile> is ommitted, <datafile> should contain the reference\n\
- sequence in FASTA format.\n\
+   <sequencefile> contains the reference sequence in FASTA format.\n\
+   <datafile> is a GFF v3 file containing alignments and other features.\n\
+   If <sequencefile> is ommitted, <datafile> should contain the reference\n\
+   sequence in FASTA format, below a comment line that reads ##FASTA.\n\
+\n\
+   Both <sequencefile> and <datafile> can be substituted by \"-\"\n\
+   for reading from stdin (pipe).  If <sequencefile> is piped, the first\n\
+   line should contain the sequence name and the second the sequence itself.\n\
 \n\
  Options:\n\
- -s <mode>  Sorting mode at startup.\n\
-               s = by Score\n\
-               i = by Identity\n\
-               n = by Name\n\
-               p = by Position\n\
-               t = by Tissue type\n\
-               m = by Strain\n\
-               g = by Gene name\n\
-               o = by Organism\n\
- -I         Inverted sorting order\n\
- -a         specify a string giving the names of the alignments, e.g. \"EST_mouse EST_human\" etc.\n\
- -b         Don't start with Big Picture.\n\
- -c <file>  Read configuration options from 'file'.\n\
- -k <file>  Read color/style options from key-value file 'file'. (See GLib Key-value-file-parser documentation.)\n\
- -S <n>     Start with the display centred on position n.\n\
- -h         Help and more options.\n\
- -o <optstring>\n\
-            Blixem options, e.g. -o \"MBr\". You'll have to read the source code for details.\n\
- -O <n>     Offset the reference sequence coordinate system by n.\n\
- -P nodeid<:port>\n\
-            Causes Blixem to get sequences from a pfetch server at machine nodeid on the given port (default 22100).\n\
- -r         Remove input files after parsing, used by xace when calling blixem as a\n\
-            standalone program.\n\
- -x <file>  Read in extra data (to that in datafile) from from <file>, data may be in a different format.\n\
+  -m <mode>, --display-mode  MANDATORY\n\
+    Whether to display sequences in nucleotide or protein mode. Valid values for <mode> are:\n\
+      N = nucleotide\n\
+      P = protein\n\
+\n\
+  -a <names>, --alignment-names=<names>\n\
+    Specify a string giving the names of the alignments, e.g. \"EST_mouse EST_human\" etc.\n\
+\n\
+  -b, --disable-big-picture\n\
+    Hide the big picture section.\n\
+\n\
+  -c <file>, --config-file=<file>\n\
+    Read configuration options from 'file'.\n\
+\n\
+  -h, --help\n\
+    More detailed usage information.\n\
+\n\
+  -I, --invert-sort\n\
+    Invert sorting order\n\
+\n\
+  -k <file>, --key-file=<file>\n\
+    Read color options from a key-value file. Use --help option to see details.\n\
+\n\
+  -O <n>, --offset=<n>\n\
+    Offset the reference sequence coordinate system by n.\n\
+\n\
+  -P <nodeid:port>\n\
+    Causes Blixem to get sequences from a pfetch server at machine nodeid on the given\n\
+    port (default 22100).\n\
+\n\
+  -r, --remove-input-files\n\
+    Remove input files after parsing.\n\
+\n\
+  -s <mode>, --sort-mode=<mode>\n\
+    Default sort mode. Use --help option to see details.\n\
+\n\
+  -S <n>, --start-coord=<n>\n\
+    Start with the display centred on coordinate n.\n\
+\n\
+  -z, --zoom-whole\n\
+    Start with the big picture zoomed out to view the full reference sequence range.\n\
+\n\
+  --start-next-match\n\
+    Start with the display centred on the first match to the right of the default start coord.\n\
+\n\
+  --dotter-first\n\
+    Call Dotter on the first match to the right of the default start coord.\n\
+\n\
+  --highlight-diffs\n\
+    Enable 'highlight differences' mode, where mismatches (rather than matches) are highlighted.\n\
+\n\
+  --hide-inactive\n\
+    Hide the inactive strand (i.e. the reverse strand, or the forward strand if the -R option\n\
+    is used).\n\
+\n\
+  --optional-data\n\
+    Parse additional data such as organism and tissue-type on start-up.\n\
 \n\
  Some X options:\n\
  -acefont <font> Main font.\n\
  -font    <font> Menu font.\n\
 \n\
- To make the datafile from blast output, run MSPcrunch with option -q.\n\n\
-\n\
 "BLIXEM_AUTHOR_TEXT"\n\
- Version" ;
+ Version %s\n\%s\n" ;
 
 static char *help_string = "\n\
+FEATURES\n\
+  The prefered file format for <datafile> is GFF v3. (However, Blixem is still compatible with\n\
+  older file formats such as exblx and seqbl, as used by MSPcrunch).\n\
+\n\
+  Blixem is mainly aimed at displaying alignments, but can also show other features such as\n\
+  transcripts, variations and polyA tails. The supported SO terms are:\n%s\
+\n\
+SORT MODE\n\
+  The sort mode is specified with the -s <mode> or --sort-mode=<mode> argument, where <mode> is\n\
+  one of the following:\n\
+    s = by Score\n\
+    i = by Identity\n\
+    n = by Name\n\
+    p = by Position\n\
+\n\
+  If optional data is loaded on start-up using the --optional-data argument, then the following\n\
+  sort modes are also valid:\n\
+    t = by Tissue type\n\
+    m = by Strain\n\
+    g = by Gene name\n\
+    o = by Organism\n\
+\n\
+COLOR KEY FILE\n\
+  The color key file is specified with the -k <file> or --key-file=<file> argument. This is a .ini-\n\
+  like file that specifies attributes such as fill and line colors for features from particular \n\
+  sources (say EST_Human or polya_signal). The file should contain one or more source stanzas followed\n\
+  by one or more key=value pairs, i.e. \n\
+\n\
+    [<source>]\n\
+      <key>=<value>\n\
+      ...\n\
+\n\
+  <value> is a hex color-string, e.g. #ff0000\n\
+\n\
+  Possible keys are:\n\
+    fill_color                    (default fill color)\n\
+    fill_color_selected           (fill color when selected) \n\
+    fill_color_print              (default fill color for printing)\n\
+    fill_color_print_selected     (fill color for printing when selected)\n\
+    line_color                    (default line color)\n\
+    line_color_selected           (line color when selected)\n\
+    line_color_print              (default line color for printing)\n\
+    line_color_print_selected     (line color for printing when selected)\n\
+  Only fill_color and line_color are mandatory; the other colors will be calculated automatically\n\
+  if not specified (e.g. selections as a darker shade, print colors as a greyscale).\n\
+\n\
+MSPcrunch\n\
+To make the datafile from blast output, run MSPcrunch with option -q.\n\
+\n\
  o To pipe MSPcrunch output directly to Blixem, use \"-\"\n\
    as the second parameter ([datafile]).  Example:\n\
 \n\
    MSPcrunch -q <my.blast_output> | blixem <my.seq> -\n\
 \n\
-\n\
  o The BLAST program (blastp, blastn, blastx, tblastn, tblastx)\n\
    is automatically detected from the Blast output header by MSPcrunch\n\
-   and is passed on to Blixem in the seqbl format (-q).  If\n\
-   your output lacks the header, set the program with these options:\n\
-\n\
-   -p    Use blastp output (blastx is default)\n\
-   -n    Use blastn output\n\
-   -t    Use tblastn output\n\
-   -l    Use tblastx output\n\n" ;
+   and is passed on to Blixem in the seqbl format (-q)." ;
 
 
+/* set default values for command lines options */
+static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode, char *refSeqName)
+{
+  options->refSeq = NULL;
+  options->refSeqName = refSeqName;
+  options->refSeqRange.min = UNSET_INT;
+  options->refSeqRange.max = UNSET_INT;
+  options->refSeqOffset = 0;
+  options->startCoord = 1;
+  options->mspList = NULL;
+  options->geneticCode = stdcode1;
+  options->activeStrand = BLXSTRAND_FORWARD;
+  options->zoomWhole = FALSE;
+  options->bigPictZoom = 10;          
+  options->bigPictON = TRUE;          
+  options->hideInactive = FALSE;         
+  options->initSortColumn = BLXCOL_ID;
+  options->sortInverted = FALSE;	
+  options->hiliteSins = FALSE;   
+  options->dotterFirst = FALSE;	
+  options->startNextMatch = FALSE;
+  options->parseFullEmblInfo = FALSE;
+  options->blastMode = BLXMODE_UNSET;
+  options->seqType = BLXSEQ_INVALID;
+  options->numFrames = 1;
+  options->fetchMode = fetchMode;
+}
+  
 
 /* Utility to extract a color string with the key name 'key' from the given group in the
  * given key file. Does nothing if the given error is already set. */
@@ -210,24 +318,76 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
 }
 
 
-/* Initialise the opts string to blanks, except for some specific opts we want to set as defaults. */
-static void initialiseOptsString(char *opts)
+/* Determine the sequence type (nucleotide or peptide) from the given char */
+static BlxSeqType getSeqTypeFromChar(char seqChar)
 {
-  /* Initialise to blanks */
-  int optNum = 0;
-  for ( ; optNum < BLXOPT_NUM_OPTS; ++optNum)
+  BlxSeqType result = BLXSEQ_INVALID;
+  
+  if (seqChar == 'n' || seqChar == 'N')
+    result = BLXSEQ_DNA;
+  else if (seqChar == 'p' || seqChar == 'P')
+    result = BLXSEQ_PEPTIDE;
+  else
+    g_error("Bad display mode '%c'\n", seqChar);
+  
+  return result;
+}
+
+
+/* Get the sort mode from a char representing that mode */
+static BlxColumnId getSortModeFromChar(char sortChar)
+{
+  BlxColumnId result;
+  
+  switch (sortChar)
+  {
+    case 's':
+      result = BLXCOL_SCORE;
+      break;
+    case 'i':
+      result = BLXCOL_ID;
+      break;
+    case 'n':
+      result = BLXCOL_SEQNAME;
+      break;
+    case 'p':
+      result = BLXCOL_START;
+      break;
+    case 't':
+      result = BLXCOL_TISSUE_TYPE;
+      break;
+    case 'm':
+      result = BLXCOL_STRAIN;
+      break;
+    case 'g':
+      result = BLXCOL_GENE_NAME;
+      break;
+    case 'o':
+      result = BLXCOL_ORGANISM;
+      break;
+
+    default:
+      g_error("Bad sort mode: %c\n", sortChar); 
+  }
+  
+  return result;
+}
+
+
+static char* getSupportedTypesAsString(GSList *supportedTypes)
+{
+  GString *resultStr = g_string_new(NULL);
+  GSList *item = supportedTypes;
+  
+  for ( ; item; item = item->next)
     {
-      opts[optNum] = ' ';
+      BlxGffType *gffType = (BlxGffType*)(item->data);
+      g_string_append_printf(resultStr, "    %s\n", gffType->name);
     }
-
-  /* Terminate the string */
-  opts[BLXOPT_NUM_OPTS] = '\0';
-
-  /* Set some specific defaults */
-  opts[BLXOPT_START_NEXT_MATCH] = 'M'; /* start at next match */
-  opts[BLXOPT_SHOW_BIG_PICT] = 'B';    /* show big picture */
-  opts[BLXOPT_REV_BIG_PICT] = 'r';     /* only show the forward strand in the big picture */
-  opts[BLXOPT_FULL_ZOOM] = 'Z';        /* use full zoom */
+  
+  char *result = resultStr->str;
+  g_string_free(resultStr, FALSE);
+  return result;
 }
 
 
@@ -237,39 +397,28 @@ static void initialiseOptsString(char *opts)
  */
 int main(int argc, char **argv)
 {
-  FILE        *seqfile, *FSfile;
+  FILE *seqfile, *FSfile;
   char seqfilename[1000] = {'\0'};
   char FSfilename[1000] = {'\0'};
-  char *refSeq = NULL;
-  char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char line[MAXLINE+1];
-  MSP *mspList = NULL ;
   
-  /* Create the opts string and initialise to blanks. */
-  char opts[BLXOPT_NUM_OPTS+1];
-  initialiseOptsString(opts);
-  
-  char refSeqName[FULLNAMESIZE+1] = "";
-  char dummyseqname[FULLNAMESIZE+1] = "";
-  
-  int displayStart = 0;
-  int qOffset = 0;
   int install = 1;
   
-  int          optc;
-  extern int   optind;
-  extern char *optarg;
-  char        *optstring="a:bc:F:hIik:lno:O:pP:rS:s:tx:";
-  char *usage;
-  gboolean rm_input_files = FALSE ;
+  gboolean rm_input_files = FALSE ; /* whether to remove input files once we're done with them */
   PfetchParams *pfetch = NULL ;
-  gboolean xtra_data = FALSE ;
-  FILE *xtra_file = NULL ;
+  gboolean xtra_data = FALSE ;      /* whether we have an extra data file to parse */
+  FILE *xtra_file = NULL ;          /* the extra data file */
   char xtra_filename[1000] = {'\0'} ;
-  char *align_types = NULL ;
+  char *align_types = NULL ;        /* string containing alignment types, to display in the title */
   char *config_file = NULL ;        /* optional blixem config file (usually "blixemrc") */
   char *key_file = NULL ;           /* optional keyword file for passing style information */
   GError *error = NULL ;
+ 
+  char fetchMode[32] = BLX_FETCH_EFETCH;
+  char refSeqName[FULLNAMESIZE+1] = "";
+
+  static CommandLineOptions options;
+  initCommandLineOptions(&options, fetchMode, refSeqName);
  
   /* Set up the GLib message handlers
    *
@@ -289,11 +438,53 @@ int main(int argc, char **argv)
   g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
 
   /* Stick version info. into usage string. */
-  usage = g_malloc(strlen(usageText) + strlen(blixemVersion) + 10) ;
-  sprintf(usage, "%s %s\n", usageText, blixemVersion) ;
+  char usage[strlen(usageText) + strlen(blixemVersion) + 10];
+  sprintf(usage, usageText, blixemVersion, "") ;
 
+  /* Get the list of supported GFF types, in case we need to print them out in the usage text */
+  GSList* supportedTypes = blxCreateSupportedGffTypeList();
+  char *supported_types_string = getSupportedTypesAsString(supportedTypes);
 
-  while ((optc = getopt(argc, argv, optstring)) != EOF )
+  /* Get the input args. We allow long args, so we need to create a long_options array */
+  static struct option long_options[] =
+    {
+      {"start-next-match",      no_argument,        &options.startNextMatch, 1},
+      {"dotter-first",          no_argument,        &options.dotterFirst, 1},
+      {"highlight-diffs",       no_argument,        &options.hiliteSins, 1},
+      {"hide-inactive",         no_argument,        &options.hideInactive, 1},
+      {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
+
+      {"alignment-names",       required_argument,  0, 'a'},
+      {"disable-big-picture",   no_argument,        0, 'b'},
+      {"config-file",           required_argument,  0, 'c'},
+      {"single-intput-file",    required_argument,  0, 'F'}, /* obsolete */
+      {"help",                  no_argument,        0, 'h'},
+      {"disable-install",       no_argument,        0, 'i'},
+      {"invert-sort",           no_argument,        0, 'I'},
+      {"key-file",              required_argument,  0, 'k'},
+      {"tblastx",               no_argument,        0, 'l'}, /* obsolete */
+      {"display-mode",          required_argument,  0, 'm'},
+      {"blastn",                no_argument,        0, 'n'}, /* obsolete */
+      {"offset",                required_argument,  0, 'O'},
+      {"blastp",                no_argument,        0, 'p'}, /* obsolete */
+      {"pfetch-server",         required_argument,  0, 'P'},
+      {"remove-input-files",    no_argument,        0, 'r'},
+      {"reverse-strand",        no_argument,        0, 'R'},
+      {"start-coord",           required_argument,  0, 'S'},
+      {"sort-mode",             required_argument,  0, 's'},
+      {"tblastn",               no_argument,        0, 't'}, /* obsolete */
+      {"extra-file",            required_argument,  0, 'x'},
+      {"zoom-whole",            no_argument,        0, 'z'},
+      {0, 0, 0, 0}
+   };
+
+  char        *optstring="a:bc:F:hiIk:lm:nO:pP:rRS:s:tx:z";
+  extern int   optind;
+  extern char *optarg;
+  int          optionIndex; /* getopt_long stores the index into the option struct here */
+  int          optc;        /* the current option gets stored here */
+
+  while ((optc = getopt_long(argc, argv, optstring, long_options, &optionIndex)) != EOF)
     {
       switch (optc)
 	{
@@ -301,50 +492,45 @@ int main(int argc, char **argv)
 	  align_types = blxprintf("%s", optarg) ;
 	  break;
 	case 'b':
-	  opts[2] = 'b';
+          options.bigPictON = FALSE;
 	  break;
 	case 'c': 
 	  config_file = g_strdup(optarg) ;
 	  break;
-	case 'k': 
-	  key_file = g_strdup(optarg) ;
-          break;
 	case 'F': 
 	  strcpy(FSfilename, optarg);
 	  break;
 	case 'h': 
-	  fprintf(stderr, "%s\n%s\n", usage, help_string) ;
-	  exit(EXIT_FAILURE) ;
-	  break;
-	case 'I':
-	  opts[6] = 'I';
-	  break;
+          {
+            char helpText[strlen(help_string) + strlen(supported_types_string) + 10];
+            sprintf(helpText, help_string, supported_types_string);
+            fprintf(stderr, usageText, blixemVersion, helpText) ;
+            exit(EXIT_FAILURE) ;
+            break;
+          }
 	case 'i':
 	  install = 0;
 	  break;
+	case 'I':
+	  options.sortInverted = TRUE;
+	  break;
+	case 'k': 
+	  key_file = g_strdup(optarg) ;
+          break;
 	case 'l':
-	  opts[BLXOPT_MODE] = 'L';
+	  options.blastMode = BLXMODE_TBLASTX;
+	  break;
+	case 'm':
+	  options.seqType = getSeqTypeFromChar(*optarg);
 	  break;
 	case 'n':
-	  opts[BLXOPT_MODE] = 'N';
-	  break;
-	case 'o':
-	  {
-	    int i ;
-
-	    memset(opts, ' ', strlen(opts)) ;
-
-	    for (i = 0 ; i < strlen(optarg) ; i++)
-	      {
-		opts[i] = optarg[i] ;
-	      }
-	  }
+	  options.blastMode = BLXMODE_BLASTN;
 	  break;
 	case 'O':
-          qOffset = convertStringToInt(optarg);
+          options.refSeqOffset = convertStringToInt(optarg);
 	  break;
 	case 'p':
-	  opts[BLXOPT_MODE] = 'P';
+	  options.blastMode = BLXMODE_BLASTP;
 	  break;
 	case 'P':
 	  pfetch = g_malloc(sizeof(PfetchParams)) ;
@@ -354,28 +540,26 @@ int main(int argc, char **argv)
 	case 'r':
 	  rm_input_files = TRUE ;
 	  break ;
-	case 'S': 
-	  if (!(displayStart = atoi(optarg)))
-	    g_error("Bad diplay start position: %s\n", optarg); 
-	  opts[1] = ' ';
+        case 'R':
+          options.activeStrand = BLXSTRAND_REVERSE;
+          break ;
+        case 'S': 
+	  options.startCoord = atoi(optarg);
 	  break;
 	case 's': 
-	  if (*optarg != 's' && *optarg != 'i' && *optarg != 'n' && *optarg != 'p' &&
-              *optarg != 't' && *optarg != 'm' && *optarg != 'g' && *optarg != 'o')
-	    {
-	      fprintf(stderr,"Bad sorting mode: %s\n", optarg); 
-	      exit(EXIT_FAILURE) ;
-	    }
-	  opts[BLXOPT_SORT_MODE] = *optarg;
+	  options.initSortColumn = getSortModeFromChar(*optarg);
 	  break;
 	case 't':
-	  opts[BLXOPT_MODE] = 'T';
+	  options.blastMode = BLXMODE_TBLASTN;
 	  break;
 	case 'x': 
 	  xtra_data = TRUE ;
 	  strcpy(xtra_filename, optarg);
 	  break;
-
+        case 'z': 
+          options.zoomWhole = TRUE;
+          break;
+            
 	default : g_error("Illegal option\n");
 	}
     }
@@ -435,7 +619,7 @@ int main(int argc, char **argv)
 	      g_error("Error reading seqFile.\n");
 	    }
 
-	  sscanf(line, "%s", refSeqName);
+	  sscanf(line, "%s", options.refSeqName);
 
 	  /* Scan the input stream and place the chars in an extendable string */
 	  GString *resultStr = g_string_sized_new(5000);
@@ -448,14 +632,14 @@ int main(int argc, char **argv)
 	    }
 	  
 	  /* Set the reference sequence and free the GString (but not its data, which we've used) */
-	  refSeq = resultStr->str;
+	  options.refSeq = resultStr->str;
 	  g_string_free(resultStr, FALSE);
 	}
       else
 	{
 	  fseek(seqfile, 0, SEEK_END);
-	  refSeq = g_malloc(ftell(seqfile)+1);
-	  char *refSeqChar = refSeq;
+	  options.refSeq = g_malloc(ftell(seqfile)+1);
+	  char *refSeqChar = options.refSeq;
 	  fseek(seqfile, 0, SEEK_SET);
 	  
 	  while (!feof(seqfile))
@@ -473,10 +657,10 @@ int main(int argc, char **argv)
 		    
 	      if (*line == '>')
 		{
-		  strncpy(refSeqName, line+1, 255);
-		  refSeqName[255]=0;
+		  strncpy(options.refSeqName, line+1, 255);
+		  options.refSeqName[255]=0;
 		  
-		  char *spaceCharPtr = (char *)strchr(refSeqName, ' ');
+		  char *spaceCharPtr = (char *)strchr(options.refSeqName, ' ');
 		  if (spaceCharPtr)
 		    {
 		      *spaceCharPtr = 0;
@@ -513,11 +697,13 @@ int main(int argc, char **argv)
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
     featureLists[typeId] = NULL;
   
-  IntRange refSeqRange = {UNSET_INT, UNSET_INT}; /* parser populates this with ref seq range, if supplied */
   GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
-  GSList* supportedTypes = blxCreateSupportedGffTypeList();
 
-  parseFS(&mspList, FSfile, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &refSeqRange, &dummyseq, dummyseqname) ;
+  char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+  char dummyseqname[FULLNAMESIZE+1] = "";
+  
+  parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
+          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname) ;
   
   if (FSfile != stdin)
     {
@@ -532,10 +718,9 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&mspList, xtra_file, opts, featureLists, &seqList, supportedTypes, styles, &refSeq, refSeqName, &refSeqRange, &dummyseq, dummyseqname) ;
+      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles, &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname) ;
       fclose(xtra_file) ;
     }
-
 
   /* Remove the input files if requested.                                  */
   if (rm_input_files)
@@ -562,10 +747,11 @@ int main(int argc, char **argv)
         }
     }
 
+  
   /* Now display the alignments, this call does not return. (Note that
    * TRUE signals blxview() that it is being called from this standalone
    * blixem program instead of as part of acedb. */
-  if (blxview(refSeq, refSeqName, &refSeqRange, displayStart, qOffset, featureLists, mspList, seqList, supportedTypes, opts, pfetch, align_types, TRUE))
+  if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE))
     {
       gtk_main();
     }

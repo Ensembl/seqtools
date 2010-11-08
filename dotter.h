@@ -34,7 +34,7 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.8 2010-10-26 13:30:26 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.9 2010-11-08 15:52:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
@@ -74,14 +74,13 @@ typedef struct _DotterOptions
     gboolean hspsOnly;        /* only draw HSPs (i.e. don't calculate the dot-plot, just draw lines where we know HSPs should be) */
     gboolean swapGreyramp;    /* swap the default black/white points on the greyramp tool (inverts the colors) */
     gboolean fsEndLinesOn;    /* to do: not used? */
-    gboolean hspGaps;         /* to do: not used? */
     gboolean hozScaleRev;     /* revese the horizontal scale */
     gboolean vertScaleRev;    /* revese the vertical scale */
   } DotterOptions;
 
 
 void dotter(
-	char  type,        /* Mandatory, one of { P, N, X } 
+	const BlxBlastMode blastMode, /* Mandatory, one of { BLASTP, BLASTN, BLASTX } 
 			      P -> Protein-Protein
 			      N -> DNA-DNA
 			      X -> DNA-Protein */

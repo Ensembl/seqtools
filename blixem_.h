@@ -26,16 +26,20 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.58 2010-11-05 12:08:36 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.59 2010-11-08 15:52:47 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
 #define DEF_BLIXEM_P_H
 
 #include <gtk/gtk.h>
-#include <SeqTools/blxview.h>
 #include <SeqTools/utilities.h>
+#include <SeqTools/blxmsp.h>
 #include <wh/version.h>
+
+#ifdef ACEDB
+#include <wh/regular.h>
+#endif
 
 
 /*            blixem program version and information.                        */
@@ -301,8 +305,54 @@ typedef enum
     G_TYPE_INT                  /* end */
 
 
+/* Struct to hold all the settings that come from the command line options */
+typedef struct _CommandLineOptions
+{
+  char *refSeq;			  /* the section of reference sequence we're viewing */
+  char *refSeqName;               /* the name of the reference sequence */
+  IntRange refSeqRange;           /* the range of the reference sequence (before any offset is applied) */
+  int refSeqOffset;               /* if non-zero, all parsed coords will be offset by this amount */
+  int startCoord;		  /* which coord to start the initial display range at */
+  MSP *mspList;			  /* the list of alignments */
+  char **geneticCode;             /* the genetic code */
+  
+  BlxStrand activeStrand;         /* which strand will initially be the active one */
+  gboolean zoomWhole;             /* whether to zoom out to view the entire big picture range on startup */
+  int bigPictZoom;                /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
+  gboolean bigPictON;             /* whether to show the big picture by default */
+  gboolean hideInactive;          /* whether to show the inactive strand in the big picture/detail view */
+  BlxColumnId initSortColumn;     /* initial column to sort by */
+  gboolean sortInverted;	  /* whether initial sort order should be inverted */
+  gboolean hiliteSins;            /* whether the initial display should highlight mismatches rather than matches */
+  gboolean dotterFirst;		  /* open dotter when blixem starts */
+  gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
+  gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
+  BlxBlastMode blastMode;         /* the blast match mode */
+  BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
+  int numFrames;                  /* the number of reading frames */
+  char *fetchMode;		  /* the default method for fetching sequences */
+} CommandLineOptions;
+
+
+/* blixem can use either efetch (default) or a pfetch server to get
+ * sequences, to use pfetch node/port information must be specified. */
+typedef struct
+  {
+    char *net_id ;
+    int port ;
+  } PfetchParams ;
+
 
 /* blxview.c */
+/* Function to show blixem window, can be called from any application. */
+gboolean                            blxview(CommandLineOptions *options,
+                                            GList* featureLists[],
+                                            GList *seqList, 
+                                            GSList *supportedTypes,
+	                                    PfetchParams *pfetch, 
+                                            char *align_types, 
+                                            gboolean External) ;
+
 void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
 int				   findMspListSExtent(GList *mspList, const gboolean findMin);
@@ -368,7 +418,7 @@ gboolean                           blxConfigGetPFetchWWWPrefs();
 MSP*                               createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const gdouble percentId, const int phase,
                                                 char *url, char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
                                                 char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
-                                                char *opts, GError **error);  
+                                                GError **error);  
 
 void                               destroyMspList(MSP **mspList);
 void                               destroyMspData(MSP *msp);

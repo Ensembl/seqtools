@@ -1404,15 +1404,6 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   
   const int offset = dotterRange.min - 1;
   
-  /* Get the options */
-//  static char opts[] = "     ";
-//  opts[0] = bc->displayRev ? 'R' : ' ';
-//  opts[1] = hspsOnly ? 'H' : ' ';
-//  opts[2] = bc->gappedHsp ? 'G' : ' ';
-  
-  /* Get the mode */
-//  char type = getDotterMode(bc->blastMode);
-  
   /* Get the list of all MSPs */
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   
@@ -1420,11 +1411,6 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
 	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
 
   return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, selectedSeq->strand, hspsOnly, NULL, error);
-  
-//  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, qStrand, dotterSName, dotterSSeq, 0,
-//	 selectedSeq->strand, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
-  
-//  return TRUE;
 }
 
 
@@ -1457,9 +1443,6 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
       return FALSE;
     }
   
-  /* Set the options string (no options are required) */
-//  static char opts[] = "     ";
-
   /* Set the type */
   char type = ' ';
   
@@ -1508,15 +1491,10 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   char *dotterSSeq = messalloc(strlen(querySeqSegment) + 1);
   strcpy(dotterSSeq, querySeqSegment);
 
-//  int offset = dotterRange.min - 1;
-
   printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
   callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, BLXSTRAND_FORWARD, FALSE, NULL, error);
-  
-//  dotter(type, opts, bc->refSeqName, querySeqSegment, offset, BLXSTRAND_FORWARD, bc->refSeqName, dotterSSeq, offset,
-//	 BLXSTRAND_FORWARD, 0, 0, NULL, NULL, NULL, 0.0, dotterZoom, bc->mspList, bc->matchSeqs, 0, 0, 0);
-  
+
   return TRUE;
 }
 

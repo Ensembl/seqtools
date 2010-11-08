@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.21 2010-11-03 13:39:09 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.22 2010-11-08 15:52:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -70,7 +70,6 @@ static void setDefaultOptions(DotterOptions *options)
   options->hspsOnly = FALSE;
   options->swapGreyramp = FALSE;
   options->fsEndLinesOn = FALSE;
-  options->hspGaps = FALSE;
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
 }
@@ -203,7 +202,7 @@ int main(int argc, char **argv)
 
   char   
       *qseq=0, *sseq=0, line[MAXLINE+1],
-      *curChar, *cc, *cq, type, 
+      *curChar, *cc, *cq,  
       *firstdesc, *qfilename, *sfilename,
       text[MAXLINE+1];
 
@@ -522,9 +521,10 @@ int main(int argc, char **argv)
 	*cc = 0;
       }
 
+    BlxBlastMode blastMode = BLXMODE_UNSET;
+
     if (options.FSfilename) 
       {
-	char dummyopts[32];	/* opts have different meaning in blixem */
 	FILE *file;
 	
 	if (!strcmp(options.FSfilename, "-")) 
@@ -539,7 +539,7 @@ int main(int argc, char **argv)
         GSList *supportedTypes = blxCreateSupportedGffTypeList();
         IntRange qRange = {UNSET_INT, UNSET_INT};
 
-	parseFS(&MSPlist, file, dummyopts, featureLists, &seqList, supportedTypes, NULL, &qseq, options.qname, &qRange, &sseq, options.sname);
+	parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &qseq, options.qname, &qRange, &sseq, options.sname);
         
         blxDestroyGffTypeList(&supportedTypes);
       }
@@ -548,17 +548,17 @@ int main(int argc, char **argv)
     if (determineSeqType(qseq) == BLXSEQ_PEPTIDE && determineSeqType(sseq) == BLXSEQ_PEPTIDE) 
       {
 	printf("\nDetected sequence types: Protein vs. Protein\n");
-	type = 'P';
+	blastMode = BLXMODE_BLASTP;
       }
     else if (determineSeqType(qseq) == BLXSEQ_DNA && determineSeqType(sseq) == BLXSEQ_DNA) 
       {
 	printf("\nDetected sequence types: DNA vs. DNA\n");
-	type = 'N';
+	blastMode = BLXMODE_BLASTN;
       }
     else if (determineSeqType(qseq) == BLXSEQ_DNA && determineSeqType(sseq) == BLXSEQ_PEPTIDE) 
       {
 	printf("\nDetected sequence types: DNA vs. Protein\n");
-	type = 'X';
+	blastMode = BLXMODE_BLASTX;;
       }
     else
       {
@@ -578,7 +578,7 @@ int main(int argc, char **argv)
         g_log_set_default_handler(defaultMessageHandler, NULL);
         g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
         
-	dotter(type, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
+	dotter(blastMode, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset) ;
 
@@ -587,7 +587,7 @@ int main(int argc, char **argv)
     else
       {
         /* Batch mode */
-	dotter(type, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
+	dotter(blastMode, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset);
       }

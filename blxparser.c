@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.49 2010-11-05 12:08:36 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.50 2010-11-08 15:52:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -45,6 +45,12 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+
+
+/* The following defines give keyword strings for tags in the old file formats */
+#define BLX_GAPS_TAG               "Gaps"
+#define BLX_DESCRIPTION_TAG        "Description"
+#define BLX_SEQUENCE_TAG           "Sequence"
 
 
 /* Error codes and domain */
@@ -67,36 +73,36 @@ typedef enum {
 static char *	    nextLine(FILE *file, GString *line_string);
 
 
-static gboolean	    parseHeaderLine(char *line, char *opts, MSP *msp, IntRange *seq1Range, BlxParserState *parserState);
+static gboolean	    parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, IntRange *seq1Range, BlxParserState *parserState);
 
-static void	    parseBody(char *line, const int lineNum, char *opts, MSP **msp, GString *line_string, char **seq1, 
+static void	    parseBody(char *line, const int lineNum, BlxBlastMode blastMode, const int resFactor, MSP **msp, GString *line_string, char **seq1, 
                               char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
                               BlxParserState *parserState, GList* featureLists[], MSP **mspList, GList **seqList, 
                               GSList *supportedTypes, GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
-static void	    parseEXBLXSEQBL(GList* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, char *opts, GString *line_string, GList **seqList);
-static void	    parseEXBLXSEQBLExtended(GList* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, char *opts, GString *line_string, GList **seqList);
-static void	    parseFsHsp(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
-static void	    parseFsGspHeader(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList);
+static void	    parseEXBLXSEQBL(GList* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
+static void	    parseEXBLXSEQBLExtended(GList* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
+static void	    parseFsHsp(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
+static void	    parseFsGspHeader(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList);
 static void	    parseFsGspData(char *line, MSP *msp);
-static void	    parseFsGff(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
-static void	    parseFsSeg(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
-static void	    parseFsXyHeader(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxParserState *parserState, GList **seqList);
+static void	    parseFsGff(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
+static void	    parseFsSeg(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
+static void	    parseFsXyHeader(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxParserState *parserState, GList **seqList);
 static void	    parseFsXyData(char *line, MSP *msp);
 static void         parseFsSeqHeader(char *line, char **seq1, char *seq1name, char **seq2, char *seq2name, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, BlxParserState *parserState);
 static void         parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
 static gboolean	    parseGaps(char **text, MSP *msp, const gboolean hasGapsTag) ;
 static gboolean	    parseDescription(char **text, MSP *msp_unused) ;
-static char*	    parseSequence(char **text, MSP *msp, const char *opts) ;
+static char*	    parseSequence(char **text, MSP *msp, const BlxBlastMode blastMode) ;
 static void	    parseLook(MSP *msp, char *s) ;
 
 static BlxMspType   getMspTypeFromScore(const int score);
 static void	    getDesc(MSP *msp, const char *s1, const char *s2) ;
-static char*	    prepSeq(const int sStart, char *inputSeq, char *opts) ;
+static char*	    prepSeq(const int sStart, char *inputSeq, BlxBlastMode blastMode) ;
 
 static void         getStrandAndFrameFromString(char *text, BlxStrand *strand, int *frame);
-static void         checkReversedSubjectAllowed(const MSP *msp, const char *opts);
+static void         checkReversedSubjectAllowed(const MSP *msp, BlxBlastMode blastMode);
 
 /*
  *  Globals
@@ -162,6 +168,13 @@ static char *colorNames[NUM_TRUECOLORS] =
 };
 
 
+/* Get the factor to multiply match coords by to get display coords */
+static int getResFactorFromMode(const BlxBlastMode blastMode)
+{
+  return (blastMode == BLXMODE_BLASTX || blastMode == BLXMODE_TBLASTX ? 3 : 1);
+}
+
+
 /* Function: parse a stream of SFS data
  *
  * Assumptions:
@@ -171,7 +184,8 @@ static char *colorNames[NUM_TRUECOLORS] =
  *  *seq1name and *seq2name are allocated at least 255 bytes
  *
  */
-void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList **seqList, GSList *supportedTypes, GSList *styles,
+void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
+             GList* featureLists[], GList **seqList, GSList *supportedTypes, GSList *styles,
 	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name)
 {
   DEBUG_ENTER("parseFS");
@@ -181,6 +195,8 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList
   else
     g_array_sort(fsArr, fsSortByNameCompareFunc);
 
+  const int resFactor = getResFactorFromMode(*blastMode);
+  
   /* Find the last MSP in the list - new MSPs will be tagged on to the end of this. We also
    * want to keep a record of the last MSP that was added in case additional information needs
    * be be added to the same MSP (e.g. for XY plot information, where we have multiple lines that
@@ -230,7 +246,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList
 	}
 
       /* Check for header info first */
-      if (parseHeaderLine(line, opts, msp, seq1Range, &parserState))
+      if (parseHeaderLine(line, blastMode, msp, seq1Range, &parserState))
 	{
 	  continue; 
 	}
@@ -243,7 +259,7 @@ void parseFS(MSP **MSPlist, FILE *file, char *opts, GList* featureLists[], GList
 	}
       else
 	{
-	  parseBody(line, lineNum, opts, &msp, line_string, 
+	  parseBody(line, lineNum, *blastMode, resFactor, &msp, line_string, 
 		    seq1, seq1name, seq1Range, seq2, seq2name, &parserState, featureLists, MSPlist, seqList, supportedTypes,
 		    styles, &readSeq, &readSeqLen, &readSeqMaxLen);
 	}
@@ -452,11 +468,11 @@ static void getDesc(MSP *msp, const char *s1, const char *s2)
  * sequence if it does not start at 1. However, this old comment suggests that this isn't necessary:
  * "I think this is a mistake in the code, we get the whole sequence so shouldn't be prepending the
  * '-'s". */
-static char* prepSeq(const int sStart, char *inputSeq, char *opts)
+static char* prepSeq(const int sStart, char *inputSeq, BlxBlastMode blastMode)
 {
   char *result = NULL;
   
-  if (*opts == 'T' || *opts == 'L') 
+  if (blastMode == BLXMODE_TBLASTN || blastMode == BLXMODE_TBLASTX) 
     {
       result = g_strdup(inputSeq) ;
     }
@@ -495,7 +511,7 @@ static void parseEXBLXSEQBL(GList* featureLists[],
                             MSP **lastMsp,
                             MSP **mspList, 
                             BlxParserState parserState, 
-                            char *opts, 
+                            BlxBlastMode blastMode, 
                             GString *line_string, 
                             GList **seqList)
 {
@@ -525,7 +541,7 @@ static void parseEXBLXSEQBL(GList* featureLists[],
     }
 
   /* MSPcrunch gives sframe for tblastn - restore qframe */
-  if (*opts == 'T')
+  if (blastMode == BLXMODE_TBLASTN)
     {
       strcpy(qframe, "(+1)");
     }
@@ -542,7 +558,7 @@ static void parseEXBLXSEQBL(GList* featureLists[],
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
-                          opts, &error);
+                          &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
@@ -595,36 +611,11 @@ static void parseEXBLXSEQBL(GList* featureLists[],
   qlen = mspGetQRangeLen(msp);
   slen = mspGetSRangeLen(msp);
 
-
-  if (*opts == ' ')
-    {
-      /* Guess mode from prefix or from coordinates */
-
-      if (qlen == slen)
-	{
-	  /* Could be blastp, blastn or tblastx */
-	  if (strchr(msp->sname, '_'))
-	    *opts = 'P';
-	  else if (strstr(msp->sname, "PIR:"))
-	    *opts = 'P';
-	  else if (strstr(msp->sname, "EM:"))
-	    *opts = 'N';
-	  else
-	    *opts = 'N';				    /* Could be P or L just as well */
-	}
-      else if (qlen > slen)
-	*opts = 'X';
-      else if (qlen < slen)
-	*opts = 'T';
-    }
-  
   /* Parse the sequence, if applicable */
   char *sequence = NULL;
   
   if (parserState == EXBLX_BODY)
     {
-      opts[BLXOPT_FULL_ZOOM] = ' '; /* Don't use full zoom default */
-      
       /* skip over description */
       while (*seq_pos && (*seq_pos == ' ' || *seq_pos == '\t')) 
 	seq_pos++;
@@ -638,7 +629,7 @@ static void parseEXBLXSEQBL(GList* featureLists[],
     }
   else if (parserState == SEQBL_BODY)
     {
-      if (*opts == 'L')
+      if (blastMode == BLXMODE_TBLASTX)
 	{
 	  slen = (abs(sEnd - sStart) + 1)/3;
 	}
@@ -681,12 +672,9 @@ static void parseEXBLXSEQBL(GList* featureLists[],
         }
     }
   
-  if (*opts == 'N')
-    opts[3] = 'R';
-
   if (parserState == SEQBL_BODY)
     { 
-      checkReversedSubjectAllowed(msp, opts);
+      checkReversedSubjectAllowed(msp, blastMode);
     }
   
   return;
@@ -728,11 +716,11 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
                                     MSP **lastMsp, 
                                     MSP **mspList, 
                                     BlxParserState parserState, 
-                                    char *opts, 
+                                    BlxBlastMode blastMode, 
                                     GString *line_string, 
                                     GList **seqList)
 {
-  DEBUG_ENTER("parseEXBLXSEQBLExtended (opts='%s')", opts);
+  DEBUG_ENTER("parseEXBLXSEQBLExtended");
   
   gboolean result = FALSE ;
   int  qlen, slen;
@@ -764,7 +752,7 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
     }
 
   /* MSPcrunch gives sframe for tblastn - restore qframe */
-  if (*opts == 'T')
+  if (blastMode == BLXMODE_TBLASTN)
     strcpy(qframe, "(+1)");
   
   const BlxMspType mspType = getMspTypeFromScore(score) ;
@@ -783,7 +771,7 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame, 
                           sName, sStart, sEnd, sStrand, NULL,
-                          opts, &error);
+                          &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
@@ -836,28 +824,6 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
   qlen = mspGetQRangeLen(msp);
   slen = mspGetSRangeLen(msp);
 
-  if (*opts == ' ')
-    {
-      /* Guess mode from prefix or from coordinates */
-
-      if (qlen == slen)
-	{
-	  /* Could be blastp, blastn or tblastx */
-	  if (strchr(msp->sname, '_'))
-	    *opts = 'P';
-	  else if (strstr(msp->sname, "PIR:"))
-	    *opts = 'P';
-	  else if (strstr(msp->sname, "EM:"))
-	    *opts = 'N';
-	  else
-	    *opts = 'N';				    /* Could be P or L just as well */
-	}
-      else if (qlen > slen)
-	*opts = 'X';
-      else if (qlen < slen)
-	*opts = 'T';
-    }
-
   /* Now read attributes. */
   char *sequence = NULL;
   
@@ -884,8 +850,7 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
 		}
 	      else if (parserState == EXBLX_BODY && (strstr(seq_pos, BLX_DESCRIPTION_TAG)))
 		{
-		  opts[BLXOPT_FULL_ZOOM] = ' '; /* Don't use full zoom default */
-                  result = parseDescription(&seq_pos, msp);
+		  result = parseDescription(&seq_pos, msp);
                   
 		  if (!result)
                     {
@@ -894,12 +859,12 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
 		}
 	      else if ((parserState == SEQBL_X_BODY || mspIsVariation(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
 		{
-		  if (*opts == 'L')
+		  if (blastMode == BLXMODE_TBLASTX)
 		    {
 		      slen = mspGetSRangeLen(msp) / 3;
 		    }
                   
-                  sequence = parseSequence(&seq_pos, msp, opts);
+                  sequence = parseSequence(&seq_pos, msp, blastMode);
                   result = (sequence != NULL);
                   
 		  if (!result)
@@ -920,7 +885,7 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
   
   if (parserState == SEQBL_X_BODY)
     {
-      if (*opts == 'L')
+      if (blastMode == BLXMODE_TBLASTX)
 	{
 	  slen = mspGetSRangeLen(msp) / 3;
 	}
@@ -928,14 +893,9 @@ static void parseEXBLXSEQBLExtended(GList* featureLists[],
 
     }
 
-  if (*opts == 'N')
-    {
-      opts[3] = 'R';
-    }
-  
   if (parserState == SEQBL_X_BODY)
     { 
-      checkReversedSubjectAllowed(msp, opts);
+      checkReversedSubjectAllowed(msp, blastMode);
     }
   
   DEBUG_EXIT("parseEXBLXSEQBLExtended");
@@ -1096,26 +1056,26 @@ static gboolean parseDescription(char **text, MSP *msp)
 }
 
 
-/* Find out the sequence type (nucleotide or peptide) based on the old-style options string */
-static BlxSeqType getSeqTypeFromOpts(const char *opts, GError **error)
+/* Find out the sequence type to display (nucleotide or peptide) based on the blast mode */
+static BlxSeqType getSeqTypeFromBlastMode(const BlxBlastMode blastMode, GError **error)
 {
   BlxSeqType result = BLXSEQ_INVALID;
   
-  switch (opts[BLXOPT_MODE])
+  switch (blastMode)
     {
-      case 'X': /* fall through */
-      case 'L':
+      case BLXMODE_BLASTP: /* fall through */
+      case BLXMODE_BLASTX: /* fall through */
+      case BLXMODE_TBLASTX:
         result = BLXSEQ_PEPTIDE;
         break;
         
-      case 'N': /* fall through */
-      case 'T': /* fall through */
-      case 'P':
+      case BLXMODE_BLASTN: /* fall through */
+      case BLXMODE_TBLASTN:
         result = BLXSEQ_DNA;
         break;
         
       default:
-        g_set_error(error, BLX_ERROR, 1, "Unknown blast mode '%c' in options. Expected X, L, N, T or P.\n", opts[BLXOPT_MODE]);
+        g_set_error(error, BLX_ERROR, 1, "Unknown blast mode '%d'.\n", blastMode);
         break;
     };
   
@@ -1129,7 +1089,7 @@ static BlxSeqType getSeqTypeFromOpts(const char *opts, GError **error)
  * 
  * text following Sequence must not contain ';'. Moves text to first
  * char after ';'. */
-static char* parseSequence(char **text, MSP *msp, const char *opts)
+static char* parseSequence(char **text, MSP *msp, const BlxBlastMode blastMode)
 {
   char *result = NULL;
 
@@ -1142,7 +1102,7 @@ static char* parseSequence(char **text, MSP *msp, const char *opts)
   char *cp = startPtr;
   
   GError *tmpError = NULL;
-  BlxSeqType seqType = getSeqTypeFromOpts(opts, &tmpError);
+  BlxSeqType seqType = getSeqTypeFromBlastMode(blastMode, &tmpError);
   reportAndClearIfError(&tmpError, G_LOG_LEVEL_ERROR);
   
   while (isValidIupacChar(*cp, seqType))
@@ -1172,7 +1132,7 @@ static char* parseSequence(char **text, MSP *msp, const char *opts)
 
 /* Utility called by parseFS to parse the header info of a line from a file. Returns true if the
  * line was completely processed, false if further processing on the same line is still required */
-static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, IntRange *seq1Range, BlxParserState *parserState)
+static gboolean parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, IntRange *seq1Range, BlxParserState *parserState)
 {
   DEBUG_ENTER("parseHeaderLine(parserState=%d)", *parserState);
   
@@ -1287,18 +1247,18 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, IntRange *seq1
       /* Changed to soft parsing (unknown labels ignored) so that
        any comment can be used */
       if (!strncasecmp(line, "# blastp" , 8))
-	*opts = 'P';
+        *blastMode = BLXMODE_BLASTP;
       else if (!strncasecmp(line, "# tblastn", 9))
-	*opts = 'T';
+        *blastMode = BLXMODE_TBLASTN;
       else if (!strncasecmp(line, "# tblastx", 9))
-	*opts = 'L';
+        *blastMode = BLXMODE_TBLASTX;
       else if (!strncasecmp(line, "# blastn" , 8))
-	*opts = 'N';
+        *blastMode = BLXMODE_BLASTN;
       else if (!strncasecmp(line, "# blastx" , 8))
-	*opts = 'X';
+        *blastMode = BLXMODE_BLASTX;
       else if (!strncasecmp(line, "# hspgaps", 9))
 	{
-	  opts[BLXOPT_HSP_GAPS] = 'G';
+	  /* unused */
 	}
       else if (!strncasecmp(line, "# DESC ", 7) &&
 	       (*parserState == FS_HSP_BODY || *parserState == FS_GSP_HEADER || 
@@ -1334,7 +1294,7 @@ static gboolean parseHeaderLine(char *line, char *opts, MSP *msp, IntRange *seq1
 
 
 /* Parse data from the given line into an MSP of type FS_HSP */
-static void parseFsHsp(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void parseFsHsp(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   char qName[MAXLINE+1];
   char sName[MAXLINE+1];
@@ -1367,23 +1327,22 @@ static void parseFsHsp(char *line, char *opts, GList* featureLists[], MSP **last
   getStrandAndFrameFromString(sframe, &sStrand, &sFrame);
 
   /* Get the sequence data */
-  char *sSeq = prepSeq(sStart, seq, opts);
+  char *sSeq = prepSeq(sStart, seq, blastMode);
 
   /* Create the new MSP */
   GError *error = NULL;
 
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_HSP, NULL, score, UNSET_INT, 0, NULL,
                            NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                           sName, sStart, sEnd, sStrand, sSeq,
-                           opts, &error);
+                           sName, sStart, sEnd, sStrand, sSeq, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-  checkReversedSubjectAllowed(msp, opts);
+  checkReversedSubjectAllowed(msp, blastMode);
 }
 
 
 /* Parse data from the given line, which contains feature-series GSP header info */
-static void parseFsGspHeader(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList)
+static void parseFsGspHeader(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList)
 {
   /* Data goes into a new MSP */
 //  msp->type = BLXMSP_GSP;
@@ -1404,7 +1363,7 @@ static void parseFsGspData(char *line, MSP *msp)
 
 
 /* Parse data from the given line into an MSP of type FS_SEG (Feature Series Segment) */
-static void parseFsSeg(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void parseFsSeg(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   char series[MAXLINE+1];
   char qName[MAXLINE+1];
@@ -1426,8 +1385,7 @@ static void parseFsSeg(char *line, char *opts, GList* featureLists[], MSP **last
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, UNSET_INT, UNSET_INT, 0, NULL,
                           NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
-                          series, qStart, qEnd, BLXSTRAND_NONE, NULL,
-                          opts, &error);
+                          series, qStart, qEnd, BLXSTRAND_NONE, NULL, &error);
 
   /* Parse in additional feature-series info */
   parseLook(msp, look);
@@ -1439,7 +1397,7 @@ static void parseFsSeg(char *line, char *opts, GList* featureLists[], MSP **last
 
 
 /* Parse data from a line of text that contains feature-series data in GFF format */
-static void parseFsGff(char *line, char *opts, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void parseFsGff(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   char scorestring[256];
   char series[MAXLINE+1];
@@ -1476,8 +1434,7 @@ static void parseFsGff(char *line, char *opts, GList* featureLists[], MSP **last
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, score, UNSET_INT, 0, NULL,
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                          series, qStart, qEnd, BLXSTRAND_FORWARD, NULL,
-                          opts, &error);
+                          series, qStart, qEnd, BLXSTRAND_FORWARD, NULL, &error);
   
 
   /* Parse additional feature-series information */
@@ -1491,7 +1448,7 @@ static void parseFsGff(char *line, char *opts, GList* featureLists[], MSP **last
 
 /* Parse data from the given line, which contains header info for Feature-Series XY-plot data */
 static void parseFsXyHeader(char *line, 
-                            char *opts, 
+                            BlxBlastMode blastMode, 
                             GList* featureLists[],
                             MSP **lastMsp, 
                             MSP **mspList, 
@@ -1552,8 +1509,7 @@ static void parseFsXyHeader(char *line,
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_XY_PLOT, NULL, UNSET_INT, UNSET_INT, 0, NULL,
                           NULL, qName, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, 1,
-                          series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, 
-                          opts, &error);
+                          series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
@@ -1663,40 +1619,40 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
 
 
 /* Utility to call the relevant parser function to parse the current data type */
-static void parseBody(char *line, const int lineNum, char *opts, MSP **lastMsp, GString *line_string,
+static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, const int resFactor, MSP **lastMsp, GString *line_string,
                       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
                       BlxParserState *parserState, GList *featureLists[], MSP **mspList, GList **seqList, GSList *supportedTypes,
                       GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
 {
-  DEBUG_ENTER("parseBody(parserState=%d, line=%d, opts='%s')", *parserState, lineNum, opts);
+  DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
   
   /* Call the relevant function for the current type of data being parsed */
   switch (*parserState)
   {
     case GFF_3_HEADER:
-      parseGff3Header(lineNum, lastMsp, mspList, parserState, opts, line_string, seqList, seq1name, seq1Range);
+      parseGff3Header(lineNum, lastMsp, mspList, parserState, line_string, seqList, seq1name, seq1Range);
       break;
       
     case GFF_3_BODY:
-      parseGff3Body(lineNum, featureLists, lastMsp, mspList, parserState, opts, line_string, seqList, supportedTypes, styles);
+      parseGff3Body(lineNum, featureLists, lastMsp, mspList, parserState, line_string, seqList, supportedTypes, styles, resFactor);
       break;
 
     case SEQBL_BODY: /* fall through */
     case EXBLX_BODY:
-      parseEXBLXSEQBL(featureLists, lastMsp, mspList, *parserState, opts, line_string, seqList) ;
+      parseEXBLXSEQBL(featureLists, lastMsp, mspList, *parserState, blastMode, line_string, seqList) ;
       break;
       
     case SEQBL_X_BODY: /* fall through */
     case EXBLX_X_BODY:
-      parseEXBLXSEQBLExtended(featureLists, lastMsp, mspList, *parserState, opts, line_string, seqList) ;
+      parseEXBLXSEQBLExtended(featureLists, lastMsp, mspList, *parserState, blastMode, line_string, seqList) ;
       break;
 
     case FS_HSP_BODY:
-      parseFsHsp(line, opts, featureLists, lastMsp, mspList, seqList);
+      parseFsHsp(line, blastMode, featureLists, lastMsp, mspList, seqList);
       break;
 
     case FS_GSP_HEADER:
-      parseFsGspHeader(line, opts, featureLists, lastMsp, mspList, parserState, seqList);
+      parseFsGspHeader(line, blastMode, featureLists, lastMsp, mspList, parserState, seqList);
       break;
 
     case FS_GSP_BODY:
@@ -1704,15 +1660,15 @@ static void parseBody(char *line, const int lineNum, char *opts, MSP **lastMsp, 
       break;
       
     case FS_GFF_BODY:
-      parseFsGff(line, opts, featureLists, lastMsp, mspList, seqList);
+      parseFsGff(line, blastMode, featureLists, lastMsp, mspList, seqList);
       break;
 
     case FS_SEG_BODY:
-      parseFsSeg(line, opts, featureLists, lastMsp, mspList, seqList);
+      parseFsSeg(line, blastMode, featureLists, lastMsp, mspList, seqList);
       break;
       
     case FS_XY_HEADER:
-      parseFsXyHeader(line, opts, featureLists, lastMsp, mspList, seq1, seq1name, seq2, seq2name, parserState, seqList);
+      parseFsXyHeader(line, blastMode, featureLists, lastMsp, mspList, seq1, seq1name, seq2, seq2name, parserState, seqList);
       break;
       
     case FS_XY_BODY:
@@ -1800,9 +1756,9 @@ static void getStrandAndFrameFromString(char *text, BlxStrand *strand, int *fram
 
 
 /* Check if we have a reversed subject and, if so, if this is allowed. Throws an error if not. */
-static void checkReversedSubjectAllowed(const MSP *msp, const char *opts)
+static void checkReversedSubjectAllowed(const MSP *msp, BlxBlastMode blastMode)
 {
-  if (mspGetMatchStrand(msp) == BLXSTRAND_REVERSE && *opts != 'T' && *opts != 'L' && *opts != 'N')
+  if (mspGetMatchStrand(msp) == BLXSTRAND_REVERSE && (blastMode == BLXMODE_BLASTP || blastMode == BLXMODE_BLASTX))
     {
       g_error("Reversed subjects are not allowed in modes blastp or blastx.\n");
     }

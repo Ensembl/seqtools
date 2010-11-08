@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.20 2010-11-03 13:39:09 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.21 2010-11-08 15:52:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -882,7 +882,7 @@ static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, c
 
 
 
-void dotter (char  type,
+void dotter (const BlxBlastMode blastMode,
 	     DotterOptions *options,
 	     const char *queryname,
 	     char *queryseq,
@@ -905,30 +905,11 @@ void dotter (char  type,
 	      char *winsizeIn,
 	      int   pixelFacIn)
 {
-  g_debug("Calling dotter: type=%c, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d\n",
-          type, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
+  g_debug("Calling dotter: mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d\n",
+          blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
   
-  BlxBlastMode blastMode = BLXMODE_UNSET;
   gboolean selfComp = FALSE;
 
-  switch(type) {
-  case 'P':  
-    blastMode = BLXMODE_BLASTP;
-    break;
-      
-  case 'N':  
-    blastMode = BLXMODE_BLASTN;
-    break;
-      
-  case 'X':  
-    blastMode = BLXMODE_BLASTX;
-    break;
-      
-  default: 
-      g_error("Invalid sequence type passed to Dotter: %c", type);
-      break;
-  }
-  
   MSPlist = MSPs;
   
   const int qlen = strlen(queryseq);

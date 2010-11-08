@@ -13,36 +13,6 @@
 #include <SeqTools/blixem_.h>
 #include <SeqTools/utilities.h>
 
-
-/* Struct to hold all the settings that come from the command line options */
-typedef struct _CommandLineOptions
-{
-  char *refSeq;			  /* the section of reference sequence we're viewing */
-  const char const *refSeqName;	  /* the name of the reference sequence */
-  IntRange *refSeqRange;          /* the range of the reference sequence (before any offset is applied) */
-  const int refSeqOffset;	  /* if non-zero, all parsed coords will be offset by this amount */
-  const int startCoord;		  /* which coord to start the initial display range at */
-  MSP *mspList;			  /* the list of alignments */
-  char **geneticCode;		  /* the genetic code */
-  
-  BlxStrand activeStrand;	  /* which strand will initially be the active one */
-  int bigPictZoom;		  /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
-  gboolean bigPictON;	    
-  gboolean bigPictRev;	    
-  BlxColumnId initSortColumn;	  /* initial column to sort by */
-  gboolean sortInverted;	  /* whether initial sort order should be inverted */
-  gboolean gappedHsp;		  /* whether this is a gapped hsp */
-  gboolean hiliteSins;	    
-  gboolean dotterFirst;		  /* open dotter when blixem starts */
-  gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
-  gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
-  BlxBlastMode blastMode;	  /* the blast match mode */
-  BlxSeqType seqType;		  /* the type of sequence i.e. DNA or peptide */
-  int numFrames;		  /* the number of reading frames */
-  char *fetchMode;		  /* the default method for fetching sequences */
-} CommandLineOptions;
-
-
 /* This enum contains IDs for all the persistent dialogs in the application, and should be used
  * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList
  * array will contain null entries until the dialogs are created for the first time */
@@ -83,7 +53,6 @@ typedef struct _BlxViewContext
 
   GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
   GSList *supportedTypes;           /* List of supported GFF types */
-  gboolean gappedHsp;		    
   const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
 				     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
   
@@ -129,7 +98,6 @@ int			  blxWindowGetDotterStart(GtkWidget *blxWindow);
 int			  blxWindowGetDotterEnd(GtkWidget *blxWindow);
 int			  blxWindowGetDotterZoom(GtkWidget *blxWindow);
 int			  blxWindowGetAutoDotter(GtkWidget *blxWindow);
-gboolean		  blxWindowGetGappedHsp(GtkWidget *blxWindow);
 MSP*			  blxWindowGetMspList(GtkWidget *blxWindow);
 GList*			  blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
 GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);
