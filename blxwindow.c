@@ -5320,6 +5320,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   g_debug("Running %s\n", g_get_prgname());
   gtk_widget_show_all(window);
 
+
+  /* If the options say to make the reverse strand the active strand, toggle the display now */
+  if (options->activeStrand == BLXSTRAND_REVERSE)
+    toggleStrand(detailView);
+
   /* If the options say to hide the inactive strand, hide it now. (This must be done
    * after showing the widgets, or it will get shown again in show_all.). To do: we just
    * hide the grid at the moment; hide the detail-view pane as well?  */
