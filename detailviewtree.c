@@ -820,6 +820,16 @@ static void treeCreateProperties(GtkWidget *widget,
 }
 
 
+/* returns true if display coords should be negated */
+static gboolean treeGetNegateCoords(GtkWidget *tree)
+{
+  /* We negate coords (literally just stick a '-' on the front) for display purposes if the
+   * display is reversed and the negate-coords option is enabled. This gives the effect that coords
+   * always increase left-to-right, whereas when the display is reversed they really decrease. */
+  return blxWindowGetNegateCoords(treeGetBlxWindow(tree));
+}
+
+
 /***********************************************************
  *                       Tree events                       *
  ***********************************************************/
@@ -1729,7 +1739,7 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
       const gboolean findMin = (treeGetDisplayRev(tree) != sameDirection);
       
-      const int coord = findMspListSExtent(mspGList, findMin);
+      int coord = findMspListSExtent(mspGList, findMin);
 
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -1764,7 +1774,7 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
       const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
       const gboolean findMin = (treeGetDisplayRev(tree) == sameDirection);
       
-      const int coord = findMspListSExtent(mspGList, findMin);
+      int coord = findMspListSExtent(mspGList, findMin);
 
       char displayText[numDigitsInInt(coord) + 1];
       sprintf(displayText, "%d", coord);
@@ -2130,6 +2140,9 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 					bc->numFrames,
 					&bc->refSeqRange);
       
+      if (treeGetNegateCoords(tree))
+        displayVal *= -1;
+
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       
       gchar displayText[displayTextLen];
@@ -2159,6 +2172,9 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
 				      bc->displayRev, 
 				      bc->numFrames,
 				      &bc->refSeqRange);
+      
+      if (treeGetNegateCoords(tree))
+        displayVal *= -1;
       
       const int displayTextLen = numDigitsInInt(displayVal) + 1;
       

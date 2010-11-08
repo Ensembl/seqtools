@@ -456,40 +456,6 @@ static void refreshTreeOrder(GtkWidget *detailView)
 }
 
 
-/* Refresh the header label for the start-coord column. It shows 'Start' for normal
- * orientation or 'End' if the display is reversed. */
-static void refreshStartColHeader(GtkWidget *header, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-
-  if (detailViewGetDisplayRev(detailView))
-    {
-      gtk_label_set_text(GTK_LABEL(header), "End");
-    }
-  else
-    {
-      gtk_label_set_text(GTK_LABEL(header), "Start");
-    }
-}
-
-
-/* Refresh the header label for the end-coord column. It shows 'End' for normal
- * orientation or 'Start' if the display is reversed. */
-static void refreshEndColHeader(GtkWidget *header, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-
-  if (detailViewGetDisplayRev(detailView))
-    {
-      gtk_label_set_text(GTK_LABEL(header), "Start");
-    }
-  else
-    {
-      gtk_label_set_text(GTK_LABEL(header), "End");
-    }
-}
-
-
 /* Refresh a header that contains fixed-width text that needs to be resized whenever a zoom
  * happens; updates the height of the widget and the font description, and clears its cached
  * drawable, if it has one. This just sets things up ready for the next expose event, where 
@@ -736,7 +702,9 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   
   if (qIdx != UNSET_INT)
     {
-      g_string_printf(resultString, "%d   ", qIdx);
+      /* Negate the coord for the display, if necessary */
+      int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
+      g_string_printf(resultString, "%d   ", coord);
     }
   
   if (seq)
@@ -824,11 +792,14 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
         {
           char *displayText = NULL;
           
+          /* If we're displaying coords negated, negate it now */
+          int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
+          
           /* Check we've got the sequence info to display. We should have, but if not just display the name. */
           if (mspGetSSeq(msp))
-            displayText = blxprintf("%d  %s : %s", dnaIdx, mspGetSName(msp), mspGetSSeq(msp));
+            displayText = blxprintf("%d  %s : %s", coord, mspGetSName(msp), mspGetSSeq(msp));
           else
-            displayText = blxprintf("%d  %s", dnaIdx, mspGetSName(msp));
+            displayText = blxprintf("%d  %s", coord, mspGetSName(msp));
           
           /* Send the message to the status bar */
           gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
@@ -3713,17 +3684,13 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numFrames);
   GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshTextHeader : NULL;
   
-  /* The start and end columns have special callbacks to switch the start/end text when display is toggled */
-  GtkCallback startCallback = refreshStartColHeader;
-  GtkCallback endCallback = refreshEndColHeader;
-  
   /* Create the column headers and pack them into the column header bar */
   createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          "Name",      RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,  "Name",     &columnList, detailView);
   createColumn(BLXCOL_SCORE,     NULL,       NULL,          "Score",     RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,  "Score",    &columnList, detailView);
   createColumn(BLXCOL_ID,        NULL,       NULL,          "%Id",       RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,  "Identity", &columnList, detailView);
-  createColumn(BLXCOL_START,     NULL,       startCallback, "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,  "Position", &columnList, detailView);
+  createColumn(BLXCOL_START,     NULL,       NULL,          "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,  "Position", &columnList, detailView);
   createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   "Sequence",  RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,  NULL,       &columnList, detailView);
-  createColumn(BLXCOL_END,       NULL,       endCallback,   "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,  NULL,       &columnList, detailView);
+  createColumn(BLXCOL_END,       NULL,       NULL,          "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,  NULL,       &columnList, detailView);
   createColumn(BLXCOL_SOURCE,    NULL,       NULL,          "Source",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  TRUE,  NULL,       &columnList, detailView);
   createColumn(BLXCOL_GROUP,     NULL,       NULL,          "Group",     RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  TRUE,  "Group",    &columnList, detailView);
   createColumn(BLXCOL_ORGANISM,  NULL,       NULL,          "Organism",  RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded,  "Organism", &columnList, detailView);

@@ -4540,6 +4540,16 @@ static BlxStrand blxWindowGetInactiveStrand(GtkWidget *blxWindow)
   return blxWindowGetDisplayRev(blxWindow) ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
 }
 
+/* returns true if display coords should be negated */
+gboolean blxWindowGetNegateCoords(GtkWidget *blxWindow)
+{
+  /* We negate coords (literally just stick a '-' on the front) for display purposes if the
+   * display is reversed and the negate-coords option is enabled. This gives the effect that coords
+   * always increase left-to-right, whereas when the display is reversed they really decrease. */
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  return (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS]);
+}
+
 
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)

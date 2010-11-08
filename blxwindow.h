@@ -105,6 +105,7 @@ SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSeque
 const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
 int			  blxWindowGetOffset(GtkWidget *blxWindow);
 BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
+gboolean                  blxWindowGetNegateCoords(GtkWidget *blxWindow);
 
 GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
 void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);

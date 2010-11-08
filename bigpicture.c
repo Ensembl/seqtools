@@ -168,6 +168,10 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       
       if (x > minX && x < maxX)
 	{
+          /* If we're displaying negative coords, negate the base index */
+          if (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS])
+            baseIdx *= -1;
+            
 	  gdk_gc_set_foreground(gc, textColor);
 	  gchar text[numDigitsInInt(baseIdx) + 1];
 	  sprintf(text, "%d", baseIdx);
