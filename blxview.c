@@ -88,7 +88,7 @@
 01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
 
  * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.86 2010-11-08 15:52:48 gb10 Exp $
+ * CVS info:   $Id: blxview.c,v 1.87 2010-11-08 18:41:29 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -846,6 +846,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   int newStart = UNSET_INT;
   int newEnd = UNSET_INT;
   int newPhase = 0;
+  BlxStyle *newStyle = NULL;
 
   if (!*exon && (*cds || *utr))
     {
@@ -855,6 +856,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           newStart = min((*cds)->qRange.min, (*utr)->qRange.min);
           newEnd = max((*cds)->qRange.max, (*utr)->qRange.max);
           newPhase = (*cds)->phase;
+          newStyle = (*cds)->style;
           newType = BLXMSP_EXON;
           ptrToUpdate = exon;
         }
@@ -863,6 +865,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           newStart = (*cds)->qRange.min;
           newEnd = (*cds)->qRange.max;
           newPhase = (*cds)->phase;
+          newStyle = (*cds)->style;
           newType = BLXMSP_EXON;
           ptrToUpdate = exon;
         }
@@ -871,6 +874,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           newStart = (*utr)->qRange.min;
           newEnd = (*utr)->qRange.max;
           newPhase = (*utr)->phase;
+          newStyle = (*utr)->style;
           newType = BLXMSP_EXON;
           ptrToUpdate = exon;
         }
@@ -883,6 +887,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           newStart = (*utr)->qRange.max + 1;
           newEnd = (*exon)->qRange.max;
           newPhase = (*exon)->phase;
+          newStyle = (*exon)->style;
           newType = BLXMSP_CDS;
           ptrToUpdate = cds;
         }
@@ -891,6 +896,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           newStart = (*exon)->qRange.min;
           newEnd = (*utr)->qRange.min - 1;
           newPhase = (*exon)->phase;
+          newStyle = (*exon)->style;
           newType = BLXMSP_CDS;
           ptrToUpdate = cds;
         }
@@ -903,6 +909,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           newStart = (*exon)->qRange.min;
           newEnd = (*cds)->qRange.min - 1;
           newPhase = (*cds)->phase;
+          newStyle = (*cds)->style;
           newType = BLXMSP_UTR;
           ptrToUpdate = utr;
         }
@@ -911,6 +918,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
           newStart = (*cds)->qRange.max + 1;
           newEnd = (*exon)->qRange.max;
           newPhase = (*cds)->phase;
+          newStyle = (*cds)->style;
           newType = BLXMSP_UTR;
           ptrToUpdate = utr;
         }
@@ -921,6 +929,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       newStart = (*exon)->qRange.min;
       newEnd = (*exon)->qRange.max;
       newPhase = 0;
+      newStyle = (*exon)->style;
       newType = BLXMSP_UTR;
       ptrToUpdate = utr;
     }
@@ -935,6 +944,8 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, UNSET_INT, UNSET_INT, newPhase, NULL, blxSeq->idTag,
                                   NULL, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
+      
+      (*ptrToUpdate)->style = newStyle;
       
       if (tmpError)
         {
@@ -1730,17 +1741,43 @@ GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const
 }
 
 
+/* Set the given BlxColor elements from the given color string(s). Works out some good defaults
+ * for blxColor.selected blxcolor.print etc if these colors are not given */
+static void setBlxColorValues(const char *normal, const char *selected, BlxColor *blxColor, GError **error)
+{
+  GError *tmpError = NULL;
+  
+  getColorFromString(normal, &blxColor->normal, &tmpError);
+  getSelectionColor(&blxColor->normal, &blxColor->selected); /* will use this if selection color is not given/has error */
 
-/* Create a BlxStyle */
+  /* Calculate print coords as a greyscale version of normal colors */
+  convertToGrayscale(&blxColor->normal, &blxColor->print);            /* calculate print colors, because they are not given */
+  getSelectionColor(&blxColor->print, &blxColor->printSelected);
+  
+  /* Use the selected-color string, if given */
+  if (!tmpError && selected)
+    {
+      getColorFromString(selected, &blxColor->selected, &tmpError);
+    }
+  
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+}
+
+
+/* Create a BlxStyle. For transcripts, CDS and UTR features can have different colors, but they
+ * are from the same source and hence have the same style object. We therefore use the default
+ * fillColor, lineColor etc. variables for CDS features and provide additional options to supply 
+ * UTR colors as well. */
 BlxStyle* createBlxStyle(const char *styleName, 
 			 const char *fillColor, 
 			 const char *fillColorSelected, 
-			 const char *fillColorPrint, 
-			 const char *fillColorPrintSelected, 
 			 const char *lineColor, 
 			 const char *lineColorSelected, 
-			 const char *lineColorPrint, 
-			 const char *lineColorPrintSelected, 
+			 const char *fillColorUtr, 
+			 const char *fillColorUtrSelected, 
+			 const char *lineColorUtr, 
+			 const char *lineColorUtrSelected, 
 			 GError **error)
 {
   BlxStyle *style = g_malloc(sizeof(BlxStyle));
@@ -1758,51 +1795,26 @@ BlxStyle* createBlxStyle(const char *styleName,
   
   if (!tmpError && fillColor)
     {
-      getColorFromString(fillColor, &style->fillColor.normal, &tmpError);
-      getSelectionColor(&style->fillColor.normal, &style->fillColor.selected); /* default if selection color not given */
-      convertToGrayscale(&style->fillColor.normal, &style->fillColor.print); /* default if print color not given */
-      getSelectionColor(&style->fillColor.print, &style->fillColor.printSelected); /* default if selected-print color not given */
-    }
-  
-  if (!tmpError && lineColor)
-    {
-      getColorFromString(lineColor, &style->lineColor.normal, &tmpError);
-      getSelectionColor(&style->lineColor.normal, &style->lineColor.selected); /* default if selection color not given */
-      convertToGrayscale(&style->lineColor.normal, &style->lineColor.print); /* default if print color not given */
-      getSelectionColor(&style->lineColor.print, &style->lineColor.printSelected); /* default if selected-print color not given */
-    }
-
-  if (!tmpError && fillColorSelected)
-    {
-      getColorFromString(fillColorSelected, &style->fillColor.selected, &tmpError);
+      setBlxColorValues(fillColor, fillColorSelected, &style->fillColor, &tmpError);
+      setBlxColorValues(fillColor, fillColorSelected, &style->fillColorUtr, &tmpError); /* default UTR to same as CDS */
     }
     
-    if (!tmpError && lineColorSelected)
+  if (!tmpError && lineColor)
     {
-      getColorFromString(lineColorSelected, &style->lineColor.selected, &tmpError);
+      setBlxColorValues(lineColor, lineColorSelected, &style->lineColor, &tmpError);
+      setBlxColorValues(lineColor, lineColorSelected, &style->lineColorUtr, &tmpError); /* default UTR to same as CDS */
     }
-
-  if (!tmpError && fillColorPrint)
+    
+  if (!tmpError && fillColorUtr)
     {
-      getColorFromString(fillColorPrint, &style->fillColor.print, &tmpError);
+      setBlxColorValues(fillColorUtr, fillColorUtrSelected, &style->fillColorUtr, &tmpError);
     }
-
-  if (!tmpError && lineColorPrint)
+  
+  if (!tmpError && lineColorUtr)
     {
-      getColorFromString(lineColorPrint, &style->lineColor.print, &tmpError);
+      setBlxColorValues(lineColorUtr, lineColorUtrSelected, &style->lineColorUtr, &tmpError);
     }
-
-
-  if (!tmpError && fillColorPrintSelected)
-    {
-      getColorFromString(fillColorPrintSelected, &style->fillColor.printSelected, &tmpError);
-    }
-
-  if (!tmpError && lineColorPrintSelected)
-    {
-      getColorFromString(lineColorPrintSelected, &style->lineColor.printSelected, &tmpError);
-    }
-
+  
   if (tmpError)
     {
       g_free(style);

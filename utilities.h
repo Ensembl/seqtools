@@ -139,6 +139,8 @@ typedef struct _BlxStyle
     char *styleName;
     BlxColor fillColor;
     BlxColor lineColor;
+    BlxColor fillColorUtr; /* used only for transcript features; fillColor and lineColor are for CDS portions and these are for UTR portions */
+    BlxColor lineColorUtr; /* used only for transcript features; fillColor and lineColor are for CDS portions and these are for UTR portions */
   } BlxStyle;
 
 /* Utility structs to hold a range of integers/doubles */

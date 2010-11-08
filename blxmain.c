@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.31 2010-11-08 16:35:30 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.32 2010-11-08 18:41:29 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -176,14 +176,16 @@ COLOR KEY FILE\n\
   Possible keys are:\n\
     fill_color                    (default fill color)\n\
     fill_color_selected           (fill color when selected) \n\
-    fill_color_print              (default fill color for printing)\n\
-    fill_color_print_selected     (fill color for printing when selected)\n\
     line_color                    (default line color)\n\
     line_color_selected           (line color when selected)\n\
-    line_color_print              (default line color for printing)\n\
-    line_color_print_selected     (line color for printing when selected)\n\
-  Only fill_color and line_color are mandatory; the other colors will be calculated automatically\n\
-  if not specified (e.g. selections as a darker shade, print colors as a greyscale).\n\
+    fill_color_utr                (default fill color for UTR regions)\n\
+    fill_color_utr_selected       (fill color for UTR regions when selected) \n\
+    line_color_utr                (default line color for UTR regions)\n\
+    line_color_utr_selected       (line color for UTR regions when selected)\n\
+  Only fill_color and line_color are mandatory; the selection colors will be calculated automatically\n\
+  if not specified (a darker shade of the default color will be used when the feature is selected).\n\
+  For transcripts, the fill_color/line_color/etc items are used for CDS regions and different colors\n\
+  can be specified for UTR regions using fill_color_utr, line_color_utr etc.\n\
 \n\
 MSPcrunch\n\
 To make the datafile from blast output, run MSPcrunch with option -q.\n\
@@ -283,16 +285,16 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
 	  /* Look for optional keys (passing error as null means we don't care if it's not found) */
 	  char *fillColorSelected = getColorFromKeyFile(keyFile, *group, "fill_color_selected", NULL);
 	  char *lineColorSelected = getColorFromKeyFile(keyFile, *group, "line_color_selected", NULL);
-	  char *fillColorPrint = getColorFromKeyFile(keyFile, *group, "fill_color_print", NULL);
-	  char *lineColorPrint = getColorFromKeyFile(keyFile, *group, "line_color_print", NULL);
-	  char *fillColorPrintSelected = getColorFromKeyFile(keyFile, *group, "fill_color_print_selected", NULL);
-	  char *lineColorPrintSelected = getColorFromKeyFile(keyFile, *group, "line_color_print_selected", NULL);
+	  char *fillColorUtr = getColorFromKeyFile(keyFile, *group, "fill_color_utr", NULL);
+	  char *lineColorUtr = getColorFromKeyFile(keyFile, *group, "line_color_utr", NULL);
+	  char *fillColorUtrSelected = getColorFromKeyFile(keyFile, *group, "fill_color_utr_selected", NULL);
+	  char *lineColorUtrSelected = getColorFromKeyFile(keyFile, *group, "line_color_utr_selected", NULL);
 
 	  /* If there was an error, skip this group. Otherwise, go ahead and create the style */
 	  if (!tmpError)
 	    {
-	      BlxStyle *style = createBlxStyle(*group, fillColor, fillColorSelected, fillColorPrint, fillColorPrintSelected,
-						lineColor, lineColorSelected, lineColorPrint, lineColorPrintSelected, &tmpError);
+	      BlxStyle *style = createBlxStyle(*group, fillColor, fillColorSelected, lineColor, lineColorSelected, 
+                                               fillColorUtr, fillColorUtrSelected, lineColorUtr, lineColorUtrSelected, &tmpError);
 	      result = g_slist_append(result, style);
 	    }
         }

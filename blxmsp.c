@@ -348,17 +348,23 @@ const char* mspGetMatchSeq(const MSP const *msp)
 
 
 /* Return the color matching the given properties from the given style */
-static const GdkColor *styleGetColor(const BlxStyle *style, const gboolean selected, const gboolean usePrintColors, const gboolean fill)
+static const GdkColor *styleGetColor(const BlxStyle *style, const gboolean selected, const gboolean usePrintColors, const gboolean fill, const gboolean utr)
 {
   const GdkColor *result = NULL;
   
   if (fill)
     {
-      result = blxColorGetColor(&style->fillColor, selected, usePrintColors);
+      if (utr)
+        result = blxColorGetColor(&style->fillColorUtr, selected, usePrintColors);
+      else
+        result = blxColorGetColor(&style->fillColor, selected, usePrintColors);
     }
   else
     {
-      result = blxColorGetColor(&style->lineColor, selected, usePrintColors);
+      if (utr)
+        result = blxColorGetColor(&style->lineColorUtr, selected, usePrintColors);
+      else
+        result = blxColorGetColor(&style->lineColor, selected, usePrintColors);
     }
   return result;
 }
@@ -384,7 +390,7 @@ const GdkColor* mspGetColor(const MSP const *msp,
   
   if (msp->style)
     {
-      result = styleGetColor(msp->style, selected, usePrintColors, fill);
+      result = styleGetColor(msp->style, selected, usePrintColors, fill, msp->type == BLXMSP_UTR);
     }
   
   if (!result)
