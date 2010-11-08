@@ -4360,6 +4360,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
+  blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;

@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.30 2010-11-08 15:52:47 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.31 2010-11-08 16:35:30 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -334,6 +334,25 @@ static BlxSeqType getSeqTypeFromChar(char seqChar)
 }
 
 
+/* For backwards compatibility only: get the blast mode from one of the chars X,P,N,L,T */
+static BlxBlastMode getBlastModeFromChar(char modeChar)
+{
+  BlxBlastMode result = BLXMODE_UNSET;
+  
+  switch (modeChar)
+    {
+      case 'N': result = BLXMODE_BLASTN;        break;
+      case 'X': result = BLXMODE_BLASTX;        break;
+      case 'P': result = BLXMODE_BLASTP;        break;
+      case 'T': result = BLXMODE_TBLASTN;       break;
+      case 'L': result = BLXMODE_TBLASTX;       break;
+      default: break;
+    };
+  
+  return result;
+}
+
+
 /* Get the sort mode from a char representing that mode */
 static BlxColumnId getSortModeFromChar(char sortChar)
 {
@@ -459,12 +478,13 @@ int main(int argc, char **argv)
       {"config-file",           required_argument,  0, 'c'},
       {"single-intput-file",    required_argument,  0, 'F'}, /* obsolete */
       {"help",                  no_argument,        0, 'h'},
-      {"disable-install",       no_argument,        0, 'i'},
+      {"disable-install",       no_argument,        0, 'i'}, /* "secret" option (hide from user) */
       {"invert-sort",           no_argument,        0, 'I'},
       {"key-file",              required_argument,  0, 'k'},
       {"tblastx",               no_argument,        0, 'l'}, /* obsolete */
       {"display-mode",          required_argument,  0, 'm'},
       {"blastn",                no_argument,        0, 'n'}, /* obsolete */
+      {"negate-coords",         no_argument,        0, 'N'}, /* "secret" option (hide from user) */
       {"offset",                required_argument,  0, 'O'},
       {"blastp",                no_argument,        0, 'p'}, /* obsolete */
       {"pfetch-server",         required_argument,  0, 'P'},
@@ -478,7 +498,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:bc:F:hiIk:lm:nO:pP:rRS:s:tx:z";
+  char        *optstring="a:bc:F:hiIk:lm:nNo:O:pP:rRS:s:tx:z";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -526,6 +546,13 @@ int main(int argc, char **argv)
 	case 'n':
 	  options.blastMode = BLXMODE_BLASTN;
 	  break;
+        case 'N':
+          options.negateCoords = TRUE;
+          break;
+        case 'o':
+          /* obsolete: but for backwards compatibility with ZMap, get the mode from the first char in the opts string */
+          options.blastMode = getBlastModeFromChar(*optarg);
+          break;
 	case 'O':
           options.refSeqOffset = convertStringToInt(optarg);
 	  break;

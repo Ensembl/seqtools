@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.59 2010-11-08 15:52:47 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.60 2010-11-08 16:35:30 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -171,6 +171,7 @@ typedef enum
     BLXFLAG_SHOW_SPLICE_SITES,	    /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
     BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
+    BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
     
     BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
   } BlxFlag;
@@ -317,6 +318,7 @@ typedef struct _CommandLineOptions
   char **geneticCode;             /* the genetic code */
   
   BlxStrand activeStrand;         /* which strand will initially be the active one */
+  gboolean negateCoords;          /* if this option is true, the display will show coords as negative when the reverse strand is active */
   gboolean zoomWhole;             /* whether to zoom out to view the entire big picture range on startup */
   int bigPictZoom;                /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
   gboolean bigPictON;             /* whether to show the big picture by default */
