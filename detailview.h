@@ -148,7 +148,7 @@ void			toggleStrand(GtkWidget *detailView);
 void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
 
 void			updateDetailViewFontDesc(GtkWidget *detailView);
-void			updateSeqColumnSize(GtkWidget *detailView);
+void			updateDetailViewRange(GtkWidget *detailView);
 void			resizeDetailViewHeaders(GtkWidget *detailView);
 void			refreshDetailViewHeaders(GtkWidget *detailView);
 void			detailViewRedrawAll(GtkWidget *detailView);

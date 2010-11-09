@@ -53,6 +53,7 @@ GtkTreeModel*	  treeGetBaseDataModel(GtkTreeView *tree);
 GtkWidget*	  treeGetBlxWindow(GtkWidget *tree);
 int		  treeGetCellXPadding(GtkWidget *tree);
 int		  treeGetCellYPadding(GtkWidget *tree);
+int               treeGetFrame(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, GtkCallback func, gpointer data);
 

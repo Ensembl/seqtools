@@ -220,7 +220,7 @@ static int calcNumBasesInSequenceColumn(GtkWidget *detailView)
  * size of the font has changed). This function will adjust the scroll range of our
  * custom scroll adjustment so that it represents the range that can be displayed 
  * in the new column width. */
-void updateSeqColumnSize(GtkWidget *detailView)
+void updateDetailViewRange(GtkWidget *detailView)
 {
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   
@@ -641,7 +641,7 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
       decrementFontSize(detailView);
     }
   
-  updateSeqColumnSize(detailView);
+  updateDetailViewRange(detailView);
 }
 
 
@@ -2096,31 +2096,6 @@ static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, co
   
   return baseIdx;
 }
-
-
-/***********************************************************
- *                    Detail view events                   *
- ***********************************************************/
-
-static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *allocation, gpointer data)
-{
-  /* The sequence column should be the only one that dynamically resizes as the window
-   * window size changes. Find its new width and cache it. All trees should resize
-   * in the same manner, so their columns should be the same size. */
-  GtkWidget *tree = detailViewGetFirstTree(detailView);
-  
-  if (tree && GTK_WIDGET_VISIBLE(tree))
-    {
-      GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), BLXCOL_SEQUENCE);
-
-      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
-      columnInfo->width = gtk_tree_view_column_get_width(column);
-          
-      /* Perform updates required on the sequence col after its size has changed */
-      updateSeqColumnSize(detailView);
-    }
-}
-
 
 
 /***********************************************************
@@ -4214,7 +4189,6 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 
   /* Connect signals */
   gtk_widget_add_events(detailView, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
   g_signal_connect(G_OBJECT(detailView), "button-press-event", G_CALLBACK(onButtonPressDetailView), NULL);
   g_signal_connect(G_OBJECT(detailView), "button-release-event", G_CALLBACK(onButtonReleaseDetailView), NULL);
   g_signal_connect(G_OBJECT(detailView), "motion-notify-event", G_CALLBACK(onMouseMoveDetailView), NULL);

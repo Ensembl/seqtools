@@ -79,7 +79,7 @@ static gboolean treeGetDisplayRev(GtkWidget *tree)
   return detailViewGetDisplayRev(detailView);
 }
 
-static int treeGetFrame(GtkWidget *tree)
+int treeGetFrame(GtkWidget *tree)
 {
   assertTree(tree);
   TreeProperties *properties = treeGetProperties(tree);
@@ -524,18 +524,20 @@ static void resizeTreeHeaders(GtkWidget *tree, gpointer data)
 
 
 /* Resize the columns for this tree. Should be called after the column width
- * is changed manually. */
+ * is changed manually by the user. */
 void resizeTreeColumns(GtkWidget *tree, gpointer data)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   
   GList *listItem = detailViewGetColumnList(detailView);
-  int sumWidth = 0;
-  
+
+  /* Loop through each column in the tree and set the column width to the width stored in our column info. */
   for ( ; listItem; listItem = listItem->next)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
-      
+
+      /* We don't set the width of the sequence column - this is an autosize column, so it will 
+       * be updated dynamically when any of the other columns change. */
       if (columnInfo->columnId != BLXCOL_SEQUENCE)
 	{
 	  GtkTreeViewColumn *treeColumn = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), columnInfo->columnId);
@@ -545,8 +547,6 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
 	    {
 	      width -= scrollBarWidth();
 	    }
-
-	  sumWidth += width;
 
 	  if (width > 0)
 	    {
@@ -561,13 +561,6 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
 	}
     }
 
-  /* The sequence column width is the full width minus the other columns' widths. 
-   * (Can't use gtk_tree_view_column_get_width here because it is not up to date yet) */
-  DetailViewColumnInfo *seqColumnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
-  seqColumnInfo->width = tree->allocation.width - sumWidth;
-  
-
-  updateSeqColumnSize(treeGetDetailView(tree));
   resizeTreeHeaders(tree, NULL);
 }
 
@@ -1956,20 +1949,22 @@ static int scrollBarWidth()
 }
 
 
-/* Callback called when the width of the sequence column has changed. (To do: this
- * will be needed if we come to do drag-resizing of columns. At the moment it is
- * not needed because column resizing only happens when the window is resized, so it
- * is handed by the detail view's onSizeAllocate function.) */
+/* Callback called when the width of the sequence column has changed. */
 static void onSeqColWidthChanged(GtkTreeViewColumn *column, GParamSpec *paramSpec, gpointer data)
 {
-//  GtkWidget *tree = GTK_WIDGET(data);
-//  GtkWidget *detailView = treeGetDetailView(tree);
-//  
-//  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
-//  columnInfo->width = gtk_tree_view_column_get_width(column);
-//  printf ("set seq col w = %d\n", columnInfo->width);
-//  
-//  updateSeqColumnSize(treeGetDetailView(tree));
+  GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *detailView = treeGetDetailView(tree);
+
+  GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, treeGetStrand(tree), treeGetFrame(tree));
+  
+  if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer))
+    {
+  
+      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+      columnInfo->width = gtk_tree_view_column_get_width(column);
+      
+      updateDetailViewRange(treeGetDetailView(tree));
+    }
 }
 
 
@@ -1995,9 +1990,9 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
     }
   
   if (columnInfo->columnId == BLXCOL_SEQUENCE)
-  {
-    g_signal_connect(G_OBJECT(column), "notify::width", G_CALLBACK(onSeqColWidthChanged), tree);
-  }
+    {
+      g_signal_connect(G_OBJECT(column), "notify::width", G_CALLBACK(onSeqColWidthChanged), tree);
+    }
   
   /* Set the column properties and add the column to the tree */
   if (width > 0)
@@ -2020,6 +2015,7 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
   {
     case BLXCOL_SEQUENCE:
       gtk_tree_view_column_set_expand(column, TRUE);
+      gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
       break;
       
     case BLXCOL_SEQNAME:
