@@ -623,17 +623,17 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 }
 
 
-/* Convert an x coord on the given widget to a base index (in nucleotide coords) */
-static gint convertWidgetPosToBaseIdx(const gint widgetPos, 
-                               const GdkRectangle const *displayRect,  
+/* Convert an x coord in the given rectangle to a base index (in nucleotide coords) */
+static gint convertRectPosToBaseIdx(const gint x, 
+                                      const GdkRectangle const *displayRect,  
                                       const IntRange const *dnaDispRange,
                                       const gboolean displayRev)
 {
   gint result = UNSET_INT;
   
-  int distFromEdge = (int)((gdouble)widgetPos - (gdouble)displayRect->x);
-  int basesFromEdge = distFromEdge / pixelsPerBase(displayRect->width, dnaDispRange);
-  
+  gdouble distFromEdge = (gdouble)(x - displayRect->x);
+  int basesFromEdge = (int)(distFromEdge / pixelsPerBase(displayRect->width, dnaDispRange));
+
   if (displayRev)
     {
       result = dnaDispRange->max - basesFromEdge;
@@ -672,7 +672,7 @@ void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, Gdk
   
   /* Convert it to the base index and back again so that we get it rounded to the position of
    * the nearest base. */
-  int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
+  int baseIdx = convertRectPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
   int xRounded = convertBaseIdxToRectPos(baseIdx, displayRect, &dnaDispRange, bc->displayRev, TRUE);
   
   /* The other dimensions of the preview box are the same as the current highlight box. */
@@ -711,7 +711,11 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRecta
    * edge of the preview box if numbers increase in the normal left-to-right direction, 
    * or the rightmost edge if the display is reversed. */
   const int x = getLeftCoordFromCentre(xCentre, highlightRect->width, displayRect);
-  const int baseIdx = convertWidgetPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
+  int baseIdx = convertRectPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
+  
+  /* Subtract 1 if the display is reversed to give the base to the right of x, rather than the base to the left of x */
+  if (bc->displayRev)
+    --baseIdx;
   
   /* Clear the preview box */
   bigPictureSetPreviewBoxCentre(bigPicture, UNSET_INT);
