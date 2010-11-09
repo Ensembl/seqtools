@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.60 2010-11-08 16:35:30 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.61 2010-11-09 10:13:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -325,7 +325,7 @@ typedef struct _CommandLineOptions
   gboolean hideInactive;          /* whether to show the inactive strand in the big picture/detail view */
   BlxColumnId initSortColumn;     /* initial column to sort by */
   gboolean sortInverted;	  /* whether initial sort order should be inverted */
-  gboolean hiliteSins;            /* whether the initial display should highlight mismatches rather than matches */
+  gboolean highlightDiffs;        /* whether the initial display should highlight mismatches rather than matches */
   gboolean dotterFirst;		  /* open dotter when blixem starts */
   gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
   gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */

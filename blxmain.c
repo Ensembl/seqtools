@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.32 2010-11-08 18:41:29 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.33 2010-11-09 10:13:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -218,7 +218,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode,
   options->hideInactive = FALSE;         
   options->initSortColumn = BLXCOL_ID;
   options->sortInverted = FALSE;	
-  options->hiliteSins = FALSE;   
+  options->highlightDiffs = FALSE;   
   options->dotterFirst = FALSE;	
   options->startNextMatch = FALSE;
   options->parseFullEmblInfo = FALSE;
@@ -471,7 +471,7 @@ int main(int argc, char **argv)
     {
       {"start-next-match",      no_argument,        &options.startNextMatch, 1},
       {"dotter-first",          no_argument,        &options.dotterFirst, 1},
-      {"highlight-diffs",       no_argument,        &options.hiliteSins, 1},
+      {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
       {"hide-inactive",         no_argument,        &options.hideInactive, 1},
       {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
 
@@ -510,6 +510,12 @@ int main(int argc, char **argv)
     {
       switch (optc)
 	{
+        case 0:
+          break; /* we get here if getopt_long set a flag; nothing else to do */
+          
+        case '?':
+          break; /* getopt_long already printed an error message */
+          
 	case 'a':
 	  align_types = blxprintf("%s", optarg) ;
 	  break;
