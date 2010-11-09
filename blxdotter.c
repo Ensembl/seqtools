@@ -641,7 +641,9 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
 
+  GError *tmpError = NULL;
   gboolean success = TRUE;
+  
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   if (!autoDotter)
@@ -660,19 +662,54 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
   
   if ((dotterStart && *dotterStart == UNSET_INT) || (dotterEnd && *dotterEnd == UNSET_INT))
     {
-      GError *tmpError = NULL;
-      
+      /* Calculate automatic coords */
       if (callOnSelf)
 	success = smartDotterRangeSelf(blxWindow, dotterStart, dotterEnd, &tmpError);
       else
 	success = smartDotterRange(blxWindow, dotterSSeq, dotterStart, dotterEnd, &tmpError);
-
-      if (error && tmpError)
-	{
-	  g_propagate_error(error, tmpError);
-	}
     }
-  
+
+  if (success && !tmpError)
+    {
+      /* Check that there are valid MSPs within the dotter range. Set a warning if not. */
+      gboolean found = FALSE;
+      const BlxStrand activeStrand = (bc->displayRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD);
+      const int qMin = min(*dotterStart, *dotterEnd);
+      const int qMax = max(*dotterStart, *dotterEnd);
+
+      GList *seqItem = bc->selectedSeqs;
+      for ( ; seqItem; seqItem = seqItem->next)
+        {
+          const BlxSequence *seq = (const BlxSequence*)(seqItem->data);
+          GList *mspItem = seq->mspList;  
+          
+          for ( ; mspItem ; mspItem = mspItem->next)
+            {
+              const MSP *msp = (MSP*)(mspItem->data);
+              
+              if ((msp->qStrand == activeStrand || bc->blastMode == BLXMODE_BLASTN) &&
+                  msp->qRange.min <= qMax && msp->qRange.max >= qMin)
+                {
+                  found = TRUE;
+                  break;
+                }
+            }
+        }
+      
+      if (!found)
+        {
+          g_set_error(&tmpError, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES,
+"There were no matches for the selected sequence(s) within the selected dotter range. If you used \n\
+an auto range, this may be because the alignments span a large range and the range was trimmed. In\n\
+this case, try zooming in on the region of interest.\n");
+        }
+    }
+
+  if (tmpError)
+    {
+      g_propagate_error(error, tmpError);
+    }
+
   return success;
 }
 
@@ -807,12 +844,13 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       int base1, base2;
       const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base1);
       const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base2);
-      const int minMspCoord = min(coord1, coord2);
-      const int maxMspCoord = max(coord1, coord2);
+      
+      IntRange mspDisplayRange;
+      intrangeSetValues(&mspDisplayRange, coord1, coord2);
 
-      /* Check if the MSP is in a visible tree row and is entirely within the big picture range */
+      /* Check if the MSP is in a visible strand is entirely within the big picture range */
       if ((msp->qStrand == activeStrand || (bc->blastMode == BLXMODE_BLASTN)) &&
-	  (minMspCoord >= bigPicRange->min && maxMspCoord <= bigPicRange->max))
+	  (mspDisplayRange.min >= bigPicRange->min && mspDisplayRange.max <= bigPicRange->max))
 	{
 	  int qSeqMin = msp->qRange.min;
 	  int qSeqMax = msp->qRange.max;
@@ -858,11 +896,12 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
   if (qMin == UNSET_INT && qMax == UNSET_INT)
     {
+      /* No alignments found. Give a warning, and use the big picture range. */
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, 
-		  "Could not find any matches on the '%c' strand of the selected sequence '%s'.", 
-		  activeStrand, blxSequenceGetFullName(selectedSeq));
-
-      return FALSE;
+                  "There were no matches for the selected sequence(s) within the big picture range.\nZoom out to ensure alignments lie entirely within the big picture range.");
+      
+      qMin = bigPicRange->min;
+      qMax = bigPicRange->max;
     }
   
   /* Due to gaps, we might miss the ends - add some more */
@@ -903,27 +942,6 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   /* Bounds check again */
   boundsLimitValue(&qMin, &bc->refSeqRange);
   boundsLimitValue(&qMax, &bc->refSeqRange);
-
-  /* Check that there are MSPs within the modified range. Set a warning if not. */
-  gboolean found = FALSE;
-  mspListItem = selectedSeq->mspList;  
-  
-  for ( ; mspListItem ; mspListItem = mspListItem->next)
-    {
-      const MSP *msp = (MSP*)(mspListItem->data);
-      
-      if ((msp->qStrand == activeStrand || bc->blastMode == BLXMODE_BLASTN) &&
-           msp->qRange.min <= qMax && msp->qRange.max >= qMin)
-	{
-	  found = TRUE;
-	  break;
-	}
-    }
-
-  if (!found)
-    {
-      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, "There were no matches within the trimmed range.\n");
-    }
 
   /* Return the start/end. The values start low and end high in normal 
    * left-to-right display, or vice-versa if the display is reversed. */
@@ -1349,7 +1367,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
     {
       /* There was a warning when calculating the range. Ask the user if they want to continue. */
       prefixError(rangeError, "Warning: ");
-      postfixError(rangeError, "Continue?");
+      postfixError(rangeError, "\nContinue?");
 
       ok = (runConfirmationBox(blxWindow, "Warning", rangeError->message) == GTK_RESPONSE_ACCEPT);
       g_error_free(rangeError);
