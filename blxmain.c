@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.33 2010-11-09 10:13:48 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.34 2010-11-11 15:51:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -715,6 +715,13 @@ int main(int argc, char **argv)
 	  fclose(seqfile);
 	}
     }
+
+  /* Set the blast mode from the sequence type, or vice versa, depending on which was supplied.
+   * Ideally we'll get rid of blast mode eventually. */
+  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
+    options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
+  else if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
+    options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
 
   /* Parse the data file containing the homol descriptions.                */
   if (!strcmp(FSfilename, "-"))
