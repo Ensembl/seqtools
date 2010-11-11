@@ -699,9 +699,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
       if (!found)
         {
           g_set_error(&tmpError, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES,
-"There were no matches for the selected sequence(s) within the selected dotter range. If you used \n\
-an auto range, this may be because the alignments span a large range and the range was trimmed. In\n\
-this case, try zooming in on the region of interest.\n");
+            "There were no matches for the selected sequence(s) within the selected dotter range.\nThis may be because the range was trimmed - try zooming in on the region of interest.\n");
         }
     }
 
