@@ -897,18 +897,19 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   /* The q range may be outside the ref seq range if we are at the start/end and we have included
    * "missing" bases to make up complete codons. Adjust to within the range, but maintain the same
    * base number within the reading frame. */
-  int offset = 0;
+  int offsetMin = 0;
+  int offsetMax = 0;
   
   while (qRange.min < bc->refSeqRange.min)
     {
       qRange.min += bc->numFrames;
-      ++offset;
+      ++offsetMin;
     }
 
   while (qRange.max > bc->refSeqRange.max)
     {
       qRange.max -= bc->numFrames;
-      ++offset;
+      ++offsetMax;
     }
   
   GError *error = NULL;
@@ -944,6 +945,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GdkGC *gc = gdk_gc_new(drawable);
 
   /* Offset the x coord where we'll start drawing if we did not start at the beginning of the display range. */
+  const int offset = bc->displayRev ? offsetMax : offsetMin;
   gdouble xStart = (gdouble)offset * properties->charWidth;
   const int yStart = 0;
   
