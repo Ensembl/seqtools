@@ -471,11 +471,6 @@ static void parseGffColumns(GString *line_string,
           gffData->score = g_ascii_strtod(tokens[5], NULL);
         }
       
-      /* to do: for now, copy the score into the ID field, because for historic reasons the ID
-       * was always passed in the score column from ZMap. This should be taken out once ZMap 
-       * passes the real score in this column and the ID in a separate tag. */
-      gffData->percentId = gffData->score;
-
       gffData->qStrand = readStrand(tokens[6], &tmpError);
     }
 
@@ -583,7 +578,7 @@ static void parseTagDataPair(char *text,
         {
 	  gffData->parentIdTag = g_strdup(tokens[1]);
         }
-      else if (!strcmp(tokens[0], "percentId")) /* to do: is this tag is correct? */
+      else if (!strcmp(tokens[0], "percentID"))
         {
           gffData->percentId = g_ascii_strtod(tokens[1], NULL);
         }
