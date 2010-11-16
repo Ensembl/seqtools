@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.24 2010-11-16 16:20:02 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.25 2010-11-16 16:24:04 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -184,16 +184,8 @@ static char* getUsageText()
     
   extern char *dotterVersion;
 
-  static char *cc_date = 
-#if defined(__DATE__)
-  __DATE__
-#else
-  ""
-#endif
-  ;
-  
-  usage = g_malloc(strlen(usageText) + strlen(dotterVersion) + strlen(cc_date) + 20);
-  sprintf(usage, "%s%s, compiled %s\n", usageText, dotterVersion, cc_date);
+  usage = g_malloc(strlen(usageText) + strlen(dotterVersion) + 20);
+  sprintf(usage, "%s%s\n", usageText, dotterVersion);
   
   return usage;
 }
