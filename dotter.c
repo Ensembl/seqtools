@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.23 2010-11-16 16:20:02 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.24 2010-11-16 16:31:31 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -2138,7 +2138,7 @@ static gboolean onSStartChanged(GtkWidget *widget, const gint responseId, gpoint
   int newValue = convertStringToInt(text);
   
   if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
-    g_warning("Limiting vertical sequence start to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+    g_warning("Limiting vertical sequence start to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
@@ -2157,7 +2157,7 @@ static gboolean onSEndChanged(GtkWidget *widget, const gint responseId, gpointer
   int newValue = convertStringToInt(text);
   
   if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
-    g_warning("Limiting vertical sequence end to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+    g_warning("Limiting vertical sequence end to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
