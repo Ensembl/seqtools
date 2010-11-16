@@ -5213,10 +5213,20 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setStyleProperties(window);
 
-  /* Set the message handlers again and pass the window, now we know it */
-  g_log_set_default_handler(defaultMessageHandler, window);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, window);
+  /* Create a status bar */
+  GtkWidget *statusBar = gtk_statusbar_new();
+  gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), TRUE);
+  setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
 
+  /* Set the message handlers again, this time passing the window and statusbar, now we know them */
+  BlxMessageData *msgData = g_malloc(sizeof *msgData);
+  msgData->parent = GTK_WINDOW(window);
+  msgData->statusBar = GTK_STATUSBAR(statusBar);
+  
+  g_log_set_default_handler(defaultMessageHandler, msgData);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, msgData);
+
+  
   /* Create a vertical box to pack everything in */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(window), vbox);
@@ -5233,11 +5243,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 								      0,   /* page increment dynamically set based on display range */
 								      0)); /* page size dunamically set based on display range */
   
-  /* Create a status bar */
-  GtkWidget *statusBar = gtk_statusbar_new();
-  gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), TRUE);
-  setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
-
   BlxViewContext *blxContext = blxWindowCreateContext(options, 
                                                       &refSeqRange, 
                                                       &fullDisplayRange, 

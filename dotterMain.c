@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.22 2010-11-08 15:52:49 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.23 2010-11-16 15:04:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -38,6 +38,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <ctype.h>
 
 #define UNSET_INT  -1
 
@@ -61,8 +62,11 @@ static void setDefaultOptions(DotterOptions *options)
   options->FSfilename = NULL;
   options->mtxfile = NULL;
   options->winsize = NULL;
+  options->xOptions = NULL;
   options->qname = NULL;
+  options->qseq = NULL;
   options->sname = NULL;
+  options->sseq = NULL;
   
   options->mirrorImage = TRUE;
   options->watsonOnly = FALSE;
@@ -126,7 +130,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
    msp->fsColor = 0;
    msp->type = BLXMSP_FS_SEG;
    msp->score = 100.0;
-   insertFS(msp, "chain_separator");
+//   insertFS(msp, "chain_separator");
 }		      
 
 
@@ -195,13 +199,51 @@ static char* getUsageText()
 }
 
 
+/* Get the Xoptions as a string from the arguments in the argv list. idx should indicate which
+ * index in argv the Xoptions start at. The returned string should be free'd with g_free. It may
+ * be null if there were no options. */
+static char* getXOptions(char **argv, const int argc, const int idx)
+{
+  DEBUG_ENTER("getXOptions");
+
+  char *result = NULL;
+  
+  int len = 0;
+  int i = idx;
+
+  /* First calculate the length of the string that we need */
+  for ( ; i < argc; ++i)
+    {
+      len += strlen(argv[i])+1;
+    }
+
+  DEBUG_OUT("xOptions len = %d\n", len);
+  
+  if (len > 0)
+    {
+      result = g_malloc(len+1);
+      
+      for (i = idx; i < argc; ++i) 
+        {
+          strcat(result, argv[i]);
+          strcat(result, " ");
+        }
+    }
+  
+  DEBUG_EXIT("getXOptions returning %s", result);
+  return result;
+}
+
+
 int main(int argc, char **argv)
 {
+  DEBUG_OUT("dotter main\n");
+  
   DotterOptions options;
   setDefaultOptions(&options);
 
   char   
-      *qseq=0, *sseq=0, line[MAXLINE+1],
+      line[MAXLINE+1],
       *curChar, *cc, *cq,  
       *firstdesc, *qfilename, *sfilename,
       text[MAXLINE+1];
@@ -241,7 +283,7 @@ int main(int argc, char **argv)
   BlxStrand sStrand = BLXSTRAND_FORWARD;
 
   while ((optc = getopt(argc, argv, optstring)) != EOF)
-    {printf("%c", optc);
+    {
       switch (optc) 
         {
           case 'b': 
@@ -273,14 +315,7 @@ int main(int argc, char **argv)
 	    qStrand = BLXSTRAND_REVERSE;		break;
           case 's': options.soffset = atoi(optarg);     break;
           case 'S': 
-            options.selfcall = TRUE;
-            options.qname = g_malloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
-            options.qlen = atoi(argv[optind+1]);
-            options.sname = g_malloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
-            options.slen = atoi(argv[optind+3]);
-            dotterBinary = g_malloc(strlen(argv[optind+4])+1);
-            strcpy(dotterBinary, argv[optind+4]);
-                                                        break;
+            options.selfcall = TRUE;                    break;
           case 'v': sStrand = BLXSTRAND_REVERSE;	break;
           case 'W': 
             options.winsize = g_malloc(strlen(optarg)+1);
@@ -288,7 +323,7 @@ int main(int argc, char **argv)
           case 'w': options.watsonOnly = TRUE;          break;
           case 'z': options.dotterZoom = atoi(optarg);  break;
           default : g_error("Illegal option");
-      }
+        }
     }
 
     if (!options.savefile)
@@ -296,43 +331,49 @@ int main(int argc, char **argv)
 	gtk_init(&argc, &argv);
       }
 
-    /* Store X options for zooming in */
-    {
-	int i, len=0;
-	extern char *Xoptions;
-	
-	for (i = optind+2; i < argc; i++)
-	    len += strlen(argv[i])+1;
-	
-	Xoptions = g_malloc(len+1);
-	
-	for (i = optind+2; i < argc; i++) {
-	    strcat(Xoptions, argv[i]);
-	    strcat(Xoptions, " ");
-	}
-    }
-
     if (options.selfcall) /* Blixem/Dotter calling dotter */
       {
-	qseq = (char *)g_malloc(options.qlen+1);
-	sseq = (char *)g_malloc(options.slen+1);
+        DEBUG_OUT("Dotter was called internally.\n");
+        
+        /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary, Xoptions.
+         * Xoptions are optional, so we should have 5 or 6 arguments */
+        if (argc - optind < 5 || argc - optind > 6)
+          {
+	    g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
+          }
+        
+        options.qname = g_malloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
+        options.qlen = atoi(argv[optind+1]);
+        options.sname = g_malloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
+        options.slen = atoi(argv[optind+3]);
+        dotterBinary = g_malloc(strlen(argv[optind+4])+1);
+        strcpy(dotterBinary, argv[optind+4]);
+        options.xOptions = getXOptions(argv, argc, optind + 5);
 
-        int l = fread(qseq, 1, options.qlen, stdin); 
+        /* Allocate memory for the sequences, now we know their lengths */
+        options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
+        options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+
+        /* Read in the sequences from the piped input */
+        DEBUG_OUT("Reading sequences from pipe...\n");
+        
+        int l = fread(options.qseq, 1, options.qlen, stdin); 
 	if (l != options.qlen) 
           {
 	    g_error("Only read %d chars to qseq, expected %d", l, options.qlen);
           }
-	qseq[options.qlen] = 0;
+	options.qseq[options.qlen] = 0;
 
-        l = fread(sseq, 1, options.slen, stdin);
+        l = fread(options.sseq, 1, options.slen, stdin);
 	if (l != options.slen) 
           {
 	    g_error("Only read %d chars to sseq, expected %d", l, options.slen);
           }
-	sseq[options.slen] = 0;
+	options.sseq[options.slen] = 0;
+        DEBUG_OUT("...done.\n");
 
-	/* Read in MSPs */
-        DEBUG_OUT("Reading MSPs\n");
+	/* Read in the features from the piped input */
+        DEBUG_OUT("Reading features from pipe...\n");
         MSP *lastMsp = NULL;
         
 	while (!feof (stdin))
@@ -366,29 +407,45 @@ int main(int argc, char **argv)
                 /* really horrible hack */
                 if (msp->type == BLXMSP_FS_SEG)
                   {
-                    insertFS(msp, "chain_separator");
+//                    insertFS(msp, "chain_separator");
                     options.fsEndLinesOn = TRUE;
                   }
               }
           }
+          
 	fclose(stdin);
+        DEBUG_OUT("...done.\n");
       }
-    else if (!options.seqInSFS)
+    else if (options.seqInSFS)
       {
-	if (argc - optind < 2) 
+        /* The -F option has been used, which replaces the input sequence files. We should therefore
+         * only have, at mosts, one input argument: the Xoptions*/
+        if (argc - optind > 1)
           {
-	    fprintf(stderr, "%s\n", usage); 
-	    exit(1);
+	    g_error("%s\n", usage); 
           }
-	else if(!(qfile = fopen(argv[optind], "r"))) 
+        
+        options.xOptions = getXOptions(argv, argc, optind);
+      }
+    else
+      {
+        /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
+         * optional, so we should have 2 or 3 arguments */
+        if (argc - optind < 2 || argc - optind > 3) 
           {
-	    fprintf(stderr,"Cannot open %s\n", argv[optind]); exit(1);
+	    g_error("%s\n", usage); 
+          }
+            
+        options.xOptions = getXOptions(argv, argc, optind + 2);
+        
+	if(!(qfile = fopen(argv[optind], "r"))) 
+          {
+	    g_error("Cannot open %s\n", argv[optind]); 
           }
       
 	qfilename = argv[optind];
 	fseek(qfile, 0, SEEK_END);
 	options.qlen = ftell(qfile);
-	qseq = (char *)g_malloc(options.qlen+1);
 	fseek(qfile, 0, SEEK_SET);
       
 	if ((curChar = (char *)strrchr(argv[optind], '/')))
@@ -402,13 +459,12 @@ int main(int argc, char **argv)
 
 	if (!(sfile = fopen(argv[optind+1], "r"))) 
           {
-	    fprintf(stderr,"Cannot open %s\n", argv[optind+1]); exit(1);
+	    g_error("Cannot open %s\n", argv[optind+1]); 
           }
       
 	sfilename = argv[optind+1];
 	fseek(sfile, 0, SEEK_END);
 	options.slen = ftell(sfile);
-	sseq = (char *)g_malloc(options.slen+1);
 	fseek(sfile, 0, SEEK_SET);
       
 	if ((curChar = (char *)strrchr(argv[optind]+1, '/')))
@@ -420,9 +476,13 @@ int main(int argc, char **argv)
             options.sname = g_strdup(argv[optind+1]);
           }
 
+        /* Allocate memory for the sequences, now we know their lengths */
+        options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
+        options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+        
 	/* Read in the sequences */
 	int l = 0, count = 0;
-	cc = qseq;
+	cc = options.qseq;
       
 	while (!feof(qfile))
           {
@@ -476,7 +536,7 @@ int main(int argc, char **argv)
 	*cc = 0;
 	
 	l = 0, count = 0;
-	cc = sseq;
+	cc = options.sseq;
       
 	while (!feof(sfile))
           {
@@ -539,25 +599,25 @@ int main(int argc, char **argv)
         GSList *supportedTypes = blxCreateSupportedGffTypeList();
         IntRange qRange = {UNSET_INT, UNSET_INT};
 
-	parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &qseq, options.qname, &qRange, &sseq, options.sname);
+	parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, &qRange, &options.sseq, options.sname);
         
         blxDestroyGffTypeList(&supportedTypes);
       }
 
     /* Determine sequence types */
-    if (determineSeqType(qseq) == BLXSEQ_PEPTIDE && determineSeqType(sseq) == BLXSEQ_PEPTIDE) 
+    if (determineSeqType(options.qseq) == BLXSEQ_PEPTIDE && determineSeqType(options.sseq) == BLXSEQ_PEPTIDE) 
       {
-	printf("\nDetected sequence types: Protein vs. Protein\n");
+	g_message("\nDetected sequence types: Protein vs. Protein\n");
 	blastMode = BLXMODE_BLASTP;
       }
-    else if (determineSeqType(qseq) == BLXSEQ_DNA && determineSeqType(sseq) == BLXSEQ_DNA) 
+    else if (determineSeqType(options.qseq) == BLXSEQ_DNA && determineSeqType(options.sseq) == BLXSEQ_DNA) 
       {
-	printf("\nDetected sequence types: DNA vs. DNA\n");
+	g_message("\nDetected sequence types: DNA vs. DNA\n");
 	blastMode = BLXMODE_BLASTN;
       }
-    else if (determineSeqType(qseq) == BLXSEQ_DNA && determineSeqType(sseq) == BLXSEQ_PEPTIDE) 
+    else if (determineSeqType(options.qseq) == BLXSEQ_DNA && determineSeqType(options.sseq) == BLXSEQ_PEPTIDE) 
       {
-	printf("\nDetected sequence types: DNA vs. Protein\n");
+	g_message("\nDetected sequence types: DNA vs. Protein\n");
 	blastMode = BLXMODE_BLASTX;;
       }
     else
@@ -578,7 +638,7 @@ int main(int argc, char **argv)
         g_log_set_default_handler(defaultMessageHandler, NULL);
         g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
         
-	dotter(blastMode, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
+	dotter(blastMode, &options, options.qname, options.qseq, options.qoffset, qStrand, options.sname, options.sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset) ;
 
@@ -587,7 +647,7 @@ int main(int argc, char **argv)
     else
       {
         /* Batch mode */
-	dotter(blastMode, &options, options.qname, qseq, options.qoffset, qStrand, options.sname, sseq, options.soffset, sStrand,
+	dotter(blastMode, &options, options.qname, options.qseq, options.qoffset, qStrand, options.sname, options.sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
                options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset);
       }

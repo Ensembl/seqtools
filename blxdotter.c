@@ -15,7 +15,7 @@
 #include <SeqTools/dotter.h>
 #include <string.h>
 #include <stdlib.h>
-#include <regular.h> /* for getSystemName etc. */
+#include <unistd.h>
 
 #define DEFAULT_DOTTER_RANGE_SELF	2000
 
@@ -997,7 +997,7 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
       /* --client gives logging information to pfetch server,
        * -q  Sequence only output (one line) */
       fetchstr = blxprintf("%s --client=%s_%s_%s -q '%s' &",
-			   fetch_prog, g_get_prgname(), getSystemName(), getLogin(TRUE), seqname) ;
+			   fetch_prog, g_get_prgname(), g_get_host_name(), g_get_user_name(), seqname) ;
     }
   else
     {
@@ -1067,68 +1067,60 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
 
 /* Find an executable and return its complete pathname.
  */
-static int findCommand (char *command, char **retp)
+static gboolean findCommand (char *command, char **resultOut)
 {
+  gboolean found = FALSE;
+
 #if !defined(NO_POPEN)
-  static char retstr[1025] ;
-  char *path, file[1025], retval;
-  int found=0;
+  static char result[1025];
+  char fileName[1025];
+  FILE *file = NULL;
   
-  /* Don't use csh - fails if the path is not set in .cshrc * /
-   if (access(csh, X_OK)) {
-   g_critical("Could not find %s", csh);
-   return 0;
-   }
-   if (!(pipe = (FILE *)popen(messprintf("%s -cf \"which %s\"", csh, command), "r"))) {
-   return 0;
-   }
+  char *pathEnv = g_malloc(strlen(getenv("PATH"))+1);
+  strcpy(pathEnv, getenv("PATH"));
    
-   while (!feof(pipe))
-   fgets(retval, 1024, pipe);
-   retval[1024] = 0;
-   pclose(pipe);
+  /* Try each path in the enviroment var */
+  char *path = strtok(pathEnv, ":");
    
-   if (cp = strchr(retval, '\n')) *cp = 0;
-   if (retp) *retp = retval;
+  while (path) 
+    {
+      strcpy(fileName, path);
+      strcat(fileName,"/");
+      strcat(fileName, command);
    
-   / * Check if whatever "which" returned is an existing and executable file * /
-   if (!access(retval, F_OK) && !access(retval, X_OK))
-   return 1;
-   else
-   return 0;
-   */
-  
-  path = g_malloc(strlen(getenv("PATH"))+1);
-  /* Don't free 'path' since it changes later on - never mind, 
-   we're only calling it once */
-  
-  strcpy(path, getenv("PATH"));
-  path = strtok(path, ":");
-  while (path) {
-    strcpy(file, path);
-    strcat(file,"/");
-    strcat(file, command);
-    if (!access(file, F_OK) && !access(file, X_OK)) {
-      found = 1;
+      /* Check if the file exists in this path */
+      file = fopen(fileName, "r");
+      if (file)  //!access(fileName, F_OK) && !access(fileName, X_OK)) 
+	{
+	  found = TRUE;
+	  fclose(file);
       break;
     }
     
     path = strtok(0, ":");
   }
   
-  if (found) {
-    strcpy(retstr, file);
-    retval = 1;
+  g_free(pathEnv);
+  
+  if (found) 
+    {
+      strcpy(result, fileName);
+      found = TRUE;
   }
-  else {
-    strcpy(retstr, "Can't find executable 'dotter' in path.\n");
-    retval = 0;
+  else 
+    {
+      strcpy(result, "Can't find executable 'dotter' in path.\n");
   }
   
-  if (retp) *retp = retstr;
-  return retval;
-  
+  if (resultOut)
+    {
+      *resultOut = result;
+    }
+#else
+  strcpy(result, "Can't open executable 'dotter' - popen command is not defined.\n");
 #endif
+
+  return found;
 }
 
 
@@ -1146,48 +1138,53 @@ static void callDotterChildProcess(char *dotterBinary,
 				   const char *dotterSName,
 				   char *Xoptions)
 {
+  DEBUG_OUT("callDotterChildProcess\n");
+
   /* Create the argument list */
   GSList *argList = NULL;
-  argList = g_slist_append(argList, dotterBinary);
-  argList = g_slist_append(argList, "-z");
+  argList = g_slist_append(argList, g_strdup(dotterBinary));
+  argList = g_slist_append(argList, g_strdup("-z"));
   argList = g_slist_append(argList, convertIntToString(dotterZoom));
-  argList = g_slist_append(argList, "-q");
+  argList = g_slist_append(argList, g_strdup("-q"));
   argList = g_slist_append(argList, convertIntToString(qstart));
-  argList = g_slist_append(argList, "-s");
+  argList = g_slist_append(argList, g_strdup("-s"));
   argList = g_slist_append(argList, convertIntToString(sstart));
   
-  if (bc->displayRev)		    argList = g_slist_append(argList, "-r");
-  if (sStrand == BLXSTRAND_REVERSE) argList = g_slist_append(argList, "-v");
-  if (hspsOnly)			    argList = g_slist_append(argList, "-H");
+  if (bc->displayRev)		    argList = g_slist_append(argList, g_strdup("-r"));
+  if (sStrand == BLXSTRAND_REVERSE) argList = g_slist_append(argList, g_strdup("-v"));
+  if (hspsOnly)			    argList = g_slist_append(argList, g_strdup("-H"));
   
-  argList = g_slist_append(argList, "-S");
-  argList = g_slist_append(argList, bc->refSeqName);
+  argList = g_slist_append(argList, g_strdup("-S"));
+  argList = g_slist_append(argList, g_strdup(bc->refSeqName));
   argList = g_slist_append(argList, convertIntToString(qlen));
-  argList = g_slist_append(argList, dotterSName);
+  argList = g_slist_append(argList, g_strdup(dotterSName));
   argList = g_slist_append(argList, convertIntToString(slen));
-  argList = g_slist_append(argList, dotterBinary);
-  argList = g_slist_append(argList, Xoptions);
-  argList = g_slist_append(argList, NULL);
+  argList = g_slist_append(argList, g_strdup(dotterBinary));
+  argList = g_slist_append(argList, g_strdup(Xoptions));
+  
+  if (Xoptions)
+    argList = g_slist_append(argList, NULL); /* add null on end, if Xoptions wasn't already null */
 
   /* Convert the list to an array */
+  DEBUG_OUT("Args = ");
   char *args[g_slist_length(argList)];
   GSList *item = argList;
   int i = 0;
+  
   for ( ; item; item = item->next)
     {
       char *arg = (char*)(item->data);
       args[i] = arg;
       ++i;
-      printf(", %s", arg  );
+      DEBUG_OUT(", %s", arg  );
     }
+  DEBUG_OUT("\n");
     
   DEBUG_OUT("Executing dotter\n");
-
-  close(pipes[1]);
   dup2(pipes[0], 0);
   close(pipes[0]);
-  
   execv(args[0], args);
+  
   exit(1);
 }
 
@@ -1221,7 +1218,7 @@ gboolean callDotterExternal(BlxViewContext *bc,
   /* Open pipe to new dotterBinary */
   if (!dotterBinary) 
     { 
-      printf("Looking for Dotter ...\n");
+      g_debug("Looking for Dotter ...\n");
       
       if (!findCommand("dotter", &(dotterBinary))) 
         {
@@ -1253,24 +1250,32 @@ gboolean callDotterExternal(BlxViewContext *bc,
     }
   else if (pid == 0)
     {
-      /* Child process. Execute dotter */
+      /* Child process. Execute dotter. First, close the write end of the pipe */
+      close(pipes[1]);
+
+      DEBUG_OUT("Calling dotter child process\n");
       callDotterChildProcess(dotterBinary, dotterZoom, xstart - 1, ystart - 1, qlen, slen, 
 			     hspsOnly, sStrand, pipes, bc, dotterSName, Xoptions);
     }
   else
     {
-      g_debug("Spawned process %d\n", pid);
-      DEBUG_OUT("Piping sequences to dotter\n");
-      
+      /* Parent process. Pipe sequences and MSPs to dotter. First, close the read end of the pipe. */
       close(pipes[0]);
+
+      g_debug("Spawned process %d\n", pid);
+      DEBUG_OUT("Piping sequences to dotter...\n");
+      
+      fflush(stdout);
       FILE *pipe = fdopen(pipes[1], "w");
 
       /* Pass the sequences */
       fwrite(refSeqSegment, 1, qlen, pipe);
       fwrite(dotterSSeq, 1, slen, pipe);
       
+      DEBUG_OUT("...done\n");
+      
       /* Pass the features */
-      DEBUG_OUT("Piping features to dotter\n");
+      DEBUG_OUT("Piping features to dotter...\n");
       GList *seqItem = bc->matchSeqs;
       for ( ; seqItem; seqItem = seqItem->next) 
 	{
@@ -1280,6 +1285,8 @@ gboolean callDotterExternal(BlxViewContext *bc,
       
       fprintf(pipe, "%c\n", EOF);
       fflush(pipe);
+      
+      DEBUG_OUT("...done\n");
     }
 #endif
   
@@ -1421,10 +1428,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   const int offset = dotterRange.min - 1;
   
   /* Get the list of all MSPs */
-  printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
+  g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   
-  printf("  query sequence: name -  %s, offset - %d\n"
-	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
+  g_message("  query sequence: name -  %s, offset - %d\n"
+            "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
 
   return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, selectedSeq->strand, hspsOnly, NULL, error);
 }
@@ -1504,10 +1511,10 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
     }
   
   /* Make a copy of the reference sequence segment to pass as the match sequence */
-  char *dotterSSeq = messalloc(strlen(querySeqSegment) + 1);
+  char *dotterSSeq = g_malloc(strlen(querySeqSegment) + 1);
   strcpy(dotterSSeq, querySeqSegment);
 
-  printf("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
+  g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
   callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, BLXSTRAND_FORWARD, FALSE, NULL, error);
 

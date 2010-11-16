@@ -50,7 +50,8 @@
 typedef enum
 {
   SEQTOOLS_ERROR_PARSING_COLOR,	      /* error parsing color string */
-  SEQTOOLS_ERROR_SEQ_SEGMENT	      /* error getting the requested segment of a sequence */
+  SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
+  SEQTOOLS_ERROR_NO_STYLE	      /* style does not exist */
 } SeqToolsError;
 
 
@@ -132,6 +133,15 @@ typedef struct _BlxColor
 /* This handle holds a list of pointers to all memory allocated via this handle. Use handleDestroy
  * to free the handle and all its allocated memory. */
 typedef GSList* BlxHandle;
+  
+  
+/* This struct is used to pass user data to the message handlers */
+typedef struct _BlxMessageData
+{
+  GtkWindow *parent;
+  GtkStatusbar *statusBar;
+} BlxMessageData;
+  
   
 /* Define a drawing style for an MSP */
 typedef struct _BlxStyle
@@ -232,6 +242,7 @@ char*                 getSystemErrorText();
 gpointer              handleAlloc(BlxHandle *handle, size_t numBytes);
 BlxHandle             handleCreate();
 void                  handleDestroy(BlxHandle *handle);
+BlxStyle*             getBlxStyle(const char *styleName, GSList *styles, GError **error);
 
 void		      sortValues(int *val1, int *val2, gboolean forwards);
 int		      numDigitsInInt(int val);
@@ -313,6 +324,9 @@ void                  stringProtect(FILE *file, const char *string);
 char*                 stringUnprotect(char **textp, char *target);
 
 int                   invertCoord(const int coord, const IntRange const *range, const gboolean invert);
+
+void                  popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
+void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 
 GtkWidget*	      showMessageDialog(const char *title,  
 					const char *messageText,

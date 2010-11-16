@@ -34,7 +34,7 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.9 2010-11-08 15:52:49 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.10 2010-11-16 15:04:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
@@ -46,27 +46,30 @@
 /* Options specifying the initial state for dotter */
 typedef struct _DotterOptions
   {
-    int qoffset;
-    int soffset; 
-    gboolean selfcall;
-    int qlen;
-    int slen;
-    int dotterZoom;
-    int install : 1;
-    int pixelFacset;
-    int seqInSFS;
+    int qoffset;              /* qoffset + 1 gives the value of the first coord on the ref seq */
+    int soffset;              /* soffset + 1 gives the value of the first coord on the match seq */
+    gboolean selfcall;        /* whether called internally, i.e. so that features/sequences will be piped into dotter rather than read from files */
+    int qlen;                 /* length of the ref seq */
+    int slen;                 /* length of the match seq */
+    int dotterZoom;           /* initial zoom level */
+    int install : 1;          /* whether to add -install to the dotter args (for private colormaps) */
+    int pixelFacset;          
+    int seqInSFS;             /* whether the sequences are in the features file, i.e. there are no separate sequence files */
     
     float memoryLimit;
     
-    char *savefile;
-    char *loadfile;
-    char *FSfilename;
-    char *mtxfile;
+    char *savefile;           /* file to save the dot-plot to */
+    char *loadfile;           /* file to load a dot-plot from */
+    char *FSfilename;         /* file containing features i.e. MSPs */
+    char *mtxfile;            /* caller-supplied matrix file */
     
-    char *winsize;
+    char *winsize;            /* caller-supplied sliding-window size */
+    char *xOptions;           /* x-options */
     
-    char *qname;
-    char *sname;
+    char *qname;              /* reference (horizontal) sequence name */
+    char *qseq;               /* reference (horizontal) sequence data */
+    char *sname;              /* match (vertical) sequence name */
+    char *sseq;               /* match (vertical) sequence data */
     
     gboolean mirrorImage;     /* display mirror image in self comparisons (i.e. so we only have to calculate half of the dot-plot) */
     gboolean watsonOnly;      /* only show the watson (forward) strand of the ref seq */

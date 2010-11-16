@@ -34,7 +34,7 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.50 2010-11-08 15:52:48 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.51 2010-11-16 15:04:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -190,10 +190,10 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 {
   DEBUG_ENTER("parseFS");
 
-  if (!fsArr) 
-    fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
-  else
-    g_array_sort(fsArr, fsSortByNameCompareFunc);
+//  if (!fsArr) 
+//    fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
+//  else
+//    g_array_sort(fsArr, fsSortByNameCompareFunc);
 
   const int resFactor = getResFactorFromMode(*blastMode);
   
@@ -268,7 +268,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
   g_string_free(line_string, TRUE) ;			    /* free everything, buffer and all. */
 
   /* Sort feature segment array by number */
-  g_array_sort(fsArr, fsSortByOrderCompareFunc);
+//  g_array_sort(fsArr, fsSortByOrderCompareFunc);
   
   if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1)
     {
@@ -1390,7 +1390,7 @@ static void parseFsSeg(char *line, BlxBlastMode blastMode, GList* featureLists[]
   /* Parse in additional feature-series info */
   parseLook(msp, look);
   getDesc(msp, line, look);
-  insertFS(msp, series);
+//  insertFS(msp, series);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 }
@@ -1440,7 +1440,7 @@ static void parseFsGff(char *line, BlxBlastMode blastMode, GList* featureLists[]
   /* Parse additional feature-series information */
   msp->desc = g_strdup(series);
   parseLook(msp, look);
-  insertFS(msp, series);
+//  insertFS(msp, series);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
 }
@@ -1526,7 +1526,7 @@ static void parseFsXyHeader(char *line,
   msp->fsShape = BLXCURVE_INTERPOLATE; /* default */
   parseLook(msp, look);
   getDesc(msp, line, look);
-  insertFS(msp, series); 
+//  insertFS(msp, series); 
   
   /* Start parsing the actual XY data next */
   *parserState = FS_XY_BODY;

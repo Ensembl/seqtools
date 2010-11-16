@@ -1,5 +1,5 @@
 /*  Last edited: Oct 26 10:45 2003 (edgrif) */
-/* $Id: dotterKarlin.c,v 1.4 2010-10-22 11:58:58 gb10 Exp $ */
+/* $Id: dotterKarlin.c,v 1.5 2010-11-16 15:04:42 gb10 Exp $ */
 
 /*
  -------------------------------------------------------------
@@ -228,8 +228,8 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 	}
 
     if (sum<0.99995 || sum>1.00005)
-	printf("Score probabilities sum to %.5lf and will be normalized to 1.", sum);
-
+      g_message("Score probabilities sum to %.5lf and will be normalized to 1.\n", sum);
+  
     p = (double *)g_malloc(sizeof(*p) * (range+1));
     for (Sum=low,i=0; i<=range; ++i)
 	Sum += i*(p[i]=pr[i]/sum);
@@ -424,21 +424,19 @@ int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq
 	    *exp_res_score += qij*mtx[i][j];
 	}
     if (sum -1.0 > 0.0001)
-	printf("Warning: SUM(PiPj*exp(Lambda*Sij)) = %f (Should be 1.0)\n", sum);
+	g_warning("Warning: SUM(PiPj*exp(Lambda*Sij)) = %f (Should be 1.0)\n", sum);
 
     exp_MSP_score = (log(n*n) + log(K)) / *Lambda;
 
     retval = (int) (exp_MSP_score / *exp_res_score + 0.5);
 
-    printf("Karlin/Altschul statistics for these sequences and score matrix:\n"
-	   "   K      = %.3f\n"
-	   "   Lambda = %.3f\n"
-	   "   => Expected MSP score in a %dx%d matrix = %.3f\n",
-	   K, *Lambda, n, n, exp_MSP_score);
+    g_message("Karlin/Altschul statistics for these sequences and score matrix:\n");
+    g_message("   K      = %.3f\n", K);
+    g_message("   Lambda = %.3f\n", *Lambda);
+    g_message("   => Expected MSP score in a %dx%d matrix = %.3f\n", n, n, exp_MSP_score);
 
-    printf("   Expected residue score in MSP = %.3f\n"
-	   "   => Expected MSP length = %d\n",
-	   *exp_res_score, retval);
+    g_message("   Expected residue score in MSP = %.3f\n", *exp_res_score);
+    g_message("   => Expected MSP length = %d\n", retval);
 
 
     g_free(prob);

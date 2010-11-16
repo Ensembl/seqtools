@@ -26,11 +26,9 @@
  * Description: Blixem functions for control of entry fetching and
  *              display.
  *              
- *              Compiling with -DACEDB includes acedb-specific options.
- *              
  *              Compiling with -DPFETCH_HTML includes code to issue
  *              pfetch requests to a proxy pfetch server using html.
- *              This requires w3rdparty libs libpfetch and libcurlobj
+ *              This requires libs libpfetch and libcurlobj
  *              which in turn require libcurl.
  *
  * Exported functions: 
@@ -38,7 +36,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.46 2010-11-03 16:04:58 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.47 2010-11-16 15:04:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -60,11 +58,6 @@
 #ifdef PFETCH_HTML 
 #include <libpfetch/libpfetch.h>
 #endif
-
-#ifdef ACEDB
-#include <wh/display.h>
-#endif
-
 
 #define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
 
@@ -432,11 +425,7 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
   
    
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-#ifdef ACEDB
-void fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow)
-#else
 void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
-#endif
 {
   const char *fetchMode = blxWindowGetFetchMode(blxWindow);
   GError *error = NULL;
@@ -463,16 +452,6 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
       seqtoolsLaunchWebBrowser(link, &error);
       g_free(link);
     }
-#ifdef ACEDB
-  else if (!strcmp(fetchMode, BLX_FETCH_ACEDB))
-    {
-      display(key, 0, 0);
-    }
-  else if (!strcmp(fetchMode, BLX_FETCH_ACEDB_TEXT))
-    {
-      display(key, 0, "TREE");
-    }
-#endif
   else
     {
       g_critical("Unknown fetchMode: %s", fetchMode);
@@ -508,11 +487,7 @@ void blxFindInitialFetchMode(char *fetchMode)
     }
   else
     {
-#ifdef ACEDB
-      strcpy(fetchMode, BLX_FETCH_ACEDB);
-#else
       strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
-#endif
     }
 }
 
@@ -1959,11 +1934,6 @@ void createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow)
   
   addPfetchItem(store, NULL, BLX_FETCH_EFETCH, bc->fetchMode, combo);
   addPfetchItem(store, NULL, BLX_FETCH_WWW_EFETCH, bc->fetchMode, combo);
-  
-#ifdef ACEDB
-  addPfetchItem(store, NULL, BLX_FETCH_ACEDB, bc->fetchMode, combo);
-  addPfetchItem(store, NULL, BLX_FETCH_ACEDB_TEXT, bc->fetchMode, combo);
-#endif
 }
 
 

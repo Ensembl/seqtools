@@ -465,32 +465,32 @@ char *mspGetCoordsAsString(const MSP const *msp)
 }
 
 
-/* Returns true if a feature-series by the given name exists in the feature-series array and
- * and, if so, sets index_out with its index. */
-static gboolean fsArrayFindByName(GArray *fsArray, FeatureSeries *fs, int *index_out)
-{
-  gboolean result = FALSE;
+///* Returns true if a feature-series by the given name exists in the feature-series array and
+// * and, if so, sets index_out with its index. */
+//static gboolean fsArrayFindByName(GArray *fsArray, FeatureSeries *fs, int *index_out)
+//{
+//  gboolean result = FALSE;
+//  
+//  if (fsArray)
+//    {
+//    int i = 0;
+//    for ( ; i < fsArray->len; ++i)
+//      {
+//      FeatureSeries *compareFs = &g_array_index(fsArray, FeatureSeries, i);
+//      
+//      if (!fsSortByNameCompareFunc(fs, compareFs))
+//	{
+//	result = TRUE;
+//	*index_out = i;
+//	break;
+//	}
+//      }
+//    }
+//  
+//  return result;
+//}
   
-  if (fsArray)
-    {
-    int i = 0;
-    for ( ; i < fsArray->len; ++i)
-      {
-      FeatureSeries *compareFs = &g_array_index(fsArray, FeatureSeries, i);
       
-      if (!fsSortByNameCompareFunc(fs, compareFs))
-	{
-	result = TRUE;
-	*index_out = i;
-	break;
-	}
-      }
-    }
-  
-  return result;
-}
-
-
 /* Comparison function to sort two Feature Series by the order number stored in the FeatureSeries
  * struct. Returns -1 if the first item is before the second, 1 if the second is first, or 0 if 
  * they are equal.  */
@@ -525,44 +525,44 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 /* Insert the given MSP into the Feature Series of the given name. If the Feature Series
  * does not exist yet, create it. Also, if the Feature Series array does not exist yet, create
  * that too. */
-void insertFS(MSP *msp, char *series)
-{
-  if (!fsArr) 
-    {
-    fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
-    }
+//void insertFS(MSP *msp, char *series)
+//{
+//  if (!fsArr) 
+//    {
+//    fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
+//    }
+//  
+//  static int orderNum = 0; /* will increment this each time we add a feature series to the array */
+//  
+//  FeatureSeries *fs = g_malloc(sizeof(FeatureSeries));
+//  fs->on = 1;
+//  fs->y = 0.0;
+//  fs->xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
+//  
+//  fs->name = g_strdup(series);
+//  
+//  int i;
+//  if (fsArrayFindByName(fsArr, fs, &i))
+//    {
+//    msp->fs = &g_array_index(fsArr, FeatureSeries, i);
+//    g_free(fs->name);
+//    g_free(fs);
+//    }
+//  else
+//    {
+//    /* Remember the order we added them so we can sort by it again later. */
+//    orderNum++;
+//    fs->order = orderNum;
+//    
+//    g_array_append_val(fsArr, *fs);
+//    //      g_array_sort(fsArr, fsSortByNameCompareFunc);
+//    
+//    msp->fs = fs;
+//    }
+//}
+//
   
-  static int orderNum = 0; /* will increment this each time we add a feature series to the array */
   
-  FeatureSeries *fs = g_malloc(sizeof(FeatureSeries));
-  fs->on = 1;
-  fs->y = 0.0;
-  fs->xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
-  
-  fs->name = g_strdup(series);
-  
-  int i;
-  if (fsArrayFindByName(fsArr, fs, &i))
-    {
-    msp->fs = &g_array_index(fsArr, FeatureSeries, i);
-    g_free(fs->name);
-    g_free(fs);
-    }
-  else
-    {
-    /* Remember the order we added them so we can sort by it again later. */
-    orderNum++;
-    fs->order = orderNum;
-    
-    g_array_append_val(fsArr, *fs);
-    //      g_array_sort(fsArr, fsSortByNameCompareFunc);
-    
-    msp->fs = fs;
-    }
-}
-
-
-
 /* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
  * list should be a list containing all polya sites (and only polya sites) */
 gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
@@ -960,6 +960,161 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   return seq;
 }
 
+
+/* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
+ * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
+ * the BlxMspType enum. */
+static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
+{
+  gint result = 0;
+
+  const MSP const *msp1 = (const MSP const*)a;
+  const MSP const *msp2 = (const MSP const*)b;
+  
+  if (msp1->qRange.min == msp2->qRange.min)
+    {
+      /* Sort by type. Lower type numbers should appear first. */
+      result = msp2->type - msp1->type;
+    }
+  else 
+    {
+      result = msp1->qRange.min -  msp2->qRange.min;
+    }
+  
+  return result;
+}
+
+
+/* Determine the type of BlxSequence that an MSP belongs to */
+static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
+{
+  BlxSequenceType result = BLXSEQUENCE_UNSET;
+  
+  if (mspIsBlastMatch(msp))
+    {
+      result = BLXSEQUENCE_MATCH;
+    }
+  else if (mspIsExon(msp) || mspIsIntron(msp))
+    {
+      result = BLXSEQUENCE_TRANSCRIPT;
+    }
+  else if (mspIsVariation(msp))
+    {
+      result = BLXSEQUENCE_VARIATION;
+    }
+
+  return result;
+}
+
+
+/* Add or create a BlxSequence struct, creating the BlxSequence if one does not
+ * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
+ * for the forward and reverse strands of the same sequence. The passed-in sequence 
+ * should always be forwards, and we reverse complement it here if we need the 
+ * reverse strand. Returns the new BlxSequence */
+BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand strand, GList **seqList, char *sequence, MSP *msp, GError **error)
+{
+  BlxSequence *blxSeq = NULL;
+  
+  if (name || idTag)
+    {
+      /* If this is an exon or intron the match strand is not applicable. The exon should 
+       * be in the same direction as the ref seq, so use the ref seq strand. */
+      if (msp && (mspIsExon(msp) || mspIsIntron(msp)))
+        {
+          strand = msp->qStrand;
+        }
+    
+      /* See if this strand for this sequence already exists. Horrible hack for backwards compatibility:
+       * if the msp is an exon/intron, cut off the old-style 'x' or 'i' postfix from the name, if it has one. */
+      char *seqName = msp ? mspGetExonTranscriptName(msp) : g_strdup(name);
+      blxSeq = findBlxSequence(*seqList, seqName, idTag, strand);
+      
+      if (!blxSeq)
+        {
+          /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
+          blxSeq = createEmptyBlxSequence(seqName, idTag, NULL);
+          *seqList = g_list_prepend(*seqList, blxSeq);
+          blxSeq->strand = strand;
+        }
+      
+      if (seqName && !blxSeq->fullName)
+	{
+	  /* It's possible that the BlxSequence was created without a name if we found an
+	   * unnamed child exon before we found the parent transcript, so set the name if we have it. */
+	  blxSequenceSetName(blxSeq, seqName);
+	}
+      
+      if (msp)
+        {
+          /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
+          blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
+          msp->sSequence = blxSeq;
+          
+          if (blxSeq->type == BLXSEQUENCE_UNSET)
+            {
+              blxSeq->type = getBlxSequenceTypeForMsp(msp);
+            }
+          else if (blxSeq->type != getBlxSequenceTypeForMsp(msp))
+            {
+              g_warning("Adding MSP of type %d to parent of type %d (expected parent type to be %d)\n", msp->type, blxSeq->type, getBlxSequenceTypeForMsp(msp));
+            }
+        }
+      
+      /* Add the sequence data */
+      addBlxSequenceData(blxSeq, sequence, error);
+      
+      g_free(seqName);
+    }
+  else
+    {
+      g_set_error(error, BLX_ERROR, 1, "Sequence name or parent ID must be set.\n");
+    }
+  
+  return blxSeq;
+}
+
+
+
+/* Add the given sequence data to a BlxSequence. Validates that the existing sequence data is
+ * either null or is the same as the new data; sets the given error if not. We claim ownership
+ * of the given sequence data (either the BlxSequence owns it, or we delete it if it is not 
+ * required). The given sequence should always be the forward strand; we complement it ourselves
+ * here if this BlxSequence requires the reverse strand. */
+void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
+{
+  if (!sequence)
+    {
+      return;
+    }
+  
+  gboolean sequenceUsed = FALSE;
+  
+  if (blxSeq && blxSequenceRequiresSeqData(blxSeq))
+    {
+      if (!blxSeq->sequence)
+        {
+          /* Sequence does not yet exist, so add it */
+          blxSeq->sequence = g_string_new(sequence);
+          sequenceUsed = TRUE;
+          }
+      else if (error && *error)
+        {
+          /* Sequence already exists. Validate that it's the same as the existing one. */
+          if (!stringsEqual(sequence, blxSeq->sequence->str, FALSE))
+            {
+              g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSeq->fullName);
+            }
+        }
+    }      
+  
+  if (!sequenceUsed)
+    {
+      g_free(sequence);
+    }
+}
+
+
 /* returns true if the given msp should be output */
 static gboolean outputMsp(const MSP const *msp, IntRange *validRange)
 {
@@ -1067,11 +1222,12 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
 /* write data from the given msp to the given output pipe. */
 void writeMspToOutput(FILE *pipe, const MSP const *msp)
 {
-  fprintf(pipe, "%d %f %d %d %d %d %d %d %d %d", 
+  fprintf(pipe, "%d %f %f %d %d %d %d %d %d %d", 
           msp->type,
           msp->score, 
+          msp->id,
           msp->phase,
-          msp->fsColor, 
+//          msp->fsColor, 
           msp->qRange.min,
           msp->qRange.max,
           msp->sRange.min,
@@ -1099,10 +1255,13 @@ void readMspFromText(MSP *msp, char *text)
   msp->score = g_strtod(curChar, &curChar);
 
   nextChar(&curChar);
-  msp->phase = strtol(curChar, &curChar, 10);
+  msp->id = g_strtod(curChar, &curChar);
 
   nextChar(&curChar);
-  msp->fsColor = strtol(curChar, &curChar, 10);
+  msp->phase = strtol(curChar, &curChar, 10);
+
+//  nextChar(&curChar);
+//  msp->fsColor = strtol(curChar, &curChar, 10);
 
   /* ref seq range */
   nextChar(&curChar);
@@ -1173,10 +1332,6 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->xy = NULL;
   msp->gaps = NULL;
   
-#ifdef ACEDB
-  msp->key = 0;
-#endif
-  
   /* Add it to the list */
   if (!*mspList) 
     {
@@ -1195,3 +1350,80 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   
   return msp;
 }
+
+
+/* Allocates memory for an MSP and initialise all its fields to the given values.
+ * For backwards compatibility, adds it into the given MSP list and makes the end pointer
+ * ('lastMsp') point to the new end of the list. We will hopefully get rid of mspList eventually
+ * and replace it by featureLists. The new msp is added to the relevant list in the featureLists
+ * array according to its type. Returns a pointer to the newly-created MSP. Also creates a BlxSequence
+ * for this MSP's sequence name (or adds the MSP to the existing one, if it exists already), 
+ * and adds that BlxSequence to the given seqList. Takes ownership of 'sequence'. */
+MSP* createNewMsp(GList* featureLists[],
+                  MSP **lastMsp, 
+                  MSP **mspList,
+                  GList **seqList,
+                  const BlxMspType mspType,
+		  char *source,
+                  const gdouble score,
+                  const gdouble percentId,
+                  const int phase,
+                  char *url,
+		  char *idTag,
+                  char *qName,
+                  const int qStart,
+                  const int qEnd,
+                  const BlxStrand qStrand,
+                  const int qFrame,
+                  char *sName,
+                  const int sStart,
+                  const int sEnd,
+                  BlxStrand sStrand,
+                  char *sequence,
+                  GError **error)
+{
+  MSP *msp = createEmptyMsp(lastMsp, mspList);
+  
+  msp->type = mspType;
+  msp->score = score; 
+  msp->id = percentId; 
+  msp->source = source;
+  msp->phase = phase;
+  msp->url = url;
+  
+  msp->qname = qName;
+  
+  msp->qFrame = qFrame;
+  msp->qStrand = qStrand;
+  
+  msp->sname = sName ? g_ascii_strup(sName, -1) : NULL;
+  
+  intrangeSetValues(&msp->qRange, qStart, qEnd);  
+  intrangeSetValues(&msp->sRange, sStart, sEnd);
+  
+  /* Add it to the relevant feature list. Use prepend because it is quicker */
+  featureLists[msp->type] = g_list_prepend(featureLists[msp->type], msp);
+  
+  /* For exons and introns, the s strand is not applicable. We always want the exon
+   * to be in the same direction as the ref sequence, so set the match seq strand to be 
+   * the same as the ref seq strand */
+  if (mspIsExon(msp) || mspIsIntron(msp))
+    {
+      sStrand = qStrand;
+    }
+  
+  /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
+  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsVariation(mspType))
+    {
+      addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
+    }
+
+  if (error && *error)
+    {
+      prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d], match seq = '%s' [%d - %d]). ",
+                  qName, qStart, qEnd, sName, sStart, sEnd);
+    }
+  
+  return msp;
+}
+

@@ -201,8 +201,6 @@ static void drawIntron(const MSP const *msp,
 /* Draw the given exon/intron, if it is in range. Returns true if it was drawn */
 static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean isSelected, const BlxSequence *blxSeq)
 {
-  DEBUG_ENTER("drawExonIntron");
-
   gboolean drawn = FALSE;
   
   if (rangesOverlap(&msp->qRange, data->qRange))
@@ -231,7 +229,6 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
 	}
     }
     
-  DEBUG_EXIT("drawExonIntron returning %d", drawn);
   return drawn;
 }
 
@@ -255,8 +252,6 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
  * specified in the user data */
 static void drawExonIntronItem(gpointer listItemData, gpointer data)
 {
-  DEBUG_ENTER("drawExonIntronItem");
-
   const BlxSequence *seq = (const BlxSequence*)listItemData;
   DrawData *drawData = (DrawData*)data;
 
@@ -284,8 +279,6 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
     {
       drawData->y += drawData->height + (2 * drawData->yPad) ;
     }
-  
-  DEBUG_EXIT("drawExonIntronItem returning");
 }
 
 

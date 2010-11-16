@@ -65,6 +65,7 @@ typedef struct
 
 /* Local function declarations */
 static BlxViewContext*	      detailViewGetContext(GtkWidget *detailView);
+static GtkWidget*	      detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
@@ -2364,6 +2365,46 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const BlxStrand activeStrand
   if (!result)
     {
       printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == BLXSTRAND_FORWARD) ? "forward" : "reverse"), frame);
+    }
+  
+  return result;
+}
+
+/* Get the first visible tree in the 'current' list of trees (i.e. the forward 
+ * strand list by default, or the reverse strand list if strands are toggled). */
+static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
+{
+  const gboolean toggled = detailViewGetDisplayRev(detailView);
+  const BlxStrand activeStrand = toggled ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
+  const int numFrames = detailViewGetNumFrames(detailView);
+
+  GtkWidget *result = NULL;
+  
+  if (detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
+    {
+      /* First tree might be hidden, so loop until we find a visible one */
+      int frame = 1;
+      
+      for ( ; frame <= numFrames; ++frame)
+	{
+	  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
+	  
+	  if (tree && GTK_WIDGET_VISIBLE(tree))
+	    {
+	      result = tree;
+	      break;
+	    }
+	}
+    }
+  else
+    {
+      /* Try the active strand, and if that's hidden try the other strand */
+      result = detailViewGetTree(detailView, activeStrand, 1);
+      
+      if (!result || !GTK_WIDGET_VISIBLE(result))
+	{
+	  result = detailViewGetTree(detailView, toggled ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE, 1);
+	}
     }
   
   return result;

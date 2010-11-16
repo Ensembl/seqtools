@@ -1243,21 +1243,21 @@ static void printCalculateImageStats(DotterContext *dc, const int qlen, const in
   int min = (int)(numDots/speed/60);
   int sec = (int)(numDots/speed) - min*60;
   
-  printf("%d vs. %d residues => %.2f million dots. ", qlen, slen, numDots);
+  g_message("%d vs. %d residues => %.2f million dots. ", qlen, slen, numDots);
   
   if (min+sec >= 2) 
     {
-      printf("(Takes ");
+      g_message("(Takes ");
       
       if (min)
-        printf("%d:%.2d minutes", min, sec);
+        g_message("%d:%.2d minutes", min, sec);
       else 
-        printf("%d seconds", sec);
+        g_message("%d seconds", sec);
       
-      printf(" on an SGI MIPS R10000)");
+      g_message(" on an SGI MIPS R10000)");
     }
   
-  printf("\n");
+  g_message("\n");
   fflush(stdout);
 }
 

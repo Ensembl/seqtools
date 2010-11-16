@@ -1171,12 +1171,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
     {
       const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
       char *seqName = clickedSeq->fullName;
-      
-#ifdef ACEDB
-      fetchAndDisplaySequence(seqName, 0, blxWindow);
-#else
       fetchAndDisplaySequence(seqName, blxWindow);
-#endif
     }
 
   return TRUE;

@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.21 2010-11-08 15:52:49 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.22 2010-11-16 15:04:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -167,9 +167,6 @@
 
 #define MAX_WINDOW_WIDTH_FRACTION             0.7 /* max init width of dotter window as fraction of screen size */
 #define MAX_WINDOW_HEIGHT_FRACTION            0.7 /* max init height of dotter window as fraction of screen size */
-
-
-char *Xoptions=0;
 
 
 //typedef struct
@@ -451,15 +448,15 @@ int BLOSUM62[24][24] = {
  };
 
 
-GArray *fsArr = NULL;  /* Stores Feature Series - t he actual segments are stored
-			   as MSPs, using these fields:
-			   msp->sframe  = [1..2] sequence
-			   msp->qstart = segment start
-			   msp->qend   = segment end
-			   msp->fs     = Ordinal number of series that this MSP belongs to.
-			   msp->fsColor  = color
-			   msp->desc   = annotation
-			   */
+//GArray *fsArr = NULL;  /* Stores Feature Series - t he actual segments are stored
+//			   as MSPs, using these fields:
+//			   msp->sframe  = [1..2] sequence
+//			   msp->qstart = segment start
+//			   msp->qend   = segment end
+//			   msp->fs     = Ordinal number of series that this MSP belongs to.
+//			   msp->fsColor  = color
+//			   msp->desc   = annotation
+//			   */
 
 
 /***********************************************************
@@ -550,6 +547,8 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
                                           char *matrixName,
                                           const double memoryLimit)
 {
+  DEBUG_ENTER("createDotterContext");
+
   DotterContext *result = g_malloc(sizeof *result);
   
   result->blastMode = blastMode;
@@ -647,6 +646,7 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT + (roundNearest)((gdouble)leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
   result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + roundNearest(result->charHeight) + SCALE_LINE_WIDTH;
   
+  DEBUG_EXIT("createDotterContext returning");
   return result;
 }
 
@@ -776,6 +776,8 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
                                                       const IntRange const *matchSeqRange,
                                                       const gdouble zoomFacIn)
 {
+  DEBUG_ENTER("createDotterWindowContext");
+
   DotterWindowContext *result = g_malloc(sizeof *result);
   
   result->dotterCtx = dotterCtx;
@@ -797,6 +799,7 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
       result->dialogList[dialogId] = NULL;
     }
   
+  DEBUG_EXIT("createDotterWindowContext returning");
   return result;
 }
 
@@ -905,11 +908,10 @@ void dotter (const BlxBlastMode blastMode,
 	      char *winsizeIn,
 	      int   pixelFacIn)
 {
-  g_debug("Calling dotter: mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d\n",
-          blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
-  
-  gboolean selfComp = FALSE;
+  DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
+              blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
 
+  gboolean selfComp = FALSE;
   MSPlist = MSPs;
   
   const int qlen = strlen(queryseq);
@@ -932,7 +934,7 @@ void dotter (const BlxBlastMode blastMode,
 
   /* Get score matrix */
   char *matrixName = g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
-  
+
   if (mtxfile)	
     {
       readmtx(MATRIX, mtxfile);
@@ -979,6 +981,7 @@ void dotter (const BlxBlastMode blastMode,
                        scenter,
                        options->swapGreyramp);
 
+  DEBUG_EXIT("dotter returning");
   return ;
 }
 
@@ -2437,7 +2440,7 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
 	}
     }
 
-    printf("I read your score matrix %s.\n", mtxfile);
+    g_message("I read your score matrix %s.\n", mtxfile);
     fclose(fil);
 }
 

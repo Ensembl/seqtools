@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.61 2010-11-09 10:13:48 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.62 2010-11-16 15:04:42 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
@@ -36,10 +36,6 @@
 #include <SeqTools/utilities.h>
 #include <SeqTools/blxmsp.h>
 #include <wh/version.h>
-
-#ifdef ACEDB
-#include <wh/regular.h>
-#endif
 
 
 /*            blixem program version and information.                        */
@@ -100,10 +96,6 @@ BLIXEM_AUTHOR_TEXT "\n"
 #endif
 #define BLX_FETCH_EFETCH           "efetch"
 #define BLX_FETCH_WWW_EFETCH       "WWW-efetch"
-#ifdef ACEDB
-#define BLX_FETCH_ACEDB            "acedb"
-#define BLX_FETCH_ACEDB_TEXT       "acedb text"
-#endif
 
 
 /* The following are used to define default colors for certain types of features in Blixem.
@@ -359,8 +351,6 @@ void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
 int				   findMspListSExtent(GList *mspList, const gboolean findMin);
 int				   findMspListQExtent(GList *mspList, const gboolean findMin);
-void				   defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
-void                               popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void                               mspGetFullSRange(const MSP const *msp, 
                                                     const gboolean seqSelected,
                                                     const gboolean *flags,
@@ -395,12 +385,7 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname);
 
 /* blxFetch.c */
-#ifdef ACEDB
-void                               fetchAndDisplaySequence(char *seqName, const KEY key, GtkWidget *blxWindow) ;
-#else
 void                               fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow) ;
-#endif
-
 void                               blxFindInitialFetchMode(char *fetchMode) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
@@ -417,22 +402,13 @@ gboolean                           blxConfigGetPFetchWWWPrefs();
 
 
 /* Create/destroy sequences and MSPs */
-MSP*                               createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const gdouble percentId, const int phase,
-                                                char *url, char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
-                                                char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
-                                                GError **error);  
-
 void                               destroyMspList(MSP **mspList);
 void                               destroyMspData(MSP *msp);
 void                               destroyBlxSequenceList(GList **seqList);
 void                               blviewResetGlobals();
 
-void                               addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*                       addBlxSequence(const char *name, const char *idTag, BlxStrand strand, GList **seqList, char *sequence, MSP *msp, GError **error);
-
 BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *fillColorSelected, const char *fillColorPrint, const char *fillColorPrintSelected, const char *lineColor, const char *lineColorSelected, const char *lineColorPrint, const char *lineColorPrintSelected, GError **error);
 void                               destroyBlxStyle(BlxStyle *style);
-BlxStyle*                          getBlxStyle(const char *styleName, GSList *styles, GError **error);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
 void                               setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port);
