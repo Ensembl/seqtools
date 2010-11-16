@@ -27,7 +27,7 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.34 2010-11-11 15:51:48 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.35 2010-11-16 16:20:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -456,8 +456,9 @@ int main(int argc, char **argv)
    * g_warning, g_debug etc. Note that g_error is always fatal.
    */
   g_log_set_default_handler(defaultMessageHandler, NULL);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
-
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
+                    popupMessageHandler, NULL);
+  
   /* Stick version info. into usage string. */
   char usage[strlen(usageText) + strlen(blixemVersion) + 10];
   sprintf(usage, usageText, blixemVersion, "") ;
@@ -730,7 +731,7 @@ int main(int argc, char **argv)
     }
   else if(!(FSfile = fopen(FSfilename, "r")))
     {
-      g_error("Cannot open %s\n", FSfilename);
+      g_error("Cannot open file %s\n", FSfilename);
     }
   
   /* Parser compiles lists of MSPs per type into the following array. Initialise each GList in the array to NULL */

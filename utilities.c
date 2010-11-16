@@ -2157,19 +2157,17 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
 {
   if (error && *error)
     {
-      switch (log_level)
-        {
-          case G_LOG_LEVEL_ERROR:            g_error("%s", (*error)->message);            break;
-          case G_LOG_LEVEL_CRITICAL:         g_critical("%s", (*error)->message);         break;
-          case G_LOG_LEVEL_WARNING:          g_warning("%s", (*error)->message);          break;
-          case G_LOG_LEVEL_MESSAGE:          g_message("%s", (*error)->message);          break;
-          case G_LOG_LEVEL_INFO:             g_message("%s", (*error)->message);          break;
-          case G_LOG_LEVEL_DEBUG:            g_debug("%s", (*error)->message);            break;
-            
-          default:
-            break;
-        };
-      
+      if (log_level & G_LOG_LEVEL_ERROR)
+        g_error("%s", (*error)->message);
+      else if (log_level & G_LOG_LEVEL_CRITICAL)
+        g_critical("%s", (*error)->message);
+      else if (log_level & G_LOG_LEVEL_WARNING)
+        g_warning("%s", (*error)->message);
+      else if (log_level & G_LOG_LEVEL_DEBUG)
+        g_debug("%s", (*error)->message);
+      else
+        g_message("%s", (*error)->message); /* message or info */
+
       g_error_free(*error);
       *error = NULL;
     }
@@ -2989,7 +2987,7 @@ void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, co
   char prefixText[len];
   prefixText[len - 1] = '\0';
   
-  if (log_level == G_LOG_LEVEL_WARNING)
+  if (log_level & G_LOG_LEVEL_WARNING)
     strcpy(prefixText, warningText);
   else
     prefixText[0] = '\0';
@@ -3002,7 +3000,7 @@ void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, co
 #endif
   
   /* also display the message in the status bar (unless it's debug output) */
-  if (log_level != G_LOG_LEVEL_DEBUG)
+  if (!(log_level & G_LOG_LEVEL_DEBUG))
     {
       BlxMessageData *msgData = data ? (BlxMessageData*)data : NULL;
       GtkStatusbar *statusBar = msgData ? msgData->statusBar : NULL;
@@ -3021,10 +3019,10 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
   char prefixText[len];
   prefixText[len - 1] = '\0';
   
-  if (log_level == G_LOG_LEVEL_CRITICAL)
-    strcpy(prefixText, criticalText);
-  else if (log_level == G_LOG_LEVEL_ERROR)
+  if (log_level & G_LOG_LEVEL_ERROR)
     strcpy(prefixText, errorText);
+  else if (log_level & G_LOG_LEVEL_CRITICAL)
+    strcpy(prefixText, criticalText);
   else
     prefixText[0] = '\0';
   
@@ -3059,7 +3057,7 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
     }
     
   /* Exit elegantly if it's a fatal error */
-  if (log_level == G_LOG_LEVEL_ERROR)
+  if (log_level & G_LOG_LEVEL_ERROR)
     exit(EXIT_FAILURE);
 }
 
@@ -3365,20 +3363,12 @@ static char* getDialogIcon(GLogLevelFlags log_level)
 {
   char *result = NULL;
   
-  switch (log_level)
-    {
-      case G_LOG_LEVEL_ERROR:
-        result = GTK_STOCK_DIALOG_ERROR;
-        break;
-        
-      case G_LOG_LEVEL_CRITICAL:
-      case G_LOG_LEVEL_WARNING:
-        result = GTK_STOCK_DIALOG_WARNING;
-        break;
-        
-      default:
-        result = GTK_STOCK_DIALOG_INFO;
-    }
+  if (log_level & G_LOG_LEVEL_ERROR)
+    result = GTK_STOCK_DIALOG_ERROR;
+  else if (log_level & G_LOG_LEVEL_CRITICAL || log_level & G_LOG_LEVEL_WARNING)
+    result = GTK_STOCK_DIALOG_WARNING;
+  else
+    result = GTK_STOCK_DIALOG_INFO;
     
   return result;
 }

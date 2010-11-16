@@ -26,7 +26,7 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.23 2010-11-16 15:04:42 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.24 2010-11-16 16:20:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -422,7 +422,8 @@ int main(int argc, char **argv)
          * only have, at mosts, one input argument: the Xoptions*/
         if (argc - optind > 1)
           {
-	    g_error("%s\n", usage); 
+	    fprintf(stderr, "%s\n", usage); 
+            exit(EXIT_FAILURE);
           }
         
         options.xOptions = getXOptions(argv, argc, optind);
@@ -433,7 +434,8 @@ int main(int argc, char **argv)
          * optional, so we should have 2 or 3 arguments */
         if (argc - optind < 2 || argc - optind > 3) 
           {
-	    g_error("%s\n", usage); 
+	    fprintf(stderr, "%s\n", usage); 
+            exit(EXIT_FAILURE);
           }
             
         options.xOptions = getXOptions(argv, argc, optind + 2);
@@ -622,7 +624,8 @@ int main(int argc, char **argv)
       }
     else
       {
-        g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
+        fprintf(stderr, "Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
+        exit(EXIT_FAILURE);
       }
       
     /* Add -install for private colormaps */
@@ -636,7 +639,7 @@ int main(int argc, char **argv)
         /* Set the message handlers. (Do this here because we don't want graphical dialog
          * boxes for batch mode.) */
         g_log_set_default_handler(defaultMessageHandler, NULL);
-        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, NULL);
+        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, NULL);
         
 	dotter(blastMode, &options, options.qname, options.qseq, options.qoffset, qStrand, options.sname, options.sseq, options.soffset, sStrand,
 	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 

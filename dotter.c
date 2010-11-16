@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.22 2010-11-16 15:04:42 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.23 2010-11-16 16:20:02 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -3143,6 +3143,14 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   char *title = blxprintf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
   gtk_window_set_title(GTK_WINDOW(dotterWindow), title);
   g_free(title);
+
+  /* Set the message handlers again, this time passing the window and statusbar, now we know them */
+  BlxMessageData *msgData = g_malloc(sizeof *msgData);
+  msgData->parent = GTK_WINDOW(dotterWindow);
+  msgData->statusBar = NULL;
+  
+  g_log_set_default_handler(defaultMessageHandler, msgData);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, msgData);
   
   /* Create the menu bar, and a right-click context menu */
   GtkUIManager *uiManager = createUiManager(dotterWindow, hspMode);

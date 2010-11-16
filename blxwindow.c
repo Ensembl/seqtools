@@ -5224,7 +5224,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   msgData->statusBar = GTK_STATUSBAR(statusBar);
   
   g_log_set_default_handler(defaultMessageHandler, msgData);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL, popupMessageHandler, msgData);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL  | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, msgData);
 
   
   /* Create a vertical box to pack everything in */
