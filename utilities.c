@@ -3057,6 +3057,10 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
     {
       displayMessageAsPopup(message, log_level, parent, statusBar);
     }
+    
+  /* Exit elegantly if it's a fatal error */
+  if (log_level == G_LOG_LEVEL_ERROR)
+    exit(EXIT_FAILURE);
 }
 
 
