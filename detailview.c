@@ -65,7 +65,6 @@ typedef struct
 
 /* Local function declarations */
 static BlxViewContext*	      detailViewGetContext(GtkWidget *detailView);
-static GtkWidget*	      detailViewGetFirstTree(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetBigPicture(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*	      detailViewGetFeedbackBox(GtkWidget *detailView);
@@ -1888,7 +1887,7 @@ void drawHeaderChar(BlxViewContext *bc,
            * belongs to. */
           fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
         }
-      else
+      else if (!fillColor)
         {
           /* The coord is not selected but this coord is within the range of a selected MSP, so 
            * shade the background. */
@@ -2370,47 +2369,6 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const BlxStrand activeStrand
   return result;
 }
 
-/* Get the first visible tree in the 'current' list of trees (i.e. the forward 
- * strand list by default, or the reverse strand list if strands are toggled). */
-static GtkWidget* detailViewGetFirstTree(GtkWidget *detailView)
-{
-  const gboolean toggled = detailViewGetDisplayRev(detailView);
-  const BlxStrand activeStrand = toggled ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-  const int numFrames = detailViewGetNumFrames(detailView);
-
-  GtkWidget *result = NULL;
-  
-  if (detailViewGetSeqType(detailView) == BLXSEQ_PEPTIDE)
-    {
-      /* First tree might be hidden, so loop until we find a visible one */
-      int frame = 1;
-      
-      for ( ; frame <= numFrames; ++frame)
-	{
-	  GtkWidget *tree = detailViewGetTree(detailView, activeStrand, frame);
-	  
-	  if (tree && GTK_WIDGET_VISIBLE(tree))
-	    {
-	      result = tree;
-	      break;
-	    }
-	}
-    }
-  else
-    {
-      /* Try the active strand, and if that's hidden try the other strand */
-      result = detailViewGetTree(detailView, activeStrand, 1);
-      
-      if (!result || !GTK_WIDGET_VISIBLE(result))
-	{
-	  result = detailViewGetTree(detailView, toggled ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE, 1);
-	}
-    }
-  
-  return result;
-}
-
-
 int detailViewGetNumFrames(GtkWidget *detailView)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
@@ -2463,7 +2421,14 @@ static int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
 int detailViewGetActiveFrame(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return (!properties || properties->selectedFrame == UNSET_INT) ? 1 : properties->selectedFrame;
+  int result = 1;
+  
+  if (properties && properties->selectedFrame != UNSET_INT)
+    {
+      result = properties->selectedFrame;
+    }
+  
+  return result;
 }
 
 /* Get the strand of the tree that was last selected (which defaults to the active strand if none is selected). */
@@ -4098,7 +4063,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
   for ( ; msp; msp = msp->next)
     {
       /* Only add matches/exons to trees */
-      if (msp->type == BLXMSP_MATCH || msp->type == BLXMSP_EXON)
+      if (msp->type == BLXMSP_MATCH || msp->type == BLXMSP_UTR || msp->type == BLXMSP_CDS)
 	{
 	  /* Find the tree that this MSP should belong to based on its reading frame and strand */
 	  BlxStrand strand = mspGetRefStrand(msp);

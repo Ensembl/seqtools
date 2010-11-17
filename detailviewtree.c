@@ -221,7 +221,7 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
   for ( ; mspItem; mspItem = mspItem->next)
     {
       MSP *msp  = (MSP*)(mspItem->data);
-      if (msp->qStrand == treeStrand)
+      if (msp->qStrand == treeStrand && msp->qFrame == treeGetFrame(tree))
         {
           mspsToAdd = g_list_prepend(mspsToAdd, msp);
         }

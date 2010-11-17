@@ -3092,7 +3092,8 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
                                              GtkWidget *detailView,
                                              BlxViewContext *bc,
                                              const char *label,
-                                             const BlxFlag flag)
+                                             const BlxFlag flag,
+                                             GtkWidget **buttonOut)
 {
   /* We'll the main button and any sub-components into a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -3109,6 +3110,9 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
    * one to update the flag, and one to enable/disable the child buttons. */
   GtkWidget *btn = createCheckButton(GTK_BOX(vbox), label, active, G_CALLBACK(onParentBtnToggled), subContainer);
   g_signal_connect(G_OBJECT(btn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(flag));
+
+  if (buttonOut)
+    *buttonOut = btn;
 
   /* Now add the subcomponent container to the vbox. Bit of a hack - put it inside an hbox with 
    * a blank label preceeding it, so that the sub-components appear offset to the right slightly
@@ -3304,12 +3308,14 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* Features */
   GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Features");
 
-  GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS);
+  GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL);
   createCheckButton(GTK_BOX(variationContainer), "Show varations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
-  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE);
+  GtkWidget *polyAParentBtn = NULL;
+  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn);
   GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
+  g_signal_connect(G_OBJECT(polyAParentBtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
   g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
   
 
@@ -3317,7 +3323,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkWidget *vbox2 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   
   /* show-unaligned-sequence option and its sub-options */
-  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED);
+  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL);
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
   createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED_SELECTED));
 

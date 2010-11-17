@@ -962,6 +962,21 @@ void convertDisplayRangeToDnaRange(const IntRange const * displayRange,
 }
 
 
+/* Get the reading frame (i.e. modulus 3) for the coord. Inverts the frame if displayRev is true. */
+static int getCoordReadingFrame(const int coord, const int numFrames, const gboolean displayRev)
+{
+  int result = coord % numFrames;
+  
+  if (result < 1)
+    result += numFrames;
+    
+  if (displayRev)
+    result = numFrames - result + 1;
+    
+  return result;
+}
+
+
 /* Given an index into the displayed sequence, a reading frame, and the base number within that
  * reading frame, return the index into the DNA sequence that will give the equivalent DNA base.
  * If the display sequence is a peptide sequence, it will convert the coord to a DNA coord. If the
@@ -975,22 +990,35 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
 			      const IntRange const *refSeqRange)
 {
   int dnaIdx = displayIdx;
+  const int base = baseNum;
   
   if (srcSeqType == BLXSEQ_PEPTIDE)
     {
       /* Convert the input peptide coord to a dna coord */
-      dnaIdx = (displayIdx * numFrames) - numFrames + frame + baseNum - 1;
-
-      /* Convert from 1-based coord to real coords */
-//	  dnaIdx += refSeqRange->min - 1 + 2;
+      dnaIdx = (displayIdx * numFrames) - numFrames + frame + base - 1;
     }
   
   if (displayRev)
     {
+      int origReadingFrame = getCoordReadingFrame(dnaIdx, numFrames, displayRev);
+      
       /* If the display is reversed, we need to invert the result. For example, if the 
        * result is index '2' out of the range '12345', then we convert it to '4', which is the
        * equivalent position in the range '54321'. */
       dnaIdx = refSeqRange->max - dnaIdx + refSeqRange->min;
+
+      if (srcSeqType == BLXSEQ_PEPTIDE)
+        {
+          /* Undo any offset that was added in convertDnaIdxToDisplayIdx to make the reading frame
+           * of the inverted coord the same as the base number of the forward coord. */
+          int newReadingFrame = getCoordReadingFrame(dnaIdx, numFrames, FALSE);
+          int offset = origReadingFrame - newReadingFrame;
+          
+          if (offset < 0) 
+            offset += numFrames;
+
+          dnaIdx += offset;
+        }
     }
 
   return dnaIdx;
@@ -1012,42 +1040,43 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 {
   int displayIdx = dnaIdx;
   
+  const gboolean peptides = (displaySeqType == BLXSEQ_PEPTIDE);
+  int base = peptides ? (dnaIdx - frame + 1) % numFrames : 1;
+
+  if (base < 1)
+    base += numFrames;
+  
   /* If the display is reversed (i.e. showing increasing values from right-to-left),
    * invert the index (i.e. as if it were the normal left-to-right index for this
    * same position - for example, if the index is '4' out of the range '54321', convert
    * it to '2', which is the equivalent position in the range '12345'. */
   if (displayRev)
     {
+      /* Invert the coord and base */
       displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
-    }
-  
-  if (displaySeqType == BLXSEQ_PEPTIDE)
-    {
-      /* Must convert to 1-based coords to get correct reading frame (because reading frame 1
-       * starts at coord 1). */
-//	  displayIdx -= dnaIdxRange->min - 1;
-
-      /* We're displaying peptides, so convert the dna coord to a peptide coord */
-      gdouble fraction = ((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames) ;
-      displayIdx = ceil(fraction);
-  
-      /* Find the base number of this DNA coord within the codon, if requested */
-      if (baseNum)
-        {
-          *baseNum = roundNearest((fraction - (int)fraction) * numFrames);
+      base = numFrames - base + 1;
       
-          if (*baseNum < 1)
-            {
-              *baseNum += numFrames;
-            }
+      if (peptides)
+        {
+          /* When we do a mod-3 of the inverted coord, we want it to give the same reading frame
+           * as the mod-3 of the original coord */
+          const int origReadingFrame = getCoordReadingFrame(dnaIdx, numFrames, displayRev);
+          const int newReadingFrame = getCoordReadingFrame(displayIdx, numFrames, FALSE);
+          int offset = origReadingFrame - newReadingFrame;
+          if (offset < 0) 
+            offset += numFrames;
+          displayIdx += offset;
         }
     }
-  else if (baseNum)
-    {
-      /* For dna sequences, we only have one reading frame */
-      *baseNum = 1;
-    }
+
+  /* Convert from nucleotide to peptide coords */
+  if (peptides)
+    displayIdx = ceil((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames);
   
+  /* Set the output arg, if requested */
+  if (baseNum)
+    *baseNum = base;
+
   return displayIdx;
 }
 

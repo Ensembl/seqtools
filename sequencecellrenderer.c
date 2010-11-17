@@ -1095,17 +1095,14 @@ static void drawMsps(SequenceCellRenderer *renderer,
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      if (mspGetRefStrand(msp) == data.qStrand && mspGetRefFrame(msp, data.bc->seqType) == data.qFrame)
-	{
-	  if (mspIsExon(msp))
-	    {
-	      drawExon(renderer, msp, tree, &data);
-	    }
-	  else if (mspIsBlastMatch(msp))
-	    {
-	      drawDnaSequence(renderer, msp, tree, &data);
-	    }
-	}
+      if (mspIsExon(msp))
+        {
+          drawExon(renderer, msp, tree, &data);
+        }
+      else if (mspIsBlastMatch(msp))
+        {
+          drawDnaSequence(renderer, msp, tree, &data);
+        }
     }
   
   drawVisibleExonBoundaries(tree, &data);
