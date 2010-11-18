@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.24 2010-11-16 16:31:31 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.25 2010-11-18 16:02:07 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -203,6 +203,18 @@ typedef struct _DotterProperties
 A dot-matrix program with dynamic threshold control suited for genomic DNA and protein sequence analysis\n\
 \n\
 \n\
+<span foreground=\"blue\">\
+<b><big>What's new</big></b>\n\
+\t*\t<b><i>Dotter re-vamp</i></b>: Dotter has been re-written to facilitate future improvements.  Most of the changes so far are under-the-hood, but you will notice a few cosmetic differences and additional shortcuts.\n\
+\t*\t<b><i>Menu bar</i></b>: As well as the right-click menu, there is now a menu-bar at the top of the main Dotter window.\n\
+\t*\t<b><i>CDS/UTR regions</i></b>: Exons are now separated into CDS and UTR regions: CDS regions are coloured green and UTR red.\n\
+\t*\t<b><i>Close all sub-Dotters</i></b>: You can close all related Dotter windows using the Quit menu option or Ctrl-Q.  This will close all sub-Dotters that were started under the same parent Dotter (by middle-dragging to zoom in to a region).  To just close an individual Dotter window, click on the x in the corner of the window or use your system shortcut for closing a window (e.g. Ctrl-W, or Cmd-W on Macs).  Note that the alignment tool and greyramp tool will be destroyed along with their parent - however, if the parent window is still open then these tools can be re-opened using the relevant menu options or keyboard shortcuts.\n\
+\t*\t<b><i>Close all Dotters from Blixem</i></b>: All Dotter windows spawned from a Blixem will be closed when that Blixem is closed.\n\
+\t*\t<b><i>Keyboard shortcuts</i></b>: The following keyboard shortcuts have been added to show the Alignment tool, main Dotter window or Greyramp tool, respectively: Ctrl-A, Ctrl-D and Ctrl-G.\n\
+\t*\t<b><i>Settings dialog</i></b>: The Parameter Control dialog box has been replaced by a more intuitive Settings dialog.  From here you can change the zoom or edit the display range.\n\
+</span>\
+\n\
+\n\
 <b><big>Mouse controls</big></b>\n\
  - Left button: position crosshair.\n\
  - Middle button: drag to zoom in to a region.\n\
@@ -212,14 +224,19 @@ A dot-matrix program with dynamic threshold control suited for genomic DNA and p
  - Arrow keys: move crosshair one dot in arrow direction\n\
  - &lt; &gt; : move crosshair along diagonals\n\
  - { } : move along reverse diagonals\n\
+ - Ctrl-Q : quit Dotter (including any child/parent Dotters)\n\
+ - Ctrl-H : show this Help page\n\
+ - Ctrl-A : show the alignment tool\n\
+ - Ctrl-D : show the Dotter main window\n\
+ - Ctrl-G : show the greyramp tool\n\
 \n\
 Hold down Shift to move by nucleotides rather than whole peptides.\n\
 \n\
 \n\
 <b><big>Settings</big></b>\n\
- - Zoom: enter a higher value to zoom out. A value of 1 means 100%%, 2 means 50%% etc. A fraction of 1 can be entered to zoom in (e.g. 0.5 for a 200%% zoom), but the display will appear stretched.\n\
- - Horizontal range: enter the min and max coords to display on the horizontal scale. Note that this will be limited to the horizontal sequence range that dotter was started up with.\n\
- - Vertical range: enter the min and max coords to display on the vertical scale. Note that this will be limited to the vertical sequence range that dotter was started up with.\n\
+ - Zoom: enter a higher value to zoom out. A value of 1 means 100%%, 2 means 50%% etc. A fraction of 1 can be entered in order to zoom in (e.g. 0.5 for a 200%% zoom), but the display will appear stretched.\n\
+ - Horizontal range: enter the min and max coords to display on the horizontal scale. Note that this will be limited to the horizontal sequence range that Dotter was started up with.\n\
+ - Vertical range: enter the min and max coords to display on the vertical scale. Note that this will be limited to the vertical sequence range that Dotter was started up with.\n\
  - Sliding window size: affects cut-off limit for how dots are drawn\n\
 \n\
 \n\
