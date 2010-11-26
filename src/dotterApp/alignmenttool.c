@@ -7,9 +7,9 @@
  *
  */
 
+#include <dotterApp/dotter_.h>
+#include <seqtoolsUtils/utilities.h>
 #include <gtk/gtk.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/dotter_.h>
 #include <math.h>
 #include <string.h>
 

@@ -36,7 +36,7 @@
  * HISTORY:
  * Last edited: Aug 21 17:34 2009 (edgrif)
  * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.47 2010-11-16 15:04:42 gb10 Exp $
+ * CVS info:   $Id: blxFetch.c,v 1.46 2010-11-03 16:04:58 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -50,10 +50,10 @@
 #include <errno.h>
 #include <signal.h>
 
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/blixem_.h>
+#include <seqtoolsUtils/utilities.h>
+#include <blixemApp/blxwindow.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/blixem_.h>
 
 #ifdef PFETCH_HTML 
 #include <libpfetch/libpfetch.h>

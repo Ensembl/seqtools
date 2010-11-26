@@ -9,9 +9,9 @@
 #ifndef _big_picture_included_
 #define _big_picture_included_
 
-#include <SeqTools/bigpicturegrid.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/blixem_.h>
+#include <blixemApp/bigpicturegrid.h>
+#include <blixemApp/blxwindow.h>
+#include <blixemApp/blixem_.h>
 
 
 

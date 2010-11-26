@@ -6,14 +6,14 @@
  *
  */
 
-#include <SeqTools/exonview.h>
-#include <SeqTools/detailviewtree.h>
-#include <SeqTools/bigpicture.h>
-#include <SeqTools/bigpicturegrid.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxmsp.h>
+#include <blixemApp/exonview.h>
+#include <blixemApp/detailviewtree.h>
+#include <blixemApp/bigpicture.h>
+#include <blixemApp/bigpicturegrid.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/blxwindow.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
 #include <stdlib.h>
 

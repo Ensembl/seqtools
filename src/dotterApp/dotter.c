@@ -29,7 +29,7 @@
  * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
  *              negative alignment length was given.
  * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.25 2010-11-18 16:02:07 gb10 Exp $
+ * CVS info:   $Id: dotter.c,v 1.21 2010-11-08 15:52:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
@@ -137,10 +137,10 @@
    prof -pixie -h -only calcWindow dotter dotter.Addrs dotter.Counts
 */
 
-#include <wh/version.h>
-#include <SeqTools/dotter_.h>
-#include <SeqTools/seqtoolsExonView.h>
-#include <SeqTools/utilities.h>
+#include <seqtoolsUtils/version.h>
+#include <seqtoolsUtils/utilities.h>
+#include <dotterApp/dotter_.h>
+#include <dotterApp/seqtoolsExonView.h>
 #include <gdk/gdkkeysyms.h>
 #include <math.h>
 #include <string.h>
@@ -926,8 +926,8 @@ void dotter (const BlxBlastMode blastMode,
 	      int   pixelFacIn)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
-              blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
-
+          blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
+  
   gboolean selfComp = FALSE;
   MSPlist = MSPs;
   
@@ -951,7 +951,7 @@ void dotter (const BlxBlastMode blastMode,
 
   /* Get score matrix */
   char *matrixName = g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
-
+  
   if (mtxfile)	
     {
       readmtx(MATRIX, mtxfile);
@@ -3160,7 +3160,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   char *title = blxprintf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
   gtk_window_set_title(GTK_WINDOW(dotterWindow), title);
   g_free(title);
-
+  
   /* Set the message handlers again, this time passing the window and statusbar, now we know them */
   BlxMessageData *msgData = g_malloc(sizeof *msgData);
   msgData->parent = GTK_WINDOW(dotterWindow);

@@ -10,8 +10,8 @@
 #define _seqtools_exon_view_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blxmsp.h>
-#include <SeqTools/dotter_.h>
+#include <seqtoolsUtils/blxmsp.h>
+#include <dotterApp/dotter_.h>
 
 #define SEQTOOLS_EXON_VIEW_NAME		"SeqtoolsExonView"
 #define DEFAULT_EXON_HEIGHT			 10

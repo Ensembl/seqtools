@@ -27,14 +27,14 @@
  * Last edited: May 26 17:13 2009 (edgrif)
  * * Aug 26 16:57 1999 (fw): added this header
  * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.35 2010-11-16 16:20:02 gb10 Exp $
+ * CVS info:   $Id: blxmain.c,v 1.33 2010-11-09 10:13:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <SeqTools/blixem_.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxparser.h>
-#include <SeqTools/blxGff3Parser.h>
+#include <blixemApp/blixem_.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxparser.h>
+#include <seqtoolsUtils/blxGff3Parser.h>
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -458,7 +458,7 @@ int main(int argc, char **argv)
   g_log_set_default_handler(defaultMessageHandler, NULL);
   g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
                     popupMessageHandler, NULL);
-  
+
   /* Stick version info. into usage string. */
   char usage[strlen(usageText) + strlen(blixemVersion) + 10];
   sprintf(usage, usageText, blixemVersion, "") ;

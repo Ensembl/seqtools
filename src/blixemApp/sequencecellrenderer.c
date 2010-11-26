@@ -7,12 +7,12 @@
  *
  */
 
-#include <SeqTools/sequencecellrenderer.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/detailviewtree.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/blxmsp.h>
-#include <SeqTools/utilities.h>
+#include <blixemApp/sequencecellrenderer.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/detailviewtree.h>
+#include <blixemApp/blxwindow.h>
+#include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/utilities.h>
 #include <gtk/gtkcellrenderertext.h>
 #include <stdlib.h>
 #include <math.h>
@@ -1095,15 +1095,15 @@ static void drawMsps(SequenceCellRenderer *renderer,
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      if (mspIsExon(msp))
-        {
-          drawExon(renderer, msp, tree, &data);
-        }
-      else if (mspIsBlastMatch(msp))
-        {
-          drawDnaSequence(renderer, msp, tree, &data);
-        }
-    }
+	  if (mspIsExon(msp))
+	    {
+	      drawExon(renderer, msp, tree, &data);
+	    }
+	  else if (mspIsBlastMatch(msp))
+	    {
+	      drawDnaSequence(renderer, msp, tree, &data);
+	    }
+	}
   
   drawVisibleExonBoundaries(tree, &data);
 }

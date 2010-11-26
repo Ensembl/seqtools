@@ -436,7 +436,12 @@ void                               getFontCharSize(GtkWidget *widget, PangoFontD
 GtkWidget*                         createEmptyButtonBar(GtkToolbar **toolbar);
 void                               makeToolbarButton(GtkToolbar *toolbar, char *label, char *stockId, char *tooltip, GtkSignalFunc callback_func, gpointer data);
 
-/* blxTranslate.c */
+
+/* seqtoolsWebBrowser.c */
+gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
+
+
+/* translate.c */
 char*                              blxTranslate(const char *seq, char **code);
 void                               blxComplement(char *seq) ;    
 char*                              revComplement(char *comp, char *seq) ;
@@ -457,11 +462,6 @@ void    gtk_text_buffer_set_markup_with_tag       (GtkTextBuffer *buffer,
 
 void    gtk_text_buffer_set_markup                (GtkTextBuffer *buffer,
                                                    const gchar   *markup);
-
-
-/* seqtoolsWebBrowser.c */
-gboolean              seqtoolsLaunchWebBrowser(const char *link, GError **error);
-gboolean              seqtools_g_string_replace(GString *string, char *target, char *source);
 
 
 #endif /* _utilities_h_included_ */

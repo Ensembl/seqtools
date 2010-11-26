@@ -6,12 +6,13 @@
  *
  */
 
-#include "SeqTools/utilities.h"
+#include <seqtoolsUtils/utilities.h>
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/utsname.h>
 
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
@@ -46,7 +47,7 @@ typedef struct _BlxMessage
 
 
 
-static CallbackData*            widgetGetCallbackData(GtkWidget *widget);
+static CallbackData*   widgetGetCallbackData(GtkWidget *widget);
 static void            displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, GtkWindow *parent, GtkStatusbar *statusBar);
 static void            displayMessageAsList(GSList *messageList, const gboolean bringToFront);
 static BlxMessage*     createBlxMessage(const char *text, const GLogLevelFlags logLevel);
@@ -1018,7 +1019,7 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
             offset += numFrames;
 
           dnaIdx += offset;
-        }
+    }
     }
 
   return dnaIdx;
@@ -1055,9 +1056,9 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
       /* Invert the coord and base */
       displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
       base = numFrames - base + 1;
-      
+  
       if (peptides)
-        {
+    {
           /* When we do a mod-3 of the inverted coord, we want it to give the same reading frame
            * as the mod-3 of the original coord */
           const int origReadingFrame = getCoordReadingFrame(dnaIdx, numFrames, displayRev);
@@ -1074,9 +1075,9 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
     displayIdx = ceil((gdouble)(displayIdx - frame + 1) / (gdouble)numFrames);
   
   /* Set the output arg, if requested */
-  if (baseNum)
+      if (baseNum)
     *baseNum = base;
-
+      
   return displayIdx;
 }
 
@@ -2196,7 +2197,7 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
         g_debug("%s", (*error)->message);
       else
         g_message("%s", (*error)->message); /* message or info */
-
+            
       g_error_free(*error);
       *error = NULL;
     }
@@ -3393,11 +3394,11 @@ static char* getDialogIcon(GLogLevelFlags log_level)
   char *result = NULL;
   
   if (log_level & G_LOG_LEVEL_ERROR)
-    result = GTK_STOCK_DIALOG_ERROR;
+        result = GTK_STOCK_DIALOG_ERROR;
   else if (log_level & G_LOG_LEVEL_CRITICAL || log_level & G_LOG_LEVEL_WARNING)
-    result = GTK_STOCK_DIALOG_WARNING;
+        result = GTK_STOCK_DIALOG_WARNING;
   else
-    result = GTK_STOCK_DIALOG_INFO;
+        result = GTK_STOCK_DIALOG_INFO;
     
   return result;
 }

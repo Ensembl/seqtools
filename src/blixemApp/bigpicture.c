@@ -6,11 +6,11 @@
  *
  */
 
-#include <SeqTools/bigpicture.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/exonview.h>
-#include <SeqTools/utilities.h>
+#include <blixemApp/bigpicture.h>
+#include <blixemApp/blxwindow.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/exonview.h>
+#include <seqtoolsUtils/utilities.h>
 #include <math.h>
 #include <stdlib.h>
 

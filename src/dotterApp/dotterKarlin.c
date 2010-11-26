@@ -1,5 +1,5 @@
 /*  Last edited: Oct 26 10:45 2003 (edgrif) */
-/* $Id: dotterKarlin.c,v 1.5 2010-11-16 15:04:42 gb10 Exp $ */
+/* $Id: dotterKarlin.c,v 1.4 2010-10-22 11:58:58 gb10 Exp $ */
 
 /*
  -------------------------------------------------------------
@@ -31,7 +31,7 @@
 
 */
 
-#include "SeqTools/dotter_.h"
+#include <dotterApp/dotter_.h>
 #include <gtk/gtk.h>
 #include <math.h>
 #include <stdlib.h>
@@ -229,7 +229,7 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 
     if (sum<0.99995 || sum>1.00005)
       g_message("Score probabilities sum to %.5lf and will be normalized to 1.\n", sum);
-  
+
     p = (double *)g_malloc(sizeof(*p) * (range+1));
     for (Sum=low,i=0; i<=range; ++i)
 	Sum += i*(p[i]=pr[i]/sum);

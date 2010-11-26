@@ -7,12 +7,12 @@
  *
  */
 
-#include <SeqTools/bigpicturegrid.h>
-#include <SeqTools/bigpicture.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/detailviewtree.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/utilities.h>
+#include <blixemApp/bigpicturegrid.h>
+#include <blixemApp/bigpicture.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/detailviewtree.h>
+#include <blixemApp/blxwindow.h>
+#include <seqtoolsUtils/utilities.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>

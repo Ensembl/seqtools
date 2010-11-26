@@ -32,8 +32,8 @@
  *-------------------------------------------------------------------
  */
 
-#include <SeqTools/utilities.h>
-#include <SeqTools/iupac.h>
+#include <seqtoolsUtils/utilities.h>
+#include <iupac.h>
 #include <glib.h>
 #include <ctype.h>
 #include <string.h>

@@ -33,7 +33,7 @@
 #ifndef _dotter_p_h_included_
 #define _dotter_p_h_included_
 
-#include <SeqTools/dotter.h>
+#include <dotterApp/dotter.h>
 
 #define NR                    23 		        /* Not A residue */
 #define NA                    24 		        /* Not A residue */

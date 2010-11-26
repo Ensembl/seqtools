@@ -26,15 +26,15 @@
  * HISTORY:
  * Last edited: Aug 26 15:42 2009 (edgrif)
  * Created: Thu Aug 26 17:17:30 1999 (fw)
- * CVS info:   $Id: dotterMain.c,v 1.25 2010-11-16 16:24:04 gb10 Exp $
+ * CVS info:   $Id: dotterMain.c,v 1.22 2010-11-08 15:52:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxGff3Parser.h>
-#include <SeqTools/blxparser.h>
-#include <SeqTools/dotter_.h>
-#include <SeqTools/blxmsp.h>
+#include <dotterApp/dotter_.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxGff3Parser.h>
+#include <seqtoolsUtils/blxparser.h>
+#include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -315,7 +315,7 @@ int main(int argc, char **argv)
           case 'w': options.watsonOnly = TRUE;          break;
           case 'z': options.dotterZoom = atoi(optarg);  break;
           default : g_error("Illegal option");
-        }
+      }
     }
 
     if (!options.savefile)
@@ -324,16 +324,16 @@ int main(int argc, char **argv)
       }
 
     if (options.selfcall) /* Blixem/Dotter calling dotter */
-      {
+    {
         DEBUG_OUT("Dotter was called internally.\n");
-        
+	
         /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary, Xoptions.
          * Xoptions are optional, so we should have 5 or 6 arguments */
         if (argc - optind < 5 || argc - optind > 6)
           {
 	    g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
           }
-        
+	
         options.qname = g_malloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
         options.qlen = atoi(argv[optind+1]);
         options.sname = g_malloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
@@ -341,14 +341,14 @@ int main(int argc, char **argv)
         dotterBinary = g_malloc(strlen(argv[optind+4])+1);
         strcpy(dotterBinary, argv[optind+4]);
         options.xOptions = getXOptions(argv, argc, optind + 5);
-
+	
         /* Allocate memory for the sequences, now we know their lengths */
         options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
         options.sseq = g_malloc(sizeof(char) * (options.slen+1));
 
         /* Read in the sequences from the piped input */
         DEBUG_OUT("Reading sequences from pipe...\n");
-        
+
         int l = fread(options.qseq, 1, options.qlen, stdin); 
 	if (l != options.qlen) 
           {
@@ -421,7 +421,7 @@ int main(int argc, char **argv)
         options.xOptions = getXOptions(argv, argc, optind);
       }
     else
-      {
+          {
         /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
          * optional, so we should have 2 or 3 arguments */
         if (argc - optind < 2 || argc - optind > 3) 
@@ -429,7 +429,7 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "%s\n", usage); 
             exit(EXIT_FAILURE);
           }
-            
+      
         options.xOptions = getXOptions(argv, argc, optind + 2);
         
 	if(!(qfile = fopen(argv[optind], "r"))) 

@@ -10,7 +10,7 @@
 #define _exon_view_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blixem_.h>
+#include <blixemApp/blixem_.h>
 
 #define BIG_PICTURE_EXON_VIEW_NAME		"BigPictureExonView"
 

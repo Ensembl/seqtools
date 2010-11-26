@@ -8,8 +8,8 @@
  */
 
 #include <gtk/gtk.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/dotter_.h>
+#include <seqtoolsUtils/utilities.h>
+#include <dotterApp/dotter_.h>
 
 //#define MAXY                            20
 //#define MINY                            140

@@ -6,13 +6,13 @@
  *
  */
 
-#include <SeqTools/detailview.h>
-#include <SeqTools/detailviewtree.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/bigpicture.h>
-#include <SeqTools/exonview.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxmsp.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/detailviewtree.h>
+#include <blixemApp/blxwindow.h>
+#include <blixemApp/bigpicture.h>
+#include <blixemApp/exonview.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxmsp.h>
 #include <gtk/gtk.h>
 #include <string.h>
 #include <stdlib.h>
@@ -2426,8 +2426,8 @@ int detailViewGetActiveFrame(GtkWidget *detailView)
   if (properties && properties->selectedFrame != UNSET_INT)
     {
       result = properties->selectedFrame;
-    }
-  
+}
+
   return result;
 }
 

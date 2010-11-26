@@ -34,14 +34,14 @@
  * * 98-02-19  Changed MSP parsing to handle all SFS formats.
  * * 99-07-29  Added support for SFS type=HSP and GFF.
  * Created: 93-05-17
- * CVS info:   $Id: blxparser.c,v 1.51 2010-11-16 15:04:42 gb10 Exp $
+ * CVS info:   $Id: blxparser.c,v 1.50 2010-11-08 15:52:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxmsp.h>
-#include <SeqTools/blxGff3Parser.h>
-#include <SeqTools/blxparser.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/blxGff3Parser.h>
+#include <seqtoolsUtils/blxparser.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>

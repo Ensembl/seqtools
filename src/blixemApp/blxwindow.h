@@ -10,8 +10,8 @@
 #define _blxwindow_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/blixem_.h>
-#include <SeqTools/utilities.h>
+#include <blixemApp/blixem_.h>
+#include <seqtoolsUtils/utilities.h>
 
 /* This enum contains IDs for all the persistent dialogs in the application, and should be used
  * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList

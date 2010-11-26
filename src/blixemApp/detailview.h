@@ -10,8 +10,8 @@
 #define _detail_view_included_
 
 #include <gtk/gtk.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxwindow.h>
+#include <seqtoolsUtils/utilities.h>
+#include <blixemApp/blxwindow.h>
 
 
 #define HEADER_CONTAINER_NAME		"header container"

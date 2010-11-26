@@ -10,7 +10,7 @@
 #ifndef _blxmsp_included_
 #define _blxmsp_included_
 
-#include <SeqTools/utilities.h>
+#include <seqtoolsUtils/utilities.h>
 #include <stdlib.h>
 
 

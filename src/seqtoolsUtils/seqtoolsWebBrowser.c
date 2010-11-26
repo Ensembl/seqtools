@@ -1,6 +1,6 @@
 /*  File: seqtoolsWebBrowser.c
- *  Author: Ed Griffiths (edgrif@sanger.ac.uk)
- *  Copyright (c) 2006-2010: Genome Research Ltd.
+ *  Author: Gemma Barson (gb10@sanger.ac.uk)
+ *  Copyright (c) 2010: Genome Research Ltd.
  *-------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@
  *-------------------------------------------------------------------
  */
 
-#include <SeqTools/utilities.h>
+#include <seqtoolsUtils/utilities.h>
 #include <sys/utsname.h>
 #include <glib.h>
 #include <stdlib.h>
@@ -40,17 +40,17 @@
 
 /* Describes various browsers, crude at the moment, we will probably need more options later. */
 typedef struct
-{
-  char *system ;					    /* system name as in "uname -s" */
-  char *executable ;					    /* executable name or full path. */
-  char *open_command ;					    /* alternative command to start browser. */
-} BrowserConfigStruct, *BrowserConfig ;
+  {
+    char *system ;					    /* system name as in "uname -s" */
+    char *executable ;					    /* executable name or full path. */
+    char *open_command ;					    /* alternative command to start browser. */
+  } BrowserConfigStruct, *BrowserConfig ;
 
 
 static char *findBrowser(BrowserConfig browsers, BrowserConfig *browser_out, GError **error) ;
 static void makeBrowserCmd(GString *cmd, BrowserConfig best_browser, char *url) ;
 static char *translateURLChars(const char *orig_link) ;
-gboolean seqtools_g_string_replace(GString *string, char *target, char *source);
+static gboolean seqtools_g_string_replace(GString *string, char *target, char *source);
 
 
 /* Records information for running a specific browser. The intent here is to add enough
@@ -77,14 +77,14 @@ gboolean seqtools_g_string_replace(GString *string, char *target, char *source);
 
 /* List of browsers for different systems, you can have more than one browser for a system. */
 static BrowserConfigStruct browsers_G[] =
-  {
-    {"Linux",  "iceweasel",  "iceweasel -new-window \""BROWSER_PATTERN"\""},
-    {"Linux",  "firefox",  "firefox -browser \""BROWSER_PATTERN"\""},
-    {"Linux",  "mozilla",  "mozilla -remote 'openurl(\""BROWSER_PATTERN"\",new-window)' || mozilla \""BROWSER_PATTERN"\""},
-    {"OSF",    "netscape", NULL},
-    {"Darwin", "/Applications/Safari.app/Contents/MacOS/Safari", "open \""BROWSER_PATTERN"\""},
-    {NULL, NULL}					    /* Terminator record. */
-  } ;
+{
+{"Linux",  "iceweasel",  "iceweasel -new-window \""BROWSER_PATTERN"\""},
+{"Linux",  "firefox",  "firefox -browser \""BROWSER_PATTERN"\""},
+{"Linux",  "mozilla",  "mozilla -remote 'openurl(\""BROWSER_PATTERN"\",new-window)' || mozilla \""BROWSER_PATTERN"\""},
+{"OSF",    "netscape", NULL},
+{"Darwin", "/Applications/Safari.app/Contents/MacOS/Safari", "open \""BROWSER_PATTERN"\""},
+{NULL, NULL}					    /* Terminator record. */
+} ;
 
 
 /* Error handling stuff. */
@@ -124,30 +124,30 @@ gboolean seqtoolsLaunchWebBrowser(const char *link, GError **error)
   gboolean result = FALSE ;
   BrowserConfig best_browser = NULL ;
   char *browser = NULL ;
-
+  
   g_assert(link && *link && error && !(*error)) ; 
-
+  
   if (!err_domain_G)
     err_domain_G = g_quark_from_string(domain_G) ;
-
-
+  
+  
   /* Check we have a registered browser for this system. */
   browser = findBrowser(browsers_G, &best_browser, error) ;
-
-
-
+  
+  
+  
   /* Run the browser in a separate process. */
   if (browser)
     {
       char *url ;
       GString *sys_cmd ;
       int sys_rc ;
-
+      
       /* Translate troublesome chars to their url escape sequences, see translateURLChars() for explanation. */
       url = translateURLChars(link) ;  
-
+      
       sys_cmd = g_string_sized_new(1024) ;		    /* Should be long enough for most urls. */
-
+      
       if (best_browser->open_command)
 	{
 	  makeBrowserCmd(sys_cmd, best_browser, url) ;
@@ -156,13 +156,13 @@ gboolean seqtoolsLaunchWebBrowser(const char *link, GError **error)
 	{
 	  g_string_printf(sys_cmd, "%s \"%s\"", browser, url) ;
 	}
-
+      
       /* Make sure browser is run in background by the shell so we do not wait.
        * NOTE that because we do not wait for the command to be executed,
        * we cannot tell if the command actually worked, only that the shell
        * got exec'd */
       g_string_append(sys_cmd, " &") ;    
-
+      
       /* We could do much more to interpret what exactly failed here... */
       if ((sys_rc = system(sys_cmd->str)) == EXIT_SUCCESS)
 	{
@@ -173,12 +173,12 @@ gboolean seqtoolsLaunchWebBrowser(const char *link, GError **error)
 	  *error = g_error_new(err_domain_G, BROWSER_COMMAND_FAILED,
 			       "Failed to run command \"%s\".", sys_cmd->str) ;
 	}
-
+      
       g_string_free(sys_cmd, TRUE) ;
       g_free(url) ;
     }
-
-
+  
+  
   return result ;
 }
 
@@ -206,7 +206,7 @@ static char *findBrowser(BrowserConfig browsers_in, BrowserConfig *browser_out, 
   char *browser = NULL ;
   struct utsname unamebuf ;
   gboolean browser_in_list = FALSE ;
-
+  
   if (uname(&unamebuf) == -1)
     {
       *error = g_error_new_literal(err_domain_G, BROWSER_UNAME_FAILED,
@@ -221,20 +221,20 @@ static char *findBrowser(BrowserConfig browsers_in, BrowserConfig *browser_out, 
 	  if (g_ascii_strcasecmp(curr_browser->system, unamebuf.sysname) == 0)
 	    {
 	      browser_in_list = TRUE ; 
-
+              
 	      /* Look for the browser in the users path. */
 	      if ((browser = g_find_program_in_path(curr_browser->executable)))
 		{
 		  *browser_out = curr_browser ;
-
+                  
 		  break ;
 		}
 	    }
-
+          
 	  curr_browser++ ;
 	}
     }
-
+  
   if (!browser)
     {
       if (browser_in_list)
@@ -249,7 +249,7 @@ static char *findBrowser(BrowserConfig browsers_in, BrowserConfig *browser_out, 
 			       "No browser registered for system %s", unamebuf.sysname) ;
 	}
     }
-
+  
   return browser ;
 }
 
@@ -257,13 +257,13 @@ static char *findBrowser(BrowserConfig browsers_in, BrowserConfig *browser_out, 
 static void makeBrowserCmd(GString *cmd, BrowserConfig best_browser, char *url)
 {
   gboolean found ;
-
+  
   cmd = g_string_append(cmd, best_browser->open_command) ;
-
+  
   found = seqtools_g_string_replace(cmd, BROWSER_PATTERN, url) ;
-
+  
   g_assert(found) ;					    /* Must find at least one pattern. */
-
+  
   return ;
 }
 
@@ -299,40 +299,40 @@ static char *translateURLChars(const char *orig_link)
   char *url = NULL ;
   
 #if TRANSLATE
-
+  
   GString *link ;
   char *target, *source ;
-
+  
   link = g_string_new(orig_link) ;
-
+  
   target = " " ;
   source = "%20" ;
   seqtools_g_string_replace(link, target, source) ;
-
+  
   target = ";" ;
   source = "%3B" ;
   seqtools_g_string_replace(link, target, source) ;
-
+  
   target = "," ;
   source = "%2C" ;
   seqtools_g_string_replace(link, target, source) ;
-
+  
   target = "'" ;
   source = "%27" ;
   seqtools_g_string_replace(link, target, source) ;
-
+  
   target = "&" ;
   source = "%26" ;
   seqtools_g_string_replace(link, target, source) ;
-
+  
   target = "|" ;
   source = "%7C" ;
   seqtools_g_string_replace(link, target, source) ;
-
+  
   target = "`" ;
   source = "%60" ;
   seqtools_g_string_replace(link, target, source) ;
-
+  
   url = g_string_free(link, FALSE) ;
 #else
   url = g_strdup(orig_link);
@@ -355,7 +355,7 @@ static char *translateURLChars(const char *orig_link)
  * @param source                 The string to be inserted.
  * @return                       TRUE if a string was replaced, FALSE otherwise.
  *  */
-gboolean seqtools_g_string_replace(GString *string, char *target, char *source)
+static gboolean seqtools_g_string_replace(GString *string, char *target, char *source)
 {
   gboolean result = FALSE ;
   int source_len ;
@@ -383,5 +383,3 @@ gboolean seqtools_g_string_replace(GString *string, char *target, char *source)
   
   return result ;
 }
-
-

@@ -7,8 +7,8 @@
  *
  */
 
-#include "SeqTools/blxmsp.h"
-#include "SeqTools/utilities.h"
+#include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/utilities.h>
 #include <string.h>
 
 static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
@@ -489,8 +489,8 @@ char *mspGetCoordsAsString(const MSP const *msp)
 //  
 //  return result;
 //}
-  
-      
+
+
 /* Comparison function to sort two Feature Series by the order number stored in the FeatureSeries
  * struct. Returns -1 if the first item is before the second, 1 if the second is first, or 0 if 
  * they are equal.  */
@@ -561,8 +561,8 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 //    }
 //}
 //
-  
-  
+
+
 /* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
  * list should be a list containing all polya sites (and only polya sites) */
 gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)

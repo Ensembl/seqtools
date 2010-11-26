@@ -26,16 +26,16 @@
  * HISTORY:
  * Last edited: Aug 26 09:09 2009 (edgrif)
  * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.62 2010-11-16 15:04:42 gb10 Exp $
+ * CVS info:   $Id: blixem_.h,v 1.61 2010-11-09 10:13:48 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_BLIXEM_P_H
 #define DEF_BLIXEM_P_H
 
 #include <gtk/gtk.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxmsp.h>
-#include <wh/version.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/version.h>
 
 
 /*            blixem program version and information.                        */
@@ -183,53 +183,6 @@ typedef struct _SequenceGroup
     GdkColor highlightColor;	   /* the color to highlight the group's sequences in (in both the big picture and the detail view) */
   } SequenceGroup;
 
-
-/* This enum is to record the type of data currently being parsed by the parser. An input file can 
- * contain multiple types of data. The start of a new section of data is indicated by a header 
- * line beginning with a hash and a known type name, e.g. "# exblx_x" or "##gff-version   3"
- *
- * FS and SFS (Feature Series) data type names have "FS" or "SFS" followed by a specific format 
- * type, e.g. "# SFS type=SEG". 
- *
- * For some data types, additional data is included in the header line(s) as well as in the 'body' 
- * section below it. For these, there are two data types in the enum, one postfixed with _HEADER 
- * and one with _BODY. When the header line is detected the initial type is set to the _HEADER enum, 
- * and when we are finished processing the header information it is set to _BODY, so that we go on
- * to process the body of the data on the next loop through. For types with no information in the 
- * header, there is only a _BODY enum.
- */
-typedef enum
-  {
-    PARSER_START,	           /* indicates that we haven't started processing yet */
-    PARSER_ERROR,	           /* indiates an error state */
-    
-    GFF_3_HEADER,	           /* GFF 3 header */
-    GFF_3_BODY,		           /* GFF 3 data */
-    
-    FASTA_SEQ_HEADER,              /* FASTA sequence header */
-    FASTA_SEQ_BODY,                /* Sequence data in FASTA format */
-
-    EXBLX_BODY,                    /* Old style sequence entries. */
-    SEQBL_BODY,                    /* Old style sequence entries. */
-    EXBLX_X_BODY,	           /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */ 
-    SEQBL_X_BODY,	           /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */
-
-    FS_HSP_BODY,                   /* feature-series HSP data */
-    
-    FS_GSP_HEADER,                 /* feature-series GSP data header */
-    FS_GSP_BODY,                   /* feature-series GSP data */
-    
-    FS_GFF_BODY,                   /* feature-series GFF data */
-    
-    FS_SEG_BODY,                   /* feature-series segment data */
-    
-    FS_XY_HEADER,                  /* feature-series XY data header */
-    FS_XY_BODY,                    /* feature-series XY data */
-    
-    FS_SEQ_HEADER,                 /* feature-series sequence data header */
-    FS_SEQ_BODY                    /* feature-series sequence data */
-  } BlxParserState ;
-  
 
 /* This enum gives a more meaningful way of indexing the "opts" string */
 typedef enum

@@ -34,13 +34,13 @@
  * HISTORY:
  * Last edited: Nov 14 09:19 2007 (edgrif)
  * Created: Thu Aug 26 17:16:19 1999 (fw)
- * CVS info:   $Id: dotter.h,v 1.10 2010-11-16 15:04:42 gb10 Exp $
+ * CVS info:   $Id: dotter.h,v 1.9 2010-11-08 15:52:49 gb10 Exp $
  *-------------------------------------------------------------------
  */
 #ifndef DEF_DOTTER_H
 #define DEF_DOTTER_H
 
-#include "SeqTools/blxmsp.h"
+#include <seqtoolsUtils/blxmsp.h>
 
 
 /* Options specifying the initial state for dotter */
@@ -53,7 +53,7 @@ typedef struct _DotterOptions
     int slen;                 /* length of the match seq */
     int dotterZoom;           /* initial zoom level */
     int install : 1;          /* whether to add -install to the dotter args (for private colormaps) */
-    int pixelFacset;          
+    int pixelFacset;
     int seqInSFS;             /* whether the sequences are in the features file, i.e. there are no separate sequence files */
     
     float memoryLimit;

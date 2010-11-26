@@ -6,15 +6,15 @@
  *
  */
 
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/detailviewtree.h>
-#include <SeqTools/bigpicture.h>
-#include <SeqTools/blxdotter.h>
-#include <SeqTools/exonview.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxGff3Parser.h>
-#include <SeqTools/blxmsp.h>
+#include <blixemApp/blxwindow.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/detailviewtree.h>
+#include <blixemApp/bigpicture.h>
+#include <blixemApp/blxdotter.h>
+#include <blixemApp/exonview.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxGff3Parser.h>
+#include <seqtoolsUtils/blxmsp.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h>
@@ -5230,7 +5230,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   GtkWidget *statusBar = gtk_statusbar_new();
   gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), TRUE);
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
-
+  
   /* Set the message handlers again, this time passing the window and statusbar, now we know them */
   BlxMessageData *msgData = g_malloc(sizeof *msgData);
   msgData->parent = GTK_WINDOW(window);

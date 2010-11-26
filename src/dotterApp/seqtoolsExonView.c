@@ -6,9 +6,9 @@
  *
  */
 
-#include <SeqTools/seqtoolsExonView.h>
-#include <SeqTools/blxmsp.h>
-#include <SeqTools/dotter_.h>
+#include <dotterApp/seqtoolsExonView.h>
+#include <dotterApp/dotter_.h>
+#include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
 #include <stdlib.h>
 

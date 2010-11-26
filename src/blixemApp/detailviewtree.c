@@ -6,13 +6,13 @@
  *
  */
 
-#include <SeqTools/detailviewtree.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/bigpicturegrid.h>
-#include <SeqTools/sequencecellrenderer.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxmsp.h>
+#include <blixemApp/detailviewtree.h>
+#include <blixemApp/detailview.h>
+#include <blixemApp/bigpicturegrid.h>
+#include <blixemApp/sequencecellrenderer.h>
+#include <blixemApp/blxwindow.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxmsp.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 

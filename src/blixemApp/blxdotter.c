@@ -6,13 +6,12 @@
  *
  */
 
-#include <SeqTools/blxdotter.h>
-#include <SeqTools/blxwindow.h>
-#include <SeqTools/bigpicture.h>
-#include <SeqTools/detailview.h>
-#include <SeqTools/utilities.h>
-#include <SeqTools/blxmsp.h>
-#include <SeqTools/dotter.h>
+#include <blixemApp/blxdotter.h>
+#include <blixemApp/blxwindow.h>
+#include <blixemApp/bigpicture.h>
+#include <blixemApp/detailview.h>
+#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -1075,30 +1074,30 @@ static gboolean findCommand (char *command, char **resultOut)
   static char result[1025];
   char fileName[1025];
   FILE *file = NULL;
-  
+    
   char *pathEnv = g_malloc(strlen(getenv("PATH"))+1);
   strcpy(pathEnv, getenv("PATH"));
-   
+
   /* Try each path in the enviroment var */
   char *path = strtok(pathEnv, ":");
-   
+  
   while (path) 
     {
       strcpy(fileName, path);
       strcat(fileName,"/");
       strcat(fileName, command);
-   
+
       /* Check if the file exists in this path */
       file = fopen(fileName, "r");
       if (file)  //!access(fileName, F_OK) && !access(fileName, X_OK)) 
 	{
 	  found = TRUE;
 	  fclose(file);
-      break;
+	  break;
+	}
+      
+      path = strtok(0, ":");
     }
-    
-    path = strtok(0, ":");
-  }
   
   g_free(pathEnv);
   
@@ -1106,12 +1105,12 @@ static gboolean findCommand (char *command, char **resultOut)
     {
       strcpy(result, fileName);
       found = TRUE;
-  }
+    }
   else 
     {
       strcpy(result, "Can't find executable 'dotter' in path.\n");
-  }
-  
+    }
+    
   if (resultOut)
     {
       *resultOut = result;
@@ -1161,7 +1160,7 @@ static void callDotterChildProcess(char *dotterBinary,
   argList = g_slist_append(argList, convertIntToString(slen));
   argList = g_slist_append(argList, g_strdup(dotterBinary));
   argList = g_slist_append(argList, g_strdup(Xoptions));
-  
+
   if (Xoptions)
     argList = g_slist_append(argList, NULL); /* add null on end, if Xoptions wasn't already null */
 
@@ -1431,7 +1430,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
   
   g_message("  query sequence: name -  %s, offset - %d\n"
-            "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
+	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
 
   return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, selectedSeq->strand, hspsOnly, NULL, error);
 }
