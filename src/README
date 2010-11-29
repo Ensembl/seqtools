@@ -15,7 +15,7 @@ THE TOOLS
 
 blixem - A program for viewing multiple alignments against a reference sequence. It displays an overview showing where alignments and exons/introns lie on the reference sequence, and a detailed view showing the actual nucleotides or peptides in the sequences, color-coded to indicate how well they match.  Gapped alignments are supported and other features such as SNPs and polyA tails can also be displayed.
 
-blixemh - The same as blixem but with additional functionality for fetching sequences via HTTP.  You should use this instead of blixem, unless you have problems installing the dependencies.
+blixemh - The same as blixem but with additional functionality for fetching sequences via HTTP.
 
 dotter - A dot-matrix program that plots two sequences against each other, one vertically and one horizontally, drawing a dot wherever the bases match.  Noise is filtered out, so that alignments appear as diagonal lines.
 
@@ -67,6 +67,6 @@ make blixem
 make dotter
 make install
 
-If you do want the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
+If you do require the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
 
 sudo apt-get install libcurl4-gnutls-dev
