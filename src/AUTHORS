@@ -1,6 +1,6 @@
 Eric Sonnhammer Original author of blixem and dotter
 
-Richard Durbin and Jean Thierry-Mieg Original authors of the acedb package, which was used extensively in the original versions of blixem and dotter.
+Richard Durbin and Jean Thierry-Mieg Original authors of the acedb package, parts of which (notably the Graph package) were used extensively in the original versions of blixem and dotter.
 
 Ed Griffiths, Roy Storey and Malcolm Hinsley Authors of the ZMap code from which the web browser, pfetch code and libpfetch library were taken.
 
