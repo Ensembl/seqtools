@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.50])
-AC_INIT([SeqTools], [1.0.0], [gb10@sanger.ac.uk])
+AC_INIT([SeqTools], [0.0.1], [gb10@sanger.ac.uk])
 AC_CONFIG_SRCDIR([blixemApp/blxmain.c])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_HEADERS([config.h])
