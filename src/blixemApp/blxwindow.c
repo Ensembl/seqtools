@@ -3484,7 +3484,7 @@ static char *blxGetWebSiteString(void)
 /* Returns a comments string for the Blixem application. */
 static char *blxGetCommentsString(void)
 {
-  return BLIXEM_COMMENTS_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE) ;
+  return BLIXEM_COMMENTS_STRING() ;
 }
 
 /* Returns a license string for the blx application. */
@@ -3504,7 +3504,7 @@ static char *blxGetVersionString(void)
 void showAboutDialog(GtkWidget *parent)
 {
 #if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
-  const gchar *authors[] = {BLIXEM_AUTHOR_LIST, NULL} ;
+  const gchar *authors[] = {AUTHOR_LIST, NULL} ;
 
   gtk_show_about_dialog(GTK_WINDOW(parent),
 			"authors", authors,

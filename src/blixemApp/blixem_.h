@@ -33,6 +33,7 @@
 #define DEF_BLIXEM_P_H
 
 #include <gtk/gtk.h>
+#include <config.h>
 #include <seqtoolsUtils/utilities.h>
 #include <seqtoolsUtils/blxmsp.h>
 #include <seqtoolsUtils/version.h>
@@ -40,30 +41,21 @@
 
 /*            blixem program version and information.                        */
 #define BLIXEM_TITLE   "Blixem program"
-#define BLIXEM_DESC    "Sequence alignment tool."
+#define BLIXEM_DESC    "Multiple alignment visualisation tool."
 
-#define BLIXEM_VERSION 4
-#define BLIXEM_RELEASE 0
-#define BLIXEM_UPDATE  4
-#define BLIXEM_VERSION_NUMBER	   UT_MAKE_VERSION_NUMBER(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_VERSION_STRING	   UT_MAKE_VERSION_STRING(BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_TITLE_STRING	   UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION, BLIXEM_RELEASE, BLIXEM_UPDATE)
-#define BLIXEM_VERSION_COMPILE	   BLIXEM_VERSION_STRING "  " __TIME__ " "__DATE__
+/* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
+#define BLIXEM_VERSION_STRING	   PACKAGE_VERSION
+#define BLIXEM_TITLE_STRING	   UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION_STRING)
+#define BLIXEM_VERSION_COMPILE	   BLIXEM_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
-#define BLIXEM_COPYRIGHT_STRING	   "Copyright (c) 2009-2010: Genome Research Ltd."
+#define BLIXEM_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2009-2010")
 #define BLIXEM_WEBSITE_STRING	   ""
 #define BLIXEM_LICENSE_STRING	   "Blixem is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
 
-#define BLIXEM_AUTHOR_LIST	   " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>",\
-				   " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
-
-#define BLIXEM_AUTHOR_TEXT	   " Originally written by Erik Sonnhammer, <Erik.Sonnhammer@sbc.su.se>\n" \
-				   " Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
-
-#define BLIXEM_COMMENTS_STRING(TITLE, VERSION, RELEASE, UPDATE)	\
+#define BLIXEM_COMMENTS_STRING()                                \
 "("BLIXEM_TITLE_STRING", "					\
-"compiled on - "__DATE__" "__TIME__")\n\n"			\
-BLIXEM_AUTHOR_TEXT "\n"
+UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
+AUTHOR_TEXT "\n"
 
 
 /* 

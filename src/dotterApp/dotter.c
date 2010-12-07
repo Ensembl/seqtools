@@ -2569,7 +2569,7 @@ static char *dotterGetWebSiteString(void)
 /* Returns a comments string for the Dotter application. */
 static char *dotterGetCommentsString(void)
 {
-  return DOTTER_COMMENTS_STRING(DOTTER_TITLE, DOTTER_VERSION, DOTTER_RELEASE, DOTTER_UPDATE) ;
+  return DOTTER_COMMENTS_STRING() ;
 }
 
 /* Returns a license string for the dotter application. */
@@ -2588,7 +2588,7 @@ static char *dotterGetVersionString(void)
 static void showAboutDialog(GtkWidget *parent)
 {
 #if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
-  const gchar *authors[] = {DOTTER_AUTHOR_LIST, NULL} ;
+  const gchar *authors[] = {AUTHOR_LIST, NULL} ;
   
   gtk_show_about_dialog(GTK_WINDOW(parent),
 			"authors", authors,

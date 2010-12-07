@@ -179,7 +179,7 @@ static char* getUsageText()
 \n\
  See http://www.cgb.ki.se/cgb/groups/sonnhammer/Dotter.html for more info.\n\
 \n\
- by Erik.Sonnhammer@cgb.ki.se\n\
+"AUTHOR_TEXT_FULL"\n\
  Version ";
     
   extern char *dotterVersion;

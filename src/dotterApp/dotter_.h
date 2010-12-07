@@ -34,6 +34,8 @@
 #define _dotter_p_h_included_
 
 #include <dotterApp/dotter.h>
+#include <seqtoolsUtils/version.h>
+#include <config.h>
 
 #define NR                    23 		        /* Not A residue */
 #define NA                    24 		        /* Not A residue */
@@ -53,28 +55,19 @@ extern char *stdcode1[];        /* 1-letter amino acid translation code */
 #define DOTTER_TITLE   "Dotter program"
 #define DOTTER_DESC    "Dot-matrix plotter for detailed comparision of two sequences."
 
-#define DOTTER_VERSION 4
-#define DOTTER_RELEASE 0
-#define DOTTER_UPDATE  0
-#define DOTTER_VERSION_NUMBER	   UT_MAKE_VERSION_NUMBER(DOTTER_VERSION, DOTTER_RELEASE, DOTTER_UPDATE)
-#define DOTTER_VERSION_STRING	   UT_MAKE_VERSION_STRING(DOTTER_VERSION, DOTTER_RELEASE, DOTTER_UPDATE)
-#define DOTTER_TITLE_STRING	   UT_MAKE_TITLE_STRING(DOTTER_TITLE, DOTTER_VERSION, DOTTER_RELEASE, DOTTER_UPDATE)
-#define DOTTER_VERSION_COMPILE	   DOTTER_VERSION_STRING "  " __TIME__ " "__DATE__
+/* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
+#define DOTTER_VERSION_STRING	   PACKAGE_VERSION
+#define DOTTER_TITLE_STRING	   UT_MAKE_TITLE_STRING(DOTTER_TITLE, DOTTER_VERSION_STRING)
+#define DOTTER_VERSION_COMPILE	   DOTTER_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
-#define DOTTER_COPYRIGHT_STRING	   "Copyright (c) 2010: Genome Research Ltd."
+#define DOTTER_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2010")
 #define DOTTER_WEBSITE_STRING	   ""
 #define DOTTER_LICENSE_STRING	   "Dotter is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
 
-#define DOTTER_AUTHOR_LIST	   " Originally written by Erik Sonnhammer and Richard Durbin",\
-" Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
-
-#define DOTTER_AUTHOR_TEXT	   " Originally written by Erik Sonnhammer and Richard Durbin\n" \
-" Rewritten by Gemma Barson, Sanger Institute, UK <gb10@sanger.ac.uk>"
-
-#define DOTTER_COMMENTS_STRING(TITLE, VERSION, RELEASE, UPDATE)	\
+#define DOTTER_COMMENTS_STRING()                                \
 "("DOTTER_TITLE_STRING", "					\
-"compiled on - "__DATE__" "__TIME__")\n\n"			\
-DOTTER_AUTHOR_TEXT "\n"
+UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
+AUTHOR_TEXT "\n"
 
 
 /* Dotter error domain */

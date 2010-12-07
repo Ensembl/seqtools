@@ -135,7 +135,7 @@ static char *usageText ="\n\
  -acefont <font> Main font.\n\
  -font    <font> Menu font.\n\
 \n\
-"BLIXEM_AUTHOR_TEXT"\n\
+"AUTHOR_TEXT_FULL"\n\
  Version %s\n\%s\n" ;
 
 static char *help_string = "\n\

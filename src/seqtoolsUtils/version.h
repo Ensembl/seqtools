@@ -70,67 +70,89 @@ char *utAppGetCompileDate(void) { return UT_COMPILE_PHRASE " " __DATE__ " " __TI
 /* #define SOME_UPDATE  1                    (latest fix number)             */
 /*                                                                           */
 
-/* 1) Use UT_MAKESTRING to make strings out of #define'd numbers.            */
-/*    (required because of the way ANSI preprocessor handles strings)        */
-/*    e.g. UT_MAKESTRING(6)  produces "6"                                    */
-/*                                                                           */
+
+/*  Use UT_MAKESTRING to make strings out of #define'd numbers.          
+ *  (required because of the way ANSI preprocessor handles strings)      
+ *  e.g. UT_MAKESTRING(6)  produces "6"                                 */   
 #define UT_PUTSTRING(x) #x
 #define UT_MAKESTRING(x) UT_PUTSTRING(x)
 
-/* 2) Make a single version number out of the version, release and update    */
-/*    numbers.                                                               */
-/* NOTE that there should be no more than 100 (i.e. 0 - 99) revisions per    */
-/* version, or updates per revision, otherwise version will be wrong.        */
-/*                                                                           */
+
+/* Make a single version number out of a version, release and update number.
+ * NOTE that there should be no more than 100 (i.e. 0 - 99) revisions per    
+ * version, or updates per revision, otherwise version will be wrong. */
 #define UT_MAKE_VERSION_NUMBER(VERSION, RELEASE, UPDATE) \
 ((VERSION * 10000) + (RELEASE * 100) + UPDATE)
 
-/* 3) Make a single version string out of the version, release and update    */
-/*    numbers.                                                               */
-/*                                                                           */
+
+/* Make a single version string out of the version, release and update numbers */
 #define UT_MAKE_VERSION_STRING(VERSION, RELEASE, UPDATE) \
 UT_MAKESTRING(VERSION) "." UT_MAKESTRING(RELEASE) "." UT_MAKESTRING(UPDATE)
 
 
-/* 4) Make a title string containing the title of the application/library    */
-/*    and the version, release and update numbers.                           */
-/*                                                                           */
-#define UT_MAKE_TITLE_STRING(TITLE, VERSION, RELEASE, UPDATE) \
-TITLE " - " UT_MAKE_VERSION_STRING(VERSION, RELEASE, UPDATE)
+/* Make a title string containing the title of the application/library and the version. */
+#define UT_MAKE_TITLE_STRING(TITLE, VERSION) \
+TITLE " - " VERSION
 
 
-/* 4) Macro for creating a standard copyright string to be inserted into    */
-/*    compiled applications and libraries. The macro ensures a common       */
-/*    format for version numbers etc.                                       */
-/*                                                                           */
-/* The macro is a statement, NOT an expression, but does NOT require a       */
-/* terminating semi-colon. The macro should be coded like this:              */
-/*                                                                           */
-/*    UT_COPYRIGHT_STRING(prefix, title, description)                        */
-/*                                                                           */
-/*    where  prefix is some a string locally used to prefix variables        */
-/*    where  title is a string of the form   "Appname  1.0.1"                */
-/*      and  description is of the form  "Application to blah, blah."        */
-/*                                                                           */
-#define UT_COPYRIGHT()                                                               \
-"@(#) Copyright (c):  J Thierry-Mieg and R Durbin, 1998 \n"                          \
+/* Make a string containing the compile time and date */
+#define UT_MAKE_COMPILE_DATE() \
+__TIME__ " " __DATE__
+
+
+/* Make a copyright string, where the copyright for the given year(s) (passed as a string, e.g. "2009 - 2010") */
+#define UT_MAKE_COPYRIGHT_STRING(YEARS_STRING) \
+"Copyright (c) " YEARS_STRING ": Genome Research Ltd."
+
+
+/* Define the authors of the SeqTools package. AUTHOR_LIST is a comma-separated list of all authors
+ * that should be credited. AUTHOR_TEXT is a string containing the main authors. */
+#define AUTHOR_LIST	   "Gemma Barson (Sanger Institute, UK) <gb10@sanger.ac.uk>",\
+                           "Erik Sonnhammer (SBC, Sweden) <Erik.Sonnhammer@sbc.su.se>",\
+                           "Jean Thierry-Mieg (CRBM du CNRS, France) <mieg@kaa.crbm.cnrs-mop.fr>",\
+                           "Richard Durbin (Sanger Institute, UK) <rd@sanger.ac.uk>",\
+                           "Ed Griffiths (Sanger Institute, UK) <edgrif@sanger.ac.uk>",\
+                           "Roy Storey (Sanger Institute, UK) <rds@sanger.ac.uk>",\
+                           "Malcolm Hinsley (Sanger Institute, UK) <mh17@sanger.ac.uk>"
+
+#define AUTHOR_TEXT        "Gemma Barson <gb10@sanger.ac.uk>\n"\
+                           "Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>"
+                           
+#define AUTHOR_TEXT_FULL   " Written by Gemma Barson <gb10@sanger.ac.uk>\n"\
+                           " Based on original code by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>"
+                           
+
+
+/*    Macro for creating a standard copyright string to be inserted into     
+ *    compiled applications and libraries. The macro ensures a common        
+ *    format for version numbers etc.                                        
+ *                                                                           
+ * The macro is a statement, NOT an expression, but does NOT require a       
+ * terminating semi-colon. The macro should be coded like this:              
+ *                                                                           
+ *    UT_COPYRIGHT_STRING(prefix, title, description, copyright_years)       
+ *                                                                           
+ *    where  prefix is some a string locally used to prefix variables        
+ *    where  title is a string of the form   "Appname  1.0.1"                
+ *    where  description is of the form  "Application to blah, blah."        
+ *    and    copyright_years is of the form  "2010", "2008-2010", "2008, 2010" etc.
+ */
+#define UT_COPYRIGHT(YEARS_STRING)                                                   \
+"@(#) "UT_MAKE_COPYRIGHT_STRING(YEARS_STRING)"\n"                                    \
 "@(#) \n"                                                                            \
 "@(#) This file contains the above Sanger Informatics Group library, \n"             \
-"@(#) written by   Richard Durbin (Sanger Centre, UK) rd@sanger.ac.uk \n"            \
-"@(#)              Jean Thierry-Mieg (CRBM du CNRS, France) mieg@kaa.crbm.cnrs-mop.fr \n" \
-"@(#)              Ed Griffiths (Sanger Centre, UK) edgrif@sanger.ac.uk \n"          \
-"@(#)              Fred Wobus (Sanger Centre, UK) fw@sanger.ac.uk \n"                \
+"@(#) "AUTHOR_TEXT"\n\n"                                                             \
 "@(#) You may redistribute this software subject to the conditions in the \n"        \
 "@(#) accompanying copyright file. Anyone interested in obtaining an up to date \n"  \
 "@(#) version should contact one of the authors at the above email addresses. \n"
 
 
-#define UT_COPYRIGHT_STRING(TITLE, VERSION, RELEASE, UPDATE, DESCRIPTION_STRING)     \
+#define UT_COPYRIGHT_STRING(TITLE, VERSION, DESCRIPTION_STRING, COPYRIGHT_YEARS)     \
 "@(#) \n"                                                                            \
 "@(#) --------------------------------------------------------------------------\n"  \
-"@(#) Title/Version:  "UT_MAKE_TITLE_STRING(TITLE, VERSION, RELEASE, UPDATE)"\n"     \
-"@(#)      Compiled:  "__DATE__" "__TIME__"\n"                                       \
-"@(#)   Description:  " DESCRIPTION_STRING"\n"                                       \
+"@(#) Title/Version:  "UT_MAKE_TITLE_STRING(TITLE, VERSION)"\n"                      \
+"@(#)      Compiled:  "UT_MAKE_COMPILE_DATE"\n"                                      \
+"@(#)   Description:  "DESCRIPTION_STRING"\n\n"                                        \
 UT_COPYRIGHT()                                                                       \
 "@(#) --------------------------------------------------------------------------\n"  \
 "@(#) \n" ;
