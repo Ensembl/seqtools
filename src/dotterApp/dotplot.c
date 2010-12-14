@@ -1000,18 +1000,18 @@ static void populateMatchSeqBinaryVals(DotterWindowContext *dwc, const int slen,
 
 /* Create the score vector that is used by calculateImage. Allocates memory but does not populate it
  * except for the not-a-residue entry) */
-static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, BlxHandle *handle, int ***scoreVecPtr)
+static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, BlxHandle *handle, gint32 ***scoreVecPtr)
 {
   DotterContext *dc = dwc->dotterCtx;
   
   *scoreVecPtr = handleAlloc(handle, vecLen * sizeof(int*));
-  int **scoreVec = *scoreVecPtr;
+  gint32 **scoreVec = *scoreVecPtr;
 
   /* Allocate memory for each row in the score vector. Each row is the length of the ref sequence */
   int rowIdx = 0;
   for ( ; rowIdx < vecLen; ++rowIdx)
     {
-      scoreVec[rowIdx] = handleAlloc(handle, qlen * sizeof(int));
+      scoreVec[rowIdx] = handleAlloc(handle, qlen * sizeof(gint32));
     }
 
   if (dc->blastMode != BLXMODE_BLASTN)
@@ -1041,7 +1041,7 @@ static void populateScoreVec(DotterWindowContext *dwc, const int vecLen, const i
           const char qBase = getHozSeqBase(dwc, qIdx, frame, offset);
           const int asciiVal = (int)qBase;
           const int aminoAcidId = translationTable[asciiVal];
-          const int score = dc->matrix[rowIdx][aminoAcidId]; /* score of this base in the q seq wrt the current amino acid ID 'i' */
+          const gint32 score = dc->matrix[rowIdx][aminoAcidId]; /* score of this base in the q seq wrt the current amino acid ID 'i' */
           
           scoreVec[rowIdx][qIdx] = score;
         }
@@ -1299,17 +1299,17 @@ static void calculateImage(DotplotProperties *properties)
   /* Initialize lookup tables for faster execution. scoreVec is an array of precalculated 
    * scores for qseq residues. sIndex contains the match sequence forward strand bases as 
    * binary values (i.e. amino-acid IDs 0 -> 23) */
-  int **scoreVec = NULL;
+  gint32 **scoreVec = NULL;
   createScoreVec(dwc, vecLen, pepQSeqLen, &handle, &scoreVec);
 
-  int *sIndex = handleAlloc(&handle, slen * sizeof(int));
+  gint32 *sIndex = handleAlloc(&handle, slen * sizeof(gint32));
   populateMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
   
   /* Allocate some vectors for use in averaging the values for whole rows at a time. Initialise the
    * 'zero' array now but leave the sum arrays because these will be reset in doCalculateWindow. */
-  int *zero = handleAlloc(&handle, pepQSeqLen * sizeof(int));
-  int *sum1 = handleAlloc(&handle, pepQSeqLen * sizeof(int));
-  int *sum2 = handleAlloc(&handle, pepQSeqLen * sizeof(int));
+  gint32 *zero = handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
+  gint32 *sum1 = handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
+  gint32 *sum2 = handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
 
   int idx = 0;
   for (idx = 0; idx < pepQSeqLen; ++idx) 
@@ -1404,13 +1404,40 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
       return;
     }
 
+  /* 'dotstart' is the sum of how many bytes there are before the dot-plot data starts. We remember this
+   * value so that we can look ahead to check the length of the file with fseek but still know where
+   * to jump back to in the file to start reading the dot-plot data. */
+  int dotstart = 0;
+
   /* Read in the format, zoom, and image size */
   unsigned char format;
-  gboolean ok = fread(&format, sizeof(unsigned char), 1, loadFile) == 1;
+  gboolean ok = fread(&format, 1, sizeof(unsigned char), loadFile) == sizeof(unsigned char);
+  dotstart += sizeof(unsigned char);
+
+  if (format != 1 && format != 2 && format != 3) 
+    {
+      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Unknown dotter file format version: %d", format);
+      return;
+    }
   
-  ok &= fread(&dwc->zoomFactor, sizeof(gdouble), 1, loadFile) == 1;
-  ok &= fread(&properties->imageWidth, sizeof(int), 1, loadFile) == 1;
-  ok &= fread(&properties->imageHeight, sizeof(int), 1, loadFile) == 1;
+  /* Read in the zoom factor (an int in formats 1 and 2, or gdouble in later formats) */
+  if (format == 1 || format == 2)
+    {
+      ok &= fread(&dwc->zoomFactor, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+      dotstart += sizeof(gint32);
+    }
+  else
+    {
+      ok &= fread(&dwc->zoomFactor, 1, sizeof(gdouble), loadFile) == sizeof(gdouble);
+      dotstart += sizeof(gdouble);
+    }
+  
+  /* Read in the image size */
+  ok &= fread(&properties->imageWidth, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+  dotstart += sizeof(gint32);
+
+  ok &= fread(&properties->imageHeight, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+  dotstart += sizeof(gint32);
   
   if (!ok)
     {
@@ -1420,43 +1447,45 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
   
 #ifdef ALPHA
   reversebytes(&dwc->zoomFactor, sizeof(gdouble));
-  reversebytes(&properties->imageWidth, sizeof(int));
-  reversebytes(&properties->imageHeight, sizeof(int));
+  reversebytes(&properties->imageWidth, sizeof(gint32));
+  reversebytes(&properties->imageHeight, sizeof(gint32));
 #endif
   
   properties->lineLen = properties->imageWidth;
   
-  int dotstart = 0;
-  
   if (format == 1) 
     {
-      dotstart = 13;
-      
       /* Don't actually know these variables for sure - guess the most common */
       properties->pixelFac = 50;
       properties->slidingWinSize = 25;
     }
-  else if (format == 2) 
+  else 
     {
-      ok &= fread(&properties->pixelFac, sizeof(int), 1, loadFile) == 1;
-      ok &= fread(&properties->slidingWinSize, sizeof(int), 1, loadFile) == 1;
+      ok &= fread(&properties->pixelFac, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+      dotstart += sizeof(gint32);
+
+      ok &= fread(&properties->slidingWinSize, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+      dotstart += sizeof(gint32);
 
       /* Read in the matrix name (read the length of the name first) */
-      int matrixNameLen;
-      ok &= fread(&matrixNameLen, sizeof(int), 1, loadFile) == 1;
-      
+      gint32 matrixNameLen;
+      ok &= fread(&matrixNameLen, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+      dotstart += sizeof(gint32);
+
 #ifdef ALPHA
       if (ok)
         {
-          reversebytes(&properties->pixelFac, sizeof(int));
-          reversebytes(&properties->slidingWinSize, sizeof(int));
-          reversebytes(&matrixNameLen, sizeof(int));
+          reversebytes(&properties->pixelFac, sizeof(gint32));
+          reversebytes(&properties->slidingWinSize, sizeof(gint32));
+          reversebytes(&matrixNameLen, sizeof(gint32));
         }
 #endif
 
       ok &= matrixNameLen <= MAX_MATRIX_NAME_LENGTH;
       char matrixName[MAX_MATRIX_NAME_LENGTH + 1];
-      ok &= fread(&matrixName, sizeof(char), matrixNameLen, loadFile) == matrixNameLen;
+
+      ok &= fread(&matrixName, sizeof(char), matrixNameLen, loadFile) == matrixNameLen * sizeof(char);
+      dotstart += sizeof(char) * matrixNameLen;
 
       if (ok)
         {
@@ -1473,22 +1502,16 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
             {
               for (j = 0; j < 24; j++) 
                 {
-                  int matrixVal;
-                  ok &= fread(&matrixVal, sizeof(int), 1, loadFile) == 1; 
+                  gint32 matrixVal;
+                  ok &= fread(&matrixVal, 1, sizeof(gint32), loadFile) == sizeof(gint32); 
+                  dotstart += sizeof(gint32);
 #ifdef ALPHA
-                  reversebytes(&matrixVal, 4);
+                  reversebytes(&matrixVal, sizeof(gint32));
 #endif
                   dc->matrix[i][j] = matrixVal;
                 }
             }
-              
-          dotstart = matrixNameLen + 2329;
         }
-    }
-  else 
-    {
-      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Unknown dotter file format version: %d", format);
-      return;
     }
   
   if (!ok)
@@ -1502,10 +1525,10 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
 
   const int pixelmapLen = properties->imageHeight*properties->imageWidth;
 
-  if (n - dotstart != properties->imageWidth*properties->imageHeight)
+  if (n - dotstart != pixelmapLen)
     {
-      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Wrong number of pixels in %s: %d. Expected %d * %-d = %d\n", 
-            loadFileName, n, properties->imageWidth, properties->imageHeight, pixelmapLen);
+      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Wrong number of pixels in %s: %d. Expected %d * %d = %d\n", 
+            loadFileName, n - dotstart, properties->imageWidth, properties->imageHeight, pixelmapLen);
       return;
     }
   
@@ -1518,9 +1541,9 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
   for (i = 0; i < pixelmapLen; i++)
     {
       unsigned char pixelVal;
-      ok &= fread(&pixelVal, sizeof(unsigned char), 1, loadFile) == 1; 
+      ok &= fread(&pixelVal, 1, sizeof(unsigned char), loadFile) == sizeof(unsigned char); 
 #ifdef ALPHA
-      reversebytes(&pixelVal, 4);
+      reversebytes(&pixelVal, sizeof(unsigned char));
 #endif
       properties->pixelmap[i] = pixelVal;
     }
@@ -1534,15 +1557,18 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
 //    }
   
   fclose(loadFile);
-  
+
   g_message("Dotplot file '%s' was loaded successfully.\n", loadFileName);
-  
+
   if (format == 1) 
     {
       g_message("Old dotplot file format '1' was used, so the windowsize and pixel factor are estimates.\n");
     }
-  
+
   fflush(stdout);
+
+  /* Create the image */
+  properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
 }
 
 
@@ -1614,19 +1640,28 @@ static const char* getSaveFileName(GtkWidget *widget, const char *currentName, c
 //}
 
 
-/* SAVEPLOT writes a 1 byte fileformat first, various params and then the dot-matrix
+/* savePlot writes a 1 byte unsigned-char at the start of the file to indicate the file format. 
+ * It then writes various parameters (as determined by that format) and then the dot-matrix itself.
+ *
+ * The format char is one of the following:
+ *   '1'  The original format, with the following fields: format (uchar), zoom (int), image width (int), image height (int) 
+ *   '2'  In addition to the format '1' fields: pixelFac (int), win size (int), matrix name len (int), matrix name (MNlen chars) 
+ *   '3'  as format 2 but changed zoom from int to gdouble 
+ *
+ * Note that formats 1 and 2 used to assume that the 'int' date type was always 4 bytes. We now make
+ * sure this is the case by using the gint32 data type, which is guaranteed to be 32 bits (4 bytes)
+ * on any system.  The standard for chars/uchars (1 byte) and doubles/gdoubles (8 bytes) should be 
+ * consistent for all systems so we don't need to worry about those.
  */
 void savePlot(GtkWidget *dotplot, const char *saveFileName, GError **error)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
-  int 
-  i, j,
-  MNlen, MNlenSave,
-  mtx;
-  unsigned char format = 2;
+
+  /* This is the latest file format number. Increment this if you change anything that will break
+   * compatibility with the current format. */
+  unsigned char format = 3;
 
   gboolean batch = (saveFileName ? TRUE : FALSE); /* whether this is part of a batch process */
 
@@ -1654,42 +1689,56 @@ void savePlot(GtkWidget *dotplot, const char *saveFileName, GError **error)
       return;
     }
   
-  MNlen = MNlenSave = strlen(dc->matrixName);
+  /* Get the length of the matrix name */
+  const gint32 MNlen = strlen(dc->matrixName);
+  gint32 MNlenSave = MNlen;
   
 #ifdef ALPHA
   reversebytes(&dwc->zoomFactor, sizeof(gdouble));
-  reversebytes(&properties->imageWidth, sizeof(int));
-  reversebytes(&properties->imageHeight, sizeof(int));
-  reversebytes(&pixelFac, sizeof(int));
-  reversebytes(&slidingWinSize, sizeof(int));
-  reversebytes(&MNlenSave, sizeof(int));
+  reversebytes(&properties->imageWidth, sizeof(gint32));
+  reversebytes(&properties->imageHeight, sizeof(gint32));
+  reversebytes(&pixelFac, sizeof(gint32));
+  reversebytes(&slidingWinSize, sizeof(gint32));
+  reversebytes(&MNlenSave, sizeof(gint32));
 #endif
   
-  gboolean ok = fwrite(&format, sizeof(unsigned char), 1, saveFile) == 1;
-  ok &= fwrite(&dwc->zoomFactor, sizeof(gdouble), 1, saveFile) == 1;
-  ok &= fwrite(&properties->imageWidth, sizeof(int), 1, saveFile) == 1;
-  ok &= fwrite(&properties->imageHeight, sizeof(int), 1, saveFile) == 1;
-  ok &= fwrite(&properties->pixelFac,  sizeof(int), 1, saveFile) == 1; /* New feature of format 2  */
-  ok &= fwrite(&properties->slidingWinSize, sizeof(int), 1, saveFile) == 1; /* New feature of format 2  */
-  ok &= fwrite(&MNlenSave, sizeof(int), 1, saveFile) == 1; /* New feature of format 2  */
-  ok &= fwrite(dc->matrixName, sizeof(char) * MNlen, 1, saveFile) == 1; /* New feature of format 2  */
+  gboolean ok = fwrite(&format, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char);
+  ok &= fwrite(&dwc->zoomFactor, 1, sizeof(gdouble), saveFile) == sizeof(gdouble);
+  ok &= fwrite(&properties->imageWidth, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+  ok &= fwrite(&properties->imageHeight, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+  ok &= fwrite(&properties->pixelFac,  1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(&properties->slidingWinSize, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(&MNlenSave, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(dc->matrixName, sizeof(char), MNlen, saveFile) == sizeof(char) * MNlen; /* New feature of format 2  */
+  
+  
+  /* Loop through the matrix and write the values to the file */
+  int i = 0;
+  int j = 0;
+  gint32 mtx = 0;
+  
   for (i = 0; i < 24; i++)
-    for (j = 0; j < 24; j++) {
-      mtx = dc->matrix[i][j];
+    {
+      for (j = 0; j < 24; j++)
+        {
+          mtx = dc->matrix[i][j];
 #ifdef ALPHA
-      reversebytes(&mtx, sizeof(int));
+          reversebytes(&mtx, sizeof(gint32));
 #endif
-      ok &= fwrite(&mtx, sizeof(int), 1, saveFile) == 1; /* New feature of format 2  */
+          ok &= fwrite(&mtx, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+        }
     }
   
 #ifdef ALPHA
   reversebytes(&dwc->zoomFactor, sizeof(gdouble));
-  reversebytes(&properties->imageWidth, sizeof(int));
-  reversebytes(&properties->imageHeight, sizeof(int));
-  reversebytes(&pixelFac, sizeof(int));
-  reversebytes(&slidingWinSize, sizeof(int));
+  reversebytes(&properties->imageWidth, sizeof(gint32));
+  reversebytes(&properties->imageHeight, sizeof(gint32));
+  reversebytes(&pixelFac, sizeof(gint32));
+  reversebytes(&slidingWinSize, sizeof(gint32));
 #endif
   
+  
+  /* Loop through the dotplot values and write them to file */
   const int imgSize = properties->imageWidth * properties->imageHeight;
   
   for (i = 0; i < imgSize; i++)
@@ -1698,7 +1747,7 @@ void savePlot(GtkWidget *dotplot, const char *saveFileName, GError **error)
 #ifdef ALPHA
       reversebytes(&pixelVal, sizeof(unsigned char));
 #endif
-      ok &= fwrite(&pixelVal, sizeof(unsigned char), 1, saveFile) == 1; 
+      ok &= fwrite(&pixelVal, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char); 
     }
   
   

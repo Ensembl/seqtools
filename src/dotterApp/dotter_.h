@@ -143,7 +143,7 @@ typedef struct _DotterContext
   BlxSeqType displaySeqType;                /* whether the display shows sequences as nucleotide or peptide */
   int numFrames;			    /* the number of reading frames */
   char **geneticCode;                       /* code used to translate nucleotide triplets to amino acids */
-  int matrix[24][24];                       /* matrix for determining conserved matches */
+  gint32 matrix[24][24];                    /* matrix for determining conserved matches */
   char *matrixName;                         /* matrix name */
   MSP *mspList;                             /* list of all MSPs in dotter */
   GList *seqList;			    /* list of all matches sequences as BlxSequences */

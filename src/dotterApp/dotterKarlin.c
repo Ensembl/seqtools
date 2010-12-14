@@ -335,14 +335,17 @@ OKExit:
 
 
 /* Adapted from blastp.c */
-int winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
+int winsizeFromlambdak(gint32 mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
 		       double *exp_res_score, double *Lambda)
 {
+    gint32 
+        lows=0, highs=0,
+        range;
+  
     int    
-	lows=0, highs=0, 
 	i, j,
 	*n1, *n2,
-	range, qlen=0, slen=0,
+	qlen=0, slen=0,
 	retval,
 	n = 100;		/* Nominal size of dot-matrix */
     double  
