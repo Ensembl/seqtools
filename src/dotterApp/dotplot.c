@@ -19,7 +19,6 @@
 #define PIXELS_PER_MARK_X                           100   /* number of pixels between each major tick mark on the x scale */
 #define PIXELS_PER_MARK_Y                           50    /* number of pixels between each major tick mark on the y scale */
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
-#define NUM_COLORS                                  256   /* the number of colors in our greyscale */
 
 
 int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
@@ -118,48 +117,6 @@ double aafq[20]	/* Amino acid residue frequencies used by S. Altschul */
 .093, .056, .025, .040, .049, .068, .058, .013, .032, .067 } ;
 
 
-
-
-typedef struct _DotplotProperties
-{
-  DotterWindowContext *dotterWinCtx;  /* pointer to the dotter context for the window that this tool belongs to */
-  GtkWidget *exonView1;		      /* forward strand exon view */
-  GtkWidget *exonView2;		      /* reverse strand exon view */
-  GdkRectangle plotRect;	      /* the space where the dot plot will be */
-  
-  gulong greyMap[NUM_COLORS];     /* maps weight -> pixel value. fixed mapping in pseudo colour displays
-                                     variable mapping in truecolor displays */
-  GdkColor greyRamp[NUM_COLORS];  /* 256 grey colors, black->white, only used in true color displays */
-  GdkColormap *colorMap;          /* the greyramp colormap */
-  
-  int imageWidth;
-  int imageHeight;
-  GdkImage *image;                /* the greyramp image */
-  int lineLen;                    /* line length of the image */
-  
-  
-  double expResScore;
-  int pixelFac;
-  int slidingWinSize;
-  
-  /* Dynamic properties: */
-  unsigned char *pixelmap;        /* source data for drawing the dot-plot */
-  unsigned char *hspPixmap;        /* source data for drawing the HSP dot-plot */
-
-  gboolean crosshairOn;           /* whether to show the crosshair that marks the position of the currently-selected coord */
-  gboolean crosshairCoordsOn;     /* whether to display the crosshair label */
-  gboolean crosshairFullscreen;   /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
-
-  gboolean pixelmapOn;            /* whether to show the dot-plot pixelmap or not */
-  DotterHspMode hspMode;          /* how (and whether) to show high-scoring pairs from Blast */
-  
-  gboolean gridlinesOn;           /* whether to show grid lines */
-  
-  GdkPoint dragStart;             /* start point for mid-click drag */
-  GdkPoint dragEnd;		  /* end point for mid-click drag */
-} DotplotProperties;
-
-
 /* Local function declarations */
 static void                       drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       drawImage(GtkWidget *dotplot, GdkDrawable *drawable);
@@ -219,50 +176,57 @@ static void onDestroyDotplot(GtkWidget *widget)
     }
 }
 
-static void dotplotCreateProperties(GtkWidget *widget,
-				    DotterWindowContext *dwc,
-                                    const gboolean hspsOn)
+
+/* Create the properties object for the dotplot. Note that we still create the properties
+ * even if widget is null, because we could be running in batch mode. */
+static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
+                                                  DotterWindowContext *dwc,
+                                                  const gboolean hspsOn)
 {
-  if (widget)
+  DotplotProperties *properties = g_malloc(sizeof *properties);
+  
+  properties->dotterWinCtx = dwc;
+  properties->exonView1 = NULL;
+  properties->exonView2 = NULL;
+  
+  properties->plotRect.x = 0;
+  properties->plotRect.y = 0;
+  properties->plotRect.width = 0;
+  properties->plotRect.height = 0;
+  
+  if (widget) /* only create colormap if we have a widget (i.e. we're not in batch/non-graphical mode) */
     {
-      DotplotProperties *properties = g_malloc(sizeof *properties);
-      
-      properties->dotterWinCtx = dwc;
-      properties->exonView1 = NULL;
-      properties->exonView2 = NULL;
-      
-      properties->plotRect.x = 0;
-      properties->plotRect.y = 0;
-      properties->plotRect.width = 0;
-      properties->plotRect.height = 0;
-      
       properties->colorMap = insertGreyRamp(properties);
       gtk_widget_set_default_colormap(properties->colorMap);
+    }
+  
+  properties->image = NULL;
+  properties->lineLen = UNSET_INT;
 
-      properties->image = NULL;
-      properties->lineLen = UNSET_INT;
+  properties->pixelmap = NULL;
+  properties->hspPixmap = NULL;
 
-      properties->pixelmap = NULL;
-      properties->hspPixmap = NULL;
+  properties->crosshairOn = TRUE;
+  properties->crosshairCoordsOn = TRUE;
+  properties->crosshairFullscreen = TRUE;
 
-      properties->crosshairOn = TRUE;
-      properties->crosshairCoordsOn = TRUE;
-      properties->crosshairFullscreen = TRUE;
+  properties->pixelmapOn = !hspsOn;
+  properties->hspMode = hspsOn ? DOTTER_HSPS_LINE : DOTTER_HSPS_OFF;
+  
+  properties->gridlinesOn = FALSE;
 
-      properties->pixelmapOn = !hspsOn;
-      properties->hspMode = hspsOn ? DOTTER_HSPS_LINE : DOTTER_HSPS_OFF;
+  properties->dragStart.x = UNSET_INT;
+  properties->dragStart.y = UNSET_INT;
+  properties->dragEnd.x = UNSET_INT;
+  properties->dragEnd.y = UNSET_INT;
       
-      properties->gridlinesOn = FALSE;
-
-      properties->dragStart.x = UNSET_INT;
-      properties->dragStart.y = UNSET_INT;
-      properties->dragEnd.x = UNSET_INT;
-      properties->dragEnd.y = UNSET_INT;
-      
+  if (widget)
+    {
       g_object_set_data(G_OBJECT(widget), "DotplotProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyDotplot), NULL); 
-
     }
+  
+  return properties;
 }
 
 
@@ -698,10 +662,11 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
 {
   DEBUG_ENTER("createDotplotDrawingArea");
 
-  GtkWidget *dotplot = gtk_layout_new(NULL, NULL);
+  gboolean batch = (saveFileName == NULL ? FALSE : TRUE);
+
+  GtkWidget *dotplot = (batch ? NULL : gtk_layout_new(NULL, NULL));
   
-  dotplotCreateProperties(dotplot, dwc, hspsOn);
-  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn);
   
   if (loadFileName)
     {
@@ -724,29 +689,34 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
       properties->imageWidth = getImageDimension(properties, TRUE);
       properties->imageHeight = getImageDimension(properties, FALSE);
       properties->lineLen = properties->imageWidth;
-      properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
-
       DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
-    
+      
+      unsigned char **pixmap = NULL; /* which pixelmap we're displaying at the start */
+      
       if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
         {
-          /* Initialise the HSPs pixmap */
-          initPixmap(&properties->hspPixmap, properties->imageWidth, properties->imageHeight);
-          transformGreyRampImage(properties->image, properties->pixelmap, properties);
+          pixmap = &properties->hspPixmap;
+          initPixmap(pixmap, properties->imageWidth, properties->imageHeight);
         }
       else if (properties->pixelmapOn)
         {
-          /* Initialise and populate the pixmap */
-          initPixmap(&properties->pixelmap, properties->imageWidth, properties->imageHeight);
+          pixmap = &properties->pixelmap;
+          initPixmap(pixmap, properties->imageWidth, properties->imageHeight);
           calculateImage(properties);
-          transformGreyRampImage(properties->image, properties->pixelmap, properties);
+        }
+
+      if (!batch)
+        {
+          /* Create the image and push the pixelmap to it */
+          properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+          transformGreyRampImage(properties->image, *pixmap, properties);
         }
     }
   
   if (saveFileName)
     {
       GError *error = NULL;
-      savePlot(dotplot, saveFileName, &error);
+      savePlot(dotplot, properties, saveFileName, &error);
       
       prefixError(error, "Error saving dot plot. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
@@ -754,10 +724,8 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
   else
     {
       initCrosshairCoords(qcenter, scenter, properties->dotterWinCtx);
-    }      
-  
-  
-  calculateDotplotBorders(dotplot, properties);
+      calculateDotplotBorders(dotplot, properties);
+    }
   
   DEBUG_EXIT("createDotplotDrawingArea returning ");
   return dotplot;
@@ -1653,9 +1621,13 @@ static const char* getSaveFileName(GtkWidget *widget, const char *currentName, c
  * on any system.  The standard for chars/uchars (1 byte) and doubles/gdoubles (8 bytes) should be 
  * consistent for all systems so we don't need to worry about those.
  */
-void savePlot(GtkWidget *dotplot, const char *saveFileName, GError **error)
+void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *saveFileName, GError **error)
 {
-  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  /* We may be passed the properties as null if we are given the dotplot. */
+  DotplotProperties *properties = propertiesIn ? propertiesIn : dotplotGetProperties(dotplot);
+  
+  g_assert(properties);
+  
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
@@ -1669,7 +1641,11 @@ void savePlot(GtkWidget *dotplot, const char *saveFileName, GError **error)
   /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to 
    * select a file. */
   static const char *fileName = NULL;
-  fileName = batch ? saveFileName : getSaveFileName(dotplot, fileName, NULL);
+
+  if (batch)
+    fileName = saveFileName;
+  else if (dotplot)
+    fileName = getSaveFileName(dotplot, fileName, NULL);
   
   FILE *saveFile = NULL;
   
@@ -1808,17 +1784,20 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
 
   properties->plotRect.x = DEFAULT_X_PADDING + dc->scaleWidth;
   properties->plotRect.y = DEFAULT_Y_PADDING + dc->scaleHeight;
-  properties->plotRect.width = properties->image->width;
-  properties->plotRect.height = properties->image->height;
+  properties->plotRect.width = properties->imageWidth;
+  properties->plotRect.height = properties->imageHeight;
   
   const int totalWidth = properties->plotRect.x + properties->plotRect.width + DEFAULT_X_PADDING + SCALE_LINE_WIDTH;
   const int totalHeight = properties->plotRect.y + properties->plotRect.height + DEFAULT_Y_PADDING + SCALE_LINE_WIDTH;
   
-  gtk_layout_set_size(GTK_LAYOUT(dotplot), totalWidth, totalHeight);
-  gtk_widget_set_size_request(dotplot, totalWidth, totalHeight);
-  
-  widgetClearCachedDrawable(dotplot, NULL);
-  gtk_widget_queue_draw(dotplot);
+  if (dotplot)
+    {
+      gtk_layout_set_size(GTK_LAYOUT(dotplot), totalWidth, totalHeight);
+      gtk_widget_set_size_request(dotplot, totalWidth, totalHeight);
+
+      widgetClearCachedDrawable(dotplot, NULL);
+      gtk_widget_queue_draw(dotplot);
+    }
   
   DEBUG_EXIT("calculateDotplotBorders returning ");
 }
@@ -2301,6 +2280,12 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
 {
   DEBUG_ENTER("transformGreyRampImage");
 
+  if (!pixmap)
+    {
+      g_warning("Pixelmap is NULL; image will not be drawn.\n");
+      return;
+    }
+    
   /* Note1 : here we stick to client byte-order, and rely on Xlib to swap
    if the server is different */
   

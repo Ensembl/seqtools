@@ -47,6 +47,7 @@
 #define DEFAULT_Y_PADDING                           0     /* default vertical padding around the dot plot */
 #define SCALE_LINE_WIDTH                            1     /* the line width in pixels of the scale boundary and tick marks */
 #define MAX_MATRIX_NAME_LENGTH                      500   /* max length of the matrix name */
+#define NUM_COLORS                                  256   /* the number of colors in our greyscale */
 
 extern char *stdcode1[];        /* 1-letter amino acid translation code */
 
@@ -205,6 +206,48 @@ typedef struct _DotterWindowContext
 
 
 
+
+typedef struct _DotplotProperties
+  {
+    DotterWindowContext *dotterWinCtx;  /* pointer to the dotter context for the window that this tool belongs to */
+    GtkWidget *exonView1;		      /* forward strand exon view */
+    GtkWidget *exonView2;		      /* reverse strand exon view */
+    GdkRectangle plotRect;	      /* the space where the dot plot will be */
+    
+    gulong greyMap[NUM_COLORS];     /* maps weight -> pixel value. fixed mapping in pseudo colour displays
+     variable mapping in truecolor displays */
+    GdkColor greyRamp[NUM_COLORS];  /* 256 grey colors, black->white, only used in true color displays */
+    GdkColormap *colorMap;          /* the greyramp colormap */
+    
+    int imageWidth;
+    int imageHeight;
+    GdkImage *image;                /* the greyramp image */
+    int lineLen;                    /* line length of the image */
+    
+    
+    double expResScore;
+    int pixelFac;
+    int slidingWinSize;
+    
+    /* Dynamic properties: */
+    unsigned char *pixelmap;        /* source data for drawing the dot-plot */
+    unsigned char *hspPixmap;        /* source data for drawing the HSP dot-plot */
+    
+    gboolean crosshairOn;           /* whether to show the crosshair that marks the position of the currently-selected coord */
+    gboolean crosshairCoordsOn;     /* whether to display the crosshair label */
+    gboolean crosshairFullscreen;   /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
+    
+    gboolean pixelmapOn;            /* whether to show the dot-plot pixelmap or not */
+    DotterHspMode hspMode;          /* how (and whether) to show high-scoring pairs from Blast */
+    
+    gboolean gridlinesOn;           /* whether to show grid lines */
+    
+    GdkPoint dragStart;             /* start point for mid-click drag */
+    GdkPoint dragEnd;		  /* end point for mid-click drag */
+  } DotplotProperties;
+
+
+
 int		    winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
 				       double *exp_res_score, double *Lambda);
 
@@ -257,7 +300,7 @@ void                toggleCrosshairFullscreen(GtkWidget *dotplot);
 void                setHspMode(GtkWidget *dotplot, DotterHspMode hspMode);
 void                redrawDotplot(GtkWidget *dotplot);
 void                refreshDotplot(GtkWidget *dotplot);
-void                savePlot(GtkWidget *dotplot, const char *saveFileName, GError **error);
+void                savePlot(GtkWidget *dotplot, DotplotProperties *properties, const char *saveFileName, GError **error);
 void                loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error);
 
 

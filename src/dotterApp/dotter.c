@@ -544,6 +544,7 @@ static gdouble getInitZoomFactor(DotterContext *dc, const gdouble zoomFacIn, con
 
 
 static DotterContext* createDotterContext(BlxBlastMode blastMode, 
+                                          const gboolean batchMode,
 					  const char *refSeqName,
 					  char *refSeq,
                                           const BlxStrand refSeqStrand,
@@ -581,14 +582,21 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   result->watsonOnly = watsonOnly;
   result->crickOnly = crickOnly;
   
-  /* Set the fixed-width font */
-  GtkWidget *tmp = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  const char *fontFamily = findFixedWidthFont(tmp);
-  result->fontDesc = pango_font_description_from_string(fontFamily);
-  pango_font_description_set_size(result->fontDesc, pango_font_description_get_size(tmp->style->font_desc));
-  getFontCharSize(tmp, result->fontDesc, &result->charWidth, &result->charHeight);
-  gtk_widget_destroy(tmp);
-         
+  /* Set the fixed-width font (not applicable in batch mode) */
+  if (!batchMode)
+    {
+      GtkWidget *tmp = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+      const char *fontFamily = findFixedWidthFont(tmp);
+      result->fontDesc = pango_font_description_from_string(fontFamily);
+      pango_font_description_set_size(result->fontDesc, pango_font_description_get_size(tmp->style->font_desc));
+      getFontCharSize(tmp, result->fontDesc, &result->charWidth, &result->charHeight);
+      gtk_widget_destroy(tmp);
+    }
+  else
+    {
+      result->fontDesc = NULL;
+    }
+  
   result->refSeqName = g_strdup(refSeqName);
   result->refSeq = refSeq; /* take ownership of passed-in seq */
   result->refSeqRev = NULL;
@@ -656,7 +664,10 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   result->defaultColors = NULL;
   result->usePrintColors = FALSE;  
   
-  createDotterColors(result);
+  if (!batchMode)
+    { 
+      createDotterColors(result);
+    }
   
   /* Calculate the height and width of the horizontal and vertical scales */
   const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min), numDigitsInInt(result->matchSeqFullRange.max));
@@ -968,15 +979,20 @@ void dotter (const BlxBlastMode blastMode,
       strcpy(matrixName, "BLOSUM62");
     }
 
-  /* Don't do batch processing if output file can't be opened */
+  gboolean batchMode = FALSE;
+  
   if (saveFileName) 
     {
+      /* If a save file was given, that implies we're in batch mode (i.e. don't display any windows) */
+      batchMode = TRUE;
+      
+      /* Don't do batch processing if output file can't be opened */
       if (!fopen (saveFileName, "wb"))
 	g_error("Failed to open %s", saveFileName);
     }
   
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
-  DotterContext *dotterCtx = createDotterContext(blastMode, queryname, queryseq, refSeqStrand, 
+  DotterContext *dotterCtx = createDotterContext(blastMode, batchMode, queryname, queryseq, refSeqStrand, 
                                                  subjectname, subjectseq, matchSeqStrand,
                                                  qoff, soff, options->hozScaleRev, options->vertScaleRev, 
                                                  selfComp, options->mirrorImage, options->watsonOnly, options->crickOnly,
@@ -2723,7 +2739,7 @@ static void onSavePlotMenu(GtkAction *action, gpointer data)
   DotterProperties *properties = dotterGetProperties(dotterWindow);
 
   GError *error = NULL;
-  savePlot(properties->dotplot, NULL, &error);
+  savePlot(properties->dotplot, NULL, NULL, &error);
   
   prefixError(error, "Error saving plot. ");
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
