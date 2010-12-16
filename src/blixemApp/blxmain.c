@@ -51,15 +51,8 @@
 /* global debug flag for blixem, set TRUE to get debugging output.           */
 gboolean blixem_debug_G = FALSE ;
 
-
-static char *usageText ="\n\
+#define usageText "\n\
  Blixem - display multiple alignments against a reference sequence.\n\
-\n\
- Reference:  Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
- Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
-\n\
- Copyright (c) 2009-2010: Genome Research Ltd.\n\
-\n\
 \n\
  Usage: blixem [options] [<sequencefile>] <datafile> [X options] \n\
 \n\
@@ -71,6 +64,7 @@ static char *usageText ="\n\
    Both <sequencefile> and <datafile> can be substituted by \"-\"\n\
    for reading from stdin (pipe).  If <sequencefile> is piped, the first\n\
    line should contain the sequence name and the second the sequence itself.\n\
+\n\
 \n\
  Options:\n\
   -m <mode>, --display-mode  MANDATORY\n\
@@ -131,14 +125,32 @@ static char *usageText ="\n\
   --optional-data\n\
     Parse additional data such as organism and tissue-type on start-up.\n\
 \n\
+  --version\n\
+    Show package version number.\n\
+\n\
  Some X options:\n\
  -acefont <font> Main font.\n\
- -font    <font> Menu font.\n\
-\n\
-"AUTHOR_TEXT_FULL"\n\
- Version %s\n\%s\n" ;
+ -font    <font> Menu font.\n\n"
 
-static char *help_string = "\n\
+/* Text to show the authors, version and compile date */
+#define footerText "\
+ -----\n\
+"AUTHOR_TEXT_FULL" \n\
+\n\
+ Reference:  Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
+	     Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
+\n\
+ "BLIXEM_COPYRIGHT_STRING"\n\
+ "BLIXEM_LICENSE_STRING"\n\
+\n\
+ Version "BLIXEM_VERSION_COMPILE"\n\
+\n\
+"
+
+/* Text to show the version */
+#define versionText BLIXEM_PACKAGE_VERSION"\n"
+
+#define helpText "\n\
 FEATURES\n\
   The prefered file format for <datafile> is GFF v3. (However, Blixem is still compatible with\n\
   older file formats such as exblx and seqbl, as used by MSPcrunch).\n\
@@ -197,7 +209,7 @@ To make the datafile from blast output, run MSPcrunch with option -q.\n\
 \n\
  o The BLAST program (blastp, blastn, blastx, tblastn, tblastx)\n\
    is automatically detected from the Blast output header by MSPcrunch\n\
-   and is passed on to Blixem in the seqbl format (-q)." ;
+   and is passed on to Blixem in the seqbl format (-q).\n\n" 
 
 
 /* set default values for command lines options */
@@ -412,6 +424,37 @@ static char* getSupportedTypesAsString(GSList *supportedTypes)
 }
 
 
+/* Prints usage info to stderr */
+static void showUsageText()
+{
+  /* Pring usage info followed by authors */
+  fprintf(stderr, "%s%s", usageText, footerText);
+}
+
+
+/* Prints extended usage info to stderr */
+static void showHelpText(GSList *supportedTypes)
+{
+  /* Print the standard usage text, followed by the additional help text and authors */
+  GString *resultStr = g_string_new(usageText);
+
+  char *supported_types_string = getSupportedTypesAsString(supportedTypes);
+  g_string_append_printf(resultStr, helpText, supported_types_string);
+
+  g_string_append(resultStr, footerText);
+  
+  fprintf(stderr, "%s", resultStr->str);
+  g_string_free(resultStr, TRUE);
+}
+
+
+/* Prints version info to stderr */
+static void showVersionInfo()
+{
+  fprintf(stderr, versionText);  
+}
+
+
 /* Entry point for blixem standalone program, you should be aware when
  * altering this that blxview.c is also compiled into acedb and that
  * blxview() is called directly by acedb code.
@@ -424,6 +467,7 @@ int main(int argc, char **argv)
   char line[MAXLINE+1];
   
   int install = 1;
+  static gboolean showVersion = FALSE;	    /* gets set to true if blixem was called with --version option */
   
   gboolean rm_input_files = FALSE ; /* whether to remove input files once we're done with them */
   PfetchParams *pfetch = NULL ;
@@ -459,13 +503,8 @@ int main(int argc, char **argv)
   g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
                     popupMessageHandler, NULL);
 
-  /* Stick version info. into usage string. */
-  char usage[strlen(usageText) + strlen(blixemVersion) + 10];
-  sprintf(usage, usageText, blixemVersion, "") ;
-
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
   GSList* supportedTypes = blxCreateSupportedGffTypeList();
-  char *supported_types_string = getSupportedTypesAsString(supportedTypes);
 
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
@@ -475,6 +514,7 @@ int main(int argc, char **argv)
       {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
       {"hide-inactive",         no_argument,        &options.hideInactive, 1},
       {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
+      {"version",		no_argument,        &showVersion, 1},
 
       {"alignment-names",       required_argument,  0, 'a'},
       {"disable-big-picture",   no_argument,        0, 'b'},
@@ -531,9 +571,7 @@ int main(int argc, char **argv)
 	  break;
 	case 'h': 
           {
-            char helpText[strlen(help_string) + strlen(supported_types_string) + 10];
-            sprintf(helpText, help_string, supported_types_string);
-            fprintf(stderr, usageText, blixemVersion, helpText) ;
+	    showHelpText(supportedTypes);
             exit(EXIT_FAILURE) ;
             break;
           }
@@ -600,11 +638,18 @@ int main(int argc, char **argv)
 	}
     }
 
+  if (showVersion)
+    {
+      /* Just show the version info */
+      showVersionInfo();
+      exit(EXIT_FAILURE);
+    }
+  
   /* We expect one or two input files, or 0 input files if the FSfilename was already set with the -F option */
   const int numFiles = argc - optind;
   if (!(numFiles == 1 || numFiles == 2 || (numFiles == 0 && *FSfilename != '\0')))
     {
-      fprintf(stderr, "%s\n", usage); 
+      showUsageText();
       exit(EXIT_FAILURE);
     }
 

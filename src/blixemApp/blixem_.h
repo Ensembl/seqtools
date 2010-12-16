@@ -40,17 +40,18 @@
 
 
 /*            blixem program version and information.                        */
-#define BLIXEM_TITLE   "Blixem program"
+#define BLIXEM_TITLE   "Blixem"
 #define BLIXEM_DESC    "Multiple alignment visualisation tool."
 
 /* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
 #define BLIXEM_VERSION_STRING	   PACKAGE_VERSION
+#define BLIXEM_PACKAGE_VERSION	   UT_MAKE_VERSION_INFO_STRING(PACKAGE_NAME, PACKAGE_VERSION)
 #define BLIXEM_TITLE_STRING	   UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION_STRING)
 #define BLIXEM_VERSION_COMPILE	   BLIXEM_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
 #define BLIXEM_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2009-2010")
 #define BLIXEM_WEBSITE_STRING	   ""
-#define BLIXEM_LICENSE_STRING	   "Blixem is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
+#define BLIXEM_LICENSE_STRING	   UT_MAKE_LICENCE_STRING(BLIXEM_TITLE)
 
 #define BLIXEM_COMMENTS_STRING()                                \
 "("BLIXEM_TITLE_STRING", "					\

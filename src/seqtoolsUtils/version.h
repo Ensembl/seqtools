@@ -105,6 +105,16 @@ __TIME__ " " __DATE__
 "Copyright (c) " YEARS_STRING ": Genome Research Ltd."
 
 
+/* Make a version-info string (has the package name and version string) */
+#define UT_MAKE_VERSION_INFO_STRING(PACKAGE_NAME, VERSION_STRING) \
+PACKAGE_NAME" - "VERSION_STRING
+
+
+/* Make a licence string */
+#define UT_MAKE_LICENCE_STRING(TITLE) \
+TITLE" is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
+
+
 /* Define the authors of the SeqTools package. AUTHOR_LIST is a comma-separated list of all authors
  * that should be credited. AUTHOR_TEXT is a string containing the main authors. */
 #define AUTHOR_LIST	   "Gemma Barson (Sanger Institute, UK) <gb10@sanger.ac.uk>",\

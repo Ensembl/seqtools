@@ -53,17 +53,18 @@ extern char *stdcode1[];        /* 1-letter amino acid translation code */
 
 
 /*            dotter program version and information.                        */
-#define DOTTER_TITLE   "Dotter program"
+#define DOTTER_TITLE   "Dotter"
 #define DOTTER_DESC    "Dot-matrix plotter for detailed comparision of two sequences."
 
 /* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
 #define DOTTER_VERSION_STRING	   PACKAGE_VERSION
+#define DOTTER_PACKAGE_VERSION	   UT_MAKE_VERSION_INFO_STRING(PACKAGE_NAME, PACKAGE_VERSION)
 #define DOTTER_TITLE_STRING	   UT_MAKE_TITLE_STRING(DOTTER_TITLE, DOTTER_VERSION_STRING)
 #define DOTTER_VERSION_COMPILE	   DOTTER_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
 #define DOTTER_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2010")
 #define DOTTER_WEBSITE_STRING	   ""
-#define DOTTER_LICENSE_STRING	   "Dotter is distributed under the GNU Public License, see http://www.gnu.org/copyleft/gpl.txt"
+#define DOTTER_LICENSE_STRING	   UT_MAKE_LICENCE_STRING(DOTTER_TITLE)
 
 #define DOTTER_COMMENTS_STRING()                                \
 "("DOTTER_TITLE_STRING", "					\
