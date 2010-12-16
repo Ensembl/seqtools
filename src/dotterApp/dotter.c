@@ -412,7 +412,6 @@ static const char contextMenuDescription[] =
 
 
 /* Global variables */
-char *dotterVersion = DOTTER_VERSION_COMPILE ;
 
 static int    MATRIX[24][24];
 //              MSPoffset,	/* Difference between real MSP coord and coord stored in MSP */

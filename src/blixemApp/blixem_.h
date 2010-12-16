@@ -371,7 +371,6 @@ gboolean                           fetchSequences(GList *seqsToFetch,
                                                   GError **error);
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
-extern char      *blixemVersion;
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */
 extern int       aa_atob[];
 extern int       PAM120[23][23];

@@ -134,11 +134,6 @@ MSP score codes:
 
 
 
-/* This is the only place this is set so that you get the same version/compile whether this is
- * compiled stand alone or as part of xace. */
-char *blixemVersion = BLIXEM_VERSION_COMPILE ;
-
-
 static void            blviewCreate(char *align_types, const char *paddingSeq, GList* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
 static void            finaliseBlxSequences(GList *featureLists[], MSP **mspList, GList **seqList, const int offset);
 static void            processGeneName(BlxSequence *blxSeq);

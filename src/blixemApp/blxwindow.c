@@ -3591,7 +3591,7 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       /* Set a pretty big initial size. */
       const int width = blxWindow->allocation.width * 0.7;
       int height = blxWindow->allocation.height * 0.9;
-      char *messageText = blxprintf(HELP_TEXT1, blixemVersion);
+      char *messageText = blxprintf(HELP_TEXT1);
 
       GtkWidget *child = createScrollableTextView(messageText, TRUE, blxWindow->style->font_desc, TRUE, &height, NULL);
       

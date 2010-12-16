@@ -43,6 +43,65 @@
 #define UNSET_INT  -1
 
 
+#define USAGE_TEXT "\
+\n\
+ Dotter - Sequence dotplots with image enhancement tools.\n\
+\n\
+ Usage: dotter [options] <horizontal_sequence> <vertical_sequence>  [X options]\n\
+\n\
+   Where <horizontal_sequence> and <vertical_sequence> are file names for FASTA files\n\
+   containing the two sequences.\n\
+\n\
+   Allowed sequence types:   Protein  -   Protein\n\
+			     DNA      -   DNA\n\
+			     DNA      -   Protein\n\
+\n\
+ Options:\n\
+  -h		 Show this usage information\n\
+  -b <file>      Batch mode, write dotplot to <file>\n\
+  -l <file>      Load dotplot from <file>\n\
+  -m <float>     Memory usage limit in Mb (default 0.5)\n\
+  -z <int>       Set zoom (compression) factor\n\
+  -p <int>       Set pixel factor manually (ratio pixelvalue/score)\n\
+  -W <int>       Set sliding window size. (K => Karlin/Altschul estimate)\n\
+  -M <file>      Read in score matrix from <file> (Blast format; Default: Blosum62).\n\
+  -F <file>      Read in sequences and data from <file> (replaces sequencefiles).\n\
+  -f <file>      Read feature segments from <file>\n\
+  -H             Do not calculate dotplot at startup.\n\
+  -R             Reversed Greyramp tool at start.\n\
+  -r             Reverse and complement horizontal_sequence (DNA vs Protein)\n\
+  -v             Reverse and complement vertical_sequence (DNA vs Protein)\n\
+  -D             Don't display mirror image in self comparisons\n\
+  -w             For DNA: horizontal_sequence top strand only (Watson)\n\
+  -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
+  -q <int>       Horizontal_sequence offset\n\
+  -s <int>       Vertical_sequence offset\n\
+\n\
+ Some X options:\n\
+  -acefont <font> Main font.\n\
+  -font    <font> Menu font.\n\
+\n"
+
+
+/* Text to show the authors, version and compile date */
+#define FOOTER_TEXT "\
+-----\n\
+"AUTHOR_TEXT_FULL" \n\
+\n\
+ Reference: Sonnhammer ELL & Durbin R (1995). A dot-matrix program\n\
+ 	    with dynamic threshold control suited for genomic DNA and protein\n\
+ 	    sequence analysis. Gene 167(2):GC1-10.\n\
+\n\
+ See http://www.cgb.ki.se/cgb/groups/sonnhammer/Dotter.html for more info.\n\
+\n\
+ "DOTTER_COPYRIGHT_STRING"\n\
+ "DOTTER_LICENSE_STRING"\n\
+\n\
+ Version "DOTTER_VERSION_COMPILE"\n\
+\n\
+"
+
+
 static void setDefaultOptions(DotterOptions *options)
 {
   options->qoffset = 0;
@@ -134,60 +193,10 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
 }		      
 
 
-static char* getUsageText()
+/* Print the usage text to stderr */
+static void showUsageText()
 {
-
-  char *usage;
-  static char usageText[] = "\
-\n\
- Dotter - Sequence dotplots with image enhancement tools.\n\
-\n\
- Reference: Sonnhammer ELL & Durbin R (1995). A dot-matrix program\n\
- with dynamic threshold control suited for genomic DNA and protein\n\
- sequence analysis. Gene 167(2):GC1-10.\n\
-\n\
- Usage: dotter [options] <horizontal_sequence> <vertical_sequence>  [X options]\n\
-\n\
- Allowed types:                Protein        -      Protein\n\
-                               DNA            -      DNA\n\
-                               DNA            -      Protein\n\
-\n\
- Options:\n\
-\n\
- -b <file>      Batch mode, write dotplot to <file>\n\
- -l <file>      Load dotplot from <file>\n\
- -m <float>     Memory usage limit in Mb (default 0.5)\n\
- -z <int>       Set zoom (compression) factor\n\
- -p <int>       Set pixel factor manually (ratio pixelvalue/score)\n\
- -W <int>       Set sliding window size. (K => Karlin/Altschul estimate)\n\
- -M <file>      Read in score matrix from <file> (Blast format; Default: Blosum62).\n\
- -F <file>      Read in sequences and data from <file> (replaces sequencefiles).\n\
- -f <file>      Read feature segments from <file>\n\
- -H             Do not calculate dotplot at startup.\n\
- -R             Reversed Greyramp tool at start.\n\
- -r             Reverse and complement horizontal_sequence (DNA vs Protein)\n\
- -v             Reverse and complement vertical_sequence (DNA vs Protein)\n\
- -D             Don't display mirror image in self comparisons\n\
- -w             For DNA: horizontal_sequence top strand only (Watson)\n\
- -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
- -q <int>       Horizontal_sequence offset\n\
- -s <int>       Vertical_sequence offset\n\
-\n\
- Some X options:\n\
- -acefont <font> Main font.\n\
- -font    <font> Menu font.\n\
-\n\
- See http://www.cgb.ki.se/cgb/groups/sonnhammer/Dotter.html for more info.\n\
-\n\
-"AUTHOR_TEXT_FULL"\n\
- Version ";
-    
-  extern char *dotterVersion;
-
-  usage = g_malloc(strlen(usageText) + strlen(dotterVersion) + 20);
-  sprintf(usage, "%s%s\n", usageText, dotterVersion);
-  
-  return usage;
+  fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 
@@ -256,11 +265,9 @@ int main(int argc, char **argv)
   int          optc;
   extern int   optind;
   extern char *optarg;
-  char        *optstring="b:cDf:F:Hil:M:m:p:q:Rrs:SvW:wz:";
+  char        *optstring="b:cDf:F:hHil:M:m:p:q:Rrs:SvW:wz:";
 
   static char *dotterBinary = NULL;
-
-  char *usage = getUsageText();
 
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
@@ -290,6 +297,9 @@ int main(int argc, char **argv)
             options.seqInSFS = 1;        
             options.FSfilename = g_malloc(strlen(optarg)+1);
             strcpy(options.FSfilename, optarg);         break;
+	  case 'h': 
+	    showUsageText();
+	    exit(EXIT_FAILURE);			        break;
           case 'H': options.hspsOnly = TRUE;            break;
           case 'i': options.install = 0;                break;
           case 'l': 
@@ -414,7 +424,7 @@ int main(int argc, char **argv)
          * only have, at mosts, one input argument: the Xoptions*/
         if (argc - optind > 1)
           {
-	    fprintf(stderr, "%s\n", usage); 
+	    showUsageText();
             exit(EXIT_FAILURE);
           }
         
@@ -426,7 +436,7 @@ int main(int argc, char **argv)
          * optional, so we should have 2 or 3 arguments */
         if (argc - optind < 2 || argc - optind > 3) 
           {
-	    fprintf(stderr, "%s\n", usage); 
+	    showUsageText();
             exit(EXIT_FAILURE);
           }
       
@@ -616,7 +626,8 @@ int main(int argc, char **argv)
       }
     else
       {
-        fprintf(stderr, "Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n%s", usage);
+        fprintf(stderr, "Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n");
+	showUsageText();
         exit(EXIT_FAILURE);
       }
       

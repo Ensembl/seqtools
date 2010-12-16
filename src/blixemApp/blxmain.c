@@ -51,7 +51,7 @@
 /* global debug flag for blixem, set TRUE to get debugging output.           */
 gboolean blixem_debug_G = FALSE ;
 
-#define usageText "\n\
+#define USAGE_TEXT "\n\
  Blixem - display multiple alignments against a reference sequence.\n\
 \n\
  Usage: blixem [options] [<sequencefile>] <datafile> [X options] \n\
@@ -133,8 +133,8 @@ gboolean blixem_debug_G = FALSE ;
  -font    <font> Menu font.\n\n"
 
 /* Text to show the authors, version and compile date */
-#define footerText "\
- -----\n\
+#define FOOTER_TEXT "\
+-----\n\
 "AUTHOR_TEXT_FULL" \n\
 \n\
  Reference:  Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
@@ -150,7 +150,7 @@ gboolean blixem_debug_G = FALSE ;
 /* Text to show the version */
 #define versionText BLIXEM_PACKAGE_VERSION"\n"
 
-#define helpText "\n\
+#define HELP_TEXT "\n\
 FEATURES\n\
   The prefered file format for <datafile> is GFF v3. (However, Blixem is still compatible with\n\
   older file formats such as exblx and seqbl, as used by MSPcrunch).\n\
@@ -428,7 +428,7 @@ static char* getSupportedTypesAsString(GSList *supportedTypes)
 static void showUsageText()
 {
   /* Pring usage info followed by authors */
-  fprintf(stderr, "%s%s", usageText, footerText);
+  fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 
@@ -436,12 +436,12 @@ static void showUsageText()
 static void showHelpText(GSList *supportedTypes)
 {
   /* Print the standard usage text, followed by the additional help text and authors */
-  GString *resultStr = g_string_new(usageText);
+  GString *resultStr = g_string_new(USAGE_TEXT);
 
   char *supported_types_string = getSupportedTypesAsString(supportedTypes);
-  g_string_append_printf(resultStr, helpText, supported_types_string);
+  g_string_append_printf(resultStr, HELP_TEXT, supported_types_string);
 
-  g_string_append(resultStr, footerText);
+  g_string_append(resultStr, FOOTER_TEXT);
   
   fprintf(stderr, "%s", resultStr->str);
   g_string_free(resultStr, TRUE);
