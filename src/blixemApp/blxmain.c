@@ -148,7 +148,7 @@ gboolean blixem_debug_G = FALSE ;
 "
 
 /* Text to show the version */
-#define versionText BLIXEM_PACKAGE_VERSION"\n"
+#define VERSION_TEXT BLIXEM_PACKAGE_VERSION"\n"
 
 #define HELP_TEXT "\n\
 FEATURES\n\
@@ -451,7 +451,7 @@ static void showHelpText(GSList *supportedTypes)
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  fprintf(stderr, versionText);  
+  fprintf(stderr, VERSION_TEXT);  
 }
 
 

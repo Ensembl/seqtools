@@ -82,6 +82,9 @@
   -font    <font> Menu font.\n\
 \n"
 
+/* Text to show the version */
+#define VERSION_TEXT DOTTER_PACKAGE_VERSION"\n"
+
 
 /* Text to show the authors, version and compile date */
 #define FOOTER_TEXT "\
@@ -199,6 +202,12 @@ static void showUsageText()
   fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
+/* Prints version info to stderr */
+static void showVersionInfo()
+{
+  fprintf(stderr, VERSION_TEXT);  
+}
+
 
 /* Get the Xoptions as a string from the arguments in the argv list. idx should indicate which
  * index in argv the Xoptions start at. The returned string should be free'd with g_free. It may
@@ -262,13 +271,9 @@ int main(int argc, char **argv)
       featureLists[typeId] = NULL;
     }
   
-  int          optc;
-  extern int   optind;
-  extern char *optarg;
-  char        *optstring="b:cDf:F:hHil:M:m:p:q:Rrs:SvW:wz:";
-
   static char *dotterBinary = NULL;
-
+  static gboolean showVersion = FALSE;
+  
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
    * strand is reversed then the horizontal scale is reversed as well. (Because the 'active' (top) strand
@@ -280,11 +285,50 @@ int main(int argc, char **argv)
    * always set to false, even if we have the reverse match seq strand (which is indicated with the -v option). */
   BlxStrand qStrand = BLXSTRAND_FORWARD;
   BlxStrand sStrand = BLXSTRAND_FORWARD;
+  
+  /* Get the input args. We allow long args, so we need to create a long_options array */
+  static struct option long_options[] =
+    {
+      {"version",		no_argument,        &showVersion, 1},
+      
+      {"help",                  no_argument,        0, 'h'},
+      {"batch",                 required_argument,  0, 'b'},
+      {"load-plot",             required_argument,  0, 'l'},
+      {"memory-limit",          required_argument,  0, 'm'},
+      {"zoom",                  required_argument,  0, 'z'},
+      {"pixel-factor",          required_argument,  0, 'p'},
+      {"window-size",           required_argument,  0, 'W'},
+      {"matrix-file",           required_argument,  0, 'M'},
+      {"sequence-file",         required_argument,  0, 'F'},
+      {"feature-file",          required_argument,  0, 'f'},
+      {"hsp-mode",              no_argument,        0, 'H'},
+      {"reverse-greyramp",      no_argument,        0, 'R'},
+      {"reverse-horizontal",    no_argument,        0, 'r'},
+      {"reverse-vertical",      no_argument,        0, 'v'},
+      {"disable-mirror",        no_argument,        0, 'D'},
+      {"watson-only",           no_argument,        0, 'w'},
+      {"crick-only",            no_argument,        0, 'c'},
+      {"horizontal-offset",     required_argument,  0, 'q'},
+      {"vertical-offset",       required_argument,  0, 's'},
+      {0, 0, 0, 0}
+    };
 
-  while ((optc = getopt(argc, argv, optstring)) != EOF)
+  char        *optstring="b:cDf:F:hHil:M:m:p:q:Rrs:SvW:wz:";
+  extern int   optind;
+  extern char *optarg;
+  int          optionIndex; /* getopt_long stores the index into the option struct here */
+  int          optc;        /* the current option gets stored here */
+  
+  while ((optc = getopt_long(argc, argv, optstring, long_options, &optionIndex)) != EOF)
     {
       switch (optc) 
         {
+	  case 0:
+          break; /* we get here if getopt_long set a flag; nothing else to do */
+          
+	  case '?':
+          break; /* getopt_long already printed an error message */
+	  
           case 'b': 
             options.savefile = g_malloc(strlen(optarg)+1);
             strcpy(options.savefile, optarg);           break;
@@ -328,6 +372,12 @@ int main(int argc, char **argv)
       }
     }
 
+    if (showVersion)
+      {
+	showVersionInfo();
+	exit (EXIT_FAILURE);
+      }
+  
     if (!options.savefile)
       {
 	gtk_init(&argc, &argv);
