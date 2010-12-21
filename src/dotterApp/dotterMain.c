@@ -76,6 +76,8 @@
   -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
   -q <int>       Horizontal_sequence offset\n\
   -s <int>       Vertical_sequence offset\n\
+  --version      Show package version\n\
+  --compiled     Show package compile date\n\
 \n\
  Some X options:\n\
   -acefont <font> Main font.\n\
@@ -208,6 +210,12 @@ static void showVersionInfo()
   fprintf(stderr, VERSION_TEXT);  
 }
 
+/* Prints compiled date to stderr */
+static void showCompiledInfo()
+{
+  fprintf(stderr, "%s\n", UT_MAKE_COMPILE_DATE());  
+}
+
 
 /* Get the Xoptions as a string from the arguments in the argv list. idx should indicate which
  * index in argv the Xoptions start at. The returned string should be free'd with g_free. It may
@@ -273,6 +281,7 @@ int main(int argc, char **argv)
   
   static char *dotterBinary = NULL;
   static gboolean showVersion = FALSE;
+  static gboolean showCompiled = FALSE;
   
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
@@ -290,6 +299,7 @@ int main(int argc, char **argv)
   static struct option long_options[] =
     {
       {"version",		no_argument,        &showVersion, 1},
+      {"compiled",		no_argument,        &showCompiled, 1},
       
       {"help",                  no_argument,        0, 'h'},
       {"batch",                 required_argument,  0, 'b'},
@@ -374,11 +384,17 @@ int main(int argc, char **argv)
 
     if (showVersion)
       {
-	showVersionInfo();
-	exit (EXIT_FAILURE);
+        showVersionInfo();
+        exit (EXIT_FAILURE);
       }
-  
-    if (!options.savefile)
+    
+    if (showCompiled)
+      {
+        showCompiledInfo();
+        exit (EXIT_FAILURE);
+      } 
+
+  if (!options.savefile)
       {
 	gtk_init(&argc, &argv);
       }
@@ -481,7 +497,7 @@ int main(int argc, char **argv)
         options.xOptions = getXOptions(argv, argc, optind);
       }
     else
-          {
+      {
         /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
          * optional, so we should have 2 or 3 arguments */
         if (argc - optind < 2 || argc - optind > 3) 

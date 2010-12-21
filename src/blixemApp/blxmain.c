@@ -128,6 +128,9 @@ gboolean blixem_debug_G = FALSE ;
   --version\n\
     Show package version number.\n\
 \n\
+  --compiled\n\
+    Show package compile date.\n\
+\n\
  Some X options:\n\
  -acefont <font> Main font.\n\
  -font    <font> Menu font.\n\n"
@@ -454,6 +457,12 @@ static void showVersionInfo()
   fprintf(stderr, VERSION_TEXT);  
 }
 
+/* Prints compiled date to stderr */
+static void showCompiledInfo()
+{
+  fprintf(stderr, "%s\n", UT_MAKE_COMPILE_DATE());  
+}
+
 
 /* Entry point for blixem standalone program, you should be aware when
  * altering this that blxview.c is also compiled into acedb and that
@@ -468,6 +477,7 @@ int main(int argc, char **argv)
   
   int install = 1;
   static gboolean showVersion = FALSE;	    /* gets set to true if blixem was called with --version option */
+  static gboolean showCompiled = FALSE;	    /* gets set to true if blixem was called with --compiled option */
   
   gboolean rm_input_files = FALSE ; /* whether to remove input files once we're done with them */
   PfetchParams *pfetch = NULL ;
@@ -515,6 +525,7 @@ int main(int argc, char **argv)
       {"hide-inactive",         no_argument,        &options.hideInactive, 1},
       {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
       {"version",		no_argument,        &showVersion, 1},
+      {"compiled",		no_argument,        &showCompiled, 1},
 
       {"alignment-names",       required_argument,  0, 'a'},
       {"disable-big-picture",   no_argument,        0, 'b'},
@@ -642,6 +653,13 @@ int main(int argc, char **argv)
     {
       /* Just show the version info */
       showVersionInfo();
+      exit(EXIT_FAILURE);
+    }
+
+  if (showCompiled)
+    {
+      /* Just show the version info */
+      showCompiledInfo();
       exit(EXIT_FAILURE);
     }
   
