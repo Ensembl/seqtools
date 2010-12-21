@@ -210,10 +210,10 @@ static void showVersionInfo()
   fprintf(stderr, VERSION_TEXT);  
 }
 
-/* Prints compiled date to stderr */
+/* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  fprintf(stderr, "%s\n", UT_MAKE_COMPILE_DATE());  
+  fprintf(stdout, "%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
