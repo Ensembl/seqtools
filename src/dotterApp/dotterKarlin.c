@@ -1,11 +1,10 @@
-/*  Last edited: Oct 26 10:45 2003 (edgrif) */
-/* $Id: dotterKarlin.c,v 1.4 2010-10-22 11:58:58 gb10 Exp $ */
-
-/*
- -------------------------------------------------------------
- * Acedb is free software; you can redistribute it and/or
+/*  File: dotterKarlin.c
+ *  Author: Erik Sonnhammer, 1995-08-28
+ *  Copyright (c) 2010 Genome Research Ltd
+ * ---------------------------------------------------------------------------
+ * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
@@ -17,19 +16,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
- * -------------------------------------------------------------
-|  File: dotterKarlin.c                                     |
-|  Contents: Karlin/Altschul statistics for dotter          |
-|  Author: Erik Sonnhammer (esr@sanger.ac.uk)               |
-|  Copyright (C) E Sonnhammer, 1994                         |
--------------------------------------------------------------
+ * ---------------------------------------------------------------------------
+ * This file is part of the SeqTools sequence analysis package, 
+ * written by
+ *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
+ * 
+ * based on original code by
+ *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
+ * 
+ * and utilizing code taken from the AceDB and ZMap packages, written by
+ *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
+ *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+ *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
+ *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
+ *
+ * Description: Karlin/Altschul statistics calculations
+ *----------------------------------------------------------------------------
+ */
 
-   Date   Modification
---------  ---------------------------------------------------
-95-08-28  Created
-
-
-*/
 
 #include <dotterApp/dotter_.h>
 #include <gtk/gtk.h>

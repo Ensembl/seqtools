@@ -1,10 +1,10 @@
 /*  File: blxmain.c
- *  Author: Erik Sonnhammer
- *  Copyright (c) J Thierry-Mieg and R Durbin, 1999
- * -------------------------------------------------------------------
- * Acedb is free software; you can redistribute it and/or
+ *  Author: Erik Sonnhammer, 1999-08-26
+ *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ * ---------------------------------------------------------------------------
+ * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
@@ -16,19 +16,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
- * -------------------------------------------------------------------
- * This file is part of the ACEDB genome database package, written by
- * 	Richard Durbin (Sanger Centre, UK) rd@sanger.ac.uk, and
- *	Jean Thierry-Mieg (CRBM du CNRS, France) mieg@kaa.crbm.cnrs-mop.fr
+ * ---------------------------------------------------------------------------
+ * This file is part of the SeqTools sequence analysis package, 
+ * written by
+ *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
+ * 
+ * based on original code by
+ *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
+ * 
+ * and utilizing code taken from the AceDB and ZMap packages, written by
+ *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
+ *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+ *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
+ *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: BLXMAIN - Standalone calling program for blxview.
- * Exported functions: 
- * HISTORY:
- * Last edited: May 26 17:13 2009 (edgrif)
- * * Aug 26 16:57 1999 (fw): added this header
- * Created: Thu Aug 26 16:56:45 1999 (fw)
- * CVS info:   $Id: blxmain.c,v 1.33 2010-11-09 10:13:48 gb10 Exp $
- *-------------------------------------------------------------------
+ * Description: main() function for Blixem
+ *              BLast matches In an X-windows Embedded Multiple alignment
+ *----------------------------------------------------------------------------
  */
 
 #include <blixemApp/blixem_.h>

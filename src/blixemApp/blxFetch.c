@@ -1,10 +1,10 @@
 /*  File: blxFetch.c
- *  Author: Ed Griffiths (edgrif@sanger.ac.uk)
- *  Copyright (c) 2008: Genome Research Ltd.
- *-------------------------------------------------------------------
- * ZMap is free software; you can redistribute it and/or
+ *  Author: Ed Griffiths, 2008-06-17
+ *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ * ---------------------------------------------------------------------------
+ * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
@@ -16,29 +16,31 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
- *-------------------------------------------------------------------
- * This file is part of the acedb genome database package
- * originally written by:
+ * ---------------------------------------------------------------------------
+ * This file is part of the SeqTools sequence analysis package, 
+ * written by
+ *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
+ * 
+ * based on original code by
+ *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
+ * 
+ * and utilizing code taken from the AceDB and ZMap packages, written by
+ *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
+ *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+ *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
+ *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * 	Ed Griffiths (Sanger Institute, UK) edgrif@sanger.ac.uk,
- *      Roy Storey (Sanger Institute, UK) rds@sanger.ac.uk
- *
- * Description: Blixem functions for control of entry fetching and
+ * Description: Blixem functions for control of sequence fetching and
  *              display.
  *              
  *              Compiling with -DPFETCH_HTML includes code to issue
  *              pfetch requests to a proxy pfetch server using html.
  *              This requires libs libpfetch and libcurlobj
  *              which in turn require libcurl.
- *
- * Exported functions: 
- *              
- * HISTORY:
- * Last edited: Aug 21 17:34 2009 (edgrif)
- * Created: Tue Jun 17 16:20:26 2008 (edgrif)
- * CVS info:   $Id: blxFetch.c,v 1.46 2010-11-03 16:04:58 gb10 Exp $
- *-------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
+
 
 #include <sys/socket.h> /* for socket(), connect(), send(), and recv() */
 #include <netinet/in.h>

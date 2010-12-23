@@ -1,10 +1,10 @@
 /*  File: blixem_.h
- *  Author: Ed Griffiths (edgrif@sanger.ac.uk)
- *  Copyright (c) J Thierry-Mieg and R Durbin, 2001
- *-------------------------------------------------------------------
- * Acedb is free software; you can redistribute it and/or
+ *  Author: Ed Griffiths, 2001-11-29
+ *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ * ---------------------------------------------------------------------------
+ * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
@@ -16,19 +16,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
- *-------------------------------------------------------------------
- * This file is part of the ACEDB genome database package, written by
- * 	Richard Durbin (Sanger Centre, UK) rd@sanger.ac.uk, and
- *	Jean Thierry-Mieg (CRBM du CNRS, France) mieg@kaa.crbm.cnrs-mop.fr
- *
- * Description: Internal header for Dotter and Blixem package-wide code
+ * ---------------------------------------------------------------------------
+ * This file is part of the SeqTools sequence analysis package, 
+ * written by
+ *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
  * 
- * HISTORY:
- * Last edited: Aug 26 09:09 2009 (edgrif)
- * Created: Thu Nov 29 10:59:09 2001 (edgrif)
- * CVS info:   $Id: blixem_.h,v 1.61 2010-11-09 10:13:48 gb10 Exp $
- *-------------------------------------------------------------------
+ * based on original code by
+ *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
+ * 
+ * and utilizing code taken from the AceDB and ZMap packages, written by
+ *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
+ *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+ *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
+ *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
+ *
+ * Description: Internal header for Blixem package-wide code
+ *----------------------------------------------------------------------------
  */
+
 #ifndef DEF_BLIXEM_P_H
 #define DEF_BLIXEM_P_H
 

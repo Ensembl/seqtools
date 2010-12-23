@@ -1,10 +1,10 @@
-/*  File: dotter.c
- *  Author: Erik Sonnhammer
- *  Copyright (c) J Thierry-Mieg and R Durbin, 1999
- * -------------------------------------------------------------------
- * Acedb is free software; you can redistribute it and/or
+/*  File: dotplot.c
+ *  Author: Erik Sonnhammer, 1993-09-04
+ *  Copyright (c) 2010 Genome Research Ltd
+ * ---------------------------------------------------------------------------
+ * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
@@ -16,103 +16,34 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
- * -------------------------------------------------------------------
- * This file is part of the ACEDB genome database package, written by
- *      Richard Durbin (Sanger Centre, UK) rd@sanger.ac.uk, and
- *      Jean Thierry-Mieg (CRBM du CNRS, France) mieg@kaa.crbm.cnrs-mop.fr
+ * ---------------------------------------------------------------------------
+ * This file is part of the SeqTools sequence analysis package, 
+ * written by
+ *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
+ * 
+ * based on original code by
+ *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
+ * 
+ * and utilizing code taken from the AceDB and ZMap packages, written by
+ *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
+ *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+ *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
+ *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: See comment block below.
- * Exported functions: See dotter.h
- * HISTORY:
- * Last edited: Aug 26 09:08 2009 (edgrif)
- * * May 13 11:29 1999 (edgrif): Add minor fix from Christian Iseli
- * * Mar 17 16:24 1999 (edgrif): Fixed bug which crashed xace when a
- *              negative alignment length was given.
- * Created: Wed Mar 17 16:23:21 1999 (edgrif)
- * CVS info:   $Id: dotter.c,v 1.21 2010-11-08 15:52:49 gb10 Exp $
- *-------------------------------------------------------------------
+ * Description: This file contains functions that initialise Dotter and create
+ *              the main Dotter window. 
+ *----------------------------------------------------------------------------
  */
+
 
 /*
    DOTTER - Sequence-sequence dotplot in a pixel background image
 
--------------------------------------------------------------
-|  File: dotter.c                                           |
-|  Author: Erik Sonnhammer                                  |
-|  Copyright (C) E Sonnhammer and R Durbin, 1994            |
--------------------------------------------------------------
-
    Memory requirements:
    The pixelmap + (alphabetsize+4) x qlen + 2 x slen
 
-
-   Date   Modification
---------  ---------------------------------------------------
-93-09-04  Created
-...
-94-10-09  Added DNA support, changed crosshair to BoxShift calls
-94-10-10  Got rid of *rawdata since we can't store the full n*m matrix
-	  Implemented zoomfactor everywhere
-	  ScoreVector speedup trick
-94-10-12  Reverse-complement for DNA (watson = top/forward strand)
-94-10-13  Saving, loading and batch running
-94-11-01  Re-calling dotter with middle mouse rectangle.
-          Tidy scales even with offset.
-	  Zoom factor according to qlen*slen
-94-11-11  Introduced header in dotter files [variable(bytes)]:
-             version (1), zoom(4), qlen4(4), slen4(4)
-          Fixed signed char bug (-1 !> 127) for Sun, Alpha.
-          Rewrote inner loop - 3 times faster.
-94-11-15  Changed *data to unsigned char.  char* doesn't work for Sun/Sol/OSF.
-          Reversed blastx mode
-94-12-05  Display of Exons and Introns.
-94-12-13  Speedup by better use of scoreVec rows.
-95-07-12  [2.0] user-features with start == end drawn as lines.
-95-07-13  Finally tracked down malloc problem of graphPixelsRaw().
-          This was incorrect in graphRampTool and graphPixles too.
-95-08-24  [2.1] Added from command line choosable score matrix file (Both Protein & DNA)
-95-08-24  [2.1] Crosshair coordinates in dot-matrix.
-95-09-06  [2.2] Karlin-Altschul statistics for estimating best windowsize.
-95-09-07  [2.2] Calculation of score -> pixel factor, given MATRIX, and sequences.
-95-09-08  [2.2] Dotplot files now with: win, pixelFac, Matrix, Matrixname.
-95-11-01  [2.2] Added X options capability.
-          Emergency workaround if Karlin/Altschul statistics fail. Limit range to 10-50.
-	  Improved zooming in with findCommand().
-	  Added Xoptions at zooming.
-	  Added MSPlist at zooming.
-96-04-16  [2.3] Default usage of 'installed' (private) colormap, by adding "-install"
-          to the argument list.  Disable with -i. New graphlib routines by Darren Platt.
-96-04-23  [2.3] Added dotterBinary filename to zoom-parameters, since "which" always seems
-          to fail from dotter started in a popen, which blocked double zooming.
-96-04-24  [2.3] rd changed graphColorSquares to use explicit tints by force majeure.
-96-07-18  [2.3] fixed bug (initAlignment called before initCrosshair) that caused crashes.
-96-07-24  [2.3] fixed bug in LeftDown that caused box crash when Crosshair wasn't on.
-96-07-28  [2.3] Changed to checkmark menus.
-                Fixed bug that HSPpixel map didn't get reset before calculation.
-96-09-20 (rbrusk): in dotterRedraw(), (re-)initialize  vLineBox and hLineBox for all
-			new dotgraph's
-97-02-28  [2.4] Fixed bugs in feature drawing routine (incorrect resfac in DNA-protein),
-          incorrect parsing of multiple sequence files.
-97-03-19  [2.4] Changed findCommand to search path self instead of relying on 'which dotter'.
-97-11-19  [2.5] Added featurefile on command line.
-          Added series and width drawing of feature segments.
-	  Added crosshair-full-window option.
-	  Fixed annotation drawing of segment boxes (used to only work on lines).
-97-11-19  [2.6] For selfcomparisons, duplication of the mirror image was made default.
-                (full selfcomp matrix is now never calculated.  -D has reversed effect).
-97-11-19  [2.6] Added selectFeatures Tool to hide/unhide feature series.
-98-01-15  [2.7] Changed Feature annotation to msp->desc (no length limit).
-                Fixed some bugs in Feature drawing.
-		Window sizes automatically to accommodated feature files.
-98-07-08  [2.7] Fixed bug in findCommand: run strtok on a copy and not directly on getenv("PATH").
-99-07-07  [3.0] Added support for XY curve shapes PARTIAL and INTERPOLATE.
-02-03-14  [3.0] Added quotes around sequence names when calling dotterBinary so that names with pipes
-                don't cause failures.
-02-03-26  [3.1] Added separator line for first sequence in multi-sequence mode.
-                Changed header in dotplot from seqname to filename in multi-sequence mode.
-
-
-          Pending:
+          Pending (this is an old list - may be out of date):
 
 	  change filqueryopen to filqueryeditopen (.dotter) when getting new code.
 

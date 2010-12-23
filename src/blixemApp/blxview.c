@@ -1,114 +1,53 @@
-/*
-
-   BLIXEM - BLast matches In an X-windows Embedded Multiple alignment
-
- -------------------------------------------------------------
- * Acedb is free software; you can redistribute it and/or
+/*  File: blxview.c
+ *  Author: Erik Sonnhammer, 1993-02-20
+ *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ * ---------------------------------------------------------------------------
+ * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
- * -------------------------------------------------------------
-   |  File: blxview.c                                          |
-   |  Author: Erik.Sonnhammer                                  |
-   |  Copyright (C) E Sonnhammer 1993-1997                     |
-   -------------------------------------------------------------
+ * ---------------------------------------------------------------------------
+ * This file is part of the SeqTools sequence analysis package, 
+ * written by
+ *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
+ * 
+ * based on original code by
+ *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
+ * 
+ * and utilizing code taken from the AceDB and ZMap packages, written by
+ *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
+ *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+ *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
+ *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Exported functions: See blxview.h
- * HISTORY:
- * Last edited: Sep 10 16:16 2009 (edgrif)
- * * Jan 10 10:35 2002 (edgrif): Fix up socket code and add various
- *              options for better sequence display.
- * previous mods:
-  Date      Modification
---------  ---------------------------------------------------
-93-02-20  Created
-93-05-25  Dispstart/dispend fix by Richard for seq's < displen.
-93-07-24  All boxes of a protein turn black when one is picked
-          Sorting by protein name or score added
-93-11-16  Added picking of Big Picture HSP's and Reverse Strand Big Picture
-93-11-17  Added blastn support
-94-01-29  Added Highlight sequences by names matching regexp
-94-03-07  Fixed window limits. Added initial settings (BigPict, gotoNext)
-94-03-08  Added 'always-both-strands' in blastn mode.
-94-03-27  Added Tblastn support (works in seqbl mode).
-94-12-01  [2.0] Added dotter calling.
-95-02-02  Rewrote auxseq and padseq allocation to be fully dynamic and unlimited.
-95-02-06  Added Tblastx support (works in seqbl mode).
-95-06-01  [2.1] Added entropy display
-95-06-23  [2.1] Added Settings window
-95-07-21  2.1 announced--------------------------------------
-95-08-01  [2.2] Initial Sorting mode on command line.
-95-09-15  [2.2] Added Settings pull-down menu for faster manipulation.
-95-09-29  [2.2] Improved WWW browser finding with findCommand() - doesn't get fooled so easily.
-95-10-04  [2.2] Added "Print whole alignment"
-95-10-27  [2.2] Added acedb-fetching at double clicking.
-          BLIXEM_FETCH_ACEDB makes this default.
-          Reorganised Settings window to Toggles and Menus rows.
-95-11-01  [2.3] Changed command line syntax to "-" for piping.
-          Added X options capability (-acefont, -font).
-96-01-05  [2.3] Force all tblastn HSP's to be qframe +1, to harmonize with MSPcrunch 1.4
-          which gives sframe for tblastn (otherwise the output would be dead).
-96-02-08  [2.3] Added option -S "Start display at position #" to stand-alone command line.
-96-02-08  [2.3] Added checkmarks to pull-down settings menu.
-96-03-05  2.3 Announced.
-96-03-08  [2.4] Only look for WWW browser once.
-96-05-09  [2.4] Proper grayscale print colors.
-96-05-09  [2.4] Enabled piping of query sequence too, for Pepmap and WWW calls.
-96-08-20  [2.4] Fixed minor bug in squashed mode and added restoring of previous sorting after squash.
-97-05-28  [2.4] Fixed parsing to handle gapped matches.
-                Added "Highlight lower case residues" for gapped alignments and
-                "Show sequence descriptions" (for MSPcrunch 2.1).
-		Added setting the color of matching residues in the Settings window.
-97-06-17  [2.4] Fixed "Highlight differences" for gapped alignments ('.' -> '-').
-                Changed "Highlight lower case residues" to "Highlight subject insertions" and
-		set this automatically for gapped alignments.  Works for both lower case and number
-		insert markers.
-                Changed blviewRedraw to use strlen to accommodate reverse gapped alignments.
-		Simplified (and thereby debugged) selection of Big Picture MSPs to be drawn.
-		Made Big Picture ON/OFF control more logical and consistent.
-		Added a calcID() step to fix sortById() at startup.
-		Added "Hilight Upper/Lower case" - useful general purpose feature.
-97-10-14  [2.4] Added Description box when picking sequences.
-97-03-07  [3.0] Added code for FS Feature Segment data. (shared code with Dotter for
-                control and parsing; the display code is unique to Blixem).
-                Added Inverted sorting order.
-		Fixed bug in coordinate display in tblastn mode.
-99-07-07  [3.0] Added msp->shape attribute. Added support for XY curve shapes PARTIAL and INTERPOLATE.
-                Overhauled selective drawing of BigPicture MSPs, now simple enough to be bugfree (hopefully).
-01-10-05	Added getsseqsPfetch to fetch all missing sseqs in one go via socket connection to pfetch [RD]
-
- * Created: Thu Feb 20 10:27:39 1993 (esr)
- * CVS info:   $Id: blxview.c,v 1.87 2010-11-08 18:41:29 gb10 Exp $
- *-------------------------------------------------------------------
+ * Description: Setup and miscellaneous functions for Blixem.
+ *              
+ *              This file is a bit of a mish-mash. It originally contained all
+ *              of the graphical stuff for Blixem, but that has been moved to
+ *              other files. This file now mostly contains setup functions,
+ *              but it also contains other functions that don't really belong
+ *              anywhere else.
+ *----------------------------------------------------------------------------
  */
 
 
 /*
-		Pending:
-
-		        Do exons and introns like SFS segments (i.e. eliminate
-			magic scores.  Requires changes to fmapfeatures.c).
-
-Known bugs:
------------
-
-revcomp broken when called from acedb.  Slen/send problem?
-
-MSP score codes:
+MSP score codes (for obsolete exblx file format):
 ----------------
 -1 exon                  -> Big picture + Alignment
 -2 intron                -> Big picture + Alignment
--3 Any colored segment  -> Big picture
+-3 Any colored segment   -> Big picture
 -4 stringentSEGcolor     -> Big picture
 -5 mediumSEGcolor        -> Big picture
 -6 nonglobularSEGcolor   -> Big picture
