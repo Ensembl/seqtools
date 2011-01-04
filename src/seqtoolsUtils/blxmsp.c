@@ -438,6 +438,11 @@ const GdkColor* mspGetColor(const MSP const *msp,
 	result = getGdkColor(fill ? utrFillColorId : utrLineColorId, defaultColors, selected, usePrintColors);
 	break;
 	
+        /* to do: mspGetIntronColor() is non-trivial, because it has to work out the color
+         * from the adjacent exons. Since mspGetColor() is called many times on re-draw, it
+         * would be better to work out whether an intron is CDS or UTR during initialisation 
+         * and use different types (e.g. BLXMSP_INTRON_CDS) that can be queried here to quickly
+         * determine what color to use. */
 	case BLXMSP_INTRON:
 	result = mspGetIntronColor(msp, defaultColors, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
 	break;
