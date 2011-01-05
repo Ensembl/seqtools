@@ -446,7 +446,7 @@ static const char* getDotterTitle(const BlxViewContext *bc)
 {
   const char *result = NULL;
   
-  GString *resultStr = g_string_new("Dotter sequence: ");
+  GString *resultStr = g_string_new("Blixem - Dotter sequence: ");
   
   const int numSeqs = g_list_length(bc->selectedSeqs);
   
@@ -1402,7 +1402,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
       prefixError(rangeError, "Warning: ");
       postfixError(rangeError, "\nContinue?");
 
-      ok = (runConfirmationBox(blxWindow, "Warning", rangeError->message) == GTK_RESPONSE_ACCEPT);
+      ok = (runConfirmationBox(blxWindow, "Blixem - Warning", rangeError->message) == GTK_RESPONSE_ACCEPT);
       g_error_free(rangeError);
       rangeError = NULL;
       

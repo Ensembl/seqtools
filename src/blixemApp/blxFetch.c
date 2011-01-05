@@ -349,7 +349,10 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 #if !defined(MACINTOSH)
 
   GString *resultText = getExternalCommandOutput(command);
-  displayFetchResults(command, resultText->str, blxWindow, NULL);
+  char *title = blxprintf("Blixem - %s", command);
+  displayFetchResults(title, resultText->str, blxWindow, NULL);
+  
+  g_free(title);
   g_string_free(resultText, TRUE);
 
 #endif
@@ -535,7 +538,9 @@ static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean disp
   
   if (displayResults)
     {
-      displayFetchResults(command->str, resultText->str, blxWindow, NULL);
+      char *title = blxprintf("Blixem - %s", command->str);
+      displayFetchResults(title, resultText->str, blxWindow, NULL);
+      g_free(title);
     }
 
   if (result_out)

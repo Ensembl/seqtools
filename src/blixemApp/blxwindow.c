@@ -980,7 +980,7 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("View panes", 
+      dialog = gtk_dialog_new_with_buttons("Blixem - View panes", 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_OK,
@@ -1460,7 +1460,7 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Find sequences", 
+      dialog = gtk_dialog_new_with_buttons("Blixem - Find sequences", 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_GO_BACK,
@@ -1501,7 +1501,7 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 /* Show the 'Info' dialog, which displays info about the currently-selected sequence(s) */
 void showInfoDialog(GtkWidget *blxWindow)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Sequence info", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Sequence info", 
 						  NULL, 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CLOSE,
@@ -2202,7 +2202,7 @@ static void onButtonClickedDeleteAllGroups(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
   /* Ask the user if they're sure */
-  gint response = runConfirmationBox(blxWindow, "Delete groups", "This will delete ALL groups. Are you sure?");
+  gint response = runConfirmationBox(blxWindow, "Blixem - Delete groups", "This will delete ALL groups. Are you sure?");
   
   if (response == GTK_RESPONSE_ACCEPT)
     {
@@ -2227,7 +2227,7 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
   char messageText[strlen(formatStr) + strlen(group->groupName)];
   sprintf(messageText, formatStr, group->groupName);
   
-  gint response = runConfirmationBox(blxWindow, "Delete group", messageText);
+  gint response = runConfirmationBox(blxWindow, "Blixem - Delete group", messageText);
   
   if (response == GTK_RESPONSE_ACCEPT)
     {
@@ -2453,7 +2453,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Groups", 
+      dialog = gtk_dialog_new_with_buttons("Blixem - Groups", 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_CANCEL,
@@ -3237,7 +3237,7 @@ static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gp
       if (!ok)
         {
           char *msg = blxprintf("Selected font '%s' is not a fixed-width font. Matches may not appear correctly aligned. Are you sure you want to continue?", fontName);
-          gint response = runConfirmationBox(GTK_WIDGET(dialog), "Warning", msg);
+          gint response = runConfirmationBox(GTK_WIDGET(dialog), "Blixem - Warning", msg);
           g_free(msg);
 
           ok = (response == GTK_RESPONSE_ACCEPT);
@@ -3302,7 +3302,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem Settings", 
+      dialog = gtk_dialog_new_with_buttons("Blixem - Settings", 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_CANCEL,
@@ -3459,7 +3459,7 @@ static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
 static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 {
   /* Create a dialog widget with an OK button */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Statistics", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Statistics", 
                                                   GTK_WINDOW(blxWindow),
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
@@ -3604,7 +3604,7 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   if (!dialog)
     {
       /* Create the dialog */
-      dialog = gtk_dialog_new_with_buttons("Help", 
+      dialog = gtk_dialog_new_with_buttons("Blixem - Help", 
                                            NULL, 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_ABOUT,
@@ -5260,14 +5260,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), TRUE);
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
   
-  /* Set the message handlers again, this time passing the window and statusbar, now we know them */
-  BlxMessageData *msgData = g_malloc(sizeof *msgData);
-  msgData->parent = GTK_WINDOW(window);
-  msgData->statusBar = GTK_STATUSBAR(statusBar);
-  
-  g_log_set_default_handler(defaultMessageHandler, msgData);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL  | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, msgData);
-
+  /* Set the window and statusbar in the message handler data, now that we know them */
+  options->msgData.parent = GTK_WINDOW(window);
+  options->msgData.statusBar = GTK_STATUSBAR(statusBar);
   
   /* Create a vertical box to pack everything in */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);

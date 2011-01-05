@@ -85,6 +85,8 @@ typedef struct _DotterOptions
     gboolean fsEndLinesOn;    /* to do: not used? */
     gboolean hozScaleRev;     /* revese the horizontal scale */
     gboolean vertScaleRev;    /* revese the vertical scale */
+    
+    BlxMessageData msgData;   /* data to be passed to the message handlers */
   } DotterOptions;
 
 
@@ -97,27 +99,9 @@ void dotter(
 	DotterOptions *options, /* Optional, may be NULL 
                                    Various options for display features */
 
-	const char *queryname,   /* Optional, may be NULL 
-				    Name of Horizontal sequence */
-	
-	char *queryseq,	   /* Mandatory, NULL terminated string
-			      Horisontal sequence - g_free'd by Dotter */
+	const BlxStrand refSeqStrand,   /* which strand of the reference sequence was passed */
 
-	int   qoff,	   /* Optional, may be NULL
-			      Coordinate offset of horisontal sequence */
-
-	const BlxStrand refSeqStrand, /* which strand of the reference sequence was passed */
-
-	const char *subjectname, /* Optional, may be NULL 
-			      Name of vertical sequence */
-
-	char *subjectseq,  /* Mandatory, NULL terminated string
-			      vertical sequence - g_free'd by Dotter */
-
-	int   soff,	   /* Optional, may be NULL 
-			      Coordinate offset of horisontal sequence */
-
-	const BlxStrand matchSeqStrand, /* which strand of the match sequence was passed */
+        const BlxStrand matchSeqStrand, /* which strand of the match sequence was passed */
 
 	int   qcenter,	   /* Optional, may be NULL 
 			      Coordinate to centre horisontal sequence on */
@@ -125,34 +109,14 @@ void dotter(
 	int   scenter,	   /* Optional, may be NULL 
 			      Coordinate to centre horisontal sequence on */
 
-	char *savefile,	   /* Optional, may be NULL 
-			      Filename to save dotplot to. Invokes batch mode */
-
-	char *loadfile,	   /* Optional, may be NULL 
-			      Filename to load dotplot from */
-
-	char *mtxfile,	   /* Optional, may be NULL 
-			      Filename to load score matrix from */
-
-	double memoryLimit, /* Optional, may be NULL 
-			      Maximum Mb allowed for dotplot */
-
-	int   zoomFac,	   /* Optional, may be NULL
-			      Compression of dotplot {1, 2, 3, ... }
-			      Automatically calculated if NULL */
-
 	MSP *MSPs,	   /* Optional, may be NULL
 			      List of MSPs containing genes and blast matches */
 
 	GList *seqList,	   /* Optional, may be NULL
 			      List of all match sequences, as BlxSequences */
 	    
-	int   MSPoff,	   /* Optional, may be NULL
+	int   MSPoff	   /* Optional, may be NULL
 			      Coordinate offset of MSPs */
-
-	char *winsize,	   /* String determining the window size */
-
-	int   pixelFacset  /* Preset pixel factor */
 );
 
 

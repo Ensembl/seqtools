@@ -77,8 +77,8 @@ typedef struct _BlxMessage
 
 
 static CallbackData*   widgetGetCallbackData(GtkWidget *widget);
-static void            displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, GtkWindow *parent, GtkStatusbar *statusBar);
-static void            displayMessageAsList(GSList *messageList, const gboolean bringToFront);
+static void            displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, const char *titlePrefix, GtkWindow *parent, GtkStatusbar *statusBar);
+static void            displayMessageAsList(GSList *messageList, const char *titlePrefix, const gboolean bringToFront);
 static BlxMessage*     createBlxMessage(const char *text, const GLogLevelFlags logLevel);
 static void            destroyBlxMessage(BlxMessage **blxMessage);
 static GSList**        getMessageList();
@@ -3095,6 +3095,7 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
   BlxMessageData *msgData = data ? (BlxMessageData*)data : NULL;
   GtkWindow *parent = msgData ? msgData->parent : NULL;
   GtkStatusbar *statusBar = msgData ? msgData->statusBar : NULL;
+  char *titlePrefix = msgData ? msgData->titlePrefix : NULL;
   
   /* also display in the status bar */
   printMessageToStatusbar(message, statusBar);
@@ -3108,11 +3109,11 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
   /* Display as popup or in a scrolled list, whichever method is active */
   if (getUseScrolledMessages())
     {
-      displayMessageAsList(*messageList, FALSE);
+      displayMessageAsList(*messageList, titlePrefix ? titlePrefix : "", FALSE);
     }
   else
     {
-      displayMessageAsPopup(message, log_level, parent, statusBar);
+      displayMessageAsPopup(message, log_level, titlePrefix ? titlePrefix : "", parent, statusBar);
     }
     
   /* Exit elegantly if it's a fatal error */
@@ -3149,15 +3150,18 @@ static void printMessageToStatusbar(const gchar *message, gpointer data)
 
 
 /* Display a warning/error message as a popup */
-static void displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, GtkWindow *parent, GtkStatusbar *statusBar)
+static void displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, const char *titlePrefix, GtkWindow *parent, GtkStatusbar *statusBar)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Error", 
+  char *title = blxprintf("%s%s", titlePrefix, "Error");
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
 						  parent, 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_OK,
 						  GTK_RESPONSE_ACCEPT,
 						  NULL);
   
+  g_free(title);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
   GtkWidget *vbox = gtk_vbox_new(FALSE, 12);
@@ -3187,7 +3191,7 @@ static void displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level
 
 
 /* Display a warning/error message in the scrolled message list */
-static void displayMessageAsList(GSList *messageList, const gboolean bringToFront)
+static void displayMessageAsList(GSList *messageList, const char *titlePrefix, const gboolean bringToFront)
 {
   static GtkWidget *dialog = NULL;
   static GtkWidget *button = NULL;
@@ -3198,12 +3202,15 @@ static void displayMessageAsList(GSList *messageList, const gboolean bringToFron
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Errors", 
+      char *title = blxprintf("%s%s", titlePrefix, "Errors");
+      
+      dialog = gtk_dialog_new_with_buttons(title, 
                                            NULL, 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_OK,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
+      g_free(title);
       
       /* Hide the widget instead of destroying it when it is closed */
       g_signal_connect(G_OBJECT(dialog), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);

@@ -463,7 +463,7 @@ static void onSetLengthMenu(GtkAction *action, gpointer data)
     {
       GtkWidget *parent = gtk_widget_get_toplevel(alignmentTool);
       
-      GtkWidget *dialog = gtk_dialog_new_with_buttons("Set alignment length", 
+      GtkWidget *dialog = gtk_dialog_new_with_buttons("Dotter - Set alignment length", 
                                                       GTK_WINDOW(parent), 
                                                       GTK_DIALOG_DESTROY_WITH_PARENT,
                                                       GTK_STOCK_CANCEL,
@@ -631,7 +631,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   DEBUG_ENTER("createAlignmentTool");
 
   GtkWidget *alignmentTool = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(alignmentTool), "Alignment Tool");
+  gtk_window_set_title(GTK_WINDOW(alignmentTool), "Dotter - Alignment Tool");
 
 //  const int height = getHeightFromBlastMode(watsonOnly, blastMode);
   gtk_window_set_default_size(GTK_WINDOW(alignmentTool), 1160, -1);

@@ -473,27 +473,16 @@ static gdouble getInitZoomFactor(DotterContext *dc, const gdouble zoomFacIn, con
 }
 
 
-static DotterContext* createDotterContext(BlxBlastMode blastMode, 
+static DotterContext* createDotterContext(DotterOptions *options,
+                                          BlxBlastMode blastMode, 
                                           const gboolean batchMode,
-					  const char *refSeqName,
-					  char *refSeq,
                                           const BlxStrand refSeqStrand,
-					  const char *matchSeqName,
-					  char *matchSeq,
                                           const BlxStrand matchSeqStrand,
-					  const int refSeqOffset,
-					  const int matchSeqOffset,
-					  const gboolean hozScaleRev,
-					  const gboolean vertScaleRev,
 					  const gboolean selfComp,
-					  const gboolean displayMirror,
-					  const gboolean watsonOnly,
-					  const gboolean crickOnly,
                                           MSP *mspList,
 					  GList *seqList,
                                           int matrix[24][24],
-                                          char *matrixName,
-                                          const double memoryLimit)
+                                          char *matrixName)
 {
   DEBUG_ENTER("createDotterContext");
 
@@ -509,8 +498,8 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   result->seqList = seqList;
   result->windowList = NULL;
   
-  result->watsonOnly = watsonOnly;
-  result->crickOnly = crickOnly;
+  result->watsonOnly = options->watsonOnly;
+  result->crickOnly = options->crickOnly;
   
   /* Set the fixed-width font (not applicable in batch mode) */
   if (!batchMode)
@@ -527,8 +516,8 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
       result->fontDesc = NULL;
     }
   
-  result->refSeqName = g_strdup(refSeqName);
-  result->refSeq = refSeq; /* take ownership of passed-in seq */
+  result->refSeqName = g_strdup(options->qname);
+  result->refSeq = options->qseq; /* take ownership of passed-in seq */
   result->refSeqRev = NULL;
   result->refSeqType = (blastMode == BLXMODE_BLASTP ? BLXSEQ_PEPTIDE : BLXSEQ_DNA);
   
@@ -547,8 +536,8 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   
   result->refSeqStrand = refSeqStrand;
 
-  result->matchSeqName = g_strdup(matchSeqName);
-  result->matchSeq = matchSeq; /* take ownership of passed-in seq */
+  result->matchSeqName = g_strdup(options->sname);
+  result->matchSeq = options->sseq; /* take ownership of passed-in seq */
   result->matchSeqRev = NULL;
   result->matchSeqType = (blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
   result->matchSeqStrand = matchSeqStrand;
@@ -578,18 +567,18 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
         }
     }
   
-  result->refSeqFullRange.min = refSeqOffset + 1;
-  result->refSeqFullRange.max = refSeqOffset + strlen(refSeq);
-  result->matchSeqFullRange.min = matchSeqOffset + 1;
-  result->matchSeqFullRange.max = matchSeqOffset + strlen(matchSeq);
+  result->refSeqFullRange.min = options->qoffset + 1;
+  result->refSeqFullRange.max = options->qoffset + strlen(options->qseq);
+  result->matchSeqFullRange.min = options->soffset + 1;
+  result->matchSeqFullRange.max = options->soffset + strlen(options->sseq);
   
-  result->hozScaleRev = hozScaleRev;
-  result->vertScaleRev = vertScaleRev;
+  result->hozScaleRev = options->hozScaleRev;
+  result->vertScaleRev = options->vertScaleRev;
 
   result->selfComp = selfComp;
-  result->displayMirror = displayMirror;
+  result->displayMirror = options->mirrorImage;
   
-  result->memoryLimit = memoryLimit;
+  result->memoryLimit = options->memoryLimit;
   
   result->defaultColors = NULL;
   result->usePrintColors = FALSE;  
@@ -603,6 +592,8 @@ static DotterContext* createDotterContext(BlxBlastMode blastMode,
   const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min), numDigitsInInt(result->matchSeqFullRange.max));
   result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT + (roundNearest)((gdouble)leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
   result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + roundNearest(result->charHeight) + SCALE_LINE_WIDTH;
+  
+  result->msgData = &options->msgData;
   
   DEBUG_EXIT("createDotterContext returning");
   return result;
@@ -845,26 +836,13 @@ static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, c
 
 void dotter (const BlxBlastMode blastMode,
 	     DotterOptions *options,
-	     const char *queryname,
-	     char *queryseq,
-	     int   qoff,
 	     const BlxStrand refSeqStrand,
-	     const char *subjectname,
-	      char *subjectseq,
-	      int   soff,
 	     const BlxStrand matchSeqStrand,
 	      int   qcenter,
 	      int   scenter,
-	      char *saveFileName,
-	      char *loadFileName,
-	      char *mtxfile,
-	      double memoryLimit,
-	      int   zoomFacIn,
 	      MSP  *MSPs,
 	      GList *seqList,
-	      int   MSPoff,
-	      char *winsizeIn,
-	      int   pixelFacIn)
+	      int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
           blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
@@ -872,31 +850,31 @@ void dotter (const BlxBlastMode blastMode,
   gboolean selfComp = FALSE;
   MSPlist = MSPs;
   
-  const int qlen = strlen(queryseq);
-  const int slen = strlen(subjectseq);
+  const int qlen = strlen(options->qseq);
+  const int slen = strlen(options->sseq);
   
   if (qlen < 1) g_error("queryseq is empty");
   if (slen < 1) g_error("subjectseq is empty");
 
   int i = 0;
-  for (i = 0; i < qlen; i++) queryseq[i] = toupper(queryseq[i]);
-  for (i = 0; i < slen; i++) subjectseq[i] = toupper(subjectseq[i]);
+  for (i = 0; i < qlen; i++) options->qseq[i] = toupper(options->qseq[i]);
+  for (i = 0; i < slen; i++) options->sseq[i] = toupper(options->sseq[i]);
 
-  if (!memoryLimit) 
+  if (!options->memoryLimit) 
     {
-      memoryLimit = 0.5; /* Mb */
+      options->memoryLimit = 0.5; /* Mb */
     }
 
-  if (!strcmp(queryseq, subjectseq)) 
+  if (!strcmp(options->qseq, options->sseq)) 
     selfComp = TRUE;
 
   /* Get score matrix */
   char *matrixName = g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
   
-  if (mtxfile)	
+  if (options->mtxfile)	
     {
-      readmtx(MATRIX, mtxfile);
-      strncpy(matrixName, mtxfile, MAX_MATRIX_NAME_LENGTH);
+      readmtx(MATRIX, options->mtxfile);
+      strncpy(matrixName, options->mtxfile, MAX_MATRIX_NAME_LENGTH);
     }
   else if (blastMode == BLXMODE_BLASTN) 
     {
@@ -911,35 +889,31 @@ void dotter (const BlxBlastMode blastMode,
 
   gboolean batchMode = FALSE;
   
-  if (saveFileName) 
+  if (options->savefile) 
     {
       /* If a save file was given, that implies we're in batch mode (i.e. don't display any windows) */
       batchMode = TRUE;
       
       /* Don't do batch processing if output file can't be opened */
-      if (!fopen (saveFileName, "wb"))
-	g_error("Failed to open %s", saveFileName);
+      if (!fopen (options->savefile, "wb"))
+	g_error("Failed to open %s", options->savefile);
     }
   
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
-  DotterContext *dotterCtx = createDotterContext(blastMode, batchMode, queryname, queryseq, refSeqStrand, 
-                                                 subjectname, subjectseq, matchSeqStrand,
-                                                 qoff, soff, options->hozScaleRev, options->vertScaleRev, 
-                                                 selfComp, options->mirrorImage, options->watsonOnly, options->crickOnly,
-                                                 MSPlist, seqList, MATRIX, matrixName, memoryLimit);
+  DotterContext *dotterCtx = createDotterContext(options, blastMode, batchMode, refSeqStrand, matchSeqStrand, selfComp, MSPlist, seqList, MATRIX, matrixName);
 
   /* Create a context specific to the initial dotter window */
-  DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, zoomFacIn);
+  DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, options->dotterZoom);
 
   /* Create the widgets */
   createDotterInstance(dotterCtx, 
                        dotterWinCtx,
-                       loadFileName,
-                       saveFileName,
+                       options->loadfile,
+                       options->savefile,
                        options->hspsOnly,
-                       winsizeIn,
-                       pixelFacIn,
-                       zoomFacIn,
+                       options->winsize,
+                       options->pixelFacset,
+                       options->dotterZoom,
                        qcenter,
                        scenter,
                        options->swapGreyramp);
@@ -2275,7 +2249,7 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
   if (!dialog)
     {
       /* Create the dialog */
-      dialog = gtk_dialog_new_with_buttons("Settings", 
+      dialog = gtk_dialog_new_with_buttons("Dotter - Settings", 
                                            GTK_WINDOW(dotterWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_OK,
@@ -2603,8 +2577,8 @@ static void showHelpDialog(GtkWidget *dotterWindow)
   if (!dialog)
     {
       /* Create the dialog */
-      dialog = gtk_dialog_new_with_buttons("Help", 
-                                           GTK_WINDOW(dotterWindow), 
+      dialog = gtk_dialog_new_with_buttons("Dotter - Help", 
+                                           NULL,
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_ABOUT,
                                            GTK_RESPONSE_HELP,
@@ -3099,7 +3073,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      GtkWidget *greyrampTool, 
                                      GtkWidget *dotplotContainer, 
                                      GtkWidget *dotplot)
-{
+{ 
   DEBUG_ENTER("createDotterWindow");
 
   GtkWidget *dotterWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -3107,13 +3081,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   gtk_window_set_title(GTK_WINDOW(dotterWindow), title);
   g_free(title);
   
-  /* Set the message handlers again, this time passing the window and statusbar, now we know them */
-  BlxMessageData *msgData = g_malloc(sizeof *msgData);
-  msgData->parent = GTK_WINDOW(dotterWindow);
-  msgData->statusBar = NULL;
-  
-  g_log_set_default_handler(defaultMessageHandler, msgData);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, msgData);
+  /* Set the parent window in the message handlers' data, now we know it */
+  dc->msgData->parent = GTK_WINDOW(dotterWindow);
   
   /* Create the menu bar, and a right-click context menu */
   GtkUIManager *uiManager = createUiManager(dotterWindow, hspMode);

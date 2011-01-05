@@ -3222,7 +3222,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
   static gchar defaultInput[32] = "";
   
   /* Pop up a dialog to request a coord from the user */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Go to position: ", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Go to position: ", 
 						  NULL, 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
 						  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,

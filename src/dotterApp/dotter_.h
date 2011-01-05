@@ -191,6 +191,8 @@ typedef struct _DotterContext
 
   GArray *defaultColors;		    /* Default colors used by Dotter */
   gboolean usePrintColors;		    /* Whether to use print colors (i.e. black and white) */
+  
+  BlxMessageData *msgData;                  /* Data to be passed to message handlers */
 } DotterContext;
 
 

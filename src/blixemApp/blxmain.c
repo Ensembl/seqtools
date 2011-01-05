@@ -246,6 +246,10 @@ static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode,
   options->seqType = BLXSEQ_INVALID;
   options->numFrames = 1;
   options->fetchMode = fetchMode;
+
+  options->msgData.titlePrefix = g_strdup("Blixem - ");
+  options->msgData.parent = NULL;
+  options->msgData.statusBar = NULL;
 }
   
 
@@ -516,7 +520,7 @@ int main(int argc, char **argv)
    */
   g_log_set_default_handler(defaultMessageHandler, NULL);
   g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
-                    popupMessageHandler, NULL);
+                    popupMessageHandler, &options.msgData);
 
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
   GSList* supportedTypes = blxCreateSupportedGffTypeList();

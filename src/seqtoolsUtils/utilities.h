@@ -167,6 +167,7 @@ typedef GSList* BlxHandle;
 /* This struct is used to pass user data to the message handlers */
 typedef struct _BlxMessageData
 {
+  char *titlePrefix;
   GtkWindow *parent;
   GtkStatusbar *statusBar;
 } BlxMessageData;

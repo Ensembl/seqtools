@@ -145,6 +145,10 @@ static void setDefaultOptions(DotterOptions *options)
   options->fsEndLinesOn = FALSE;
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
+  
+  options->msgData.titlePrefix = g_strdup("Dotter - ");
+  options->msgData.parent = NULL;
+  options->msgData.statusBar = NULL;
 }
 
 
@@ -264,7 +268,7 @@ int main(int argc, char **argv)
   
   DotterOptions options;
   setDefaultOptions(&options);
-
+  
   char   
       line[MAXLINE+1],
       *curChar, *cc, *cq,  
@@ -401,7 +405,12 @@ int main(int argc, char **argv)
 
   if (!options.savefile)
       {
+        /* Not in batch mode, so initialise GTK for the graphical components */
 	gtk_init(&argc, &argv);
+
+        /* Set the message handlers to use our custom dialog boxes */
+        g_log_set_default_handler(defaultMessageHandler, NULL);
+        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
       }
 
     if (options.selfcall) /* Blixem/Dotter calling dotter */
@@ -710,23 +719,14 @@ int main(int argc, char **argv)
 
     if (!options.savefile)
       {
-        /* Set the message handlers. (Do this here because we don't want graphical dialog
-         * boxes for batch mode.) */
-        g_log_set_default_handler(defaultMessageHandler, NULL);
-        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, NULL);
-        
-	dotter(blastMode, &options, options.qname, options.qseq, options.qoffset, qStrand, options.sname, options.sseq, options.soffset, sStrand,
-	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
-               options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset) ;
+	dotter(blastMode, &options, qStrand, sStrand, 0, 0, MSPlist, seqList, 0);
 
         gtk_main();
       }
     else
       {
         /* Batch mode */
-	dotter(blastMode, &options, options.qname, options.qseq, options.qoffset, qStrand, options.sname, options.sseq, options.soffset, sStrand,
-	       0, 0, options.savefile, options.loadfile, options.mtxfile, options.memoryLimit, 
-               options.dotterZoom, MSPlist, seqList, 0, options.winsize, options.pixelFacset);
+	dotter(blastMode, &options, qStrand, sStrand, 0, 0, MSPlist, seqList, 0);
       }
 
     return (0) ;

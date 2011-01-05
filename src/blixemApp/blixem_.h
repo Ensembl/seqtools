@@ -277,6 +277,7 @@ typedef struct _CommandLineOptions
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
   char *fetchMode;		  /* the default method for fetching sequences */
+  BlxMessageData msgData;         /* data to be passed to the message handlers */
 } CommandLineOptions;
 
 
