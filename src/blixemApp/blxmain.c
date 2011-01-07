@@ -105,6 +105,9 @@ gboolean blixem_debug_G = FALSE ;
   -r, --remove-input-files\n\
     Remove input files after parsing.\n\
 \n\
+  -R, --reverse-strand\n\
+    Indicates that the given reference sequence is the reverse strand.\n\
+\n\
   -s <mode>, --sort-mode=<mode>\n\
     Default sort mode. Use --help option to see details.\n\
 \n\
