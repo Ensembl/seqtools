@@ -3289,22 +3289,50 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 	{
 	  /* Remember this input for next time */
 	  sprintf(defaultInput, "%d", requestedCoord);
+          
+          int coord = requestedCoord;
+          
+          /* If display coords are negated, assume the user has entered a 
+           * negative coord too, and un-negate it. */
+          BlxViewContext *bc = detailViewGetContext(detailView);
+          const gboolean negate = bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS];
+          
+          if (negate)
+            {
+              coord *= -1;
+            }
 
-	  /* Convert the input coord to display coords. */
-	  const int activeFrame = detailViewGetActiveFrame(detailView);
-	  const BlxViewContext *bc = detailViewGetContext(detailView);
-	  int baseNum;
-	  
-	  const int displayIdx = convertDnaIdxToDisplayIdx(requestedCoord, 
-							   bc->seqType, 
-							   activeFrame,
-							   bc->numFrames, 
-							   bc->displayRev, 
-							   &bc->refSeqRange,
-							   &baseNum);
-	  
-	  /* Select the base index. */
-	  detailViewSetSelectedBaseIdx(detailView, displayIdx, activeFrame, baseNum, TRUE, FALSE);
+          /* Check if it's in range. If not, try negating it in case the user
+           * entered the wrong sign */
+          if (!valueWithinRange(coord, &bc->refSeqRange))
+            {
+              g_debug("Coord '%d' does not lie within the reference sequence range [%d %d]; trying '%d'\n", requestedCoord, negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min, negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max, requestedCoord * -1);
+              coord *= -1;
+            }
+          
+          if (valueWithinRange(coord, &bc->refSeqRange))
+            {
+              /* Convert the input coord to display coords. */
+              const int activeFrame = detailViewGetActiveFrame(detailView);
+              const BlxViewContext *bc = detailViewGetContext(detailView);
+              int baseNum;
+              
+              const int displayIdx = convertDnaIdxToDisplayIdx(coord, 
+                                                               bc->seqType, 
+                                                               activeFrame,
+                                                               bc->numFrames, 
+                                                               bc->displayRev, 
+                                                               &bc->refSeqRange,
+                                                               &baseNum);
+              
+              /* Select the base index. */
+              detailViewSetSelectedBaseIdx(detailView, displayIdx, activeFrame, baseNum, TRUE, FALSE);
+            }
+          else
+            {
+              g_debug("Coord '%d' does not lie within the reference sequence range [%d %d]\n", negate ? coord * -1 : coord, negate? bc->refSeqRange.max * -1 : bc->refSeqRange.min, negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max);
+              g_critical("Coord was not in the reference sequence range [%d %d]\n", negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min, negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max);
+            }
 	}
     }
 
