@@ -144,7 +144,7 @@ Right-click anywhere in the Blixem window to pop up the main menu.  The menu opt
 \t*\tIf the 'Show Splice Sites' option is on (see the 'Settings' dialog), splice sites will be highlighted on the reference sequence for the currently-selected alignment(s).\n\
 \n\
 \t*\tYou can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)\n\
-\t*\tFor protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in green.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
+\t*\tFor protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in blue.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).\n\
 \t*\tYou can move the selection to the previous/next nucleotide using the left and right arrow keys.\n\
 \t*\tYou can move the selection to the previous/next peptide by holding Shift while using the left and right arrow keys.\n\
 \t*\tYou can move the selection to the start/end of the previous/next matchb by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected).\n\
@@ -397,7 +397,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
-"      <menuitem action='SelectFeatures'/>"
+//"      <menuitem action='SelectFeatures'/>"
 "  </popup>"
 "</ui>";
 
@@ -3920,7 +3920,7 @@ static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier,
   GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
-  detailViewSetSelectedBaseIdx(detailView, UNSET_INT, properties->selectedFrame, UNSET_INT, TRUE, TRUE);
+  detailViewUnsetSelectedBaseIdx(detailView);
   return TRUE;
 }
 

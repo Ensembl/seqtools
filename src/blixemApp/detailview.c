@@ -683,11 +683,12 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
   int sLen = UNSET_INT; /* the length of the match sequence */
 
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   BlxViewContext *bc = detailViewGetContext(detailView);
-  const int selectedDnaBaseIdx = detailViewGetSelectedDnaBaseIdx(detailView);
   
-  /* See if a base is selected. */
-  qIdx = selectedDnaBaseIdx;
+  /* Get the selected base index. */
+  if (properties->selectedBaseSet)
+    qIdx = properties->selectedDnaBaseIdx;
   
   /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
   const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
@@ -705,7 +706,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
 
 	  /* If a q index is selected, see if there is a valid base at that index 
 	   * for any of the MSPs for the selected sequence. */
-	  if (qIdx != UNSET_INT)
+	  if (properties->selectedBaseSet)
 	    {
 	      GList *mspListItem = seq->mspList;
               const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
@@ -728,7 +729,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   /* Add all the bits into a text string */
   GString *resultString = g_string_sized_new(200); /* will be extended if we need more space */
   
-  if (qIdx != UNSET_INT)
+  if (properties->selectedBaseSet)
     {
       /* Negate the coord for the display, if necessary */
       int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
@@ -2509,6 +2510,20 @@ static void updateFollowingBaseSelection(GtkWidget *detailView,
 }
 
 
+/* Cancel the current base index selection */
+void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  
+  properties->selectedBaseSet = FALSE;
+  properties->selectedDnaBaseIdx = UNSET_INT;
+  properties->selectedBaseIdx = UNSET_INT;
+  properties->selectedBaseNum = UNSET_INT;
+  
+  updateFollowingBaseSelection(detailView, FALSE, FALSE);
+}
+
+
 /* Set the selected base index to a specific DNA index. Performs any required 
  * refreshes. Scrolls the view to keep the selected base in view if allowScroll 
  * is true. (Such scrolling is by the minimum number of bases necessary if 
@@ -2521,6 +2536,7 @@ static void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
+  properties->selectedBaseSet = TRUE;
   properties->selectedDnaBaseIdx = selectedDnaBaseIdx;
   properties->selectedFrame = frame;
   
@@ -2529,6 +2545,26 @@ static void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
   properties->selectedBaseIdx = convertDnaIdxToDisplayIdx(selectedDnaBaseIdx, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &properties->selectedBaseNum);
   
   updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
+}
+
+
+/* Set which frame is the active (currently-selected) reading frame */
+void detailViewSetActiveFrame(GtkWidget *detailView, const int frame)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  properties->selectedFrame = frame;
+  
+  /* Keep the selected DNA coord the same and update the base number for the
+   * new reading frame */
+  if (properties->selectedBaseSet)
+    {
+      properties->selectedBaseIdx = convertDnaIdxToDisplayIdx(properties->selectedDnaBaseIdx, bc->seqType, frame, bc->numFrames, 
+                                                              bc->displayRev, &bc->refSeqRange, &properties->selectedBaseNum);
+    }
+  
+  updateFollowingBaseSelection(detailView, FALSE, FALSE);
 }
 
 
@@ -2545,6 +2581,7 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
+  properties->selectedBaseSet = TRUE;
   properties->selectedBaseIdx = selectedBaseIdx;
   properties->selectedFrame = frame;
   properties->selectedBaseNum = baseNum;
@@ -2652,6 +2689,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->statusBar = statusBar;
       properties->columnList = columnList;
       properties->adjustment = adjustment;
+      properties->selectedBaseSet = FALSE;
       properties->selectedBaseIdx = UNSET_INT;
       properties->selectedBaseNum = UNSET_INT;
       properties->selectedFrame = UNSET_INT;

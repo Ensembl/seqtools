@@ -1134,8 +1134,9 @@ static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
     }
   
   /* If we've clicked a different tree to the previously selected one, make this tree's 
-   * reading frame the active one. Select the first base in the triplet */
-  treeSetSelectedBaseIdx(tree, treeGetSelectedBaseIdx(tree), treeGetFrame(tree), 1, FALSE);
+   * reading frame the active one */
+  GtkWidget *detailView = treeGetDetailView(tree);
+  detailViewSetActiveFrame(detailView, treeGetFrame(tree));
   
   /* Find which row was clicked */
   GtkTreePath *clickedPath = NULL;

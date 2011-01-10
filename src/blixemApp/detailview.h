@@ -109,6 +109,8 @@ typedef struct _DetailViewProperties
     int cellYPadding;		  /* The y padding between the tree cell background area and their drawing area */
         
     IntRange displayRange;	  /* The currently-displayed range of bases in the reference sequence */
+    
+    gboolean selectedBaseSet;     /* indicates whether the selected base index below is set or not */
     int selectedBaseIdx;	  /* The currently-selected index in the display range */
     int selectedFrame;		  /* The reading frame to display selected bases for */
     int selectedBaseNum;	  /* The currently-selected base within the selected reading frame */
@@ -181,6 +183,9 @@ void			detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColu
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll, const gboolean scrollMinimum);
+void                    detailViewUnsetSelectedBaseIdx(GtkWidget *detailView);
+void                    detailViewSetActiveFrame(GtkWidget *detailView, const int frame);
+
 void			updateFeedbackBox(GtkWidget *detailView);
 void                    updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand);
 void			toggleStrand(GtkWidget *detailView);
