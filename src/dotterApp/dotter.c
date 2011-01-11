@@ -426,14 +426,14 @@ static void createDotterColors(DotterContext *dc)
     }
     
   /* matches */
-  createBlxColor(dc->defaultColors, DOTCOLOR_MATCH, "Exact match", "Exact match", "#00ffe5", BLX_LIGHT_GREY, "#00c3b0", NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_CONS, "Conserved match", "Conserved match", "#78b4f0", BLX_LIGHT_GREY, "#5c98d5", NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_GREY, BLX_CYAN, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_LIGHT_GREY, BLX_DARK_VIOLET, NULL);
   createBlxColor(dc->defaultColors, DOTCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
   
   /* exons */
   createBlxColor(dc->defaultColors, DOTCOLOR_EXON_FILL, "Exon fill color", "Exon fill color", BLX_YELLOW, BLX_GREY, NULL, NULL);
   createBlxColor(dc->defaultColors, DOTCOLOR_EXON_LINE, "Exon line color", "Exon outline color", BLX_BLUE, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color", BLX_PALE_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color", BLX_LIGHT_GREEN, BLX_GREY, NULL, NULL);
   createBlxColor(dc->defaultColors, DOTCOLOR_CDS_LINE, "CDS line color", "Coding section outline color", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
   createBlxColor(dc->defaultColors, DOTCOLOR_UTR_FILL, "UTR fill color", "Untranslated region fill color", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
   createBlxColor(dc->defaultColors, DOTCOLOR_UTR_LINE, "UTR line color", "Untranslated region outline color", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);

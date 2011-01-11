@@ -3233,8 +3233,8 @@ static void displayMessageAsList(GSList *messageList, const char *titlePrefix, c
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(child), GTK_POLICY_ALWAYS, GTK_POLICY_AUTOMATIC);
       
       /* Add some tags for normal/highlighted text */
-      normalTag = gtk_text_buffer_create_tag(textBuffer, NULL, "foreground", "#000000", NULL);
-      highlightTag = gtk_text_buffer_create_tag(textBuffer, NULL, "foreground", "#ff0000", NULL);
+      normalTag = gtk_text_buffer_create_tag(textBuffer, NULL, "foreground", BLX_BLACK, NULL);
+      highlightTag = gtk_text_buffer_create_tag(textBuffer, NULL, "foreground", BLX_RED, NULL);
       
       /* Create a button to allow user to switch back to popup messages */
       button = gtk_check_button_new_with_mnemonic("Switch to _popup messages");
