@@ -575,7 +575,7 @@ static gboolean onMouseMoveGradient(GtkWidget *gradient, GdkEventMotion *event, 
 {
   gboolean handled = FALSE;
   
-  if (event->state == GDK_BUTTON1_MASK) /* left button pressed */
+  if (event->state & GDK_BUTTON1_MASK) /* left button pressed */
     {
       GtkWidget *greyramp = GTK_WIDGET(data);
       GreyrampProperties *properties = greyrampGetProperties(greyramp);
