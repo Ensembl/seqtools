@@ -2757,8 +2757,11 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
           columnInfo->dataLoaded = TRUE;
         }   
       
-      /* Re-sort the trees, because the new data may affect the sort order */
+      /* Re-sort the trees, because the new data may affect the sort order. Also
+       * resize them, because whether data is loaded affects whether columns are shown. */
       callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
+      resizeDetailViewHeaders(detailView);
       detailViewRedrawAll(detailView);
     }
 }
