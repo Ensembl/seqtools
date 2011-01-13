@@ -561,7 +561,8 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
   
   GList *listItem = detailViewGetColumnList(detailView);
 
-  /* Loop through each column in the tree and set the column width to the width stored in our column info. */
+  /* Loop through each column in the tree and set the column width and visibility
+   * based on what's stored in our column info. */
   for ( ; listItem; listItem = listItem->next)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
@@ -580,7 +581,8 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
 
 	  if (width > 0)
 	    {
-	      gtk_tree_view_column_set_visible(treeColumn, TRUE);
+              const gboolean showColumn = detailViewShowColumn(columnInfo);
+	      gtk_tree_view_column_set_visible(treeColumn, showColumn);
 	      gtk_tree_view_column_set_fixed_width(treeColumn, width);
 	    }
 	  else
@@ -2025,6 +2027,7 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
   /* Set the column properties and add the column to the tree */
   if (width > 0)
     {
+      gboolean showColumn = detailViewShowColumn(columnInfo);
       gtk_tree_view_column_set_visible(column, TRUE);
       gtk_tree_view_column_set_fixed_width(column, width);
     }
@@ -2226,7 +2229,13 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
   for ( ; listItem; listItem = listItem->next)
     {
       int columnId = GPOINTER_TO_INT(listItem->data);
-      width = width + detailViewGetColumnWidth(detailView, columnId);
+      
+      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
+      
+      if (detailViewShowColumn(columnInfo))
+        {
+          width = width + columnInfo->width;
+        }
     }
   
   return width;
@@ -2276,8 +2285,8 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
       case BLXCOL_SEQNAME:
 	{
 	  /* The header above the name column will display the reference sequence name.
-	   * This header will also span the score and id columns, seeing as we don't need
-	   * to show any info in those columns. */
+	   * This header will also span the score and id columns (and any optional columns)
+           * seeing as we don't need to show any info anout the ref seq in those columns. */
 	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
 	  refreshFunc = refreshNameColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));

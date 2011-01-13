@@ -65,11 +65,16 @@
 
 /* Define the columns' default widths and titles. */
 #define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
-#define BLXCOL_HIDDEN_COLUMN_WIDTH      0     /* default width for columns that are initially hidden */
 #define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
+#define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
+#define BLXCOL_GROUP_WIDTH              58    /* default width for group column  */
 #define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
 #define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
 #define BLXCOL_SEQUENCE_WIDTH           40    /* default width for sequence column */
+#define BLXCOL_ORGANISM_WIDTH           25    /* default width for organism column */
+#define BLXCOL_GENE_NAME_WIDTH          58    /* default width for gene-name column  */
+#define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
+#define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
@@ -582,6 +587,13 @@ void refreshDetailViewHeaders(GtkWidget *detailView)
 }
 
 
+/* Returns true if the given column should be visible */
+gboolean detailViewShowColumn(DetailViewColumnInfo *columnInfo)
+{
+  return (columnInfo->visible && columnInfo->dataLoaded && columnInfo->width > 0);
+}
+
+
 /* Resize the detail view header widgets. Should be called whenever a column is resized. */
 void resizeDetailViewHeaders(GtkWidget *detailView)
 {
@@ -597,7 +609,7 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
 	{
 	  /* For other columns, we can set the size request: they're small enough
 	   * that we can live without the need to shrink below their sum widths. */
-          if (columnInfo->width > 0)
+          if (detailViewShowColumn(columnInfo))
             {
               widgetSetHidden(columnInfo->headerWidget, FALSE);
               gtk_widget_set_size_request(columnInfo->headerWidget, columnInfo->width, -1);
@@ -3666,7 +3678,8 @@ static void createColumn(BlxColumnId columnId,
                          char *title,
                          char *propertyName,
                          const int defaultWidth,
-                         const gboolean optionalDataLoaded,
+                         const gboolean dataLoaded,
+                         const gboolean visible,
                          char *sortName,
                          GList **columnList,
                          GtkWidget *detailView)
@@ -3699,7 +3712,8 @@ static void createColumn(BlxColumnId columnId,
   columnInfo->propertyName = propertyName;
   columnInfo->width = defaultWidth;
   columnInfo->sortName = sortName;
-  columnInfo->dataLoaded = optionalDataLoaded;
+  columnInfo->dataLoaded = dataLoaded;
+  columnInfo->visible = visible;
   
   /* Place it in the list. Sort the list by BlxColumnId because the list must be sorted in the same
    * order as the variable types in the TREE_COLUMN_TYPE_LIST definition */
@@ -3709,7 +3723,7 @@ static void createColumn(BlxColumnId columnId,
 
 /* This creates DetailViewColumnInfo entries for each column required in the detail view. It
  * returns a list of the columns created. */
-static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames, const gboolean optionalDataLoaded)
+static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames, const gboolean loaded)
 {
   GList *columnList = NULL;
   
@@ -3720,18 +3734,18 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshTextHeader : NULL;
   
   /* Create the column headers and pack them into the column header bar */
-  createColumn(BLXCOL_SEQNAME,   NULL,       NULL,          "Name",      RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,  "Name",     &columnList, detailView);
-  createColumn(BLXCOL_SCORE,     NULL,       NULL,          "Score",     RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,  "Score",    &columnList, detailView);
-  createColumn(BLXCOL_ID,        NULL,       NULL,          "%Id",       RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,  "Identity", &columnList, detailView);
-  createColumn(BLXCOL_START,     NULL,       NULL,          "Start",     RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,  "Position", &columnList, detailView);
-  createColumn(BLXCOL_SEQUENCE,  seqHeader,  seqCallback,   "Sequence",  RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,  NULL,       &columnList, detailView);
-  createColumn(BLXCOL_END,       NULL,       NULL,          "End",       RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,  NULL,       &columnList, detailView);
-  createColumn(BLXCOL_SOURCE,    NULL,       NULL,          "Source",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  TRUE,  NULL,       &columnList, detailView);
-  createColumn(BLXCOL_GROUP,     NULL,       NULL,          "Group",     RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  TRUE,  "Group",    &columnList, detailView);
-  createColumn(BLXCOL_ORGANISM,  NULL,       NULL,          "Organism",  RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded,  "Organism", &columnList, detailView);
-  createColumn(BLXCOL_GENE_NAME, NULL,       NULL,          "Gene Name", RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded, "Gene name", &columnList, detailView);
-  createColumn(BLXCOL_TISSUE_TYPE,NULL,      NULL,          "Tissue Type",RENDERER_TEXT_PROPERTY,    BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded, "Tissue type",&columnList, detailView);
-  createColumn(BLXCOL_STRAIN,    NULL,       NULL,          "Strain",    RENDERER_TEXT_PROPERTY,     BLXCOL_HIDDEN_COLUMN_WIDTH,  optionalDataLoaded, "Strain",   &columnList, detailView);
+  createColumn(BLXCOL_SEQNAME,     NULL,     NULL,        "Name",       RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,   TRUE,   "Name",        &columnList, detailView);
+  createColumn(BLXCOL_SCORE,       NULL,     NULL,        "Score",      RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,   TRUE,   "Score",       &columnList, detailView);
+  createColumn(BLXCOL_ID,          NULL,     NULL,        "%Id",        RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,   TRUE,   "Identity",    &columnList, detailView);
+  createColumn(BLXCOL_START,       NULL,     NULL,        "Start",      RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,   TRUE,   "Position",    &columnList, detailView);
+  createColumn(BLXCOL_SEQUENCE,    seqHeader,seqCallback, "Sequence",   RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,   TRUE,   NULL,          &columnList, detailView);
+  createColumn(BLXCOL_END,         NULL,     NULL,        "End",        RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,   TRUE,   NULL,          &columnList, detailView);
+  createColumn(BLXCOL_SOURCE,      NULL,     NULL,        "Source",     RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,   FALSE,  NULL,          &columnList, detailView);
+  createColumn(BLXCOL_GROUP,       NULL,     NULL,        "Group",      RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,   FALSE,  "Group",       &columnList, detailView);
+  createColumn(BLXCOL_ORGANISM,    NULL,     NULL,        "Organism",   RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       loaded, TRUE,   "Organism",    &columnList, detailView);
+  createColumn(BLXCOL_GENE_NAME,   NULL,     NULL,        "Gene Name",  RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      loaded, FALSE,  "Gene name",   &columnList, detailView);
+  createColumn(BLXCOL_TISSUE_TYPE, NULL,     NULL,        "Tissue Type",RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    loaded, FALSE,  "Tissue type", &columnList, detailView);
+  createColumn(BLXCOL_STRAIN,      NULL,     NULL,        "Strain",     RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         loaded, FALSE,  "Strain",      &columnList, detailView);
 
   return columnList;
 }

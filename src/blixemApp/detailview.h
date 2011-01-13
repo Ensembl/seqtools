@@ -65,7 +65,7 @@
  * properties (namely the column width). */
 typedef struct _DetailViewColumnInfo
   {
-    BlxColumnId columnId;		/* the column identifier */
+    BlxColumnId columnId;	/* the column identifier */
     GtkWidget *headerWidget;	/* the header widget for this column (in the detail-view header) */
     GtkCallback refreshFunc;	/* the function that will be called on the header widget when columns are refreshed */
     char *title;		/* the default column title */
@@ -74,6 +74,7 @@ typedef struct _DetailViewColumnInfo
     
     int width;			/* the column width */
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
+    gboolean visible;           /* whether the column should be shown */
   } DetailViewColumnInfo;
 
 
@@ -162,6 +163,7 @@ DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
 int			detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
 void                    detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange);
+gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
 
 int			getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange);
 

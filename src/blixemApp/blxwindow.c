@@ -2686,6 +2686,24 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gp
 }
 
 
+/* Callback to be called when the user has toggled the visibility of a column */
+static gboolean onColumnVisibilityChanged(GtkWidget *button, const gint responseId, gpointer data)
+{
+  gboolean result = TRUE;
+  
+  DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
+  columnInfo->visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
+  resizeDetailViewHeaders(detailView);
+  
+  return result;
+}
+
+
 /* Just calls gtk_widget_set_sensitive, but so that we can use it as a callback */
 static void widgetSetSensitive(GtkWidget *widget, gpointer data)
 {
@@ -2786,7 +2804,6 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
   /* Loop through each column in the detail view and create a text box showing the
    * current width. Compile a list of widgets that are disabled, so that we can enable
    * them if/when the user clicks the button to load their data. */
-  GSList *disabledWidgets = NULL;
   GList *listItem = detailViewGetColumnList(detailView);
 
   for ( ; listItem; listItem = listItem->next)
@@ -2799,6 +2816,11 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
       GtkWidget *label = gtk_label_new(columnInfo->title);
       gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
       
+      GtkWidget *button = gtk_check_button_new();
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
+      gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
+      widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
+      
       GtkWidget *entry = gtk_entry_new();
       gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
       
@@ -2808,6 +2830,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 	  char displayText[] = "<dynamic>";
 	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
 	  gtk_widget_set_sensitive(entry, FALSE);
+	  gtk_widget_set_sensitive(button, FALSE);
 	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
 	}
       else
@@ -2815,7 +2838,6 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
           if (!columnInfo->dataLoaded)
             {
               gtk_widget_set_sensitive(vbox, FALSE);
-              disabledWidgets = g_slist_prepend(disabledWidgets, entry);
             }
           
 	  char *displayText = convertIntToString(columnInfo->width);
