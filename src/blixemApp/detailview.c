@@ -2093,7 +2093,7 @@ void detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnI
   xRange->min = 0;
   xRange->max = 0;
   
-  /* Loop through all the columns up to the sequence column, summing their widths. */
+  /* Loop through all visible columns up to the given column, summing their widths. */
   GList *columnItem = detailViewGetColumnList(detailView);
   
   for ( ; columnItem; columnItem = columnItem->next)
@@ -2102,11 +2102,18 @@ void detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnI
       
       if (columnInfo->columnId != columnId)
         {
-          xRange->min += columnInfo->width;
+          if (detailViewShowColumn(columnInfo))
+            xRange->min += columnInfo->width;
         }
       else
         {
-          xRange->max = xRange->min + columnInfo->width;
+          /* We've got to the required column. Calculate the x coord at the end
+           * of this column and then break. */
+          if (detailViewShowColumn(columnInfo))
+            xRange->max = xRange->min + columnInfo->width;
+          else
+            xRange->max = xRange->min; /* return zero-width if column is not visible */
+          
           break;
         }
     }
