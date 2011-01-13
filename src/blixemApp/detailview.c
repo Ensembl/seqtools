@@ -3949,11 +3949,15 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   /* User can copy text out but not edit contents */
   gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
 
-  /* Make it expandable so we use all available space. Set minimum size to be 0
-   * because it's better to show it small than not at all. */
-  gtk_widget_set_size_request(feedbackBox, 0, -1) ;
+  /* want fixed width because feedback area needs as much space as possible - 
+   * could do with a way to make sure this box is always wide enough though */
+  const int numChars = 36; /* guesstimate of max number of chars we'll need */
+  const int charWidth = 8; /* guesstimate of char width for default font */
+  
+  gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1) ;
   GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox) ;
-  gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
+  gtk_tool_item_set_expand(item, FALSE); 
+  
   
   return feedbackBox;
 }
