@@ -93,7 +93,6 @@ typedef struct
 
     int offset;				/* the offset of the found MSP */
     int foundFrame;			/* which ref seq frame the MSP we chose is in */
-    int foundBase;			/* the base number of the DNA coord we chose within the foundFrame */
   } MatchSearchData;
 
 
@@ -3447,7 +3446,6 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 				bc->numFrames,
 				&bc->refSeqRange,
 				seqList,
-				UNSET_INT,
 				UNSET_INT,
 				UNSET_INT};
 
