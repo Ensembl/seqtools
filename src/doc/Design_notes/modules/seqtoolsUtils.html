@@ -1,0 +1,44 @@
+<head>
+  <title>SeqTools - seqtoolsUtils</title>
+</head>
+
+
+<body>
+<div class="outer">
+  <h1>seqtoolsUtils</h1>
+  <p>
+    The seqtoolsUtils module contains code that is common to both Blixem and Dotter. The more significant functionality is described below.
+  </p>
+
+  <h2>Features</h2>
+  <p><code>blxmsp.h/.c</code></p>
+  <p>
+    The seqtoolsUtils module defines structs for our features. Supported features include matches, exons, introns, SNPs, polyA tails and polyA signals.
+  </p>
+
+  <h2>File parsing</h2>
+  <p><code>blxparser.h/.c, blxGff3parser.h/.c</code></p>
+  <p>
+    Functions to parse the features file. The recommended file format is GFF version 3. However, the older exblx/seqbl file formats (as output from MSPcrunch) are also supported. Note that the reference sequence can be passed as part of the features file or in a separate file - if the latter, then it is parsed separately by the main() function, not by this module.
+  </p>
+
+  <h2>Sequence translation</h2>
+  <p><code>translate.c, iupac.h</code></p>
+  <p>
+    Defines various functions and matrices used to reverse/complement nucleotide sequences and to translate nucleotide sequences to peptides.
+  </p>
+
+  <h2>Web browser</h2>
+  <p><code>seqtoolsWebBrowser.c</code></p>
+  <p>
+    Defines functions to open a URL in the user's default web browser.
+  </p>
+
+  <h2>Other important notes</h2>
+    <h3>Coordinate conversions</h3>
+    <p>
+      There are two functions that underpin all conversion of coordinates between how they are displayed and how they are stored. 
+    </p>
+
+</div>
+</body>
