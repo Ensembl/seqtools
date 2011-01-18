@@ -98,7 +98,7 @@
 
 #define MAX_WINDOW_WIDTH_FRACTION             0.7 /* max init width of dotter window as fraction of screen size */
 #define MAX_WINDOW_HEIGHT_FRACTION            0.7 /* max init height of dotter window as fraction of screen size */
-
+#define MAIN_WINDOW_NAME                      "DotterMainWindow"
 
 //typedef struct
 //{
@@ -222,6 +222,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
                                  const gboolean greyramSwap);
 
 static void                       onQuitMenu(GtkAction *action, gpointer data);
+static void                       onCloseMenu(GtkAction *action, gpointer data);
 static void                       onSavePlotMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
 static void                       onSettingsMenu(GtkAction *action, gpointer data);
@@ -237,14 +238,15 @@ static void                       onAboutMenu(GtkAction *action, gpointer data);
 
 /* Menu builders: the action entry list lists menu actions for all menus */
 static const GtkActionEntry menuEntries[] = {
-{ "Quit",             NULL, "_Quit\t\t\tCtrl-Q",                 NULL,  "Quit dotter",                G_CALLBACK(onQuitMenu)},
-{ "SavePlot",         NULL, "_Save plot\t\tCtrl-S",            NULL,  "Save plot",                  G_CALLBACK(onSavePlotMenu)},
-{ "Print",            NULL, "_Print\t\t\tCtrl-P",                NULL,  "Print",                      G_CALLBACK(onPrintMenu)},
-{ "Settings",         NULL, "Settings\t\t\tCtrl-S",              NULL,  "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
-{ "ShowGreyramp",     NULL, "_Greyramp tool\tCtrl-G",        NULL,  "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
-{ "ShowAlignment",    NULL, "_Alignment tool\tCtrl-A",       NULL,  "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
-{ "Help",             NULL, "_Help\t\t\tCtrl-H",	NULL,  "Dotter Help",                G_CALLBACK(onHelpMenu)},
-{ "About",            NULL, "_About",			NULL,  "About Dotter",               G_CALLBACK(onAboutMenu)}
+{ "Quit",             NULL, "_Quit\t\t\tCtrl-Q",       NULL,  "Quit dotter",                G_CALLBACK(onQuitMenu)},
+{ "Close",            NULL, "_Close\t\t\tCtrl-W",      NULL,  "Quit dotter",                G_CALLBACK(onCloseMenu)},
+{ "SavePlot",         NULL, "_Save plot",              NULL,  "Save plot",                  G_CALLBACK(onSavePlotMenu)},
+{ "Print",            NULL, "_Print\t\t\tCtrl-P",      NULL,  "Print",                      G_CALLBACK(onPrintMenu)},
+{ "Settings",         NULL, "Settings\t\t\tCtrl-S",    NULL,  "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
+{ "ShowGreyramp",     NULL, "_Greyramp tool\tCtrl-G",  NULL,  "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
+{ "ShowAlignment",    NULL, "_Alignment tool\tCtrl-A", NULL,  "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
+{ "Help",             NULL, "_Help\t\t\tCtrl-H",       NULL,  "Dotter Help",                G_CALLBACK(onHelpMenu)},
+{ "About",            NULL, "_About",                  NULL,  "About Dotter",               G_CALLBACK(onAboutMenu)}
 };
 
 /* Toggle-able menu entries are listed here: */
@@ -273,6 +275,7 @@ static const char fileMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='Print'/>"
 "      <separator/>"
+"      <menuitem action='Close'/>"
 "      <menuitem action='Quit'/>"
 "  </popup>"
 "</ui>";
@@ -717,6 +720,23 @@ static void dotterContextCloseAllWindows(DotterContext *dc)
     }
   
   g_slist_free(winList);
+}
+
+/* "Close" the given window. Only really closes it if it's the main window;
+ * for other windows, just hide them (they will be destroyed when their main
+ * window is destroyed) */
+static void closeWindow(GtkWidget *widget)
+{
+  char *name = gtk_widget_get_name(widget);
+  
+  if (name && strcmp(name, MAIN_WINDOW_NAME) == 0)
+    {
+      gtk_widget_destroy(widget);
+    }
+  else
+    {
+      gtk_widget_hide_all(widget);
+    }
 }
 
 
@@ -2637,6 +2657,12 @@ static void onQuitMenu(GtkAction *action, gpointer data)
   dotterContextCloseAllWindows(dc);
 }
 
+static void onCloseMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  closeWindow(dotterWindow);
+}
+
 static void onSavePlotMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
@@ -2816,6 +2842,17 @@ static gboolean onKeyPressQ(GtkWidget *dotterWindow, const gboolean ctrlModifier
   return ctrlModifier;
 }
 
+/* Handle W key press (Ctrl-W => close window) */
+static gboolean onKeyPressW(GtkWidget *widget, const gboolean ctrlModifier)
+{
+  if (ctrlModifier)
+    {
+      closeWindow(widget);
+    }
+  
+  return ctrlModifier;
+}
+
 /* Handle H key press (Ctrl-H => show help dialog) */
 static gboolean onKeyPressH(GtkWidget *dotterWindow, const gboolean ctrlModifier)
 {
@@ -2934,6 +2971,9 @@ gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
       case GDK_Q:   /* fall through */
       case GDK_q:   handled = onKeyPressQ(dotterWindow, ctrlModifier);		    break;
 
+      case GDK_W:   /* fall through */
+      case GDK_w:   handled = onKeyPressW(widget, ctrlModifier);                    break;
+        
       case GDK_H:   /* fall through */
       case GDK_h:   handled = onKeyPressH(dotterWindow, ctrlModifier);		    break;
 
@@ -3077,6 +3117,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   DEBUG_ENTER("createDotterWindow");
 
   GtkWidget *dotterWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_widget_set_name(dotterWindow, MAIN_WINDOW_NAME);
+  
   char *title = blxprintf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
   gtk_window_set_title(GTK_WINDOW(dotterWindow), title);
   g_free(title);
