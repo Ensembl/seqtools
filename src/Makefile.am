@@ -5,7 +5,11 @@ SUBDIRS = seqtoolsUtils dotterApp blixemApp libpfetch
 
 bin_PROGRAMS = dotter blixem blixemh
 
-EXTRA_DIST = doc/Design_notes doc/User_doc/Blixem_manual.pdf doc/User_doc/Blixem_manual.odt
+EXTRA_DIST =  doc/Design_notes \
+              doc/User_doc/Blixem_manual.pdf \
+              doc/User_doc/Blixem_manual.odt \
+              doc/User_doc/Dotter_manual.pdf \
+              doc/User_doc/Dotter_manual.odt 
 
 # blixem and blixemh have the same source files, most of which are compiled in libBlixemApp.a. However, there are a 
 # few that need to be compiled with different flags/libraries, and those are specified here
