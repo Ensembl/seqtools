@@ -409,8 +409,9 @@ int main(int argc, char **argv)
 	gtk_init(&argc, &argv);
 
         /* Set the message handlers to use our custom dialog boxes */
-        g_log_set_default_handler(defaultMessageHandler, NULL);
-        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
+        g_log_set_default_handler(defaultMessageHandler, &options.msgData);
+        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
+                          popupMessageHandler, &options.msgData);
       }
 
     if (options.selfcall) /* Blixem/Dotter calling dotter */

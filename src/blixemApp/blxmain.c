@@ -521,7 +521,7 @@ int main(int argc, char **argv)
    * So, to get a pop-up message use g_critical, and to log a message or warning use g_message, 
    * g_warning, g_debug etc. Note that g_error is always fatal.
    */
-  g_log_set_default_handler(defaultMessageHandler, NULL);
+  g_log_set_default_handler(defaultMessageHandler, &options.msgData);
   g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
                     popupMessageHandler, &options.msgData);
 

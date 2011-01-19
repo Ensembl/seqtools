@@ -1456,10 +1456,11 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   const int offset = dotterRange.min - 1;
   
   /* Get the list of all MSPs */
-  g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
+  g_message("Calling dotter on match '%s' with reference sequence region: %d -> %d\n", dotterSName, dotterStart, dotterEnd);
   
-  g_message("  query sequence: name -  %s, offset - %d\n"
-	 "subject sequence: name -  %s, offset - %d\n", bc->refSeqName, offset, dotterSName, 0);
+  g_debug("reference sequence: name =  %s, offset = %d\n"
+          "    match sequence: name =  %s, offset = %d\n", 
+          bc->refSeqName, offset, dotterSName, 0);
 
   return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, selectedSeq->strand, hspsOnly, NULL, error);
 }

@@ -88,7 +88,10 @@ typedef struct _BlxWindowProperties
 \n\
 \n\
 <span foreground=\"blue\">\
-<b><big>What's new</big></b>\n\
+<b><big>What's new in v4.1.5</big></b>\n\
+\t*\t<b><i>Close all Dotters</i></b>: There is a new menu option to close all Dotters started from the current Blixem. Right-click in Blixem to see the menu.\n\
+\n\
+<b><big>What's new in v4.1.4</big></b>\n\
 \t*\t<b><i>Variations</i></b>: SNPs, insertions, deletions etc. can be highlighted in the reference sequence, and shown in a 'variations track' above the reference sequence. See the Settings dialog or double-click the reference sequence to show/hide the variations track. Double-click a variation to open its URL. This is an experimental feature and the display is quite crude - please give us feedback on how you would like variations to be displayed, particularly where they overlap.\n\
 \t*\t<b><i>PolyA tails</i></b>: PolyA tails can be shown and polyA signals highlighted in the reference sequence. See the Settings dialog.\n\
 \t*\t<b><i>CDS/UTR regions</i></b>: Exons are now separated into CDS and UTR regions: CDS regions are coloured green and UTR red. Don't forget, you can quickly bump/un-bump the exon view by pressing 'b'.\n\
@@ -242,6 +245,7 @@ To edit a group, right-click and select 'Edit Groups', or use the Ctrl-G shortcu
 \t*\tTo revert back to automatic parameters, click the 'Auto' radio button.\n\
 \t*\tTo save the parameters without running Dotter, click Save and then Cancel'.\n\
 \t*\tTo save the parameters and run Dotter, click 'Execute'.\n\
+\t*\tTo close all Dotters that have been started from the current Blixem, right-click in the Blixem window and choose 'Close all Dotters'.\n\
 \n\
 \n\
 <b><big>Settings</big></b>\n\
@@ -330,6 +334,7 @@ static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
 static void			  onEditGroupsMenu(GtkAction *action, gpointer data);
 static void			  onToggleMatchSet(GtkAction *action, gpointer data);
 static void			  onDotterMenu(GtkAction *action, gpointer data);
+static void			  onCloseAllDottersMenu(GtkAction *action, gpointer data);
 static void			  onSelectFeaturesMenu(GtkAction *action, gpointer data);
 static void			  onDeselectAllRows(GtkAction *action, gpointer data);
 static void			  onStatisticsMenu(GtkAction *action, gpointer data);
@@ -358,7 +363,7 @@ static GList*                     findSeqsFromList(GtkWidget *blxWindow, const c
 static int                        getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft);
 static GList*                     findSeqsFromName(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error);
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
-
+static void                       killAllSpawned(BlxViewContext *bc);
 
 
 /* Menu builders */
@@ -375,6 +380,7 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<Shift><control>A",	"Deselect all",			    G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		  "<control>D",		"Start Dotter",			    G_CALLBACK(onDotterMenu)},
+  { "CloseAllDotters",  NULL, "Close all Dotters",		  NULL,                 "Close all Dotters",                G_CALLBACK(onCloseAllDottersMenu)},
   { "SelectFeatures",	NULL, "Feature series selection tool",	  NULL,			"Feature series selection tool",    G_CALLBACK(onSelectFeaturesMenu)},
 
   { "Statistics",	NULL, "Statistics",   NULL,					"Show memory statistics",	    G_CALLBACK(onStatisticsMenu)}
@@ -397,6 +403,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
+"      <menuitem action='CloseAllDotters'/>"
 //"      <menuitem action='SelectFeatures'/>"
 "  </popup>"
 "</ui>";
@@ -418,6 +425,7 @@ static const char developerMenuDescription[] =
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
+"      <menuitem action='CloseAllDotters'/>"
 "      <menuitem action='SelectFeatures'/>"
 "      <separator/>"
 "      <menuitem action='Statistics'/>"
@@ -3734,6 +3742,28 @@ static void onDotterMenu(GtkAction *action, gpointer data)
   showDotterDialog(blxWindow, TRUE);
 }
 
+/* Called when the user selects the 'Close all Dotters' menu option */
+static void onCloseAllDottersMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  /* Check if there are actually any spawned processes */
+  if (g_slist_length(bc->spawnedProcesses) > 0)
+    {
+      gint responseId = runConfirmationBox(blxWindow, "Close all Dotters", 
+        "Are you sure you want to close all Dotters started from this Blixem?");
+
+      if (responseId == GTK_RESPONSE_ACCEPT)
+        {
+          killAllSpawned(bc);
+        }
+    }
+  else
+    {
+      g_message("No Dotters to close.\n");
+    }
+}
 
 /* Called when the user selects the 'Select Features' menu option, or hits the relevant shortcut key */
 static void onSelectFeaturesMenu(GtkAction *action, gpointer data)
