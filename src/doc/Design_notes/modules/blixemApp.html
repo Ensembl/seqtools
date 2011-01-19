@@ -127,13 +127,42 @@
   </p>
 
   <h4>Detail-view columns</h4>
-  The <code>BlxColumnId</code> enum defines a list of all columns that should exist in the detail-view-panes. The columns in the GtkTreeViews are created from this information during initialisation. This makes it relatively easy to add new columns - see the note against <code>BlxColumnId</code> in <code>blixem_.h</code> for details.
+  <p>
+    The <code>BlxColumnId</code> enum defines a list of all columns that should exist in the detail-view-panes. The columns in the GtkTreeViews are created from this information during initialisation. This makes it relatively easy to add new columns - see the note against <code>BlxColumnId</code> in <code>blixem_.h</code> for details.
+  </p>
 
   <h4>Toolbar</h4>
-  The toolbar is part of the detail view for historic reasons but actually contains some functions relating to the whole of Blixem.  It contains a drop-down box for sorting the detail-vew, buttons for Settings and Help, buttons for navigation and zooming in the detail-view, a feedback box containing info about the currently selected match/coordinate and a feedback area containing info about the currently moused-over match.
+  <p>
+    The toolbar is part of the detail view for historic reasons but actually contains some functions relating to the whole of Blixem.  It contains a drop-down box for sorting the detail-vew, buttons for Settings and Help, buttons for navigation and zooming in the detail-view, a feedback box containing info about the currently selected match/coordinate and a feedback area containing info about the currently moused-over match.
+  </p>
 
   <h3>Sequences, selections and groups</h3>
-  A Group is a struct that stores a list of (match) sequences, along with any properties that are relevant (e.g. highlight color, visibility etc.). A Selection is essentially just a list of sequences too, so many functions are designed to operate on a list of sequences so that they work with either a Group or a Selection. The Groups functionality is very basic at the moment, offering just a simple mechanism to highlight or hide a set of sequences, but it could be extended to give much more powerful filtering and sorting options. 
+  <p>
+    A Group is a struct that stores a list of (match) sequences, along with any properties that are relevant (e.g. highlight color, visibility etc.). A Selection is essentially just a list of sequences too, so many functions are designed to operate on a list of sequences so that they work with either a Group or a Selection. The Groups functionality is very basic at the moment, offering just a simple mechanism to highlight or hide a set of sequences, but it could be extended to give much more powerful filtering and sorting options. 
+  </p>
+
+  <h2>Calling Dotter</h2>
+  <p>
+    Blixem can call Dotter on the currently selected sequence.  (Currently this is limited to a single sequence at a time, but the aim is to allow multiple Dotters to be started simultaneously from a multiple selection).  Dotter is spawned as a new process.  Blixem keeps track of all of the processes it has started via the spawnedProcesses member of the blixem context, and kills them when the main Blixem window is destroyed.
+  </p>
+  <h3>Call Dotter on Self</h3>
+  <p>
+    This option allows the user to call Dotter on the reference sequence versus itself.  The aim of this option is to be able to analyse internal repeats.  
+  </p>
+  <h3>Dotter parameters</h3>
+  <p>
+    When the user selects the 'Dotter' option they get presented with the Dotter dialog, which allows them to edit parameters before calling Dotter.  The default parameters are for Auto coords, and for a Zoom factor of 0 (which means 'none', i.e. Dotter will calculate a sensible default zoom).  Default parameters should be ok in most cases, so all the user needs to do is hit Execute.  They can also specify parameters by entering coords manually or by clicking one of the buttons to use the current big-picture range or the full reference-sequence range.  They can save the parameters if they don't want to execute Dotter immediately.  (Note that parameters are also saved when the user hits the Execute button.)   The auto/manual option will be remembered when parameters are saved, too, and the saved option will be the default the next time the dialog is opened.  
+  </p>
+
+  <h3>Auto coords</h3>
+  <p>
+    The 'Smart' or 'Auto' coords option means that Blixem will attempt to calculate a sensible range of coords to call Dotter with, based on the sequence that is currently selected. The auto coords need to be calculated when the Dotter dialog is opened, so that they can be displayed to the user before they execute Dotter. They need to be recalculated if the user selects a different sequence, selects the 'Self' option, or switches back to Auto coords after selecting the Manual coords option.  For 'Self' mode, the auto range used is centred on the current detail-view range, and the length of the range is hard-coded (currently 2000 bases).
+  </p>
+
+  <h3>Fetching sequence data</h3>
+  <p>
+    In the old seqbl file format, it was possible to get incomplete sequence data passed in (i.e. not the full length of the match sequence).  Therefore, by default Blixem will try to fetch the sequence from the pfetch server (only available to users within the Sanger Institute) in order to get the full sequence data if possible.  If this fails, it will use the sequence data that is stored in Blixem. The sequence data is fetched when the Dotter dialog is first opened because it is used to calculate the smart dotter range.  It needs to be re-fetched if the user selects a different sequence. 
+  </p>
 
 </div>
 </body>
