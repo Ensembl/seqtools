@@ -738,7 +738,9 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
         {
           /* Create the image and push the pixelmap to it */
           properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
-          transformGreyRampImage(properties->image, *pixmap, properties);
+          
+          if (pixmap)
+            transformGreyRampImage(properties->image, *pixmap, properties);
         }
     }
   
