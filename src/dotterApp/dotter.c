@@ -727,7 +727,7 @@ static void dotterContextCloseAllWindows(DotterContext *dc)
  * window is destroyed) */
 static void closeWindow(GtkWidget *widget)
 {
-  char *name = gtk_widget_get_name(widget);
+  const char *name = gtk_widget_get_name(widget);
   
   if (name && strcmp(name, MAIN_WINDOW_NAME) == 0)
     {
