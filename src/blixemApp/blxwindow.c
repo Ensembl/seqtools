@@ -2681,13 +2681,25 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gp
   
   if (newWidth != columnInfo->width)
     {
-      columnInfo->width = newWidth;
-
+      /* Check it's a sensible value. We could do with a better check really but
+       * for now just check that it's less than the screen width. This at least
+       * catches excessively large values, which can cause Blixem to crash. Slightly
+       * too-large values may make things look odd but should be recoverable. */
       GtkWidget *blxWindow = dialogChildGetBlxWindow(widget);
-      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
-      resizeDetailViewHeaders(detailView);
+      GdkScreen *screen = gtk_widget_get_screen(blxWindow);
+
+      if (newWidth > gdk_screen_get_width(screen))
+        {
+          g_critical("Column width '%d' too large; not changed.\n", newWidth);
+        }
+      else
+        {
+          columnInfo->width = newWidth;
+
+          GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+          callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
+          resizeDetailViewHeaders(detailView);
+        }
     }
   
   return result;
