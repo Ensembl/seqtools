@@ -110,6 +110,28 @@ static gboolean onSaveDotterMode(GtkWidget *button, const gint responseId, gpoin
 
 
 /* Callback to be called when the user clicks OK or Apply on the dotter
+ * dialog. It saves the state of the 'call on self' button. */
+static gboolean onSaveDotterSelf(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  blxContext->dotterSelf = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  return TRUE;
+}
+
+
+/* Callback to be called when the user clicks OK or Apply on the dotter
+ * dialog. It saves the state of the 'HSPs only' button. */
+static gboolean onSaveDotterHsps(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  blxContext->dotterHsps = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  return TRUE;
+}
+
+
+/* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It saves the start parameter that was entered (if manual dotter
  * params are being used). */
 static gboolean onSaveDotterStart(GtkWidget *entry, const gint responseId, gpointer data)
@@ -572,8 +594,13 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   GtkWidget *selfButton = gtk_check_button_new_with_mnemonic("Call on _self");
   gtk_box_pack_start(vbox3, selfButton, FALSE, FALSE, 0);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(selfButton), bc->dotterSelf);
+  widgetSetCallbackData(selfButton, onSaveDotterSelf, blxWindow);
+  
   GtkWidget *hspsButton = gtk_check_button_new_with_mnemonic("_HSPs only");
   gtk_box_pack_start(vbox3, hspsButton, FALSE, FALSE, 0);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hspsButton), bc->dotterHsps);
+  widgetSetCallbackData(hspsButton, onSaveDotterHsps, blxWindow);
   
   /* Create the data struct we need to pass to the toggled callback, and connect signals */
   dialogData->blxWindow = blxWindow;
@@ -582,8 +609,8 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   dialogData->startEntry = startEntry;
   dialogData->endEntry = endEntry;
   dialogData->zoomEntry = zoomEntry;
-  dialogData->callOnSelf = FALSE;
-  dialogData->hspsOnly = FALSE;
+  dialogData->callOnSelf = bc->dotterSelf;
+  dialogData->hspsOnly = bc->dotterHsps;
   
   if (dialogData->dotterSSeq)
     {

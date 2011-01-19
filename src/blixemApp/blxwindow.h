@@ -102,9 +102,11 @@ typedef struct _BlxViewContext
   SequenceGroup *matchSetGroup;	    /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
   
   gboolean autoDotter;		    /* Whether to use automatic dotter params */
+  gboolean dotterSelf;		    /* Whether the dotter "call on self" option is on by default */
+  gboolean dotterHsps;		    /* Whether the dotter "HSPs only" option is on by default */
   int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
   int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
-  int dotterZoom;		    /* Zoom param to call dotter with */
+  int dotterZoom;		    /* Zoom param to call dotter with, if using manual params */
   
   GArray *defaultColors;	    /* Default colors used by Blixem */
   gboolean usePrintColors;	    /* Whether to use print colors (i.e. black and white) */
