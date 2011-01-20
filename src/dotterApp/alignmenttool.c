@@ -870,19 +870,20 @@ static void drawSequenceHeaderText(GtkWidget *widget,
 				   GdkDrawable *drawable, 
 				   const int x, 
 				   const int y, 
-				   const int coord, 
-				   const gdouble charWidth,
-				   PangoFontDescription *fontDesc)
+				   const int coordIn, 
+				   DotterContext *dc,
+				   const gboolean horizontal)
 {
+  int coord = getDisplayCoord(coordIn, dc, horizontal);
   char *displayText = convertIntToString(coord);
   
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, displayText);
-  pango_layout_set_font_description(layout, fontDesc);
+  pango_layout_set_font_description(layout, dc->fontDesc);
   
   if (layout)
     {
     /* Offset the text so that the middle of the text is lined up with the coord of interest */
-    const int offset = ceil((((gdouble)numDigitsInInt(coord) / 2.0) - 1) * charWidth);
+    const int offset = ceil((((gdouble)numDigitsInInt(coord) / 2.0) - 1) * dc->charWidth);
     
     gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x - offset, y, layout);
     g_object_unref(layout);
@@ -928,7 +929,7 @@ static void drawSequenceHeader(GtkWidget *widget,
   if (horizontal)
     {
       /* For the ref sequence, draw the marker below the label. */
-      drawSequenceHeaderText(widget, drawable, x, y, coord, dc->charWidth, dc->fontDesc);
+      drawSequenceHeaderText(widget, drawable, x, y, coord, dc, horizontal);
       y += roundNearest(dc->charHeight);
       drawSequenceHeaderMarker(drawable, x, y, dc->charWidth);
     }
@@ -937,7 +938,7 @@ static void drawSequenceHeader(GtkWidget *widget,
       /* For the match sequence, draw the marker above the label */
       drawSequenceHeaderMarker(drawable, x, y, dc->charWidth);
       y += SELECTED_COORD_MARKER_HEIGHT;
-      drawSequenceHeaderText(widget, drawable, x, y, coord, dc->charWidth, dc->fontDesc);
+      drawSequenceHeaderText(widget, drawable, x, y, coord, dc, horizontal);
     }
 }
 

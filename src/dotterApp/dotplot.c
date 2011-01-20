@@ -1909,9 +1909,10 @@ static void drawGridline(GdkDrawable *drawable, DotplotProperties *properties, c
 
 
 /* Utility used by drawScaleMarkers to draw labels on tick marks */
-static void drawTickmarkLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc, const int baseNum, int x, int y, const gboolean horizontal)
+static void drawTickmarkLabel(GtkWidget *dotplot, DotterContext *dc, GdkDrawable *drawable, GdkGC *gc, const int coordIn, int x, int y, const gboolean horizontal)
 {
-  char *displayText = convertIntToString(baseNum);
+  int coord = getDisplayCoord(coordIn, dc, horizontal);
+  char *displayText = convertIntToString(coord);
   PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, displayText);
   g_free(displayText);
   
@@ -1980,8 +1981,8 @@ static void drawScaleMarkers(GtkWidget *dotplot,
   for ( ; i < numSubmarks; ++i)
     {
       const int basesFromFirstMark = i * basesPerSubmark;
-      const int baseNum = firstMarkCoord + (direction * basesFromFirstMark);
-      const gboolean isMajorTick = (baseNum % basesPerMark == 0);
+      const int coord = firstMarkCoord + (direction * basesFromFirstMark);
+      const gboolean isMajorTick = (coord % basesPerMark == 0);
 
       const int currentPos = firstMarkPos + (basesFromFirstMark / scaleFactor);
       const int tickHeight = isMajorTick ? DEFAULT_MAJOR_TICK_HEIGHT : DEFAULT_MINOR_TICK_HEIGHT;
@@ -2000,7 +2001,7 @@ static void drawScaleMarkers(GtkWidget *dotplot,
       /* Draw a lable on major tick marks */
       if (isMajorTick)
         {
-	  drawTickmarkLabel(dotplot, drawable, gc, baseNum, x1, y1, horizontal);
+	  drawTickmarkLabel(dotplot, dc, drawable, gc, coord, x1, y1, horizontal);
         }
     }
 }
@@ -2060,7 +2061,9 @@ static void drawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       if (properties->crosshairCoordsOn)
         {
           /* Draw the coord text */
-          char *displayText = blxprintf("%d, %d", dwc->refCoord, dwc->matchCoord);
+          char *displayText = blxprintf("%d, %d", 
+					getDisplayCoord(dwc->refCoord, dc, TRUE), 
+					getDisplayCoord(dwc->matchCoord, dc, FALSE));
           
           if (displayText && strlen(displayText) > 0)
             {

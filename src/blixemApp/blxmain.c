@@ -95,6 +95,9 @@ gboolean blixem_debug_G = FALSE ;
   -k <file>, --key-file=<file>\n\
     Read color options from a key-value file. Use --help option to see details.\n\
 \n\
+  -N, --negate-coords\n\
+    When showing the reverse strand, negate the display coordinates.\n\
+\n\
   -O <n>, --offset=<n>\n\
     Offset the reference sequence coordinate system by n.\n\
 \n\
@@ -550,7 +553,7 @@ int main(int argc, char **argv)
       {"tblastx",               no_argument,        0, 'l'}, /* obsolete */
       {"display-mode",          required_argument,  0, 'm'},
       {"blastn",                no_argument,        0, 'n'}, /* obsolete */
-      {"negate-coords",         no_argument,        0, 'N'}, /* "secret" option (hide from user) */
+      {"negate-coords",         no_argument,        0, 'N'}, 
       {"offset",                required_argument,  0, 'O'},
       {"blastp",                no_argument,        0, 'p'}, /* obsolete */
       {"pfetch-server",         required_argument,  0, 'P'},

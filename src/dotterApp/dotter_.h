@@ -181,6 +181,7 @@ typedef struct _DotterContext
   
   gboolean hozScaleRev;			    /* true if horizontal coords should increase from right-to-left rather than left-to-right */
   gboolean vertScaleRev;		    /* true if vertical coords should increase from bottom-to-top rather than top-to-bottom */
+  gboolean negateCoords;		    /* negate displayed coords if the scale is reversed, i.e. so coords still appear to increase left-to-right */
   gboolean selfComp;                        /* true if we're comparing the ref seq against itself */
   gboolean displayMirror;                   /* whether to display a mirror image in self comparisons */
   
@@ -264,6 +265,8 @@ void		    argvAdd(int *argc, char ***argv, char *s);
 
 /* dotter.c */
 int		    getResFactor(DotterContext *dc, const gboolean horizontal);
+int		    getDisplayCoord(const int coordIn, DotterContext *dc, const gboolean horizontal);
+
 void                callDotterInternal(DotterContext *dc, 
                                        const IntRange const *refSeqRange,
                                        const IntRange const *matchSeqRange,

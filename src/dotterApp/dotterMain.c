@@ -145,6 +145,7 @@ static void setDefaultOptions(DotterOptions *options)
   options->fsEndLinesOn = FALSE;
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
+  options->negateCoords = FALSE;
   
   options->msgData.titlePrefix = g_strdup("Dotter - ");
   options->msgData.parent = NULL;
@@ -329,10 +330,11 @@ int main(int argc, char **argv)
       {"crick-only",            no_argument,        0, 'c'},
       {"horizontal-offset",     required_argument,  0, 'q'},
       {"vertical-offset",       required_argument,  0, 's'},
+      {"negate-coords",         no_argument,        0, 'N'},
       {0, 0, 0, 0}
     };
 
-  char        *optstring="b:cDf:F:hHil:M:m:p:q:Rrs:SvW:wz:";
+  char        *optstring="b:cDf:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -372,6 +374,7 @@ int main(int argc, char **argv)
             options.mtxfile = g_malloc(strlen(optarg)+1);
             strcpy(options.mtxfile, optarg);            break;
           case 'm': options.memoryLimit = atof(optarg); break;
+	  case 'N': options.negateCoords = TRUE;        break;
           case 'p': options.pixelFacset = atoi(optarg); break;
           case 'q': options.qoffset = atoi(optarg);     break;
           case 'R': options.swapGreyramp = TRUE;        break;

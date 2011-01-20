@@ -208,6 +208,11 @@ static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
 static gboolean               onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data);
 static gboolean               onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer data);
+static gboolean		      negateDisplayCoord(DotterContext *dc, const gboolean horizontal);
+static int		      getStartCoord(DotterWindowContext *dwc, const gboolean horizontal);
+static int		      getEndCoord(DotterWindowContext *dwc, const gboolean horizontal);
+static void		      setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
+static void		      setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 
 static void createDotterInstance(DotterContext *dotterCtx,
                                  DotterWindowContext *dotterWinCtx,
@@ -577,6 +582,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
   
   result->hozScaleRev = options->hozScaleRev;
   result->vertScaleRev = options->vertScaleRev;
+  result->negateCoords = options->negateCoords;
 
   result->selfComp = selfComp;
   result->displayMirror = options->mirrorImage;
@@ -2056,12 +2062,16 @@ static gboolean onQStartChanged(GtkWidget *widget, const gint responseId, gpoint
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   int newValue = convertStringToInt(text);
   
+  /* If display coords are negated, we must un-negate it before we use it */
+  if (negateDisplayCoord(dwc->dotterCtx, TRUE))
+    newValue *= -1;
+  
   if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
     g_warning("Limiting reference sequence start to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
   
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
   
-  properties->dotterWinCtx->refSeqRange.min = newValue;
+  setStartCoord(dwc, TRUE, newValue);
 
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
@@ -2077,13 +2087,17 @@ static gboolean onQEndChanged(GtkWidget *widget, const gint responseId, gpointer
   
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   int newValue = convertStringToInt(text);
+
+  /* If display coords are negated, we must un-negate it before we use it */
+  if (negateDisplayCoord(dwc->dotterCtx, TRUE))
+    newValue *= -1;
   
   if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
     g_warning("Limiting reference sequence end to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
-  
-  properties->dotterWinCtx->refSeqRange.max = newValue;
+
+  setEndCoord(dwc, TRUE, newValue);
   
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
@@ -2100,12 +2114,16 @@ static gboolean onSStartChanged(GtkWidget *widget, const gint responseId, gpoint
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   int newValue = convertStringToInt(text);
   
+  /* If display coords are negated, we must un-negate it before we use it */
+  if (negateDisplayCoord(dwc->dotterCtx, FALSE))
+    newValue *= -1;
+  
   if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
     g_warning("Limiting vertical sequence start to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
-  properties->dotterWinCtx->matchSeqRange.min = newValue;
+  setStartCoord(dwc, FALSE, newValue);
 
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
@@ -2122,12 +2140,16 @@ static gboolean onSEndChanged(GtkWidget *widget, const gint responseId, gpointer
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   int newValue = convertStringToInt(text);
   
+  /* If display coords are negated, we must un-negate it before we use it */
+  if (negateDisplayCoord(dwc->dotterCtx, FALSE))
+    newValue *= -1;
+  
   if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
     g_warning("Limiting vertical sequence end to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
-  properties->dotterWinCtx->matchSeqRange.max = newValue;
+  setEndCoord(dwc, FALSE, newValue);
   
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
@@ -2274,6 +2296,7 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = dwc->dotterCtx;
 
   const DotterDialogId dialogId = DOTDIALOG_SETTINGS;
   GtkWidget *dialog = getPersistentDialog(dwc->dialogList, dialogId);
@@ -2310,11 +2333,17 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
   gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(table));
   
+  /* Get the start and end values of each range, and negate them for display if necessary */
+  const int qStart = getDisplayCoord(getStartCoord(dwc, TRUE), dc, TRUE);
+  const int qEnd = getDisplayCoord(getEndCoord(dwc, TRUE), dc, TRUE);
+  const int sStart = getDisplayCoord(getStartCoord(dwc, FALSE), dc, FALSE);
+  const int sEnd = getDisplayCoord(getEndCoord(dwc, FALSE), dc, FALSE);
+  
   createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
-  createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "_Horizontal range: ", dwc->refSeqRange.min, onQStartChanged);
-  createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, dwc->refSeqRange.max, onQEndChanged);
-  createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", dwc->matchSeqRange.min, onSStartChanged);
-  createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, dwc->matchSeqRange.max, onSEndChanged);
+  createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "_Horizontal range: ", qStart, onQStartChanged);
+  createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
+  createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", sStart, onSStartChanged);
+  createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, sEnd, onSEndChanged);
   createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
   
 
@@ -2818,6 +2847,99 @@ int getResFactor(DotterContext *dc, const gboolean horizontal)
   return horizontal && dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1;
 }
 
+
+/* Returns true if display coordinates should be shown negated for the given scale. */
+static gboolean negateDisplayCoord(DotterContext *dc, const gboolean horizontal)
+{
+  gboolean result = FALSE;
+  
+  if (dc->negateCoords)
+    {
+    if (horizontal)
+      result = dc->hozScaleRev;
+    else 
+      result = dc->vertScaleRev;
+    }
+  
+  return result;
+}
+
+
+/* Convert the given coord to a display coord (just negates it for the display if necessary) */
+int getDisplayCoord(const int coordIn, DotterContext *dc, const gboolean horizontal)
+{
+  int result = coordIn;
+  
+  if (negateDisplayCoord(dc, horizontal))
+    result *= -1;
+  
+  return result;
+}
+
+
+/* Get the start coord of the display range for the given sequence */
+static int getStartCoord(DotterWindowContext *dwc, const gboolean horizontal)
+{
+  int result = UNSET_INT;
+  
+  if (horizontal)
+    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.max : dwc->refSeqRange.min;
+  else
+    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.max : dwc->matchSeqRange.min;
+  
+  return result;
+}
+
+/* Get the end coord of the display range for the given sequence */
+static int getEndCoord(DotterWindowContext *dwc, const gboolean horizontal)
+{
+  int result = UNSET_INT;
+  
+  if (horizontal)
+    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.min : dwc->refSeqRange.max;
+  else
+    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.min : dwc->matchSeqRange.max;
+  
+  return result;
+}
+
+/* Set the start coord of the display range for the given sequence */
+static void setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
+{
+  if (horizontal)
+    {
+      if (dwc->dotterCtx->hozScaleRev)
+	dwc->refSeqRange.max = newValue;
+      else
+	dwc->refSeqRange.min = newValue;
+    }
+  else
+    {
+      if (dwc->dotterCtx->vertScaleRev)
+	dwc->matchSeqRange.max = newValue;
+      else
+	dwc->matchSeqRange.min = newValue;
+    }
+}
+
+/* Set the end coord of the display range for the given sequence */
+static void setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
+{
+  if (horizontal)
+    {
+    if (dwc->dotterCtx->hozScaleRev)
+      dwc->refSeqRange.min = newValue;
+    else
+      dwc->refSeqRange.max = newValue;
+    }
+  else
+    {
+    if (dwc->dotterCtx->vertScaleRev)
+      dwc->matchSeqRange.min = newValue;
+    else
+      dwc->matchSeqRange.max = newValue;
+    }
+}
 
 /* Move the given sequence coord by the given number of coords (which can be negative to move 
  * in the decreasing direction. 'horizontal' indicates whether it's the horizontal or vertical

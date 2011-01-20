@@ -1205,9 +1205,10 @@ static void callDotterChildProcess(char *dotterBinary,
   argList = g_slist_append(argList, g_strdup("-s"));
   argList = g_slist_append(argList, convertIntToString(sstart));
   
-  if (bc->displayRev)		    argList = g_slist_append(argList, g_strdup("-r"));
-  if (sStrand == BLXSTRAND_REVERSE) argList = g_slist_append(argList, g_strdup("-v"));
-  if (hspsOnly)			    argList = g_slist_append(argList, g_strdup("-H"));
+  if (bc->displayRev)			    argList = g_slist_append(argList, g_strdup("-r"));
+  if (sStrand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));
+  if (hspsOnly)				    argList = g_slist_append(argList, g_strdup("-H"));
+  if (bc->flags[BLXFLAG_NEGATE_COORDS])	    argList = g_slist_append(argList, g_strdup("-N"));
   
   argList = g_slist_append(argList, g_strdup("-S"));
   argList = g_slist_append(argList, g_strdup(bc->refSeqName));
