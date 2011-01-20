@@ -2062,6 +2062,9 @@ static gboolean onQStartChanged(GtkWidget *widget, const gint responseId, gpoint
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
   
   properties->dotterWinCtx->refSeqRange.min = newValue;
+
+  /* Check the crosshair is still in range and if not clip it */
+  updateOnSelectedCoordsChanged(dotterWindow);
   
   return TRUE;
 }
@@ -2082,6 +2085,9 @@ static gboolean onQEndChanged(GtkWidget *widget, const gint responseId, gpointer
   
   properties->dotterWinCtx->refSeqRange.max = newValue;
   
+  /* Check the crosshair is still in range and if not clip it */
+  updateOnSelectedCoordsChanged(dotterWindow);
+
   return TRUE;
 }
 
@@ -2100,7 +2106,10 @@ static gboolean onSStartChanged(GtkWidget *widget, const gint responseId, gpoint
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
   properties->dotterWinCtx->matchSeqRange.min = newValue;
-  
+
+  /* Check the crosshair is still in range and if not clip it */
+  updateOnSelectedCoordsChanged(dotterWindow);
+
   return TRUE;
 }
 
@@ -2120,6 +2129,9 @@ static gboolean onSEndChanged(GtkWidget *widget, const gint responseId, gpointer
   
   properties->dotterWinCtx->matchSeqRange.max = newValue;
   
+  /* Check the crosshair is still in range and if not clip it */
+  updateOnSelectedCoordsChanged(dotterWindow);
+
   return TRUE;
 }
 
