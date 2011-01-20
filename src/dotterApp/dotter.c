@@ -2072,6 +2072,10 @@ static gboolean onQStartChanged(GtkWidget *widget, const gint responseId, gpoint
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
   
   setStartCoord(dwc, TRUE, newValue);
+  
+  /* If it's a self comparison, also update the vertical range. */
+  if (dwc->dotterCtx->selfComp)
+    setStartCoord(dwc, FALSE, newValue);
 
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
@@ -2098,6 +2102,10 @@ static gboolean onQEndChanged(GtkWidget *widget, const gint responseId, gpointer
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
 
   setEndCoord(dwc, TRUE, newValue);
+  
+  /* If it's a self comparison, also update the vertical range. */
+  if (dwc->dotterCtx->selfComp)
+    setEndCoord(dwc, FALSE, newValue);
   
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
@@ -2338,13 +2346,25 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
   const int qEnd = getDisplayCoord(getEndCoord(dwc, TRUE), dc, TRUE);
   const int sStart = getDisplayCoord(getStartCoord(dwc, FALSE), dc, FALSE);
   const int sEnd = getDisplayCoord(getEndCoord(dwc, FALSE), dc, FALSE);
-  
+
   createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
-  createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "_Horizontal range: ", qStart, onQStartChanged);
-  createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
-  createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", sStart, onSStartChanged);
-  createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, sEnd, onSEndChanged);
-  createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+  
+  /* Create the boxes for the sequence ranges. If it's a self comparison, we only really have one range. */
+  if (dc->selfComp)
+    {
+      createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "Range: ", qStart, onQStartChanged);
+      createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
+      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+    }
+  else
+    {
+      createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "_Horizontal range: ", qStart, onQStartChanged);
+      createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
+      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", sStart, onSStartChanged);
+      createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, sEnd, onSEndChanged);
+      createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+    }
+  
   
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
