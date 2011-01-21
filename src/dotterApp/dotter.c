@@ -209,8 +209,6 @@ static void                   refreshAll(GtkWidget *dotterWindow, gpointer data)
 static gboolean               onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data);
 static gboolean               onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer data);
 static gboolean		      negateDisplayCoord(DotterContext *dc, const gboolean horizontal);
-static int		      getStartCoord(DotterWindowContext *dwc, const gboolean horizontal);
-static int		      getEndCoord(DotterWindowContext *dwc, const gboolean horizontal);
 static void		      setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 static void		      setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 
@@ -3012,8 +3010,16 @@ int getDisplayCoord(const int coordIn, DotterContext *dc, const gboolean horizon
 }
 
 
+/* Get the currently-selected (i.e. crosshair) coord for the horizontal or 
+ * vertical sequence, as indicated by the bool */
+int getSelectedCoord(DotterWindowContext *dwc, const gboolean horizontal)
+{
+  return (horizontal ? dwc->refCoord : dwc->matchCoord);
+}
+
+
 /* Get the start coord of the display range for the given sequence */
-static int getStartCoord(DotterWindowContext *dwc, const gboolean horizontal)
+int getStartCoord(DotterWindowContext *dwc, const gboolean horizontal)
 {
   int result = UNSET_INT;
   
@@ -3026,7 +3032,7 @@ static int getStartCoord(DotterWindowContext *dwc, const gboolean horizontal)
 }
 
 /* Get the end coord of the display range for the given sequence */
-static int getEndCoord(DotterWindowContext *dwc, const gboolean horizontal)
+int getEndCoord(DotterWindowContext *dwc, const gboolean horizontal)
 {
   int result = UNSET_INT;
   

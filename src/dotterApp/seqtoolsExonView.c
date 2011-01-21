@@ -328,21 +328,27 @@ static void drawCrosshair(GtkWidget *exonView, GdkDrawable *drawable, GdkGC *gc)
       DotterContext *dc = properties->dc;
       DotterWindowContext *dwc = properties->dwc;
       
-      int x = UNSET_INT;
-      const gdouble scaleFactor = dwc->zoomFactor * getResFactor(dc, TRUE);
+      const gdouble scaleFactor = dwc->zoomFactor * getResFactor(dc, properties->horizontal);
+      const int coord = getSelectedCoord(dwc, properties->horizontal);
       
-      if (dc->hozScaleRev)
+      /* Work out the distance from the left/top edge of the rect */
+      const int distFromEdge = abs(coord - getStartCoord(dwc, properties->horizontal)) / scaleFactor;
+
+      GdkColor *color = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dc->usePrintColors);
+      gdk_gc_set_foreground(gc, color);
+      
+      if (properties->horizontal)
         {
-          x = properties->exonViewRect.x + (properties->qRange->max - dwc->refCoord) / scaleFactor;
+          /* Draw a vertical line at x */
+          const int x = properties->exonViewRect.x + distFromEdge;
+          gdk_draw_line(drawable, gc, x, properties->exonViewRect.y, x, properties->exonViewRect.y + properties->exonViewRect.height);
         }
       else
         {
-          x = properties->exonViewRect.x + (dwc->refCoord - properties->qRange->min) / scaleFactor;
+          /* Draw a horizontal line at y */
+          const int y = properties->exonViewRect.y + distFromEdge;
+          gdk_draw_line(drawable, gc, properties->exonViewRect.x, y, properties->exonViewRect.x + properties->exonViewRect.width, y);
         }
-      
-      GdkColor *color = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dc->usePrintColors);
-      gdk_gc_set_foreground(gc, color);
-      gdk_draw_line(drawable, gc, x, properties->exonViewRect.y, x, properties->exonViewRect.y + properties->exonViewRect.height);
     }
 }
 
@@ -458,11 +464,21 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width)
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   
   /* Calculate the area where the exon view will be drawn */
-  properties->exonViewRect.x = properties->dc->scaleWidth; /* use same border as dotplot */
-  properties->exonViewRect.y = 0;
-  properties->exonViewRect.width = width;
-  properties->exonViewRect.height = properties->exonHeight + (2 * properties->yPad);
-
+  if (properties->horizontal)
+    {
+      properties->exonViewRect.x = properties->dc->scaleWidth; /* use same left border as dotplot */
+      properties->exonViewRect.y = 0;
+      properties->exonViewRect.width = width;
+      properties->exonViewRect.height = properties->exonHeight + (2 * properties->yPad);
+    }
+  else
+    {
+      properties->exonViewRect.x = 0;
+      properties->exonViewRect.y = properties->dc->scaleHeight; /* use same top border as dotplot */
+      properties->exonViewRect.width = properties->exonHeight + (2 * properties->yPad);
+      properties->exonViewRect.height = width;
+    }
+  
   gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
   gtk_widget_set_size_request(exonView, properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
   

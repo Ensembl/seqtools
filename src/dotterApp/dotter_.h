@@ -269,6 +269,9 @@ void		    argvAdd(int *argc, char ***argv, char *s);
 int		    getResFactor(DotterContext *dc, const gboolean horizontal);
 int		    getDisplayCoord(const int coordIn, DotterContext *dc, const gboolean horizontal);
 void                copyIntToDefaultClipboard(const int val);
+int                 getStartCoord(DotterWindowContext *dwc, const gboolean horizontal);
+int                 getEndCoord(DotterWindowContext *dwc, const gboolean horizontal);
+int                 getSelectedCoord(DotterWindowContext *dwc, const gboolean horizontal);
 
 void                callDotterInternal(DotterContext *dc, 
                                        const IntRange const *refSeqRange,
