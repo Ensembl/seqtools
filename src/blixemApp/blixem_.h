@@ -302,8 +302,6 @@ gboolean                            blxview(CommandLineOptions *options,
 
 void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
-int				   findMspListSExtent(GList *mspList, const gboolean findMin);
-int				   findMspListQExtent(GList *mspList, const gboolean findMin);
 void                               mspGetFullSRange(const MSP const *msp, 
                                                     const gboolean seqSelected,
                                                     const gboolean *flags,

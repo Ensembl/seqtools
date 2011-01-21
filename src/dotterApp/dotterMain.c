@@ -428,12 +428,11 @@ int main(int argc, char **argv)
 	    g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
           }
 	
-        options.qname = g_malloc(strlen(argv[optind])+1); strcpy(options.qname, argv[optind]);
-        options.qlen = atoi(argv[optind+1]);
-        options.sname = g_malloc(strlen(argv[optind+2])+1); strcpy(options.sname, argv[optind+2]);
-        options.slen = atoi(argv[optind+3]);
-        dotterBinary = g_malloc(strlen(argv[optind+4])+1);
-        strcpy(dotterBinary, argv[optind+4]);
+        options.qname = g_strdup(argv[optind]);
+        options.qlen = atoi(argv[optind + 1]);
+        options.sname = g_strdup(argv[optind + 2]);
+        options.slen = atoi(argv[optind + 3]);
+        dotterBinary = g_strdup(argv[optind + 4]);
         options.xOptions = getXOptions(argv, argc, optind + 5);
 	
         /* Allocate memory for the sequences, now we know their lengths */
@@ -688,6 +687,8 @@ int main(int argc, char **argv)
         IntRange qRange = {UNSET_INT, UNSET_INT};
 
 	parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, &qRange, &options.sseq, options.sname);
+        
+        finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0);
         
         blxDestroyGffTypeList(&supportedTypes);
       }

@@ -215,8 +215,10 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
   DotplotProperties *properties = g_malloc(sizeof *properties);
   
   properties->dotterWinCtx = dwc;
-  properties->exonView1 = NULL;
-  properties->exonView2 = NULL;
+  properties->hozExons1 = NULL;
+  properties->hozExons2 = NULL;
+  properties->vertExons1 = NULL;
+  properties->vertExons2 = NULL;
   
   properties->plotRect.x = 0;
   properties->plotRect.y = 0;
@@ -469,8 +471,10 @@ void toggleCrosshairOn(GtkWidget *dotplot)
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   properties->crosshairOn = !properties->crosshairOn;
   
-  exonViewSetShowCrosshair(properties->exonView1, properties->crosshairOn && properties->crosshairFullscreen);
-  exonViewSetShowCrosshair(properties->exonView2, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->hozExons1, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->hozExons2, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->vertExons1, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->vertExons2, properties->crosshairOn && properties->crosshairFullscreen);
   
   refreshDotplot(dotplot);
 }
@@ -487,8 +491,10 @@ void toggleCrosshairFullscreen(GtkWidget *dotplot)
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   properties->crosshairFullscreen = !properties->crosshairFullscreen;
   
-  exonViewSetShowCrosshair(properties->exonView1, properties->crosshairOn && properties->crosshairFullscreen);
-  exonViewSetShowCrosshair(properties->exonView2, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->hozExons1, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->hozExons2, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->vertExons1, properties->crosshairOn && properties->crosshairFullscreen);
+  exonViewSetShowCrosshair(properties->vertExons2, properties->crosshairOn && properties->crosshairFullscreen);
 
   refreshDotplot(dotplot);
 }
@@ -763,6 +769,102 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
 }
 
 
+/* Put all the dotplot and exon widgets in a table. The table gets put in a
+ * scrolled window and the scrolled window is returned. */
+static GtkWidget* createDotplotTable(GtkWidget *dotplotCont, 
+                                     GtkWidget *hozLabel,
+                                     GtkWidget *vertLabel,
+                                     GtkWidget *hozExons1,
+                                     GtkWidget *hozExons2,
+                                     GtkWidget *vertExons1,
+                                     GtkWidget *vertExons2)
+{
+  const int xpad = 0;
+  const int ypad = 0;
+  const int numRows = 4;
+  const int numCols = 4;
+  
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  
+  gtk_table_attach(table, hozLabel, 1, 2, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, vertLabel, 0, 1, 1, 2, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, dotplotCont, 1, 2, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
+  gtk_table_attach(table, vertExons1, 2, 3, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
+  gtk_table_attach(table, vertExons2, 3, 4, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
+  gtk_table_attach(table, hozExons1, 1, 2, 2, 3, GTK_FILL, GTK_FILL, xpad, ypad);
+  gtk_table_attach(table, hozExons2, 1, 2, 3, 4, GTK_FILL, GTK_FILL, xpad, ypad);
+  
+  /* Put the table in a scrolled window with a horizontal scrollbar */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  
+  return GTK_WIDGET(scrollWin);
+}
+
+
+/* Return the reverse strand if the given strand is forward and vice versa */
+static BlxStrand getOppositeStrand(BlxStrand strand)
+{
+  return (strand == BLXSTRAND_FORWARD ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD);
+}
+
+
+/* Create the exons view widgets for dotter */
+static void createDotterExonViews(GtkWidget *dotplot, 
+                                  DotterWindowContext *dwc, 
+                                  GtkWidget **hozExons1,
+                                  GtkWidget **hozExons2,
+                                  GtkWidget **vertExons1,
+                                  GtkWidget **vertExons2)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  DotterContext *dc = dwc->dotterCtx;
+  const gboolean showCrosshair = properties->crosshairOn && properties->crosshairFullscreen;
+
+  /* The strand that was passed to dotter is the main strand, so show that first */
+  *hozExons1 = createDotterExonView(dotplot, 
+                                    NULL,
+                                    TRUE,
+                                    dc->refSeqStrand, 
+                                    dwc, 
+                                    properties->imageWidth,
+                                    &dwc->refSeqRange, 
+                                    showCrosshair,
+                                    &properties->hozExons1);
+  
+  *hozExons2 = createDotterExonView(dotplot, 
+                                    NULL,
+                                    TRUE,
+                                    getOppositeStrand(dc->refSeqStrand), 
+                                    dwc, 
+                                    properties->imageWidth, 
+                                    &dwc->refSeqRange, 
+                                    showCrosshair, 
+                                    &properties->hozExons2);
+  
+  *vertExons1 = createDotterExonView(dotplot, 
+                                     NULL, 
+                                     TRUE,
+                                     dc->matchSeqStrand, 
+                                     dwc, 
+                                     properties->imageWidth,
+                                     &dwc->matchSeqRange,
+                                     showCrosshair,
+                                     &properties->vertExons1);
+
+  *vertExons2 = createDotterExonView(dotplot, 
+                                     NULL, 
+                                     TRUE,
+                                     getOppositeStrand(dc->matchSeqStrand),
+                                     dwc, 
+                                     properties->imageWidth, 
+                                     &dwc->matchSeqRange, 
+                                     showCrosshair,
+                                     &properties->vertExons2);
+}
+
+
 /* Create the drawing area for the dot plot. The 'dotplot' output arg is populated with the
  * actual drawing area; the return arg is the overall container widget for the dot plot that will
  * be packed into the dotter window UNLESS we're running in batch mode, in which case the return 
@@ -801,44 +903,15 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   GtkWidget *vertLabel = gtk_label_new(dc->matchSeqName);
   gtk_label_set_angle(GTK_LABEL(vertLabel), 90);
 
-  /* Create the exon views (one for each strand, with the passed ref seq strand first) */
-  DotplotProperties *properties = dotplotGetProperties(*dotplot);
-  const gboolean showCrosshair = properties->crosshairOn && properties->crosshairFullscreen;
-  
-  GtkWidget *exon1 = createDotterExonView(*dotplot, NULL, dc->refSeqStrand, dc, dwc, properties->imageWidth, &dwc->refSeqRange, showCrosshair, &properties->exonView1);
-  GtkWidget *exon2 = createDotterExonView(*dotplot, NULL, dc->refSeqStrand == BLXSTRAND_FORWARD ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD, dc, dwc, properties->imageWidth, &dwc->refSeqRange, showCrosshair, &properties->exonView2);
-  
+  /* Create the 4 exon views: one for each strand, for both sequences */
+  GtkWidget *hozExons1 = NULL;
+  GtkWidget *hozExons2 = NULL;
+  GtkWidget *vertExons1 = NULL;
+  GtkWidget *vertExons2 = NULL;
+  createDotterExonViews(*dotplot, dwc, &hozExons1, &hozExons2, &vertExons1, &vertExons2);
+
   /* Put everything in a table */
-  const int xpad = 0;
-  const int ypad = 0;
-  const int numRows = 4;
-  const int numCols = 2;
-
-  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-  
-  gtk_table_attach(table, hozLabel, 1, 2, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, vertLabel, 0, 1, 1, 2, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, dotplotScrollWin, 1, 2, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
-  gtk_table_attach(table, exon1, 1, 2, 2, 3, GTK_FILL, GTK_FILL, xpad, ypad);
-  gtk_table_attach(table, exon2, 1, 2, 3, 4, GTK_FILL, GTK_FILL, xpad, ypad);
-
-//  /* Put exon views in a vbox */
-//  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-//  gtk_box_pack_start(GTK_BOX(vbox), properties->exonView1, FALSE, FALSE, 0);
-//  gtk_box_pack_start(GTK_BOX(vbox), properties->exonView2, FALSE, FALSE, 0);
-//  
-//  /* put dotplot vs exon view in a paned window */
-//  GtkWidget *panedWin = gtk_vpaned_new();
-//  gtk_paned_add1(GTK_PANED(panedWin), dotplotScrollWin);
-//  gtk_paned_add2(GTK_PANED(panedWin), vbox);
-//
-//  /* put paned window in the table */
-//  gtk_table_attach(table, panedWin, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
-
-  /* Put the table in a scrolled window with a horizontal scrollbar */
-  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  GtkWidget *scrollWin = createDotplotTable(dotplotScrollWin, hozLabel, vertLabel, hozExons1, hozExons2, vertExons1, vertExons2);
   
   gtk_widget_add_events(*dotplot, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(*dotplot, GDK_BUTTON_RELEASE_MASK);
@@ -849,7 +922,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   g_signal_connect(G_OBJECT(*dotplot), "motion-notify-event",   G_CALLBACK(onMouseMoveDotplot), NULL);
 
   DEBUG_EXIT("createDotplot returning ");
-  return GTK_WIDGET(scrollWin);
+  return scrollWin;
 }
 
 
@@ -1848,8 +1921,10 @@ void redrawDotplot(GtkWidget *dotplot)
   
   recalculateDotplotBorders(dotplot, properties);
   
-  calculateDotterExonViewBorders(properties->exonView1, properties->imageWidth);
-  calculateDotterExonViewBorders(properties->exonView2, properties->imageWidth);
+  calculateDotterExonViewBorders(properties->hozExons1, properties->imageWidth);
+  calculateDotterExonViewBorders(properties->hozExons2, properties->imageWidth);
+  calculateDotterExonViewBorders(properties->vertExons1, properties->imageWidth);
+  calculateDotterExonViewBorders(properties->vertExons2, properties->imageWidth);
   
   gtk_widget_queue_draw(dotplot);
 }
@@ -1861,8 +1936,10 @@ void refreshDotplot(GtkWidget *dotplot)
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   
   gtk_widget_queue_draw(dotplot);
-  gtk_widget_queue_draw(properties->exonView1);
-  gtk_widget_queue_draw(properties->exonView2);
+  gtk_widget_queue_draw(properties->hozExons1);
+  gtk_widget_queue_draw(properties->hozExons2);
+  gtk_widget_queue_draw(properties->vertExons1);
+  gtk_widget_queue_draw(properties->vertExons2);
 }
 
 

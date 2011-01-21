@@ -219,19 +219,21 @@ typedef struct _DotterWindowContext
 typedef struct _DotplotProperties
   {
     DotterWindowContext *dotterWinCtx;  /* pointer to the dotter context for the window that this tool belongs to */
-    GtkWidget *exonView1;		      /* forward strand exon view */
-    GtkWidget *exonView2;		      /* reverse strand exon view */
-    GdkRectangle plotRect;	      /* the space where the dot plot will be */
+    GdkRectangle plotRect;              /* the space where the dot plot will be */
+    GtkWidget *hozExons1;		/* shows main strand exons for horizontal sequence */
+    GtkWidget *hozExons2;		/* shows other strand exons for horizontal sequence */
+    GtkWidget *vertExons1;		/* shows main strand exons for vertical sequence */
+    GtkWidget *vertExons2;		/* shows other strand exons for vertical sequence */
     
-    gulong greyMap[NUM_COLORS];     /* maps weight -> pixel value. fixed mapping in pseudo colour displays
+    gulong greyMap[NUM_COLORS];         /* maps weight -> pixel value. fixed mapping in pseudo colour displays
      variable mapping in truecolor displays */
-    GdkColor greyRamp[NUM_COLORS];  /* 256 grey colors, black->white, only used in true color displays */
-    GdkColormap *colorMap;          /* the greyramp colormap */
+    GdkColor greyRamp[NUM_COLORS];      /* 256 grey colors, black->white, only used in true color displays */
+    GdkColormap *colorMap;              /* the greyramp colormap */
     
     int imageWidth;
     int imageHeight;
-    GdkImage *image;                /* the greyramp image */
-    int lineLen;                    /* line length of the image */
+    GdkImage *image;                    /* the greyramp image */
+    int lineLen;                        /* line length of the image */
     
     
     double expResScore;
@@ -239,20 +241,20 @@ typedef struct _DotplotProperties
     int slidingWinSize;
     
     /* Dynamic properties: */
-    unsigned char *pixelmap;        /* source data for drawing the dot-plot */
-    unsigned char *hspPixmap;        /* source data for drawing the HSP dot-plot */
+    unsigned char *pixelmap;            /* source data for drawing the dot-plot */
+    unsigned char *hspPixmap;           /* source data for drawing the HSP dot-plot */
     
-    gboolean crosshairOn;           /* whether to show the crosshair that marks the position of the currently-selected coord */
-    gboolean crosshairCoordsOn;     /* whether to display the crosshair label */
-    gboolean crosshairFullscreen;   /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
+    gboolean crosshairOn;               /* whether to show the crosshair that marks the position of the currently-selected coord */
+    gboolean crosshairCoordsOn;         /* whether to display the crosshair label */
+    gboolean crosshairFullscreen;       /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
     
-    gboolean pixelmapOn;            /* whether to show the dot-plot pixelmap or not */
-    DotterHspMode hspMode;          /* how (and whether) to show high-scoring pairs from Blast */
+    gboolean pixelmapOn;                /* whether to show the dot-plot pixelmap or not */
+    DotterHspMode hspMode;              /* how (and whether) to show high-scoring pairs from Blast */
     
-    gboolean gridlinesOn;           /* whether to show grid lines */
+    gboolean gridlinesOn;               /* whether to show grid lines */
     
-    GdkPoint dragStart;             /* start point for mid-click drag */
-    GdkPoint dragEnd;		  /* end point for mid-click drag */
+    GdkPoint dragStart;                 /* start point for mid-click drag */
+    GdkPoint dragEnd;                   /* end point for mid-click drag */
   } DotplotProperties;
 
 

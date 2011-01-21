@@ -62,8 +62,8 @@
 /* Public function declarations */
 GtkWidget *createDotterExonView(GtkWidget *parent, 
 				GtkCallback refreshFunc,
+                                const gboolean horizontal,
 				const BlxStrand strand, 
-				DotterContext *dc,
 				DotterWindowContext *dwc,
 				const int width,
 				const IntRange const *qRange,

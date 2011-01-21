@@ -1180,41 +1180,50 @@ static gboolean findCommand (char *command, char **resultOut)
 
 
 /* This actually executes the dotter child process */
-static void callDotterChildProcess(char *dotterBinary, 
+static void callDotterChildProcess(const char *dotterBinary, 
 				   const int dotterZoom,
-				   const int qstart,
-				   const int sstart,
-				   const int qlen,
-				   const int slen,
-				   const gboolean hspsOnly,
-				   const BlxStrand sStrand,
+                                   const gboolean hspsOnly,
+                                   const char *seq1Name,
+                                   const IntRange const *seq1Range,
+                                   const BlxStrand seq1Strand,
+                                   const char *seq2Name,
+                                   const IntRange const *seq2Range,
+                                   const BlxStrand seq2Strand,
 				   int *pipes, 
 				   BlxViewContext *bc,
-				   const char *dotterSName,
 				   char *Xoptions)
 {
   DEBUG_OUT("callDotterChildProcess\n");
 
-  /* Create the argument list */
+  char *seq1OffsetStr = convertIntToString(seq1Range->min - 1);
+  char *seq2OffsetStr = convertIntToString(seq2Range->min - 1);
+  char *seq1LenStr = convertIntToString(getRangeLength(seq1Range));
+  char *seq2LenStr = convertIntToString(getRangeLength(seq2Range));
+  
+  /* Create the argument list - start with any options we want to pass */
   GSList *argList = NULL;
   argList = g_slist_append(argList, g_strdup(dotterBinary));
   argList = g_slist_append(argList, g_strdup("-z"));
   argList = g_slist_append(argList, convertIntToString(dotterZoom));
   argList = g_slist_append(argList, g_strdup("-q"));
-  argList = g_slist_append(argList, convertIntToString(qstart));
+  argList = g_slist_append(argList, seq1OffsetStr);
   argList = g_slist_append(argList, g_strdup("-s"));
-  argList = g_slist_append(argList, convertIntToString(sstart));
+  argList = g_slist_append(argList, seq2OffsetStr);
   
-  if (bc->displayRev)			    argList = g_slist_append(argList, g_strdup("-r"));
-  if (sStrand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));
+  if (seq1Strand == BLXSTRAND_REVERSE)      argList = g_slist_append(argList, g_strdup("-r"));
+  if (seq2Strand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));
   if (hspsOnly)				    argList = g_slist_append(argList, g_strdup("-H"));
   if (bc->flags[BLXFLAG_NEGATE_COORDS])	    argList = g_slist_append(argList, g_strdup("-N"));
-  
+
+  /* now tell Dotter that we're calling it internally from another SeqTools
+   * program, so that it knows to expect piped data */
   argList = g_slist_append(argList, g_strdup("-S"));
-  argList = g_slist_append(argList, g_strdup(bc->refSeqName));
-  argList = g_slist_append(argList, convertIntToString(qlen));
-  argList = g_slist_append(argList, g_strdup(dotterSName));
-  argList = g_slist_append(argList, convertIntToString(slen));
+  
+  /* Now pass the required arguments. These must be in the correct order. */
+  argList = g_slist_append(argList, g_strdup(seq1Name));
+  argList = g_slist_append(argList, seq1LenStr);
+  argList = g_slist_append(argList, g_strdup(seq2Name));
+  argList = g_slist_append(argList, seq2LenStr);
   argList = g_slist_append(argList, g_strdup(dotterBinary));
   argList = g_slist_append(argList, g_strdup(Xoptions));
 
@@ -1248,27 +1257,22 @@ static void callDotterChildProcess(char *dotterBinary,
 /* Call dotter as an external process */
 gboolean callDotterExternal(BlxViewContext *bc,
                             int dotterZoom, 
-                            IntRange *refSeqRange,
-                            char *refSeqSegment,
-                            const char *dotterSName,
-                            char *dotterSSeq,
-			    const BlxStrand sStrand,
                             const gboolean hspsOnly,
+                            const char *seq1Name,
+                            IntRange *seq1Range,
+                            char *seq1,
+                            const BlxStrand seq1Strand,
+                            const char *seq2Name,
+                            IntRange *seq2Range,
+                            char *seq2,
+			    const BlxStrand seq2Strand,
                             char *Xoptions,
                             GError **error)
 {
 #if !defined(NO_POPEN)
 
-  const int qlen = strlen(refSeqSegment);
-  const int slen = strlen(dotterSSeq);
-  
-  boundsLimitRange(refSeqRange, &bc->refSeqRange, FALSE);
+  boundsLimitRange(seq1Range, &bc->refSeqRange, FALSE);
 
-  int xstart = refSeqRange->min;
-  int xend = refSeqRange->max;
-  int ystart = 1;
-  int yend = slen;
-  
   static char *dotterBinary = NULL;
   
   /* Open pipe to new dotterBinary */
@@ -1284,7 +1288,7 @@ gboolean callDotterExternal(BlxViewContext *bc,
         }
     }
   
-  g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, xstart, ystart, xend, yend);
+  g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, seq1Range->min, seq2Range->min, seq1Range->max, seq2Range->max);
   fflush(stdout);
 
   /* Pass on the features via pipes. */
@@ -1310,8 +1314,10 @@ gboolean callDotterExternal(BlxViewContext *bc,
       close(pipes[1]);
 
       DEBUG_OUT("Calling dotter child process\n");
-      callDotterChildProcess(dotterBinary, dotterZoom, xstart - 1, ystart - 1, qlen, slen, 
-			     hspsOnly, sStrand, pipes, bc, dotterSName, Xoptions);
+      callDotterChildProcess(dotterBinary, dotterZoom, hspsOnly, 
+                             seq1Name, seq1Range, seq1Strand,
+                             seq2Name, seq2Range, seq2Strand,
+			     pipes, bc, Xoptions);
     }
   else
     {
@@ -1325,8 +1331,8 @@ gboolean callDotterExternal(BlxViewContext *bc,
       FILE *pipe = fdopen(pipes[1], "w");
 
       /* Pass the sequences */
-      fwrite(refSeqSegment, 1, qlen, pipe);
-      fwrite(dotterSSeq, 1, slen, pipe);
+      fwrite(seq1, 1, getRangeLength(seq1Range), pipe);
+      fwrite(seq2, 1, getRangeLength(seq2Range), pipe);
       
       DEBUG_OUT("...done\n");
       
@@ -1336,7 +1342,7 @@ gboolean callDotterExternal(BlxViewContext *bc,
       for ( ; seqItem; seqItem = seqItem->next) 
 	{
 	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  writeBlxSequenceToOutput(pipe, blxSeq, refSeqRange);
+	  writeBlxSequenceToOutput(pipe, blxSeq, seq1Range, seq2Range);
 	}
       
       fprintf(pipe, "%c\n", EOF);
@@ -1444,22 +1450,22 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
   GError *seqError = NULL;
 
-  char *querySeqSegment = getSequenceSegment(bc->refSeq,
-                                             &dotterRange,
-                                             BLXSTRAND_FORWARD,   /* always pass forward strand to dotter */
-                                             BLXSEQ_DNA,	  /* calculated dotter coords are always nucleotide coords */
-                                             BLXSEQ_DNA,          /* required sequence is in nucleotide coords */
-                                             frame,
-					     bc->numFrames,
-					     &bc->refSeqRange,
-					     bc->blastMode,
-					     bc->geneticCode,
-                                             FALSE,		  /* input coords are always left-to-right, even if display reversed */
-                                             FALSE,               /* always pass forward strand to dotter */
-                                             FALSE,               /* always pass forward strand to dotter */
-                                             &seqError);
+  char *refSeqSegment = getSequenceSegment(bc->refSeq,
+                                           &dotterRange,
+                                           BLXSTRAND_FORWARD,   /* always pass forward strand to dotter */
+                                           BLXSEQ_DNA,	  /* calculated dotter coords are always nucleotide coords */
+                                           BLXSEQ_DNA,          /* required sequence is in nucleotide coords */
+                                           frame,
+                                           bc->numFrames,
+                                           &bc->refSeqRange,
+                                           bc->blastMode,
+                                           bc->geneticCode,
+                                           FALSE,		  /* input coords are always left-to-right, even if display reversed */
+                                           FALSE,               /* always pass forward strand to dotter */
+                                           FALSE,               /* always pass forward strand to dotter */
+                                           &seqError);
   
-  if (!querySeqSegment)
+  if (!refSeqSegment)
     {
       g_propagate_error(error, seqError);
       return FALSE;
@@ -1480,8 +1486,11 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
     {
       dotterSName = mspGetSName(firstMsp);
     }
+
+  IntRange sRange = {1, strlen(dotterSSeq)};
   
   const int offset = dotterRange.min - 1;
+  const BlxStrand refSeqStrand = blxWindowGetActiveStrand(blxWindow);
   
   /* Get the list of all MSPs */
   g_message("Calling dotter on match '%s' with reference sequence region: %d -> %d\n", dotterSName, dotterStart, dotterEnd);
@@ -1490,7 +1499,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
           "    match sequence: name =  %s, offset = %d\n", 
           bc->refSeqName, offset, dotterSName, 0);
 
-  return callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, dotterSName, dotterSSeq, selectedSeq->strand, hspsOnly, NULL, error);
+  return callDotterExternal(bc, dotterZoom, hspsOnly, 
+                            bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand,
+                            dotterSName, &sRange, dotterSSeq, selectedSeq->strand, 
+                            NULL, error);
 }
 
 
@@ -1538,25 +1550,25 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   /* Get the section of reference sequence that we're interested in */
   const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
   const int frame = 1;
-  IntRange dotterRange;
-  intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
+  IntRange qRange;
+  intrangeSetValues(&qRange, dotterStart, dotterEnd);
     
-  char *querySeqSegment = getSequenceSegment(bc->refSeq,
-                                             &dotterRange,
-                                             qStrand,
-                                             BLXSEQ_DNA,	  /* calculated dotter coords are always in nucleotide coords */
-                                             BLXSEQ_DNA,      /* required sequence is in nucleotide coords */
-                                             frame,
-                                             bc->numFrames,
-                                             &bc->refSeqRange,
-                                             bc->blastMode,
-                                             bc->geneticCode,
-                                             FALSE,		  /* input coords are always left-to-right, even if display reversed */
-                                             bc->displayRev,  /* whether to reverse */
-                                             bc->displayRev,  /* whether to allow rev strands to be complemented */
-                                             &tmpError);
-  
-  if (!querySeqSegment)
+  char *refSeqSegment = getSequenceSegment(bc->refSeq,
+                                           &qRange,
+                                           qStrand,
+                                           BLXSEQ_DNA,	  /* calculated dotter coords are always in nucleotide coords */
+                                           BLXSEQ_DNA,      /* required sequence is in nucleotide coords */
+                                           frame,
+                                           bc->numFrames,
+                                           &bc->refSeqRange,
+                                           bc->blastMode,
+                                           bc->geneticCode,
+                                           FALSE,		  /* input coords are always left-to-right, even if display reversed */
+                                           bc->displayRev,  /* whether to reverse */
+                                           bc->displayRev,  /* whether to allow rev strands to be complemented */
+                                           &tmpError);
+
+  if (!refSeqSegment)
     {
       g_propagate_error(error, tmpError);
       return FALSE;
@@ -1568,12 +1580,14 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
     }
   
   /* Make a copy of the reference sequence segment to pass as the match sequence */
-  char *dotterSSeq = g_malloc(strlen(querySeqSegment) + 1);
-  strcpy(dotterSSeq, querySeqSegment);
-
+  char *dotterSSeq = g_strdup(refSeqSegment);
+  
   g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
-  callDotterExternal(bc, dotterZoom, &dotterRange, querySeqSegment, bc->refSeqName, dotterSSeq, BLXSTRAND_FORWARD, FALSE, NULL, error);
+  callDotterExternal(bc, dotterZoom, FALSE,
+                     bc->refSeqName, &qRange, refSeqSegment, qStrand, 
+                     bc->refSeqName, &qRange, dotterSSeq, qStrand,
+                     NULL, error);
 
   return TRUE;
 }

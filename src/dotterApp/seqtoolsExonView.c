@@ -48,7 +48,8 @@ typedef struct _ExonViewProperties
     DotterContext *dc;		      /* Dotter session context */
     DotterWindowContext *dwc;	      /* Dotter window context */
   
-    BlxStrand strand;                 /* Which strand of the ref seq this view displays exons for */
+    BlxStrand strand;                 /* Which strand of the sequence this view displays exons for */
+    gboolean horizontal;              /* Whether these exons are for the horizontal or vertical sequence  */
     const IntRange const *qRange;     /* the range of ref seq coords the exon view displays, in nucleotide coords */
     
     gboolean bumped;		      /* Whether the exon view is expanded (bumped) or compressed */
@@ -76,7 +77,8 @@ typedef struct _DrawData
     int y;			      /* y position to draw this exon at (constant if view compressed; increases if view bumped) */
     int height;			      /* height of exon box */
 
-    const BlxStrand strand;
+    const BlxStrand strand;           /* which strand of the sequence these exons are on */
+    gboolean horizontal;              /* whether these exons are for the horizontal or vertical sequence */
     gboolean bumped;		      /* whether exon view is expaned or compressed */
     gboolean normalOnly;	      /* Only draw "normal" MSPs, i.e. thse that are not selected and are not in a group */
   } DrawData;
@@ -273,6 +275,12 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
   
   /* Check it's the correct strand */
   showMsp &= (mspGetRefStrand(msp) == drawData->strand);
+
+  /* Check it's for the correct sequence */
+  if (drawData->horizontal)
+    showMsp &= stringsEqual(msp->qname, drawData->dc->refSeqName, FALSE);
+  else
+    showMsp &= stringsEqual(msp->qname, drawData->dc->matchSeqName, FALSE);
   
   return showMsp;
 }
@@ -370,6 +378,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     properties->exonHeight,
 
     properties->strand,
+    properties->horizontal,
     properties->bumped,
     FALSE
   };
@@ -486,6 +495,7 @@ static void onDestroyExonView(GtkWidget *exonView)
 static void exonViewCreateProperties(GtkWidget *exonView, 
 				     GtkWidget *parent, 
 				     GtkCallback refreshFunc,
+                                     const gboolean horizontal,
 				     const BlxStrand strand,
 				     DotterContext *dc,
 				     DotterWindowContext *dwc,
@@ -503,6 +513,7 @@ static void exonViewCreateProperties(GtkWidget *exonView,
       properties->dwc		      = dwc;
 
       properties->strand	      = strand;
+      properties->horizontal          = horizontal;
       properties->qRange	      = qRange;
       
       properties->bumped	      = FALSE;
@@ -632,8 +643,8 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
  * exon and sets the exonViewOut output arg to the actual layout widget for the exon view. */
 GtkWidget *createDotterExonView(GtkWidget *parent, 
 				GtkCallback refreshFunc,
+                                const gboolean horizontal,
 				const BlxStrand strand, 
-				DotterContext *dc,
 				DotterWindowContext *dwc,
 				const int width,
 				const IntRange const *qRange,
@@ -642,12 +653,10 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 {
   DEBUG_ENTER("createDotterExonView(width=%d, qRange=%d %d)", width, qRange->min, qRange->max);
 
-//  GtkWidget *container = gtk_frame_new(NULL);
-//  gtk_frame_set_shadow_type(GTK_FRAME(container), GTK_SHADOW_IN);
+  DotterContext *dc = dwc->dotterCtx;
   
   GtkWidget *exonView = gtk_layout_new(NULL, NULL);
   gtk_widget_set_name(exonView, SEQTOOLS_EXON_VIEW_NAME);
-//  gtk_container_add(GTK_CONTAINER(container), exonView);
 
   if (exonViewOut)
     *exonViewOut = exonView;
@@ -663,7 +672,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
   g_signal_connect(G_OBJECT(exonView),	"button-release-event", G_CALLBACK(onButtonReleaseExonView),  NULL);
   g_signal_connect(G_OBJECT(exonView),	"motion-notify-event",  G_CALLBACK(onMouseMoveExonView),      NULL);
 
-  exonViewCreateProperties(exonView, parent, refreshFunc, strand, dc, dwc, width, qRange, showCrosshair);
+  exonViewCreateProperties(exonView, parent, refreshFunc, horizontal, strand, dc, dwc, width, qRange, showCrosshair);
   calculateDotterExonViewBorders(exonView, width);
   
   DEBUG_EXIT("createDotterExonView returning ");

@@ -245,7 +245,7 @@ gboolean              mspHasSStrand(const MSP const *msp);
 gboolean              mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList);
 gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GList const *polyASiteList);
 
-void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *reqdRange);
+void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2);
 BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
 void                  writeMspToOutput(FILE *pipe, const MSP const *msp);
 void                  readMspFromText(MSP *msp, char *text);
@@ -257,6 +257,10 @@ MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **m
 				   GError **error);  
 
 //void                  insertFS(MSP *msp, char *series);
+
+void                  finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, const int offset);
+int                   findMspListSExtent(GList *mspList, const gboolean findMin);
+int                   findMspListQExtent(GList *mspList, const gboolean findMin);
 
 /* Feature series */
 gint		      fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
