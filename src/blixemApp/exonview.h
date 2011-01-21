@@ -55,6 +55,8 @@ gboolean	exonViewGetExpanded(GtkWidget *exonView);
 void		exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded);
 void		exonViewToggleExpanded(GtkWidget *exonView);
 
+void            exonViewDrawPreviewBox(GtkWidget *exonView);
+
 void            callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data);
 void		calculateExonViewHeight(GtkWidget *exonView);
 void            calculateExonViewHighlightBoxBorders(GtkWidget *exonView);

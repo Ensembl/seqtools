@@ -679,7 +679,11 @@ static gint convertRectPosToBaseIdx(const gint x,
 /* Draw the preview box on the given drawable within the boundaries of the given displayRect.
  * The boundaries of the preview box are given by highlightRect.
  * Only does anything if the preview box centre is set. */
-void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, GdkRectangle *displayRect, GdkRectangle *highlightRect)
+void drawPreviewBox(GtkWidget *bigPicture, 
+                    GdkDrawable *drawable, 
+                    GdkRectangle *displayRect, 
+                    GdkRectangle *highlightRect,
+                    GdkFunction drawFunc)
 {
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
@@ -689,15 +693,13 @@ void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, Gdk
       return;
     }
 
-  int previewBoxCentre = bpProperties->previewBoxCentre;
-  
   /* Get the display range in dna coords */
   IntRange dnaDispRange;
   convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
   
   /* Find the x coord for the left edge of the preview box (or the right edge, if
    * the display is right-to-left). */
-  int x = getLeftCoordFromCentre(previewBoxCentre, highlightRect->width, displayRect);
+  int x = getLeftCoordFromCentre(bpProperties->previewBoxCentre, highlightRect->width, displayRect);
   
   /* Convert it to the base index and back again so that we get it rounded to the position of
    * the nearest base. */
@@ -708,20 +710,24 @@ void drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkGC *gc, Gdk
   GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
 
   GdkColor *previewBoxColor = getGdkColor(BLXCOLOR_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-  drawHighlightBox(drawable, &previewRect, bpProperties->previewBoxLineWidth, previewBoxColor);
+
+  drawHighlightBox(drawable, &previewRect, bpProperties->previewBoxLineWidth, previewBoxColor, drawFunc);
 }
 
 
 /* Show a preview box centred on the given x coord */
 void showPreviewBox(GtkWidget *bigPicture, const int x)
 {
-  /* Set the centre position of the preview box. When this is set the box will
-   * be drawn when the grid is exposed. */
-  bigPictureSetPreviewBoxCentre(bigPicture, x);
+  /* Clear the previous preview box */
+  callFuncOnAllBigPictureGrids(bigPicture, gridDrawPreviewBox);
+  callFuncOnAllBigPictureExonViews(bigPicture, exonViewDrawPreviewBox);
   
-  /* Force immediate update so that it happens before the button-release event */
-  gtk_widget_queue_draw(bigPicture);
-  gdk_window_process_updates(bigPicture->window, TRUE);
+  /* Set the new position for the preview box.  */
+  bigPictureSetPreviewBoxCentre(bigPicture, x);
+
+  /* Re-draw the preview box at the new position */
+  callFuncOnAllBigPictureGrids(bigPicture, gridDrawPreviewBox);
+  callFuncOnAllBigPictureExonViews(bigPicture, exonViewDrawPreviewBox);
 }
 
 
@@ -746,7 +752,8 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRecta
   if (bc->displayRev)
     --baseIdx;
   
-  /* Clear the preview box */
+  /* Reset the preview box's position. We don't need to un-draw it because we
+   * will redraw the whole big picture below. */
   bigPictureSetPreviewBoxCentre(bigPicture, UNSET_INT);
   
   /* Update the detail view's scroll pos to start at the new base. The base index is in terms of

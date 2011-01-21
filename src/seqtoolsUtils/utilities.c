@@ -2280,14 +2280,12 @@ void debugLogLevel(const int increaseAmt)
 void drawHighlightBox(GdkDrawable *drawable,
                       const GdkRectangle const *rect,
                       const gint minWidth, 
-                      GdkColor *color)
+                      GdkColor *color,
+                      GdkFunction drawFunc)
 {
   GdkGC *gc = gdk_gc_new(drawable);
-
   gdk_gc_set_foreground(gc, color);
-//  gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-
-  gdk_gc_set_function(gc, GDK_AND);
+  gdk_gc_set_function(gc, drawFunc);
   
   const int width = max(minWidth, rect->width);
   

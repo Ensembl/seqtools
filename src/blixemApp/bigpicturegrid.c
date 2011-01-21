@@ -430,7 +430,8 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   drawHighlightBox(drawable,
 		   &properties->highlightRect, 
 		   bigPictureProperties->highlightBoxMinWidth,
-		   highlightBoxColor);
+		   highlightBoxColor,
+                   HIGHLIGHT_BOX_DRAW_FUNC);
 
   /* Draw the grid lines */
   GdkGC *gc = gdk_gc_new(drawable);
@@ -514,6 +515,15 @@ void calculateGridBorders(GtkWidget *grid)
  *			    Events			   *
  ***********************************************************/
 
+/* Draw the preview box at the currently set position (if any) */
+void gridDrawPreviewBox(GtkWidget *grid)
+{
+  GdkDrawable *window = GTK_LAYOUT(grid)->bin_window;
+  GridProperties *properties = gridGetProperties(grid);
+  drawPreviewBox(properties->bigPicture, window, &properties->gridRect, &properties->highlightRect, PREVIEW_BOX_DRAW_FUNC);
+}
+
+
 /* Expose handler for the grid. If the grid has a bitmap cached from the previous
  * call, this function just pushes that back to screen and then (optionally) draws
  * the preview box directly to the window over the top of it. If the cached bitmap
@@ -542,7 +552,7 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
 
           /* Draw the preview box on top, if it is set */
           GridProperties *properties = gridGetProperties(grid);
-          drawPreviewBox(properties->bigPicture, window, gc2, &properties->gridRect, &properties->highlightRect);
+          drawPreviewBox(properties->bigPicture, window, &properties->gridRect, &properties->highlightRect, HIGHLIGHT_BOX_DRAW_FUNC);
         }
       else
 	{

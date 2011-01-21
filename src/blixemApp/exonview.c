@@ -150,14 +150,14 @@ static void drawExon(const MSP const *msp,
           width = xEnd - xStart;
         }
 
-  /* Draw the fill rectangle */
-  const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
-  gdk_gc_set_foreground(data->gc, fillColor);
+      /* Draw the fill rectangle */
+      const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+      gdk_gc_set_foreground(data->gc, fillColor);
       gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, y, width, height);
-  
-  /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
-  const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
-  gdk_gc_set_foreground(data->gc, lineColor);
+      
+      /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
+      const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+      gdk_gc_set_foreground(data->gc, lineColor);
       gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, y, width, height);
     }
 }
@@ -350,7 +350,8 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   drawHighlightBox(drawable, 
                    &properties->highlightRect, 
                    bigPictureProperties->highlightBoxMinWidth, 
-                   highlightBoxColor);
+                   highlightBoxColor,
+                   HIGHLIGHT_BOX_DRAW_FUNC);
 
   /* Set a clip rectangle for drawing the exons and introns (because they are drawn "over the
    * edges" to make sure intron lines have the correct slope etc.) */
@@ -606,6 +607,15 @@ void exonViewToggleExpanded(GtkWidget *exonView)
  *                       Events                            *
  ***********************************************************/
 
+/* Draw the preview box at the currently set position (if any) */
+void exonViewDrawPreviewBox(GtkWidget *exonView)
+{
+  GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
+  ExonViewProperties *properties = exonViewGetProperties(exonView);
+  drawPreviewBox(properties->bigPicture, window, &properties->exonViewRect, &properties->highlightRect, PREVIEW_BOX_DRAW_FUNC);
+}
+
+
 static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *drawable = widgetGetDrawable(exonView);
@@ -627,7 +637,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
       
       /* Draw the preview box on top, if it is set */
       ExonViewProperties *properties = exonViewGetProperties(exonView);
-      drawPreviewBox(properties->bigPicture, window, gc, &properties->exonViewRect, &properties->highlightRect);
+      drawPreviewBox(properties->bigPicture, window, &properties->exonViewRect, &properties->highlightRect, HIGHLIGHT_BOX_DRAW_FUNC);
     }
   
   return TRUE;
