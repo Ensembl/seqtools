@@ -829,6 +829,7 @@ static void createDotterExonViews(GtkWidget *dotplot,
                                     dc->refSeqStrand, 
                                     dwc, 
                                     properties->imageWidth,
+                                    properties->imageHeight,
                                     &dwc->refSeqRange, 
                                     showCrosshair,
                                     &properties->hozExons1);
@@ -839,6 +840,7 @@ static void createDotterExonViews(GtkWidget *dotplot,
                                     getOppositeStrand(dc->refSeqStrand), 
                                     dwc, 
                                     properties->imageWidth, 
+                                    properties->imageHeight,
                                     &dwc->refSeqRange, 
                                     showCrosshair, 
                                     &properties->hozExons2);
@@ -849,6 +851,7 @@ static void createDotterExonViews(GtkWidget *dotplot,
                                      dc->matchSeqStrand, 
                                      dwc, 
                                      properties->imageWidth,
+                                     properties->imageHeight,
                                      &dwc->matchSeqRange,
                                      showCrosshair,
                                      &properties->vertExons1);
@@ -859,6 +862,7 @@ static void createDotterExonViews(GtkWidget *dotplot,
                                      getOppositeStrand(dc->matchSeqStrand),
                                      dwc, 
                                      properties->imageWidth, 
+                                     properties->imageHeight,
                                      &dwc->matchSeqRange, 
                                      showCrosshair,
                                      &properties->vertExons2);
@@ -1921,10 +1925,10 @@ void redrawDotplot(GtkWidget *dotplot)
   
   recalculateDotplotBorders(dotplot, properties);
   
-  calculateDotterExonViewBorders(properties->hozExons1, properties->imageWidth);
-  calculateDotterExonViewBorders(properties->hozExons2, properties->imageWidth);
-  calculateDotterExonViewBorders(properties->vertExons1, properties->imageWidth);
-  calculateDotterExonViewBorders(properties->vertExons2, properties->imageWidth);
+  calculateDotterExonViewBorders(properties->hozExons1, properties->imageWidth, properties->imageHeight);
+  calculateDotterExonViewBorders(properties->hozExons2, properties->imageWidth, properties->imageHeight);
+  calculateDotterExonViewBorders(properties->vertExons1, properties->imageWidth, properties->imageHeight);
+  calculateDotterExonViewBorders(properties->vertExons2, properties->imageWidth, properties->imageHeight);
   
   gtk_widget_queue_draw(dotplot);
 }

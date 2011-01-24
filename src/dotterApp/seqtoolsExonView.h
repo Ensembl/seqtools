@@ -66,6 +66,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 				const BlxStrand strand, 
 				DotterWindowContext *dwc,
 				const int width,
+                                const int height,
 				const IntRange const *qRange,
                                 const gboolean drawCrosshair,
                                 GtkWidget **exonViewOut);
@@ -76,7 +77,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 //
 //void            callFuncOnAllChildExonViews(GtkWidget *widget, gpointer data);
 void		calculateDotterExonViewHeight(GtkWidget *exonView);
-void		calculateDotterExonViewBorders(GtkWidget *exonView, const int width);
+void		calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const int height);
 void            exonViewSetShowCrosshair(GtkWidget *exonView, const gboolean showCrosshair);
 
 #endif /* _seqtools_exon_view_included_ */

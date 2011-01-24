@@ -457,9 +457,9 @@ void calculateDotterExonViewHeight(GtkWidget *exonView)
 }
 
 
-void calculateDotterExonViewBorders(GtkWidget *exonView, const int width)
+void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const int height)
 {
-  DEBUG_ENTER("calculateDotterExonViewBorders(width=%d)", width);
+  DEBUG_ENTER("calculateDotterExonViewBorders(width=%d, height=%d)", width, height);
 
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   
@@ -476,7 +476,7 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width)
       properties->exonViewRect.x = 0;
       properties->exonViewRect.y = properties->dc->scaleHeight; /* use same top border as dotplot */
       properties->exonViewRect.width = properties->exonHeight + (2 * properties->yPad);
-      properties->exonViewRect.height = width;
+      properties->exonViewRect.height = height;
     }
   
   gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
@@ -485,6 +485,7 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width)
   widgetClearCachedDrawable(exonView, NULL);
   gtk_widget_queue_draw(exonView);
   
+  DEBUG_OUT("seq horizontal=%d, x=%d, y=%d, w=%d, h=%d\n", properties->horizontal, properties->exonViewRect.x, properties->exonViewRect.y, properties->exonViewRect.width, properties->exonViewRect.height);
   DEBUG_EXIT("calculateDotterExonViewBorders returning ");
 }
 
@@ -663,11 +664,12 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 				const BlxStrand strand, 
 				DotterWindowContext *dwc,
 				const int width,
+                                const int height,
 				const IntRange const *qRange,
                                 const gboolean showCrosshair,
                                 GtkWidget **exonViewOut)
 {
-  DEBUG_ENTER("createDotterExonView(width=%d, qRange=%d %d)", width, qRange->min, qRange->max);
+  DEBUG_ENTER("createDotterExonView(width=%d, height=%d, qRange=%d %d)", width, height, qRange->min, qRange->max);
 
   DotterContext *dc = dwc->dotterCtx;
   
@@ -689,7 +691,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
   g_signal_connect(G_OBJECT(exonView),	"motion-notify-event",  G_CALLBACK(onMouseMoveExonView),      NULL);
 
   exonViewCreateProperties(exonView, parent, refreshFunc, horizontal, strand, dc, dwc, width, qRange, showCrosshair);
-  calculateDotterExonViewBorders(exonView, width);
+  calculateDotterExonViewBorders(exonView, width, height);
   
   DEBUG_EXIT("createDotterExonView returning ");
   return exonView;

@@ -970,7 +970,7 @@ void dotter (const BlxBlastMode blastMode,
 	      int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
-          blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
+              blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
   
   MSPlist = MSPs;
   
@@ -3425,9 +3425,9 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
   const int maxHeight = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
   
-  int width = dotplotGetImageWidth(dotplot) + 100;
-  int height = dotplotGetImageHeight(dotplot) + 100;
-  height += 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
+  const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
+  int width = dotplotGetImageWidth(dotplot) + exonViewHeight + 100;
+  int height = dotplotGetImageHeight(dotplot) + exonViewHeight + 100;
   
   width = min(width, maxWidth);
   height = min(height, maxHeight);
