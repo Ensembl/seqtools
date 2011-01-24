@@ -710,46 +710,6 @@ gboolean mspHasFs(const MSP *msp)
 }
 
 
-void destroyMspData(MSP *msp)
-{
-  if (msp->qname)
-    {
-      g_free(msp->qname);
-      msp->qname = NULL;
-    }
-    
-  if (msp->sname)
-    {
-      g_free(msp->sname);
-      msp->sname = NULL;
-    }
-    
-  if (msp->desc)
-    {
-      g_free(msp->desc);
-      msp->desc = NULL;
-    }
-    
-  if (msp->gaps)
-    {
-      g_slist_free(msp->gaps);
-      msp->gaps = NULL;
-    }
-  
-  if (msp->xy)
-    {
-      g_array_free(msp->xy, TRUE);
-      msp->xy = NULL;
-    }
-
-  if (msp->url)
-    {
-      g_free(msp->url);
-      msp->url = NULL;
-    }
-}
-
-
 /* Destroy all of the MSPs */
 void destroyMspList(MSP **mspList)
 {

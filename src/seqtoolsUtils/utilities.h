@@ -430,6 +430,7 @@ gdouble		      pixelsPerBase(const gint displayWidth,
 gint		      convertBaseIdxToRectPos(const gint dnaIdx, 
 					      const GdkRectangle const *rect, 
 					      const IntRange const *dnaDispRange,
+                                              const gboolean horizontal,
 					      const gboolean displayRev,
 					      const gboolean clip);
 

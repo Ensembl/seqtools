@@ -193,7 +193,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int x = convertBaseIdxToRectPos(baseIdx, &headerProperties->headerRect, &dnaDispRange, bc->displayRev, TRUE);
+      const int x = convertBaseIdxToRectPos(baseIdx, &headerProperties->headerRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
       
       if (x > minX && x < maxX)
 	{
@@ -704,7 +704,7 @@ void drawPreviewBox(GtkWidget *bigPicture,
   /* Convert it to the base index and back again so that we get it rounded to the position of
    * the nearest base. */
   int baseIdx = convertRectPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
-  int xRounded = convertBaseIdxToRectPos(baseIdx, displayRect, &dnaDispRange, bc->displayRev, TRUE);
+  int xRounded = convertBaseIdxToRectPos(baseIdx, displayRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
   
   /* The other dimensions of the preview box are the same as the current highlight box. */
   GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};

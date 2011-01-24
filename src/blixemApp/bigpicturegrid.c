@@ -161,7 +161,7 @@ static void drawVerticalGridLines(GtkWidget *grid,
       int numBasesFromLeft = bpProperties->basesPerCell * hCell;
       int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
 
-      const int x = convertBaseIdxToRectPos(baseIdx, &properties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
+      const int x = convertBaseIdxToRectPos(baseIdx, &properties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
 
       if (x > minX && x < maxX)
 	{
@@ -241,8 +241,8 @@ void calculateMspLineDimensions(GtkWidget *grid,
   convertDisplayRangeToDnaRange(gridGetDisplayRange(grid), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
 
   /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
-  const int x1 = convertBaseIdxToRectPos(msp->qRange.min, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
-  const int x2 = convertBaseIdxToRectPos(msp->qRange.max + 1, &gridProperties->gridRect, &dnaDispRange, bc->displayRev, TRUE);
+  const int x1 = convertBaseIdxToRectPos(msp->qRange.min, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToRectPos(msp->qRange.max + 1, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
   
   const int xMin = min(x1, x2);
   const int xMax = max(x1, x2);
@@ -465,8 +465,8 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
       convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
       
       /* Get the x coords for the start and end of the detail view display range */
-      const int x1 = convertBaseIdxToRectPos(dvRange.min, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, &properties->gridRect, &gridRange, bc->displayRev, TRUE);
+      const int x1 = convertBaseIdxToRectPos(dvRange.min, &properties->gridRect, &gridRange, TRUE, bc->displayRev, TRUE);
+      const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, &properties->gridRect, &gridRange, TRUE, bc->displayRev, TRUE);
       
       properties->highlightRect.x = min(x1, x2);
       properties->highlightRect.y = 0;

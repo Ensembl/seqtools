@@ -354,7 +354,6 @@ gboolean                           blxConfigGetPFetchWWWPrefs();
 
 /* Create/destroy sequences and MSPs */
 void                               destroyMspList(MSP **mspList);
-void                               destroyMspData(MSP *msp);
 void                               destroyBlxSequenceList(GList **seqList);
 void                               blviewResetGlobals();
 

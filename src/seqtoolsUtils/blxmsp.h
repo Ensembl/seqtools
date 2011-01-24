@@ -250,11 +250,13 @@ BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
 void                  writeMspToOutput(FILE *pipe, const MSP const *msp);
 void                  readMspFromText(MSP *msp, char *text);
 
+void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
-MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, char *source, const gdouble score, const gdouble percentId, const int phase,
-				   char *url, char *idTag, char *qName, const int qStart, const int qEnd, const BlxStrand qStrand, const int qFrame, 
-				   char *sName, const int sStart, const int sEnd, const BlxStrand sStrand, char *sequence, 
-				   GError **error);  
+MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
+                                   const char *source, const gdouble score, const gdouble percentId, const int phase,
+				   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
+                                   const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
+                                   const BlxStrand sStrand, char *sequence, GError **error);  
 
 //void                  insertFS(MSP *msp, char *series);
 

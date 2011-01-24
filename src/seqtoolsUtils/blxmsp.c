@@ -1388,6 +1388,39 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 }
 
 
+static void freeStringPointer(char **ptr)
+{
+  if (*ptr)
+    {
+      g_free(*ptr);
+      *ptr = NULL;
+    }
+}
+
+
+/* Free all of the memory used by an MSP */
+void destroyMspData(MSP *msp)
+{
+  freeStringPointer(&msp->qname);
+  freeStringPointer(&msp->sname);
+  freeStringPointer(&msp->desc);
+  freeStringPointer(&msp->source);
+  freeStringPointer(&msp->url);
+  
+  if (msp->gaps)
+    {
+      g_slist_free(msp->gaps);
+      msp->gaps = NULL;
+    }
+  
+  if (msp->xy)
+    {
+      g_array_free(msp->xy, TRUE);
+      msp->xy = NULL;
+    }
+}
+
+
 /* Allocates memory for an MSP and initialise all its fields to the given values.
  * For backwards compatibility, adds it into the given MSP list and makes the end pointer
  * ('lastMsp') point to the new end of the list. We will hopefully get rid of mspList eventually
@@ -1400,18 +1433,18 @@ MSP* createNewMsp(GList* featureLists[],
                   MSP **mspList,
                   GList **seqList,
                   const BlxMspType mspType,
-		  char *source,
+		  const char *source,
                   const gdouble score,
                   const gdouble percentId,
                   const int phase,
-                  char *url,
-		  char *idTag,
-                  char *qName,
+                  const char *url,
+		  const char *idTag,
+                  const char *qName,
                   const int qStart,
                   const int qEnd,
                   const BlxStrand qStrand,
                   const int qFrame,
-                  char *sName,
+                  const char *sName,
                   const int sStart,
                   const int sEnd,
                   BlxStrand sStrand,
@@ -1423,11 +1456,11 @@ MSP* createNewMsp(GList* featureLists[],
   msp->type = mspType;
   msp->score = score; 
   msp->id = percentId; 
-  msp->source = source;
   msp->phase = phase;
-  msp->url = url;
+  msp->source = g_strdup(source);
+  msp->url = g_strdup(url);
   
-  msp->qname = qName;
+  msp->qname = qName ? g_strdup(qName) : NULL;
   
   msp->qFrame = qFrame;
   msp->qStrand = qStrand;
@@ -1590,7 +1623,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       GError *tmpError = NULL;
       
       *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, UNSET_INT, UNSET_INT, newPhase, NULL, blxSeq->idTag,
-                                  g_strdup(qname), newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+                                  qname, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
       
       (*ptrToUpdate)->style = newStyle;
@@ -1685,7 +1718,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], 
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
                   createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, curExon->source, 
-                               curExon->score, curExon->id, curExon->phase, curExon->url, blxSeq->idTag, 
+                               curExon->score, curExon->id, curExon->phase, g_strdup(curExon->url), blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
                   

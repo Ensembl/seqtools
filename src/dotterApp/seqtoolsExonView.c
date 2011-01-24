@@ -93,24 +93,6 @@ static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
  *                       Utility functions                 *
  ***********************************************************/
 
-/* Calls the given function (passed as the data pointer) on the given widget 
- * if it is an exon view, or, if it is a container, calls the function on any
- * children/grandchildren/etc that are exon views */
-//static void callFuncOnAllChildExonViews(GtkWidget *widget, gpointer data)
-//{
-//  const gchar *name = gtk_widget_get_name(widget);
-//  if (strcmp(name, SEQTOOLS_EXON_VIEW_NAME) == 0)
-//    {
-//      GtkCallback func = (GtkCallback)data;
-//      func(widget, NULL);
-//    }
-//  else if (GTK_IS_CONTAINER(widget))
-//    {
-//      gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnAllChildExonViews, data);
-//    }
-//}
-
-
 /* Draw an exon */
 static void drawExon(const MSP const *msp, 
                      DrawData *data, 
@@ -119,15 +101,15 @@ static void drawExon(const MSP const *msp,
                      const gint x, 
                      const gint y,
                      const gint widthIn,
-                     const gint height)
+                     const gint heightIn)
 {
   /* Clip to the drawing area (or just beyond, so we don't get end lines where the exon doesn't really end) */
   gint xStart = x;
   gint xEnd = x + widthIn;
   gint width = widthIn;
   
-  const gint xMin = data->exonViewRect->x;
-  const gint xMax = data->exonViewRect->x + data->exonViewRect->width;
+  const gint xMin = (data->horizontal ? data->exonViewRect->x : data->exonViewRect->y);
+  const gint xMax = xMin + (data->horizontal ? data->exonViewRect->width : data->exonViewRect->height);
   
   if (xStart <= xMax && xEnd >= xMin)
     {
@@ -143,18 +125,38 @@ static void drawExon(const MSP const *msp,
           width = xEnd - xStart;
         }
 
+      /* Swap x and y if this is the vertical sequence */
+      int yStart = y;
+      gint height = heightIn;
+
+      if (!data->horizontal)
+        {
+          yStart = xStart;
+          xStart = y;
+          height = width;
+          width = heightIn;
+        }
+      
       /* Draw the fill rectangle */
       const GdkColor *fillColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dc->usePrintColors, TRUE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, fillColor);
-      gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, y, width, height);
+      gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, yStart, width, height);
       
       /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
       const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, lineColor);
-      gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, y, width, height);
+      gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, yStart, width, height);
     }
 }
   
+
+static void swapValues(int *val1, int*val2)
+{
+  int tmp = *val1;
+  *val1 = *val2;
+  *val2 = tmp;
+}
+
 
 /* Utility to actually draw the line for an intron. Clips it if necessary, maintaining the same
  * angle for the line */
@@ -162,9 +164,10 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
 {
   /* Only draw anything if at least part of the line is within range. We are only ever called with
    * y values that are in range so don't bother checking them. */
-  const gint xMax = clipRect->x + clipRect->width;
+  const gint xMin = data->horizontal ? clipRect->x : clipRect->y;
+  const gint xMax = xMin + (data->horizontal ? clipRect->width : clipRect->height);
   
-  if (x1 <= xMax && x2 >= clipRect->x)
+  if (x1 <= xMax && x2 >= xMin)
     {
       int xStart = x1;
       int xEnd = x2;
@@ -172,11 +175,11 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
       int yEnd = y2;
       
       /* Clip the start/end x values if out of range */
-      if (xStart < clipRect->x)
+      if (xStart < xMin)
         {
           const int origWidth = abs(xEnd - xStart);
         
-          xStart = clipRect->x;
+          xStart = xMin;
 
           const int newWidth = abs(xEnd - xStart);
           const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth); /* negative if yend < ystart */
@@ -195,7 +198,14 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
           
           yEnd = yStart + newHeight;
         }
-        
+      
+      /* Swap x and y if we're drawing the view vertically rather than horizontally */
+      if (!data->horizontal)
+        {
+          swapValues(&xStart, &yStart);
+          swapValues(&xEnd, &yEnd);
+        }
+      
       gdk_draw_line(data->drawable, data->gc, xStart, yStart, xEnd, yEnd);
     }
 }
@@ -206,25 +216,31 @@ static void drawIntron(const MSP const *msp,
                        DrawData *data, 
                        const BlxSequence *blxSeq, 
                        const gboolean isSelected, 
-                       const gint x, 
-                       const gint y, 
-                       const gint width, 
-                       const gint height)
+                       const gint xIn, 
+                       const gint yIn, 
+                       const gint widthIn, 
+                       const gint heightIn)
 {
   const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
   gdk_gc_set_foreground(data->gc, lineColor);
 
-  int yTop = y;
-  int yBottom = y + roundNearest((double)height / 2.0);
+  /* The intron is drawn as two lines, making a trianglar shape, peaking at the
+   * middle coord of the intron (which is the x coord here at the moment). (Note that
+   * for the vertical exon view, x and y coords will be swapped in drawIntronLine.)
+   * For the horizontal sequence, peaks are above the centre y coord (smaller value)
+   * For the vertical sequence, peaks are effectively below the centre y coord (larger value) */
+  const int yOffset = roundNearest((double)heightIn / 2.0);
+  int yTop = data->horizontal ? yIn : yIn + heightIn;
+  int yBottom = yIn + yOffset;
   
   /* Draw the first section, from the given x to the mid point, sloping up */
-  int xStart = x;
-  int xEnd = x + roundNearest((double)width / 2.0);
+  int xStart = xIn;
+  int xEnd = xStart + roundNearest((double)widthIn / 2.0);
   drawIntronLine(data, xStart, yBottom, xEnd, yTop, data->exonViewRect);
 
   /* Draw the second section, from the mid point to the end, sloping down */
   xStart  = xEnd;
-  xEnd = x + width;
+  xEnd = xIn + widthIn;
   drawIntronLine(data, xStart, yTop, xEnd, yBottom, data->exonViewRect);
 }
 
@@ -238,12 +254,13 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
     {
       drawn = TRUE;
 
-      /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
+      /* The grid pos for coords gives the left/top edge of the coord, so draw to max + 1 to be inclusive */
       const int qStart = msp->qRange.min;
       const int qEnd = msp->qRange.max + 1;
-      
-      const gint x1 = convertBaseIdxToRectPos(qStart, data->exonViewRect, data->qRange, data->dc->hozScaleRev, FALSE);
-      const gint x2 = convertBaseIdxToRectPos(qEnd, data->exonViewRect, data->qRange, data->dc->hozScaleRev, FALSE);
+
+      /* Get the length-ways position (technically this will actually be y for the vertical sequence) */
+      const gint x1 = convertBaseIdxToRectPos(qStart, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);
+      const gint x2 = convertBaseIdxToRectPos(qEnd, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);
       
       gint x = min(x1, x2);
       gint width = abs(x1 - x2);
@@ -380,7 +397,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     properties->qRange,
     
     properties->yPad,
-    properties->exonViewRect.y,
+    properties->horizontal ? properties->exonViewRect.y : properties->exonViewRect.x,
     properties->exonHeight,
 
     properties->strand,

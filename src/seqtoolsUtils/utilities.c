@@ -860,13 +860,19 @@ gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRang
 }
 
 
-/* Convert a base index to an x coord within the given rectangle. Returns the number of pixels 
- * from the left edge (including the start of the rectangle) to where the base lies. displayRev 
- * should be passed as true if the display is reversed (i.e. low values on the right and high 
- * values on the left). Clips the result to the rectangle if clip is true */
+/* Convert a base index to a coord within the given rectangle - the x coord if 
+ * horizontal is true, the y coord otherwise. Returns the number of pixels 
+ * to the coord from 0 at the left edge (or top edge, if vertical), including 
+ * any pixels up to the left/top edge of the rectangle. 
+ * 
+ * 'displayRev' should be passed as true if the display is reversed (i.e. if 
+ * values decrease from left-to-right/top-to-bottom). 
+ * 
+ * The result is clipped to lie within the rectangle if 'clip' is true */
 gint convertBaseIdxToRectPos(const gint dnaIdx, 
 			     const GdkRectangle const *rect, 
 			     const IntRange const *dnaDispRange,
+                             const gboolean horizontal,
                              const gboolean displayRev,
                              const gboolean clip)
 {
@@ -881,13 +887,15 @@ gint convertBaseIdxToRectPos(const gint dnaIdx,
     numBasesFromEdge = 0;
     }
   
-  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rect->width, dnaDispRange));
+  const int rectLength = horizontal ? rect->width : rect->height;
+  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rectLength, dnaDispRange));
   
-  result = rect->x + pixelsFromEdge;
+  const int rectStart = horizontal ? rect->x : rect->y;
+  result = rectStart + pixelsFromEdge;
   
-  if (clip && result > rect->x + rect->width)
+  if (clip && result > rectStart + rectLength)
     {
-    result = rect->x + rect->width;
+      result = rectStart + rectLength;
     }
   
   return result;
