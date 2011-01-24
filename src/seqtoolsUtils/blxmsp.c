@@ -1682,11 +1682,12 @@ static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], 
                   newRange.max = blxSeq->qRange.max;
                 }
               
-              if (newRange.min != UNSET_INT && newRange.max != UNSET_INT)
+              if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
-                               NULL, newRange.min, newRange.max, blxSeq->strand, UNSET_INT, blxSeq->fullName,
-                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
+                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, curExon->source, 
+                               curExon->score, curExon->id, curExon->phase, curExon->url, blxSeq->idTag, 
+                               curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
+                               blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
