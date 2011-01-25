@@ -765,49 +765,51 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   
   /* Loop through each display coord */
   int displayIdx = 0;
-  char seq1Text[seq1Len];
+  const int displayMax = min(atProperties->alignmentLen, seq1Len + seq1Offset);
+  char seq1Text[seq1Len + seq1Offset + 1];
   int y = 0;
   int x = 0;
 
-  for ( ; displayIdx < atProperties->alignmentLen; ++displayIdx)
+  for ( ; displayIdx < displayMax; ++displayIdx)
     {
+      seq1Text[displayIdx] = ' ';
       x = (int)((gdouble)displayIdx * dc->charWidth);
-      
-      /* Loop through the sequences to compare against and color the background of this seq according
-       * to how well it matches. Exact matches take precedence over conserved matches. */
-      gboolean match = FALSE;
-      gboolean consMatch = FALSE;
 
-      GSList *item = seq1Properties->compSeqs;
+      /* Get the 0-based index into sequence 1 and if it's in range extract the character at this index */
+      const int seq1Idx = seq1Fwd ? seq1DisplayStart + (displayIdx - seq1Offset) - seq1Start : seq1Start - (seq1DisplayStart - (displayIdx - seq1Offset + 1));
       
-      for ( ; item; item = item->next)
+      if (seq1Idx >= 0 && seq1Idx < seq1Len)
         {
-          /* Get info about the other sequence */
-          GtkWidget *seq2Widget = GTK_WIDGET(item->data);
-          SequenceProperties *seq2Properties = sequenceGetProperties(seq2Widget);
-	  const gchar *seq2 = seq2Properties->sequence;
-	  const int seq2Len = strlen(seq2);
-	  const gboolean seq2Fwd = (seq2Properties->strand == BLXSTRAND_FORWARD);
-
-          /* Get the position of the first coord in this sequences that is within the display range */
-          int seq2Start = seq2Fwd ? seq2Properties->fullRange->min : seq2Properties->fullRange->max;
-	  int seq2DisplayStart = seq2Fwd ? seq2Properties->displayRange->min : seq2Properties->displayRange->max;
-	  boundsLimitValue(&seq2DisplayStart, seq2Properties->fullRange);
-          int seq2Offset = seq2Fwd ? seq2DisplayStart - seq2Properties->displayRange->min : seq2Properties->displayRange->max - seq2DisplayStart;
-
-          seq2Start = convertToDisplayIdx(seq2Start, !seq2Properties->isMatchSeq, dc);
-  	  seq2DisplayStart = convertToDisplayIdx(seq2DisplayStart, !seq2Properties->isMatchSeq, dc);
-	  seq2Offset = convertToDisplayIdx(seq2Offset, !seq2Properties->isMatchSeq, dc);
-
-	  /* Get the real indexes into the sequences and compare the bases to determine the highlight color */
-          const int seq1Idx = seq1Fwd ? seq1DisplayStart + (displayIdx - seq1Offset) - seq1Start : seq1Start - (seq1DisplayStart - (displayIdx - seq1Offset + 1));
-          const int seq2Idx = seq2Fwd ? seq2DisplayStart + (displayIdx - seq2Offset) - seq2Start : seq2Start - (seq2DisplayStart - (displayIdx - seq2Offset + 1));
+          seq1Text[displayIdx] = seq1[seq1Idx];
           
-          seq1Text[displayIdx] = ' ';
+          /* Loop through the sequences to compare against and color the background of this seq according
+           * to how well it matches. Exact matches take precedence over conserved matches. */
+          gboolean match = FALSE;
+          gboolean consMatch = FALSE;
+
+          GSList *item = seq1Properties->compSeqs;
           
-	  if (seq1Idx >= 0 && seq1Idx < seq1Len)
-	    {
-              seq1Text[displayIdx] = seq1[seq1Idx];
+          for ( ; item; item = item->next)
+            {
+              /* Get info about the other sequence */
+              GtkWidget *seq2Widget = GTK_WIDGET(item->data);
+              SequenceProperties *seq2Properties = sequenceGetProperties(seq2Widget);
+              const gchar *seq2 = seq2Properties->sequence;
+              const int seq2Len = strlen(seq2);
+              const gboolean seq2Fwd = (seq2Properties->strand == BLXSTRAND_FORWARD);
+
+              /* Get the position of the first coord in this sequences that is within the display range */
+              int seq2Start = seq2Fwd ? seq2Properties->fullRange->min : seq2Properties->fullRange->max;
+              int seq2DisplayStart = seq2Fwd ? seq2Properties->displayRange->min : seq2Properties->displayRange->max;
+              boundsLimitValue(&seq2DisplayStart, seq2Properties->fullRange);
+              int seq2Offset = seq2Fwd ? seq2DisplayStart - seq2Properties->displayRange->min : seq2Properties->displayRange->max - seq2DisplayStart;
+
+              seq2Start = convertToDisplayIdx(seq2Start, !seq2Properties->isMatchSeq, dc);
+              seq2DisplayStart = convertToDisplayIdx(seq2DisplayStart, !seq2Properties->isMatchSeq, dc);
+              seq2Offset = convertToDisplayIdx(seq2Offset, !seq2Properties->isMatchSeq, dc);
+
+              /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
+              const int seq2Idx = seq2Fwd ? seq2DisplayStart + (displayIdx - seq2Offset) - seq2Start : seq2Start - (seq2DisplayStart - (displayIdx - seq2Offset + 1));
               
               if (seq2Idx >= 0 && seq2Idx < seq2Len)
                 {
@@ -822,21 +824,24 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
                       consMatch = TRUE;
                     }
                 }
-            }
-        }
+            } /* end of loop through comparison sequences */
       
-      if (match)
-        {
-          gdk_gc_set_foreground(gc, matchColor);
-          gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
-        }
-      else if (consMatch)
-        {
-          gdk_gc_set_foreground(gc, consColor);
-          gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
-        }
-    }  
+          if (match)
+            {
+              gdk_gc_set_foreground(gc, matchColor);
+              gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
+            }
+          else if (consMatch)
+            {
+              gdk_gc_set_foreground(gc, consColor);
+              gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
+            }
+          
+        } /* end if base within range */
+    } /* end for each display index */  
   
+
+  /* terminate the display text string */
   seq1Text[displayIdx] = '\0';
   
   /* Draw the sequence text. */
