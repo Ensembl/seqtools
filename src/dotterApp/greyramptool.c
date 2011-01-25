@@ -55,6 +55,25 @@
 #define GRADIENT_RECT_FRAME_PADDING     10      /* padding around the outside of the gradient widget */
 
 
+/* Local function declarations */
+static void                       onCloseMenu(GtkAction *action, gpointer data);
+
+
+/* Menu builders */
+static const GtkActionEntry greyrampToolMenuEntries[] = {
+{ "Close",        NULL, "_Close tool",              NULL,	"Close the greyramp tool",             G_CALLBACK(onCloseMenu)},
+};
+
+/* This defines the layout of the menu */
+static const char greyrampToolMenuDescription[] =
+"<ui>"
+"  <popup name='MainMenu'>"
+"      <menuitem action='Close'/>"
+"  </popup>"
+"</ui>";
+
+
+
 typedef struct _CallbackItem
 {
   GtkWidget *widget;
@@ -209,6 +228,21 @@ void registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallbac
   properties->callbackItems = g_slist_append(properties->callbackItems, callbackItem);
   
   DEBUG_EXIT("registerGreyrampCallback returning ");
+}
+
+
+/***********************************************************
+ *                         Utilities                       *
+ ***********************************************************/
+
+static void onCloseMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  
+  if (alignmentTool)
+    {
+      gtk_widget_hide(alignmentTool);
+    }
 }
 
 
@@ -675,6 +709,43 @@ static gint onPressSwapButton(GtkWidget *button, gpointer data)
   return TRUE;
 }
 
+/* Create the menu */
+static GtkWidget* createGreyrampToolMenu(GtkWidget *window)
+{
+  GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
+  gtk_action_group_add_actions (action_group, greyrampToolMenuEntries, G_N_ELEMENTS (greyrampToolMenuEntries), window);
+  
+  GtkUIManager *ui_manager = gtk_ui_manager_new ();
+  gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
+  
+  GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
+  gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
+  
+  GError *error = NULL;
+  const char *menuDescription = greyrampToolMenuDescription;
+  
+  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+    {
+      prefixError(error, "Building menus failed: ");
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+    }
+  
+  return gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
+}
+
+
+/* Mouse button handler */
+static gboolean onButtonPressGreyrampTool(GtkWidget *window, GdkEventButton *event, gpointer data)
+{
+  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
+    {
+      gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
+      return TRUE;
+    }
+  
+  return TRUE;
+}
+
 
 /***********************************************************
  *                    Initialisation                       *
@@ -809,6 +880,12 @@ GtkWidget* createGreyrampTool(DotterContext *dc, const int whitePointIn, const i
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(whiteSpinButton), (float)whitePoint);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(blackSpinButton), (float)blackPoint);
   
+  /* Create the right-click menu */
+  GtkWidget *menu = createGreyrampToolMenu(greyrampTool);
+
+  /* Set event handlers */
+  gtk_widget_add_events(greyrampTool, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
   g_signal_connect(G_OBJECT(greyrampTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
   gtk_widget_show_all(greyrampTool);

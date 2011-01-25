@@ -243,15 +243,15 @@ static void                       onAboutMenu(GtkAction *action, gpointer data);
 
 /* Menu builders: the action entry list lists menu actions for all menus */
 static const GtkActionEntry menuEntries[] = {
-{ "Quit",             NULL, "_Quit\t\t\tCtrl-Q",       NULL,  "Quit dotter",                G_CALLBACK(onQuitMenu)},
-{ "Close",            NULL, "_Close\t\t\tCtrl-W",      NULL,  "Quit dotter",                G_CALLBACK(onCloseMenu)},
-{ "SavePlot",         NULL, "_Save plot",              NULL,  "Save plot",                  G_CALLBACK(onSavePlotMenu)},
-{ "Print",            NULL, "_Print\t\t\tCtrl-P",      NULL,  "Print",                      G_CALLBACK(onPrintMenu)},
-{ "Settings",         NULL, "Settings\t\t\tCtrl-S",    NULL,  "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
-{ "ShowGreyramp",     NULL, "_Greyramp tool\tCtrl-G",  NULL,  "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
-{ "ShowAlignment",    NULL, "_Alignment tool\tCtrl-A", NULL,  "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
-{ "Help",             NULL, "_Help\t\t\tCtrl-H",       NULL,  "Dotter Help",                G_CALLBACK(onHelpMenu)},
-{ "About",            NULL, "_About",                  NULL,  "About Dotter",               G_CALLBACK(onAboutMenu)}
+{ "Quit",             NULL, "_Quit all dotters\tCtrl-Q",   NULL, "Quit dotter",                G_CALLBACK(onQuitMenu)},
+{ "Close",            NULL, "_Close this dotter\tCtrl-W",  NULL, "Quit dotter",                G_CALLBACK(onCloseMenu)},
+{ "SavePlot",         NULL, "_Save plot",                  NULL, "Save plot",                  G_CALLBACK(onSavePlotMenu)},
+{ "Print",            NULL, "_Print\t\t\tCtrl-P",          NULL, "Print",                      G_CALLBACK(onPrintMenu)},
+{ "Settings",         NULL, "Settings\t\t\tCtrl-S",        NULL, "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
+{ "ShowGreyramp",     NULL, "_Greyramp tool\tCtrl-G",      NULL, "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
+{ "ShowAlignment",    NULL, "_Alignment tool\tCtrl-A",     NULL, "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
+{ "Help",             NULL, "_Help\t\t\tCtrl-H",           NULL, "Dotter Help",                G_CALLBACK(onHelpMenu)},
+{ "About",            NULL, "_About",                      NULL, "About Dotter",               G_CALLBACK(onAboutMenu)}
 };
 
 /* Toggle-able menu entries are listed here: */

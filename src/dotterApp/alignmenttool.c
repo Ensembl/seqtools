@@ -122,7 +122,7 @@ static int                        convertToDisplayIdx(const int dnaIdx, const gb
 
 /* Menu builders */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
-{ "Close",        NULL, "_Close",                   NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
+{ "Close",        NULL, "_Close tool",              NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
 { "Print",        NULL, "_Print",                   NULL,	"Print",                                G_CALLBACK(onPrintMenu)},
 { "PrintColors",  NULL, "Print _colors",            NULL,	"Toggle colors for printing",           G_CALLBACK(onPrintColorsMenu)},
 { "SetLength",    NULL, "_Set alignment length",    NULL,	"Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)}
