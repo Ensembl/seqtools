@@ -1169,6 +1169,7 @@ static void doCalculateImage(const BlxStrand qStrand,
         }
       
       qmax = (dc->blastMode != BLXMODE_BLASTX && dc->selfComp ? sIdx + 1 : pepQSeqLen);
+      qmax = min(qmax, pepQSeqLen);
       
       for ( ; qIdx < qmax ; ++qIdx) 
         {
