@@ -324,6 +324,7 @@ static const char helpMenuDescription[] =
 static const char contextMenuDescription[] =
 "<ui>"
 "  <popup name='Context'>"
+"      <menuitem action='Close'/>"
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='SavePlot'/>"
