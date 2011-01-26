@@ -713,6 +713,44 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
 //  return segmentToDisplay;
 //}
 
+/* Calculate how many bases into the alignment tool's display range the given sequence starts.
+ * Also return the start coord of the alignment tool. */
+static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart)
+{
+  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
+  
+  /* Get the start coord of this sequence's full DNA range */
+  int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
+  
+  /* Work out what frame this coord is */
+  int frame = UNSET_INT;
+  convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, &frame);
+  
+  /* Work out how much to offset the start coord by to get the frame of our peptide sequence */
+  int offset = properties->frame - frame;
+  if (offset < 0)
+    offset += dc->numFrames;
+  
+  /* Offset the start coord */
+  seqStart = forward ? seqStart + offset : seqStart - offset;
+  
+  /* Find the coord that the display starts at and offset in a similar manner */
+  *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+  convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, 1, &frame);
+  offset = properties->frame - frame;
+  
+  if (offset < 0)
+    offset += dc->numFrames;
+
+  *displayStart = forward ? *displayStart + offset : *displayStart - offset;
+
+  /* Convert both sets of coords to display coords, and calculate the offset */
+  seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, NULL);
+  *displayStart = convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, 1, NULL);
+  
+  int result = forward ? seqStart - *displayStart : *displayStart - seqStart; /* offset may be negative */
+  return result;
+}
 
 /* Draw the sequence data for the given sequence-widget */
 static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool)
@@ -728,33 +766,25 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   SequenceProperties *seq1Properties = sequenceGetProperties(widget);
   const gchar *seq1 = seq1Properties->sequence;
   const int seq1Len = strlen(seq1);
-  const gboolean seq1Fwd = (seq1Properties->strand == BLXSTRAND_FORWARD);
   
-  /* Get the position of the first valid coord in the display range, which might not be at
-   * the start of the display if the sequence doesn't extend the full extent. */
-  int seq1Start = seq1Fwd ? seq1Properties->fullRange->min : seq1Properties->fullRange->max;
-  int seq1DisplayStart = seq1Fwd ? max(seq1Start, seq1Properties->displayRange->min) : min(seq1Start, seq1Properties->displayRange->max);
-  int seq1Offset = seq1Fwd ? seq1DisplayStart - seq1Properties->displayRange->min : seq1Properties->displayRange->max - seq1DisplayStart;
-  
-  int seq1Frame = UNSET_INT;
-  seq1Start = convertToDisplayIdx(seq1Start, !seq1Properties->isMatchSeq, dc, 1, &seq1Frame);
-  seq1DisplayStart = convertToDisplayIdx(seq1DisplayStart, !seq1Properties->isMatchSeq, dc, seq1Frame, NULL);
-  seq1Offset = convertToDisplayIdx(seq1Offset, !seq1Properties->isMatchSeq, dc, 1, NULL);
+  int seq1DisplayStart = UNSET_INT;
+  const int seq1Offset = getSequenceOffset(seq1Properties, dc, &seq1DisplayStart);
   
   /* Loop through each display coord */
   int displayIdx = 0;
-  const int displayMax = min(atProperties->alignmentLen, seq1Len + seq1Offset);
-  char seq1Text[seq1Len + seq1Offset + 1];
+  char seq1Text[atProperties->alignmentLen + 1];
   int y = 0;
   int x = 0;
 
-  for ( ; displayIdx < displayMax; ++displayIdx)
+  for ( ; displayIdx <= atProperties->alignmentLen; ++displayIdx)
     {
       seq1Text[displayIdx] = ' ';
+      const int displayCoord = displayIdx + seq1DisplayStart;
+    
       x = (int)((gdouble)displayIdx * dc->charWidth);
 
       /* Get the 0-based index into sequence 1 and if it's in range extract the character at this index */
-      const int seq1Idx = seq1Fwd ? seq1DisplayStart + (displayIdx - seq1Offset) - seq1Start : seq1Start - (seq1DisplayStart - (displayIdx - seq1Offset + 1));
+      const int seq1Idx = displayIdx - seq1Offset;
       
       if (seq1Idx >= 0 && seq1Idx < seq1Len)
         {
@@ -774,21 +804,12 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
               SequenceProperties *seq2Properties = sequenceGetProperties(seq2Widget);
               const gchar *seq2 = seq2Properties->sequence;
               const int seq2Len = strlen(seq2);
-              const gboolean seq2Fwd = (seq2Properties->strand == BLXSTRAND_FORWARD);
 
-              /* Get the position of the first coord in this sequences that is within the display range */
-              int seq2Start = seq2Fwd ? seq2Properties->fullRange->min : seq2Properties->fullRange->max;
-              int seq2DisplayStart = seq2Fwd ? seq2Properties->displayRange->min : seq2Properties->displayRange->max;
-              boundsLimitValue(&seq2DisplayStart, seq2Properties->fullRange);
-              int seq2Offset = seq2Fwd ? seq2DisplayStart - seq2Properties->displayRange->min : seq2Properties->displayRange->max - seq2DisplayStart;
-
-	      int seq2Frame = UNSET_INT;
-              seq2Start = convertToDisplayIdx(seq2Start, !seq2Properties->isMatchSeq, dc, 1, &seq2Frame);
-              seq2DisplayStart = convertToDisplayIdx(seq2DisplayStart, !seq2Properties->isMatchSeq, dc, seq2Frame, NULL);
-              seq2Offset = convertToDisplayIdx(seq2Offset, !seq2Properties->isMatchSeq, dc, 1, NULL);
-
+	      int seq2DisplayStart = UNSET_INT;
+	      const int seq2Offset = getSequenceOffset(seq2Properties, dc, &seq2DisplayStart);
+	    
               /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
-              const int seq2Idx = seq2Fwd ? seq2DisplayStart + (displayIdx - seq2Offset) - seq2Start : seq2Start - (seq2DisplayStart - (displayIdx - seq2Offset + 1));
+	      const int seq2Idx = abs(displayIdx - seq2Offset);
               
               if (seq2Idx >= 0 && seq2Idx < seq2Len)
                 {
