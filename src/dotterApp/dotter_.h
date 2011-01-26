@@ -294,6 +294,9 @@ GtkWidget*	    createDotplot(DotterWindowContext *dwc,
                                   const int scenter,
                                   GtkWidget **dotplot);
 
+void		    adjustRangeToFrame(IntRange *range, const int reqdFrame, const gboolean horizontal, DotterContext *dc);
+int		    convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum);
+
 DotterHspMode       dotplotGetHspMode(GtkWidget *dotplot);
 int                 dotplotGetSlidingWinSize(GtkWidget *dotplot);
 void                dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError **error);

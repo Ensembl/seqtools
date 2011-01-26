@@ -117,7 +117,6 @@ static void                       onSetLengthMenu(GtkAction *action, gpointer da
 //static const gchar*               getSequence(GtkWidget *widget, GtkWidget *alignmentTool);
 static void                       drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void			  drawSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, DotterContext *dc, const IntRange const *displayRange, const gboolean horizontal);
-static int                        convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum);
 
 
 /* Menu builders */
@@ -370,17 +369,19 @@ static gboolean onButtonPressAlignmentTool(GtkWidget *window, GdkEventButton *ev
 void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 {
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+  DotterContext *dc = dwc->dotterCtx;
 
+  /* Make the display ranges start at base 1 */
+  adjustRangeToFrame(&properties->refDisplayRange, 1, TRUE, dc);
+  adjustRangeToFrame(&properties->matchDisplayRange, 1, FALSE, dc);
+  
   /* Re-create the range, centred on the set coordinate and with the alignment tool's alignment 
    * length. Note that the length is the number of display chars but the reference sequence is
    * in nucleotide coords so needs converting. (The match sequence is always in display coords so
    * will be correct whether we're displaying nucleotides or peptides.) */
-  centreRangeOnCoord(&properties->refDisplayRange, dwc->refCoord, properties->alignmentLen * getResFactor(dwc->dotterCtx, TRUE));
-  centreRangeOnCoord(&properties->matchDisplayRange, dwc->matchCoord, properties->alignmentLen * getResFactor(dwc->dotterCtx, FALSE));
+  centreRangeOnCoord(&properties->refDisplayRange, dwc->refCoord, properties->alignmentLen * getResFactor(dc, TRUE));
+  centreRangeOnCoord(&properties->matchDisplayRange, dwc->matchCoord, properties->alignmentLen * getResFactor(dc, FALSE));
   
-//  boundsLimitRange(&properties->refDisplayRange, &dc->refSeqRange);
-//  boundsLimitRange(&properties->matchDisplayRange, &dc->matchSeqRange);
-
   onAlignmentToolRangeChanged(alignmentTool);
   gtk_widget_queue_draw(alignmentTool);
 }
@@ -898,36 +899,6 @@ static void drawSequenceHeaderText(GtkWidget *widget,
   
   g_free(displayText);
   
-}
-
-
-/* Convert a dna index to display (dna or peptide) index, if applicable. If horizontal is true
- * we have the horizontal (reference) sequence, otherwise the vertical (match) sequence. */
-static int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum)
-{
-  int result = dnaIdx;
-  
-  if (baseNum)
-    *baseNum = 1;
-  
-  /* Match seq coords are always in display coords already, so only do anything if this is the
-   * ref seq. Also, we only need to convert if it's peptide-nucleotide match. */
-  if (horizontal && dc->blastMode == BLXMODE_BLASTX)
-    {
-      double fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
-      result = (int)fraction;
-    
-      /* We want base 1 in the requested reading frame. */
-      if (baseNum)
-	{
-	  *baseNum = roundNearest((fraction - (double)result) * (double)dc->numFrames) + 1;
-    
-	  if (*baseNum < 1)
-	    *baseNum += dc->numFrames;
-	}
-    }
-  
-  return result;
 }
 
 

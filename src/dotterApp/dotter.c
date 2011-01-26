@@ -747,6 +747,51 @@ static void closeWindow(GtkWidget *widget)
 }
 
 
+/* Convert a dna index to display (dna or peptide) index, if applicable. If horizontal is true
+ * we have the horizontal (reference) sequence, otherwise the vertical (match) sequence. */
+int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum)
+{
+  int result = dnaIdx;
+  
+  if (baseNum)
+    *baseNum = 1;
+  
+  /* Match seq coords are always in display coords already, so only do anything if this is the
+   * ref seq. Also, we only need to convert if it's peptide-nucleotide match. */
+  if (horizontal && dc->blastMode == BLXMODE_BLASTX)
+    {
+    double fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
+    result = (int)fraction;
+    
+    /* We want base 1 in the requested reading frame. */
+    if (baseNum)
+      {
+      *baseNum = roundNearest((fraction - (double)result) * (double)dc->numFrames) + 1;
+      
+      if (*baseNum < 1)
+	*baseNum += dc->numFrames;
+      }
+    }
+  
+  return result;
+}
+
+
+/* Adjust the given range to start at base 1 in reading frame 1. */
+void adjustRangeToFrame(IntRange *range, const int reqdFrame, const gboolean horizontal, DotterContext *dc)
+{
+  const gboolean displayRev = ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev));
+  int *val = displayRev ? &range->max : &range->min;
+  
+  int baseNum = UNSET_INT;
+  
+  convertToDisplayIdx(*val, horizontal, dc, reqdFrame, &baseNum);
+  int offset = reqdFrame - baseNum;
+  
+  *val += offset;
+}
+
+
 static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
                                                       const IntRange const *refSeqRange,
                                                       const IntRange const *matchSeqRange,
@@ -763,6 +808,10 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
   result->matchSeqRange.min = matchSeqRange->min;
   result->matchSeqRange.max = matchSeqRange->max;
 
+  /* make the display range start at base 1 in frame 1 */
+  adjustRangeToFrame(&result->refSeqRange, 1, TRUE, dotterCtx);
+  adjustRangeToFrame(&result->matchSeqRange, 1, FALSE, dotterCtx);
+  
   result->refCoord = UNSET_INT;
   result->matchCoord = UNSET_INT;
   
