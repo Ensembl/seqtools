@@ -551,6 +551,24 @@ static DotterContext* createDotterContext(DotterOptions *options,
   result->matchSeqType = (blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
   result->matchSeqStrand = matchSeqStrand;
   
+  result->refSeqFullRange.min = options->qoffset + 1;
+  result->refSeqFullRange.max = options->qoffset + strlen(options->qseq);
+  result->matchSeqFullRange.min = options->soffset + 1;
+  result->matchSeqFullRange.max = options->soffset + strlen(options->sseq);
+  
+  result->hozScaleRev = options->hozScaleRev;
+  result->vertScaleRev = options->vertScaleRev;
+  result->negateCoords = options->negateCoords;
+  
+  result->selfComp = selfComp;
+  result->displayMirror = options->mirrorImage;
+  
+  result->memoryLimit = options->memoryLimit;
+  
+  result->defaultColors = NULL;
+  result->usePrintColors = FALSE;  
+  
+  
   /* Reverse/comp match seq if applicable */
   if (result->matchSeqType == BLXSEQ_DNA && result->matchSeqStrand == BLXSTRAND_REVERSE && result->matchSeq)
     {
@@ -572,26 +590,16 @@ static DotterContext* createDotterContext(DotterOptions *options,
       int i = 0;
       for (i = 0; i < result->numFrames; i++)
         {
-          result->peptideSeqs[i] = blxTranslate(refSeqToUse + i, result->geneticCode);
+	  /* Get the start coord at this index and calculate which reading frame it really is
+	   * (because the first coord in the sequence might not be base 1 in frame 1). */
+	  const int startCoord = result->hozScaleRev ? result->refSeqFullRange.max - i : result->refSeqFullRange.min + i;
+	
+	  int frame = UNSET_INT;
+	  convertToDisplayIdx(startCoord, TRUE, result, 1, &frame);
+	
+          result->peptideSeqs[frame - 1] = blxTranslate(refSeqToUse + i, result->geneticCode);
         }
     }
-  
-  result->refSeqFullRange.min = options->qoffset + 1;
-  result->refSeqFullRange.max = options->qoffset + strlen(options->qseq);
-  result->matchSeqFullRange.min = options->soffset + 1;
-  result->matchSeqFullRange.max = options->soffset + strlen(options->sseq);
-  
-  result->hozScaleRev = options->hozScaleRev;
-  result->vertScaleRev = options->vertScaleRev;
-  result->negateCoords = options->negateCoords;
-
-  result->selfComp = selfComp;
-  result->displayMirror = options->mirrorImage;
-  
-  result->memoryLimit = options->memoryLimit;
-  
-  result->defaultColors = NULL;
-  result->usePrintColors = FALSE;  
   
   if (!batchMode)
     { 
@@ -766,10 +774,17 @@ int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterConte
     /* We want base 1 in the requested reading frame. */
     if (baseNum)
       {
-      *baseNum = roundNearest((fraction - (double)result) * (double)dc->numFrames) + 1;
+	*baseNum = roundNearest((fraction - (double)result) * (double)dc->numFrames);
       
-      if (*baseNum < 1)
-	*baseNum += dc->numFrames;
+	if (*baseNum < 1)
+	  *baseNum += dc->numFrames;
+      
+	/* invert base number order when the display is reversed, i.e. if the mod3 of
+	 * the coords gives base numbers 123123123 etc then change these to 321321321 etc */
+	if ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev))
+	  {
+	    *baseNum = dc->numFrames - *baseNum + 1;
+	  }
       }
     }
   
@@ -2982,6 +2997,8 @@ static void setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, c
 	dwc->refSeqRange.max = newValue;
       else
 	dwc->refSeqRange.min = newValue;
+    
+      adjustRangeToFrame(&dwc->refSeqRange, 1, horizontal, dwc->dotterCtx);
     }
   else
     {
@@ -2989,6 +3006,8 @@ static void setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, c
 	dwc->matchSeqRange.max = newValue;
       else
 	dwc->matchSeqRange.min = newValue;
+    
+      adjustRangeToFrame(&dwc->matchSeqRange, 1, horizontal, dwc->dotterCtx);
     }
 }
 
@@ -2997,17 +3016,21 @@ static void setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, con
 {
   if (horizontal)
     {
-    if (dwc->dotterCtx->hozScaleRev)
-      dwc->refSeqRange.min = newValue;
-    else
-      dwc->refSeqRange.max = newValue;
+      if (dwc->dotterCtx->hozScaleRev)
+	dwc->refSeqRange.min = newValue;
+      else
+	dwc->refSeqRange.max = newValue;
+    
+      adjustRangeToFrame(&dwc->refSeqRange, 1, horizontal, dwc->dotterCtx);
     }
   else
     {
-    if (dwc->dotterCtx->vertScaleRev)
-      dwc->matchSeqRange.min = newValue;
-    else
-      dwc->matchSeqRange.max = newValue;
+      if (dwc->dotterCtx->vertScaleRev)
+	dwc->matchSeqRange.min = newValue;
+      else
+	dwc->matchSeqRange.max = newValue;
+
+      adjustRangeToFrame(&dwc->matchSeqRange, 1, horizontal, dwc->dotterCtx);
     }
 }
 

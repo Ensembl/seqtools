@@ -84,7 +84,6 @@ typedef struct _SequenceProperties
   BlxSeqType seqType;               /* whether this sequence is in nucleotide or peptide coords */
   BlxStrand strand;
   int frame;
-  int startCoordOffset;             /* how much to offset the first coord in the seq by to give the first base in the first codon in frame 1 */
   IntRange *displayRange;	    /* the displayed range; pointer to refDisplayRange or matchDisplayRange */
   IntRange *fullRange;              /* the full range of the sequence; pointer to refSeqRange or matchSeqRange */
   gboolean scaleReversed;	    /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
@@ -169,7 +168,6 @@ static void sequenceCreateProperties(GtkWidget *widget,
                                      const BlxSeqType seqType,
 				     const BlxStrand strand,
 				     const int frame,
-                                     const int startCoordOffset,
 				     IntRange *displayRange,
                                      IntRange *fullRange,
 				     gboolean scaleReversed,
@@ -185,7 +183,6 @@ static void sequenceCreateProperties(GtkWidget *widget,
       properties->seqType = seqType;
       properties->strand = strand;
       properties->frame = frame;
-      properties->startCoordOffset = startCoordOffset;
       properties->displayRange = displayRange;
       properties->fullRange = fullRange;
       properties->scaleReversed = scaleReversed;
@@ -519,27 +516,6 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
   int row = 0;
 
-  /* Calculate the reading frame of the first and last coord in the reference sequence. */
-  const int resFactor = getResFactor(dc, TRUE);
-  const int reqdFrame = (dc->hozScaleRev ? resFactor : 1);
-
-  const int startCoord = (dc->hozScaleRev ? dc->refSeqFullRange.max - (resFactor - 1) : dc->refSeqFullRange.min);
-  int startCoordFrame = startCoord % resFactor;
-  if (startCoordFrame < 1)
-    {
-      startCoordFrame += resFactor;
-    }
-
-  int startCoordOffset = reqdFrame - startCoordFrame;
-  if (startCoordOffset < 0)
-    {
-      startCoordOffset += resFactor;
-    }
-  else if (startCoordOffset > resFactor - 1)
-    {
-      startCoordOffset -= resFactor;
-    }
-  
   /* Create the widget that will render the match sequence. Need to do this first so we can pass
    * it as data to the ref sequence widgets. */
   GtkWidget *matchSeqWidget = gtk_drawing_area_new();
@@ -586,7 +562,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
       refSeqList = g_slist_append(refSeqList, refSeqWidget);
 
       sequenceCreateProperties(refSeqWidget, dc->refSeqName, sequence, dc->refSeqType, strand, 
-                               frame, startCoordOffset, &properties->refDisplayRange, &dc->refSeqFullRange,
+                               frame, &properties->refDisplayRange, &dc->refSeqFullRange,
                                dc->hozScaleRev, matchSeqList, FALSE);
       
       gtk_table_attach(table, refSeqWidget, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
@@ -608,7 +584,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   char *matchSequence = dc->matchSeqStrand == BLXSTRAND_REVERSE ? dc->matchSeqRev : dc->matchSeq;
   
   sequenceCreateProperties(matchSeqWidget, dc->matchSeqName, matchSequence, dc->matchSeqType, dc->matchSeqStrand,
-                           1, 0, &properties->matchDisplayRange, &dc->matchSeqFullRange, dc->vertScaleRev, refSeqList, TRUE);
+                           1, &properties->matchDisplayRange, &dc->matchSeqFullRange, dc->vertScaleRev, refSeqList, TRUE);
   
   gtk_table_attach(table, matchSeqWidget, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_widget_add_events(matchSeqWidget, GDK_EXPOSURE_MASK);
