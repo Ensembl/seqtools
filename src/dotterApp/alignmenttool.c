@@ -117,7 +117,7 @@ static void                       onSetLengthMenu(GtkAction *action, gpointer da
 //static const gchar*               getSequence(GtkWidget *widget, GtkWidget *alignmentTool);
 static void                       drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void			  drawSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, DotterContext *dc, const IntRange const *displayRange, const gboolean horizontal);
-static int                        convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc);
+static int                        convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum);
 
 
 /* Menu builders */
@@ -759,9 +759,10 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   int seq1DisplayStart = seq1Fwd ? max(seq1Start, seq1Properties->displayRange->min) : min(seq1Start, seq1Properties->displayRange->max);
   int seq1Offset = seq1Fwd ? seq1DisplayStart - seq1Properties->displayRange->min : seq1Properties->displayRange->max - seq1DisplayStart;
   
-  seq1Start = convertToDisplayIdx(seq1Start, !seq1Properties->isMatchSeq, dc);
-  seq1DisplayStart = convertToDisplayIdx(seq1DisplayStart, !seq1Properties->isMatchSeq, dc);
-  seq1Offset = convertToDisplayIdx(seq1Offset, !seq1Properties->isMatchSeq, dc);
+  int seq1Frame = UNSET_INT;
+  seq1Start = convertToDisplayIdx(seq1Start, !seq1Properties->isMatchSeq, dc, 1, &seq1Frame);
+  seq1DisplayStart = convertToDisplayIdx(seq1DisplayStart, !seq1Properties->isMatchSeq, dc, seq1Frame, NULL);
+  seq1Offset = convertToDisplayIdx(seq1Offset, !seq1Properties->isMatchSeq, dc, 1, NULL);
   
   /* Loop through each display coord */
   int displayIdx = 0;
@@ -804,9 +805,10 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
               boundsLimitValue(&seq2DisplayStart, seq2Properties->fullRange);
               int seq2Offset = seq2Fwd ? seq2DisplayStart - seq2Properties->displayRange->min : seq2Properties->displayRange->max - seq2DisplayStart;
 
-              seq2Start = convertToDisplayIdx(seq2Start, !seq2Properties->isMatchSeq, dc);
-              seq2DisplayStart = convertToDisplayIdx(seq2DisplayStart, !seq2Properties->isMatchSeq, dc);
-              seq2Offset = convertToDisplayIdx(seq2Offset, !seq2Properties->isMatchSeq, dc);
+	      int seq2Frame = UNSET_INT;
+              seq2Start = convertToDisplayIdx(seq2Start, !seq2Properties->isMatchSeq, dc, 1, &seq2Frame);
+              seq2DisplayStart = convertToDisplayIdx(seq2DisplayStart, !seq2Properties->isMatchSeq, dc, seq2Frame, NULL);
+              seq2Offset = convertToDisplayIdx(seq2Offset, !seq2Properties->isMatchSeq, dc, 1, NULL);
 
               /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
               const int seq2Idx = seq2Fwd ? seq2DisplayStart + (displayIdx - seq2Offset) - seq2Start : seq2Start - (seq2DisplayStart - (displayIdx - seq2Offset + 1));
@@ -901,15 +903,28 @@ static void drawSequenceHeaderText(GtkWidget *widget,
 
 /* Convert a dna index to display (dna or peptide) index, if applicable. If horizontal is true
  * we have the horizontal (reference) sequence, otherwise the vertical (match) sequence. */
-static int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc)
+static int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum)
 {
   int result = dnaIdx;
+  
+  if (baseNum)
+    *baseNum = 1;
   
   /* Match seq coords are always in display coords already, so only do anything if this is the
    * ref seq. Also, we only need to convert if it's peptide-nucleotide match. */
   if (horizontal && dc->blastMode == BLXMODE_BLASTX)
     {
-      result /= dc->numFrames;
+      double fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
+      result = (int)fraction;
+    
+      /* We want base 1 in the requested reading frame. */
+      if (baseNum)
+	{
+	  *baseNum = roundNearest((fraction - (double)result) * (double)dc->numFrames) + 1;
+    
+	  if (*baseNum < 1)
+	    *baseNum += dc->numFrames;
+	}
     }
   
   return result;
@@ -928,7 +943,7 @@ static void drawSequenceHeader(GtkWidget *widget,
   const int coord = getRangeCentre(displayRange);
   
   /* Find the position to display at. Find the position of the char at this coord */
-  int x = (int)((gdouble)convertToDisplayIdx(coord - displayRange->min, horizontal, dc) * dc->charWidth);
+  int x = (int)((gdouble)convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) * dc->charWidth);
   int y = 0;
 
   if (horizontal)
