@@ -2546,11 +2546,11 @@ void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
  * refreshes. Scrolls the view to keep the selected base in view if allowScroll 
  * is true. (Such scrolling is by the minimum number of bases necessary if 
  * scrollMinimum is true.) */
-static void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
-					    const int selectedDnaBaseIdx,
-					    const int frame,
-					    const gboolean allowScroll,
-					    const gboolean scrollMinimum)
+void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
+                                     const int selectedDnaBaseIdx,
+                                     const int frame,
+                                     const gboolean allowScroll,
+                                     const gboolean scrollMinimum)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 

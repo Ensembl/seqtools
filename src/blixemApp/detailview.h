@@ -184,7 +184,20 @@ void			scrollDetailViewRightPage(GtkWidget *detailView);
 void			detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn);
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
-void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll, const gboolean scrollMinimum);
+
+void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
+                                                     const int selectedBaseIdx, 
+                                                     const int frame, 
+                                                     const int baseNum, 
+                                                     const gboolean allowScroll, 
+                                                     const gboolean scrollMinimum);
+
+void                    detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
+                                                        const int selectedDnaBaseIdx,
+                                                        const int frame,
+                                                        const gboolean allowScroll,
+                                                        const gboolean scrollMinimum);
+
 void                    detailViewUnsetSelectedBaseIdx(GtkWidget *detailView);
 void                    detailViewSetActiveFrame(GtkWidget *detailView, const int frame);
 

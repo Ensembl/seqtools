@@ -507,45 +507,17 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
   BlxViewContext *blxContext = blxWindowGetContext(window);
   GtkWidget *detailView = blxWindowGetDetailView(window);
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  const gboolean displayRev = detailViewGetDisplayRev(detailView);
   
-  if (detailViewProperties->selectedBaseIdx != UNSET_INT)
-    {
-      /* Decrement the index if moving left decrease and increment it if moving right, 
-       * unless the display is toggled, in which case do the opposite */
-      const int numFrames = blxContext->numFrames;
-      const int minBaseNum = 1;
-      const int maxBaseNum = numFrames;
-
-      int newBaseNum = detailViewProperties->selectedBaseNum;
-      int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
-      
-      if (moveLeft)
-	{
-	  --newBaseNum;
-	  
-	  if (newBaseNum < minBaseNum)
-	    {
-	      newBaseNum = maxBaseNum;
-	      --newSelectedBaseIdx;
-	    }
-	}
-      else
-	{
-	  ++newBaseNum;
-	  
-	  if (newBaseNum > maxBaseNum)
-	    {
-	      newBaseNum = minBaseNum;
-	      ++newSelectedBaseIdx;
-	    }
-	}
-
-      IntRange *fullRange = blxWindowGetFullRange(window);
-      boundsLimitValue(&newSelectedBaseIdx, fullRange);
-
-      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, newBaseNum, TRUE, TRUE);
-    }
+  const int direction = (moveLeft == displayRev ? 1 : -1);
+  const int newDnaIdx = properties->selectedDnaBaseIdx + direction;
+  
+  detailViewSetSelectedDnaBaseIdx(detailView, 
+                                  newDnaIdx, 
+                                  detailViewGetActiveFrame(detailView),
+                                  TRUE, TRUE);
 }
 
 
