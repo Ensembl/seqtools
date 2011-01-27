@@ -299,8 +299,10 @@ static void onAlignmentToolRangeChanged(GtkWidget *alignmentTool)
 
   if (properties)
     {
-      char *refCoordText = blxprintf("%d", getRangeCentre(&properties->refDisplayRange));
-      char *matchCoordText = blxprintf("%d", getRangeCentre(&properties->matchDisplayRange));
+      DotterWindowContext *dwc = properties->dotterWinCtx;
+      
+      char *refCoordText = blxprintf("%d", dwc->refCoord);
+      char *matchCoordText = blxprintf("%d", dwc->matchCoord);
     
       if (properties->refSeqHeader1)
         gtk_widget_queue_draw(properties->refSeqHeader1);
@@ -664,55 +666,6 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
  *                       Internal routines                 *
  ***********************************************************/
 
-///* Get the visible segment of the sequence in the given sequence-widget */
-//static const gchar* getSequence(GtkWidget *widget, GtkWidget *alignmentTool)
-//{
-//  SequenceProperties *properties = sequenceGetProperties(widget);
-//  /* Find the segment of the ref seq to display. Offset the start by the given amount (to make sure we
-//   * start at the first codon in frame 1) and by the frame number so we start at the beginning of
-//   * the first codon in this particular frame. */
-//  const int plusMin = properties->scaleReversed ? -1 : 1;
-//  const int offset = properties->startCoordOffset + properties->frame - 1;
-//  const int coord1 = properties->displayRange->min + plusMin * offset;
-//  const int coord2 = properties->displayRange->max + plusMin * offset;
-//  
-//  IntRange qRange;
-//  intrangeSetValues(&qRange, coord1, coord2);
-//
-//  /* If we're out of the valid sequence range, shift by a whole number of codons until we're in range */
-//  const int resFactor = getResFactor(dc, !properties->isMatchSeq);
-//  
-//  while (qRange.min < properties->fullRange->min)
-//    qRange.min += resFactor;
-//  
-//  while (qRange.max > properties->fullRange->max)
-//    qRange.max -= resFactor;
-//  
-//  GError *error = NULL;
-//
-//  gchar *segmentToDisplay = getSequenceSegment(properties->sequence,
-//                                               &qRange,
-//                                               properties->strand, 
-//                                               properties->seqType,                     /* input seq type */
-//                                               dc->displaySeqType,                      /* result seq type */
-//                                               properties->frame, 
-//                                               dc->numFrames,
-//                                               properties->fullRange,
-//                                               dc->blastMode,
-//                                               dc->geneticCode,
-//                                               properties->scaleReversed,               /* whether the display is reversed */
-//                                               properties->strand == BLXSTRAND_REVERSE, /* reverse the sequence if we want the reverse strand */
-//                                               TRUE,                                    /* always complement if it's the reverse strand */
-//                                               &error);
-//
-//  if (!segmentToDisplay)
-//    {
-//      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-//    }
-//  
-//  return segmentToDisplay;
-//}
-
 /* Calculate how many bases into the alignment tool's display range the given sequence starts.
  * Also return the start coord of the alignment tool. */
 static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart)
@@ -809,7 +762,7 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
 	      const int seq2Offset = getSequenceOffset(seq2Properties, dc, &seq2DisplayStart);
 	    
               /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
-	      const int seq2Idx = abs(displayIdx - seq2Offset);
+	      const int seq2Idx = displayIdx - seq2Offset;
               
               if (seq2Idx >= 0 && seq2Idx < seq2Len)
                 {
@@ -911,7 +864,8 @@ static void drawSequenceHeader(GtkWidget *widget,
   const int coord = getRangeCentre(displayRange);
   
   /* Find the position to display at. Find the position of the char at this coord */
-  int x = (int)((gdouble)convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) * dc->charWidth);
+  const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL);
+  int x = (int)((gdouble)displayIdx * dc->charWidth);
   int y = 0;
 
   if (horizontal)

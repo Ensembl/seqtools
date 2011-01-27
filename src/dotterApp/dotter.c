@@ -582,6 +582,12 @@ static DotterContext* createDotterContext(DotterOptions *options,
       g_strreverse(result->matchSeqRev);
     }
   
+  int i = 0;
+  for ( ; i < result->numFrames; ++i)
+    {
+      result->peptideSeqs[i] = NULL;
+    }
+  
   if (result->blastMode == BLXMODE_BLASTX) 
     {
       /* Create the 3 frame translations (for the strand we're interested in only). */
@@ -598,6 +604,15 @@ static DotterContext* createDotterContext(DotterOptions *options,
 	  convertToDisplayIdx(startCoord, TRUE, result, 1, &frame);
 	
           result->peptideSeqs[frame - 1] = blxTranslate(refSeqToUse + i, result->geneticCode);
+        }
+      
+      /* Check all of the frames got set */
+      for (i = 0; i < result->numFrames; ++i)
+        {
+          if (result->peptideSeqs[i] == NULL)
+            {
+              g_error("Error calculating translated sequence for reading frame %d.\n", i + 1);
+            }
         }
     }
   
@@ -626,11 +641,14 @@ static void destroyDotterContext(DotterContext *dc)
     {
     if (dc->blastMode == BLXMODE_BLASTX)
       {
-	int i = 1;
+	int i = 0;
 	for ( ; i < dc->numFrames; i++)
 	  {
-	    g_free(dc->peptideSeqs[i]);
-	    dc->peptideSeqs[i] = NULL;
+            if (dc->peptideSeqs && dc->peptideSeqs[i])
+              {
+                g_free(dc->peptideSeqs[i]);
+                dc->peptideSeqs[i] = NULL;
+              }
 	  }
       }
     
@@ -700,10 +718,12 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
 
 	      if (g_slist_length(properties->dotterWinCtx->dotterCtx->windowList) < 1)
 		{
-		  /* It's the last window in the context, so destroy the context */
+		  /* It's the last window in the context, so destroy the context
+                   * and quit the program */
 		  g_slist_free(properties->dotterWinCtx->dotterCtx->windowList);
 		  properties->dotterWinCtx->dotterCtx->windowList = NULL;
 		  destroyDotterContext(properties->dotterWinCtx->dotterCtx);
+                  gtk_main_quit();
 		}
 	    }
 	
@@ -768,13 +788,20 @@ int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterConte
    * ref seq. Also, we only need to convert if it's peptide-nucleotide match. */
   if (horizontal && dc->blastMode == BLXMODE_BLASTX)
     {
-    double fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
-    result = (int)fraction;
+      double fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
+
+      /* Round to the higher absolute value so that 0.3, 0.6 and 1.0 all round
+       * to the same value. Then subtract 1 - this is a bit of a fudge to make
+       * things work; there's probably an off-by-one error somewhere... */
+      if (fraction > 0)
+        result = ceil(fraction) - 1;
+      else
+        result = floor(fraction) + 1;
     
     /* We want base 1 in the requested reading frame. */
     if (baseNum)
       {
-	*baseNum = roundNearest((fraction - (double)result) * (double)dc->numFrames);
+	*baseNum = (dnaIdx - frame + 1) % dc->numFrames;
       
 	if (*baseNum < 1)
 	  *baseNum += dc->numFrames;
