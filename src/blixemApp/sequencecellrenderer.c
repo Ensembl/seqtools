@@ -117,7 +117,7 @@ static void     sequence_cell_renderer_init       (SequenceCellRenderer      *ce
 static void     sequence_cell_renderer_class_init (SequenceCellRendererClass *klass);
 static void     sequence_cell_renderer_finalize (GObject *gobject);
 
-static IntRange getVisibleMspRange(MSP *msp, RenderData *data);
+static gboolean getVisibleMspRange(MSP *msp, RenderData *data, IntRange *result);
 void		drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data);
 
 static void drawSequenceText(GtkWidget *tree,
@@ -566,7 +566,13 @@ static void drawExon(SequenceCellRenderer *renderer,
 {
   if (mspLayerIsVisible(msp))
     {
-      IntRange segmentRange = getVisibleMspRange(msp, data);
+      IntRange segmentRange = {UNSET_INT, UNSET_INT};
+      
+      if (!getVisibleMspRange(msp, data, &segmentRange))
+        {
+          return;
+        }
+
       const int segmentLen = segmentRange.max - segmentRange.min + 1;
 
       int x, y;
@@ -873,33 +879,36 @@ static void drawSequenceText(GtkWidget *tree,
 }
 
 
-/* Get the range of the msp that is inside the currently displayed range. The returned
- * range has UNSET_INTs if no part of the msp is visible. Returned coords are in display coords. */
-static IntRange getVisibleMspRange(MSP *msp, RenderData *data)
+/* Get the range of the msp that is inside the currently displayed range. The
+ * return value is FALSE if no part of the msp is visible. The result coords 
+ * are in display coords. */
+static gboolean getVisibleMspRange(MSP *msp, RenderData *data, IntRange *result)
 {
+  gboolean found = FALSE;
+  
   /* Find the full display range of the MSP including any portions of unaligned sequence etc. */
-  IntRange result;
-  mspGetFullQRange(msp, data->seqSelected, data->bc->flags, data->numUnalignedBases, data->bc->featureLists[BLXMSP_POLYA_SITE], data->bc->numFrames, &result);
+  mspGetFullQRange(msp, data->seqSelected, data->bc->flags, data->numUnalignedBases, data->bc->featureLists[BLXMSP_POLYA_SITE], data->bc->numFrames, result);
   
   /* Convert to display coords */
-  const int idx1 = convertDnaIdxToDisplayIdx(result.min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-  const int idx2 = convertDnaIdxToDisplayIdx(result.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
+  const int idx1 = convertDnaIdxToDisplayIdx(result->min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
+  const int idx2 = convertDnaIdxToDisplayIdx(result->max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
 
-  intrangeSetValues(&result, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
+  intrangeSetValues(result, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
 
-  if (rangesOverlap(&result, data->displayRange))
+  if (rangesOverlap(result, data->displayRange))
     {
       /* Limit the returned range to the display range. */
-      boundsLimitRange(&result, data->displayRange, FALSE);
+      boundsLimitRange(result, data->displayRange, FALSE);
+      found = TRUE;
     }
   else
     {
       /* No portion of the MSP range is in the display range, so return UNSET_INTs */
-      result.min = UNSET_INT;
-      result.max = UNSET_INT;
+      result->min = UNSET_INT;
+      result->max = UNSET_INT;
     }
 
-  return result;
+  return found;
 }
 
 
@@ -958,14 +967,13 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
 			    RenderData *data)
 {
   /* Extract the section of the reference sequence that we're interested in. */
-  IntRange segmentRange = getVisibleMspRange(msp, data);
-
-  /* Nothing to do if this msp is not in the visible range */
-  if (segmentRange.min == UNSET_INT)
+  IntRange segmentRange = {UNSET_INT, UNSET_INT};
+  
+  if (!getVisibleMspRange(msp, data, &segmentRange))
     {
       return;
     }
-  
+
   /* The ref seq is in nucleotide coords, so convert the segment coords to nucleotide coords */
   const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
