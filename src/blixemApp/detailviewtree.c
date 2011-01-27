@@ -1650,7 +1650,10 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
       gtk_list_store_append(store, &iter);
       
       /* The SequenceCellRenderer expects a GList of MSPs, so put our MSP in a list. For exons,
-       * we want to add the child CDS/UTRs rather than the exon itself, so use the child list. */
+       * we want to add the child CDS/UTRs rather than the exon itself, so use the child list.
+       * Note that this means we can have multiple MSPs on the same row even when the 'squash
+       * matches' option is not on (which makes sense because realistically they are the same
+       * object). */
       GList *mspGList = NULL;
       
       if (msp->type == BLXMSP_EXON && g_list_length(msp->childMsps) > 0)
@@ -1659,7 +1662,7 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
         }
       else
         {
-      mspGList = g_list_append(NULL, msp);
+          mspGList = g_list_append(NULL, msp);
         }
       
       gtk_list_store_set(store, &iter,
