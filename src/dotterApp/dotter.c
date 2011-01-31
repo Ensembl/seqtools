@@ -487,7 +487,6 @@ static DotterContext* createDotterContext(DotterOptions *options,
                                           const gboolean batchMode,
                                           const BlxStrand refSeqStrand,
                                           const BlxStrand matchSeqStrand,
-					  const gboolean selfComp,
                                           MSP *mspList,
 					  GList *seqList,
                                           int matrix[24][24],
@@ -560,7 +559,6 @@ static DotterContext* createDotterContext(DotterOptions *options,
   result->vertScaleRev = options->vertScaleRev;
   result->negateCoords = options->negateCoords;
   
-  result->selfComp = selfComp;
   result->displayMirror = options->mirrorImage;
   
   result->memoryLimit = options->memoryLimit;
@@ -858,7 +856,12 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
   result->matchCoord = UNSET_INT;
   
   result->zoomFactor = getInitZoomFactor(dotterCtx, zoomFacIn, getRangeLength(refSeqRange), getRangeLength(matchSeqRange));
-  
+
+  /* See if we're comparing the same portion of sequence against itself */
+  result->selfComp = (refSeqRange->min == matchSeqRange->min && 
+                      refSeqRange->max == matchSeqRange->max &&
+                      stringsEqual(dotterCtx->refSeq, dotterCtx->matchSeq, FALSE));
+
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
   for ( ; dialogId < DOTDIALOG_NUM_DIALOGS; ++dialogId)
@@ -965,7 +968,6 @@ void dotter (const BlxBlastMode blastMode,
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
           blastMode, queryname, qoff, refSeqStrand, subjectname, soff, matchSeqStrand);
   
-  gboolean selfComp = FALSE;
   MSPlist = MSPs;
   
   const int qlen = strlen(options->qseq);
@@ -982,9 +984,6 @@ void dotter (const BlxBlastMode blastMode,
     {
       options->memoryLimit = 0.5; /* Mb */
     }
-
-  if (!strcmp(options->qseq, options->sseq)) 
-    selfComp = TRUE;
 
   /* Get score matrix */
   char *matrixName = g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
@@ -1018,7 +1017,7 @@ void dotter (const BlxBlastMode blastMode,
     }
   
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
-  DotterContext *dotterCtx = createDotterContext(options, blastMode, batchMode, refSeqStrand, matchSeqStrand, selfComp, MSPlist, seqList, MATRIX, matrixName);
+  DotterContext *dotterCtx = createDotterContext(options, blastMode, batchMode, refSeqStrand, matchSeqStrand, MSPlist, seqList, MATRIX, matrixName);
 
   /* Create a context specific to the initial dotter window */
   DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, options->dotterZoom);
@@ -2166,7 +2165,7 @@ static gboolean onQStartChanged(GtkWidget *widget, const gint responseId, gpoint
   setStartCoord(dwc, TRUE, newValue);
   
   /* If it's a self comparison, also update the vertical range. */
-  if (dwc->dotterCtx->selfComp)
+  if (dwc->selfComp)
     setStartCoord(dwc, FALSE, newValue);
 
   /* Check the crosshair is still in range and if not clip it */
@@ -2196,7 +2195,7 @@ static gboolean onQEndChanged(GtkWidget *widget, const gint responseId, gpointer
   setEndCoord(dwc, TRUE, newValue);
   
   /* If it's a self comparison, also update the vertical range. */
-  if (dwc->dotterCtx->selfComp)
+  if (dwc->selfComp)
     setEndCoord(dwc, FALSE, newValue);
   
   /* Check the crosshair is still in range and if not clip it */
@@ -2442,7 +2441,7 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
   createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
   
   /* Create the boxes for the sequence ranges. If it's a self comparison, we only really have one range. */
-  if (dc->selfComp)
+  if (dwc->selfComp)
     {
       createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "Range: ", qStart, onQStartChanged);
       createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);

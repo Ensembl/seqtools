@@ -182,7 +182,6 @@ typedef struct _DotterContext
   gboolean hozScaleRev;			    /* true if horizontal coords should increase from right-to-left rather than left-to-right */
   gboolean vertScaleRev;		    /* true if vertical coords should increase from bottom-to-top rather than top-to-bottom */
   gboolean negateCoords;		    /* negate displayed coords if the scale is reversed, i.e. so coords still appear to increase left-to-right */
-  gboolean selfComp;                        /* true if we're comparing the ref seq against itself */
   gboolean displayMirror;                   /* whether to display a mirror image in self comparisons */
   
   double memoryLimit;                       /* maximum Mb allowed for dotplot */
@@ -209,6 +208,7 @@ typedef struct _DotterWindowContext
     int matchCoord;                           /* currently-selected match seq coord */
     
     gdouble zoomFactor;                       /* we divide by this to scale the dotplot, i.e. <1 zooms in, >1 zooms out */
+    gboolean selfComp;                        /* true if we're comparing the same portion ref seq against itself */
     
     GtkWidget *dialogList[DOTDIALOG_NUM_DIALOGS]; /* list of all persistent dialogs for this window */
   } DotterWindowContext;

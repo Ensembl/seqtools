@@ -1168,7 +1168,7 @@ static void doCalculateImage(const BlxStrand qStrand,
           ++addrow;
         }
       
-      qmax = (dc->blastMode != BLXMODE_BLASTX && dc->selfComp ? sIdx + 1 : pepQSeqLen);
+      qmax = (dc->blastMode != BLXMODE_BLASTX && dwc->selfComp ? sIdx + 1 : pepQSeqLen);
       qmax = min(qmax, pepQSeqLen);
       
       for ( ; qIdx < qmax ; ++qIdx) 
@@ -1223,15 +1223,17 @@ static void doCalculateImage(const BlxStrand qStrand,
 
 
 /* Print some debug info for the calculateImage function to stdout */
-static void printCalculateImageStats(DotterContext *dc, const int qlen, const int slen)
+static void printCalculateImageStats(DotterWindowContext *dwc, const int qlen, const int slen)
 {
+  DotterContext *dc = dwc->dotterCtx;
+  
   double speed = 17.2;  /* Speed in Mdots/seconds. SGI MIPS R10000 (clobber) */
   /* speed = 5.7;  DEC Alpha AXP 3000/700 */
   /* speed = 3.7;  SGI R4400: */
   
   double numDots = qlen/1e6*slen; /* total number of dots (millions) */
   
-  if (dc->selfComp) 
+  if (dwc->selfComp) 
     numDots /= 2;
   
   if (dc->blastMode == BLXMODE_BLASTN && !(dc->watsonOnly || dc->crickOnly)) 
@@ -1283,7 +1285,7 @@ static void calculateImage(DotplotProperties *properties)
   const int win2 = properties->slidingWinSize/2;
 
   /* Print some statistics about what we're about to do */
-  printCalculateImageStats(dc, qlen, slen);
+  printCalculateImageStats(dwc, qlen, slen);
   
   /* Find the offset of the current display range within the full range of the bit of reference sequence we have */
   const int qOffset = dc->refSeqStrand == BLXSTRAND_REVERSE 
@@ -1357,7 +1359,7 @@ static void calculateImage(DotplotProperties *properties)
         }
     }
 
-  if (dc->selfComp && dc->displayMirror) 
+  if (dwc->selfComp && dc->displayMirror) 
     {
       /* Copy mirror image */
       
