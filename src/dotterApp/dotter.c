@@ -240,6 +240,9 @@ static void                       onTogglePixelmapMenu(GtkAction *action, gpoint
 static void                       onToggleGridMenu(GtkAction *action, gpointer data);
 static void                       onHelpMenu(GtkAction *action, gpointer data);
 static void                       onAboutMenu(GtkAction *action, gpointer data);
+static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
+static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
+
 
 /* Menu builders: the action entry list lists menu actions for all menus */
 static const GtkActionEntry menuEntries[] = {
@@ -251,7 +254,9 @@ static const GtkActionEntry menuEntries[] = {
 { "ShowGreyramp",     NULL, "_Greyramp tool\tCtrl-G",      NULL, "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
 { "ShowAlignment",    NULL, "_Alignment tool\tCtrl-A",     NULL, "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
 { "Help",             NULL, "_Help\t\t\tCtrl-H",           NULL, "Dotter Help",                G_CALLBACK(onHelpMenu)},
-{ "About",            NULL, "_About",                      NULL, "About Dotter",               G_CALLBACK(onAboutMenu)}
+{ "About",            NULL, "_About",                      NULL, "About Dotter",               G_CALLBACK(onAboutMenu)},
+{ "CopyHCoord",       NULL, "Copy _horizontal coord",      NULL, "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
+{ "CopyVCoord",       NULL, "Copy _vertical coord",        NULL, "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
 };
 
 /* Toggle-able menu entries are listed here: */
@@ -288,6 +293,9 @@ static const char fileMenuDescription[] =
 static const char editMenuDescription[] =
 "<ui>"
 "  <popup name='Edit'>"
+"      <menuitem action='CopyHCoord'/>"
+"      <menuitem action='CopyVCoord'/>"
+"      <separator/>"
 "      <menuitem action='Settings'/>"
 "  </popup>"
 "</ui>";
@@ -2849,6 +2857,24 @@ static void onAboutMenu(GtkAction *action, gpointer data)
   showAboutDialog(dotterWindow);
 }
 
+/* Callback called when the user selects the 'copy horizontal coord' menu option */
+static void onCopyHCoordMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  copyIntToDefaultClipboard(properties->dotterWinCtx->refCoord);
+}
+
+/* Callback called when the user selects the 'copy vertical coord' menu option */
+static void onCopyVCoordMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
+}
+
 static void onShowGreyrampMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
@@ -3408,6 +3434,18 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   return dotterWindow;
 }
 
+
+/***********************************************************
+ *                       Utilities                         *
+ ***********************************************************/
+
+/* Utility to copy an integer value as a string to the default clipboard */
+void copyIntToDefaultClipboard(const int val)
+{
+  char *displayText = convertIntToString(val);
+  setDefaultClipboardText(displayText);
+  g_free(displayText); 
+}
 
 
 

@@ -266,6 +266,7 @@ void		    argvAdd(int *argc, char ***argv, char *s);
 /* dotter.c */
 int		    getResFactor(DotterContext *dc, const gboolean horizontal);
 int		    getDisplayCoord(const int coordIn, DotterContext *dc, const gboolean horizontal);
+void                copyIntToDefaultClipboard(const int val);
 
 void                callDotterInternal(DotterContext *dc, 
                                        const IntRange const *refSeqRange,

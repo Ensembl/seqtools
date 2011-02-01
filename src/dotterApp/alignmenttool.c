@@ -113,6 +113,9 @@ static void                       onCloseMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
 static void                       onPrintColorsMenu(GtkAction *action, gpointer data);
 static void                       onSetLengthMenu(GtkAction *action, gpointer data);
+static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
+static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
+
 static void                       drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void			  drawSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, DotterWindowContext *dwc, const IntRange const *displayRange, const gboolean horizontal);
 
@@ -121,14 +124,19 @@ static void			  drawSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, Dot
 static const GtkActionEntry alignmentToolMenuEntries[] = {
 { "Close",        NULL, "_Close tool",              NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
 { "Print",        NULL, "_Print",                   NULL,	"Print",                                G_CALLBACK(onPrintMenu)},
-{ "PrintColors",  NULL, "Print _colors",            NULL,	"Toggle colors for printing",           G_CALLBACK(onPrintColorsMenu)},
-{ "SetLength",    NULL, "_Set alignment length",    NULL,	"Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)}
+{ "PrintColors",  NULL, "Use print colo_rs",        NULL,	"Toggle colors for printing",           G_CALLBACK(onPrintColorsMenu)},
+{ "SetLength",    NULL, "_Set alignment length",    NULL,	"Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
+{ "CopyHCoord",   NULL, "Copy _horizontal coord",    NULL,	"Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
+{ "CopyVCoord",   NULL, "Copy _vertical coord",      NULL,	"Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
 };
 
 /* This defines the layout of the menu */
 static const char alignmentToolMenuDescription[] =
 "<ui>"
 "  <popup name='MainMenu'>"
+"      <menuitem action='CopyHCoord'/>"
+"      <menuitem action='CopyVCoord'/>"
+"      <separator/>"
 "      <menuitem action='Close'/>"
 "      <menuitem action='Print'/>"
 "      <menuitem action='PrintColors'/>"
@@ -494,6 +502,25 @@ static void onSetLengthMenu(GtkAction *action, gpointer data)
 
       gtk_widget_show_all(dialog);
     }
+}
+
+
+/* Callback called when the user selects the 'copy horizontal coord' menu option */
+static void onCopyHCoordMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+  
+  copyIntToDefaultClipboard(properties->dotterWinCtx->refCoord);
+}
+
+/* Callback called when the user selects the 'copy vertical coord' menu option */
+static void onCopyVCoordMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+
+  copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
 }
 
 
