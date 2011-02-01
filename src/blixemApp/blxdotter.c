@@ -80,7 +80,8 @@ typedef enum {
   BLX_DOTTER_ERROR_INVALID_STRAND,    /* there are no match sequences on the correct strand */
   BLX_DOTTER_ERROR_NO_EXE,            /* no dotter executable found */
   BLX_DOTTER_ERROR_PIPE,	      /* error opening pipe */
-  BLX_DOTTER_ERROR_FORK		      /* error forking process */
+  BLX_DOTTER_ERROR_FORK,	      /* error forking process */
+  BLX_DOTTER_ERROR_NEGATED_COORD      /* warning that an original coord was not in range so we negated it */
 } BlxDotterError;
 
 
@@ -131,6 +132,52 @@ static gboolean onSaveDotterHsps(GtkWidget *button, const gint responseId, gpoin
 }
 
 
+/* Check whether the given dotter coord is within the blixem ref seq range.
+ * The coord should be as the user sees it, i.e. negated if the 'negate coords'
+ * option is enabled and the display is reversed - in this case in input arg
+ * will be updated to reflect the real coord. 
+ * Returns false and sets the error if not in range. Also sets the error but 
+ * returns true if we succeeded but with a warning. */
+static gboolean boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError **error)
+{
+  gboolean ok = TRUE;
+  
+  const gboolean negate = bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS];
+  
+  int coord = *coordIn;
+  
+  if (negate)
+    {
+      /* Display coords are negated - un-negate to get the real coord */
+      coord *= -1;
+    }
+  
+  if (!valueWithinRange(coord, &bc->refSeqRange))
+    {
+      /* Try negating it in case the user missed the minus sign off. */
+      coord *= -1;
+      
+      if (valueWithinRange(coord, &bc->refSeqRange))
+        {
+          g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NEGATED_COORD,
+                      "Negated coord '%d' because original coord was not in range.\n", coordIn);
+        }
+      else
+        {
+          ok = FALSE;
+          g_critical("Coord '%d' is outside reference sequence range [%d -> %d].\n", 
+                     coordIn, 
+                     (negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min),
+                     (negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max));
+        }
+    }
+  
+  *coordIn = coord;
+  
+  return ok;
+}
+
+
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It saves the start parameter that was entered (if manual dotter
  * params are being used). */
@@ -144,16 +191,18 @@ static gboolean onSaveDotterStart(GtkWidget *entry, const gint responseId, gpoin
   /* Only save the parameter if we are using manual parameters */
   if (!bc->autoDotter)
     {
-      const int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      GError *error = NULL;
       
-      if (valueWithinRange(newVal, &bc->refSeqRange))
+      if (boundsCheckDotterCoord(&newVal, bc, &error))
         {
           bc->dotterStart = newVal;
+          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
         }
       else
         {
-          result = FALSE;
-          g_critical("Start value %d is outside reference sequence range %d -> %d. Value not saved.\n", newVal, bc->refSeqRange.min, bc->refSeqRange.max);
+          postfixError(error, "Value not saved.");
+          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
         }
     }  
   
@@ -170,16 +219,19 @@ static gboolean onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointe
   /* Only save the parameter if we are using manual parameters */
   if (!bc->autoDotter)
     {
-      const int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+
+      GError *error = NULL;
       
-      if (valueWithinRange(newVal, &bc->refSeqRange))
+      if (boundsCheckDotterCoord(&newVal, bc, &error))
         {
           bc->dotterEnd = newVal;
+          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
         }
       else
         {
-          result = FALSE;
-          g_critical("End value %d is outside reference sequence range %d -> %d. Value not saved.\n", newVal, bc->refSeqRange.min, bc->refSeqRange.max);
+          postfixError(error, "Value not saved.");
+          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
         }
     }  
   
@@ -201,6 +253,22 @@ static gboolean onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpoint
 }
 
 
+/* Get the display coord version of the given coord (i.e. negated if the
+ * 'negate coords' option is enabled and the display is reversed). Only 
+ * applicable to reference sequence coords. */
+static int getDisplayCoord(const int coordIn, BlxViewContext *bc)
+{
+  int result = coordIn;
+  
+  if (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS])
+    {
+      result *= -1;
+    }
+  
+  return result;
+}
+
+
 /* Called when the 'last saved' button in the dotter dialog is clicked. Populates
  * the coord boxes with the start/end coords that were last saved */
 static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
@@ -208,8 +276,8 @@ static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
-  char *startString = convertIntToString(bc->dotterStart);
-  char *endString = convertIntToString(bc->dotterEnd);
+  char *startString = convertIntToString(getDisplayCoord(bc->dotterStart, bc));
+  char *endString = convertIntToString(getDisplayCoord(bc->dotterEnd, bc));
   char *zoomString = convertIntToString(bc->dotterZoom);
   
   gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
@@ -228,8 +296,11 @@ static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
-  char *startString = convertIntToString(bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min);
-  char *endString = convertIntToString(bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max);
+  const int startCoord = (bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min);
+  const int endCoord = (bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max);
+  
+  char *startString = convertIntToString(getDisplayCoord(startCoord, bc));
+  char *endString = convertIntToString(getDisplayCoord(endCoord, bc));
   
   gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
   gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
@@ -254,8 +325,8 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   const int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, 1, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   
-  char *startString = convertIntToString(qStart);
-  char *endString = convertIntToString(qEnd);
+  char *startString = convertIntToString(getDisplayCoord(qStart, bc));
+  char *endString = convertIntToString(getDisplayCoord(qEnd, bc));
   
   gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
   gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
@@ -288,8 +359,8 @@ static void onSelfButtonToggled(GtkWidget *button, gpointer data)
   if (autoEnd == UNSET_INT)
     autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
   
-  char *startString = convertIntToString(autoStart);
-  char *endString = convertIntToString(autoEnd);
+  char *startString = convertIntToString(getDisplayCoord(autoStart, bc));
+  char *endString = convertIntToString(getDisplayCoord(autoEnd, bc));
   char *zoomString = convertIntToString(bc->dotterZoom);
 
   /* Display the new values */
@@ -400,8 +471,8 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
       if (autoEnd == UNSET_INT)
 	autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
       
-      char *startString = convertIntToString(autoStart);
-      char *endString = convertIntToString(autoEnd);
+      char *startString = convertIntToString(getDisplayCoord(autoStart, bc));
+      char *endString = convertIntToString(getDisplayCoord(autoEnd, bc));
       char *zoomString = convertIntToString(bc->dotterZoom);
 
       /* Display the new values */
@@ -584,8 +655,8 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   gtk_box_pack_start(hbox, GTK_WIDGET(table), FALSE, FALSE, spacing);
   int xpad = 4, ypad = 4;
   
-  GtkWidget *startEntry = createTextEntry(table, 1, 1, xpad, ypad, "<i>Start:</i>", onSaveDotterStart, blxWindow, bc->dotterStart);
-  GtkWidget *endEntry = createTextEntry(table, 1, 2, xpad, ypad, "<i>End:</i>", onSaveDotterEnd, blxWindow, bc->dotterEnd);
+  GtkWidget *startEntry = createTextEntry(table, 1, 1, xpad, ypad, "<i>Start:</i>", onSaveDotterStart, blxWindow, getDisplayCoord(bc->dotterStart, bc));
+  GtkWidget *endEntry = createTextEntry(table, 1, 2, xpad, ypad, "<i>End:</i>", onSaveDotterEnd, blxWindow, getDisplayCoord(bc->dotterEnd, bc));
   GtkWidget *zoomEntry = createTextEntry(table, 1, 3, xpad, ypad, "<i>Zoom:</i>", onSaveDotterZoom, blxWindow, bc->dotterZoom);
 
   /* Create check buttons for the various options */
