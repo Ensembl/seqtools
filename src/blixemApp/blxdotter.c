@@ -465,11 +465,11 @@ static void onRadioButtonToggled(GtkWidget *button, gpointer data)
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
       getDotterRange(dialogData->blxWindow, dialogData->dotterSSeq, dialogData->callOnSelf, TRUE, &autoStart, &autoEnd, NULL, NULL);
 
-      if (autoStart == UNSET_INT)
-	autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
-      
-      if (autoEnd == UNSET_INT)
-	autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
+      if (autoStart == UNSET_INT && autoEnd == UNSET_INT)
+        {
+          autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
+          autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
+        }
       
       char *startString = convertIntToString(getDisplayCoord(autoStart, bc));
       char *endString = convertIntToString(getDisplayCoord(autoEnd, bc));
@@ -1024,8 +1024,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, 
                   "There were no matches for the selected sequence(s) within the big picture range.\nZoom out to ensure alignments lie entirely within the big picture range.");
       
-      qMin = bigPicRange->min;
-      qMax = bigPicRange->max;
+      qMin = convertDnaIdxToDisplayIdx(bigPicRange->min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+      qMax = convertDnaIdxToDisplayIdx(bigPicRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
     }
   
   /* Due to gaps, we might miss the ends - add some more */
