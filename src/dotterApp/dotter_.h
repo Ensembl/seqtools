@@ -164,8 +164,8 @@ typedef struct _DotterContext
   gdouble charHeight;                       /* the fixed-width font height */
   
   char *refSeqName;			    /* the reference sequence name */
-  char *refSeq;				    /* the reference sequence forward strand */
-  char *refSeqRev;                          /* the reference sequence reverse-complemented (NULL if not applicable) */
+  char *refSeq;				    /* the passed-in reference sequence */
+  char *refSeqRev;                          /* the reverse-complement of refSeq (or NULL if not applicable) */
   IntRange refSeqFullRange;                 /* the full reference sequence range passed to dotter on startup */
   BlxStrand refSeqStrand;                   /* which strand of the ref seq we were passed */
   BlxSeqType refSeqType;                    /* whether refSeq is in nucleotide or peptide coords */

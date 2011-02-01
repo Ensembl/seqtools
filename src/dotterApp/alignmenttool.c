@@ -555,7 +555,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
       /* Find which sequence is applicable (fwd or rev strand or translated peptide seq) */
       char *sequence = dc->refSeq;
       
-      if (strand == BLXSTRAND_REVERSE && dc->displaySeqType == BLXSEQ_DNA)
+      if (dc->displaySeqType == BLXSEQ_DNA && strand == BLXSTRAND_REVERSE)
         sequence = dc->refSeqRev;
       else if (dc->blastMode == BLXMODE_BLASTX)
         sequence = dc->peptideSeqs[frame - 1];
@@ -666,7 +666,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
  * Also return the start coord of the alignment tool. */
 static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart)
 {
-  const gboolean forward = !properties->scaleReversed;// (properties->strand == BLXSTRAND_FORWARD);
+  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Find the coord that the display starts at */
   *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
