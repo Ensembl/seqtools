@@ -589,19 +589,22 @@ static DotterContext* createDotterContext(DotterOptions *options,
   if (result->blastMode == BLXMODE_BLASTX) 
     {
       /* Create the 3 frame translations (for the strand we're interested in only). */
-      char *refSeqToUse = (result->refSeqStrand == BLXSTRAND_REVERSE ? result->refSeqRev : result->refSeq);
+      const gboolean rev = (result->hozScaleRev);
+      char *refSeqToUse = (rev ? result->refSeqRev : result->refSeq);
       
       int i = 0;
       for (i = 0; i < result->numFrames; i++)
         {
 	  /* Get the start coord at this index and calculate which reading frame it really is
 	   * (because the first coord in the sequence might not be base 1 in frame 1). */
-	  const int startCoord = result->hozScaleRev ? result->refSeqFullRange.max - i : result->refSeqFullRange.min + i;
+	  const int startCoord = rev ? result->refSeqFullRange.max - i : result->refSeqFullRange.min + i;
 	
 	  int frame = UNSET_INT;
 	  convertToDisplayIdx(startCoord, TRUE, result, 1, &frame);
-	
+
           result->peptideSeqs[frame - 1] = blxTranslate(refSeqToUse + i, result->geneticCode);
+
+          DEBUG_OUT("Frame %d starts at coord %d for hoz seq strand = %d.\n", frame, startCoord, result->refSeqStrand);
         }
       
       /* Check all of the frames got set */
@@ -775,8 +778,10 @@ static void closeWindow(GtkWidget *widget)
 
 /* Convert a dna index to display (dna or peptide) index, if applicable. If horizontal is true
  * we have the horizontal (reference) sequence, otherwise the vertical (match) sequence. */
-int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum)
+int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frameIn, int *baseNum)
 {
+  DEBUG_ENTER("convertToDisplayIdx(dnaIdx=%d, hoz=%d, frameIn=%d)", dnaIdx, horizontal, frameIn);
+
   int result = dnaIdx;
   
   if (baseNum)
@@ -786,15 +791,26 @@ int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterConte
    * ref seq. Also, we only need to convert if it's peptide-nucleotide match. */
   if (horizontal && dc->blastMode == BLXMODE_BLASTX)
     {
-      double fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
+      /* If the strand is reversed, the frame will be inverted; un-invert it first */
+      const gboolean rev = (horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev);
+      int frame = frameIn;
+      
+      double fraction = 0.0;
+      
+      if (rev)
+        fraction = (double)(dnaIdx + frame - 1) / (double)dc->numFrames;
+      else
+        fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
+      
+      DEBUG_OUT("frame=%d, fraction=%f\n", frame, fraction);
 
       /* Round to the higher absolute value so that 0.3, 0.6 and 1.0 all round
        * to the same value. Then subtract 1 - this is a bit of a fudge to make
        * things work; there's probably an off-by-one error somewhere... */
       if (fraction > 0)
-        result = ceil(fraction) - 1;
+        result = ceil(fraction);
       else
-        result = floor(fraction) + 1;
+        result = floor(fraction);
     
     /* We want base 1 in the requested reading frame. */
     if (baseNum)
@@ -804,31 +820,17 @@ int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterConte
 	if (*baseNum < 1)
 	  *baseNum += dc->numFrames;
       
-	/* invert base number order when the display is reversed, i.e. if the mod3 of
+	/* invert base number order when the sequence is reversed, i.e. if the mod3 of
 	 * the coords gives base numbers 123123123 etc then change these to 321321321 etc */
-	if ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev))
+	if (rev)
 	  {
 	    *baseNum = dc->numFrames - *baseNum + 1;
 	  }
       }
     }
   
+  DEBUG_EXIT("convertToDisplayIdx returning %d", result);
   return result;
-}
-
-
-/* Adjust the given range to start at base 1 in reading frame 1. */
-void adjustRangeToFrame(IntRange *range, const int reqdFrame, const gboolean horizontal, DotterContext *dc)
-{
-  const gboolean displayRev = ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev));
-  int *val = displayRev ? &range->max : &range->min;
-  
-  int baseNum = UNSET_INT;
-  
-  convertToDisplayIdx(*val, horizontal, dc, reqdFrame, &baseNum);
-  int offset = reqdFrame - baseNum;
-  
-  *val += offset;
 }
 
 
@@ -848,10 +850,6 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
   result->matchSeqRange.min = matchSeqRange->min;
   result->matchSeqRange.max = matchSeqRange->max;
 
-  /* make the display range start at base 1 in frame 1 */
-  adjustRangeToFrame(&result->refSeqRange, 1, TRUE, dotterCtx);
-  adjustRangeToFrame(&result->matchSeqRange, 1, FALSE, dotterCtx);
-  
   result->refCoord = UNSET_INT;
   result->matchCoord = UNSET_INT;
   
@@ -3023,8 +3021,6 @@ static void setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, c
 	dwc->refSeqRange.max = newValue;
       else
 	dwc->refSeqRange.min = newValue;
-    
-      adjustRangeToFrame(&dwc->refSeqRange, 1, horizontal, dwc->dotterCtx);
     }
   else
     {
@@ -3032,8 +3028,6 @@ static void setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, c
 	dwc->matchSeqRange.max = newValue;
       else
 	dwc->matchSeqRange.min = newValue;
-    
-      adjustRangeToFrame(&dwc->matchSeqRange, 1, horizontal, dwc->dotterCtx);
     }
 }
 
@@ -3046,8 +3040,6 @@ static void setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, con
 	dwc->refSeqRange.min = newValue;
       else
 	dwc->refSeqRange.max = newValue;
-    
-      adjustRangeToFrame(&dwc->refSeqRange, 1, horizontal, dwc->dotterCtx);
     }
   else
     {
@@ -3055,8 +3047,6 @@ static void setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, con
 	dwc->matchSeqRange.min = newValue;
       else
 	dwc->matchSeqRange.max = newValue;
-
-      adjustRangeToFrame(&dwc->matchSeqRange, 1, horizontal, dwc->dotterCtx);
     }
 }
 

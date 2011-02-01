@@ -113,9 +113,8 @@ static void                       onCloseMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
 static void                       onPrintColorsMenu(GtkAction *action, gpointer data);
 static void                       onSetLengthMenu(GtkAction *action, gpointer data);
-//static const gchar*               getSequence(GtkWidget *widget, GtkWidget *alignmentTool);
 static void                       drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
-static void			  drawSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, DotterContext *dc, const IntRange const *displayRange, const gboolean horizontal);
+static void			  drawSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, DotterWindowContext *dwc, const IntRange const *displayRange, const gboolean horizontal);
 
 
 /* Menu builders */
@@ -269,7 +268,7 @@ static gboolean onExposeRefSequenceHeader(GtkWidget *widget, GdkEventExpose *eve
   if (drawable)
     {
       AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-      drawSequenceHeader(widget, drawable, properties->dotterWinCtx->dotterCtx, &properties->refDisplayRange, TRUE);
+      drawSequenceHeader(widget, drawable, properties->dotterWinCtx, &properties->refDisplayRange, TRUE);
     }
   
   return TRUE;
@@ -285,7 +284,7 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
   if (drawable)
     {
       AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-      drawSequenceHeader(widget, drawable, properties->dotterWinCtx->dotterCtx, &properties->matchDisplayRange, FALSE);
+      drawSequenceHeader(widget, drawable, properties->dotterWinCtx, &properties->matchDisplayRange, FALSE);
     }
   
   return TRUE;
@@ -370,16 +369,19 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterContext *dc = dwc->dotterCtx;
 
-  /* Make the display ranges start at base 1 */
-  adjustRangeToFrame(&properties->refDisplayRange, 1, TRUE, dc);
-  adjustRangeToFrame(&properties->matchDisplayRange, 1, FALSE, dc);
-  
   /* Re-create the range, centred on the set coordinate and with the alignment tool's alignment 
    * length. Note that the length is the number of display chars but the reference sequence is
    * in nucleotide coords so needs converting. (The match sequence is always in display coords so
    * will be correct whether we're displaying nucleotides or peptides.) */
-  centreRangeOnCoord(&properties->refDisplayRange, dwc->refCoord, properties->alignmentLen * getResFactor(dc, TRUE));
-  centreRangeOnCoord(&properties->matchDisplayRange, dwc->matchCoord, properties->alignmentLen * getResFactor(dc, FALSE));
+  int len = properties->alignmentLen * getResFactor(dc, TRUE);
+  int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
+  properties->refDisplayRange.min = dwc->refCoord - offset;
+  properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+
+  len = properties->alignmentLen * getResFactor(dc, FALSE);
+  offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
+  properties->matchDisplayRange.min = dwc->matchCoord - offset;
+  properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
   
   onAlignmentToolRangeChanged(alignmentTool);
   gtk_widget_queue_draw(alignmentTool);
@@ -612,7 +614,6 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   GtkWidget *alignmentTool = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(alignmentTool), "Dotter - Alignment Tool");
 
-//  const int height = getHeightFromBlastMode(watsonOnly, blastMode);
   gtk_window_set_default_size(GTK_WINDOW(alignmentTool), 1160, -1);
   
   /* We'll put everything in a vbox, inside a scrolled window, inside a frame */  
@@ -620,13 +621,8 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
   gtk_container_add(GTK_CONTAINER(alignmentTool), frame);
   
-//  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-//  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-//  gtk_container_add(GTK_CONTAINER(frame), scrollWin);
-  
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(frame), vbox);
-//  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), vbox);
     
   /* Remember the headers so we can store them in the properties. We'll need to update them
    * when the range updates since they contain the centre coord of the current display range. */
@@ -635,7 +631,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
   /* Put the forward ref seq strand on top, unless the display is reversed */
-  BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD; //dc->refSeqStrand;
+  BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
   GtkWidget *section1 = createAlignmentToolSection(qStrand, dotterWinCtx, &properties->refSeqHeader1, &properties->matchSeqHeader1, alignmentTool, properties);
   gtk_box_pack_start(GTK_BOX(vbox), section1, FALSE, FALSE, 0);
 
@@ -670,38 +666,35 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
  * Also return the start coord of the alignment tool. */
 static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart)
 {
-  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
-  
-  /* Get the start coord of this sequence's full DNA range */
+  const gboolean forward = !properties->scaleReversed;// (properties->strand == BLXSTRAND_FORWARD);
+
+  /* Find the coord that the display starts at */
+  *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+
+  /* Get the start coord of the sequence data */
   int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
   
-  /* Work out what frame this coord is */
+  /* Offset this coord so that we have the first coord that starts our reading frame */
+  int reqdFrame = properties->frame;
   int frame = UNSET_INT;
   convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, &frame);
   
-  /* Work out how much to offset the start coord by to get the frame of our peptide sequence */
-  int offset = properties->frame - frame;
+  int offset = reqdFrame - frame;
   if (offset < 0)
-    offset += dc->numFrames;
-  
-  /* Offset the start coord */
+    {
+      offset += dc->numFrames;
+    }
+
   seqStart = forward ? seqStart + offset : seqStart - offset;
   
-  /* Find the coord that the display starts at and offset in a similar manner */
-  *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
-  convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, 1, &frame);
-  offset = properties->frame - frame;
+  /* Convert both sets of coords to display coords. */
+  seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+  *displayStart = convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
   
-  if (offset < 0)
-    offset += dc->numFrames;
-
-  *displayStart = forward ? *displayStart + offset : *displayStart - offset;
-
-  /* Convert both sets of coords to display coords, and calculate the offset */
-  seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, NULL);
-  *displayStart = convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, 1, NULL);
+  /* Calculate the offset. Note that this may be positive or negative because it
+   * can be in either direction. */
+  int result = forward ? seqStart - *displayStart - 1 : *displayStart - seqStart;
   
-  int result = forward ? seqStart - *displayStart : *displayStart - seqStart; /* offset may be negative */
   return result;
 }
 
@@ -798,7 +791,7 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   seq1Text[displayIdx] = '\0';
   
   /* Draw the sequence text. */
-  x = 0;//seq1Offset * dc->charWidth;
+  x = 0;
   y = 0;
   
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, seq1Text);
@@ -856,15 +849,17 @@ static void drawSequenceHeaderText(GtkWidget *widget,
  * markerFirst is true the marker is drawn above the text, otherwise below. */
 static void drawSequenceHeader(GtkWidget *widget, 
 			       GdkDrawable *drawable, 
-                               DotterContext *dc,
+                               DotterWindowContext *dwc,
 			       const IntRange const *displayRange, 
 			       const gboolean horizontal)
 {
+  DotterContext *dc = dwc->dotterCtx;
+  
   /* Find the coord to display */
-  const int coord = getRangeCentre(displayRange);
+  const int coord = horizontal ? dwc->refCoord : dwc->matchCoord;
   
   /* Find the position to display at. Find the position of the char at this coord */
-  const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL);
+  const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) - 1;
   int x = (int)((gdouble)displayIdx * dc->charWidth);
   int y = 0;
 
