@@ -1034,7 +1034,7 @@ static char getHozSeqBase(DotterWindowContext *dwc, const int idx, const int fra
       const int coord = dc->hozScaleRev ? dwc->refSeqRange.max - idx : dwc->refSeqRange.min + idx;
       
       /* Complement the sequence if it's the reverse strand */
-      const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA);
+      const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->hozScaleRev);
 
       result = getRefSeqBase(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
     }
@@ -1052,8 +1052,7 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
   /* Reverse the sequence if the scale is reversed. */
   const int coord = dc->vertScaleRev ? dwc->matchSeqRange.max - idx : dwc->matchSeqRange.min + idx;
 
-  /* I'm not sure why but calculateImage seems to rely on the match sequence always being uncomplemented. */
-  const gboolean complement = FALSE;
+  const gboolean complement = (dc->matchSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->vertScaleRev);
   
   return getRefSeqBase(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
 }

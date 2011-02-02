@@ -292,6 +292,8 @@ int main(int argc, char **argv)
   static char *dotterBinary = NULL;
   static gboolean showVersion = FALSE;
   static gboolean showCompiled = FALSE;
+  static gboolean hozScaleRev = FALSE;
+  static gboolean vertScaleRev = FALSE;
   
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
@@ -310,6 +312,8 @@ int main(int argc, char **argv)
     {
       {"version",		no_argument,        &showVersion, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
+      {"reverse-h-display",	no_argument,        &hozScaleRev, 1},
+      {"reverse-v-display",	no_argument,        &vertScaleRev, 1},
       
       {"help",                  no_argument,        0, 'h'},
       {"batch",                 required_argument,  0, 'b'},
@@ -378,9 +382,7 @@ int main(int argc, char **argv)
           case 'p': options.pixelFacset = atoi(optarg); break;
           case 'q': options.qoffset = atoi(optarg);     break;
           case 'R': options.swapGreyramp = TRUE;        break;
-          case 'r': 
-	    options.hozScaleRev = TRUE;
-	    qStrand = BLXSTRAND_REVERSE;		break;
+          case 'r': qStrand = BLXSTRAND_REVERSE;	break;
           case 's': options.soffset = atoi(optarg);     break;
           case 'S': 
             options.selfcall = TRUE;                    break;
@@ -405,6 +407,9 @@ int main(int argc, char **argv)
         showCompiledInfo();
         exit (EXIT_FAILURE);
       } 
+  
+  options.hozScaleRev = hozScaleRev;
+  options.vertScaleRev = vertScaleRev;
 
   if (!options.savefile)
       {

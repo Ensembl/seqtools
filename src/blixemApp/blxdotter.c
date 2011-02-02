@@ -160,13 +160,13 @@ static gboolean boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError 
       if (valueWithinRange(coord, &bc->refSeqRange))
         {
           g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NEGATED_COORD,
-                      "Negated coord '%d' because original coord was not in range.\n", coordIn);
+                      "Negated coord '%d' because original coord was not in range.\n", *coordIn);
         }
       else
         {
           ok = FALSE;
           g_critical("Coord '%d' is outside reference sequence range [%d -> %d].\n", 
-                     coordIn, 
+                     *coordIn, 
                      (negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min),
                      (negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max));
         }
@@ -909,15 +909,19 @@ static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
 {
   /* We'll just use a large-ish range centred on the current display range */
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  
+  int mid = getRangeCentre(displayRange);
 
-  const int mid = getRangeCentre(displayRange);
+  /* Convert to DNA coords */
+  mid = convertDisplayIdxToDnaIdx(mid, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  
   const int offset = DEFAULT_DOTTER_RANGE_SELF / 2;
 
   *dotter_start_out = mid - offset;
   *dotter_end_out = *dotter_start_out + DEFAULT_DOTTER_RANGE_SELF;
 
-  const BlxViewContext *bc = blxWindowGetContext(blxWindow);
   boundsLimitValue(dotter_start_out, &bc->refSeqRange);
   boundsLimitValue(dotter_end_out, &bc->refSeqRange);
   
@@ -1024,8 +1028,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, 
                   "There were no matches for the selected sequence(s) within the big picture range.\nZoom out to ensure alignments lie entirely within the big picture range.");
       
-      qMin = convertDnaIdxToDisplayIdx(bigPicRange->min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      qMax = convertDnaIdxToDisplayIdx(bigPicRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+      qMin = convertDisplayIdxToDnaIdx(bigPicRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+      qMax = convertDisplayIdxToDnaIdx(bigPicRange->max, bc->seqType, 1, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
   /* Due to gaps, we might miss the ends - add some more */
@@ -1257,9 +1261,11 @@ static void callDotterChildProcess(const char *dotterBinary,
                                    const char *seq1Name,
                                    const IntRange const *seq1Range,
                                    const BlxStrand seq1Strand,
+				   const gboolean seq1DisplayRev,
                                    const char *seq2Name,
                                    const IntRange const *seq2Range,
                                    const BlxStrand seq2Strand,
+				   const gboolean seq2DisplayRev,
 				   int *pipes, 
 				   BlxViewContext *bc,
 				   char *Xoptions)
@@ -1283,6 +1289,8 @@ static void callDotterChildProcess(const char *dotterBinary,
   
   if (seq1Strand == BLXSTRAND_REVERSE)      argList = g_slist_append(argList, g_strdup("-r"));
   if (seq2Strand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));
+  if (seq1DisplayRev)			    argList = g_slist_append(argList, g_strdup("--reverse-h-display"));
+  if (seq2DisplayRev)			    argList = g_slist_append(argList, g_strdup("--reverse-v-display"));
   if (hspsOnly)				    argList = g_slist_append(argList, g_strdup("-H"));
   if (bc->flags[BLXFLAG_NEGATE_COORDS])	    argList = g_slist_append(argList, g_strdup("-N"));
 
@@ -1333,10 +1341,12 @@ gboolean callDotterExternal(BlxViewContext *bc,
                             IntRange *seq1Range,
                             char *seq1,
                             const BlxStrand seq1Strand,
+			    const gboolean seq1DisplayRev,
                             const char *seq2Name,
                             IntRange *seq2Range,
                             char *seq2,
 			    const BlxStrand seq2Strand,
+			    const gboolean seq2DisplayRev,
                             char *Xoptions,
                             GError **error)
 {
@@ -1386,8 +1396,8 @@ gboolean callDotterExternal(BlxViewContext *bc,
 
       DEBUG_OUT("Calling dotter child process\n");
       callDotterChildProcess(dotterBinary, dotterZoom, hspsOnly, 
-                             seq1Name, seq1Range, seq1Strand,
-                             seq2Name, seq2Range, seq2Strand,
+                             seq1Name, seq1Range, seq1Strand, seq1DisplayRev,
+                             seq2Name, seq2Range, seq2Strand, seq2DisplayRev,
 			     pipes, bc, Xoptions);
     }
   else
@@ -1569,10 +1579,13 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   g_debug("reference sequence: name =  %s, offset = %d\n"
           "    match sequence: name =  %s, offset = %d\n", 
           bc->refSeqName, offset, dotterSName, 0);
+  
+  const gboolean revHozScale = (refSeqStrand == BLXSTRAND_REVERSE);
+  const gboolean revVertScale = FALSE; /* don't rev match seq scale, because it would show in dotter with -ve coords, but blixem always shows +ve coords */
 
   return callDotterExternal(bc, dotterZoom, hspsOnly, 
-                            bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand,
-                            dotterSName, &sRange, dotterSSeq, selectedSeq->strand, 
+                            bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
+                            dotterSName, &sRange, dotterSSeq, selectedSeq->strand, revVertScale,
                             NULL, error);
 }
 
@@ -1626,7 +1639,7 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
     
   char *refSeqSegment = getSequenceSegment(bc->refSeq,
                                            &qRange,
-                                           qStrand,
+                                           BLXSTRAND_FORWARD,
                                            BLXSEQ_DNA,	  /* calculated dotter coords are always in nucleotide coords */
                                            BLXSEQ_DNA,      /* required sequence is in nucleotide coords */
                                            frame,
@@ -1635,8 +1648,8 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
                                            bc->blastMode,
                                            bc->geneticCode,
                                            FALSE,		  /* input coords are always left-to-right, even if display reversed */
-                                           bc->displayRev,  /* whether to reverse */
-                                           bc->displayRev,  /* whether to allow rev strands to be complemented */
+                                           FALSE,  /* whether to reverse */
+                                           FALSE,  /* whether to allow rev strands to be complemented */
                                            &tmpError);
 
   if (!refSeqSegment)
@@ -1652,12 +1665,14 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   
   /* Make a copy of the reference sequence segment to pass as the match sequence */
   char *dotterSSeq = g_strdup(refSeqSegment);
+
+  const gboolean revScale = (qStrand == BLXSTRAND_REVERSE);
   
   g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
   callDotterExternal(bc, dotterZoom, FALSE,
-                     bc->refSeqName, &qRange, refSeqSegment, qStrand, 
-                     bc->refSeqName, &qRange, dotterSSeq, qStrand,
+                     bc->refSeqName, &qRange, refSeqSegment, qStrand, revScale,
+                     bc->refSeqName, &qRange, dotterSSeq, qStrand, revScale,
                      NULL, error);
 
   return TRUE;
