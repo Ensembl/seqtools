@@ -3238,15 +3238,13 @@ void toggleStrand(GtkWidget *detailView)
   const int newStart = fullRange->max - displayRange->max + fullRange->min;
   setDetailViewStartIdx(detailView, newStart, blxContext->seqType);
 
-  /* Invert the currently-selected index, if there is one. We want to select
-   * the same index but counting from the other end. */
+  /* Re-select the currently-selected index, if there is one, because the display coords
+   * have changed. */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  if (properties->selectedBaseIdx != UNSET_INT)
+  if (properties->selectedBaseSet)
     {
-      const int newIdx = fullRange->max - properties->selectedBaseIdx + fullRange->min;
-      const int newBaseNum = blxContext->numFrames - properties->selectedBaseNum + 1;
-      
-      detailViewSetSelectedBaseIdx(detailView, newIdx, properties->selectedFrame, newBaseNum, FALSE, TRUE);
+      const int activeFrame = detailViewGetActiveFrame(detailView); 
+    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedDnaBaseIdx, activeFrame, FALSE, TRUE);
     }
   
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
