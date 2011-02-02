@@ -3330,21 +3330,8 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           
           if (valueWithinRange(coord, &bc->refSeqRange))
             {
-              /* Convert the input coord to display coords. */
-              const int activeFrame = detailViewGetActiveFrame(detailView);
-              const BlxViewContext *bc = detailViewGetContext(detailView);
-              int baseNum;
-              
-              const int displayIdx = convertDnaIdxToDisplayIdx(coord, 
-                                                               bc->seqType, 
-                                                               activeFrame,
-                                                               bc->numFrames, 
-                                                               bc->displayRev, 
-                                                               &bc->refSeqRange,
-                                                               &baseNum);
-              
-              /* Select the base index. */
-              detailViewSetSelectedBaseIdx(detailView, displayIdx, activeFrame, baseNum, TRUE, FALSE);
+	      const int activeFrame = detailViewGetActiveFrame(detailView);
+	      detailViewSetSelectedDnaBaseIdx(detailView, coord, activeFrame, TRUE, FALSE);
             }
           else
             {
