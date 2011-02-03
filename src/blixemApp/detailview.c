@@ -1038,7 +1038,6 @@ void selectClickedSnp(GtkWidget *snpTrack,
 		      GtkWidget *detailView, 
 		      const int xIn, 
 		      const int yIn, 
-		      const gboolean reCentre,
 		      const gboolean expandSnps,
 		      const int clickedBase)
 {
@@ -1070,40 +1069,32 @@ void selectClickedSnp(GtkWidget *snpTrack,
           
           /* Get the variation coords in terms of display coords, and also the 'expanded' range
            * of coords where the variation is displayed */
-          IntRange mspDisplayRange, mspExpandedRange;
-          getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, &mspDisplayRange, &mspExpandedRange);
+          IntRange mspExpandedRange;
+          getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, NULL, &mspExpandedRange);
           
           const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, 1, clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
           gboolean found = FALSE;
-          int idxToSelect = UNSET_INT, baseToSelect = UNSET_INT;
+          int dnaIdxToSelect = UNSET_INT;
           
           if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange))
             {
               /* We clicked inside this MSP on the variation track. Select the first coord in
                * the MSP. */
               found = TRUE;
-              idxToSelect = mspDisplayRange.min;
-              baseToSelect = 1;
+              dnaIdxToSelect = msp->qRange.min;
             }
           else if (!expandSnps && valueWithinRange(clickedDnaIdx, &msp->qRange))
             {
               /* We clicked on a coord in the ref seq header that is affected by this variation.
                * Select the clicked coord. */
               found = TRUE;
-              idxToSelect = clickedDisplayIdx;
-              baseToSelect = clickedBase;
+              dnaIdxToSelect = clickedDnaIdx;
             }
           
           if (found)
             {
               snpList = g_list_prepend(snpList, msp->sSequence);
-              detailViewSetSelectedBaseIdx(detailView, idxToSelect, activeFrame, baseToSelect, TRUE, FALSE);
-              
-              if (reCentre)
-                {
-                  const int newStart = idxToSelect - (getRangeLength(&properties->displayRange) / 2);
-                  setDetailViewStartIdx(detailView, newStart, bc->seqType);
-                }
+              detailViewSetSelectedDnaBaseIdx(detailView, dnaIdxToSelect, activeFrame, TRUE, FALSE);
             }
 	}
       
@@ -1664,44 +1655,34 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
  * always returns the actual msp start/end in display coords. */
 static void getVariationDisplayRange(const MSP *msp, 
                                      const gboolean expand,
-			      const BlxSeqType seqType, 
-			      const int numFrames,
-			      const gboolean displayRev, 
-			      const int activeFrame,
-			      const IntRange const *refSeqRange,
+                                     const BlxSeqType seqType, 
+                                     const int numFrames,
+                                     const gboolean displayRev, 
+                                     const int activeFrame,
+                                     const IntRange const *refSeqRange,
                                      IntRange *displayRange,
                                      IntRange *expandedRange)
 {
-  /* Convert the MSP coords to display coords */
+  /* Convert the MSP coords to display coords. We want to display the variation
+   * in the same position regardless of reading frame, so always use frame 1. */
   int base1, base2;
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, seqType, activeFrame, numFrames, displayRev, refSeqRange, &base1);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, seqType, activeFrame, numFrames, displayRev, refSeqRange, &base2);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, seqType, 1, numFrames, displayRev, refSeqRange, &base1);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, seqType, 1, numFrames, displayRev, refSeqRange, &base2);
 
-  intrangeSetValues(displayRange, coord1, coord2);
+  if (displayRange)
+    intrangeSetValues(displayRange, coord1, coord2);
   
-  /* The calculated display index will be different depending on which reading frame is 
-   * active. However, we always want to display the variation in the same position, so adjust 
-   * the display range so that we have coords in terms of frame 1. Return the real variation display
-   * coords too, though - we need this so that we can highlight the selected display index and
-   * still have the correct frame and base highlighted. */
-  int adjustedIdx1 = coord1;
-  if (base1 > (numFrames - activeFrame + 1))
-    {
-      ++adjustedIdx1;
-    }
-  
-  int adjustedIdx2 = coord2;
-  if (base2 > (numFrames - activeFrame + 1))
-    {
-      ++adjustedIdx2;
-    }
+  if (!expandedRange)
+    return;
 
-  intrangeSetValues(expandedRange, adjustedIdx1, adjustedIdx2);
+  /* Work out the expanded range (it will be the same as the MSP range if unexpanded) */
+  intrangeSetValues(expandedRange, coord1, coord2);
   
   if (expand && mspGetMatchSeq(msp))
     {
-      /* Expand the variation range so that we display its entire sequence. We'll position 
-       * the variation so that the middle of its sequence lies at the centre coord of its ref seq range */
+      /* Expand the variation range so that we display its entire sequence. We'll 
+       * position the variation so that the middle of its sequence lies at the centre
+       * coord of its ref seq range */
       const int numChars = strlen(mspGetMatchSeq(msp));
 
       int offset = (int)((double)numChars / 2.0);
@@ -2912,7 +2893,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
              * sequence column header so that we can convert to the correct coords */
             DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
 
-            selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, FALSE, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
+            selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
             
             refreshDetailViewHeaders(detailView);
             callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
@@ -3078,9 +3059,9 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 	  {
 	    /* Select the SNP that was clicked on.  */
 	    blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
-	    const int clickedBase = seqColHeaderGetBase(header, detailViewGetActiveFrame(detailView), detailViewGetNumFrames(detailView));
+	    const int clickedBase = seqColHeaderGetBase(header, 1, detailViewGetNumFrames(detailView));
 
-	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
+	    selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
 	    refreshDetailViewHeaders(detailView);
 	    callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);

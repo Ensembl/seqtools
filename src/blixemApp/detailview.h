@@ -230,7 +230,6 @@ void			selectClickedSnp(GtkWidget *snpTrack,
 					 GtkWidget *detailView, 
 					 const int xIn, 
 					 const int yIn, 
-					 const gboolean reCentre,
 					 const gboolean expandSnps,
 					 const int clickedBase);
 

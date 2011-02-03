@@ -1266,7 +1266,7 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
                 blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
                 int clickedBase = 1; /* only get in here for DNA matches; so frame/base number is always one */
 
-                selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
+                selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
                 refreshDetailViewHeaders(detailView);
                 callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
