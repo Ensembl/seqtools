@@ -834,107 +834,155 @@ void mspGetFullQRange(const MSP const *msp,
 }
 
 
-/* Given a base index on the query sequence, find the corresonding base 
- * in subject sequence. The return value is always UNSET_INT if there is not
- * a corresponding base at this position. However, in this case the start/end
- * of the sequence (or nearest gap) is returned in the nearestIdx argument. If
- * the base exists then the return idx and nearestIdx will be the same. 
- * nearestIdx can be null if not required. */
-int gapCoord(const MSP *msp, 
-	     const int qIdx, 
-	     const int numFrames, 
-	     const BlxStrand strand, 
-	     const gboolean displayRev,
-             const gboolean seqSelected,
-             const int numUnalignedBases,
-             gboolean *flags,
-             const GList const *polyASiteList)
+/* Return the match-sequence coord of an MSP at the given reference-sequence coord,
+ * where the MSP is a gapped MSP and the ref-seq coord is known to lie within the
+ * MSP's alignment range. */
+static int mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc)
+{
+  int result = UNSET_INT;
+  
+  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
+  const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
+
+  /* Gapped alignment. Look to see if x lies inside one of the "gaps" ranges. */
+  GSList *rangeItem = msp->gaps;
+  
+  for ( ; rangeItem ; rangeItem = rangeItem->next)
+    {
+      CoordRange *curRange = (CoordRange*)(rangeItem->data);
+      
+      int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+      getCoordRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
+      
+      /* We've "found" the value if it's in or before this range. Note that the
+       * the range values are in decreasing order if the q strand is reversed. */
+      gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
+      
+      if (found)
+        {
+          gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
+          
+          if (inRange)
+            {
+              /* It's inside this range. Calculate the actual index. */
+              int offset = (qIdx - qRangeMin) / bc->numFrames;
+              result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
+            }
+          
+          break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Return the match-sequence coord of an MSP at the given reference-sequence coord,
+ * where the MSP is an ungapped MSP and the ref-seq coord is known to lie within the
+ * MSP's alignment range. */
+static int mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc)
+{
+  int result = UNSET_INT;
+  
+  /* If strands are in the same direction, find the offset from qRange.min and add it to 
+   * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
+   * subtract it from sRange.max. Note that the offset could be negative if we're outside
+   * the alignment range. */
+  int offset = (qIdx - msp->qRange.min) / bc->numFrames ;
+  const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
+
+  result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
+  
+  if (result < msp->sRange.min || result > msp->sRange.max)
+    {
+      result = UNSET_INT;
+    }
+  
+  return result;
+}  
+
+
+/* Return the match-sequence coord of an MSP at the given reference-sequence coord,
+ * where the ref-seq coord is known to lie outside the MSP's alignment range. The 
+ * result will be unset unless the option to display unaligned portions of 
+ * sequence is enabled. */
+static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean seqSelected, const int numUnalignedBases, const BlxViewContext *bc)
+{
+  int result = UNSET_INT;
+  
+  /* First convert to display coords */
+  const int frame = mspGetRefFrame(msp, bc->seqType);
+  
+  const int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int q1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int q2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  
+  IntRange mspRange = {UNSET_INT, UNSET_INT};
+  intrangeSetValues(&mspRange, q1, q2);
+
+  /* Note that because we have converted to display coords the ref seq coords are
+   * now forwards, regardless of the ref seq strand. */
+  const gboolean sameDirection = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
+  
+  if (displayIdx < mspRange.min)
+    {
+      /* Find the offset backwards from the low coord and subtract it from the low end
+       * of the s coord range (or add it to the high end, if the directions are opposite).
+       * We're working in display coords here. */
+      const int offset = mspRange.min - displayIdx;
+      result = sameDirection ? msp->sRange.min - offset : msp->sRange.max + offset;
+    }
+  else
+    {
+      /* Find the offset forwards from the high coord and add it to the high end of the
+       * s coord range (or subtract it from the low end, if the directions are opposite). */
+      const int offset = displayIdx - mspRange.max;
+      result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
+    }
+  
+  /* Get the full display range of the match sequence. If the result is still out of range
+   * then there's nothing to show for this qIdx. */
+  IntRange fullSRange;
+  mspGetFullSRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], &fullSRange);
+  
+  if (!valueWithinRange(result, &fullSRange))
+    {
+      result = UNSET_INT;
+    }
+  
+  return result;
+}
+
+
+
+/* Given a base index on the reference sequence, find the corresonding base 
+ * in the match sequence. The return value is always UNSET_INT if there is not
+ * a corresponding base at this position. */
+int mspGetMatchCoord(const MSP *msp, 
+                     const int qIdx, 
+                     const gboolean seqSelected,
+                     const int numUnalignedBases,
+                     BlxViewContext *bc)
 {
   int result = UNSET_INT;
   
   if (mspIsBlastMatch(msp) || mspIsExon(msp))
     {
-      const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-      const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
-      const gboolean sameDirection = (qForward == sForward);
-      const gboolean inGapsRange = (qIdx >= msp->qRange.min && qIdx <= msp->qRange.max);
+      const gboolean inMspRange = valueWithinRange(qIdx, &msp->qRange);
       
-      if (msp->gaps && g_slist_length(msp->gaps) >= 1 && inGapsRange)
+      if (msp->gaps && g_slist_length(msp->gaps) >= 1 && inMspRange)
         {
-          /* Gapped alignment. Look to see if x lies inside one of the "gaps" ranges. */
-          GSList *rangeItem = msp->gaps;
-          
-          for ( ; rangeItem ; rangeItem = rangeItem->next)
-            {
-              CoordRange *curRange = (CoordRange*)(rangeItem->data);
-              
-              int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
-              getCoordRangeExtents(curRange, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
-              
-              /* We've "found" the value if it's in or before this range. Note that the
-               * the range values are in decreasing order if the q strand is reversed. */
-              gboolean found = qForward ? qIdx <= qRangeMax : qIdx >= qRangeMin;
-              
-              if (found)
-                {
-                  gboolean inRange = (qForward ? qIdx >= qRangeMin : qIdx <= qRangeMax);
-                  
-                  if (inRange)
-                    {
-                      /* It's inside this range. Calculate the actual index. */
-                      int offset = (qIdx - qRangeMin) / numFrames;
-                      result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
-                    }
-                  
-                  break;
-                }
-            }
+          result = mspGetGappedAlignmentCoord(msp, qIdx, bc);
         }
-      else if (!inGapsRange && mspIsBlastMatch(msp))
+      else if (!inMspRange && mspIsBlastMatch(msp))
         {
-          /* The q index is outside the alignment range but the option to show unaligned sequence 
-           * is enabled, so check if the q index is within the full display range including 
-           * any unaligned portions of the sequence that we're displaying. */
-          
-          if (qIdx < msp->qRange.min)
-            {
-              /* Find the offset backwards from the low coord and subtract it from the low end
-               * of the s coord range (or add it to the high end, if the directions are opposite). */
-              const int offset = (msp->qRange.min - qIdx) / numFrames;
-              result = sameDirection ? msp->sRange.min - offset : msp->sRange.max + offset;
-            }
-          else
-            {
-              /* Find the offset forwards from the high coord and add it to the high end of the
-               * s coord range (or subtract it from the low end, if the directions are opposite). */
-              const int offset = (qIdx - msp->qRange.max) / numFrames;
-              result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
-            }
-          
-          /* Get the full display range of the match sequence. If the result is still out of range
-           * then there's nothing to show for this qIdx. */
-          IntRange fullSRange;
-          mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, polyASiteList, &fullSRange);
-          
-          if (!valueWithinRange(result, &fullSRange))
-            {
-              result = UNSET_INT;
-            }
+          /* The q index is outside the alignment range but if the option to show
+           * unaligned sequence is enabled we may still have a valie result. */
+          result = mspGetUnalignedCoord(msp, qIdx, seqSelected, numUnalignedBases, bc);
         }
       else
         {
-          /* If strands are in the same direction, find the offset from qRange.min and add it to 
-           * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
-           * subtract it from sRange.max. Note that the offset could be negative if we're outside
-           * the alignment range. */
-          int offset = (qIdx - msp->qRange.min)/numFrames ;
-          result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
-          
-          if (result < msp->sRange.min || result > msp->sRange.max)
-            {
-              result = UNSET_INT;
-            }
-          
+          result = mspGetUngappedAlignmentCoord(msp, qIdx, bc);
         }
     }
   

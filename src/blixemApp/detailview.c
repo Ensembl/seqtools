@@ -726,7 +726,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
 		{
 		  MSP *msp = (MSP*)(mspListItem->data);
 		  
-		  sIdx = gapCoord(msp, qIdx, bc->numFrames, mspGetRefFrame(msp, bc->seqType), bc->displayRev, TRUE, numUnalignedBases, bc->flags, bc->featureLists[BLXMSP_POLYA_SITE]);
+		  sIdx = mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc);
 
 		  if (sIdx != UNSET_INT)
 		    {

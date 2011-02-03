@@ -633,11 +633,12 @@ static void drawBase(MSP *msp,
   char sBase = '\0';
   GdkColor *baseBgColor = NULL;
   
-  /* From the segment index, find the display index and the ref seq index */
+  /* From the segment index, find the display index and the ref seq coord */
   const int displayIdx = segmentRange->min + segmentIdx;
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   
-  *sIdx = gapCoord(msp, *qIdx, data->bc->numFrames, data->qStrand, data->bc->displayRev, data->seqSelected, data->numUnalignedBases, data->bc->flags, data->bc->featureLists[BLXMSP_POLYA_SITE]);
+  /* Find the match-sequence coord at this ref-seq coord */
+  *sIdx = mspGetMatchCoord(msp, *qIdx, data->seqSelected, data->numUnalignedBases, data->bc);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */

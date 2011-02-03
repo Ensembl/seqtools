@@ -250,6 +250,25 @@ typedef enum
     G_TYPE_INT                  /* end */
 
 
+/* This enum contains IDs for all the persistent dialogs in the application, and should be used
+ * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList
+ * array will contain null entries until the dialogs are created for the first time */
+typedef enum
+  {
+    BLXDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
+    
+    BLXDIALOG_HELP,                 /* The Help dialog */
+    BLXDIALOG_SETTINGS,             /* The Settings dialog */
+    BLXDIALOG_FIND,                 /* The Find dialog */
+    BLXDIALOG_GROUPS,               /* The Groups dialog */
+    BLXDIALOG_VIEW,                 /* The View dialog */
+    BLXDIALOG_DOTTER,               /* The Dotter dialog */
+    
+    BLXDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
+  } BlxDialogId;
+
+
+
 /* Struct to hold all the settings that come from the command line options */
 typedef struct _CommandLineOptions
 {
@@ -279,6 +298,57 @@ typedef struct _CommandLineOptions
   char *fetchMode;		  /* the default method for fetching sequences */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
 } CommandLineOptions;
+
+
+
+/* A Blixem View context, containing all status information required to draw the blixem view */
+typedef struct _BlxViewContext
+  {
+    GtkWidget *statusBar;		    /* The Blixem window's status bar */
+    
+    char *refSeq;			    /* The reference sequence (always forward strand, always DNA sequence) */
+    const char *refSeqName;	    /* The name of the reference sequence */
+    IntRange refSeqRange;		    /* The range of the reference sequence */
+    IntRange fullDisplayRange;	    /* The range of the displayed sequence */
+    
+    BlxBlastMode blastMode;	    /* The type of blast matching that was used */
+    BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */
+    char* fetchMode;		    /* The fetch method to use */
+    char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
+    int numFrames;		    /* The number of reading frames */
+    
+    MSP *mspList;                          /* List of all MSPs. Obsolete - use featureLists array instead */
+    GList* featureLists[BLXMSP_NUM_TYPES];  /* Array indexed by the BlxMspType enum. Each array entry contains a GList of all the MSPs of that type. */
+    
+    GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
+    GSList *supportedTypes;           /* List of supported GFF types */
+    const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
+     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
+    
+    gboolean displayRev;		    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
+    const char *net_id;               /* pfetch-socket net id */
+    int port;                         /* pfetch-socket port */
+    gboolean external;                /* True if Blixem was run externally or false if it was run internally from another program */
+    
+    GList *selectedSeqs;		    /* A list of sequences that are selected (as BlxSequences) */
+    GList *sequenceGroups;	    /* A list of SequenceGroups */
+    SequenceGroup *matchSetGroup;	    /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
+    
+    gboolean autoDotter;		    /* Whether to use automatic dotter params */
+    gboolean dotterSelf;		    /* Whether the dotter "call on self" option is on by default */
+    gboolean dotterHsps;		    /* Whether the dotter "HSPs only" option is on by default */
+    int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
+    int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
+    int dotterZoom;		    /* Zoom param to call dotter with, if using manual params */
+    
+    GArray *defaultColors;	    /* Default colors used by Blixem */
+    gboolean usePrintColors;	    /* Whether to use print colors (i.e. black and white) */
+    
+    gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
+    GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
+    GSList *spawnedProcesses;			  /* List of processes spawned by Blixem */
+  } BlxViewContext;
+
 
 
 /* blixem can use either efetch (default) or a pfetch server to get
@@ -317,15 +387,11 @@ void                                mspGetFullQRange(const MSP const *msp,
                                                      const int numFrames, 
                                                      IntRange *sSeqRange);
 
-int                                 gapCoord(const MSP *msp, 
-                                             const int qIdx, 
-                                             const int numFrames, 
-                                             const BlxStrand strand, 
-                                             const gboolean displayRev,
-                                             const gboolean seqSelected,
-                                             const int numUnalignedBases,
-                                             gboolean *flags,
-                                             const GList const *polyASiteList);
+int                                 mspGetMatchCoord(const MSP *msp, 
+                                                     const int qIdx, 
+                                                     const gboolean seqSelected,
+                                                     const int numUnalignedBases,
+                                                     BlxViewContext *bc);
 
 
 /* dotter.c */
