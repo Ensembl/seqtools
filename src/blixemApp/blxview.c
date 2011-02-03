@@ -921,8 +921,9 @@ static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean s
   intrangeSetValues(&mspRange, q1, q2);
 
   /* Note that because we have converted to display coords the ref seq coords are
-   * now forwards, regardless of the ref seq strand. */
-  const gboolean sameDirection = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
+   * now in the direction of the display, regardless of the ref seq strand. */
+  const gboolean sameDirection = (mspGetMatchStrand(msp) == mspGetRefStrand(msp));
+  const gboolean sForward = (sameDirection != bc->displayRev);
   
   if (displayIdx < mspRange.min)
     {
@@ -930,14 +931,14 @@ static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean s
        * of the s coord range (or add it to the high end, if the directions are opposite).
        * We're working in display coords here. */
       const int offset = mspRange.min - displayIdx;
-      result = sameDirection ? msp->sRange.min - offset : msp->sRange.max + offset;
+      result = sForward ? msp->sRange.min - offset : msp->sRange.max + offset;
     }
   else
     {
       /* Find the offset forwards from the high coord and add it to the high end of the
        * s coord range (or subtract it from the low end, if the directions are opposite). */
       const int offset = displayIdx - mspRange.max;
-      result = sameDirection ? msp->sRange.max + offset : msp->sRange.min - offset;
+      result = sForward ? msp->sRange.max + offset : msp->sRange.min - offset;
     }
   
   /* Get the full display range of the match sequence. If the result is still out of range
