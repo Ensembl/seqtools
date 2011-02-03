@@ -141,6 +141,7 @@ A dot-matrix program with dynamic threshold control suited for genomic DNA and p
 \t*\t<b><i>CDS/UTR regions</i></b>: Exons are now separated into CDS and UTR regions: CDS regions are coloured green and UTR red.\n\
 \t*\t<b><i>Close all sub-Dotters</i></b>: You can close all related Dotter windows using the Quit menu option or Ctrl-Q.  This will close all sub-Dotters that were started under the same parent Dotter (by middle-dragging to zoom in to a region).  To just close an individual Dotter window, click on the x in the corner of the window or use your system shortcut for closing a window (e.g. Ctrl-W, or Cmd-W on Macs).  Note that the alignment tool and greyramp tool will be destroyed along with their parent - however, if the parent window is still open then these tools can be re-opened using the relevant menu options or keyboard shortcuts.\n\
 \t*\t<b><i>Close all Dotters from Blixem</i></b>: All Dotter windows spawned from a Blixem will be closed when that Blixem is closed.\n\
+\t*\t<b><i>Navigation keys</i></b>: You no longer need to hold Shift when moving diagonally along an alignment using the keys ',.[]'. You can hold down Shift to move a single nucleotide at a time along a protein sequence, rather than moving a whole amino-acid.\n\
 \t*\t<b><i>Keyboard shortcuts</i></b>: The following keyboard shortcuts have been added to show the Alignment tool, main Dotter window or Greyramp tool, respectively: Ctrl-A, Ctrl-D and Ctrl-G.\n\
 \t*\t<b><i>Settings dialog</i></b>: The Parameter Control dialog box has been replaced by a more intuitive Settings dialog.  From here you can change the zoom or edit the display range.\n\
 </span>\
@@ -152,16 +153,15 @@ A dot-matrix program with dynamic threshold control suited for genomic DNA and p
 \n\
 \n\
 <b><big>Keyboard shortcuts</big></b>\n\
- - Arrow keys: move crosshair one dot in arrow direction\n\
- - &lt; &gt; : move crosshair along diagonals\n\
- - { } : move along reverse diagonals\n\
+ - Arrow keys: move crosshair one dot in arrow direction. Hold Shift to move by a single nucleotide rather than a whole amino-acid (if applicable).\n\
+ - , . : move crosshair along diagonals. Hold Shift to move by a single nucleotide, i.e. &lt;, &gt;.\n\
+ - [ ] : move along reverse diagonals. Hold Shift to move by a single nucleotide, i.e. {, }\n\
  - Ctrl-Q : quit Dotter (including any child/parent Dotters)\n\
+ - Ctrl-W : close the current window (if in the Dotter window, will close the related alignment/greyramp tool as well)\n\
  - Ctrl-H : show this Help page\n\
  - Ctrl-A : show the alignment tool\n\
  - Ctrl-D : show the Dotter main window\n\
  - Ctrl-G : show the greyramp tool\n\
-\n\
-Hold down Shift to move by nucleotides rather than whole peptides.\n\
 \n\
 \n\
 <b><big>Settings</big></b>\n\
