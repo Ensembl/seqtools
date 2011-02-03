@@ -236,7 +236,7 @@ GtkWidget* createLabel(const char *text,
   if (label && showWhenPrinting)
     {
       /* Connect to the expose event handler that will create the drawable object required for printing */
-      g_signal_connect(G_OBJECT(label), "expose-event", G_CALLBACK(onExposePrintableLabel), NULL);
+      g_signal_connect(G_OBJECT(label), "expose-event", G_CALLBACK(onExposePrintable), NULL);
     }
 
   return label;
@@ -244,30 +244,43 @@ GtkWidget* createLabel(const char *text,
 
 
 
-/* Expose-event handler for labels that are required to be shown during printing. */
-gboolean onExposePrintableLabel(GtkWidget *label, GdkEventExpose *event, gpointer callbackData)
+/* Expose-event handler for labels/entrys that are required to be shown during printing. */
+gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer callbackData)
 {
-  if (!label || !GTK_IS_LABEL(label))
+  if (!widget || !(GTK_IS_LABEL(widget) || GTK_IS_ENTRY(widget)))
     {
-      g_critical("Invalid widget type when printing label [%p]\n", label);
+      g_critical("Invalid widget type for printable label/text-entry [%p]\n", widget);
     }
+
+  /* Get the window. (Labels don't have their own so get the parent's window) */
+  GtkWidget *parent = gtk_widget_get_parent(widget);
+  GdkDrawable *window = parent->window;
   
   /* Only widgets that have a pixmap set will be shown in print output */
-  GtkWidget *parent = gtk_widget_get_parent(label);
-  GdkDrawable *drawable =  gdk_pixmap_new(parent->window, label->allocation.width, label->allocation.height, -1);
+  GdkDrawable *drawable =  gdk_pixmap_new(parent->window, widget->allocation.width, widget->allocation.height, -1);
   gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(label, drawable);
+  widgetSetDrawable(widget, drawable);
   
   GdkGC *gc = gdk_gc_new(drawable);
-  GtkStyle *style = gtk_widget_get_style(label);
+  GtkStyle *style = gtk_widget_get_style(widget);
   GdkColor *bgColor = &style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(gc, bgColor);
-  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, label->allocation.width, label->allocation.height);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);
 
-  PangoLayout *layout = gtk_label_get_layout(GTK_LABEL(label));
+  PangoLayout *layout = NULL;
+  
+  if (GTK_IS_LABEL(widget))
+    {
+      layout = gtk_label_get_layout(GTK_LABEL(widget));
+    }
+  else
+    {
+      layout = gtk_entry_get_layout(GTK_ENTRY(widget));
+    }
+  
   if (layout)
     {
-      gtk_paint_layout(label->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, label, NULL, 0, 0, layout);
+      gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, 0, 0, layout);
     }
   
   return FALSE; /* let the default handler continue */

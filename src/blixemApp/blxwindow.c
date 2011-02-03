@@ -75,9 +75,6 @@ typedef struct _BlxWindowProperties
     BlxViewContext *blxContext;	      /* The blixem view context */
 
     GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
-    int lastYEnd;		      /* Keeps track of where the last item ended so we can draw the next one flush to it */
-    int lastYStart;		      /* Where the last item started (for drawing multiple items at same y pos) */
-    int lastYCoord;		      /* Y coord of last item (so we can check if current item should be at same Y pos) */
   } BlxWindowProperties;
 
 
@@ -3847,27 +3844,8 @@ static void collatePixmaps(GtkWidget *widget, gpointer data)
       int xDest, yDest;
       gtk_widget_translate_coordinates(widget, blxWindow, xSrc, ySrc, &xDest, &yDest);
 
-      /* Get the coords where to draw */
-      int x = xDest; /* this is a bit too simplified really but works ok for our mainly-vertical layout */
-      int y = 0;
-      
-      if (yDest == properties->lastYCoord)
-	{
-	  /* Draw at the same height as the last widget */
-	  y = properties->lastYStart;
-	}
-      else
-	{
-	  /* Draw at the end of the last widget, and increment the Y pos */
-	  y = properties->lastYEnd;
-	  
-	  properties->lastYStart = properties->lastYEnd;
-	  properties->lastYEnd = properties->lastYEnd + widget->allocation.height;
-	  properties->lastYCoord = yDest;
-	}
-      
       GdkGC *gc = gdk_gc_new(widget->window);
-      gdk_draw_drawable(widgetGetDrawable(blxWindow), gc, drawable, xSrc, ySrc, x, y, -1, -1); /* -1 means full width/height */
+      gdk_draw_drawable(widgetGetDrawable(blxWindow), gc, drawable, xSrc, ySrc, xDest, yDest, -1, -1); /* -1 means full width/height */
     }
   
   /* If this widget is a container, recurse over its children */
@@ -3884,23 +3862,10 @@ static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint 
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
-  /* Create a blank white pixmap to draw on to */
-  GdkDrawable *drawable = gdk_pixmap_new(blxWindow->window, blxWindow->allocation.width, blxWindow->allocation.height, -1);
-  widgetSetDrawable(blxWindow, drawable);
-  
-  GdkGC *gc = gdk_gc_new(drawable);
-  
-  GdkColor fgColor;
-  GError *error = NULL;
-  getColorFromString(BLX_WHITE, &fgColor, &error);
-
-  gdk_gc_set_foreground(gc, &fgColor);
-  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, blxWindow->allocation.width, blxWindow->allocation.height);
+  /* Create a blank pixmap to draw on to */
+  GdkDrawable *drawable = createBlankPixmap(blxWindow);
 
   /* For each child widget that has a drawable set, draw this onto the main pixmap */
-  properties->lastYStart = 0;
-  properties->lastYEnd = 0;
-  properties->lastYCoord = -1;
   gtk_container_foreach(GTK_CONTAINER(blxWindow), collatePixmaps, blxWindow);
   
   cairo_t *cr = gtk_print_context_get_cairo_context (context);
@@ -4483,10 +4448,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
       properties->printSettings = gtk_print_settings_new();
       gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
       gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
-      properties->lastYEnd = UNSET_INT;
-      properties->lastYStart = UNSET_INT;
-      properties->lastYCoord = UNSET_INT;
-
+    
       g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK (onDestroyBlxWindow), NULL);
     }

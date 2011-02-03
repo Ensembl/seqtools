@@ -3660,7 +3660,7 @@ static void createColumn(BlxColumnId columnId,
   
   if (headerWidget == NULL)
     {
-      headerWidget = gtk_label_new(title);
+      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE);
       g_signal_connect(G_OBJECT(headerWidget), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
     }
   
@@ -3922,6 +3922,9 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox) ;
   gtk_tool_item_set_expand(item, FALSE); 
   
+  /* We want the box to be printed, so connect the expose function that will 
+   * draw to a pixmap for printing */
+  g_signal_connect(G_OBJECT(feedbackBox), "expose-event", G_CALLBACK(onExposePrintable), NULL);
   
   return feedbackBox;
 }
