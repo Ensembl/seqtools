@@ -1153,7 +1153,9 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
     {
       unsigned char inputChar = fgetc(pipe);
       
-      if (!feof(pipe))
+      /* The last char of the pfetch'd string is a newline. Make sure we don't
+       * include it because it causes our reverse-complement function to fail. */
+      if (!feof(pipe) && inputChar != '\n')
 	{
 	  g_string_append_c(resultString, inputChar);
 	}
