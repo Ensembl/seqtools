@@ -53,6 +53,7 @@
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
+#define DEFAULT_PRINT_RESOLUTION         300  /* default resolution for printing */
 #define MATCH_SET_GROUP_NAME		 "Match set"
 
 #define LOAD_DATA_TEXT                   "Load optional data"
@@ -74,6 +75,7 @@ typedef struct _BlxWindowProperties
 
     BlxViewContext *blxContext;	      /* The blixem view context */
 
+    GtkPageSetup *pageSetup;          /* Page setup for printing */
     GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
   } BlxWindowProperties;
 
@@ -325,6 +327,7 @@ static BlxWindowProperties*	  blxWindowGetProperties(GtkWidget *widget);
 static void			  onHelpMenu(GtkAction *action, gpointer data);
 static void			  onQuit(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
+static void			  onPageSetupMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
 static void			  onViewMenu(GtkAction *action, gpointer data);
 static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
@@ -339,8 +342,6 @@ static void			  onStatisticsMenu(GtkAction *action, gpointer data);
 static gboolean			  onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpointer data);
 static void			  onUpdateBackgroundColor(GtkWidget *blxWindow);
 
-static void			  onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
-static void			  onDrawPage(GtkPrintOperation *operation, GtkPrintContext *context, gint pageNum, gpointer data);
 static void			  onDestroyBlxWindow(GtkWidget *widget);
 
 static BlxStrand		  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
@@ -367,7 +368,8 @@ static void                       killAllSpawned(BlxViewContext *bc);
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    G_CALLBACK(onQuit)},
   { "Help",		NULL, "_Help\t\t\t\tCtrl-H",		  "<control>H",		"Display Blixem help",		    G_CALLBACK(onHelpMenu)},
-  { "Print",		NULL, "_Print\t\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
+  { "Print",		NULL, "_Print...\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
+  { "PageSetup",        NULL, "Page set_up\t\t\t",		  NULL,                 "Print",			    G_CALLBACK(onPageSetupMenu)},
   { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	  "<control>S",		"Edit Blixem settings",		    G_CALLBACK(onSettingsMenu)},
 
   { "View",		NULL, "_View\t\t\t\tv",			  "V",			"Edit view settings",		    G_CALLBACK(onViewMenu)},
@@ -391,6 +393,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='Print'/>"
+"      <menuitem action='PageSetup'/>"
 "      <menuitem action='Settings'/>"
 "      <separator/>"
 "      <menuitem action='View'/>"
@@ -413,6 +416,7 @@ static const char developerMenuDescription[] =
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='Print'/>"
+"      <menuitem action='PageSetup'/>"
 "      <menuitem action='Settings'/>"
 "      <separator/>"
 "      <menuitem action='View'/>"
@@ -3779,11 +3783,13 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   
   /* Create a print operation, using the same settings as the last print, if there was one */
   GtkPrintOperation *print = gtk_print_operation_new();
-  
+
   if (properties->printSettings != NULL)
-    {
-      gtk_print_operation_set_print_settings(print, properties->printSettings);
-    }
+    gtk_print_operation_set_print_settings(print, properties->printSettings);
+
+  if (properties->pageSetup)
+    gtk_print_operation_set_default_page_setup(print, properties->pageSetup);
+
   
   g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), blxWindow);
   g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), blxWindow);
@@ -3810,69 +3816,26 @@ static void onPrintMenu(GtkAction *action, gpointer data)
 }
 
 
+/* Called when the user selects the Page Setup menu option, or hits the Print shortcut key */
+static void onPageSetupMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  if (!properties->pageSetup)
+    properties->pageSetup = gtk_page_setup_new();
+  
+  if (!properties->printSettings)
+    properties->printSettings = gtk_print_settings_new();
+  
+  properties->pageSetup = gtk_print_run_page_setup_dialog(GTK_WINDOW(blxWindow), 
+                                                          properties->pageSetup, 
+                                                          properties->printSettings);
+}  
+
 /***********************************************************
  *			   Events                          *
  ***********************************************************/
-
-/* Called after the user clicks ok in the print dialog. For now just scales the 
- * whole output to fit on a single page. */
-static void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
-{
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-
-  /* Set the orientation based on the stored print settings (not sure why this doesn't
-   * already get set when the settings are set in the print operation...). */
-  GtkPrintSettings *printSettings = gtk_print_operation_get_print_settings(print);
-  gtk_print_settings_set_orientation(printSettings, gtk_print_settings_get_orientation(properties->printSettings));
-
-  gtk_print_operation_set_n_pages(print, 1);
-}
-
-
-static void collatePixmaps(GtkWidget *widget, gpointer data)
-{
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  GdkDrawable *drawable = widgetGetDrawable(widget);
-
-  /* If this widget is visible and has a drawable set, draw it onto the window's drawable */
-  if (drawable && GTK_WIDGET_VISIBLE(widget))
-    {
-      /* Get the left edge of the widget in terms of the blixem window's coordinates */
-      int xSrc = 0, ySrc = 0;
-      int xDest, yDest;
-      gtk_widget_translate_coordinates(widget, blxWindow, xSrc, ySrc, &xDest, &yDest);
-
-      GdkGC *gc = gdk_gc_new(widget->window);
-      gdk_draw_drawable(widgetGetDrawable(blxWindow), gc, drawable, xSrc, ySrc, xDest, yDest, -1, -1); /* -1 means full width/height */
-    }
-  
-  /* If this widget is a container, recurse over its children */
-  if (GTK_IS_CONTAINER(widget))
-    {
-      gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, blxWindow);
-    }
-}
-
-
-/* Print handler - renders a specific page */
-static void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
-{
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  
-  /* Create a blank pixmap to draw on to */
-  GdkDrawable *drawable = createBlankPixmap(blxWindow);
-
-  /* For each child widget that has a drawable set, draw this onto the main pixmap */
-  gtk_container_foreach(GTK_CONTAINER(blxWindow), collatePixmaps, blxWindow);
-  
-  cairo_t *cr = gtk_print_context_get_cairo_context (context);
-  gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
-  cairo_paint(cr);
-}
-
 
 /* Mouse button handler */
 static gboolean onButtonPressBlxWindow(GtkWidget *window, GdkEventButton *event, gpointer data)
@@ -4445,9 +4408,13 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
       properties->detailView = detailView;
       properties->mainmenu = mainmenu;
 
+      properties->pageSetup = gtk_page_setup_new();
+      gtk_page_setup_set_orientation(properties->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      
       properties->printSettings = gtk_print_settings_new();
       gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
       gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
+      gtk_print_settings_set_resolution(properties->printSettings, DEFAULT_PRINT_RESOLUTION);
     
       g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK (onDestroyBlxWindow), NULL);

@@ -2122,10 +2122,10 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
 /* Utility to pop up a simple confirmation dialog box with the given title and text, 
  * with just an "OK" and "Cancel" button. Blocks until the user responds, and returns
  * their response ID. */
-gint runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText)
+gint runConfirmationBox(GtkWidget *widget, char *title, char *messageText)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-						  GTK_WINDOW(blxWindow), 
+						  GTK_WINDOW(widget), 
 						  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CANCEL,
 						  GTK_RESPONSE_REJECT,
@@ -3458,3 +3458,81 @@ static char* getDialogIcon(GLogLevelFlags log_level)
   return result;
 }
 
+
+/***********************************************************
+ *		         Printing			   * 
+ ***********************************************************/
+
+/* Called after the user clicks ok in the print dialog. For now just scales the 
+ * whole output to fit on a single page. */
+void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
+{
+  GtkWidget *widget = GTK_WIDGET(data);
+  GdkDrawable *drawable = widgetGetDrawable(widget);
+  
+  /* Always fit the contents to a single page; crude, but this is generally 
+   * what we want when printing a blixem or dotter window. */
+  gtk_print_operation_set_n_pages(print, 1);
+}
+
+
+/* This function is called recursively to combine all of the drawables for 
+ * any child widgets onto a single drawable for their top-level parent widget,
+ * which is passed as the user data. */
+void collatePixmaps(GtkWidget *widget, gpointer data)
+{
+  GtkWidget *parent = GTK_WIDGET(data);
+  GdkDrawable *drawable = widgetGetDrawable(widget);
+  
+  /* If this widget is visible and has a drawable set, draw it onto the window's drawable */
+  if (drawable && GTK_WIDGET_VISIBLE(widget))
+    {
+      /* Get the left edge of the widget in terms of the blixem window's coordinates */
+      int xSrc = 0, ySrc = 0;
+      int xDest, yDest;
+      gtk_widget_translate_coordinates(widget, parent, xSrc, ySrc, &xDest, &yDest);
+      
+      GdkGC *gc = gdk_gc_new(widget->window);
+      gdk_draw_drawable(widgetGetDrawable(parent), gc, drawable, xSrc, ySrc, xDest, yDest, -1, -1); /* -1 means full width/height */
+    }
+  
+  /* If this widget is a container, recurse over its children */
+  if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, parent);
+    }
+}
+
+
+/* Print handler - renders a specific page */
+void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data)
+{
+  GtkWidget *widget = GTK_WIDGET(data);
+  cairo_t *cr = gtk_print_context_get_cairo_context(context);
+  
+  /* Create a blank pixmap to draw on to */
+  GdkDrawable *drawable = widgetGetDrawable(widget);
+  
+  if (!drawable)
+    drawable = createBlankPixmap(widget);
+  
+  /* For any child widgets that have a drawable, draw them all onto our main drawable */
+  if (GTK_IS_CONTAINER(widget))
+    gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, widget);
+  
+  /* Scale the image to fit the page */
+  double ctxWidth = gtk_print_context_get_width(context);
+  double ctxHeight = gtk_print_context_get_height(context);
+  int imgWidth, imgHeight;
+  gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
+  
+  double scale = min(ctxWidth / (double)imgWidth, ctxHeight / (double)imgHeight);
+  
+  cairo_scale(cr, scale, scale); 
+  
+  /* Paint the image */
+  gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
+  
+  printf("res=%f\n", gtk_print_context_get_dpi_x(context));
+  cairo_paint(cr);
+}

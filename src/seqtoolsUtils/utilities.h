@@ -456,6 +456,10 @@ void                               getFontCharSize(GtkWidget *widget, PangoFontD
 GtkWidget*                         createEmptyButtonBar(GtkToolbar **toolbar);
 void                               makeToolbarButton(GtkToolbar *toolbar, char *label, char *stockId, char *tooltip, GtkSignalFunc callback_func, gpointer data);
 
+void                               onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
+void                               collatePixmaps(GtkWidget *widget, gpointer data);
+void                               onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data);
+
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
@@ -465,6 +469,7 @@ gboolean                           seqtoolsLaunchWebBrowser(const char *link, GE
 char*                              blxTranslate(const char *seq, char **code);
 void                               blxComplement(char *seq) ;    
 char*                              revComplement(char *comp, char *seq) ;
+
 
 
 void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,
