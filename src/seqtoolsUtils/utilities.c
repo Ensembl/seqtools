@@ -3532,7 +3532,5 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
   
   /* Paint the image */
   gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
-  
-  printf("res=%f\n", gtk_print_context_get_dpi_x(context));
   cairo_paint(cr);
 }

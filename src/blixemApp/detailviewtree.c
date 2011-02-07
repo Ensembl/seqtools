@@ -507,6 +507,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 	  BlxViewContext *bc = treeGetContext(tree);
 	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
 	  GdkColor *bgColor = getGdkColor(BLXCOLOR_REF_SEQ, bc->defaultColors, FALSE, bc->usePrintColors);
+	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, bgColor);
 	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, bgColor);
 
 	  /* Update the font, in case its size has changed */
