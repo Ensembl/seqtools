@@ -42,6 +42,8 @@
 
 #define UNSET_INT                     -1   /* this value indicates an unset integer */
 #define DEFAULT_LABEL_X_PAD           0    /* default x padding to use for header labels */
+#define DEFAULT_PRINT_RESOLUTION      300  /* default resolution for printing in DPI */
+
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
  * code is so poor that it doesn't warrant the effort.... */

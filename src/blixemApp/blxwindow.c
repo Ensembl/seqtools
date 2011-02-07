@@ -53,7 +53,6 @@
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
-#define DEFAULT_PRINT_RESOLUTION         300  /* default resolution for printing */
 #define MATCH_SET_GROUP_NAME		 "Match set"
 
 #define LOAD_DATA_TEXT                   "Load optional data"
@@ -368,7 +367,7 @@ static void                       killAllSpawned(BlxViewContext *bc);
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    G_CALLBACK(onQuit)},
   { "Help",		NULL, "_Help\t\t\t\tCtrl-H",		  "<control>H",		"Display Blixem help",		    G_CALLBACK(onHelpMenu)},
-  { "Print",		NULL, "_Print...\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
+  { "Print",		NULL, "_Print...\t\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
   { "PageSetup",        NULL, "Page set_up\t\t\t",		  NULL,                 "Print",			    G_CALLBACK(onPageSetupMenu)},
   { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	  "<control>S",		"Edit Blixem settings",		    G_CALLBACK(onSettingsMenu)},
 
@@ -3781,38 +3780,7 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
-  /* Create a print operation, using the same settings as the last print, if there was one */
-  GtkPrintOperation *print = gtk_print_operation_new();
-
-  if (properties->printSettings != NULL)
-    gtk_print_operation_set_print_settings(print, properties->printSettings);
-
-  if (properties->pageSetup)
-    gtk_print_operation_set_default_page_setup(print, properties->pageSetup);
-
-  
-  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), blxWindow);
-  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), blxWindow);
-  
-  /* Pop up the print dialog */
-  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
-								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-								 GTK_WINDOW(blxWindow),
-								 NULL);
-  
-  /* If the user hit ok, remember the print settings for next time */
-  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
-    {
-      if (properties->printSettings != NULL)
-	{
-	  g_object_unref(properties->printSettings);
-	  properties->printSettings = NULL;
-	}
-      
-      properties->printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
-    }
-
-  g_object_unref(print);
+  blxPrintWidget(blxWindow, &properties->printSettings, &properties->pageSetup);
 }
 
 

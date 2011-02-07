@@ -126,6 +126,9 @@ typedef struct _DotterProperties
   GtkWidget *dotplot;                       /* the dotplot drawing area */
   
   DotterWindowContext *dotterWinCtx;
+  
+  GtkPrintSettings *printSettings;          /* print settings */
+  GtkPageSetup *pageSetup;                  /* page setup for printing */
 } DotterProperties;
 
 
@@ -247,7 +250,7 @@ static const GtkActionEntry menuEntries[] = {
 { "Quit",             NULL, "_Quit all dotters\tCtrl-Q",   NULL, "Quit dotter",                G_CALLBACK(onQuitMenu)},
 { "Close",            NULL, "_Close this dotter\tCtrl-W",  NULL, "Quit dotter",                G_CALLBACK(onCloseMenu)},
 { "SavePlot",         NULL, "_Save plot",                  NULL, "Save plot",                  G_CALLBACK(onSavePlotMenu)},
-{ "Print",            NULL, "_Print\t\t\tCtrl-P",          NULL, "Print",                      G_CALLBACK(onPrintMenu)},
+{ "Print",            NULL, "_Print...\t\t\tCtrl-P",          NULL, "Print",                      G_CALLBACK(onPrintMenu)},
 { "Settings",         NULL, "Settings\t\t\tCtrl-S",        NULL, "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
 { "ShowGreyramp",     NULL, "_Greyramp tool\tCtrl-G",      NULL, "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
 { "ShowAlignment",    NULL, "_Alignment tool\tCtrl-A",     NULL, "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
@@ -894,6 +897,14 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
       properties->alignmentTool = alignmentTool;
       properties->dotplot = dotplot;
       properties->dotterWinCtx = dotterWinCtx;
+      
+      properties->pageSetup = gtk_page_setup_new();
+      gtk_page_setup_set_orientation(properties->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      
+      properties->printSettings = gtk_print_settings_new();
+      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
+      gtk_print_settings_set_resolution(properties->printSettings, DEFAULT_PRINT_RESOLUTION);
       
       g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", properties);
       g_signal_connect(G_OBJECT(dotterWindow), "destroy", G_CALLBACK(onDestroyDotterWindow), NULL); 
@@ -2833,8 +2844,10 @@ static void onSavePlotMenu(GtkAction *action, gpointer data)
 
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
-/* to do: implement this */
-//  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  blxPrintWidget(dotterWindow, &properties->printSettings, &properties->pageSetup);
 }
 
 static void onSettingsMenu(GtkAction *action, gpointer data)
@@ -3137,10 +3150,15 @@ static gboolean onKeyPressH(GtkWidget *dotterWindow, const gboolean ctrlModifier
   return ctrlModifier;
 }
 
-/* Handle P key press (Ctrl-P => print) */
-static gboolean onKeyPressP(GtkWidget *dotterWindow, const gboolean ctrlModifier)
+/* Handle P key press (Ctrl-P => prints the given widget) */
+static gboolean onKeyPressP(GtkWidget *widget, GtkWidget *dotterWindow, const gboolean ctrlModifier)
 {
-  /* to do: implement this */
+  if (ctrlModifier)
+    {    
+      DotterProperties *properties = dotterGetProperties(dotterWindow);
+      blxPrintWidget(widget, &properties->printSettings, &properties->pageSetup);
+    }
+  
   return ctrlModifier;
 }
 
@@ -3253,7 +3271,7 @@ gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
       case GDK_h:   handled = onKeyPressH(dotterWindow, ctrlModifier);		    break;
 
       case GDK_P:   /* fall through */
-      case GDK_p:   handled = onKeyPressP(dotterWindow, ctrlModifier);		    break;
+      case GDK_p:   handled = onKeyPressP(widget, dotterWindow, ctrlModifier);      break;
 
       case GDK_S:   /* fall through */
       case GDK_s:   handled = onKeyPressS(dotterWindow, ctrlModifier);		    break;

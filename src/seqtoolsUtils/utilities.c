@@ -3534,3 +3534,42 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
   gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
   cairo_paint(cr);
 }
+
+
+void blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup)
+{
+  /* Create a print operation, using the same settings as the last print, if there was one */
+  GtkPrintOperation *print = gtk_print_operation_new();
+  
+  if (*printSettings != NULL)
+    gtk_print_operation_set_print_settings(print, *printSettings);
+  
+  if (*pageSetup)
+    gtk_print_operation_set_default_page_setup(print, *pageSetup);
+  
+  
+  g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), widget);
+  g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), widget);
+  
+  /* Pop up the print dialog */
+  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
+								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
+								 GTK_WINDOW(widget),
+								 NULL);
+  
+  /* If the user hit ok, remember the print settings for next time */
+  if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)
+    {
+      if (*printSettings != NULL)
+	{
+	  g_object_unref(*printSettings);
+	  *printSettings = NULL;
+	}
+      
+      *printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
+    }
+  
+  g_object_unref(print);
+}
+
+
