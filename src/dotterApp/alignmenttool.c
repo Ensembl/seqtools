@@ -235,6 +235,14 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
  *                       Events				   *
  ***********************************************************/
 
+/* Called when the alignment tool window changes size */
+static void onSizeAllocateAlignmentTool(GtkWidget *alignmentTool, GtkAllocation *allocation, gpointer data)
+{
+  callFuncOnAllChildWidgets(alignmentTool, widgetClearCachedDrawable);
+  gtk_widget_queue_draw(alignmentTool);
+}
+
+
 /* Expose function for a widget containing a section of sequence. SequenceProperties should
  * be set on any widget that this is to be called for. */
 static gboolean onExposeSequence(GtkWidget *widget, GdkEventExpose *event, gpointer data)
@@ -648,6 +656,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
   g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+  g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
   gtk_widget_show_all(alignmentTool);
   
   onAlignmentToolRangeChanged(alignmentTool);
