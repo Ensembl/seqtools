@@ -3536,6 +3536,7 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
   gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
   
   double scale = min(ctxWidth / (double)imgWidth, ctxHeight / (double)imgHeight);
+  scale = min(scale, 1.0); /* don't scale larger */
   
   cairo_scale(cr, scale, scale); 
   
