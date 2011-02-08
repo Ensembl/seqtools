@@ -4571,23 +4571,6 @@ static gboolean blxWindowGetUsePrintColors(GtkWidget *blxWindow)
 }
 
 
-/* Recursively set the background color for the given widget and all its children */
-static void setWidgetBackgroundColor(GtkWidget *widget, gpointer data)
-{
-  GdkColor *color = (GdkColor*)data;
-  GtkWidget *blxWindow = gtk_widget_get_toplevel(widget);
-  
-  blxWindow->style->bg[GTK_STATE_NORMAL] = *color;
-  gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, color);
-  gtk_widget_modify_base(widget, GTK_STATE_NORMAL, color);
-  
-  if (GTK_IS_CONTAINER(widget))
-    {
-      gtk_container_foreach(GTK_CONTAINER(widget), setWidgetBackgroundColor, data);
-    }
-}
-
-
 /* This should be called whenever the background color has changed */
 static void onUpdateBackgroundColor(GtkWidget *blxWindow)
 {

@@ -252,6 +252,7 @@ gboolean	      widgetGetHidden(GtkWidget *widget);
 void		      widgetSetHidden(GtkWidget *widget, const gboolean hidden);
 void		      hideUserHiddenWidget(GtkWidget *widget, gpointer data);
 void		      widgetClearCachedDrawable(GtkWidget *widget, gpointer data);
+void                  callFuncOnAllChildWidgets(GtkWidget *widget, gpointer data);
 
 gboolean	      onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
@@ -461,6 +462,7 @@ void                               makeToolbarButton(GtkToolbar *toolbar, char *
 void                               onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 void                               collatePixmaps(GtkWidget *widget, gpointer data);
 void                               onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data);
+void                               setWidgetBackgroundColor(GtkWidget *widget, gpointer data);
 
 
 /* seqtoolsWebBrowser.c */

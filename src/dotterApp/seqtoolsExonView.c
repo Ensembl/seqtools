@@ -69,6 +69,7 @@ typedef struct _DrawData
     GdkDrawable *drawable;
     GdkGC *gc;
     DotterContext *dc;
+    DotterWindowContext *dwc;
 
     GdkRectangle *exonViewRect;
     const IntRange const *qRange;
@@ -139,12 +140,12 @@ static void drawExon(const MSP const *msp,
         }
       
       /* Draw the fill rectangle */
-      const GdkColor *fillColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dc->usePrintColors, TRUE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+      const GdkColor *fillColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, TRUE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, fillColor);
       gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, yStart, width, height);
       
       /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
-      const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+      const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, lineColor);
       gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, yStart, width, height);
     }
@@ -222,7 +223,7 @@ static void drawIntron(const MSP const *msp,
                        const gint widthIn, 
                        const gint heightIn)
 {
-  const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+  const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
   gdk_gc_set_foreground(data->gc, lineColor);
 
   /* The intron is drawn as two lines, making a trianglar shape, peaking at the
@@ -352,7 +353,7 @@ static void drawCrosshair(GtkWidget *exonView, GdkDrawable *drawable, GdkGC *gc)
       /* Work out the distance from the left/top edge of the rect */
       const int distFromEdge = abs(coord - getStartCoord(dwc, properties->horizontal)) / scaleFactor;
 
-      GdkColor *color = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dc->usePrintColors);
+      GdkColor *color = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dwc->usePrintColors);
       gdk_gc_set_foreground(gc, color);
       
       if (properties->horizontal)
@@ -413,6 +414,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     drawable,
     gc,
     properties->dc,
+    properties->dwc,
     
     &properties->exonViewRect,
     properties->qRange,

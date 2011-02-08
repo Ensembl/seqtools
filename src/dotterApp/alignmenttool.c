@@ -99,11 +99,6 @@ typedef struct _AlignmentToolProperties
   IntRange matchDisplayRange;	    /* the current match seq range displayed in the tool */
   
   DotterWindowContext *dotterWinCtx;
-  
-  GtkWidget *refSeqHeader1;
-  GtkWidget *matchSeqHeader1;
-  GtkWidget *refSeqHeader2;
-  GtkWidget *matchSeqHeader2;
 } AlignmentToolProperties;
 
 
@@ -111,24 +106,23 @@ typedef struct _AlignmentToolProperties
 /* Local function declarations */
 static void                       onCloseMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
-static void                       onPrintColorsMenu(GtkAction *action, gpointer data);
 static void                       onSetLengthMenu(GtkAction *action, gpointer data);
 static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
 
 static void                       drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
-static void			  drawSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, DotterWindowContext *dwc, const IntRange const *displayRange, const gboolean horizontal);
+static void			  drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
 
 
-/* Menu builders */
+/* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
-{ "Close",        NULL, "_Close tool",              NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
-{ "Print",        NULL, "_Print",                   NULL,	"Print",                                G_CALLBACK(onPrintMenu)},
-{ "PrintColors",  NULL, "Use print colo_rs",        NULL,	"Toggle colors for printing",           G_CALLBACK(onPrintColorsMenu)},
+{ "Close",        NULL, "_Close tool\t\t\tCtrl-C",  NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
+{ "Print",        NULL, "_Print...\t\t\t\tCtrl-T",  NULL,	"Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
 { "SetLength",    NULL, "_Set alignment length",    NULL,	"Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
-{ "CopyHCoord",   NULL, "Copy _horizontal coord",    NULL,	"Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
-{ "CopyVCoord",   NULL, "Copy _vertical coord",      NULL,	"Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
+{ "CopyHCoord",   NULL, "Copy _horizontal coord",   NULL,	"Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
+{ "CopyVCoord",   NULL, "Copy _vertical coord",     NULL,	"Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
 };
+
 
 /* This defines the layout of the menu */
 static const char alignmentToolMenuDescription[] =
@@ -139,7 +133,6 @@ static const char alignmentToolMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='Close'/>"
 "      <menuitem action='Print'/>"
-"      <menuitem action='PrintColors'/>"
 "      <separator/>"
 "      <menuitem action='SetLength'/>"
 "  </popup>"
@@ -219,12 +212,7 @@ static void onDestroyAlignmentTool(GtkWidget *widget)
     }
 }
 
-static void alignmentToolCreateProperties(GtkWidget *widget,
-					  DotterWindowContext *dotterWinCtx,
-					  GtkWidget *refSeqHeader1,
-					  GtkWidget *matchSeqHeader1,
-					  GtkWidget *refSeqHeader2,
-					  GtkWidget *matchSeqHeader2)
+static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext *dotterWinCtx)
 {
   if (widget)
     {
@@ -236,10 +224,6 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
       properties->refDisplayRange.max = 20;
       properties->matchDisplayRange.min = 0;
       properties->matchDisplayRange.max = 20; /* to do: put real values in here for the ranges */
-      properties->refSeqHeader1 = refSeqHeader1;
-      properties->matchSeqHeader1 = matchSeqHeader1;
-      properties->refSeqHeader2 = refSeqHeader2;
-      properties->matchSeqHeader2 = matchSeqHeader2;
 
     g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyAlignmentTool), NULL); 
@@ -256,11 +240,16 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
 static gboolean onExposeSequence(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
   GtkWidget *alignmentTool = GTK_WIDGET(data);
-  GdkWindow *drawable = widget->window;
-
+  GdkWindow *drawable = widgetGetDrawable(widget);
+  
+  if (!drawable)
+    drawable = createBlankPixmap(widget);
+  
   if (drawable)
     {
       drawSequence(drawable, widget, alignmentTool);
+      GdkGC *gc = gdk_gc_new(widget->window);
+      gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
     }
   
   return TRUE;
@@ -271,12 +260,16 @@ static gboolean onExposeSequence(GtkWidget *widget, GdkEventExpose *event, gpoin
 static gboolean onExposeRefSequenceHeader(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
   GtkWidget *alignmentTool = GTK_WIDGET(data);
-  GdkWindow *drawable = widget->window;
+  GdkDrawable *drawable = widgetGetDrawable(widget);
+
+  if (!drawable)
+    drawable = createBlankPixmap(widget);
   
   if (drawable)
     {
-      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-      drawSequenceHeader(widget, drawable, properties->dotterWinCtx, &properties->refDisplayRange, TRUE);
+      drawSequenceHeader(widget, alignmentTool, drawable, TRUE);
+      GdkGC *gc = gdk_gc_new(widget->window);
+      gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
     }
   
   return TRUE;
@@ -287,12 +280,16 @@ static gboolean onExposeRefSequenceHeader(GtkWidget *widget, GdkEventExpose *eve
 static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
   GtkWidget *alignmentTool = GTK_WIDGET(data);
-  GdkWindow *drawable = widget->window;
+  GdkDrawable *drawable = widgetGetDrawable(widget);
+  
+  if (!drawable)
+    drawable = createBlankPixmap(widget);
   
   if (drawable)
     {
-      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-      drawSequenceHeader(widget, drawable, properties->dotterWinCtx, &properties->matchDisplayRange, FALSE);
+      drawSequenceHeader(widget, alignmentTool, drawable, FALSE);
+      GdkGC *gc = gdk_gc_new(widget->window);
+      gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
     }
   
   return TRUE;
@@ -302,30 +299,9 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
 /* This should be called when the range displayed by the alignment tool has changed */
 static void onAlignmentToolRangeChanged(GtkWidget *alignmentTool)
 {
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-
-  if (properties)
-    {
-      DotterWindowContext *dwc = properties->dotterWinCtx;
-      
-      char *refCoordText = blxprintf("%d", dwc->refCoord);
-      char *matchCoordText = blxprintf("%d", dwc->matchCoord);
-    
-      if (properties->refSeqHeader1)
-        gtk_widget_queue_draw(properties->refSeqHeader1);
-      
-      if (properties->refSeqHeader2)
-        gtk_widget_queue_draw(properties->refSeqHeader2);
-      
-      if (properties->matchSeqHeader1)
-        gtk_widget_queue_draw(properties->matchSeqHeader1);
-
-      if (properties->matchSeqHeader2)
-        gtk_widget_queue_draw(properties->matchSeqHeader2);
-
-      g_free(refCoordText);
-      g_free(matchCoordText);
-    }
+  /* Clear any cached drawables on this or any child widgets */
+  callFuncOnAllChildWidgets(alignmentTool, widgetClearCachedDrawable);
+  gtk_widget_queue_draw(alignmentTool);
 }
 
 
@@ -392,7 +368,6 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
   properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
   
   onAlignmentToolRangeChanged(alignmentTool);
-  gtk_widget_queue_draw(alignmentTool);
 }
 
 
@@ -413,8 +388,6 @@ static void setAlignmentLength(GtkWidget *alignmentTool, const int length, GErro
     }
 
   updateAlignmentRange(alignmentTool, properties->dotterWinCtx);
-  
-  gtk_widget_queue_draw(alignmentTool);
 }
 
 /***********************************************************
@@ -432,13 +405,14 @@ static void onCloseMenu(GtkAction *action, gpointer data)
 }
 
 
+/* Called when the user selects the print menu option */
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
-}
-
-
-static void onPrintColorsMenu(GtkAction *action, gpointer data)
-{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  blxPrintWidget(alignmentTool, &dwc->printSettings, &dwc->pageSetup);
 }
 
 
@@ -531,8 +505,6 @@ static void onCopyVCoordMenu(GtkAction *action, gpointer data)
 /* Create the section of the alignment tool for the given strand */
 static GtkWidget* createAlignmentToolSection(BlxStrand strand,
 					     DotterWindowContext *dwc,
-					     GtkWidget **refSeqHeader,
-					     GtkWidget **matchSeqHeader,
 					     GtkWidget *alignmentTool,
 					     AlignmentToolProperties *properties)
 {
@@ -561,10 +533,10 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   
   /* Create a header line for this strand of the reference sequence. This widget will display
    * the currently-selected ref seq coord. */
-  *refSeqHeader = gtk_drawing_area_new();
-  gtk_widget_set_size_request(*refSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT);
-  gtk_table_attach(table, *refSeqHeader, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  g_signal_connect(G_OBJECT(*refSeqHeader), "expose-event", G_CALLBACK(onExposeRefSequenceHeader), alignmentTool);
+  GtkWidget *refSeqHeader = gtk_drawing_area_new();
+  gtk_widget_set_size_request(refSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT);
+  gtk_table_attach(table, refSeqHeader, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  g_signal_connect(G_OBJECT(refSeqHeader), "expose-event", G_CALLBACK(onExposeRefSequenceHeader), alignmentTool);
   ++row;
   
   /* Add a line for each frame of the reference sequence */
@@ -573,7 +545,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
     {
       /* Create a label containing the name */
       char *text = blxprintf("%s (%c%d):", dc->refSeqName, strandChar, frame);
-      GtkWidget *label = gtk_label_new(text);
+      GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE);
       gtk_widget_modify_font(label, dc->fontDesc);
       gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
       g_free(text);
@@ -605,7 +577,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   
   /* Add a label for the match sequence */
   char *text = blxprintf("%s:", dc->matchSeqName);
-  GtkWidget *label = gtk_label_new(text);
+  GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE);
   gtk_widget_modify_font(label, dc->fontDesc);
   gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
   g_free(text);
@@ -624,10 +596,10 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   ++row;
   
   /* Create the bottom header */
-  *matchSeqHeader = gtk_drawing_area_new();
-  gtk_widget_set_size_request(*matchSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT + roundNearest(dc->charHeight)); /* add an extra charheight just for spacing */
-  gtk_table_attach(table, *matchSeqHeader, 2, 3, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-  g_signal_connect(G_OBJECT(*matchSeqHeader), "expose-event", G_CALLBACK(onExposeMatchSequenceHeader), alignmentTool);
+  GtkWidget *matchSeqHeader = gtk_drawing_area_new();
+  gtk_widget_set_size_request(matchSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT + roundNearest(dc->charHeight)); /* add an extra charheight just for spacing */
+  gtk_table_attach(table, matchSeqHeader, 2, 3, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  g_signal_connect(G_OBJECT(matchSeqHeader), "expose-event", G_CALLBACK(onExposeMatchSequenceHeader), alignmentTool);
   ++row;
   
   return GTK_WIDGET(table);
@@ -653,20 +625,20 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
     
   /* Remember the headers so we can store them in the properties. We'll need to update them
    * when the range updates since they contain the centre coord of the current display range. */
-  alignmentToolCreateProperties(alignmentTool, dotterWinCtx, NULL, NULL, NULL, NULL);
+  alignmentToolCreateProperties(alignmentTool, dotterWinCtx);
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
   /* Put the forward ref seq strand on top, unless the display is reversed */
   BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-  GtkWidget *section1 = createAlignmentToolSection(qStrand, dotterWinCtx, &properties->refSeqHeader1, &properties->matchSeqHeader1, alignmentTool, properties);
+  GtkWidget *section1 = createAlignmentToolSection(qStrand, dotterWinCtx, alignmentTool, properties);
   gtk_box_pack_start(GTK_BOX(vbox), section1, FALSE, FALSE, 0);
 
   /* Only show the other reference sequence strand if we're displaying sequences as nucleotides */
   if (dc->displaySeqType == BLXSEQ_DNA)
     {
       qStrand = (qStrand == BLXSTRAND_FORWARD ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD);
-      GtkWidget *section2 = createAlignmentToolSection(qStrand, dotterWinCtx, &properties->refSeqHeader2, &properties->matchSeqHeader2, alignmentTool, properties);
+      GtkWidget *section2 = createAlignmentToolSection(qStrand, dotterWinCtx, alignmentTool, properties);
       gtk_box_pack_start(GTK_BOX(vbox), section2, FALSE, FALSE, 0);
     }
 
@@ -729,11 +701,12 @@ static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, 
 static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+  DotterWindowContext *dwc = atProperties->dotterWinCtx;
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
   GdkGC *gc = gdk_gc_new(drawable);
-  GdkColor *matchColor = getGdkColor(DOTCOLOR_MATCH, dc->defaultColors, FALSE, dc->usePrintColors);
-  GdkColor *consColor = getGdkColor(DOTCOLOR_CONS, dc->defaultColors, FALSE, dc->usePrintColors);
+  GdkColor *matchColor = getGdkColor(DOTCOLOR_MATCH, dc->defaultColors, FALSE, dwc->usePrintColors);
+  GdkColor *consColor = getGdkColor(DOTCOLOR_CONS, dc->defaultColors, FALSE, dwc->usePrintColors);
 
   /* Get the sequence info for this widget */
   SequenceProperties *seq1Properties = sequenceGetProperties(widget);
@@ -875,15 +848,18 @@ static void drawSequenceHeaderText(GtkWidget *widget,
 /* Draw a sequence header that displays the centre coord of the given display range. If
  * markerFirst is true the marker is drawn above the text, otherwise below. */
 static void drawSequenceHeader(GtkWidget *widget, 
+                               GtkWidget *alignmentTool,
 			       GdkDrawable *drawable, 
-                               DotterWindowContext *dwc,
-			       const IntRange const *displayRange, 
 			       const gboolean horizontal)
 {
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = dwc->dotterCtx;
   
   /* Find the coord to display */
   const int coord = horizontal ? dwc->refCoord : dwc->matchCoord;
+
+  const IntRange const *displayRange = horizontal ? &properties->refDisplayRange : &properties->matchDisplayRange;
   
   /* Find the position to display at. Find the position of the char at this coord */
   const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) - 1;

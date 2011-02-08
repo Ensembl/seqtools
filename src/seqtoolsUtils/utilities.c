@@ -150,6 +150,17 @@ void widgetClearCachedDrawable(GtkWidget *widget, gpointer data)
 }
 
 
+/* Recursively call the given function on this widget and any child widgets */
+void callFuncOnAllChildWidgets(GtkWidget *widget, gpointer data)
+{
+  GtkCallback func = (GtkCallback)data;
+  func(widget, NULL);
+  
+  if (GTK_IS_CONTAINER(widget))
+    gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnAllChildWidgets, data);
+}
+
+
 /* Functions to get/set a boolean property that is set to true if this widget has
  * been hidden by the user. (We can't just use gtk_widget_hide because we do a 
  * show_all when we remove and re-add widgets to the parent when we toggle strands. 
@@ -3570,4 +3581,20 @@ void blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPage
   g_object_unref(print);
 }
 
+
+/* Recursively set the background color for the given widget and all its children */
+void setWidgetBackgroundColor(GtkWidget *widget, gpointer data)
+{
+  GdkColor *color = (GdkColor*)data;
+  GtkWidget *window = gtk_widget_get_toplevel(widget);
+  
+  window->style->bg[GTK_STATE_NORMAL] = *color;
+  gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, color);
+  gtk_widget_modify_base(widget, GTK_STATE_NORMAL, color);
+  
+  if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), setWidgetBackgroundColor, data);
+    }
+}
 

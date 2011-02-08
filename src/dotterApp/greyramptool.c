@@ -83,7 +83,7 @@ typedef struct _CallbackItem
 
 typedef struct _GreyrampProperties
   {
-    DotterContext *dc;
+    DotterWindowContext *dwc;
     GdkRectangle gradientRect;          /* the area where the gradient ectangle is drawn */
     
     GtkWidget *whiteSpinButton;         /* spin button to control the position of the white point in the gradient */
@@ -139,7 +139,7 @@ static void onDestroyGreyramp(GtkWidget *greyramp)
 }
 
 static void greyrampCreateProperties(GtkWidget *greyramp, 
-				     DotterContext *dc,
+				     DotterWindowContext *dwc,
                                      GdkRectangle *gradientRect,
                                      GtkWidget *whiteSpinButton,
                                      GtkWidget *blackSpinButton,
@@ -153,7 +153,7 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
     {
       GreyrampProperties *properties = g_malloc(sizeof *properties);
 
-      properties->dc = dc;
+      properties->dwc = dwc;
       properties->gradientRect.x = gradientRect->x;
       properties->gradientRect.y = gradientRect->y;
       properties->gradientRect.width = gradientRect->width;
@@ -441,13 +441,14 @@ static void drawGradient(GdkDrawable *drawable, GtkWidget *greyramp)
 static void drawWhiteMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
+  DotterContext *dc = properties->dwc->dotterCtx;
   
   GdkRectangle markerRect;
   getWhiteMarkerRect(properties, &markerRect);
   
   /* Draw a triangle. Line color is the 'selected' color if dragging */
-  GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, properties->dc->defaultColors, FALSE, properties->dc->usePrintColors);
-  GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, properties->dc->defaultColors, properties->draggingWhite, properties->dc->usePrintColors);
+  GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, dc->defaultColors, FALSE, properties->dwc->usePrintColors);
+  GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, dc->defaultColors, properties->draggingWhite, properties->dwc->usePrintColors);
 
   int numPoints = 3;
   GdkPoint points[numPoints];
@@ -472,13 +473,14 @@ static void drawWhiteMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 static void drawBlackMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
-  
+  DotterContext *dc = properties->dwc->dotterCtx;
+
   GdkRectangle markerRect;
   getBlackMarkerRect(properties, &markerRect);
   
   /* Draw a triangle. Line color is the 'selected' color if dragging */
-  GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, properties->dc->defaultColors, FALSE, properties->dc->usePrintColors);
-  GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, properties->dc->defaultColors, properties->draggingBlack, properties->dc->usePrintColors);
+  GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, dc->defaultColors, FALSE, properties->dwc->usePrintColors);
+  GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, dc->defaultColors, properties->draggingBlack, properties->dwc->usePrintColors);
   
   int numPoints = 3;
   GdkPoint points[numPoints];
@@ -503,13 +505,14 @@ static void drawBlackMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 static void drawThresholdMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
+  DotterContext *dc = properties->dwc->dotterCtx;
   
   GdkRectangle markerRect;
   getThresholdMarkerRect(properties, &markerRect);
   
   /* Draw the threshold marker outline (there's no fill because we want the background greyramp to show through) */
   GdkGC *gc = gdk_gc_new(drawable);
-  GdkColor *lineColor = getGdkColor(DOTCOLOR_THRESHOLD_MARKER, properties->dc->defaultColors, properties->draggingThreshold, properties->dc->usePrintColors);
+  GdkColor *lineColor = getGdkColor(DOTCOLOR_THRESHOLD_MARKER, dc->defaultColors, properties->draggingThreshold, properties->dwc->usePrintColors);
   gdk_gc_set_foreground(gc, lineColor);
   
   gdk_draw_rectangle(drawable, gc, FALSE, markerRect.x, markerRect.y, markerRect.width, markerRect.height);
@@ -839,10 +842,12 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
 
 /* Create the greyramp widget. Pass the initial value for the top and bottom spin buttons. If
  * 'swapValues' is true these will be swapped. */
-GtkWidget* createGreyrampTool(DotterContext *dc, const int whitePointIn, const int blackPointIn, const gboolean swapValues)
+GtkWidget* createGreyrampTool(DotterWindowContext *dwc, const int whitePointIn, const int blackPointIn, const gboolean swapValues)
 {
   DEBUG_ENTER("createGreyrampTool");
 
+  DotterContext *dc = dwc->dotterCtx;
+  
   /* Create the window */
   GtkWidget *greyrampTool = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(greyrampTool), "Dotter - Greyramp Tool");
@@ -867,7 +872,7 @@ GtkWidget* createGreyrampTool(DotterContext *dc, const int whitePointIn, const i
   gtk_box_pack_start(hbox, toolbar, FALSE, FALSE, 0);
   
   greyrampCreateProperties(greyrampTool, 
-			   dc,
+			   dwc,
                            &gradientRect,
                            whiteSpinButton, 
                            blackSpinButton, 

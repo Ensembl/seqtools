@@ -168,6 +168,7 @@ static void                       initWindow(const char *winsizeIn, DotplotPrope
 static void                       calculateImage(DotplotProperties *properties);
 static void                       drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable);
+static void                       refreshDotplot(GtkWidget *dotplot);
 
 #ifdef ALPHA
 static void                       reversebytes(void *ptr, int n);
@@ -278,20 +279,22 @@ int dotplotGetSlidingWinSize(GtkWidget *dotplot)
   return properties->slidingWinSize;
 }
 
-void dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError **error)
+gboolean dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError **error)
 {
+  gboolean changed = FALSE;
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   
   if (newValue <= 0)
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_INVALID_WIN_SIZE, "Sliding window size must be greater than 0.\n");
     }
-  else
+  else if (newValue != properties->slidingWinSize)
     {
       properties->slidingWinSize = newValue;
-      widgetClearCachedDrawable(dotplot, NULL);
-      gtk_widget_queue_draw(dotplot);
+      changed = TRUE;
     }
+  
+  return changed;
 }
 
 int dotplotGetImageWidth(GtkWidget *dotplot)
@@ -1915,6 +1918,14 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
  *                        Drawing                          *
  ***********************************************************/
 
+/* Clear all cached drawables and redraw everything */
+static void refreshDotplot(GtkWidget *dotplot)
+{
+  callFuncOnAllChildWidgets(dotplot, widgetClearCachedDrawable);
+  gtk_widget_queue_draw(dotplot);
+}
+
+
 /* Recalculate and redraw everything */
 void redrawDotplot(GtkWidget *dotplot)
 {
@@ -1927,20 +1938,7 @@ void redrawDotplot(GtkWidget *dotplot)
   calculateDotterExonViewBorders(properties->vertExons1, properties->imageWidth, properties->imageHeight);
   calculateDotterExonViewBorders(properties->vertExons2, properties->imageWidth, properties->imageHeight);
   
-  gtk_widget_queue_draw(dotplot);
-}
-
-
-/* Refresh the view */
-void refreshDotplot(GtkWidget *dotplot)
-{
-  DotplotProperties *properties = dotplotGetProperties(dotplot);
-  
-  gtk_widget_queue_draw(dotplot);
-  gtk_widget_queue_draw(properties->hozExons1);
-  gtk_widget_queue_draw(properties->hozExons2);
-  gtk_widget_queue_draw(properties->vertExons1);
-  gtk_widget_queue_draw(properties->vertExons2);
+  refreshDotplot(dotplot);
 }
 
 
@@ -2013,9 +2011,10 @@ static void drawGridline(GdkDrawable *drawable, DotplotProperties *properties, c
 {
   if (properties->gridlinesOn)
     {
+      DotterWindowContext *dwc = properties->dotterWinCtx;
       DotterContext *dc = properties->dotterWinCtx->dotterCtx;
       
-      GdkColor *gridColor = getGdkColor(DOTCOLOR_GRID, dc->defaultColors, FALSE, dc->usePrintColors);
+      GdkColor *gridColor = getGdkColor(DOTCOLOR_GRID, dc->defaultColors, FALSE, dwc->usePrintColors);
       GdkGC *gc = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gc, gridColor);
       
@@ -2155,7 +2154,7 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       DotterContext *dc = dwc->dotterCtx;
 
       /* Set the line color for the crosshair */
-      GdkColor *lineColor = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dc->usePrintColors);
+      GdkColor *lineColor = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dwc->usePrintColors);
       GdkGC *gc = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gc, lineColor);
       

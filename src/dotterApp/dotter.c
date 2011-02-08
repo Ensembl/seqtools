@@ -126,9 +126,6 @@ typedef struct _DotterProperties
   GtkWidget *dotplot;                       /* the dotplot drawing area */
   
   DotterWindowContext *dotterWinCtx;
-  
-  GtkPrintSettings *printSettings;          /* print settings */
-  GtkPageSetup *pageSetup;                  /* page setup for printing */
 } DotterProperties;
 
 
@@ -212,8 +209,8 @@ static void                   refreshAll(GtkWidget *dotterWindow, gpointer data)
 static gboolean               onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data);
 static gboolean               onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer data);
 static gboolean		      negateDisplayCoord(DotterContext *dc, const gboolean horizontal);
-static void		      setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
-static void		      setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
+static gboolean		      setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
+static gboolean		      setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 static void                   printDotterWindow(GtkWidget *dotterWindow);
 
 static void createDotterInstance(DotterContext *dotterCtx,
@@ -244,6 +241,7 @@ static void                       onHelpMenu(GtkAction *action, gpointer data);
 static void                       onAboutMenu(GtkAction *action, gpointer data);
 static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
+static void                       onToggleUsePrintColorsMenu(GtkAction *action, gpointer data);
 
 
 /* Menu builders: the action entry list lists menu actions for all menus */
@@ -263,11 +261,12 @@ static const GtkActionEntry menuEntries[] = {
 
 /* Toggle-able menu entries are listed here: */
 static GtkToggleActionEntry toggleMenuEntries[] = {
-{ "TogglePixmap",     NULL, "Pixelmap",              NULL,  "Show the pixelmap",              G_CALLBACK(onTogglePixelmapMenu),   TRUE},
-{ "ToggleGrid",       NULL, "Gridlines",             NULL,  "Show grid lines",                G_CALLBACK(onToggleGridMenu),       FALSE},
-{ "ToggleCrosshair",  NULL, "Crosshair",             NULL,  "Show the crosshair",             G_CALLBACK(onToggleCrosshairMenu),  TRUE},
-{ "ToggleCoords",     NULL, "Crosshair label",       NULL,  "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),     TRUE},
-{ "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,  "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu), TRUE}
+{ "TogglePixmap",     NULL, "Pixelmap",              NULL,  "Show the pixelmap",              G_CALLBACK(onTogglePixelmapMenu),        TRUE},
+{ "ToggleGrid",       NULL, "Gridlines",             NULL,  "Show grid lines",                G_CALLBACK(onToggleGridMenu),            FALSE},
+{ "ToggleCrosshair",  NULL, "Crosshair",             NULL,  "Show the crosshair",             G_CALLBACK(onToggleCrosshairMenu),       TRUE},
+{ "ToggleCoords",     NULL, "Crosshair label",       NULL,  "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),          TRUE},
+{ "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,  "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu),      TRUE},
+{ "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE}
 };
 
 /* Radio-button menu entries are listed here: */
@@ -286,6 +285,7 @@ static const char fileMenuDescription[] =
 "      <menuitem action='SavePlot'/>"
 "      <separator/>"
 "      <menuitem action='Print'/>"
+"      <menuitem action='TogglePrintColors'/>"
 "      <separator/>"
 "      <menuitem action='Close'/>"
 "      <menuitem action='Quit'/>"
@@ -443,27 +443,35 @@ static void createDotterColors(DotterContext *dc)
       blxColor->desc = NULL;
       g_array_append_val(dc->defaultColors, *blxColor);
     }
-    
+
+  /* Get the default background color of our widgets (i.e. that inherited from the theme).
+   * Convert it to a string so we can use the same creation function as the other colors */
+  GtkWidget *tmp = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  char *defaultBgColorStr = convertColorToString(&tmp->style->bg[GTK_STATE_NORMAL]);
+  createBlxColor(dc->defaultColors, DOTCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
+  g_free(defaultBgColorStr);
+  gtk_widget_destroy(tmp);
+  
   /* matches */
-  createBlxColor(dc->defaultColors, DOTCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_GREY, BLX_CYAN, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_LIGHT_GREY, BLX_DARK_VIOLET, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_CYAN, BLX_CYAN, BLX_CYAN);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_VIOLET, BLX_DARK_VIOLET, BLX_DARK_VIOLET);
+  createBlxColor(dc->defaultColors, DOTCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#cacaca", BLX_WHITE);
   
   /* exons */
-  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_FILL, "Exon fill color", "Exon fill color", BLX_YELLOW, BLX_GREY, NULL, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_LINE, "Exon line color", "Exon outline color", BLX_BLUE, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color", BLX_LIGHT_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_LINE, "CDS line color", "Coding section outline color", BLX_DARK_GREEN, BLX_GREY, BLX_VERY_DARK_GREEN, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_FILL, "UTR fill color", "Untranslated region fill color", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_LINE, "UTR line color", "Untranslated region outline color", BLX_DARK_RED, BLX_GREY, BLX_VERY_DARK_RED, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_FILL, "Exon fill color", "Exon fill color", BLX_YELLOW, BLX_YELLOW, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_LINE, "Exon line color", "Exon outline color", BLX_BLUE, BLX_BLUE, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color", BLX_LIGHT_GREEN, BLX_LIGHT_GREEN, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_LINE, "CDS line color", "Coding section outline color", BLX_DARK_GREEN, BLX_DARK_GREEN, BLX_VERY_DARK_GREEN, BLX_VERY_DARK_GREEN);
+  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_FILL, "UTR fill color", "Untranslated region fill color", BLX_LIGHT_RED, BLX_LIGHT_RED, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_LINE, "UTR line color", "Untranslated region outline color", BLX_DARK_RED, BLX_DARK_RED, BLX_VERY_DARK_RED, BLX_VERY_DARK_RED);
 
   /* dot plot */
-  createBlxColor(dc->defaultColors, DOTCOLOR_CROSSHAIR, "Crosshair", "Color of the crosshair on the dot plot", BLX_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(dc->defaultColors, DOTCOLOR_GRID, "Grid", "Line color of the grid on the dot plot", BLX_LIGHT_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CROSSHAIR, "Crosshair", "Color of the crosshair on the dot plot", BLX_BLUE, BLX_BLUE, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_GRID, "Grid", "Line color of the grid on the dot plot", BLX_LIGHT_RED, BLX_LIGHT_RED, NULL, NULL);
 
   /* greyramp */
-  createBlxColor(dc->defaultColors, DOTCOLOR_THRESHOLD_MARKER, "Greyramp threshold marker color", "Outline color of the threshold marker on the greyramp tool", BLX_RED, BLX_BLACK, BLX_GREEN, BLX_GREY);
-  createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_LINE, "Greyramp marker outline color", "Outline color of the triangle markers on the greyramp tool", BLX_BLACK, BLX_BLACK, BLX_GREEN, BLX_GREY);
+  createBlxColor(dc->defaultColors, DOTCOLOR_THRESHOLD_MARKER, "Greyramp threshold marker color", "Outline color of the threshold marker on the greyramp tool", BLX_RED, BLX_RED, BLX_GREEN, BLX_GREEN);
+  createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_LINE, "Greyramp marker outline color", "Outline color of the triangle markers on the greyramp tool", BLX_BLACK, BLX_BLACK, BLX_GREEN, BLX_GREEN);
   createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_FILL, "Greyramp marker fill color", "Fill color of the triangle markers on the greyramp tool", BLX_WHITE, BLX_WHITE, NULL, NULL);
 }
 
@@ -574,7 +582,6 @@ static DotterContext* createDotterContext(DotterOptions *options,
   result->memoryLimit = options->memoryLimit;
   
   result->defaultColors = NULL;
-  result->usePrintColors = FALSE;  
   
   
   /* Reverse/comp match seq if applicable */
@@ -870,6 +877,16 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
                       refSeqRange->max == matchSeqRange->max &&
                       stringsEqual(dotterCtx->refSeq, dotterCtx->matchSeq, FALSE));
 
+  result->usePrintColors = FALSE;
+
+  result->pageSetup = gtk_page_setup_new();
+  gtk_page_setup_set_orientation(result->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+  
+  result->printSettings = gtk_print_settings_new();
+  gtk_print_settings_set_orientation(result->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+  gtk_print_settings_set_quality(result->printSettings, GTK_PRINT_QUALITY_HIGH);
+  gtk_print_settings_set_resolution(result->printSettings, DEFAULT_PRINT_RESOLUTION);
+  
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
   for ( ; dialogId < DOTDIALOG_NUM_DIALOGS; ++dialogId)
@@ -898,14 +915,6 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
       properties->alignmentTool = alignmentTool;
       properties->dotplot = dotplot;
       properties->dotterWinCtx = dotterWinCtx;
-      
-      properties->pageSetup = gtk_page_setup_new();
-      gtk_page_setup_set_orientation(properties->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
-      
-      properties->printSettings = gtk_print_settings_new();
-      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
-      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
-      gtk_print_settings_set_resolution(properties->printSettings, DEFAULT_PRINT_RESOLUTION);
       
       g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", properties);
       g_signal_connect(G_OBJECT(dotterWindow), "destroy", G_CALLBACK(onDestroyDotterWindow), NULL); 
@@ -1088,7 +1097,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
   /* Only create the graphical elements if there is a graphical dotplot widget */
   if (dotplotWidget)
     {
-      GtkWidget *greyrampTool = createGreyrampTool(dotterCtx, 40, 100, greyrampSwap);
+      GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
       
       GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx);
@@ -1132,12 +1141,9 @@ void callDotterInternal(DotterContext *dc,
 
 
 
-/* 
- *                Internal routines.
- */
-
-
-/************************/
+/***********************************************************
+ *                    External routines                    *
+ ***********************************************************/
 
 /* RMEXP will subtract the expected score to remove background noise
    due to biased composition. Gos's idea - not explored yet.
@@ -2139,7 +2145,7 @@ static void rmExp(void){}
 /* Callbacks to be called when the dotter parameters have changed. */
 static gboolean onZoomFactorChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
-  gboolean result = FALSE;
+  gboolean result = TRUE;
   
   GtkWidget *dotterWindow = GTK_WIDGET(data);
   DotterProperties *properties = dotterGetProperties(dotterWindow);
@@ -2150,11 +2156,12 @@ static gboolean onZoomFactorChanged(GtkWidget *widget, const gint responseId, gp
   if (newValue <= 0)
     {
       g_critical("Zoom factor must be greater than zero.\n");
+      result = FALSE;
     }
-  else
+  else if (newValue != properties->dotterWinCtx->zoomFactor)
     {
       properties->dotterWinCtx->zoomFactor = newValue;
-      result = TRUE;
+      redrawAll(dotterWindow, NULL);
     }
   
   return result;
@@ -2178,14 +2185,17 @@ static gboolean onQStartChanged(GtkWidget *widget, const gint responseId, gpoint
   
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
   
-  setStartCoord(dwc, TRUE, newValue);
+  gboolean changed = setStartCoord(dotterWindow, dwc, TRUE, newValue);
   
   /* If it's a self comparison, also update the vertical range. */
   if (dwc->selfComp)
-    setStartCoord(dwc, FALSE, newValue);
+    changed = setStartCoord(dotterWindow, dwc, FALSE, newValue) || changed;
 
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
+
+  if (changed)
+    redrawAll(dotterWindow, NULL);
   
   return TRUE;
 }
@@ -2208,14 +2218,17 @@ static gboolean onQEndChanged(GtkWidget *widget, const gint responseId, gpointer
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
 
-  setEndCoord(dwc, TRUE, newValue);
+  gboolean changed = setEndCoord(dotterWindow, dwc, TRUE, newValue);
   
   /* If it's a self comparison, also update the vertical range. */
   if (dwc->selfComp)
-    setEndCoord(dwc, FALSE, newValue);
+    changed = setEndCoord(dotterWindow, dwc, FALSE, newValue) || changed;
   
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
+
+  if (changed)
+    redrawAll(dotterWindow, NULL);
 
   return TRUE;
 }
@@ -2238,10 +2251,13 @@ static gboolean onSStartChanged(GtkWidget *widget, const gint responseId, gpoint
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
-  setStartCoord(dwc, FALSE, newValue);
+  gboolean changed = setStartCoord(dotterWindow, dwc, FALSE, newValue);
 
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
+
+  if (changed)
+    redrawAll(dotterWindow, NULL);
 
   return TRUE;
 }
@@ -2264,11 +2280,14 @@ static gboolean onSEndChanged(GtkWidget *widget, const gint responseId, gpointer
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
-  setEndCoord(dwc, FALSE, newValue);
+  gboolean changed = setEndCoord(dotterWindow, dwc, FALSE, newValue);
   
   /* Check the crosshair is still in range and if not clip it */
   updateOnSelectedCoordsChanged(dotterWindow);
 
+  if (changed)
+    redrawAll(dotterWindow, NULL);
+  
   return TRUE;
 }
 
@@ -2283,7 +2302,7 @@ static gboolean onSlidingWinSizeChanged(GtkWidget *widget, const gint responseId
   int newValue = convertStringToInt(text);
 
   GError *error = NULL;
-  dotplotSetSlidingWinSize(properties->dotplot, newValue, &error);
+  gboolean changed = dotplotSetSlidingWinSize(properties->dotplot, newValue, &error);
   
   if (error)
     {
@@ -2293,6 +2312,9 @@ static gboolean onSlidingWinSizeChanged(GtkWidget *widget, const gint responseId
     {
       result = TRUE;
     }
+  
+  if (changed)
+    redrawAll(dotterWindow, NULL);
   
   return result;
 }
@@ -2371,12 +2393,10 @@ static void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointe
     case GTK_RESPONSE_ACCEPT:
       /* Destroy if successful */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      redrawAll(dotterWindow, NULL);
       break;
       
     case GTK_RESPONSE_APPLY:
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      redrawAll(dotterWindow, NULL);
       destroy = FALSE;
       break;
       
@@ -2403,6 +2423,54 @@ static void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointe
           gtk_widget_destroy(GTK_WIDGET(dialog));
         }
     }
+}
+
+
+/* Create the paraemter control widgets for the settings dialog */
+static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWindow, const int border)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = dwc->dotterCtx;
+  
+  /* Put everything in a frame */
+  GtkWidget *frame = gtk_frame_new("Parameters");
+  gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), frame);
+  gtk_container_set_border_width(GTK_CONTAINER(frame), border); 
+  
+  /* Create a table to lay out the widgets */
+  const int numRows = 4;
+  const int numCols = 3;
+  const int xpad = 2;
+  const int ypad = 2;
+  
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_container_add(GTK_CONTAINER(frame), GTK_WIDGET(table));
+  
+  /* Get the start and end values of each range, and negate them for display if necessary */
+  const int qStart = getDisplayCoord(getStartCoord(dwc, TRUE), dc, TRUE);
+  const int qEnd = getDisplayCoord(getEndCoord(dwc, TRUE), dc, TRUE);
+  const int sStart = getDisplayCoord(getStartCoord(dwc, FALSE), dc, FALSE);
+  const int sEnd = getDisplayCoord(getEndCoord(dwc, FALSE), dc, FALSE);
+  
+  createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
+  
+  /* Create the boxes for the sequence ranges. If it's a self comparison, we only really have one range. */
+  if (dwc->selfComp)
+    {
+      createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "Range: ", qStart, onQStartChanged);
+      createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
+      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+    }
+  else
+    {
+      createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "_Horizontal range: ", qStart, onQStartChanged);
+      createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
+      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", sStart, onSStartChanged);
+      createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, sEnd, onSEndChanged);
+      createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+    }
+  
 }
 
 
@@ -2440,42 +2508,11 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
       dialogClearContentArea(GTK_DIALOG(dialog));
     }
 
-  const int numRows = 4;
-  const int numCols = 3;
-  const int xpad = 2;
-  const int ypad = 2;
-  
-  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-  gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(table));
-  
-  /* Get the start and end values of each range, and negate them for display if necessary */
-  const int qStart = getDisplayCoord(getStartCoord(dwc, TRUE), dc, TRUE);
-  const int qEnd = getDisplayCoord(getEndCoord(dwc, TRUE), dc, TRUE);
-  const int sStart = getDisplayCoord(getStartCoord(dwc, FALSE), dc, FALSE);
-  const int sEnd = getDisplayCoord(getEndCoord(dwc, FALSE), dc, FALSE);
-
-  createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
-  
-  /* Create the boxes for the sequence ranges. If it's a self comparison, we only really have one range. */
-  if (dwc->selfComp)
-    {
-      createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "Range: ", qStart, onQStartChanged);
-      createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
-      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
-    }
-  else
-    {
-      createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "_Horizontal range: ", qStart, onQStartChanged);
-      createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
-      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", sStart, onSStartChanged);
-      createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, sEnd, onSEndChanged);
-      createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
-    }
-  
-  
+  /* Create the contents */
+  const int border = 12; /* border around individual sections */
+  settingsDialogParamControls(dialog, dotterWindow, border);
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
   gtk_widget_show_all(dialog);
   gtk_window_present(GTK_WINDOW(dialog));
   
@@ -2508,15 +2545,16 @@ static void redrawAll(GtkWidget *dotterWindow, gpointer data)
  * pixmaps but does not recalculate borders etc. */
 static void refreshAll(GtkWidget *dotterWindow, gpointer data)
 {
+  callFuncOnAllChildWidgets(dotterWindow, widgetClearCachedDrawable);
   gtk_widget_queue_draw(dotterWindow);
-  
+
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   
   if (properties)
     {
       gtk_widget_queue_draw(properties->greyrampTool);
-      gtk_widget_queue_draw(properties->alignmentTool);
-      refreshDotplot(properties->dotplot);
+      callFuncOnAllChildWidgets(properties->alignmentTool, widgetClearCachedDrawable);
+      callFuncOnAllChildWidgets(properties->dotplot, widgetClearCachedDrawable);
     }
 }
 
@@ -2620,7 +2658,7 @@ static void showGreyrampTool(GtkWidget *dotterWindow)
     }
   else
     {
-      properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx->dotterCtx, 40, 100, FALSE);
+      properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx, 40, 100, FALSE);
     }
 }
 
@@ -2941,11 +2979,24 @@ static void onToggleHspMode(GtkRadioAction *action, GtkRadioAction *current, gpo
   setHspMode(properties->dotplot, hspMode);
 }
 
-//static void GHelp(GtkButton *button, gpointer data)
-//{
-//  GtkWidget *dotterWindow = GTK_WIDGET(data);
-//  showHelpDialog(dotterWindow);
-//}
+static void onToggleUsePrintColorsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  
+  /* Toggle the flag*/
+  dwc->usePrintColors = !dwc->usePrintColors;
+  
+  /* Refresh the background colors */
+  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
+  
+  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+  setWidgetBackgroundColor(properties->alignmentTool, defaultBgColor);
+  
+  /* Redraw everything */
+  refreshAll(dotterWindow, NULL);
+}
 
 
 /* Mouse button handler */
@@ -3056,42 +3107,46 @@ int getEndCoord(DotterWindowContext *dwc, const gboolean horizontal)
   return result;
 }
 
+
+
 /* Set the start coord of the display range for the given sequence */
-static void setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
+static gboolean setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
 {
+  gboolean changed = FALSE; 
+  int *valueToUpdate = NULL;
+  
   if (horizontal)
-    {
-      if (dwc->dotterCtx->hozScaleRev)
-	dwc->refSeqRange.max = newValue;
-      else
-	dwc->refSeqRange.min = newValue;
-    }
+    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.max : &dwc->refSeqRange.min);
   else
+    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.max : &dwc->matchSeqRange.min);
+
+  if (valueToUpdate && *valueToUpdate != newValue)
     {
-      if (dwc->dotterCtx->vertScaleRev)
-	dwc->matchSeqRange.max = newValue;
-      else
-	dwc->matchSeqRange.min = newValue;
+      *valueToUpdate = newValue;
+      changed = TRUE;
     }
+  
+  return changed;
 }
 
 /* Set the end coord of the display range for the given sequence */
-static void setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
+static gboolean setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
 {
+  gboolean changed = FALSE;
+  int *valueToUpdate = NULL;
+  
   if (horizontal)
-    {
-      if (dwc->dotterCtx->hozScaleRev)
-	dwc->refSeqRange.min = newValue;
-      else
-	dwc->refSeqRange.max = newValue;
-    }
+    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.min : &dwc->refSeqRange.max);
   else
+    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.min : &dwc->matchSeqRange.max);
+  
+  if (valueToUpdate && *valueToUpdate != newValue)
     {
-      if (dwc->dotterCtx->vertScaleRev)
-	dwc->matchSeqRange.min = newValue;
-      else
-	dwc->matchSeqRange.max = newValue;
+      *valueToUpdate = newValue;
+      changed = TRUE;
     }
+  
+  return changed;
 }
 
 /* Move the given sequence coord by the given number of coords (which can be negative to move 
@@ -3163,7 +3218,8 @@ static gboolean onKeyPressP(GtkWidget *widget, GtkWidget *dotterWindow, const gb
         {
           /* Generic widget printing */
           DotterProperties *properties = dotterGetProperties(dotterWindow);
-          blxPrintWidget(widget, &properties->printSettings, &properties->pageSetup);
+          DotterWindowContext *dwc = properties->dotterWinCtx;
+          blxPrintWidget(widget, &dwc->printSettings, &dwc->pageSetup);
         }
     }
   
@@ -3491,7 +3547,8 @@ static void printDotterWindow(GtkWidget *dotterWindow)
   dotplotPrepareForPrinting(dotplot);
   
   /* Do the print */
-  blxPrintWidget(dotterWindow, &properties->printSettings, &properties->pageSetup);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  blxPrintWidget(dotterWindow, &dwc->printSettings, &dwc->pageSetup);
   
   /* Redraw the entire dotplot to make sure the crosshair we added gets cleared */
   redrawDotplot(dotplot);

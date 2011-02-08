@@ -108,6 +108,7 @@ typedef enum
 {
   DOTCOLOR_MIN,                             /* dummy value so that we don't get a zero ID */
   
+  DOTCOLOR_BACKGROUND,                      /* background color for widgets */
   DOTCOLOR_MATCH,                           /* background color for an exact match */
   DOTCOLOR_CONS,                            /* background color for a conserved match */
   DOTCOLOR_MISMATCH,                        /* background color for a mismatch */
@@ -190,7 +191,6 @@ typedef struct _DotterContext
   int scaleHeight;			    /* height of the dotplot scale */
 
   GArray *defaultColors;		    /* Default colors used by Dotter */
-  gboolean usePrintColors;		    /* Whether to use print colors (i.e. black and white) */
   
   BlxMessageData *msgData;                  /* Data to be passed to message handlers */
 } DotterContext;
@@ -211,6 +211,10 @@ typedef struct _DotterWindowContext
     gboolean selfComp;                        /* true if we're comparing the same portion ref seq against itself */
     
     GtkWidget *dialogList[DOTDIALOG_NUM_DIALOGS]; /* list of all persistent dialogs for this window */
+    
+    GtkPrintSettings *printSettings;          /* print settings */
+    GtkPageSetup *pageSetup;                  /* page setup for printing */
+    gboolean usePrintColors;                  /* whether to use print colours */
   } DotterWindowContext;
 
 
@@ -279,7 +283,7 @@ void                callDotterInternal(DotterContext *dc,
                                        const gdouble zoomFactor);
 
 /* greyramptool.c */
-GtkWidget*	    createGreyrampTool(DotterContext *dc, const int bottomVal, const int topVal, const gboolean swapValues);
+GtkWidget*	    createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues);
 void                registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallback func);
 void                updateGreyMap(GtkWidget *greyramp);
 
@@ -305,7 +309,7 @@ int		    convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, Dotter
 
 DotterHspMode       dotplotGetHspMode(GtkWidget *dotplot);
 int                 dotplotGetSlidingWinSize(GtkWidget *dotplot);
-void                dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError **error);
+gboolean            dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError **error);
 int                 dotplotGetImageWidth(GtkWidget *dotplot);
 int                 dotplotGetImageHeight(GtkWidget *dotplot);
 double              dotplotGetExpResScore(GtkWidget *dotplot);
@@ -319,7 +323,6 @@ void                toggleCrosshairCoordsOn(GtkWidget *dotplot);
 void                toggleCrosshairFullscreen(GtkWidget *dotplot);
 void                setHspMode(GtkWidget *dotplot, DotterHspMode hspMode);
 void                redrawDotplot(GtkWidget *dotplot);
-void                refreshDotplot(GtkWidget *dotplot);
 void                savePlot(GtkWidget *dotplot, DotplotProperties *properties, const char *saveFileName, GError **error);
 void                loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error);
 
