@@ -3510,11 +3510,9 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
   GtkWidget *widget = GTK_WIDGET(data);
   cairo_t *cr = gtk_print_context_get_cairo_context(context);
   
-  /* Create a blank pixmap to draw on to */
-  GdkDrawable *drawable = widgetGetDrawable(widget);
-  
-  if (!drawable)
-    drawable = createBlankPixmap(widget);
+  /* Create a blank pixmap to draw on to (clear any existing drawing first) */
+  widgetClearCachedDrawable(widget, NULL);
+  GdkDrawable *drawable = createBlankPixmap(widget);
   
   /* For any child widgets that have a drawable, draw them all onto our main drawable */
   if (GTK_IS_CONTAINER(widget))
