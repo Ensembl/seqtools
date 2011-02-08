@@ -149,7 +149,6 @@ double aafq[20]	/* Amino acid residue frequencies used by S. Altschul */
 /* Local function declarations */
 static void                       drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       drawImage(GtkWidget *dotplot, GdkDrawable *drawable);
-static void                       drawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       drawHsps(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       drawRubberBand(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *properties);
@@ -167,6 +166,8 @@ static void                       setPoint(GdkPoint *point, const int x, const i
 static gdouble                    getScaleFactor(DotplotProperties *properties, const gboolean horizontal);
 static void                       initWindow(const char *winsizeIn, DotplotProperties *properties);
 static void                       calculateImage(DotplotProperties *properties);
+static void                       drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable);
+static void                       dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable);
 
 #ifdef ALPHA
 static void                       reversebytes(void *ptr, int n);
@@ -514,11 +515,8 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
 
       if (!bitmap)
         {
-          /* There isn't a bitmap yet. Create it now. */
-	  bitmap = createBlankPixmap(dotplot);
-          drawImage(dotplot, bitmap);
-          drawDotterScale(dotplot, bitmap);
-          drawHsps(dotplot, bitmap);
+          bitmap = createBlankPixmap(dotplot);
+          drawDotplot(dotplot, bitmap);
         }
       
       if (bitmap)
@@ -528,7 +526,7 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
           
           /* Draw anything else that needs to be refreshed on each expose */
-          drawCrosshair(dotplot, window);
+          dotplotDrawCrosshair(dotplot, window);
           drawRubberBand(dotplot, window);
         }
     }
@@ -903,8 +901,8 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   
   /* Create labels for the axes */
   DotterContext *dc = dwc->dotterCtx;
-  GtkWidget *hozLabel = gtk_label_new(dc->refSeqName);
-  GtkWidget *vertLabel = gtk_label_new(dc->matchSeqName);
+  GtkWidget *hozLabel = createLabel(dc->refSeqName, 0.5, 0.5, FALSE, TRUE);
+  GtkWidget *vertLabel = createLabel(dc->matchSeqName, 0.5, 0.5, FALSE, TRUE);
   gtk_label_set_angle(GTK_LABEL(vertLabel), 90);
 
   /* Create the 4 exon views: one for each strand, for both sequences */
@@ -1946,6 +1944,44 @@ void refreshDotplot(GtkWidget *dotplot)
 }
 
 
+/* Draws the main dotplot components (does not include transient components
+ * like the crosshair or rubberband). */
+static void drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable)
+{
+  drawImage(dotplot, drawable);
+  drawDotterScale(dotplot, drawable);
+  drawHsps(dotplot, drawable);
+}
+
+
+/* This prepares the dotplot for printing. It draws the crosshair onto the
+ * cached pixmap, because it is this pixmap that will be used in the print.
+ * (Normally the crosshair does not get drawn to the pixmap - it just gets 
+ * drawn to the screen by the expose function). */
+void dotplotPrepareForPrinting(GtkWidget *dotplot)
+{
+  GdkDrawable *drawable = widgetGetDrawable(dotplot);
+  
+  if (!drawable)
+    {
+      drawable = createBlankPixmap(dotplot);
+      drawDotplot(dotplot, drawable);
+    }
+  
+  if (drawable)
+    {
+      dotplotDrawCrosshair(dotplot, drawable);
+    }
+  
+  /* Do the same for each exon view */
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  exonViewPrepareForPrinting(properties->hozExons1);
+  exonViewPrepareForPrinting(properties->hozExons2);
+  exonViewPrepareForPrinting(properties->vertExons1);
+  exonViewPrepareForPrinting(properties->vertExons2);
+}
+
+
 static void findScaleUnit (gdouble cutoff, int *u, int *sub)
 {
   gdouble unit = *u ;
@@ -2109,7 +2145,7 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
 
 
 /* Draw the crosshair that indicates the position of the currently-selected coords */
-static void drawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
+static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   

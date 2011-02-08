@@ -300,6 +300,7 @@ GtkWidget*	    createDotplot(DotterWindowContext *dwc,
                                   const int scenter,
                                   GtkWidget **dotplot);
 
+void                dotplotPrepareForPrinting(GtkWidget *dotplot);
 int		    convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum);
 
 DotterHspMode       dotplotGetHspMode(GtkWidget *dotplot);

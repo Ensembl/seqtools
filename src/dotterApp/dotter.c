@@ -214,6 +214,7 @@ static gboolean               onKeyPressDotterCoords(GtkWidget *widget, GdkEvent
 static gboolean		      negateDisplayCoord(DotterContext *dc, const gboolean horizontal);
 static void		      setStartCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 static void		      setEndCoord(DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
+static void                   printDotterWindow(GtkWidget *dotterWindow);
 
 static void createDotterInstance(DotterContext *dotterCtx,
                                  DotterWindowContext *dotterWinCtx,
@@ -2845,9 +2846,7 @@ static void onSavePlotMenu(GtkAction *action, gpointer data)
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
-  DotterProperties *properties = dotterGetProperties(dotterWindow);
-  
-  blxPrintWidget(dotterWindow, &properties->printSettings, &properties->pageSetup);
+  printDotterWindow(dotterWindow);
 }
 
 static void onSettingsMenu(GtkAction *action, gpointer data)
@@ -3155,8 +3154,17 @@ static gboolean onKeyPressP(GtkWidget *widget, GtkWidget *dotterWindow, const gb
 {
   if (ctrlModifier)
     {    
-      DotterProperties *properties = dotterGetProperties(dotterWindow);
-      blxPrintWidget(widget, &properties->printSettings, &properties->pageSetup);
+      if (widget == dotterWindow)
+        {
+          /* Special function for printing the main dotter window */
+          printDotterWindow(dotterWindow);
+        }
+      else
+        {
+          /* Generic widget printing */
+          DotterProperties *properties = dotterGetProperties(dotterWindow);
+          blxPrintWidget(widget, &properties->printSettings, &properties->pageSetup);
+        }
     }
   
   return ctrlModifier;
@@ -3471,6 +3479,23 @@ void copyIntToDefaultClipboard(const int val)
   g_free(displayText); 
 }
 
+
+/* Print the main dotter window */
+static void printDotterWindow(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  /* The crosshair on the dotplot does not get cached in the dotplot's drawable,
+   * but we want it to show in the print, so draw it on now. */
+  GtkWidget *dotplot = properties->dotplot;
+  dotplotPrepareForPrinting(dotplot);
+  
+  /* Do the print */
+  blxPrintWidget(dotterWindow, &properties->printSettings, &properties->pageSetup);
+  
+  /* Redraw the entire dotplot to make sure the crosshair we added gets cleared */
+  redrawDotplot(dotplot);
+}
 
 
 /**************************** eof ***************************/

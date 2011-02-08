@@ -87,6 +87,7 @@ typedef struct _DrawData
 
 /* Local function declarations */
 static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
+static void                     drawExonView(GtkWidget *exonView, GdkDrawable *drawable);
 
 
 /***********************************************************
@@ -366,6 +367,26 @@ static void drawCrosshair(GtkWidget *exonView, GdkDrawable *drawable, GdkGC *gc)
           const int y = properties->exonViewRect.y + distFromEdge;
           gdk_draw_line(drawable, gc, properties->exonViewRect.x, y, properties->exonViewRect.x + properties->exonViewRect.width, y);
         }
+    }
+}
+
+
+/* Prepare the exon view for printing. Draws the crosshair onto the cached
+ * drawable. (Normally it is drawn directly to screen in the expose function.) */
+void exonViewPrepareForPrinting(GtkWidget *exonView)
+{
+  GdkDrawable *drawable = widgetGetDrawable(exonView);
+  
+  if (!drawable)
+    {
+      drawable = createBlankPixmap(exonView);
+      drawExonView(exonView, drawable);
+    }
+  
+  if (drawable)
+    {
+      GdkGC *gc = gdk_gc_new(drawable);
+      drawCrosshair(exonView, drawable, gc);
     }
 }
 

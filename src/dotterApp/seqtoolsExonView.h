@@ -79,5 +79,6 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 void		calculateDotterExonViewHeight(GtkWidget *exonView);
 void		calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const int height);
 void            exonViewSetShowCrosshair(GtkWidget *exonView, const gboolean showCrosshair);
+void            exonViewPrepareForPrinting(GtkWidget *exonView);
 
 #endif /* _seqtools_exon_view_included_ */
