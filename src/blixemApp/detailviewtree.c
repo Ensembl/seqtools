@@ -1720,21 +1720,25 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 
 	  /* Abbreviate the name to fit the column */
 	  char *displayName = abbreviateText(name, maxLen - 2);
-	  char displayText[maxLen + 1];
-	  sprintf(displayText, "%s", displayName);
+          
+          if (displayName)
+            {
+              char displayText[maxLen + 1];
+              sprintf(displayText, "%s", displayName);
 	  
-	  int i = strlen(displayName);
-	  for ( ; i < maxLen - 1; ++i)
-	    {
-	      displayText[i] = ' ';
-	    }
+              int i = strlen(displayName);
+              for ( ; i < maxLen - 1; ++i)
+                {
+                  displayText[i] = ' ';
+                }
 
-	  displayText[maxLen - 1] = getStrandAsChar(mspGetMatchStrand(msp));
-	  displayText[maxLen] = 0;
-	  
-	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
-	  
-	  g_free(displayName);
+              displayText[maxLen - 1] = getStrandAsChar(mspGetMatchStrand(msp));
+              displayText[maxLen] = 0;
+
+              g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+              
+              g_free(displayName);
+            }
 	}
       else
 	{
