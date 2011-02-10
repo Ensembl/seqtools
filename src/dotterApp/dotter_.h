@@ -123,6 +123,7 @@ typedef enum
   DOTCOLOR_MARKER_FILL,                     /* fill color of the position markers on the greyramp */
   DOTCOLOR_MARKER_LINE,                     /* line color of the position markers on the greyramp */
   DOTCOLOR_THRESHOLD_MARKER,                /* line color of the threshold marker on the greyramp */
+  DOTCOLOR_BREAKLINE,			    /* the color of break-lines between sequences */
   
   DOTCOLOR_NUM_COLORS
 } DotterColorId;
@@ -256,6 +257,9 @@ typedef struct _DotplotProperties
     DotterHspMode hspMode;              /* how (and whether) to show high-scoring pairs from Blast */
     
     gboolean gridlinesOn;               /* whether to show grid lines */
+    gboolean breaklinesOn;		/* whether to show break-lines between sequences */
+    gboolean hozLabelsOn;		/* whether to show labels for features on the horizontal sequence */
+    gboolean vertLabelsOn;		/* whether to show labels for features on the vertical sequence */
     
     GdkPoint dragStart;                 /* start point for mid-click drag */
     GdkPoint dragEnd;                   /* end point for mid-click drag */
@@ -322,7 +326,9 @@ void                toggleCrosshairOn(GtkWidget *dotplot);
 void                toggleCrosshairCoordsOn(GtkWidget *dotplot);
 void                toggleCrosshairFullscreen(GtkWidget *dotplot);
 void                setHspMode(GtkWidget *dotplot, DotterHspMode hspMode);
+void                refreshDotplot(GtkWidget *dotplot);
 void                redrawDotplot(GtkWidget *dotplot);
+void                recalcDotplot(GtkWidget *dotplot);
 void                savePlot(GtkWidget *dotplot, DotplotProperties *properties, const char *saveFileName, GError **error);
 void                loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error);
 

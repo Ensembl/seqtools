@@ -473,6 +473,9 @@ static void createDotterColors(DotterContext *dc)
   createBlxColor(dc->defaultColors, DOTCOLOR_THRESHOLD_MARKER, "Greyramp threshold marker color", "Outline color of the threshold marker on the greyramp tool", BLX_RED, BLX_RED, BLX_GREEN, BLX_GREEN);
   createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_LINE, "Greyramp marker outline color", "Outline color of the triangle markers on the greyramp tool", BLX_BLACK, BLX_BLACK, BLX_GREEN, BLX_GREEN);
   createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_FILL, "Greyramp marker fill color", "Fill color of the triangle markers on the greyramp tool", BLX_WHITE, BLX_WHITE, NULL, NULL);
+
+  /* misc */
+  createBlxColor(dc->defaultColors, DOTCOLOR_BREAKLINE, "Breakline color", "Color of the separator lines between sequences, if there were multiple sequences in the input file", BLX_GREEN, BLX_GREEN, NULL, NULL);
 }
 
 
@@ -944,8 +947,9 @@ static void updateOnSelectedCoordsChanged(GtkWidget *dotterWindow)
   /* Update the alignment view and dotplot */
   updateAlignmentRange(properties->alignmentTool, properties->dotterWinCtx);
   
-  /* Refresh all widgets */
-  refreshAll(dotterWindow, NULL);
+  /* Need to clear cached drawables for the alignment tool but can just refresh the dotplot */
+  widgetClearCachedDrawable(properties->alignmentTool, NULL);
+  refreshDotplot(properties->dotplot);
 }
 
 
@@ -2536,7 +2540,7 @@ static void redrawAll(GtkWidget *dotterWindow, gpointer data)
     {
       gtk_widget_queue_draw(properties->greyrampTool);
       gtk_widget_queue_draw(properties->alignmentTool);
-      redrawDotplot(properties->dotplot);
+      recalcDotplot(properties->dotplot);
     }
 }
 

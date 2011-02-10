@@ -48,6 +48,8 @@
 #define PIXELS_PER_MARK_X                           100   /* number of pixels between each major tick mark on the x scale */
 #define PIXELS_PER_MARK_Y                           50    /* number of pixels between each major tick mark on the y scale */
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
+#define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
+#define ANNOTATION_LABEL_LEN			    8	  /* number of chars to allow to show for annotation labels */
 
 
 int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
@@ -150,6 +152,7 @@ double aafq[20]	/* Amino acid residue frequencies used by S. Altschul */
 static void                       drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       drawImage(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       drawHsps(GtkWidget *dotplot, GdkDrawable *drawable);
+static void			  drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       drawRubberBand(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *properties);
 static GdkColormap*               insertGreyRamp (DotplotProperties *properties);
@@ -168,7 +171,6 @@ static void                       initWindow(const char *winsizeIn, DotplotPrope
 static void                       calculateImage(DotplotProperties *properties);
 static void                       drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable);
-static void                       refreshDotplot(GtkWidget *dotplot);
 
 #ifdef ALPHA
 static void                       reversebytes(void *ptr, int n);
@@ -247,6 +249,9 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
   properties->hspMode = hspsOn ? DOTTER_HSPS_LINE : DOTTER_HSPS_OFF;
   
   properties->gridlinesOn = FALSE;
+  properties->breaklinesOn = TRUE;
+  properties->hozLabelsOn = TRUE;
+  properties->vertLabelsOn = TRUE;
 
   properties->dragStart.x = UNSET_INT;
   properties->dragStart.y = UNSET_INT;
@@ -394,7 +399,7 @@ void setHspMode(GtkWidget *dotplot, DotterHspMode hspMode)
           for ( ; msp; msp = msp->next)
             {
               const char *mspName = getShortMspName(msp);
-              if (strcmp(mspName, dc->matchSeqName))
+              if (!mspName || strcmp(mspName, dc->matchSeqName))
                 {
                   /* Not an MSP from our match sequence */
                   continue;
@@ -1887,6 +1892,29 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
 }
 
 
+/* Utility to get the total height required for the dotplot */
+static int getTotalHeight(GdkRectangle *rect, DotterContext *dc)
+{
+  return rect->y + 
+	 rect->height + 		  
+	 DEFAULT_Y_PADDING + 
+	 SCALE_LINE_WIDTH +
+	 dc->charHeight +
+	 (2 * ANNOTATION_LABEL_PADDING);
+}
+
+/* Utility to get the total width of the dotplot */
+static int getTotalWidth(GdkRectangle *rect, DotterContext *dc)
+{
+  return rect->x +
+	 rect->width + 
+	 DEFAULT_X_PADDING + 
+	 SCALE_LINE_WIDTH +
+	 (dc->charWidth * ANNOTATION_LABEL_LEN) + 
+	 (2 * ANNOTATION_LABEL_PADDING);
+}
+
+
 static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *properties)
 {
   DEBUG_ENTER("calculateDotplotBorders");
@@ -1898,8 +1926,9 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
   properties->plotRect.width = properties->imageWidth;
   properties->plotRect.height = properties->imageHeight;
   
-  const int totalWidth = properties->plotRect.x + properties->plotRect.width + DEFAULT_X_PADDING + SCALE_LINE_WIDTH;
-  const int totalHeight = properties->plotRect.y + properties->plotRect.height + DEFAULT_Y_PADDING + SCALE_LINE_WIDTH;
+  const int totalWidth = getTotalWidth(&properties->plotRect, dc);
+  
+  const int totalHeight = getTotalHeight(&properties->plotRect, dc);
   
   if (dotplot)
     {
@@ -1918,8 +1947,20 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
  *                        Drawing                          *
  ***********************************************************/
 
+/* Refresh cached drawables */
+void refreshDotplot(GtkWidget *dotplot)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  gtk_widget_queue_draw(dotplot);
+  gtk_widget_queue_draw(properties->hozExons1);
+  gtk_widget_queue_draw(properties->hozExons2);
+  gtk_widget_queue_draw(properties->vertExons1);
+  gtk_widget_queue_draw(properties->vertExons2);
+}
+
+
 /* Clear all cached drawables and redraw everything */
-static void refreshDotplot(GtkWidget *dotplot)
+void redrawDotplot(GtkWidget *dotplot)
 {
   callFuncOnAllChildWidgets(dotplot, widgetClearCachedDrawable);
   gtk_widget_queue_draw(dotplot);
@@ -1927,7 +1968,7 @@ static void refreshDotplot(GtkWidget *dotplot)
 
 
 /* Recalculate and redraw everything */
-void redrawDotplot(GtkWidget *dotplot)
+void recalcDotplot(GtkWidget *dotplot)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   
@@ -1938,7 +1979,7 @@ void redrawDotplot(GtkWidget *dotplot)
   calculateDotterExonViewBorders(properties->vertExons1, properties->imageWidth, properties->imageHeight);
   calculateDotterExonViewBorders(properties->vertExons2, properties->imageWidth, properties->imageHeight);
   
-  refreshDotplot(dotplot);
+  redrawDotplot(dotplot);
 }
 
 
@@ -1948,6 +1989,7 @@ static void drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable)
 {
   drawImage(dotplot, drawable);
   drawDotterScale(dotplot, drawable);
+  drawBreaklines(dotplot, drawable);
   drawHsps(dotplot, drawable);
 }
 
@@ -2143,6 +2185,97 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
 }
 
 
+/* Draw an individual breakline */
+static void drawBreakline(const MSP const *msp, GtkWidget *dotplot, DotplotProperties *properties, GdkDrawable *drawable, GdkGC *gc)
+{
+  g_assert(msp && msp->type == BLXMSP_FS_SEG);
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+  /* The q range min and max should be the same coord */
+  if (msp->qRange.min != msp->qRange.max)
+    g_warning("Breakline coords should be the same but min=%d and max=%d\n", msp->qRange.min, msp->qRange.max);
+
+  /* See if this msp is the vertical or horizontal sequence. It could be both for a self comparison. */
+  gboolean horizontal = (msp->qname && strcmp(msp->qname, dc->refSeqName) == 0);
+  gboolean vertical = (msp->qname && strcmp(msp->qname, dc->matchSeqName) == 0);
+  
+  if (horizontal)
+    {
+      /* Find the x position of this coord and draw a vertical line here */
+      int sy = properties->plotRect.y;
+      int ey = properties->plotRect.y + properties->plotRect.height + ANNOTATION_LABEL_PADDING;
+    
+      int sx, ex; /* start/end coordinates [0..n] */
+      getMspScreenCoords(msp, properties, &sx, &ex, NULL, NULL);
+      gdk_draw_line(drawable, gc, sx, sy, ex, ey);
+    
+      /* Draw a label at the bottom (if labels enabled) */
+      if (properties->hozLabelsOn && msp->desc)
+	{
+	  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, msp->desc);
+	  gdk_draw_layout(drawable, gc, ex, ey, layout);
+	  g_object_unref(layout);
+	}
+    }
+  
+  if (vertical)
+    {
+      /* Find the y position of this coord and draw a horizontal line here */
+      int sx = properties->plotRect.x;
+      int ex = properties->plotRect.x + properties->plotRect.width + ANNOTATION_LABEL_PADDING;
+
+      int sy, ey; /* start/end coordinates [0..n]. Note that breakline coords are always
+		   * stored in the q coords even for the vertical sequence. */
+      getMspScreenCoords(msp, properties, &sy, &ey, NULL, NULL);
+    
+      /* hack the coords because they've been based at the x coord. Really we should store them
+       * properly in the s range but for historic reasons they're in the q range. */
+      sy += properties->plotRect.y - properties->plotRect.x;
+      ey += properties->plotRect.y - properties->plotRect.x;
+    
+      gdk_draw_line(drawable, gc, sx, sy, ex, ey);
+    
+      /* Draw a label at the RHS (if labels enabled) */
+      if (properties->vertLabelsOn && msp->desc)
+	{
+	  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, msp->desc);
+	  gdk_draw_layout(drawable, gc, ex, ey, layout);
+	  g_object_unref(layout);
+	}
+    }
+}
+
+
+/* If a sequence file contains multiple sequences, this draws breaklines between the segments.
+ * Only does anything if the 'draw breaklines' option is enabled. */
+static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = dwc->dotterCtx;
+  
+  if (properties->breaklinesOn)
+    {
+      GdkGC *gc = gdk_gc_new(drawable);
+      gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+    
+      GdkColor *color = getGdkColor(DOTCOLOR_BREAKLINE, dc->defaultColors, FALSE, dwc->usePrintColors);
+      gdk_gc_set_foreground(gc, color);
+
+      /* Loop through all MSPs and draw any that are segment ends */
+      const MSP const *msp = dc->mspList;
+    
+      for ( ; msp; msp = msp->next)
+	{
+	  if (msp->type == BLXMSP_FS_SEG)
+	    {
+	      drawBreakline(msp, dotplot, properties, drawable, gc);
+	    }
+	}
+    }  
+}
+
+
 /* Draw the crosshair that indicates the position of the currently-selected coords */
 static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
 {
@@ -2162,8 +2295,8 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       getPosFromSelectedCoords(dotplot, &x, &y);
 
       /* Calculate the total size of the dotplot, including padding and labels etc */
-      const int totalWidth = properties->plotRect.x + properties->plotRect.width + DEFAULT_X_PADDING + SCALE_LINE_WIDTH;
-      const int totalHeight = properties->plotRect.y + properties->plotRect.height + DEFAULT_Y_PADDING + SCALE_LINE_WIDTH;
+      const int totalWidth = getTotalWidth(&properties->plotRect, dc);
+      const int totalHeight = getTotalHeight(&properties->plotRect, dc);
       
       /* Draw the horizontal line (y position is at the match sequence coord position). x coords
        * depend on whether it's across the whole widget or just the dot-plot rectangle */
@@ -2244,8 +2377,15 @@ static void drawImage(GtkWidget *dotplot, GdkDrawable *drawable)
  * be free'd */
 static const char* getShortMspName(const MSP const *msp)
 {
-  char *mspName = strchr(mspGetSName(msp), ':');  
-  const char *result = mspName ? ++mspName : mspGetSName(msp);
+  const char *result = NULL;
+  const char *sName = mspGetSName(msp);
+  
+  if (sName)
+    {
+      char *mspName = strchr(sName, ':');  
+      result = mspName ? ++mspName : sName;
+    }
+  
   return result;
 }
 
@@ -2333,7 +2473,7 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
   for (msp = dc->mspList; msp;  msp = msp->next)
     {    
       const char *mspName = getShortMspName(msp);
-      if (strcmp(mspName, dc->matchSeqName) != 0)
+      if (!mspName || strcmp(mspName, dc->matchSeqName) != 0)
         {
           /* Not an MSP from our sequence */
           continue;
@@ -2629,22 +2769,20 @@ static void getPosFromCoords(DotplotProperties *properties, int qCoord, int sCoo
   const gdouble hScaleFactor = getScaleFactor(properties, TRUE);
   const gdouble vScaleFactor = getScaleFactor(properties, FALSE);
 
-  if (dc->hozScaleRev)
+  if (x)
     {
-      *x = properties->plotRect.x + (dwc->refSeqRange.max - qCoord) / hScaleFactor;
+      if (dc->hozScaleRev)
+	*x = properties->plotRect.x + (dwc->refSeqRange.max - qCoord) / hScaleFactor;
+      else
+	*x = properties->plotRect.x + (qCoord - dwc->refSeqRange.min) / hScaleFactor;
     }
-  else
+  
+  if (y)
     {
-      *x = properties->plotRect.x + (qCoord - dwc->refSeqRange.min) / hScaleFactor;
-    }
-
-  if (dc->vertScaleRev)
-    {
-      *y = properties->plotRect.y + (dwc->matchSeqRange.max - sCoord) / vScaleFactor;
-    }
-  else
-    {
-      *y = properties->plotRect.y + (sCoord - dwc->matchSeqRange.min) / vScaleFactor;
+      if (dc->vertScaleRev)
+	*y = properties->plotRect.y + (dwc->matchSeqRange.max - sCoord) / vScaleFactor;
+      else
+	*y = properties->plotRect.y + (sCoord - dwc->matchSeqRange.min) / vScaleFactor;
     }
 }
 

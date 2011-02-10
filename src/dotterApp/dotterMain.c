@@ -509,7 +509,7 @@ int main(int argc, char **argv)
     else if (options.seqInSFS)
       {
         /* The -F option has been used, which replaces the input sequence files. We should therefore
-         * only have, at mosts, one input argument: the Xoptions*/
+         * only have, at most, one input argument: the Xoptions*/
         if (argc - optind > 1)
           {
 	    showUsageText();
