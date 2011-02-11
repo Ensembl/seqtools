@@ -284,7 +284,8 @@ int                 getSelectedCoord(DotterWindowContext *dwc, const gboolean ho
 void                callDotterInternal(DotterContext *dc, 
                                        const IntRange const *refSeqRange,
                                        const IntRange const *matchSeqRange,
-                                       const gdouble zoomFactor);
+                                       const gdouble zoomFactor,
+                                       const gboolean breaklinesOn);
 
 /* greyramptool.c */
 GtkWidget*	    createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues);
@@ -301,6 +302,7 @@ GtkWidget*	    createDotplot(DotterWindowContext *dwc,
                                   const char *loadFileName,
                                   const char *saveFileName,
                                   const gboolean hspsOn,
+                                  const gboolean breaklinesOn,
                                   const char *initWinsize,
                                   const int pixelFacIn,
                                   const int zoomFacIn,
@@ -310,6 +312,9 @@ GtkWidget*	    createDotplot(DotterWindowContext *dwc,
 
 void                dotplotPrepareForPrinting(GtkWidget *dotplot);
 int		    convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum);
+int                 getDotplotWidth(DotplotProperties *properties);
+int                 getDotplotHeight(DotplotProperties *properties);
+DotplotProperties*  dotplotGetProperties(GtkWidget *widget);
 
 DotterHspMode       dotplotGetHspMode(GtkWidget *dotplot);
 int                 dotplotGetSlidingWinSize(GtkWidget *dotplot);

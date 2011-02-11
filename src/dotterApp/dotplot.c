@@ -180,7 +180,7 @@ static void                       reversebytes(void *ptr, int n);
  *                          Properties                     *
  ***********************************************************/
 
-static DotplotProperties* dotplotGetProperties(GtkWidget *widget)
+DotplotProperties* dotplotGetProperties(GtkWidget *widget)
 {
   return widget ? (DotplotProperties*)(g_object_get_data(G_OBJECT(widget), "DotplotProperties")) : NULL;
 }
@@ -214,7 +214,8 @@ static void onDestroyDotplot(GtkWidget *widget)
  * even if widget is null, because we could be running in batch mode. */
 static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
                                                   DotterWindowContext *dwc,
-                                                  const gboolean hspsOn)
+                                                  const gboolean hspsOn,
+                                                  const gboolean breaklinesOn)
 {
   DotplotProperties *properties = g_malloc(sizeof *properties);
   
@@ -249,7 +250,7 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
   properties->hspMode = hspsOn ? DOTTER_HSPS_LINE : DOTTER_HSPS_OFF;
   
   properties->gridlinesOn = FALSE;
-  properties->breaklinesOn = TRUE;
+  properties->breaklinesOn = breaklinesOn;
   properties->hozLabelsOn = TRUE;
   properties->vertLabelsOn = TRUE;
 
@@ -592,7 +593,7 @@ static gboolean onButtonReleaseDotplot(GtkWidget *dotplot, GdkEventButton *event
           if (qRange.max - qRange.min > 10 && sRange.max - sRange.min > 10)
             {
 	      g_debug("Calling dotter internally with the range: q=%d %d, s=%d %d\n", qRange.min, qRange.max, sRange.min, sRange.max);
-              callDotterInternal(dc, &qRange, &sRange, zoomFactor) ;
+              callDotterInternal(dc, &qRange, &sRange, zoomFactor, properties->breaklinesOn) ;
             }
         }
       
@@ -695,6 +696,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
                                            const char *loadFileName,
                                            const char *saveFileName,
                                            const gboolean hspsOn,
+                                           const gboolean breaklinesOn,
                                            const char *initWinsize,
                                            const int pixelFacIn,
                                            const int zoomFacIn,
@@ -707,7 +709,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
 
   GtkWidget *dotplot = (batch ? NULL : gtk_layout_new(NULL, NULL));
   
-  DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn);
+  DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn);
   
   if (loadFileName)
     {
@@ -883,6 +885,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
                          const char *loadFileName,
                          const char *saveFileName,
                          const gboolean hspsOn,
+                         const gboolean breaklinesOn,
                          const char *initWinsize,
                          const int pixelFacIn,
                          const int zoomFacIn,
@@ -893,7 +896,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   DEBUG_ENTER("createDotplot");
 
   /* Create the actual drawing area for the dot plot */
-  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, hspsOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
+  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
 
   if (saveFileName)
     {
@@ -1893,25 +1896,38 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
 
 
 /* Utility to get the total height required for the dotplot */
-static int getTotalHeight(GdkRectangle *rect, DotterContext *dc)
+int getDotplotHeight(DotplotProperties *properties)
 {
-  return rect->y + 
-	 rect->height + 		  
-	 DEFAULT_Y_PADDING + 
-	 SCALE_LINE_WIDTH +
-	 dc->charHeight +
-	 (2 * ANNOTATION_LABEL_PADDING);
+  int result = properties->plotRect.y + 
+               properties->plotRect.height + 		  
+               DEFAULT_Y_PADDING + 
+               SCALE_LINE_WIDTH;
+  
+  if (properties->breaklinesOn)
+    {
+      /* Add space for breakline labels */
+      result += properties->dotterWinCtx->dotterCtx->charHeight + (2 * ANNOTATION_LABEL_PADDING);
+    }
+  
+  return result;
 }
 
 /* Utility to get the total width of the dotplot */
-static int getTotalWidth(GdkRectangle *rect, DotterContext *dc)
+int getDotplotWidth(DotplotProperties *properties)
 {
-  return rect->x +
-	 rect->width + 
-	 DEFAULT_X_PADDING + 
-	 SCALE_LINE_WIDTH +
-	 (dc->charWidth * ANNOTATION_LABEL_LEN) + 
-	 (2 * ANNOTATION_LABEL_PADDING);
+  int result = properties->plotRect.x +
+               properties->plotRect.width + 
+               DEFAULT_X_PADDING + 
+               SCALE_LINE_WIDTH;
+  
+  if (properties->breaklinesOn)
+    {
+      /* Add space for breakline labels */
+      result += (properties->dotterWinCtx->dotterCtx->charWidth * ANNOTATION_LABEL_LEN) + 
+                (2 * ANNOTATION_LABEL_PADDING);
+    }
+  
+  return result;
 }
 
 
@@ -1926,9 +1942,9 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
   properties->plotRect.width = properties->imageWidth;
   properties->plotRect.height = properties->imageHeight;
   
-  const int totalWidth = getTotalWidth(&properties->plotRect, dc);
+  const int totalWidth = getDotplotWidth(properties);
   
-  const int totalHeight = getTotalHeight(&properties->plotRect, dc);
+  const int totalHeight = getDotplotHeight(properties);
   
   if (dotplot)
     {
@@ -2295,8 +2311,8 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       getPosFromSelectedCoords(dotplot, &x, &y);
 
       /* Calculate the total size of the dotplot, including padding and labels etc */
-      const int totalWidth = getTotalWidth(&properties->plotRect, dc);
-      const int totalHeight = getTotalHeight(&properties->plotRect, dc);
+      const int totalWidth = getDotplotWidth(properties);
+      const int totalHeight = getDotplotHeight(properties);
       
       /* Draw the horizontal line (y position is at the match sequence coord position). x coords
        * depend on whether it's across the whole widget or just the dot-plot rectangle */

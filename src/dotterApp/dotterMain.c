@@ -142,7 +142,7 @@ static void setDefaultOptions(DotterOptions *options)
   options->crickOnly = FALSE;
   options->hspsOnly = FALSE;
   options->swapGreyramp = FALSE;
-  options->fsEndLinesOn = FALSE;
+  options->breaklinesOn = FALSE;
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
   options->negateCoords = FALSE;
@@ -498,7 +498,7 @@ int main(int argc, char **argv)
                 if (msp->type == BLXMSP_FS_SEG)
                   {
 //                    insertFS(msp, "chain_separator");
-                    options.fsEndLinesOn = TRUE;
+                    options.breaklinesOn = TRUE;
                   }
               }
           }
@@ -603,16 +603,16 @@ int main(int argc, char **argv)
                   /* Multiple sequences - add break lines */
                     if (l == 2) 
                       {
-                        options.fsEndLinesOn = TRUE;
+                        options.breaklinesOn = TRUE;
 
                         /* Second sequence - add break line to mark first sequence */
-                        addBreakline (&MSPlist, qfilename, firstdesc, 0, 1);
+                        addBreakline (&MSPlist, qfilename, firstdesc, options.qoffset, 1);
                         
                         /* change sequence name to filename */
                         options.qname = g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
                       }
                     
-                    addBreakline (&MSPlist, qfilename, cq, count, 1);
+                    addBreakline (&MSPlist, qfilename, cq, count + options.qoffset, 1);
                   }
               }
             else 
@@ -649,15 +649,15 @@ int main(int argc, char **argv)
 		  /* Multiple sequences - add break lines */
 
 		    if (l == 2) {
-			options.fsEndLinesOn = TRUE;
+			options.breaklinesOn = TRUE;
 
 		        /* Second sequence - add break line to mark first sequence */
-		        addBreakline (&MSPlist, sfilename, firstdesc, 0, 2);
+		        addBreakline (&MSPlist, sfilename, firstdesc, options.soffset, 2);
 			
 			/* change sequence name to filename */
 			options.sname = g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
 		    }
-		    addBreakline (&MSPlist, sfilename, cq, count, 2);
+		    addBreakline (&MSPlist, sfilename, cq, count + options.soffset, 2);
 		}
 	    }
 	    else 

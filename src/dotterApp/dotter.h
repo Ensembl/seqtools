@@ -82,7 +82,7 @@ typedef struct _DotterOptions
     gboolean crickOnly;       /* only show the crick (reverse) strand of the ref seq */
     gboolean hspsOnly;        /* only draw HSPs (i.e. don't calculate the dot-plot, just draw lines where we know HSPs should be) */
     gboolean swapGreyramp;    /* swap the default black/white points on the greyramp tool (inverts the colors) */
-    gboolean fsEndLinesOn;    /* to do: not used? */
+    gboolean breaklinesOn;    /* whether to enable breaklines between sequences */
     gboolean hozScaleRev;     /* revese the horizontal scale */
     gboolean vertScaleRev;    /* revese the vertical scale */
     gboolean negateCoords;    /* negate the displayed coords when the scale is reversed, i.e. so they still appear to increase from left-to-right */

@@ -218,6 +218,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
                                  const char *loadFileName,
                                  const char *saveFileName,
                                  const gboolean hspsOn,
+                                 const gboolean breaklinesOn,
                                  const char* winsizeIn,
                                  const int pixelFacIn,
                                  const int zoomFacIn,
@@ -1057,6 +1058,7 @@ void dotter (const BlxBlastMode blastMode,
                        options->loadfile,
                        options->savefile,
                        options->hspsOnly,
+                       options->breaklinesOn,
                        options->winsize,
                        options->pixelFacset,
                        options->dotterZoom,
@@ -1077,6 +1079,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
                                  const char *loadFileName,
                                  const char *saveFileName,
                                  const gboolean hspsOn,
+                                 const gboolean breaklinesOn,
                                  const char* winsizeIn,
                                  const int pixelFacIn,
                                  const int zoomFacIn,
@@ -1091,6 +1094,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
                                            loadFileName,
                                            saveFileName,
                                            hspsOn,
+                                           breaklinesOn,
                                            winsizeIn,
                                            pixelFacIn,
                                            zoomFacIn,
@@ -1137,10 +1141,11 @@ static void createDotterInstance(DotterContext *dotterCtx,
 void callDotterInternal(DotterContext *dc, 
                         const IntRange const *refSeqRange,
                         const IntRange const *matchSeqRange,
-                        const gdouble zoomFactor)
+                        const gdouble zoomFactor,
+                        const gboolean breaklinesOn)
 {
   DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor);
-  createDotterInstance(dc, dwc, NULL, NULL, FALSE, NULL, 0, 0, 0, 0, FALSE);
+  createDotterInstance(dc, dwc, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE);
 }
 
 
@@ -3512,8 +3517,9 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   const int maxHeight = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
   
   const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
-  int width = dotplotGetImageWidth(dotplot) + exonViewHeight + 100;
-  int height = dotplotGetImageHeight(dotplot) + exonViewHeight + 100;
+  DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);
+  int width = getDotplotWidth(dotplotProperties) + exonViewHeight + 100;
+  int height = getDotplotHeight(dotplotProperties) + exonViewHeight + 100;
   
   width = min(width, maxWidth);
   height = min(height, maxHeight);
