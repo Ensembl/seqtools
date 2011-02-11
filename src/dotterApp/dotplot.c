@@ -303,6 +303,27 @@ gboolean dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError
   return changed;
 }
 
+void dotplotSetBreaklinesOn(GtkWidget *dotplot, const gboolean breaklinesOn)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  properties->breaklinesOn = breaklinesOn;
+  calculateDotplotBorders(dotplot, properties);
+}
+
+void dotplotSetHozLabelsOn(GtkWidget *dotplot, const gboolean labelsOn)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  properties->hozLabelsOn = labelsOn;
+  calculateDotplotBorders(dotplot, properties);
+}
+
+void dotplotSetVertLabelsOn(GtkWidget *dotplot, const gboolean labelsOn)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  properties->vertLabelsOn = labelsOn;
+  calculateDotplotBorders(dotplot, properties);
+}
+
 int dotplotGetImageWidth(GtkWidget *dotplot)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
@@ -1903,7 +1924,7 @@ int getDotplotHeight(DotplotProperties *properties)
                DEFAULT_Y_PADDING + 
                SCALE_LINE_WIDTH;
   
-  if (properties->breaklinesOn)
+  if (properties->breaklinesOn && properties->hozLabelsOn)
     {
       /* Add space for breakline labels */
       result += properties->dotterWinCtx->dotterCtx->charHeight + (2 * ANNOTATION_LABEL_PADDING);
@@ -1920,7 +1941,7 @@ int getDotplotWidth(DotplotProperties *properties)
                DEFAULT_X_PADDING + 
                SCALE_LINE_WIDTH;
   
-  if (properties->breaklinesOn)
+  if (properties->breaklinesOn && properties->vertLabelsOn)
     {
       /* Add space for breakline labels */
       result += (properties->dotterWinCtx->dotterCtx->charWidth * ANNOTATION_LABEL_LEN) + 

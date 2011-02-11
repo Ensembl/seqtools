@@ -2329,6 +2329,37 @@ static gboolean onSlidingWinSizeChanged(GtkWidget *widget, const gint responseId
 }
 
 
+/* Callback called when the user has changed the 'breaklines on' option */
+static gboolean onSetBreaklinesOn(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  const gboolean breaklinesOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  dotplotSetBreaklinesOn(properties->dotplot, breaklinesOn);
+}
+
+/* Callback called when the user has changed the 'horizontal labels on' option */
+static gboolean onSetHozLabelsOn(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  const gboolean labelsOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  dotplotSetHozLabelsOn(properties->dotplot, labelsOn);
+}
+
+/* Callback called when the user has changed the 'vertical labels on' option */
+static gboolean onSetVertLabelsOn(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  const gboolean labelsOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  dotplotSetVertLabelsOn(properties->dotplot, labelsOn);
+}
+
+
 /* Create a text entry box initialised with the given double */
 static void createTextEntryFromDouble(GtkWidget *dotterWindow,
                                       GtkTable *table, 
@@ -2483,6 +2514,53 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
 }
 
 
+/* Create the display control widgets for the settings dialog */
+static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWindow, const int border)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = dwc->dotterCtx;
+  
+  /* Put everything in a vbox inside a frame */
+  GtkWidget *frame = gtk_frame_new("Display");
+  gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), frame);
+  gtk_container_set_border_width(GTK_CONTAINER(frame), border); 
+  
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(frame), vbox);
+  
+  /* Create a check box for toggling breaklines on and off. If breaklines are
+   * off at startup then it means that there are not multiple sequences, so
+   * the option is not applicable. */
+  DotplotProperties *dotplotProperties = dotplotGetProperties(properties->dotplot);
+  static int disableBreaklines = -1; /* -1 for unset; 0 for false; 1 for true */
+
+  if (disableBreaklines == -1)
+    disableBreaklines = !dotplotProperties->breaklinesOn;
+  
+  GtkWidget *breaklinesBtn = gtk_check_button_new_with_mnemonic("Show _breaklines");
+  gtk_container_add(GTK_CONTAINER(vbox), breaklinesBtn);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(breaklinesBtn), dotplotProperties->breaklinesOn);
+  
+  if (disableBreaklines)
+    gtk_widget_set_sensitive(breaklinesBtn, FALSE);
+  
+  widgetSetCallbackData(breaklinesBtn, onSetBreaklinesOn, dotterWindow);
+  
+  /* Add buttons to allow the user to turn off hoz/vert annotation labels */
+  GtkWidget *hozBtn = gtk_check_button_new_with_mnemonic("Show _horizontal sequence labels");
+  gtk_container_add(GTK_CONTAINER(vbox), hozBtn);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hozBtn), dotplotProperties->hozLabelsOn);
+  widgetSetCallbackData(hozBtn, onSetHozLabelsOn, dotterWindow);
+
+  GtkWidget *vertBtn = gtk_check_button_new_with_mnemonic("Show _vertical sequence labels");
+  gtk_container_add(GTK_CONTAINER(vbox), vertBtn);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(vertBtn), dotplotProperties->vertLabelsOn);
+  widgetSetCallbackData(vertBtn, onSetVertLabelsOn, dotterWindow);
+  
+}
+
+
 /* Pop up a dialog to allow the user to set the dotter parameters */
 static void showSettingsDialog(GtkWidget *dotterWindow)
 {
@@ -2520,6 +2598,7 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
   /* Create the contents */
   const int border = 12; /* border around individual sections */
   settingsDialogParamControls(dialog, dotterWindow, border);
+  settingsDialogDisplayControls(dialog, dotterWindow, border);
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   gtk_widget_show_all(dialog);
