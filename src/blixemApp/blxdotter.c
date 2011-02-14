@@ -81,7 +81,8 @@ typedef enum {
   BLX_DOTTER_ERROR_NO_EXE,            /* no dotter executable found */
   BLX_DOTTER_ERROR_PIPE,	      /* error opening pipe */
   BLX_DOTTER_ERROR_FORK,	      /* error forking process */
-  BLX_DOTTER_ERROR_NEGATED_COORD      /* warning that an original coord was not in range so we negated it */
+  BLX_DOTTER_ERROR_NEGATED_COORD,     /* warning that an original coord was not in range so we negated it */
+  BLX_DOTTER_ERROR_OUT_OF_RANGE       /* dotter coord was out of range */
 } BlxDotterError;
 
 
@@ -165,10 +166,11 @@ static gboolean boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError 
       else
         {
           ok = FALSE;
-          g_critical("Coord '%d' is outside reference sequence range [%d -> %d].\n", 
-                     *coordIn, 
-                     (negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min),
-                     (negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max));
+          g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_OUT_OF_RANGE,
+                      "Coord '%d' is outside reference sequence range [%d -> %d].\n", 
+                      *coordIn, 
+                      (negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min),
+                      (negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max));
         }
     }
   
@@ -194,7 +196,9 @@ static gboolean onSaveDotterStart(GtkWidget *entry, const gint responseId, gpoin
       int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
       GError *error = NULL;
       
-      if (boundsCheckDotterCoord(&newVal, bc, &error))
+      result = boundsCheckDotterCoord(&newVal, bc, &error);
+      
+      if (result)
         {
           bc->dotterStart = newVal;
           reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
@@ -223,7 +227,9 @@ static gboolean onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointe
 
       GError *error = NULL;
       
-      if (boundsCheckDotterCoord(&newVal, bc, &error))
+      result = boundsCheckDotterCoord(&newVal, bc, &error);
+      
+      if (result)
         {
           bc->dotterEnd = newVal;
           reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
@@ -240,16 +246,28 @@ static gboolean onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointe
 
 static gboolean onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpointer data)
 {
+  gboolean result = TRUE;
+  
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   
   /* Only save the parameter if we are using manual parameters */
   if (!blxContext->autoDotter)
     {
-      blxContext->dotterZoom = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      const int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+      
+      if (newVal < 0)
+        {
+          result = FALSE;
+          g_critical("Zoom must be greater than zero (or equal to zero to use auto zoom)");
+        }
+      else
+        {
+          blxContext->dotterZoom = newVal;
+        }
     }  
   
-  return TRUE;
+  return result;
 }
 
 
