@@ -413,15 +413,18 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 void calculateExonViewHeight(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
-  const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+
+  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+  const IntRange const *displayRange = &bpProperties->displayRange;
+  
+  BlxViewContext *bc = blxWindowGetContext(bpProperties->blxWindow);
 
   /* Calculate the height based on how many exon lines will actually be drawn */
   int numExons = 0;
   int maxExons = properties->expanded ? UNSET_INT : 1; /* unset means no limit */
   
   /* Loop through all sequences */
-  GList *seqItem = blxWindowGetAllMatchSeqs(bigPictureGetBlxWindow(properties->bigPicture));
+  GList *seqItem = bc->matchSeqs;
   
   for ( ; seqItem; seqItem = seqItem->next)
     {

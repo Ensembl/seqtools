@@ -256,18 +256,33 @@ void scrollDetailViewRightPage(GtkWidget *detailView)
 
 
 /* Calculate the number of bases that can be displayed in the sequence column */
-static int calcNumBasesInSequenceColumn(GtkWidget *detailView)
+static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
 {
+  int numChars = 0;
+  
   /* Find the width of the sequence column */
-  int colWidth = detailViewGetColumnWidth(detailView, BLXCOL_SEQUENCE);
+  int colWidth = UNSET_INT;
+  GList *listItem = properties->columnList;
   
-  /* Don't include the cell padding area */
-  GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
-  colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
+  for ( ; listItem; listItem = listItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      if (columnInfo && columnInfo->columnId == BLXCOL_SEQUENCE)
+        {
+          colWidth = columnInfo->width;
+          break;
+        }
+    }
   
-  /* Return the number of whole characters that fit in the column. */
-  gdouble charWidth = detailViewGetCharWidth(detailView);
-  int numChars = (int)((gdouble)colWidth / charWidth);
+  if (colWidth >= 0)
+    {
+      /* Don't include the cell padding area */
+      GtkCellRenderer *renderer = properties->renderer;
+      colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
+      
+      /* Return the number of whole characters that fit in the column. */
+      numChars = (int)((gdouble)colWidth / properties->charWidth);
+    }
   
   return numChars;
 }
@@ -279,22 +294,22 @@ static int calcNumBasesInSequenceColumn(GtkWidget *detailView)
  * in the new column width. */
 void updateDetailViewRange(GtkWidget *detailView)
 {
-  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
   
-  if (adjustment)
+  if (properties->adjustment)
     {
-      int newPageSize = calcNumBasesInSequenceColumn(detailView);
+      int newPageSize = calcNumBasesInSequenceColumn(properties);
       
       /* Only trigger updates if things have actually changed */
-      if (newPageSize != adjustment->page_size)
+      if (newPageSize != properties->adjustment->page_size)
 	{
-	  adjustment->page_size = newPageSize;
-	  adjustment->page_increment = newPageSize;
+	  properties->adjustment->page_size = newPageSize;
+	  properties->adjustment->page_increment = newPageSize;
 	  
 	  /* Reset the display range so that it is between the scrollbar min and max. Try to keep
 	   * it centred on the same base. The base index is in terms of the display range coords, 
 	   * so the sequence type of the coord is whatever the display sequence type is. */
-	  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+	  const IntRange const *displayRange = &properties->displayRange;
 
 	  /* First time through, both coords are set to the initial start coord. So, if
 	   * they are the same, just use that coord as the start coord */
@@ -303,14 +318,14 @@ void updateDetailViewRange(GtkWidget *detailView)
 	  if (displayRange->min != displayRange->max)
 	    {
 	      int centre = getRangeCentre(displayRange);
-	      int offset = roundNearest((double)adjustment->page_size / 2.0);
+	      int offset = roundNearest((double)properties->adjustment->page_size / 2.0);
 	      newStart = centre - offset;
 	    }
 	      
-	  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+	  const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow);
 	  setDetailViewStartIdx(detailView, newStart, seqType);
 	  
-	  gtk_adjustment_changed(adjustment); /* signal that the scroll range has changed */
+	  gtk_adjustment_changed(properties->adjustment); /* signal that the scroll range has changed */
 	}
     }
 }
@@ -2196,7 +2211,9 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
   int newEnd = adjustment->value + adjustment->page_size - 1;
 
   /* Only update if something has changed */
-  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  IntRange *displayRange = &properties->displayRange;
+  
   if (displayRange->min != newStart || displayRange->max != newEnd)
     {
       displayRange->min = newStart;
@@ -2212,7 +2229,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       gtk_widget_queue_draw(detailView);
 
       /* Update the big picture because the highlight box has moved */
-      GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
+      GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
       refreshBigPictureDisplayRange(bigPicture, TRUE);
     }
 }

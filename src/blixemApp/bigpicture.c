@@ -135,11 +135,10 @@ static int roundToValueFromList(const int inputVal, GSList *roundValues, int *ro
 
 /* This function calculates the cell size and number of cells for the big picture grids.
  * It should be called whenever the big picture is resized or its display range changes. */
-static void calculateBigPictureCellSize(GtkWidget *bigPicture)
+static void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *properties)
 {
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  GtkWidget *header = bigPictureGetGridHeader(bigPicture);
+  BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+  GtkWidget *header = properties->header;
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   
   /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
@@ -379,13 +378,13 @@ static void boundRange(IntRange *range, IntRange *bounds)
 /* Set the display range for the big picture, based on the given width (i.e. number of
  * bases wide). Keeps the display centred on the same range that is shown in the detail view.
  * If recalcHighlightBox is true, the highlight box borders are recalculated. */
-static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gboolean recalcHighlightBox)
+static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPictureProperties *properties, int width, const gboolean recalcHighlightBox)
 {
-  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
-
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
   IntRange *detailViewRange = detailViewGetDisplayRange(detailView);
-  IntRange *fullRange = bigPictureGetFullRange(bigPicture);
+
+  IntRange *displayRange = &properties->displayRange;
+  IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow);
   
   int detailViewWidth = detailViewRange->max - detailViewRange->min;
   int maxWidth = fullRange->max - fullRange->min;
@@ -422,12 +421,12 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
     }
   
   /* Recalculate the grid cell size */
-  calculateBigPictureCellSize(bigPicture);
+  calculateBigPictureCellSize(bigPicture, properties);
 
   /* Recalculate the exon view height, because it may have changed with more/less
    * exons being scrolled into view */
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  calculateExonViewHeight(properties->fwdExonView);
+  calculateExonViewHeight(properties->revExonView);
   
   /* Since we're keeping the highlight box centred, it should stay in the same place
    * if we're just scrolling. We therefore only need to recalculate its position if
@@ -454,8 +453,10 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, int width, const gb
  * is true, the highlight box has changed size, and its boundaries need to be recalculated. */
 void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcHighlightBox)
 {
-  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  IntRange *displayRange = &properties->displayRange;
+  
+  GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
   IntRange *detailViewRange = detailViewGetDisplayRange(detailView);
   
   if (displayRange->min == UNSET_INT && displayRange->max == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
@@ -463,19 +464,19 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcH
       /* This is the first time we've refreshed the detail view range. Set the
        * initial big picture range width to be a ratio of the detail view range width. */
       const int width = (detailViewRange->max - detailViewRange->min) * bigPictureGetInitialZoom(bigPicture);
-      setBigPictureDisplayWidth(bigPicture, width, recalcHighlightBox);
+      setBigPictureDisplayWidth(bigPicture, properties, width, recalcHighlightBox);
     }
   else
     {
       /* Call set-width (but just use the existing width) to force the required updates. */
       const int width = displayRange->max - displayRange->min;
-      setBigPictureDisplayWidth(bigPicture, width, recalcHighlightBox);
+      setBigPictureDisplayWidth(bigPicture, properties, width, recalcHighlightBox);
     }
 
   /* Recalculate the exon view height, because it may have changed with more/less
    * exons being scrolled into view */
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  calculateExonViewHeight(properties->fwdExonView);
+  calculateExonViewHeight(properties->revExonView);
 }
 
 
@@ -534,7 +535,8 @@ int getRightCoordFromCentre(const int centreCoord, const int width, const GdkRec
 /* Zoom the big picture in/out. Just halves or doubles the current display range. */
 void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
 {
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  IntRange *displayRange = &properties->displayRange;
   int newWidth = UNSET_INT;
   
   if (zoomIn)
@@ -546,20 +548,21 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
       newWidth = (displayRange->max - displayRange->min) * 2;
     }
 
-  setBigPictureDisplayWidth(bigPicture, newWidth, TRUE);
+  setBigPictureDisplayWidth(bigPicture, properties, newWidth, TRUE);
 }
 
 
 /* Zoom the big picture out to view the whole reference sequence */
 void zoomWholeBigPicture(GtkWidget *bigPicture)
 {
-  IntRange *displayRange = bigPictureGetDisplayRange(bigPicture);
-  IntRange *fullRange = bigPictureGetFullRange(bigPicture);
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  IntRange *displayRange = &properties->displayRange;
+  IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow);
   
   /* Check we're not already showing the whole range */
   if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
     {
-      setBigPictureDisplayWidth(bigPicture, fullRange->max - fullRange->min, TRUE);
+      setBigPictureDisplayWidth(bigPicture, properties, fullRange->max - fullRange->min, TRUE);
     }
 }
 
