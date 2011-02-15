@@ -185,6 +185,9 @@ void			detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColu
 
 void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 
+int                     scrollBarWidth();
+void                    updateDynamicColumnWidths(GtkWidget *detailView);
+
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
                                                      const int selectedBaseIdx, 
                                                      const int frame, 

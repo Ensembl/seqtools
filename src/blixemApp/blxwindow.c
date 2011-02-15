@@ -2669,8 +2669,7 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gp
           columnInfo->width = newWidth;
 
           GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-          callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
-          resizeDetailViewHeaders(detailView);
+          updateDynamicColumnWidths(detailView);
         }
     }
   
@@ -2688,9 +2687,8 @@ static gboolean onColumnVisibilityChanged(GtkWidget *button, const gint response
   
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
-  resizeDetailViewHeaders(detailView);
+
+  updateDynamicColumnWidths(detailView);
   
   return result;
 }
@@ -2752,8 +2750,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
       /* Re-sort the trees, because the new data may affect the sort order. Also
        * resize them, because whether data is loaded affects whether columns are shown. */
       callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
-      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
-      resizeDetailViewHeaders(detailView);
+      updateDynamicColumnWidths(detailView);
       detailViewRedrawAll(detailView);
     }
 }
@@ -5306,8 +5303,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
    * the big picture range to be set. The widgets must be realised before this because
    * the initial big picture range depends on the detail view range, which is calculated
    * from its window's width, and this will be incorrect if it has not been realised.) */
-  callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
-  resizeDetailViewHeaders(detailView);
-
+  updateDynamicColumnWidths(detailView);
+  
   return window;
 }

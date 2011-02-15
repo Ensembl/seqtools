@@ -121,6 +121,31 @@ static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite
  *		       Utility functions                   *
  ***********************************************************/
 
+/* Utility function to calculate the width of a vertical scrollbar */
+int scrollBarWidth()
+{
+  static int result = UNSET_INT;
+  
+  if (result == UNSET_INT)
+    {
+      /* Create a temp scrollbar and find the default width from the style properties. */
+      GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
+      
+      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
+      gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
+      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
+      gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
+      gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
+      
+      gtk_widget_destroy(scrollbar);
+      
+      result = sliderWidth + separatorWidth*2 + troughBorder*2 + stepperSpacing*2 + 4; /* to do: find out why the extra fudge factor is needed here */
+    }
+  
+  return result;
+}
+
+
 void detailViewRedrawAll(GtkWidget *detailView)
 {
   /* Redraw all the trees */
@@ -3155,6 +3180,47 @@ static gboolean onMouseMoveSeqColHeader(GtkWidget *header, GdkEventMotion *event
 }
 
 
+/* Updates the widths of any dynamic-sized columns (really they are fixed-width
+ * columns so we update their widths manually here). */
+void updateDynamicColumnWidths(GtkWidget *detailView)
+{
+  /* Currently, only the sequence column has dynamic width, so just sum all of the
+   * other (visible) column widths and subtract from the allocation width. */
+  int width = detailView->allocation.width;
+  DetailViewColumnInfo *seqColInfo = NULL;
+  
+  GList *listItem = detailViewGetColumnList(detailView);
+  for ( ; listItem; listItem = listItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      
+      if (columnInfo->columnId == BLXCOL_SEQUENCE)
+        seqColInfo = columnInfo;
+      else if (columnInfo->visible)
+        width -= columnInfo->width;
+    }
+      
+  width += scrollBarWidth();
+  
+  if (seqColInfo && seqColInfo->width != width)
+    {
+      seqColInfo->width = width;
+  
+      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
+      resizeDetailViewHeaders(detailView);
+
+      updateDetailViewRange(detailView);
+    }
+}
+
+
+/* Callback called when the size of the detail view has changed. */
+static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *allocation, gpointer data)
+{
+
+  updateDynamicColumnWidths(detailView);
+}
+
 /***********************************************************
  *                     Callbacks                           *
  ***********************************************************/
@@ -4244,6 +4310,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   g_signal_connect(G_OBJECT(detailView), "button-press-event", G_CALLBACK(onButtonPressDetailView), NULL);
   g_signal_connect(G_OBJECT(detailView), "button-release-event", G_CALLBACK(onButtonReleaseDetailView), NULL);
   g_signal_connect(G_OBJECT(detailView), "motion-notify-event", G_CALLBACK(onMouseMoveDetailView), NULL);
+//  g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
 
   detailViewCreateProperties(detailView, 
 			     blxWindow, 

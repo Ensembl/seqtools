@@ -53,7 +53,6 @@ static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkT
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const BlxColumnId columnId);
-static int		scrollBarWidth();
 static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq);
 static BlxSequence*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
@@ -570,7 +569,7 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
 
       /* We don't set the width of the sequence column - this is an autosize column, so it will 
        * be updated dynamically when any of the other columns change. */
-      if (columnInfo->columnId != BLXCOL_SEQUENCE)
+//      if (columnInfo->columnId != BLXCOL_SEQUENCE)
 	{
 	  GtkTreeViewColumn *treeColumn = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), columnInfo->columnId);
       
@@ -1962,52 +1961,17 @@ static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer
 }
 
 
-/* Utility function to calculate the width of a vertical scrollbar */
-static int scrollBarWidth()
-{
-  static int result = UNSET_INT;
-  
-  if (result == UNSET_INT)
-    {
-      /* Create a temp scrollbar and find the default width from the style properties. */
-      GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
-      
-      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
-      gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
-      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
-      gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
-      gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
-      
-      gtk_widget_destroy(scrollbar);
-
-      result = sliderWidth + separatorWidth*2 + troughBorder*2 + stepperSpacing*2 + 4; /* to do: find out why the extra fudge factor is needed here */
-    }
-  
-  return result;
-}
-
-
 /* Callback called when the width of the sequence column has changed. */
 static void onSeqColWidthChanged(GtkTreeViewColumn *column, GParamSpec *paramSpec, gpointer data)
 {
-  GtkWidget *tree = GTK_WIDGET(data);
-  GtkWidget *detailView = treeGetDetailView(tree);
-
-  GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, treeGetStrand(tree), treeGetFrame(tree));
-  
-  if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer))
-    {
-  
-      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
-      columnInfo->width = gtk_tree_view_column_get_width(column);
-      
-      updateDetailViewRange(treeGetDetailView(tree));
-    }
+  GtkWidget *detailView = GTK_WIDGET(data);
+  updateDynamicColumnWidths(detailView);
 }
 
 
 /* Create a single column in the tree. */
 static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree, 
+                                           GtkWidget *detailView,
                                            GtkCellRenderer *renderer, 
                                            DetailViewColumnInfo *columnInfo)
 {
@@ -2029,7 +1993,7 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
   
   if (columnInfo->columnId == BLXCOL_SEQUENCE)
     {
-      g_signal_connect(G_OBJECT(column), "notify::width", G_CALLBACK(onSeqColWidthChanged), tree);
+      g_signal_connect(G_OBJECT(column), "notify::width", G_CALLBACK(onSeqColWidthChanged), detailView);
     }
   
   /* Set the column properties and add the column to the tree */
@@ -2418,7 +2382,7 @@ static GList* createTreeColumns(GtkWidget *tree,
       
       if (columnInfo)
 	{
-	  GtkTreeViewColumn *treeColumn = createTreeColumn(tree, renderer, columnInfo);
+	  GtkTreeViewColumn *treeColumn = createTreeColumn(tree, detailView, renderer, columnInfo);
           
 	  TreeColumnHeaderInfo* headerInfo = createTreeColHeader(&treeColumns, 
                                                                  treeColumn, 
