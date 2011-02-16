@@ -1528,7 +1528,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   MSP **ptrToUpdate = NULL;
   int newStart = UNSET_INT;
   int newEnd = UNSET_INT;
-  int newPhase = 0;
+  int newFrame = 0;
   BlxStyle *newStyle = NULL;
   char *qname = NULL;
   
@@ -1542,7 +1542,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = min((*cds)->qRange.min, (*utr)->qRange.min);
           newEnd = max((*cds)->qRange.max, (*utr)->qRange.max);
-          newPhase = (*cds)->phase;
+          newFrame = (*cds)->qFrame;
           newStyle = (*cds)->style;
           qname = (*cds)->qname ? (*cds)->qname : (*utr)->qname;
         }
@@ -1550,7 +1550,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*cds)->qRange.min;
           newEnd = (*cds)->qRange.max;
-          newPhase = (*cds)->phase;
+          newFrame = (*cds)->qFrame;
           newStyle = (*cds)->style;
           qname = (*cds)->qname;
         }
@@ -1558,7 +1558,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         {
           newStart = (*utr)->qRange.min;
           newEnd = (*utr)->qRange.max;
-          newPhase = (*utr)->phase;
+          newFrame = (*utr)->qFrame;
           newStyle = (*utr)->style;
           qname = (*utr)->qname;
         }
@@ -1569,7 +1569,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       newType = BLXMSP_CDS;
       newStyle = (*exon)->style;
       qname = (*exon)->qname ? (*exon)->qname : (*utr)->qname;
-      newPhase = (*exon)->phase;
+      newFrame = (*exon)->qFrame;
       
       /* The cds is the range of the exon that is not in the utr */
       if ((*utr)->qRange.max < (*exon)->qRange.max)
@@ -1587,7 +1587,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
     {
       ptrToUpdate = utr;
       newType = BLXMSP_UTR;
-      newPhase = (*cds)->phase;
+      newFrame = (*cds)->qFrame;
       newStyle = (*cds)->style;
       qname = (*cds)->qname ? (*cds)->qname : (*exon)->qname;
       
@@ -1608,7 +1608,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       /* We just have an exon. Assume it is all utr. */
       newStart = (*exon)->qRange.min;
       newEnd = (*exon)->qRange.max;
-      newPhase = 0;
+      newFrame = (*exon)->qFrame;
       newStyle = (*exon)->style;
       newType = BLXMSP_UTR;
       qname = (*exon)->qname;
@@ -1622,8 +1622,8 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, UNSET_INT, UNSET_INT, newPhase, NULL, blxSeq->idTag,
-                                  qname, newStart, newEnd, blxSeq->strand, UNSET_INT, blxSeq->fullName,
+      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
+                                  qname, newStart, newEnd, blxSeq->strand, newFrame, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
       
       (*ptrToUpdate)->style = newStyle;
@@ -1718,7 +1718,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], 
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
                   createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, curExon->source, 
-                               curExon->score, curExon->id, curExon->phase, g_strdup(curExon->url), blxSeq->idTag, 
+                               curExon->score, curExon->id, 0, g_strdup(curExon->url), blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
                   
