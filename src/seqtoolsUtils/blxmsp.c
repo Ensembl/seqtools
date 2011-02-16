@@ -1524,7 +1524,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
                                     BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
                                     GError **error)
 {
-  BlxMspType newType = BLXMSP_INVALID;
+  BlxMspType newType = BLXMSP_INVALID; /* only set this if we need to construct an MSP */
   MSP **ptrToUpdate = NULL;
   int newStart = UNSET_INT;
   int newEnd = UNSET_INT;
@@ -1535,7 +1535,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   if (!*exon && (*cds || *utr))
     {
       ptrToUpdate = exon;
-      newType = BLXMSP_EXON;
+      newType = BLXMSP_EXON; /* always create something */
       
       /* The exon spans both the cds and utr */
       if (*cds && *utr)
@@ -1566,7 +1566,6 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   else if (!*cds && *exon && *utr)
     {
       ptrToUpdate = cds;
-      newType = BLXMSP_CDS;
       newStyle = (*exon)->style;
       qname = (*exon)->qname ? (*exon)->qname : (*utr)->qname;
       newFrame = (*exon)->qFrame;
@@ -1574,11 +1573,13 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       /* The cds is the range of the exon that is not in the utr */
       if ((*utr)->qRange.max < (*exon)->qRange.max)
         {
+          newType = BLXMSP_CDS;
           newStart = (*utr)->qRange.max + 1;
           newEnd = (*exon)->qRange.max;
         }
       else if ((*exon)->qRange.min < (*utr)->qRange.min)
         {
+          newType = BLXMSP_CDS;
           newStart = (*exon)->qRange.min;
           newEnd = (*utr)->qRange.min - 1;
         }
@@ -1586,7 +1587,6 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   else if (!*utr && *exon && *cds)
     {
       ptrToUpdate = utr;
-      newType = BLXMSP_UTR;
       newFrame = (*cds)->qFrame;
       newStyle = (*cds)->style;
       qname = (*cds)->qname ? (*cds)->qname : (*exon)->qname;
@@ -1594,11 +1594,13 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       /* The utr is the range of the exon that is not in the cds */
       if ((*exon)->qRange.min < (*cds)->qRange.min)
         {
+          newType = BLXMSP_UTR;
           newStart = (*exon)->qRange.min;
           newEnd = (*cds)->qRange.min - 1;
         }
       else if ((*cds)->qRange.max < (*exon)->qRange.max)
         {
+          newType = BLXMSP_UTR;
           newStart = (*cds)->qRange.max + 1;
           newEnd = (*exon)->qRange.max;
         }
@@ -1606,11 +1608,11 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
   else if (*exon)
     {
       /* We just have an exon. Assume it is all utr. */
+      newType = BLXMSP_UTR;
       newStart = (*exon)->qRange.min;
       newEnd = (*exon)->qRange.max;
       newFrame = (*exon)->qFrame;
       newStyle = (*exon)->style;
-      newType = BLXMSP_UTR;
       qname = (*exon)->qname;
       ptrToUpdate = utr;
     }
