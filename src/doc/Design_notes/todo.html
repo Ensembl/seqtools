@@ -13,6 +13,7 @@
       <li>Feature-series: this functionality was disabled when Blixem and Dotter were re-written at version 4. We should consider whether this is still a useful feature and, if so, whether to use the original SFS file format or to switch to GFF.  The SFS file format is documented here: http://sfixem.sbc.su.se/SFS_desc.html
       <li>Multiple row selections: using the up/down arrow keys to move the row selection doesn't always work if there are adjacent rows from the same match sequence.
       <li>Dotter does not display dots in a sliding-window sized margin at edges of the dot-plot, even if bases are exactly aligned. This is confusing to the users so the dot-plot should be clipped so as not to show the space where the dots cannot be calculated.
+      <li>There is a bug in Dotter where the dot-plot can appear blacked-out if the plot is very wide and you zoom in (say to about half of the default compression factor).
       <li>DNA search: this currently just jumps to the start of the DNA section that was found; we should also highlight the found DNA in the reference sequence.
       <li>Printing: the pfetch window should have a print option.
     </ul>
