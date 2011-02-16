@@ -116,7 +116,7 @@ static void			  drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, 
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
-{ "Close",        NULL, "_Close tool\t\t\tCtrl-C",  NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
+{ "Close",        NULL, "_Close tool\t\t\tCtrl-W",  NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
 { "Print",        NULL, "_Print...\t\t\t\tCtrl-P",  NULL,	"Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
 { "SetLength",    NULL, "_Set alignment length",    NULL,	"Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
 { "CopyHCoord",   NULL, "Copy _horizontal coord",   NULL,	"Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
