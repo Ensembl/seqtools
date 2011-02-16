@@ -61,7 +61,7 @@ static void                       onCloseMenu(GtkAction *action, gpointer data);
 
 /* Menu builders */
 static const GtkActionEntry greyrampToolMenuEntries[] = {
-{ "Close",        NULL, "_Close tool",              NULL,	"Close the greyramp tool",             G_CALLBACK(onCloseMenu)},
+{ "Close",        NULL, "_Close tool\tCtrl-W",              NULL,	"Close the greyramp tool",             G_CALLBACK(onCloseMenu)},
 };
 
 /* This defines the layout of the menu */
