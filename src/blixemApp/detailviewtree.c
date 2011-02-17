@@ -295,9 +295,9 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 			     BLXCOL_GROUP, NULL,
 			     BLXCOL_SCORE, 0.0,
 			     BLXCOL_ID, 0.0,
-			     BLXCOL_START, blxSequenceGetStart(blxSeq),
+			     BLXCOL_START, blxSequenceGetStart(blxSeq, treeStrand),
 			     BLXCOL_SEQUENCE, mspsToAdd,
-			     BLXCOL_END, blxSequenceGetEnd(blxSeq),
+			     BLXCOL_END, blxSequenceGetEnd(blxSeq, treeStrand),
 			     -1);
 	}
     }
@@ -2510,8 +2510,8 @@ static gint sortByStartCompareFuncMultiple(GList *mspList1, GList *mspList2, con
 
   const gboolean displayRev = treeGetDisplayRev(tree);
 
-  const int coord1 = findMspListQExtent(mspList1, !displayRev); /* find min coord unless display rev */
-  const int coord2 = findMspListQExtent(mspList2, !displayRev);
+  const int coord1 = findMspListQExtent(mspList1, !displayRev, BLXSTRAND_NONE); /* find min coord unless display rev */
+  const int coord2 = findMspListQExtent(mspList2, !displayRev, BLXSTRAND_NONE);
 
   result = coord1 - coord2;
 

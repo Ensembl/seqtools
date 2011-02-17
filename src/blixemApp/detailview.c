@@ -1424,8 +1424,8 @@ static void mspGetSpliceSiteCoords(const MSP const *msp,
   const gboolean revStrand = (mspGetRefStrand(msp) != BLXSTRAND_FORWARD);
   
   /* Ignore the termini (i.e. 5' end of first exon and 3' end of last exon) */
-  const gboolean getMin = (msp->sSequence && msp->qRange.min != msp->sSequence->qRange.min);
-  const gboolean getMax = (msp->sSequence && msp->qRange.max != msp->sSequence->qRange.max);
+  const gboolean getMin = (msp->sSequence && msp->qRange.min != blxSequenceGetStart(msp->sSequence, msp->qStrand));
+  const gboolean getMax = (msp->sSequence && msp->qRange.max != blxSequenceGetEnd(msp->sSequence, msp->qStrand));
   
   /* See if the min coord is within the given range */
   if (getMin && valueWithinRange(msp->qRange.min, qRange) && msp->qRange.min >= bc->refSeqRange.min + 2)

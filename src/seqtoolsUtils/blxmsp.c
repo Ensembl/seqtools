@@ -755,16 +755,19 @@ int blxSequenceGetLength(const BlxSequence *seq)
   return (seq && seq->sequence ? seq->sequence->len : 0);
 }
 
-/* Get the start extent of the sequence on the ref sequence */
-int blxSequenceGetStart(const BlxSequence *seq)
+/* Get the start extent of the alignments from this match sequence on the
+ * given reference sequence strand */
+int blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand)
 {
-  return seq->qRange.min;
+  g_assert(strand == BLXSTRAND_FORWARD || strand == BLXSTRAND_REVERSE);
+  return (strand == BLXSTRAND_FORWARD ? seq->qRangeFwd.min : seq->qRangeRev.min);
 }
 
 /* Get the end extend of the sequence on the ref sequence */
-int blxSequenceGetEnd(const BlxSequence *seq)
+int blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand)
 {
-  return seq->qRange.max;
+  g_assert(strand == BLXSTRAND_FORWARD || strand == BLXSTRAND_REVERSE);
+  return (strand == BLXSTRAND_FORWARD ? seq->qRangeFwd.max : seq->qRangeRev.max);
 }
 
 /* Get the sequence data for the given blxsequence */
@@ -1683,7 +1686,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], 
           
           if (msp && 
               ((prevMsp && mspIsExon(prevMsp) && !rangesOverlap(&prevMsp->qRange, &msp->qRange)) ||
-               (!prevMsp && blxSeq->qRange.min < msp->qRange.min)))
+               (!prevMsp && blxSequenceGetStart(blxSeq, blxSeq->strand) < msp->qRange.min)))
             {
               foundGap = TRUE;
             }
@@ -1704,17 +1707,19 @@ static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], 
                   newRange.min = prevExon->qRange.max + 1;
                   newRange.max = curExon->qRange.min - 1;
                 }
-              else if (!prevExon && curExon && blxSeq->qRange.min < curExon->qRange.min && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
+              else if (!prevExon && curExon && blxSequenceGetStart(blxSeq, blxSeq->strand) < curExon->qRange.min && 
+		       !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the start */
-                  newRange.min = blxSeq->qRange.min;
+                  newRange.min = blxSequenceGetStart(blxSeq, blxSeq->strand);
                   newRange.max = curExon->qRange.min - 1;
                 }
-              else if (msp == NULL && curExon && blxSeq->qRange.max > curExon->qRange.max && !mspIsIntron(prevMsp))
+              else if (msp == NULL && curExon && blxSequenceGetEnd(blxSeq, blxSeq->strand) > curExon->qRange.max &&
+		       !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the end */
                   newRange.min = curExon->qRange.max + 1;
-                  newRange.max = blxSeq->qRange.max;
+                  newRange.max = blxSequenceGetEnd(blxSeq, blxSeq->strand);
                 }
               
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
@@ -1788,8 +1793,10 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
  * of the first/last MSP in the sequence */
 static void findSequenceExtents(BlxSequence *blxSeq)
 {
-  blxSeq->qRange.min = findMspListQExtent(blxSeq->mspList, TRUE);
-  blxSeq->qRange.max = findMspListQExtent(blxSeq->mspList, FALSE);
+  blxSeq->qRangeFwd.min = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_FORWARD);
+  blxSeq->qRangeFwd.max = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_FORWARD);
+  blxSeq->qRangeRev.min = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_REVERSE);
+  blxSeq->qRangeRev.max = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_REVERSE);
 }
 
 
@@ -1830,8 +1837,9 @@ void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList,
 }
 
 
-/* Given a list of msps, find the min or max q coords, according to the given flag. */
-int findMspListQExtent(GList *mspList, const gboolean findMin)
+/* Given a list of msps, find the min or max q coords (according to the given flag)
+ * for msps on the given q strand (or on both strands if strand is BLXSTRAND_NONE. */
+int findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand)
 {
   int result = UNSET_INT;
   gboolean first = TRUE;
@@ -1841,19 +1849,22 @@ int findMspListQExtent(GList *mspList, const gboolean findMin)
   for ( ; mspItem; mspItem = mspItem->next)
     {
       const MSP const *msp = (const MSP const*)(mspItem->data);
-      
-      if (first)
-	{
-	  result = findMin ? msp->qRange.min : msp->qRange.max;
-	  first = FALSE;
-	}
-      else if (findMin && msp->qRange.min < result)
-	{
-	  result = msp->qRange.min;
-	}
-      else if (!findMin && msp->qRange.max > result)
-	{
-	  result = msp->qRange.max;
+    
+      if (msp->qStrand == strand || strand == BLXSTRAND_NONE)
+	{      
+	  if (first)
+	    {
+	      result = findMin ? msp->qRange.min : msp->qRange.max;
+	      first = FALSE;
+	    }
+	  else if (findMin && msp->qRange.min < result)
+	    {
+	      result = msp->qRange.min;
+	    }
+	  else if (!findMin && msp->qRange.max > result)
+	    {
+	      result = msp->qRange.max;
+	    }
 	}
     }
   

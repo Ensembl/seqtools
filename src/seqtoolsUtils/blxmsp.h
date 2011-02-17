@@ -125,7 +125,8 @@ typedef struct _BlxSequence
   BlxStrand strand;                /* which strand of the sequence this is */
   GString *sequence;               /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
-  IntRange qRange;		   /* the extent of the sequence on the ref sequence */ 
+  IntRange qRangeFwd;		   /* the extent of alignments from this sequence on the ref sequence forward strand */ 
+  IntRange qRangeRev;		   /* the extent of alignments from this sequence on the ref sequence reverse strand */ 
   
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
@@ -262,7 +263,7 @@ MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **m
 
 void                  finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, const int offset);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
-int                   findMspListQExtent(GList *mspList, const gboolean findMin);
+int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
 /* Feature series */
 gint		      fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
@@ -285,8 +286,8 @@ gboolean	      blxSequenceRequiresSeqData(const BlxSequence *seq);
 gboolean	      blxSequenceRequiresOptionalData(const BlxSequence *seq);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
 char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
-int		      blxSequenceGetStart(const BlxSequence *seq);
-int		      blxSequenceGetEnd(const BlxSequence *seq);
+int		      blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
+int		      blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
 
 void		      destroyBlxSequence(BlxSequence *seq);
 
