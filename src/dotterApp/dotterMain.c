@@ -173,37 +173,40 @@ static void strNamecpy(char *dest, char *src)
 
 static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const int sFrame)
 {
-   MSP   
-       *msp;
-   char 
-       *cp;
+  MSP *msp = NULL;
+  MSP *lastMsp = NULL;
+  char *cp = NULL;
 
-   if (!*MSPlist) {
-       *MSPlist = (MSP *)g_malloc(sizeof(MSP));
-       msp = *MSPlist;
-   }
-   else {
-     msp = *MSPlist;
-     while(msp->next) msp = msp->next;
-     msp->next = (MSP *)g_malloc(sizeof(MSP));
-     msp = msp->next;
-   }
+  if (!*MSPlist) 
+    {
+      /* Create the first msp in the list */
+      msp = createEmptyMsp(&lastMsp, MSPlist);
+    }
+   else
+    {
+      /* Append a new msp to the end of the list */
+      MSP *lastMsp = *MSPlist;
+      while(lastMsp->next) 
+	lastMsp = lastMsp->next;
 
-   msp->qname = g_malloc(strlen(name)+1);
-   strcpy(msp->qname, name);
+      msp = createEmptyMsp(&lastMsp, MSPlist);
+    }
 
-   msp->desc = g_malloc(strlen(desc)+1);
-   strcpy(msp->desc, desc);
-   if ((cp = (char *)strchr(msp->desc, ' ')))
-     *cp = 0;
-   if ((cp = (char *)strchr(msp->desc, '\n')))
-     *cp = 0;
+  msp->qname = g_malloc(strlen(name)+1);
+  strcpy(msp->qname, name);
 
-   msp->qRange.min = msp->qRange.max = pos;
+  msp->desc = g_malloc(strlen(desc)+1);
+  strcpy(msp->desc, desc);
+  if ((cp = (char *)strchr(msp->desc, ' ')))
+    *cp = 0;
+  if ((cp = (char *)strchr(msp->desc, '\n')))
+    *cp = 0;
+
+  msp->qRange.min = msp->qRange.max = pos;
 //   msp->sFrame = sFrame;
-   msp->fsColor = 0;
-   msp->type = BLXMSP_FS_SEG;
-   msp->score = 100.0;
+  msp->fsColor = 0;
+  msp->type = BLXMSP_FS_SEG;
+  msp->score = 100.0;
 //   insertFS(msp, "chain_separator");
 }		      
 
@@ -266,7 +269,6 @@ static char* getXOptions(char **argv, const int argc, const int idx)
 int main(int argc, char **argv)
 {
   DEBUG_OUT("dotter main\n");
-  
   DotterOptions options;
   setDefaultOptions(&options);
   
@@ -520,6 +522,7 @@ int main(int argc, char **argv)
       }
     else
       {
+
         /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
          * optional, so we should have 2 or 3 arguments */
         if (argc - optind < 2 || argc - optind > 3) 
@@ -527,7 +530,7 @@ int main(int argc, char **argv)
 	    showUsageText();
             exit(EXIT_FAILURE);
           }
-      
+
         options.xOptions = getXOptions(argv, argc, optind + 2);
         
 	if(!(qfile = fopen(argv[optind], "r"))) 
@@ -571,7 +574,7 @@ int main(int argc, char **argv)
         /* Allocate memory for the sequences, now we know their lengths */
         options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
         options.sseq = g_malloc(sizeof(char) * (options.slen+1));
-        
+
 	/* Read in the sequences */
 	int l = 0, count = 0;
 	cc = options.qseq;
@@ -591,18 +594,22 @@ int main(int argc, char **argv)
             /* Name headers */
             if ((cq = (char *)strchr(line, '>'))) 
               {
+
                 cq++;
                 if (++l == 1) 
                   {
+
                     options.qname = g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
                     firstdesc = g_malloc(strlen(cq)+1);
                     strcpy(firstdesc, cq);
                   }
                 else
                   {
+
                   /* Multiple sequences - add break lines */
                     if (l == 2) 
                       {
+
                         options.breaklinesOn = TRUE;
 
                         /* Second sequence - add break line to mark first sequence */
@@ -617,6 +624,7 @@ int main(int argc, char **argv)
               }
             else 
               {
+
                 for (cq = line; *cq; cq++) if (isalpha(*cq)) 
                   {
                     *cc++ = *cq;
@@ -624,7 +632,7 @@ int main(int argc, char **argv)
                   }
               }
           }
-      
+
 	*cc = 0;
 	
 	l = 0, count = 0;
