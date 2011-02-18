@@ -2751,6 +2751,14 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
        * resize them, because whether data is loaded affects whether columns are shown. */
       callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
       updateDynamicColumnWidths(detailView);
+
+      /* Force a of resize the tree columns (updateDynamicColumnWidths won't resize them
+       * because the widths and visibility-flags haven't actually changed, but visibility
+       * IS affected because we've now loaded the data) */
+      callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
+      resizeDetailViewHeaders(detailView);
+      updateDetailViewRange(detailView);
+      
       detailViewRedrawAll(detailView);
     }
 }

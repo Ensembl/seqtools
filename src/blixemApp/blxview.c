@@ -437,22 +437,25 @@ gboolean fetchSequences(GList *seqsToFetch,
     }
     
   
-  /* Once we've fetched all the sequences we need to do some post-processing. Loop 
-   * twice: once to modify any fields in our own custom manner, and once more to
-   * see if any with missing data can copy it from their parent. (Need to do these in
-   * separate loops or we don't know if the data we're copying is processed or not.) */
-  GList *seqItem = seqList;
-  for ( ; seqItem; seqItem = seqItem->next)
+  if (parseOptionalData)
     {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      processGeneName(blxSeq);
-      processOrganism(blxSeq);
-    }
+      /* Once we've fetched all the sequences we need to do some post-processing. Loop 
+       * twice: once to modify any fields in our own custom manner, and once more to
+       * see if any with missing data can copy it from their parent. (Need to do these in
+       * separate loops or we don't know if the data we're copying is processed or not.) */
+      GList *seqItem = seqList;
+      for ( ; seqItem; seqItem = seqItem->next)
+        {
+          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+          processGeneName(blxSeq);
+          processOrganism(blxSeq);
+        }
 
-  for ( ; seqItem; seqItem = seqItem->next)
-    {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      populateMissingDataFromParent(blxSeq, seqList);
+      for (seqItem = seqList; seqItem; seqItem = seqItem->next)
+        {
+          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+          populateMissingDataFromParent(blxSeq, seqList);
+        }
     }
   
   return success;
