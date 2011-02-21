@@ -1681,11 +1681,11 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 
       if (maxLen > 2)
 	{
-	  /* Ignore any text before the colon (if there is one) */
-	  const char *name = strchr(mspGetSName(msp), ':');
-	  if (name)
+	  /* Get the variant name (i.e. ignore any prefix) */
+          const char *name = NULL;
+	  if (msp && msp->sSequence)
 	    {
-	      name++; /* start from the char after the colon */
+	      name = blxSequenceGetVariantName(msp->sSequence);
 	    }
 	  else
 	    {

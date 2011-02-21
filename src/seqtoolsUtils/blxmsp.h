@@ -85,6 +85,7 @@ typedef enum
   BLXMSP_POLYA_SIGNAL,		 /* polyA signal */
   
   BLXMSP_VARIATION,              /* SNP, substitution, deletion, insertion */
+  BLXMSP_SHORT_READ,             /* one fragment of a read-pair */
   
   BLXMSP_HSP,                    /*  */
   BLXMSP_GSP,                    /*  */
@@ -102,7 +103,8 @@ typedef enum
     BLXSEQUENCE_UNSET,
     BLXSEQUENCE_TRANSCRIPT,         /* transcript (i.e. collection of exons and introns) */
     BLXSEQUENCE_MATCH,              /* match sequence (i.e. collection of matches) */
-    BLXSEQUENCE_VARIATION           /* variation (i.e. insertion, deletion or substitution) */
+    BLXSEQUENCE_VARIATION,          /* variation (i.e. insertion, deletion or substitution) */
+    BLXSEQUENCE_READ_PAIR           /* read pair */
   } BlxSequenceType;
 
 
@@ -193,6 +195,7 @@ gboolean              typeIsExon(const BlxMspType mspType);
 gboolean              typeIsIntron(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
+gboolean              typeIsShortRead(const BlxMspType mspType);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
@@ -237,6 +240,7 @@ gboolean	      mspIsSnp(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);
 gboolean	      mspIsPolyASite(const MSP const *msp);
 gboolean	      mspIsVariation(const MSP const *msp);
+gboolean	      mspIsShortRead(const MSP const *msp);
 gboolean	      mspIsZeroLenVariation(const MSP const *msp);
 
 gboolean              mspHasSName(const MSP const *msp);

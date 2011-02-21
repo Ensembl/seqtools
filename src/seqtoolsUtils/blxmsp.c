@@ -66,6 +66,11 @@ gboolean typeIsVariation(const BlxMspType mspType)
   return (mspType == BLXMSP_VARIATION);
 }
 
+gboolean typeIsShortRead(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_SHORT_READ);
+}
+
 
 gboolean mspIsExon(const MSP const *msp)
 {
@@ -176,7 +181,7 @@ gboolean mspIsIntron(const MSP const *msp)
 
 gboolean mspIsBlastMatch(const MSP const *msp)
 {
-  return (msp && msp->type == BLXMSP_MATCH);
+  return (msp && (msp->type == BLXMSP_MATCH || msp->type == BLXMSP_SHORT_READ));
 }
 
 gboolean mspIsPolyASite(const MSP const *msp)
@@ -187,6 +192,11 @@ gboolean mspIsPolyASite(const MSP const *msp)
 gboolean mspIsVariation(const MSP const *msp)
 {
   return (msp && typeIsVariation(msp->type));
+}
+
+gboolean mspIsShortRead(const MSP const *msp)
+{
+  return (msp && typeIsShortRead(msp->type));
 }
 
 gboolean mspIsZeroLenVariation(const MSP const *msp)
@@ -762,7 +772,8 @@ static const char *blxSequenceGetSource(const BlxSequence *seq)
 /* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
 const char *blxSequenceGetVariantName(const BlxSequence *seq)
 {
-  return seq->variantName;
+  /* Only applicable for matches; for anything else, return the full name */
+  return (seq->type == BLXSEQUENCE_MATCH ? seq->variantName : seq->fullName);
 }
 
 /* Return the display name of a BlxSequence (same as full name for now) */
@@ -774,7 +785,8 @@ const char *blxSequenceGetDisplayName(const BlxSequence *seq)
 /* Return the short name of a BlxSequence (excludes prefix and variant number) */
 const char *blxSequenceGetShortName(const BlxSequence *seq)
 {
-  return seq->shortName;
+  /* Only applicable to matches */
+  return (seq->type == BLXSEQUENCE_MATCH ? seq->shortName : seq->fullName);
 }
 
 /* Return the length of the given blxsequence's sequence data */
@@ -806,7 +818,7 @@ char *blxSequenceGetSeq(const BlxSequence *seq)
 
 gboolean blxSequenceRequiresSeqData(const BlxSequence *seq)
 {
-  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION));
+  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION || seq->type == BLXSEQUENCE_READ_PAIR));
 }
 
 gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
@@ -927,7 +939,7 @@ BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allS
           gboolean foundRestartPoint = FALSE; /* set to true when we find where to start copying from again */
           
           while (copyPoint && *copyPoint != '\0')
-              {
+            {
               if (foundRestartPoint)
                 {
                   *insertPoint = *copyPoint;
@@ -981,6 +993,10 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
   if (fullName && !seq->fullName)
     {
       seq->fullName = fullName ? g_strdup(fullName) : NULL;
+      
+      /* To do: variant name and short name are only applicable to matches so 
+       * ideally we wouldn't even attempt to calculate them for other types; 
+       * however, when we create an empty blxsequence we don't know the type... */
       
       /* The variant name: just cut off the prefix chars. We can use a pointer into
        * the original string. */
@@ -1054,7 +1070,7 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
 {
   BlxSequenceType result = BLXSEQUENCE_UNSET;
   
-  if (mspIsBlastMatch(msp))
+  if (msp->type == BLXMSP_MATCH)
     {
       result = BLXSEQUENCE_MATCH;
     }
@@ -1065,6 +1081,10 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
   else if (mspIsVariation(msp))
     {
       result = BLXSEQUENCE_VARIATION;
+    }
+  else if (mspIsShortRead(msp))
+    {
+      result = BLXSEQUENCE_READ_PAIR;
     }
 
   return result;
@@ -1513,7 +1533,7 @@ MSP* createNewMsp(GList* featureLists[],
     }
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
-  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsVariation(mspType))
+  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsShortRead(mspType) || typeIsVariation(mspType))
     {
       addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
     }
@@ -1854,7 +1874,11 @@ void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList,
       
       /* So far we only have the forward strand version of each sequence. We must complement any 
        * that need the reverse strand */
-      if (blxSeq && blxSeq->type == BLXSEQUENCE_MATCH && blxSeq->strand == BLXSTRAND_REVERSE && blxSeq->sequence && blxSeq->sequence->str)
+      if (blxSeq && 
+          blxSeq->strand == BLXSTRAND_REVERSE && 
+          (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR) && 
+          blxSeq->sequence && 
+          blxSeq->sequence->str)
         {
           blxComplement(blxSeq->sequence->str);
         }

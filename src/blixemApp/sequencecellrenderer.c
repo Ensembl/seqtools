@@ -677,7 +677,7 @@ static void drawBase(MSP *msp,
       sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
       char qBase = refSeqSegment[segmentIdx];
 
-      if (sBase == qBase)
+      if (tolower(sBase) == tolower(qBase))
 	{
 	  /* Match */
 	  baseBgColor = selected ? data->matchColorSelected : data->matchColor;
