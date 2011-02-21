@@ -1706,7 +1706,7 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
                   displayText[i] = ' ';
                 }
 
-              displayText[maxLen - 1] = getStrandAsChar(mspGetMatchStrand(msp));
+              displayText[maxLen - 1] = getStrandAsChar(msp && msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE);
               displayText[maxLen] = 0;
 
               g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);

@@ -39,6 +39,8 @@
 #include <seqtoolsUtils/utilities.h>
 #include <string.h>
 
+#define ALL_READ_PAIRS_FWD      FALSE
+
 static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
 static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
 static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
@@ -370,13 +372,24 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
 /* Return the strand of the ref sequence that the given MSP is a match against */
 BlxStrand mspGetRefStrand(const MSP const *msp)
 {
-  return msp->qStrand;
+  BlxStrand result = msp->qStrand;
+  
+  if (ALL_READ_PAIRS_FWD && mspIsShortRead(msp))
+    result = BLXSTRAND_FORWARD;
+  
+  return result;
 }
 
 /* Return the strand of the match sequence that the given MSP is a match on */
 BlxStrand mspGetMatchStrand(const MSP const *msp)
 {
-  return msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE;
+  BlxStrand result = (msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE);
+
+  /* If we're displaying all read-pairs on the forward strand, return forward */
+  if (ALL_READ_PAIRS_FWD && mspIsShortRead(msp))
+    result = BLXSTRAND_FORWARD;
+  
+  return result;
 }
 
 /* Get the match sequence for the given MSP */
@@ -1871,12 +1884,12 @@ void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList,
   for ( ; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      
+
       /* So far we only have the forward strand version of each sequence. We must complement any 
        * that need the reverse strand */
       if (blxSeq && 
           blxSeq->strand == BLXSTRAND_REVERSE && 
-          (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR) && 
+          (blxSeq->type == BLXSEQUENCE_MATCH || (blxSeq->type == BLXSEQUENCE_READ_PAIR && !ALL_READ_PAIRS_FWD)) && 
           blxSeq->sequence && 
           blxSeq->sequence->str)
         {
