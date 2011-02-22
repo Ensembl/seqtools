@@ -1013,6 +1013,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   /* We'll populate a string with the characters we want to display as we loop through the indices. */
   const int segmentLen = segmentRange.max - segmentRange.min + 1;
   gchar displayText[segmentLen + 1];
+  displayText[0] = '\0';
   
   int lastFoundSIdx = UNSET_INT;  /* remember the last index where we found a valid base */
   int lastFoundQIdx = UNSET_INT;  /* remember the last index where we found a valid base */

@@ -4301,14 +4301,15 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
   return blxContext->sequenceGroups;
 }
 
+
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
+SequenceGroup *blxContextGetSequenceGroup(BlxViewContext *bc, const BlxSequence *seqToFind)
 {
   SequenceGroup *result = NULL;
   
   /* Loop through all the groups until we find this sequence in one */
-  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
+  GList *groupItem = bc->sequenceGroups;
   for ( ; groupItem; groupItem = groupItem->next)
     {
       /* See if our sequence struct is in this group's list */
@@ -4323,6 +4324,15 @@ SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence
     }
   
   return result;
+}
+
+
+/* Returns the group that the given sequence belongs to, if any (assumes the sequence
+ * is only in one group; otherwise it just returns the first group it finds). */
+SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  return blxContextGetSequenceGroup(bc, seqToFind);
 }
 
 

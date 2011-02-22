@@ -661,40 +661,26 @@ void resortTree(GtkWidget *tree, gpointer data)
 /* Utility that returns true if the given MSP is currently shown in the tree with the given
  * strand/frame */
 static gboolean isMspVisible(const MSP const *msp, 
-			     GtkWidget *blxWindow, 
 			     const BlxViewContext *bc, 
-			     const BlxStrand strand, 
 			     const int frame, 
 			     const IntRange const *displayRange,
-			     const int numUnalignedBases)
+			     const int numUnalignedBases,
+                             const gboolean seqSelected)
 {
-  /* Check if the MSP is in a visible layer */
-  gboolean result = mspLayerIsVisible(msp);
-
-  /* The tree view only displays blast matches or exons */
-  result &= mspIsBlastMatch(msp) || mspIsExon(msp);
-		    
-  /* Check that it is in this tree's frame and strand */
-  result &= (mspGetRefStrand(msp) == strand);
-  result &= (mspGetRefFrame(msp, bc->seqType) == frame);
+  gboolean result = TRUE;
   
-  if (result)
-    {
-      /* Check the MSP in the current display range. Get the full MSP display range including
-       * any portions outside the actual alignment. */
-      const gboolean seqSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
-    
-      IntRange mspDisplayRange;
-      mspGetFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &mspDisplayRange);
+  /* Check the MSP in the current display range. Get the full MSP display range including
+   * any portions outside the actual alignment. */
+  IntRange mspDisplayRange;
+  mspGetFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &mspDisplayRange);
 
-      /* Convert q coords to display coords */
-      const int idx1 = convertDnaIdxToDisplayIdx(mspDisplayRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int idx2 = convertDnaIdxToDisplayIdx(mspDisplayRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      
-      intrangeSetValues(&mspDisplayRange, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
-      
-      result &= rangesOverlap(&mspDisplayRange, displayRange);
-    }
+  /* Convert q coords to display coords */
+  const int idx1 = convertDnaIdxToDisplayIdx(mspDisplayRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int idx2 = convertDnaIdxToDisplayIdx(mspDisplayRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  
+  intrangeSetValues(&mspDisplayRange, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
+  
+  result &= rangesOverlap(&mspDisplayRange, displayRange);
     
   return result;
 }
@@ -710,11 +696,16 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
   if (g_list_length(mspList) > 0)
     {
       GtkWidget *tree = GTK_WIDGET(data);
-      GtkWidget *blxWindow = treeGetBlxWindow(tree);
+      TreeProperties *properties = treeGetProperties(tree);
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
+      BlxViewContext *bc = blxWindowGetContext(dvProperties->blxWindow);
 
-      /* Check the first msp to see if this sequence is in a group that's hidden */
+      /* Check the first msp to see if this sequence is in a group that's hidden.
+       * (Note that all MSPs in the same row should be in the same sequence - we 
+       * don't check this here because this function is called many times so we
+       * avoid any unnecessary checks.) */
       const MSP *firstMsp = (const MSP*)(mspList->data);
-      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, firstMsp->sSequence);
+      SequenceGroup *group = blxContextGetSequenceGroup(bc, firstMsp->sSequence);
       
       if (!group || !group->hidden)
 	{
@@ -722,9 +713,10 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
           GtkWidget *detailView = treeGetDetailView(tree);
           DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
 
-	  const int frame = treeGetFrame(tree);
-	  const BlxStrand strand = treeGetStrand(tree);
-	  const IntRange const *displayRange = treeGetDisplayRange(tree);
+	  const int frame = properties->readingFrame;
+	  const BlxStrand strand = gridGetStrand(properties->grid);
+	  const IntRange const *displayRange = &dvProperties->displayRange;
+          const gboolean seqSelected = blxContextIsSeqSelected(bc, firstMsp->sSequence);
 
 	  /* Show the row if any MSP in the list is an exon or blast match in the correct frame/strand
 	   * and within the display range */
@@ -734,7 +726,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	    {
 	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-	      if (isMspVisible(msp, blxWindow, bc, strand, frame, displayRange, dvProperties->numUnalignedBases))
+	      if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected))
 		{
 		  bDisplay = TRUE;
 		  break;
