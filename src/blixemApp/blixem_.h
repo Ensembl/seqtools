@@ -372,26 +372,17 @@ gboolean                            blxview(CommandLineOptions *options,
 
 void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
-void                               mspGetFullSRange(const MSP const *msp, 
+const IntRange*                    mspGetFullSRange(const MSP const *msp);
+const IntRange*                    mspGetDisplayRange(const MSP const *msp);
+const IntRange*                    mspGetFullDisplayRange(const MSP const *msp);
+void				   mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases);
+void				   mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc);
+
+int                                mspGetMatchCoord(const MSP *msp, 
+                                                    const int qIdx, 
                                                     const gboolean seqSelected,
-                                                    const gboolean *flags,
-                                                    const int numUnalignedBases, 
-                                                    const GList const *polyASiteList,
-                                                    IntRange *sSeqRange);
-
-void                                mspGetFullQRange(const MSP const *msp, 
-                                                     const gboolean seqSelected,
-                                                     const gboolean *flags,
-                                                     const int numUnalignedBases, 
-                                                     const GList const *polyASiteList,
-                                                     const int numFrames, 
-                                                     IntRange *sSeqRange);
-
-int                                 mspGetMatchCoord(const MSP *msp, 
-                                                     const int qIdx, 
-                                                     const gboolean seqSelected,
-                                                     const int numUnalignedBases,
-                                                     BlxViewContext *bc);
+                                                    const int numUnalignedBases,
+						    BlxViewContext *bc);
 
 
 /* dotter.c */

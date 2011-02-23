@@ -1413,12 +1413,18 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   
   msp->qRange.min = 0;
   msp->qRange.max = 0;
+  msp->displayRange.min = 0;
+  msp->displayRange.max = 0;
+  msp->fullRange.min = 0;
+  msp->fullRange.max = 0;
   
   msp->sSequence = NULL;
   msp->sname = NULL;
   
   msp->sRange.min = 0;
   msp->sRange.max = 0;
+  msp->fullSRange.min = 0;
+  msp->fullSRange.max = 0;
   
   msp->desc = NULL;
   msp->source = NULL;
@@ -1533,7 +1539,7 @@ MSP* createNewMsp(GList* featureLists[],
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
-  
+
   /* Add it to the relevant feature list. Use prepend because it is quicker */
   featureLists[msp->type] = g_list_prepend(featureLists[msp->type], msp);
   

@@ -219,7 +219,7 @@ void			detailViewRedrawAll(GtkWidget *detailView);
 void			detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert);
 void			detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack);
-void                    detailViewUpdateLimitUnalignedBases(GtkWidget *detailView, const gboolean limitUnalignedBases);
+void                    detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalignedBases);
 
 void                    detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases);
 void			detailViewToggleSnpTrack(GtkWidget *detailView);

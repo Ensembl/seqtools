@@ -667,20 +667,10 @@ static gboolean isMspVisible(const MSP const *msp,
 			     const int numUnalignedBases,
                              const gboolean seqSelected)
 {
-  gboolean result = TRUE;
-  
   /* Check the MSP in the current display range. Get the full MSP display range including
    * any portions outside the actual alignment. */
-  IntRange mspDisplayRange;
-  mspGetFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &mspDisplayRange);
-
-  /* Convert q coords to display coords */
-  const int idx1 = convertDnaIdxToDisplayIdx(mspDisplayRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int idx2 = convertDnaIdxToDisplayIdx(mspDisplayRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  
-  intrangeSetValues(&mspDisplayRange, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
-  
-  result &= rangesOverlap(&mspDisplayRange, displayRange);
+  const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp);
+  gboolean result = rangesOverlap(mspDisplayRange, displayRange);
     
   return result;
 }

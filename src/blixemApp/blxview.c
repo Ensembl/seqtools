@@ -874,15 +874,36 @@ void destroyBlxSequenceList(GList **seqList)
 }
 
 
+/* Return the (cached) full extent of the match that we're showing in match seq coords */
+const IntRange* mspGetFullSRange(const MSP const *msp)
+{
+  return &msp->fullSRange;
+}
+
+/* Return the (cached) full extent of the match on the ref sequence in display coords
+ * (including any portions of unaligned sequence that we're showing) */
+const IntRange* mspGetFullDisplayRange(const MSP const *msp)
+{
+  return &msp->fullRange;
+}
+
+/* Return the (cached) extent of the alignment that we're showing in display coords
+ * (excluding unaligned sequence) */
+const IntRange* mspGetDisplayRange(const MSP const *msp)
+{
+  return &msp->displayRange;
+}
+
+
 /* Get the full range of the given MSP that we want to display, in s coords. This will generally 
  * be the coords of the alignment but could extend outside this range we are displaying unaligned 
  * portions of the match sequence or polyA tails etc. */
-void mspGetFullSRange(const MSP const *msp, 
-                      const gboolean seqSelected,
-                      const gboolean *flags,
-                      const int numUnalignedBases, 
-                      const GList const *polyASiteList,
-                      IntRange *result)
+static void mspCalcFullSRange(const MSP const *msp, 
+			      const gboolean seqSelected,
+			      const gboolean *flags,
+			      const int numUnalignedBases, 
+			      const GList const *polyASiteList,
+			      IntRange *result)
 {
   /* Normally we just display the part of the sequence in the alignment */
   result->min = msp->sRange.min;
@@ -926,13 +947,14 @@ void mspGetFullSRange(const MSP const *msp,
 /* Get the full range of the given MSP that we want to display, in q coords. This will generally 
  * be the coords of the alignment but could extend outside this range we are displaying unaligned 
  * portions of the match sequence or polyA tails etc. */
-void mspGetFullQRange(const MSP const *msp, 
-                      const gboolean seqSelected,
-                      const gboolean *flags,
-                      const int numUnalignedBases, 
-                      const GList const *polyASiteList,
-                      const int numFrames,
-                      IntRange *result)
+static void mspCalcFullQRange(const MSP const *msp, 
+			      const gboolean seqSelected,
+			      const gboolean *flags,
+			      const int numUnalignedBases, 
+			      const GList const *polyASiteList,
+			      const int numFrames,
+			      const IntRange const *fullSRange,
+			      IntRange *result)
 {
   /* Default to the alignment range so we can exit quickly if there are no special cases */
   result->min = msp->qRange.min;
@@ -940,20 +962,42 @@ void mspGetFullQRange(const MSP const *msp,
   
   if (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE])
     {
-      /* Get the full display range of the MSP including any unaligned portions of the match sequence. */
-      IntRange fullSRange;
-      mspGetFullSRange(msp, seqSelected, flags, numUnalignedBases, polyASiteList, &fullSRange);
-      
       /* Find the offset of the start and end of the full range compared to the alignment range and
        * offset the ref seq range by the same amount. We need to multiply by the number of reading
        * frames because q coords are in nucleotides and s coords are in peptides. */
-      const int startOffset = (msp->sRange.min - fullSRange.min) * numFrames;
-      const int endOffset = (fullSRange.max - msp->sRange.max) * numFrames;
+      const int startOffset = (msp->sRange.min - fullSRange->min) * numFrames;
+      const int endOffset = (fullSRange->max - msp->sRange.max) * numFrames;
       
       const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
       result->min -= sameDirection ? startOffset : endOffset;
       result->max += sameDirection ? endOffset : startOffset;
     }
+}
+
+
+/* Calculate the full extent of the match sequence to display, in display coords,
+ * and cache the result in the msp. Includes any portions of unaligned sequence that we're
+ * displaying */
+void mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases)
+{
+  const gboolean seqSelected = blxContextIsSeqSelected(bc, msp->sSequence);
+  
+  mspCalcFullSRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], &msp->fullSRange);
+  mspCalcFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &msp->fullSRange, &msp->fullRange);
+ 
+  /* convert the Q range to display coords */
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max, bc->seqType, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  intrangeSetValues(&msp->fullRange, coord1, coord2);  
+}
+
+
+/* Convert the ref-seq range of the given msp in display coords and cache it in the msp */
+void mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc)
+{
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  intrangeSetValues(&msp->displayRange, coord1, coord2);  
 }
 
 
@@ -1066,10 +1110,9 @@ static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean s
   
   /* Get the full display range of the match sequence. If the result is still out of range
    * then there's nothing to show for this qIdx. */
-  IntRange fullSRange;
-  mspGetFullSRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], &fullSRange);
+  const IntRange *fullSRange = mspGetFullSRange(msp);
   
-  if (!valueWithinRange(result, &fullSRange))
+  if (!valueWithinRange(result, fullSRange))
     {
       result = UNSET_INT;
     }

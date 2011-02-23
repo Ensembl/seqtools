@@ -887,15 +887,11 @@ static gboolean getVisibleMspRange(MSP *msp, RenderData *data, IntRange *result)
 {
   gboolean found = FALSE;
   
-  /* Find the full display range of the MSP including any portions of unaligned sequence etc. */
-  mspGetFullQRange(msp, data->seqSelected, data->bc->flags, data->numUnalignedBases, data->bc->featureLists[BLXMSP_POLYA_SITE], data->bc->numFrames, result);
+  /* Get the full display range of the MSP (including any portions of unaligned sequence etc.) */
+  const IntRange *fullRange = mspGetFullDisplayRange(msp);
+  result->min = fullRange->min;
+  result->max = fullRange->max;
   
-  /* Convert to display coords */
-  const int idx1 = convertDnaIdxToDisplayIdx(result->min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-  const int idx2 = convertDnaIdxToDisplayIdx(result->max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-
-  intrangeSetValues(result, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
-
   if (rangesOverlap(result, data->displayRange))
     {
       /* Limit the returned range to the display range. */

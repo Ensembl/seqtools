@@ -176,6 +176,14 @@ typedef struct _MSP
   char              *sname;        /* sequence name (could be different to the sequence name in the blxSequence e.g. exons have a postfixed 'x') */
   IntRange	    sRange;	   /* the range of coords on the match sequence where the alignment lies */
   
+  /* The following ranges are all calculated from the above but are
+   * cached in the MSP because they are used a lot. Note that these
+   * these are not current used by dotter so dotter does not bother to
+   * initialise them. */
+  IntRange	    displayRange;  /* the same range as qRange but in display coords */
+  IntRange	    fullRange;	   /* the full range of display coords to show this match against (includes any unaligned portions of sequence that we're showing) */
+  IntRange	    fullSRange;	   /* the full range of coords on the match sequence that we're showing (including any unaligned portions of sequence) */
+  
   char              *desc;         /* Optional description text for the MSP */
   char              *source;       /* Optional source text for the MSP */
   GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer because the array

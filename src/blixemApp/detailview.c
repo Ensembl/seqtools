@@ -958,9 +958,19 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
 }
 
 
-/* Set the value of the 'Limit Unaligned Bases' flag */
-void detailViewUpdateLimitUnalignedBases(GtkWidget *detailView, const gboolean limitUnalignedBases)
+/* This performs required updates after editing the 'show unaligned bases' option or its 
+ * sub-options (i.e. anything that affects how many bases out of the match sequences we show). */
+void detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalignedBases)
 {
+  /* Re-calculate the full extent of all MSPs */
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  MSP *msp = bc->mspList;
+  
+  for ( ; msp; msp = msp->next)
+    {
+      mspCalculateFullExtents(msp, bc, numUnalignedBases);
+    }
+  
   /* Refilter and re-draw */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   gtk_widget_queue_draw(detailView);
@@ -972,10 +982,7 @@ void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   properties->numUnalignedBases = numBases;
-  
-  /* Refilter and re-draw */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  gtk_widget_queue_draw(detailView);
+  detailViewUpdateUnalignedSeqLen(detailView, properties->numUnalignedBases);
 }
 
 
