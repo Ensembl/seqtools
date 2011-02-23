@@ -278,19 +278,11 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
   
   if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
-      /* Convert the msp's dna coords to display coords */
+      /* See if the msp lies within the grid's display range */
       BlxViewContext *bc = gridGetContext(grid);
       const IntRange const *displayRange = gridGetDisplayRange(grid);
-      
-      const int mspStart = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int mspEnd = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int qMin = min(mspStart, mspEnd);
-      const int qMax = max(mspStart, mspEnd);
-      
-      if (qMin <= displayRange->max && qMax >= displayRange->min)
-	{
-	  result = TRUE;
-	}
+      const IntRange const *mspRange = mspGetDisplayRange(msp);
+      result = rangesOverlap(mspRange, displayRange);
     }
   
   return result;

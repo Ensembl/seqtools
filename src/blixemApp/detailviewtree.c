@@ -669,7 +669,7 @@ static gboolean isMspVisible(const MSP const *msp,
 {
   /* Check the MSP in the current display range. Get the full MSP display range including
    * any portions outside the actual alignment. */
-  const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp);
+  const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp, seqSelected, bc);
   gboolean result = rangesOverlap(mspDisplayRange, displayRange);
     
   return result;

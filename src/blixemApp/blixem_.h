@@ -372,9 +372,9 @@ gboolean                            blxview(CommandLineOptions *options,
 
 void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
-const IntRange*                    mspGetFullSRange(const MSP const *msp);
+const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
 const IntRange*                    mspGetDisplayRange(const MSP const *msp);
-const IntRange*                    mspGetFullDisplayRange(const MSP const *msp);
+const IntRange*                    mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
 void				   mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases);
 void				   mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc);
 

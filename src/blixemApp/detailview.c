@@ -1713,18 +1713,16 @@ static void getVariationDisplayRange(const MSP *msp,
 {
   /* Convert the MSP coords to display coords. We want to display the variation
    * in the same position regardless of reading frame, so always use frame 1. */
-  int base1, base2;
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, seqType, 1, numFrames, displayRev, refSeqRange, &base1);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, seqType, 1, numFrames, displayRev, refSeqRange, &base2);
+  const IntRange const *mspRange = mspGetDisplayRange(msp);
 
   if (displayRange)
-    intrangeSetValues(displayRange, coord1, coord2);
+    intrangeSetValues(displayRange, mspRange->min, mspRange->max);
   
   if (!expandedRange)
     return;
 
   /* Work out the expanded range (it will be the same as the MSP range if unexpanded) */
-  intrangeSetValues(expandedRange, coord1, coord2);
+  intrangeSetValues(expandedRange, mspRange->min, mspRange->max);
   
   if (expand && mspGetMatchSeq(msp))
     {

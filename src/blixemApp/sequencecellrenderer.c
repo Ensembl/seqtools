@@ -755,12 +755,9 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && (msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR))
     {
       /* Get the msp's start/end in terms of the display coords */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
-      const int minIdx = min(coord1, coord2);
-      const int maxIdx = max(coord1, coord2);
+      const IntRange const *mspRange = mspGetDisplayRange(msp);
       
-      if (minIdx >= rd->displayRange->min && minIdx <= rd->displayRange->max)
+      if (mspRange->min >= rd->displayRange->min && mspRange->max <= rd->displayRange->max)
 	{
 	  /* Draw the lower index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorEnd : rd->exonBoundaryColorStart;
@@ -769,7 +766,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-	  const int idx = minIdx - rd->displayRange->min;
+	  const int idx = mspRange->min - rd->displayRange->min;
 
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -777,7 +774,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
       
-      if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
+      if (mspRange->max >= rd->displayRange->min && mspRange->max <= rd->displayRange->max)
 	{
 	  /* Draw the upper index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorStart : rd->exonBoundaryColorEnd;
@@ -786,7 +783,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
-	  const int idx = maxIdx + 1 - rd->displayRange->min;
+	  const int idx = mspRange->max + 1 - rd->displayRange->min;
 
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -888,7 +885,7 @@ static gboolean getVisibleMspRange(MSP *msp, RenderData *data, IntRange *result)
   gboolean found = FALSE;
   
   /* Get the full display range of the MSP (including any portions of unaligned sequence etc.) */
-  const IntRange *fullRange = mspGetFullDisplayRange(msp);
+  const IntRange *fullRange = mspGetFullDisplayRange(msp, data->seqSelected, data->bc);
   result->min = fullRange->min;
   result->max = fullRange->max;
   

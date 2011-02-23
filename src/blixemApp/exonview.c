@@ -245,13 +245,9 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
 
   /* Find the coordinates of the start and end base in this msp, converting to display coords. Note
    * that display coords always increase from left-to-right, even if the actual coords are inverted. */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
-  
-  IntRange mspDisplayRange;
-  intrangeSetValues(&mspDisplayRange, coord1, coord2); /* sorts out which is min and max */
-  
-  if (rangesOverlap(&mspDisplayRange, data->displayRange))
+  const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
+
+  if (rangesOverlap(mspDisplayRange, data->displayRange))
     {
       drawn = TRUE;
 
@@ -438,14 +434,9 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	  
 	  if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == properties->currentStrand)
 	    {
-	      const int frame = mspGetRefFrame(msp, bc->seqType);
-	      const int startCoord = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-	      const int endCoord = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-	      
-              IntRange mspDisplayRange;
-              intrangeSetValues(&mspDisplayRange, startCoord, endCoord);
+	      const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
               
-              if (rangesOverlap(&mspDisplayRange, displayRange))
+              if (rangesOverlap(mspDisplayRange, displayRange))
 		{
 		  ++numExons;
 		  break; /* break inner loop and move to next sequence */
