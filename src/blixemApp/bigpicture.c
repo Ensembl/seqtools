@@ -134,8 +134,10 @@ static int roundToValueFromList(const int inputVal, GSList *roundValues, int *ro
 
 /* This function calculates the cell size and number of cells for the big picture grids.
  * It should be called whenever the big picture is resized or its display range changes. */
-static void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *properties)
+void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *properties)
 {
+  DEBUG_ENTER("calculateBigPictureCellSize");
+
   BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
   GtkWidget *header = properties->header;
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
@@ -152,6 +154,8 @@ static void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPicturePropert
   const double defaultCellWidth = (double)(headerProperties->headerRect.width) / DEFAULT_GRID_NUM_HOZ_CELLS;
   const double actualCellWidth = (defaultCellWidth * properties->basesPerCell) / defaultBasesPerCell;
   properties->numHCells = ceil((double)headerProperties->headerRect.width / actualCellWidth);
+  
+  DEBUG_EXIT("calculateBigPictureCellSize returning");
 }
 
 
@@ -379,6 +383,8 @@ static void boundRange(IntRange *range, IntRange *bounds)
  * If recalcHighlightBox is true, the highlight box borders are recalculated. */
 static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPictureProperties *properties, int width, const gboolean recalcHighlightBox)
 {
+  DEBUG_ENTER("setBigPictureDisplayWidth");
+
   GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
   IntRange *detailViewRange = detailViewGetDisplayRange(detailView);
 
@@ -419,9 +425,6 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
       boundRange(displayRange, fullRange);
     }
   
-  /* Recalculate the grid cell size */
-  calculateBigPictureCellSize(bigPicture, properties);
-
   /* Recalculate the exon view height, because it may have changed with more/less
    * exons being scrolled into view */
   calculateExonViewHeight(properties->fwdExonView);
@@ -442,6 +445,8 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
    * another way to force the big picture pane to resize when the exon view shrinks, even though 
    * set_size_request is called on the exon views in calculateExonViewHeight above. */
   refreshGridOrder(bigPicture); 
+  
+  DEBUG_EXIT("setBigPictureDisplayWidth returning");
 }
 
 
@@ -452,6 +457,8 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
  * is true, the highlight box has changed size, and its boundaries need to be recalculated. */
 void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcHighlightBox)
 {
+  DEBUG_ENTER("refreshBigPictureDisplayRange");
+
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   IntRange *displayRange = &properties->displayRange;
   
@@ -471,11 +478,8 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcH
       const int width = displayRange->max - displayRange->min;
       setBigPictureDisplayWidth(bigPicture, properties, width, recalcHighlightBox);
     }
-
-  /* Recalculate the exon view height, because it may have changed with more/less
-   * exons being scrolled into view */
-  calculateExonViewHeight(properties->fwdExonView);
-  calculateExonViewHeight(properties->revExonView);
+  
+  DEBUG_EXIT("refreshBigPictureDisplayRange returning");
 }
 
 
@@ -548,6 +552,7 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
     }
 
   setBigPictureDisplayWidth(bigPicture, properties, newWidth, TRUE);
+  calculateBigPictureCellSize(bigPicture, properties);
 }
 
 
@@ -562,6 +567,7 @@ void zoomWholeBigPicture(GtkWidget *bigPicture)
   if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
     {
       setBigPictureDisplayWidth(bigPicture, properties, fullRange->max - fullRange->min, TRUE);
+      calculateBigPictureCellSize(bigPicture, properties);
     }
 }
 
@@ -809,6 +815,8 @@ static int getBigPictureChildrenHeights(GtkWidget *widget, const int heightIn)
  * revert to the original behaviour */
 static void bigPictureRecalculateSize(GtkWidget *bigPicture)
 {
+  DEBUG_ENTER("bigPictureRecalculateSize");
+
   int height = getBigPictureChildrenHeights(bigPicture, 0);
   height += 4; /* not sure where this extra space comes from (padding or something?) */
 
@@ -817,13 +825,24 @@ static void bigPictureRecalculateSize(GtkWidget *bigPicture)
   
   height = min(height, maxHeight);
   gtk_widget_set_size_request(bigPicture, -1, height);
+  
+  DEBUG_EXIT("bigPictureRecalculateSize returning");
 }
 
 
+/* Callback called when the big picture widget's size has changed */
 static void onSizeAllocateBigPicture(GtkWidget *bigPicture, GtkAllocation *allocation, gpointer data)
 {
+  DEBUG_ENTER("onSizeAllocateBigPicture");
+
+  /* Recalculate the widget size based on its child widget sizes. Note that we
+   * don't need to do anything else here because onScrollPosChanged will be 
+   * called, which does all the updating of the big picture range. */
   bigPictureRecalculateSize(bigPicture);
+  
   bigPictureRedrawAll(bigPicture);
+  
+  DEBUG_EXIT("onSizeAllocateBigPicture returning");
 }
 
 

@@ -408,6 +408,8 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 
 void calculateExonViewHeight(GtkWidget *exonView)
 {
+  DEBUG_ENTER("calculateExonViewHeight");
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
 
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
@@ -451,14 +453,23 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	}
     }
   
-  properties->exonViewRect.height = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
+  const int newHeight = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
   
-  gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+  if (newHeight != properties->exonViewRect.height)
+    {
+      DEBUG_OUT("Setting new height = %d\n", newHeight);
+      properties->exonViewRect.height = newHeight;
+      gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+    }
+  
+  DEBUG_EXIT("calculateExonViewHeight returning");
 }
 
 
 void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
 {
+  DEBUG_ENTER("calculateExonViewHighlightBoxBorders");
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
   
@@ -480,11 +491,15 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
   
   properties->highlightRect.width = abs(x1 - x2);
   properties->highlightRect.height = exonView->allocation.height;
-    }
+  
+  DEBUG_EXIT("calculateExonViewHighlightBoxBorders returning");
+}
 
 
 static void calculateExonViewBorders(GtkWidget *exonView)
 {
+  DEBUG_ENTER("calculateExonViewBorders");
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
@@ -494,6 +509,8 @@ static void calculateExonViewBorders(GtkWidget *exonView)
   
   /* Calculate the size of the highlight box */
   calculateExonViewHighlightBoxBorders(exonView);
+  
+  DEBUG_EXIT("calculateExonViewBorders returning");
 }
 
 /***********************************************************
@@ -639,7 +656,11 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
 
 static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocation, gpointer data)
 {
+  DEBUG_ENTER("onSizeAllocateExonView");
+
   calculateExonViewBorders(exonView);
+  
+  DEBUG_EXIT("onSizeAllocateExonView returning");
 }
 
 

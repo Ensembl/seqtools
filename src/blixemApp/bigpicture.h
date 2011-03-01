@@ -133,6 +133,7 @@ void                          bigPictureSetPreviewBoxCentre(GtkWidget *bigPictur
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
+void                          calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *properties);
 void			      calculateNumVCells(GtkWidget *bigPicture);
 void			      bigPictureRedrawAll(GtkWidget *bigPicture);
 

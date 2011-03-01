@@ -437,6 +437,8 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 
 void calculateHighlightBoxBorders(GtkWidget *grid)
 {
+  DEBUG_ENTER("calculateHighlightBoxBorders(grid)");
+
   GridProperties *properties = gridGetProperties(grid);
   
   /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
@@ -466,12 +468,16 @@ void calculateHighlightBoxBorders(GtkWidget *grid)
       properties->highlightRect.width = abs(x1 - x2);
       properties->highlightRect.height = properties->gridRect.height + roundNearest(bigPictureProperties->charHeight / 2.0) + properties->mspLineHeight + (2 * bigPictureProperties->highlightBoxYPad);
     }
+  
+  DEBUG_EXIT("calculateHighlightBoxBorders returning");
 }
 
 
 /* Calculate the borders for the big picture view */
 void calculateGridBorders(GtkWidget *grid)
 {
+  DEBUG_ENTER("calculateGridBorders");
+
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   int numVCells = gridGetNumVCells(grid);
@@ -494,12 +500,20 @@ void calculateGridBorders(GtkWidget *grid)
   calculateHighlightBoxBorders(grid);
   
   /* Get the total display height required. Set the layout size to fit. */
-  properties->displayRect.height = properties->highlightRect.height; // + (2 * properties->gridYPadding);
-  gtk_layout_set_size(GTK_LAYOUT(grid), properties->displayRect.width, properties->displayRect.height);
+  const int newHeight = properties->highlightRect.height;
   
-  /* Set the size request to our desired height. We want a fixed heigh but don't set the
-   * width, because we want the user to be able to resize that. */
-  gtk_widget_set_size_request(grid, 0, properties->displayRect.height);
+  if (newHeight != properties->displayRect.height)
+    {
+      DEBUG_OUT("Setting new grid height = %d\n");
+      properties->displayRect.height = newHeight;
+      gtk_layout_set_size(GTK_LAYOUT(grid), properties->displayRect.width, properties->displayRect.height);
+  
+      /* Set the size request to our desired height. We want a fixed heigh but don't set the
+       * width, because we want the user to be able to resize that. */
+      gtk_widget_set_size_request(grid, 0, properties->displayRect.height);
+    }
+  
+  DEBUG_EXIT("calculateGridBorders returning");
 }
 
 
@@ -559,12 +573,16 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
 /* Re-calculate size info about the given grid following a resize */
 static void onSizeAllocateBigPictureGrid(GtkWidget *grid, GtkAllocation *allocation, gpointer data)
 {
+  DEBUG_ENTER("onSizeAllocateBigPictureGrid");
+
   /* Recalculate the borders for the grids and the header */
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   calculateGridHeaderBorders(bigPictureProperties->header);
   calculateGridBorders(grid);
+  
+  DEBUG_EXIT("onSizeAllocateBigPictureGrid returning");
 }
 
 

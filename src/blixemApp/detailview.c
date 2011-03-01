@@ -307,24 +307,24 @@ void updateDetailViewRange(GtkWidget *detailView)
 	  properties->adjustment->page_size = newPageSize;
 	  properties->adjustment->page_increment = newPageSize;
 	  
-	  /* Reset the display range so that it is between the scrollbar min and max. Try to keep
-	   * it centred on the same base. The base index is in terms of the display range coords, 
-	   * so the sequence type of the coord is whatever the display sequence type is. */
-	  const IntRange const *displayRange = &properties->displayRange;
-
-	  /* First time through, both coords are set to the initial start coord. So, if
-	   * they are the same, just use that coord as the start coord */
-	  int newStart = displayRange->min;
-	  
-	  if (displayRange->min != displayRange->max)
-	    {
-	      int centre = getRangeCentre(displayRange);
-	      int offset = roundNearest((double)properties->adjustment->page_size / 2.0);
-	      newStart = centre - offset;
-	    }
-	      
-	  const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow);
-	  setDetailViewStartIdx(detailView, newStart, seqType);
+	  ///* Reset the display range so that it is between the scrollbar min and max. Try to keep
+//	   * it centred on the same base. The base index is in terms of the display range coords, 
+//	   * so the sequence type of the coord is whatever the display sequence type is. */
+//	  const IntRange const *displayRange = &properties->displayRange;
+//
+//	  /* First time through, both coords are set to the initial start coord. So, if
+//	   * they are the same, just use that coord as the start coord */
+//	  int newStart = displayRange->min;
+//	  
+//	  if (displayRange->min != displayRange->max)
+//	    {
+//	      int centre = getRangeCentre(displayRange);
+//	      int offset = roundNearest((double)properties->adjustment->page_size / 2.0);
+//	      newStart = centre - offset;
+//	    }
+//	      
+//	  const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow);
+//	  setDetailViewStartIdx(detailView, newStart, seqType);
 	  
 	  gtk_adjustment_changed(properties->adjustment); /* signal that the scroll range has changed */
 	}
@@ -2176,8 +2176,11 @@ static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, co
  *              Detail view scrollbar events               *
  ***********************************************************/
 
+/* Callback called when the detail-view scrollbar's range has changed */
 static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 {
+  DEBUG_ENTER("onScrollRangeChangedDetailView");
+
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *detailView = GTK_WIDGET(data);
   
@@ -2203,12 +2206,18 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       /* Update the big picture because the highlight box has moved (and changed size) */
       GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
       refreshBigPictureDisplayRange(bigPicture, TRUE);
+      calculateBigPictureCellSize(bigPicture, bigPictureGetProperties(bigPicture));
     }
+  
+  DEBUG_EXIT("onScrollRangeChangedDetailView returning");
 }
 
 
+/* Callback called when the detail-view scrollbar's position has changed */
 static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 {
+  DEBUG_ENTER("onScrollPosChangedDetailView");
+
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *detailView = GTK_WIDGET(data);
   
@@ -2236,8 +2245,10 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 
       /* Update the big picture because the highlight box has moved */
       GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
-      refreshBigPictureDisplayRange(bigPicture, TRUE);
+      refreshBigPictureDisplayRange(bigPicture, FALSE);
     }
+  
+  DEBUG_EXIT("onScrollPosChangedDetailView returning");
 }
 
 
@@ -3287,6 +3298,8 @@ static void swapExonViewVisibility(GtkWidget *bigPicture)
 
 void toggleStrand(GtkWidget *detailView)
 {
+  DEBUG_ENTER("toggleStrand");
+
   BlxViewContext *blxContext = detailViewGetContext(detailView);
   GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
 
@@ -3325,7 +3338,9 @@ void toggleStrand(GtkWidget *detailView)
   gtk_widget_queue_draw(detailView);
   
   /* Redraw the grids and grid headers */
-  refreshBigPictureDisplayRange(bigPicture, TRUE);
+  refreshBigPictureDisplayRange(bigPicture, FALSE);
+  
+  DEBUG_EXIT("toggleStrand returning");
 }
 
 
