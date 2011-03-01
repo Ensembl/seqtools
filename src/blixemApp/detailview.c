@@ -64,6 +64,7 @@
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
 
 /* Define the columns' default widths and titles. */
+#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
 #define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
 #define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
 #define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
@@ -3213,12 +3214,10 @@ void updateDynamicColumnWidths(GtkWidget *detailView)
       
       if (columnInfo->columnId == BLXCOL_SEQUENCE)
         seqColInfo = columnInfo;
-      else if (columnInfo->visible)
+      else if (columnInfo->visible && columnInfo->dataLoaded)
         width -= columnInfo->width;
     }
       
-  width += scrollBarWidth();
-  
   if (seqColInfo && seqColInfo->width != width)
     {
       seqColInfo->width = width;
@@ -3725,6 +3724,43 @@ static gint columnCompareFunc(gconstpointer a, gconstpointer b)
   return col1->columnId - col2->columnId;
 }
 
+
+/* This checks if the column has any properties specified for it in the config
+ * file and, if so, overrides the default values in the given column with 
+ * the config file values. */
+static void getColumnConfig(DetailViewColumnInfo *columnInfo)
+{
+  /* Do nothing for the sequence column, because it has dynamic width */
+  if (columnInfo->columnId == BLXCOL_SEQUENCE)
+    return;
+    
+  GKeyFile *key_file = blxGetConfig();
+  GError *error = NULL;
+
+  if (key_file && g_key_file_has_group(key_file, COLUMN_WIDTHS_GROUP) && g_key_file_has_key(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, &error))
+    {
+      if (!error)
+        {
+          const int newWidth = g_key_file_get_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, &error);
+          
+          if (error)
+            {
+              reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+            }
+          else if (newWidth > 0)
+            {
+              columnInfo->width = newWidth;
+              columnInfo->visible = TRUE;
+            }
+          else
+            {
+              columnInfo->visible = FALSE;
+            }
+        }
+    }
+}
+
+
 /* Creates a detail-view column from the given info and adds it to the columnList. */
 static void createColumn(BlxColumnId columnId, 
                          GtkWidget *specialWidget,
@@ -3755,7 +3791,7 @@ static void createColumn(BlxColumnId columnId,
       gtk_misc_set_alignment(GTK_MISC(headerWidget), 0.0, 1.0);
       gtk_misc_set_padding(GTK_MISC(headerWidget), DEFAULT_LABEL_X_PAD, 0);
     }
-
+  
   /* Create the column info */
   DetailViewColumnInfo *columnInfo = g_malloc(sizeof(DetailViewColumnInfo));
   
@@ -3768,6 +3804,8 @@ static void createColumn(BlxColumnId columnId,
   columnInfo->sortName = sortName;
   columnInfo->dataLoaded = dataLoaded;
   columnInfo->visible = visible;
+
+  getColumnConfig(columnInfo);
   
   /* Place it in the list. Sort the list by BlxColumnId because the list must be sorted in the same
    * order as the variable types in the TREE_COLUMN_TYPE_LIST definition */
