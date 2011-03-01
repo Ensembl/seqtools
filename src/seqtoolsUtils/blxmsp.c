@@ -43,6 +43,7 @@ static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
 static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
 static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
 static char*                    blxSequenceGetStrain(const BlxSequence *seq);
+static const char*              blxSequenceGetSource(const BlxSequence *seq);
 
 
 gboolean typeIsExon(const BlxMspType mspType)
@@ -649,16 +650,25 @@ gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const GList 
  *		      BlxSequence			   * 
  ***********************************************************/
 
+/* Append the contents of the given text to the GString, if the text is non-null,
+ * including the given separator before the text is appended. Pass the separator
+ * as an empty string if no separation is required. */
+static void appendTextIfNonNull(GString *gstr, const char *separator, const char *text)
+{
+  if (text)
+    {
+      g_assert(separator);
+      g_string_append_printf(gstr, "%s%s", separator, text);
+    }
+}
+
 /* Append the contents of the second GString to the first GString, if the second is non-null,
  * including the given separator before the second GString is appended. Pass the separator
  * as an empty string if no separation is required. */
-static void appendTextIfNonNull(GString *gstr, const char *separator, const GString *text)
+static void appendStringIfNonNull(GString *gstr, const char *separator, const GString *text)
 {
-  if (text && text->str)
-    {
-    g_assert(separator);
-    g_string_append_printf(gstr, "%s%s", separator, text->str);
-    }
+  if (text)
+    appendTextIfNonNull(gstr, separator, text->str);
 }
 
 /* Return summary info about a given BlxSequence (e.g. for displaying in the status bar). The
@@ -669,17 +679,18 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
   
   if (blxSeq)
     {
-    GString *resultStr = g_string_new("");
-    const char *separator = ";  ";
-    
-    g_string_append_printf(resultStr, "%s", blxSequenceGetFullName(blxSeq));
-    appendTextIfNonNull(resultStr, separator, blxSeq->organism);
-    appendTextIfNonNull(resultStr, separator, blxSeq->geneName);
-    appendTextIfNonNull(resultStr, separator, blxSeq->tissueType);
-    appendTextIfNonNull(resultStr, separator, blxSeq->strain);
-    
-    result = resultStr->str;
-    g_string_free(resultStr, FALSE);
+      GString *resultStr = g_string_new("");
+      const char *separator = ";  ";
+      
+      g_string_append_printf(resultStr, "%s", blxSequenceGetFullName(blxSeq));
+      appendTextIfNonNull(resultStr, separator, blxSequenceGetSource(blxSeq));
+      appendStringIfNonNull(resultStr, separator, blxSeq->organism);
+      appendStringIfNonNull(resultStr, separator, blxSeq->geneName);
+      appendStringIfNonNull(resultStr, separator, blxSeq->tissueType);
+      appendStringIfNonNull(resultStr, separator, blxSeq->strain);
+      
+      result = resultStr->str;
+      g_string_free(resultStr, FALSE);
     }
   
   return result;
@@ -730,6 +741,23 @@ const char *blxSequenceGetFullName(const BlxSequence *seq)
   
   return result;
 }
+
+/* Return the Source text of a BlxSequence, if it has one (note that it gets
+ * this from the first MSP and does no checking whether other MSPs have the 
+ * same source or not). */
+static const char *blxSequenceGetSource(const BlxSequence *seq)
+{
+  const char *result = NULL;
+  
+  if (seq && seq->mspList && g_list_length(seq->mspList) > 0 && seq->mspList->data)
+    {
+      const MSP const *msp = (const MSP const*)(seq->mspList->data);
+      result = msp->source;
+    }
+  
+  return result;
+}
+
 
 /* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
 const char *blxSequenceGetVariantName(const BlxSequence *seq)
