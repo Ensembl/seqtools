@@ -66,7 +66,7 @@
 /* Define the columns' default widths and titles. */
 #define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
 #define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
-#define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
+#define BLXCOL_SOURCE_WIDTH             18    /* default width for source column  */
 #define BLXCOL_GROUP_WIDTH              58    /* default width for group column  */
 #define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
 #define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
@@ -3794,7 +3794,7 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   createColumn(BLXCOL_START,       NULL,     NULL,        "Start",      RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,   TRUE,   "Position",    &columnList, detailView);
   createColumn(BLXCOL_SEQUENCE,    seqHeader,seqCallback, "Sequence",   RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,   TRUE,   NULL,          &columnList, detailView);
   createColumn(BLXCOL_END,         NULL,     NULL,        "End",        RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,   TRUE,   NULL,          &columnList, detailView);
-  createColumn(BLXCOL_SOURCE,      NULL,     NULL,        "Source",     RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,   FALSE,  NULL,          &columnList, detailView);
+  createColumn(BLXCOL_SOURCE,      NULL,     NULL,        "Source",     RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,   TRUE,   NULL,          &columnList, detailView);
   createColumn(BLXCOL_GROUP,       NULL,     NULL,        "Group",      RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,   FALSE,  "Group",       &columnList, detailView);
   createColumn(BLXCOL_ORGANISM,    NULL,     NULL,        "Organism",   RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       loaded, TRUE,   "Organism",    &columnList, detailView);
   createColumn(BLXCOL_GENE_NAME,   NULL,     NULL,        "Gene Name",  RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      loaded, FALSE,  "Gene name",   &columnList, detailView);
