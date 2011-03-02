@@ -42,9 +42,6 @@
 #define ALL_READ_PAIRS_FWD      FALSE
 
 
-/* Globals */
-int maxMspLen = 0;	/* maximum qRange length of any MSP */
-
 /* Local function declarations */
 static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
 static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
@@ -1400,50 +1397,12 @@ void readMspFromText(MSP *msp, char *text)
 /* Insert the given MSP into the given list */
 static void insertMsp(MSP *msp, MSP **mspList, MSP **lastMsp)
 {
-//  /* Also calc the max msp len */
-//  if (msp && getRangeLength(&msp->qRange) > maxMspLen)
-//    maxMspLen = getRangeLength(&msp->qRange);
-  
   /* Add it to the list */
   if (!*mspList) 
     {
       /* Nothing in list yet: make this the first entry */
       *mspList = msp;
     }
-//  else if (msp->qRange.min < (*mspList)->qRange.min)
-//    {
-//      /* Add to start of list */
-//      msp->next = *mspList;
-//      *mspList = msp;
-//    }
-//  else
-//    {
-//      /* Simple linear search to find position (efficiency here is not great but this function
-//       * is only called at start-up) */
-//      MSP *prevMsp = *mspList;
-//      MSP *curMsp = (*mspList)->next;
-//      gboolean found = FALSE;
-//      
-//      while (curMsp && !found)
-//	{
-//	  if (msp->qRange.min < curMsp->qRange.min)
-//	    {
-//	      msp->next = prevMsp->next;
-//	      prevMsp->next = msp;
-//	      found = TRUE;
-//	    }
-//	  
-//	  prevMsp = curMsp;
-//	  curMsp = curMsp->next;
-//	}
-//    
-//      /* If it wasn't found, append to end of list */
-//      if (!found && prevMsp)
-//	{
-//	  msp->next = prevMsp->next;
-//	  prevMsp->next = msp;
-//	}
-//    }
   
   if (*lastMsp)
     {
