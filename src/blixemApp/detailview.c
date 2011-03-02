@@ -117,6 +117,8 @@ static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescri
 static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
+static void		      refilterDetailView(GtkWidget *detailView);
+
 
 /***********************************************************
  *		       Utility functions                   *
@@ -972,7 +974,7 @@ void detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalign
     }
   
   /* Refilter and re-draw */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  refilterDetailView(detailView);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -2195,7 +2197,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       displayRange->max = newEnd;
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+      refilterDetailView(detailView);
 
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
@@ -2235,7 +2237,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       displayRange->max = newEnd;
 
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+      refilterDetailView(detailView);
 
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
@@ -2287,6 +2289,18 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
 
   GtkCellRenderer *renderer = detailViewGetRenderer(detailView);
   gtk_cell_renderer_set_fixed_size(renderer, 0, rowHeight);
+}
+
+
+/* Refilter the rows in the detail-view trees */
+static void refilterDetailView(GtkWidget *detailView)
+{
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+//  BlxViewContext *bc = detailViewGetContext(detailView);
+//  
+//  /* Get all of the MSPs in the new detail-view range */
+//  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+//  
 }
 
 

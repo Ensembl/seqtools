@@ -41,6 +41,11 @@
 
 #define ALL_READ_PAIRS_FWD      FALSE
 
+
+/* Globals */
+int maxMspLen = 0;	/* maximum qRange length of any MSP */
+
+/* Local function declarations */
 static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
 static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
 static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
@@ -1392,6 +1397,65 @@ void readMspFromText(MSP *msp, char *text)
 }
 
 
+/* Insert the given MSP into the given list */
+static void insertMsp(MSP *msp, MSP **mspList, MSP **lastMsp)
+{
+//  /* Also calc the max msp len */
+//  if (msp && getRangeLength(&msp->qRange) > maxMspLen)
+//    maxMspLen = getRangeLength(&msp->qRange);
+  
+  /* Add it to the list */
+  if (!*mspList) 
+    {
+      /* Nothing in list yet: make this the first entry */
+      *mspList = msp;
+    }
+//  else if (msp->qRange.min < (*mspList)->qRange.min)
+//    {
+//      /* Add to start of list */
+//      msp->next = *mspList;
+//      *mspList = msp;
+//    }
+//  else
+//    {
+//      /* Simple linear search to find position (efficiency here is not great but this function
+//       * is only called at start-up) */
+//      MSP *prevMsp = *mspList;
+//      MSP *curMsp = (*mspList)->next;
+//      gboolean found = FALSE;
+//      
+//      while (curMsp && !found)
+//	{
+//	  if (msp->qRange.min < curMsp->qRange.min)
+//	    {
+//	      msp->next = prevMsp->next;
+//	      prevMsp->next = msp;
+//	      found = TRUE;
+//	    }
+//	  
+//	  prevMsp = curMsp;
+//	  curMsp = curMsp->next;
+//	}
+//    
+//      /* If it wasn't found, append to end of list */
+//      if (!found && prevMsp)
+//	{
+//	  msp->next = prevMsp->next;
+//	  prevMsp->next = msp;
+//	}
+//    }
+  
+  if (*lastMsp)
+    {
+      /* Tag it on to the end of the list */
+      (*lastMsp)->next = msp;
+    }
+  
+  /* Make the 'lastMsp' pointer point to the new end of the list */
+  *lastMsp = msp;
+}
+
+
 /* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values.
  * Add it into the given MSP list and make the end pointer ('lastMsp') point to the new
  * end of the list. NB the msplist is obsolete and is being replaced by featureLists, but we don't
@@ -1438,21 +1502,7 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->xy = NULL;
   msp->gaps = NULL;
   
-  /* Add it to the list */
-  if (!*mspList) 
-    {
-      /* Nothing in the list yet: make this the first entry */
-      *mspList = msp;
-    }
-  
-  if (*lastMsp)
-    {
-      /* Tag it on to the end of the list */
-      (*lastMsp)->next = msp;
-    }
-  
-  /* Make the 'lastMsp' pointer point to the new end of the list */
-  *lastMsp = msp;
+  insertMsp(msp, mspList, lastMsp);
   
   return msp;
 }
