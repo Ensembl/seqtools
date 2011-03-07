@@ -1110,6 +1110,29 @@ gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 }
 
 
+/* Same as compareFuncMspPos but accepts pointers to MSP pointers (which is 
+ * what the GArray of MSPs holds). */
+gint compareFuncMspArray(gconstpointer a, gconstpointer b)
+{
+  gint result = 0;
+  
+  const MSP const *msp1 = *((const MSP const**)a);
+  const MSP const *msp2 = *((const MSP const**)b);
+  
+  if (msp1->qRange.min == msp2->qRange.min)
+    {
+      /* Sort by type. Lower type numbers should appear first. */
+      result = msp2->type - msp1->type;
+    }
+  else 
+    {
+      result = msp1->qRange.min -  msp2->qRange.min;
+    }
+  
+  return result;
+}
+
+
 /* Determine the type of BlxSequence that an MSP belongs to */
 static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
 {

@@ -665,6 +665,13 @@ gboolean blxview(CommandLineOptions *options,
 
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->refSeqOffset);
+      
+      /* Sort all msp arrays by start coord */
+      int typeId = 0;
+      for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+        {
+          g_array_sort(featureLists[typeId], compareFuncMspArray);
+        }
     }
 
   /* Note that we create a blxview even if MSPlist is empty.

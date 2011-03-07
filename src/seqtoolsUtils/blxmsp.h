@@ -262,6 +262,7 @@ gchar*                mspGetTreePath(const MSP const *msp, BlxModelId modelId);
 
 MSP*                  mspArrayIdx(const GArray const *array, const int idx);
 gint                  compareFuncMspPos(gconstpointer a, gconstpointer b);
+gint                  compareFuncMspArray(gconstpointer a, gconstpointer b);
 
 gboolean              mspLayerIsVisible(const MSP const *msp);
 gboolean	      mspIsExon(const MSP const *msp);

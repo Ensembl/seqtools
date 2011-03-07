@@ -4091,7 +4091,6 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
     {
       blxContext->featureLists[typeId] = featureLists[typeId];
-      g_array_sort(blxContext->featureLists[typeId], compareFuncMspPos);
     }
   
   blxContext->geneticCode = options->geneticCode;
