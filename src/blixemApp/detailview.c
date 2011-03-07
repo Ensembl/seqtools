@@ -1116,12 +1116,11 @@ void selectClickedSnp(GtkWidget *snpTrack,
       
       /* Loop through all variations and see if there are any at this displayIdx */
       GList *snpList = NULL;
-      const GList *snpItem = bc->featureLists[BLXMSP_VARIATION];
+      int i = 0;
+      const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
       
-      for ( ; snpItem; snpItem = snpItem->next)
+      for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
 	{
-          const MSP const *msp = (const MSP const*)(snpItem->data);
-          
           /* Get the variation coords in terms of display coords, and also the 'expanded' range
            * of coords where the variation is displayed */
           IntRange mspExpandedRange;
@@ -1483,12 +1482,11 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
       const int direction = (qStrand == BLXSTRAND_REVERSE ? -1 : 1);
 
       /* Loop through all polyA signals */
-      const GList const *sigItem = bc->featureLists[BLXMSP_POLYA_SIGNAL];
+      int i = 0;
+      const MSP *sigMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], i);
       
-      for ( ; sigItem; sigItem = sigItem->next)
+      for ( ; sigMsp; sigMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], ++i))
         {
-          const MSP const *sigMsp = (const MSP const*)(sigItem->data);
-          
           /* Only interested the polyA signal has the correct strand and is within the display range. */
           if (sigMsp->qStrand == qStrand && rangesOverlap(&sigMsp->qRange, qRange))
             {
@@ -1769,12 +1767,11 @@ gboolean coordAffectedByVariation(const int dnaIdx,
   gboolean result = FALSE;
   
   /* Loop through all variations */
-  const GList *mspItem = bc->featureLists[BLXMSP_VARIATION];
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
   
-  for ( ; mspItem; mspItem = mspItem->next)
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
     {
-      const MSP const *msp = (const MSP const*)(mspItem->data);
-      
       if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
 	{
           result = TRUE;
@@ -2053,13 +2050,12 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
   
   /* Loop through all variations and see if any are in the current display range */
-  const GList *mspItem = bc->featureLists[BLXMSP_VARIATION];
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
   const int y = 0;
   
-  for ( ; mspItem; mspItem = mspItem->next)
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
     {
-      const MSP const *msp = (const MSP const*)(mspItem->data);
-      
       if (mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
 	{
 	  /* Get the range of display coords where this SNP will appear */
@@ -2329,35 +2325,45 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
 }
 
 
-/* Get the first msp in the given list that is in the given ref seq range
- * (in display coords). */
-static GList* getFirstMspInRange(GList *mspList, const IntRange const *displayRange)
+/* Get the index of the  first msp in the given array that is in the given ref
+ * seq range (in display coords). Returns false if none found. */
+static gboolean getFirstMspInRange(GArray *mspArray, const IntRange const *displayRange, int *idx)
 {
-  /* to do: change from GList to GArray so we can do a binary search */
-  GList *mspItem = mspList;
-  for ( ; mspItem; mspItem = mspItem->next)
+  gboolean result = FALSE;
+  
+  /* to do: use binary search to improve efficiency */
+  int i = 0;
+  const MSP *msp = mspArrayIdx(mspArray, i);
+  
+  for ( ; msp; msp = mspArrayIdx(mspArray, ++i))
     {
-      MSP *msp = (MSP*)(mspItem->data);
-      
       if (rangesOverlap(&msp->displayRange, displayRange))
-        break;
+        {
+          *idx = i;
+          result = TRUE;
+          break;
+        }
     }
   
-  return mspItem;
+  return result;
 }
 
 
 /* Refilter the tree rows for the given list of msps. Only include msps whose
  * start position on the ref sequence lies within the given range (in display
- * coords). */
-static void refilterMspList(GList *mspList, const IntRange const *range, GtkWidget *detailView, BlxViewContext *bc)
+ * coords). Start at the MSP at the the given start index in the array. */
+static void refilterMspList(const int startIdx, 
+                            GArray *array,
+                            const IntRange const *range, 
+                            GtkWidget *detailView, 
+                            BlxViewContext *bc)
 {
   /* MSPs are sorted by min pos. Loop until we find one that is out of range. */
-  GList *mspItem = mspList;
-  for ( ; mspItem; mspItem = mspItem->next)
+  int i = startIdx;
+  MSP *msp = mspArrayIdx(array, i);
+  
+  for ( ; msp; msp = mspArrayIdx(array, ++i))
     {
-      MSP *msp = (MSP*)(mspItem->data);
-      
       if (!bc->displayRev && msp->displayRange.min > range->max ||
           bc->displayRev && msp->displayRange.max < range->min)
         {
@@ -2377,20 +2383,20 @@ static void refilterDetailViewType(BlxMspType mspType,
                                    const IntRange const *newRange,
                                    GtkWidget *detailView)
 {
-  /* We only want to update MSPs that are within the given ranges. The msp lists
+  /* We only want to update MSPs that are within the given ranges. The msp arrays
    * are sorted by start coord, so find the first MSP in this list that is in 
-   * each range, then call refilterMspList with that list item; it will break
+   * each range, then call refilterMspList with that array index; it will break
    * when it reaches an MSP whose start coord is beyond the end of the range. */
-  if (oldRange)
+  int idx = 0;
+  if (oldRange && getFirstMspInRange(bc->featureLists[mspType], oldRange, &idx))
     {
-      GList *mspList = getFirstMspInRange(bc->featureLists[mspType], oldRange);
-      refilterMspList(mspList, oldRange, detailView, bc);
+      refilterMspList(idx, bc->featureLists[mspType], oldRange, detailView, bc);
     }
   
-  if (newRange)
+  idx = 0;
+  if (newRange && getFirstMspInRange(bc->featureLists[mspType], newRange, &idx))
     {
-      GList *mspList = getFirstMspInRange(bc->featureLists[mspType], newRange);
-      refilterMspList(mspList, newRange, detailView, bc);
+      refilterMspList(idx, bc->featureLists[mspType], newRange, detailView, bc);
     }
 }
 

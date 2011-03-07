@@ -318,7 +318,7 @@ typedef struct _BlxViewContext
     int numFrames;		    /* The number of reading frames */
     
     MSP *mspList;                          /* List of all MSPs. Obsolete - use featureLists array instead */
-    GList* featureLists[BLXMSP_NUM_TYPES];  /* Array indexed by the BlxMspType enum. Each array entry contains a GList of all the MSPs of that type. */
+    GArray* featureLists[BLXMSP_NUM_TYPES];/* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
     
     GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
     GSList *supportedTypes;           /* List of supported GFF types */
@@ -364,7 +364,7 @@ typedef struct
 /* blxview.c */
 /* Function to show blixem window, can be called from any application. */
 gboolean                            blxview(CommandLineOptions *options,
-                                            GList* featureLists[],
+                                            GArray* featureLists[],
                                             GList *seqList, 
                                             GSList *supportedTypes,
 	                                    PfetchParams *pfetch, 

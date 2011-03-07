@@ -288,11 +288,11 @@ int main(int argc, char **argv)
   
   /* MSPlist above is obsolete and should be replaced by featureLists, which contains all the MSPs
    * but in GLists in an array indexed by type. Initialise each GList to NULL. */
-  GList* featureLists[BLXMSP_NUM_TYPES];
+  GArray* featureLists[BLXMSP_NUM_TYPES];
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
     {
-      featureLists[typeId] = NULL;
+      featureLists[typeId] = g_array_new(TRUE, FALSE, sizeof(MSP*));
     }
   
   static char *dotterBinary = NULL;
@@ -493,8 +493,8 @@ int main(int argc, char **argv)
                 MSP *msp = createEmptyMsp(&lastMsp, &MSPlist);
                 readMspFromText(msp, text);
                 
-                /* add it to the relevant feature list. Use prepend because it is quicker */
-                featureLists[msp->type] = g_list_prepend(featureLists[msp->type], msp);
+                /* add it to the relevant feature list. */
+                featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
                 
                 /* add the msp to the blxsequence */
                 blxSeq->mspList = g_list_append(blxSeq->mspList, msp);

@@ -260,6 +260,9 @@ char*                 mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
 gchar*                mspGetTreePath(const MSP const *msp, BlxModelId modelId);
 
+MSP*                  mspArrayIdx(const GArray const *array, const int idx);
+gint                  compareFuncMspPos(gconstpointer a, gconstpointer b);
+
 gboolean              mspLayerIsVisible(const MSP const *msp);
 gboolean	      mspIsExon(const MSP const *msp);
 gboolean	      mspIsIntron(const MSP const *msp);
@@ -274,8 +277,8 @@ gboolean              mspHasSName(const MSP const *msp);
 gboolean              mspHasSSeq(const MSP  const *msp);
 gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
-gboolean              mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList);
-gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GList const *polyASiteList);
+gboolean              mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList);
+gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray const *polyASiteList);
 
 void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2);
 BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
@@ -284,7 +287,7 @@ void                  readMspFromText(MSP *msp, char *text);
 
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
-MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
+MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
                                    const char *source, const gdouble score, const gdouble percentId, const int phase,
 				   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
@@ -292,7 +295,7 @@ MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **m
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, const int offset);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 

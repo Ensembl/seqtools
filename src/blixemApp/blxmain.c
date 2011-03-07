@@ -818,10 +818,10 @@ int main(int argc, char **argv)
     }
   
   /* Parser compiles lists of MSPs per type into the following array. Initialise each GList in the array to NULL */
-  GList* featureLists[BLXMSP_NUM_TYPES];
+  GArray* featureLists[BLXMSP_NUM_TYPES];
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-    featureLists[typeId] = NULL;
+    featureLists[typeId] = g_array_new(TRUE, FALSE, sizeof(MSP*));
   
   GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
 

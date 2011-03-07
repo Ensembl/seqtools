@@ -4065,7 +4065,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
 					      const char *paddingSeq,
-                                              GList* featureLists[],
+                                              GArray* featureLists[],
                                               GList *seqList,
                                               GSList *supportedTypes,
 					      GtkWidget *widget,
@@ -4089,7 +4089,10 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-    blxContext->featureLists[typeId] = featureLists[typeId];
+    {
+      blxContext->featureLists[typeId] = featureLists[typeId];
+      g_array_sort(blxContext->featureLists[typeId], compareFuncMspPos);
+    }
   
   blxContext->geneticCode = options->geneticCode;
   blxContext->blastMode = options->blastMode;
@@ -4832,7 +4835,7 @@ static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
 /* Create the main blixem window */
 GtkWidget* createBlxWindow(CommandLineOptions *options, 
                            const char *paddingSeq, 
-                           GList* featureLists[],
+                           GArray* featureLists[],
                            GList *seqList, 
                            GSList *supportedTypes,
                            const char *net_id, 

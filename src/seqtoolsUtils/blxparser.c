@@ -74,17 +74,17 @@ static gboolean	    parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *ms
 
 static void	    parseBody(char *line, const int lineNum, BlxBlastMode blastMode, const int resFactor, MSP **msp, GString *line_string, char **seq1, 
                               char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
-                              BlxParserState *parserState, GList* featureLists[], MSP **mspList, GList **seqList, 
+                              BlxParserState *parserState, GArray* featureLists[], MSP **mspList, GList **seqList, 
                               GSList *supportedTypes, GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
 
-static void	    parseEXBLXSEQBL(GList* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
-static void	    parseEXBLXSEQBLExtended(GList* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
-static void	    parseFsHsp(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
-static void	    parseFsGspHeader(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList);
+static void	    parseEXBLXSEQBL(GArray* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
+static void	    parseEXBLXSEQBLExtended(GArray* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
+static void	    parseFsHsp(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
+static void	    parseFsGspHeader(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList);
 static void	    parseFsGspData(char *line, MSP *msp);
-static void	    parseFsGff(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
-static void	    parseFsSeg(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
-static void	    parseFsXyHeader(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxParserState *parserState, GList **seqList);
+static void	    parseFsGff(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
+static void	    parseFsSeg(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList);
+static void	    parseFsXyHeader(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxParserState *parserState, GList **seqList);
 static void	    parseFsXyData(char *line, MSP *msp);
 static void         parseFsSeqHeader(char *line, char **seq1, char *seq1name, char **seq2, char *seq2name, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, BlxParserState *parserState);
 static void         parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
@@ -182,7 +182,7 @@ static int getResFactorFromMode(const BlxBlastMode blastMode)
  *
  */
 void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
-             GList* featureLists[], GList **seqList, GSList *supportedTypes, GSList *styles,
+             GArray* featureLists[], GList **seqList, GSList *supportedTypes, GSList *styles,
 	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name)
 {
   DEBUG_ENTER("parseFS");
@@ -504,7 +504,7 @@ static char* prepSeq(const int sStart, char *inputSeq, BlxBlastMode blastMode)
  *    11 (+2) 49052 49783 102 328 SW:YCF2_MARPO some description or other
  * 
  */
-static void parseEXBLXSEQBL(GList* featureLists[],
+static void parseEXBLXSEQBL(GArray* featureLists[],
                             MSP **lastMsp,
                             MSP **mspList, 
                             BlxParserState parserState, 
@@ -709,7 +709,7 @@ static void parseEXBLXSEQBL(GList* featureLists[],
  * Currently acedb & ZMap export this format but other programs could also use it.
  * 
  */
-static void parseEXBLXSEQBLExtended(GList* featureLists[],
+static void parseEXBLXSEQBLExtended(GArray* featureLists[],
                                     MSP **lastMsp, 
                                     MSP **mspList, 
                                     BlxParserState parserState, 
@@ -1291,7 +1291,7 @@ static gboolean parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, I
 
 
 /* Parse data from the given line into an MSP of type FS_HSP */
-static void parseFsHsp(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void parseFsHsp(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   char qName[MAXLINE+1];
   char sName[MAXLINE+1];
@@ -1339,7 +1339,7 @@ static void parseFsHsp(char *line, BlxBlastMode blastMode, GList* featureLists[]
 
 
 /* Parse data from the given line, which contains feature-series GSP header info */
-static void parseFsGspHeader(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList)
+static void parseFsGspHeader(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, BlxParserState *parserState, GList **seqList)
 {
   /* Data goes into a new MSP */
 //  msp->type = BLXMSP_GSP;
@@ -1360,7 +1360,7 @@ static void parseFsGspData(char *line, MSP *msp)
 
 
 /* Parse data from the given line into an MSP of type FS_SEG (Feature Series Segment) */
-static void parseFsSeg(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void parseFsSeg(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   char series[MAXLINE+1];
   char qName[MAXLINE+1];
@@ -1394,7 +1394,7 @@ static void parseFsSeg(char *line, BlxBlastMode blastMode, GList* featureLists[]
 
 
 /* Parse data from a line of text that contains feature-series data in GFF format */
-static void parseFsGff(char *line, BlxBlastMode blastMode, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void parseFsGff(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   char scorestring[256];
   char series[MAXLINE+1];
@@ -1446,7 +1446,7 @@ static void parseFsGff(char *line, BlxBlastMode blastMode, GList* featureLists[]
 /* Parse data from the given line, which contains header info for Feature-Series XY-plot data */
 static void parseFsXyHeader(char *line, 
                             BlxBlastMode blastMode, 
-                            GList* featureLists[],
+                            GArray* featureLists[],
                             MSP **lastMsp, 
                             MSP **mspList, 
                             char **seq1, 
@@ -1618,7 +1618,7 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
 /* Utility to call the relevant parser function to parse the current data type */
 static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, const int resFactor, MSP **lastMsp, GString *line_string,
                       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
-                      BlxParserState *parserState, GList *featureLists[], MSP **mspList, GList **seqList, GSList *supportedTypes,
+                      BlxParserState *parserState, GArray *featureLists[], MSP **mspList, GList **seqList, GSList *supportedTypes,
                       GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
 {
   DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);

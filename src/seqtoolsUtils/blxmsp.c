@@ -640,9 +640,21 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 //
 
 
+/* Get the MSP at the given index in the given array. Returns null if out of bounds */
+MSP* mspArrayIdx(const GArray const *array, const int idx)
+{
+  MSP *msp = NULL;
+  
+  if (idx < array->len)
+    msp = g_array_index(array, MSP*, idx);
+  
+  return msp;
+}
+
+
 /* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
  * list should be a list containing all polya sites (and only polya sites) */
-gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
+gboolean mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList)
 {
   gboolean found = FALSE;
   
@@ -652,21 +664,21 @@ gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
       /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
        * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
        * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
-      const GList *item = polyASiteList;
+      int i = 0;
+      MSP *curPolyASite = mspArrayIdx(polyASiteList, i);
       
-      for ( ; !found && item; item = item->next)
-          {
-            const MSP const *curPolyASite = (const MSP const*)(item->data);
-            const int qEnd = mspGetQEnd(msp);
-            
-            if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
-              {
-                found = (qEnd == curPolyASite->qRange.min);
-              }
-            else
-              {
-                found = (qEnd == curPolyASite->qRange.min + 1);
-              }
+      for ( ; !found && curPolyASite; curPolyASite = mspArrayIdx(polyASiteList, ++i))
+        {
+          const int qEnd = mspGetQEnd(msp);
+          
+          if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+            {
+              found = (qEnd == curPolyASite->qRange.min);
+            }
+          else
+            {
+              found = (qEnd == curPolyASite->qRange.min + 1);
+            }
         }
     }
   
@@ -676,7 +688,7 @@ gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
 
 /* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
  * this MSP has one. */
-gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const GList *polyASiteList)
+gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray *polyASiteList)
 {
   gboolean result = mspHasPolyATail(msp, polyASiteList);
   
@@ -1077,7 +1089,7 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
 /* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
  * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
  * the BlxMspType enum. */
-static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
+gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 {
   gint result = 0;
 
@@ -1530,7 +1542,7 @@ void destroyMspData(MSP *msp)
  * array according to its type. Returns a pointer to the newly-created MSP. Also creates a BlxSequence
  * for this MSP's sequence name (or adds the MSP to the existing one, if it exists already), 
  * and adds that BlxSequence to the given seqList. Takes ownership of 'sequence'. */
-MSP* createNewMsp(GList* featureLists[],
+MSP* createNewMsp(GArray* featureLists[],
                   MSP **lastMsp, 
                   MSP **mspList,
                   GList **seqList,
@@ -1573,7 +1585,7 @@ MSP* createNewMsp(GList* featureLists[],
   intrangeSetValues(&msp->sRange, sStart, sEnd);
 
   /* Add it to the relevant feature list. Use prepend because it is quicker */
-  featureLists[msp->type] = g_list_insert_sorted(featureLists[msp->type], msp, compareFuncMspPos);
+  featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
   
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -1623,7 +1635,7 @@ static void copyCdsReadingFrame(MSP *exon, MSP *cds, MSP *utr)
  * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
  * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
 static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr, 
-                                    BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
+                                    BlxSequence *blxSeq, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
                                     GError **error)
 {
   BlxMspType newType = BLXMSP_INVALID; /* only set this if we need to construct an MSP */
@@ -1754,7 +1766,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
 /* Construct any missing transcript data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   GError *tmpError = NULL;
   
@@ -1901,7 +1913,7 @@ static void findSequenceExtents(BlxSequence *blxSeq)
 
 /* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
  * data and the introns etc. */
-void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, const int offset)
+void finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset)
 {
   /* Loop through all MSPs and adjust their coords by the offest. Also find
    * the last MSP in the list. */

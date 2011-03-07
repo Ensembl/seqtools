@@ -73,7 +73,7 @@ MSP score codes (for obsolete exblx file format):
 
 
 
-static void            blviewCreate(char *align_types, const char *paddingSeq, GList* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
+static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
 
@@ -625,7 +625,7 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
  *
  */
 gboolean blxview(CommandLineOptions *options,
-                 GList* featureLists[],
+                 GArray* featureLists[],
                  GList *seqList,
                  GSList *supportedTypes,
                  PfetchParams *pfetch, 
@@ -681,7 +681,7 @@ gboolean blxview(CommandLineOptions *options,
 /* Initialize the display and the buttons */
 static void blviewCreate(char *align_types, 
 			 const char *paddingSeq,
-                         GList* featureLists[],
+                         GArray* featureLists[],
                          GList *seqList,
                          GSList *supportedTypes,
 			 CommandLineOptions *options,
@@ -910,7 +910,7 @@ const IntRange* mspGetDisplayRange(const MSP const *msp)
 static void mspCalcFullSRange(const MSP const *msp, 
 			      const gboolean *flags,
 			      const int numUnalignedBases, 
-			      const GList const *polyASiteList,
+			      const GArray const *polyASiteList,
 			      IntRange *result)
 {
   /* Normally we just display the part of the sequence in the alignment */
@@ -961,7 +961,7 @@ static void mspCalcFullSRange(const MSP const *msp,
 static void mspCalcFullQRange(const MSP const *msp, 
 			      const gboolean *flags,
 			      const int numUnalignedBases, 
-			      const GList const *polyASiteList,
+			      const GArray const *polyASiteList,
 			      const int numFrames,
 			      const IntRange const *fullSRange,
 			      IntRange *result)

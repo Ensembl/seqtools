@@ -108,7 +108,7 @@ void			  blxWindowRedrawAll(GtkWidget *blxWindow);
   
 GtkWidget*		  createBlxWindow(CommandLineOptions *options, 
 					  const char *paddingSeq, 
-                                          GList* featureLists[], 
+                                          GArray* featureLists[], 
 					  GList *seqList, 
                                           GSList *supportedTypes,
 					  const char *net_id, 
