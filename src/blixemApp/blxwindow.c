@@ -4144,6 +4144,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
     }
     
   blxContext->spawnedProcesses = NULL;
+  blxContext->modelId = BLXMODEL_NORMAL;
   
   return blxContext;
 }
@@ -4459,7 +4460,7 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow)
 
   /* Re-filter the detail-view trees, because selecting an MSP can cause other MSPs to 
    * become visible (i.e. polyA tails). */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  refilterDetailView(detailView, NULL);
   
   /* Redraw */
   updateFeedbackBox(detailView);
@@ -4828,17 +4829,6 @@ static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
 }
 
 
-/* This calculates the display range for each MSP */
-static void initialiseMspDisplayRanges(const BlxViewContext const *bc)
-{
-  MSP *msp = bc->mspList;
-  for ( ; msp; msp = msp->next)
-    {
-      mspCalculateDisplayRange(msp, bc);
-    }
-}
-
-
 /* Create the main blixem window */
 GtkWidget* createBlxWindow(CommandLineOptions *options, 
                            const char *paddingSeq, 
@@ -4976,7 +4966,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Updated the cached display range and full extents of the MSPs */
   detailViewUpdateUnalignedSeqLen(detailView, detailViewGetNumUnalignedBases(detailView));
-  initialiseMspDisplayRanges(blxContext);
+  cacheMspDisplayRanges(blxContext, detailViewGetNumUnalignedBases(detailView));
   
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
@@ -5012,6 +5002,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
    * the initial big picture range depends on the detail view range, which is calculated
    * from its window's width, and this will be incorrect if it has not been realised.) */
   updateDynamicColumnWidths(detailView);
+  
+  /* Just once, at the start, update the visibility of all tree rows. (After this,
+   * filter updates will be done on affected rows only.) */
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   
   return window;
 }

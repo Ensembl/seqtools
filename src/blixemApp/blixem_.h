@@ -347,6 +347,7 @@ typedef struct _BlxViewContext
     gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
     GSList *spawnedProcesses;			  /* List of processes spawned by Blixem */
+    BlxModelId modelId;             /* which tree model to use (i.e. normal or squashed) */
   } BlxViewContext;
 
 
@@ -376,7 +377,7 @@ const IntRange*                    mspGetFullSRange(const MSP const *msp, const 
 const IntRange*                    mspGetDisplayRange(const MSP const *msp);
 const IntRange*                    mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
 void				   mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases);
-void				   mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc);
+void                               cacheMspDisplayRanges(const BlxViewContext const *bc, const int numUnalignedBases);
 
 int                                mspGetMatchCoord(const MSP *msp, 
                                                     const int qIdx, 

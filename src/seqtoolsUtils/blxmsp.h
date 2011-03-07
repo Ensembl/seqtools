@@ -45,6 +45,7 @@
 
 #include <seqtoolsUtils/utilities.h>
 #include <stdlib.h>
+#include <gtk/gtk.h>
 
 
 //extern GArray    *fsArr;		   /* in dotter.c */
@@ -108,6 +109,18 @@ typedef enum
   } BlxSequenceType;
 
 
+/* This enum provides an ID for each type of data model that we use for the
+ * detail-view trees. */
+typedef enum
+  {
+    BLXMODEL_NORMAL,                /* the normal model, where each row contains one feature */
+    BLXMODEL_SQUASHED,              /* the "squashed" model, where all MSPs from the same sequence appear on the same row */
+    
+    BLXMODEL_NUM_MODELS             /* the number of model IDs. MUST BE LAST IN LIST */
+  } BlxModelId;
+
+
+
 /* Structure that contains information about a sequence */
 typedef struct _BlxSequence
 {
@@ -159,13 +172,16 @@ typedef enum
  * file about the naming of this struct). */
 typedef struct _MSP
 {
+  gchar* treePaths[BLXMODEL_NUM_MODELS]; /* identifies the row in the tree data model this msp is in (for the model given by the modelId) */
+
   struct _MSP       *next;
   GList             *childMsps;    /* Child MSPs of this MSP if it has them, e.g. an exon has CDS and UTR children (part_of relationship). */
+  
   BlxMspType        type;          /* Whether this is a match, exon, SNP etc. */
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
-  char		    *url;
+  char		    *url;          /* URL to info about the MSP (e.g. variations have a URL which can be opened by double-clicking the variation) */
   
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   IntRange	    qRange;	   /* the range of coords on the ref sequence where the alignment lies */
@@ -204,6 +220,8 @@ gboolean              typeIsIntron(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
 gboolean              typeIsShortRead(const BlxMspType mspType);
+gboolean              typeShownInDetailView(const BlxMspType mspType);
+gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
@@ -240,6 +258,7 @@ char*                 mspGetGeneName(const MSP const *msp);
 char*                 mspGetTissueType(const MSP const *msp);
 char*                 mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
+gchar*                mspGetTreePath(const MSP const *msp, BlxModelId modelId);
 
 gboolean              mspLayerIsVisible(const MSP const *msp);
 gboolean	      mspIsExon(const MSP const *msp);

@@ -117,7 +117,6 @@ static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescri
 static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
-static void		      refilterDetailView(GtkWidget *detailView);
 
 
 /***********************************************************
@@ -929,13 +928,19 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
  * is true, or reverts to the expanded version (where each MSP has its own row) if squash is false. */
 void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
 {
-  if (squash)
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  if (squash && bc->modelId != BLXMODEL_SQUASHED)
     {
-      callFuncOnAllDetailViewTrees(detailView, treeSquashMatches, NULL);
+      /* Set the "squashed" model to be active */
+      bc->modelId = BLXMODEL_SQUASHED;
+      callFuncOnAllDetailViewTrees(detailView, treeUpdateSquashMatches, NULL);
     }
-  else
+  else if (!squash && bc->modelId != BLXMODEL_NORMAL)
     {
-      callFuncOnAllDetailViewTrees(detailView, treeUnsquashMatches, NULL);
+      /* Set the normal model to be active */
+      bc->modelId = BLXMODEL_NORMAL;
+      callFuncOnAllDetailViewTrees(detailView, treeUpdateSquashMatches, NULL);
     }
 
   gtk_widget_queue_draw(detailView);
@@ -974,7 +979,7 @@ void detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalign
     }
   
   /* Refilter and re-draw */
-  refilterDetailView(detailView);
+  refilterDetailView(detailView, NULL);
   gtk_widget_queue_draw(detailView);
 }
 
@@ -2191,13 +2196,16 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   
   /* Only update if something has changed */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  
   if (displayRange->min != newStart || displayRange->max != newEnd)
     {
+      IntRange oldRange = {displayRange->min, displayRange->max};
+
       displayRange->min = newStart;
       displayRange->max = newEnd;
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      refilterDetailView(detailView);
+      refilterDetailView(detailView, &oldRange);
 
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
@@ -2233,11 +2241,13 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
   
   if (displayRange->min != newStart || displayRange->max != newEnd)
     {
+      IntRange oldRange = {displayRange->min, displayRange->max};
+
       displayRange->min = newStart;
       displayRange->max = newEnd;
 
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
-      refilterDetailView(detailView);
+      refilterDetailView(detailView, &oldRange);
 
       /* Refresh the detail view header (which may contain the DNA sequence), and 
        * the headers for all the trees (which contains the reference sequence) */
@@ -2292,15 +2302,119 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
 }
 
 
-/* Refilter the rows in the detail-view trees */
-static void refilterDetailView(GtkWidget *detailView)
+/* Refilter the tree row that this msp is in */
+static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
 {
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-//  BlxViewContext *bc = detailViewGetContext(detailView);
-//  
-//  /* Get all of the MSPs in the new detail-view range */
-//  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
-//  
+  /* Find the tree row that this MSP is in and force that row to update
+   * its visibility status. */
+  gchar *pathStr = mspGetTreePath(msp, bc->modelId);
+  
+  if (pathStr)
+    {
+      GtkTreePath *path = gtk_tree_path_new_from_string(pathStr);
+      
+      if (path)
+        {
+          GtkWidget *tree = detailViewGetTree(detailView, mspGetRefStrand(msp), mspGetRefFrame(msp, bc->seqType));
+          GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+          GtkTreeIter iter;
+          
+          if (gtk_tree_model_get_iter(model, &iter, path))
+            {
+              gtk_tree_model_row_changed(model, path, &iter);
+            }
+        }
+    }
+  
+}
+
+
+/* Get the first msp in the given list that is in the given ref seq range
+ * (in display coords). */
+static GList* getFirstMspInRange(GList *mspList, const IntRange const *displayRange)
+{
+  /* to do: change from GList to GArray so we can do a binary search */
+  GList *mspItem = mspList;
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      MSP *msp = (MSP*)(mspItem->data);
+      
+      if (rangesOverlap(&msp->displayRange, displayRange))
+        break;
+    }
+  
+  return mspItem;
+}
+
+
+/* Refilter the tree rows for the given list of msps. Only include msps whose
+ * start position on the ref sequence lies within the given range (in display
+ * coords). */
+static void refilterMspList(GList *mspList, const IntRange const *range, GtkWidget *detailView, BlxViewContext *bc)
+{
+  /* MSPs are sorted by min pos. Loop until we find one that is out of range. */
+  GList *mspItem = mspList;
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      MSP *msp = (MSP*)(mspItem->data);
+      
+      if (!bc->displayRev && msp->displayRange.min > range->max ||
+          bc->displayRev && msp->displayRange.max < range->min)
+        {
+          break;
+        }
+      
+      refilterMspRow(msp, detailView, bc);
+    }
+}
+
+
+/* Refilter rows in the detail-view trees for MSPs of the given type. Only affects
+ * MSPs within the given range(s) (either of which may be null). */
+static void refilterDetailViewType(BlxMspType mspType, 
+                                   BlxViewContext *bc, 
+                                   const IntRange const *oldRange, 
+                                   const IntRange const *newRange,
+                                   GtkWidget *detailView)
+{
+  /* We only want to update MSPs that are within the given ranges. The msp lists
+   * are sorted by start coord, so find the first MSP in this list that is in 
+   * each range, then call refilterMspList with that list item; it will break
+   * when it reaches an MSP whose start coord is beyond the end of the range. */
+  if (oldRange)
+    {
+      GList *mspList = getFirstMspInRange(bc->featureLists[mspType], oldRange);
+      refilterMspList(mspList, oldRange, detailView, bc);
+    }
+  
+  if (newRange)
+    {
+      GList *mspList = getFirstMspInRange(bc->featureLists[mspType], newRange);
+      refilterMspList(mspList, newRange, detailView, bc);
+    }
+}
+
+
+/* Refilter the rows in the detail-view trees. Only updates the rows in the
+ * current display range and (if given) the old display range. */
+void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
+{
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  /* We only want to update MSPs that are in the old detail-view range
+   * and the new detail-view range. (Because updating every row in all
+   * trees can be very slow if there are a lot of MSPs.) */
+  const IntRange const *newRange = detailViewGetDisplayRange(detailView);
+
+  /* Only consider MSPs that are shwon in the detail-view */
+  BlxMspType mspType = 0;
+  for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
+    {
+      if (typeShownInDetailView(mspType))
+        {
+          refilterDetailViewType(mspType, bc, oldRange, newRange, detailView);
+        }
+    }
 }
 
 
@@ -3332,8 +3446,11 @@ void toggleStrand(GtkWidget *detailView)
   if (properties->selectedBaseSet)
     {
       const int activeFrame = detailViewGetActiveFrame(detailView); 
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedDnaBaseIdx, activeFrame, FALSE, TRUE);
+      detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedDnaBaseIdx, activeFrame, FALSE, TRUE);
     }
+  
+  /* Re-calculate the cached display ranges for the MSPs */
+  cacheMspDisplayRanges(blxContext, properties->numUnalignedBases);
   
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
   swapTreeVisibility(detailView);
@@ -3349,6 +3466,7 @@ void toggleStrand(GtkWidget *detailView)
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   gtk_widget_queue_draw(detailView);
   
   /* Redraw the grids and grid headers */
@@ -4290,7 +4408,8 @@ static void createDetailViewPanes(GtkWidget *detailView,
  ***********************************************************/
 
 /* Add the MSPs to the detail-view trees. Calculates and returns the lowest ID 
- * out of all the blast matches */
+ * out of all the blast matches. modelId specifies which tree data model should
+ * be active at the start. */
 void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);

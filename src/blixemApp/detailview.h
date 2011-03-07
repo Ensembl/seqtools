@@ -187,6 +187,7 @@ void			zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 
 int                     scrollBarWidth();
 void                    updateDynamicColumnWidths(GtkWidget *detailView);
+void                    refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange);
 
 void			detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
                                                      const int selectedBaseIdx, 

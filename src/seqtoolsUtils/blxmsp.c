@@ -75,6 +75,17 @@ gboolean typeIsShortRead(const BlxMspType mspType)
   return (mspType == BLXMSP_SHORT_READ);
 }
 
+/* This returns true if the given type should be shown in the detail-view */
+gboolean typeShownInDetailView(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_SHORT_READ || mspType == BLXMSP_CDS || mspType == BLXMSP_UTR);
+}
+
+/* This returns true if the given sequence should be shown in the detail-view */
+gboolean blxSequenceShownInDetailView(const BlxSequence *blxSeq)
+{
+  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR || blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
+}
 
 gboolean mspIsExon(const MSP const *msp)
 {
@@ -521,6 +532,13 @@ char *mspGetCoordsAsString(const MSP const *msp)
     }
   
   return result;
+}
+
+
+/* Return the path in the given tree model that this MSP lies in */
+gchar* mspGetTreePath(const MSP const *msp, BlxModelId modelId)
+{
+  return msp->treePaths[modelId];
 }
 
 
@@ -1423,8 +1441,13 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 {
   MSP *msp = (MSP *)g_malloc(sizeof(MSP));
   
+  int i = 0;
+  for ( ; i < BLXMODEL_NUM_MODELS; ++i)
+    msp->treePaths[i] = NULL;
+
   msp->next = NULL;
   msp->childMsps = NULL;
+  
   msp->type = BLXMSP_INVALID;
   msp->score = 0.0;
   msp->id = 0.0;
@@ -1550,7 +1573,7 @@ MSP* createNewMsp(GList* featureLists[],
   intrangeSetValues(&msp->sRange, sStart, sEnd);
 
   /* Add it to the relevant feature list. Use prepend because it is quicker */
-  featureLists[msp->type] = g_list_prepend(featureLists[msp->type], msp);
+  featureLists[msp->type] = g_list_insert_sorted(featureLists[msp->type], msp, compareFuncMspPos);
   
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 

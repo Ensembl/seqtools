@@ -1001,12 +1001,25 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int
 
 
 /* Convert the ref-seq range of the given msp in display coords and cache it in the msp */
-void mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc)
+static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc)
 {
   const int frame = mspGetRefFrame(msp, bc->seqType);
   const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   intrangeSetValues(&msp->displayRange, coord1, coord2);  
+}
+
+
+/* This caches the display range (in display coords rather than dna coords,
+ * and inverted if the display is inverted) for each MSP */
+void cacheMspDisplayRanges(const BlxViewContext const *bc, const int numUnalignedBases)
+{
+  MSP *msp = bc->mspList;
+  for ( ; msp; msp = msp->next)
+    {
+      mspCalculateDisplayRange(msp, bc);
+      mspCalculateFullExtents(msp, bc, numUnalignedBases);
+    }
 }
 
 
