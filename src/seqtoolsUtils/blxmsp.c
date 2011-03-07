@@ -42,12 +42,28 @@
 #define ALL_READ_PAIRS_FWD      FALSE
 
 
+/* Globals */
+static int g_MaxMspLen = 0;
+
+
 /* Local function declarations */
 static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
 static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
 static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
 static char*                    blxSequenceGetStrain(const BlxSequence *seq);
 static const char*              blxSequenceGetSource(const BlxSequence *seq);
+
+
+
+int getMaxMspLen()
+{
+  return g_MaxMspLen;
+}
+
+void setMaxMspLen(const int len)
+{
+  g_MaxMspLen = len;
+}
 
 
 gboolean typeIsExon(const BlxMspType mspType)
@@ -645,7 +661,7 @@ MSP* mspArrayIdx(const GArray const *array, const int idx)
 {
   MSP *msp = NULL;
   
-  if (idx < array->len)
+  if (idx >= 0 && idx < array->len)
     msp = g_array_index(array, MSP*, idx);
   
   return msp;

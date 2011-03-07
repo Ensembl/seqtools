@@ -2325,17 +2325,20 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
 }
 
 
-/* Get the index of the  first msp in the given array that is in the given ref
- * seq range (in display coords). Returns false if none found. */
-static gboolean getFirstMspInRange(GArray *mspArray, const IntRange const *displayRange, int *idx)
+/* Quick search to find any MSP that lies within the given display range (in 
+ * display coords). This is useful to quickly jump to the rough region in the
+ * array where relevant MSPs lie. */
+static gboolean getAnyMspInRange(GArray *mspArray, const IntRange const *displayRange, const gboolean displayRev, int *idx)
 {
   gboolean result = FALSE;
   
-  /* to do: use binary search to improve efficiency */
-  int i = 0;
+  int iMax = mspArray->len - 1;
+  int iMin = 0;
+  int i = (iMax - iMin) / 2;
+  
   const MSP *msp = mspArrayIdx(mspArray, i);
   
-  for ( ; msp; msp = mspArrayIdx(mspArray, ++i))
+  while (msp)
     {
       if (rangesOverlap(&msp->displayRange, displayRange))
         {
@@ -2343,29 +2346,81 @@ static gboolean getFirstMspInRange(GArray *mspArray, const IntRange const *displ
           result = TRUE;
           break;
         }
+      else if (msp->displayRange.min < displayRange->min != displayRev)
+        {
+          iMin = i;
+        }
+      else
+        {
+          iMax = i;
+        }
+
+      int iNew = iMin + (iMax - iMin) / 2;
+      
+      if (iNew == i)
+        break;
+      
+      i = iNew;
+      msp = mspArrayIdx(mspArray, i);
     }
   
   return result;
 }
 
 
-/* Refilter the tree rows for the given list of msps. Only include msps whose
- * start position on the ref sequence lies within the given range (in display
- * coords). Start at the MSP at the the given start index in the array. */
+/* Refilter the tree rows for the given list of msps. The aim of this function
+ * is to avoid having to refilter every single MSP row because the visible 
+ * MSPs are generally only a very small subset of the total number of MSPs.
+ * 
+ * This function therefore tries to include only those MSPs that lie within
+ * the given range. The array is sorted by MSP start position and startIdx
+ * gives the index of an MSP that lies within range (i.e. it gives a rough 
+ * indication of where in the array to start searching). We search forwards and 
+ * backwards from this index until there are no more MSPs within range. Note 
+ * that we may include a few MSPs that are just out of range; this is generally 
+ * not an issue because this number is generally very small compared to the total 
+ * number of MSPs. */
 static void refilterMspList(const int startIdx, 
                             GArray *array,
                             const IntRange const *range, 
                             GtkWidget *detailView, 
                             BlxViewContext *bc)
 {
-  /* MSPs are sorted by min pos. Loop until we find one that is out of range. */
+  /* MSPs are sorted by min pos. Loop forwards until we find one that is out of range. */
   int i = startIdx;
   MSP *msp = mspArrayIdx(array, i);
   
   for ( ; msp; msp = mspArrayIdx(array, ++i))
     {
-      if (!bc->displayRev && msp->displayRange.min > range->max ||
-          bc->displayRev && msp->displayRange.max < range->min)
+      /* When the display is forward: break once the min coord of the MSP is 
+       * greater than the max coord of the display range. When reversed, the
+       * display coords are all inverted, so swap min and max and use greater-
+       * than instead of less-than. */
+      if ((!bc->displayRev && msp->displayRange.min > range->max) ||
+          (bc->displayRev && msp->displayRange.max < range->min))
+        {
+          break;
+        }
+      
+      refilterMspRow(msp, detailView, bc);
+    }
+  
+  /* Also loop backwards, because startIdx may not have been the very first MSP in range. */
+  i = startIdx - 1;
+  msp = mspArrayIdx(array, i);
+  const int maxLen = getMaxMspLen();
+  
+  for ( ; msp; msp = mspArrayIdx(array, --i))
+    {
+      /* Since MSPs are of different lengths, we can't simply break when we find
+       * the first one out of range, because one with a lower start index may have
+       * a longer length and still be in range. We get around this by using the max
+       * MSP length; we break when we first find an MSP whose start coord is lower
+       * than the display start minus the max length. We can then be sure that we 
+       * have included all MSPs that are within range. (Note that this means that we 
+       * may also include some MSPs that arre NOT in range.) */
+      if ((!bc->displayRev && msp->displayRange.min < range->min - maxLen) ||
+          (bc->displayRev && msp->displayRange.max > range->max + maxLen))
         {
           break;
         }
@@ -2388,13 +2443,13 @@ static void refilterDetailViewType(BlxMspType mspType,
    * each range, then call refilterMspList with that array index; it will break
    * when it reaches an MSP whose start coord is beyond the end of the range. */
   int idx = 0;
-  if (oldRange && getFirstMspInRange(bc->featureLists[mspType], oldRange, &idx))
+  if (oldRange && getAnyMspInRange(bc->featureLists[mspType], oldRange, bc->displayRev, &idx))
     {
       refilterMspList(idx, bc->featureLists[mspType], oldRange, detailView, bc);
     }
   
   idx = 0;
-  if (newRange && getFirstMspInRange(bc->featureLists[mspType], newRange, &idx))
+  if (newRange && getAnyMspInRange(bc->featureLists[mspType], newRange, bc->displayRev, &idx))
     {
       refilterMspList(idx, bc->featureLists[mspType], newRange, detailView, bc);
     }

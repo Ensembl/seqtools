@@ -1003,7 +1003,11 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int
   /* convert the Q range to display coords */
   const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max, bc->seqType, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  intrangeSetValues(&msp->fullRange, coord1, coord2);  
+  intrangeSetValues(&msp->fullRange, coord1, coord2);
+  
+  /* Remember the max len of any MSP */
+  if (getRangeLength(&msp->fullRange) > getMaxMspLen())
+    setMaxMspLen(getRangeLength(&msp->fullRange));
 }
 
 
