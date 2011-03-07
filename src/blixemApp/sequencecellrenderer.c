@@ -757,7 +757,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
       /* Get the msp's start/end in terms of the display coords */
       const IntRange const *mspRange = mspGetDisplayRange(msp);
       
-      if (mspRange->min >= rd->displayRange->min && mspRange->max <= rd->displayRange->max)
+      if (valueWithinRange(mspRange->min, rd->displayRange))
 	{
 	  /* Draw the lower index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorEnd : rd->exonBoundaryColorStart;
@@ -774,7 +774,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
       
-      if (mspRange->max >= rd->displayRange->min && mspRange->max <= rd->displayRange->max)
+      if (valueWithinRange(mspRange->max, rd->displayRange))
 	{
 	  /* Draw the upper index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorStart : rd->exonBoundaryColorEnd;
