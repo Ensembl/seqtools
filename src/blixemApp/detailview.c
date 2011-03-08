@@ -978,8 +978,9 @@ void detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalign
       mspCalculateFullExtents(msp, bc, numUnalignedBases);
     }
   
-  /* Refilter and re-draw */
-  refilterDetailView(detailView, NULL);
+  /* Do a full re-filter because the lengths of the displayed match
+   * sequences may have changed */
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   gtk_widget_queue_draw(detailView);
 }
 

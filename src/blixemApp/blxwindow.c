@@ -2957,8 +2957,13 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
   
   /* Main check button to enable/disable the option. This call puts it in the vbox. Set two callbacks:
    * one to update the flag, and one to enable/disable the child buttons. */
-  GtkWidget *btn = createCheckButton(GTK_BOX(vbox), label, active, callbackFunc, subContainer);
+  GtkWidget *btn = gtk_check_button_new_with_mnemonic(label);
+  gtk_box_pack_start(GTK_BOX(vbox), btn, FALSE, FALSE, 0);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(btn), active);
+
+  /* Connect the toggleFlag callback first so that the flag is set correctly before the callbackFunc is called */
   g_signal_connect(G_OBJECT(btn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(flag));
+  g_signal_connect(G_OBJECT(btn), "toggled", callbackFunc, subContainer);
 
   if (buttonOut)
     *buttonOut = btn;
