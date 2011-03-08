@@ -516,12 +516,6 @@ int main(int argc, char **argv)
   initCommandLineOptions(&options, fetchMode, refSeqName);
  
   /* Set up the GLib message handlers
-   *
-   * For now, also set up the acedb message package. I'm trying to phase out use of the acedb
-   * message package so we can get rid of dependencies on acedb: for now, the GLib message
-   * handlers just pass the messages to the acedb package. This is so that we can gradually switch
-   * everything over to using GLib calls instead of calling the acedb package directly. Then when
-   * we're ready we can just change the GLib handlers to use something else instead of acedb. 
    * 
    * There are two handlers: the default one for all non-critical messages, which will just log
    * output to the console, and one for critical messages and errors, which will display a 
