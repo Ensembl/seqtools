@@ -1005,9 +1005,11 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int
   const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max, bc->seqType, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   intrangeSetValues(&msp->fullRange, coord1, coord2);
   
-  /* Remember the max len of any MSP */
-  if (getRangeLength(&msp->fullRange) > getMaxMspLen())
-    setMaxMspLen(getRangeLength(&msp->fullRange));
+  /* Remember the max len of all the MSPs in the detail-view */
+  if (typeShownInDetailView(msp->type) && getRangeLength(&msp->fullRange) > getMaxMspLen())
+    {
+      setMaxMspLen(getRangeLength(&msp->fullRange));
+    }
 }
 
 
@@ -1025,6 +1027,9 @@ static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc)
  * and inverted if the display is inverted) for each MSP */
 void cacheMspDisplayRanges(const BlxViewContext const *bc, const int numUnalignedBases)
 {
+  /* This also calculates the max msp len */
+  setMaxMspLen(0);
+  
   MSP *msp = bc->mspList;
   for ( ; msp; msp = msp->next)
     {

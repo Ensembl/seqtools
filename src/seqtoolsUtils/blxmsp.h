@@ -27,7 +27,7 @@
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
- *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Ed  fGriffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
@@ -280,6 +280,9 @@ gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
 gboolean              mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList);
 gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray const *polyASiteList);
+
+int                   getMaxMspLen();
+void                  setMaxMspLen(const int len);
 
 void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2);
 BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);

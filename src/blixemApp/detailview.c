@@ -969,7 +969,9 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
  * sub-options (i.e. anything that affects how many bases out of the match sequences we show). */
 void detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalignedBases)
 {
-  /* Re-calculate the full extent of all MSPs */
+  /* Re-calculate the full extent of all MSPs, and the max msp length */
+  setMaxMspLen(0);
+  
   BlxViewContext *bc = detailViewGetContext(detailView);
   MSP *msp = bc->mspList;
   
