@@ -43,7 +43,7 @@
 
 
 /* Globals */
-static int g_MaxMspLen = 0;
+static int g_MaxMspLen = 0;     /* max length in display coords of all MSPs in the detail-view */
 
 
 /* Local function declarations */
@@ -55,6 +55,7 @@ static const char*              blxSequenceGetSource(const BlxSequence *seq);
 
 
 
+/* Get/set the max MSP length */
 int getMaxMspLen()
 {
   return g_MaxMspLen;
@@ -66,6 +67,7 @@ void setMaxMspLen(const int len)
 }
 
 
+/* Type determination methods */
 gboolean typeIsExon(const BlxMspType mspType)
 {
   return (mspType == BLXMSP_CDS || mspType == BLXMSP_UTR || mspType == BLXMSP_EXON);
