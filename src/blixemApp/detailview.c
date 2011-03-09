@@ -2334,7 +2334,10 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
 /* Quick search to find any MSP that lies within the given display range (in 
  * display coords). This is useful to quickly jump to the rough region in the
  * array where relevant MSPs lie. */
-static gboolean getAnyMspInRange(GArray *mspArray, const IntRange const *displayRange, const gboolean displayRev, int *idx)
+static gboolean getAnyMspInRange(GArray *mspArray, 
+				 const IntRange const *displayRange, 
+				 const gboolean displayRev, 
+				 int *idx)
 {
   DEBUG_ENTER("getAnyMspInRange");
 
@@ -2345,14 +2348,35 @@ static gboolean getAnyMspInRange(GArray *mspArray, const IntRange const *display
   int i = (iMax - iMin) / 2;
   
   const MSP *msp = mspArrayIdx(mspArray, i);
+  const int maxLen = getMaxMspLen();
   
   while (msp)
     {
-      if (rangesOverlap(&msp->displayRange, displayRange))
+      /* Do a binary search based on start coord until we find a start coord 
+       * within the display range (extended by max msp len, because the msp may
+       * completely overlap the display range so its ends are both out of range). */
+      if ((!displayRev && msp->displayRange.min >= displayRange->min - maxLen && msp->displayRange.min <= displayRange->max) ||
+	  (displayRev && msp->displayRange.max <= displayRange->max + maxLen && msp->displayRange.max >= displayRange->min))
         {
-          *idx = i;
-          result = TRUE;
-          break;
+	  /* Break the binary search. Continue increasing i linearly until we
+	   * find an MSP in the real display range (rather than just the extended
+	   * display range). */
+	  while (msp)
+	    {
+	      if (rangesOverlap(&msp->displayRange, displayRange))
+		{
+		  *idx = i;
+		  result = TRUE;
+		  break; /* break linear search loop */
+		}
+	      else
+		{
+		  ++i;
+		  msp = mspArrayIdx(mspArray, i);
+		}
+	    }
+	
+          break; /* break binary search loop */
         }
       else if ((msp->displayRange.min < displayRange->min) != displayRev)
         {
