@@ -241,8 +241,6 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
 {
   gboolean drawn = FALSE;
   
-  const int frame = mspGetRefFrame(msp, data->seqType);
-
   /* Find the coordinates of the start and end base in this msp, converting to display coords. Note
    * that display coords always increase from left-to-right, even if the actual coords are inverted. */
   const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);

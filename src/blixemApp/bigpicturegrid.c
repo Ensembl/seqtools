@@ -279,7 +279,6 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
   if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
       /* See if the msp lies within the grid's display range */
-      BlxViewContext *bc = gridGetContext(grid);
       const IntRange const *displayRange = gridGetDisplayRange(grid);
       const IntRange const *mspRange = mspGetDisplayRange(msp);
       result = rangesOverlap(mspRange, displayRange);

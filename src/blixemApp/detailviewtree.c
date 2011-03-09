@@ -628,6 +628,8 @@ static gboolean updateMspPaths(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
       MSP *msp = (MSP*)(mspItem->data);
       msp->treePaths[modelId] = gtk_tree_path_to_string(path);
     }
+  
+  return FALSE;
 }
 
 
@@ -697,7 +699,6 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
           DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
 
 	  const int frame = properties->readingFrame;
-	  const BlxStrand strand = gridGetStrand(properties->grid);
 	  const IntRange const *displayRange = &dvProperties->displayRange;
           const gboolean seqSelected = blxContextIsSeqSelected(bc, firstMsp->sSequence);
 

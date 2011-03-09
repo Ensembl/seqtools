@@ -2349,7 +2349,7 @@ static gboolean getAnyMspInRange(GArray *mspArray, const IntRange const *display
           result = TRUE;
           break;
         }
-      else if (msp->displayRange.min < displayRange->min != displayRev)
+      else if ((msp->displayRange.min < displayRange->min) != displayRev)
         {
           iMin = i;
         }

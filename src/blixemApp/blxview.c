@@ -885,10 +885,13 @@ void destroyBlxSequenceList(GList **seqList)
 const IntRange* mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc)
 {
   const IntRange *result = NULL;
+  
   if (seqSelected || !bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || !bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED])
     result = &msp->fullSRange;
   else
     result = &msp->sRange;
+  
+  return result;
 }
 
 /* Return the (cached) full extent of the match on the ref sequence in display coords
@@ -897,10 +900,13 @@ const IntRange* mspGetFullSRange(const MSP const *msp, const gboolean seqSelecte
 const IntRange* mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc)
 {
   const IntRange *result = NULL;
+  
   if (seqSelected || !bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || !bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED])
     result = &msp->fullRange;
   else
     result = &msp->displayRange;
+  
+  return result;
 }
 
 /* Return the (cached) extent of the alignment that we're showing in display coords

@@ -984,7 +984,6 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   for ( ; mspListItem ; mspListItem = mspListItem->next)
     {
       const MSP *msp = (MSP*)(mspListItem->data);
-      const int qFrame = mspGetRefFrame(msp, bc->seqType);
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
       const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);

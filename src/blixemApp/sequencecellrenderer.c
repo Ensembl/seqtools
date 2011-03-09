@@ -43,6 +43,7 @@
 #include <seqtoolsUtils/utilities.h>
 #include <gtk/gtkcellrenderertext.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <math.h>
 
 

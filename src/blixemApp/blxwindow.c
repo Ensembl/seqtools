@@ -3653,7 +3653,6 @@ static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier,
 {
   /* Reset the selected base index. Leave the selected frame as it is, though. */
   GtkWidget *detailView = blxWindowGetDetailView(window);
-  
   detailViewUnsetSelectedBaseIdx(detailView);
   return TRUE;
 }
