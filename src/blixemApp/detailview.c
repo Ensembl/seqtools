@@ -969,9 +969,10 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
 }
 
 
-/* This performs required updates after editing the 'show unaligned bases' option or its 
- * sub-options (i.e. anything that affects how many bases out of the match sequences we show). */
-void detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalignedBases)
+/* This performs required updates required after editing anything that affects
+ * the display length of MSPs in the detail-view, e.g. the 'show unaligned sequence'
+ * or 'show polyA tails' options. */
+void detailViewUpdateMspLengths(GtkWidget *detailView, const int numUnalignedBases)
 {
   /* Re-calculate the full extent of all MSPs, and the max msp length */
   setMaxMspLen(0);
@@ -984,8 +985,9 @@ void detailViewUpdateUnalignedSeqLen(GtkWidget *detailView, const int numUnalign
       mspCalculateFullExtents(msp, bc, numUnalignedBases);
     }
   
-  /* Do a full re-filter because the lengths of the displayed match
-   * sequences may have changed */
+  /* Do a full re-sort and re-filter because the lengths of the displayed match
+   * sequences may have changed (and we need to make sure they're sorted by start pos) */
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   gtk_widget_queue_draw(detailView);
 }
@@ -996,7 +998,7 @@ void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   properties->numUnalignedBases = numBases;
-  detailViewUpdateUnalignedSeqLen(detailView, properties->numUnalignedBases);
+  detailViewUpdateMspLengths(detailView, properties->numUnalignedBases);
 }
 
 
@@ -2509,6 +2511,17 @@ void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
   DEBUG_ENTER("refilterDetailView(oldRange=[%d,%d])", oldRange ? oldRange->min : 0, oldRange ? oldRange->max : 0);
   
   BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SITE] || bc->flags[BLXFLAG_SHOW_UNALIGNED])
+    {
+      /* If these options are enabled, then determining which rows need to be 
+       * refiltered becomes much more complex because visible alignments lengths
+       * may differ from the actual alignment coords, and may differ depending
+       * on whether the sequence is selected or not. For now, play safe and
+       * refilter everything. */
+      callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+      return;
+    }
   
   /* We only want to update MSPs that are in the old detail-view range
    * and the new detail-view range. (Because updating every row in all

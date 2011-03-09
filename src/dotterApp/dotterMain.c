@@ -739,13 +739,6 @@ int main(int argc, char **argv)
         argvAdd(&argc, &argv, "-install");
       }
   
-    /* Sort all msp arrays by start coord */
-    typeId = 0;
-    for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-      {
-        g_array_sort(featureLists[typeId], compareFuncMspArray);
-      }
-
     if (!options.savefile)
       {
 	dotter(blastMode, &options, qStrand, sStrand, 0, 0, MSPlist, seqList, 0);

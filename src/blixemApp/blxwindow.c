@@ -2837,16 +2837,17 @@ static void onParentBtnToggled(GtkWidget *button, gpointer data)
 }
 
 
-/* Callback function called when the 'Show unaligned bases' button is toggled. This
- * is a parent button so it will cause its child buttons to be enabled/disabled. */
-static void onShowUnalignedSeqToggled(GtkWidget *button, gpointer data)
+/* Callback function called when the 'Show unaligned bases' or 'Show polyA tails'
+ * buttons are toggled. These are parent buttons so will cause child buttons 
+ * to be enabled/disabled. */
+static void onShowAdditionalSeqToggled(GtkWidget *button, gpointer data)
 {
   onParentBtnToggled(button, data);
   
   /* Perform any required updates */
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  detailViewUpdateUnalignedSeqLen(detailView, detailViewGetNumUnalignedBases(detailView));
+  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
 }
 
 
@@ -2865,7 +2866,7 @@ static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   /* Perform any required updates */
-  detailViewUpdateUnalignedSeqLen(detailView, detailViewGetNumUnalignedBases(detailView));
+  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
 }
 
 
@@ -2880,7 +2881,7 @@ static gboolean onSetNumUnalignedBases(GtkWidget *entry, const gint responseId, 
   detailViewSetNumUnalignedBases(detailView, numBases);
 
   /* Perform any required updates */
-  detailViewUpdateUnalignedSeqLen(detailView, numBases);
+  detailViewUpdateMspLengths(detailView, numBases);
 
   return TRUE;
 }
@@ -2895,7 +2896,8 @@ static void onToggleShowUnalignedSelected(GtkWidget *button, gpointer data)
  
   /* Perform any required updates */
   GtkWidget *detailView = GTK_WIDGET(data);
-  detailViewUpdateUnalignedSeqLen(detailView, detailViewGetNumUnalignedBases(detailView));
+//  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
+  refilterDetailView(detailView, NULL);
 }
 
 
@@ -3167,7 +3169,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
   GtkWidget *polyAParentBtn = NULL;
-  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onParentBtnToggled));
+  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onShowAdditionalSeqToggled));
   GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
   g_signal_connect(G_OBJECT(polyAParentBtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
   g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
@@ -3177,7 +3179,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkWidget *vbox2 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   
   /* show-unaligned-sequence option and its sub-options */
-  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowUnalignedSeqToggled));
+  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
   createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleShowUnalignedSelected), detailView);
 
@@ -4971,7 +4973,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   detailViewSetSortColumn(detailView, options->initSortColumn);
   
   /* Updated the cached display range and full extents of the MSPs */
-  detailViewUpdateUnalignedSeqLen(detailView, detailViewGetNumUnalignedBases(detailView));
+  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
   cacheMspDisplayRanges(blxContext, detailViewGetNumUnalignedBases(detailView));
   
   /* Set the detail view font (again, this accesses the widgets' properties). */
