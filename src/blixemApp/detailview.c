@@ -2304,6 +2304,8 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
 /* Refilter the tree row that this msp is in */
 static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
 {
+  DEBUG_ENTER("refilterMspRow(msp=[%d,%d])", msp->fullRange.min, msp->fullRange.max);
+
   /* Find the tree row that this MSP is in and force that row to update
    * its visibility status. */
   gchar *pathStr = mspGetTreePath(msp, bc->modelId);
@@ -2325,6 +2327,7 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
         }
     }
   
+  DEBUG_EXIT("refilterMspRow returning ");
 }
 
 
@@ -2333,6 +2336,8 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
  * array where relevant MSPs lie. */
 static gboolean getAnyMspInRange(GArray *mspArray, const IntRange const *displayRange, const gboolean displayRev, int *idx)
 {
+  DEBUG_ENTER("getAnyMspInRange");
+
   gboolean result = FALSE;
   
   int iMax = mspArray->len - 1;
@@ -2367,6 +2372,8 @@ static gboolean getAnyMspInRange(GArray *mspArray, const IntRange const *display
       msp = mspArrayIdx(mspArray, i);
     }
   
+  
+  DEBUG_EXIT("getAnyMspInRange returning %d (idx=%d)", result, *idx);
   return result;
 }
 
@@ -2389,6 +2396,8 @@ static void refilterMspList(const int startIdx,
                             GtkWidget *detailView, 
                             BlxViewContext *bc)
 {
+  DEBUG_ENTER("refilterMspList(startIdx=%d, range=[%d,%d])", startIdx, range->min, range->max);
+
   /* MSPs are sorted by min pos. Loop forwards until we find one that is out of range. */
   int i = startIdx;
   MSP *msp = mspArrayIdx(array, i);
@@ -2441,6 +2450,8 @@ static void refilterDetailViewType(BlxMspType mspType,
                                    const IntRange const *newRange,
                                    GtkWidget *detailView)
 {
+  DEBUG_ENTER("refilterDetailViewType(mspType=%d)", mspType);
+
   /* We only want to update MSPs that are within the given ranges. The msp arrays
    * are sorted by start coord, so find the first MSP in this list that is in 
    * each range, then call refilterMspList with that array index; it will break
@@ -2456,6 +2467,8 @@ static void refilterDetailViewType(BlxMspType mspType,
     {
       refilterMspList(idx, bc->featureLists[mspType], newRange, detailView, bc);
     }
+  
+  DEBUG_EXIT("refilterDetailViewType returning ");
 }
 
 
@@ -2463,6 +2476,8 @@ static void refilterDetailViewType(BlxMspType mspType,
  * current display range and (if given) the old display range. */
 void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
 {
+  DEBUG_ENTER("refilterDetailView(oldRange=[%d,%d])", oldRange ? oldRange->min : 0, oldRange ? oldRange->max : 0);
+  
   BlxViewContext *bc = detailViewGetContext(detailView);
   
   /* We only want to update MSPs that are in the old detail-view range
@@ -2479,6 +2494,8 @@ void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
           refilterDetailViewType(mspType, bc, oldRange, newRange, detailView);
         }
     }
+  
+  DEBUG_EXIT("refilterDetailView returning ");
 }
 
 
