@@ -62,7 +62,6 @@
 
 /* Local function declarations */
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
-static IntRange*		    bigPictureGetFullRange(GtkWidget *bigPicture);
 static int			    bigPictureGetInitialZoom(GtkWidget *bigPicture);
 
 static void                         drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, GdkGC *gc);
@@ -1046,12 +1045,6 @@ static int bigPictureGetInitialZoom(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   return properties->initialZoom;
-}
-
-static IntRange* bigPictureGetFullRange(GtkWidget *bigPicture)
-{
-  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
-  return blxWindowGetFullRange(blxWindow);
 }
 
 GtkWidget* bigPictureGetGridHeader(GtkWidget *bigPicture)

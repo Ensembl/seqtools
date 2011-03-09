@@ -2337,6 +2337,8 @@ static gboolean onSetBreaklinesOn(GtkWidget *button, const gint responseId, gpoi
   
   const gboolean breaklinesOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   dotplotSetBreaklinesOn(properties->dotplot, breaklinesOn);
+  
+  return TRUE;
 }
 
 /* Callback called when the user has changed the 'horizontal labels on' option */
@@ -2347,6 +2349,8 @@ static gboolean onSetHozLabelsOn(GtkWidget *button, const gint responseId, gpoin
   
   const gboolean labelsOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   dotplotSetHozLabelsOn(properties->dotplot, labelsOn);
+  
+  return TRUE;
 }
 
 /* Callback called when the user has changed the 'vertical labels on' option */
@@ -2357,6 +2361,8 @@ static gboolean onSetVertLabelsOn(GtkWidget *button, const gint responseId, gpoi
   
   const gboolean labelsOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   dotplotSetVertLabelsOn(properties->dotplot, labelsOn);
+  
+  return TRUE;
 }
 
 
@@ -2426,7 +2432,6 @@ static void createTextEntryFromInt(GtkWidget *dotterWindow,
 static void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
   gboolean destroy = TRUE;
-  GtkWidget *dotterWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
   
   switch (responseId)
   {
@@ -2518,8 +2523,6 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
 static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWindow, const int border)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-  DotterContext *dc = dwc->dotterCtx;
   
   /* Put everything in a vbox inside a frame */
   GtkWidget *frame = gtk_frame_new("Display");
@@ -2566,7 +2569,6 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   DotterWindowContext *dwc = properties->dotterWinCtx;
-  DotterContext *dc = dwc->dotterCtx;
 
   const DotterDialogId dialogId = DOTDIALOG_SETTINGS;
   GtkWidget *dialog = getPersistentDialog(dwc->dialogList, dialogId);

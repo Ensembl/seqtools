@@ -846,8 +846,6 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc, const int whitePointIn, 
 {
   DEBUG_ENTER("createGreyrampTool");
 
-  DotterContext *dc = dwc->dotterCtx;
-  
   /* Create the window */
   GtkWidget *greyrampTool = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(greyrampTool), "Dotter - Greyramp Tool");

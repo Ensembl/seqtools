@@ -265,7 +265,6 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
   /* Get the window. (Labels don't have their own so get the parent's window) */
   GtkWidget *parent = gtk_widget_get_parent(widget);
-  GdkDrawable *window = parent->window;
   
   /* Only widgets that have a pixmap set will be shown in print output */
   GdkDrawable *drawable =  gdk_pixmap_new(parent->window, widget->allocation.width, widget->allocation.height, -1);
@@ -3478,9 +3477,6 @@ static char* getDialogIcon(GLogLevelFlags log_level)
  * whole output to fit on a single page. */
 void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
 {
-  GtkWidget *widget = GTK_WIDGET(data);
-  GdkDrawable *drawable = widgetGetDrawable(widget);
-  
   /* Always fit the contents to a single page; crude, but this is generally 
    * what we want when printing a blixem or dotter window. */
   gtk_print_operation_set_n_pages(print, 1);

@@ -121,34 +121,6 @@ static gboolean treeHasSnpHeader(GtkWidget *tree)
   return properties->hasSnpHeader;
 }
 
-static int treeGetSelectedBaseIdx(GtkWidget *tree)
-{
-  assertTree(tree);
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties ? detailViewGetSelectedBaseIdx(properties->detailView) : UNSET_INT;
-}
-
-/* Sets the currently-selected base index (and the base number within the reading frame
- * for protein matches). If allowScroll is TRUE, the display range will be scrolled if
- * necessary to keep the selected base index in view. */
-static void treeSetSelectedBaseIdx(GtkWidget *tree, const int selectedBaseIdx, const int frame, const int baseNum, const gboolean allowScroll)
-{
-  assertTree(tree);
-
-  TreeProperties *properties = treeGetProperties(tree);
-  if (properties)
-    {
-      DetailViewProperties *detailViewProperties = detailViewGetProperties(properties->detailView);
-      
-      /* Only update if things have changed */
-      if (detailViewProperties->selectedBaseIdx != selectedBaseIdx ||
-	  detailViewProperties->selectedBaseNum != baseNum ||
-	  detailViewProperties->selectedFrame != frame)
-	{
-	  detailViewSetSelectedBaseIdx(properties->detailView, selectedBaseIdx, frame, baseNum, allowScroll, TRUE);
-	}
-    }
-}
 
 /* Returns the currently-displayed range in the tree view */
 static IntRange* treeGetDisplayRange(GtkWidget *tree)
@@ -2000,7 +1972,7 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
   if (width > 0)
     {
       gboolean showColumn = detailViewShowColumn(columnInfo);
-      gtk_tree_view_column_set_visible(column, TRUE);
+      gtk_tree_view_column_set_visible(column, showColumn);
       gtk_tree_view_column_set_fixed_width(column, width);
     }
   else

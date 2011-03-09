@@ -3230,13 +3230,6 @@ void updateDynamicColumnWidths(GtkWidget *detailView)
 }
 
 
-/* Callback called when the size of the detail view has changed. */
-static void onSizeAllocateDetailView(GtkWidget *detailView, GtkAllocation *allocation, gpointer data)
-{
-
-  updateDynamicColumnWidths(detailView);
-}
-
 /***********************************************************
  *                     Callbacks                           *
  ***********************************************************/
@@ -4365,7 +4358,6 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   g_signal_connect(G_OBJECT(detailView), "button-press-event", G_CALLBACK(onButtonPressDetailView), NULL);
   g_signal_connect(G_OBJECT(detailView), "button-release-event", G_CALLBACK(onButtonReleaseDetailView), NULL);
   g_signal_connect(G_OBJECT(detailView), "motion-notify-event", G_CALLBACK(onMouseMoveDetailView), NULL);
-//  g_signal_connect(G_OBJECT(detailView), "size-allocate", G_CALLBACK(onSizeAllocateDetailView), NULL);
 
   detailViewCreateProperties(detailView, 
 			     blxWindow, 

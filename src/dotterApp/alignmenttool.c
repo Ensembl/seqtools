@@ -734,7 +734,6 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   for ( ; displayIdx <= atProperties->alignmentLen; ++displayIdx)
     {
       seq1Text[displayIdx] = ' ';
-      const int displayCoord = displayIdx + seq1DisplayStart;
     
       x = (int)((gdouble)displayIdx * dc->charWidth);
 

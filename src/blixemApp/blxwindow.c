@@ -505,7 +505,6 @@ static gboolean moveRowSelection(GtkWidget *blxWindow, const gboolean moveUp, co
  * the new base in view. */
 static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(window);
   GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
@@ -3858,7 +3857,6 @@ static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier,
 {
   /* Reset the selected base index. Leave the selected frame as it is, though. */
   GtkWidget *detailView = blxWindowGetDetailView(window);
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
   
   detailViewUnsetSelectedBaseIdx(detailView);
   return TRUE;
