@@ -328,7 +328,7 @@ static void drawSequenceMspLines(gpointer listItemData, gpointer data)
   const BlxSequence *seq = (const BlxSequence*)listItemData;
   
   /* Only applicable to alignments and transcripts */
-  if (seq->type != BLXSEQUENCE_MATCH && seq->type != BLXSEQUENCE_TRANSCRIPT)
+  if (!blxSequenceShownInGrid(seq))
     return;
   
   DrawGridData *drawData = (DrawGridData*)data;  

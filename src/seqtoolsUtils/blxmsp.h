@@ -222,6 +222,7 @@ gboolean              typeIsVariation(const BlxMspType mspType);
 gboolean              typeIsShortRead(const BlxMspType mspType);
 gboolean              typeShownInDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
+gboolean	      blxSequenceShownInGrid(const BlxSequence *blxSeq);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);

@@ -105,6 +105,12 @@ gboolean blxSequenceShownInDetailView(const BlxSequence *blxSeq)
   return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR || blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
 }
 
+/* This returns true if the given sequence should be shown in the big picture grids */
+gboolean blxSequenceShownInGrid(const BlxSequence *blxSeq)
+{
+  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR);
+}
+
 gboolean mspIsExon(const MSP const *msp)
 {
   return (msp && typeIsExon(msp->type));
