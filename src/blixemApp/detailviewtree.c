@@ -418,6 +418,7 @@ void treeUpdateSquashMatches(GtkWidget *tree, gpointer data)
     {
       GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
       gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(newModel), sortColumn, sortOrder);
+      resortTree(tree, NULL);
       refilterTree(tree, NULL);
     }
 }
