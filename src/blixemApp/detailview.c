@@ -2439,6 +2439,8 @@ static void refilterMspList(const int startIdx,
       
       refilterMspRow(msp, detailView, bc);
     }
+  
+  DEBUG_EXIT("refilterMspList returning ");
 }
 
 
