@@ -1230,6 +1230,9 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
+            /* Set the active frame to the tree that was clicked on */
+            detailViewSetActiveFrame(detailView, treeGetFrame(tree));
+            
 	    /* If variations are highlighted, select the variation that was clicked on, if any.  */
 	    BlxViewContext *bc = treeGetContext(tree);
 
