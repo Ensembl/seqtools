@@ -799,6 +799,11 @@ static GtkWidget* createGreyrampToolbar(GtkWidget *greyramp,
   gtk_box_pack_start(GTK_BOX(vbox), undoButton, TRUE, FALSE, 5);
   gtk_box_pack_start(GTK_BOX(vbox), blackSpinButton, TRUE, FALSE, 5);
 
+  /* Make sure neither spin button is focused at the start because if it is
+   * then its text will be selected and we will inadvertently overwrite the
+   * contents of the primary clipboard. */
+  gtk_container_set_focus_child(GTK_CONTAINER(vbox), quitButton);
+  
   return vbox;
 }
 
