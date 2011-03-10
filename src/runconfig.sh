@@ -15,7 +15,7 @@ set arch = "`uname -m`"
 set machine = "`uname -s`-`uname -m`"
 set pkgpath = ""
 set ldflags = ""
-set cflags = "-g"
+set cflags = "-g -Wall"
 
 switch ( $opsys )
   case "Linux":
