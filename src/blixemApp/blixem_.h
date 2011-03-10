@@ -348,6 +348,10 @@ typedef struct _BlxViewContext
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
     GSList *spawnedProcesses;			  /* List of processes spawned by Blixem */
     BlxModelId modelId;             /* which tree model to use (i.e. normal or squashed) */
+  
+    int *depthArray;		    /* this array holds the depth (num alignments) at each coord of the ref seq */
+    int minDepth;                   /* minimum value in the depthArray */
+    int maxDepth;                   /* maximum value in the depthArray */
   } BlxViewContext;
 
 

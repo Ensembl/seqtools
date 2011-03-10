@@ -665,7 +665,7 @@ gboolean blxview(CommandLineOptions *options,
 
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->refSeqOffset);
-      
+
       /* Sort msp arrays by start coord (only applicable to msp types that
        * appear in the detail-view because the order is only applicable when
        * filtering detail-view rows) */
