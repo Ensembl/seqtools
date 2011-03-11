@@ -732,6 +732,10 @@ void treeSetSortColumn(GtkWidget *tree, gpointer data)
   GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
   
   gtk_tree_sortable_set_sort_column_id(model, sortColumn, sortOrder);
+  
+  /* Update the cached path held by each MSP about the row it is in. */
+  BlxViewContext *bc = treeGetContext(tree);
+  gtk_tree_model_foreach(GTK_TREE_MODEL(model), updateMspPaths, GINT_TO_POINTER(bc->modelId));
 }
 
 /***********************************************************
