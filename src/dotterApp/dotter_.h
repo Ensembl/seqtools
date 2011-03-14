@@ -68,7 +68,7 @@ extern char *stdcode1[];        /* 1-letter amino acid translation code */
 #define DOTTER_VERSION_COMPILE	   DOTTER_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
 #define DOTTER_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2010")
-#define DOTTER_WEBSITE_STRING	   ""
+#define DOTTER_WEBSITE_STRING	   "http://www.sanger.ac.uk/resources/software/seqtools/"
 #define DOTTER_LICENSE_STRING	   UT_MAKE_LICENCE_STRING(DOTTER_TITLE)
 
 #define DOTTER_COMMENTS_STRING()                                \

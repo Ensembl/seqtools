@@ -3617,6 +3617,12 @@ static void GShowHelp(GtkButton *button, gpointer data)
   showHelpDialog(detailViewGetBlxWindow(detailView), TRUE);
 }
 
+static void GShowAbout(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  showAboutDialog(detailViewGetBlxWindow(detailView));
+}
+
 static void GShowSettings(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
@@ -4094,7 +4100,8 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   GtkWidget *toolbarContainer = createEmptyButtonBar(&toolbar);
   
   /* Help */
-  makeToolbarButton(toolbar, "Help", GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GShowHelp,		  detailView);
+  makeToolbarButton(toolbar, "Help",  GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GShowHelp,		  detailView);
+  makeToolbarButton(toolbar, "About", GTK_STOCK_ABOUT,	    "About",                            (GtkSignalFunc)GShowAbout,		  detailView);
 
   /* Combo box for sorting */
   createSortBox(toolbar, detailView, sortColumn, columnList);

@@ -1215,64 +1215,6 @@ static char *fetchSequence(const char *seqname, char *fetch_prog)
  *		      Functions to call dotter                     *
  *******************************************************************/
 
-/* Find an executable and return its complete pathname.
- */
-static gboolean findCommand (char *command, char **resultOut)
-{
-  gboolean found = FALSE;
-
-#if !defined(NO_POPEN)
-  static char result[1025];
-  char fileName[1025];
-  FILE *file = NULL;
-    
-  char *pathEnv = g_malloc(strlen(getenv("PATH"))+1);
-  strcpy(pathEnv, getenv("PATH"));
-
-  /* Try each path in the enviroment var */
-  char *path = strtok(pathEnv, ":");
-  
-  while (path) 
-    {
-      strcpy(fileName, path);
-      strcat(fileName,"/");
-      strcat(fileName, command);
-
-      /* Check if the file exists in this path */
-      file = fopen(fileName, "r");
-      if (file)  //!access(fileName, F_OK) && !access(fileName, X_OK)) 
-	{
-	  found = TRUE;
-	  fclose(file);
-	  break;
-	}
-      
-      path = strtok(0, ":");
-    }
-  
-  g_free(pathEnv);
-  
-  if (found) 
-    {
-      strcpy(result, fileName);
-      found = TRUE;
-    }
-  else 
-    {
-      strcpy(result, "Can't find executable 'dotter' in path.\n");
-    }
-    
-  if (resultOut)
-    {
-      *resultOut = result;
-    }
-#else
-  strcpy(result, "Can't open executable 'dotter' - popen command is not defined.\n");
-#endif
-
-  return found;
-}
-
 
 /* This actually executes the dotter child process */
 static void callDotterChildProcess(const char *dotterBinary, 

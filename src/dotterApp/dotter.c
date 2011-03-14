@@ -129,63 +129,6 @@ typedef struct _DotterProperties
 } DotterProperties;
 
 
-#define DOTTER_HELP_TEXT "\
-<b><big>DOTTER</big></b>\n\
-A dot-matrix program with dynamic threshold control suited for genomic DNA and protein sequence analysis\n\
-\n\
-\n\
-<span foreground=\"blue\">\
-<b><big>What's new</big></b>\n\
-\t*\t<b><i>Dotter re-vamp</i></b>: Dotter has been re-written to facilitate future improvements.  Most of the changes so far are under-the-hood, but you will notice a few cosmetic differences and additional shortcuts.\n\
-\t*\t<b><i>Menu bar</i></b>: As well as the right-click menu, there is now a menu-bar at the top of the main Dotter window.\n\
-\t*\t<b><i>CDS/UTR regions</i></b>: Exons are now separated into CDS and UTR regions: CDS regions are coloured green and UTR red.\n\
-\t*\t<b><i>Close all sub-Dotters</i></b>: You can close all related Dotter windows using the Quit menu option or Ctrl-Q.  This will close all sub-Dotters that were started under the same parent Dotter (by middle-dragging to zoom in to a region).  To just close an individual Dotter window, click on the x in the corner of the window or use your system shortcut for closing a window (e.g. Ctrl-W, or Cmd-W on Macs).  Note that the alignment tool and greyramp tool will be destroyed along with their parent - however, if the parent window is still open then these tools can be re-opened using the relevant menu options or keyboard shortcuts.\n\
-\t*\t<b><i>Close all Dotters from Blixem</i></b>: All Dotter windows spawned from a Blixem will be closed when that Blixem is closed.\n\
-\t*\t<b><i>Navigation keys</i></b>: You no longer need to hold Shift when moving diagonally along an alignment using the keys ',.[]'. You can hold down Shift to move a single nucleotide at a time along a protein sequence, rather than moving a whole amino-acid.\n\
-\t*\t<b><i>Keyboard shortcuts</i></b>: The following keyboard shortcuts have been added to show the Alignment tool, main Dotter window or Greyramp tool, respectively: Ctrl-A, Ctrl-D and Ctrl-G.\n\
-\t*\t<b><i>Settings dialog</i></b>: The Parameter Control dialog box has been replaced by a more intuitive Settings dialog.  From here you can change the zoom or edit the display range.\n\
-</span>\
-\n\
-\n\
-<b><big>Mouse controls</big></b>\n\
- - Left button: position crosshair.\n\
- - Middle button: drag to zoom in to a region.\n\
-\n\
-\n\
-<b><big>Keyboard shortcuts</big></b>\n\
- - Arrow keys: move crosshair one dot in arrow direction. Hold Shift to move by a single nucleotide rather than a whole amino-acid (if applicable).\n\
- - , . : move crosshair along diagonals. Hold Shift to move by a single nucleotide, i.e. &lt;, &gt;.\n\
- - [ ] : move along reverse diagonals. Hold Shift to move by a single nucleotide, i.e. {, }\n\
- - Ctrl-Q : quit Dotter (including any child/parent Dotters)\n\
- - Ctrl-W : close the current window (if in the Dotter window, will close the related alignment/greyramp tool as well)\n\
- - Ctrl-H : show this Help page\n\
- - Ctrl-A : show the alignment tool\n\
- - Ctrl-D : show the Dotter main window\n\
- - Ctrl-G : show the greyramp tool\n\
-\n\
-\n\
-<b><big>Settings</big></b>\n\
- - Zoom: enter a higher value to zoom out. A value of 1 means 100%%, 2 means 50%% etc. A fraction of 1 can be entered in order to zoom in (e.g. 0.5 for a 200%% zoom), but the display will appear stretched.\n\
- - Horizontal range: enter the min and max coords to display on the horizontal scale. Note that this will be limited to the horizontal sequence range that Dotter was started up with.\n\
- - Vertical range: enter the min and max coords to display on the vertical scale. Note that this will be limited to the vertical sequence range that Dotter was started up with.\n\
- - Sliding window size: affects cut-off limit for how dots are drawn\n\
-\n\
-\n\
-<b><big>Residue colours (alignment tool)</big></b>\n\
-Cyan      = Identical Residue.\n\
-DarkBlue  = Positive Score.\n\
-No colour = Negative score.\n\
-\n\
-\n\
-<b><big>Session details</big></b>\n\
-Sliding window length = %d\n\
-Pixel values = %d x score/residue\n\
-Matrix = %s\n\
-Zoom (compression) factor = %f\n\
-"
-
-
-
 static void showSettingsDialog(GtkWidget *dotterWindow);
 static void readmtx(int mtx[24][24], char *mtxfile);
 static void mtxcpy(int mtx[24][24], int BLOSUM62[24][24]);
@@ -2841,103 +2784,51 @@ static void showAboutDialog(GtkWidget *parent)
 }
 
 
-static void onResponseHelpDialog(GtkDialog *dialog, gint responseId, gpointer data)
-{
-  gboolean destroy = TRUE;
-  
-  switch (responseId)
-  {
-    case GTK_RESPONSE_ACCEPT:
-      destroy = TRUE;
-      break;
-      
-    case GTK_RESPONSE_HELP:
-      showAboutDialog(NULL);
-      destroy = FALSE;
-      break;
-      
-    case GTK_RESPONSE_CANCEL:
-    case GTK_RESPONSE_REJECT:
-      destroy = TRUE;
-      break;
-      
-    default:
-      break;
-  };
-  
-  if (destroy)
-    {
-      /* If it's a persistent dialog, just hide it, otherwise destroy it */
-      const gboolean isPersistent = GPOINTER_TO_INT(data);
-      
-      if (isPersistent)
-        {
-          gtk_widget_hide_all(GTK_WIDGET(dialog));
-        }
-      else
-        {
-          gtk_widget_destroy(GTK_WIDGET(dialog));
-        }
-    }
-}
-
-
 static void showHelpDialog(GtkWidget *dotterWindow)
 {
-  DotterProperties *properties = dotterGetProperties(dotterWindow);
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-  const DotterDialogId dialogId = DOTDIALOG_HELP;
+  GError *error = NULL;
   
-  GtkWidget *dialog = getPersistentDialog(dwc->dialogList, dialogId);
+  /* The docs should live in /share/doc/seqtools/, in the same parent
+   * directory that our executable's 'bin' directory is in. Open the 'quick
+   * start' page. */
+  char rel_path[100] = "../share/doc/seqtools/dotter_quick_start.html";
   
-  if (!dialog)
+  /* Find the executable's path */
+  char *exe = NULL;
+  gboolean ok = findCommand(g_get_prgname(), &exe);
+  
+  if (ok)
     {
-      /* Create the dialog */
-      dialog = gtk_dialog_new_with_buttons("Dotter - Help", 
-                                           NULL,
-                                           GTK_DIALOG_DESTROY_WITH_PARENT,
-                                           GTK_STOCK_ABOUT,
-                                           GTK_RESPONSE_HELP,
-                                           GTK_STOCK_OK,
-                                           GTK_RESPONSE_ACCEPT,
-                                           NULL);
-
-      /* These 2 calls are required to make the dialog persistent... */
-      addPersistentDialog(dwc->dialogList, dialogId, dialog);
-      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-
-      g_signal_connect(dialog, "response", G_CALLBACK(onResponseHelpDialog), GINT_TO_POINTER(TRUE));
-    }
-  else
-    {
-      /* Clear contents and re-create */
-      dialogClearContentArea(GTK_DIALOG(dialog));
-    }
+      /* Get the executable's directory */
+      char *dir = g_path_get_dirname(exe);
       
-  GdkScreen *screen = gtk_widget_get_screen(dotterWindow);
-  const int width = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
-  int height = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
-
-  DotterContext *dc = dwc->dotterCtx;
-
-  char *messageText = blxprintf(DOTTER_HELP_TEXT, 
-                                dotplotGetSlidingWinSize(properties->dotplot), 
-                                dotplotGetPixelFac(properties->dotplot), 
-                                dc->matrixName, 
-                                dwc->zoomFactor);
+      ok = dir != NULL;
+      
+      if (ok)
+        {
+          /* Get the path to the html page */
+          char *path = blxprintf("%s/%s", dir, rel_path);
+          
+          ok = path != NULL;
+          
+          if (ok)
+            {
+              g_message("Opening help page '%s'\n", path);
+              seqtoolsLaunchWebBrowser(path, &error);
+              g_free(path);
+            }
+          
+          g_free(dir);
+        }
+    }
   
-  GtkWidget *child = createScrollableTextView(messageText, TRUE, dotterWindow->style->font_desc, TRUE, &height, NULL);
-  
-  g_free(messageText);
-  
-  gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
-  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
-  
-  
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
-  gtk_widget_show_all(dialog);
-  gtk_window_present(GTK_WINDOW(dialog));
+  if (!ok)
+    {
+      if (error)
+        reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      else
+        g_critical("Could not find help documentation: %s\n", rel_path);
+    }
 }
 
 

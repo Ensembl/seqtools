@@ -9,7 +9,7 @@ AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([blixemApp/blxmain.c])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile seqtoolsUtils/Makefile libpfetch/Makefile blixemApp/Makefile dotterApp/Makefile])
+AC_CONFIG_FILES([Makefile seqtoolsUtils/Makefile libpfetch/Makefile blixemApp/Makefile dotterApp/Makefile doc/Makefile doc/User_doc/Makefile])
 
 # Checks for programs.
 AC_PROG_CXX

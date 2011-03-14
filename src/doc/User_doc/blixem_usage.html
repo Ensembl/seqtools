@@ -1,0 +1,100 @@
+<head>
+  <title>Blixem - Usage</title>
+</head>
+
+
+<body>
+<h1>Blixem - Usage</h1>
+
+<pre>
+ Blixem - display multiple alignments against a reference sequence.
+
+ Usage: blixem [options] [&lt;sequencefile&gt;] &lt;datafile&gt; [X options] 
+
+   &lt;sequencefile&gt; contains the reference sequence in FASTA format.
+   &lt;datafile&gt; is a GFF v3 file containing alignments and other features.
+   If &lt;sequencefile&gt; is ommitted, &lt;datafile&gt; should contain the reference
+   sequence in FASTA format, below a comment line that reads ##FASTA.
+
+   Both &lt;sequencefile&gt; and &lt;datafile&gt; can be substituted by "-"
+   for reading from stdin (pipe).  If &lt;sequencefile&gt; is piped, the first
+   line should contain the sequence name and the second the sequence itself.
+
+
+ Options:
+  -m &lt;mode&gt;, --display-mode  MANDATORY
+    Whether to display sequences in nucleotide or protein mode. Valid values for &lt;mode&gt; are:
+      N = nucleotide
+      P = protein
+
+  -a &lt;names&gt;, --alignment-names=&lt;names&gt;
+    Specify a string giving the names of the alignments, e.g. "EST_mouse EST_human" etc.
+
+  -b, --disable-big-picture
+    Hide the big picture section.
+
+  -c &lt;file&gt;, --config-file=&lt;file&gt;
+    Read configuration options from 'file'.
+
+  -h, --help
+    More detailed usage information.
+
+  -I, --invert-sort
+    Invert sorting order
+
+  -k &lt;file&gt;, --key-file=&lt;file&gt;
+    Read color options from a key-value file. Use --help option to see details.
+
+  -N, --negate-coords
+    When showing the reverse strand, negate the display coordinates.
+
+  -O &lt;n&gt;, --offset=&lt;n&gt;
+    Offset the reference sequence coordinate system by n.
+
+  -P &lt;nodeid:port&gt;
+    Causes Blixem to get sequences from a pfetch server at machine nodeid on the given
+    port (default 22100).
+
+  -r, --remove-input-files
+    Remove input files after parsing.
+
+  -R, --reverse-strand
+    Indicates that the given reference sequence is the reverse strand.
+
+  -s &lt;mode&gt;, --sort-mode=&lt;mode&gt;
+    Default sort mode. Use --help option to see details.
+
+  -S &lt;n&gt;, --start-coord=&lt;n&gt;
+    Start with the display centred on coordinate n.
+
+  -z, --zoom-whole
+    Start with the big picture zoomed out to view the full reference sequence range.
+
+  --start-next-match
+    Start with the display centred on the first match to the right of the default start coord.
+
+  --dotter-first
+    Call Dotter on the first match to the right of the default start coord.
+
+  --highlight-diffs
+    Enable 'highlight differences' mode, where mismatches (rather than matches) are highlighted.
+
+  --hide-inactive
+    Hide the inactive strand (i.e. the reverse strand, or the forward strand if the -R option
+    is used).
+
+  --optional-data
+    Parse additional data such as organism and tissue-type on start-up.
+
+  --version
+    Show package version number.
+
+  --compiled
+    Show package compile date.
+
+ Some X options:
+ -acefont &lt;font&gt; Main font.
+ -font    &lt;font&gt; Menu font.n
+</pre>
+
+</body>

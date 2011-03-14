@@ -1,15 +1,9 @@
 # The main SeqTools makefile.am
 # Process this file with automake to create Makefile.in.
 
-SUBDIRS = seqtoolsUtils dotterApp blixemApp libpfetch
+SUBDIRS = seqtoolsUtils dotterApp blixemApp libpfetch doc
 
 bin_PROGRAMS = dotter blixem blixemh
-
-EXTRA_DIST =  doc/Design_notes \
-              doc/User_doc/Blixem_manual.pdf \
-              doc/User_doc/Blixem_manual.odt \
-              doc/User_doc/Dotter_manual.pdf \
-              doc/User_doc/Dotter_manual.odt 
 
 # blixem and blixemh have the same source files, most of which are compiled in libBlixemApp.a. However, there are a 
 # few that need to be compiled with different flags/libraries, and those are specified here
@@ -25,4 +19,5 @@ COMMON_LIBS = $(DEPS_LIBS) $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
 blixem_LDADD = $(COMMON_LIBS) $(top_builddir)/blixemApp/libBlixemApp.a
 blixemh_LDADD = $(COMMON_LIBS) $(top_builddir)/blixemApp/libBlixemApp.a $(top_builddir)/libpfetch/libpfetch.a -lcurl
 dotter_LDADD = $(COMMON_LIBS) $(top_builddir)/dotterApp/libDotterApp.a
+
 
