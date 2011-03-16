@@ -5,4 +5,4 @@ libBlixemApp_a_SOURCES = sequencecellrenderer.c bigpicture.c bigpicturegrid.c de
 
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I$(top_srcdir)
 
-libBlixemApp_a_LIBADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
+

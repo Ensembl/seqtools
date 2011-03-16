@@ -6,4 +6,3 @@ libSeqtoolsUtils_a_SOURCES = iupac.h version.h utilities.h utilities.c blxmsp.h 
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I$(top_srcdir)
 
 
-
