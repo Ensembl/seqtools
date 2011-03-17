@@ -335,6 +335,12 @@ gboolean rangesOverlap(const IntRange const *range1, const IntRange const *range
   return (range1->min <= range2->max && range1->max >= range2->min);
 }
 
+/* Return true if two IntRanges are equal */
+gboolean rangesEqual(const IntRange const *range1, const IntRange const *range2)
+{
+  return (range1->min == range2->min && range1->max == range2->max);
+}
+
 
 /* Utility to bounds-limit the given value to within the given range */
 void boundsLimitValue(int *value, const IntRange const *range)

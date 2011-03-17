@@ -52,7 +52,7 @@ static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
 static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
 static char*                    blxSequenceGetStrain(const BlxSequence *seq);
 static const char*              blxSequenceGetSource(const BlxSequence *seq);
-
+static BlxSequenceType		getBlxSequenceTypeForMsp(const BlxMspType mspType);
 
 
 /* Get/set the max MSP length */
@@ -776,26 +776,82 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
 }
 
 
+/* Find a blxsequence with the given name or id in the given list */
+static BlxSequence *findBlxSequenceInList(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand)
+{
+  BlxSequence *result = NULL;
+
+  /* Loop through all sequences in the list */
+  GList *listItem = seqList;
+
+  for ( ; listItem; listItem = listItem->next)
+    {
+      BlxSequence *currentSeq = (BlxSequence*)(listItem->data);
+				  
+      if (currentSeq->strand == reqdStrand &&
+	  ( (reqdName && currentSeq->fullName && !strcmp(currentSeq->fullName, reqdName)) ||
+	    (reqdIdTag && currentSeq->idTag && !strcmp(currentSeq->idTag, reqdIdTag)) ))
+	{
+	  result = currentSeq;
+	  break;
+	}
+    }
+  
+  return result;
+}
+
+
 /* Returns the pointer to the BlxSequence that matches the given strand and sequence name/tag.
  * Returns NULL if no match was found. */
-BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand)
+static BlxSequence *findBlxSequence(GArray *featureLists[], 
+				    GList *seqList,
+				    const char *reqdName, 
+				    const char *reqdIdTag, 
+				    const BlxMspType reqdMspType,
+				    const BlxStrand reqdStrand,
+				    const MSP const *newMsp,
+				    const char *sequence)
 {
   BlxSequence *result = NULL;
   
-  /* Loop through all sequences in the list */
-  GList *listItem = seqList;
-  
-  for ( ; listItem; listItem = listItem->next)
+  if (!typeIsShortRead(reqdMspType))
     {
-    BlxSequence *currentSeq = (BlxSequence*)(listItem->data);
-    
-    if (currentSeq->strand == reqdStrand &&
-	( (reqdName && currentSeq->fullName && !strcmp(currentSeq->fullName, reqdName)) ||
-	 (reqdIdTag && currentSeq->idTag && !strcmp(currentSeq->idTag, reqdIdTag)) ))
-      {
-      result = currentSeq;
-      break;
-      }
+      /* For most msp types, just look for a blxsequence that matches the same name/tag and strand */
+      result = findBlxSequenceInList(seqList, reqdName, reqdIdTag, reqdStrand);
+    }
+  else if (newMsp && sequence)
+    {
+      /* For short reads, loop through all MSPs of the same BlxSequence type that
+       * we're looking for. Look for an MSP from the same strand that has identical
+       * sequence data and and alignment coords; we want to group duplicate alignments
+       * under the same blxsequence to compress the view (rather than grouping by name, 
+       * which is not useful for short reads). */
+      int typeId = 0;
+      
+      for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+	{
+	  if (getBlxSequenceTypeForMsp(typeId) != getBlxSequenceTypeForMsp(reqdMspType))
+	    continue;
+	
+	  /* See if any MSP in this array is a duplicate of our MSP */
+	  int i = 0;
+	  const MSP *msp = mspArrayIdx(featureLists[typeId], i);
+	
+	  for ( ; msp; msp = mspArrayIdx(featureLists[typeId], ++i))
+	    {
+	      if (msp->sSequence && msp->sSequence->sequence && msp->sSequence->sequence->str &&
+		  rangesEqual(&msp->qRange, &newMsp->qRange) &&
+		  rangesEqual(&msp->sRange, &newMsp->sRange) &&
+		  stringsEqual(sequence, msp->sSequence->sequence->str, FALSE))
+		{
+		  result = msp->sSequence;
+		  break;
+		}
+	    }
+	
+	if (result)
+	  break;
+	}
     }
   
   return result;
@@ -1157,24 +1213,24 @@ gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 }
 
 
-/* Determine the type of BlxSequence that an MSP belongs to */
-static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
+/* Determine the type of BlxSequence that a particular MSP type belongs to */
+static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
 {
   BlxSequenceType result = BLXSEQUENCE_UNSET;
   
-  if (msp->type == BLXMSP_MATCH)
+  if (mspType == BLXMSP_MATCH)
     {
       result = BLXSEQUENCE_MATCH;
     }
-  else if (mspIsExon(msp) || mspIsIntron(msp))
+  else if (typeIsExon(mspType) || typeIsIntron(mspType) || mspType == BLXMSP_TRANSCRIPT)
     {
       result = BLXSEQUENCE_TRANSCRIPT;
     }
-  else if (mspIsVariation(msp))
+  else if (typeIsVariation(mspType))
     {
       result = BLXSEQUENCE_VARIATION;
     }
-  else if (mspIsShortRead(msp))
+  else if (typeIsShortRead(mspType))
     {
       result = BLXSEQUENCE_READ_PAIR;
     }
@@ -1188,7 +1244,15 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
  * for the forward and reverse strands of the same sequence. The passed-in sequence 
  * should always be forwards, and we reverse complement it here if we need the 
  * reverse strand. Returns the new BlxSequence */
-BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand strand, GList **seqList, char *sequence, MSP *msp, GError **error)
+BlxSequence* addBlxSequence(const char *name, 
+			    const char *idTag, 
+			    BlxStrand strand,
+			    const BlxMspType mspType,
+			    GArray* featureLists[],
+			    GList **seqList, 
+			    char *sequence, 
+			    MSP *msp, 
+			    GError **error)
 {
   BlxSequence *blxSeq = NULL;
   
@@ -1204,7 +1268,7 @@ BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand stran
       /* See if this strand for this sequence already exists. Horrible hack for backwards compatibility:
        * if the msp is an exon/intron, cut off the old-style 'x' or 'i' postfix from the name, if it has one. */
       char *seqName = msp ? mspGetExonTranscriptName(msp) : g_strdup(name);
-      blxSeq = findBlxSequence(*seqList, seqName, idTag, strand);
+      blxSeq = findBlxSequence(featureLists, *seqList, seqName, idTag, mspType, strand, msp, sequence);
       
       if (!blxSeq)
         {
@@ -1229,11 +1293,12 @@ BlxSequence* addBlxSequence(const char *name, const char *idTag, BlxStrand stran
           
           if (blxSeq->type == BLXSEQUENCE_UNSET)
             {
-              blxSeq->type = getBlxSequenceTypeForMsp(msp);
+              blxSeq->type = getBlxSequenceTypeForMsp(msp->type);
             }
-          else if (blxSeq->type != getBlxSequenceTypeForMsp(msp))
+          else if (blxSeq->type != getBlxSequenceTypeForMsp(msp->type))
             {
-              g_warning("Adding MSP of type %d to parent of type %d (expected parent type to be %d)\n", msp->type, blxSeq->type, getBlxSequenceTypeForMsp(msp));
+              g_warning("Adding MSP of type %d to parent of type %d (expected parent type to be %d)\n", 
+			msp->type, blxSeq->type, getBlxSequenceTypeForMsp(msp->type));
             }
         }
       
@@ -1631,9 +1696,6 @@ MSP* createNewMsp(GArray* featureLists[],
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
 
-  /* Add it to the relevant feature list. Use prepend because it is quicker */
-  featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
-  
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
    * the same as the ref seq strand */
@@ -1643,10 +1705,15 @@ MSP* createNewMsp(GArray* featureLists[],
     }
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
-  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsShortRead(mspType) || typeIsVariation(mspType))
+  if (typeIsExon(mspType) || typeIsIntron(mspType) || 
+      typeIsMatch(mspType) || typeIsShortRead(mspType) || 
+      typeIsVariation(mspType))
     {
-      addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
+      addBlxSequence(msp->sname, idTag, sStrand, msp->type, featureLists, seqList, sequence, msp, error);
     }
+
+  /* Add it to the relevant feature list. */
+  featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
 
   if (error && *error)
     {

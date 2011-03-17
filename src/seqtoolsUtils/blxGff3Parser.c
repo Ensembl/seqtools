@@ -254,23 +254,25 @@ static void createBlixemObject(BlxGffData *gffData,
   if (gffData->mspType == BLXMSP_TRANSCRIPT)
     {
       /* For transcript types, don't create an MSP, but do create a sequence */
-      addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, seqList, gffData->sequence, NULL, &tmpError);
+      addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
     }
   else
     {
       /* For all other types, create an MSP */
-      if (!gffData->sName && !gffData->parentIdTag && (typeIsExon(gffData->mspType) || typeIsMatch(gffData->mspType) || typeIsShortRead(gffData->mspType)))
+      if (!gffData->sName && !gffData->parentIdTag && 
+	  (gffData->mspType == BLXMSP_TRANSCRIPT || typeIsExon(gffData->mspType) || 
+	   typeIsMatch(gffData->mspType) || typeIsShortRead(gffData->mspType)))
 	{
 	  g_set_error(error, BLX_ERROR, 1, "Target/name/parent-ID must be specified for exons and alignments.\n");
 	  return;
 	}
 	
-      /* Get the id corresponding to the BlxSequence: we want the parent if it's an exon, or the
+      /* Get the id corresponding to the BlxSequence: we want the parent if it's an intron/exon, or the
        * ID for this item if it's a transcript or match */
-      char *idTag = typeIsExon(gffData->mspType) ? gffData->parentIdTag : gffData->idTag;
+      char *idTag = typeIsExon(gffData->mspType) || typeIsIntron(gffData->mspType) ? gffData->parentIdTag : gffData->idTag;
       
       /* For exons and transcripts, the target strand is irrelevant - use the ref seq strand */
-      if (typeIsExon(gffData->mspType))
+      if (typeIsExon(gffData->mspType) || typeIsIntron(gffData->mspType) || gffData->mspType == BLXMSP_TRANSCRIPT)
 	{
 	  gffData->sStrand = gffData->qStrand;
 	}
