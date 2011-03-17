@@ -4120,8 +4120,8 @@ static void calculateDepth(BlxViewContext *bc)
     } 
   
   /* Find the max and min depth */
-  int bc->minDepth = bc->depthArray[0];
-  int bc->maxDepth = bc->depthArray[0];
+  bc->minDepth = bc->depthArray[0];
+  bc->maxDepth = bc->depthArray[0];
   
   for (i = 1 ; i < displayLen; ++i)
     {
