@@ -43,5 +43,11 @@ set script_name = "configure"
 set script_exe = "$run_dir/$script_name"
 
 echo "Running $script_exe --prefix='$1' PKG_CONFIG_PATH='$pkgpath' LDFLAGS='$ldflags' CFLAGS='$cflags'"
-$script_exe --prefix="$1" PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CFLAGS="$cflags"
+
+if ($#argv < 1 ) then
+  $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CFLAGS="$cflags"
+else
+  $script_exe --prefix="$1" PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CFLAGS="$cflags"
+endif
+
 
