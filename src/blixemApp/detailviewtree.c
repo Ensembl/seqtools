@@ -1680,7 +1680,8 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	    {
 	      name = blxSequenceGetVariantName(msp->sSequence);
 	    }
-	  else
+
+	  if (!name)
 	    {
 	      name = mspGetSName(msp); /* use the full name */
 	    }
