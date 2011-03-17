@@ -4104,6 +4104,8 @@ static void calculateDepth(BlxViewContext *bc)
       
       /* Loop through all MSPs in this list */
       GArray *mspArray = bc->featureLists[mspType];
+      const int fullDisplayLen = getRangeLength(&bc->fullDisplayRange);
+    
       i = 0;
       const MSP *msp = mspArrayIdx(mspArray, i);
   
@@ -4113,8 +4115,12 @@ static void calculateDepth(BlxViewContext *bc)
           int alignIdx = msp->displayRange.min;
           for ( ; alignIdx <= msp->displayRange.max; ++alignIdx)
             {
+	      /* Convert the msp coord to a zero-based coord. Note that parts of the
+	       * msp range may be outside the ref seq range. */
               const int displayIdx = alignIdx - bc->fullDisplayRange.min;
-              bc->depthArray[displayIdx] += 1;
+	    
+	      if (displayIdx >= 0 && displayIdx < fullDisplayLen)
+		bc->depthArray[displayIdx] += 1;
             }
         }
     } 
