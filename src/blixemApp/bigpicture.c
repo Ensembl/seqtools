@@ -39,6 +39,7 @@
 #include <blixemApp/blxwindow.h>
 #include <blixemApp/detailview.h>
 #include <blixemApp/exonview.h>
+#include <blixemApp/coverageview.h>
 #include <seqtoolsUtils/utilities.h>
 #include <math.h>
 #include <stdlib.h>
@@ -79,6 +80,7 @@ void bigPictureRedrawAll(GtkWidget *bigPicture)
   widgetClearCachedDrawable(properties->revStrandGrid, NULL);
   widgetClearCachedDrawable(properties->fwdExonView, NULL);
   widgetClearCachedDrawable(properties->revExonView, NULL);
+  coverageViewRedraw(properties->coverageView);
   
   gtk_widget_queue_draw(bigPicture);
 }
@@ -888,6 +890,7 @@ static void onDestroyBigPicture(GtkWidget *bigPicture)
 
 static void bigPictureCreateProperties(GtkWidget *bigPicture, 
 				       GtkWidget *blxWindow, 
+                                       GtkWidget *coverageView, 
 				       GtkWidget *header, 
 				       GtkWidget *fwdStrandGrid,
 				       GtkWidget *revStrandGrid,
@@ -903,6 +906,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       
       properties->blxWindow = blxWindow;
       properties->header = header;
+      properties->coverageView = coverageView;
       properties->fwdStrandGrid = fwdStrandGrid;
       properties->revStrandGrid = revStrandGrid;
       properties->fwdExonView = fwdExonView;
@@ -1227,6 +1231,7 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 
 GtkWidget* createBigPicture(GtkWidget *blxWindow, 
 			    GtkContainer *parent,
+                            GtkWidget *coverageView,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
 			    const int initialZoom,
@@ -1267,6 +1272,7 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
   /* Set the big picture properties */
   bigPictureCreateProperties(bigPicture, 
 			     blxWindow,
+                             coverageView,
 			     header, 
 			     *fwdStrandGrid,
 			     *revStrandGrid,

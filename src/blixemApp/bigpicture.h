@@ -58,6 +58,7 @@ typedef struct _BigPictureProperties
   {
     GtkWidget *blxWindow;	/* The main blixem window that this grid belongs to */
     GtkWidget *header;		/* The grid header */
+    GtkWidget *coverageView;    /* The depth-coverage view */
     GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
     GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
     GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
@@ -156,6 +157,7 @@ void			      refreshGridOrder(GtkWidget *bigPicture);
 
 GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
 					       GtkContainer *parent,
+					       GtkWidget *coverageView,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
 					       const int bigPictZoom,

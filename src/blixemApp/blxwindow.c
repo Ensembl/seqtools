@@ -41,6 +41,7 @@
 #include <blixemApp/bigpicture.h>
 #include <blixemApp/blxdotter.h>
 #include <blixemApp/exonview.h>
+#include <blixemApp/coverageview.h>
 #include <seqtoolsUtils/utilities.h>
 #include <seqtoolsUtils/blxGff3Parser.h>
 #include <seqtoolsUtils/blxmsp.h>
@@ -4996,8 +4997,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
 
+  GtkWidget *coverageView = createCoverageView(window);
+  
   GtkWidget *bigPicture = createBigPicture(window,
 					   GTK_CONTAINER(panedWin),
+                                           coverageView,
 					   &fwdStrandGrid, 
 					   &revStrandGrid,
 					   options->bigPictZoom,
@@ -5019,13 +5023,19 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                            options->parseFullEmblInfo);
 
   
+  /* Add the coverage view underneath the main panes */
+  gtk_box_pack_start(GTK_BOX(vbox), coverageView, FALSE, FALSE, 0);
+
+  
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
 
+  
   /* Put the statusbar at the bottom */
   gtk_box_pack_start(GTK_BOX(vbox), statusBar, FALSE, TRUE, 0);
 
+  
   /* Set required data for the blixem window */
   blxWindowCreateProperties(options,
 			    blxContext,
