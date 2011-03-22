@@ -141,7 +141,10 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
   if (!bc || bc->maxDepth <= 0)
     return;
   
+  GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, bc->defaultColors, FALSE, bc->usePrintColors);
   GdkGC *gc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(gc, color);
+  
   const double pixelsPerVal = (double)properties->viewRect.height / (double)bc->maxDepth;
   const int bottomBorder = properties->viewRect.y + properties->viewRect.height;
 
