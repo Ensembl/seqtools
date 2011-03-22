@@ -768,29 +768,41 @@ int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterConte
       
       DEBUG_OUT("frame=%d, fraction=%f\n", frame, fraction);
 
-      /* Round to the higher absolute value so that 0.3, 0.6 and 1.0 all round
-       * to the same value. Then subtract 1 - this is a bit of a fudge to make
-       * things work; there's probably an off-by-one error somewhere... */
-      if (fraction > 0)
-        result = ceil(fraction);
-      else
-        result = floor(fraction);
+      /* Round to the higher value so that 0.3, 0.6 and 1.0 all round
+       * to the same value. If values are negative this still works; 0, -0.3
+       * and -0.6 will all round to 0.
+       *
+       * To illustrate (the top section shows nucleotide coords, reading 
+       * from top-to-bottom then left-to-right): 
+       * 
+       *              Display forwards        Display reversed
+       * Frame1:         -5 -2  1  4             6  3  0 -3
+       * Frame2:         -4 -1  2  5             5  2 -1 -4
+       * Frame3:         -3  0  3  6             4  1 -2 -5
+       * 
+       * Peptide coord:  -1  0  1  2             2  1  0 -1
+       *
+       * */
+      result = ceil(fraction);
     
-    /* We want base 1 in the requested reading frame. */
-    if (baseNum)
-      {
-	*baseNum = (dnaIdx - frame + 1) % dc->numFrames;
-      
-	if (*baseNum < 1)
-	  *baseNum += dc->numFrames;
-      
-	/* invert base number order when the sequence is reversed, i.e. if the mod3 of
-	 * the coords gives base numbers 123123123 etc then change these to 321321321 etc */
-	if (rev)
-	  {
-	    *baseNum = dc->numFrames - *baseNum + 1;
-	  }
-      }
+      /* We want base 1 in the requested reading frame. */
+      if (baseNum)
+        {
+          *baseNum = (dnaIdx - frame + 1) % dc->numFrames;
+        
+          /* If we have a negative base number, adding 3 shifts it to the
+           * correct base number. (This also fixes the fact that mod3 gives 0
+           * for base 3.) */
+          if (*baseNum < 1)
+            *baseNum += dc->numFrames;
+
+          /* invert base number order when the sequence is reversed, i.e. if the mod3 of
+           * the coords gives base numbers 123123123 etc then change these to 321321321 etc */
+          if (rev)
+            {
+              *baseNum = dc->numFrames - *baseNum + 1;
+            }
+        }
     }
   
   DEBUG_EXIT("convertToDisplayIdx returning %d", result);
