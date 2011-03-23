@@ -399,7 +399,6 @@ GtkWidget* createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc)
   /* Set required data in the coverageView. */
   coverageViewCreateProperties(coverageView, blxWindow, bc);
   
-  
   return coverageView;
 }
 

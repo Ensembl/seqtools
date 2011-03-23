@@ -773,6 +773,11 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       createTreeVisibilityButton(dv, blxWindowGetInactiveStrand(blxWindow), frame, dvSubBox);
     }
   
+  /* Coverage view */
+  GtkWidget *coverageView = bigPictureGetCoverageView(bp);
+  GtkWidget *coverageVbox = createVBoxWithBorder(contentArea, borderWidth, TRUE, "Coverage view");
+  createVisibilityButton(coverageView, "Show _coverage view", coverageVbox);
+
   
   gtk_widget_show_all(dialog);
   
@@ -5081,6 +5086,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   if (options->activeStrand == BLXSTRAND_REVERSE)
     toggleStrand(detailView);
 
+  /* Hide the coverage view by default */
+  widgetSetHidden(coverageView, TRUE);
+  
   /* If the options say to hide the inactive strand, hide it now. (This must be done
    * after showing the widgets, or it will get shown again in show_all.). To do: we just
    * hide the grid at the moment; hide the detail-view pane as well?  */

@@ -1206,6 +1206,12 @@ GtkWidget* bigPictureGetRevExonView(GtkWidget *bigPicture)
   return properties ? properties->revExonView : NULL;
 }
 
+GtkWidget* bigPictureGetCoverageView(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties ? properties->coverageView : NULL;
+}
+
 GtkWidget* bigPictureGetActiveExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);

@@ -114,6 +114,7 @@ GtkWidget*		      bigPictureGetActiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetInactiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetFwdExonView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevExonView(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetCoverageView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetActiveExonView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetInactiveExonView(GtkWidget *bigPicture);
 gboolean		      bigPictureGetDisplayRev(GtkWidget *bigPicture);
