@@ -1807,23 +1807,34 @@ static void cellDataFunctionScoreCol(GtkTreeViewColumn *column,
 				    GtkTreeIter *iter, 
 				    gpointer data)
 {
-  /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
+  /* Get the MSP(s) for this row. Do not display coords if the row contains
+   * multiple MSPs (unless they're short-reads, where we can assume that they
+   * all have the same score because duplicate short-reads are grouped together). */
   GList	*mspGList = treeGetMsps(model, iter);
 
-  if (g_list_length(mspGList) == 1)
+  if (g_list_length(mspGList) < 1)
     {
-      const MSP const *msp = (const MSP const *)(mspGList->data);
-      const gdouble score = msp->score;
-      char displayText[numDigitsInInt((int)score) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
-      
-//      sprintf(displayText, "%1.1f", score); 
-      sprintf(displayText, "%d", (int)score); 
-      
-      g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
     }
   else
     {
-      g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
+      const MSP const *msp = (const MSP const *)(mspGList->data);
+    
+      if (g_list_length(mspGList) == 1 || mspIsShortRead(msp))
+	{
+	  const gdouble score = msp->score;
+	  char displayText[numDigitsInInt((int)score) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
+	  
+    //      sprintf(displayText, "%1.1f", score); 
+	  sprintf(displayText, "%d", (int)score); 
+	  
+	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+	}
+      else
+	{
+	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
+	}
+	
     }
 }
 
@@ -1838,20 +1849,28 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
   /* Get the MSP(s) for this row. Do not display coords if the row contains multiple MSPs */
   GList	*mspGList = treeGetMsps(model, iter);
   
-    if (g_list_length(mspGList) == 1)
+  if (g_list_length(mspGList) < 1)
     {
-      const MSP const *msp = (const MSP const *)(mspGList->data);
-      const gdouble id = msp->id;
-      char displayText[numDigitsInInt((int)id) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
-      
-//      sprintf(displayText, "%1.1f", id); 
-      sprintf(displayText, "%d", (int)id); 
-
-      g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
     }
   else
     {
-      g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
+      const MSP const *msp = (const MSP const *)(mspGList->data);
+    
+      if (g_list_length(mspGList) == 1 || mspIsShortRead(msp))
+	{
+	  const gdouble id = msp->id;
+	  char displayText[numDigitsInInt((int)id) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
+	  
+    //      sprintf(displayText, "%1.1f", id); 
+	  sprintf(displayText, "%d", (int)id); 
+
+	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+	}
+      else
+	{
+	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
+	}
     }
 }
 
@@ -1940,6 +1959,21 @@ static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer
         {
           g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->strain->str, NULL);
         }
+    }
+}
+
+
+/* Cell data function for the Source column. */
+static void cellDataFunctionSourceCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+  GList	*mspGList = treeGetMsps(model, iter);
+  if (g_list_length(mspGList) > 0)
+    {
+      const MSP const *msp = (const MSP const*)(mspGList->data);
+      if (msp->source)
+	{
+	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->source, NULL);
+	}
     }
 }
 
@@ -2043,7 +2077,11 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
     case BLXCOL_STRAIN:
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionStrainCol, tree, NULL);
       break;
-      
+
+    case BLXCOL_SOURCE:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionSourceCol, tree, NULL);
+      break;
+    
     default:
       break;
   }
