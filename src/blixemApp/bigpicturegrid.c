@@ -49,7 +49,6 @@
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"
 #define DEFAULT_MSP_LINE_HEIGHT		3	  /* the height of the MSP lines in the grid */
 #define DEFAULT_GRID_Y_PADDING		5	  /* this provides space between the grid and the edge of the widget */
-#define DEFAULT_GRID_CELL_Y_PADDING	-2	  /* this controls the vertical space between the labels on the y axis */
 #define MIN_MSP_LINE_WIDTH		1	  /* used to make sure that MSP lines never shrink to nothing */
 
 typedef struct _DrawGridData
@@ -94,16 +93,6 @@ void callFuncOnAllBigPictureGrids(GtkWidget *widget, gpointer data)
 }
 
 
-/* Get the height of the grid cells */
-static gint gridGetCellHeight(GtkWidget *grid)
-{
-  /* Base the cell height on the font height */
-  GridProperties *properties = gridGetProperties(grid);
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-  return roundNearest(bigPictureProperties->charHeight + (gdouble)(2 * properties->cellYPadding));
-}
-
-
 static int gridGetNumVCells(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
@@ -123,65 +112,6 @@ gint convertValueToGridPos(GtkWidget *grid, const gdouble value)
   /* Make sure we do the multiplication on doubles before rounding to int */
   gint result = properties->gridRect.y + roundNearest((gdouble)properties->gridRect.height * percent);
   return result;
-}
-
-
-/* Draw the horizontal grid lines for the big picture view */
-static void drawHorizontalGridLines(GtkWidget *grid,
-                                    GdkDrawable *drawable,
-				    BlxViewContext *bc,
-				    const gint numCells, 
-				    const gdouble rangePerCell, 
-				    const gdouble maxVal)
-{
-  GridProperties *properties = gridGetProperties(grid);
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-
-  const gint rightBorder = properties->gridRect.x + properties->gridRect.width;
-  
-  GdkColor *textColor = getGdkColor( BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkGC *textGc = gdk_gc_new(drawable);
-  gdk_gc_set_foreground(textGc, textColor);
-  
-  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkGC *lineGc = gdk_gc_new(drawable);
-  gdk_gc_set_foreground(lineGc, lineColor);
-
-  /* Show decimal places if the range per cell is a fraction of a percent */
-  const gboolean showDecimal = (rangePerCell < 1.0);
-  
-  gint vCell = 0;
-  for ( ; vCell <= numCells; ++vCell)
-    {
-      gint y = properties->gridRect.y + (gint)((gdouble)vCell * gridGetCellHeight(grid));
-      
-      /* Label this gridline with the %ID */
-      gdouble percent = maxVal - (rangePerCell * vCell);
-      char text[bigPictureProperties->leftBorderChars + 3]; /* +3 to include decimal point, 1dp, and terminating nul */
-
-      if (showDecimal)
-        {
-          sprintf(text, "%1.1f%%", percent);
-        }
-      else
-        {
-          sprintf(text, "%d%%", (int)percent);
-        }
-      
-      PangoLayout *layout = gtk_widget_create_pango_layout(grid, text);
-
-      int width = UNSET_INT, height = UNSET_INT;
-      pango_layout_get_pixel_size(layout, &width, &height);
-      
-      gdk_draw_layout(drawable, textGc, 0, y - gridGetCellHeight(grid)/2, layout);
-      g_object_unref(layout);
-      
-      /* Draw the gridline */
-      gdk_draw_line (drawable, lineGc, properties->gridRect.x, y, rightBorder, y);
-    }
-  
-  g_object_unref(lineGc);
-  g_object_unref(textGc);
 }
 
 
@@ -393,7 +323,7 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 
   /* Draw the grid lines */
   drawVerticalGridLines(&properties->gridRect, &properties->highlightRect, properties->gridYPadding, bc, bpProperties, drawable);
-  drawHorizontalGridLines(grid, drawable, bc, numVCells, percentPerCell, bpProperties->percentIdRange.max);
+  drawHorizontalGridLines(grid, properties->bigPicture, &properties->gridRect, bc, bpProperties, drawable, numVCells, percentPerCell, bpProperties->percentIdRange.max);
   
   /* Draw lines corresponding to the MSPs */
   drawMspLines(grid, drawable);
@@ -432,7 +362,7 @@ void calculateGridBorders(GtkWidget *grid)
   properties->gridRect.x = roundNearest(bigPictureProperties->charWidth * (gdouble)bigPictureProperties->leftBorderChars);
   properties->gridRect.y = bigPictureProperties->highlightBoxYPad + properties->gridYPadding;
   properties->gridRect.width = properties->displayRect.width - properties->gridRect.x;
-  properties->gridRect.height = gridGetCellHeight(grid) * numVCells;
+  properties->gridRect.height = bigPictureGetCellHeight(properties->bigPicture) * numVCells;
   
   /* Get the boundaries of the highlight box */
   calculateGridHighlightBoxBorders(grid);
@@ -713,7 +643,6 @@ static void gridCreateProperties(GtkWidget *widget,
       properties->strand = strand;
       
       properties->gridYPadding = DEFAULT_GRID_Y_PADDING;
-      properties->cellYPadding = DEFAULT_GRID_CELL_Y_PADDING;
       
       properties->mspLineHeight = DEFAULT_MSP_LINE_HEIGHT;
       properties->exposeHandlerId = exposeHandlerId;

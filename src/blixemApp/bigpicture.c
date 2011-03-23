@@ -47,6 +47,7 @@
 #define DEFAULT_PREVIEW_BOX_LINE_WIDTH  1
 #define DEFAULT_GRID_NUM_HEADER_LINES   1	  /* the default number of lines of text in the grid header */
 #define DEFAULT_GRID_HEADER_Y_PAD	0	  /* the default y padding around the grid header */
+#define DEFAULT_LABEL_PADDING		-2	  /* padding around the grid labels */
 #define DEFAULT_GRID_CELL_WIDTH		100	  /* the default cell width of the grids */
 #define DEFAULT_GRID_NUM_HOZ_CELLS	5	  /* the default number of cells to show horizontally in the grids */
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
@@ -251,22 +252,92 @@ void drawVerticalGridLines(GdkRectangle *drawingRect,
   gint hCell = 0;
   for ( ; hCell <= bpProperties->numHCells; ++hCell)
     {
-    /* Get the base index for this grid line and calc its x coord */
-    int numBasesFromLeft = bpProperties->basesPerCell * hCell;
-    int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
-    
-    const int x = convertBaseIdxToRectPos(baseIdx, drawingRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
-    
-    if (x > minX && x < maxX)
-      {
-	GdkGC *gc = gdk_gc_new(drawable);
-	GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
+      /* Get the base index for this grid line and calc its x coord */
+      int numBasesFromLeft = bpProperties->basesPerCell * hCell;
+      int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
+      
+      const int x = convertBaseIdxToRectPos(baseIdx, drawingRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
+      
+      if (x > minX && x < maxX)
+	{
+	  GdkGC *gc = gdk_gc_new(drawable);
+	  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
 
-	gdk_gc_set_foreground(gc, lineColor);
-	gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
-      }
+	  gdk_gc_set_foreground(gc, lineColor);
+	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
+	}
     }
 }
+
+
+/* Get the standard height for grid cells */
+gint bigPictureGetCellHeight(GtkWidget *bigPicture)
+{
+  /* Base the cell height on the font height */
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return roundNearest(properties->charHeight + (gdouble)(2 * DEFAULT_LABEL_PADDING));
+}
+
+
+/* Draw the horizontal grid lines for the big picture view */
+void drawHorizontalGridLines(GtkWidget *widget,
+			     GtkWidget *bigPicture,
+			     GdkRectangle *drawingRect,
+			     BlxViewContext *bc,
+			     BigPictureProperties *bpProperties,
+			     GdkDrawable *drawable,
+			     const gint numCells, 
+			     const gdouble rangePerCell, 
+			     const gdouble maxVal)
+{
+  const gint rightBorder = drawingRect->x + drawingRect->width;
+  
+  GdkColor *textColor = getGdkColor( BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkGC *textGc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(textGc, textColor);
+  
+  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkGC *lineGc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(lineGc, lineColor);
+  
+  /* Show decimal places if the range per cell is a fraction of a percent */
+  const gboolean showDecimal = (rangePerCell < 1.0);
+  const int cellHeight = bigPictureGetCellHeight(bigPicture);
+  
+  gint vCell = 0;
+  for ( ; vCell <= numCells; ++vCell)
+    {
+      gint y = drawingRect->y + (gint)((gdouble)vCell * cellHeight);
+      
+      /* Label this gridline with the %ID */
+      gdouble percent = maxVal - (rangePerCell * vCell);
+      char text[bpProperties->leftBorderChars + 3]; /* +3 to include decimal point, 1dp, and terminating nul */
+      
+      if (showDecimal)
+	{
+	  sprintf(text, "%1.1f%%", percent);
+	}
+      else
+	{
+	  sprintf(text, "%d%%", (int)percent);
+	}
+      
+      PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
+      
+      int width = UNSET_INT, height = UNSET_INT;
+      pango_layout_get_pixel_size(layout, &width, &height);
+      
+      gdk_draw_layout(drawable, textGc, 0, y - cellHeight/2, layout);
+      g_object_unref(layout);
+      
+      /* Draw the gridline */
+      gdk_draw_line (drawable, lineGc, drawingRect->x, y, rightBorder, y);
+    }
+  
+  g_object_unref(lineGc);
+  g_object_unref(textGc);
+}
+
 
 
 /* Refresh the header - clears and redraws its bitmap */

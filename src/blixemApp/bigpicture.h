@@ -142,9 +142,16 @@ void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable 
 void                          showPreviewBox(GtkWidget *bigPicture, const int x);
 void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 
+gint			      bigPictureGetCellHeight(GtkWidget *bigPicture);
+
 void			      drawVerticalGridLines(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
 						    const int yPadding, BlxViewContext *bc, 
 						    BigPictureProperties *bpProperties, GdkDrawable *drawable);
+
+void			      drawHorizontalGridLines(GtkWidget *widget, GtkWidget *bigPicture,
+						      GdkRectangle *drawingRect, BlxViewContext *bc,
+						      BigPictureProperties *bpProperties, GdkDrawable *drawable,
+						      const gint numCells, const gdouble rangePerCell, const gdouble maxVal);
 
 void			      calculateHighlightBoxBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
 							   GtkWidget *bigPicture, const int yPadding);
