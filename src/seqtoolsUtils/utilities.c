@@ -898,29 +898,27 @@ gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRang
  * values decrease from left-to-right/top-to-bottom). 
  * 
  * The result is clipped to lie within the rectangle if 'clip' is true */
-gint convertBaseIdxToRectPos(const gint dnaIdx, 
-			     const GdkRectangle const *rect, 
-			     const IntRange const *dnaDispRange,
-                             const gboolean horizontal,
-                             const gboolean displayRev,
-                             const gboolean clip)
+gdouble convertBaseIdxToRectPos(const gint dnaIdx, 
+ 			        const GdkRectangle const *rect, 
+ 			        const IntRange const *dnaDispRange,
+ 			        const gboolean horizontal,
+ 			        const gboolean displayRev,
+ 			        const gboolean clip)
 {
-  gint result = UNSET_INT;
-  
   int baseIdx = invertCoord(dnaIdx, dnaDispRange, displayRev);
   
   gdouble numBasesFromEdge = (gdouble)(baseIdx - dnaDispRange->min); /* 0-based index from edge */
   
   if (clip && numBasesFromEdge < 0)
     {
-    numBasesFromEdge = 0;
+      numBasesFromEdge = 0;
     }
   
   const int rectLength = horizontal ? rect->width : rect->height;
-  gint pixelsFromEdge = (int)(numBasesFromEdge * pixelsPerBase(rectLength, dnaDispRange));
+  gdouble pixelsFromEdge = numBasesFromEdge * pixelsPerBase(rectLength, dnaDispRange);
   
   const int rectStart = horizontal ? rect->x : rect->y;
-  result = rectStart + pixelsFromEdge;
+  gdouble result = (gdouble)rectStart + pixelsFromEdge;
   
   if (clip && result > rectStart + rectLength)
     {

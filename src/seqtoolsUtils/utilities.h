@@ -433,7 +433,7 @@ void		      createBlxColor(GArray *defaultColors,
 gdouble		      pixelsPerBase(const gint displayWidth, 
 				    const IntRange const *displayRange);
 
-gint		      convertBaseIdxToRectPos(const gint dnaIdx, 
+gdouble		      convertBaseIdxToRectPos(const gint dnaIdx, 
 					      const GdkRectangle const *rect, 
 					      const IntRange const *dnaDispRange,
                                               const gboolean horizontal,

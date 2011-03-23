@@ -44,6 +44,7 @@
 
 #define DEFAULT_COVERAGE_VIEW_Y_PADDING		10	  /* this provides space between the drawing area and the edge of the widget */
 #define DEFAULT_COVERAGE_VIEW_HEIGHT            50	  /* this provides space between the drawing area and the edge of the widget */
+#define MIN_LINE_WIDTH				0.5	  /* this provides space between the drawing area and the edge of the widget */
 #define COVERAGE_VIEW_NAME                      "CoverageView"
 
 
@@ -132,6 +133,30 @@ void coverageViewRecalculate(GtkWidget *coverageView)
 }
 
 
+/* Draw a single bar of the coverage bar graph */
+static void drawCoverageBar(const double x1,
+			    const double x2,
+			    double y1,
+			    const double y2,
+			    cairo_t *cr)
+{
+  double height = y2 - y1;
+  double width = x2 - x1;
+
+  if (height <= MIN_LINE_WIDTH)
+    {
+      height = MIN_LINE_WIDTH;
+      y1 = y2 - height;
+    }
+  
+  if (width <= 0)
+    return;
+  
+  cairo_rectangle(cr, x1 - MIN_LINE_WIDTH, y1, width + (2 * MIN_LINE_WIDTH), height);
+  cairo_fill(cr);
+}
+
+
 static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
@@ -141,26 +166,26 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
   if (!bc || bc->maxDepth <= 0)
     return;
   
-  GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkGC *gc = gdk_gc_new(drawable);
-  gdk_gc_set_foreground(gc, color);
+  const GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, bc->defaultColors, FALSE, bc->usePrintColors);
+  cairo_t *cr = gdk_cairo_create(drawable);
+  gdk_cairo_set_source_color(cr, color);
   
   const double pixelsPerVal = (double)properties->viewRect.height / (double)bc->maxDepth;
   const int bottomBorder = properties->viewRect.y + properties->viewRect.height;
-
+  
   /* Loop through each coord in the display range */
   const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
   
-  int startX = UNSET_INT;
-  int prevX = UNSET_INT;
-  int prevY = UNSET_INT;
+  double startX = -1.0;
+  double prevX = -1.0;
+  double prevY = -1.0;
   int coord = displayRange->min;
   
   for ( ; coord <= displayRange->max; ++coord)
     {
       /* Get the x position for this coord (always pass displayRev as false because
        * display coords are already inverted if the display is reversed). */
-      const int x = convertBaseIdxToRectPos(coord, &properties->viewRect, displayRange, TRUE, FALSE, TRUE);
+      const double x = convertBaseIdxToRectPos(coord, &properties->viewRect, displayRange, TRUE, FALSE, TRUE);
       
       /* Convert the display coord to a zero-based coord in the full ref seq
        * display range, for indexing the depth array. Note that we need to
@@ -169,13 +194,14 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
       const int depth = bc->depthArray[idx - bc->fullDisplayRange.min];
 
       /* Calculate the y position based on the depth */
-      const int y = bottomBorder - (pixelsPerVal * depth);
+      const double height = (pixelsPerVal * (double)depth);
+      const double y = (double)bottomBorder - height;
 
       /* First time round, don't draw the line - just get the starting x and y.
        * Also, don't draw the line if y is the same as prevY; drawing is quite
        * expensive, so if we have multiple y values that are the same we remember
        * the first x coord at this y value and draw from there all in one go. */
-      if (prevX == UNSET_INT && prevY == UNSET_INT)
+      if (prevX == -1.0 && prevY == -1.0)
         {
           startX = x;
         }
@@ -184,10 +210,10 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
           /* If we had multiple positions where y was the same, draw a horizontal
            * line at that y position. */
           if (prevX != startX)
-            gdk_draw_line(drawable, gc, startX, prevY, prevX, prevY);
-
+	    drawCoverageBar(startX, prevX, prevY, bottomBorder, cr);
+	    
           /* Now draw the sloped line from the previous y to the new y. */
-          gdk_draw_line(drawable, gc, prevX, prevY, x, y);
+	  drawCoverageBar(prevX, x, y, bottomBorder, cr);
 
           /* Reset the starting point */
           startX = x;
