@@ -47,7 +47,8 @@
 #define DEFAULT_PREVIEW_BOX_LINE_WIDTH  1
 #define DEFAULT_GRID_NUM_HEADER_LINES   1	  /* the default number of lines of text in the grid header */
 #define DEFAULT_GRID_HEADER_Y_PAD	0	  /* the default y padding around the grid header */
-#define DEFAULT_LABEL_PADDING		-2	  /* padding around the grid labels */
+#define DEFAULT_LABEL_X_PADDING		5	  /* padding around the grid labels */
+#define DEFAULT_LABEL_Y_PADDING		-2	  /* padding around the grid labels */
 #define DEFAULT_GRID_CELL_WIDTH		100	  /* the default cell width of the grids */
 #define DEFAULT_GRID_NUM_HOZ_CELLS	5	  /* the default number of cells to show horizontally in the grids */
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
@@ -275,7 +276,7 @@ gint bigPictureGetCellHeight(GtkWidget *bigPicture)
 {
   /* Base the cell height on the font height */
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return roundNearest(properties->charHeight + (gdouble)(2 * DEFAULT_LABEL_PADDING));
+  return roundNearest(properties->charHeight + (gdouble)(2 * DEFAULT_LABEL_Y_PADDING));
 }
 
 
@@ -309,6 +310,7 @@ void drawHorizontalGridLines(GtkWidget *widget,
   for ( ; vCell <= numCells; ++vCell)
     {
       gint y = drawingRect->y + (gint)((gdouble)vCell * cellHeight);
+      gint x = drawingRect->x - DEFAULT_LABEL_X_PADDING;
       
       /* Label this gridline with the %ID */
       gdouble percent = maxVal - (rangePerCell * vCell);
@@ -325,10 +327,10 @@ void drawHorizontalGridLines(GtkWidget *widget,
       
       PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
       
-      int width = UNSET_INT, height = UNSET_INT;
-      pango_layout_get_pixel_size(layout, &width, &height);
-      
-      gdk_draw_layout(drawable, textGc, 0, y - cellHeight/2, layout);
+      int width = UNSET_INT;
+      pango_layout_get_pixel_size(layout, &width, NULL);
+
+      gdk_draw_layout(drawable, textGc, x - width, y - cellHeight/2, layout);
       g_object_unref(layout);
       
       /* Draw the gridline */
@@ -1086,7 +1088,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->percentIdRange.max = (gdouble)DEFAULT_GRID_PERCENT_ID_MAX;
 
       properties->previewBoxCentre = previewBoxCentre;
-      properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
+      properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because char width is approx */
       properties->highlightBoxMinWidth = MIN_HIGHLIGHT_BOX_WIDTH;
       properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
       properties->highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD;
