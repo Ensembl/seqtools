@@ -1663,8 +1663,9 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
   
   /* Get the MSP(s) for this row. They should all have the same sequence name. */
   GList	*mspGList = treeGetMsps(model, iter);
+  const int numMsps = g_list_length(mspGList);
 
-  if (GTK_WIDGET_VISIBLE(tree) && g_list_length(mspGList) > 0)
+  if (GTK_WIDGET_VISIBLE(tree) && numMsps > 0)
     {
       MSP *msp = (MSP*)(mspGList->data);
 
@@ -1684,6 +1685,19 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	  if (!name)
 	    {
 	      name = mspGetSName(msp); /* use the full name */
+	    }
+	
+	  /* If the display is squashed, for short reads, append the number of items
+	   * in the row to the name. */
+	  if (mspIsShortRead(msp))
+	    {
+	      BlxViewContext *bc = treeGetContext(tree);
+	    
+	      if (bc->flags[BLXFLAG_SQUASH_MATCHES])
+		{
+		  char *name2 = blxprintf("%d %s%s", numMsps, name, (numMsps > 1 ? "s" : ""));
+		  name = name2;
+		}
 	    }
 
 	  /* Abbreviate the name to fit the column */

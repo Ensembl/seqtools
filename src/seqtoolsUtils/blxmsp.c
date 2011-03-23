@@ -357,26 +357,38 @@ const char *mspGetSName(const MSP const *msp)
 }
 
 
-/* Get the transcript name for an old-style exon/intron. These were postfixed with 'x' or 'i' 
- * to indicate exon and intron; we need to remove this postfix in order to find the real transcript
- * name so that we can group exons and introns from the same transcript together in the same BlxSequence.
- * If not an exon or intron, just returns a copy of the msp name. The result should be free'd with g_free. */
-char* mspGetExonTranscriptName(const MSP *msp)
+/* Get the sequence name that we want to use for the given MSP. For old-style exon/introns, these
+ * were postfixed with 'x' or 'i' to indicate exon and intron; we need to remove this postfix in 
+ * order to find the real transcript name so that we can group exons and introns from the same 
+ * transcript together in the same BlxSequence.
+ * For short reads, the name is irrelevant, so just use something generic.
+ * For other MSPs, just returns a copy of the msp name. The result should be free'd with g_free. */
+char* mspGetSequenceName(const MSP *msp)
 {
-  char *name = g_strdup(msp->sname);
+  char *name = NULL;
   
-  if (name)
+  if (mspIsShortRead(msp))
     {
-    int i = strlen(name) - 1;
-    
-    if (mspIsExon(msp) && (name[i] == 'x' || name[i] == 'X'))
-      {
-      name[i] = '\0';
-      }
-    else if (mspIsIntron(msp) && (name[i] == 'i' || name[i] == 'I'))
-      {
-      name[i] = '\0';
-      }
+      /* <#comment#> */
+      name = g_strdup("short read");
+    }
+  else
+    {
+      name = g_strdup(msp->sname);
+  
+      if (name)
+	{
+	  int i = strlen(name) - 1;
+	  
+	  if (mspIsExon(msp) && (name[i] == 'x' || name[i] == 'X'))
+	    {
+	      name[i] = '\0';
+	    }
+	  else if (mspIsIntron(msp) && (name[i] == 'i' || name[i] == 'I'))
+	    {
+	      name[i] = '\0';
+	    }
+	}
     }
   
   return name;
@@ -1267,7 +1279,7 @@ BlxSequence* addBlxSequence(const char *name,
     
       /* See if this strand for this sequence already exists. Horrible hack for backwards compatibility:
        * if the msp is an exon/intron, cut off the old-style 'x' or 'i' postfix from the name, if it has one. */
-      char *seqName = msp ? mspGetExonTranscriptName(msp) : g_strdup(name);
+      char *seqName = msp ? mspGetSequenceName(msp) : g_strdup(name);
       blxSeq = findBlxSequence(featureLists, *seqList, seqName, idTag, mspType, strand, msp, sequence);
       
       if (!blxSeq)
