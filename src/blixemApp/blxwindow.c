@@ -4138,7 +4138,7 @@ static void calculateDepth(BlxViewContext *bc)
       
       if (bc->depthArray[i] > bc->maxDepth)
         bc->maxDepth = bc->depthArray[i];
-    }
+    }  
 }
 
 
@@ -4998,7 +4998,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
 
-  GtkWidget *coverageView = createCoverageView(window);
+  GtkWidget *coverageView = createCoverageView(window, blxContext);
   
   GtkWidget *bigPicture = createBigPicture(window,
 					   GTK_CONTAINER(panedWin),
@@ -5063,6 +5063,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
   cacheMspDisplayRanges(blxContext, detailViewGetNumUnalignedBases(detailView));
   calculateDepth(blxContext);
+  updateCoverageDepth(coverageView, blxContext);
   
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);

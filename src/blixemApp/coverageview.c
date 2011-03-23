@@ -43,7 +43,7 @@
 
 
 #define DEFAULT_COVERAGE_VIEW_Y_PADDING		10	  /* this provides space between the drawing area and the edge of the widget */
-#define DEFAULT_NUM_V_CELLS			3	  /* number of vertical cells to show on the grid */
+#define DEFAULT_NUM_V_CELLS			2	  /* number of vertical cells to show on the grid */
 #define MIN_LINE_WIDTH				0.5	  /* this provides space between the drawing area and the edge of the widget */
 #define COVERAGE_VIEW_NAME                      "CoverageView"
 
@@ -53,8 +53,8 @@ typedef struct _CoverageViewProperties
     GtkWidget *blxWindow;   /* The main blixem window */
 
     int viewYPadding;	     /* The y padding around the view rect */
-    
-    
+    int numVCells;	     /* The number of cells to show vertically */
+    gdouble rangePerCell;    /* The range of depth values shown per grid cell on the plot */
     
     GdkRectangle viewRect;   /* The rectangle we draw in */
     GdkRectangle displayRect; /* The total display area */
@@ -86,7 +86,8 @@ static void onDestroyCoverageView(GtkWidget *widget)
 }
 
 static void coverageViewCreateProperties(GtkWidget *widget, 
-                                         GtkWidget *blxWindow)
+                                         GtkWidget *blxWindow,
+					 BlxViewContext *bc)
 {
   if (widget)
     { 
@@ -94,6 +95,8 @@ static void coverageViewCreateProperties(GtkWidget *widget,
       
       properties->blxWindow = blxWindow;
       properties->viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
+      properties->numVCells = DEFAULT_NUM_V_CELLS;
+      properties->rangePerCell = 0;
       
       g_object_set_data(G_OBJECT(widget), "CoverageViewProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCoverageView), NULL); 
@@ -101,11 +104,13 @@ static void coverageViewCreateProperties(GtkWidget *widget,
 }
 
 
-//static BlxViewContext* coverageViewGetContext(GtkWidget *coverageView)
-//{
-//  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
-//  return bigPictureGetContext(properties->bigPicture);
-//}
+/* This function should be called whenever the coverage depth data has changed */
+void updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc)
+{
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  properties->rangePerCell = (gdouble)bc->maxDepth / properties->numVCells;
+  coverageViewRecalculate(coverageView);
+}
 
 
 /***********************************************************
@@ -244,11 +249,8 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
 			bpProperties, 
 			drawable);
   
-  /* Draw horizontal grid lines. For now, just use a fixed number of cells. */
-  const gdouble rangePerCell = (gdouble)bc->maxDepth / DEFAULT_NUM_V_CELLS;
-  
   drawHorizontalGridLines(coverageView, bigPicture, &properties->viewRect, bc, bpProperties, drawable,
-			  DEFAULT_NUM_V_CELLS, rangePerCell, (gdouble)bc->maxDepth, "");
+			  properties->numVCells, properties->rangePerCell, (gdouble)bc->maxDepth, "");
   
   drawCoveragePlot(coverageView, drawable);
 }
@@ -270,6 +272,7 @@ void calculateCoverageViewHighlightBoxBorders(GtkWidget *coverageView)
 void calculateCoverageViewBorders(GtkWidget *coverageView)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   
@@ -277,7 +280,13 @@ void calculateCoverageViewBorders(GtkWidget *coverageView)
   guint layoutWidth, layoutHeight;
   gtk_layout_get_size(GTK_LAYOUT(coverageView), &layoutWidth, &layoutHeight);
   
-  const int height = DEFAULT_NUM_V_CELLS * bigPictureGetCellHeight(bigPicture);
+  /* Calculate the height based on the number of cells */
+  if (properties->rangePerCell > 0)
+    properties->numVCells = (gdouble)bc->maxDepth / properties->rangePerCell;
+  else
+    properties->numVCells = DEFAULT_NUM_V_CELLS;
+  
+  const int height = properties->numVCells * bigPictureGetCellHeight(bigPicture);
   
   properties->displayRect.x = 0;
   properties->displayRect.y = 0;
@@ -368,7 +377,7 @@ static gboolean onMouseMoveCoverageView(GtkWidget *coverageView, GdkEventMotion 
  *                     Initialisation                      *
  ***********************************************************/
 
-GtkWidget* createCoverageView(GtkWidget *blxWindow)
+GtkWidget* createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc)
 {
   GtkWidget *coverageView = gtk_layout_new(NULL, NULL);
 
@@ -388,7 +397,7 @@ GtkWidget* createCoverageView(GtkWidget *blxWindow)
   g_signal_connect(G_OBJECT(coverageView), "motion-notify-event",   G_CALLBACK(onMouseMoveCoverageView),	      NULL);
   
   /* Set required data in the coverageView. */
-  coverageViewCreateProperties(coverageView, blxWindow);
+  coverageViewCreateProperties(coverageView, blxWindow, bc);
   
   
   return coverageView;

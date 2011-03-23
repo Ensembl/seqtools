@@ -39,11 +39,13 @@
 #ifndef _coverage_view_h_included_
 #define _coverage_view_h_included_
 
+#include "blixemApp/blixem_.h"
 #include <gtk/gtk.h>
 
 
+GtkWidget*                  createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc);
 
-GtkWidget*                  createCoverageView(GtkWidget *bigPicture);
+void			    updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc);
 
 void                        coverageViewRedraw(GtkWidget *coverageView);
 void                        coverageViewRecalculate(GtkWidget *coverageView);

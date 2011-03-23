@@ -64,7 +64,6 @@ typedef struct _DrawGridData
 
 /* Local function declarations */
 static BlxViewContext*	    gridGetContext(GtkWidget *grid);
-static GtkAdjustment*	    gridGetAdjustment(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColor(GtkWidget *grid, const gboolean selected);
 static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
@@ -677,12 +676,6 @@ static IntRange* gridGetDisplayRange(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   return bigPictureGetDisplayRange(bigPicture);
-}
-
-static GtkAdjustment* gridGetAdjustment(GtkWidget *grid)
-{
-  GtkWidget *detailView = gridGetDetailView(grid);
-  return detailViewGetAdjustment(detailView);
 }
 
 static GtkWidget* gridGetDetailView(GtkWidget *grid)
