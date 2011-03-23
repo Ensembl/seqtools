@@ -151,7 +151,8 @@ void			      drawVerticalGridLines(GdkRectangle *drawingRect, GdkRectangle *high
 void			      drawHorizontalGridLines(GtkWidget *widget, GtkWidget *bigPicture,
 						      GdkRectangle *drawingRect, BlxViewContext *bc,
 						      BigPictureProperties *bpProperties, GdkDrawable *drawable,
-						      const gint numCells, const gdouble rangePerCell, const gdouble maxVal);
+						      const gint numCells, const gdouble rangePerCell, 
+						      const gdouble maxVal, const char *unit);
 
 void			      calculateHighlightBoxBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
 							   GtkWidget *bigPicture, const int yPadding);

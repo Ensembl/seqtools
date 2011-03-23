@@ -288,7 +288,8 @@ void drawHorizontalGridLines(GtkWidget *widget,
 			     GdkDrawable *drawable,
 			     const gint numCells, 
 			     const gdouble rangePerCell, 
-			     const gdouble maxVal)
+			     const gdouble maxVal,
+			     const char *unit)
 {
   const gint rightBorder = drawingRect->x + drawingRect->width;
   
@@ -315,11 +316,11 @@ void drawHorizontalGridLines(GtkWidget *widget,
       
       if (showDecimal)
 	{
-	  sprintf(text, "%1.1f%%", percent);
+	  sprintf(text, "%1.1f%s", percent, unit);
 	}
       else
 	{
-	  sprintf(text, "%d%%", (int)percent);
+	  sprintf(text, "%d%s", (int)percent, unit);
 	}
       
       PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);

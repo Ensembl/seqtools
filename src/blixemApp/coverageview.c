@@ -43,10 +43,9 @@
 
 
 #define DEFAULT_COVERAGE_VIEW_Y_PADDING		10	  /* this provides space between the drawing area and the edge of the widget */
-#define DEFAULT_COVERAGE_VIEW_HEIGHT            50	  /* this provides space between the drawing area and the edge of the widget */
+#define DEFAULT_NUM_V_CELLS			3	  /* number of vertical cells to show on the grid */
 #define MIN_LINE_WIDTH				0.5	  /* this provides space between the drawing area and the edge of the widget */
 #define COVERAGE_VIEW_NAME                      "CoverageView"
-
 
 
 typedef struct _CoverageViewProperties
@@ -245,6 +244,12 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
 			bpProperties, 
 			drawable);
   
+  /* Draw horizontal grid lines. For now, just use a fixed number of cells. */
+  const gdouble rangePerCell = (gdouble)bc->maxDepth / DEFAULT_NUM_V_CELLS;
+  
+  drawHorizontalGridLines(coverageView, bigPicture, &properties->viewRect, bc, bpProperties, drawable,
+			  DEFAULT_NUM_V_CELLS, rangePerCell, (gdouble)bc->maxDepth, "");
+  
   drawCoveragePlot(coverageView, drawable);
 }
 
@@ -272,16 +277,18 @@ void calculateCoverageViewBorders(GtkWidget *coverageView)
   guint layoutWidth, layoutHeight;
   gtk_layout_get_size(GTK_LAYOUT(coverageView), &layoutWidth, &layoutHeight);
   
+  const int height = DEFAULT_NUM_V_CELLS * bigPictureGetCellHeight(bigPicture);
+  
   properties->displayRect.x = 0;
   properties->displayRect.y = 0;
   properties->displayRect.width = coverageView->allocation.width;
-  properties->displayRect.height = DEFAULT_COVERAGE_VIEW_HEIGHT + 2 * DEFAULT_COVERAGE_VIEW_Y_PADDING;
+  properties->displayRect.height = height + 2 * (bpProperties->highlightBoxYPad + DEFAULT_COVERAGE_VIEW_Y_PADDING);
   
   /* Get the boundaries of the drawing area */
   properties->viewRect.x = roundNearest(bpProperties->charWidth * (gdouble)bpProperties->leftBorderChars);
   properties->viewRect.y = bpProperties->highlightBoxYPad + DEFAULT_COVERAGE_VIEW_Y_PADDING;
   properties->viewRect.width = properties->displayRect.width - properties->viewRect.x;
-  properties->viewRect.height = DEFAULT_COVERAGE_VIEW_HEIGHT;
+  properties->viewRect.height = height;
   
   /* Get the boundaries of the highlight box */
   calculateHighlightBoxBorders(&properties->viewRect, &properties->highlightRect, bigPicture, 0);
