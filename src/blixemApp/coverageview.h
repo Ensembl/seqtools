@@ -44,9 +44,12 @@
 
 
 GtkWidget*                  createCoverageView(GtkWidget *bigPicture);
+
 void                        coverageViewRedraw(GtkWidget *coverageView);
 void                        coverageViewRecalculate(GtkWidget *coverageView);
 
+void			    calculateCoverageViewBorders(GtkWidget *coverageView);
+void			    calculateCoverageViewHighlightBoxBorders(GtkWidget *coverageView);
 
 
 #endif /* _coverage_view_h_included_ */

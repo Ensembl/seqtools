@@ -142,6 +142,13 @@ void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable 
 void                          showPreviewBox(GtkWidget *bigPicture, const int x);
 void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 
+void			      drawVerticalGridLines(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
+						    const int yPadding, BlxViewContext *bc, 
+						    BigPictureProperties *bpProperties, GdkDrawable *drawable);
+
+void			      calculateHighlightBoxBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
+							   GtkWidget *bigPicture, const int yPadding);
+
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
 

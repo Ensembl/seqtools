@@ -64,10 +64,6 @@ typedef struct _CoverageViewProperties
 
 
 
-/* Local function definitions */
-static void         calculateCoverageViewBorders(GtkWidget *coverageView);
-
-
 
 /***********************************************************
  *                       Properties                        *
@@ -157,7 +153,8 @@ static void drawCoverageBar(const double x1,
 }
 
 
-static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
+/* Draw the actual coverage data as a bar chart */
+static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
@@ -225,7 +222,47 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
 }
 
 
-static void calculateCoverageViewBorders(GtkWidget *coverageView)
+/* Main function for drawing the coverage view */
+static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
+{
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+
+  GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+
+  drawHighlightBox(drawable,
+		   &properties->highlightRect, 
+		   bpProperties->highlightBoxMinWidth,
+		   highlightBoxColor,
+                   HIGHLIGHT_BOX_DRAW_FUNC);
+  
+  drawVerticalGridLines(&properties->viewRect,
+			&properties->highlightRect, 
+			properties->viewYPadding, 
+			bc,
+			bpProperties, 
+			drawable);
+  
+  drawCoveragePlot(coverageView, drawable);
+}
+
+
+/* Calculate the borders of the highlight box (the shaded area that indicates the
+ * detail-view range). (This is just a convenience way to call calculateHighlightBoxBorders
+ * from an external function.) */
+void calculateCoverageViewHighlightBoxBorders(GtkWidget *coverageView)
+{  
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
+
+  calculateHighlightBoxBorders(&properties->viewRect, &properties->highlightRect, bigPicture, 0);
+}
+
+
+/* Calculate the borders of the view */
+void calculateCoverageViewBorders(GtkWidget *coverageView)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
@@ -246,9 +283,8 @@ static void calculateCoverageViewBorders(GtkWidget *coverageView)
   properties->viewRect.width = properties->displayRect.width - properties->viewRect.x;
   properties->viewRect.height = DEFAULT_COVERAGE_VIEW_HEIGHT;
   
-  
   /* Get the boundaries of the highlight box */
-  //calculateHighlightBoxBorders(coverageView);
+  calculateHighlightBoxBorders(&properties->viewRect, &properties->highlightRect, bigPicture, 0);
   
   /* Set the size request to our desired height. We want a fixed heigh but don't set the
    * width, because we want the user to be able to resize that. */

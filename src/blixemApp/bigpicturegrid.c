@@ -126,67 +126,27 @@ gint convertValueToGridPos(GtkWidget *grid, const gdouble value)
 }
 
 
-/* Draw the vertical gridlines in the big picture view */
-static void drawVerticalGridLines(GtkWidget *grid, 
-                                  GdkDrawable *drawable,
-                                  GdkGC *gc,
-				  const GdkColor const *lineColor)
-{
-  BlxViewContext *bc = gridGetContext(grid);
-  GridProperties *properties = gridGetProperties(grid);
-  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-  
-    /* Get the display range in dna coords */
-  IntRange dnaDispRange;
-  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
-
-  const int direction = bc->displayRev ? -1 : 1; /* to subtract instead of add when display reversed */
-  
-  /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
-   * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
-  
-  /* Calculate the top and bottom heights for the lines. */
-  const gint topBorder = properties->highlightRect.y - properties->gridYPadding;
-  const gint bottomBorder = properties->gridRect.y + properties->gridRect.height;
-  
-  const int minX = properties->gridRect.x;
-  const int maxX = properties->gridRect.x + properties->gridRect.width;
-
-  gint hCell = 0;
-  for ( ; hCell <= bpProperties->numHCells; ++hCell)
-    {
-      /* Get the base index for this grid line and calc its x coord */
-      int numBasesFromLeft = bpProperties->basesPerCell * hCell;
-      int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
-
-      const int x = convertBaseIdxToRectPos(baseIdx, &properties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
-
-      if (x > minX && x < maxX)
-	{
-	  gdk_gc_set_foreground(gc, lineColor);
-	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
-	}
-    }
-}
-
-
 /* Draw the horizontal grid lines for the big picture view */
 static void drawHorizontalGridLines(GtkWidget *grid,
                                     GdkDrawable *drawable,
-                                    GdkGC *gc,
+				    BlxViewContext *bc,
 				    const gint numCells, 
 				    const gdouble rangePerCell, 
-				    const gdouble maxVal, 
-				    const GdkColor const *textColor,
-				    const GdkColor const *lineColor)
+				    const gdouble maxVal)
 {
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
 
   const gint rightBorder = properties->gridRect.x + properties->gridRect.width;
   
+  GdkColor *textColor = getGdkColor( BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkGC *textGc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(textGc, textColor);
+  
+  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkGC *lineGc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(lineGc, lineColor);
+
   /* Show decimal places if the range per cell is a fraction of a percent */
   const gboolean showDecimal = (rangePerCell < 1.0);
   
@@ -197,7 +157,6 @@ static void drawHorizontalGridLines(GtkWidget *grid,
       
       /* Label this gridline with the %ID */
       gdouble percent = maxVal - (rangePerCell * vCell);
-      gdk_gc_set_foreground(gc, textColor);
       char text[bigPictureProperties->leftBorderChars + 3]; /* +3 to include decimal point, 1dp, and terminating nul */
 
       if (showDecimal)
@@ -214,13 +173,15 @@ static void drawHorizontalGridLines(GtkWidget *grid,
       int width = UNSET_INT, height = UNSET_INT;
       pango_layout_get_pixel_size(layout, &width, &height);
       
-      gdk_draw_layout(drawable, gc, 0, y - gridGetCellHeight(grid)/2, layout);
+      gdk_draw_layout(drawable, textGc, 0, y - gridGetCellHeight(grid)/2, layout);
       g_object_unref(layout);
       
       /* Draw the gridline */
-      gdk_gc_set_foreground(gc, lineColor);
-      gdk_draw_line (drawable, gc, properties->gridRect.x, y, rightBorder, y);
+      gdk_draw_line (drawable, lineGc, properties->gridRect.x, y, rightBorder, y);
     }
+  
+  g_object_unref(lineGc);
+  g_object_unref(textGc);
 }
 
 
@@ -378,10 +339,11 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
 
 
 /* Draw a line for each MSP in the given grid */
-static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
+static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable)
 {
   BlxViewContext *bc = gridGetContext(grid);
-
+  GdkGC *gc = gdk_gc_new(drawable);
+  
   DrawGridData drawData = {
     grid, 
     drawable, 
@@ -403,6 +365,8 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
   getDropShadowColor(drawData.color, &shadowColor);
   drawData.shadowColor = &shadowColor;
   g_list_foreach(bc->selectedSeqs, drawSequenceMspLines, &drawData);
+  
+  g_object_unref(gc);
 }
 
 
@@ -411,7 +375,7 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable, GdkGC *gc)
 static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 {
   GridProperties *properties = gridGetProperties(grid);
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
   BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
 
   /* Calculate some factors for scaling */
@@ -419,61 +383,31 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   const gint numVCells = gridGetNumVCells(grid);
 
   GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkColor *gridLineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
-  GdkColor *gridTextColor = getGdkColor( BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
 
   /* Draw the highlight box */
   drawHighlightBox(drawable,
 		   &properties->highlightRect, 
-		   bigPictureProperties->highlightBoxMinWidth,
+		   bpProperties->highlightBoxMinWidth,
 		   highlightBoxColor,
                    HIGHLIGHT_BOX_DRAW_FUNC);
 
   /* Draw the grid lines */
-  GdkGC *gc = gdk_gc_new(drawable);
-  drawVerticalGridLines(grid, drawable, gc, gridLineColor);
-  drawHorizontalGridLines(grid, drawable, gc, numVCells, percentPerCell, bigPictureProperties->percentIdRange.max, gridTextColor, gridLineColor);
+  drawVerticalGridLines(&properties->gridRect, &properties->highlightRect, properties->gridYPadding, bc, bpProperties, drawable);
+  drawHorizontalGridLines(grid, drawable, bc, numVCells, percentPerCell, bpProperties->percentIdRange.max);
   
   /* Draw lines corresponding to the MSPs */
-  drawMspLines(grid, drawable, gc);
+  drawMspLines(grid, drawable);
 }
 
 
-void calculateHighlightBoxBorders(GtkWidget *grid)
+void calculateGridHighlightBoxBorders(GtkWidget *grid)
 {
-  DEBUG_ENTER("calculateHighlightBoxBorders(grid)");
+  DEBUG_ENTER("calculateGridHighlightBoxBorders(grid)");
 
   GridProperties *properties = gridGetProperties(grid);
-  
-  /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
-   * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
-  GtkAdjustment *adjustment = gridGetAdjustment(grid);
-  if (adjustment)
-    {
-      BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-      BlxViewContext *bc = gridGetContext(grid);
-
-      /* Get the grid display range in dna coords */
-      IntRange gridRange;
-      convertDisplayRangeToDnaRange(gridGetDisplayRange(grid), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &gridRange);
-
-      /* Get the detail view display range in dna coords */
-      GtkWidget *detailView = gridGetDetailView(grid);
-      IntRange dvRange;
-      convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
-      
-      /* Get the x coords for the start and end of the detail view display range */
-      const int x1 = convertBaseIdxToRectPos(dvRange.min, &properties->gridRect, &gridRange, TRUE, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, &properties->gridRect, &gridRange, TRUE, bc->displayRev, TRUE);
-      
-      properties->highlightRect.x = min(x1, x2);
-      properties->highlightRect.y = 0;
-
-      properties->highlightRect.width = abs(x1 - x2);
-      properties->highlightRect.height = properties->gridRect.height + roundNearest(bigPictureProperties->charHeight / 2.0) + properties->mspLineHeight + (2 * bigPictureProperties->highlightBoxYPad);
-    }
-  
-  DEBUG_EXIT("calculateHighlightBoxBorders returning");
+  calculateHighlightBoxBorders(&properties->gridRect, &properties->highlightRect, properties->bigPicture, properties->mspLineHeight);
+    
+  DEBUG_EXIT("calculateGridHighlightBoxBorders returning");
 }
 
 
@@ -501,7 +435,7 @@ void calculateGridBorders(GtkWidget *grid)
   properties->gridRect.height = gridGetCellHeight(grid) * numVCells;
   
   /* Get the boundaries of the highlight box */
-  calculateHighlightBoxBorders(grid);
+  calculateGridHighlightBoxBorders(grid);
   
   /* Get the total display height required. Set the layout size to fit. */
   const int newHeight = properties->highlightRect.height;

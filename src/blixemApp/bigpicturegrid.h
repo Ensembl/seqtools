@@ -80,7 +80,7 @@ GtkWidget*	    gridGetBigPicture(GtkWidget *grid);
 void                gridDrawPreviewBox(GtkWidget *grid);
 
 void		    calculateGridBorders(GtkWidget *grid);
-void		    calculateHighlightBoxBorders(GtkWidget *grid);
+void		    calculateGridHighlightBoxBorders(GtkWidget *grid);
 
 void		    callFuncOnAllBigPictureGrids(GtkWidget *widget, 
 						 gpointer data);
