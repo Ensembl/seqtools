@@ -43,7 +43,7 @@
 
 
 #define DEFAULT_COVERAGE_VIEW_Y_PADDING		10	  /* this provides space between the drawing area and the edge of the widget */
-#define DEFAULT_NUM_V_CELLS			2	  /* number of vertical cells to show on the grid */
+#define DEFAULT_NUM_V_CELLS			4	  /* number of vertical cells to show on the grid */
 #define MIN_LINE_WIDTH				0.5	  /* this provides space between the drawing area and the edge of the widget */
 #define COVERAGE_VIEW_NAME                      "CoverageView"
 
