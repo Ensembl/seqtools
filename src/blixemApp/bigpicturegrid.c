@@ -311,15 +311,6 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   const gdouble percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
   const gint numVCells = gridGetNumVCells(grid);
 
-  GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-
-  /* Draw the highlight box */
-  drawHighlightBox(drawable,
-		   &properties->highlightRect, 
-		   bpProperties->highlightBoxMinWidth,
-		   highlightBoxColor,
-                   HIGHLIGHT_BOX_DRAW_FUNC);
-
   /* Draw the grid lines */
   drawVerticalGridLines(&properties->gridRect, &properties->highlightRect, properties->gridYPadding, bc, bpProperties, drawable);
   drawHorizontalGridLines(grid, properties->bigPicture, &properties->gridRect, bc, bpProperties, drawable, numVCells, percentPerCell, bpProperties->percentIdRange.max, "%");
@@ -388,15 +379,6 @@ void calculateGridBorders(GtkWidget *grid)
  *			    Events			   *
  ***********************************************************/
 
-/* Draw the preview box at the currently set position (if any) */
-void gridDrawPreviewBox(GtkWidget *grid)
-{
-  GdkDrawable *window = GTK_LAYOUT(grid)->bin_window;
-  GridProperties *properties = gridGetProperties(grid);
-  drawPreviewBox(properties->bigPicture, window, &properties->gridRect, &properties->highlightRect, PREVIEW_BOX_DRAW_FUNC);
-}
-
-
 /* Expose handler for the grid. If the grid has a bitmap cached from the previous
  * call, this function just pushes that back to screen and then (optionally) draws
  * the preview box directly to the window over the top of it. If the cached bitmap
@@ -423,9 +405,16 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
           GdkGC *gc2 = gdk_gc_new(window);
           gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
 
-          /* Draw the preview box on top, if it is set */
+          /* Draw the highlight box on top of it */
           GridProperties *properties = gridGetProperties(grid);
-          drawPreviewBox(properties->bigPicture, window, &properties->gridRect, &properties->highlightRect, HIGHLIGHT_BOX_DRAW_FUNC);
+          BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+          BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+          
+          GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+          drawHighlightBox(window, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+          
+          /* Draw the preview box too, if set */
+          drawPreviewBox(properties->bigPicture, window, &properties->gridRect, &properties->highlightRect);
         }
       else
 	{

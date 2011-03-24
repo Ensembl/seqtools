@@ -76,8 +76,6 @@ GridProperties*	    gridGetProperties(GtkWidget *widget);
 BlxStrand	    gridGetStrand(GtkWidget *grid);
 GtkWidget*	    gridGetBigPicture(GtkWidget *grid);
 
-void                gridDrawPreviewBox(GtkWidget *grid);
-
 void		    calculateGridBorders(GtkWidget *grid);
 void		    calculateGridHighlightBoxBorders(GtkWidget *grid);
 

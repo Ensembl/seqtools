@@ -50,9 +50,6 @@
 #include <blixemApp/blxwindow.h>
 #include <blixemApp/blixem_.h>
 
-#define HIGHLIGHT_BOX_DRAW_FUNC   GDK_AND   /* function to set in the graphics context for drawing the highlight box */
-#define PREVIEW_BOX_DRAW_FUNC     GDK_XOR   /* function to set in the graphics context for drawing the preview box */
-
 
 typedef struct _BigPictureProperties
   {
@@ -139,7 +136,7 @@ void                          calculateBigPictureCellSize(GtkWidget *bigPicture,
 void			      calculateNumVCells(GtkWidget *bigPicture);
 void			      bigPictureRedrawAll(GtkWidget *bigPicture);
 
-void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkRectangle *displayRect, GdkRectangle *highlightRect, GdkFunction drawFunc);
+void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 void                          showPreviewBox(GtkWidget *bigPicture, const int x);
 void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 

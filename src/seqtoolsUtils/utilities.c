@@ -2315,19 +2315,15 @@ void debugLogLevel(const int increaseAmt)
 void drawHighlightBox(GdkDrawable *drawable,
                       const GdkRectangle const *rect,
                       const gint minWidth, 
-                      GdkColor *color,
-                      GdkFunction drawFunc)
+                      GdkColor *color)
 {
-  GdkGC *gc = gdk_gc_new(drawable);
-  gdk_gc_set_foreground(gc, color);
-  gdk_gc_set_function(gc, drawFunc);
-  
   const int width = max(minWidth, rect->width);
-  
-  gdk_draw_rectangle(drawable, gc, TRUE, 
-		     rect->x, rect->y, width, rect->height);
-                     
-  g_object_unref(gc);
+
+  cairo_t *cr = gdk_cairo_create(drawable);
+  gdk_cairo_set_source_color(cr, color);
+  cairo_rectangle(cr, rect->x, rect->y, width, rect->height);
+  cairo_clip(cr);
+  cairo_paint_with_alpha(cr, 0.2);
 }
 
 
