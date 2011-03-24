@@ -49,13 +49,13 @@
 #include <string.h>
 #include <ctype.h>
 
-#define DEFAULT_WINDOW_BORDER_WIDTH      1   /* used to change the default border width around the blixem window */
+#define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
+#define DEFAULT_COVERAGE_VIEW_BORDER     12   /* size of border to allow around the coverage view */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 #define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
 #define MATCH_SET_GROUP_NAME		 "Match set"
-
 #define LOAD_DATA_TEXT                   "Load optional data"
 
 
@@ -5030,7 +5030,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   
   /* Add the coverage view underneath the main panes */
-  gtk_box_pack_start(GTK_BOX(vbox), coverageView, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), coverageView, FALSE, FALSE, DEFAULT_COVERAGE_VIEW_BORDER);
 
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */

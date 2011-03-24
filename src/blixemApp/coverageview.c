@@ -41,9 +41,10 @@
 #include "blixemApp/detailview.h"
 #include "blixemApp/blixem_.h"
 #include <gtk/gtk.h>
+#include <math.h>
 
 
-#define DEFAULT_COVERAGE_VIEW_Y_PADDING		10	  /* this provides space between the drawing area and the edge of the widget */
+#define DEFAULT_COVERAGE_VIEW_Y_PADDING		3	  /* this provides space between the drawing area and the edge of the widget */
 #define DEFAULT_NUM_V_CELLS			4	  /* number of vertical cells to show on the grid */
 #define MIN_LINE_WIDTH				0.5	  /* this provides space between the drawing area and the edge of the widget */
 #define COVERAGE_VIEW_NAME                      "CoverageView"
@@ -54,7 +55,7 @@ typedef struct _CoverageViewProperties
     GtkWidget *blxWindow;   /* The main blixem window */
 
     int viewYPadding;	     /* The y padding around the view rect */
-    int numVCells;	     /* The number of cells to show vertically */
+    double numVCells;	     /* The number of cells to show vertically */
     gdouble rangePerCell;    /* The range of depth values shown per grid cell on the plot */
     
     GdkRectangle viewRect;   /* The rectangle we draw in */
@@ -109,7 +110,32 @@ static void coverageViewCreateProperties(GtkWidget *widget,
 void updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
-  properties->rangePerCell = (gdouble)bc->maxDepth / properties->numVCells;
+  
+  /* Find a suitable value to round to based on the max depth */
+  int roundVal = 5;
+  
+  if (bc->maxDepth <= 5)
+    roundVal = 2;
+  else if (bc->maxDepth <= 10)
+    roundVal = 5;
+  else if (bc->maxDepth <= 40)
+    roundVal = 10;
+  else if (bc->maxDepth <= 80)
+    roundVal = 20;
+  else if (bc->maxDepth <= 200)
+    roundVal = 50;
+  else if (bc->maxDepth <= 400)
+    roundVal = 100;
+  else if (bc->maxDepth <= 800)
+    roundVal = 200;
+  else if (bc->maxDepth <= 2000)
+    roundVal = 500;
+  else
+    roundVal = 1000;
+
+  properties->rangePerCell = roundVal;
+  properties->numVCells = (gdouble)bc->maxDepth / properties->rangePerCell;
+  
   coverageViewRecalculate(coverageView);
 }
 
@@ -170,6 +196,19 @@ static void drawCoverageBar(const double x1,
 }
 
 
+/* Utility to get the max depth that the coverage view shows, based on 
+ * the number of cells and the range per cell. Note that this returns the
+ * max lable value, i.e. the value of the top gridline; the real max
+ * depth may be slightly greater than this, and may extend above the top
+ * gridline (the height of the widget is made big enough to accommodate this). */
+static int coverageViewGetMaxLabeledDepth(CoverageViewProperties *properties)
+{
+  int numCells = roundNearest(properties->numVCells);
+  const int result = properties->rangePerCell * numCells;
+  return result;
+}
+
+
 /* Draw the actual coverage data as a bar chart */
 static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
 {
@@ -184,7 +223,8 @@ static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
   cairo_t *cr = gdk_cairo_create(drawable);
   gdk_cairo_set_source_color(cr, color);
   
-  const double pixelsPerVal = (double)properties->viewRect.height / (double)bc->maxDepth;
+  const int maxDepth = coverageViewGetMaxLabeledDepth(properties);
+  const double pixelsPerVal = (double)properties->viewRect.height / (double)maxDepth;
   const int bottomBorder = properties->viewRect.y + properties->viewRect.height;
   
   /* Loop through each coord in the display range */
@@ -262,8 +302,10 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
 			bpProperties, 
 			drawable);
   
+  const int maxDepth = coverageViewGetMaxLabeledDepth(properties);
+  
   drawHorizontalGridLines(coverageView, bigPicture, &properties->viewRect, bc, bpProperties, drawable,
-			  properties->numVCells, properties->rangePerCell, (gdouble)bc->maxDepth, "");
+			  properties->numVCells, properties->rangePerCell, (gdouble)maxDepth, "");
   
   drawCoveragePlot(coverageView, drawable);
 }
@@ -288,7 +330,7 @@ void calculateCoverageViewHighlightBoxBorders(GtkWidget *coverageView)
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
 
-  calculateHighlightBoxBorders(&properties->viewRect, &properties->highlightRect, bigPicture, 0);
+  calculateHighlightBoxBorders(&properties->displayRect, &properties->highlightRect, bigPicture, 0);
 }
 
 
@@ -296,7 +338,6 @@ void calculateCoverageViewHighlightBoxBorders(GtkWidget *coverageView)
 void calculateCoverageViewBorders(GtkWidget *coverageView)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
-  BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   
@@ -305,26 +346,23 @@ void calculateCoverageViewBorders(GtkWidget *coverageView)
   gtk_layout_get_size(GTK_LAYOUT(coverageView), &layoutWidth, &layoutHeight);
   
   /* Calculate the height based on the number of cells */
-  if (properties->rangePerCell > 0)
-    properties->numVCells = (gdouble)bc->maxDepth / properties->rangePerCell;
-  else
-    properties->numVCells = DEFAULT_NUM_V_CELLS;
+  const int height = ceil(properties->numVCells * (double)bigPictureGetCellHeight(bigPicture));
+  const int gridHeight = (int)properties->numVCells * bigPictureGetCellHeight(bigPicture);
   
-  const int height = properties->numVCells * bigPictureGetCellHeight(bigPicture);
+  properties->displayRect.x = roundNearest(bpProperties->charWidth * (gdouble)bpProperties->leftBorderChars);
+  properties->displayRect.y = height - gridHeight;
   
-  properties->displayRect.x = 0;
-  properties->displayRect.y = 0;
-  properties->displayRect.width = coverageView->allocation.width;
+  properties->viewRect.x = properties->displayRect.x;
+  properties->viewRect.y = properties->displayRect.y + bpProperties->highlightBoxYPad + DEFAULT_COVERAGE_VIEW_Y_PADDING;
+
+  properties->displayRect.width = coverageView->allocation.width - properties->viewRect.x;
   properties->displayRect.height = height + 2 * (bpProperties->highlightBoxYPad + DEFAULT_COVERAGE_VIEW_Y_PADDING);
-  
-  /* Get the boundaries of the drawing area */
-  properties->viewRect.x = roundNearest(bpProperties->charWidth * (gdouble)bpProperties->leftBorderChars);
-  properties->viewRect.y = bpProperties->highlightBoxYPad + DEFAULT_COVERAGE_VIEW_Y_PADDING;
-  properties->viewRect.width = properties->displayRect.width - properties->viewRect.x;
-  properties->viewRect.height = height;
+
+  properties->viewRect.width = properties->displayRect.width;
+  properties->viewRect.height = gridHeight;
   
   /* Get the boundaries of the highlight box */
-  calculateHighlightBoxBorders(&properties->viewRect, &properties->highlightRect, bigPicture, 0);
+  calculateHighlightBoxBorders(&properties->displayRect, &properties->highlightRect, bigPicture, 0);
   
   /* Set the size request to our desired height. We want a fixed heigh but don't set the
    * width, because we want the user to be able to resize that. */
