@@ -85,6 +85,8 @@ void		    callFuncOnAllBigPictureGrids(GtkWidget *widget,
 gint		    convertValueToGridPos(GtkWidget *grid, 
 					  const gdouble value);
 
+void                gridPrepareForPrinting(GtkWidget *grid);
+
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
 					 BlxStrand strand);
 

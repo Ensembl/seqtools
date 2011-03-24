@@ -135,6 +135,7 @@ void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean
 void                          calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *properties);
 void			      calculateNumVCells(GtkWidget *bigPicture);
 void			      bigPictureRedrawAll(GtkWidget *bigPicture);
+void                          bigPicturePrepareForPrinting(GtkWidget *bigPicture);
 
 void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 void                          showPreviewBox(GtkWidget *bigPicture, const int x);

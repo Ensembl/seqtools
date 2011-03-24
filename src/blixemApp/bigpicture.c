@@ -776,6 +776,21 @@ static void updateOnPercentIdChanged(GtkWidget *bigPicture)
   bigPictureRedrawAll(bigPicture);
 }
 
+
+/* Prepare the big picture for printing - this draws normally-transient 
+ * components onto the cached drawable so that they get included in the print.
+ * bigPictureRedrawAll should be called afterwards to remove the transient 
+ * components. */
+void bigPicturePrepareForPrinting(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  
+  callFuncOnAllBigPictureGrids(bigPicture, gridPrepareForPrinting);
+  callFuncOnAllBigPictureExonViews(bigPicture, exonViewPrepareForPrinting);
+  coverageViewPrepareForPrinting(properties->coverageView);
+}
+
+
 /***********************************************************
  *			    Events			   *
  ***********************************************************/

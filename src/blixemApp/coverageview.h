@@ -45,6 +45,8 @@
 
 GtkWidget*                  createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc);
 
+void                        coverageViewPrepareForPrinting(GtkWidget *coverageView);
+
 void			    updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc);
 
 void                        coverageViewRedraw(GtkWidget *coverageView);

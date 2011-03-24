@@ -394,6 +394,24 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 }
 
 
+/* Prepare the exon view for printing (draws the transient hightlight box
+ * onto the cached drawable). */
+void exonViewPrepareForPrinting(GtkWidget *exonView)
+{
+  GdkDrawable *drawable = widgetGetDrawable(exonView);
+  
+  if (drawable)
+    {
+      ExonViewProperties *properties = exonViewGetProperties(exonView);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+      
+      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+      drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+    }
+}
+
+
 void calculateExonViewHeight(GtkWidget *exonView)
 {
   DEBUG_ENTER("calculateExonViewHeight");

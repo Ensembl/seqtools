@@ -320,6 +320,24 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 }
 
 
+/* Prepare the grid for printing (draws the transient hightlight box
+ * onto the cached drawable). */
+void gridPrepareForPrinting(GtkWidget *grid)
+{
+  GdkDrawable *drawable = widgetGetDrawable(grid);
+  
+  if (drawable)
+    {
+      GridProperties *properties = gridGetProperties(grid);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+      
+      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+      drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+    }
+}
+
+
 void calculateGridHighlightBoxBorders(GtkWidget *grid)
 {
   DEBUG_ENTER("calculateGridHighlightBoxBorders(grid)");

@@ -51,6 +51,8 @@
 /* Public function declarations */
 GtkWidget*	createExonView(GtkWidget *bigPicture, const BlxStrand strand);
 
+void            exonViewPrepareForPrinting(GtkWidget *exonView);
+
 gboolean	exonViewGetExpanded(GtkWidget *exonView);
 void		exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded);
 void		exonViewToggleExpanded(GtkWidget *exonView);

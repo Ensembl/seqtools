@@ -370,6 +370,24 @@ void calculateCoverageViewBorders(GtkWidget *coverageView)
 }
 
 
+/* Prepare the coverage view for printing (draws the transient hightlight box
+ * onto the cached drawable). */
+void coverageViewPrepareForPrinting(GtkWidget *coverageView)
+{
+  GdkDrawable *drawable = widgetGetDrawable(coverageView);
+  
+  if (drawable)
+    {
+      CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+      GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
+      BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+      
+      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+      drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+    }
+}
+
 
 /***********************************************************
  *                         Events                          *

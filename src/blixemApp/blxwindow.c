@@ -3615,8 +3615,13 @@ static void onPrintMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  /* We need to do some work to prepare the big picture for printing */
+  bigPicturePrepareForPrinting(properties->bigPicture);
   
-  blxPrintWidget(blxWindow, &properties->printSettings, &properties->pageSetup);
+  blxPrintWidget(blxWindow, &properties->printSettings, &properties->pageSetup, TRUE);
+  
+  bigPictureRedrawAll(properties->bigPicture);
 }
 
 
