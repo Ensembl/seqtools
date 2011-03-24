@@ -55,4 +55,9 @@ void                        coverageViewRecalculate(GtkWidget *coverageView);
 void			    calculateCoverageViewBorders(GtkWidget *coverageView);
 void			    calculateCoverageViewHighlightBoxBorders(GtkWidget *coverageView);
 
+
+double                      coverageViewGetDepthPerCell(GtkWidget *coverageView);
+gboolean                    coverageViewSetDepthPerCell(GtkWidget *coverageView, const double depthPerCell);
+
+
 #endif /* _coverage_view_h_included_ */

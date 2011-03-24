@@ -2650,6 +2650,16 @@ static gboolean onMinPercentIdChanged(GtkWidget *widget, const gint responseId, 
 }
 
 
+/* Callback to be called when the user has changed the depth-per-cell on the coverage view */
+static gboolean onDepthPerCellChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  GtkWidget *coverageView = GTK_WIDGET(data);  
+  const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
+  const gdouble newValue = g_strtod(text, NULL);
+  return coverageViewSetDepthPerCell(coverageView, newValue);
+}
+
+
 ///* Utility to create a text entry widget displaying the given integer value. The
 // * given callback will be called when the user OK's the dialog that this widget 
 // * is a child of. */
@@ -2724,6 +2734,23 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
   createTextEntryFromDouble(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
   createTextEntryFromDouble(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
   createTextEntryFromDouble(hbox, "Min %ID", percentIdRange->min, onMinPercentIdChanged, bigPicture);
+}
+
+
+/* Create a set of widgets to allow the user to edit coverage-view properties */
+static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  
+  /* Group these buttons in a frame */
+  GtkWidget *frame = gtk_frame_new("Coverage view properties");
+  gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
+  
+  /* Arrange the widgets horizontally */
+  GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
+  const double rangePerCell = coverageViewGetDepthPerCell(properties->coverageView);
+  
+  createTextEntryFromDouble(hbox, "Depth per cell", rangePerCell, onDepthPerCellChanged, properties->coverageView);
 }
 
 
@@ -3203,7 +3230,8 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   createColumnSizeButtons(mainVBox, detailView);
   createGridSettingsButtons(mainVBox, bigPicture);
-
+  createCoverageSettingsButtons(mainVBox, bigPicture);
+  
   /* APPEARANCE PAGE */
   GtkWidget *appearancePage = gtk_vbox_new(FALSE, borderWidth);
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new("Appearance"));

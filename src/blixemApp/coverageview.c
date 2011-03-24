@@ -111,29 +111,29 @@ void updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   
-  /* Find a suitable value to round to based on the max depth */
-  int roundVal = 5;
+  if (properties->rangePerCell <= 0.0)
+    {
+      /* Find a suitable value to round to based on the max depth */
+      if (bc->maxDepth <= 5)
+        properties->rangePerCell = 2;
+      else if (bc->maxDepth <= 10)
+        properties->rangePerCell = 5;
+      else if (bc->maxDepth <= 40)
+        properties->rangePerCell = 10;
+      else if (bc->maxDepth <= 80)
+        properties->rangePerCell = 20;
+      else if (bc->maxDepth <= 200)
+        properties->rangePerCell = 50;
+      else if (bc->maxDepth <= 400)
+        properties->rangePerCell = 100;
+      else if (bc->maxDepth <= 800)
+        properties->rangePerCell = 200;
+      else if (bc->maxDepth <= 2000)
+        properties->rangePerCell = 500;
+      else
+        properties->rangePerCell = 1000;
+    }
   
-  if (bc->maxDepth <= 5)
-    roundVal = 2;
-  else if (bc->maxDepth <= 10)
-    roundVal = 5;
-  else if (bc->maxDepth <= 40)
-    roundVal = 10;
-  else if (bc->maxDepth <= 80)
-    roundVal = 20;
-  else if (bc->maxDepth <= 200)
-    roundVal = 50;
-  else if (bc->maxDepth <= 400)
-    roundVal = 100;
-  else if (bc->maxDepth <= 800)
-    roundVal = 200;
-  else if (bc->maxDepth <= 2000)
-    roundVal = 500;
-  else
-    roundVal = 1000;
-
-  properties->rangePerCell = roundVal;
   properties->numVCells = (gdouble)bc->maxDepth / properties->rangePerCell;
   
   coverageViewRecalculate(coverageView);
@@ -151,7 +151,30 @@ static GtkWidget *coverageViewGetDetailView(GtkWidget *coverageView)
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   return (properties ? blxWindowGetDetailView(properties->blxWindow) : NULL);
 }
-          
+
+double coverageViewGetDepthPerCell(GtkWidget *coverageView)
+{
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  return properties ? properties->rangePerCell : 0.0;
+}
+
+gboolean coverageViewSetDepthPerCell(GtkWidget *coverageView, const double depthPerCell)
+{
+  if (depthPerCell <= 0.0)
+    return FALSE;
+  
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  
+  if (properties)
+    {
+      properties->rangePerCell = depthPerCell;
+      BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+      updateCoverageDepth(coverageView, bc);
+    }
+  
+  return TRUE;
+}
+
 /***********************************************************
  *                         Drawing                         *
  ***********************************************************/
