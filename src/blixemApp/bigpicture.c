@@ -894,9 +894,12 @@ void drawPreviewBox(GtkWidget *bigPicture,
 /* Show a preview box centred on the given x coord */
 void showPreviewBox(GtkWidget *bigPicture, const int x)
 {
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  
   /* Clear the previous preview box */
   callFuncOnAllBigPictureGrids(bigPicture, gridDrawPreviewBox);
   callFuncOnAllBigPictureExonViews(bigPicture, exonViewDrawPreviewBox);
+  coverageViewDrawPreviewBox(properties->coverageView);
   
   /* Set the new position for the preview box.  */
   bigPictureSetPreviewBoxCentre(bigPicture, x);
@@ -904,6 +907,7 @@ void showPreviewBox(GtkWidget *bigPicture, const int x)
   /* Re-draw the preview box at the new position */
   callFuncOnAllBigPictureGrids(bigPicture, gridDrawPreviewBox);
   callFuncOnAllBigPictureExonViews(bigPicture, exonViewDrawPreviewBox);
+  coverageViewDrawPreviewBox(properties->coverageView);
 }
 
 

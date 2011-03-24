@@ -38,6 +38,7 @@
 
 #include "blixemApp/coverageview.h"
 #include "blixemApp/bigpicture.h"
+#include "blixemApp/detailview.h"
 #include "blixemApp/blixem_.h"
 #include <gtk/gtk.h>
 
@@ -113,6 +114,18 @@ void updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc)
 }
 
 
+static GtkWidget *coverageViewGetBigPicture(GtkWidget *coverageView)
+{
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  return (properties ? blxWindowGetBigPicture(properties->blxWindow) : NULL);
+}
+
+static GtkWidget *coverageViewGetDetailView(GtkWidget *coverageView)
+{
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  return (properties ? blxWindowGetDetailView(properties->blxWindow) : NULL);
+}
+          
 /***********************************************************
  *                         Drawing                         *
  ***********************************************************/
@@ -256,6 +269,17 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
 }
 
 
+/* Draw the preview box (i.e. preview of where the highlight box will be placed) */
+void coverageViewDrawPreviewBox(GtkWidget *coverageView)
+{
+  GdkDrawable *window = GTK_LAYOUT(coverageView)->bin_window;
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
+  
+  drawPreviewBox(bigPicture, window, &properties->viewRect, &properties->highlightRect, PREVIEW_BOX_DRAW_FUNC);
+}
+
+
 /* Calculate the borders of the highlight box (the shaded area that indicates the
  * detail-view range). (This is just a convenience way to call calculateHighlightBoxBorders
  * from an external function.) */
@@ -358,20 +382,76 @@ static void onSizeAllocateCoverageView(GtkWidget *coverageView, GtkAllocation *a
 
 static gboolean onButtonPressCoverageView(GtkWidget *coverageView, GdkEventButton *event, gpointer data)
 {
-  return FALSE;
+  gboolean handled = FALSE;
+  
+  if (event->button == 2) /* middle button */
+    {
+      /* Draw the preview box (draw it on the other big picture components as well) */
+      showPreviewBox(coverageViewGetBigPicture(coverageView), event->x);
+      handled = TRUE;
+    }
+  
+  return handled;
 }
 
 
 static gboolean onButtonReleaseCoverageView(GtkWidget *coverageView, GdkEventButton *event, gpointer data)
 {
-  return FALSE;
+  if (event->button == 2) /* middle button */
+    {
+      CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+      acceptAndClearPreviewBox(coverageViewGetBigPicture(coverageView), event->x, &properties->viewRect, &properties->highlightRect);
+    }
+  
+  return TRUE;
+}
+
+
+/* Implement custom scrolling for horizontal mouse wheel movements over the coverageView.
+ * This scrolls the position of the highlight box, i.e. it scrolls the display
+ * range in the detail view. */
+static gboolean onScrollCoverageView(GtkWidget *coverageView, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->direction)
+  {
+    case GDK_SCROLL_LEFT:
+    {
+      scrollDetailViewLeftStep(coverageViewGetDetailView(coverageView));
+      handled = TRUE;
+      break;
+    }
+      
+    case GDK_SCROLL_RIGHT:
+    {
+      scrollDetailViewRightStep(coverageViewGetDetailView(coverageView));
+      handled = TRUE;
+      break;
+    }
+      
+    default:
+    {
+      handled = FALSE;
+      break;
+    }
+  };
+  
+  return handled;
 }
 
 
 static gboolean onMouseMoveCoverageView(GtkWidget *coverageView, GdkEventMotion *event, gpointer data)
 {
-  return FALSE;
+  if (event->state & GDK_BUTTON2_MASK) /* middle button */
+    {
+      /* Draw a preview box at the mouse pointer location */
+      showPreviewBox(coverageViewGetBigPicture(coverageView), event->x);
+    }
+  
+  return TRUE;
 }
+
 
 /***********************************************************
  *                     Initialisation                      *
@@ -390,12 +470,13 @@ GtkWidget* createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc)
   gtk_widget_add_events(coverageView, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(coverageView, GDK_POINTER_MOTION_MASK);
   
-  g_signal_connect(G_OBJECT(coverageView), "expose-event",          G_CALLBACK(onExposeCoverageView), NULL);  
+  g_signal_connect(G_OBJECT(coverageView), "expose-event",          G_CALLBACK(onExposeCoverageView),                 NULL);  
   g_signal_connect(G_OBJECT(coverageView), "size-allocate",	    G_CALLBACK(onSizeAllocateCoverageView),           NULL);
   g_signal_connect(G_OBJECT(coverageView), "button-press-event",    G_CALLBACK(onButtonPressCoverageView),	      NULL);
   g_signal_connect(G_OBJECT(coverageView), "button-release-event",  G_CALLBACK(onButtonReleaseCoverageView),	      NULL);
   g_signal_connect(G_OBJECT(coverageView), "motion-notify-event",   G_CALLBACK(onMouseMoveCoverageView),	      NULL);
-  
+  g_signal_connect(G_OBJECT(coverageView), "scroll-event",	    G_CALLBACK(onScrollCoverageView),                 NULL);
+
   /* Set required data in the coverageView. */
   coverageViewCreateProperties(coverageView, blxWindow, bc);
   
