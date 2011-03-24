@@ -131,7 +131,7 @@ gboolean		      bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble n
 void                          bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
-void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean resizeHighlightBox);
+void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean keepCentered);
 void                          calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *properties);
 void			      calculateNumVCells(GtkWidget *bigPicture);
 void			      bigPictureRedrawAll(GtkWidget *bigPicture);

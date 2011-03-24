@@ -73,6 +73,8 @@ static void                         drawBigPictureGridHeader(GtkWidget *header, 
  *                     Utility functions	           *
  ***********************************************************/
 
+/* This causes a complete redraw of all the big picture components (including
+ * the coverage view, which depends on some big picture properties). */
 void bigPictureRedrawAll(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
@@ -85,6 +87,17 @@ void bigPictureRedrawAll(GtkWidget *bigPicture)
   coverageViewRedraw(properties->coverageView);
   
   gtk_widget_queue_draw(bigPicture);
+}
+
+
+/* This just causes an expose on all the big picture child widgets, and also
+ * on the coverage view */
+static void bigPictureRefreshAll(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+
+  gtk_widget_queue_draw(bigPicture);
+  gtk_widget_queue_draw(properties->coverageView);
 }
 
 
@@ -542,12 +555,25 @@ static void boundRange(IntRange *range, IntRange *bounds)
 }
 
 
+/* This recalculates the highlight box positions for all relevant child
+ * widgets of the big picture */
+static void updateHighlightBox(GtkWidget *bigPicture, BigPictureProperties *properties)
+{
+  callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
+  callFuncOnAllBigPictureExonViews(bigPicture, calculateExonViewHighlightBoxBorders);
+  calculateCoverageViewHighlightBoxBorders(properties->coverageView);
+}
+
+
 /* Set the display range for the big picture, based on the given width (i.e. number of
  * bases wide). Keeps the display centred on the same range that is shown in the detail view.
  * If recalcHighlightBox is true, the highlight box borders are recalculated. */
-static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPictureProperties *properties, int width, const gboolean recalcHighlightBox)
+static void setBigPictureDisplayRange(GtkWidget *bigPicture, 
+                                      BigPictureProperties *properties, 
+                                      int width, 
+                                      const gboolean keepCentered)
 {
-  DEBUG_ENTER("setBigPictureDisplayWidth");
+  DEBUG_ENTER("setBigPictureDisplayRange");
 
   GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
   IntRange *detailViewRange = detailViewGetDisplayRange(detailView);
@@ -557,7 +583,8 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
   
   int detailViewWidth = detailViewRange->max - detailViewRange->min;
   int maxWidth = fullRange->max - fullRange->min;
-  gboolean done = FALSE;
+  
+  gboolean changedRange = FALSE;
 
   if (width < detailViewWidth)
     {
@@ -565,7 +592,7 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
       displayRange->min = detailViewRange->min;
       displayRange->max = detailViewRange->max;
       width = displayRange->max - displayRange->min;
-      done = TRUE;
+      changedRange = TRUE;
     }
 
   if (width >= maxWidth)
@@ -573,10 +600,10 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
       /* Don't display more than the full range of the reference sequence */
       displayRange->min = fullRange->min;
       displayRange->max = fullRange->max;
-      done = TRUE;
+      changedRange = TRUE;
     }
 
-  if (!done)
+  if (!changedRange && keepCentered)
     {
       /* Keep the view centred on what's visible in the detail view */
       const int newcentre = getRangeCentre(detailViewRange);
@@ -586,62 +613,79 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
 
       displayRange->min = newcentre - offset;
       displayRange->max = displayRange->min + width;
-      boundRange(displayRange, fullRange);
+      
+      changedRange = TRUE;
     }
   
-  /* Recalculate the exon view height, because it may have changed with more/less
-   * exons being scrolled into view */
-  calculateExonViewHeight(properties->fwdExonView);
-  calculateExonViewHeight(properties->revExonView);
-  
-  /* Since we're keeping the highlight box centred, it should stay in the same place
-   * if we're just scrolling. We therefore only need to recalculate its position if
-   * its size has changed. */
-//  if (recalcHighlightBox)
+  if (!changedRange)
     {
-      callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
-      callFuncOnAllBigPictureExonViews(bigPicture, calculateExonViewHighlightBoxBorders);
-      calculateCoverageViewHighlightBoxBorders(properties->coverageView);
+      /* See if we need to scroll the big picture range so that it completely 
+       * contains the detail-view range */
+      if (detailViewRange->min < displayRange->min)
+        {
+          displayRange->min = detailViewRange->min;
+          displayRange->max = displayRange->min + width;
+          changedRange = TRUE;
+        }
+      else if (detailViewRange->max > displayRange->max)
+        {
+          displayRange->max = detailViewRange->max;
+          displayRange->min = displayRange->max - width;
+          changedRange = TRUE;
+        }
     }
 
-  bigPictureRedrawAll(bigPicture);
- 
-  /* This call to refreshGridOrder is not strictly necessary but is included because I can't find
-   * another way to force the big picture pane to resize when the exon view shrinks, even though 
-   * set_size_request is called on the exon views in calculateExonViewHeight above. */
-  refreshGridOrder(bigPicture); 
+  updateHighlightBox(bigPicture, properties);
+  bigPictureRefreshAll(bigPicture);
+
+  if (changedRange)
+    {
+      boundRange(displayRange, fullRange);
   
-  DEBUG_EXIT("setBigPictureDisplayWidth returning");
+      /* Recalculate the exon view height, because it may have changed with more/less
+       * exons being scrolled into view */
+      calculateExonViewHeight(properties->fwdExonView);
+      calculateExonViewHeight(properties->revExonView);
+
+      /* Do a complete redraw */
+      bigPictureRedrawAll(bigPicture);
+
+      /* This call to refreshGridOrder is not strictly necessary but is included because I can't find
+       * another way to force the big picture pane to resize when the exon view shrinks, even though 
+       * set_size_request is called on the exon views in calculateExonViewHeight above. */
+      refreshGridOrder(bigPicture); 
+    }
+  
+  
+  DEBUG_EXIT("setBigPictureDisplayRange returning");
 }
 
 
 /* This function should be called every time the detail view display range has 
- * changed. It makes sure the big picture remains centred on the highlight box:
- * it scrolls the big picture display range if necessary to keep the highlight box
- * (i.e. the range that is displayed in the detail-view) centred. If recalcHighlightBox
- * is true, the highlight box has changed size, and its boundaries need to be recalculated. */
-void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean recalcHighlightBox)
+ * changed. It updates the position of the highlight box on the big picture and,
+ * if necessary, scrolls to keep the highlight box in range. */
+void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean keepCentered)
 {
   DEBUG_ENTER("refreshBigPictureDisplayRange");
 
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  IntRange *displayRange = &properties->displayRange;
+  IntRange *bpRange = &properties->displayRange;
   
   GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
-  IntRange *detailViewRange = detailViewGetDisplayRange(detailView);
+  IntRange *dvRange = detailViewGetDisplayRange(detailView);
   
-  if (displayRange->min == UNSET_INT && displayRange->max == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
+  if (bpRange->min == UNSET_INT && bpRange->max == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
     {
       /* This is the first time we've refreshed the detail view range. Set the
        * initial big picture range width to be a ratio of the detail view range width. */
-      const int width = (detailViewRange->max - detailViewRange->min) * bigPictureGetInitialZoom(bigPicture);
-      setBigPictureDisplayWidth(bigPicture, properties, width, recalcHighlightBox);
+      const int width = (dvRange->max - dvRange->min) * bigPictureGetInitialZoom(bigPicture);
+      setBigPictureDisplayRange(bigPicture, properties, width, TRUE);
     }
   else
     {
       /* Call set-width (but just use the existing width) to force the required updates. */
-      const int width = displayRange->max - displayRange->min;
-      setBigPictureDisplayWidth(bigPicture, properties, width, recalcHighlightBox);
+      const int width = bpRange->max - bpRange->min;
+      setBigPictureDisplayRange(bigPicture, properties, width, keepCentered);
     }
   
   DEBUG_EXIT("refreshBigPictureDisplayRange returning");
@@ -716,7 +760,7 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
       newWidth = (displayRange->max - displayRange->min) * 2;
     }
 
-  setBigPictureDisplayWidth(bigPicture, properties, newWidth, TRUE);
+  setBigPictureDisplayRange(bigPicture, properties, newWidth, TRUE);
   calculateBigPictureCellSize(bigPicture, properties);
 }
 
@@ -731,7 +775,7 @@ void zoomWholeBigPicture(GtkWidget *bigPicture)
   /* Check we're not already showing the whole range */
   if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
     {
-      setBigPictureDisplayWidth(bigPicture, properties, fullRange->max - fullRange->min, TRUE);
+      setBigPictureDisplayRange(bigPicture, properties, fullRange->max - fullRange->min, TRUE);
       calculateBigPictureCellSize(bigPicture, properties);
     }
 }
@@ -950,6 +994,9 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRecta
   
   GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
   setDetailViewStartIdx(detailView, displayIdx, bc->seqType);
+  
+  /* Re-centre the big picture */
+  refreshBigPictureDisplayRange(bigPicture, TRUE);
   
   gtk_widget_queue_draw(bigPicture);
 }

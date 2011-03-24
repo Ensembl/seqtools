@@ -2220,7 +2220,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 
       /* Update the big picture because the highlight box has moved (and changed size) */
       GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
-      refreshBigPictureDisplayRange(bigPicture, TRUE);
+      refreshBigPictureDisplayRange(bigPicture, FALSE);
       calculateBigPictureCellSize(bigPicture, bigPictureGetProperties(bigPicture));
     }
   
@@ -3600,7 +3600,7 @@ void toggleStrand(GtkWidget *detailView)
   gtk_widget_queue_draw(detailView);
   
   /* Redraw the grids and grid headers */
-  refreshBigPictureDisplayRange(bigPicture, FALSE);
+  refreshBigPictureDisplayRange(bigPicture, TRUE);
   
   DEBUG_EXIT("toggleStrand returning");
 }
