@@ -48,6 +48,10 @@
 #define UNSET_INT  -1
 
 
+/* Usage text. This is a duplicate of the text that is in 
+ * doc/User_doc/dotter_usage.txt, so ideally we would get rid of this and use
+ * the text from the file instead; for now, we must update both. */
+
 #define USAGE_TEXT "\
 \n\
  Dotter - Sequence dotplots with image enhancement tools.\n\

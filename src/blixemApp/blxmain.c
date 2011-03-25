@@ -56,6 +56,11 @@
 /* global debug flag for blixem, set TRUE to get debugging output.           */
 gboolean blixem_debug_G = FALSE ;
 
+
+/* Usage text. This is a duplicate of the text that is in 
+ * doc/User_doc/blixem_usage.txt, so ideally we would get rid of this and use
+ * the text from the file instead; for now, we must update both. */
+
 #define USAGE_TEXT "\n\
  Blixem - display multiple alignments against a reference sequence.\n\
 \n\

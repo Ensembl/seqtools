@@ -2,7 +2,7 @@
 # include user-documentation in the installation
 dist_doc_DATA = index.html \
                 blixem_quick_start.html dotter_quick_start.html \
-                blixem_usage.html dotter_usage.html \
+                blixem_usage.txt dotter_usage.txt \
                 blixem_news.html dotter_news.html \
                 Blixem_manual.pdf Dotter_manual.pdf
 
