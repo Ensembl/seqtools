@@ -323,8 +323,7 @@ char *readFastaSeq(FILE *seqfile, char *seqName)
         }
       
       /* Set the result string and free the GString (but don't free its data) */
-      resultSeq = resultStr->str;
-      g_string_free(resultStr, FALSE);
+      resultSeq = g_string_free(resultStr, FALSE);
     }
   else
     {

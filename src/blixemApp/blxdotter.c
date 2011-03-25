@@ -553,9 +553,9 @@ static GtkWidget* createTextEntry(GtkTable *table,
 /* Utility to get the title for the dotter dialog. Uses the selected sequence name if a single
  * sequence is selected, or shows <no sequences> or <multiple sequences>. The result should be
  * free'd with g_free. */
-static const char* getDotterTitle(const BlxViewContext *bc)
+static char* getDotterTitle(const BlxViewContext *bc)
 {
-  const char *result = NULL;
+  char *result = NULL;
   
   GString *resultStr = g_string_new("Blixem - Dotter sequence: ");
   
@@ -575,8 +575,7 @@ static const char* getDotterTitle(const BlxViewContext *bc)
       g_string_append(resultStr, "<multiple sequences>");
     }
   
-  result = resultStr->str;
-  g_string_free(resultStr, FALSE);
+  result = g_string_free(resultStr, FALSE);
   
   return result;
 }
@@ -591,7 +590,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   static DotterDialogData *dialogData = NULL;
   
-  const char *title = getDotterTitle(bc);
+  char *title = getDotterTitle(bc);
   
   if (!dialog)
     {
@@ -633,6 +632,8 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       
       gtk_window_set_title(GTK_WINDOW(dialog), title);
     }
+  
+  g_free(title);
   
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);

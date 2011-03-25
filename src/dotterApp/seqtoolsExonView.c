@@ -388,6 +388,7 @@ void exonViewPrepareForPrinting(GtkWidget *exonView)
     {
       GdkGC *gc = gdk_gc_new(drawable);
       drawCrosshair(exonView, drawable, gc);
+      g_object_unref(gc);
     }
 }
 
@@ -399,10 +400,11 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   DotterContext *dc = properties->dc;
-  
+
+  GdkGC *gc = gdk_gc_new(drawable);
+
   /* Set a clip rectangle for drawing the exons and introns (because they are drawn "over the
    * edges" to make sure intron lines have the correct slope etc.) */
-  GdkGC *gc = gdk_gc_new(drawable);
   gdk_gc_set_clip_origin(gc, 0, 0);
   gdk_gc_set_clip_rectangle(gc, &properties->exonViewRect);
   
@@ -655,12 +657,15 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
     {  
       /* Push the pixmap onto the screen */
       GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
-
+      
       GdkGC *gc = gdk_gc_new(window);
+
       gdk_draw_drawable(window, gc, drawable, 0, 0, 0, 0, -1, -1);
 
       /* Draw the crosshair over the top */
       drawCrosshair(exonView, window, gc);
+      
+      g_object_unref(gc);
     }
 
 

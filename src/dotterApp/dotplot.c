@@ -554,6 +554,7 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
           /* Push the bitmap onto the window */
           GdkGC *gc = gdk_gc_new(window);
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
           
           /* Draw anything else that needs to be refreshed on each expose */
           dotplotDrawCrosshair(dotplot, window);
@@ -1676,6 +1677,9 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
   fflush(stdout);
 
   /* Create the image */
+  if (properties->image)
+    gdk_image_unref(properties->image);
+
   properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
 }
 
@@ -1895,6 +1899,9 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
   DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
 
   /* Create the image */
+  if (properties->image)
+    gdk_image_unref(properties->image);
+    
   properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
 
   /* Create the new pixmap */
@@ -2090,17 +2097,20 @@ static void drawGridline(GdkDrawable *drawable, DotplotProperties *properties, c
 {
   if (properties->gridlinesOn)
     {
+      GdkGC *gc = gdk_gc_new(drawable);
+
       DotterWindowContext *dwc = properties->dotterWinCtx;
       DotterContext *dc = properties->dotterWinCtx->dotterCtx;
       
       GdkColor *gridColor = getGdkColor(DOTCOLOR_GRID, dc->defaultColors, FALSE, dwc->usePrintColors);
-      GdkGC *gc = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gc, gridColor);
       
       int xEnd = horizontal ? xStart : xStart + properties->plotRect.width;
       int yEnd = horizontal ? yStart + properties->plotRect.height : yStart;
     
       gdk_draw_line(drawable, gc, xStart, yStart, xEnd, yEnd);
+      
+      g_object_unref(gc);
     }  
 }
 
@@ -2207,8 +2217,9 @@ static void drawScaleMarkers(GtkWidget *dotplot,
 /* Draw the outer rectangle of the dot plot, with a scale along the left and top */
 static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
 {
-  DotplotProperties *properties = dotplotGetProperties(dotplot);
   GdkGC *gc = gdk_gc_new(drawable);
+
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
   
   /* Draw the outline rectangle of the dot plot */
   gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
@@ -2219,6 +2230,8 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
 
   drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->refSeqRange, properties, TRUE);
   drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->matchSeqRange, properties, FALSE);
+  
+  g_object_unref(gc);
 }
 
 
@@ -2294,8 +2307,8 @@ static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
   if (properties->breaklinesOn)
     {
       GdkGC *gc = gdk_gc_new(drawable);
+
       gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-    
       GdkColor *color = getGdkColor(DOTCOLOR_BREAKLINE, dc->defaultColors, FALSE, dwc->usePrintColors);
       gdk_gc_set_foreground(gc, color);
 
@@ -2309,6 +2322,8 @@ static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
 	      drawBreakline(msp, dotplot, properties, drawable, gc);
 	    }
 	}
+      
+      g_object_unref(gc);
     }  
 }
 
@@ -2320,12 +2335,13 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
   
   if (properties->crosshairOn)
     {
+      GdkGC *gc = gdk_gc_new(drawable);
+
       DotterWindowContext *dwc = properties->dotterWinCtx;
       DotterContext *dc = dwc->dotterCtx;
 
       /* Set the line color for the crosshair */
       GdkColor *lineColor = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dwc->usePrintColors);
-      GdkGC *gc = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gc, lineColor);
       
       int x = UNSET_INT, y = UNSET_INT;
@@ -2385,6 +2401,8 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
 
           g_free(displayText);
         }
+      
+      g_object_unref(gc);
     }
 }
 
@@ -2403,6 +2421,8 @@ static void drawImage(GtkWidget *dotplot, GdkDrawable *drawable)
       gdk_draw_image(drawable, gc, properties->image,
                      0, 0, properties->plotRect.x, properties->plotRect.y,
                      properties->image->width, properties->image->height); 
+      
+      g_object_unref(gc);
     }
   
   DEBUG_EXIT("drawImage returning ");
@@ -2488,6 +2508,8 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
 
 static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
 {
+  GdkGC *gc = gdk_gc_new(drawable);
+
   DotplotProperties *properties = dotplotGetProperties(dotplot);
 
   if (properties->hspMode != DOTTER_HSPS_LINE && properties->hspMode != DOTTER_HSPS_FUNC)
@@ -2499,7 +2521,6 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
   /* we'll clip the hsp lines to the dotplot drawing area */
-  GdkGC *gc = gdk_gc_new(drawable);
   gdk_gc_set_clip_origin(gc, 0, 0);
   gdk_gc_set_clip_rectangle(gc, &properties->plotRect);
   
@@ -2552,6 +2573,8 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
           gdk_draw_line(drawable, gc, sx, sy, ex, ey);
         }
     }
+  
+  g_object_unref(gc);
 }
 
 
@@ -2563,12 +2586,15 @@ static void drawRubberBand(GtkWidget *dotplot, GdkDrawable *drawable)
   if (properties->dragStart.x != UNSET_INT && properties->dragEnd.x != UNSET_INT)
     {
       GdkGC *gc = gdk_gc_new(drawable);
+      
       gdk_gc_set_function(gc, GDK_INVERT);
       
       gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragStart.y, properties->dragEnd.x, properties->dragStart.y);
       gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragStart.y, properties->dragStart.x, properties->dragEnd.y);
       gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragEnd.y, properties->dragEnd.x, properties->dragEnd.y);
       gdk_draw_line(drawable, gc, properties->dragEnd.x, properties->dragStart.y, properties->dragEnd.x, properties->dragEnd.y);
+      
+      g_object_unref(gc);
     }
 }
 

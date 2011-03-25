@@ -563,8 +563,7 @@ char *mspGetCoordsAsString(const MSP const *msp)
     
     g_string_append_printf(resultStr, "%d - %d [%d - %d]", msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
     
-    result = resultStr->str;
-    g_string_free(resultStr, FALSE);
+    result = g_string_free(resultStr, FALSE);
     }
   
   return result;
@@ -780,8 +779,7 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
       appendStringIfNonNull(resultStr, separator, blxSeq->tissueType);
       appendStringIfNonNull(resultStr, separator, blxSeq->strain);
       
-      result = resultStr->str;
-      g_string_free(resultStr, FALSE);
+      result = g_string_free(resultStr, FALSE);
     }
   
   return result;
@@ -1019,8 +1017,7 @@ char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, cons
     /* Add a final separator after the alignments line*/
     g_string_append_printf(resultStr, "%c", separator);
     
-    result = resultStr->str;
-    g_string_free(resultStr, FALSE);
+    result = g_string_free(resultStr, FALSE);
     }
   
   return result;

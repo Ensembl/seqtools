@@ -412,8 +412,9 @@ static gboolean onExposeCoverageView(GtkWidget *coverageView, GdkEventExpose *ev
       if (bitmap)
         {
           /* Push the bitmap onto the window */
-          GdkGC *gc2 = gdk_gc_new(window);
-          gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+          GdkGC *gc = gdk_gc_new(window);
+          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
           
           /* Draw the highlight box on top of it */
           CoverageViewProperties *properties = coverageViewGetProperties(coverageView);

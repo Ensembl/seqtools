@@ -275,10 +275,12 @@ void drawVerticalGridLines(GdkRectangle *drawingRect,
       if (x > minX && x < maxX)
 	{
 	  GdkGC *gc = gdk_gc_new(drawable);
-	  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
 
+	  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
 	  gdk_gc_set_foreground(gc, lineColor);
 	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
+          
+          g_object_unref(gc);
 	}
     }
 }
@@ -370,6 +372,7 @@ static void redrawBigPictureGridHeader(GtkWidget *header)
 
       /* Clear the bitmap to the background color */
       GdkGC *gc = gdk_gc_new(bitmap);
+      
       GtkStyle *style = gtk_widget_get_style(header);
       GdkColor *bgColor = &style->bg[GTK_STATE_NORMAL];
       gdk_gc_set_foreground(gc, bgColor);
@@ -377,6 +380,8 @@ static void redrawBigPictureGridHeader(GtkWidget *header)
 
       /* Draw the header */
       drawBigPictureGridHeader(header, bitmap, gc);
+      
+      g_object_unref(gc);
     }
 }
 
@@ -398,8 +403,6 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
 			      gc,
 			      getGdkColor(BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors), 
 			      getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors));
-  
-  g_object_unref(gc);
 }
 
 
@@ -878,6 +881,7 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
         {
           GdkGC *gc = gdk_gc_new(window);
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
         }
     }
   

@@ -822,8 +822,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
       g_string_append_printf(resultString, " : %d", sIdx);
     }
   
-  char *messageText = resultString->str;
-  g_string_free(resultString, FALSE);
+  char *messageText = g_string_free(resultString, FALSE);
   
   return messageText;
 }
@@ -1651,6 +1650,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
     
     
   GdkGC *gc = gdk_gc_new(drawable);
+  
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   const int activeFrame = detailViewGetActiveFrame(detailView);
   const BlxStrand activeStrand = blxWindowGetActiveStrand(blxWindow);
@@ -1705,6 +1705,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   
   drawColumnSeparatorLine(dnaTrack, drawable, gc, bc);
   
+  g_hash_table_unref(basesToHighlight);
   g_free(segmentToDisplay);
   g_object_unref(gc);
 }
@@ -3115,10 +3116,13 @@ static int snpTrackGetStrand(GtkWidget *snpTrack)
 gboolean onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data)
 {
   GdkGC *gc = gdk_gc_new(headerWidget->window);
+  
   GtkWidget *detailView = GTK_WIDGET(data);
   const BlxViewContext *bc = detailViewGetContext(detailView);
   
   drawColumnSeparatorLine(headerWidget, headerWidget->window, gc, bc);
+  
+  g_object_unref(gc);
   
   return FALSE;
 }
@@ -3147,8 +3151,9 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
       if (bitmap)
 	{
 	  /* Push the bitmap onto the window */
-	  GdkGC *gc2 = gdk_gc_new(window);
-	  gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+	  GdkGC *gc = gdk_gc_new(window);
+	  gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
 	}
     }
   
@@ -3176,8 +3181,9 @@ static gboolean onExposeVariationsTrack(GtkWidget *snpTrack, GdkEventExpose *eve
       if (bitmap)
         {
           /* Push the bitmap onto the window */
-          GdkGC *gc2 = gdk_gc_new(window);
-          gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+          GdkGC *gc = gdk_gc_new(window);
+          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
         }
       else
 	{

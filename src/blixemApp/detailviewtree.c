@@ -997,8 +997,9 @@ static gboolean onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *ev
       if (bitmap)
 	{
 	  /* Push the bitmap onto the window */
-	  GdkGC *gc2 = gdk_gc_new(window);
-	  gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
+	  GdkGC *gc = gdk_gc_new(window);
+	  gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
 	}
     }
   
@@ -1019,10 +1020,12 @@ static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, g
 
   /* Draw a blank rectangle of the required widget background color */
   GdkGC *gc = gdk_gc_new(drawable);
+  
   GdkColor *bgColor = tree->style->bg;
   gdk_gc_set_foreground(gc, bgColor);
-  
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, tree->allocation.width, tree->allocation.height);
+  
+  g_object_unref(gc);
   
   /* Let the default handler continue */
   return FALSE;

@@ -466,6 +466,8 @@ static void drawWhiteMarker(GdkDrawable *drawable, GtkWidget *greyramp)
   gdk_draw_polygon(drawable, gc, TRUE, points, numPoints);
   gdk_gc_set_foreground(gc, lineColor);
   gdk_draw_polygon(drawable, gc, FALSE, points, numPoints);
+  
+  g_object_unref(gc);
 }
 
 
@@ -498,6 +500,8 @@ static void drawBlackMarker(GdkDrawable *drawable, GtkWidget *greyramp)
   gdk_draw_polygon(drawable, gc, TRUE, points, numPoints);
   gdk_gc_set_foreground(gc, lineColor);
   gdk_draw_polygon(drawable, gc, FALSE, points, numPoints);
+  
+  g_object_unref(gc);
 }
 
 
@@ -512,10 +516,12 @@ static void drawThresholdMarker(GdkDrawable *drawable, GtkWidget *greyramp)
   
   /* Draw the threshold marker outline (there's no fill because we want the background greyramp to show through) */
   GdkGC *gc = gdk_gc_new(drawable);
+  
   GdkColor *lineColor = getGdkColor(DOTCOLOR_THRESHOLD_MARKER, dc->defaultColors, properties->draggingThreshold, properties->dwc->usePrintColors);
   gdk_gc_set_foreground(gc, lineColor);
-  
   gdk_draw_rectangle(drawable, gc, FALSE, markerRect.x, markerRect.y, markerRect.width, markerRect.height);
+  
+  g_object_unref(gc);
 }
 
 

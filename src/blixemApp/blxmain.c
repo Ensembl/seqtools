@@ -430,6 +430,8 @@ static BlxColumnId getSortModeFromChar(char sortChar)
 }
 
 
+/* Get a list of all the supported GFF types, as a string. The result should
+ * be free'd with g_free. */
 static char* getSupportedTypesAsString(GSList *supportedTypes)
 {
   GString *resultStr = g_string_new(NULL);
@@ -441,8 +443,8 @@ static char* getSupportedTypesAsString(GSList *supportedTypes)
       g_string_append_printf(resultStr, "    %s\n", gffType->name);
     }
   
-  char *result = resultStr->str;
-  g_string_free(resultStr, FALSE);
+  char *result = g_string_free(resultStr, FALSE);
+  
   return result;
 }
 
@@ -462,11 +464,13 @@ static void showHelpText(GSList *supportedTypes)
   GString *resultStr = g_string_new(USAGE_TEXT);
 
   char *supported_types_string = getSupportedTypesAsString(supportedTypes);
+  
   g_string_append_printf(resultStr, HELP_TEXT, supported_types_string);
-
   g_string_append(resultStr, FOOTER_TEXT);
   
   fprintf(stderr, "%s", resultStr->str);
+  
+  g_free(supported_types_string);
   g_string_free(resultStr, TRUE);
 }
 
@@ -745,8 +749,7 @@ int main(int argc, char **argv)
 	    }
 	  
 	  /* Set the reference sequence and free the GString (but not its data, which we've used) */
-	  options.refSeq = resultStr->str;
-	  g_string_free(resultStr, FALSE);
+	  options.refSeq = g_string_free(resultStr, FALSE);
 	}
       else
 	{

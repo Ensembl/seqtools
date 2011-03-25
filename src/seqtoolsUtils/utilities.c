@@ -2131,9 +2131,12 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
   
   /* Paint a blank rectangle for the background, the same color as the widget's background */
   GdkGC *gc = gdk_gc_new(drawable);
+  
   GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(gc, bgColor);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);
+  
+  g_object_unref(gc);
   
   return drawable;
 }
@@ -3507,6 +3510,7 @@ void collatePixmaps(GtkWidget *widget, gpointer data)
       
       GdkGC *gc = gdk_gc_new(widget->window);
       gdk_draw_drawable(widgetGetDrawable(parent), gc, drawable, xSrc, ySrc, xDest, yDest, -1, -1); /* -1 means full width/height */
+      g_object_unref(gc);
     }
   
   /* If this widget is a container, recurse over its children */

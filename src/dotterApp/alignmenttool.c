@@ -256,8 +256,10 @@ static gboolean onExposeSequence(GtkWidget *widget, GdkEventExpose *event, gpoin
   if (drawable)
     {
       drawSequence(drawable, widget, alignmentTool);
+      
       GdkGC *gc = gdk_gc_new(widget->window);
       gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
+      g_object_unref(gc);
     }
   
   return TRUE;
@@ -276,8 +278,10 @@ static gboolean onExposeRefSequenceHeader(GtkWidget *widget, GdkEventExpose *eve
   if (drawable)
     {
       drawSequenceHeader(widget, alignmentTool, drawable, TRUE);
+      
       GdkGC *gc = gdk_gc_new(widget->window);
       gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
+      g_object_unref(gc);
     }
   
   return TRUE;
@@ -296,8 +300,10 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
   if (drawable)
     {
       drawSequenceHeader(widget, alignmentTool, drawable, FALSE);
+      
       GdkGC *gc = gdk_gc_new(widget->window);
       gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
+      g_object_unref(gc);
     }
   
   return TRUE;
@@ -714,6 +720,7 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
   GdkGC *gc = gdk_gc_new(drawable);
+
   GdkColor *matchColor = getGdkColor(DOTCOLOR_MATCH, dc->defaultColors, FALSE, dwc->usePrintColors);
   GdkColor *consColor = getGdkColor(DOTCOLOR_CONS, dc->defaultColors, FALSE, dwc->usePrintColors);
 
@@ -810,6 +817,8 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
       gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x, y, layout);
       g_object_unref(layout);
     }
+  
+  g_object_unref(gc);
 }
 
 
@@ -821,6 +830,7 @@ static void drawSequenceHeaderMarker(GdkDrawable *drawable, const int x, const i
   
   GdkGC *gc = gdk_gc_new(drawable);
   gdk_draw_line(drawable, gc, x1, y, x1, y +  + SELECTED_COORD_MARKER_HEIGHT);
+  g_object_unref(gc);
 }
 
 

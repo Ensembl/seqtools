@@ -1069,12 +1069,14 @@ static void drawMsps(SequenceCellRenderer *renderer,
   GdkColor *mismatchColor = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, FALSE, bc->usePrintColors);
   GdkColor *mismatchColorSelected = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, TRUE, bc->usePrintColors);
   
+  GdkGC *gc = gdk_gc_new(window);
+  
   RenderData data = {
     bc,
     cell_area,
     window,
     state,
-    gdk_gc_new(window),
+    gc,
     treeGetStrand(tree),
     treeProperties->readingFrame,
     detailViewProperties->selectedBaseIdx,
@@ -1138,6 +1140,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
 	}
   
   drawVisibleExonBoundaries(tree, &data);
+  
+  g_object_unref(gc);
 }
 
 
@@ -1210,6 +1214,8 @@ static void setBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow
         }
 
       drawRectangle2(window, widgetGetDrawable(tree), gc, TRUE, background_area->x, background_area->y, background_area->width, background_area->height);
+      
+      g_object_unref(gc);
     }
 }
 
@@ -1220,8 +1226,9 @@ static void drawGridLines(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell
   GdkDrawable *drawable = widgetGetDrawable(tree);
   BlxViewContext *bc = treeGetContext(tree);
 
-  /* Set the line color */
   GdkGC *gc = gdk_gc_new(window);
+
+  /* Set the line color */
   GdkColor *color = getGdkColor(BLXCOLOR_TREE_GRID_LINES, bc->defaultColors, FALSE, bc->usePrintColors);
   gdk_gc_set_foreground(gc, color);
   
@@ -1239,6 +1246,8 @@ static void drawGridLines(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell
    * line at the leftmost edge of the first cell.) */
   const int x = cell_area->x + cell_area->width - lineWidth;
   drawLine2(window, drawable, gc, x, cell_area->y, x, cell_area->y + cell_area->height);
+  
+  g_object_unref(gc);
 }
 
 
