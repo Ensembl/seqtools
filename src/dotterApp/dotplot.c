@@ -370,6 +370,9 @@ static void initPixmap(unsigned char **pixmap, const int width, const int height
 {
   DEBUG_ENTER("initPixmap");
 
+  if (*pixmap)
+    g_free(*pixmap);
+  
   const int pixelmapLen = width  * height;
   *pixmap = (unsigned char *)g_malloc(sizeof(unsigned char*) * pixelmapLen);
   

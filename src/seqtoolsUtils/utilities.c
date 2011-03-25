@@ -1599,7 +1599,11 @@ void widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback func, gpointer
 {
   if (widget)
     { 
-      CallbackData *callbackData = g_malloc(sizeof *callbackData);
+      CallbackData *callbackData = widgetGetCallbackData(widget);
+      
+      if (!callbackData)
+        callbackData = g_malloc(sizeof *callbackData);
+      
       callbackData->func = func;
       callbackData->data = data;
       

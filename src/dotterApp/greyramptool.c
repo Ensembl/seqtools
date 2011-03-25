@@ -437,6 +437,8 @@ static void drawGradient(GdkDrawable *drawable, GtkWidget *greyramp)
       
       cairo_destroy(cr);
     }
+  
+  cairo_pattern_destroy(pattern);
 }
 
 

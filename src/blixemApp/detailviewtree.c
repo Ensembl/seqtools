@@ -1680,6 +1680,8 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	{
 	  /* Get the variant name (i.e. ignore any prefix) */
           const char *name = NULL;
+          char *displayName = NULL;
+          
 	  if (msp && msp->sSequence)
 	    {
 	      name = blxSequenceGetVariantName(msp->sSequence);
@@ -1699,12 +1701,13 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	      if (bc->flags[BLXFLAG_SQUASH_MATCHES])
 		{
 		  char *name2 = blxprintf("%d %s%s", numMsps, name, (numMsps > 1 ? "s" : ""));
-		  name = name2;
+		  displayName = abbreviateText(name2, maxLen - 2);
+                  g_free(name2);
 		}
 	    }
-
-	  /* Abbreviate the name to fit the column */
-	  char *displayName = abbreviateText(name, maxLen - 2);
+          
+          if (!displayName)
+            displayName = abbreviateText(name, maxLen - 2);
           
           if (displayName)
             {
