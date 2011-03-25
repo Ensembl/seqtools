@@ -430,9 +430,12 @@ static void drawGradient(GdkDrawable *drawable, GtkWidget *greyramp)
   if (cairo_pattern_status(pattern) == CAIRO_STATUS_SUCCESS)
     {
       cairo_t *cr = gdk_cairo_create(drawable);
+      
       gdk_cairo_rectangle(cr, rect);
       cairo_set_source(cr, pattern);
       cairo_fill(cr);
+      
+      cairo_destroy(cr);
     }
 }
 

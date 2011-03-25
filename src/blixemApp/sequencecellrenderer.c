@@ -200,6 +200,7 @@ void drawLine2(GdkDrawable *drawable1,
 //      cairo_move_to(cr, x1 + 0.5, y1);
 //      cairo_line_to(cr, x2 + 0.5, y2);
 //      cairo_stroke(cr); 
+//      cairo_destroy(cr);
       gdk_draw_line(drawable1, gc, x1, y1, x2, y2);
     }
   
@@ -210,6 +211,7 @@ void drawLine2(GdkDrawable *drawable1,
 //      cairo_move_to(cr, x1 + 0.5, y1);
 //      cairo_line_to(cr, x2 + 0.5, y2);
 //      cairo_stroke(cr); 
+//      cairo_destroy(cr);
       
       gdk_draw_line(drawable2, gc, x1, y1, x2, y2);
     }
@@ -228,6 +230,7 @@ void drawRectangle2(GdkDrawable *drawable1,
 //  cairo_t *cr = gdk_cairo_create(drawable1);
 //  cairo_rectangle(cr, x, y, width, height);
 //  cairo_fill(cr);
+//  cairo_destroy(cr);
   
   if (drawable1)
     {

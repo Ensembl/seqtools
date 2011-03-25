@@ -2329,10 +2329,13 @@ void drawHighlightBox(GdkDrawable *drawable,
   const int width = max(minWidth, rect->width);
 
   cairo_t *cr = gdk_cairo_create(drawable);
+  
   gdk_cairo_set_source_color(cr, color);
   cairo_rectangle(cr, rect->x, rect->y, width, rect->height);
   cairo_clip(cr);
   cairo_paint_with_alpha(cr, 0.2);
+  
+  cairo_destroy(cr);
 }
 
 

@@ -241,9 +241,10 @@ static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
   
   if (!bc || bc->maxDepth <= 0)
     return;
-  
-  const GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, bc->defaultColors, FALSE, bc->usePrintColors);
+
   cairo_t *cr = gdk_cairo_create(drawable);
+
+  const GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, bc->defaultColors, FALSE, bc->usePrintColors);
   gdk_cairo_set_source_color(cr, color);
   
   const int maxDepth = coverageViewGetMaxLabeledDepth(properties);
@@ -299,6 +300,8 @@ static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
       prevX = x;
       prevY = y;
     }
+  
+  cairo_destroy(cr);
 }
 
 
