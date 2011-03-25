@@ -3683,3 +3683,10 @@ gboolean findCommand (char *command, char **resultOut)
   return found;
 }
 
+
+/* Emits the size-allocate signal on the given widget */
+void forceResize(GtkWidget *widget)
+{
+  g_signal_emit_by_name(G_OBJECT(widget), "size-allocate", &widget->allocation);
+}
+

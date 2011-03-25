@@ -523,9 +523,9 @@ static void toggleGridVisibility(GtkWidget *blxWindow, const int number)
       GtkWidget *grid = useFwdGrid ? bigPictureGetFwdGrid(bigPicture) : bigPictureGetRevGrid(bigPicture);
       widgetSetHidden(grid, !widgetGetHidden(grid));
 
-      /* It's probably overkill to call refreshGridOrder here but I can't seem to find another way
-       * to force the paned window to shrink to take into account newly-hidden widgets */
-      refreshGridOrder(bigPicture);
+      /* We need to force a resize of the big picture because the size-allocate
+       * signal doesn't get emitted by default when its contents shrink */
+      forceResize(bigPicture);
     }
 }
 
@@ -541,9 +541,7 @@ static void toggleExonViewVisibility(GtkWidget *blxWindow, const int number)
       GtkWidget *exonView = useFwdExonView ? bigPictureGetFwdExonView(bigPicture) : bigPictureGetRevExonView(bigPicture);
       widgetSetHidden(exonView, !widgetGetHidden(exonView));
 
-      /* It's probably overkill to call refreshGridOrder here but I can't seem to find another way
-       * to force the paned window to shrink to take into account newly-hidden widgets */
-      refreshGridOrder(bigPicture);
+      forceResize(bigPicture);
     }
 }
 

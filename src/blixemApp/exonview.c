@@ -603,11 +603,7 @@ void exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded)
     }
   
   calculateExonViewHeight(exonView);
-
-  /* It's probably overkill to call refreshGridOrder here but I can't seem to find another way
-   * to force the big picture pane to shrink to take into account newly-hidden exons */
-  refreshGridOrder(properties->bigPicture);
-
+  forceResize(properties->bigPicture);
   bigPictureRedrawAll(properties->bigPicture);
 }
 

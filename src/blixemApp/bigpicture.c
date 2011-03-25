@@ -594,16 +594,15 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       width = displayRange->max - displayRange->min;
       changedRange = TRUE;
     }
-
-  if (width >= maxWidth)
+  else if (width >= maxWidth)
     {
       /* Don't display more than the full range of the reference sequence */
+      changedRange = displayRange->min != fullRange->min || displayRange->max != fullRange->max;
+      
       displayRange->min = fullRange->min;
       displayRange->max = fullRange->max;
-      changedRange = TRUE;
     }
-
-  if (!changedRange && keepCentered)
+  else if (keepCentered)
     {
       /* Keep the view centred on what's visible in the detail view */
       const int newcentre = getRangeCentre(detailViewRange);
@@ -617,7 +616,7 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       changedRange = TRUE;
     }
   
-  if (!changedRange)
+  if (!changedRange) /* i.e. not already done */
     {
       /* See if we need to scroll the big picture range so that it completely 
        * contains the detail-view range */
@@ -647,13 +646,12 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       calculateExonViewHeight(properties->fwdExonView);
       calculateExonViewHeight(properties->revExonView);
 
+      /* We must force a resize, because the size-allocate signal does not
+       * get emitted if the exon views have shrunk, only if they have expanded. */
+      forceResize(bigPicture);
+      
       /* Do a complete redraw */
       bigPictureRedrawAll(bigPicture);
-
-      /* This call to refreshGridOrder is not strictly necessary but is included because I can't find
-       * another way to force the big picture pane to resize when the exon view shrinks, even though 
-       * set_size_request is called on the exon views in calculateExonViewHeight above. */
-      refreshGridOrder(bigPicture); 
     }
   
   

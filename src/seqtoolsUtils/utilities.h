@@ -468,6 +468,7 @@ void                               onDrawPage(GtkPrintOperation *print, GtkPrint
 void                               setWidgetBackgroundColor(GtkWidget *widget, gpointer data);
 
 gboolean                           findCommand (char *command, char **resultOut);
+void                               forceResize(GtkWidget *widget);
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
