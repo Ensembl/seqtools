@@ -4579,10 +4579,16 @@ void copySelectionToClipboard(GtkWidget *blxWindow)
 void blxWindowSelectionChanged(GtkWidget *blxWindow)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
-  /* Re-filter the detail-view trees, because selecting an MSP can cause other MSPs to 
-   * become visible (i.e. polyA tails). */
-  refilterDetailView(detailView, NULL);
+  if ((bc->flags[BLXFLAG_SHOW_UNALIGNED] && bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED]) ||
+      (bc->flags[BLXFLAG_SHOW_POLYA_SITE] && bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED]))
+    {
+      /* When these options are enabled, the length of an MSP can depend on
+       * whether it is selected or not; changing the selection can therefore
+       * affect which MPSs are visible, so we need to re-filter the trees */
+      refilterDetailView(detailView, NULL);
+    }
   
   /* Redraw */
   updateFeedbackBox(detailView);
