@@ -4303,6 +4303,8 @@ static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const BlxC
   g_object_unref(store);
   addToolbarWidget(toolbar, GTK_WIDGET(combo));
 
+  gtk_combo_box_set_add_tearoffs(GTK_COMBO_BOX(combo), TRUE);
+  
   /* Create a cell renderer to display the sort text. */
   GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
   gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
