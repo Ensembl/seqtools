@@ -1139,6 +1139,14 @@ static void drawMsps(SequenceCellRenderer *renderer,
 	  else if (mspIsBlastMatch(msp))
 	    {
 	      drawDnaSequence(renderer, msp, tree, &data);
+              
+              if (mspIsShortRead(msp))
+                {
+                  /* Short reads that are in the same row are duplicates, so
+                   * we only need to draw one. (to do: protect against the
+                   * case where this might change!) */
+                  break;
+                }
 	    }
 	}
   
