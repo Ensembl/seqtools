@@ -199,15 +199,13 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
   msp->qname = g_malloc(strlen(name)+1);
   strcpy(msp->qname, name);
 
-  msp->desc = g_malloc(strlen(desc)+1);
-  strcpy(msp->desc, desc);
+  msp->desc = g_strdup(desc);
   if ((cp = (char *)strchr(msp->desc, ' ')))
     *cp = 0;
   if ((cp = (char *)strchr(msp->desc, '\n')))
     *cp = 0;
 
   msp->qRange.min = msp->qRange.max = pos;
-//   msp->sFrame = sFrame;
   msp->fsColor = 0;
   msp->type = BLXMSP_FS_SEG;
   msp->score = 100.0;
@@ -279,7 +277,7 @@ int main(int argc, char **argv)
   char   
       line[MAXLINE+1],
       *curChar, *cc, *cq,  
-      *firstdesc, *qfilename, *sfilename,
+      *qfilename, *sfilename,
       text[MAXLINE+1];
 
   FILE *qfile, *sfile;
@@ -582,6 +580,7 @@ int main(int argc, char **argv)
 	/* Read in the sequences */
 	int l = 0, count = 0;
 	cc = options.qseq;
+        char *firstdesc = NULL;
       
 	while (!feof(qfile))
           {
@@ -604,8 +603,7 @@ int main(int argc, char **argv)
                   {
 
                     options.qname = g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
-                    firstdesc = g_malloc(strlen(cq)+1);
-                    strcpy(firstdesc, cq);
+                    firstdesc = g_strdup(cq);
                   }
                 else
                   {
@@ -638,7 +636,13 @@ int main(int argc, char **argv)
           }
 
 	*cc = 0;
-	
+
+        if (firstdesc)
+          {
+            g_free(firstdesc);
+            firstdesc = NULL;
+          }
+
 	l = 0, count = 0;
 	cc = options.sseq;
       
@@ -654,8 +658,7 @@ int main(int argc, char **argv)
 		cq++;
 		if (++l == 1) {
 		    options.sname = g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
-		    firstdesc = g_malloc(strlen(cq)+1);
-		    strcpy(firstdesc, cq);
+		    firstdesc = g_strdup(cq);
 		}
 		else {
 		  /* Multiple sequences - add break lines */
@@ -683,6 +686,12 @@ int main(int argc, char **argv)
           }
         
 	*cc = 0;
+        
+        if (firstdesc)
+          {
+            g_free(firstdesc);
+            firstdesc = NULL;
+          }
       }
 
     BlxBlastMode blastMode = BLXMODE_UNSET;
