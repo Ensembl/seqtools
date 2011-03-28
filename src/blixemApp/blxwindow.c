@@ -5099,7 +5099,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
   detailViewAddMspData(detailView, options->mspList);
-  detailViewSetSortColumn(detailView, options->initSortColumn);
   
   /* Updated the cached display range and full extents of the MSPs */
   detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));

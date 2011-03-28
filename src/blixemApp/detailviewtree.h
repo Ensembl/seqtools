@@ -100,7 +100,6 @@ int               treeGetFrame(GtkWidget *tree);
 
 void		  callFuncOnAllDetailViewTrees(GtkWidget *widget, GtkCallback func, gpointer data);
 
-void              treeSetSortColumn(GtkWidget *tree, gpointer data);
 void		  refilterTree(GtkWidget *tree, gpointer data);
 void		  resortTree(GtkWidget *tree, gpointer data);
 void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);

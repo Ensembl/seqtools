@@ -398,12 +398,7 @@ void treeUpdateSquashMatches(GtkWidget *tree, gpointer data)
   BlxViewContext *bc = treeGetContext(tree);
   TreeProperties *properties = treeGetProperties(tree);
   
-  /* Get the current model (and find which column it is currently sorted by) */
-  gint sortColumn;
-  GtkTreeModel *origModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(origModel), &sortColumn, NULL);
-  
-  /* Replace it with the new model */
+  /* Find the new model */
   GtkTreeModel *newModel = properties->treeModels[bc->modelId];
   
   if (newModel)
@@ -416,8 +411,6 @@ void treeUpdateSquashMatches(GtkWidget *tree, gpointer data)
   
   if (newModel)
     {
-      GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
-      gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(newModel), sortColumn, sortOrder);
       resortTree(tree, NULL);
       refilterTree(tree, NULL);
     }
@@ -637,16 +630,22 @@ static gboolean updateMspPaths(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
 /* Re-sort the data for the given tree */
 void resortTree(GtkWidget *tree, gpointer data)
 {
+  if (BLXCOL_NUM_COLUMNS < 1)
+    return; 
+  
   /* Not sure if there's a better way to do this, but we can force a re-sort by 
    * setting the sort column to something else and then back again. */
-  gint sortColumn;
-  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
-  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &sortColumn, NULL);
+  GtkWidget *detailView = treeGetDetailView(tree);
+  BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
   
-  /* Set it to unsorted */
-  GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
+  /* Note that the sort function takes care of whether it's asc or desc, so we
+   * always set asc. */
+  GtkSortType sortOrder = GTK_SORT_ASCENDING;
+  
+  GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
   gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, sortOrder);
-  gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumn, sortOrder);
+  gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumns[0], sortOrder);
+
   
   /* Update the cached path held by each MSP about the row it is in. */
   BlxViewContext *bc = treeGetContext(tree);
@@ -723,20 +722,6 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
   return bDisplay;
 }
 
-
-void treeSetSortColumn(GtkWidget *tree, gpointer data)
-{
-  GtkTreeSortable *model = GTK_TREE_SORTABLE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-  
-  BlxColumnId sortColumn = GPOINTER_TO_INT(data);
-  GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
-  
-  gtk_tree_sortable_set_sort_column_id(model, sortColumn, sortOrder);
-  
-  /* Update the cached path held by each MSP about the row it is in. */
-  BlxViewContext *bc = treeGetContext(tree);
-  gtk_tree_model_foreach(GTK_TREE_MODEL(model), updateMspPaths, GINT_TO_POINTER(bc->modelId));
-}
 
 /***********************************************************
  *                       Properties                        *
@@ -2579,83 +2564,128 @@ static int sortByStringCompareFunc(char *str1, char *str2)
 }
 
 
-/* Sort comparison function.  Returns a negative value if the first row appears before the second,
- * positive if the second appears before the first, or 0 if they are equivalent according to
- * the current search criteria. */
+/* Sort comparison function for sorting by a particular column of the tree view. */
+static gint sortByColumnCompareFunc(GtkTreeModel *model, 
+                                    GtkTreeIter *iter1, 
+                                    GtkTreeIter *iter2, 
+                                    GtkWidget *detailView, 
+                                    GtkWidget *tree, 
+                                    const BlxColumnId sortColumn)
+{
+  gint result = UNSET_INT;
+  
+  /* Extract the MSPs for the two rows that we're comparing */
+  GList *mspGList1 = treeGetMsps(model, iter1);
+  GList *mspGList2 = treeGetMsps(model, iter2);
+  
+  /* Get the first MSP in each list. */
+  MSP *msp1 = (MSP*)(mspGList1->data);
+  MSP *msp2 = (MSP*)(mspGList2->data);
+  
+  /* Check whether either row has more than one MSP. If so, it means some options aren't applicable. */
+  const gboolean multipleMsps = g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1;
+  
+  /* Get details about this column */
+  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
+  
+  switch (sortColumn)
+  {
+    case BLXCOL_SEQNAME:
+      result = sortByStringCompareFunc(msp1->sname, msp2->sname);
+      break;
+      
+    case BLXCOL_SOURCE:
+      result = sortByStringCompareFunc(msp1->source, msp2->source);
+      break;
+      
+    case BLXCOL_SCORE:
+      result = multipleMsps ? 0 : (int)(msp1->score - msp2->score);
+      break;
+      
+    case BLXCOL_ID:
+      result = multipleMsps ? 0 : sortByDoubleCompareFunc(msp1, msp2);
+      break;
+      
+    case BLXCOL_START:
+      if (multipleMsps)
+        result = sortByStartCompareFuncMultiple(mspGList1, mspGList2, msp1->qStrand == BLXSTRAND_FORWARD, msp2->qStrand == BLXSTRAND_FORWARD, tree);
+      else
+        result = sortByStartCompareFunc(msp1, msp2, tree);
+      break;
+      
+    case BLXCOL_GROUP:
+      result = sortByGroupCompareFunc(msp1, msp2, tree);
+      break;
+      
+    case BLXCOL_ORGANISM:
+      result = sortByStringCompareFunc(mspGetOrganism(msp1), mspGetOrganism(msp2));
+      break;
+      
+    case BLXCOL_GENE_NAME:
+      result = sortByStringCompareFunc(mspGetGeneName(msp1), mspGetGeneName(msp2));
+      break;
+      
+    case BLXCOL_TISSUE_TYPE:
+      result = sortByStringCompareFunc(mspGetTissueType(msp1), mspGetTissueType(msp2));
+      break;
+      
+    case BLXCOL_STRAIN:
+      result = sortByStringCompareFunc(mspGetStrain(msp1), mspGetStrain(msp2));
+      break;
+      
+    default:
+      g_warning("Sort function not implemented for column '%s'.\n", columnInfo->title);
+      break;
+  };
+
+  /* Invert the result if we need to sort descending instead of ascending. */
+  if (treeGetColumnSortOrder(tree, sortColumn) == GTK_SORT_DESCENDING)
+    {
+      result *= -1;
+    }
+  
+  return result;
+}
+
+
+/* This is the main sort comparison function for comparing two rows of a 
+ * tree view. The sort criteria are specified in the detailView properties;
+ * we may sort by multiple columns.
+ * 
+ * Returns a negative value if the first row appears before the second,
+ * positive if the second appears before the first, or 0 if they are 
+ * equivalent. */
 static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data)
 {
   gint result = UNSET_INT;
 
-  /* Extract the sort column and sort order */
-  gint col;
-  gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(model), &col, NULL);
-
-  BlxColumnId sortColumn = (BlxColumnId)col; 
-
-  /* Extract the MSP lists from the tree rows */
-  GList *mspGList1 = treeGetMsps(model, iter1);
-  GList *mspGList2 = treeGetMsps(model, iter2);
-
-  /* Get the first MSP in each list. */
-  MSP *msp1 = (MSP*)(mspGList1->data);
-  MSP *msp2 = (MSP*)(mspGList2->data);
-
-  /* Check whether either row has more than one MSP. If so, it means some options aren't applicable. */
-  const gboolean multipleMsps = g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1;
-  
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *detailView = treeGetDetailView(tree);
-  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
+
+  /* Sort by each requested column in order of priority */
+  BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
   
-  switch (sortColumn)
+  if (sortColumns)
     {
-      case BLXCOL_SEQNAME:
-        result = sortByStringCompareFunc(msp1->sname, msp2->sname);
-        break;
+      int priority = 0;
 
-      case BLXCOL_SOURCE:
-        result = sortByStringCompareFunc(msp1->source, msp2->source);
-        break;
-        
-      case BLXCOL_SCORE:
-        result = multipleMsps ? 0 : (int)(msp1->score - msp2->score);
-        break;
-	
-      case BLXCOL_ID:
-        result = multipleMsps ? 0 : sortByDoubleCompareFunc(msp1, msp2);
-        break;
+      for ( ; priority < BLXCOL_NUM_COLUMNS; ++priority)
+        {
+          BlxColumnId sortColumn = sortColumns[priority];
+          
+          /* UNSET indicates an unused entry in the priority array; if we reach
+           * an unset value, there should be no more values after it */
+          if (sortColumn == UNSET_INT)
+            break;
 
-      case BLXCOL_START:
-        if (multipleMsps)
-          result = sortByStartCompareFuncMultiple(mspGList1, mspGList2, msp1->qStrand == BLXSTRAND_FORWARD, msp2->qStrand == BLXSTRAND_FORWARD, tree);
-        else
-          result = sortByStartCompareFunc(msp1, msp2, tree);
-        break;
-
-      case BLXCOL_GROUP:
-        result = sortByGroupCompareFunc(msp1, msp2, tree);
-        break;
-
-      case BLXCOL_ORGANISM:
-        result = sortByStringCompareFunc(mspGetOrganism(msp1), mspGetOrganism(msp2));
-        break;
-
-      case BLXCOL_GENE_NAME:
-        result = sortByStringCompareFunc(mspGetGeneName(msp1), mspGetGeneName(msp2));
-        break;
-
-      case BLXCOL_TISSUE_TYPE:
-        result = sortByStringCompareFunc(mspGetTissueType(msp1), mspGetTissueType(msp2));
-        break;
-
-      case BLXCOL_STRAIN:
-        result = sortByStringCompareFunc(mspGetStrain(msp1), mspGetStrain(msp2));
-        break;
-        
-      default:
-        g_warning("Sort function not implemented for column '%s'.\n", columnInfo->title);
-        break;
-    };
+          /* Do the comparison on this column */
+          result = sortByColumnCompareFunc(model, iter1, iter2, detailView, tree, sortColumn);
+          
+          /* If rows are equal, continue to sort; otherwise we're done */
+          if (result != 0)
+            break;
+        }
+    }
   
   return result;
 }

@@ -2803,6 +2803,13 @@ static int detailViewGetSnpConnectorHeight(GtkWidget *detailView)
 }
 
 
+BlxColumnId* detailViewGetSortColumns(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->sortColumns : NULL;
+}
+
+
 /* Perform required updates after the selected base has changed. */
 static void updateFollowingBaseSelection(GtkWidget *detailView,
 					 const gboolean allowScroll,
@@ -2982,7 +2989,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 				       GList *columnList,
 				       GtkAdjustment *adjustment, 
 				       const int startCoord,
-				       const gboolean sortInverted)
+                                       const BlxColumnId sortColumn)
 {
   if (detailView)
     { 
@@ -3049,6 +3056,9 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->exonBoundaryLineWidth	  = 1;
       properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
       properties->exonBoundaryLineStyleEnd   = GDK_LINE_SOLID;
+      
+      if (BLXCOL_NUM_COLUMNS > 0)
+        properties->sortColumns[0] = sortColumn;
       
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
@@ -3683,10 +3693,18 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 }
 
 
-/* Sort the detail view trees by the given column */
+/* This sets the main sort column to be the given column (it does not change
+ * any secondary sort columns). */
 void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn)
 {
-  callFuncOnAllDetailViewTrees(detailView, treeSetSortColumn, GINT_TO_POINTER(sortColumn));
+  if (BLXCOL_NUM_COLUMNS > 0)
+    {
+      DetailViewProperties *properties = detailViewGetProperties(detailView);
+      properties->sortColumns[0] = sortColumn;
+    }
+
+  /* Update all of the trees */
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
 }
 
 
@@ -4663,7 +4681,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 			     columnList,
 			     adjustment, 
 			     startCoord,
-			     sortInverted);
+                             sortColumn);
   
   return detailView;
 }

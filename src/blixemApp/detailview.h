@@ -102,6 +102,7 @@ typedef struct _DetailViewProperties
     GtkWidget *feedbackBox;	  /* A text box that feeds back info to the user about the currently selected items */
     GtkWidget *statusBar;	  /* A status bar that feeds back info to the user about the currently moused-over items */
     GList *columnList;		  /* A list of details about all the columns in the detail view */
+    BlxColumnId sortColumns[BLXCOL_NUM_COLUMNS];  /* List of columns to sort by, in order of priority */
     
     GList *fwdStrandTrees;	  /* A list of all the trees that show the forward strand of the ref seq */
     GList *revStrandTrees;	  /* A list of all the trees that show the reverse strand of the ref seq */
@@ -153,6 +154,7 @@ GtkWidget*	        detailViewGetBlxWindow(GtkWidget *detailView);
 gdouble			detailViewGetCharWidth(GtkWidget *detailView);
 gdouble			detailViewGetCharHeight(GtkWidget *detailView);
 int                     detailViewGetNumUnalignedBases(GtkWidget *detailView);
+BlxColumnId*            detailViewGetSortColumns(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
 DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId);
 int			detailViewGetActiveFrame(GtkWidget *detailView);
