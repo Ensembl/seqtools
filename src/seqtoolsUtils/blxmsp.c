@@ -849,10 +849,11 @@ static BlxSequence *findBlxSequence(GArray *featureLists[],
 	
 	  for ( ; msp; msp = mspArrayIdx(featureLists[typeId], ++i))
 	    {
-	      if (msp->sSequence && msp->sSequence->sequence && msp->sSequence->sequence->str &&
-		  rangesEqual(&msp->qRange, &newMsp->qRange) &&
-		  rangesEqual(&msp->sRange, &newMsp->sRange) &&
-		  stringsEqual(sequence, msp->sSequence->sequence->str, FALSE))
+	      if (msp->sSequence && msp->sSequence->sequence && msp->sSequence->sequence->str && /* has a sequence */
+                  msp->sSequence->strand == reqdStrand &&                                        /* is the correct strand */
+		  rangesEqual(&msp->qRange, &newMsp->qRange) &&                                  /* correct range on the ref seq */
+		  rangesEqual(&msp->sRange, &newMsp->sRange) &&                                  /* correct range from the match seq */
+		  stringsEqual(sequence, msp->sSequence->sequence->str, FALSE))                  /* sequence is identical */
 		{
 		  result = msp->sSequence;
 		  break;
