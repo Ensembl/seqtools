@@ -723,10 +723,6 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
     }
   
   updateDetailViewRange(detailView);
-  
-  /* to do: updateDetailViewRange calls refilterDetailView, but this doesn't
-   * work for zooming for some reason. Quick fix for now is to do a full refilter... */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
 }
 
 
