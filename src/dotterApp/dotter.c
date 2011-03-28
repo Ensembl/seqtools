@@ -195,17 +195,17 @@ static const GtkActionEntry menuEntries[] = {
 { "ViewMenuAction",   NULL, "_View"},
 { "HelpMenuAction",   NULL, "_Help"},
 
-{ "Quit",             NULL, "_Quit all dotters\tCtrl-Q",   NULL, "Quit dotter",                G_CALLBACK(onQuitMenu)},
-{ "Close",            NULL, "_Close this dotter\tCtrl-W",  NULL, "Quit dotter",                G_CALLBACK(onCloseMenu)},
-{ "SavePlot",         NULL, "_Save plot",                  NULL, "Save plot",                  G_CALLBACK(onSavePlotMenu)},
-{ "Print",            NULL, "_Print...\t\t\tCtrl-P",          NULL, "Print",                      G_CALLBACK(onPrintMenu)},
-{ "Settings",         NULL, "Settings\t\t\tCtrl-S",        NULL, "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
-{ "ShowGreyramp",     NULL, "_Greyramp tool\tCtrl-G",      NULL, "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
-{ "ShowAlignment",    NULL, "_Alignment tool\tCtrl-A",     NULL, "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
-{ "Help",             NULL, "_Help\t\t\tCtrl-H",           NULL, "Dotter Help",                G_CALLBACK(onHelpMenu)},
-{ "About",            NULL, "_About",                      NULL, "About Dotter",               G_CALLBACK(onAboutMenu)},
-{ "CopyHCoord",       NULL, "Copy _horizontal coord",      NULL, "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
-{ "CopyVCoord",       NULL, "Copy _vertical coord",        NULL, "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
+{ "Quit",           GTK_STOCK_QUIT,         "_Quit all dotters",      "<control>Q", "Quit all dotters",           G_CALLBACK(onQuitMenu)},
+{ "Close",          GTK_STOCK_CLOSE,        "_Close this dotter",     "<control>W", "Close this dotter",          G_CALLBACK(onCloseMenu)},
+{ "SavePlot",       GTK_STOCK_SAVE,         "_Save plot",             NULL,         "Save plot",                  G_CALLBACK(onSavePlotMenu)},
+{ "Print",          GTK_STOCK_PRINT,        "_Print...",              "<control>P", "Print",                      G_CALLBACK(onPrintMenu)},
+{ "Settings",       GTK_STOCK_PREFERENCES,  "Settings",               "<control>S", "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
+{ "ShowGreyramp",   NULL,                   "_Greyramp tool",         "<control>G", "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
+{ "ShowAlignment",  NULL,                   "_Alignment tool",        "<control>A", "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
+{ "Help",           GTK_STOCK_HELP,         "_Help",                  "<control>H", "Dotter Help",                G_CALLBACK(onHelpMenu)},
+{ "About",          GTK_STOCK_ABOUT,        "_About",                 NULL,         "About Dotter",               G_CALLBACK(onAboutMenu)},
+{ "CopyHCoord",     NULL,                   "Copy _horizontal coord", NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
+{ "CopyVCoord",     NULL,                   "Copy _vertical coord",   NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
 };
 
 /* Toggle-able menu entries are listed here: */
@@ -231,7 +231,7 @@ static const GtkRadioActionEntry radioMenuEntries[] = {
 /* Menu UI descriptions */
 static const char mainMenuDescription[] =
 "<ui>"
-"  <menubar name='MainMenu'>"
+"  <menubar name='MenuBar'>"
 "    <menu action='FileMenuAction'>"
 "      <menuitem action='SavePlot'/>"
 "      <separator/>"
@@ -3402,6 +3402,8 @@ static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspM
   
   GtkUIManager *ui_manager = gtk_ui_manager_new ();
   gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
+  gtk_ui_manager_set_add_tearoffs(ui_manager, TRUE);
+  
   GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
   gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
   
@@ -3449,7 +3451,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   
   /* Create the menu bar, and a right-click context menu */
   GtkUIManager *uiManager = createUiManager(dotterWindow, hspMode);
-  GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MainMenu", uiManager);
+  GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", uiManager);
   GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", uiManager);
   
   /* We'll put everything in a vbox */
