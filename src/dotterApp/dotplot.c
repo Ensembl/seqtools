@@ -2009,7 +2009,14 @@ void refreshDotplot(GtkWidget *dotplot)
 /* Clear all cached drawables and redraw everything */
 void redrawDotplot(GtkWidget *dotplot)
 {
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  widgetClearCachedDrawable(properties->hozExons1, NULL);
+  widgetClearCachedDrawable(properties->hozExons2, NULL);
+  widgetClearCachedDrawable(properties->vertExons1, NULL);
+  widgetClearCachedDrawable(properties->vertExons2, NULL);
+
   callFuncOnAllChildWidgets(dotplot, widgetClearCachedDrawable);
+
   gtk_widget_queue_draw(dotplot);
 }
 
