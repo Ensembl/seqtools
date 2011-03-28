@@ -251,12 +251,13 @@ static gboolean onExposeSequence(GtkWidget *widget, GdkEventExpose *event, gpoin
   GdkWindow *drawable = widgetGetDrawable(widget);
   
   if (!drawable)
-    drawable = createBlankPixmap(widget);
+    {
+      drawable = createBlankPixmap(widget);
+      drawSequence(drawable, widget, alignmentTool);
+    }
   
   if (drawable)
     {
-      drawSequence(drawable, widget, alignmentTool);
-      
       GdkGC *gc = gdk_gc_new(widget->window);
       gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
       g_object_unref(gc);
@@ -273,12 +274,13 @@ static gboolean onExposeRefSequenceHeader(GtkWidget *widget, GdkEventExpose *eve
   GdkDrawable *drawable = widgetGetDrawable(widget);
 
   if (!drawable)
-    drawable = createBlankPixmap(widget);
+    {
+      drawable = createBlankPixmap(widget);
+      drawSequenceHeader(widget, alignmentTool, drawable, TRUE);
+    }
   
   if (drawable)
     {
-      drawSequenceHeader(widget, alignmentTool, drawable, TRUE);
-      
       GdkGC *gc = gdk_gc_new(widget->window);
       gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
       g_object_unref(gc);
@@ -295,12 +297,13 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
   GdkDrawable *drawable = widgetGetDrawable(widget);
   
   if (!drawable)
-    drawable = createBlankPixmap(widget);
+    {
+      drawable = createBlankPixmap(widget);
+      drawSequenceHeader(widget, alignmentTool, drawable, FALSE);
+    }
   
   if (drawable)
     {
-      drawSequenceHeader(widget, alignmentTool, drawable, FALSE);
-      
       GdkGC *gc = gdk_gc_new(widget->window);
       gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
       g_object_unref(gc);
