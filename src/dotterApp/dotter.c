@@ -190,6 +190,11 @@ static void                       onToggleUsePrintColorsMenu(GtkAction *action, 
 
 /* Menu builders: the action entry list lists menu actions for all menus */
 static const GtkActionEntry menuEntries[] = {
+{ "FileMenuAction",   NULL, "_File"},
+{ "EditMenuAction",   NULL, "_Edit"},
+{ "ViewMenuAction",   NULL, "_View"},
+{ "HelpMenuAction",   NULL, "_Help"},
+
 { "Quit",             NULL, "_Quit all dotters\tCtrl-Q",   NULL, "Quit dotter",                G_CALLBACK(onQuitMenu)},
 { "Close",            NULL, "_Close this dotter\tCtrl-W",  NULL, "Quit dotter",                G_CALLBACK(onCloseMenu)},
 { "SavePlot",         NULL, "_Save plot",                  NULL, "Save plot",                  G_CALLBACK(onSavePlotMenu)},
@@ -222,10 +227,12 @@ static const GtkRadioActionEntry radioMenuEntries[] = {
 };
 
 
-/* Menu descriptions - these define the layouts of the individual menus */
-static const char fileMenuDescription[] =
+
+/* Menu UI descriptions */
+static const char mainMenuDescription[] =
 "<ui>"
-"  <popup name='File'>"
+"  <menubar name='MainMenu'>"
+"    <menu action='FileMenuAction'>"
 "      <menuitem action='SavePlot'/>"
 "      <separator/>"
 "      <menuitem action='Print'/>"
@@ -233,22 +240,14 @@ static const char fileMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='Close'/>"
 "      <menuitem action='Quit'/>"
-"  </popup>"
-"</ui>";
-
-static const char editMenuDescription[] =
-"<ui>"
-"  <popup name='Edit'>"
+"    </menu>"
+"    <menu action='EditMenuAction'>"
 "      <menuitem action='CopyHCoord'/>"
 "      <menuitem action='CopyVCoord'/>"
 "      <separator/>"
 "      <menuitem action='Settings'/>"
-"  </popup>"
-"</ui>";
-
-static const char viewMenuDescription[] =
-"<ui>"
-"  <popup name='View'>"
+"    </menu>"
+"    <menu action='ViewMenuAction'>"
 "      <menuitem action='ShowGreyramp'/>"
 "      <menuitem action='ShowAlignment'/>"
 "      <separator/>"
@@ -263,31 +262,25 @@ static const char viewMenuDescription[] =
 "      <menuitem action='HspsGrey'/>"
 "      <menuitem action='HspsLine'/>"
 "      <menuitem action='HspsFunc'/>"
-"  </popup>"
-"</ui>";
-
-static const char helpMenuDescription[] =
-"<ui>"
-"  <popup name='Help'>"
+"    </menu>"
+"    <menu action='HelpMenuAction'>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='About'/>"
-"  </popup>"
-"</ui>";
-
-/* The right-click context menu offers all the above on a single menu (to maintain historic behaviour) */
-static const char contextMenuDescription[] =
-"<ui>"
-"  <popup name='Context'>"
-"      <menuitem action='Close'/>"
-"      <menuitem action='Quit'/>"
-"      <menuitem action='Help'/>"
-"      <menuitem action='SavePlot'/>"
-"      <menuitem action='Print'/>"
-"      <separator/>"
-"      <menuitem action='Settings'/>"
-"      <separator/>"
-"      <menuitem action='ShowGreyramp'/>"
-"      <menuitem action='ShowAlignment'/>"
+"    </menu>"
+"  </menubar>"
+"  <popup name='ContextMenu'>"
+"    <menuitem action='Close'/>"
+"    <menuitem action='Quit'/>"
+"    <menuitem action='Help'/>"
+"    <menuitem action='SavePlot'/>"
+"    <menuitem action='Print'/>"
+"    <separator/>"
+"    <menuitem action='Settings'/>"
+"    <separator/>"
+"    <menuitem action='ShowGreyramp'/>"
+"    <menuitem action='ShowAlignment'/>"
+"    <separator/>"
+"    <menu action='ViewMenuAction'>"
 "      <separator/>"
 "      <menuitem action='ToggleCrosshair'/>"
 "      <menuitem action='ToggleCoords'/>"
@@ -300,6 +293,7 @@ static const char contextMenuDescription[] =
 "      <menuitem action='HspsGrey'/>"
 "      <menuitem action='HspsLine'/>"
 "      <menuitem action='HspsFunc'/>"
+"    </menu>"
 "  </popup>"
 "</ui>";
 
@@ -3418,9 +3412,7 @@ static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspM
 /* Create a menu. Optionally add it to the given menu bar, if menuBar is not null, with the given label */
 static GtkWidget* createDotterMenu(GtkWidget *window, 
                                    const char *menuDescription, 
-                                   const char *menuLabel, 
                                    const char *path, 
-                                   GtkMenuBar *menuBar,
                                    GtkUIManager *ui_manager)
 {
   GError *error = NULL;
@@ -3432,28 +3424,7 @@ static GtkWidget* createDotterMenu(GtkWidget *window,
   
   GtkWidget *menu = gtk_ui_manager_get_widget (ui_manager, path);
   
-  if (menuBar)
-    {
-      GtkWidget *menuItem = gtk_menu_item_new_with_mnemonic(menuLabel);
-      gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuItem), menu);
-      gtk_menu_bar_append(menuBar, menuItem);
-    }
-  
   return menu;
-}
-
-
-/* Create the dotter menu bar. */
-static GtkWidget *createDotterMenuBar(GtkWidget *window, const DotterHspMode hspMode, GtkUIManager *uiManager)
-{
-  GtkWidget *menuBar = gtk_menu_bar_new();
-  
-  createDotterMenu(window, fileMenuDescription, "_File", "/File", GTK_MENU_BAR(menuBar), uiManager);
-  createDotterMenu(window, editMenuDescription, "_Edit", "/Edit", GTK_MENU_BAR(menuBar), uiManager);
-  createDotterMenu(window, viewMenuDescription, "_View", "/View", GTK_MENU_BAR(menuBar), uiManager);
-  createDotterMenu(window, helpMenuDescription, "_Help", "/Help", GTK_MENU_BAR(menuBar), uiManager);
-  
-  return menuBar;
 }
 
 
@@ -3478,8 +3449,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   
   /* Create the menu bar, and a right-click context menu */
   GtkUIManager *uiManager = createUiManager(dotterWindow, hspMode);
-  GtkWidget *menuBar = createDotterMenuBar(dotterWindow, hspMode, uiManager);
-  GtkWidget *contextMenu = createDotterMenu(dotterWindow, contextMenuDescription, "Context", "/Context", NULL, uiManager);
+  GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MainMenu", uiManager);
+  GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", uiManager);
   
   /* We'll put everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
