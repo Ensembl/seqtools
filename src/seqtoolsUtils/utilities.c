@@ -2751,14 +2751,27 @@ static void buttonDetach(GtkHandleBox *handlebox, GtkWidget *toolbar, gpointer d
   gtk_widget_set_usize(toolbar, -1, -2);
 }
 
+
+/* This creates a handle box where we can attach/detach a toolbar */
+GtkWidget *createToolbarHandle()
+{
+  GtkWidget *handleBox = gtk_handle_box_new();
+
+  /* this stops the toolbar forcing the size of the parent window */
+  g_signal_connect(GTK_OBJECT(handleBox), "child-attached", G_CALLBACK(buttonAttach), NULL);
+  g_signal_connect(GTK_OBJECT(handleBox), "child-detached", G_CALLBACK(buttonDetach), NULL);
+
+  return handleBox;
+}
+
+
 /* Create an empty toolbar with our prefered settings. Sets the given
  * pointer to the actual toolbar and returns a pointer to the container of
  * the toolbar, if different (i.e. the widget that will be packed into the
  * parent container). */
 GtkWidget* createEmptyButtonBar(GtkToolbar **toolbar)
 {
-  /* Create a handle box for the toolbar and add it to the window */
-  GtkWidget *handleBox = gtk_handle_box_new();
+  GtkWidget *handleBox = createToolbarHandle();
   
   /* Create the toolbar */
   *toolbar = GTK_TOOLBAR(gtk_toolbar_new());
@@ -2778,10 +2791,7 @@ GtkWidget* createEmptyButtonBar(GtkToolbar **toolbar)
 	  "widget \"*%s*\" style \"packedToolbar\"", SEQTOOLS_TOOLBAR_NAME);
   gtk_rc_parse_string(parseString);
   
-  
-  /* next three lines stop toolbar forcing the size of a blixem window */
-  g_signal_connect(GTK_OBJECT(handleBox), "child-attached", G_CALLBACK(buttonAttach), NULL);
-  g_signal_connect(GTK_OBJECT(handleBox), "child-detached", G_CALLBACK(buttonDetach), NULL);
+  /* this stops the toolbar forcing the size of the parent window */
   gtk_widget_set_usize(GTK_WIDGET(*toolbar), 1, -2);
   
   /* Add the toolbar to the handle box */

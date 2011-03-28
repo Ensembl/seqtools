@@ -459,6 +459,7 @@ const char*			   findFixedWidthFont(GtkWidget *widget);
 const char*			   findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families);
 void                               getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height);
 
+GtkWidget*                         createToolbarHandle();
 GtkWidget*                         createEmptyButtonBar(GtkToolbar **toolbar);
 void                               makeToolbarButton(GtkToolbar *toolbar, char *label, char *stockId, char *tooltip, GtkSignalFunc callback_func, gpointer data);
 
