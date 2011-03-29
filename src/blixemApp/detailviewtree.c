@@ -2601,8 +2601,10 @@ static gint sortByColumnCompareFunc(GtkTreeModel *model,
   MSP *msp1 = (MSP*)(mspGList1->data);
   MSP *msp2 = (MSP*)(mspGList2->data);
   
-  /* Check whether either row has more than one MSP. If so, it means some options aren't applicable. */
-  const gboolean multipleMsps = g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1;
+  /* Check whether either row has more than one MSP. If so, it means some options
+   * aren't applicable (unless they're short reads, which should be identical if
+   * they're in the same row, so we can treat those as singular). */
+  const gboolean multipleMsps = (!mspIsShortRead(msp1) || !mspIsShortRead(msp2)) && (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
   
   /* Get details about this column */
   DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
