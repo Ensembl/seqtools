@@ -2364,18 +2364,6 @@ static void onSquashMatches(GtkWidget *button, gpointer data)
 }
 
 
-/* Callback function called when the 'invert sort order' button is toggled */
-static void onSortOrderToggled(GtkWidget *button, gpointer data)
-{
-  const gboolean invert = setFlagFromButton(button, data);
-  
-  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-  detailViewUpdateSortInverted(detailView, invert);
-}
-
-
 /* Callback function called when the 'Show Variation track' button is toggled */
 static void onShowVariationTrackToggled(GtkWidget *button, gpointer data)
 {
@@ -3226,7 +3214,6 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   createCheckButton(GTK_BOX(vbox2), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
   createCheckButton(GTK_BOX(vbox2), "_Squash matches", bc->flags[BLXFLAG_SQUASH_MATCHES], G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
-  createCheckButton(GTK_BOX(vbox2), "_Invert sort order", bc->flags[BLXFLAG_INVERT_SORT], G_CALLBACK(onSortOrderToggled), GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
 
   
   /* Other boxes */
@@ -3303,6 +3290,20 @@ static void setSortColumnFromComboBox(GtkComboBox *combo, DetailViewProperties *
       BlxColumnId sortColumn = g_value_get_int(&val);
       dvProperties->sortColumns[priority] = sortColumn;
     }
+}
+
+
+/* Callback function called when the 'invert sort order' button is toggled */
+static gboolean onInvertSortChanged(GtkWidget *button, const gint responseId, gpointer data)
+{
+  const gboolean invert = setFlagFromButton(button, data);
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  detailViewUpdateSortInverted(detailView, invert);
+  
+  return TRUE;
 }
 
 
@@ -3502,6 +3503,16 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   gtk_box_pack_end(GTK_BOX(vbox), button, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onAddNewSortByBox), vbox);
   
+  
+  /* Add a toggle button for the 'invert sort order' option */
+  GtkWidget *toggle = gtk_check_button_new_with_mnemonic("_Invert sort order");
+  gtk_box_pack_end(GTK_BOX(vbox), toggle, FALSE, FALSE, 0);
+  
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(toggle), bc->flags[BLXFLAG_INVERT_SORT]);
+  widgetSetCallbackData(toggle, onInvertSortChanged, GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
+  
+
+  /* Shot the dialog */
   gtk_widget_show_all(dialog);
   
   if (bringToFront)
