@@ -230,7 +230,8 @@ typedef enum
     BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
     BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
     
-    BLXCOL_NUM_COLUMNS          /* The number of columns; must always be the last item in this enum */
+    BLXCOL_NUM_COLUMNS,         /* The number of columns; must always appear AFTER all valid tree column IDs */
+    BLXCOL_NONE                 /* Used for sorting to indicate that no sorting is required; not a valid column ID in the trees, so appears after NUM_COLUMNS */
   } BlxColumnId;
 
 
@@ -260,6 +261,7 @@ typedef enum
     
     BLXDIALOG_HELP,                 /* The Help dialog */
     BLXDIALOG_SETTINGS,             /* The Settings dialog */
+    BLXDIALOG_SORT,                 /* The Sort dialog */
     BLXDIALOG_FIND,                 /* The Find dialog */
     BLXDIALOG_GROUPS,               /* The Groups dialog */
     BLXDIALOG_VIEW,                 /* The View dialog */

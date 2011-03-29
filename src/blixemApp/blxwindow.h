@@ -98,6 +98,7 @@ void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardTex
 void                      refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow);
 void			  showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront);
 void			  showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void                      showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront);
 void			  showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront);
 void			  showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gboolean bringToFront);
 void			  showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront);

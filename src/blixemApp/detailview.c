@@ -67,6 +67,7 @@
 #define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
 #define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
 #define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
+#define BLXCOL_ID_WIDTH                 45    /* default width for the ID column */
 #define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
 #define BLXCOL_GROUP_WIDTH              58    /* default width for group column  */
 #define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
@@ -78,7 +79,6 @@
 #define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
 
 
-typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
 
 
 typedef struct 
@@ -3057,6 +3057,10 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
       properties->exonBoundaryLineStyleEnd   = GDK_LINE_SOLID;
       
+      int i = 0;
+      for ( ; i < BLXCOL_NUM_COLUMNS; ++i)
+        properties->sortColumns[i] = BLXCOL_NONE;
+
       if (BLXCOL_NUM_COLUMNS > 0)
         properties->sortColumns[0] = sortColumn;
       
@@ -3700,11 +3704,15 @@ void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn
   if (BLXCOL_NUM_COLUMNS > 0)
     {
       DetailViewProperties *properties = detailViewGetProperties(detailView);
-      properties->sortColumns[0] = sortColumn;
+      
+      if (properties->sortColumns[0] != sortColumn)
+        {
+          properties->sortColumns[0] = sortColumn;
+      
+          /* Update all of the trees */
+          callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+        }
     }
-
-  /* Update all of the trees */
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
 }
 
 
@@ -3893,26 +3901,6 @@ void lastMatch(GtkWidget *detailView, GList *seqList)
 }
 
 
-/* Callback called when the sort order has been changed in the drop-down box */
-static void onSortOrderChanged(GtkComboBox *combo, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-
-  GtkTreeIter iter;
-  
-  if (GTK_WIDGET_REALIZED(detailView) && gtk_combo_box_get_active_iter(combo, &iter))
-    {
-      GtkTreeModel *model = gtk_combo_box_get_model(combo);
-      
-      GValue val = {0};
-      gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
-      
-      BlxColumnId sortColumn = g_value_get_int(&val);
-      detailViewSetSortColumn(detailView, sortColumn);
-    }
-}
-
-
 static void GShowHelp(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
@@ -3929,6 +3917,12 @@ static void GShowSettings(GtkButton *button, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   showSettingsDialog(detailViewGetBlxWindow(detailView), TRUE);
+}
+
+static void GSortDetailView(GtkButton *button, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  showSortDialog(detailViewGetBlxWindow(detailView), TRUE);
 }
 
 static void GFind(GtkButton *button, gpointer data)
@@ -4129,7 +4123,7 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   /* Create the column headers and pack them into the column header bar */
   createColumn(BLXCOL_SEQNAME,     NULL,     NULL,        "Name",       RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,   TRUE,   "Name",        &columnList, detailView);
   createColumn(BLXCOL_SCORE,       NULL,     NULL,        "Score",      RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,   TRUE,   "Score",       &columnList, detailView);
-  createColumn(BLXCOL_ID,          NULL,     NULL,        "%Id",        RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,   TRUE,   "Identity",    &columnList, detailView);
+  createColumn(BLXCOL_ID,          NULL,     NULL,        "%Id",        RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,   TRUE,   "Identity",    &columnList, detailView);
   createColumn(BLXCOL_START,       NULL,     NULL,        "Start",      RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,   TRUE,   "Position",    &columnList, detailView);
   createColumn(BLXCOL_SEQUENCE,    seqHeader,seqCallback, "Sequence",   RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,   TRUE,   NULL,          &columnList, detailView);
   createColumn(BLXCOL_END,         NULL,     NULL,        "End",        RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,   TRUE,   NULL,          &columnList, detailView);
@@ -4266,68 +4260,6 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 }
 
 
-/* Add an option for the sorting drop-down box */
-static GtkTreeIter* addSortBoxItem(GtkTreeStore *store, 
-				  GtkTreeIter *parent, 
-				  BlxColumnId sortColumn, 
-				  const char *sortName,
-				  BlxColumnId initSortColumn,
-				  GtkComboBox *combo)
-{
-  GtkTreeIter iter;
-  gtk_tree_store_append(store, &iter, parent);
-
-  gtk_tree_store_set(store, &iter, SORT_TYPE_COL, sortColumn, SORT_TEXT_COL, sortName, -1);
-
-  if (sortColumn == initSortColumn)
-    {
-      gtk_combo_box_set_active_iter(combo, &iter);
-    }
-  
-  return NULL;
-}
-
-
-/* Create the combo box used for selecting sort criteria */
-static void createSortBox(GtkToolbar *toolbar, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList)
-{
-  /* Add a label, to make it obvious what the combo box is for */
-  GtkWidget *label = gtk_label_new(" <i>Sort by:</i>");
-  gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-  addToolbarWidget(toolbar, label);
-
-  /* Create the data for the drop-down box. Use a tree so that we can sort by
-   * multiple criteria. */
-  GtkTreeStore *store = gtk_tree_store_new(N_SORT_COLUMNS, G_TYPE_INT, G_TYPE_STRING);
-  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
-  g_object_unref(store);
-  addToolbarWidget(toolbar, GTK_WIDGET(combo));
-
-  gtk_combo_box_set_add_tearoffs(GTK_COMBO_BOX(combo), TRUE);
-  
-  /* Create a cell renderer to display the sort text. */
-  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
-  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", SORT_TEXT_COL, NULL);
-
-  /* Add an option to sort by each column that has the 'sortName' property set. */
-  GtkTreeIter *iter = NULL;
-  GList *columnItem = columnList;
-  
-  for ( ; columnItem; columnItem = columnItem->next)
-    {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
-      
-      if (columnInfo->sortName)
-        {
-          iter = addSortBoxItem(store, iter, columnInfo->columnId, columnInfo->sortName, initSortColumn, combo);
-        }
-    }
-  
-  g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(onSortOrderChanged), detailView);
-}
-
-
 /* Create the feedback box. (This feeds back info to the user about the currently-
  * selected base/sequence.) */
 static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
@@ -4380,6 +4312,10 @@ static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
   gtk_container_add(GTK_CONTAINER(toolItem), widget);
   gtk_toolbar_insert(toolbar, toolItem, -1);	    /* -1 means "append" to the toolbar. */
   
+  gtk_tool_item_set_visible_horizontal(toolItem, TRUE);
+  gtk_tool_item_set_visible_vertical(toolItem, TRUE);
+  gtk_tool_item_set_is_important(toolItem, TRUE);
+
   return toolItem;
 }
 
@@ -4389,6 +4325,9 @@ static void insertToolbarSeparator(GtkToolbar *toolbar)
   GtkToolItem *separator = gtk_separator_tool_item_new();
   gtk_separator_tool_item_set_draw(GTK_SEPARATOR_TOOL_ITEM(separator), TRUE);
   gtk_toolbar_insert(toolbar, separator, -1);
+
+  gtk_tool_item_set_visible_horizontal(separator, TRUE);
+  gtk_tool_item_set_visible_vertical(separator, TRUE);
 }
 
 
@@ -4404,21 +4343,24 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   GtkWidget *toolbarContainer = createEmptyButtonBar(&toolbar);
   
   /* Help */
-  makeToolbarButton(toolbar, "Help",  GTK_STOCK_HELP,	    "Help (Ctrl-H)",			(GtkSignalFunc)GShowHelp,		  detailView);
-  makeToolbarButton(toolbar, "About", GTK_STOCK_ABOUT,	    "About",                            (GtkSignalFunc)GShowAbout,		  detailView);
+  makeToolbarButton(toolbar, "Help",  GTK_STOCK_HELP,	    "Help (Ctrl-H)",		(GtkSignalFunc)GShowHelp,	detailView);
+  makeToolbarButton(toolbar, "About", GTK_STOCK_ABOUT,	    "About",                    (GtkSignalFunc)GShowAbout,	detailView);
+  makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",	(GtkSignalFunc)GShowSettings,	detailView);
+  insertToolbarSeparator(toolbar);
 
-  /* Combo box for sorting */
-  createSortBox(toolbar, detailView, sortColumn, columnList);
-
-  /* Settings button */
-  makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",		 (GtkSignalFunc)GShowSettings,	  detailView);
+  /* Sort */
+  //createSortBox(toolbar, detailView, sortColumn, columnList);
+  makeToolbarButton(toolbar, "Sort",  GTK_STOCK_SORT_ASCENDING, "Sort",                 (GtkSignalFunc)GSortDetailView, detailView);
+  insertToolbarSeparator(toolbar);
 
   /* Zoom buttons */
-  makeToolbarButton(toolbar, "Zoom in",		GTK_STOCK_ZOOM_IN,  "Zoom in (=)",		 (GtkSignalFunc)onZoomInDetailView, detailView);
-  makeToolbarButton(toolbar, "Zoom out",	GTK_STOCK_ZOOM_OUT, "Zoom out (-)",		 (GtkSignalFunc)onZoomOutDetailView, detailView);
+  makeToolbarButton(toolbar, "Zoom in",		GTK_STOCK_ZOOM_IN,  "Zoom in (=)",	(GtkSignalFunc)onZoomInDetailView,  detailView);
+  makeToolbarButton(toolbar, "Zoom out",	GTK_STOCK_ZOOM_OUT, "Zoom out (-)",	(GtkSignalFunc)onZoomOutDetailView, detailView);
+  insertToolbarSeparator(toolbar);
   
   /* Navigation buttons */
-  makeToolbarButton(toolbar, "Go to",		GTK_STOCK_JUMP_TO,    "Go to position (p)",		  (GtkSignalFunc)GGoto,		  detailView);
+  makeToolbarButton(toolbar, "Go to",		GTK_STOCK_JUMP_TO,    "Go to position (p)",  (GtkSignalFunc)GGoto,          detailView);
+  insertToolbarSeparator(toolbar);
 
   makeToolbarButton(toolbar, "First match",	GTK_STOCK_GOTO_FIRST, "First match (Ctrl-Home)",	  (GtkSignalFunc)GfirstMatch,	  detailView);
   makeToolbarButton(toolbar, "Previous match",	GTK_STOCK_GO_BACK,    "Previous match (Ctrl-left)",	  (GtkSignalFunc)GprevMatch,	  detailView);
@@ -4430,15 +4372,17 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   makeToolbarButton(toolbar, "<",  NULL,	"Scroll back one index (,)",	    (GtkSignalFunc)GscrollLeft1,    detailView);
   makeToolbarButton(toolbar, ">",  NULL,	"Scroll forward one index (.)",	    (GtkSignalFunc)GscrollRight1,   detailView);
   makeToolbarButton(toolbar, ">>", NULL,	"Scroll forward one page (Ctrl-.)", (GtkSignalFunc)GscrollRightBig, detailView);
+  insertToolbarSeparator(toolbar);
   
   /* Find/Msp-info */
   makeToolbarButton(toolbar, "Find",          GTK_STOCK_FIND,    "Find sequences (f, Ctrl-F)",                      (GtkSignalFunc)GFind,  detailView);
-//  makeToolbarButton(toolbar, "Sequence info", GTK_STOCK_INFO,    "Display info about the selected sequence(s) (i)", (GtkSignalFunc)GInfo,  detailView);
+  insertToolbarSeparator(toolbar);
 
   /* Strand toggle button */
   if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)
     {
       makeToolbarButton(toolbar, "Toggle strand", GTK_STOCK_REFRESH, "Toggle strand (t)", (GtkSignalFunc)GToggleStrand, detailView);
+      insertToolbarSeparator(toolbar);
     }
 
   *feedbackBox = createFeedbackBox(toolbar);

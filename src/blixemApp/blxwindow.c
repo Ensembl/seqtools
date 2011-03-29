@@ -59,6 +59,10 @@
 #define LOAD_DATA_TEXT                   "Load optional data"
 
 
+
+typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
+
+
 /* Utility struct used when comparing sequence names */
 typedef struct _CompareSeqData
   {
@@ -3032,6 +3036,10 @@ void refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow)
                case BLXDIALOG_SETTINGS:
                  showSettingsDialog(blxWindow, FALSE);
                  break;
+
+               case BLXDIALOG_SORT:
+                 showSortDialog(blxWindow, FALSE);
+                 break;
                  
                case BLXDIALOG_HELP:
                  showHelpDialog(blxWindow, FALSE);
@@ -3238,6 +3246,261 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   createCheckButton(GTK_BOX(appearancePage), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
   createColorButtons(appearancePage, blxWindow, borderWidth);
 
+  
+  gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
+}
+
+
+/***********************************************************
+ *                       Sort menu			   *
+ ***********************************************************/
+
+/* See if this widget is a combo box, or if it has a child combo box */
+static GtkComboBox* widgetGetComboBox(GtkWidget *widget)
+{
+  GtkComboBox *result = NULL;
+  
+  if (GTK_IS_COMBO_BOX(widget))
+    {
+      result = GTK_COMBO_BOX(widget);
+    }
+  else if (GTK_IS_CONTAINER(widget))
+    {
+      GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+      
+      for ( ; childItem; childItem = childItem->next)
+        {
+          GtkWidget *childWidget = GTK_WIDGET(childItem->data);
+          result = widgetGetComboBox(childWidget);
+          
+          if (result)
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Set the given sort priority from the value of the given drop-down box */
+static void setSortColumnFromComboBox(GtkComboBox *combo, DetailViewProperties *dvProperties, const int priority)
+{
+  /* Get the combo box value */
+  GtkTreeIter iter;
+  
+  if (gtk_combo_box_get_active_iter(combo, &iter))
+    {
+      GtkTreeModel *model = gtk_combo_box_get_model(combo);
+      
+      GValue val = {0};
+      gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
+      
+      BlxColumnId sortColumn = g_value_get_int(&val);
+      dvProperties->sortColumns[priority] = sortColumn;
+    }
+}
+
+
+/* Callback called when the sort order has been changed in the drop-down box */
+static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  
+  /* Loop through each child of the given widget */
+  if (GTK_WIDGET_REALIZED(detailView) && GTK_IS_CONTAINER(widget))
+    {
+      GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+      int priority = 0;
+      
+      for ( ; childItem; childItem = childItem->next, ++priority)
+        {
+          if (priority >= BLXCOL_NUM_COLUMNS)
+            {
+              g_critical("Exceeded max number of sort columns (%d).\n", BLXCOL_NUM_COLUMNS);
+              break;
+            }
+          
+          /* See if this is a (or has a child) combo box */
+          GtkWidget *childWidget = GTK_WIDGET(childItem->data);
+          GtkComboBox *combo = widgetGetComboBox(childWidget);
+          
+          if (combo)
+            {
+              setSortColumnFromComboBox(combo, dvProperties, priority);
+            }
+        }
+      
+      /* Re-sort trees */
+      callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+    }
+  
+  return TRUE;
+}
+
+
+/* Add an option for the sorting drop-down box */
+static GtkTreeIter* addSortBoxItem(GtkTreeStore *store, 
+                                   GtkTreeIter *parent, 
+                                   BlxColumnId sortColumn, 
+                                   const char *sortName,
+                                   BlxColumnId initSortColumn,
+                                   GtkComboBox *combo)
+{
+  GtkTreeIter iter;
+  gtk_tree_store_append(store, &iter, parent);
+  
+  gtk_tree_store_set(store, &iter, SORT_TYPE_COL, sortColumn, SORT_TEXT_COL, sortName, -1);
+  
+  if (sortColumn == initSortColumn)
+    {
+      gtk_combo_box_set_active_iter(combo, &iter);
+    }
+  
+  return NULL;
+}
+
+
+/* Create the combo box used for selecting sort criteria */
+static void createSortBox(GtkBox *parent, 
+                          GtkWidget *detailView, 
+                          const BlxColumnId initSortColumn, 
+                          GList *columnList, 
+                          const char *labelText)
+{
+  /* Put the label and drop-down in a box */
+  GtkWidget *box = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(parent, box, FALSE, FALSE, 0);
+  
+  /* Add a label, to make it obvious what the combo box is for */
+  GtkWidget *label = gtk_label_new(labelText);
+  gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+  gtk_container_add(GTK_CONTAINER(box), label);
+  
+  /* Create the data for the drop-down box. Use a tree so that we can sort by
+   * multiple criteria. */
+  GtkTreeStore *store = gtk_tree_store_new(N_SORT_COLUMNS, G_TYPE_INT, G_TYPE_STRING);
+  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
+  g_object_unref(store);
+  gtk_container_add(GTK_CONTAINER(box), GTK_WIDGET(combo));
+
+  /* Create a cell renderer to display the sort text. */
+  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
+  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", SORT_TEXT_COL, NULL);
+  
+  /* Add a blank row for the case where nothing is selected */
+  GtkTreeIter *iter = addSortBoxItem(store, NULL, BLXCOL_NONE, "<select column>", initSortColumn, combo);
+
+  /* Add a row for each column that has the 'sortName' property set. */
+  GList *columnItem = columnList;
+
+  for ( ; columnItem; columnItem = columnItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
+
+      if (columnInfo->sortName)
+        {
+          iter = addSortBoxItem(store, iter, columnInfo->columnId, columnInfo->sortName, initSortColumn, combo);
+        }
+    }
+}
+
+
+/* Called when the user clicks the 'add new sort-by box' button on the sort dialog */
+static void onAddNewSortByBox(GtkButton *button, gpointer data)
+{
+  /* The user-data is the container box that contains the sort-by boxes */
+  GtkBox *box = GTK_BOX(data);
+
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(button)));
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+
+  /* Add another sort-by box to the container */
+  createSortBox(box, detailView, BLXCOL_NONE, dvProperties->columnList, "then by");
+  
+  gtk_widget_show_all(GTK_WIDGET(box));
+}
+
+
+/* Show/refresh the "Sort" dialog. */
+void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxDialogId dialogId = BLXDIALOG_SORT;
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
+  
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Blixem - Sort", 
+                                           GTK_WINDOW(blxWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_CANCEL,
+                                           GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_APPLY,
+                                           GTK_RESPONSE_APPLY,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
+      
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+    }
+  else
+    {
+      /* Need to refresh the dialog contents, so clear and re-create content area */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
+  
+  const int borderWidth = 12;
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+
+  /* Add a drop-down for each sort column that is currently specified (or just
+   * the default number if none specified). */
+  GtkWidget *vbox = gtk_vbox_new(FALSE, borderWidth);
+  gtk_container_add(GTK_CONTAINER(contentArea), vbox);
+  int sortPriority = 0;
+  const int minBoxes = 3;
+  
+  for ( ; sortPriority < BLXCOL_NUM_COLUMNS; ++sortPriority)
+    {
+      const BlxColumnId columnId = dvProperties->sortColumns[sortPriority];
+      
+      if (columnId != BLXCOL_NONE || sortPriority < minBoxes)
+        {
+          if (sortPriority == 0)
+            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "Sort by");
+          else
+            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "then by");
+        }
+      else
+        {
+          break;
+        }
+    }
+  
+  widgetSetCallbackData(vbox, onSortOrderChanged, detailView);
+
+  
+  /* Add a button to add a new sort-by box */
+  GtkWidget *button = gtk_button_new_from_stock(GTK_STOCK_ADD);
+  gtk_box_pack_end(GTK_BOX(vbox), button, FALSE, FALSE, 0);
+  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onAddNewSortByBox), vbox);
   
   gtk_widget_show_all(dialog);
   

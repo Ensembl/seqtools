@@ -1740,14 +1740,22 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
        * or the max coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
       const MSP const *msp = (const MSP const *)(mspGList->data);
-      const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      const gboolean findMin = (treeGetDisplayRev(tree) != sameDirection);
       
-      int coord = findMspListSExtent(mspGList, findMin);
+      if (mspIsBlastMatch(msp))
+        {
+          const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
+          const gboolean findMin = (treeGetDisplayRev(tree) != sameDirection);
+          
+          int coord = findMspListSExtent(mspGList, findMin);
 
-      char displayText[numDigitsInInt(coord) + 1];
-      sprintf(displayText, "%d", coord);
-      g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+          char displayText[numDigitsInInt(coord) + 1];
+          sprintf(displayText, "%d", coord);
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+        }
+      else
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
+        }
     }
   else
     {
@@ -1775,14 +1783,22 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
        * or the min coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
       const MSP const *msp = (const MSP const *)(mspGList->data);
-      const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
-      const gboolean findMin = (treeGetDisplayRev(tree) == sameDirection);
       
-      int coord = findMspListSExtent(mspGList, findMin);
+      if (mspIsBlastMatch(msp))
+        {
+          const gboolean sameDirection = (treeGetStrand(tree) == mspGetMatchStrand(msp));
+          const gboolean findMin = (treeGetDisplayRev(tree) == sameDirection);
+          
+          int coord = findMspListSExtent(mspGList, findMin);
 
-      char displayText[numDigitsInInt(coord) + 1];
-      sprintf(displayText, "%d", coord);
-      g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+          char displayText[numDigitsInInt(coord) + 1];
+          sprintf(displayText, "%d", coord);
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
+        }
+      else
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
+        }
     }
   else
     {
@@ -1811,7 +1827,7 @@ static void cellDataFunctionScoreCol(GtkTreeViewColumn *column,
     {
       const MSP const *msp = (const MSP const *)(mspGList->data);
     
-      if (g_list_length(mspGList) == 1 || mspIsShortRead(msp))
+      if (mspIsBlastMatch(msp) && (g_list_length(mspGList) == 1 || mspIsShortRead(msp)))
 	{
 	  const gdouble score = msp->score;
 	  char displayText[numDigitsInInt((int)score) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
@@ -1847,14 +1863,17 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
   else
     {
       const MSP const *msp = (const MSP const *)(mspGList->data);
-    
-      if (g_list_length(mspGList) == 1 || mspIsShortRead(msp))
+
+      /* Only display matches. Only display the ID if we only have one msp in
+       * the row (unless they are short reads, in which case the ID should be the
+       * same for all of them) */
+      if ((g_list_length(mspGList) == 1 && mspIsBlastMatch(msp)) || mspIsShortRead(msp))
 	{
 	  const gdouble id = msp->id;
 	  char displayText[numDigitsInInt((int)id) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
 	  
-    //      sprintf(displayText, "%1.1f", id); 
-	  sprintf(displayText, "%d", (int)id); 
+          sprintf(displayText, "%1.1f", id); 
+//	  sprintf(displayText, "%d", (int)id); 
 
 	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
 	}
@@ -2590,6 +2609,10 @@ static gint sortByColumnCompareFunc(GtkTreeModel *model,
   
   switch (sortColumn)
   {
+    case BLXCOL_NONE:
+      result = 0;
+      break;
+      
     case BLXCOL_SEQNAME:
       result = sortByStringCompareFunc(msp1->sname, msp2->sname);
       break;
@@ -2673,9 +2696,9 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
         {
           BlxColumnId sortColumn = sortColumns[priority];
           
-          /* UNSET indicates an unused entry in the priority array; if we reach
+          /* NONE indicates an unused entry in the priority array; if we reach
            * an unset value, there should be no more values after it */
-          if (sortColumn == UNSET_INT)
+          if (sortColumn == BLXCOL_NONE)
             break;
 
           /* Do the comparison on this column */

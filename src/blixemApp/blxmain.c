@@ -393,7 +393,7 @@ static BlxBlastMode getBlastModeFromChar(char modeChar)
 /* Get the sort mode from a char representing that mode */
 static BlxColumnId getSortModeFromChar(char sortChar)
 {
-  BlxColumnId result;
+  BlxColumnId result = BLXCOL_NONE;
   
   switch (sortChar)
   {
