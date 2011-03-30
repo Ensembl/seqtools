@@ -164,6 +164,7 @@ void			detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand);
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
 int			detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
+const char*             detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId);
 void                    detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange);
 gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
 

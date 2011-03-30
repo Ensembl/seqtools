@@ -65,7 +65,8 @@ typedef enum
   BLX_ERROR_EMPTY_STRING,           /* error code for when user entered a zero-length string */
   BLX_ERROR_STRING_NOT_FOUND,       /* error code for when a search string is not found */
   BLX_ERROR_SEQ_NAME_NOT_FOUND,     /* the sequence name(s) being searched for were not found */
-  BLX_ERROR_SEQ_DATA_MISMATCH       /* same sequence was parsed more than once and data does not match */
+  BLX_ERROR_SEQ_DATA_MISMATCH,      /* same sequence was parsed more than once and data does not match */
+  BLX_ERROR_INVALID_COLUMN          /* error when an invalid column is requested */
 } BlxError;
 
 
@@ -325,6 +326,12 @@ BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GL
 char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
 int		      blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
 int		      blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
+const char*           blxSequenceGetSource(const BlxSequence *seq);
+char*                 blxSequenceGetOrganism(const BlxSequence *seq);
+char*                 blxSequenceGetGeneName(const BlxSequence *seq);
+char*                 blxSequenceGetTissueType(const BlxSequence *seq);
+char*                 blxSequenceGetStrain(const BlxSequence *seq);
+
 
 void		      destroyBlxSequence(BlxSequence *seq);
 

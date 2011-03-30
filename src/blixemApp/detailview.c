@@ -171,6 +171,21 @@ int detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId)
 }
 
 
+/* Return the width of the column with the given column id */
+const char* detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId)
+{
+  const char *result = NULL;
+  
+  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
+  if (columnInfo)
+    {
+      result = columnInfo->title;
+    }
+  
+  return result;
+}
+
+
 /* Scroll the detail view so that the given coord is at the start of the display
  * range (within bounds). the coord should be in terms of display coords */
 void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)

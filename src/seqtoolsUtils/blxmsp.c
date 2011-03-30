@@ -47,11 +47,6 @@ static int g_MaxMspLen = 0;     /* max length in display coords of all MSPs in t
 
 
 /* Local function declarations */
-static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
-static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
-static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
-static char*                    blxSequenceGetStrain(const BlxSequence *seq);
-static const char*              blxSequenceGetSource(const BlxSequence *seq);
 static BlxSequenceType		getBlxSequenceTypeForMsp(const BlxMspType mspType);
 
 
@@ -891,7 +886,7 @@ const char *blxSequenceGetFullName(const BlxSequence *seq)
 /* Return the Source text of a BlxSequence, if it has one (note that it gets
  * this from the first MSP and does no checking whether other MSPs have the 
  * same source or not). */
-static const char *blxSequenceGetSource(const BlxSequence *seq)
+const char *blxSequenceGetSource(const BlxSequence *seq)
 {
   const char *result = NULL;
   
@@ -962,22 +957,22 @@ gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
   return (seq && seq->type == BLXSEQUENCE_MATCH);
 }
 
-static char *blxSequenceGetOrganism(const BlxSequence *seq)
+char *blxSequenceGetOrganism(const BlxSequence *seq)
 {
   return (seq && seq->organism ? seq->organism->str : "");
 }
 
-static char *blxSequenceGetGeneName(const BlxSequence *seq)
+char *blxSequenceGetGeneName(const BlxSequence *seq)
 {
   return (seq && seq->geneName ? seq->geneName->str : "");
 }
 
-static char *blxSequenceGetTissueType(const BlxSequence *seq)
+char *blxSequenceGetTissueType(const BlxSequence *seq)
 {
   return (seq && seq->tissueType ? seq->tissueType->str : "");
 }
 
-static char *blxSequenceGetStrain(const BlxSequence *seq)
+char *blxSequenceGetStrain(const BlxSequence *seq)
 {
   return (seq && seq->strain ? seq->strain->str : "");
 }
