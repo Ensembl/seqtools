@@ -2467,6 +2467,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   
   /* Add a button to delete all groups */
   GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
+  gtk_button_set_image(GTK_BUTTON(deleteGroupsButton), gtk_image_new_from_stock(GTK_STOCK_DELETE, GTK_ICON_SIZE_BUTTON));
   gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
   g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
   gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
