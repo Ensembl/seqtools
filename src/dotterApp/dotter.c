@@ -268,7 +268,7 @@ static const char mainMenuDescription[] =
 "      <menuitem action='About'/>"
 "    </menu>"
 "  </menubar>"
-"  <popup name='ContextMenu'>"
+"  <popup name='ContextMenu' accelerators='true'>"
 "    <menuitem action='Close'/>"
 "    <menuitem action='Quit'/>"
 "    <menuitem action='Help'/>"
