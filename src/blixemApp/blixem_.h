@@ -164,6 +164,7 @@ typedef enum
     BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
+    BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     
     BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
   } BlxFlag;

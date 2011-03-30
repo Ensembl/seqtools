@@ -671,6 +671,22 @@ static gboolean isMspVisible(const MSP const *msp,
 }
 
 
+/* Returns true if sequences in the given group should be shown. If sequences
+ * are not in a group (i.e. the group is null) then by default the result is
+ * true, unless the 'hide ungrouped sequences' option is on. */
+static gboolean isGroupVisible(const SequenceGroup const *group, const BlxViewContext const *bc)
+{
+  gboolean result = TRUE;
+  
+  if (bc->flags[BLXFLAG_HIDE_UNGROUPED])
+    result = (group && !group->hidden);
+  else
+    result = (!group || !group->hidden);
+  
+  return result;
+}
+
+
 /* Filter function. Returns true if the given row in the given tree model should be visible. */
 static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
@@ -692,7 +708,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       const MSP *firstMsp = (const MSP*)(mspList->data);
       SequenceGroup *group = blxContextGetSequenceGroup(bc, firstMsp->sSequence);
       
-      if (!group || !group->hidden)
+      if (isGroupVisible(group, bc))
 	{
 	  BlxViewContext *bc = treeGetContext(tree);
           GtkWidget *detailView = treeGetDetailView(tree);

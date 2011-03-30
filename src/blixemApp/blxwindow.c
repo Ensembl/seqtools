@@ -136,6 +136,8 @@ static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
 
+static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
+
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
@@ -2386,6 +2388,91 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 }
 
 
+/* Callback for when the 'hide ungrouped sequences' option is changed */
+static gboolean onHideUngroupedChanged(GtkWidget *button, const gint responseId, gpointer data)
+{
+  setFlagFromButton(button, data);
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  refilterDetailView(detailView, NULL);
+  blxWindowRedrawAll(blxWindow);
+  
+  return TRUE;
+}
+
+
+/* Create the 'create group' tab of the groups dialog. Appends it to the notebook. */
+static void createCreateGroupTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWidget *blxWindow)
+{
+  const int numRows = 3;
+  const int numCols = 2;
+  const gboolean seqsSelected = g_list_length(bc->selectedSeqs) > 0;
+  
+  /* Put everything in a table */
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+
+  /* Append the table as a new tab to the notebook */
+  gtk_notebook_append_page(notebook, GTK_WIDGET(table), gtk_label_new("Create group"));
+  
+  /* Create the left-hand-side column */
+  GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, onAddGroupFromText, blxWindow);
+  createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onAddGroupFromList, blxWindow);
+  createSearchColumnCombo(table, 1, 3, blxWindow);
+  
+  /* Create the right-hand-side column */
+  createRadioButton(table, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, onAddGroupFromSelection, blxWindow);
+}
+
+
+/* Create the 'edit groups' tab of the groups dialog. Appends it to the given notebook. */
+static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWidget *blxWindow)
+{
+  const int numRows = g_list_length(bc->sequenceGroups) + 3; /* +3 for: header; delete-all button; only show groups button */
+  const int numCols = 6;
+  const int xpad = DEFAULT_TABLE_XPAD;
+  const int ypad = DEFAULT_TABLE_YPAD;
+  int row = 1;
+  
+  /* Put everything in a table */
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  
+  /* Append the table as a new tab to the notebook */
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table), gtk_label_new("Edit groups"));
+  
+  /* Add a check button to turn on the 'hide ungrouped sequences' option */
+  GtkWidget *hideButton = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton), bc->flags[BLXFLAG_HIDE_UNGROUPED]);
+  widgetSetCallbackData(hideButton, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED));
+
+  gtk_table_attach(table, hideButton, 1, 2, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  ++row;
+  
+  /* Add labels for each column in the table */
+  gtk_table_attach(table, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Highlight"),     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  ++row;
+  
+  /* Add a set of widgets for each group */
+  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
+  for ( ; groupItem; groupItem = groupItem->next)
+    {
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      createEditGroupWidget(blxWindow, group, table, row, xpad, ypad);
+      ++row;
+    }
+  
+  /* Add a button to delete all groups */
+  GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
+  gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
+  g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
+  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+}
+
+
 /* Shows the "Group sequences" dialog. This dialog allows the user to group sequences together.
  * This tabbed dialog shows both the 'create group' and 'edit groups' dialogs in one. If the
  * 'editGroups' argument is true and groups exist, the 'Edit Groups' tab is displayed by default;
@@ -2422,57 +2509,13 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
       dialogClearContentArea(GTK_DIALOG(dialog));
     }
   
-  const gboolean seqsSelected = g_list_length(bc->selectedSeqs) > 0;
-
   /* Create tabbed pages */
   GtkWidget *notebook = gtk_notebook_new();
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), notebook, TRUE, TRUE, 0);
 
+  createCreateGroupTab(GTK_NOTEBOOK(notebook), bc, blxWindow);
+  createEditGroupsTab(GTK_NOTEBOOK(notebook), bc, blxWindow);
 
-  /* "CREATE GROUP" SECTION. */
-  int numRows = 3;
-  int numCols = 2;
-  GtkTable *table1 = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table1), gtk_label_new("Create group"));
-
-  GtkRadioButton *button1 = createRadioButton(table1, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, onAddGroupFromText, blxWindow);
-  createRadioButton(table1, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onAddGroupFromList, blxWindow);
-  createSearchColumnCombo(table1, 1, 3, blxWindow);
-  
-  createRadioButton(table1, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, onAddGroupFromSelection, blxWindow);
-
-  
-  /* "EDIT GROUP" SECTION. */
-  numRows = g_list_length(bc->sequenceGroups) + 2; /* +2 for header row and delete-all button */
-  numCols = 6;
-  GtkTable *table2 = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table2), gtk_label_new("Edit groups"));
-
-  const int xpad = DEFAULT_TABLE_XPAD;
-  const int ypad = DEFAULT_TABLE_YPAD;
-
-  /* Add labels */
-  int row = 1;
-  gtk_table_attach(table2, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table2, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table2, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table2, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  ++row;
-  
-  /* Add a set of widgets for each group */
-  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
-  for ( ; groupItem; groupItem = groupItem->next)
-    {
-      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      createEditGroupWidget(blxWindow, group, table2, row, xpad, ypad);
-      ++row;
-    }
-  
-  /* Add a button to delete all groups */
-  GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
-  gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
-  g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
-  gtk_table_attach(table2, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   
   /* Connect signals and show */
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
