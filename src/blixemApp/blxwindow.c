@@ -94,10 +94,25 @@ typedef struct _BlxWindowProperties
 static BlxWindowProperties*	  blxWindowGetProperties(GtkWidget *widget);
 
 static void			  onHelpMenu(GtkAction *action, gpointer data);
+static void			  onAboutMenu(GtkAction *action, gpointer data);
 static void			  onQuit(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
 static void			  onPageSetupMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
+static void                       onSortMenu(GtkAction *action, gpointer data);
+static void                       onZoomInMenu(GtkAction *action, gpointer data);
+static void                       onZoomOutMenu(GtkAction *action, gpointer data);
+static void                       onFindMenu(GtkAction *action, gpointer data);
+static void                       onGoToMenu(GtkAction *action, gpointer data);
+static void                       onPrevMatchMenu(GtkAction *action, gpointer data);
+static void                       onNextMatchMenu(GtkAction *action, gpointer data);
+static void                       onFirstMatchMenu(GtkAction *action, gpointer data);
+static void                       onLastMatchMenu(GtkAction *action, gpointer data);
+static void                       onPageLeftMenu(GtkAction *action, gpointer data);
+static void                       onPageRightMenu(GtkAction *action, gpointer data);
+static void                       onScrollLeft1Menu(GtkAction *action, gpointer data);
+static void                       onScrollRight1Menu(GtkAction *action, gpointer data);
+static void                       onToggleStrandMenu(GtkAction *action, gpointer data);
 static void			  onViewMenu(GtkAction *action, gpointer data);
 static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
 static void			  onEditGroupsMenu(GtkAction *action, gpointer data);
@@ -141,30 +156,46 @@ static gboolean                   setFlagFromButton(GtkWidget *button, gpointer 
 
 /* Menu builders */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",		NULL, "_Quit\t\t\t\tCtrl-Q",		  "<control>Q",		"Quit the program",		    G_CALLBACK(onQuit)},
-  { "Help",		NULL, "_Help\t\t\t\tCtrl-H",		  "<control>H",		"Display Blixem help",		    G_CALLBACK(onHelpMenu)},
-  { "Print",		NULL, "_Print...\t\t\t\tCtrl-P",		  "<control>P",		"Print",			    G_CALLBACK(onPrintMenu)},
-  { "PageSetup",        NULL, "Page set_up\t\t\t",		  NULL,                 "Print",			    G_CALLBACK(onPageSetupMenu)},
-  { "Settings",		NULL, "_Settings\t\t\t\tCtrl-S",	  "<control>S",		"Edit Blixem settings",		    G_CALLBACK(onSettingsMenu)},
+  { "Quit",		GTK_STOCK_QUIT,           "_Quit",                    "<control>Q",         "Quit  Ctrl+Q",                         G_CALLBACK(onQuit)},
+  { "Help",		GTK_STOCK_HELP,           "_Help",                    "<control>H",         "Display help  Ctrl+H",                 G_CALLBACK(onHelpMenu)},
+  { "About",		GTK_STOCK_ABOUT,          "About",                    NULL,                 "Program information",                  G_CALLBACK(onAboutMenu)},
+  { "Print",		GTK_STOCK_PRINT,          "_Print...",                "<control>P",         "Print  Ctrl+P",                        G_CALLBACK(onPrintMenu)},
+  { "PageSetup",        GTK_STOCK_PAGE_SETUP,     "Page set_up",              NULL,                 "Page setup",                           G_CALLBACK(onPageSetupMenu)},
+  { "Settings",		GTK_STOCK_PREFERENCES,    "_Settings",                "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
 
-  { "View",		NULL, "_View\t\t\t\tv",			  "V",			"Edit view settings",		    G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL, "Create Group\t\tShift-Ctrl-G",	  "<Shift><control>G",  "Group sequences together",	    G_CALLBACK(onCreateGroupMenu)},
-  { "EditGroups",	NULL, "Edit _Groups\t\t\tCtrl-G",	  "<control>G",		"Groups",			    G_CALLBACK(onEditGroupsMenu)},
-  { "ToggleMatchSet",	NULL, "Toggle _match set group\t\tg",     "G",			"Create/clear the match set group", G_CALLBACK(onToggleMatchSet)},
-  { "DeselectAllRows",	NULL, "Deselect _all\t\t\tShift-Ctrl-A",  "<Shift><control>A",	"Deselect all",			    G_CALLBACK(onDeselectAllRows)},
+  { "Sort",		GTK_STOCK_SORT_ASCENDING, "Sort",                     NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
+  { "ZoomIn",		GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
+  { "ZoomOut",		GTK_STOCK_ZOOM_OUT,       "Zoom out",                 "minus",              "Zoom out  -",                          G_CALLBACK(onZoomOutMenu)},
+  { "GoTo",		GTK_STOCK_JUMP_TO,        "Go to position",           "P",                  "Go to position  P",                    G_CALLBACK(onGoToMenu)},
+  { "FirstMatch",	GTK_STOCK_GOTO_FIRST,     "First match",              "<control>Home",      "Go to first match in selection (or all, if none selected)  Ctrl+Home",    G_CALLBACK(onFirstMatchMenu)},
+  { "PrevMatch",	GTK_STOCK_GO_BACK,        "Previous match",           "<control>Left",      "Go to previous match in selection (or all, if none selected)  Ctrl+Left", G_CALLBACK(onPrevMatchMenu)},
+  { "NextMatch",	GTK_STOCK_GO_FORWARD,     "Next match",               "<control>Right",     "Go to next match in selection (or all, if none selected)  Ctrl+Right",    G_CALLBACK(onNextMatchMenu)},
+  { "LastMatch",	GTK_STOCK_GOTO_LAST,      "Last match",               "<control>End",       "Go to last match in selection (or all, if none selected)  Ctrl+End",      G_CALLBACK(onLastMatchMenu)},
+  { "BackPage",         NULL,                     "<<",                       "<control>comma",     "Scroll left one page  Ctrl+,",         G_CALLBACK(onPageLeftMenu)},
+  { "BackOne",          NULL,                     "<",                        "comma",              "Scroll left one index  ,",             G_CALLBACK(onScrollLeft1Menu)},
+  { "FwdOne",           NULL,                     ">",                        "period",             "Scroll right one index  .",            G_CALLBACK(onScrollRight1Menu)},
+  { "FwdPage",          NULL,                     ">>",                       "<control>period",    "Scroll right one page  Ctrl+.",        G_CALLBACK(onPageRightMenu)},
+  { "Find",             GTK_STOCK_FIND,           "Find",                     "<control>F",         "Find sequences  Ctrl+F",               G_CALLBACK(onFindMenu)},
+  { "ToggleStrand",     GTK_STOCK_REFRESH,        "Toggle strand",            "T",                  "Toggle the active strand  T",          G_CALLBACK(onToggleStrandMenu)},
 
-  { "Dotter",		NULL, "_Dotter\t\t\t\tCtrl-D",		  "<control>D",		"Start Dotter",			    G_CALLBACK(onDotterMenu)},
-  { "CloseAllDotters",  NULL, "Close all Dotters",		  NULL,                 "Close all Dotters",                G_CALLBACK(onCloseAllDottersMenu)},
-  { "SelectFeatures",	NULL, "Feature series selection tool",	  NULL,			"Feature series selection tool",    G_CALLBACK(onSelectFeaturesMenu)},
+  { "View",		GTK_STOCK_FULLSCREEN,     "_View",                    "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
+  { "CreateGroup",	NULL,                     "Create Group",             "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",	GTK_STOCK_EDIT,           "Edit _Groups",             "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
+  { "ToggleMatchSet",	NULL,                     "Toggle _match set group",  "G",                  "Create/clear the match set group  G",  G_CALLBACK(onToggleMatchSet)},
+  { "DeselectAllRows",	NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
-  { "Statistics",	NULL, "Statistics",   NULL,					"Show memory statistics",	    G_CALLBACK(onStatisticsMenu)}
+  { "Dotter",		NULL,                     "_Dotter",                  "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
+  { "CloseAllDotters",  GTK_STOCK_CLOSE,          "Close all Dotters",        NULL,                 "Close all Dotters",                    G_CALLBACK(onCloseAllDottersMenu)},
+  { "SelectFeatures",	GTK_STOCK_SELECT_ALL,     "Feature series selection tool",  NULL,           "Feature series selection tool",        G_CALLBACK(onSelectFeaturesMenu)},
+
+  { "Statistics",	NULL,                     "Statistics",               NULL,                 "Show memory statistics",               G_CALLBACK(onStatisticsMenu)}
 };
 
 
 /* This defines the layout of the menu for a standard user */
 static const char standardMenuDescription[] =
 "<ui>"
-"  <popup name='MainMenu'>"
+"  <popup name='ContextMenu' accelerators='true'>"
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
 "      <menuitem action='Print'/>"
@@ -179,29 +210,36 @@ static const char standardMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
 "      <menuitem action='CloseAllDotters'/>"
-//"      <menuitem action='SelectFeatures'/>"
 "  </popup>"
+"  <toolbar name='Toolbar'>"
+"    <toolitem action='Help'/>"
+"    <toolitem action='About'/>"
+"    <toolitem action='Settings'/>"
+"    <separator/>"
+"    <toolitem action='Sort'/>"
+"    <toolitem action='ZoomIn'/>"
+"    <toolitem action='ZoomOut'/>"
+"    <separator/>"
+"    <toolitem action='GoTo'/>"
+"    <toolitem action='FirstMatch'/>"
+"    <toolitem action='PrevMatch'/>"
+"    <toolitem action='NextMatch'/>"
+"    <toolitem action='LastMatch'/>"
+"    <toolitem action='BackPage'/>"
+"    <toolitem action='BackOne'/>"
+"    <toolitem action='FwdOne'/>"
+"    <toolitem action='FwdPage'/>"
+"    <separator/>"
+"    <toolitem action='Find'/>"
+"    <toolitem action='ToggleStrand'/>"
+"  </toolbar>"
 "</ui>";
 
 
-/* This defines the layout of the menu for a developer user */
+/* This defines the additional menu components for a developer user */
 static const char developerMenuDescription[] =
 "<ui>"
-"  <popup name='MainMenu'>"
-"      <menuitem action='Quit'/>"
-"      <menuitem action='Help'/>"
-"      <menuitem action='Print'/>"
-//"      <menuitem action='PageSetup'/>"
-"      <menuitem action='Settings'/>"
-"      <separator/>"
-"      <menuitem action='View'/>"
-"      <menuitem action='CreateGroup'/>"
-"      <menuitem action='EditGroups'/>"
-"      <menuitem action='ToggleMatchSet'/>"
-"      <menuitem action='DeselectAllRows'/>"
-"      <separator/>"
-"      <menuitem action='Dotter'/>"
-"      <menuitem action='CloseAllDotters'/>"
+"  <popup name='ContextMenu' accelerators='true'>"
 "      <menuitem action='SelectFeatures'/>"
 "      <separator/>"
 "      <menuitem action='Statistics'/>"
@@ -4035,14 +4073,91 @@ static void onQuit(GtkAction *action, gpointer data)
   gtk_widget_destroy(blxWindow);
 }
 
-
-/* Called when the user selects the Help menu option, or hits the Help shortcut key. */
 static void onHelpMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   showHelpDialog(blxWindow, TRUE);
 }
 
+static void onAboutMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showAboutDialog(blxWindow);
+}
+
+static void onFindMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showFindDialog(blxWindow, TRUE);
+}
+
+static void onGoToMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  
+  /* We currently only accept input in terms of DNA coords on the ref seq */
+  const BlxSeqType seqType = BLXSEQ_DNA;
+  
+  goToDetailViewCoord(blxWindowGetDetailView(blxWindow), seqType);
+}
+
+static void onPrevMatchMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
+  prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+}
+
+static void onNextMatchMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
+  nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+}
+
+static void onFirstMatchMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
+  firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+}
+
+static void onLastMatchMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
+  lastMatch(blxWindowGetDetailView(blxWindow), seqList);
+}
+
+static void onPageLeftMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  scrollDetailViewLeftPage(blxWindowGetDetailView(blxWindow));
+}
+
+static void onPageRightMenu(GtkAction *action, gpointer data)
+{  
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  scrollDetailViewRightPage(blxWindowGetDetailView(blxWindow));
+}
+
+static void onScrollLeft1Menu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  scrollDetailViewLeft1(blxWindowGetDetailView(blxWindow));
+}
+
+static void onScrollRight1Menu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  scrollDetailViewRight1(blxWindowGetDetailView(blxWindow));
+}
+
+static void onToggleStrandMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  toggleStrand(blxWindowGetDetailView(blxWindow));
+}
 
 /* Called when the user selects the View menu option, or hits the Settings shortcut key */
 static void onViewMenu(GtkAction *action, gpointer data)
@@ -4081,6 +4196,23 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
   showSettingsDialog(blxWindow, TRUE);
 }
 
+static void onSortMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  showSortDialog(blxWindow, TRUE);
+}
+
+static void onZoomInMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  zoomDetailView(blxWindowGetDetailView(blxWindow), TRUE);
+}
+
+static void onZoomOutMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  zoomDetailView(blxWindowGetDetailView(blxWindow), FALSE);
+}
 
 /* Called when the user selects the Dotter menu option, or hits the Dotter shortcut key */
 static void onDotterMenu(GtkAction *action, gpointer data)
@@ -5267,7 +5399,7 @@ static void setStyleProperties(GtkWidget *widget)
 
 
 /* Create the main menu */
-static GtkWidget* createMainMenu(GtkWidget *window)
+static void createMainMenu(GtkWidget *window, GtkWidget **mainmenu, GtkWidget **toolbar)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   gtk_action_group_add_actions (action_group, mainMenuEntries, G_N_ELEMENTS (mainMenuEntries), window);
@@ -5279,15 +5411,19 @@ static GtkWidget* createMainMenu(GtkWidget *window)
   gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
   
   GError *error = NULL;
-  const char *menuDescription = userIsDeveloper() ? developerMenuDescription : standardMenuDescription;
+  gboolean ok = gtk_ui_manager_add_ui_from_string (ui_manager, standardMenuDescription, -1, &error);
   
-  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+  if (ok && userIsDeveloper())
+    ok = gtk_ui_manager_add_ui_from_string (ui_manager, developerMenuDescription, -1, &error);
+    
+  if (!ok)
     {
       prefixError(error, "Building menus failed: ");
       reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
     }
   
-  return gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
+  *mainmenu = gtk_ui_manager_get_widget (ui_manager, "/ContextMenu");
+  *toolbar = gtk_ui_manager_get_widget (ui_manager, "/Toolbar");
 }
 
 
@@ -5537,7 +5673,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   gtk_container_add(GTK_CONTAINER(window), vbox);
   
   /* Create the main menu */
-  GtkWidget *mainmenu = createMainMenu(window);
+  GtkWidget *mainmenu = NULL;
+  GtkWidget *toolbar = NULL;
+  createMainMenu(window, &mainmenu, &toolbar);
   
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
@@ -5581,6 +5719,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   GtkWidget *detailView = createDetailView(window,
 					   GTK_CONTAINER(panedWin),
+                                           toolbar,
 					   detailAdjustment, 
 					   fwdStrandGrid, 
 					   revStrandGrid,

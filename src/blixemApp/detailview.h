@@ -281,6 +281,7 @@ void			drawHeaderChar(BlxViewContext *bc,
 
 GtkWidget*		createDetailView(GtkWidget *blxWindow,
                                          GtkContainer *parent,
+                                         GtkWidget *toolbar,
 					 GtkAdjustment *adjustment, 
 					 GtkWidget *fwdStrandGrid, 
 					 GtkWidget *revStrandGrid,

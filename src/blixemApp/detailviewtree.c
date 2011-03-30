@@ -1435,43 +1435,46 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
       /* Feed back details about the currently-hovered over row in the detail-view statusbar area */
       GtkStatusbar *statusBar = treeGetStatusBar(tree);
       
-      /* Remove any previous message */
-      guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
-      gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
-      
-      /* Add details about the current row that is being hovered over */
-      int bin_x = event->x, bin_y = event->y;
-//      gtk_tree_view_convert_widget_to_bin_window_coords(GTK_TREE_VIEW(tree), event->x, event->y, &bin_x, &bin_y); //only from GTK v2.12
-      
-      GtkTreePath *path = NULL;
-      GtkTreeViewColumn *column = NULL;
-      
-      if (gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(tree), bin_x, bin_y, &path, &column, NULL, NULL))
-	{
-	  GtkTreeIter iter;
-	  GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
-	  gtk_tree_model_get_iter(model, &iter, path);
+      if (statusBar)
+        {
+          /* Remove any previous message */
+          guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+          gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+          
+          /* Add details about the current row that is being hovered over */
+          int bin_x = event->x, bin_y = event->y;
+    //      gtk_tree_view_convert_widget_to_bin_window_coords(GTK_TREE_VIEW(tree), event->x, event->y, &bin_x, &bin_y); //only from GTK v2.12
+          
+          GtkTreePath *path = NULL;
+          GtkTreeViewColumn *column = NULL;
+          
+          if (gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(tree), bin_x, bin_y, &path, &column, NULL, NULL))
+            {
+              GtkTreeIter iter;
+              GtkTreeModel *model = treeGetVisibleDataModel(GTK_TREE_VIEW(tree));
+              gtk_tree_model_get_iter(model, &iter, path);
 
-	  GList *mspList = treeGetMsps(model, &iter);
-	  
-	  if (g_list_length(mspList) > 0)
-	    {
-	      const MSP const *msp = (const MSP const*)(mspList->data);
-	      
-              /* Note: this assumes that all MSPs in this row are in the same BlxSequence.
-               * If there are more, it will just show data for the first BlxSequence found. */
-              if (msp->sSequence)
+              GList *mspList = treeGetMsps(model, &iter);
+              
+              if (g_list_length(mspList) > 0)
                 {
-                  char *displayText = blxSequenceGetSummaryInfo(msp->sSequence);
-	      
-                  if (displayText)
+                  const MSP const *msp = (const MSP const*)(mspList->data);
+                  
+                  /* Note: this assumes that all MSPs in this row are in the same BlxSequence.
+                   * If there are more, it will just show data for the first BlxSequence found. */
+                  if (msp->sSequence)
                     {
-                      gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
-                      g_free(displayText);
+                      char *displayText = blxSequenceGetSummaryInfo(msp->sSequence);
+                  
+                      if (displayText)
+                        {
+                          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+                          g_free(displayText);
+                        }
                     }
                 }
             }
-	}
+        }
 	
       return TRUE;
     }
@@ -1577,8 +1580,12 @@ static gboolean onEnterTree(GtkWidget *tree, GdkEventCrossing *event, gpointer d
 static void clearStatusbar(GtkWidget *tree)
 {
   GtkStatusbar *statusBar = treeGetStatusBar(tree);
-  guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
-  gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+  
+  if (statusBar)
+    {
+      guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+      gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+    }
 }
 
 

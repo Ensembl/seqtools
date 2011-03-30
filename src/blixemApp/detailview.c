@@ -876,30 +876,34 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
 
   /* First clear the existing message if there is one */
   GtkStatusbar *statusBar = GTK_STATUSBAR(properties->statusBar);
-  guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
-  gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
   
-  /* See if there's a variation at the given coord */
-  const MSP *msp = NULL;
-  
-  if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL))
+  if (statusBar)
     {
-      if (msp && mspGetSName(msp))
+      guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+      gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
+      
+      /* See if there's a variation at the given coord */
+      const MSP *msp = NULL;
+      
+      if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL))
         {
-          char *displayText = NULL;
-          
-          /* If we're displaying coords negated, negate it now */
-          int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
-          
-          /* Check we've got the sequence info to display. We should have, but if not just display the name. */
-          if (mspGetSSeq(msp))
-            displayText = blxprintf("%d  %s : %s", coord, mspGetSName(msp), mspGetSSeq(msp));
-          else
-            displayText = blxprintf("%d  %s", coord, mspGetSName(msp));
-          
-          /* Send the message to the status bar */
-          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
-          g_free(displayText);
+          if (msp && mspGetSName(msp))
+            {
+              char *displayText = NULL;
+              
+              /* If we're displaying coords negated, negate it now */
+              int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
+              
+              /* Check we've got the sequence info to display. We should have, but if not just display the name. */
+              if (mspGetSSeq(msp))
+                displayText = blxprintf("%d  %s : %s", coord, mspGetSName(msp), mspGetSSeq(msp));
+              else
+                displayText = blxprintf("%d  %s", coord, mspGetSName(msp));
+              
+              /* Send the message to the status bar */
+              gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+              g_free(displayText);
+            }
         }
     }
 }
@@ -2284,19 +2288,6 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 /***********************************************************
  *            Detail View toolbar events                   *
  ***********************************************************/
-
-static void onZoomInDetailView(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  zoomDetailView(detailView, TRUE);
-}
-
-static void onZoomOutDetailView(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  zoomDetailView(detailView, FALSE);
-}
-
 
 /* Set the font for the detail view cell renderer. Should be called after
  * the font size is changed by zooming in/out of the detail view. */
@@ -3915,111 +3906,6 @@ void lastMatch(GtkWidget *detailView, GList *seqList)
   goToNextMatch(detailView, startIdx, FALSE, seqList);
 }
 
-
-static void GShowHelp(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showHelpDialog(detailViewGetBlxWindow(detailView), TRUE);
-}
-
-static void GShowAbout(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showAboutDialog(detailViewGetBlxWindow(detailView));
-}
-
-static void GShowSettings(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showSettingsDialog(detailViewGetBlxWindow(detailView), TRUE);
-}
-
-static void GSortDetailView(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showSortDialog(detailViewGetBlxWindow(detailView), TRUE);
-}
-
-static void GFind(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  showFindDialog(detailViewGetBlxWindow(detailView), TRUE);
-}
-
-//static void GInfo(GtkButton *button, gpointer data)
-//{
-//  GtkWidget *detailView = GTK_WIDGET(data);
-//  showInfoDialog(detailViewGetBlxWindow(detailView));
-//}
-
-static void GGoto(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  
-  /* We currently only accept input in terms of DNA coords on the ref seq */
-  const BlxSeqType seqType = BLXSEQ_DNA;
-  
-  goToDetailViewCoord(detailView, seqType);
-}
-
-static void GprevMatch(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  prevMatch(detailView, seqList);
-}
-
-static void GnextMatch(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  nextMatch(detailView, seqList);
-}
-
-static void GfirstMatch(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  firstMatch(detailView, seqList);
-}
-
-static void GlastMatch(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  GList *seqList = blxWindowGetSelectedSeqs(detailViewGetBlxWindow(detailView));
-  lastMatch(detailView, seqList);
-}
-
-static void GscrollLeftBig(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  scrollDetailViewLeftPage(detailView);
-}
-
-static void GscrollRightBig(GtkButton *button, gpointer data)
-{  
-  GtkWidget *detailView = GTK_WIDGET(data);
-  scrollDetailViewRightPage(detailView);
-}
-
-static void GscrollLeft1(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  scrollDetailViewLeft1(detailView);
-}
-
-static void GscrollRight1(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  scrollDetailViewRight1(detailView);
-}
-
-static void GToggleStrand(GtkButton *button, gpointer data)
-{
-  GtkWidget *detailView = GTK_WIDGET(data);
-  toggleStrand(detailView);
-}
-
 /***********************************************************
  *                     Initialization                      *
  ***********************************************************/
@@ -4337,73 +4223,26 @@ static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
 }
 
 
-static void insertToolbarSeparator(GtkToolbar *toolbar)
-{
-  GtkToolItem *separator = gtk_separator_tool_item_new();
-  gtk_separator_tool_item_set_draw(GTK_SEPARATOR_TOOL_ITEM(separator), TRUE);
-  gtk_toolbar_insert(toolbar, separator, -1);
-
-  gtk_tool_item_set_visible_horizontal(separator, TRUE);
-  gtk_tool_item_set_visible_vertical(separator, TRUE);
-}
-
-
 /* Create the detail view toolbar */
 static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
+                                            GtkWidget *toolbarIn,
 					    BlxBlastMode mode,
 					    const BlxColumnId sortColumn,
                                             GList *columnList,
 					    GtkWidget **feedbackBox,
 					    GtkWidget **statusBar)
 {
-  GtkToolbar *toolbar = NULL;
-  GtkWidget *toolbarContainer = createEmptyButtonBar(&toolbar);
+  GtkToolbar *toolbar = GTK_TOOLBAR(toolbarIn);
   
-  /* Help */
-  makeToolbarButton(toolbar, "Help",  GTK_STOCK_HELP,	    "Help (Ctrl-H)",		(GtkSignalFunc)GShowHelp,	detailView);
-  makeToolbarButton(toolbar, "About", GTK_STOCK_ABOUT,	    "About",                    (GtkSignalFunc)GShowAbout,	detailView);
-  makeToolbarButton(toolbar, "Settings", GTK_STOCK_PREFERENCES,  "Settings (Ctrl-S)",	(GtkSignalFunc)GShowSettings,	detailView);
-  insertToolbarSeparator(toolbar);
-
-  /* Sort */
-  //createSortBox(toolbar, detailView, sortColumn, columnList);
-  makeToolbarButton(toolbar, "Sort",  GTK_STOCK_SORT_ASCENDING, "Sort",                 (GtkSignalFunc)GSortDetailView, detailView);
-  insertToolbarSeparator(toolbar);
-
-  /* Zoom buttons */
-  makeToolbarButton(toolbar, "Zoom in",		GTK_STOCK_ZOOM_IN,  "Zoom in (=)",	(GtkSignalFunc)onZoomInDetailView,  detailView);
-  makeToolbarButton(toolbar, "Zoom out",	GTK_STOCK_ZOOM_OUT, "Zoom out (-)",	(GtkSignalFunc)onZoomOutDetailView, detailView);
-  insertToolbarSeparator(toolbar);
+  gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
+  gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
   
-  /* Navigation buttons */
-  makeToolbarButton(toolbar, "Go to",		GTK_STOCK_JUMP_TO,    "Go to position (p)",  (GtkSignalFunc)GGoto,          detailView);
-  insertToolbarSeparator(toolbar);
-
-  makeToolbarButton(toolbar, "First match",	GTK_STOCK_GOTO_FIRST, "First match (Ctrl-Home)",	  (GtkSignalFunc)GfirstMatch,	  detailView);
-  makeToolbarButton(toolbar, "Previous match",	GTK_STOCK_GO_BACK,    "Previous match (Ctrl-left)",	  (GtkSignalFunc)GprevMatch,	  detailView);
-  makeToolbarButton(toolbar, "Next match",	GTK_STOCK_GO_FORWARD, "Next match (Ctrl-right)",	  (GtkSignalFunc)GnextMatch,	  detailView);
-  makeToolbarButton(toolbar, "Last match",	GTK_STOCK_GOTO_LAST,  "Last match (Ctrl-End)",		  (GtkSignalFunc)GlastMatch,	  detailView);
-  insertToolbarSeparator(toolbar);
-  
-  makeToolbarButton(toolbar, "<<", NULL,	"Scroll back one page (Ctrl-,)",    (GtkSignalFunc)GscrollLeftBig,  detailView);
-  makeToolbarButton(toolbar, "<",  NULL,	"Scroll back one index (,)",	    (GtkSignalFunc)GscrollLeft1,    detailView);
-  makeToolbarButton(toolbar, ">",  NULL,	"Scroll forward one index (.)",	    (GtkSignalFunc)GscrollRight1,   detailView);
-  makeToolbarButton(toolbar, ">>", NULL,	"Scroll forward one page (Ctrl-.)", (GtkSignalFunc)GscrollRightBig, detailView);
-  insertToolbarSeparator(toolbar);
-  
-  /* Find/Msp-info */
-  makeToolbarButton(toolbar, "Find",          GTK_STOCK_FIND,    "Find sequences (f, Ctrl-F)",                      (GtkSignalFunc)GFind,  detailView);
-  insertToolbarSeparator(toolbar);
-
-  /* Strand toggle button */
-  if (mode == BLXMODE_BLASTX || mode == BLXMODE_TBLASTX || mode == BLXMODE_BLASTN)
-    {
-      makeToolbarButton(toolbar, "Toggle strand", GTK_STOCK_REFRESH, "Toggle strand (t)", (GtkSignalFunc)GToggleStrand, detailView);
-      insertToolbarSeparator(toolbar);
-    }
-
   *feedbackBox = createFeedbackBox(toolbar);
   *statusBar = createStatusBar(toolbar);
+
+  /* Put the toolbar in a handle box so that it can be torn off */
+  GtkWidget *toolbarContainer = createToolbarHandle();
+  gtk_container_add(GTK_CONTAINER(toolbarContainer), GTK_WIDGET(toolbar));
 
   return toolbarContainer;
 }
@@ -4568,6 +4407,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
 
 GtkWidget* createDetailView(GtkWidget *blxWindow,
 			    GtkContainer *parent,
+                            GtkWidget *toolbar,
 			    GtkAdjustment *adjustment, 
 			    GtkWidget *fwdStrandGrid, 
 			    GtkWidget *revStrandGrid,
@@ -4606,7 +4446,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   /* Create the toolbar. We need to remember the feedback box and status bar so we can set them in the properties. */
   GtkWidget *feedbackBox = NULL;
   GtkWidget *statusBar = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, mode, sortColumn, columnList, &feedbackBox, &statusBar);
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, &feedbackBox, &statusBar);
   
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
