@@ -124,7 +124,7 @@ static GtkRadioButton*		  createRadioButton(GtkTable *table, const int col, cons
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error);
 
-static void                       createSortBox(GtkBox *parent, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList, const char *labelText);
+static void                       createSortBox(GtkBox *parent, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList, const char *labelText, const gboolean searchableOnly);
 static GtkWidget*		  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
 static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
 static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
@@ -1258,7 +1258,7 @@ static void createSearchColumnCombo(GtkTable *table, const int col, const int ro
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
   
-  createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, dvProperties->columnList, "Search column: ");  
+  createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, dvProperties->columnList, "Search column: ", TRUE);  
 }
 
 
@@ -3575,7 +3575,8 @@ static void createSortBox(GtkBox *parent,
                           GtkWidget *detailView, 
                           const BlxColumnId initSortColumn, 
                           GList *columnList, 
-                          const char *labelText)
+                          const char *labelText,
+                          const gboolean searchableOnly)
 {
   /* Put the label and drop-down in a box */
   GtkWidget *box = gtk_hbox_new(FALSE, 0);
@@ -3598,8 +3599,12 @@ static void createSortBox(GtkBox *parent,
   gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
   gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", SORT_TEXT_COL, NULL);
   
-  /* Add a blank row for the case where nothing is selected */
-  GtkTreeIter *iter = addSortBoxItem(store, NULL, BLXCOL_NONE, "<select column>", initSortColumn, combo);
+  GtkTreeIter *iter = NULL;
+  
+  /* Add a blank row for the case where nothing is selected (unless we only
+   * want searchable columns, because we can't search the NONE column) */
+  if (!searchableOnly)
+    iter = addSortBoxItem(store, iter , BLXCOL_NONE, "<select column>", initSortColumn, combo);
 
   /* Add a row for each column that has the 'sortName' property set. */
   GList *columnItem = columnList;
@@ -3608,7 +3613,9 @@ static void createSortBox(GtkBox *parent,
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
 
-      if (columnInfo->sortName)
+      /* Only include columns that have a sort name and, if searchableOnly is
+       * true, only include columns that are searchable. */
+      if (columnInfo->sortName && (columnInfo->searchable || !searchableOnly))
         {
           iter = addSortBoxItem(store, iter, columnInfo->columnId, columnInfo->sortName, initSortColumn, combo);
         }
@@ -3628,7 +3635,7 @@ static void onAddNewSortByBox(GtkButton *button, gpointer data)
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
 
   /* Add another sort-by box to the container */
-  createSortBox(box, detailView, BLXCOL_NONE, dvProperties->columnList, "then by");
+  createSortBox(box, detailView, BLXCOL_NONE, dvProperties->columnList, "then by", FALSE);
   
   gtk_widget_show_all(GTK_WIDGET(box));
 }
@@ -3688,9 +3695,9 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       if (columnId != BLXCOL_NONE || sortPriority < minBoxes)
         {
           if (sortPriority == 0)
-            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "Sort by");
+            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "Sort by", FALSE);
           else
-            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "then by");
+            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "then by", FALSE);
         }
       else
         {

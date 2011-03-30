@@ -75,6 +75,7 @@ typedef struct _DetailViewColumnInfo
     int width;			/* the column width */
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
     gboolean visible;           /* whether the column should be shown */
+    gboolean searchable;        /* whether searching sequences by data in this column is supported */
   } DetailViewColumnInfo;
 
 
