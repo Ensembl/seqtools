@@ -57,7 +57,8 @@
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
 #define MATCH_SET_GROUP_NAME		 "Match set"
 #define LOAD_DATA_TEXT                   "Load optional data"
-
+#define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
+#define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
@@ -112,10 +113,11 @@ static BlxStrand		  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
-static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, BlxResponseCallback callbackFunc, GtkWidget *blxWindow);
+static GtkRadioButton*		  createRadioButton(GtkTable *table, const int col, const int row, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, BlxResponseCallback callbackFunc, GtkWidget *blxWindow);
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
 
+static void                       createSortBox(GtkBox *parent, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList, const char *labelText);
 static GtkWidget*		  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
 static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
 static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
@@ -1198,6 +1200,19 @@ static gboolean onFindDnaString(GtkWidget *button, const gint responseId, gpoint
 }
 
 
+/* Utility to create a drop-down combo box for selecting the column to search by */
+static void createSearchColumnCombo(GtkTable *table, const int col, const int row, GtkWidget *blxWindow)
+{
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_table_attach(table, hbox, col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  
+  createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, dvProperties->columnList, "Search column: ");  
+}
+
+
 /* Show the 'Find' dialog */
 void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
@@ -1225,10 +1240,21 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
-  
-      GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "Sequence _name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
-      createRadioButton(contentArea, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
-      createRadioButton(contentArea, button1, "Sequence name _list search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+      const int numRows = 3;
+      const int numCols = 2;
+      GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+      gtk_box_pack_start(contentArea, GTK_WIDGET(table), TRUE, TRUE, 0);
+
+
+      /* Column 1: match-seq search options */
+      GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
+      createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+      createSearchColumnCombo(table, 1, 3, blxWindow);
+      
+      
+      /* Column 2: ref-seq search options */
+      createRadioButton(table, 2, 1, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
+
       
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
@@ -2020,7 +2046,9 @@ static gboolean onRadioButtonTextEntered(GtkWidget *textWidget, GdkEventButton *
 /* Utility to create a radio button with certain given properties, and to pack it
  * into the given container widget. Returns the radio button (so that further
  * buttons can be created in the same group by passing it as 'existingButton') */
-static GtkRadioButton* createRadioButton(GtkBox *box, 
+static GtkRadioButton* createRadioButton(GtkTable *table,
+                                         const int col,
+                                         const int row,
 					 GtkRadioButton *existingButton,
 					 const char *mnemonic, 
 					 const gboolean isActive, 
@@ -2030,6 +2058,9 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 					 GtkWidget *blxWindow)
 {
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
+  
+  GtkBox *box = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
@@ -2226,39 +2257,39 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   
   const gboolean seqsSelected = g_list_length(bc->selectedSeqs) > 0;
 
-  const int numRows = g_list_length(bc->sequenceGroups) + 2; /* +2 for header row and delete-all button */
-  
-
   /* Create tabbed pages */
   GtkWidget *notebook = gtk_notebook_new();
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), notebook, TRUE, TRUE, 0);
 
 
   /* "CREATE GROUP" SECTION. */
-  GtkBox *section1 = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(section1), gtk_label_new("Create group"));
+  int numRows = 3;
+  int numCols = 2;
+  GtkTable *table1 = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table1), gtk_label_new("Create group"));
 
-  GtkRadioButton *button1 = createRadioButton(section1, NULL, "From _selection", seqsSelected, FALSE, FALSE, addGroupFromSelection, blxWindow);
-  createRadioButton(section1, button1, "From _name (wildcards * and ?)", !seqsSelected, TRUE, FALSE, addGroupFromName, blxWindow);
-  createRadioButton(section1, button1, "From _list", FALSE, TRUE, TRUE, addGroupFromList, blxWindow);
+  GtkRadioButton *button1 = createRadioButton(table1, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, addGroupFromName, blxWindow);
+  createRadioButton(table1, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, addGroupFromList, blxWindow);
+  createSearchColumnCombo(table1, 1, 3, blxWindow);
+  
+  createRadioButton(table1, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, addGroupFromSelection, blxWindow);
 
+  
   /* "EDIT GROUP" SECTION. */
-  GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section2, gtk_label_new("Edit groups"));
+  numRows = g_list_length(bc->sequenceGroups) + 2; /* +2 for header row and delete-all button */
+  numCols = 6;
+  GtkTable *table2 = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table2), gtk_label_new("Edit groups"));
 
-  const int numCols = 6;
-  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-  gtk_box_pack_start(GTK_BOX(section2), GTK_WIDGET(table), FALSE, FALSE, 0);
-
-  const int xpad = 2;
-  const int ypad = 2;
+  const int xpad = DEFAULT_TABLE_XPAD;
+  const int ypad = DEFAULT_TABLE_YPAD;
 
   /* Add labels */
   int row = 1;
-  gtk_table_attach(table, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add a set of widgets for each group */
@@ -2266,7 +2297,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      createEditGroupWidget(blxWindow, group, table, row, xpad, ypad);
+      createEditGroupWidget(blxWindow, group, table2, row, xpad, ypad);
       ++row;
     }
   
@@ -2274,8 +2305,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
   gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
   g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
-//  gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
-  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   
   /* Connect signals and show */
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
