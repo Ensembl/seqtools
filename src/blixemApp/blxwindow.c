@@ -1972,7 +1972,8 @@ static GList* getSeqStructsFromSearchStringList(GList *searchStringList,
         break;
     }
 
-  g_propagate_error(error, searchData.error);
+  if (searchData.error)
+    g_propagate_error(error, searchData.error);
   
   return searchData.matchList;
 }
