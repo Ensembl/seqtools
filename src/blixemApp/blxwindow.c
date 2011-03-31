@@ -145,9 +145,9 @@ static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean 
 static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
 
 static void                       blxWindowFindDnaString(GtkWidget *blxWindow, const char *inputSearchStr, const int startCoord, const gboolean searchLeft, const gboolean findAgain, GError **error);
-static GList*                     findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean findAgain, GError **error);
+static GList*                     findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean rememberSearch, const gboolean findAgain, GError **error);
 static int                        getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft);
-static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, const gboolean findAgain, GError **error);
+static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, const gboolean rememberSearch, const gboolean findAgain, GError **error);
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
 
@@ -645,12 +645,12 @@ static void findAgain(GtkWidget *blxWindow, const gboolean modifier)
   if (!error)
     {
       /* Try the search-from-list search. Returns NULL if last search was not a list search */
-      GList *seqList = findSeqsFromList(blxWindow, NULL, BLXCOL_NONE, TRUE, &error);
+      GList *seqList = findSeqsFromList(blxWindow, NULL, BLXCOL_NONE, FALSE, TRUE, &error);
       
       if (!seqList && !error)
         {
           /* Try the search-by-name search. Returns NULL if last search was not a name search. */
-          seqList = findSeqsFromColumn(blxWindow, NULL, BLXCOL_NONE, TRUE, &error);
+          seqList = findSeqsFromColumn(blxWindow, NULL, BLXCOL_NONE, FALSE, TRUE, &error);
         }
       
       /* If either the list or name search succeeded, select the prev/next MSP from the 
@@ -844,17 +844,33 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
  *			    Find menu			   *
  ***********************************************************/
 
-static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean findAgain, GError **error)
+static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean rememberSearch, const gboolean findAgain, GError **error)
 {
-  static char *searchStr = NULL;
-  static BlxColumnId searchCol = BLXCOL_NONE;
+  /* Previous values (if applicable) */
+  static char *prevSearchStr = NULL;
+  static BlxColumnId prevSearchCol = BLXCOL_NONE;
+
+  /* Current values */
+  char *searchStr = NULL;
+  BlxColumnId searchCol = BLXCOL_NONE;
   
   /* If it's a find-again, use the existing values; otherwise, use the input values */
-  if (!findAgain)
+  if (findAgain)
+    {
+      searchStr = prevSearchStr;
+      searchCol = prevSearchCol;
+    }
+  else
     {
       g_free(searchStr);
       searchStr = g_strdup(inputText);
       searchCol = inputCol;
+    
+      if (rememberSearch)
+	{
+	  prevSearchStr = searchStr;
+	  prevSearchCol = searchCol;
+	}
     }
   
   if (!searchStr || searchCol == BLXCOL_NONE)
@@ -931,18 +947,35 @@ static const char* getStringFromTextView(GtkTextView *textView)
 static GList* findSeqsFromList(GtkWidget *blxWindow,
                                const char *inputText, 
                                const BlxColumnId inputCol, 
+                               const gboolean rememberSearch, 
                                const gboolean findAgain, 
                                GError **error)
 {
-  static char *searchStr = NULL; /* remember last searched-for string for use with 'findAgain' option */
-  static BlxColumnId searchCol = BLXCOL_NONE;
+  /* Previous values (if applicable) */
+  static char *prevSearchStr = NULL;
+  static BlxColumnId prevSearchCol = BLXCOL_NONE;
+  
+  /* Current values */
+  char *searchStr = NULL;
+  BlxColumnId searchCol = BLXCOL_NONE;
   
   /* If we-re doing a find-again, use the values from last time; otherwise use the input values */
-  if (!findAgain)
+  if (findAgain)
+    {
+      searchStr = prevSearchStr;
+      searchCol = prevSearchCol;
+    }
+  else
     {
       g_free(searchStr);
       searchStr = g_strdup(inputText);
       searchCol = inputCol;
+    
+      if (rememberSearch)
+	{
+	  prevSearchStr = searchStr;
+	  prevSearchCol = searchCol;
+	}
     }
       
   if (!searchStr || searchCol == BLXCOL_NONE)
@@ -993,7 +1026,7 @@ static gboolean onFindSeqsFromName(GtkWidget *button, const gint responseId, gpo
 
   /* Find all sequences that match */
   GError *error = NULL;
-  GList *seqList = findSeqsFromColumn(blxWindow, inputText, searchCol, FALSE, &error);
+  GList *seqList = findSeqsFromColumn(blxWindow, inputText, searchCol, TRUE, FALSE, &error);
   
   if (error)
     {
@@ -1050,7 +1083,7 @@ static gboolean onFindSeqsFromList(GtkWidget *button, const gint responseId, gpo
   BlxColumnId searchCol = getColumnFromComboBox(combo);
   
   GError *error = NULL;
-  GList *seqList = findSeqsFromList(blxWindow, inputText, searchCol, FALSE, &error);
+  GList *seqList = findSeqsFromList(blxWindow, inputText, searchCol, TRUE, FALSE, &error);
 
   if (error)
     {
@@ -1968,7 +2001,7 @@ static gboolean onAddGroupFromText(GtkWidget *button, const gint responseId, gpo
   BlxColumnId searchCol = getColumnFromComboBox(combo);
   
   GError *error = NULL;
-  GList *seqList = findSeqsFromColumn(blxWindow, inputText, searchCol, FALSE, &error);
+  GList *seqList = findSeqsFromColumn(blxWindow, inputText, searchCol, FALSE, FALSE, &error);
 
   if (error)
     {
@@ -2155,7 +2188,7 @@ static gboolean onAddGroupFromList(GtkWidget *button, const gint responseId, gpo
   const char *inputText = getStringFromTextView(GTK_TEXT_VIEW(data));
 
   GError *error = NULL;
-  GList *seqList = findSeqsFromList(blxWindow, inputText, searchCol, FALSE, &error);
+  GList *seqList = findSeqsFromList(blxWindow, inputText, searchCol, FALSE, FALSE, &error);
   
   if (error)
     {
