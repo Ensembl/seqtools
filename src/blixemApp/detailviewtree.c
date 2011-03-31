@@ -2793,6 +2793,7 @@ static void setTreeStyle(GtkTreeView *tree)
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(tree), GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_reorderable(tree, TRUE);
   gtk_tree_view_set_headers_visible(tree, FALSE);
+  gtk_tree_view_set_enable_search(tree, FALSE);
   
   /* Set the background color for the rows to be the same as the widget's background color */
   gtk_widget_modify_base(GTK_WIDGET(tree), GTK_STATE_NORMAL, GTK_WIDGET(tree)->style->bg);
