@@ -637,9 +637,6 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
         }
     }
 
-  updateHighlightBox(bigPicture, properties);
-  bigPictureRefreshAll(bigPicture);
-
   if (changedRange)
     {
       boundRange(displayRange, fullRange);
@@ -657,6 +654,8 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       bigPictureRedrawAll(bigPicture);
     }
   
+  updateHighlightBox(bigPicture, properties);
+  bigPictureRefreshAll(bigPicture);
   
   DEBUG_EXIT("setBigPictureDisplayRange returning");
 }
