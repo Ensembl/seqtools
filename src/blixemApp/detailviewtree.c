@@ -632,19 +632,30 @@ void resortTree(GtkWidget *tree, gpointer data)
 {
   if (BLXCOL_NUM_COLUMNS < 1)
     return; 
-  
-  /* Not sure if there's a better way to do this, but we can force a re-sort by 
-   * setting the sort column to something else and then back again. */
+
+  /* Find the main column to sort by. We set this as the sort column on the tree.
+   * It actually doesn't make a lot of difference which column we set except that 
+   * we call the correct sort-by function; the sort-by function will actually sort 
+   * by multiple columns based on the detail-view properties. */
   GtkWidget *detailView = treeGetDetailView(tree);
   BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
+  int sortColumn = sortColumns[0];
+  
+  /* The column ID enum includes some values that are not valid tree columns, i.e. those
+   * outside the enum for the max number of columns. If we've got one of these, then
+   * set the tree to be unsorted. */
+  if (sortColumn >= BLXCOL_NUM_COLUMNS)
+    sortColumn = GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID;
   
   /* Note that the sort function takes care of whether it's asc or desc, so we
    * always set asc. */
   GtkSortType sortOrder = GTK_SORT_ASCENDING;
   
+  /* Not sure if there's a better way to do this, but we can force a re-sort by 
+   * setting the sort column to something else and then back again. */
   GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
   gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, sortOrder);
-  gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumns[0], sortOrder);
+  gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumn, sortOrder);
 
   
   /* Update the cached path held by each MSP about the row it is in. */

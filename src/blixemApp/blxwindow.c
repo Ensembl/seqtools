@@ -3632,9 +3632,10 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
   GtkWidget *detailView = GTK_WIDGET(data);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
   
-  /* Loop through each child of the given widget */
   if (GTK_WIDGET_REALIZED(detailView) && GTK_IS_CONTAINER(widget))
     {
+      /* Loop through each child of the given widget (assumes that each child is or
+       * contains one combo box) */
       GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
       int priority = 0;
       
