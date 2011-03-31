@@ -2370,38 +2370,37 @@ static gboolean getAnyMspInRange(GArray *mspArray,
 
   gboolean result = FALSE;
   
+  /* Do a binary search based on start coord until we find a start coord 
+   * that lies within the given range. */
   int iMax = mspArray->len - 1;
   int iMin = 0;
-  int i = (iMax - iMin) / 2;
-  
-  const MSP *msp = mspArrayIdx(mspArray, i);
-  
-  while (msp)
+
+  while (1)
     {
-      /* Do a binary search based on start coord until we find a start coord 
-       * that lies within the given range. */
+      const int i = iMin + (iMax - iMin) / 2;  
+      const MSP *msp = mspArrayIdx(mspArray, i);
+      
+      if (!msp)
+	break;
+    
       if (startValueWithinRange(&msp->displayRange, range, displayRev))
         {
           result = TRUE;
           *idx = i;
           break;
         }
-      else if ((msp->displayRange.min < range->min) != displayRev)
+    
+      if (iMax - iMin < 1)
+	break;
+    
+      if ((msp->displayRange.min < range->min) != displayRev)
         {
-          iMin = i;
+          iMin = i + 1;
         }
       else
         {
-          iMax = i;
+          iMax = i - 1;
         }
-
-      int iNew = iMin + (iMax - iMin) / 2;
-      
-      if (iNew == i)
-        break;
-      
-      i = iNew;
-      msp = mspArrayIdx(mspArray, i);
     }
   
   
