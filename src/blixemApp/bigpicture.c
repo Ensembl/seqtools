@@ -534,7 +534,8 @@ void refreshGridOrder(GtkWidget *bigPicture)
 
 
 /* Adjust upper and/or lower end of the given range as necessary to
- * keep it within the given bounds, keeping the same width if possible. */
+ * keep it within the bounds range. Maintains the same length of 'range' 
+ * where possible. */
 static void boundRange(IntRange *range, IntRange *bounds)
 {
   int width = range->max - range->min;
@@ -622,16 +623,31 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
   if (!changedRange) /* i.e. not already done */
     {
       /* See if we need to scroll the big picture range so that it completely 
-       * contains the detail-view range */
-      if (detailViewRange->min < displayRange->min)
+       * contains the detail-view range.
+       * NB We use a shorter big picture range so that we never get the highlight
+       * box bumped right up against the edge of the big picture; UNLESS the
+       * detail view range is larger than that limited range, in which case use
+       * the original range. */
+      const gdouble borderFraction = 0.1;     /* 10% shorter */
+      int border = getRangeLength(displayRange) * borderFraction;
+
+      if (getRangeLength(detailViewRange) > width - (2 * border))
+        border = 0;
+      
+      int offset = (displayRange->min + border) - detailViewRange->min;
+      
+      if (offset > 0)
         {
-          displayRange->min = detailViewRange->min;
+          displayRange->min -= offset;
           displayRange->max = displayRange->min + width;
           changedRange = TRUE;
         }
-      else if (detailViewRange->max > displayRange->max)
+      
+      offset = detailViewRange->max - (displayRange->max - border);
+      
+      if (offset > 0)
         {
-          displayRange->max = detailViewRange->max;
+          displayRange->max += offset;
           displayRange->min = displayRange->max - width;
           changedRange = TRUE;
         }
