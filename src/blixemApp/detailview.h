@@ -75,6 +75,7 @@ typedef struct _DetailViewColumnInfo
     int width;			/* the column width */
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
     gboolean visible;           /* whether the column should be shown */
+    gboolean searchable;        /* whether searching sequences by data in this column is supported */
   } DetailViewColumnInfo;
 
 
@@ -164,6 +165,7 @@ void			detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand);
 DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 
 int			detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
+const char*             detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId);
 void                    detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange);
 gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
 

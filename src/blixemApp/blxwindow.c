@@ -57,18 +57,23 @@
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
 #define MATCH_SET_GROUP_NAME		 "Match set"
 #define LOAD_DATA_TEXT                   "Load optional data"
-
+#define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
+#define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
 
 
-/* Utility struct used when comparing sequence names */
+/* Utility struct used when comparing sequences to a search string */
 typedef struct _CompareSeqData
   {
-    const char *searchStr;
-    GList *matchList;
+    const char *searchStr;    /* the string to search for */
+    BlxColumnId searchCol;    /* the column ID, which defines what data to search e.g. Name or Tissue Type */
+    BlxViewContext *bc;       /* the main context */
+    GList *matchList;         /* resulting list of all BlxSequences that match */
+    GError *error;
   } SeqSearchData;
+
 
 /* Properties specific to the blixem window */
 typedef struct _BlxWindowProperties
@@ -110,20 +115,24 @@ static void			  onDestroyBlxWindow(GtkWidget *widget);
 
 static BlxStrand		  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
+static GtkComboBox*               widgetGetComboBox(GtkWidget *widget);
+static BlxColumnId                getColumnFromComboBox(GtkComboBox *combo);
+
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
-static GtkRadioButton*		  createRadioButton(GtkBox *box, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, BlxResponseCallback callbackFunc, GtkWidget *blxWindow);
+static GtkRadioButton*		  createRadioButton(GtkTable *table, const int col, const int row, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, BlxResponseCallback callbackFunc, GtkWidget *blxWindow);
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
-static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText);
+static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error);
 
+static void                       createSortBox(GtkBox *parent, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList, const char *labelText, const gboolean searchableOnly);
 static GtkWidget*		  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
 static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
 static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
 
 static void                       blxWindowFindDnaString(GtkWidget *blxWindow, const char *inputSearchStr, const int startCoord, const gboolean searchLeft, const gboolean findAgain, GError **error);
-static GList*                     findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error);
+static GList*                     findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean findAgain, GError **error);
 static int                        getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft);
-static GList*                     findSeqsFromName(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error);
+static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, const gboolean findAgain, GError **error);
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
 
@@ -596,12 +605,12 @@ static void findAgain(GtkWidget *blxWindow, const gboolean modifier)
   if (!error)
     {
       /* Try the search-from-list search. Returns NULL if last search was not a list search */
-      GList *seqList = findSeqsFromList(blxWindow, NULL, TRUE, &error);
+      GList *seqList = findSeqsFromList(blxWindow, NULL, BLXCOL_NONE, TRUE, &error);
       
       if (!seqList && !error)
         {
           /* Try the search-by-name search. Returns NULL if last search was not a name search. */
-          seqList = findSeqsFromName(blxWindow, NULL, TRUE, &error);
+          seqList = findSeqsFromColumn(blxWindow, NULL, BLXCOL_NONE, TRUE, &error);
         }
       
       /* If either the list or name search succeeded, select the prev/next MSP from the 
@@ -795,30 +804,42 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
  *			    Find menu			   *
  ***********************************************************/
 
-static GList* findSeqsFromName(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error)
+static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean findAgain, GError **error)
 {
   static char *searchStr = NULL;
+  static BlxColumnId searchCol = BLXCOL_NONE;
   
+  /* If it's a find-again, use the existing values; otherwise, use the input values */
   if (!findAgain)
     {
       g_free(searchStr);
       searchStr = g_strdup(inputText);
+      searchCol = inputCol;
     }
   
-  if (!searchStr)
+  if (!searchStr || searchCol == BLXCOL_NONE)
     {
+      /* We will get here if we do a find-again when there wasn't a previous find */
       return NULL;
     }
   
-  /* Loop through all the sequences and see if the name matches the search string */
+  /* Loop through all the sequences and see if the sequence data for this column
+   * matches the search string */
   GList *seqList = blxWindowGetAllMatchSeqs(blxWindow);
-  SeqSearchData searchData = {searchStr, NULL};
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  SeqSearchData searchData = {searchStr, searchCol, bc, NULL, NULL};
   
   g_list_foreach(seqList, getSequencesThatMatch, &searchData);
   
   if (g_list_length(searchData.matchList) < 1)
     {
-      g_set_error(error, BLX_ERROR, BLX_ERROR_STRING_NOT_FOUND, "No sequences found matching text '%s'.\n", searchStr);
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+      const char *columnName = detailViewGetColumnTitle(detailView, searchCol);
+
+      if (searchData.error)
+        g_propagate_error(error, searchData.error);
+      else
+        g_set_error(error, BLX_ERROR, BLX_ERROR_STRING_NOT_FOUND, "No sequences found where column '%s' matches text '%s'.\n", columnName, searchStr);
     }
   
   return searchData.matchList;
@@ -864,28 +885,45 @@ static const char* getStringFromTextView(GtkTextView *textView)
 }
 
 
-/* Finds all the valid sequences blixem knows about whose names are in the given
- * text, and returns them in a GList of BlxSequences. */
-static GList* findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const gboolean findAgain, GError **error)
+/* Finds all the valid sequences blixem knows about whose column data matches
+ * an item from the given input text. Returns the results as a GList of BlxSequences.
+ * The input text may be a multi-line list (one search item per line). */
+static GList* findSeqsFromList(GtkWidget *blxWindow,
+                               const char *inputText, 
+                               const BlxColumnId inputCol, 
+                               const gboolean findAgain, 
+                               GError **error)
 {
   static char *searchStr = NULL; /* remember last searched-for string for use with 'findAgain' option */
+  static BlxColumnId searchCol = BLXCOL_NONE;
   
+  /* If we-re doing a find-again, use the values from last time; otherwise use the input values */
   if (!findAgain)
     {
       g_free(searchStr);
       searchStr = g_strdup(inputText);
+      searchCol = inputCol;
     }
       
-  if (!searchStr)
+  if (!searchStr || searchCol == BLXCOL_NONE)
     {
+      /* We may get here if we did a find-again when there was no previous find */
       return NULL;
     }
 
-  GList *seqList = getSeqStructsFromText(blxWindow, searchStr);
+  
+  GError *tmpError = NULL;
+  GList *seqList = getSeqStructsFromText(blxWindow, searchStr, searchCol, &tmpError);
 
   if (g_list_length(seqList) < 1)
     {
-      g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_NAME_NOT_FOUND, "No valid sequence names in search string\n%s\n", searchStr);
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+      const char *columnName = detailViewGetColumnTitle(detailView, searchCol);
+      
+      if (tmpError)
+        g_propagate_error(error, tmpError);
+      else
+        g_set_error(error, BLX_ERROR, BLX_ERROR_STRING_NOT_FOUND, "No sequences found where column '%s' matches text '%s'.\n", columnName, searchStr);
     }
   
   return seqList;
@@ -905,11 +943,17 @@ static gboolean onFindSeqsFromName(GtkWidget *button, const gint responseId, gpo
       inputText = getStringFromTextEntry(GTK_ENTRY(data));
     }
   
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  GtkWidget *dialog = gtk_widget_get_toplevel(button);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
   
+  /* Find the combo box on the dialog (there should only be one), which tells
+   * us which column to search. */
+  GtkComboBox *combo = widgetGetComboBox(dialog);
+  BlxColumnId searchCol = getColumnFromComboBox(combo);
+
+  /* Find all sequences that match */
   GError *error = NULL;
-  GList *seqList = findSeqsFromName(blxWindow, inputText, FALSE, &error);
+  GList *seqList = findSeqsFromColumn(blxWindow, inputText, searchCol, FALSE, &error);
   
   if (error)
     {
@@ -950,16 +994,23 @@ static gboolean onFindSeqsFromList(GtkWidget *button, const gint responseId, gpo
   
   const char *inputText = NULL;
   
+  /* Nothing to do if this button is not active */
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     {
       inputText = getStringFromTextView(GTK_TEXT_VIEW(data));
     }
   
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  /* Get the dialog and main window */
+  GtkWidget *dialog = gtk_widget_get_toplevel(button);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+
+  /* Find the combo box on the dialog (there should only be one), which tells
+   * us which column to search. */
+  GtkComboBox *combo = widgetGetComboBox(dialog);
+  BlxColumnId searchCol = getColumnFromComboBox(combo);
   
   GError *error = NULL;
-  GList *seqList = findSeqsFromList(blxWindow, inputText, FALSE, &error);
+  GList *seqList = findSeqsFromList(blxWindow, inputText, searchCol, FALSE, &error);
 
   if (error)
     {
@@ -1198,6 +1249,19 @@ static gboolean onFindDnaString(GtkWidget *button, const gint responseId, gpoint
 }
 
 
+/* Utility to create a drop-down combo box for selecting the column to search by */
+static void createSearchColumnCombo(GtkTable *table, const int col, const int row, GtkWidget *blxWindow)
+{
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_table_attach(table, hbox, col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  
+  createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, dvProperties->columnList, "Search column: ", TRUE);  
+}
+
+
 /* Show the 'Find' dialog */
 void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
@@ -1225,10 +1289,21 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
-  
-      GtkRadioButton *button1 = createRadioButton(contentArea, NULL, "Sequence _name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
-      createRadioButton(contentArea, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
-      createRadioButton(contentArea, button1, "Sequence name _list search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+      const int numRows = 3;
+      const int numCols = 2;
+      GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+      gtk_box_pack_start(contentArea, GTK_WIDGET(table), TRUE, TRUE, 0);
+
+
+      /* Column 1: match-seq search options */
+      GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
+      createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+      createSearchColumnCombo(table, 1, 3, blxWindow);
+      
+      
+      /* Column 2: ref-seq search options */
+      createRadioButton(table, 2, 1, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
+
       
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
@@ -1648,75 +1723,158 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
 }
 
 
-/* Called for each entry in a hash table. Compares the key of the table, which is
- * a sequence name, to the search string given in the user data. If it matches, it
- * appends the sequence name to the result list in the user data. */
+/* Get the relevant data about a sequence for the given column ID (at the moment
+ * this only supports string data) */
+static const char* blxSequenceGetColumnData(const BlxSequence const *blxSeq, 
+                                            const BlxColumnId columnId,
+                                            const BlxViewContext *bc,
+                                            GError **error)
+{
+  const char *result = NULL;
+  
+  switch (columnId)
+    {
+      case BLXCOL_SEQNAME:
+        result = blxSequenceGetFullName(blxSeq);
+        break;
+        
+      case BLXCOL_SOURCE:
+        result = blxSequenceGetSource(blxSeq);
+        break;
+
+      case BLXCOL_ORGANISM:
+        result = blxSequenceGetOrganism(blxSeq);
+        break;
+
+      case BLXCOL_GENE_NAME:
+        result = blxSequenceGetGeneName(blxSeq);
+        break;
+
+      case BLXCOL_TISSUE_TYPE:
+        result = blxSequenceGetTissueType(blxSeq);
+        break;
+        
+      case BLXCOL_STRAIN:
+        result = blxSequenceGetStrain(blxSeq);
+        break;
+
+      case BLXCOL_GROUP:
+      {
+        const SequenceGroup *group = blxContextGetSequenceGroup(bc, blxSeq);
+        if (group)
+          result = group->groupName;
+        break;
+      }
+        
+      default:
+        g_set_error(error, BLX_ERROR, BLX_ERROR_INVALID_COLUMN, "No sequence data for this column.\n");
+        break;
+    };
+  
+  return result;
+}
+          
+
+/* Called for an entry from a list of BlxSequences. Compares the relevant data
+ * from the BlxSequence (as indicated by the searchCol member of the SeqSearchData
+ * struct) to the search string (also specified in the SeqSearchData). If it
+ * matches, it appends the BlxSequence to the result list in the SeqSearchData. */
 static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 {
-  SeqSearchData *searchData = (SeqSearchData*)data;
+  /* Get the BlxSequence for this list item */
   BlxSequence *seq = (BlxSequence*)listDataItem;
   
-  /* Try matching against the full sequence name, e.g. Em:AB123456.1 */
-  gboolean found = wildcardSearch(blxSequenceGetFullName(seq), searchData->searchStr);
-
-  if (!found)
-    {
-      /* Try without the prefix, e.g. AB123456.1 */
-      found = wildcardSearch(blxSequenceGetVariantName(seq), searchData->searchStr);
-    }
+  /* Get the search data */
+  SeqSearchData *searchData = (SeqSearchData*)data;
   
-  if (!found)
+  if (searchData->error)
+    return; /* already hit an error so don't try any more */
+
+  /* Get the relevant data for the search column */
+  const char *dataToCompare = blxSequenceGetColumnData(seq, searchData->searchCol, searchData->bc, &searchData->error);
+  
+  if (!dataToCompare)
     {
-      /* Try without the variant. e.g. Em:AB123456 */
-      char *seqName = g_strdup(blxSequenceGetFullName(seq));
-      char *cutPoint = strchr(seqName, '.');
-      
-      if (cutPoint)
+      if (searchData->error)
         {
-          *cutPoint = '\0';
-          found = wildcardSearch(seqName, searchData->searchStr);
+          /* Default error message is not that useful, so replace it */
+          reportAndClearIfError(&searchData->error, G_LOG_LEVEL_DEBUG);
+          g_set_error(&searchData->error, BLX_ERROR, BLX_ERROR_INVALID_COLUMN, "Invalid search column.\n");
         }
       
-      g_free(seqName);
+      return;
     }
   
-  if (!found)
-    {
-      /* Try without the prefix or variant e.g. AB123456 */
-      found = wildcardSearch(blxSequenceGetShortName(seq), searchData->searchStr);
-    }
+  /* Do the search */
+  gboolean found = wildcardSearch(dataToCompare, searchData->searchStr);
 
-  if (!found)
+  if (searchData->searchCol == BLXCOL_SEQNAME)
     {
-        const int len = strlen(searchData->searchStr);
-      
-      if (len > 2 &&
-          (searchData->searchStr[len - 1] == 'x' || searchData->searchStr[len - 1] == 'X' ||
-           searchData->searchStr[len - 1] == 'i' || searchData->searchStr[len - 1] == 'I'))
+      /* Historically, Blixem did a lot of messing around with prefixes and
+       * postfixes on sequence names. This bit of code tries all the different
+       * combinations of prefixes and postfixes to make sure we match a valid
+       * name with or without them. */
+      if (!found)
         {
-    
-          /* BlxSequence names don't have the 'x' or 'i' postfix for exons or introns. If the search
-           * string has an 'x' or 'i' on the end, ignore it. */
-          char *searchStr = g_strdup(searchData->searchStr);
-          searchStr[len - 1] = '\0';
-      
-          found = wildcardSearch(blxSequenceGetFullName(seq), searchStr);
-      
-          g_free(searchStr);
+          /* Try the sequence name without the prefix, e.g. AB123456.1 */
+          dataToCompare = blxSequenceGetVariantName(seq);
+          found = wildcardSearch(dataToCompare, searchData->searchStr);
         }
-    }  
-    
+  
+      if (!found)
+        {
+          /* Try without the variant postfix. e.g. Em:AB123456 */
+          dataToCompare = blxSequenceGetFullName(seq);
+          char *seqName = g_strdup(dataToCompare);
+          char *cutPoint = strchr(seqName, '.');
+          
+          if (cutPoint)
+            {
+              *cutPoint = '\0';
+              found = wildcardSearch(seqName, searchData->searchStr);
+            }
+          
+          g_free(seqName);
+        }
+  
+      if (!found)
+        {
+          /* Try without the prefix or variant e.g. AB123456 */
+          found = wildcardSearch(blxSequenceGetShortName(seq), searchData->searchStr);
+        }
+
+      if (!found)
+        {
+          const int len = strlen(searchData->searchStr);
+          
+          if (len > 2 &&
+              (searchData->searchStr[len - 1] == 'x' || searchData->searchStr[len - 1] == 'X' ||
+               searchData->searchStr[len - 1] == 'i' || searchData->searchStr[len - 1] == 'I'))
+            {
+              /* BlxSequence names don't have the 'x' or 'i' postfix for exons or introns. If the search
+               * string has an 'x' or 'i' on the end, ignore it. */
+              char *searchStr = g_strdup(searchData->searchStr);
+              searchStr[len - 1] = '\0';
+          
+              dataToCompare = blxSequenceGetFullName(seq);
+              found = wildcardSearch(dataToCompare, searchStr);
+          
+              g_free(searchStr);
+            }
+        }  
+    }
+  
   if (found)
     {
+      /* Add this BlxSequence onto the result list. */
       searchData->matchList = g_list_prepend(searchData->matchList, seq);
     }  
-   
 }
 
 
 /* If the given radio button is enabled, add a group based on the curently-
  * selected sequences. */
-static gboolean addGroupFromSelection(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onAddGroupFromSelection(GtkWidget *button, const gint responseId, gpointer data)
 {
   gboolean result = TRUE;
   
@@ -1744,23 +1902,33 @@ static gboolean addGroupFromSelection(GtkWidget *button, const gint responseId, 
 
 
 /* If the given radio button is enabled, add a group based on the search text
- * in the given text entry. */
-static gboolean addGroupFromName(GtkWidget *button, const gint responseId, gpointer data)
+ * in the given text entry. This function finds the combo box on the dialog that
+ * specifies which column to search by, and searches the relevant column for
+ * the given search text. */
+static gboolean onAddGroupFromText(GtkWidget *button, const gint responseId, gpointer data)
 {
   gboolean result = TRUE;
   
+  /* Nothing to do if this radio button is not active */
   if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     {
       return result;
     }
   
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  /* Get the dialog and main window */
+  GtkWidget *dialog = gtk_widget_get_toplevel(button);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
 
+  /* Get the search text from the text entry widget (which is passed as user data) */
   const char *inputText = getStringFromTextEntry(GTK_ENTRY(data));
+
+  /* Find the combo box on the dialog (there should only be one), which tells
+   * us which column to search. */
+  GtkComboBox *combo = widgetGetComboBox(dialog);
+  BlxColumnId searchCol = getColumnFromComboBox(combo);
   
   GError *error = NULL;
-  GList *seqList = findSeqsFromName(blxWindow, inputText, FALSE, &error);
+  GList *seqList = findSeqsFromColumn(blxWindow, inputText, searchCol, FALSE, &error);
 
   if (error)
     {
@@ -1780,38 +1948,57 @@ static gboolean addGroupFromName(GtkWidget *button, const gint responseId, gpoin
 }
 
 
-/* Utility function to take a list of names, and return a list of those that
- * that are valid sequence names from the given list of BlxSequences. */
-static GList* getSeqStructsFromNameList(GList *nameList, GList *seqList)
+/* Utility function to take a list of search strings (newline separated), and
+ * return a list of BlxSequences whose column data matches one of those search
+ * strings. */
+static GList* getSeqStructsFromSearchStringList(GList *searchStringList, 
+                                                GList *seqList, 
+                                                BlxViewContext *bc, 
+                                                const BlxColumnId searchCol,
+                                                GError **error)
 {
-  SeqSearchData searchData = {NULL, NULL};
+  SeqSearchData searchData = {NULL, searchCol, bc, NULL, NULL};
   
   /* Loop through all the names in the input list */
-  GList *nameItem = nameList;
+  GList *nameItem = searchStringList;
   for ( ; nameItem; nameItem = nameItem->next)
     {
       /* Compare this name to all names in the sequence list. If it matches,
        * add it to the result list. */
       searchData.searchStr = (const char*)(nameItem->data);
       g_list_foreach(seqList, getSequencesThatMatch, &searchData);
+      
+      if (searchData.error)
+        break;
     }
-    
+
+  if (searchData.error)
+    g_propagate_error(error, searchData.error);
+  
   return searchData.matchList;
 }
 
 
-/* Utility to create a GList of BlxSequences from a textual list of sequences.
- * Returns only valid sequences that blixem knows about. */
-static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText)
+/* Utility to create a GList of BlxSequences from a textual list of search strings.
+ * Returns only valid sequences that blixem knows about. Looks for sequences
+ * whose relevent data for the given column matches an item in the input text
+ * (which may be a multi-line list; one search string per line). */
+static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error)
 {
-  GList *nameList = parseMatchList(inputText);
-  
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GError *tmpError = NULL;
+
+  GList *searchStringList = parseMatchList(inputText);
+
   /* Extract the entries from the list that are sequences that blixem knows about */
   GList *matchSeqs = blxWindowGetAllMatchSeqs(blxWindow);
-  GList *seqList = getSeqStructsFromNameList(nameList, matchSeqs);
+  GList *seqList = getSeqStructsFromSearchStringList(searchStringList, matchSeqs, bc, searchCol, &tmpError);
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
   
   /* Must free the original name list and all its data. */
-  freeStringList(&nameList, TRUE);
+  freeStringList(&searchStringList, TRUE);
   
   if (g_list_length(seqList) < 1)
     {
@@ -1829,7 +2016,7 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText);
+  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText, BLXCOL_SEQNAME, NULL);
   
   /* If a group already exists, replace its list. Otherwise create the group. */
   if (seqList)
@@ -1869,7 +2056,7 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText);
+  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText, BLXCOL_SEQNAME, NULL);
   
   if (seqList)
     {
@@ -1906,7 +2093,7 @@ static void toggleMatchSet(GtkWidget *blxWindow)
 
 /* If the given radio button is enabled, add a group based on the list of sequences
  * in the given text entry. */
-static gboolean addGroupFromList(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onAddGroupFromList(GtkWidget *button, const gint responseId, gpointer data)
 {
   gboolean result = TRUE;
   
@@ -1915,14 +2102,20 @@ static gboolean addGroupFromList(GtkWidget *button, const gint responseId, gpoin
       return result;
     }
   
-  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
-
+  /* Get the dialog and main window */
+  GtkWidget *dialog = gtk_widget_get_toplevel(button);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+  
+  /* Find the combo box on the dialog (there should only be one), which tells
+   * us which column to search. */
+  GtkComboBox *combo = widgetGetComboBox(dialog);
+  BlxColumnId searchCol = getColumnFromComboBox(combo);
+  
   /* The text entry box was passed as the user data. We should have a (multi-line) text view */
   const char *inputText = getStringFromTextView(GTK_TEXT_VIEW(data));
 
   GError *error = NULL;
-  GList *seqList = findSeqsFromList(blxWindow, inputText, FALSE, &error);
+  GList *seqList = findSeqsFromList(blxWindow, inputText, searchCol, FALSE, &error);
   
   if (error)
     {
@@ -2020,7 +2213,9 @@ static gboolean onRadioButtonTextEntered(GtkWidget *textWidget, GdkEventButton *
 /* Utility to create a radio button with certain given properties, and to pack it
  * into the given container widget. Returns the radio button (so that further
  * buttons can be created in the same group by passing it as 'existingButton') */
-static GtkRadioButton* createRadioButton(GtkBox *box, 
+static GtkRadioButton* createRadioButton(GtkTable *table,
+                                         const int col,
+                                         const int row,
 					 GtkRadioButton *existingButton,
 					 const char *mnemonic, 
 					 const gboolean isActive, 
@@ -2030,6 +2225,9 @@ static GtkRadioButton* createRadioButton(GtkBox *box,
 					 GtkWidget *blxWindow)
 {
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
+  
+  GtkBox *box = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
@@ -2226,39 +2424,39 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   
   const gboolean seqsSelected = g_list_length(bc->selectedSeqs) > 0;
 
-  const int numRows = g_list_length(bc->sequenceGroups) + 2; /* +2 for header row and delete-all button */
-  
-
   /* Create tabbed pages */
   GtkWidget *notebook = gtk_notebook_new();
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), notebook, TRUE, TRUE, 0);
 
 
   /* "CREATE GROUP" SECTION. */
-  GtkBox *section1 = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(section1), gtk_label_new("Create group"));
+  int numRows = 3;
+  int numCols = 2;
+  GtkTable *table1 = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table1), gtk_label_new("Create group"));
 
-  GtkRadioButton *button1 = createRadioButton(section1, NULL, "From _selection", seqsSelected, FALSE, FALSE, addGroupFromSelection, blxWindow);
-  createRadioButton(section1, button1, "From _name (wildcards * and ?)", !seqsSelected, TRUE, FALSE, addGroupFromName, blxWindow);
-  createRadioButton(section1, button1, "From _list", FALSE, TRUE, TRUE, addGroupFromList, blxWindow);
+  GtkRadioButton *button1 = createRadioButton(table1, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, onAddGroupFromText, blxWindow);
+  createRadioButton(table1, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onAddGroupFromList, blxWindow);
+  createSearchColumnCombo(table1, 1, 3, blxWindow);
+  
+  createRadioButton(table1, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, onAddGroupFromSelection, blxWindow);
 
+  
   /* "EDIT GROUP" SECTION. */
-  GtkWidget *section2 = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), section2, gtk_label_new("Edit groups"));
+  numRows = g_list_length(bc->sequenceGroups) + 2; /* +2 for header row and delete-all button */
+  numCols = 6;
+  GtkTable *table2 = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table2), gtk_label_new("Edit groups"));
 
-  const int numCols = 6;
-  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-  gtk_box_pack_start(GTK_BOX(section2), GTK_WIDGET(table), FALSE, FALSE, 0);
-
-  const int xpad = 2;
-  const int ypad = 2;
+  const int xpad = DEFAULT_TABLE_XPAD;
+  const int ypad = DEFAULT_TABLE_YPAD;
 
   /* Add labels */
   int row = 1;
-  gtk_table_attach(table, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Highlight"), 3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add a set of widgets for each group */
@@ -2266,7 +2464,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   for ( ; groupItem; groupItem = groupItem->next)
     {
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      createEditGroupWidget(blxWindow, group, table, row, xpad, ypad);
+      createEditGroupWidget(blxWindow, group, table2, row, xpad, ypad);
       ++row;
     }
   
@@ -2274,8 +2472,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   GtkWidget *deleteGroupsButton = gtk_button_new_with_label("Delete all groups");
   gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
   g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
-//  gtk_box_pack_end(GTK_BOX(section2), deleteGroupsButton, FALSE, FALSE, 0);
-  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table2, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   
   /* Connect signals and show */
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
@@ -2361,18 +2558,6 @@ static void onSquashMatches(GtkWidget *button, gpointer data)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   detailViewUpdateSquashMatches(detailView, squash);
-}
-
-
-/* Callback function called when the 'invert sort order' button is toggled */
-static void onSortOrderToggled(GtkWidget *button, gpointer data)
-{
-  const gboolean invert = setFlagFromButton(button, data);
-  
-  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  
-  detailViewUpdateSortInverted(detailView, invert);
 }
 
 
@@ -3226,7 +3411,6 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   createCheckButton(GTK_BOX(vbox2), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
   createCheckButton(GTK_BOX(vbox2), "_Squash matches", bc->flags[BLXFLAG_SQUASH_MATCHES], G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
-  createCheckButton(GTK_BOX(vbox2), "_Invert sort order", bc->flags[BLXFLAG_INVERT_SORT], G_CALLBACK(onSortOrderToggled), GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
 
   
   /* Other boxes */
@@ -3287,22 +3471,43 @@ static GtkComboBox* widgetGetComboBox(GtkWidget *widget)
 }
 
 
-/* Set the given sort priority from the value of the given drop-down box */
-static void setSortColumnFromComboBox(GtkComboBox *combo, DetailViewProperties *dvProperties, const int priority)
+/* For a drop-down box that contains columns, find which column is currently
+ * selected */
+static BlxColumnId getColumnFromComboBox(GtkComboBox *combo)
 {
-  /* Get the combo box value */
-  GtkTreeIter iter;
+  BlxColumnId result = BLXCOL_NONE;
   
-  if (gtk_combo_box_get_active_iter(combo, &iter))
+  if (combo)
     {
-      GtkTreeModel *model = gtk_combo_box_get_model(combo);
+      /* Get the combo box value */
+      GtkTreeIter iter;
       
-      GValue val = {0};
-      gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
-      
-      BlxColumnId sortColumn = g_value_get_int(&val);
-      dvProperties->sortColumns[priority] = sortColumn;
+      if (gtk_combo_box_get_active_iter(combo, &iter))
+        {
+          GtkTreeModel *model = gtk_combo_box_get_model(combo);
+          
+          GValue val = {0};
+          gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
+          
+          result = g_value_get_int(&val);
+        }
     }
+  
+  return result;
+}
+
+
+/* Callback function called when the 'invert sort order' button is toggled */
+static gboolean onInvertSortChanged(GtkWidget *button, const gint responseId, gpointer data)
+{
+  const gboolean invert = setFlagFromButton(button, data);
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  
+  detailViewUpdateSortInverted(detailView, invert);
+  
+  return TRUE;
 }
 
 
@@ -3332,7 +3537,7 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
           
           if (combo)
             {
-              setSortColumnFromComboBox(combo, dvProperties, priority);
+              dvProperties->sortColumns[priority] = getColumnFromComboBox(combo);
             }
         }
       
@@ -3371,7 +3576,8 @@ static void createSortBox(GtkBox *parent,
                           GtkWidget *detailView, 
                           const BlxColumnId initSortColumn, 
                           GList *columnList, 
-                          const char *labelText)
+                          const char *labelText,
+                          const gboolean searchableOnly)
 {
   /* Put the label and drop-down in a box */
   GtkWidget *box = gtk_hbox_new(FALSE, 0);
@@ -3394,8 +3600,12 @@ static void createSortBox(GtkBox *parent,
   gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
   gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", SORT_TEXT_COL, NULL);
   
-  /* Add a blank row for the case where nothing is selected */
-  GtkTreeIter *iter = addSortBoxItem(store, NULL, BLXCOL_NONE, "<select column>", initSortColumn, combo);
+  GtkTreeIter *iter = NULL;
+  
+  /* Add a blank row for the case where nothing is selected (unless we only
+   * want searchable columns, because we can't search the NONE column) */
+  if (!searchableOnly)
+    iter = addSortBoxItem(store, iter , BLXCOL_NONE, "<select column>", initSortColumn, combo);
 
   /* Add a row for each column that has the 'sortName' property set. */
   GList *columnItem = columnList;
@@ -3404,7 +3614,9 @@ static void createSortBox(GtkBox *parent,
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
 
-      if (columnInfo->sortName)
+      /* Only include columns that have a sort name and, if searchableOnly is
+       * true, only include columns that are searchable. */
+      if (columnInfo->sortName && (columnInfo->searchable || !searchableOnly))
         {
           iter = addSortBoxItem(store, iter, columnInfo->columnId, columnInfo->sortName, initSortColumn, combo);
         }
@@ -3424,7 +3636,7 @@ static void onAddNewSortByBox(GtkButton *button, gpointer data)
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
 
   /* Add another sort-by box to the container */
-  createSortBox(box, detailView, BLXCOL_NONE, dvProperties->columnList, "then by");
+  createSortBox(box, detailView, BLXCOL_NONE, dvProperties->columnList, "then by", FALSE);
   
   gtk_widget_show_all(GTK_WIDGET(box));
 }
@@ -3484,9 +3696,9 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       if (columnId != BLXCOL_NONE || sortPriority < minBoxes)
         {
           if (sortPriority == 0)
-            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "Sort by");
+            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "Sort by", FALSE);
           else
-            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "then by");
+            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "then by", FALSE);
         }
       else
         {
@@ -3502,6 +3714,16 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   gtk_box_pack_end(GTK_BOX(vbox), button, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onAddNewSortByBox), vbox);
   
+  
+  /* Add a toggle button for the 'invert sort order' option */
+  GtkWidget *toggle = gtk_check_button_new_with_mnemonic("_Invert sort order");
+  gtk_box_pack_end(GTK_BOX(vbox), toggle, FALSE, FALSE, 0);
+  
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(toggle), bc->flags[BLXFLAG_INVERT_SORT]);
+  widgetSetCallbackData(toggle, onInvertSortChanged, GINT_TO_POINTER(BLXFLAG_INVERT_SORT));
+  
+
+  /* Shot the dialog */
   gtk_widget_show_all(dialog);
   
   if (bringToFront)
@@ -4722,7 +4944,7 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *blxContextGetSequenceGroup(BlxViewContext *bc, const BlxSequence *seqToFind)
+SequenceGroup *blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind)
 {
   SequenceGroup *result = NULL;
   
