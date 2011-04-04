@@ -984,19 +984,13 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   for ( ; mspListItem ; mspListItem = mspListItem->next)
     {
       const MSP *msp = (MSP*)(mspListItem->data);
-      const int qFrame = mspGetRefFrame(msp, bc->seqType);
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
-      int base1, base2;
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base1);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, qFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &base2);
-      
-      IntRange mspDisplayRange;
-      intrangeSetValues(&mspDisplayRange, coord1, coord2);
+      const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
 
       /* Check if the MSP is in a visible strand is entirely within the big picture range */
       if ((msp->qStrand == activeStrand || (bc->blastMode == BLXMODE_BLASTN)) &&
-	  (mspDisplayRange.min >= bigPicRange->min && mspDisplayRange.max <= bigPicRange->max))
+	  rangesOverlap(mspDisplayRange, bigPicRange))
 	{
 	  int qSeqMin = msp->qRange.min;
 	  int qSeqMax = msp->qRange.max;

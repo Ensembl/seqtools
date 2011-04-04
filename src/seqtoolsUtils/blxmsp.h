@@ -27,7 +27,7 @@
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
- *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Ed  fGriffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
@@ -45,6 +45,7 @@
 
 #include <seqtoolsUtils/utilities.h>
 #include <stdlib.h>
+#include <gtk/gtk.h>
 
 
 //extern GArray    *fsArr;		   /* in dotter.c */
@@ -85,6 +86,7 @@ typedef enum
   BLXMSP_POLYA_SIGNAL,		 /* polyA signal */
   
   BLXMSP_VARIATION,              /* SNP, substitution, deletion, insertion */
+  BLXMSP_SHORT_READ,             /* one fragment of a read-pair */
   
   BLXMSP_HSP,                    /*  */
   BLXMSP_GSP,                    /*  */
@@ -102,8 +104,21 @@ typedef enum
     BLXSEQUENCE_UNSET,
     BLXSEQUENCE_TRANSCRIPT,         /* transcript (i.e. collection of exons and introns) */
     BLXSEQUENCE_MATCH,              /* match sequence (i.e. collection of matches) */
-    BLXSEQUENCE_VARIATION           /* variation (i.e. insertion, deletion or substitution) */
+    BLXSEQUENCE_VARIATION,          /* variation (i.e. insertion, deletion or substitution) */
+    BLXSEQUENCE_READ_PAIR           /* read pair */
   } BlxSequenceType;
+
+
+/* This enum provides an ID for each type of data model that we use for the
+ * detail-view trees. */
+typedef enum
+  {
+    BLXMODEL_NORMAL,                /* the normal model, where each row contains one feature */
+    BLXMODEL_SQUASHED,              /* the "squashed" model, where all MSPs from the same sequence appear on the same row */
+    
+    BLXMODEL_NUM_MODELS             /* the number of model IDs. MUST BE LAST IN LIST */
+  } BlxModelId;
+
 
 
 /* Structure that contains information about a sequence */
@@ -157,13 +172,16 @@ typedef enum
  * file about the naming of this struct). */
 typedef struct _MSP
 {
+  gchar* treePaths[BLXMODEL_NUM_MODELS]; /* identifies the row in the tree data model this msp is in (for the model given by the modelId) */
+
   struct _MSP       *next;
   GList             *childMsps;    /* Child MSPs of this MSP if it has them, e.g. an exon has CDS and UTR children (part_of relationship). */
+  
   BlxMspType        type;          /* Whether this is a match, exon, SNP etc. */
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
-  char		    *url;
+  char		    *url;          /* URL to info about the MSP (e.g. variations have a URL which can be opened by double-clicking the variation) */
   
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   IntRange	    qRange;	   /* the range of coords on the ref sequence where the alignment lies */
@@ -173,6 +191,14 @@ typedef struct _MSP
   BlxSequence       *sSequence;    /* pointer to a struct holding info about the sequence/strand this match is from */
   char              *sname;        /* sequence name (could be different to the sequence name in the blxSequence e.g. exons have a postfixed 'x') */
   IntRange	    sRange;	   /* the range of coords on the match sequence where the alignment lies */
+  
+  /* The following ranges are all calculated from the above but are
+   * cached in the MSP because they are used a lot. Note that these
+   * these are not current used by dotter so dotter does not bother to
+   * initialise them. */
+  IntRange	    displayRange;  /* the same range as qRange but in display coords */
+  IntRange	    fullRange;	   /* the full range of display coords to show this match against (includes any unaligned portions of sequence that we're showing) */
+  IntRange	    fullSRange;	   /* the full range of coords on the match sequence that we're showing (including any unaligned portions of sequence) */
   
   char              *desc;         /* Optional description text for the MSP */
   char              *source;       /* Optional source text for the MSP */
@@ -193,6 +219,10 @@ gboolean              typeIsExon(const BlxMspType mspType);
 gboolean              typeIsIntron(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
+gboolean              typeIsShortRead(const BlxMspType mspType);
+gboolean              typeShownInDetailView(const BlxMspType mspType);
+gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
+gboolean	      blxSequenceShownInGrid(const BlxSequence *blxSeq);
 
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
@@ -229,6 +259,11 @@ char*                 mspGetGeneName(const MSP const *msp);
 char*                 mspGetTissueType(const MSP const *msp);
 char*                 mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
+gchar*                mspGetTreePath(const MSP const *msp, BlxModelId modelId);
+
+MSP*                  mspArrayIdx(const GArray const *array, const int idx);
+gint                  compareFuncMspPos(gconstpointer a, gconstpointer b);
+gint                  compareFuncMspArray(gconstpointer a, gconstpointer b);
 
 gboolean              mspLayerIsVisible(const MSP const *msp);
 gboolean	      mspIsExon(const MSP const *msp);
@@ -237,14 +272,18 @@ gboolean	      mspIsSnp(const MSP const *msp);
 gboolean	      mspIsBlastMatch(const MSP const *msp);
 gboolean	      mspIsPolyASite(const MSP const *msp);
 gboolean	      mspIsVariation(const MSP const *msp);
+gboolean	      mspIsShortRead(const MSP const *msp);
 gboolean	      mspIsZeroLenVariation(const MSP const *msp);
 
 gboolean              mspHasSName(const MSP const *msp);
 gboolean              mspHasSSeq(const MSP  const *msp);
 gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
-gboolean              mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList);
-gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GList const *polyASiteList);
+gboolean              mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList);
+gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray const *polyASiteList);
+
+int                   getMaxMspLen();
+void                  setMaxMspLen(const int len);
 
 void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2);
 BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
@@ -253,7 +292,7 @@ void                  readMspFromText(MSP *msp, char *text);
 
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
-MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
+MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
                                    const char *source, const gdouble score, const gdouble percentId, const int phase,
 				   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
@@ -261,7 +300,7 @@ MSP*                  createNewMsp(GList* featureLists[], MSP **lastMsp, MSP **m
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, const int offset);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 

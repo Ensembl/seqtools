@@ -213,6 +213,10 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, GtkCallback func, gpoin
 /* Add a BlxSequence to as a row in the given tree store */
 static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
 {
+  /* Only add matches and transcripts to the detail-view */
+  if (!blxSequenceShownInDetailView(blxSeq))
+    return;
+    
   /* Only add msps that are in the correct strand for this tree (since the same 
    * sequence may have matches against both ref seq strands) */
   GList *mspsToAdd = NULL;
@@ -222,7 +226,7 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
   for ( ; mspItem; mspItem = mspItem->next)
     {
       MSP *msp  = (MSP*)(mspItem->data);
-      if (msp->qStrand == treeStrand && msp->qFrame == treeGetFrame(tree))
+      if (typeShownInDetailView(msp->type) && msp->qStrand == treeStrand && msp->qFrame == treeGetFrame(tree))
         {
           mspsToAdd = g_list_prepend(mspsToAdd, msp);
         }
@@ -272,6 +276,16 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 			     BLXCOL_END, blxSequenceGetEnd(blxSeq, treeStrand),
 			     -1);
 	}
+      
+      /* Remember which row these msps are in */
+      GtkTreePath *path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
+      GList *mspItem = mspsToAdd;
+      
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          MSP *curMsp = (MSP*)(mspItem->data);
+          curMsp->treePaths[BLXMODEL_SQUASHED] = gtk_tree_path_to_string(path);
+        }
     }
 }
 
@@ -300,11 +314,17 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
   gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(filter), (GtkTreeModelFilterVisibleFunc)isTreeRowVisible, tree, NULL);
+  
+  /* Lose the local reference to 'store' because the tree filter has a reference to it. */
   g_object_unref(G_OBJECT(store));
   
-  /* Remember the tree store in the properties so we can switch between this and the 'unsquashed' tree model */
+  /* Remember the base tree store in the properties so we can switch between this and the 'unsquashed' tree model */
   TreeProperties *properties = treeGetProperties(tree);
-  properties->seqTreeModel = GTK_TREE_MODEL(filter);
+  properties->treeModels[BLXMODEL_SQUASHED] = GTK_TREE_MODEL(filter);
+  
+  /* Note that we don't decrement the ref count to 'filter' even though we're losing
+   * the local pointer to it, because we've also added a pointer to it from the tree
+   * properties. */
 }
 
 
@@ -338,27 +358,26 @@ static GtkStatusbar* treeGetStatusBar(GtkWidget *tree)
   //GTK_STATUSBAR(treeGetContext(tree)->statusBar);
 }
 
-/* For the given tree view, return the base data model i.e. all data in the tree
+/* For the given tree view, return the current base data model i.e. all data in the tree
  * without any filtering. Returns the same as treeGetVisibleDataModel if the tree does
  * not have a filter. */
 GtkTreeModel* treeGetBaseDataModel(GtkTreeView *tree)
 {
   assertTree(GTK_WIDGET(tree));
-
+  
   GtkTreeModel *result = NULL;
   
-  GtkTreeView *treeView = tree;
-  if (treeView)
+  if (tree)
     {
-      GtkTreeModel *model = gtk_tree_view_get_model(treeView);
+      GtkTreeModel *model = gtk_tree_view_get_model(tree);
       if (GTK_IS_TREE_MODEL_FILTER(model))
-	{
-	  result = gtk_tree_model_filter_get_model(GTK_TREE_MODEL_FILTER(model));
-	}
+        {
+          result = gtk_tree_model_filter_get_model(GTK_TREE_MODEL_FILTER(model));
+        }
       else
-	{
-	  result = model;
-	}
+        {
+          result = model;
+        }
     }
   
   return result;
@@ -373,81 +392,37 @@ void treeUpdateFontSize(GtkWidget *tree, gpointer data)
 }
 
 
-/* This function does the work to squash/unsquash tree rows */
-static void treeSetSquashMatches(GtkWidget *tree, const gboolean squash)
+/* This function updates the tree following a change in which tree model we're viewing */
+void treeUpdateSquashMatches(GtkWidget *tree, gpointer data)
 {
+  BlxViewContext *bc = treeGetContext(tree);
+  TreeProperties *properties = treeGetProperties(tree);
+  
   /* Get the current model (and find which column it is currently sorted by) */
   gint sortColumn;
   GtkTreeModel *origModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
   gtk_tree_sortable_get_sort_column_id(GTK_TREE_SORTABLE(origModel), &sortColumn, NULL);
   
-  /* Replace it with the squashed/unsquashed model as requested (if not already set to that) */
-  TreeProperties *properties = treeGetProperties(tree);
-  gboolean changed = FALSE;
+  /* Replace it with the new model */
+  GtkTreeModel *newModel = properties->treeModels[bc->modelId];
   
-  if (squash && origModel != properties->seqTreeModel)
-    {
-      gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->seqTreeModel);
-      changed = TRUE;
-    }
-  else if (!squash && origModel != properties->mspTreeModel)
-    {
-      gtk_tree_view_set_model(GTK_TREE_VIEW(tree), properties->mspTreeModel);
-      changed = TRUE;
-    }
+  if (newModel)
+    gtk_tree_view_set_model(GTK_TREE_VIEW(tree), newModel);
   
-  /* If we changed the model, re-sort and re-filter it */
-  if (changed)
-    {  
-      /* We sort the base data model, not the filtered one (i.e. sort all rows, not just visible ones) */
-      GtkTreeModel *newModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+  /* Re-sort and re-filter, because the new one might not be up to date */
+  /* Note that we sort the base data model, not the filtered one (i.e. sort all rows, 
+   * not just visible ones) */
+  newModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+  
+  if (newModel)
+    {
       GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
       gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(newModel), sortColumn, sortOrder);
-      
-      /* Re-filter, because this model may not be up to date for the current display range */
+      resortTree(tree, NULL);
       refilterTree(tree, NULL);
     }
 }
 
-
-/* This function makes multiple MSPs in the same sequence appear in the same row in the tree. */
-void treeSquashMatches(GtkWidget *tree, gpointer data)
-{
-  treeSetSquashMatches(tree, TRUE);
-}
-
-
-/* This function makes all MSPs appear in their own individual rows in the tree. */
-void treeUnsquashMatches(GtkWidget *tree, gpointer data)
-{
-  treeSetSquashMatches(tree, FALSE);
-}
-
-
-/* Returns true if the matches are squashed */
-gboolean treeGetMatchesSquashed(GtkWidget *tree)
-{
-  gboolean result = FALSE;
-  
-  /* Check which stored model the tree view is currently looking at */
-  GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
-  TreeProperties *properties = treeGetProperties(tree);
-  
-  if (model == properties->mspTreeModel)
-    {
-      result = FALSE;
-    }
-  else if (model == properties->seqTreeModel)
-    {
-      result = TRUE;
-    }
-  else
-    {
-      g_critical("Unexpected tree data store [%p]. Expected either [%p] (normal data) or [%p] (condensed data).\n", model, properties->mspTreeModel, properties->seqTreeModel);
-    }
-  
-  return result;
-}
 
 /***********************************************************
  *			      Updates			   *
@@ -642,6 +617,23 @@ static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const BlxColumnId col
 }
 
 
+/* Update the cached path pointer for each msp in this tree row. Should be called
+ * after the paths have changed, e.g. after a sort. */
+static gboolean updateMspPaths(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+  BlxModelId modelId = GPOINTER_TO_INT(data);
+  GList *mspItem = treeGetMsps(model, iter);
+  
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      MSP *msp = (MSP*)(mspItem->data);
+      msp->treePaths[modelId] = gtk_tree_path_to_string(path);
+    }
+  
+  return FALSE;
+}
+
+
 /* Re-sort the data for the given tree */
 void resortTree(GtkWidget *tree, gpointer data)
 {
@@ -655,46 +647,26 @@ void resortTree(GtkWidget *tree, gpointer data)
   GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
   gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, sortOrder);
   gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), sortColumn, sortOrder);
+  
+  /* Update the cached path held by each MSP about the row it is in. */
+  BlxViewContext *bc = treeGetContext(tree);
+  gtk_tree_model_foreach(model, updateMspPaths, GINT_TO_POINTER(bc->modelId));
 }
 
 
 /* Utility that returns true if the given MSP is currently shown in the tree with the given
  * strand/frame */
 static gboolean isMspVisible(const MSP const *msp, 
-			     GtkWidget *blxWindow, 
 			     const BlxViewContext *bc, 
-			     const BlxStrand strand, 
 			     const int frame, 
 			     const IntRange const *displayRange,
-			     const int numUnalignedBases)
+			     const int numUnalignedBases,
+                             const gboolean seqSelected)
 {
-  /* Check if the MSP is in a visible layer */
-  gboolean result = mspLayerIsVisible(msp);
-
-  /* The tree view only displays blast matches or exons */
-  result &= mspIsBlastMatch(msp) || mspIsExon(msp);
-		    
-  /* Check that it is in this tree's frame and strand */
-  result &= (mspGetRefStrand(msp) == strand);
-  result &= (mspGetRefFrame(msp, bc->seqType) == frame);
-  
-  if (result)
-    {
-      /* Check the MSP in the current display range. Get the full MSP display range including
-       * any portions outside the actual alignment. */
-      const gboolean seqSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
-    
-      IntRange mspDisplayRange;
-      mspGetFullQRange(msp, seqSelected, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &mspDisplayRange);
-
-      /* Convert q coords to display coords */
-      const int idx1 = convertDnaIdxToDisplayIdx(mspDisplayRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      const int idx2 = convertDnaIdxToDisplayIdx(mspDisplayRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-      
-      intrangeSetValues(&mspDisplayRange, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
-      
-      result &= rangesOverlap(&mspDisplayRange, displayRange);
-    }
+  /* Check the MSP in the current display range. Get the full MSP display range including
+   * any portions outside the actual alignment. */
+  const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp, seqSelected, bc);
+  gboolean result = rangesOverlap(mspDisplayRange, displayRange);
     
   return result;
 }
@@ -710,11 +682,16 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
   if (g_list_length(mspList) > 0)
     {
       GtkWidget *tree = GTK_WIDGET(data);
-      GtkWidget *blxWindow = treeGetBlxWindow(tree);
+      TreeProperties *properties = treeGetProperties(tree);
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
+      BlxViewContext *bc = blxWindowGetContext(dvProperties->blxWindow);
 
-      /* Check the first msp to see if this sequence is in a group that's hidden */
+      /* Check the first msp to see if this sequence is in a group that's hidden.
+       * (Note that all MSPs in the same row should be in the same sequence - we 
+       * don't check this here because this function is called many times so we
+       * avoid any unnecessary checks.) */
       const MSP *firstMsp = (const MSP*)(mspList->data);
-      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, firstMsp->sSequence);
+      SequenceGroup *group = blxContextGetSequenceGroup(bc, firstMsp->sSequence);
       
       if (!group || !group->hidden)
 	{
@@ -722,9 +699,9 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
           GtkWidget *detailView = treeGetDetailView(tree);
           DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
 
-	  const int frame = treeGetFrame(tree);
-	  const BlxStrand strand = treeGetStrand(tree);
-	  const IntRange const *displayRange = treeGetDisplayRange(tree);
+	  const int frame = properties->readingFrame;
+	  const IntRange const *displayRange = &dvProperties->displayRange;
+          const gboolean seqSelected = blxContextIsSeqSelected(bc, firstMsp->sSequence);
 
 	  /* Show the row if any MSP in the list is an exon or blast match in the correct frame/strand
 	   * and within the display range */
@@ -734,7 +711,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	    {
 	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-	      if (isMspVisible(msp, blxWindow, bc, strand, frame, displayRange, dvProperties->numUnalignedBases))
+	      if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected))
 		{
 		  bDisplay = TRUE;
 		  break;
@@ -755,6 +732,10 @@ void treeSetSortColumn(GtkWidget *tree, gpointer data)
   GtkSortType sortOrder = treeGetColumnSortOrder(tree, sortColumn);
   
   gtk_tree_sortable_set_sort_column_id(model, sortColumn, sortOrder);
+  
+  /* Update the cached path held by each MSP about the row it is in. */
+  BlxViewContext *bc = treeGetContext(tree);
+  gtk_tree_model_foreach(GTK_TREE_MODEL(model), updateMspPaths, GINT_TO_POINTER(bc->modelId));
 }
 
 /***********************************************************
@@ -808,8 +789,10 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->treeHeader = treeHeader;
       properties->treeColumnHeaderList = treeColumnHeaderList;
       properties->hasSnpHeader = hasSnpHeader;
-      properties->mspTreeModel = NULL;
-      properties->seqTreeModel = NULL;
+      
+      int i = 0;
+      for ( ; i < BLXMODEL_NUM_MODELS; ++i)
+        properties->treeModels[i] = NULL;
 
       g_object_set_data(G_OBJECT(widget), "TreeProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyTree), NULL); 
@@ -1654,7 +1637,17 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
 			 BLXCOL_SEQUENCE, mspGList,
 			 BLXCOL_END, msp->sRange.max,
 			 -1);
-   }
+      
+      /* Remember the path to this tree row for each MSP */
+      GtkTreePath *path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
+      GList *mspItem = mspGList;
+      
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          MSP *curMsp = (MSP*)(mspItem->data);
+          curMsp->treePaths[BLXMODEL_NORMAL] = gtk_tree_path_to_string(path);
+        }
+    }
 }
 
 
@@ -1681,11 +1674,11 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 
       if (maxLen > 2)
 	{
-	  /* Ignore any text before the colon (if there is one) */
-	  const char *name = strchr(mspGetSName(msp), ':');
-	  if (name)
+	  /* Get the variant name (i.e. ignore any prefix) */
+          const char *name = NULL;
+	  if (msp && msp->sSequence)
 	    {
-	      name++; /* start from the char after the colon */
+	      name = blxSequenceGetVariantName(msp->sSequence);
 	    }
 	  else
 	    {
@@ -1706,7 +1699,7 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
                   displayText[i] = ' ';
                 }
 
-              displayText[maxLen - 1] = getStrandAsChar(mspGetMatchStrand(msp));
+              displayText[maxLen - 1] = getStrandAsChar(msp && msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE);
               displayText[maxLen] = 0;
 
               g_object_set(renderer, RENDERER_TEXT_PROPERTY, displayText, NULL);
@@ -2623,7 +2616,10 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
     }
   
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(store));
-  g_object_unref(G_OBJECT(store));
+  
+  /* gtk_tree_view_set_model increments the reference count to 'store', so we should
+   * decrement the reference count when we lose our local reference to it. */
+  g_object_unref(G_OBJECT(store));  
 }
 
 
@@ -2640,10 +2636,14 @@ void treeCreateFilteredDataModel(GtkWidget *tree, gpointer data)
   
   /* Add the filtered store to the tree view */
   gtk_tree_view_set_model(GTK_TREE_VIEW(tree), GTK_TREE_MODEL(filter));
-
+  
   /* Keep a reference to the model in the properties so we can switch between this and the 'squashed' model */
   TreeProperties *properties = treeGetProperties(tree);
-  properties->mspTreeModel = GTK_TREE_MODEL(filter);
+  properties->treeModels[BLXMODEL_NORMAL] = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
+  
+  /* Note that we would normally decrement the reference count to 'filter' because we 
+   * will lose the local pointer to it.  However, we've also added a pointer to it
+   * from our properties, so we would need to increment the reference count again */
 }
 
 

@@ -88,7 +88,8 @@ void			  blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const g
 void			  blxWindowSelectionChanged(GtkWidget *blxWindow);
 BlxSequence*		  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
-gboolean                  blxContextIsSeqSelected(BlxViewContext *bc, const BlxSequence *seq);
+gboolean                  blxContextIsSeqSelected(const BlxViewContext const *bc, const BlxSequence *seq);
+SequenceGroup*            blxContextGetSequenceGroup(BlxViewContext *bc, const BlxSequence *seqToFind);
 
 int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void			  copySelectionToClipboard(GtkWidget *blxWindow);
@@ -107,7 +108,7 @@ void			  blxWindowRedrawAll(GtkWidget *blxWindow);
   
 GtkWidget*		  createBlxWindow(CommandLineOptions *options, 
 					  const char *paddingSeq, 
-                                          GList* featureLists[], 
+                                          GArray* featureLists[], 
 					  GList *seqList, 
                                           GSList *supportedTypes,
 					  const char *net_id, 

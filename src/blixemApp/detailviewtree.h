@@ -82,9 +82,8 @@ typedef struct _TreeProperties
     GtkWidget *treeHeader;	    /* The container that contains all the widgets for the tree header */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
     gboolean hasSnpHeader;	    /* Whether a SNP track is shown above this tree */
-    
-    GtkTreeModel *mspTreeModel;	    /* Default tree data store, in which each MSP has its own row */
-    GtkTreeModel *seqTreeModel;     /* Condensed tree data store, in which multiple MSPs on the same sequence appear in the same row */
+
+    GtkTreeModel *treeModels[BLXMODEL_NUM_MODELS];  /* The tree data store(s) */
   } TreeProperties;
 
 
@@ -108,9 +107,7 @@ void		  refreshTreeHeaders(GtkWidget *tree, gpointer data);
 void		  resizeTreeColumns(GtkWidget *tree, gpointer data);
 void		  treeUpdateFontSize(GtkWidget *tree, gpointer data);
 
-void		  treeSquashMatches(GtkWidget *tree, gpointer data);
-void		  treeUnsquashMatches(GtkWidget *tree, gpointer data);
-gboolean	  treeGetMatchesSquashed(GtkWidget *tree);
+void		  treeUpdateSquashMatches(GtkWidget *tree, gpointer data);
 
 gboolean	  treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboolean shiftModifier);
 void		  treeScrollSelectionIntoView(GtkWidget *tree, gpointer data);

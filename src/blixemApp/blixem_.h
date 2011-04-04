@@ -318,7 +318,7 @@ typedef struct _BlxViewContext
     int numFrames;		    /* The number of reading frames */
     
     MSP *mspList;                          /* List of all MSPs. Obsolete - use featureLists array instead */
-    GList* featureLists[BLXMSP_NUM_TYPES];  /* Array indexed by the BlxMspType enum. Each array entry contains a GList of all the MSPs of that type. */
+    GArray* featureLists[BLXMSP_NUM_TYPES];/* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
     
     GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
     GSList *supportedTypes;           /* List of supported GFF types */
@@ -347,6 +347,7 @@ typedef struct _BlxViewContext
     gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
     GSList *spawnedProcesses;			  /* List of processes spawned by Blixem */
+    BlxModelId modelId;             /* which tree model to use (i.e. normal or squashed) */
   } BlxViewContext;
 
 
@@ -363,7 +364,7 @@ typedef struct
 /* blxview.c */
 /* Function to show blixem window, can be called from any application. */
 gboolean                            blxview(CommandLineOptions *options,
-                                            GList* featureLists[],
+                                            GArray* featureLists[],
                                             GList *seqList, 
                                             GSList *supportedTypes,
 	                                    PfetchParams *pfetch, 
@@ -372,26 +373,17 @@ gboolean                            blxview(CommandLineOptions *options,
 
 void                               blviewRedraw(void);
 GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
-void                               mspGetFullSRange(const MSP const *msp, 
+const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
+const IntRange*                    mspGetDisplayRange(const MSP const *msp);
+const IntRange*                    mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
+void				   mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases);
+void                               cacheMspDisplayRanges(const BlxViewContext const *bc, const int numUnalignedBases);
+
+int                                mspGetMatchCoord(const MSP *msp, 
+                                                    const int qIdx, 
                                                     const gboolean seqSelected,
-                                                    const gboolean *flags,
-                                                    const int numUnalignedBases, 
-                                                    const GList const *polyASiteList,
-                                                    IntRange *sSeqRange);
-
-void                                mspGetFullQRange(const MSP const *msp, 
-                                                     const gboolean seqSelected,
-                                                     const gboolean *flags,
-                                                     const int numUnalignedBases, 
-                                                     const GList const *polyASiteList,
-                                                     const int numFrames, 
-                                                     IntRange *sSeqRange);
-
-int                                 mspGetMatchCoord(const MSP *msp, 
-                                                     const int qIdx, 
-                                                     const gboolean seqSelected,
-                                                     const int numUnalignedBases,
-                                                     BlxViewContext *bc);
+                                                    const int numUnalignedBases,
+						    BlxViewContext *bc);
 
 
 /* dotter.c */

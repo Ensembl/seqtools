@@ -43,6 +43,7 @@
 #include <seqtoolsUtils/utilities.h>
 #include <gtk/gtkcellrenderertext.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <math.h>
 
 
@@ -677,7 +678,7 @@ static void drawBase(MSP *msp,
       sBase = getMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
       char qBase = refSeqSegment[segmentIdx];
 
-      if (sBase == qBase)
+      if (tolower(sBase) == tolower(qBase))
 	{
 	  /* Match */
 	  baseBgColor = selected ? data->matchColorSelected : data->matchColor;
@@ -755,12 +756,9 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && (msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR))
     {
       /* Get the msp's start/end in terms of the display coords */
-      const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
-      const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, rd->bc->seqType, rd->qFrame, rd->bc->numFrames, rd->bc->displayRev, &rd->bc->refSeqRange, NULL);
-      const int minIdx = min(coord1, coord2);
-      const int maxIdx = max(coord1, coord2);
+      const IntRange const *mspRange = mspGetDisplayRange(msp);
       
-      if (minIdx >= rd->displayRange->min && minIdx <= rd->displayRange->max)
+      if (valueWithinRange(mspRange->min, rd->displayRange))
 	{
 	  /* Draw the lower index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorEnd : rd->exonBoundaryColorStart;
@@ -769,7 +767,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-	  const int idx = minIdx - rd->displayRange->min;
+	  const int idx = mspRange->min - rd->displayRange->min;
 
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -777,7 +775,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
       
-      if (maxIdx >= rd->displayRange->min && maxIdx <= rd->displayRange->max)
+      if (valueWithinRange(mspRange->max, rd->displayRange))
 	{
 	  /* Draw the upper index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorStart : rd->exonBoundaryColorEnd;
@@ -786,7 +784,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
 	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
-	  const int idx = maxIdx + 1 - rd->displayRange->min;
+	  const int idx = mspRange->max + 1 - rd->displayRange->min;
 
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -887,15 +885,11 @@ static gboolean getVisibleMspRange(MSP *msp, RenderData *data, IntRange *result)
 {
   gboolean found = FALSE;
   
-  /* Find the full display range of the MSP including any portions of unaligned sequence etc. */
-  mspGetFullQRange(msp, data->seqSelected, data->bc->flags, data->numUnalignedBases, data->bc->featureLists[BLXMSP_POLYA_SITE], data->bc->numFrames, result);
+  /* Get the full display range of the MSP (including any portions of unaligned sequence etc.) */
+  const IntRange *fullRange = mspGetFullDisplayRange(msp, data->seqSelected, data->bc);
+  result->min = fullRange->min;
+  result->max = fullRange->max;
   
-  /* Convert to display coords */
-  const int idx1 = convertDnaIdxToDisplayIdx(result->min, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-  const int idx2 = convertDnaIdxToDisplayIdx(result->max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, NULL);
-
-  intrangeSetValues(result, idx1, idx2); /* this makes sure min and max are correct way round after conversion */
-
   if (rangesOverlap(result, data->displayRange))
     {
       /* Limit the returned range to the display range. */
@@ -1013,6 +1007,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   /* We'll populate a string with the characters we want to display as we loop through the indices. */
   const int segmentLen = segmentRange.max - segmentRange.min + 1;
   gchar displayText[segmentLen + 1];
+  displayText[0] = '\0';
   
   int lastFoundSIdx = UNSET_INT;  /* remember the last index where we found a valid base */
   int lastFoundQIdx = UNSET_INT;  /* remember the last index where we found a valid base */

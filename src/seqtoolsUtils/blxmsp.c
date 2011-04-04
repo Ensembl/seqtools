@@ -39,6 +39,14 @@
 #include <seqtoolsUtils/utilities.h>
 #include <string.h>
 
+#define ALL_READ_PAIRS_FWD      FALSE
+
+
+/* Globals */
+static int g_MaxMspLen = 0;     /* max length in display coords of all MSPs in the detail-view */
+
+
+/* Local function declarations */
 static char*                    blxSequenceGetOrganism(const BlxSequence *seq);
 static char*                    blxSequenceGetGeneName(const BlxSequence *seq);
 static char*                    blxSequenceGetTissueType(const BlxSequence *seq);
@@ -46,6 +54,20 @@ static char*                    blxSequenceGetStrain(const BlxSequence *seq);
 static const char*              blxSequenceGetSource(const BlxSequence *seq);
 
 
+
+/* Get/set the max MSP length */
+int getMaxMspLen()
+{
+  return g_MaxMspLen;
+}
+
+void setMaxMspLen(const int len)
+{
+  g_MaxMspLen = len;
+}
+
+
+/* Type determination methods */
 gboolean typeIsExon(const BlxMspType mspType)
 {
   return (mspType == BLXMSP_CDS || mspType == BLXMSP_UTR || mspType == BLXMSP_EXON);
@@ -66,6 +88,28 @@ gboolean typeIsVariation(const BlxMspType mspType)
   return (mspType == BLXMSP_VARIATION);
 }
 
+gboolean typeIsShortRead(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_SHORT_READ);
+}
+
+/* This returns true if the given type should be shown in the detail-view */
+gboolean typeShownInDetailView(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_SHORT_READ || mspType == BLXMSP_CDS || mspType == BLXMSP_UTR);
+}
+
+/* This returns true if the given sequence should be shown in the detail-view */
+gboolean blxSequenceShownInDetailView(const BlxSequence *blxSeq)
+{
+  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR || blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
+}
+
+/* This returns true if the given sequence should be shown in the big picture grids */
+gboolean blxSequenceShownInGrid(const BlxSequence *blxSeq)
+{
+  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR);
+}
 
 gboolean mspIsExon(const MSP const *msp)
 {
@@ -176,7 +220,7 @@ gboolean mspIsIntron(const MSP const *msp)
 
 gboolean mspIsBlastMatch(const MSP const *msp)
 {
-  return (msp && msp->type == BLXMSP_MATCH);
+  return (msp && (msp->type == BLXMSP_MATCH || msp->type == BLXMSP_SHORT_READ));
 }
 
 gboolean mspIsPolyASite(const MSP const *msp)
@@ -187,6 +231,11 @@ gboolean mspIsPolyASite(const MSP const *msp)
 gboolean mspIsVariation(const MSP const *msp)
 {
   return (msp && typeIsVariation(msp->type));
+}
+
+gboolean mspIsShortRead(const MSP const *msp)
+{
+  return (msp && typeIsShortRead(msp->type));
 }
 
 gboolean mspIsZeroLenVariation(const MSP const *msp)
@@ -360,13 +409,24 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
 /* Return the strand of the ref sequence that the given MSP is a match against */
 BlxStrand mspGetRefStrand(const MSP const *msp)
 {
-  return msp->qStrand;
+  BlxStrand result = msp->qStrand;
+  
+  if (ALL_READ_PAIRS_FWD && mspIsShortRead(msp))
+    result = BLXSTRAND_FORWARD;
+  
+  return result;
 }
 
 /* Return the strand of the match sequence that the given MSP is a match on */
 BlxStrand mspGetMatchStrand(const MSP const *msp)
 {
-  return msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE;
+  BlxStrand result = (msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE);
+
+  /* If we're displaying all read-pairs on the forward strand, return forward */
+  if (ALL_READ_PAIRS_FWD && mspIsShortRead(msp))
+    result = BLXSTRAND_FORWARD;
+  
+  return result;
 }
 
 /* Get the match sequence for the given MSP */
@@ -499,6 +559,13 @@ char *mspGetCoordsAsString(const MSP const *msp)
 }
 
 
+/* Return the path in the given tree model that this MSP lies in */
+gchar* mspGetTreePath(const MSP const *msp, BlxModelId modelId)
+{
+  return msp->treePaths[modelId];
+}
+
+
 ///* Returns true if a feature-series by the given name exists in the feature-series array and
 // * and, if so, sets index_out with its index. */
 //static gboolean fsArrayFindByName(GArray *fsArray, FeatureSeries *fs, int *index_out)
@@ -597,9 +664,21 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 //
 
 
+/* Get the MSP at the given index in the given array. Returns null if out of bounds */
+MSP* mspArrayIdx(const GArray const *array, const int idx)
+{
+  MSP *msp = NULL;
+  
+  if (idx >= 0 && idx < array->len)
+    msp = g_array_index(array, MSP*, idx);
+  
+  return msp;
+}
+
+
 /* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
  * list should be a list containing all polya sites (and only polya sites) */
-gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
+gboolean mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList)
 {
   gboolean found = FALSE;
   
@@ -609,21 +688,21 @@ gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
       /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
        * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
        * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
-      const GList *item = polyASiteList;
+      int i = 0;
+      MSP *curPolyASite = mspArrayIdx(polyASiteList, i);
       
-      for ( ; !found && item; item = item->next)
-          {
-            const MSP const *curPolyASite = (const MSP const*)(item->data);
-            const int qEnd = mspGetQEnd(msp);
-            
-            if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
-              {
-                found = (qEnd == curPolyASite->qRange.min);
-              }
-            else
-              {
-                found = (qEnd == curPolyASite->qRange.min + 1);
-              }
+      for ( ; !found && curPolyASite; curPolyASite = mspArrayIdx(polyASiteList, ++i))
+        {
+          const int qEnd = mspGetQEnd(msp);
+          
+          if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+            {
+              found = (qEnd == curPolyASite->qRange.min);
+            }
+          else
+            {
+              found = (qEnd == curPolyASite->qRange.min + 1);
+            }
         }
     }
   
@@ -633,7 +712,7 @@ gboolean mspHasPolyATail(const MSP const *msp, const GList const *polyASiteList)
 
 /* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
  * this MSP has one. */
-gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const GList *polyASiteList)
+gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray *polyASiteList)
 {
   gboolean result = mspHasPolyATail(msp, polyASiteList);
   
@@ -762,7 +841,8 @@ static const char *blxSequenceGetSource(const BlxSequence *seq)
 /* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
 const char *blxSequenceGetVariantName(const BlxSequence *seq)
 {
-  return seq->variantName;
+  /* Only applicable for matches; for anything else, return the full name */
+  return (seq->type == BLXSEQUENCE_MATCH ? seq->variantName : seq->fullName);
 }
 
 /* Return the display name of a BlxSequence (same as full name for now) */
@@ -774,7 +854,8 @@ const char *blxSequenceGetDisplayName(const BlxSequence *seq)
 /* Return the short name of a BlxSequence (excludes prefix and variant number) */
 const char *blxSequenceGetShortName(const BlxSequence *seq)
 {
-  return seq->shortName;
+  /* Only applicable to matches */
+  return (seq->type == BLXSEQUENCE_MATCH ? seq->shortName : seq->fullName);
 }
 
 /* Return the length of the given blxsequence's sequence data */
@@ -806,7 +887,7 @@ char *blxSequenceGetSeq(const BlxSequence *seq)
 
 gboolean blxSequenceRequiresSeqData(const BlxSequence *seq)
 {
-  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION));
+  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION || seq->type == BLXSEQUENCE_READ_PAIR));
 }
 
 gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
@@ -927,7 +1008,7 @@ BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allS
           gboolean foundRestartPoint = FALSE; /* set to true when we find where to start copying from again */
           
           while (copyPoint && *copyPoint != '\0')
-              {
+            {
               if (foundRestartPoint)
                 {
                   *insertPoint = *copyPoint;
@@ -982,6 +1063,10 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
     {
       seq->fullName = fullName ? g_strdup(fullName) : NULL;
       
+      /* To do: variant name and short name are only applicable to matches so 
+       * ideally we wouldn't even attempt to calculate them for other types; 
+       * however, when we create an empty blxsequence we don't know the type... */
+      
       /* The variant name: just cut off the prefix chars. We can use a pointer into
        * the original string. */
       seq->variantName = g_strdup(getSeqVariantName(fullName));
@@ -1028,7 +1113,7 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
 /* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
  * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
  * the BlxMspType enum. */
-static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
+gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 {
   gint result = 0;
 
@@ -1049,12 +1134,35 @@ static gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 }
 
 
+/* Same as compareFuncMspPos but accepts pointers to MSP pointers (which is 
+ * what the GArray of MSPs holds). */
+gint compareFuncMspArray(gconstpointer a, gconstpointer b)
+{
+  gint result = 0;
+  
+  const MSP const *msp1 = *((const MSP const**)a);
+  const MSP const *msp2 = *((const MSP const**)b);
+  
+  if (msp1->qRange.min == msp2->qRange.min)
+    {
+      /* Sort by type. Lower type numbers should appear first. */
+      result = msp2->type - msp1->type;
+    }
+  else 
+    {
+      result = msp1->qRange.min -  msp2->qRange.min;
+    }
+  
+  return result;
+}
+
+
 /* Determine the type of BlxSequence that an MSP belongs to */
 static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
 {
   BlxSequenceType result = BLXSEQUENCE_UNSET;
   
-  if (mspIsBlastMatch(msp))
+  if (msp->type == BLXMSP_MATCH)
     {
       result = BLXSEQUENCE_MATCH;
     }
@@ -1065,6 +1173,10 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const MSP const *msp)
   else if (mspIsVariation(msp))
     {
       result = BLXSEQUENCE_VARIATION;
+    }
+  else if (mspIsShortRead(msp))
+    {
+      result = BLXSEQUENCE_READ_PAIR;
     }
 
   return result;
@@ -1359,6 +1471,27 @@ void readMspFromText(MSP *msp, char *text)
 }
 
 
+/* Insert the given MSP into the given list */
+static void insertMsp(MSP *msp, MSP **mspList, MSP **lastMsp)
+{
+  /* Add it to the list */
+  if (!*mspList) 
+    {
+      /* Nothing in list yet: make this the first entry */
+      *mspList = msp;
+    }
+  
+  if (*lastMsp)
+    {
+      /* Tag it on to the end of the list */
+      (*lastMsp)->next = msp;
+    }
+  
+  /* Make the 'lastMsp' pointer point to the new end of the list */
+  *lastMsp = msp;
+}
+
+
 /* Allocate memory for an MSP and initialise all its fields to relevant 'empty' values.
  * Add it into the given MSP list and make the end pointer ('lastMsp') point to the new
  * end of the list. NB the msplist is obsolete and is being replaced by featureLists, but we don't
@@ -1367,8 +1500,13 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 {
   MSP *msp = (MSP *)g_malloc(sizeof(MSP));
   
+  int i = 0;
+  for ( ; i < BLXMODEL_NUM_MODELS; ++i)
+    msp->treePaths[i] = NULL;
+
   msp->next = NULL;
   msp->childMsps = NULL;
+  
   msp->type = BLXMSP_INVALID;
   msp->score = 0.0;
   msp->id = 0.0;
@@ -1380,12 +1518,18 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   
   msp->qRange.min = 0;
   msp->qRange.max = 0;
+  msp->displayRange.min = 0;
+  msp->displayRange.max = 0;
+  msp->fullRange.min = 0;
+  msp->fullRange.max = 0;
   
   msp->sSequence = NULL;
   msp->sname = NULL;
   
   msp->sRange.min = 0;
   msp->sRange.max = 0;
+  msp->fullSRange.min = 0;
+  msp->fullSRange.max = 0;
   
   msp->desc = NULL;
   msp->source = NULL;
@@ -1399,21 +1543,7 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->xy = NULL;
   msp->gaps = NULL;
   
-  /* Add it to the list */
-  if (!*mspList) 
-    {
-      /* Nothing in the list yet: make this the first entry */
-      *mspList = msp;
-    }
-  
-  if (*lastMsp)
-    {
-      /* Tag it on to the end of the list */
-      (*lastMsp)->next = msp;
-    }
-  
-  /* Make the 'lastMsp' pointer point to the new end of the list */
-  *lastMsp = msp;
+  insertMsp(msp, mspList, lastMsp);
   
   return msp;
 }
@@ -1459,7 +1589,7 @@ void destroyMspData(MSP *msp)
  * array according to its type. Returns a pointer to the newly-created MSP. Also creates a BlxSequence
  * for this MSP's sequence name (or adds the MSP to the existing one, if it exists already), 
  * and adds that BlxSequence to the given seqList. Takes ownership of 'sequence'. */
-MSP* createNewMsp(GList* featureLists[],
+MSP* createNewMsp(GArray* featureLists[],
                   MSP **lastMsp, 
                   MSP **mspList,
                   GList **seqList,
@@ -1500,9 +1630,9 @@ MSP* createNewMsp(GList* featureLists[],
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
-  
+
   /* Add it to the relevant feature list. Use prepend because it is quicker */
-  featureLists[msp->type] = g_list_prepend(featureLists[msp->type], msp);
+  featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
   
   /* For exons and introns, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -1513,7 +1643,7 @@ MSP* createNewMsp(GList* featureLists[],
     }
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
-  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsVariation(mspType))
+  if (typeIsExon(mspType) || typeIsIntron(mspType) || typeIsMatch(mspType) || typeIsShortRead(mspType) || typeIsVariation(mspType))
     {
       addBlxSequence(msp->sname, idTag, sStrand, seqList, sequence, msp, error);
     }
@@ -1552,7 +1682,7 @@ static void copyCdsReadingFrame(MSP *exon, MSP *cds, MSP *utr)
  * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
  * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
 static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr, 
-                                    BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
+                                    BlxSequence *blxSeq, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
                                     GError **error)
 {
   BlxMspType newType = BLXMSP_INVALID; /* only set this if we need to construct an MSP */
@@ -1683,7 +1813,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
 /* Construct any missing transcript data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(BlxSequence *blxSeq, GList* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
   GError *tmpError = NULL;
   
@@ -1830,7 +1960,7 @@ static void findSequenceExtents(BlxSequence *blxSeq)
 
 /* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
  * data and the introns etc. */
-void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList, const int offset)
+void finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset)
 {
   /* Loop through all MSPs and adjust their coords by the offest. Also find
    * the last MSP in the list. */
@@ -1851,10 +1981,14 @@ void finaliseBlxSequences(GList* featureLists[], MSP **mspList, GList **seqList,
   for ( ; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      
+
       /* So far we only have the forward strand version of each sequence. We must complement any 
        * that need the reverse strand */
-      if (blxSeq && blxSeq->type == BLXSEQUENCE_MATCH && blxSeq->strand == BLXSTRAND_REVERSE && blxSeq->sequence && blxSeq->sequence->str)
+      if (blxSeq && 
+          blxSeq->strand == BLXSTRAND_REVERSE && 
+          (blxSeq->type == BLXSEQUENCE_MATCH || (blxSeq->type == BLXSEQUENCE_READ_PAIR && !ALL_READ_PAIRS_FWD)) && 
+          blxSeq->sequence && 
+          blxSeq->sequence->str)
         {
           blxComplement(blxSeq->sequence->str);
         }

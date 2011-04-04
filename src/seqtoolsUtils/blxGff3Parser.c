@@ -149,7 +149,9 @@ GSList* blxCreateSupportedGffTypeList()
 
   addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
-  
+
+  addGffType(&supportedTypes, "read_pair", "SO:0000007", BLXMSP_SHORT_READ);
+
   return supportedTypes;
 }
 
@@ -234,7 +236,7 @@ void parseGff3Header(const int lineNum,
 /* Create a blixem object from the given parsed GFF data. Creates an MSP if the type is
  * exon or match, or a BlxSequence if the type is transcript. Does nothing for other types. */
 static void createBlixemObject(BlxGffData *gffData, 
-                               GList* featureLists[],
+                               GArray* featureLists[],
 			       MSP **lastMsp, 
 			       MSP **mspList, 
 			       GList **seqList, 
@@ -257,7 +259,7 @@ static void createBlixemObject(BlxGffData *gffData,
   else
     {
       /* For all other types, create an MSP */
-      if (!gffData->sName && !gffData->parentIdTag && (typeIsExon(gffData->mspType) || typeIsMatch(gffData->mspType)))
+      if (!gffData->sName && !gffData->parentIdTag && (typeIsExon(gffData->mspType) || typeIsMatch(gffData->mspType) || typeIsShortRead(gffData->mspType)))
 	{
 	  g_set_error(error, BLX_ERROR, 1, "Target/name/parent-ID must be specified for exons and alignments.\n");
 	  return;
@@ -268,7 +270,7 @@ static void createBlixemObject(BlxGffData *gffData,
       char *idTag = typeIsExon(gffData->mspType) ? gffData->parentIdTag : gffData->idTag;
       
       /* For exons and transcripts, the target strand is irrelevant - use the ref seq strand */
-      if (gffData->mspType != BLXMSP_MATCH)
+      if (typeIsExon(gffData->mspType))
 	{
 	  gffData->sStrand = gffData->qStrand;
 	}
@@ -323,7 +325,7 @@ static void createBlixemObject(BlxGffData *gffData,
 
 /* Parse GFF3 data */
 void parseGff3Body(const int lineNum,
-                   GList* featureLists[],
+                   GArray* featureLists[],
                    MSP **lastMsp, 
 		   MSP **mspList, 
 		   BlxParserState *parserState, 

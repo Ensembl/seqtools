@@ -241,17 +241,11 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
 {
   gboolean drawn = FALSE;
   
-  const int frame = mspGetRefFrame(msp, data->seqType);
-
   /* Find the coordinates of the start and end base in this msp, converting to display coords. Note
    * that display coords always increase from left-to-right, even if the actual coords are inverted. */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, data->seqType, frame, data->numFrames, data->displayRev, data->refSeqRange, NULL);
-  
-  IntRange mspDisplayRange;
-  intrangeSetValues(&mspDisplayRange, coord1, coord2); /* sorts out which is min and max */
-  
-  if (rangesOverlap(&mspDisplayRange, data->displayRange))
+  const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
+
+  if (rangesOverlap(mspDisplayRange, data->displayRange))
     {
       drawn = TRUE;
 
@@ -412,6 +406,8 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 
 void calculateExonViewHeight(GtkWidget *exonView)
 {
+  DEBUG_ENTER("calculateExonViewHeight");
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
 
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
@@ -438,14 +434,9 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	  
 	  if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == properties->currentStrand)
 	    {
-	      const int frame = mspGetRefFrame(msp, bc->seqType);
-	      const int startCoord = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-	      const int endCoord = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-	      
-              IntRange mspDisplayRange;
-              intrangeSetValues(&mspDisplayRange, startCoord, endCoord);
+	      const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
               
-              if (rangesOverlap(&mspDisplayRange, displayRange))
+              if (rangesOverlap(mspDisplayRange, displayRange))
 		{
 		  ++numExons;
 		  break; /* break inner loop and move to next sequence */
@@ -460,14 +451,23 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	}
     }
   
-  properties->exonViewRect.height = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
+  const int newHeight = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
   
-  gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+  if (newHeight != properties->exonViewRect.height)
+    {
+      DEBUG_OUT("Setting new height = %d\n", newHeight);
+      properties->exonViewRect.height = newHeight;
+      gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+    }
+  
+  DEBUG_EXIT("calculateExonViewHeight returning");
 }
 
 
 void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
 {
+  DEBUG_ENTER("calculateExonViewHighlightBoxBorders");
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
   
@@ -489,11 +489,15 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
   
   properties->highlightRect.width = abs(x1 - x2);
   properties->highlightRect.height = exonView->allocation.height;
-    }
+  
+  DEBUG_EXIT("calculateExonViewHighlightBoxBorders returning");
+}
 
 
 static void calculateExonViewBorders(GtkWidget *exonView)
 {
+  DEBUG_ENTER("calculateExonViewBorders");
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
@@ -503,6 +507,8 @@ static void calculateExonViewBorders(GtkWidget *exonView)
   
   /* Calculate the size of the highlight box */
   calculateExonViewHighlightBoxBorders(exonView);
+  
+  DEBUG_EXIT("calculateExonViewBorders returning");
 }
 
 /***********************************************************
@@ -648,7 +654,11 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
 
 static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocation, gpointer data)
 {
+  DEBUG_ENTER("onSizeAllocateExonView");
+
   calculateExonViewBorders(exonView);
+  
+  DEBUG_EXIT("onSizeAllocateExonView returning");
 }
 
 

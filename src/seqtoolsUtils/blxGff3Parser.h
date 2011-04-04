@@ -116,7 +116,7 @@ void parseGff3Header(const int lineNum,
                      IntRange *refSeqRange);
 
 void parseGff3Body(const int lineNum,
-                   GList* featureLists[],
+                   GArray* featureLists[],
                    MSP **lastMsp, 
 		   MSP **mspList, 
 		   BlxParserState *parserState, 

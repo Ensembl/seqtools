@@ -2836,6 +2836,21 @@ static void onParentBtnToggled(GtkWidget *button, gpointer data)
   gtk_widget_set_sensitive(subComponents, active); 
 }
 
+
+/* Callback function called when the 'Show unaligned bases' or 'Show polyA tails'
+ * buttons are toggled. These are parent buttons so will cause child buttons 
+ * to be enabled/disabled. */
+static void onShowAdditionalSeqToggled(GtkWidget *button, gpointer data)
+{
+  onParentBtnToggled(button, data);
+  
+  /* Perform any required updates */
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
+}
+
+
 /* Callback function called when the 'Limit unaligned bases' button is toggled */
 static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
 {
@@ -2850,8 +2865,8 @@ static void onLimitUnalignedBasesToggled(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
-  /* Update the value */
-  detailViewUpdateLimitUnalignedBases(detailView, limitUnalignedBases);
+  /* Perform any required updates */
+  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
 }
 
 
@@ -2864,9 +2879,27 @@ static gboolean onSetNumUnalignedBases(GtkWidget *entry, const gint responseId, 
   
   GtkWidget *detailView = GTK_WIDGET(data);
   detailViewSetNumUnalignedBases(detailView, numBases);
-  
+
+  /* Perform any required updates */
+  detailViewUpdateMspLengths(detailView, numBases);
+
   return TRUE;
 }
+
+
+/* Callback called when the 'selected seqs only' option of the 'show unaligned bases'
+ * option is toggled. */
+static void onToggleShowUnalignedSelected(GtkWidget *button, gpointer data)
+{
+  /* Get the new value */
+  setFlagFromButton(button, GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED_SELECTED));
+ 
+  /* Perform any required updates */
+  GtkWidget *detailView = GTK_WIDGET(data);
+//  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
+  refilterDetailView(detailView, NULL);
+}
+
 
 
 /* Create the check button for the 'limit number of unaligned bases' option on the settings dialog
@@ -2910,7 +2943,8 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
                                              BlxViewContext *bc,
                                              const char *label,
                                              const BlxFlag flag,
-                                             GtkWidget **buttonOut)
+                                             GtkWidget **buttonOut,
+					     GCallback callbackFunc)
 {
   /* We'll the main button and any sub-components into a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -2925,8 +2959,13 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
   
   /* Main check button to enable/disable the option. This call puts it in the vbox. Set two callbacks:
    * one to update the flag, and one to enable/disable the child buttons. */
-  GtkWidget *btn = createCheckButton(GTK_BOX(vbox), label, active, G_CALLBACK(onParentBtnToggled), subContainer);
+  GtkWidget *btn = gtk_check_button_new_with_mnemonic(label);
+  gtk_box_pack_start(GTK_BOX(vbox), btn, FALSE, FALSE, 0);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(btn), active);
+
+  /* Connect the toggleFlag callback first so that the flag is set correctly before the callbackFunc is called */
   g_signal_connect(G_OBJECT(btn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(flag));
+  g_signal_connect(G_OBJECT(btn), "toggled", callbackFunc, subContainer);
 
   if (buttonOut)
     *buttonOut = btn;
@@ -3125,12 +3164,12 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* Features */
   GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Features");
 
-  GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL);
+  GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
   createCheckButton(GTK_BOX(variationContainer), "Show varations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
   GtkWidget *polyAParentBtn = NULL;
-  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn);
+  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onShowAdditionalSeqToggled));
   GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
   g_signal_connect(G_OBJECT(polyAParentBtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
   g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
@@ -3140,9 +3179,9 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkWidget *vbox2 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   
   /* show-unaligned-sequence option and its sub-options */
-  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL);
+  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
-  createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_UNALIGNED_SELECTED));
+  createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleShowUnalignedSelected), detailView);
 
   createCheckButton(GTK_BOX(vbox2), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
 
@@ -3616,7 +3655,6 @@ static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier,
 {
   /* Reset the selected base index. Leave the selected frame as it is, though. */
   GtkWidget *detailView = blxWindowGetDetailView(window);
-  
   detailViewUnsetSelectedBaseIdx(detailView);
   return TRUE;
 }
@@ -4033,7 +4071,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
 					      const char *paddingSeq,
-                                              GList* featureLists[],
+                                              GArray* featureLists[],
                                               GList *seqList,
                                               GSList *supportedTypes,
 					      GtkWidget *widget,
@@ -4057,7 +4095,9 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-    blxContext->featureLists[typeId] = featureLists[typeId];
+    {
+      blxContext->featureLists[typeId] = featureLists[typeId];
+    }
   
   blxContext->geneticCode = options->geneticCode;
   blxContext->blastMode = options->blastMode;
@@ -4112,6 +4152,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
     }
     
   blxContext->spawnedProcesses = NULL;
+  blxContext->modelId = BLXMODEL_NORMAL;
   
   return blxContext;
 }
@@ -4301,14 +4342,15 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
   return blxContext->sequenceGroups;
 }
 
+
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
+SequenceGroup *blxContextGetSequenceGroup(BlxViewContext *bc, const BlxSequence *seqToFind)
 {
   SequenceGroup *result = NULL;
   
   /* Loop through all the groups until we find this sequence in one */
-  GList *groupItem = blxWindowGetSequenceGroups(blxWindow);
+  GList *groupItem = bc->sequenceGroups;
   for ( ; groupItem; groupItem = groupItem->next)
     {
       /* See if our sequence struct is in this group's list */
@@ -4323,6 +4365,15 @@ SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence
     }
   
   return result;
+}
+
+
+/* Returns the group that the given sequence belongs to, if any (assumes the sequence
+ * is only in one group; otherwise it just returns the first group it finds). */
+SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  return blxContextGetSequenceGroup(bc, seqToFind);
 }
 
 
@@ -4417,7 +4468,7 @@ void blxWindowSelectionChanged(GtkWidget *blxWindow)
 
   /* Re-filter the detail-view trees, because selecting an MSP can cause other MSPs to 
    * become visible (i.e. polyA tails). */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  refilterDetailView(detailView, NULL);
   
   /* Redraw */
   updateFeedbackBox(detailView);
@@ -4487,11 +4538,11 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 }
 
 
-gboolean blxContextIsSeqSelected(BlxViewContext *bc, const BlxSequence *seq)
+gboolean blxContextIsSeqSelected(const BlxViewContext const *bc, const BlxSequence *seq)
 {
   GList *foundItem = NULL;
   
-  if (bc)
+  if (bc && seq)
     {
       foundItem = g_list_find(bc->selectedSeqs, seq);
     }
@@ -4537,6 +4588,7 @@ BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
   
   return result;
 }
+
 
 /***********************************************************
  *                      Initialisation                     *
@@ -4788,7 +4840,7 @@ static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
 /* Create the main blixem window */
 GtkWidget* createBlxWindow(CommandLineOptions *options, 
                            const char *paddingSeq, 
-                           GList* featureLists[],
+                           GArray* featureLists[],
                            GList *seqList, 
                            GSList *supportedTypes,
                            const char *net_id, 
@@ -4889,6 +4941,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   options->sortInverted,
 					   options->initSortColumn,
                                            options->parseFullEmblInfo);
+
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
@@ -4918,7 +4971,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
    * be done after all widgets have been created, because it accesses their properties.*/
   detailViewAddMspData(detailView, options->mspList);
   detailViewSetSortColumn(detailView, options->initSortColumn);
-
+  
+  /* Updated the cached display range and full extents of the MSPs */
+  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
+  cacheMspDisplayRanges(blxContext, detailViewGetNumUnalignedBases(detailView));
+  
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
 
@@ -4953,6 +5010,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
    * the initial big picture range depends on the detail view range, which is calculated
    * from its window's width, and this will be incorrect if it has not been realised.) */
   updateDynamicColumnWidths(detailView);
+  
+  /* Just once, at the start, update the visibility of all tree rows. (After this,
+   * filter updates will be done on affected rows only.) */
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   
   return window;
 }
