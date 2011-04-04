@@ -1010,8 +1010,9 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int
   mspCalcFullQRange(msp, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &msp->fullSRange, &msp->fullRange);
  
   /* convert the Q range to display coords */
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max, bc->seqType, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int frame = mspGetRefFrame(msp, bc->seqType);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   intrangeSetValues(&msp->fullRange, coord1, coord2);
   
   /* Remember the max len of all the MSPs in the detail-view */
