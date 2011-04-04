@@ -337,16 +337,6 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   
-  /* Draw the highlight box */
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-  GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-  
-  drawHighlightBox(drawable, 
-                   &properties->highlightRect, 
-                   bigPictureProperties->highlightBoxMinWidth, 
-                   highlightBoxColor,
-                   HIGHLIGHT_BOX_DRAW_FUNC);
-
   /* Set a clip rectangle for drawing the exons and introns (because they are drawn "over the
    * edges" to make sure intron lines have the correct slope etc.) */
   GdkGC *gc = gdk_gc_new(drawable);
@@ -401,6 +391,24 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
   
   g_object_unref(gc);
+}
+
+
+/* Prepare the exon view for printing (draws the transient hightlight box
+ * onto the cached drawable). */
+void exonViewPrepareForPrinting(GtkWidget *exonView)
+{
+  GdkDrawable *drawable = widgetGetDrawable(exonView);
+  
+  if (drawable)
+    {
+      ExonViewProperties *properties = exonViewGetProperties(exonView);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+      
+      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+      drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+    }
 }
 
 
@@ -616,15 +624,6 @@ void exonViewToggleExpanded(GtkWidget *exonView)
  *                       Events                            *
  ***********************************************************/
 
-/* Draw the preview box at the currently set position (if any) */
-void exonViewDrawPreviewBox(GtkWidget *exonView)
-{
-  GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
-  ExonViewProperties *properties = exonViewGetProperties(exonView);
-  drawPreviewBox(properties->bigPicture, window, &properties->exonViewRect, &properties->highlightRect, PREVIEW_BOX_DRAW_FUNC);
-}
-
-
 static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *drawable = widgetGetDrawable(exonView);
@@ -640,13 +639,19 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
     {  
       /* Push the pixmap onto the screen */
       GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
-
       GdkGC *gc = gdk_gc_new(window);
       gdk_draw_drawable(window, gc, drawable, 0, 0, 0, 0, -1, -1);
-      
-      /* Draw the preview box on top, if it is set */
+
+      /* Draw the highlight box on top of it */
       ExonViewProperties *properties = exonViewGetProperties(exonView);
-      drawPreviewBox(properties->bigPicture, window, &properties->exonViewRect, &properties->highlightRect, HIGHLIGHT_BOX_DRAW_FUNC);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      BlxViewContext *bc = blxWindowGetContext(bpProperties->blxWindow);
+      
+      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+      drawHighlightBox(window, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+
+      /* Draw the preview box too, if it is set */
+      drawPreviewBox(properties->bigPicture, window, &properties->exonViewRect, &properties->highlightRect);
     }
   
   return TRUE;

@@ -76,8 +76,6 @@ GridProperties*	    gridGetProperties(GtkWidget *widget);
 BlxStrand	    gridGetStrand(GtkWidget *grid);
 GtkWidget*	    gridGetBigPicture(GtkWidget *grid);
 
-void                gridDrawPreviewBox(GtkWidget *grid);
-
 void		    calculateGridBorders(GtkWidget *grid);
 void		    calculateGridHighlightBoxBorders(GtkWidget *grid);
 
@@ -86,6 +84,8 @@ void		    callFuncOnAllBigPictureGrids(GtkWidget *widget,
 
 gint		    convertValueToGridPos(GtkWidget *grid, 
 					  const gdouble value);
+
+void                gridPrepareForPrinting(GtkWidget *grid);
 
 GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
 					 BlxStrand strand);

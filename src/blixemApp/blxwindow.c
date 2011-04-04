@@ -3615,8 +3615,13 @@ static void onPrintMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  /* We need to do some work to prepare the big picture for printing */
+  bigPicturePrepareForPrinting(properties->bigPicture);
   
-  blxPrintWidget(blxWindow, &properties->printSettings, &properties->pageSetup);
+  blxPrintWidget(blxWindow, &properties->printSettings, &properties->pageSetup, TRUE);
+  
+  bigPictureRedrawAll(properties->bigPicture);
 }
 
 
@@ -4081,8 +4086,8 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* Big Picture */
   createBlxColor(bc->defaultColors, BLXCOLOR_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", "#c7c7c7", BLX_VERY_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", "#b1b1b1", BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
 
   /* groups */

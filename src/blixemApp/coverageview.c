@@ -310,20 +310,8 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
   GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
 
-  GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-
-  drawHighlightBox(drawable,
-		   &properties->highlightRect, 
-		   bpProperties->highlightBoxMinWidth,
-		   highlightBoxColor,
-                   HIGHLIGHT_BOX_DRAW_FUNC);
-  
-  drawVerticalGridLines(&properties->viewRect,
-			&properties->highlightRect, 
-			properties->viewYPadding, 
-			bc,
-			bpProperties, 
-			drawable);
+  drawVerticalGridLines(&properties->viewRect, &properties->highlightRect, 
+			properties->viewYPadding, bc, bpProperties, drawable);
   
   const int maxDepth = coverageViewGetMaxLabeledDepth(properties);
   
@@ -331,17 +319,6 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
 			  properties->numVCells, properties->rangePerCell, (gdouble)maxDepth, "");
   
   drawCoveragePlot(coverageView, drawable);
-}
-
-
-/* Draw the preview box (i.e. preview of where the highlight box will be placed) */
-void coverageViewDrawPreviewBox(GtkWidget *coverageView)
-{
-  GdkDrawable *window = GTK_LAYOUT(coverageView)->bin_window;
-  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
-  GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
-  
-  drawPreviewBox(bigPicture, window, &properties->viewRect, &properties->highlightRect, PREVIEW_BOX_DRAW_FUNC);
 }
 
 
@@ -393,6 +370,24 @@ void calculateCoverageViewBorders(GtkWidget *coverageView)
 }
 
 
+/* Prepare the coverage view for printing (draws the transient hightlight box
+ * onto the cached drawable). */
+void coverageViewPrepareForPrinting(GtkWidget *coverageView)
+{
+  GdkDrawable *drawable = widgetGetDrawable(coverageView);
+  
+  if (drawable)
+    {
+      CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+      GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
+      BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+      
+      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+      drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+    }
+}
+
 
 /***********************************************************
  *                         Events                          *
@@ -420,10 +415,17 @@ static gboolean onExposeCoverageView(GtkWidget *coverageView, GdkEventExpose *ev
           GdkGC *gc2 = gdk_gc_new(window);
           gdk_draw_drawable(window, gc2, bitmap, 0, 0, 0, 0, -1, -1);
           
-          /* Draw the preview box on top, if it is set */
+          /* Draw the highlight box on top of it */
           CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
           GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
-          drawPreviewBox(bigPicture, window, &properties->viewRect, &properties->highlightRect, HIGHLIGHT_BOX_DRAW_FUNC);
+          BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+          BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+          
+          GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+          drawHighlightBox(window, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+          
+          /* Draw the preview box too, if set */
+          drawPreviewBox(bigPicture, window, &properties->viewRect, &properties->highlightRect);
         }
       else
 	{

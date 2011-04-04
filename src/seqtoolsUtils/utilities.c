@@ -66,6 +66,12 @@
   || (PEPTIDE) == SEQUENCE_CHAR_STOP || (PEPTIDE) == SEQUENCE_CHAR_GAP || (PEPTIDE) == SEQUENCE_CHAR_PAD))
 
 
+
+/* Globals */
+gboolean g_printCachedOnly = FALSE;
+
+
+
 /* A struct used to record warning/error messages */
 typedef struct _BlxMessage
   {
@@ -2315,19 +2321,15 @@ void debugLogLevel(const int increaseAmt)
 void drawHighlightBox(GdkDrawable *drawable,
                       const GdkRectangle const *rect,
                       const gint minWidth, 
-                      GdkColor *color,
-                      GdkFunction drawFunc)
+                      GdkColor *color)
 {
-  GdkGC *gc = gdk_gc_new(drawable);
-  gdk_gc_set_foreground(gc, color);
-  gdk_gc_set_function(gc, drawFunc);
-  
   const int width = max(minWidth, rect->width);
-  
-  gdk_draw_rectangle(drawable, gc, TRUE, 
-		     rect->x, rect->y, width, rect->height);
-                     
-  g_object_unref(gc);
+
+  cairo_t *cr = gdk_cairo_create(drawable);
+  gdk_cairo_set_source_color(cr, color);
+  cairo_rectangle(cr, rect->x, rect->y, width, rect->height);
+  cairo_clip(cr);
+  cairo_paint_with_alpha(cr, 0.2);
 }
 
 
@@ -3521,13 +3523,20 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
   GtkWidget *widget = GTK_WIDGET(data);
   cairo_t *cr = gtk_print_context_get_cairo_context(context);
   
-  /* Create a blank pixmap to draw on to (clear any existing drawing first) */
-  widgetClearCachedDrawable(widget, NULL);
-  GdkDrawable *drawable = createBlankPixmap(widget);
+  GdkDrawable *drawable = widget->window; /* draw everything by default */
   
-  /* For any child widgets that have a drawable, draw them all onto our main drawable */
-  if (GTK_IS_CONTAINER(widget))
-    gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, widget);
+  if (g_printCachedOnly)
+    {
+      /* Create a blank pixmap to draw on to (clear any existing drawing first) */
+      widgetClearCachedDrawable(widget, NULL);
+      drawable = createBlankPixmap(widget);
+      
+      /* For any child widgets that have a drawable, draw them all onto our main drawable */
+      if (GTK_IS_CONTAINER(widget))
+        {
+          gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, widget);
+        }
+    }
   
   /* Scale the image to fit the page */
   double ctxWidth = gtk_print_context_get_width(context);
@@ -3546,8 +3555,20 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
 }
 
 
-void blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup)
+/* This function initiates a print operation. 
+ *
+ * The 'printCachedOnly' argument is an attempt to de-clutter the print
+ * by only printing stuff we request by setting a cached drawable on it, i.e. 
+ * so that we can exclude scrollbars etc. It works pretty well, except for the case 
+ * where you want to include transient items that are not part of the cached
+ * drawable in the print (such as the highlight box in blixem or the crosshair
+ * in dotter). It's up to the application to set its cached drawables and make
+ * sure they include everything necessary if they want to use this option, 
+ * otherwise we just draw everything. */
+void blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly)
 {
+  g_printCachedOnly = printCachedOnly;
+  
   /* Create a print operation, using the same settings as the last print, if there was one */
   GtkPrintOperation *print = gtk_print_operation_new();
   

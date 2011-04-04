@@ -776,6 +776,21 @@ static void updateOnPercentIdChanged(GtkWidget *bigPicture)
   bigPictureRedrawAll(bigPicture);
 }
 
+
+/* Prepare the big picture for printing - this draws normally-transient 
+ * components onto the cached drawable so that they get included in the print.
+ * bigPictureRedrawAll should be called afterwards to remove the transient 
+ * components. */
+void bigPicturePrepareForPrinting(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  
+  callFuncOnAllBigPictureGrids(bigPicture, gridPrepareForPrinting);
+  callFuncOnAllBigPictureExonViews(bigPicture, exonViewPrepareForPrinting);
+  coverageViewPrepareForPrinting(properties->coverageView);
+}
+
+
 /***********************************************************
  *			    Events			   *
  ***********************************************************/
@@ -858,8 +873,7 @@ static gint convertRectPosToBaseIdx(const gint x,
 void drawPreviewBox(GtkWidget *bigPicture, 
                     GdkDrawable *drawable, 
                     GdkRectangle *displayRect, 
-                    GdkRectangle *highlightRect,
-                    GdkFunction drawFunc)
+                    GdkRectangle *highlightRect)
 {
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
@@ -887,27 +901,21 @@ void drawPreviewBox(GtkWidget *bigPicture,
 
   GdkColor *previewBoxColor = getGdkColor(BLXCOLOR_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
 
-  drawHighlightBox(drawable, &previewRect, bpProperties->previewBoxLineWidth, previewBoxColor, drawFunc);
+  drawHighlightBox(drawable, &previewRect, bpProperties->previewBoxLineWidth, previewBoxColor);
 }
 
 
 /* Show a preview box centred on the given x coord */
 void showPreviewBox(GtkWidget *bigPicture, const int x)
 {
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  
-  /* Clear the previous preview box */
-  callFuncOnAllBigPictureGrids(bigPicture, gridDrawPreviewBox);
-  callFuncOnAllBigPictureExonViews(bigPicture, exonViewDrawPreviewBox);
-  coverageViewDrawPreviewBox(properties->coverageView);
-  
-  /* Set the new position for the preview box.  */
+  /* Set the position for the preview box */
   bigPictureSetPreviewBoxCentre(bigPicture, x);
-
-  /* Re-draw the preview box at the new position */
-  callFuncOnAllBigPictureGrids(bigPicture, gridDrawPreviewBox);
-  callFuncOnAllBigPictureExonViews(bigPicture, exonViewDrawPreviewBox);
-  coverageViewDrawPreviewBox(properties->coverageView);
+  
+  /* Refresh all child widgets, and also the coverage view (which may not
+   * be a child of the big picture) */
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  gtk_widget_queue_draw(bigPicture);
+  gtk_widget_queue_draw(properties->coverageView);
 }
 
 
