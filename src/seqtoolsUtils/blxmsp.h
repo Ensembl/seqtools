@@ -312,8 +312,7 @@ gint		      fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 char*		      blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
 BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, GList **seqList, char *sequence, MSP *msp, GError **error);
-BlxSequence*          findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
 void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*	      blxSequenceGetFullName(const BlxSequence *seq);
 const char*	      blxSequenceGetVariantName(const BlxSequence *seq);

@@ -4067,6 +4067,79 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 }
 
 
+/* Whether to include the given msp type in depth coverage calculations */
+static gboolean includeTypeInCoverage(BlxMspType mspType)
+{
+  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_SHORT_READ);
+}
+
+
+/* Calculate the depth of coverage of short-reads for each reference sequence display coord.
+ * depthArray must be the same length as displayRange. */
+static void calculateDepth(BlxViewContext *bc)
+{
+  /* Allocate the depth array, if null */
+  const int displayLen = getRangeLength(&bc->fullDisplayRange);
+  
+  if (displayLen < 1)
+    return; 
+  
+  bc->depthArray = g_malloc(sizeof(int) * displayLen);
+  
+  /* Initialise each entry to zero */  
+  int i = 0;
+  for ( ; i < displayLen; ++i)
+    {
+      bc->depthArray[i] = 0;
+    }
+  
+  /* Loop through all MSP lists */
+  int mspType = 0;
+  
+  for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
+    {
+      /* Only include MSPs of relevant types */
+      if (!includeTypeInCoverage(mspType))
+        continue;
+      
+      /* Loop through all MSPs in this list */
+      GArray *mspArray = bc->featureLists[mspType];
+      const int fullDisplayLen = getRangeLength(&bc->fullDisplayRange);
+    
+      i = 0;
+      const MSP *msp = mspArrayIdx(mspArray, i);
+  
+      for ( ; msp; msp = mspArrayIdx(mspArray, ++i))
+        {
+          /* For each ref-seq coord that this alignment spans, increment the depth */
+          int alignIdx = msp->displayRange.min;
+          for ( ; alignIdx <= msp->displayRange.max; ++alignIdx)
+            {
+	      /* Convert the msp coord to a zero-based coord. Note that parts of the
+	       * msp range may be outside the ref seq range. */
+              const int displayIdx = alignIdx - bc->fullDisplayRange.min;
+	    
+	      if (displayIdx >= 0 && displayIdx < fullDisplayLen)
+		bc->depthArray[displayIdx] += 1;
+            }
+        }
+    } 
+  
+  /* Find the max and min depth */
+  bc->minDepth = bc->depthArray[0];
+  bc->maxDepth = bc->depthArray[0];
+  
+  for (i = 1 ; i < displayLen; ++i)
+    {
+      if (bc->depthArray[i] < bc->minDepth)
+        bc->minDepth = bc->depthArray[i];
+      
+      if (bc->depthArray[i] > bc->maxDepth)
+        bc->maxDepth = bc->depthArray[i];
+    }
+}
+
+
 static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
@@ -4153,6 +4226,9 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
     
   blxContext->spawnedProcesses = NULL;
   blxContext->modelId = BLXMODEL_NORMAL;
+  blxContext->depthArray = NULL;
+  blxContext->minDepth = 0;
+  blxContext->maxDepth = 0;
   
   return blxContext;
 }
@@ -4975,6 +5051,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Updated the cached display range and full extents of the MSPs */
   detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
   cacheMspDisplayRanges(blxContext, detailViewGetNumUnalignedBases(detailView));
+  calculateDepth(blxContext);
   
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
