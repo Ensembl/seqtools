@@ -137,6 +137,7 @@ typedef enum
     BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
     BLXCOLOR_TREE_GRID_LINES,/* color of the tree grid lines (i.e. column separator lines) */
     BLXCOLOR_CLIP_MARKER,   /* color of the marker line used to indicate a match has been clipped */
+    BLXCOLOR_COVERAGE_PLOT, /* color of the coverage plot */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;

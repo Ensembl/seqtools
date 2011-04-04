@@ -58,6 +58,7 @@ typedef struct _BigPictureProperties
   {
     GtkWidget *blxWindow;	/* The main blixem window that this grid belongs to */
     GtkWidget *header;		/* The grid header */
+    GtkWidget *coverageView;    /* The depth-coverage view */
     GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
     GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
     GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
@@ -113,6 +114,7 @@ GtkWidget*		      bigPictureGetActiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetInactiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetFwdExonView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevExonView(GtkWidget *bigPicture);
+GtkWidget*		      bigPictureGetCoverageView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetActiveExonView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetInactiveExonView(GtkWidget *bigPicture);
 gboolean		      bigPictureGetDisplayRev(GtkWidget *bigPicture);
@@ -141,6 +143,21 @@ void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable 
 void                          showPreviewBox(GtkWidget *bigPicture, const int x);
 void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 
+gint			      bigPictureGetCellHeight(GtkWidget *bigPicture);
+
+void			      drawVerticalGridLines(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
+						    const int yPadding, BlxViewContext *bc, 
+						    BigPictureProperties *bpProperties, GdkDrawable *drawable);
+
+void			      drawHorizontalGridLines(GtkWidget *widget, GtkWidget *bigPicture,
+						      GdkRectangle *drawingRect, BlxViewContext *bc,
+						      BigPictureProperties *bpProperties, GdkDrawable *drawable,
+						      const gint numCells, const gdouble rangePerCell, 
+						      const gdouble maxVal, const char *unit);
+
+void			      calculateHighlightBoxBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
+							   GtkWidget *bigPicture, const int yPadding);
+
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
 
@@ -156,6 +173,7 @@ void			      refreshGridOrder(GtkWidget *bigPicture);
 
 GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
 					       GtkContainer *parent,
+					       GtkWidget *coverageView,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
 					       const int bigPictZoom,

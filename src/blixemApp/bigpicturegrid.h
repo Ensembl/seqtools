@@ -61,7 +61,6 @@ typedef struct _GridProperties
     int mspLineHeight;	     /* The height of the msp lines */
     
     int gridYPadding;	     /* The y padding around the grid */
-    int cellYPadding;	     /* The y padding of the grid cells around the text height */
     
     gulong exposeHandlerId;  /* The handler ID for the expose event */
     gboolean ignoreSizeAlloc; /* Flag to indicate that we should ignore size allocation events */
@@ -80,7 +79,7 @@ GtkWidget*	    gridGetBigPicture(GtkWidget *grid);
 void                gridDrawPreviewBox(GtkWidget *grid);
 
 void		    calculateGridBorders(GtkWidget *grid);
-void		    calculateHighlightBoxBorders(GtkWidget *grid);
+void		    calculateGridHighlightBoxBorders(GtkWidget *grid);
 
 void		    callFuncOnAllBigPictureGrids(GtkWidget *widget, 
 						 gpointer data);

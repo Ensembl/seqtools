@@ -41,6 +41,7 @@
 #include <blixemApp/bigpicture.h>
 #include <blixemApp/blxdotter.h>
 #include <blixemApp/exonview.h>
+#include <blixemApp/coverageview.h>
 #include <seqtoolsUtils/utilities.h>
 #include <seqtoolsUtils/blxGff3Parser.h>
 #include <seqtoolsUtils/blxmsp.h>
@@ -772,6 +773,11 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       createTreeVisibilityButton(dv, blxWindowGetInactiveStrand(blxWindow), frame, dvSubBox);
     }
   
+  /* Coverage view */
+  GtkWidget *coverageView = bigPictureGetCoverageView(bp);
+  GtkWidget *coverageVbox = createVBoxWithBorder(contentArea, borderWidth, TRUE, "Coverage view");
+  createVisibilityButton(coverageView, "Show _coverage view", coverageVbox);
+
   
   gtk_widget_show_all(dialog);
   
@@ -4062,6 +4068,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
   createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);
   
   g_free(defaultBgColorStr);
 }
@@ -4136,7 +4143,7 @@ static void calculateDepth(BlxViewContext *bc)
       
       if (bc->depthArray[i] > bc->maxDepth)
         bc->maxDepth = bc->depthArray[i];
-    }
+    }  
 }
 
 
@@ -4996,8 +5003,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
 
+  GtkWidget *coverageView = createCoverageView(window, blxContext);
+  
   GtkWidget *bigPicture = createBigPicture(window,
 					   GTK_CONTAINER(panedWin),
+                                           coverageView,
 					   &fwdStrandGrid, 
 					   &revStrandGrid,
 					   options->bigPictZoom,
@@ -5019,13 +5029,19 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                            options->parseFullEmblInfo);
 
   
+  /* Add the coverage view underneath the main panes */
+  gtk_box_pack_start(GTK_BOX(vbox), coverageView, FALSE, FALSE, 0);
+
+  
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
   GtkWidget *scrollBar = createDetailViewScrollBar(detailAdjustment, detailView);
   gtk_box_pack_start(GTK_BOX(vbox), scrollBar, FALSE, TRUE, 0);
 
+  
   /* Put the statusbar at the bottom */
   gtk_box_pack_start(GTK_BOX(vbox), statusBar, FALSE, TRUE, 0);
 
+  
   /* Set required data for the blixem window */
   blxWindowCreateProperties(options,
 			    blxContext,
@@ -5052,6 +5068,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
   cacheMspDisplayRanges(blxContext, detailViewGetNumUnalignedBases(detailView));
   calculateDepth(blxContext);
+  updateCoverageDepth(coverageView, blxContext);
   
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
@@ -5069,6 +5086,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   if (options->activeStrand == BLXSTRAND_REVERSE)
     toggleStrand(detailView);
 
+  /* Hide the coverage view by default */
+  widgetSetHidden(coverageView, TRUE);
+  
   /* If the options say to hide the inactive strand, hide it now. (This must be done
    * after showing the widgets, or it will get shown again in show_all.). To do: we just
    * hide the grid at the moment; hide the detail-view pane as well?  */

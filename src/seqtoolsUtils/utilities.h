@@ -116,6 +116,7 @@ typedef enum
 
 #define BLX_BLUE	      "#0000ff"
 #define BLX_DARK_BLUE	      "#000080"
+#define BLX_ROYAL_BLUE	      "#4169e1"
 #define BLX_SKY_BLUE          "#87cefa"
 #define BLX_CYAN	      "#15ced2"
 #define BLX_LIGHT_CYAN        "#6defe9"
@@ -432,7 +433,7 @@ void		      createBlxColor(GArray *defaultColors,
 gdouble		      pixelsPerBase(const gint displayWidth, 
 				    const IntRange const *displayRange);
 
-gint		      convertBaseIdxToRectPos(const gint dnaIdx, 
+gdouble		      convertBaseIdxToRectPos(const gint dnaIdx, 
 					      const GdkRectangle const *rect, 
 					      const IntRange const *dnaDispRange,
                                               const gboolean horizontal,

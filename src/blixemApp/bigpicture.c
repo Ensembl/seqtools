@@ -39,6 +39,7 @@
 #include <blixemApp/blxwindow.h>
 #include <blixemApp/detailview.h>
 #include <blixemApp/exonview.h>
+#include <blixemApp/coverageview.h>
 #include <seqtoolsUtils/utilities.h>
 #include <math.h>
 #include <stdlib.h>
@@ -46,6 +47,8 @@
 #define DEFAULT_PREVIEW_BOX_LINE_WIDTH  1
 #define DEFAULT_GRID_NUM_HEADER_LINES   1	  /* the default number of lines of text in the grid header */
 #define DEFAULT_GRID_HEADER_Y_PAD	0	  /* the default y padding around the grid header */
+#define DEFAULT_LABEL_X_PADDING		5	  /* padding around the grid labels */
+#define DEFAULT_LABEL_Y_PADDING		-2	  /* padding around the grid labels */
 #define DEFAULT_GRID_CELL_WIDTH		100	  /* the default cell width of the grids */
 #define DEFAULT_GRID_NUM_HOZ_CELLS	5	  /* the default number of cells to show horizontally in the grids */
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
@@ -79,6 +82,7 @@ void bigPictureRedrawAll(GtkWidget *bigPicture)
   widgetClearCachedDrawable(properties->revStrandGrid, NULL);
   widgetClearCachedDrawable(properties->fwdExonView, NULL);
   widgetClearCachedDrawable(properties->revExonView, NULL);
+  coverageViewRedraw(properties->coverageView);
   
   gtk_widget_queue_draw(bigPicture);
 }
@@ -219,6 +223,126 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 }
 
 
+/* Draw the vertical gridlines for a big picture component. This is a generic routine used
+ * by the grids and the coverage view, so that they all have their gridlines spaced the same */
+void drawVerticalGridLines(GdkRectangle *drawingRect,
+			   GdkRectangle *highlightRect,
+			   const int yPadding,
+			   BlxViewContext *bc,
+			   BigPictureProperties *bpProperties,
+			   GdkDrawable *drawable)
+{
+  /* Get the display range in dna coords */
+  IntRange dnaDispRange;
+  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
+  
+  const int direction = bc->displayRev ? -1 : 1; /* to subtract instead of add when display reversed */
+  
+  /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
+   * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
+  
+  /* Calculate the top and bottom heights for the lines. */
+  const gint topBorder = highlightRect->y - yPadding;
+  const gint bottomBorder = drawingRect->y + drawingRect->height;
+  
+  const int minX = drawingRect->x;
+  const int maxX = drawingRect->x + drawingRect->width;
+  
+  gint hCell = 0;
+  for ( ; hCell <= bpProperties->numHCells; ++hCell)
+    {
+      /* Get the base index for this grid line and calc its x coord */
+      int numBasesFromLeft = bpProperties->basesPerCell * hCell;
+      int baseIdx = firstBaseIdx + (numBasesFromLeft * direction);
+      
+      const int x = convertBaseIdxToRectPos(baseIdx, drawingRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
+      
+      if (x > minX && x < maxX)
+	{
+	  GdkGC *gc = gdk_gc_new(drawable);
+	  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
+
+	  gdk_gc_set_foreground(gc, lineColor);
+	  gdk_draw_line (drawable, gc, x, topBorder, x, bottomBorder);
+	}
+    }
+}
+
+
+/* Get the standard height for grid cells */
+gint bigPictureGetCellHeight(GtkWidget *bigPicture)
+{
+  /* Base the cell height on the font height */
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return roundNearest(properties->charHeight + (gdouble)(2 * DEFAULT_LABEL_Y_PADDING));
+}
+
+
+/* Draw the horizontal grid lines for the big picture view */
+void drawHorizontalGridLines(GtkWidget *widget,
+			     GtkWidget *bigPicture,
+			     GdkRectangle *drawingRect,
+			     BlxViewContext *bc,
+			     BigPictureProperties *bpProperties,
+			     GdkDrawable *drawable,
+			     const gint numCells, 
+			     const gdouble rangePerCell, 
+			     const gdouble maxVal,
+			     const char *unit)
+{
+  const gint rightBorder = drawingRect->x + drawingRect->width;
+  
+  GdkColor *textColor = getGdkColor( BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkGC *textGc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(textGc, textColor);
+  
+  GdkColor *lineColor = getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors);
+  GdkGC *lineGc = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(lineGc, lineColor);
+  
+  /* Show decimal places if the range per cell is a fraction of a percent */
+  const gboolean showDecimal = (rangePerCell < 1.0);
+  const int cellHeight = bigPictureGetCellHeight(bigPicture);
+  
+  gint vCell = 0;
+  for ( ; vCell <= numCells; ++vCell)
+    {
+      gint y = drawingRect->y + (gint)((gdouble)vCell * cellHeight);
+      gint x = drawingRect->x - DEFAULT_LABEL_X_PADDING;
+      
+      /* Label this gridline with the %ID */
+      gdouble percent = maxVal - (rangePerCell * vCell);
+      char text[bpProperties->leftBorderChars + 3]; /* +3 to include decimal point, 1dp, and terminating nul */
+      
+      if (showDecimal)
+	{
+	  sprintf(text, "%1.1f%s", percent, unit);
+	}
+      else
+	{
+	  sprintf(text, "%d%s", (int)percent, unit);
+	}
+      
+      PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
+      
+      int width = UNSET_INT;
+      pango_layout_get_pixel_size(layout, &width, NULL);
+
+      gdk_draw_layout(drawable, textGc, x - width, y - cellHeight/2, layout);
+      g_object_unref(layout);
+      
+      /* Draw the gridline */
+      gdk_draw_line (drawable, lineGc, drawingRect->x, y, rightBorder, y);
+    }
+  
+  g_object_unref(lineGc);
+  g_object_unref(textGc);
+}
+
+
+
 /* Refresh the header - clears and redraws its bitmap */
 static void redrawBigPictureGridHeader(GtkWidget *header)
 {
@@ -284,6 +408,46 @@ void calculateGridHeaderBorders(GtkWidget *header)
   
   gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, properties->headerRect.height);
   gtk_widget_set_size_request(header, 0, properties->headerRect.height);
+}
+
+
+void calculateHighlightBoxBorders(GdkRectangle *drawingRect, 
+				  GdkRectangle *highlightRect,
+				  GtkWidget *bigPicture,
+				  const int yPadding)
+{
+  DEBUG_ENTER("calculateGridHighlightBoxBorders(grid)");
+  
+  /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
+   * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
+  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (adjustment)
+    {
+      BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+      BlxViewContext *bc = bigPictureGetContext(bigPicture);
+      
+      /* Get the big picture display range in dna coords */
+      IntRange bpRange;
+      convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
+      
+      /* Get the detail view display range in dna coords */
+      IntRange dvRange;
+      convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
+      
+      /* Get the x coords for the start and end of the detail view display range */
+      const int x1 = convertBaseIdxToRectPos(dvRange.min, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
+      const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
+      
+      highlightRect->x = min(x1, x2);
+      highlightRect->y = 0;
+      
+      highlightRect->width = abs(x1 - x2);
+      highlightRect->height = drawingRect->height + roundNearest(bpProperties->charHeight / 2.0) + yPadding + (2 * bpProperties->highlightBoxYPad);
+    }
+  
+  DEBUG_EXIT("calculateGridHighlightBoxBorders returning");
 }
 
 
@@ -433,10 +597,11 @@ static void setBigPictureDisplayWidth(GtkWidget *bigPicture, BigPicturePropertie
   /* Since we're keeping the highlight box centred, it should stay in the same place
    * if we're just scrolling. We therefore only need to recalculate its position if
    * its size has changed. */
-  if (recalcHighlightBox)
+//  if (recalcHighlightBox)
     {
-      callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
+      callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
       callFuncOnAllBigPictureExonViews(bigPicture, calculateExonViewHighlightBoxBorders);
+      calculateCoverageViewHighlightBoxBorders(properties->coverageView);
     }
 
   bigPictureRedrawAll(bigPicture);
@@ -600,10 +765,13 @@ void calculateNumVCells(GtkWidget *bigPicture)
  * values have been changed */
 static void updateOnPercentIdChanged(GtkWidget *bigPicture)
 {
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  
   calculateNumVCells(bigPicture);
   
   callFuncOnAllBigPictureGrids(bigPicture, calculateGridBorders);
-  callFuncOnAllBigPictureGrids(bigPicture, calculateHighlightBoxBorders);
+  callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
+  calculateCoverageViewBorders(properties->coverageView);
   
   bigPictureRedrawAll(bigPicture);
 }
@@ -888,6 +1056,7 @@ static void onDestroyBigPicture(GtkWidget *bigPicture)
 
 static void bigPictureCreateProperties(GtkWidget *bigPicture, 
 				       GtkWidget *blxWindow, 
+                                       GtkWidget *coverageView, 
 				       GtkWidget *header, 
 				       GtkWidget *fwdStrandGrid,
 				       GtkWidget *revStrandGrid,
@@ -903,6 +1072,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       
       properties->blxWindow = blxWindow;
       properties->header = header;
+      properties->coverageView = coverageView;
       properties->fwdStrandGrid = fwdStrandGrid;
       properties->revStrandGrid = revStrandGrid;
       properties->fwdExonView = fwdExonView;
@@ -918,7 +1088,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->percentIdRange.max = (gdouble)DEFAULT_GRID_PERCENT_ID_MAX;
 
       properties->previewBoxCentre = previewBoxCentre;
-      properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 3; /* Extra fudge factor because char width is approx */
+      properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because char width is approx */
       properties->highlightBoxMinWidth = MIN_HIGHLIGHT_BOX_WIDTH;
       properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
       properties->highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD;
@@ -1034,6 +1204,12 @@ GtkWidget* bigPictureGetRevExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   return properties ? properties->revExonView : NULL;
+}
+
+GtkWidget* bigPictureGetCoverageView(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  return properties ? properties->coverageView : NULL;
 }
 
 GtkWidget* bigPictureGetActiveExonView(GtkWidget *bigPicture)
@@ -1227,6 +1403,7 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 
 GtkWidget* createBigPicture(GtkWidget *blxWindow, 
 			    GtkContainer *parent,
+                            GtkWidget *coverageView,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
 			    const int initialZoom,
@@ -1267,6 +1444,7 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
   /* Set the big picture properties */
   bigPictureCreateProperties(bigPicture, 
 			     blxWindow,
+                             coverageView,
 			     header, 
 			     *fwdStrandGrid,
 			     *revStrandGrid,
