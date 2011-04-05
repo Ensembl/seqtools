@@ -819,8 +819,8 @@ static GtkWidget* createDotplotTable(GtkWidget *dotplotCont,
   
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
   
-  gtk_table_attach(table, hozLabel, 1, 2, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, vertLabel, 0, 1, 1, 2, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, hozLabel, 1, numCols, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, vertLabel, 0, 1, 1, numRows, GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, dotplotCont, 1, 2, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, vertExons1, 2, 3, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, vertExons2, 3, 4, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
@@ -2357,19 +2357,15 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       int x = UNSET_INT, y = UNSET_INT;
       getPosFromSelectedCoords(dotplot, &x, &y);
 
-      /* Calculate the total size of the dotplot, including padding and labels etc */
-      const int totalWidth = getDotplotWidth(properties);
-      const int totalHeight = getDotplotHeight(properties);
-      
       /* Draw the horizontal line (y position is at the match sequence coord position). x coords
        * depend on whether it's across the whole widget or just the dot-plot rectangle */
       int x1 = properties->crosshairFullscreen ? 0: properties->plotRect.x;
-      int width = properties->crosshairFullscreen ? totalWidth : properties->plotRect.width;
+      int width = properties->crosshairFullscreen ? dotplot->allocation.width : properties->plotRect.width;
       gdk_draw_line(drawable, gc, x1, y, x1 + width, y);
 
       /* Draw the vertical line (x position is at the ref sequence coord position - inverted if the display is reversed) */
       int y1 = properties->crosshairFullscreen ? 0 : properties->plotRect.y;
-      int height = properties->crosshairFullscreen ? totalHeight : properties->plotRect.height;
+      int height = properties->crosshairFullscreen ? dotplot->allocation.height : properties->plotRect.height;
       gdk_draw_line(drawable, gc, x, y1, x, y1 + height);
       
       if (properties->crosshairCoordsOn)

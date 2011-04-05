@@ -360,13 +360,13 @@ static void drawCrosshair(GtkWidget *exonView, GdkDrawable *drawable, GdkGC *gc)
         {
           /* Draw a vertical line at x */
           const int x = properties->exonViewRect.x + distFromEdge;
-          gdk_draw_line(drawable, gc, x, properties->exonViewRect.y, x, properties->exonViewRect.y + properties->exonViewRect.height);
+          gdk_draw_line(drawable, gc, x, 0, x, exonView->allocation.height);
         }
       else
         {
           /* Draw a horizontal line at y */
           const int y = properties->exonViewRect.y + distFromEdge;
-          gdk_draw_line(drawable, gc, properties->exonViewRect.x, y, properties->exonViewRect.x + properties->exonViewRect.width, y);
+          gdk_draw_line(drawable, gc, 0, y, exonView->allocation.width, y);
         }
     }
 }
