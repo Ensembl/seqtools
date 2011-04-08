@@ -419,7 +419,18 @@ static char *concatenateFastaSeqs(FILE *seqfile, char *seqName)
 }
 
 
-/* Read in a FASTA sequence from an input, which can be a file or stdin. */
+/* Read in a FASTA sequence from an input, which can be a file or stdin.
+ * 
+ * Example file format:
+ * 
+ * >5H1A_HUMAN/53-400 more words 
+ * GNACVVAAIAL...........ERSLQ.....NVANYLIG..S.LAVTDL
+ * MVSVLV..LPMAAL.........YQVL..NKWTL......GQVT.CDL..
+ * >5H1A_RAT more words
+ * GNACVVAAIAL...........ERSLQ.....NVANYLIG..S.LAVTDL
+ * MVSVLV..LPMAAL.........YQVL..NKWTL......GQVT.CDL..
+ * ...
+ */
 char *readFastaSeq(FILE *seqfile, char *seqName)
 {
   if (seqfile == stdin) 
