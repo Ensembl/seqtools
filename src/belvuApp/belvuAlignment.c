@@ -222,16 +222,23 @@ static void drawSingleAlignment(GtkWidget *widget,
       /* Draw the name */
       if (alnp->name)
         {
+          x += properties->columnPadding;
           drawText(widget, drawable, gc, x, y, alnp->name);
           x += (properties->bc->maxNameLen * properties->charWidth) + properties->columnPadding;
         }
       
       /* Draw the coords */
+      gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
+      x += properties->columnPadding;
       drawIntAsText(widget, drawable, gc, x, y, alnp->start);
       x += (properties->bc->maxStartLen * properties->charWidth) + properties->columnPadding;
       
+      gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
+      x += properties->columnPadding;
       drawIntAsText(widget, drawable, gc, x, y, alnp->end);
       x += (properties->bc->maxEndLen * properties->charWidth) + properties->columnPadding;
+
+      gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
     }
   else
     {
@@ -239,7 +246,7 @@ static void drawSingleAlignment(GtkWidget *widget,
       if (alnp->seq)
         {
           const int startX = x;
-          
+
           /* Loop through each char and color the background */
           int i = 0;
           for ( ; i < properties->bc->maxLen; ++i)
@@ -397,20 +404,23 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
   
-  properties->columnPadding = DEFAULT_PADDING_CHARS * properties->charWidth;
+  properties->columnPadding = (DEFAULT_PADDING_CHARS * properties->charWidth) / 2;
   
   /* Calculate the size of the drawing area for the header columns */
   properties->headersRect.x = DEFAULT_XPAD;
   properties->headersRect.y = DEFAULT_YPAD;
-  properties->headersRect.width = (properties->bc->maxNameLen * properties->charWidth) + properties->columnPadding +
-                                  (properties->bc->maxStartLen * properties->charWidth) + properties->columnPadding +
-                                  (properties->bc->maxEndLen * properties->charWidth);
+  
+  properties->headersRect.width = (properties->bc->maxNameLen * properties->charWidth) + (2 * properties->columnPadding) +
+                                  (properties->bc->maxStartLen * properties->charWidth) + (2 * properties->columnPadding) +
+                                  (properties->bc->maxEndLen * properties->charWidth) + (2 * properties->columnPadding) +
+                                  (properties->columnPadding / 2);
+  
   properties->headersRect.height = properties->bc->alignArr->len * properties->charHeight + (2 * DEFAULT_YPAD);
 
   /* Calculate the size of the drawing area for the sequences */
   properties->seqRect.x = DEFAULT_XPAD;
   properties->seqRect.y = DEFAULT_YPAD;
-  properties->seqRect.width = (properties->bc->maxLen * properties->charWidth);
+  properties->seqRect.width = (properties->bc->maxLen * properties->charWidth) + properties->columnPadding;
   properties->seqRect.height = properties->headersRect.height;
   
   gtk_layout_set_size(GTK_LAYOUT(properties->headersArea), properties->headersRect.width, properties->headersRect.height);
