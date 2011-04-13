@@ -330,20 +330,9 @@ static gboolean onExposeBelvuColumns(GtkWidget *widget, GdkEventExpose *event, g
       
       if (bitmap)
         {
-          /* Push the bitmap onto the window, clipping it to the display area
-           * (the clipping is necessary because the allocation may be larger
-           * than the sequence area's allocation, because the sequence area may
-           * have a horizontal scrollbar */
+          /* Push the bitmap onto the window */
           GdkGC *gc = gdk_gc_new(window);
-
-          GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->headersArea));
-          const int height = (vAdjustment->value + properties->seqArea->allocation.height);
-          
-          GdkRectangle clipRect = {0, 0, widget->allocation.width, height};
-          gdk_gc_set_clip_rectangle(gc, &clipRect);
-          
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
-
           g_object_unref(gc);
         }
       else
@@ -451,16 +440,23 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc)
    * scrollbar and they will both share the same vertical scrollbar */
   GtkWidget *seqArea = gtk_layout_new(NULL, NULL);
   GtkWidget *seqScrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(seqScrollWin), GTK_POLICY_ALWAYS, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(seqScrollWin), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
   gtk_container_add(GTK_CONTAINER(seqScrollWin), seqArea);
   
   GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(seqArea));
   GtkWidget *headersArea = gtk_layout_new(NULL, vAdjustment);
 
-  /* Wrap everything in an hbox */
-  GtkWidget *belvuAlignment = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(belvuAlignment), headersArea, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(belvuAlignment), seqScrollWin, TRUE, TRUE, 0);
+  /* We'll put the horizontal scrollbar on its own row in the table, rather than
+   * showing it in the seqArea (otherwise things don't line up so nicely) */
+  GtkAdjustment *hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(seqArea));
+  GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
+  
+  /* Wrap everything in a table */
+  GtkWidget *belvuAlignment = gtk_table_new(2, 2, FALSE);
+  const int xpad = 2, ypad = 2;
+  gtk_table_attach(GTK_TABLE(belvuAlignment), headersArea, 1, 2, 1, 2, GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
+  gtk_table_attach(GTK_TABLE(belvuAlignment), seqScrollWin, 2, 3, 1, 2, GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
+  gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar, 2, 3, 2, 3, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
   
   /* Set the properties and connect signals */
   belvuAlignmentCreateProperties(belvuAlignment, bc, headersArea, seqArea);
@@ -470,7 +466,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc)
   g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
 
   g_signal_connect(G_OBJECT(vAdjustment), "changed", G_CALLBACK(onScrollChangedBelvuAlignment), belvuAlignment);
-  g_signal_connect(G_OBJECT(vAdjustment), "value-changed", G_CALLBACK(onScrollChangedBelvuAlignment), belvuAlignment);
+  g_signal_connect(G_OBJECT(hAdjustment), "changed", G_CALLBACK(onScrollChangedBelvuAlignment), belvuAlignment);
   
   return belvuAlignment;
 }
