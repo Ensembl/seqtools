@@ -268,27 +268,37 @@ static gboolean onExposeBelvuAlignment(GtkWidget *widget, GdkEventExpose *event,
 
   if (window)
     {
-      drawBelvuAlignment(widget, window);
-//      GdkDrawable *bitmap = widgetGetDrawable(widget);
-//      
-//      if (!bitmap)
-//        {
-//          /* There isn't a bitmap yet. Create it now. */
-//	  bitmap = createBlankPixmap(widget);
-//          drawBelvuAlignment(widget, bitmap);
-//        }
-//      
-//      if (bitmap)
-//        {
-//          /* Push the bitmap onto the window */
-//          GdkGC *gc = gdk_gc_new(window);
-//          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
-//          g_object_unref(gc);
-//        }
-//      else
-//	{
-//	  g_warning("Failed to draw Belvu alignment [%p] - could not create bitmap.\n", widget);
-//	}
+      GdkDrawable *bitmap = widgetGetDrawable(widget);
+      
+      if (!bitmap)
+        {
+          /* There isn't a bitmap yet. Create it now. */
+          BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(widget);
+          bitmap = gdk_pixmap_new(window, properties->displayRect.width, properties->displayRect.height, -1);
+          gdk_drawable_set_colormap(bitmap, gdk_colormap_get_system());
+          widgetSetDrawable(widget, bitmap); /* deletes the old drawable, if there is one */
+          
+          /* Paint a blank rectangle for the background, the same color as the widget's background */
+          GdkGC *gc = gdk_gc_new(bitmap);
+          GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
+          gdk_gc_set_foreground(gc, bgColor);
+          gdk_draw_rectangle(bitmap, gc, TRUE, 0, 0, properties->displayRect.width, properties->displayRect.height);
+          g_object_unref(gc);
+          
+          drawBelvuAlignment(widget, bitmap);
+        }
+      
+      if (bitmap)
+        {
+          /* Push the bitmap onto the window */
+          GdkGC *gc = gdk_gc_new(window);
+          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
+        }
+      else
+	{
+	  g_warning("Failed to draw Belvu alignment [%p] - could not create bitmap.\n", widget);
+	}
     }
 
   return TRUE;
@@ -302,7 +312,7 @@ static gboolean onExposeBelvuAlignment(GtkWidget *widget, GdkEventExpose *event,
 /* Called when the belvu alignment section has been scrolled */
 static void onScrollChangedBelvuAlignment(GtkObject *object, gpointer data)
 {
-  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+//  GtkWidget *belvuAlignment = GTK_WIDGET(data);
   
 //  widgetClearCachedDrawable(belvuAlignment, NULL);
 //  gtk_widget_queue_draw(belvuAlignment);
@@ -333,7 +343,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
   properties->displayRect.x = DEFAULT_XPAD;
   properties->displayRect.y = DEFAULT_YPAD;
   properties->displayRect.width = calculateBelvuAlignmentWidth(properties);
-  properties->displayRect.height = properties->bc->alignArr->len * (properties->charHeight + DEFAULT_YPAD);
+  properties->displayRect.height = properties->bc->alignArr->len * properties->charHeight + (2 * DEFAULT_YPAD);
   
   gtk_layout_set_size(GTK_LAYOUT(belvuAlignment), properties->displayRect.width, properties->displayRect.height);
   
