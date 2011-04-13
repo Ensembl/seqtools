@@ -3031,11 +3031,11 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       addBlxSpliceSite(&properties->spliceSites, "GC", "AG", FALSE);
       addBlxSpliceSite(&properties->spliceSites, "AT", "AC", TRUE);
 
-      /* Set initial display range to be centered on the start coord. It needs to be at least 3 bases
-       * wide to have a centre! The range will get adjusted to the correct length and be bounds-checked 
-       * when the widget's size is allocated, but it will stay centred on the same coord. */
-      properties->displayRange.min = startCoord - 1;
-      properties->displayRange.max = startCoord + 1;
+      /* Set the start coord in the adjustment. (The display range will be 
+       * calculated from the adjustment) */
+      properties->adjustment->value = startCoord;
+      properties->displayRange.min = 0;
+      properties->displayRange.max = 0;
       
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
