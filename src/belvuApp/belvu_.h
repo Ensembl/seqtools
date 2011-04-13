@@ -131,6 +131,20 @@ enum { NOLL, SORT_ALPHA, SORT_ORGANISM, SORT_TREE, SORT_SCORE, SORT_SIM, SORT_ID
 enum {NODESWAP, NODEROOT};		/* Tree picking methods */
 
 
+/* The following are used to define default colors for certain types of features in Belvu.
+ * One of several different actual colors from the BlxColor struct may be used depending 
+ * on state, e.g. we use a different color if "print colors" (i.e. black and 
+ * white mode) is on. */
+typedef enum 
+  {
+    BELCOLOR_MIN,                             /* dummy value so that we don't get a zero ID */
+    
+    BELCOLOR_BACKGROUND,                      /* background color for widgets */
+    BELCOLOR_ALIGN_TEXT,                      /* text color for alignments */
+    
+    BELCOLOR_NUM_COLORS
+  } BelvuColorId;
+
 
 /* Structs */
 typedef struct alnStruct {
@@ -199,6 +213,8 @@ typedef struct SegStruct
 
 typedef struct BelvuContextStruct
 {
+  GArray *defaultColors;            /* Default colors used by Belvu */
+  
   GArray *alignArr;
   GArray *organismArr;
   GArray *markupAlignArr;
@@ -283,6 +299,9 @@ typedef struct BelvuContextStruct
 
 
 /* Functions */
+BelvuContext*                             createBelvuContext();
+void                                      destroyBelvuContext(BelvuContext **bc);
+
 void					  setTreeScaleCorr(const int treeMethod);
 void					  setTreeScale(const double newScale) ;
 

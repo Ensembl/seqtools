@@ -36,6 +36,8 @@
  */
 
 #include <belvuApp/belvuWindow.h>
+#include <belvuApp/belvuAlignment.h>
+#include <belvuApp/belvu_.h>
 #include <gtk/gtk.h>
 
 
@@ -45,41 +47,342 @@
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 
 
+/* Properties specific to the belvu window */
+typedef struct _BelvuWindowProperties
+  {
+    BelvuContext *bc;	              /* The belvu context */
+
+    GtkPageSetup *pageSetup;          /* Page setup for printing */
+    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
+  } BelvuWindowProperties;
+
+
+
+
+/* Local function declarations */
+static void                      onQuitMenu(GtkAction *action, gpointer data);
+static void                      onHelpMenu(GtkAction *action, gpointer data);
+static void                      onAboutMenu(GtkAction *action, gpointer data);
+static void                      onPrintMenu(GtkAction *action, gpointer data);
+static void                      onWrapMenu(GtkAction *action, gpointer data);
+
+static void                      showHelpDialog();
+static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
+
+
+/***********************************************************
+ *                      Menus and Toolbar                  *
+ ***********************************************************/
+
+/* Define the menu actions */
+static const GtkActionEntry menuEntries[] = {
+  { "FileMenuAction",   NULL, "_File"},
+
+  { "Quit",	GTK_STOCK_QUIT,   "_Quit",      "<control>Q", "Quit  Ctrl+Q",         G_CALLBACK(onQuitMenu)},
+  { "Help",	GTK_STOCK_HELP,   "_Help",      "<control>H", "Display help  Ctrl+H", G_CALLBACK(onHelpMenu)},
+  { "About",	GTK_STOCK_ABOUT,  "_About",     NULL,         "About",                G_CALLBACK(onAboutMenu)},
+  { "Print",	GTK_STOCK_PRINT,  "_Print",     "<control>P", "Print  Ctrl+P",        G_CALLBACK(onPrintMenu)},
+  { "Wrap",	NULL,             "_Wrap-around alignment window (pretty print)", NULL, "Wrap-around alignment window (pretty print)", G_CALLBACK(onWrapMenu)},
+};
+
+
+/* Define the menu layout */
+static const char standardMenuDescription[] =
+"<ui>"
+"  <menubar name='MenuBar'>"
+"    <menu action='FileMenuAction'>"
+"      <menuitem action='Quit'/>"
+"      <menuitem action='Help'/>"
+"      <menuitem action='Wrap'/>"
+"      <menuitem action='Print'/>"
+"      <separator/>"
+"    </menu>"
+"  </menubar>"
+"  <popup name='ContextMenu' accelerators='true'>"
+"    <menuitem action='Quit'/>"
+"    <menuitem action='Help'/>"
+"    <menuitem action='Wrap'/>"
+"    <menuitem action='Print'/>"
+"    <separator/>"
+"  </popup>"
+"  <toolbar name='Toolbar'>"
+"    <toolitem action='Help'/>"
+"    <toolitem action='About'/>"
+"  </toolbar>"
+"</ui>";
+
+
+
+/* Utility function to create the UI manager for the menus */
+static GtkUIManager* createUiManager(GtkWidget *window)
+{
+  GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
+  
+  gtk_action_group_add_actions(action_group, menuEntries, G_N_ELEMENTS(menuEntries), window);
+//  gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS (toggleMenuEntries), window);
+//  gtk_action_group_add_radio_actions(action_group, radioMenuEntries, G_N_ELEMENTS (radioMenuEntries), hspMode, G_CALLBACK(onToggleHspMode), window);
+  
+  GtkUIManager *ui_manager = gtk_ui_manager_new();
+  gtk_ui_manager_insert_action_group(ui_manager, action_group, 0);
+  gtk_ui_manager_set_add_tearoffs(ui_manager, TRUE);
+  
+  GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group(ui_manager);
+  gtk_window_add_accel_group(GTK_WINDOW(window), accel_group);
+  
+  return ui_manager;
+}
+
+
+/* Create a menu */
+static GtkWidget* createBelvuMenu(GtkWidget *window, 
+                                  const char *menuDescription, 
+                                  const char *path, 
+                                  GtkUIManager *ui_manager)
+{
+  GError *error = NULL;
+  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+    {
+      prefixError(error, "Building menus failed: ");
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+    }
+  
+  GtkWidget *menu = gtk_ui_manager_get_widget (ui_manager, path);
+  
+  return menu;
+}
+
+
+/* The following functions implement the menu actions */
+static void onQuitMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  gtk_widget_destroy(belvuWindow);
+}
+
+static void onHelpMenu(GtkAction *action, gpointer data)
+{
+  showHelpDialog();
+}
+
+static void onAboutMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onPrintMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  blxPrintWidget(belvuWindow, &properties->printSettings, &properties->pageSetup, FALSE);
+}
+
+static void onWrapMenu(GtkAction *action, gpointer data)
+{
+}
+
+
+/***********************************************************
+ *                         Properties                      *
+ ***********************************************************/
+
+static BelvuWindowProperties* belvuWindowGetProperties(GtkWidget *widget)
+{
+  return widget ? (BelvuWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BelvuWindowProperties")) : NULL;
+}
+
+static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  if (properties)
+    {
+      destroyBelvuContext(&properties->bc);
+  
+      /* Free the properties struct itself */
+      g_free(properties);
+      properties = NULL;
+      g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", NULL);
+    }
+
+  gtk_main_quit();  
+}
+
+
+/* Create the properties struct and initialise all values. */
+static void belvuWindowCreateProperties(GtkWidget *belvuWindow, BelvuContext *bc)
+{
+  if (belvuWindow)
+    {
+      BelvuWindowProperties *properties = g_malloc(sizeof *properties);
+      
+      properties->bc = bc;
+
+      properties->pageSetup = gtk_page_setup_new();
+      gtk_page_setup_set_orientation(properties->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+
+      properties->printSettings = gtk_print_settings_new();
+      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
+      gtk_print_settings_set_resolution(properties->printSettings, DEFAULT_PRINT_RESOLUTION);
+    
+      g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", properties);
+      g_signal_connect(G_OBJECT(belvuWindow), "destroy", G_CALLBACK (onDestroyBelvuWindow), NULL);
+    }
+}
+
+
+
+
+/***********************************************************
+ *                      Help dialog                        *
+ ***********************************************************/
+
+static void showHelpDialog()
+{
+  GError *error = NULL;
+
+  /* The docs should live in /share/doc/seqtools/, in the same parent
+   * directory that our executable's 'bin' directory is in. Open the 'quick
+   * start' page. */
+  char rel_path[100] = "../share/doc/seqtools/belvu_quick_start.html";
+
+  /* Find the executable's path */
+  char *exe = NULL;
+  gboolean ok = findCommand(g_get_prgname(), &exe);
+
+  if (ok)
+    {
+      /* Get the executable's directory */
+      char *dir = g_path_get_dirname(exe);
+      
+      ok = dir != NULL;
+      
+      if (ok)
+        {
+          /* Get the path to the html page */
+          char *path = blxprintf("%s/%s", dir, rel_path);
+          
+          ok = path != NULL;
+          
+          if (ok)
+            {
+              g_message("Opening help page '%s'\n", path);
+              seqtoolsLaunchWebBrowser(path, &error);
+              g_free(path);
+            }
+
+          g_free(dir);
+        }
+    }
+  
+  if (!ok)
+    {
+      if (error)
+        reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      else
+        g_critical("Could not find help documentation: %s\n", rel_path);
+    }
+}
+
+
+
 /***********************************************************
  *                      Initialisation                     *
  ***********************************************************/
 
-/* Set various properties for the belvu window */
-static void setStyleProperties(GtkWidget *widget)
+/* Create the colors that belvu will use for various specific purposes */
+static void createBelvuColors(BelvuContext *bc, GtkWidget *widget)
+{
+  /* Initialise the array with empty BlxColor structs */
+  bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BELCOLOR_NUM_COLORS);
+  int i = BELCOLOR_MIN + 1;
+  
+  for ( ; i < BELCOLOR_NUM_COLORS; ++i)
+    {
+      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
+      blxColor->name = NULL;
+      blxColor->desc = NULL;
+      g_array_append_val(bc->defaultColors, *blxColor);
+    }
+  
+  /* Get the default background color of our widgets (i.e. that inherited from the theme).
+   * Convert it to a string so we can use the same creation function as the other colors */
+  char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
+  createBlxColor(bc->defaultColors, BELCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
+  
+  createBlxColor(bc->defaultColors, BELCOLOR_ALIGN_TEXT, "Text color for alignments", "Text color for alignments", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  
+  g_free(defaultBgColorStr);
+}
+
+
+/* Set various properties for the main belvu window components */
+static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
 {
   /* Set the initial window size based on some fraction of the screen size */
-  GdkScreen *screen = gtk_widget_get_screen(widget);
+  GdkScreen *screen = gtk_widget_get_screen(window);
   const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
   const int height = gdk_screen_get_height(screen) * DEFAULT_WINDOW_HEIGHT_FRACTION;
   
-  gtk_window_set_default_size(GTK_WINDOW(widget), width, height);
+  gtk_window_set_default_size(GTK_WINDOW(window), width, height);
   
-  gtk_container_set_border_width (GTK_CONTAINER(widget), DEFAULT_WINDOW_BORDER_WIDTH); 
-  gtk_window_set_mnemonic_modifier(GTK_WINDOW(widget), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
+  gtk_container_set_border_width (GTK_CONTAINER(window), DEFAULT_WINDOW_BORDER_WIDTH); 
+  gtk_window_set_mnemonic_modifier(GTK_WINDOW(window), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
   
   /* Set the default font size to be a bit smaller than usual */
-  int origSize = pango_font_description_get_size(widget->style->font_desc) / PANGO_SCALE;
-  const char *origFamily = pango_font_description_get_family(widget->style->font_desc);
+  int origSize = pango_font_description_get_size(window->style->font_desc) / PANGO_SCALE;
+  const char *origFamily = pango_font_description_get_family(window->style->font_desc);
 
   char parseString[500];
   sprintf(parseString, "gtk-font-name = \"%s %d\"", origFamily, origSize + DEFAULT_FONT_SIZE_ADJUSTMENT);
   gtk_rc_parse_string(parseString);
+
+
+  /* Set toolbar style properties */
+  gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
+  gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
 }
 
 
-gboolean createBelvuWindow(BelvuContext *bc)
+gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 {
   gboolean ok = TRUE;
   
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  setStyleProperties(window);
-  
 
+  /* Create the status bar */
+  GtkWidget *statusBar = gtk_statusbar_new();
+  gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), TRUE);
+  setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
+  gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), FALSE);
+
+  /* Set the window and statusbar in the message handler data, now that we know them */
+  msgData->parent = GTK_WINDOW(window);
+  msgData->statusBar = GTK_STATUSBAR(statusBar);
+
+  /* Create the menu and toolbar */
+  GtkUIManager *uiManager = createUiManager(window);
+  GtkWidget *menubar = createBelvuMenu(window, standardMenuDescription, "/MenuBar", uiManager);
+  GtkWidget *toolbar = createBelvuMenu(window, standardMenuDescription, "/Toolbar", uiManager);
+
+  /* Set the style properties */
+  setStyleProperties(window, GTK_TOOLBAR(toolbar));
+
+  /* Create the alignment section */
+  GtkWidget *belvuAlignment = createBelvuAlignment(bc);
+  
+  /* We'll put everything in a vbox */
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(vbox));
+
+  gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), belvuAlignment, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), statusBar, FALSE, FALSE, 0);
+
+
+  
+  
 //  graphRegister(PICK, boxPick);
 //  graphRegister(MIDDLE_DOWN, middleDown);
 //  graphRegister(RESIZE, belvuRedraw);
@@ -87,6 +390,9 @@ gboolean createBelvuWindow(BelvuContext *bc)
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
 
+  createBelvuColors(bc, window);
+
+  belvuWindowCreateProperties(window, bc);
   
   gtk_widget_show_all(window);
   

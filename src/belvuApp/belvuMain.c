@@ -106,72 +106,73 @@ Usage: belvu [options] <multiple_alignment>|- [X options]\n\
 <multiple_alignment>|- = alignment file or pipe.\n\
 \n\
 Options:\n\
--c          Print Conservation table.\n\
--l <file>   Load residue color code file.\n\
--L <file>   Load markup and organism color code file.\n\
--m <file>   Read file with matching sequence segments.\n\
--r          Read alignment in 'raw' format (Name sequence).\n\
--R          Do not parse coordinates when reading alignment.\n\
--o <format> Write alignment or tree to stdout in this format and exit.\n\
-Valid formats: MSF, Mul(Stockholm), Selex, \n\
-FastaAlign, Fasta, tree.\n\
--X <#>      Print UPGMA-based subfamilies at cutoff #.\n\
--n <cutoff> Make non-redundant to <cutoff> %identity at startup.\n\
--Q <cutoff> Remove columns more gappy than <cutoff>.\n\
--q <cutoff> Remove sequences more gappy than <cutoff>.\n\
--G          Penalize gaps in pairwise comparisons.\n\
--i          Ignore gaps in conservation calculation.\n\
--P          Remove partial sequences at startup.\n\
--C          Don't write coordinates to saved file.\n\
--z <char>   Separator char between name and coordinates in saved file.\n\
--a          Show alignment annotations on screen (Stockholm format only).\n\
--p          Output random model probabilites for HMMER.\n\
-(Based on all residues.)\n\
--S <order>  Sort sequences in this order.\n\
-a -> alphabetically\n\
-o -> by Swissprot organism, alphabetically\n\
-s -> by score\n\
-n -> by Neighbor-joining tree\n\
-u -> by UPGMA tree\n\
-S -> by similarity to first sequence\n\
-i -> by identity to first sequence\n\
--s <file>   Read in file of scores.\n\
--T <method> Tree options:\n\
-i -> Start up showing tree\n\
-I -> Start up showing only tree\n\
-d -> Show distances in tree\n\
-n -> Neighbor-joining\n\
-u -> UPGMA\n\
-c -> Don't color tree by organism\n\
-o -> Don't display sequence coordinates in tree\n\
-b -> Use Scoredist distance correction (default)\n\
-j -> Use Jukes-Cantor distance correction\n\
-k -> Use Kimura distance correction\n\
-s -> Use Storm & Sonnhammer distance correction\n\
-r -> Use uncorrected distances\n\
-p -> Print distance matrix and exit\n\
-R -> Read distance matrix instead of alignment\n\
-(only in combination with Tree routines)\n\
--b <#>      Apply boostrap analysis with # bootstrap samples\n\
--B          Print out bootstrap trees and exit\n\
-(Negative value -> display bootstrap trees on screen)\n\
--O <label>  Read organism info after this label (default OS)\n\
--t <title>  Set window title.\n\
--g          Draw grid line (for debugging).\n\
--u          Start up with uncoloured alignment (faster).\n\
+  -c          Print Conservation table.\n\
+  -l <file>   Load residue color code file.\n\
+  -L <file>   Load markup and organism color code file.\n\
+  -m <file>   Read file with matching sequence segments.\n\
+  -r          Read alignment in 'raw' format (Name sequence).\n\
+  -R          Do not parse coordinates when reading alignment.\n\
+  -o <format> Write alignment or tree to stdout in this format and exit.\n\
+                Valid formats: MSF, Mul(Stockholm), Selex, \n\
+                FastaAlign, Fasta, tree.\n\
+  -X <#>      Print UPGMA-based subfamilies at cutoff #.\n\
+  -n <cutoff> Make non-redundant to <cutoff> %identity at startup.\n\
+  -Q <cutoff> Remove columns more gappy than <cutoff>.\n\
+  -q <cutoff> Remove sequences more gappy than <cutoff>.\n\
+  -G          Penalize gaps in pairwise comparisons.\n\
+  -i          Ignore gaps in conservation calculation.\n\
+  -P          Remove partial sequences at startup.\n\
+  -C          Don't write coordinates to saved file.\n\
+  -z <char>   Separator char between name and coordinates in saved file.\n\
+  -a          Show alignment annotations on screen (Stockholm format only).\n\
+  -p          Output random model probabilites for HMMER.\n\
+              (Based on all residues.)\n\
+  -S <order>  Sort sequences in this order.\n\
+                a -> alphabetically\n\
+                o -> by Swissprot organism, alphabetically\n\
+                s -> by score\n\
+                n -> by Neighbor-joining tree\n\
+                u -> by UPGMA tree\n\
+                S -> by similarity to first sequence\n\
+                i -> by identity to first sequence\n\
+  -s <file>   Read in file of scores.\n\
+  -T <method> Tree options:\n\
+                i -> Start up showing tree\n\
+                I -> Start up showing only tree\n\
+                d -> Show distances in tree\n\
+                n -> Neighbor-joining\n\
+                u -> UPGMA\n\
+                c -> Don't color tree by organism\n\
+                o -> Don't display sequence coordinates in tree\n\
+                b -> Use Scoredist distance correction (default)\n\
+                j -> Use Jukes-Cantor distance correction\n\
+                k -> Use Kimura distance correction\n\
+                s -> Use Storm & Sonnhammer distance correction\n\
+                r -> Use uncorrected distances\n\
+                p -> Print distance matrix and exit\n\
+                R -> Read distance matrix instead of alignment\n\
+              (only in combination with Tree routines)\n\
+  -b <#>      Apply boostrap analysis with # bootstrap samples\n\
+  -B          Print out bootstrap trees and exit\n\
+  (Negative value -> display bootstrap trees on screen)\n\
+  -O <label>  Read organism info after this label (default OS)\n\
+  -t <title>  Set window title.\n\
+  -g          Draw grid line (for debugging).\n\
+  -u          Start up with uncoloured alignment (faster).\n\
 \n\
 Some X options:\n\
--acefont <font>   Main font.\n\
--font    <font>   Menu font.\n\
+  -acefont <font>   Main font.\n\
+  -font    <font>   Menu font.\n\
 \n\
 Note: X options only work after \"setenv POSIXLY_CORRECT\"\n\
 \n\
 setenv BELVU_FETCH to desired sequence fetching program.\n\
 \n\
 For documentation, see:\n\
-http://sonnhammer.sbc.su.se/Belvu.html\n\
+  http://sonnhammer.sbc.su.se/Belvu.html\n\
 \n\
-by Erik.Sonnhammer@sbc.su.se\n\
+Originally written by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>\n\
+Rewritten by Gemma Barson <gb10@sanger.ac.uk>\n\
 Version ";
 
 
@@ -274,93 +275,6 @@ static void init_sort_do(const int init_sort, BelvuContext *bc)
 }
 
 
-
-/* Set up all the default params */
-static BelvuContext* createDefaultContext()
-{
-  BelvuContext *bc = g_malloc(sizeof *bc);
-  
-  bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);  /* was called 'Align' */
-  bc->organismArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);
-  bc->markupAlignArr = NULL;
-  bc->bootstrapGroups = NULL;
-
-  bc->highlightedAln = NULL;
-
-  bc->treeHead = NULL;
-  bc->treeBestBalancedNode = NULL;
-
-  bc->treeReadDistancesPipe = NULL;
-
-  bc->treeMethod = NJ;
-  bc->IN_FORMAT = MUL;
-  bc->maxScoreLen = 0;
-  bc->alignYStart = 0;
-  bc->treebootstraps = 0; 
-  bc->maxLen = 0;
-  bc->maxTreeWidth = 0;
-  bc->maxNameLen = 0;   
-  bc->maxStartLen = 0; 
-  bc->maxEndLen = 0; 
-  bc->maxScoreLen = 0; 
-  bc->colorScheme = COLORSIM;
-  
-  bc->maxfgColor = BLACK;
-  bc->midfgColor = BLACK,
-  bc->lowfgColor = BLACK;
-  bc->maxbgColor = CYAN;
-  bc->midbgColor = MIDBLUE;
-  bc->lowbgColor = LIGHTGRAY;
-
-  bc->treeDistCorr = SCOREDIST;
-  bc->treeBestBalance = 0.0;
-  bc->treeBestBalance_subtrees = 0.0;
-  bc->tree_y = 0.3;
-  bc->lowIdCutoff = 0.4;
-  bc->midIdCutoff = 0.6;
-  bc->maxIdCutoff = 0.8;
-  bc->lowSimCutoff = 0.5;
-  bc->midSimCutoff = 1.5;
-  bc->maxSimCutoff = 3.0;
-  bc->colorByResIdCutoff = 20.0;
-  bc->mksubfamilies_cutoff = 0.0;
-
-  strcpy(bc->treeDistString, SCOREDISTstr);
-  strcpy(bc->treeMethodString, NJstr);
-  
-  bc->saveSeparator = '/';
-  bc->Title[0] = '\0';
-  bc->saveFormat[0] = '\0';
-  
-  bc->conservCount = NULL;
-  bc->colorMap = NULL;
-  bc->conservResidues = NULL;
-  bc->conservation = NULL;
-  
-  bc->treeCoordsOn = TRUE;
-  bc->treeReadDistancesOn = FALSE;
-  bc->treePrintDistances = FALSE;
-  bc->penalize_gaps = FALSE;
-  bc->stripCoordTokensOn = TRUE;
-  bc->saveCoordsOn = TRUE;
-  bc->displayScores = TRUE;
-  bc->outputBootstrapTrees = FALSE;
-  bc->treeColorsOn = TRUE;
-  bc->treeShowOrganism = TRUE;
-  bc->treeShowBranchlen = FALSE;
-  bc->matchFooter = FALSE;
-  bc->saved = TRUE;
-  bc->color_by_similarity = TRUE;
-  bc->color_by_conserv = TRUE;
-  bc->ignoreGapsOn = FALSE;
-  bc->colorByResIdOn = FALSE;
-  bc->id_blosum = TRUE;
-  bc->rmEmptyColumnsOn = TRUE;
-  
-  return bc;
-}
-
-
 static void readScores(char *filename, BelvuContext *bc)
 {
   char line[MAXLENGTH+1], linecp[MAXLENGTH+1], *cp;
@@ -454,14 +368,36 @@ int main(int argc, char **argv)
   extern char *optarg;
   char        *optstring="aBb:CcGgil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
   
+
+  /* Set up the GLib message handlers
+   * 
+   * There are two handlers: the default one for all non-critical messages, which will just log
+   * output to the console, and one for critical messages and errors, which will display a 
+   * pop-up message (the idea being that we don't bother the user unless it's something serious).
+   * So, to get a pop-up message use g_critical, and to log a message or warning use g_message, 
+   * g_warning, g_debug etc. Note that g_error is always fatal.
+   */
+  BlxMessageData msgData;
+  msgData.titlePrefix = g_strdup("Belvu - ");
+  msgData.parent = NULL;
+  msgData.statusBar = NULL;
+
+  g_log_set_default_handler(defaultMessageHandler, &msgData);
+  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
+                    popupMessageHandler, &msgData);
+
+
+  /* Set up the usage text */
   char *usage;
   static char usageText[] = USAGE_TEXT;   
-  
+
   usage = g_malloc(strlen(usageText) + strlen(BELVU_VERSION_COMPILE) + 20);
   sprintf(usage, "%s\n%s\n", usageText, BELVU_VERSION_COMPILE);
+
   
-  BelvuContext *bc = createDefaultContext();
-  
+  /* Initialise up the context with default values */
+  BelvuContext *bc = createBelvuContext();
+
 
   /* Set up tree defaults */
   char treePickString[50];
@@ -867,7 +803,7 @@ int main(int argc, char **argv)
     colorSim(bc) ;
   
   /* Create the main belvu graph display of aligned sequences. */
-  if (createBelvuWindow(bc))
+  if (createBelvuWindow(bc, &msgData))
     {
       gtk_main();
     }

@@ -8522,3 +8522,113 @@ void colorSim(BelvuContext *bc)
   colorCons(bc);
 }
 
+
+/* Create the context, which contains all program-wide variables */
+BelvuContext* createBelvuContext()
+{
+  BelvuContext *bc = g_malloc(sizeof *bc);
+  
+  bc->defaultColors = NULL;
+  
+  bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);  /* was called 'Align' */
+  bc->organismArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);
+  bc->markupAlignArr = NULL;
+  bc->bootstrapGroups = NULL;
+
+  bc->highlightedAln = NULL;
+
+  bc->treeHead = NULL;
+  bc->treeBestBalancedNode = NULL;
+
+  bc->treeReadDistancesPipe = NULL;
+
+  bc->treeMethod = NJ;
+  bc->IN_FORMAT = MUL;
+  bc->maxScoreLen = 0;
+  bc->alignYStart = 0;
+  bc->treebootstraps = 0; 
+  bc->maxLen = 0;
+  bc->maxTreeWidth = 0;
+  bc->maxNameLen = 0;   
+  bc->maxStartLen = 0; 
+  bc->maxEndLen = 0; 
+  bc->maxScoreLen = 0; 
+  bc->colorScheme = COLORSIM;
+  
+  bc->maxfgColor = BLACK;
+  bc->midfgColor = BLACK,
+  bc->lowfgColor = BLACK;
+  bc->maxbgColor = CYAN;
+  bc->midbgColor = MIDBLUE;
+  bc->lowbgColor = LIGHTGRAY;
+
+  bc->treeDistCorr = SCOREDIST;
+  bc->treeBestBalance = 0.0;
+  bc->treeBestBalance_subtrees = 0.0;
+  bc->tree_y = 0.3;
+  bc->lowIdCutoff = 0.4;
+  bc->midIdCutoff = 0.6;
+  bc->maxIdCutoff = 0.8;
+  bc->lowSimCutoff = 0.5;
+  bc->midSimCutoff = 1.5;
+  bc->maxSimCutoff = 3.0;
+  bc->colorByResIdCutoff = 20.0;
+  bc->mksubfamilies_cutoff = 0.0;
+
+  strcpy(bc->treeDistString, SCOREDISTstr);
+  strcpy(bc->treeMethodString, NJstr);
+  
+  bc->saveSeparator = '/';
+  bc->Title[0] = '\0';
+  bc->saveFormat[0] = '\0';
+  
+  bc->conservCount = NULL;
+  bc->colorMap = NULL;
+  bc->conservResidues = NULL;
+  bc->conservation = NULL;
+  
+  bc->treeCoordsOn = TRUE;
+  bc->treeReadDistancesOn = FALSE;
+  bc->treePrintDistances = FALSE;
+  bc->penalize_gaps = FALSE;
+  bc->stripCoordTokensOn = TRUE;
+  bc->saveCoordsOn = TRUE;
+  bc->displayScores = TRUE;
+  bc->outputBootstrapTrees = FALSE;
+  bc->treeColorsOn = TRUE;
+  bc->treeShowOrganism = TRUE;
+  bc->treeShowBranchlen = FALSE;
+  bc->matchFooter = FALSE;
+  bc->saved = TRUE;
+  bc->color_by_similarity = TRUE;
+  bc->color_by_conserv = TRUE;
+  bc->ignoreGapsOn = FALSE;
+  bc->colorByResIdOn = FALSE;
+  bc->id_blosum = TRUE;
+  bc->rmEmptyColumnsOn = TRUE;
+  
+  return bc;
+}
+
+
+/* Destroy the context */
+void destroyBelvuContext(BelvuContext **bc)
+{
+  if (bc && *bc)
+    {
+      if ((*bc)->alignArr)
+        g_array_unref((*bc)->alignArr);
+
+      if ((*bc)->organismArr)
+        g_array_unref((*bc)->organismArr);
+
+      if ((*bc)->markupAlignArr)
+        g_array_unref((*bc)->markupAlignArr);
+
+      if ((*bc)->bootstrapGroups)
+        g_array_unref((*bc)->bootstrapGroups);
+      
+      g_free(*bc);
+      *bc = NULL;
+    }
+}

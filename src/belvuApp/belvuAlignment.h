@@ -1,5 +1,5 @@
-/*  File: belvuWindow.h
- *  Author: Gemma Barson, 2011-04-11
+/*  File: belvuAlignment.h
+ *  Author: Gemma Barson, 2011-04-12
  *  Copyright (c) 2009 - 2010 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
@@ -31,18 +31,18 @@
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: The main Belvu window
+ * Description: Draws the alignment section in the main Belvu window
  *----------------------------------------------------------------------------
  */
 
-#ifndef _belvuwindow_h_included_
-#define _belvuwindow_h_included_
+#ifndef _belvualignment_h_included_
+#define _belvualignment_h_included_
 
 #include <belvuApp/belvu_.h>
 #include <gtk/gtk.h>
 
-gboolean              createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData);
+GtkWidget*              createBelvuAlignment(BelvuContext *bc);
 
 
 
-#endif /* _belvuwindow_h_included_ */
+#endif /* _belvualignment_h_included_ */
