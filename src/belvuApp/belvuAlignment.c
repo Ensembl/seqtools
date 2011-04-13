@@ -96,7 +96,8 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment, BelvuConte
       const char *fontFamily = findFixedWidthFont(belvuAlignment);
       PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
       pango_font_description_set_size(fontDesc, pango_font_description_get_size(belvuAlignment->style->font_desc));
-
+      gtk_widget_modify_font(belvuAlignment, fontDesc);
+      
       getFontCharSize(belvuAlignment, fontDesc, &properties->charWidth, &properties->charHeight);
       properties->fontDesc = fontDesc;
 
