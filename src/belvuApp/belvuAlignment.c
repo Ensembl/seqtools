@@ -337,7 +337,7 @@ static gboolean onExposeBelvuColumns(GtkWidget *widget, GdkEventExpose *event, g
           GdkGC *gc = gdk_gc_new(window);
 
           GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->headersArea));
-          const int height = (vAdjustment->value + vAdjustment->page_size);
+          const int height = (vAdjustment->value + properties->seqArea->allocation.height);
           
           GdkRectangle clipRect = {0, 0, widget->allocation.width, height};
           gdk_gc_set_clip_rectangle(gc, &clipRect);
@@ -427,15 +427,15 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
   gtk_layout_set_size(GTK_LAYOUT(properties->headersArea), properties->headersRect.width, properties->headersRect.height);
   gtk_layout_set_size(GTK_LAYOUT(properties->seqArea), properties->seqRect.width, properties->seqRect.height);
   
-  gtk_widget_set_size_request(properties->headersArea, properties->headersRect.width, -1);
-  
-//  widgetClearCachedDrawable(belvuAlignment, NULL);
-//  gtk_widget_queue_draw(belvuAlignment);
+
+  if (properties->headersRect.width != properties->headersArea->allocation.width)
+    gtk_widget_set_size_request(properties->headersArea, properties->headersRect.width, -1);
 }
 
 
-static void onSizeAllocateBelvuAlignment(GtkWidget *belvuAlignment, GtkAllocation *allocation, gpointer data)
+static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *allocation, gpointer data)
 {
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
   calculateBelvuAlignmentBorders(belvuAlignment);
 }
 
@@ -467,8 +467,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc)
 
   g_signal_connect(G_OBJECT(seqArea), "expose-event", G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
   g_signal_connect(G_OBJECT(headersArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
-  g_signal_connect(G_OBJECT(belvuAlignment), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), NULL);
-  g_signal_connect(G_OBJECT(belvuAlignment), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), NULL);
+  g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
 
   g_signal_connect(G_OBJECT(vAdjustment), "changed", G_CALLBACK(onScrollChangedBelvuAlignment), belvuAlignment);
   g_signal_connect(G_OBJECT(vAdjustment), "value-changed", G_CALLBACK(onScrollChangedBelvuAlignment), belvuAlignment);
