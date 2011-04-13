@@ -113,15 +113,18 @@ typedef enum
 
 #define BLX_YELLOW	      "#ffff00" 
 #define BLX_DARK_YELLOW       "#d0d000"
+#define BLX_PALE_YELLOW       "#ffffcc"
 
 #define BLX_BLUE	      "#0000ff"
 #define BLX_DARK_BLUE	      "#000080"
 #define BLX_ROYAL_BLUE	      "#4169e1"
 #define BLX_SKY_BLUE          "#87cefa"
+#define BLX_PALE_BLUE         "#c0d8f0"
 #define BLX_CYAN	      "#15ced2"
 #define BLX_LIGHT_CYAN        "#6defe9"
 #define BLX_VIOLET            "#78b4f0"
 #define BLX_DARK_VIOLET       "#5c98d5"
+#define BLX_MID_BLUE          "#6495ED"
 
 #define BLX_RED		      "#ff0000"
 #define BLX_LIGHT_RED	      "#ff7373"
@@ -130,6 +133,12 @@ typedef enum
 #define BLX_VERY_DARK_RED     "#400000"
 #define BLX_ORANGE_RED	      "#ff4500"
 #define BLX_ORANGE	      "#ffa500"
+#define BLX_PALE_ORANGE	      "#ff9c00"
+#define BLX_MAGENTA	      "#ff00ff"
+#define BLX_PALE_MAGENTA      "#ffccff"
+#define BLX_PURPLE            "#A020F0"
+#define BLX_PALE_VIOLET       "#EE82EE"
+#define BLX_CERISE            "#DE3163"
 
 #define BLX_GREEN	      "#00ff00"
 #define BLX_LIGHT_GREEN	      "#C1FFC1" 
@@ -137,6 +146,7 @@ typedef enum
 #define BLX_DARK_GREEN	      "#00bb00"
 #define BLX_VERY_DARK_GREEN   "#015800"
 
+#define BLX_BROWN             "#A52A2A"
 
 typedef struct _BlxColor
   {

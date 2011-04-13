@@ -44,54 +44,6 @@
 #include <getopt.h>
 #include <ctype.h>
 
-#define UNSET_INT  -1
-
-
-static char b2a[] = ".ARNDCQEGHILKMFPSTWYV" ;
-
-/* Residue colors */
-static int color[] = {
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
-        NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
-};
-
-
-/* Residue colors */
-static int markupColor[] = {
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,
-        BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG,BG
-};
-
 
 /* Usage text. This is a duplicate of the text that is in 
  * doc/User_doc/dotter_usage.txt, so ideally we would get rid of this and use
@@ -611,7 +563,7 @@ int main(int argc, char **argv)
             }
           
           printf("%4d       %c      %4d/%-4d = %5.1f %%  %4.1f\n", 
-                 i+1, b2a[consensus], max, nseq, (double)max/nseq*100, bc->conservation[i]);
+                 i+1, b2aIndex(consensus), max, nseq, (double)max/nseq*100, bc->conservation[i]);
           totcons += bc->conservation[i];
         }
       
@@ -627,7 +579,7 @@ int main(int argc, char **argv)
       if (!(file = fopen(colorCodesFile, "r"))) 
         g_error("Cannot open file %s", colorCodesFile);
       
-      readColorCodes(bc, file, color);
+      readColorCodes(bc, file, getColorArray());
       bc->colorScheme = COLORBYRESIDUE;
       bc->color_by_conserv = bc->colorByResIdOn = FALSE;
     }
@@ -639,7 +591,7 @@ int main(int argc, char **argv)
       if (!(file = fopen(markupColorCodesFile, "r"))) 
         g_error("Cannot open file %s", markupColorCodesFile);
 
-      readColorCodes(bc, file, markupColor);
+      readColorCodes(bc, file, getMarkupColorArray());
     }
   
   if (makeNRinit)

@@ -94,6 +94,7 @@ AUTHOR_TEXT "\n"
 #define NOCOLOR -1
 #define NN NOCOLOR
 #define BG WHITE
+#define BOXCOLOR  WHITE /* LIGHTGRAY */
 
 
 
@@ -294,6 +295,7 @@ typedef struct BelvuContextStruct
   gboolean colorByResIdOn;         /* colour by residue type above identity cutoff */
   gboolean id_blosum;              /* Paint similar residues too */
   gboolean rmEmptyColumnsOn;
+  gboolean lowercaseOn;
   
 } BelvuContext;
 
@@ -353,6 +355,15 @@ void                                      treeDisplay(BelvuContext *bc);
 
 void                                      colorSim(BelvuContext *bc);          
 void                                      showAnnotation(BelvuContext *bc);    
+
+char                                      b2aIndex(const int idx);
+int                                       getMarkupColor(const char inputChar);
+int                                       getConservColor(BelvuContext *bc, const char inputChar, const int idx);
+int                                       getColor(const char inputChar);
+
+int*                                      getColorArray();
+int*                                      getMarkupColorArray();
+
 
 
 #endif /* DEF_BELVU_P_H */

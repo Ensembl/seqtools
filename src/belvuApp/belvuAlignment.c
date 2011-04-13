@@ -125,16 +125,85 @@ static void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, c
 }
 
 
+/* Convert one of the old acedb-style color numbers to a hex string */
+static const char* convertColorNumToStr(const int colorNum)
+{
+  const char *result = NULL;
+  
+  switch (colorNum)
+    {
+      case WHITE: result = BLX_WHITE; break;
+      case BLACK: result = BLX_BLACK; break;
+      case LIGHTGRAY: result = BLX_LIGHT_GREY; break;
+      case DARKGRAY: result = BLX_DARK_GREY; break;
+      case RED: result = BLX_RED; break;
+      case GREEN: result = BLX_GREEN; break;
+      case BLUE: result = BLX_BLUE; break;
+      case YELLOW: result = BLX_YELLOW; break;
+      case CYAN: result = BLX_CYAN; break;
+      case MAGENTA: result = BLX_MAGENTA; break;
+      case LIGHTRED: result = BLX_LIGHT_RED; break;
+      case LIGHTGREEN: result = BLX_LIGHT_GREEN; break;
+      case LIGHTBLUE: result = BLX_SKY_BLUE; break;
+      case DARKRED: result = BLX_DARK_RED; break;
+      case DARKGREEN: result = BLX_DARK_GREEN; break;
+      case DARKBLUE: result = BLX_DARK_BLUE; break;
+      case PALERED: result = BLX_LIGHT_RED; break;
+      case PALEGREEN: result = BLX_LIGHT_GREEN; break;
+      case PALEBLUE: result = BLX_PALE_BLUE; break;
+      case PALEYELLOW: result = BLX_PALE_YELLOW; break;
+      case PALECYAN: result = BLX_LIGHT_CYAN; break;
+      case PALEMAGENTA: result = BLX_PALE_MAGENTA; break;
+      case BROWN: result = BLX_BROWN; break;
+      case ORANGE: result = BLX_ORANGE; break;
+      case PALEORANGE: result = BLX_PALE_ORANGE; break;
+      case PURPLE: result = BLX_PURPLE; break;
+      case VIOLET: result = BLX_VIOLET; break;
+      case PALEVIOLET: result = BLX_PALE_VIOLET; break;
+      case GRAY: result = BLX_GREY; break;
+      case PALEGRAY: result = BLX_VERY_LIGHT_GREY; break;
+      case CERISE: result = BLX_CERISE; break;
+      case MIDBLUE: result = BLX_MID_BLUE; break;
+      default: result = BLX_WHITE; break;
+    };
+  
+  return result;
+}
+  
+  
+static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, GdkColor *result) 
+{
+  int colorNum = 0;
+
+  if (bc->lowercaseOn && alnp->seq[i] >= 'a' && alnp->seq[i] <= 'z') 
+    colorNum = ORANGE;
+  else if (alnp->nocolor)
+    colorNum = BOXCOLOR;
+  else if (alnp->markup)
+    colorNum = getMarkupColor(alnp->seq[i]);
+  else if (bc->color_by_conserv || bc->colorByResIdOn)
+    colorNum = getConservColor(bc, alnp->seq[i], i);
+  else
+    colorNum = getColor(alnp->seq[i]);
+  
+  const char * colorStr = convertColorNumToStr(colorNum);
+  getColorFromString(colorStr, result, NULL);
+}
+
+
 /* Draw a single line in the alignment view */
 static void drawSingleAlignment(GtkWidget *widget,
                                 GdkDrawable *drawable, 
-                                GdkGC *gc,
                                 BelvuAlignmentProperties *properties,
                                 ALN *alnp, 
                                 const int lineNum)
 {
   int x = 0;
   const int y = properties->charHeight * lineNum;
+  
+  GdkGC *gc = gdk_gc_new(drawable);
+  GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
+  gdk_gc_set_foreground(gc, textColor);
   
   /* Draw the name */
   if (alnp->name)
@@ -153,9 +222,25 @@ static void drawSingleAlignment(GtkWidget *widget,
   /* Draw the sequence */
   if (alnp->seq)
     {
-      drawText(widget, drawable, gc, x, y, alnp->seq);
-      x += (properties->bc->maxLen * properties->charWidth) + properties->columnPadding;
+      const int startX = x;
+      
+      /* Loop through each char and color the background */
+      int i = 0;
+      for ( ; i < properties->bc->maxLen; ++i)
+        {
+          GdkColor bgColor;
+          findResidueBGcolor(properties->bc, alnp, i, &bgColor);
+          gdk_gc_set_foreground(gc, &bgColor);
+          
+          gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
+          x += properties->charWidth;
+        }
+
+      gdk_gc_set_foreground(gc, textColor);
+      drawText(widget, drawable, gc, startX, y, alnp->seq);
     }
+  
+  g_object_unref(gc);
 }
 
 
@@ -165,19 +250,13 @@ static void drawBelvuAlignment(GtkWidget *widget, GdkDrawable *drawable)
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(widget);
   BelvuContext *bc = properties->bc;
   
-  GdkGC *gc = gdk_gc_new(drawable);
-  GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, bc->defaultColors, FALSE, FALSE);
-  gdk_gc_set_foreground(gc, textColor);
-
   /* Loop through each alignment */
   int i = 0;
   for ( ; i < bc->alignArr->len; ++i)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-      drawSingleAlignment(widget, drawable, gc, properties, alnp, i);
+      drawSingleAlignment(widget, drawable, properties, alnp, i);
     }
-  
-  g_object_unref(gc);
 }
 
 

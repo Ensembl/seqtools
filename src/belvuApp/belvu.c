@@ -199,7 +199,6 @@ static void                    fillParents(TreeNode *parent, TreeNode *node);
 
 #define MAXLINE   512
 #define MAXLENGTH 100000
-#define boxColor  WHITE /* LIGHTGRAY */
 #define DBL_CLK_DELAY 2 /* seconds */
 #define HSCRWID    1.0  /* Width of Horizontal scroll bar */
 #define SCRBACKCOLOR PALEGRAY
@@ -1319,22 +1318,6 @@ static void keyboard(int key, int unused)
     case HOME_KEY:   AlignYstart = 0; belvuRedraw();      break;
     case END_KEY:    AlignYstart = nseq; belvuRedraw();   break;
     }
-}
-
-
-
-static int findResidueBGcolor(ALN* alnp, int i) {
-    
-    if (lowercaseOn && alnp->seq[i] >= 'a' && alnp->seq[i] <= 'z') 
-      return(ORANGE);
-    else if (alnp->nocolor)
-	return boxColor;
-    else if (alnp->markup)
-      return markupColor[(unsigned char)(alnp->seq[i])];
-    else if (bc->color_by_conserv || bc->colorByResIdOn)
-      return colorMap[a2b[(unsigned char)(alnp->seq[i])]][i];
-    else
-      return color[(unsigned char)(alnp->seq[i])];
 }
 
 
@@ -8606,6 +8589,7 @@ BelvuContext* createBelvuContext()
   bc->colorByResIdOn = FALSE;
   bc->id_blosum = TRUE;
   bc->rmEmptyColumnsOn = TRUE;
+  bc->lowercaseOn = FALSE;
   
   return bc;
 }
@@ -8632,3 +8616,42 @@ void destroyBelvuContext(BelvuContext **bc)
       *bc = NULL;
     }
 }
+
+
+/* This function just returns the value in the b2a array at the given index */
+char b2aIndex(const int idx)
+{
+  return b2a[idx];
+}
+
+/* Return the markup color for the given char */
+int getMarkupColor(const char inputChar)
+{
+  return markupColor[(unsigned char)(inputChar)];
+}
+
+/* Return the conservation color for the given char at the given index */
+int getConservColor(BelvuContext *bc, const char inputChar, const int idx)
+{
+  return bc->colorMap[a2b[(unsigned char)(inputChar)]][idx];
+}
+
+/* Return the color from the colors array for the given char */
+int getColor(const char inputChar)
+{
+  return color[(unsigned char)(inputChar)];
+}
+
+/* Returns the 'color' array */
+int* getColorArray()
+{
+  return color;
+}
+
+/* Returns the 'markupColor' array */
+int* getMarkupColorArray()
+{
+  return markupColor;
+}
+
+
