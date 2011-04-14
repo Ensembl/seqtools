@@ -2219,6 +2219,11 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   if (adjustment->value == UNSET_INT)
     {
       adjustment->value = getRangeCentre(displayRange) - (adjustment->page_size / 2);
+
+      if (adjustment->value < adjustment->lower)
+        adjustment->value = adjustment->lower;
+      else if (adjustment->value > adjustment->upper - adjustment->page_size + 1)
+        adjustment->value = adjustment->upper - adjustment->page_size + 1;
     }
 
   int newStart = adjustment->value;
