@@ -2212,12 +2212,20 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *detailView = GTK_WIDGET(data);
   
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+
   int newStart = adjustment->value;
-  int newEnd = adjustment->value + adjustment->page_size - 1;
+
+  /* First time round, set the adjusment range to be centred on the centre of
+   * the detail-view range*/
+  if (newStart == UNSET_INT)
+    {
+      newStart = getRangeCentre(displayRange) - (adjustment->page_size / 2);
+    }
+
+  int newEnd = newStart + adjustment->page_size - 1;
   
   /* Only update if something has changed */
-  IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  
   if (displayRange->min != newStart || displayRange->max != newEnd)
     {
       IntRange oldRange = {displayRange->min, displayRange->max};
@@ -3031,11 +3039,12 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       addBlxSpliceSite(&properties->spliceSites, "GC", "AG", FALSE);
       addBlxSpliceSite(&properties->spliceSites, "AT", "AC", TRUE);
 
-      /* Set the start coord in the adjustment. (The display range will be 
-       * calculated from the adjustment) */
-      properties->adjustment->value = startCoord;
-      properties->displayRange.min = 0;
-      properties->displayRange.max = 0;
+      /* We don't know the display range yet, so set an arbitrary range centred
+       * on the start coord. Set the adjustment value to be unset so that we know
+       * we need to calculated it first time round. */
+      properties->adjustment->value = UNSET_INT;
+      properties->displayRange.min = startCoord - 1;
+      properties->displayRange.max = startCoord + 1;
       
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
