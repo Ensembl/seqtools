@@ -2214,15 +2214,14 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
 
-  int newStart = adjustment->value;
-
   /* First time round, set the adjusment range to be centred on the centre of
    * the detail-view range*/
-  if (newStart == UNSET_INT)
+  if (adjustment->value == UNSET_INT)
     {
-      newStart = getRangeCentre(displayRange) - (adjustment->page_size / 2);
+      adjustment->value = getRangeCentre(displayRange) - (adjustment->page_size / 2);
     }
 
+  int newStart = adjustment->value;
   int newEnd = newStart + adjustment->page_size - 1;
   
   /* Only update if something has changed */
