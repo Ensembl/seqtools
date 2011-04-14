@@ -1249,7 +1249,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
         }
 
       /* Convert the display coord to a nucleotide coord */
-      result = convertDisplayIdxToDnaIdx(result, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+      result = convertDisplayIdxToDnaIdx(result, bc->seqType, getStartFrame(bc), getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
   return result;
@@ -4656,6 +4656,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_DARK_GREY, BLX_VERY_DARK_GREEN, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_VERY_DARK_GREY, BLX_VERY_DARK_RED, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_PARTIAL_EXON_CROSSHATCH, "Cross-hatch line color for partial exons", "Line color of cross-hatch highlighting for partial exons", BLX_GREY, BLX_GREY, NULL, NULL);
   
   /* codons */
   createBlxColor(bc->defaultColors, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_SKY_BLUE, BLX_GREY, NULL, NULL);

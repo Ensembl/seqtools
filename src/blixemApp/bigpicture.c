@@ -147,8 +147,8 @@ void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *pr
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   
   /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
-  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, getStartFrame(bc), getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, getStartFrame(bc), getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int displayWidth = abs(displayEnd - displayStart); /* use abs because can be negative if display reversed */
   
   const int defaultBasesPerCell = ceil((double)(displayWidth) / DEFAULT_GRID_NUM_HOZ_CELLS);
@@ -240,7 +240,7 @@ void drawVerticalGridLines(GdkRectangle *drawingRect,
   
   /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
    * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, getStartFrame(bc), getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */

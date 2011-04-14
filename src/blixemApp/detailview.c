@@ -1443,7 +1443,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
           IntRange mspExpandedRange;
           getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, NULL, &mspExpandedRange);
           
-          const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, 1, clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+          const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, getStartFrame(bc), clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
           gboolean found = FALSE;
           int dnaIdxToSelect = UNSET_INT;
           
@@ -1930,8 +1930,8 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
    * coords are in nucleotides, so convert display range to nucleotide coords. */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   
-  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);	  /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);	  /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, getEndFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
   IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
   
   GError *error = NULL;
@@ -4333,7 +4333,7 @@ MSP* prevMatch(GtkWidget *detailView, GList *seqList)
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
       BlxViewContext *bc = detailViewGetContext(detailView);
-      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
   return goToNextMatch(detailView, startDnaIdx, FALSE, seqList);
@@ -4356,7 +4356,7 @@ MSP* nextMatch(GtkWidget *detailView, GList *seqList)
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
       BlxViewContext *bc = detailViewGetContext(detailView);
-      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+      startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
   return goToNextMatch(detailView, startDnaIdx, TRUE, seqList);

@@ -1017,8 +1017,8 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   
   /* Find the segment of the ref seq to display. Ref seq is in nucleotide coords so convert the 
    * display range to nucleotide coords. */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); 
+  const int qIdx1 = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, frame, getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, frame, getEndFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange); 
   IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
 
   /* The q range may be outside the ref seq range if we are at the start/end and we have included
