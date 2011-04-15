@@ -135,9 +135,9 @@ typedef struct _DetailViewProperties
     gdouble charHeight;
     gdouble charWidth;
         
-    int exonBoundaryLineWidth;		     /* line width for exon boundaries */
-    GdkLineStyle exonBoundaryLineStyleStart; /* line style for exon boundaries (marking the start of an exon) */
-    GdkLineStyle exonBoundaryLineStyleEnd;   /* line style for exon boundaries (marking the end of the exon) */
+    int exonBoundaryLineWidth;		       /* line width for exon boundaries */
+    GdkLineStyle exonBoundaryLineStyle;        /* line style for exon boundaries */
+    GdkLineStyle exonBoundaryLineStylePartial; /* line style for exon boundaries (where the boundary is part-way through a codon) */
     
     GSList *spliceSites;           /* List of splice sites that can be found and highlighted by Blixem */
   } DetailViewProperties;

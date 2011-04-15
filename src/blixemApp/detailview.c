@@ -3513,8 +3513,8 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 	  properties->cellYPadding = (vertical_separator / 2) + 1;
 	}
       properties->exonBoundaryLineWidth	  = 1;
-      properties->exonBoundaryLineStyleStart = GDK_LINE_SOLID;
-      properties->exonBoundaryLineStyleEnd   = GDK_LINE_SOLID;
+      properties->exonBoundaryLineStyle = GDK_LINE_SOLID;
+      properties->exonBoundaryLineStylePartial = GDK_LINE_ON_OFF_DASH;
       
       int i = 0;
       for ( ; i < BLXCOL_NUM_COLUMNS; ++i)

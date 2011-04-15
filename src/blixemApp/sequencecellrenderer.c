@@ -95,8 +95,8 @@ typedef struct _RenderData
     GdkColor *polyAColorSelected;
     GdkColor *clipMarkerColor;
     int exonBoundaryWidth;
-    GdkLineStyle exonBoundaryStyleStart;
-    GdkLineStyle exonBoundaryStyleEnd;
+    GdkLineStyle exonBoundaryStyle;
+    GdkLineStyle exonBoundaryStylePartial;
     gboolean showUnalignedSeq;
     gboolean showUnalignedSelected;
     gboolean limitUnalignedBases;
@@ -579,14 +579,10 @@ static GdkColor* getExonFillColor(const MSP const *msp, const gboolean isSelecte
 }
 
 
-/* Highlight the start (min) peptide of the given msp if it is a partial codon, i.e. if it
- * does not start at base 1 (or end at base 3, if the display is reversed). OR highlight the end
- * (max) codon if 'start' is FALSE. The x/y coords give the top left corner of the peptide. */
-static void highlightPartialCodons(MSP *msp, 
-				   const gboolean start, 
-				   const int x, 
-				   const int y, 
-				   RenderData *data)
+/* Returns true if the min coord (or max coord, if 'start' is false) is a
+ * partial codon, i.e. if it does not start at base 1 (if start) or end at
+ * base 3 (if end)... or vice versa if the display is reversed */
+static gboolean isPartialCodon(const MSP const *msp, const gboolean start, RenderData *data, int *displayIdxOut)
 {
   /* To be a complete codon, if we're at the start the the coord must be base 1 
    * or if we're at the end then coord must be base 3 */
@@ -601,7 +597,27 @@ static void highlightPartialCodons(MSP *msp,
   const int displayIdx = convertDnaIdxToDisplayIdx(dnaIdx, data->bc->seqType, frame, 
     data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, &baseNum);
   
-  if (baseNum != reqdBase && valueWithinRange(displayIdx, data->displayRange)) 
+  if (displayIdxOut)
+    *displayIdxOut = displayIdx;
+
+  gboolean isPartial = (baseNum != reqdBase);
+  return isPartial;
+}
+
+
+/* Highlight the start (min) peptide of the given msp if it is a partial codon, i.e. if it
+ * does not start at base 1 (or end at base 3, if the display is reversed). OR highlight the end
+ * (max) codon if 'start' is FALSE. The x/y coords give the top left corner of the peptide. */
+static void highlightPartialCodons(const MSP const *msp, 
+				   const gboolean start, 
+				   const int x, 
+				   const int y, 
+				   RenderData *data)
+{
+  int displayIdx = UNSET_INT;
+  gboolean isPartial = isPartialCodon(msp, start, data, &displayIdx);
+  
+  if (isPartial && valueWithinRange(displayIdx, data->displayRange)) 
     {
       /* It's not a complete codon, so highlight this base */
       const gboolean coordSelected = (data->selectedBaseIdx == displayIdx);
@@ -815,7 +831,7 @@ static void getCoordsForBaseIdx(const int segmentIdx,
  * coords are within the current display range */
 static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 {
-  if (msp && (msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR))
+  if (msp && msp->type == BLXMSP_EXON)
     {
       /* Get the msp's start/end in terms of the display coords */
       const IntRange const *mspRange = mspGetDisplayRange(msp);
@@ -826,14 +842,17 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorEnd : rd->exonBoundaryColorStart;
 	  gdk_gc_set_foreground(rd->gc, color);
 	  
-	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
-	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
+          /* Check if it's the boundary of a partial codon - we'll draw a dotted
+           * line if it is, to indicate that the boundary is not exactly at this position. */
+          const gboolean isPartial = isPartialCodon(msp, !rd->bc->displayRev, rd, NULL);
+	  GdkLineStyle lineStyle = isPartial ? rd->exonBoundaryStylePartial : rd->exonBoundaryStyle;
+          gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-	  const int idx = mspRange->min - rd->displayRange->min;
-
+          const int idx = mspRange->min - rd->displayRange->min;
+          
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
-	  
+          
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
       
@@ -843,8 +862,11 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorStart : rd->exonBoundaryColorEnd;
 	  gdk_gc_set_foreground(rd->gc, color);
 	  
-	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
-	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
+          /* Check if it's the boundary of a partial codon - we'll draw a dotted
+           * line if it is, to indicate that the boundary is not exactly at this position. */
+          const gboolean isPartial = isPartialCodon(msp, rd->bc->displayRev, rd, NULL);
+	  GdkLineStyle lineStyle = isPartial ? rd->exonBoundaryStylePartial : rd->exonBoundaryStyle;
+          gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
 	  const int idx = mspRange->max + 1 - rd->displayRange->min;
 
@@ -1134,6 +1156,14 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   GdkGC *gc = gdk_gc_new(window);
   
+  /* Make the dashes of the partial-boundary lines very short and closely
+   * packed (i.e. dash length of 2 pixels and gaps of 1 pixel) */
+  int listLen = 2;
+  gint8 dashList[listLen];
+  dashList[0] = 2;
+  dashList[1] = 1;
+  gdk_gc_set_dashes(gc, 1, dashList, listLen);
+  
   RenderData data = {
     bc,
     cell_area,
@@ -1176,8 +1206,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
     getGdkColor(BLXCOLOR_POLYA_TAIL, bc->defaultColors, TRUE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_CLIP_MARKER, bc->defaultColors, FALSE, bc->usePrintColors),
     detailViewProperties->exonBoundaryLineWidth,
-    detailViewProperties->exonBoundaryLineStyleStart,
-    detailViewProperties->exonBoundaryLineStyleEnd,
+    detailViewProperties->exonBoundaryLineStyle,
+    detailViewProperties->exonBoundaryLineStylePartial,
     bc->flags[BLXFLAG_SHOW_UNALIGNED],
     bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED],
     bc->flags[BLXFLAG_LIMIT_UNALIGNED_BASES],
