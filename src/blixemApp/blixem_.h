@@ -490,9 +490,6 @@ gboolean                           blxviewFetchSequences(gboolean External,
 							 const char *dataset
 							 );
 
-int getStartFrame(const BlxViewContext const *bc);
-int getEndFrame(const BlxViewContext const *bc);
-
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */

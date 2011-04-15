@@ -340,8 +340,8 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
   const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
 
-  const int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, getEndFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   
   char *startString = convertIntToString(getDisplayCoord(qStart, bc));
   char *endString = convertIntToString(getDisplayCoord(qEnd, bc));
@@ -934,7 +934,7 @@ static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
   int mid = getRangeCentre(displayRange);
 
   /* Convert to DNA coords */
-  mid = convertDisplayIdxToDnaIdx(mid, bc->seqType, getStartFrame(bc), getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  mid = convertDisplayIdxToDnaIdx(mid, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   
   const int offset = DEFAULT_DOTTER_RANGE_SELF / 2;
 
@@ -1041,8 +1041,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_MATCHES, 
                   "There were no matches for the selected sequence(s) within the big picture range.\nZoom out to ensure alignments lie entirely within the big picture range.");
       
-      qMin = convertDisplayIdxToDnaIdx(bigPicRange->min, bc->seqType, getStartFrame(bc), getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
-      qMax = convertDisplayIdxToDnaIdx(bigPicRange->max, bc->seqType, getStartFrame(bc), getEndFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange);
+      qMin = convertDisplayIdxToDnaIdx(bigPicRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+      qMax = convertDisplayIdxToDnaIdx(bigPicRange->max, bc->seqType, 1, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
   /* Due to gaps, we might miss the ends - add some more */

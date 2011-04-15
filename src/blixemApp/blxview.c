@@ -1771,17 +1771,4 @@ void drawAssemblyGaps(GtkWidget *widget,
   
 }
 
-///* Get the start frame, i.e. frame 1, or frame 3 if the display is reversed */
-//int getStartFrame(const BlxViewContext const *bc)
-//{
-//  return (bc->displayRev ? bc->numFrames : 1);
-//}
-//
-///* Get the end frame, i.e. frame 3, or frame 1 if the display is reversed */
-//int getEndFrame(const BlxViewContext const *bc)
-//{
-//  return (bc->displayRev ? 1 : bc->numFrames);
-//}
-//
-
 /***************** end of file ***********************/

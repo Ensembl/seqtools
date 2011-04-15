@@ -1053,14 +1053,10 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
   int dnaIdx = displayIdx;
   int base = baseNum;
   
-  if (displayRev)
-    base = numFrames - base + 1;
-  
   if (srcSeqType == BLXSEQ_PEPTIDE)
     {
       /* Convert the input peptide coord to a dna coord */
-      const int direction = 1;
-      dnaIdx = (displayIdx * numFrames) - numFrames + frame + direction * (base - 1);
+      dnaIdx = (displayIdx * numFrames) - numFrames + frame + base - 1;
     }
   
   if (displayRev)

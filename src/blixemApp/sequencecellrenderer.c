@@ -714,7 +714,7 @@ static void drawBase(MSP *msp,
   
   /* From the segment index, find the display index and the ref seq coord */
   const int displayIdx = segmentRange->min + segmentIdx;
-  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, getStartFrame(data->bc), data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   
   /* Find the match-sequence coord at this ref-seq coord */
   *sIdx = mspGetMatchCoord(msp, *qIdx, data->seqSelected, data->numUnalignedBases, data->bc);
@@ -1054,8 +1054,8 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
     }
 
   /* The ref seq is in nucleotide coords, so convert the segment coords to nucleotide coords */
-  const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min, data->bc->seqType, data->qFrame, getStartFrame(data->bc), data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
-  const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max, data->bc->seqType, data->qFrame, getEndFrame(data->bc), data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
 
   IntRange qRange;
   intrangeSetValues(&qRange, coord1, coord2);
