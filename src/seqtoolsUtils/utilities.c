@@ -1038,6 +1038,15 @@ void convertDisplayRangeToDnaRange(const IntRange const * displayRange,
 }
 
 
+/***********************************************************
+ *			   IMPORTANT!!!			   
+ * The following two functions (convertDisplayIdxToDnaIdx and
+ * convertDnaIdxToDisplayIdx) are used extensively by Blixem
+ * and underpin all of its coordinate conversions. Be very careful
+ * when editing these functions - it is very difficult to
+ * change anything here and NOT mess anything up.
+ ***********************************************************/
+
 /* Given an index into the displayed sequence, a reading frame, and the base number within that
  * reading frame, return the index into the DNA sequence that will give the equivalent DNA base.
  * If the display sequence is a peptide sequence, it will convert the coord to a DNA coord. If the
