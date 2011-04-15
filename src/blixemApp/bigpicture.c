@@ -1007,7 +1007,7 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentreIn, GdkRec
   
   /* Update the detail view's scroll pos to start at the new base. The base index is in terms of
    * the nucleotide coords so we need to convert to display coords */
-  const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, getStartFrame(bc), bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   
   GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
   setDetailViewStartIdx(detailView, displayIdx, bc->seqType);

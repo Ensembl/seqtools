@@ -247,6 +247,21 @@ void drawRectangle2(GdkDrawable *drawable1,
 }
 
 
+/* Fill a rectangle with crosshatch lines */
+void drawCrosshatchRectangle(GdkDrawable *drawable1,
+                             GdkDrawable *drawable2,
+                             GdkGC *gc,
+                             gint x,
+                             gint y,
+                             gint width,
+                             gint height)
+{
+  /* Draw diagonal lines from top-right to bottom-left. */
+  drawLine2(drawable1, drawable2, gc, x + width, y, x, y + height);
+  drawLine2(drawable1, drawable2, gc, x + width / 2, y, x, y + height / 2);
+  drawLine2(drawable1, drawable2, gc, x + width, y + height / 2, x + width / 2, y + height);
+}
+
 
 /***************************************************************************
  *
@@ -583,11 +598,10 @@ static void highlightPartialCodons(MSP *msp,
   int baseNum = UNSET_INT;
   const int frame = mspGetRefFrame(msp, data->bc->seqType);
   
-  const int displayIdx = convertDnaIdxToDisplayIdx(
-   dnaIdx, data->bc->seqType, frame, 
-   data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, &baseNum);
+  const int displayIdx = convertDnaIdxToDisplayIdx(dnaIdx, data->bc->seqType, frame, 
+    data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, &baseNum);
   
-  if (baseNum != reqdBase) 
+  if (baseNum != reqdBase && valueWithinRange(displayIdx, data->displayRange)) 
     {
       /* It's not a complete codon, so highlight this base */
       const gboolean coordSelected = (data->selectedBaseIdx == displayIdx);
@@ -595,7 +609,8 @@ static void highlightPartialCodons(MSP *msp,
 
       GdkColor *color = (isSelected ? data->crosshatchColorSelected : data->crosshatchColor);
       gdk_gc_set_foreground(data->gc, color);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, data->charWidth, data->charHeight);
+
+      drawCrosshatchRectangle(data->window, data->drawable, data->gc, x, y, data->charWidth, data->charHeight);
     }
 }
 
