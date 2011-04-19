@@ -39,6 +39,7 @@
 #include <belvuApp/belvuAlignment.h>
 #include <belvuApp/belvu_.h>
 #include <gtk/gtk.h>
+#include <string.h>
 
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
@@ -60,15 +61,28 @@ typedef struct _BelvuWindowProperties
 
 
 /* Local function declarations */
+static void                      onCloseMenu(GtkAction *action, gpointer data);
 static void                      onQuitMenu(GtkAction *action, gpointer data);
 static void                      onHelpMenu(GtkAction *action, gpointer data);
 static void                      onAboutMenu(GtkAction *action, gpointer data);
 static void                      onPrintMenu(GtkAction *action, gpointer data);
 static void                      onWrapMenu(GtkAction *action, gpointer data);
+static void                      onMakeTreeMenu(GtkAction *action, gpointer data);
+static void                      onTreeOptsMenu(GtkAction *action, gpointer data);
+static void                      onConsPlotMenu(GtkAction *action, gpointer data);
+static void                      onSaveMenu(GtkAction *action, gpointer data);
+static void                      onSaveAsMenu(GtkAction *action, gpointer data);
+static void                      onOutputMenu(GtkAction *action, gpointer data);
+static void                      onCompareMenu(GtkAction *action, gpointer data);
+static void                      onCleanUpMenu(GtkAction *action, gpointer data);
 
 static void                      showHelpDialog();
-static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
+static void                      showWrapDialog(GtkWidget *belvuWindow);
+static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 
+static gboolean                  onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
+
+static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
 /***********************************************************
  *                      Menus and Toolbar                  *
@@ -76,13 +90,26 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
 /* Define the menu actions */
 static const GtkActionEntry menuEntries[] = {
-  { "FileMenuAction",   NULL, "_File"},
+  { "FileMenuAction",  NULL, "_File"},
+  { "EditMenuAction",  NULL, "_Edit"},
+  { "ColorMenuAction", NULL, "_Color"},
+  { "SortMenuAction",  NULL, "_Sort"},
 
-  { "Quit",	GTK_STOCK_QUIT,   "_Quit",      "<control>Q", "Quit  Ctrl+Q",         G_CALLBACK(onQuitMenu)},
-  { "Help",	GTK_STOCK_HELP,   "_Help",      "<control>H", "Display help  Ctrl+H", G_CALLBACK(onHelpMenu)},
-  { "About",	GTK_STOCK_ABOUT,  "_About",     NULL,         "About",                G_CALLBACK(onAboutMenu)},
-  { "Print",	GTK_STOCK_PRINT,  "_Print",     "<control>P", "Print  Ctrl+P",        G_CALLBACK(onPrintMenu)},
-  { "Wrap",	NULL,             "_Wrap-around alignment window (pretty print)", NULL, "Wrap-around alignment window (pretty print)", G_CALLBACK(onWrapMenu)},
+  { "Close",	GTK_STOCK_CLOSE,      "_Close",               "<control>W", "Close",                            G_CALLBACK(onCloseMenu)},
+  { "Quit",	GTK_STOCK_QUIT,       "_Quit",                "<control>Q", "Quit  Ctrl+Q",                     G_CALLBACK(onQuitMenu)},
+  { "Help",	GTK_STOCK_HELP,       "_Help",                "<control>H", "Display help  Ctrl+H",             G_CALLBACK(onHelpMenu)},
+  { "About",	GTK_STOCK_ABOUT,      "A_bout",               NULL,         "About",                            G_CALLBACK(onAboutMenu)},
+  { "Print",	GTK_STOCK_PRINT,      "_Print",               "<control>P", "Print  Ctrl+P",                    G_CALLBACK(onPrintMenu)},
+  { "Wrap",	NULL,                 "_Wrap for printing",   NULL,         "Wrap alignments for printing",     G_CALLBACK(onWrapMenu)},
+  { "MakeTree",	NULL,                 "_Make tree",           NULL,         "Make tree from current alignment", G_CALLBACK(onMakeTreeMenu)},
+  { "TreeOpts",	GTK_STOCK_PROPERTIES, "_Tree options",        NULL,         "Tree options",                     G_CALLBACK(onTreeOptsMenu)},
+  { "ConsPlot",	NULL,                 "Conservation p_lot",   NULL,         "Plot conservation profile",        G_CALLBACK(onConsPlotMenu)},
+  { "Save",	GTK_STOCK_SAVE,       "_Save",                "<control>S", "Save alignment",                   G_CALLBACK(onSaveMenu)},
+  { "SaveAs",	GTK_STOCK_SAVE_AS,    "Save _as...",          NULL,         "Save alignment as",                G_CALLBACK(onSaveAsMenu)},
+  { "Output",	NULL,                 "_Output score/coords", NULL,         "Output current alignment's score and coords",  G_CALLBACK(onOutputMenu)},
+  { "Compare",	NULL,                 "Co_mpare all",         NULL,         "Compare all vs all, list identity",            G_CALLBACK(onCompareMenu)},
+  { "CleanUp",	GTK_STOCK_CLOSE,      "Clean _up windows",    NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)}
+
 };
 
 
@@ -96,14 +123,47 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Wrap'/>"
 "      <menuitem action='Print'/>"
 "      <separator/>"
+"      <menuitem action='MakeTree'/>"
+"      <menuitem action='TreeOpts'/>"
+"      <separator/>"
+"      <menuitem action='ConsPlot'/>"
+"      <separator/>"
+"      <menuitem action='Save'/>"
+"      <menuitem action='SaveAs'/>"
+"      <menuitem action='Output'/>"
+"      <separator/>"
+"      <menuitem action='Compare'/>"
+"      <menuitem action='CleanUp'/>"
+"    </menu>"
+"    <menu action='EditMenuAction'>"
+"    </menu>"
+"    <menu action='ColorMenuAction'>"
+"    </menu>"
+"    <menu action='SortMenuAction'>"
 "    </menu>"
 "  </menubar>"
-"  <popup name='ContextMenu' accelerators='true'>"
+"  <popup name='ContextMenu' accelerators='true'>" /* main window context menu */
 "    <menuitem action='Quit'/>"
 "    <menuitem action='Help'/>"
 "    <menuitem action='Wrap'/>"
 "    <menuitem action='Print'/>"
 "    <separator/>"
+"    <menuitem action='MakeTree'/>"
+"    <menuitem action='TreeOpts'/>"
+"    <separator/>"
+"    <menuitem action='ConsPlot'/>"
+"    <separator/>"
+"    <menuitem action='Save'/>"
+"    <menuitem action='SaveAs'/>"
+"    <menuitem action='Output'/>"
+"    <separator/>"
+"    <menuitem action='Compare'/>"
+"    <menuitem action='CleanUp'/>"
+"  </popup>"
+"  <popup name='WrapContextMenu' accelerators='true'>" /* wrap-window context menu */
+"    <menuitem action='Close'/>"
+"    <menuitem action='Print'/>"
+"    <menuitem action='Wrap'/>"
 "  </popup>"
 "  <toolbar name='Toolbar'>"
 "    <toolitem action='Help'/>"
@@ -153,6 +213,12 @@ static GtkWidget* createBelvuMenu(GtkWidget *window,
 
 
 /* The following functions implement the menu actions */
+static void onCloseMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  gtk_widget_destroy(window);
+}
+
 static void onQuitMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
@@ -177,6 +243,40 @@ static void onPrintMenu(GtkAction *action, gpointer data)
 }
 
 static void onWrapMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showWrapDialog(belvuWindow);
+}
+
+static void onMakeTreeMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onTreeOptsMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onConsPlotMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onSaveMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onSaveAsMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onOutputMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onCompareMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onCleanUpMenu(GtkAction *action, gpointer data)
 {
 }
 
@@ -231,8 +331,6 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow, BelvuContext *bc
 }
 
 
-
-
 /***********************************************************
  *                      Help dialog                        *
  ***********************************************************/
@@ -285,6 +383,129 @@ static void showHelpDialog()
 }
 
 
+/***********************************************************
+ *                         Wrap window                     *
+ ***********************************************************/
+
+/* Create a text entry with a label.  'labelText' gives the label text and 
+ * defaultInput gives the default input to show in the text entry (may be null).
+ * Adds the result to table, if given, and returns the text entry widget */
+static GtkWidget* createTextEntryWithLabel(const char *labelText, 
+                                           const char *defaultInput, 
+                                           GtkTable *table,
+                                           const int col,
+                                           const int row)
+{
+  const int xpad = 2;
+  const int ypad = 2;
+  
+  /* Create the label in the given column */
+  GtkWidget *label = gtk_label_new(labelText);
+  gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
+  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  /* Create the entry in the next column */
+  GtkWidget *entry = gtk_entry_new();
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+
+  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  
+  if (defaultInput)
+    {
+      gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
+      const int defaultLen = min(strlen(defaultInput) * 8, 500);
+      gtk_widget_set_size_request(entry, defaultLen, -1);
+    }
+  
+  return entry;
+}
+
+
+/* This shows a dialog that asks the user for settings for the wrap-alignment
+ * view and then opens the wrap-alignment window on ok. */
+static void showWrapDialog(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - wrap alignment", 
+                                                  GTK_WINDOW(belvuWindow), 
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                                  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                                  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+
+  /* Create a text entry for the line width and title */
+  GtkWidget *table = gtk_table_new(2, 2, FALSE);
+  gtk_box_pack_start(GTK_BOX(contentArea), table, TRUE, TRUE, 0);
+  
+  GtkWidget *widthEntry = createTextEntryWithLabel("Line width", "80", GTK_TABLE(table), 0, 0);
+  GtkWidget *titleEntry = createTextEntryWithLabel("Title", properties->bc->Title, GTK_TABLE(table), 0, 1);
+  
+  gtk_widget_show_all(dialog);
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      const gchar *inputText = gtk_entry_get_text(GTK_ENTRY(widthEntry));
+      const int linelen = convertStringToInt(inputText);
+      
+      const gchar *title = gtk_entry_get_text(GTK_ENTRY(titleEntry));
+      
+      showWrapWindow(belvuWindow, linelen, title);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
+
+
+static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title)
+{
+  /* Create the window */
+  GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  
+  /* Create the context menu and set a callback to show it */
+  GtkUIManager *uiManager = createUiManager(wrapWindow);
+  GtkWidget *contextmenu = createBelvuMenu(wrapWindow, standardMenuDescription, "/WrapContextMenu", uiManager);
+  g_signal_connect(G_OBJECT(wrapWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
+  
+  /* We'll place everything in a vbox */
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(wrapWindow), vbox);
+  
+  /* Add a label for the title (if given) */
+  if (title) 
+    gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new(title), FALSE, FALSE, 0);
+
+  /* Add the alignment section */
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  GtkWidget *wrappedAlignment = createBelvuAlignment(properties->bc, linelen);
+  gtk_box_pack_start(GTK_BOX(vbox), wrappedAlignment, TRUE, TRUE, 0);
+  
+  gtk_widget_show_all(wrapWindow);
+}
+
+/***********************************************************
+ *                         Events                      *
+ ***********************************************************/
+
+/* Mouse button handler */
+static gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
+    {
+      GtkMenu *contextMenu = GTK_MENU(data);
+      gtk_menu_popup (contextMenu, NULL, NULL, NULL, NULL, event->button, event->time);
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+
 
 /***********************************************************
  *                      Initialisation                     *
@@ -305,14 +526,8 @@ static void createBelvuColors(BelvuContext *bc, GtkWidget *widget)
       g_array_append_val(bc->defaultColors, *blxColor);
     }
   
-  /* Get the default background color of our widgets (i.e. that inherited from the theme).
-   * Convert it to a string so we can use the same creation function as the other colors */
-  char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
-  createBlxColor(bc->defaultColors, BELCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
-  
+  createBlxColor(bc->defaultColors, BELCOLOR_BACKGROUND, "Background", "Background color", BLX_WHITE, BLX_WHITE, "#bdbdbd", NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_ALIGN_TEXT, "Text color for alignments", "Text color for alignments", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  
-  g_free(defaultBgColorStr);
 }
 
 
@@ -350,6 +565,8 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
+  createBelvuColors(bc, window);
+  
   /* Create the status bar */
   GtkWidget *statusBar = gtk_statusbar_new();
   gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), TRUE);
@@ -363,13 +580,14 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   /* Create the menu and toolbar */
   GtkUIManager *uiManager = createUiManager(window);
   GtkWidget *menubar = createBelvuMenu(window, standardMenuDescription, "/MenuBar", uiManager);
+  GtkWidget *contextmenu = createBelvuMenu(window, standardMenuDescription, "/ContextMenu", uiManager);
   GtkWidget *toolbar = createBelvuMenu(window, standardMenuDescription, "/Toolbar", uiManager);
 
   /* Set the style properties */
   setStyleProperties(window, GTK_TOOLBAR(toolbar));
 
   /* Create the alignment section */
-  GtkWidget *belvuAlignment = createBelvuAlignment(bc);
+  GtkWidget *belvuAlignment = createBelvuAlignment(bc, UNSET_INT);
   
   /* We'll put everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -380,7 +598,9 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   gtk_box_pack_start(GTK_BOX(vbox), belvuAlignment, TRUE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), statusBar, FALSE, FALSE, 0);
 
-
+  /* Connect signals */
+  gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
   
   
 //  graphRegister(PICK, boxPick);
@@ -389,8 +609,6 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 //  graphRegister(KEYBOARD, keyboard);
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
-
-  createBelvuColors(bc, window);
 
   belvuWindowCreateProperties(window, bc);
   

@@ -41,7 +41,7 @@
 #include <belvuApp/belvu_.h>
 #include <gtk/gtk.h>
 
-GtkWidget*              createBelvuAlignment(BelvuContext *bc);
+GtkWidget*              createBelvuAlignment(BelvuContext *bc, const int wrapWidth);
 
 
 

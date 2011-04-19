@@ -364,6 +364,7 @@ int                                       getColor(const char inputChar);
 int*                                      getColorArray();
 int*                                      getMarkupColorArray();
 
+gboolean                                  isGap(char c);
 
 
 #endif /* DEF_BELVU_P_H */

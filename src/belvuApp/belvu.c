@@ -4234,22 +4234,6 @@ int findCommand (char *command, char **retp)
 }
 
 
-/* Return the foreground color selected for a given
-   background color in bc->color_by_conserv mode 
-*/
-static int bg2fgColor (int bkcol) {
-
-    if (bkcol == bc->maxbgColor)
-	return bc->maxfgColor;
-    else if (bkcol == bc->midbgColor)
-	return bc->midfgColor;
-    else if (bkcol == bc->lowbgColor)
-	return bc->lowfgColor;
-
-    /* Anything else is either uncolored or markup - make them black */
-    return BLACK;
-}
-
 static void printColors (void)
 {
     static int 
@@ -4465,7 +4449,6 @@ static int a2b_sean[] =
  
 
 /* Local function declarations */
-static gboolean            isGap(char c);
 static gboolean            arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer));
 
 
@@ -6872,7 +6855,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 }
 
 
-static gboolean isGap(char c) 
+gboolean isGap(char c) 
 {
   if (c == '.' || c == '-' ||
       c == '[' || c == ']' /* Collapse-control chars */ ) 
