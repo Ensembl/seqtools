@@ -3575,13 +3575,14 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
 
   GdkDrawable *drawable = getPrintDrawable(widget, g_printCachedOnly);
 
-  /* Scale the image */
   double scale = getPrintScale(context, drawable, g_printScaleType);
-  cairo_scale(cr, scale, scale); 
   
-  /* Get the coords on the image at which this page starts */
   double ctxWidth = gtk_print_context_get_width(context);
   double ctxHeight = gtk_print_context_get_height(context);
+  ctxWidth /= scale;
+  ctxHeight /= scale;
+  
+  /* Get the coords on the image at which this page starts */
   int x = 0;
   int y = 0;
 
@@ -3599,8 +3600,23 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
       break;
   };
   
+  /* Create a new pixmap for drawing just the section for this page */
+  GdkDrawable *pagePixmap = gdk_pixmap_new(widget->window, ctxWidth, ctxHeight, -1);
+  GdkGC *gc = gdk_gc_new(pagePixmap);
+  GdkColor bgColor;
+  gdk_color_parse("#ffffff", &bgColor);
+  gboolean failures[1];
+  gdk_colormap_alloc_colors(gdk_colormap_get_system(), &bgColor, 1, TRUE, TRUE, failures);
+  gdk_gc_set_foreground(gc, &bgColor);
+  gdk_draw_rectangle(pagePixmap, gc, TRUE, 0, 0, ctxWidth, ctxHeight);
+  
+  gdk_draw_drawable(pagePixmap, gc, drawable, x, y, 0, 0, ctxWidth, ctxHeight);
+
+  /* Scale the image */
+  cairo_scale(cr, scale, scale); 
+  
   /* Paint the image */
-  gdk_cairo_set_source_pixmap(cr, drawable, x, y);
+  gdk_cairo_set_source_pixmap(cr, pagePixmap, 0, 0);
   cairo_paint(cr);
 }
 
