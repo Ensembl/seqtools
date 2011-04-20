@@ -76,6 +76,49 @@ static void                      onOutputMenu(GtkAction *action, gpointer data);
 static void                      onCompareMenu(GtkAction *action, gpointer data);
 static void                      onCleanUpMenu(GtkAction *action, gpointer data);
 
+static void                      onrmPickedMenu(GtkAction *action, gpointer data);
+static void                      onrmPickLeftMenu(GtkAction *action, gpointer data);
+static void                      onrmGappySeqsPromptMenu(GtkAction *action, gpointer data);
+static void                      onrmPartialMenu(GtkAction *action, gpointer data);
+static void                      onmkNonRedundantPromptMenu(GtkAction *action, gpointer data);
+static void                      onrmOutliersMenu(GtkAction *action, gpointer data);
+static void                      onrmScoreMenu(GtkAction *action, gpointer data);
+static void                      onrmColumnPromptMenu(GtkAction *action, gpointer data);
+static void                      onrmColumnLeftMenu(GtkAction *action, gpointer data);
+static void                      onrmColumnRightMenu(GtkAction *action, gpointer data);
+static void                      onrmColumnCutoffMenu(GtkAction *action, gpointer data);
+static void                      onrmEmptyColumnsInteractMenu(GtkAction *action, gpointer data);
+static void                      onrmEmptyColumnsToggleMenu(GtkAction *action, gpointer data);
+static void                      onreadLabelsMenu(GtkAction *action, gpointer data);
+static void                      onselectGapsMenu(GtkAction *action, gpointer data);
+static void                      onhideMenu(GtkAction *action, gpointer data);
+static void                      onunhideMenu(GtkAction *action, gpointer data);
+
+static void                      oncolorSchemeStandardMenu(GtkAction *action, gpointer data);
+static void                      oncolorSchemeGibsonMenu(GtkAction *action, gpointer data);
+static void                      oncolorSchemeCysMenu(GtkAction *action, gpointer data);
+static void                      oncolorSchemeEmptyMenu(GtkAction *action, gpointer data);
+static void                      oncolorByResidueMenu(GtkAction *action, gpointer data);
+static void                      oncolorByResIdMenu(GtkAction *action, gpointer data);
+static void                      onsaveColorCodesMenu(GtkAction *action, gpointer data);
+static void                      onreadColorCodesMenuMenu(GtkAction *action, gpointer data);
+static void                      oncolorSimMenu(GtkAction *action, gpointer data);
+static void                      oncolorIdMenu(GtkAction *action, gpointer data);
+static void                      oncolorIdSimMenu(GtkAction *action, gpointer data);
+static void                      onignoreGapsMenu(GtkAction *action, gpointer data);
+static void                      onprintColorsMenu(GtkAction *action, gpointer data);
+static void                      onmarkupMenu(GtkAction *action, gpointer data);
+static void                      oncolorRectMenu(GtkAction *action, gpointer data);
+static void                      onlowercaseMenu(GtkAction *action, gpointer data);
+static void                      onshowColorCodesRedrawMenu(GtkAction *action, gpointer data);
+
+static void                      onscoreSortMenu(GtkAction *action, gpointer data);
+static void                      onalphaSortMenu(GtkAction *action, gpointer data);
+static void                      onorganismSortMenu(GtkAction *action, gpointer data);
+static void                      ontreeSortMenu(GtkAction *action, gpointer data);
+static void                      onsimSortMenu(GtkAction *action, gpointer data);
+static void                      onidSortMenu(GtkAction *action, gpointer data);
+
 static void                      showHelpDialog();
 static void                      showWrapDialog(GtkWidget *belvuWindow);
 static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
@@ -88,6 +131,22 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 /***********************************************************
  *                      Menus and Toolbar                  *
  ***********************************************************/
+
+#define rmEmptyColumnsStr "Automatically remove all-gap columns after sequence removals"
+
+#define colorByResidueStr      "Colour scheme: By residue, Last palette"
+#define colorSchemeStandardStr "Colour scheme: By residue, Erik's"
+#define colorSchemeGibsonStr   "Colour scheme: By residue, Toby's"
+#define colorSchemeCysStr      "Colour scheme: By residue, Cys/Gly/Pro"
+#define colorSchemeEmptyStr    "Colour scheme: By residue, Clean slate"
+#define colorSimStr            "Colour scheme: Average similarity by Blosum62"
+#define colorIdStr             "Colour scheme: Percent identity only"
+#define colorIdSimStr          "Colour scheme: Percent identity + Blosum62"
+#define colorRectStr           "Display colors (faster without)"
+#define printColorsStr         "Use gray shades (for printing)"
+#define ignoreGapsStr          "Ignore gaps in conservation calculation"
+#define thresholdStr           "Only colour residues above %id threshold"
+
 
 /* Define the menu actions */
 static const GtkActionEntry menuEntries[] = {
@@ -109,15 +168,59 @@ static const GtkActionEntry menuEntries[] = {
   { "SaveAs",	GTK_STOCK_SAVE_AS,    "Save _as...",          NULL,         "Save alignment as",                G_CALLBACK(onSaveAsMenu)},
   { "Output",	NULL,                 "_Output score/coords", NULL,         "Output current alignment's score and coords",  G_CALLBACK(onOutputMenu)},
   { "Compare",	NULL,                 "Co_mpare all",         NULL,         "Compare all vs all, list identity",            G_CALLBACK(onCompareMenu)},
-  { "CleanUp",	GTK_STOCK_CLOSE,      "Clean _up windows",    NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)}
+  { "CleanUp",	GTK_STOCK_CLOSE,      "Clean _up windows",    NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)},
 
+  {"rmPicked",               NULL,    "Remove highlighted line",  NULL, "Remove highlighted line",  G_CALLBACK(onrmPickedMenu)},
+  {"rmPickLeft",             NULL,    "Remove many sequences",    NULL, "Remove many sequences",    G_CALLBACK(onrmPickLeftMenu)},
+  {"rmGappySeqsPrompt",      NULL,    "Remove gappy sequences",   NULL, "Remove gappy sequences",   G_CALLBACK(onrmGappySeqsPromptMenu)},
+  {"rmPartial",              NULL,    "Remove partial sequences", NULL, "Remove partial sequences", G_CALLBACK(onrmPartialMenu)},
+  {"mkNonRedundantPrompt",   NULL,    "Make non-redundant",       NULL, "Make non-redundant",       G_CALLBACK(onmkNonRedundantPromptMenu)},
+  {"rmOutliers",             NULL,    "Remove outliers",          NULL, "Remove outliers",          G_CALLBACK(onrmOutliersMenu)},
+  {"rmScore",                NULL,    "Remove sequences below given score",                    NULL, "Remove sequences below given score",                    G_CALLBACK(onrmScoreMenu)},
+  {"rmColumnPrompt",         NULL,    "Remove columns",           NULL, "Remove columns",           G_CALLBACK(onrmColumnPromptMenu)},
+  {"rmColumnLeft",           NULL,    "<- Remove columns to the left of cursor (inclusive)",   NULL, "<- Remove columns to the left of cursor (inclusive)",   G_CALLBACK(onrmColumnLeftMenu)},
+  {"rmColumnRight",          NULL,    "Remove columns to the right of cursor (inclusive) -> ", NULL, "Remove columns to the right of cursor (inclusive) -> ", G_CALLBACK(onrmColumnRightMenu)},
+  {"rmColumnCutoff",         NULL,    "Remove columns according to conservation",              NULL, "Remove columns according to conservation",              G_CALLBACK(onrmColumnCutoffMenu)},
+  {"rmEmptyColumnsInteract", NULL,    "Remove gappy columns",     NULL, "Remove gappy columns",   G_CALLBACK(onrmEmptyColumnsInteractMenu)},
+  {"rmEmptyColumnsToggle",   NULL,    rmEmptyColumnsStr,          NULL, rmEmptyColumnsStr,        G_CALLBACK(onrmEmptyColumnsToggleMenu)},
+  {"readLabels",             NULL,    "Read labels of highlighted sequence and spread them",   NULL, "Read labels of highlighted sequence and spread them",   G_CALLBACK(onreadLabelsMenu)},
+  {"selectGaps",             NULL,    "Select gap character",     NULL, "Select gap character",   G_CALLBACK(onselectGapsMenu)},
+  {"hide",                   NULL,    "Hide highlighted line",    NULL, "Hide highlighted line",  G_CALLBACK(onhideMenu)},
+  {"unhide",                 NULL,    "Unhide all hidden lines",  NULL,"Unhide all hidden lines", G_CALLBACK(onunhideMenu)},
+
+  {"colorSchemeStandard",  NULL, colorSchemeStandardStr,              NULL, colorSchemeStandardStr,              G_CALLBACK(oncolorSchemeStandardMenu)},
+  {"colorSchemeGibson",    NULL, colorSchemeGibsonStr,                NULL, colorSchemeGibsonStr,                G_CALLBACK(oncolorSchemeGibsonMenu)},
+  {"colorSchemeCys",       NULL, colorSchemeCysStr,                   NULL, colorSchemeCysStr,                   G_CALLBACK(oncolorSchemeCysMenu)},
+  {"colorSchemeEmpty",     NULL, colorSchemeEmptyStr,                 NULL, colorSchemeEmptyStr,                 G_CALLBACK(oncolorSchemeEmptyMenu)},
+  {"colorByResidue",       NULL, colorByResidueStr,                   NULL, colorByResidueStr,                   G_CALLBACK(oncolorByResidueMenu)},
+  {"colorByResId",         NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(oncolorByResIdMenu)},
+  {"saveColorCodes",       NULL, "Save current colour scheme",        NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorCodesMenu)},
+  {"readColorCodesMenu",   NULL, "Read colour scheme from file",      NULL, "Read colour scheme from file",      G_CALLBACK(onreadColorCodesMenuMenu)},
+  {"colorSim",             NULL, colorSimStr,                         NULL, colorSimStr,                         G_CALLBACK(oncolorSimMenu)},
+  {"colorId",              NULL, colorIdStr,                          NULL, colorIdStr,                          G_CALLBACK(oncolorIdMenu)},
+  {"colorIdSim",           NULL, colorIdSimStr,                       NULL, colorIdSimStr,                       G_CALLBACK(oncolorIdSimMenu)},
+  {"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu)},
+  {"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu)},
+  {"markup",               NULL, "Exclude highlighted from calculations on/off", NULL, "Exclude highlighted from calculations on/off", G_CALLBACK(onmarkupMenu)},
+  {"colorRect",            NULL, colorRectStr,                        NULL, colorRectStr,                        G_CALLBACK(oncolorRectMenu)},
+  {"lowercase",            NULL, "Highlight lowercase characters",    NULL, "Highlight lowercase characters",    G_CALLBACK(onlowercaseMenu)},
+  {"showColorCodesRedraw", NULL, "Open window to edit colour scheme", NULL, "Open window to edit colour scheme", G_CALLBACK(onshowColorCodesRedrawMenu)},
+
+  {"scoreSort",            NULL, "Sort by score",                     NULL, "Sort by score",                     G_CALLBACK(onscoreSortMenu)},
+  {"alphaSort",            NULL, "Sort alphabetically",               NULL, "Sort alphabetically",               G_CALLBACK(onalphaSortMenu)},
+  {"organismSort",         NULL, "Sort by swissprot organism",        NULL, "Sort by swissprot organism",        G_CALLBACK(onorganismSortMenu)},
+  {"treeSort",             NULL, "Sort by tree order",                NULL, "Sort by tree order",                G_CALLBACK(ontreeSortMenu)},
+  {"simSort",              NULL, "Sort by similarity to highlighted sequence", NULL, "Sort by similarity to highlighted sequence", G_CALLBACK(onsimSortMenu)},
+  {"idSort",               NULL, "Sort by identity to highlighted sequence",   NULL, "Sort by identity to highlighted sequence",   G_CALLBACK(onidSortMenu)}
 };
 
 
 /* Define the menu layout */
 static const char standardMenuDescription[] =
 "<ui>"
+/* MAIN MENU BAR */
 "  <menubar name='MenuBar'>"
+     /* File menu */
 "    <menu action='FileMenuAction'>"
 "      <menuitem action='Quit'/>"
 "      <menuitem action='Help'/>"
@@ -136,14 +239,62 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Compare'/>"
 "      <menuitem action='CleanUp'/>"
 "    </menu>"
+    /* Edit menu */
 "    <menu action='EditMenuAction'>"
+"      <menuitem action='rmPicked'/>"
+"      <menuitem action='rmPickLeft'/>"
+"      <menuitem action='rmGappySeqsPrompt'/>"
+"      <menuitem action='rmPartial'/>"
+"      <menuitem action='mkNonRedundantPrompt'/>"
+"      <menuitem action='rmOutliers'/>"
+"      <menuitem action='rmScore'/>"
+"      <separator/>"
+"      <menuitem action='rmColumnPrompt'/>"
+"      <menuitem action='rmColumnLeft'/>"
+"      <menuitem action='rmColumnRight'/>"
+"      <menuitem action='rmColumnCutoff'/>"
+"      <menuitem action='rmEmptyColumnsInteract'/>"
+"      <menuitem action='rmEmptyColumnsToggle'/>"
+"      <separator/>"
+"      <menuitem action='readLabels'/>"
+"      <menuitem action='selectGaps'/>"
+"      <menuitem action='hide'/>"
+"      <menuitem action='unhide'/>"
 "    </menu>"
+    /* Color menu */
 "    <menu action='ColorMenuAction'>"
+"      <menuitem action='colorSchemeStandard'/>"
+"      <menuitem action='colorSchemeGibson'/>"
+"      <menuitem action='colorSchemeCys'/>"
+"      <menuitem action='colorSchemeEmpty'/>"
+"      <menuitem action='colorByResidue'/>"
+"      <menuitem action='colorByResId'/>"
+"      <menuitem action='saveColorCodes'/>"
+"      <menuitem action='readColorCodesMenu'/>"
+"      <separator/>"
+"      <menuitem action='colorSim'/>"
+"      <menuitem action='colorId'/>"
+"      <menuitem action='colorIdSim'/>"
+"      <menuitem action='ignoreGaps'/>"
+"      <separator/>"
+"      <menuitem action='printColors'/>"
+"      <menuitem action='markup'/>"
+"      <menuitem action='colorRect'/>"
+"      <menuitem action='lowercase'/>"
+"      <menuitem action='showColorCodesRedraw'/>"
 "    </menu>"
+    /* Sort menu */
 "    <menu action='SortMenuAction'>"
+"      <menuitem action='scoreSort'/>"
+"      <menuitem action='alphaSort'/>"
+"      <menuitem action='organismSort'/>"
+"      <menuitem action='treeSort'/>"
+"      <menuitem action='simSort'/>"
+"      <menuitem action='idSort'/>"
 "    </menu>"
 "  </menubar>"
-"  <popup name='ContextMenu' accelerators='true'>" /* main window context menu */
+/* Main context menu */
+"  <popup name='ContextMenu' accelerators='true'>"
 "    <menuitem action='Quit'/>"
 "    <menuitem action='Help'/>"
 "    <menuitem action='Wrap'/>"
@@ -161,11 +312,28 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Compare'/>"
 "    <menuitem action='CleanUp'/>"
 "  </popup>"
-"  <popup name='WrapContextMenu' accelerators='true'>" /* wrap-window context menu */
+/* Wrapped-alignments window context menu */
+"  <popup name='WrapContextMenu' accelerators='true'>"
 "    <menuitem action='Close'/>"
 "    <menuitem action='Print'/>"
 "    <menuitem action='Wrap'/>"
 "  </popup>"
+/* Tree context menu */
+"  <popup name='TreeContextMenu' accelerators='true'>"
+"    <menuitem action='Close'/>"
+"    <menuitem action='Print'/>"
+"    <menuitem action='TreeOpts'/>"
+//"    <menuitem action='SaveTree'/>"
+//"    <menuitem action='FindOrthogs'/>"
+//"    <menuitem action='ShowOrgs'/>"
+"  </popup>"
+/* Conservation-plot context menu */
+"  <popup name='PlotContextMenu' accelerators='true'>"
+"    <menuitem action='Close'/>"
+"    <menuitem action='Print'/>"
+//"    <menuitem action='PlotOpts'/>"
+"  </popup>"
+/* Toolbar */
 "  <toolbar name='Toolbar'>"
 "    <toolitem action='Help'/>"
 "    <toolitem action='About'/>"
@@ -173,16 +341,47 @@ static const char standardMenuDescription[] =
 "</ui>";
 
 
+static void disableMenuAction(GtkActionGroup *action_group, const char *actionName)
+{
+  GtkAction *action = gtk_action_group_get_action(action_group, actionName);
+  gtk_action_set_sensitive(action, FALSE);
+}
+
+
+/* Certain actions need to be greyed out if certain conditions are not met */
+static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group)
+{
+  if (!bc->displayScores)
+    {
+      disableMenuAction(action_group, "Output");
+      disableMenuAction(action_group, "rmScore");
+      disableMenuAction(action_group, "scoreSort");
+    }
+  
+  if (bc->color_by_conserv)
+    {
+      disableMenuAction(action_group, "colorByResId");
+    }
+  else
+    {
+      disableMenuAction(action_group, "ignoreGaps");
+      disableMenuAction(action_group, "printColors");
+    }
+  
+}
+
 
 /* Utility function to create the UI manager for the menus */
-static GtkUIManager* createUiManager(GtkWidget *window)
+static GtkUIManager* createUiManager(GtkWidget *window, BelvuContext *bc)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   
   gtk_action_group_add_actions(action_group, menuEntries, G_N_ELEMENTS(menuEntries), window);
 //  gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS (toggleMenuEntries), window);
 //  gtk_action_group_add_radio_actions(action_group, radioMenuEntries, G_N_ELEMENTS (radioMenuEntries), hspMode, G_CALLBACK(onToggleHspMode), window);
-  
+
+  greyOutInvalidActions(bc, action_group);
+
   GtkUIManager *ui_manager = gtk_ui_manager_new();
   gtk_ui_manager_insert_action_group(ui_manager, action_group, 0);
   gtk_ui_manager_set_add_tearoffs(ui_manager, TRUE);
@@ -214,6 +413,8 @@ static GtkWidget* createBelvuMenu(GtkWidget *window,
 
 
 /* The following functions implement the menu actions */
+
+/* FILE MENU ACTIONS */
 static void onCloseMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
@@ -306,6 +507,169 @@ static void onCompareMenu(GtkAction *action, gpointer data)
 }
 
 static void onCleanUpMenu(GtkAction *action, gpointer data)
+{
+}
+
+/* EDIT MENU ACTIONS */
+static void onrmPickedMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmPickLeftMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmGappySeqsPromptMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmPartialMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onmkNonRedundantPromptMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmOutliersMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmScoreMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmColumnPromptMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmColumnLeftMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmColumnRightMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmColumnCutoffMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmEmptyColumnsInteractMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onrmEmptyColumnsToggleMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onreadLabelsMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onselectGapsMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onhideMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onunhideMenu(GtkAction *action, gpointer data)
+{
+}
+
+/* COLOR MENU ACTIONS */
+static void oncolorSchemeStandardMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorSchemeGibsonMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorSchemeCysMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorSchemeEmptyMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorByResidueMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorByResIdMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onsaveColorCodesMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onreadColorCodesMenuMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorSimMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorIdMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorIdSimMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onignoreGapsMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onprintColorsMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onmarkupMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void oncolorRectMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onlowercaseMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onshowColorCodesRedrawMenu(GtkAction *action, gpointer data)
+{
+}
+
+/* SORT MENU ACTIONS */
+static void onscoreSortMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onalphaSortMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onorganismSortMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void ontreeSortMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onsimSortMenu(GtkAction *action, gpointer data)
+{
+}
+
+static void onidSortMenu(GtkAction *action, gpointer data)
 {
 }
 
@@ -523,12 +887,14 @@ static void setWrapWindowStyleProperties(GtkWidget *window)
 
 static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title)
 {
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
   /* Create the window */
   GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setWrapWindowStyleProperties(wrapWindow);
   
   /* Create the context menu and set a callback to show it */
-  GtkUIManager *uiManager = createUiManager(wrapWindow);
+  GtkUIManager *uiManager = createUiManager(wrapWindow, properties->bc);
   GtkWidget *contextmenu = createBelvuMenu(wrapWindow, standardMenuDescription, "/WrapContextMenu", uiManager);
   
   gtk_widget_add_events(wrapWindow, GDK_BUTTON_PRESS_MASK);
@@ -539,7 +905,6 @@ static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gcha
   gtk_container_add(GTK_CONTAINER(wrapWindow), vbox);
   
   /* Add the alignment section */
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   GtkWidget *wrappedAlignment = createBelvuAlignment(properties->bc, title, linelen);
   gtk_box_pack_start(GTK_BOX(vbox), wrappedAlignment, TRUE, TRUE, 0);
   
@@ -642,7 +1007,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   msgData->statusBar = GTK_STATUSBAR(statusBar);
 
   /* Create the menu and toolbar */
-  GtkUIManager *uiManager = createUiManager(window);
+  GtkUIManager *uiManager = createUiManager(window, bc);
   GtkWidget *menubar = createBelvuMenu(window, standardMenuDescription, "/MenuBar", uiManager);
   GtkWidget *contextmenu = createBelvuMenu(window, standardMenuDescription, "/ContextMenu", uiManager);
   GtkWidget *toolbar = createBelvuMenu(window, standardMenuDescription, "/Toolbar", uiManager);
