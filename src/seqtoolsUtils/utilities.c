@@ -3632,6 +3632,7 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
  * sure they include everything necessary if they want to use this option, 
  * otherwise we just draw everything. */
 void blxPrintWidget(GtkWidget *widget, 
+                    GtkWidget *window,
                     GtkPrintSettings **printSettings, 
                     GtkPageSetup **pageSetup, 
                     const gboolean printCachedOnly,
@@ -3656,7 +3657,7 @@ void blxPrintWidget(GtkWidget *widget,
   /* Pop up the print dialog */
   GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
 								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-								 GTK_WINDOW(widget),
+								 GTK_WINDOW(window),
 								 NULL);
   
   /* If the user hit ok, remember the print settings for next time */

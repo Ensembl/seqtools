@@ -3206,7 +3206,7 @@ static gboolean onKeyPressP(GtkWidget *widget, GtkWidget *dotterWindow, const gb
           /* Generic widget printing */
           DotterProperties *properties = dotterGetProperties(dotterWindow);
           DotterWindowContext *dwc = properties->dotterWinCtx;
-          blxPrintWidget(widget, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
+          blxPrintWidget(widget, widget, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
         }
     }
   
@@ -3515,7 +3515,7 @@ static void printDotterWindow(GtkWidget *dotterWindow)
   
   /* Do the print */
   DotterWindowContext *dwc = properties->dotterWinCtx;
-  blxPrintWidget(dotterWindow, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
+  blxPrintWidget(dotterWindow, dotterWindow, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
   
   /* Redraw the entire dotplot to make sure the crosshair we added gets cleared */
   redrawDotplot(dotplot);

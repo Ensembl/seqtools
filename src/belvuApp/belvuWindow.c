@@ -265,9 +265,9 @@ static void onPrintMenu(GtkAction *action, gpointer data)
     }
   
   if (widgetToPrint)
-    blxPrintWidget(widgetToPrint, &printSettings, &pageSetup, TRUE, PRINT_FIT_WIDTH);
+    blxPrintWidget(widgetToPrint, window, &printSettings, &pageSetup, TRUE, PRINT_FIT_WIDTH);
   else
-    blxPrintWidget(window, &printSettings, &pageSetup, FALSE, PRINT_FIT_BOTH);
+    blxPrintWidget(window, window, &printSettings, &pageSetup, FALSE, PRINT_FIT_BOTH);
 }
 
 static void onWrapMenu(GtkAction *action, gpointer data)

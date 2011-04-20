@@ -431,7 +431,7 @@ void		      debugLogLevel(const int increaseAmt);
 
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
-void		      blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly, const PrintScaleType scaleType);
+void		      blxPrintWidget(GtkWidget *widget, GtkWidget *window, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly, const PrintScaleType scaleType);
 char*                 blxprintf(char *formatStr, ...);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
 
