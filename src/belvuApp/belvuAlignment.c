@@ -93,8 +93,6 @@ static void onDestroyBelvuAlignment(GtkWidget *belvuAlignment)
       properties = NULL;
       g_object_set_data(G_OBJECT(belvuAlignment), "BelvuAlignmentProperties", NULL);
     }
-
-  gtk_main_quit();  
 }
 
 
