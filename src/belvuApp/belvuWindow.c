@@ -101,7 +101,7 @@ static void                      oncolorSchemeEmptyMenu(GtkAction *action, gpoin
 static void                      oncolorByResidueMenu(GtkAction *action, gpointer data);
 static void                      oncolorByResIdMenu(GtkAction *action, gpointer data);
 static void                      onsaveColorCodesMenu(GtkAction *action, gpointer data);
-static void                      onreadColorCodesMenuMenu(GtkAction *action, gpointer data);
+static void                      onloadColorCodesMenu(GtkAction *action, gpointer data);
 static void                      oncolorSimMenu(GtkAction *action, gpointer data);
 static void                      oncolorIdMenu(GtkAction *action, gpointer data);
 static void                      oncolorIdSimMenu(GtkAction *action, gpointer data);
@@ -110,7 +110,7 @@ static void                      onprintColorsMenu(GtkAction *action, gpointer d
 static void                      onmarkupMenu(GtkAction *action, gpointer data);
 static void                      oncolorRectMenu(GtkAction *action, gpointer data);
 static void                      onlowercaseMenu(GtkAction *action, gpointer data);
-static void                      onshowColorCodesRedrawMenu(GtkAction *action, gpointer data);
+static void                      oneditColorCodesMenu(GtkAction *action, gpointer data);
 
 static void                      onscoreSortMenu(GtkAction *action, gpointer data);
 static void                      onalphaSortMenu(GtkAction *action, gpointer data);
@@ -155,6 +155,9 @@ static const GtkActionEntry menuEntries[] = {
   { "ColorMenuAction", NULL, "_Color"},
   { "SortMenuAction",  NULL, "_Sort"},
 
+  { "ByResidueMenuAction", NULL, "By _residue"},
+  { "ByConsMenuAction",    NULL, "By _conservation"},
+
   { "Close",	GTK_STOCK_CLOSE,      "_Close",               "<control>W", "Close",                            G_CALLBACK(onCloseMenu)},
   { "Quit",	GTK_STOCK_QUIT,       "_Quit",                "<control>Q", "Quit  Ctrl+Q",                     G_CALLBACK(onQuitMenu)},
   { "Help",	GTK_STOCK_HELP,       "_Help",                "<control>H", "Display help  Ctrl+H",             G_CALLBACK(onHelpMenu)},
@@ -194,17 +197,17 @@ static const GtkActionEntry menuEntries[] = {
   {"colorSchemeEmpty",     NULL, colorSchemeEmptyStr,                 NULL, colorSchemeEmptyStr,                 G_CALLBACK(oncolorSchemeEmptyMenu)},
   {"colorByResidue",       NULL, colorByResidueStr,                   NULL, colorByResidueStr,                   G_CALLBACK(oncolorByResidueMenu)},
   {"colorByResId",         NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(oncolorByResIdMenu)},
-  {"saveColorCodes",       NULL, "Save current colour scheme",        NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorCodesMenu)},
-  {"readColorCodesMenu",   NULL, "Read colour scheme from file",      NULL, "Read colour scheme from file",      G_CALLBACK(onreadColorCodesMenuMenu)},
+  {"saveColorCodes",       NULL, "Save colour scheme",                NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorCodesMenu)},
+  {"loadColorCodes",       NULL, "Load colour scheme",                NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorCodesMenu)},
   {"colorSim",             NULL, colorSimStr,                         NULL, colorSimStr,                         G_CALLBACK(oncolorSimMenu)},
   {"colorId",              NULL, colorIdStr,                          NULL, colorIdStr,                          G_CALLBACK(oncolorIdMenu)},
   {"colorIdSim",           NULL, colorIdSimStr,                       NULL, colorIdSimStr,                       G_CALLBACK(oncolorIdSimMenu)},
   {"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu)},
   {"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu)},
-  {"markup",               NULL, "Exclude highlighted from calculations on/off", NULL, "Exclude highlighted from calculations on/off", G_CALLBACK(onmarkupMenu)},
+  {"markup",               NULL, "Exclude highlighted from calculations", NULL, "Exclude highlighted from calculations", G_CALLBACK(onmarkupMenu)},
   {"colorRect",            NULL, colorRectStr,                        NULL, colorRectStr,                        G_CALLBACK(oncolorRectMenu)},
   {"lowercase",            NULL, "Highlight lowercase characters",    NULL, "Highlight lowercase characters",    G_CALLBACK(onlowercaseMenu)},
-  {"showColorCodesRedraw", NULL, "Open window to edit colour scheme", NULL, "Open window to edit colour scheme", G_CALLBACK(onshowColorCodesRedrawMenu)},
+  {"editColorCodes",       NULL, "Edit colour scheme",                NULL, "Open window to edit colour scheme", G_CALLBACK(oneditColorCodesMenu)},
 
   {"scoreSort",            NULL, "Sort by score",                     NULL, "Sort by score",                     G_CALLBACK(onscoreSortMenu)},
   {"alphaSort",            NULL, "Sort alphabetically",               NULL, "Sort alphabetically",               G_CALLBACK(onalphaSortMenu)},
@@ -263,25 +266,30 @@ static const char standardMenuDescription[] =
 "    </menu>"
     /* Color menu */
 "    <menu action='ColorMenuAction'>"
-"      <menuitem action='colorSchemeStandard'/>"
-"      <menuitem action='colorSchemeGibson'/>"
-"      <menuitem action='colorSchemeCys'/>"
-"      <menuitem action='colorSchemeEmpty'/>"
-"      <menuitem action='colorByResidue'/>"
+"      <menu action='ByResidueMenuAction'>"
+"        <menuitem action='colorSchemeStandard'/>"
+"        <menuitem action='colorSchemeGibson'/>"
+"        <menuitem action='colorSchemeCys'/>"
+"        <menuitem action='colorSchemeEmpty'/>"
+"        <menuitem action='colorByResidue'/>"
+"      </menu>"
 "      <menuitem action='colorByResId'/>"
-"      <menuitem action='saveColorCodes'/>"
-"      <menuitem action='readColorCodesMenu'/>"
 "      <separator/>"
-"      <menuitem action='colorSim'/>"
-"      <menuitem action='colorId'/>"
-"      <menuitem action='colorIdSim'/>"
+"      <menu action='ByConsMenuAction'>"
+"        <menuitem action='colorSim'/>"
+"        <menuitem action='colorId'/>"
+"        <menuitem action='colorIdSim'/>"
+"      </menu>"
 "      <menuitem action='ignoreGaps'/>"
 "      <separator/>"
 "      <menuitem action='printColors'/>"
 "      <menuitem action='markup'/>"
 "      <menuitem action='colorRect'/>"
 "      <menuitem action='lowercase'/>"
-"      <menuitem action='showColorCodesRedraw'/>"
+"      <separator/>"
+"      <menuitem action='editColorCodes'/>"
+"      <menuitem action='saveColorCodes'/>"
+"      <menuitem action='loadColorCodes'/>"
 "    </menu>"
     /* Sort menu */
 "    <menu action='SortMenuAction'>"
@@ -608,7 +616,7 @@ static void onsaveColorCodesMenu(GtkAction *action, gpointer data)
 {
 }
 
-static void onreadColorCodesMenuMenu(GtkAction *action, gpointer data)
+static void onloadColorCodesMenu(GtkAction *action, gpointer data)
 {
 }
 
@@ -644,7 +652,7 @@ static void onlowercaseMenu(GtkAction *action, gpointer data)
 {
 }
 
-static void onshowColorCodesRedrawMenu(GtkAction *action, gpointer data)
+static void oneditColorCodesMenu(GtkAction *action, gpointer data)
 {
 }
 
