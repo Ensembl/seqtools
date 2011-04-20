@@ -46,11 +46,10 @@
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 #define MAIN_BELVU_WINDOW_NAME           "BelvuWindow"
 #define WRAPPED_BELVU_WINDOW_NAME        "WrappedBelvuWindow"
-#define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95
-#define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45
-#define DEFAULT_WRAP_WINDOW_WIDTH_FRACTION      0.6
-#define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.9
-
+#define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95   /* default width of belvu window (as fraction of screen width) */
+#define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
+#define DEFAULT_WRAP_WINDOW_WIDTH_FRACTION      0.6    /* default width of wrap window (as fraction of screen width) */
+#define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.85   /* default height of wrap window (as fraction of screen height) */
 
 /* Properties specific to the belvu window */
 typedef struct _BelvuWindowProperties
@@ -502,17 +501,31 @@ static void getWrappedWindowDrawingArea(GtkWidget *widget, gpointer data)
 }
 
 
+static void setWrapWindowStyleProperties(GtkWidget *window)
+{
+  gtk_widget_set_name(window, WRAPPED_BELVU_WINDOW_NAME);
+  
+  /* Set the initial window size based on some fraction of the screen size */
+  GdkScreen *screen = gtk_widget_get_screen(window);
+  const int screenWidth = gdk_screen_get_width(screen);
+  const int screenHeight = gdk_screen_get_height(screen);
+
+  const int width = screenWidth * DEFAULT_WRAP_WINDOW_WIDTH_FRACTION;
+  const int height = screenHeight * DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION;
+  gtk_window_set_default_size(GTK_WINDOW(window), width, height);
+  
+  /* Set the initial position */
+  const int x = (screenWidth - width) / 4;
+  const int y = (screenHeight - height) / 4;
+  gtk_window_move(GTK_WINDOW(window), x, y);
+}
+
+
 static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title)
 {
   /* Create the window */
   GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_widget_set_name(wrapWindow, WRAPPED_BELVU_WINDOW_NAME);
-
-  /* Set the initial window size based on some fraction of the screen size */
-  GdkScreen *screen = gtk_widget_get_screen(wrapWindow);
-  const int width = gdk_screen_get_width(screen) * DEFAULT_WRAP_WINDOW_WIDTH_FRACTION;
-  const int height = gdk_screen_get_height(screen) * DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION;
-  gtk_window_set_default_size(GTK_WINDOW(wrapWindow), width, height);
+  setWrapWindowStyleProperties(wrapWindow);
   
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(wrapWindow);
@@ -584,9 +597,11 @@ static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
 {
   /* Set the initial window size based on some fraction of the screen size */
   GdkScreen *screen = gtk_widget_get_screen(window);
-  const int width = gdk_screen_get_width(screen) * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
-  const int height = gdk_screen_get_height(screen) * DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION;
+  const int screenWidth = gdk_screen_get_width(screen);
+  const int screenHeight = gdk_screen_get_height(screen);
   
+  const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
+  const int height = screenHeight * DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION;
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
   
   gtk_container_set_border_width (GTK_CONTAINER(window), DEFAULT_WINDOW_BORDER_WIDTH); 
