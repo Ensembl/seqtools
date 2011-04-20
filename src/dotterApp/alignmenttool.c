@@ -429,7 +429,7 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = properties->dotterWinCtx;
   
-  blxPrintWidget(alignmentTool, &dwc->printSettings, &dwc->pageSetup, TRUE);
+  blxPrintWidget(alignmentTool, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
 }
 
 

@@ -86,6 +86,16 @@ typedef enum
 } SeqToolsError;
 
 
+/* Printing scale type - we can scale to fit the page width, or height, or both */
+typedef enum
+{
+  PRINT_FIT_WIDTH,
+  PRINT_FIT_HEIGHT,
+  PRINT_FIT_BOTH
+} PrintScaleType;
+
+
+
 #if defined(MACINTOSH)
 #define      SYSERR_FORMAT             "system error %d"
 #else
@@ -421,7 +431,7 @@ void		      debugLogLevel(const int increaseAmt);
 
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
-void		      blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly);
+void		      blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly, const PrintScaleType scaleType);
 char*                 blxprintf(char *formatStr, ...);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
 

@@ -69,7 +69,7 @@
 
 /* Globals */
 gboolean g_printCachedOnly = FALSE;
-
+PrintScaleType g_printScaleType = PRINT_FIT_BOTH;
 
 
 /* A struct used to record warning/error messages */
@@ -3437,13 +3437,104 @@ static char* getDialogIcon(GLogLevelFlags log_level)
  *		         Printing			   * 
  ***********************************************************/
 
-/* Called after the user clicks ok in the print dialog. For now just scales the 
- * whole output to fit on a single page. */
+/* Utility to get the drawable to print for the given widget */
+static GdkDrawable* getPrintDrawable(GtkWidget *widget, const gboolean cachedOnly)
+{
+  GdkDrawable *drawable = widget->window; /* draw everything by default */
+  
+  if (cachedOnly)
+    {
+      if (widgetGetDrawable(widget) && (GTK_IS_LAYOUT(widget) || GTK_IS_DRAWING_AREA(widget)))
+        {
+          /* We've been asked to print a drawing area, so print the cached drawable directly */
+          drawable = widgetGetDrawable(widget);
+        }
+      else if (GTK_IS_CONTAINER(widget))
+        {
+          /* Create a blank pixmap to draw the child widgets on to (clear any previous print first) */
+          widgetClearCachedDrawable(widget, NULL);
+          drawable = createBlankPixmap(widget);
+          gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, widget);
+        }
+    }
+  
+  return drawable;
+}
+
+
+/* Get the scale required to fit the image to the required dimension */
+static double getPrintScale(GtkPrintContext *context, GdkDrawable *drawable, PrintScaleType scaleType)
+{
+  /* Get the page size */
+  double ctxWidth = gtk_print_context_get_width(context);
+  double ctxHeight = gtk_print_context_get_height(context);
+  
+  /* Get the image size */
+  int imgWidth, imgHeight;
+  gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
+  
+  double scale = 1;
+  
+  switch (scaleType)
+  {
+    case PRINT_FIT_WIDTH:
+      scale = ctxWidth / (double)imgWidth;
+      break;
+      
+    case PRINT_FIT_HEIGHT:
+      scale = ctxHeight / (double)imgHeight;
+      break;
+      
+    default:
+      scale = min(ctxWidth / (double)imgWidth, ctxHeight / (double)imgHeight);
+      break;
+  };
+  
+  scale = min(scale, 1.0); /* don't scale larger */
+  
+  return scale;
+}
+
+
+/* Called after the user clicks ok in the print dialog. Calcualtes the number
+ * of pages to print. */
 void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
 {
-  /* Always fit the contents to a single page; crude, but this is generally 
-   * what we want when printing a blixem or dotter window. */
-  gtk_print_operation_set_n_pages(print, 1);
+  GtkWidget *widget = GTK_WIDGET(data);
+  
+  GdkDrawable *drawable = getPrintDrawable(widget, g_printCachedOnly);
+  double scale = getPrintScale(context, drawable, g_printScaleType);
+
+  /* Get the scaled image size */
+  int imgWidth, imgHeight;
+  gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
+  imgWidth = (int)((double)imgWidth * scale);
+  imgHeight = (int)((double)imgHeight * scale);
+
+  /* Get the page size */
+  double ctxWidth = gtk_print_context_get_width(context);
+  double ctxHeight = gtk_print_context_get_height(context);
+
+  /* Calculate the number of pages. We always scale to fit in at least one direction
+   * so we should only have multiple pages in one dimension. */
+  int numPages = 1;
+  
+  switch (g_printScaleType)
+  {
+    case PRINT_FIT_WIDTH:
+      numPages = ceil((double)imgHeight / ctxHeight);
+      break;
+      
+    case PRINT_FIT_HEIGHT:
+      numPages = ceil((double)imgWidth / ctxWidth);
+      break;
+      
+    default:
+      numPages = 1;
+      break;
+  };
+  
+  gtk_print_operation_set_n_pages(print, numPages);
 }
 
 
@@ -3481,35 +3572,35 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
 {
   GtkWidget *widget = GTK_WIDGET(data);
   cairo_t *cr = gtk_print_context_get_cairo_context(context);
-  
-  GdkDrawable *drawable = widget->window; /* draw everything by default */
-  
-  if (g_printCachedOnly)
-    {
-      /* Create a blank pixmap to draw on to (clear any existing drawing first) */
-      widgetClearCachedDrawable(widget, NULL);
-      drawable = createBlankPixmap(widget);
-      
-      /* For any child widgets that have a drawable, draw them all onto our main drawable */
-      if (GTK_IS_CONTAINER(widget))
-        {
-          gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, widget);
-        }
-    }
-  
-  /* Scale the image to fit the page */
-  double ctxWidth = gtk_print_context_get_width(context);
-  double ctxHeight = gtk_print_context_get_height(context);
-  int imgWidth, imgHeight;
-  gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
-  
-  double scale = min(ctxWidth / (double)imgWidth, ctxHeight / (double)imgHeight);
-  scale = min(scale, 1.0); /* don't scale larger */
-  
+
+  GdkDrawable *drawable = getPrintDrawable(widget, g_printCachedOnly);
+
+  /* Scale the image */
+  double scale = getPrintScale(context, drawable, g_printScaleType);
   cairo_scale(cr, scale, scale); 
   
+  /* Get the coords on the image at which this page starts */
+  double ctxWidth = gtk_print_context_get_width(context);
+  double ctxHeight = gtk_print_context_get_height(context);
+  int x = 0;
+  int y = 0;
+
+  switch (g_printScaleType)
+  {
+    case PRINT_FIT_WIDTH:
+      y = pageNum * ctxHeight;
+      break;
+      
+    case PRINT_FIT_HEIGHT:
+      x = pageNum * ctxWidth;
+      break;
+      
+    default:
+      break;
+  };
+  
   /* Paint the image */
-  gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
+  gdk_cairo_set_source_pixmap(cr, drawable, x, y);
   cairo_paint(cr);
 }
 
@@ -3524,9 +3615,14 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
  * in dotter). It's up to the application to set its cached drawables and make
  * sure they include everything necessary if they want to use this option, 
  * otherwise we just draw everything. */
-void blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly)
+void blxPrintWidget(GtkWidget *widget, 
+                    GtkPrintSettings **printSettings, 
+                    GtkPageSetup **pageSetup, 
+                    const gboolean printCachedOnly,
+                    const PrintScaleType scaleType)
 {
   g_printCachedOnly = printCachedOnly;
+  g_printScaleType = scaleType;
   
   /* Create a print operation, using the same settings as the last print, if there was one */
   GtkPrintOperation *print = gtk_print_operation_new();

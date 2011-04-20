@@ -46,15 +46,14 @@
 #define DEFAULT_WINDOW_WIDTH_FRACTION	 0.6  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.3  /* what fraction of the screen size the blixem window height defaults to */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
+#define MAIN_BELVU_WINDOW_NAME           "BelvuWindow"
+#define WRAPPED_BELVU_WINDOW_NAME        "WrappedBelvuWindow"
 
 
 /* Properties specific to the belvu window */
 typedef struct _BelvuWindowProperties
   {
     BelvuContext *bc;	              /* The belvu context */
-
-    GtkPageSetup *pageSetup;          /* Page setup for printing */
-    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
   } BelvuWindowProperties;
 
 
@@ -79,6 +78,7 @@ static void                      onCleanUpMenu(GtkAction *action, gpointer data)
 static void                      showHelpDialog();
 static void                      showWrapDialog(GtkWidget *belvuWindow);
 static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
+static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
 
 static gboolean                  onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
 
@@ -236,10 +236,38 @@ static void onAboutMenu(GtkAction *action, gpointer data)
 
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  GtkWidget *window = GTK_WIDGET(data);
+
+  static GtkPageSetup *pageSetup = NULL;
+  static GtkPrintSettings *printSettings = NULL;
   
-  blxPrintWidget(belvuWindow, &properties->printSettings, &properties->pageSetup, FALSE);
+  if (!pageSetup)
+    {
+      pageSetup = gtk_page_setup_new();
+      gtk_page_setup_set_orientation(pageSetup, GTK_PAGE_ORIENTATION_PORTRAIT);
+    }
+  
+  if (!printSettings)
+    {
+      printSettings = gtk_print_settings_new();
+      gtk_print_settings_set_orientation(printSettings, GTK_PAGE_ORIENTATION_PORTRAIT);
+      gtk_print_settings_set_quality(printSettings, GTK_PRINT_QUALITY_HIGH);
+      gtk_print_settings_set_resolution(printSettings, DEFAULT_PRINT_RESOLUTION);
+    }
+  
+  /* If this is the wrapped-alignment window, just print the main drawing area */
+  const char *name = gtk_widget_get_name(window);
+  GtkWidget *widgetToPrint = NULL;
+  
+  if (stringsEqual(name, WRAPPED_BELVU_WINDOW_NAME, TRUE))
+    {
+      getWrappedWindowDrawingArea(window, &widgetToPrint);
+    }
+  
+  if (widgetToPrint)
+    blxPrintWidget(widgetToPrint, &printSettings, &pageSetup, TRUE, PRINT_FIT_WIDTH);
+  else
+    blxPrintWidget(window, &printSettings, &pageSetup, FALSE, PRINT_FIT_BOTH);
 }
 
 static void onWrapMenu(GtkAction *action, gpointer data)
@@ -317,14 +345,6 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow, BelvuContext *bc
       
       properties->bc = bc;
 
-      properties->pageSetup = gtk_page_setup_new();
-      gtk_page_setup_set_orientation(properties->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
-
-      properties->printSettings = gtk_print_settings_new();
-      gtk_print_settings_set_orientation(properties->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
-      gtk_print_settings_set_quality(properties->printSettings, GTK_PRINT_QUALITY_HIGH);
-      gtk_print_settings_set_resolution(properties->printSettings, DEFAULT_PRINT_RESOLUTION);
-    
       g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", properties);
       g_signal_connect(G_OBJECT(belvuWindow), "destroy", G_CALLBACK (onDestroyBelvuWindow), NULL);
     }
@@ -460,14 +480,37 @@ static void showWrapDialog(GtkWidget *belvuWindow)
 }
 
 
+/* Utility function to return the main drawing area of the wrapped-alignment window */
+static void getWrappedWindowDrawingArea(GtkWidget *widget, gpointer data)
+{
+  GtkWidget **result = (GtkWidget**)data;
+
+  if (*result != NULL)
+    {
+      return;
+    }
+  else if (GTK_IS_LAYOUT(widget))
+    {
+      *result = widget;
+    }
+  else if (GTK_IS_CONTAINER(widget))
+    {
+      gtk_container_foreach(GTK_CONTAINER(widget), getWrappedWindowDrawingArea, result);
+    }
+}
+
+
 static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title)
 {
   /* Create the window */
   GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  
+  gtk_widget_set_name(wrapWindow, WRAPPED_BELVU_WINDOW_NAME);
+
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(wrapWindow);
   GtkWidget *contextmenu = createBelvuMenu(wrapWindow, standardMenuDescription, "/WrapContextMenu", uiManager);
+  
+  gtk_widget_add_events(wrapWindow, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(wrapWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
   
   /* We'll place everything in a vbox */
@@ -564,7 +607,8 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   gboolean ok = TRUE;
   
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-
+  gtk_widget_set_name(window, MAIN_BELVU_WINDOW_NAME);
+  
   createBelvuColors(bc, window);
   
   /* Create the status bar */

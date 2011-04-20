@@ -4309,7 +4309,7 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   /* We need to do some work to prepare the big picture for printing */
   bigPicturePrepareForPrinting(properties->bigPicture);
   
-  blxPrintWidget(blxWindow, &properties->printSettings, &properties->pageSetup, TRUE);
+  blxPrintWidget(blxWindow, &properties->printSettings, &properties->pageSetup, TRUE, PRINT_FIT_BOTH);
   
   bigPictureRedrawAll(properties->bigPicture);
 }
