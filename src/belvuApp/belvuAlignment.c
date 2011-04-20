@@ -58,6 +58,7 @@ typedef struct _BelvuAlignmentProperties
   
   int columnPadding;                /* Padding in between columns, in pixels */
   int nameColumnPadding;            /* Padding after name column, in pixels */
+  char *title;                /* title to display at the top of the alignments */
   int wrapWidth;                    /* Number of characters after which to wrap (or UNSET_INT for no wrapping) */
   
   PangoFontDescription *fontDesc;   /* The fixed-width font to use for displaying the alignment */
@@ -81,6 +82,12 @@ static void onDestroyBelvuAlignment(GtkWidget *belvuAlignment)
 
   if (properties)
     {
+      if (properties->title)
+        {
+          g_free(properties->title);
+          properties->title = NULL;
+        }
+      
       /* Free the properties struct itself */
       g_free(properties);
       properties = NULL;
@@ -97,6 +104,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
                                            GtkWidget *headersArea,
                                            GtkWidget *seqArea,
                                            GtkAdjustment *hAdjustment,
+                                           const char *title,
                                            const int wrapWidth)
 {
   if (belvuAlignment)
@@ -108,6 +116,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       properties->seqArea = seqArea;
       properties->columnPadding = 0; /* calculated in calculate-borders */
       properties->hAdjustment = hAdjustment;
+      properties->title = g_strdup(title);
       properties->wrapWidth = wrapWidth;
       
       /* Find a fixed-width font */
@@ -368,7 +377,16 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
   
   int paragraph = 0;
   int totCollapsed = 0;
-  int line = 1;
+  int line = 1; /* leave a blank line (line=0) at the top for spacing */
+  
+  if (properties->title)
+    {
+      const int x = properties->columnPadding;
+      const int y = line * properties->charHeight;
+      
+      drawText(widget, drawable, gcText, x, y, properties->title);
+      line += 2; /* increment, and also add another blank line for spacing */
+    }
   
   while (paragraph * properties->wrapWidth + totCollapsed < bc->maxLen)
     {
@@ -395,7 +413,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
           
           if (!empty) 
             {
-              const int y = (line - 1) * properties->charHeight;
+              const int y = line * properties->charHeight;
 
               for (collapsePos = 0, oldpos = pos[j], i = alnstart; i < alnend; i++) 
                 {	
@@ -705,6 +723,10 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
       /* Multiply the standard height (plus one row for separation) by the number 
        * of paragraphs */
       result = (result + properties->charHeight) * numParagraphs;
+      
+      /* Add space for the title, if given (one line for the title and one as a spacer) */
+      if (properties->title)
+        result += properties->charHeight * 2;
     }
   
   return result;
@@ -788,7 +810,7 @@ static void setBelvuAlignmentStyle(BelvuContext *bc, GtkWidget *seqArea, GtkWidg
  * used for both the standard and wrapped views - pass wrapWidth as UNSET_INT
  * for the standard view, or pass wrapWidth as the number of characters after
  * which to wrap for the wrapped view. */
-GtkWidget* createBelvuAlignment(BelvuContext *bc, const int wrapWidth)
+GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int wrapWidth)
 {
   /* We'll put everything in a table */
   GtkWidget *belvuAlignment = gtk_table_new(2, 2, FALSE);
@@ -839,7 +861,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const int wrapWidth)
   
   /* Set the style and properties */
   setBelvuAlignmentStyle(bc, seqArea, headersArea);
-  belvuAlignmentCreateProperties(belvuAlignment, bc, headersArea, seqArea, hAdjustment, wrapWidth);
+  belvuAlignmentCreateProperties(belvuAlignment, bc, headersArea, seqArea, hAdjustment, title, wrapWidth);
 
   return belvuAlignment;
 }

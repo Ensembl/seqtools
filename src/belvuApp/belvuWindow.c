@@ -517,13 +517,9 @@ static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gcha
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(wrapWindow), vbox);
   
-  /* Add a label for the title (if given) */
-  if (title) 
-    gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new(title), FALSE, FALSE, 0);
-
   /* Add the alignment section */
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  GtkWidget *wrappedAlignment = createBelvuAlignment(properties->bc, linelen);
+  GtkWidget *wrappedAlignment = createBelvuAlignment(properties->bc, title, linelen);
   gtk_box_pack_start(GTK_BOX(vbox), wrappedAlignment, TRUE, TRUE, 0);
   
   gtk_widget_show_all(wrapWindow);
@@ -631,7 +627,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   setStyleProperties(window, GTK_TOOLBAR(toolbar));
 
   /* Create the alignment section */
-  GtkWidget *belvuAlignment = createBelvuAlignment(bc, UNSET_INT);
+  GtkWidget *belvuAlignment = createBelvuAlignment(bc, NULL, UNSET_INT);
   
   /* We'll put everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
