@@ -43,11 +43,13 @@
 
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
-#define DEFAULT_WINDOW_WIDTH_FRACTION	 0.6  /* what fraction of the screen size the blixem window width defaults to */
-#define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.3  /* what fraction of the screen size the blixem window height defaults to */
 #define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
 #define MAIN_BELVU_WINDOW_NAME           "BelvuWindow"
 #define WRAPPED_BELVU_WINDOW_NAME        "WrappedBelvuWindow"
+#define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95
+#define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45
+#define DEFAULT_WRAP_WINDOW_WIDTH_FRACTION      0.6
+#define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.9
 
 
 /* Properties specific to the belvu window */
@@ -506,6 +508,12 @@ static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gcha
   GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_name(wrapWindow, WRAPPED_BELVU_WINDOW_NAME);
 
+  /* Set the initial window size based on some fraction of the screen size */
+  GdkScreen *screen = gtk_widget_get_screen(wrapWindow);
+  const int width = gdk_screen_get_width(screen) * DEFAULT_WRAP_WINDOW_WIDTH_FRACTION;
+  const int height = gdk_screen_get_height(screen) * DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION;
+  gtk_window_set_default_size(GTK_WINDOW(wrapWindow), width, height);
+  
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(wrapWindow);
   GtkWidget *contextmenu = createBelvuMenu(wrapWindow, standardMenuDescription, "/WrapContextMenu", uiManager);
@@ -523,6 +531,7 @@ static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gcha
   gtk_box_pack_start(GTK_BOX(vbox), wrappedAlignment, TRUE, TRUE, 0);
   
   gtk_widget_show_all(wrapWindow);
+  gtk_window_present(GTK_WINDOW(wrapWindow));
 }
 
 /***********************************************************
@@ -575,8 +584,8 @@ static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
 {
   /* Set the initial window size based on some fraction of the screen size */
   GdkScreen *screen = gtk_widget_get_screen(window);
-  const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
-  const int height = gdk_screen_get_height(screen) * DEFAULT_WINDOW_HEIGHT_FRACTION;
+  const int width = gdk_screen_get_width(screen) * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
+  const int height = gdk_screen_get_height(screen) * DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION;
   
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
   
