@@ -136,7 +136,7 @@ enum {NODESWAP, NODEROOT};		/* Tree picking methods */
  * One of several different actual colors from the BlxColor struct may be used depending 
  * on state, e.g. we use a different color if "print colors" (i.e. black and 
  * white mode) is on. */
-typedef enum 
+typedef enum _BelvuColorId
   {
     BELCOLOR_MIN,                             /* dummy value so that we don't get a zero ID */
     
@@ -145,6 +145,46 @@ typedef enum
     
     BELCOLOR_NUM_COLORS
   } BelvuColorId;
+
+
+/* This defines the possible sort orders */
+typedef enum _BelvuSortType
+  {
+    BELVU_SORT_SCORE,          /* Sort by score */
+    BELVU_SORT_ALPHA,          /* Sort alphabetically */
+    BELVU_SORT_ORGANISM,       /* Sort by organism */
+    BELVU_SORT_TREE,           /* Sort by tree order */
+    BELVU_SORT_SIM,            /* Sort by similarity to selected sequence */
+    BELVU_SORT_ID,             /* Sort by identity to selected sequence */
+  } BelvuSortType;
+
+
+/* This defines the types of color scheme that we deal with */
+typedef enum _BelvuSchemeType
+  {
+    BELVU_SCHEME_TYPE_RESIDUE,          /* Color by residue */
+    BELVU_SCHEME_TYPE_CONS              /* Color by conservation */
+  } BelvuSchemeType;
+
+
+/* This defines the color schemes when coloring by residue */
+typedef enum _ResidueColorSchemes
+  {
+    BELVU_SCHEME_NONE,              /* Clean slate (no coloring) */
+    BELVU_SCHEME_ERIK,              /* Erik's original scheme */
+    BELVU_SCHEME_GIBSON,            /* Toby's */
+    BELVU_SCHEME_CGP                /* Cyc/Gly/Pro */
+  } ResidueColorSchemes;
+
+
+/* This defines the color schemes when coloring by conservation */
+typedef enum _ConsColorSchemes
+  {
+    BELVU_SCHEME_BLOSUM,            /* Average similarity by BLOSUM62 */
+    BELVU_SCHEME_ID,                /* Percent identity */
+    BELVU_SCHEME_ID_BLOSUM          /* Percent ID and BLOSUM62 */
+  } ConsColorSchemes;
+
 
 
 /* Structs */
