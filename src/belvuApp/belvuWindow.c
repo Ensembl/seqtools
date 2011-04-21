@@ -55,9 +55,12 @@
 typedef struct _BelvuWindowProperties
   {
     BelvuContext *bc;                   /* The belvu context */
-    GtkActionGroup *actionGroup;        
-    
+    GtkActionGroup *actionGroup;        /* Holds the menu and toolbar actions */
+    GtkWidget *statusBar;		/* Message bar at the bottom of the main window */
     GtkWidget *belvuAlignment;		/* The widget that draws the alignments */
+  
+    GdkCursor *defaultCursor;		/* default cursor */
+    GdkCursor *removeSeqsCursor;	/* cursor to use when removing sequences */
   } BelvuWindowProperties;
 
 
@@ -80,7 +83,8 @@ static void                      onCompareMenu(GtkAction *action, gpointer data)
 static void                      onCleanUpMenu(GtkAction *action, gpointer data);
 
 static void                      onrmPickedMenu(GtkAction *action, gpointer data);
-static void                      onrmPickLeftMenu(GtkAction *action, gpointer data);
+static void                      onRemoveSeqsMenu(GtkAction *action, gpointer data);
+static void                      onCancelRemoveSeqs(GtkAction *action, gpointer data);
 static void                      onrmGappySeqsPromptMenu(GtkAction *action, gpointer data);
 static void                      onrmPartialMenu(GtkAction *action, gpointer data);
 static void                      onmkNonRedundantPromptMenu(GtkAction *action, gpointer data);
@@ -119,6 +123,9 @@ static void                      showWrapDialog(GtkWidget *belvuWindow);
 static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
 
+static void			 startRemovingSequences(GtkWidget *belvuWindow);
+static void			 endRemovingSequences(GtkWidget *belvuWindow);
+
 static gboolean                  onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
@@ -149,6 +156,8 @@ static const GtkActionEntry menuEntries[] = {
   { "ByResidueMenuAction", NULL, "Choose color scheme"},
   { "ByConsMenuAction",    NULL, "Choose color scheme"},
 
+  { "CancelRemove", NULL,	      "Cancel remove sequences", "Escape",  "Cancel 'remove sequences' mode",       G_CALLBACK(onCancelRemoveSeqs)},
+
   { "Close",	GTK_STOCK_CLOSE,      "_Close",               "<control>W", "Close",                            G_CALLBACK(onCloseMenu)},
   { "Quit",	GTK_STOCK_QUIT,       "_Quit",                "<control>Q", "Quit  Ctrl+Q",                     G_CALLBACK(onQuitMenu)},
   { "Help",	GTK_STOCK_HELP,       "_Help",                "<control>H", "Display help  Ctrl+H",             G_CALLBACK(onHelpMenu)},
@@ -165,7 +174,7 @@ static const GtkActionEntry menuEntries[] = {
   { "CleanUp",	GTK_STOCK_CLOSE,      "Clean _up windows",    NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)},
 
   {"rmPicked",               NULL,    "Remove highlighted line",  NULL, "Remove highlighted line",  G_CALLBACK(onrmPickedMenu)},
-  {"rmPickLeft",             NULL,    "Remove many sequences",    NULL, "Remove many sequences",    G_CALLBACK(onrmPickLeftMenu)},
+  {"rmMany",		     NULL,    "Remove many sequences",    NULL, "Remove many sequences",    G_CALLBACK(onRemoveSeqsMenu)},
   {"rmGappySeqsPrompt",      NULL,    "Remove gappy sequences",   NULL, "Remove gappy sequences",   G_CALLBACK(onrmGappySeqsPromptMenu)},
   {"rmPartial",              NULL,    "Remove partial sequences", NULL, "Remove partial sequences", G_CALLBACK(onrmPartialMenu)},
   {"mkNonRedundantPrompt",   NULL,    "Make non-redundant",       NULL, "Make non-redundant",       G_CALLBACK(onmkNonRedundantPromptMenu)},
@@ -231,6 +240,7 @@ static const GtkRadioActionEntry sortMenuEntries[] = {
 static const char standardMenuDescription[] =
 "<ui>"
 /* MAIN MENU BAR */
+"  <accelerator action='CancelRemove'/>"
 "  <menubar name='MenuBar'>"
      /* File menu */
 "    <menu action='FileMenuAction'>"
@@ -253,7 +263,7 @@ static const char standardMenuDescription[] =
     /* Edit menu */
 "    <menu action='EditMenuAction'>"
 "      <menuitem action='rmPicked'/>"
-"      <menuitem action='rmPickLeft'/>"
+"      <menuitem action='rmMany'/>"
 "      <menuitem action='rmGappySeqsPrompt'/>"
 "      <menuitem action='rmPartial'/>"
 "      <menuitem action='mkNonRedundantPrompt'/>"
@@ -564,8 +574,16 @@ static void onrmPickedMenu(GtkAction *action, gpointer data)
   updateOnVScrollSizeChaged(properties->belvuAlignment);
 }
 
-static void onrmPickLeftMenu(GtkAction *action, gpointer data)
+static void onRemoveSeqsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  startRemovingSequences(belvuWindow);
+}
+
+static void onCancelRemoveSeqs(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  endRemovingSequences(belvuWindow);
 }
 
 static void onrmGappySeqsPromptMenu(GtkAction *action, gpointer data)
@@ -725,6 +743,7 @@ static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
 static void belvuWindowCreateProperties(GtkWidget *belvuWindow, 
 					BelvuContext *bc, 
 					GtkActionGroup *actionGroup,
+					GtkWidget *statusBar,
 					GtkWidget *belvuAlignment)
 {
   if (belvuWindow)
@@ -733,11 +752,52 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
       
       properties->bc = bc;
       properties->actionGroup = actionGroup;
+      properties->statusBar = statusBar;
       properties->belvuAlignment = belvuAlignment;
+    
+      properties->defaultCursor = NULL; /* get from gdkwindow once it is shown */
+      properties->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
       
       g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", properties);
       g_signal_connect(G_OBJECT(belvuWindow), "destroy", G_CALLBACK (onDestroyBelvuWindow), NULL);
     }
+}
+
+
+/***********************************************************
+ *		      Remove sequences			   *
+ ***********************************************************/
+
+/* This should be called when the 'removing sequences' option has changed */
+static void updateSequenceRemovalMode(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  if (properties->bc->removingSeqs)
+    {
+      gdk_window_set_cursor(belvuWindow->window, properties->removeSeqsCursor);
+      g_message("Double-click on sequences to remove; press Esc or right-click to cancel.\n");
+    }
+  else
+    {
+      gdk_window_set_cursor(belvuWindow->window, properties->defaultCursor);
+      g_message("Finished removing sequences.\n");
+    }
+}
+
+
+static void startRemovingSequences(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  properties->bc->removingSeqs = TRUE;
+  updateSequenceRemovalMode(belvuWindow);
+}
+
+static void endRemovingSequences(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  properties->bc->removingSeqs = FALSE;
+  updateSequenceRemovalMode(belvuWindow);
 }
 
 
@@ -1118,7 +1178,6 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
   
-  
 //  graphRegister(PICK, boxPick);
 //  graphRegister(MIDDLE_DOWN, middleDown);
 //  graphRegister(RESIZE, belvuRedraw);
@@ -1126,10 +1185,13 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
 
-  belvuWindowCreateProperties(window, bc, actionGroup, belvuAlignment);
+  belvuWindowCreateProperties(window, bc,  actionGroup, statusBar, belvuAlignment);
   
   gtk_widget_show_all(window);
   
+  /* Set the default cursor (can only get the window's cursor after window is shown) */
+  BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+  properties->defaultCursor = gdk_window_get_cursor(window->window);
 
   return ok;
 }

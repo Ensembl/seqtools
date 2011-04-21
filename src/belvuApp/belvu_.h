@@ -336,6 +336,7 @@ typedef struct BelvuContextStruct
   gboolean id_blosum;              /* Paint similar residues too */
   gboolean rmEmptyColumnsOn;
   gboolean lowercaseOn;
+  gboolean removingSeqs;	   /* Set to true if in the 'removing sequences' mode */
   
 } BelvuContext;
 
