@@ -225,6 +225,10 @@ static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, GdkColor *res
     colorNum = getColor(alnp->seq[i]);
 
   convertColorNumToGdkColor(colorNum, result);
+  
+  /* If this alignment is selected, use a slightly different shade to highlight it */
+  if (alnp == bc->highlightedAln)
+    getSelectionColor(result, result);
 }
 
 
@@ -236,12 +240,22 @@ static void drawSingleHeader(GtkWidget *widget,
                              const int lineNum)
 {
   int x = 0;
-  const int y = properties->charHeight * lineNum;
+  const int y = properties->headersRect.y + (properties->charHeight * lineNum);
   
+  const gboolean isSelected = (alnp == properties->bc->highlightedAln);
   GdkGC *gc = gdk_gc_new(drawable);
-  GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
-  gdk_gc_set_foreground(gc, textColor);
   
+  if (isSelected)
+    {
+      /* Highlight the background */
+      GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, properties->bc->defaultColors, isSelected, FALSE);
+      gdk_gc_set_foreground(gc, bgColor);
+      gdk_draw_rectangle(drawable, gc, TRUE, properties->headersRect.x, y, properties->headersRect.width, properties->charHeight);
+    }
+  
+  GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, isSelected, FALSE);
+  gdk_gc_set_foreground(gc, textColor);
+
   /* Draw the name */
   if (alnp->name)
     {
@@ -279,7 +293,7 @@ static void drawSingleSequence(GtkWidget *widget,
   
   const int startX = 0;
   int x = startX;
-  const int y = properties->charHeight * lineNum;
+  const int y = properties->seqRect.y + (properties->charHeight * lineNum);
   
   GdkGC *gc = gdk_gc_new(drawable);
   GtkAdjustment *hAdjustment = properties->hAdjustment;
@@ -805,6 +819,10 @@ static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *e
       const int idx = (event->y - properties->seqRect.y) / properties->charHeight;
     
       properties->bc->highlightedAln = &g_array_index(properties->bc->alignArr, ALN, idx);
+    
+      widgetClearCachedDrawable(properties->seqArea, NULL);
+      widgetClearCachedDrawable(properties->headersArea, NULL);
+      gtk_widget_queue_draw(belvuAlignment);
     
       handled = TRUE;
     }
