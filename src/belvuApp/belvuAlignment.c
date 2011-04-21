@@ -789,6 +789,31 @@ static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *alloc
 
 
 /***********************************************************
+ *                         Events                          *
+ ***********************************************************/
+
+/* Mouse button handler */
+static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
+    {
+      /* Select the clicked sequence */
+      GtkWidget *belvuAlignment = GTK_WIDGET(data);
+      BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+      const int idx = (event->y - properties->seqRect.y) / properties->charHeight;
+    
+      properties->bc->highlightedAln = &g_array_index(properties->bc->alignArr, ALN, idx);
+    
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+
+/***********************************************************
  *                      Initialisation                     *
  ***********************************************************/
 
@@ -855,6 +880,12 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       headersArea = gtk_layout_new(NULL, vAdjustment);
       gtk_table_attach(GTK_TABLE(belvuAlignment), headersArea, 1, 2, 1, 2, GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
       g_signal_connect(G_OBJECT(headersArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
+    
+      /* Also only connect button press handler if this is a standard (i.e. not wrapped) alignment window */
+      gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
+      gtk_widget_add_events(headersArea, GDK_BUTTON_PRESS_MASK);
+      g_signal_connect(G_OBJECT(seqArea), "button-press-event", G_CALLBACK(onButtonPressBelvuAlignment), belvuAlignment);
+      g_signal_connect(G_OBJECT(headersArea), "button-press-event", G_CALLBACK(onButtonPressBelvuAlignment), belvuAlignment);
     }
   
   /* Set the style and properties */
