@@ -114,6 +114,7 @@ static void                      onlowercaseMenu(GtkAction *action, gpointer dat
 static void                      oneditColorCodesMenu(GtkAction *action, gpointer data);
 
 static void                      showHelpDialog();
+static void			 showAboutDialog(GtkWidget *parent);
 static void                      showWrapDialog(GtkWidget *belvuWindow);
 static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
@@ -453,6 +454,8 @@ static void onHelpMenu(GtkAction *action, gpointer data)
 
 static void onAboutMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showAboutDialog(belvuWindow);
 }
 
 static void onPrintMenu(GtkAction *action, gpointer data)
@@ -733,6 +736,67 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
     }
 }
 
+
+/***********************************************************
+ *			About dialog			   *
+ ***********************************************************/
+
+/* Returns a string which is the name of the Blixem application. */
+static char *belvuGetAppName(void)
+{
+  return BELVU_TITLE ;
+}
+
+/* Returns a copyright string for the Blixem application. */
+static char *belvuGetCopyrightString(void)
+{
+  return BELVU_COPYRIGHT_STRING ;
+}
+
+/* Returns the Blixem website URL. */
+static char *belvuGetWebSiteString(void)
+{
+  return BELVU_WEBSITE_STRING ;
+}
+
+/* Returns a comments string for the Blixem application. */
+static char *belvuGetCommentsString(void)
+{
+  return BELVU_COMMENTS_STRING() ;
+}
+
+/* Returns a license string for the belvu application. */
+static char *belvuGetLicenseString(void)
+{
+  return BELVU_LICENSE_STRING ;
+}
+
+/* Returns a string representing the Version/Release/Update of the Blixem code. */
+static char *belvuGetVersionString(void)
+{
+  return BELVU_VERSION_STRING ;
+}
+
+
+/* Shows the 'About' dialog */
+static void showAboutDialog(GtkWidget *parent)
+{
+#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
+  const gchar *authors[] = {AUTHOR_LIST, NULL} ;
+  
+  gtk_show_about_dialog(GTK_WINDOW(parent),
+			"authors", authors,
+			"comments", belvuGetCommentsString(), 
+			"copyright", belvuGetCopyrightString(),
+			"license", belvuGetLicenseString(),
+			"name", belvuGetAppName(),
+			"version", belvuGetVersionString(),
+			"website", belvuGetWebSiteString(),
+			NULL) ;
+#endif
+  
+  return ;
+}
 
 /***********************************************************
  *                      Help dialog                        *
