@@ -831,16 +831,40 @@ static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *alloc
  *                         Events                          *
  ***********************************************************/
 
+void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
+{ 
+  if (!bc->highlightedAln) 
+    {
+      g_critical("Please select a sequence to remove.\n");
+      return;
+    }
+  
+  const int idx = bc->highlightedAln->nr - 1;
+  g_array_remove_index(bc->alignArr, idx);
+  arrayOrder(bc->alignArr);
+  
+  bc->saved = FALSE;
+  
+  g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
+  
+  bc->highlightedAln = NULL;
+  
+  rmFinaliseGapRemoval(bc);
+  
+  updateOnVScrollSizeChaged(belvuAlignment);  
+}
+
 /* Mouse button handler */
 static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
   
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+
   if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
     {
       /* Select the clicked sequence */
-      GtkWidget *belvuAlignment = GTK_WIDGET(data);
-      BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
       const int idx = (event->y - properties->seqRect.y) / properties->charHeight;
     
       properties->bc->highlightedAln = &g_array_index(properties->bc->alignArr, ALN, idx);
@@ -848,6 +872,14 @@ static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *e
       belvuAlignmentRedrawAll(belvuAlignment);
     
       handled = TRUE;
+    }
+  else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double-click */
+    {
+      if (properties->bc->removingSeqs)
+	{
+	  /* Removed the clicked sequence (which will be the selected one) */
+	  removeSelectedSequence(properties->bc, belvuAlignment);
+	}
     }
   
   return handled;

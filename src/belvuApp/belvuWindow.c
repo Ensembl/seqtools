@@ -551,27 +551,8 @@ static void onrmPickedMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  BelvuContext *bc = properties->bc;
-  
-  if (!bc->highlightedAln) 
-    {
-      g_critical("Please select a sequence to remove.\n");
-      return;
-    }
 
-  const int idx = bc->highlightedAln->nr - 1;
-  g_array_remove_index(bc->alignArr, idx);
-  arrayOrder(bc->alignArr);
-  
-  bc->saved = FALSE;
-  
-  g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
-
-  bc->highlightedAln = NULL;
-  
-  rmFinaliseGapRemoval(bc);
-  
-  updateOnVScrollSizeChaged(properties->belvuAlignment);
+  removeSelectedSequence(properties->bc, properties->belvuAlignment);
 }
 
 static void onRemoveSeqsMenu(GtkAction *action, gpointer data)
@@ -1069,9 +1050,24 @@ static gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpo
   
   if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
     {
-      GtkMenu *contextMenu = GTK_MENU(data);
-      gtk_menu_popup (contextMenu, NULL, NULL, NULL, NULL, event->button, event->time);
-      handled = TRUE;
+      /* For the main window, if we're removing sequences, then just cancel that mode. 
+       * Otherwise (and for any other window type) show the context menu. */
+      if (stringsEqual(gtk_widget_get_name(window), MAIN_BELVU_WINDOW_NAME, TRUE))
+	{
+	  BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+	  if (properties->bc->removingSeqs)
+	    {
+	      endRemovingSequences(window);
+	      handled = TRUE;
+	    }
+	}
+
+      if (!handled)
+	{
+	  GtkMenu *contextMenu = GTK_MENU(data);
+	  gtk_menu_popup (contextMenu, NULL, NULL, NULL, NULL, event->button, event->time);
+	  handled = TRUE;
+	}
     }
   
   return handled;
