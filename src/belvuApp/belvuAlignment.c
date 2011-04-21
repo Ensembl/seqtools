@@ -866,7 +866,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
   
   if (wrapWidth == UNSET_INT)
     {
-      hAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->maxLen - 1, 1, 0, 0));
+      hAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->maxLen + 1, 1, 0, 0));
       GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
       gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar, 2, 3, 2, 3, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
 
