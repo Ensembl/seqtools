@@ -910,7 +910,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
 {
   /* We'll put everything in a table */
   GtkWidget *belvuAlignment = gtk_table_new(2, 2, FALSE);
-  const int xpad = 2, ypad = 2;
+  const int xpad = 0, ypad = 0;
   
   /* Create the sequence drawing area and the columns drawing area (for the
    * name and coords etc). The sequence drawing area will have a horizontal 
