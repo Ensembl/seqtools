@@ -7498,15 +7498,18 @@ void rmGappySeqs(BelvuContext *bc, double cutoff)
           if (bc->highlightedAln == alni) 
             bc->highlightedAln = 0;
           
-          g_array_remove_index(bc->alignArr, alni->nr);
+          g_array_remove_index(bc->alignArr, i);
           g_array_sort(bc->alignArr, nrorder);
           
           bc->saved = 0;
 	}
-	else i++;
+      else 
+	{
+	  i++;
+	}
     }
 
-    fprintf(stderr, "%d gappy sequences removed.  %d seqs left\n\n", n, bc->alignArr->len);
+    g_message("%d gappy sequences removed.  %d seqs left\n\n", n, bc->alignArr->len);
 
     arrayOrder(bc->alignArr);
 }

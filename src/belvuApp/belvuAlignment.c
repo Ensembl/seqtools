@@ -828,7 +828,7 @@ static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *alloc
 
 
 /***********************************************************
- *                         Events                          *
+ *                Removing sequences                       *
  ***********************************************************/
 
 void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
@@ -853,6 +853,15 @@ void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
   
   updateOnVScrollSizeChaged(belvuAlignment);  
 }
+
+
+/* Get rid of seqs that are too gappy. */
+void removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, double cutoff)
+{
+  rmGappySeqs(bc, cutoff);
+  updateOnVScrollSizeChaged(belvuAlignment);  
+}
+
 
 /* Mouse button handler */
 static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *event, gpointer data)
