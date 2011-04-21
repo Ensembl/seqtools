@@ -144,6 +144,7 @@ static const GtkActionEntry menuEntries[] = {
   { "EditMenuAction",  NULL, "_Edit"},
   { "ColorMenuAction", NULL, "_Color"},
   { "SortMenuAction",  NULL, "_Sort"},
+  { "HelpMenuAction",  NULL, "_Help"},
 
   { "ByResidueMenuAction", NULL, "Choose color scheme"},
   { "ByConsMenuAction",    NULL, "Choose color scheme"},
@@ -234,7 +235,6 @@ static const char standardMenuDescription[] =
      /* File menu */
 "    <menu action='FileMenuAction'>"
 "      <menuitem action='Quit'/>"
-"      <menuitem action='Help'/>"
 "      <menuitem action='Wrap'/>"
 "      <menuitem action='Print'/>"
 "      <separator/>"
@@ -310,11 +310,15 @@ static const char standardMenuDescription[] =
 "      <menuitem action='simSort'/>"
 "      <menuitem action='idSort'/>"
 "    </menu>"
+/* Help menu */
+"    <menu action='HelpMenuAction'>"
+"      <menuitem action='Help'/>"
+"      <menuitem action='About'/>"
+"    </menu>"
 "  </menubar>"
 /* Main context menu */
 "  <popup name='ContextMenu' accelerators='true'>"
 "    <menuitem action='Quit'/>"
-"    <menuitem action='Help'/>"
 "    <menuitem action='Wrap'/>"
 "    <menuitem action='Print'/>"
 "    <separator/>"
