@@ -42,7 +42,8 @@
 #include <gtk/gtk.h>
 
 GtkWidget*              createBelvuAlignment(BelvuContext *bc, const char *title, const int wrapWidth);
-
+void			belvuAlignmentRedrawAll(GtkWidget *belvuAlignment);
+void			updateOnVScrollSizeChaged(GtkWidget *belvuAlignment);
 
 
 #endif /* _belvualignment_h_included_ */

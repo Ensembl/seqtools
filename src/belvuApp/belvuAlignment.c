@@ -139,6 +139,19 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
  *                         Drawing                         *
  ***********************************************************/
 
+/* Clear cached drawables and redraw all */
+void belvuAlignmentRedrawAll(GtkWidget *belvuAlignment)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+
+  widgetClearCachedDrawable(properties->seqArea, NULL);
+  
+  if (properties->headersArea)
+    widgetClearCachedDrawable(properties->headersArea, NULL);
+  
+  gtk_widget_queue_draw(belvuAlignment);
+}
+
 static void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text)
 {
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
@@ -659,7 +672,7 @@ static gboolean onExposeBelvuSequence(GtkWidget *widget, GdkEventExpose *event, 
  ***********************************************************/
 
 /* Called when the horizontal scroll position has changed */
-static void onScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
+static void onHScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
 {
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
@@ -675,7 +688,7 @@ static void onScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
 }
 
 /* Called when the horizontal scroll range has changed */
-static void onScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data)
+static void onHScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data)
 {
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
@@ -689,6 +702,18 @@ static void onScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data)
   gtk_widget_queue_draw(properties->seqArea);
 }
 
+/* Called when the vertical scroll range upper value has changed (i.e. the length
+ * of the alignments array has changed). */
+void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->seqArea));
+  vAdjustment->upper = properties->bc->alignArr->len;
+  
+  belvuAlignmentRedrawAll(belvuAlignment);
+  gtk_adjustment_changed(vAdjustment);
+}
 
 /***********************************************************
  *                         Sizing                          *
@@ -820,9 +845,7 @@ static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *e
     
       properties->bc->highlightedAln = &g_array_index(properties->bc->alignArr, ALN, idx);
     
-      widgetClearCachedDrawable(properties->seqArea, NULL);
-      widgetClearCachedDrawable(properties->headersArea, NULL);
-      gtk_widget_queue_draw(belvuAlignment);
+      belvuAlignmentRedrawAll(belvuAlignment);
     
       handled = TRUE;
     }
@@ -870,8 +893,8 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
       gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar, 2, 3, 2, 3, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
 
-      g_signal_connect(G_OBJECT(hAdjustment), "value-changed", G_CALLBACK(onScrollPosChangedBelvuAlignment), belvuAlignment);
-      g_signal_connect(G_OBJECT(hAdjustment), "changed", G_CALLBACK(onScrollRangeChangedBelvuAlignment), belvuAlignment);
+      g_signal_connect(G_OBJECT(hAdjustment), "value-changed", G_CALLBACK(onHScrollPosChangedBelvuAlignment), belvuAlignment);
+      g_signal_connect(G_OBJECT(hAdjustment), "changed", G_CALLBACK(onHScrollRangeChangedBelvuAlignment), belvuAlignment);
     }
   
   /* Create the sequence area */

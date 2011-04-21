@@ -55,8 +55,9 @@
 typedef struct _BelvuWindowProperties
   {
     BelvuContext *bc;                   /* The belvu context */
-    
     GtkActionGroup *actionGroup;        
+    
+    GtkWidget *belvuAlignment;		/* The widget that draws the alignments */
   } BelvuWindowProperties;
 
 
@@ -541,16 +542,19 @@ static void onrmPickedMenu(GtkAction *action, gpointer data)
       return;
     }
 
-
-  g_array_remove_index(bc->alignArr, bc->highlightedAln->nr);
-  bc->saved = FALSE;
+  const int idx = bc->highlightedAln->nr - 1;
+  g_array_remove_index(bc->alignArr, idx);
   arrayOrder(bc->alignArr);
+  
+  bc->saved = FALSE;
   
   g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
 
   bc->highlightedAln = NULL;
   
   rmFinaliseGapRemoval(bc);
+  
+  updateOnVScrollSizeChaged(properties->belvuAlignment);
 }
 
 static void onrmPickLeftMenu(GtkAction *action, gpointer data)
@@ -711,15 +715,18 @@ static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
 
 
 /* Create the properties struct and initialise all values. */
-static void belvuWindowCreateProperties(GtkWidget *belvuWindow, BelvuContext *bc, GtkActionGroup *actionGroup)
+static void belvuWindowCreateProperties(GtkWidget *belvuWindow, 
+					BelvuContext *bc, 
+					GtkActionGroup *actionGroup,
+					GtkWidget *belvuAlignment)
 {
   if (belvuWindow)
     {
       BelvuWindowProperties *properties = g_malloc(sizeof *properties);
       
       properties->bc = bc;
-
       properties->actionGroup = actionGroup;
+      properties->belvuAlignment = belvuAlignment;
       
       g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", properties);
       g_signal_connect(G_OBJECT(belvuWindow), "destroy", G_CALLBACK (onDestroyBelvuWindow), NULL);
@@ -1051,7 +1058,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
 
-  belvuWindowCreateProperties(window, bc, actionGroup);
+  belvuWindowCreateProperties(window, bc, actionGroup, belvuAlignment);
   
   gtk_widget_show_all(window);
   
