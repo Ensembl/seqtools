@@ -531,6 +531,26 @@ static void onCleanUpMenu(GtkAction *action, gpointer data)
 /* EDIT MENU ACTIONS */
 static void onrmPickedMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  if (!bc->highlightedAln) 
+    {
+      g_critical("Please select a sequence to remove.\n");
+      return;
+    }
+
+
+  g_array_remove_index(bc->alignArr, bc->highlightedAln->nr);
+  bc->saved = FALSE;
+  arrayOrder(bc->alignArr);
+  
+  g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
+
+  bc->highlightedAln = NULL;
+  
+  rmFinaliseGapRemoval(bc);
 }
 
 static void onrmPickLeftMenu(GtkAction *action, gpointer data)
