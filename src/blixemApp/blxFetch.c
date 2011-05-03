@@ -1730,53 +1730,50 @@ static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error
 }
 
 
-/* Set up the net id and port if the mode is pfetch */
+/* Set up the net id and port for the pfetch mode, if these are available */
 static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, const char **net_id, int *port, GError **error)
 {
   gboolean success = TRUE;
   
-//  if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0)
+  /* three ways to determine this:
+   *    1) call blixem main with "-P node:port" commandline option
+   *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
+   *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
+   *       or to the name of the machine, e.g. "plato"
+   *       and optionally setenv BLIXEM_PORT to the port number for
+   *       the pfetch server.
+   *    3) call blixem with the -c option to specify a config file*/
+  enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
+  *port = PFETCH_PORT ;
+  
+  if (pfetch)
     {
-      /* three ways to determine this:
-       *    1) call blixem main with "-P node:port" commandline option
-       *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
-       *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
-       *       or to the name of the machine, e.g. "plato"
-       *       and optionally setenv BLIXEM_PORT to the port number for
-       *       the pfetch server.
-       *    3) call blixem with the -c option to specify a config file*/
-      enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
-      *port = PFETCH_PORT ;
+      *net_id = pfetch->net_id ;
+      if (!(*port = pfetch->port))
+        *port = PFETCH_PORT ;
+    }
+  else if ((*net_id = g_getenv("BLIXEM_PFETCH")))
+    {
+      const char *port_str = g_getenv("BLIXEM_PORT");
       
-      if (pfetch)
+      *port = port_str ? atoi(port_str) : 0 ;
+      
+      if (*port <= 0)
         {
-          *net_id = pfetch->net_id ;
-          if (!(*port = pfetch->port))
-            *port = PFETCH_PORT ;
+          *port = PFETCH_PORT ;
         }
-      else if ((*net_id = g_getenv("BLIXEM_PFETCH")))
-        {
-          const char *port_str = g_getenv("BLIXEM_PORT");
-          
-	  *port = port_str ? atoi(port_str) : 0 ;
-          
-          if (*port <= 0)
-	    {
-	      *port = PFETCH_PORT ;
-	    }
-        }
-      else
-        {
-          /* Lastly try for a config file. */
-          blxConfigGetPFetchSocketPrefs(net_id, port) ;
-        }
+    }
+  else
+    {
+      /* Lastly try for a config file. */
+      blxConfigGetPFetchSocketPrefs(net_id, port) ;
+    }
 
-      if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0 && 
-          (*net_id == NULL || *port == UNSET_INT))
-        {
-          g_set_error(error, BLX_ERROR, 1, "Network ID and port number were not found. These must be specified in the Blixem command line options, in the Blixem config file or in the BLIXEM_PFETCH and BLIXEM_PORT enviroment variables.");
-          success = FALSE;
-        }
+  if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0 && 
+      (*net_id == NULL || *port == UNSET_INT))
+    {
+      g_set_error(error, BLX_ERROR, 1, "Network ID and port number were not found. These must be specified in the Blixem command line options, in the Blixem config file or in the BLIXEM_PFETCH and BLIXEM_PORT enviroment variables.");
+      success = FALSE;
     }
   
   return success;
@@ -1804,14 +1801,7 @@ void setupFetchModes(PfetchParams *pfetch, char **fetchMode, const char **net_id
   
 
   /* For pfetch mode, find the net_id and port */
-  GError *error = NULL;
-  const gboolean success = setupPfetchMode(pfetch, *fetchMode, net_id, port, &error);
-  
-  if (!success)
-    {
-      prefixError(error, "Error setting fetch mode. ");
-      reportAndClearIfError(&error, success ? G_LOG_LEVEL_WARNING : G_LOG_LEVEL_CRITICAL);
-    }
+  setupPfetchMode(pfetch, *fetchMode, net_id, port, NULL);
 }
 
 
