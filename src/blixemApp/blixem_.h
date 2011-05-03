@@ -68,6 +68,8 @@ AUTHOR_TEXT "\n"
 /* 
  * config file groups/keywords, these should not be changed willy nilly as they
  * are used external programs and users when constructing config files.
+ * If you change things or add additional groups or values, then you should
+ * update the getConfig function.
  */
 
 /* For overall blixem settings. */
@@ -75,17 +77,26 @@ AUTHOR_TEXT "\n"
 #define BLIXEM_DEFAULT_FETCH_MODE  "default-fetch-mode"
 
 
-/* For http pfetch proxy fetching of sequences/entries */
+/* For http pfetch proxy fetching of sequences/entries by name */
 #define PFETCH_PROXY_GROUP         "pfetch-http"
 #define PFETCH_PROXY_LOCATION      "pfetch"
 #define PFETCH_PROXY_COOKIE_JAR    "cookie-jar"
 #define PFETCH_PROXY_MODE          "pfetch-mode"
 #define PFETCH_PROXY_PORT          "port"
 
-/* For direct pfetch socket fetching of sequences/entries */
+/* For direct pfetch socket fetching of sequences/entries by name */
 #define PFETCH_SOCKET_GROUP        "pfetch-socket"
 #define PFETCH_SOCKET_NODE         "node"
 #define PFETCH_SOCKET_PORT         "port"
+
+/* For fetching sequences/entries from a database by name */
+#define DB_FETCH_GROUP             "db-fetch"
+#define DB_FETCH_DATABASE          "db"
+
+/* For fetching sequences/entries that lie within a given region. */
+#define REGION_FETCH_GROUP         "region-fetch"
+#define REGION_FETCH_SCRIPT        "script"
+#define REGION_FETCH_ARGS          "arguments"
 
 
 /* Fetch programs for sequence entries. */
@@ -95,6 +106,8 @@ AUTHOR_TEXT "\n"
 #endif
 #define BLX_FETCH_EFETCH           "efetch"
 #define BLX_FETCH_WWW_EFETCH       "WWW-efetch"
+#define BLX_FETCH_DB               DB_FETCH_GROUP
+#define BLX_FETCH_REGION           REGION_FETCH_GROUP
 
 
 /* The following are used to define default colors for certain types of features in Blixem.
@@ -406,7 +419,6 @@ char*                              readFastaSeq(FILE *seqfile, char *qname);
 
 /* blxFetch.c */
 void                               fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow) ;
-void                               blxFindInitialFetchMode(char *fetchMode) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 
@@ -430,7 +442,7 @@ BlxStyle*                          createBlxStyle(const char *styleName, const c
 void                               destroyBlxStyle(BlxStyle *style);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
-void                               setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port);
+void                               setupFetchModes(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port);
 
 gboolean                           fetchSequences(GList *seqsToFetch, 
                                                   GList *seqList,

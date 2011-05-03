@@ -184,7 +184,10 @@ typedef struct _MSP
   struct _MSP       *next;
   GList             *childMsps;    /* Child MSPs of this MSP if it has them, e.g. an exon has CDS and UTR children (part_of relationship). */
   
-  BlxMspType        type;          /* Whether this is a match, exon, SNP etc. */
+  BlxMspType        type;          /* The type of the MSP, e.g. match, exon, SNP etc. */
+  GQuark            dataType;      /* An optional identifier representing a stanza from the config file which defines
+                                    * properties such as the fetch method to use for this feature. 0 represents NULL. */
+  
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
@@ -214,6 +217,7 @@ typedef struct _MSP
   
   BlxStyle          *style;        /* Specifies drawing style for this MSP, e.g. fill color and line color */
   
+  /* obsolete? */
   FeatureSeries     *fs;           /* Feature series that this MSP belongs to */
   int               fsColor;       /* Color to draw this MSP in the feature series */
   BlxCurveShape     fsShape;       /* Shape data for drawing feature series curves, i.e. XY type PARTIAL or INTERPOLATE shapes */

@@ -64,6 +64,19 @@
 #define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
 
 
+/* Blixem config error domain */
+#define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
+
+/* Error codes */
+typedef enum
+  {
+    BLX_CONFIG_ERROR_NO_GROUPS,             /* no groups in config file */
+    BLX_CONFIG_ERROR_INVALID_KEY_TYPE,      /* invalid key type given in config file */
+    BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
+  } BlxConfigError;
+
+
+
 /* States for parsing EMBL files */
 typedef enum
   {
@@ -217,7 +230,7 @@ static gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **e
 ConfigGroup getConfig(char *config_name) ;
 static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
-static char *blxConfigGetFetchMode(void);
+static char *blxConfigGetDefaultFetchMode(void);
 static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
 
 /* Pfetch local functions */
@@ -400,7 +413,7 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
 
 
 /* Needs a better name really, sets the fetch mode by looking at env. vars etc. */
-void blxFindInitialFetchMode(char *fetchMode)
+static void blxFindDefaultFetchMode(char *fetchMode)
 {
   char *tmp_mode ;
 
@@ -417,7 +430,15 @@ void blxFindInitialFetchMode(char *fetchMode)
     {
       strcpy(fetchMode, BLX_FETCH_EFETCH);
     }
-  else if ((tmp_mode = blxConfigGetFetchMode()))
+  else if (g_getenv("BLIXEM_FETCH_DB"))
+    {
+      strcpy(fetchMode, BLX_FETCH_DB);
+    }
+  else if (g_getenv("BLIXEM_FETCH_REGION"))
+    {
+      strcpy(fetchMode, BLX_FETCH_REGION);
+    }
+  else if ((tmp_mode = blxConfigGetDefaultFetchMode()))
     {
       strcpy(fetchMode, tmp_mode) ;
     }
@@ -932,21 +953,21 @@ GKeyFile *blxGetConfig(void)
 }
 
 
-gboolean blxConfigSetFetchMode(char *mode)
-{
-  gboolean result = FALSE ;
-  GKeyFile *key_file ;
+//gboolean blxConfigSetFetchMode(char *mode)
+//{
+//  gboolean result = FALSE ;
+//  GKeyFile *key_file ;
+//
+//  key_file = blxGetConfig() ;
+//  g_assert(key_file) ;
+//
+//  g_key_file_set_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, mode) ;
+//
+//  return result ;
+//}
 
-  key_file = blxGetConfig() ;
-  g_assert(key_file) ;
 
-  g_key_file_set_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, mode) ;
-
-  return result ;
-}
-
-
-static char *blxConfigGetFetchMode(void)
+static char *blxConfigGetDefaultFetchMode(void)
 {
   char *fetch_mode = NULL ;
   GKeyFile *key_file ;
@@ -1589,8 +1610,7 @@ gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
 
       if (!config_loaded)
 	{
-	  *error = g_error_new_literal(g_quark_from_string("BLIXEM_CONFIG"), 1,
-				       "No groups found in config file.\n") ;
+          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_GROUPS, "No groups found in config file.\n") ;
 	  result = FALSE ;
 	}
         
@@ -1611,11 +1631,22 @@ ConfigGroup getConfig(char *config_name)
 					       {PFETCH_PROXY_MODE, KEY_TYPE_STRING},
 					       {PFETCH_PROXY_PORT, KEY_TYPE_INT},
 					       {NULL, KEY_TYPE_INVALID}} ;
+  
   static ConfigKeyValueStruct pfetch_socket[] = {{PFETCH_SOCKET_NODE, KEY_TYPE_STRING},
 						 {PFETCH_SOCKET_PORT, KEY_TYPE_INT},
 						 {NULL, KEY_TYPE_INVALID}} ;
+  
+  static ConfigKeyValueStruct db_fetch[] = {{DB_FETCH_DATABASE, KEY_TYPE_STRING},
+                                            {NULL, KEY_TYPE_INVALID}} ;
+
+  static ConfigKeyValueStruct region_fetch[] = {{REGION_FETCH_SCRIPT, KEY_TYPE_STRING},
+                                                {REGION_FETCH_ARGS, KEY_TYPE_STRING},
+                                                {NULL, KEY_TYPE_INVALID}} ;
+  
   static ConfigGroupStruct groups[] = {{PFETCH_PROXY_GROUP, pfetch_http},
 				       {PFETCH_SOCKET_GROUP, pfetch_socket},
+                                       {DB_FETCH_GROUP, db_fetch},
+                                       {REGION_FETCH_GROUP, region_fetch},
 				       {NULL, NULL}} ;
   ConfigGroup tmp ;
 
@@ -1638,30 +1669,23 @@ ConfigGroup getConfig(char *config_name)
 /* Tries to load values for all keyvalues given in ConfigGroup fails if any are missing. */
 static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
 {
-  gboolean result = TRUE ;
-  ConfigKeyValue key_value ;
-
-  key_value = group->key_values ;
+  gboolean result = TRUE;
+  GError *tmpError = NULL;
+  
+  ConfigKeyValue key_value = group->key_values ;
+  
   while (key_value->name && result)
     {
       switch(key_value->type)
 	{
 	case KEY_TYPE_BOOL:
 	  {
-	    gboolean tmp ;
-
-	    if (!(tmp = g_key_file_get_boolean(key_file, group->name, key_value->name, error)))
-	      result = FALSE ;
-
+	    g_key_file_get_boolean(key_file, group->name, key_value->name, &tmpError);
 	    break ;
 	  }
 	case KEY_TYPE_INT:
 	  {
-	    int tmp ;
-
-	    if (!(tmp = g_key_file_get_integer(key_file, group->name, key_value->name, error)))
-	      result = FALSE ;
-
+	    g_key_file_get_integer(key_file, group->name, key_value->name, &tmpError);
 	    break ;
 	  }
 	case KEY_TYPE_DOUBLE:
@@ -1669,12 +1693,9 @@ static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error
 #ifdef ED_G_NEVER_INCLUDE_THIS_CODE
 	    /* We can do this by steam using our own funcs in fact.... */
 
-	    double tmp ;
-
 	    /* Needs 2.12.... */
 
-	    if (!(tmp = g_key_file_get_double(key_file, group->name, key_value->name, &error)))
-	      result = FALSE ;
+	    g_key_file_get_double(key_file, group->name, key_value->name, &tmpError);
 
 #endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
 
@@ -1682,21 +1703,28 @@ static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error
 	  }
 	case KEY_TYPE_STRING:
 	  {
-	    char *tmp ;
-
-	    if (!(tmp = g_key_file_get_string(key_file, group->name, key_value->name, error)))
-	      result = FALSE ;
-
+	    g_key_file_get_string(key_file, group->name, key_value->name, &tmpError);
 	    break ;
 	  }
 	default:
-	  g_error("Bad Copnfig key type") ;
-	  break ;
-	}
+          {
+            g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_KEY_TYPE, "Invalid key type in configuration file.\n") ;
+            break ;
+          }
+        }
 
+      /* If we got an error, record what group we were reading and then quit the loop */
+      if (tmpError)
+        {
+          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_MISSING_KEY, "Group [%s] does not have the required key '%s': ", group->name, key_value->name);
+          g_error_free(tmpError);
+          tmpError = NULL;
+          
+          result = FALSE;
+        }
+      
       key_value++ ;
     }
-
 
   return result ;
 }
@@ -1754,8 +1782,9 @@ static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, con
 }
 
 
-/* Set up the fetch mode. Sets the fetch-mode, and also net_id and port if relevant */
-void setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port)
+/* Set up the fetch modes. Sets required properties for each fetch mode, e.g.
+ * net_id and port for pfetch-socket etc. */
+void setupFetchModes(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port)
 {
   /* Set up the pfetch and www-pfetch config from the file / env vars etc. We need
    * to set them up even if we're not using that mode initially, because the user can 
@@ -1769,7 +1798,7 @@ void setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id,
     }
   else
     {
-      blxFindInitialFetchMode(*fetchMode);
+      blxFindDefaultFetchMode(*fetchMode);
     }
   
 

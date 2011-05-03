@@ -475,7 +475,7 @@ static gboolean blxviewFetchSequences(PfetchParams *pfetch,
 {
   gboolean success = TRUE;
 
-  setupFetchMode(pfetch, fetchMode, net_id, port);
+  setupFetchModes(pfetch, fetchMode, net_id, port);
   
   /* Fetch any sequences that do not have their sequence data already populated (or
    * optional data too, if requested). */
