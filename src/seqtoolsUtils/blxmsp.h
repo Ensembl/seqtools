@@ -82,20 +82,26 @@ typedef enum
   BLXMSP_UTR,                    /* UTR (untranslated) region of an exon */
   BLXMSP_INTRON,                 /* Intron */
   BLXMSP_EXON,			 /* Exon (should appear AFTER CDS and UTR for sorting, as required by constructTranscriptData) */
-  BLXMSP_TRANSCRIPT,		 /* Transcript */
   BLXMSP_POLYA_SITE,		 /* polyA tail site */
   BLXMSP_POLYA_SIGNAL,		 /* polyA signal */
   
   BLXMSP_VARIATION,              /* SNP, substitution, deletion, insertion */
   BLXMSP_SHORT_READ,             /* one fragment of a read-pair */
   
-  BLXMSP_HSP,                    /*  */
-  BLXMSP_GSP,                    /*  */
+  BLXMSP_HSP,                    /* obsolete? */
+  BLXMSP_GSP,                    /* obsolete? */
   
-  BLXMSP_FS_SEG,                 /* Feature Series Segment */
-  BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves */
+  BLXMSP_FS_SEG,                 /* Feature Series Segment - obsolete? */
+  BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves - obsolete? */
+
+  BLXMSP_REGION,                 /* Region */
+
   
-  BLXMSP_NUM_TYPES               /* the number of MSP types. MUST BE LAST IN LIST */
+  
+  BLXMSP_NUM_TYPES,               /* the number of valid MSP types - any types following this may be used
+                                   * e.g. for parsing, but no real MSP will be created from them */
+  
+  BLXMSP_TRANSCRIPT		 /* Transcript */
 } BlxMspType;
 
 

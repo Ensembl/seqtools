@@ -41,6 +41,7 @@
 #include <string.h>
 
 
+
 /* Error codes and domain */
 #define BLX_GFF3_ERROR g_quark_from_string("GFF 3 parser")
 
@@ -53,8 +54,8 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT,        /* invalid CIGAR format */
   BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
   BLX_GFF3_ERROR_UNKNOWN_MODE,                /* unknown blast mode */
-  BLX_GFF3_ERROR_BAD_COLOR                    /* Bad color string found when parsing color */
-} BlxDotterError;
+  BLX_GFF3_ERROR_BAD_COLOR                   /* Bad color string found when parsing color */
+} BlxGff3Error;
 
 
 /* Utility struct to compile GFF fields and attributes into */
@@ -81,6 +82,7 @@ typedef struct _BlxGffData
     char *parentIdTag;	/* Parent ID of the item */
     char *sequence;	/* sequence data */
     char *gapString;	/* the gaps cigar string */
+    GQuark dataType;    /* represents a string that should correspond to a data type in the config file */
   } BlxGffData;
 
 
@@ -150,7 +152,7 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
 
-  addGffType(&supportedTypes, "read_pair", "SO:0000007", BLXMSP_SHORT_READ);
+  addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
 
   return supportedTypes;
 }
@@ -251,10 +253,15 @@ static void createBlixemObject(BlxGffData *gffData,
     
   GError *tmpError = NULL;
 
-  if (gffData->mspType == BLXMSP_TRANSCRIPT)
+  if (gffData->mspType > BLXMSP_NUM_TYPES)
     {
-      /* For transcript types, don't create an MSP, but do create a sequence */
-      addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+      /* "Invalid" MSP types, i.e. don't create a real MSP from these types. */
+      
+      if (gffData->mspType == BLXMSP_TRANSCRIPT)
+        {
+          /* For transcripts, although we don't create an MSP but we do create a sequence */
+          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+        }
     }
   else
     {
@@ -341,7 +348,7 @@ void parseGff3Body(const int lineNum,
   
   /* Parse the data into a temporary struct */
   BlxGffData gffData = {NULL, NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
-			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL};
+			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0};
 		      
   GError *error = NULL;
   parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, &gffData, &error);
@@ -611,6 +618,10 @@ static void parseTagDataPair(char *text,
           g_warning("Cannot unescape string (requires GTK version 2.16 or greater). URL may contain unescaped characters.\n");
           gffData->url = g_strdup(tokens[1]);
 #endif
+        }
+      else if (!strcmp(tokens[0], "dataType"))
+        {
+          gffData->dataType = g_quark_from_string(tokens[1]);
         }
       else
         {
