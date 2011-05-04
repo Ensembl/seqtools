@@ -57,7 +57,7 @@ GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetMainMenu(GtkWidget *blxWindow);
 BlxBlastMode		  blxWindowGetBlastMode(GtkWidget *blxWindow);
-const char*		  blxWindowGetFetchMode(GtkWidget *blxWindow);
+const char*		  blxWindowGetDefaultFetchMode(GtkWidget *blxWindow, const gboolean bulk);
 IntRange*		  blxWindowGetFullRange(GtkWidget *blxWindow);
 IntRange*		  blxWindowGetRefSeqRange(GtkWidget *blxWindow);
 const char*		  blxWindowGetRefSeqName(GtkWidget *blxWindow);

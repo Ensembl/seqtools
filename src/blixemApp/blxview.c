@@ -32,7 +32,7 @@
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
  * Description: Setup and miscellaneous functions for Blixem.
- *              
+ *               
  *              This file is a bit of a mish-mash. It originally contained all
  *              of the graphical stuff for Blixem, but that has been moved to
  *              other files. This file now mostly contains setup functions,
@@ -76,6 +76,8 @@ MSP score codes (for obsolete exblx file format):
 static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
+static GList*          getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
+static GHashTable*     getSeqsToPopulateByMode(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *defaultFetchMode);
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -405,16 +407,16 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList)
 /* This function actually performs the work of fetching the given list of sequences.
  * The first argument is the list of sequences to fetch and the second is the list of all
  * sequences. */
-gboolean fetchSequences(GList *seqsToFetch, 
-                        GList *seqList,
-                        char *fetchMode, 
-                        const BlxSeqType seqType,
-                        const char *net_id, 
-                        int port, 
-                        const gboolean parseOptionalData,
-                        const gboolean parseSequenceData,
-                        const gboolean External,
-                        GError **error)
+static gboolean fetchSequences(GList *seqsToFetch, 
+                               GList *seqList,
+                               const gchar *fetchMode, 
+                               const BlxSeqType seqType,
+                               const char *net_id, 
+                               int port, 
+                               const gboolean parseOptionalData,
+                               const gboolean parseSequenceData,
+                               const gboolean External,
+                               GError **error)
 {
   gboolean success = TRUE;
   
@@ -430,9 +432,21 @@ gboolean fetchSequences(GList *seqsToFetch,
           success = pfetchSequencesHttp(seqsToFetch, seqList, parseOptionalData, parseSequenceData, seqType, error);
 	}
 #endif
-      else
+      else if (strcmp(fetchMode, BLX_FETCH_DB) == 0)
         {
           g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
+        }
+      else if (strcmp(fetchMode, BLX_FETCH_REGION) == 0)
+        {
+          g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
+        }
+      else if (fetchMode)
+        {
+          g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
+        }
+      else
+        {
+          g_set_error(error, BLX_ERROR, 1, "Cannot fetch sequences - fetch mode not specified.\n");
         }
     }
     
@@ -464,37 +478,55 @@ gboolean fetchSequences(GList *seqsToFetch,
 
 /* Find out if we need to fetch any sequences (they may all be contained in the input
  * files), if we do need to, then fetch them by the appropriate method. */
-static gboolean blxviewFetchSequences(PfetchParams *pfetch, 
-                                      gboolean External, 
-                                      const gboolean parseFullEmblInfo,
-                                      const BlxSeqType seqType,
-                                      GList *seqList, /* list of BlxSequence structs for all required sequences */
-                                      char **fetchMode,
-                                      const char **net_id,
-                                      int *port)
+gboolean blxviewFetchSequences(gboolean External, 
+                               const gboolean parseFullEmblInfo,
+                               const gboolean parseSequenceData,
+                               const BlxSeqType seqType,
+                               GList *seqList, /* list of BlxSequence structs for all required sequences */
+                               char *bulkFetchMode,
+                               const char *net_id,
+                               const int port)
 {
-  gboolean success = TRUE;
-
-  setupFetchModes(pfetch, fetchMode, net_id, port);
+  gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
   /* Fetch any sequences that do not have their sequence data already populated (or
    * optional data too, if requested). */
-  GList *seqsToFetch = getSeqsToPopulate(seqList, TRUE, parseFullEmblInfo);
+  GHashTable *seqsTable = getSeqsToPopulateByMode(seqList, TRUE, parseFullEmblInfo, bulkFetchMode);
 
-  GError *error = NULL;
-  success = fetchSequences(seqsToFetch, seqList, *fetchMode, seqType, *net_id, *port, parseFullEmblInfo, TRUE, External, &error);
+  /* Loop through each fetch mode */
+  GHashTableIter iter;
+  g_hash_table_iter_init(&iter, seqsTable);
+  gpointer key, value;
   
-  g_list_free(seqsToFetch);
-  
-  if (error && !success)
+  while (g_hash_table_iter_next(&iter, &key, &value))
     {
-      prefixError(error, "Error fetching sequences. ");
-      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      GQuark dataTypeQuark = GPOINTER_TO_INT(key);
+      const gchar *fetchMode = g_quark_to_string(dataTypeQuark);
+      GList *seqsToFetch = (GList*)value;
+      
+      GError *error = NULL;
+      
+      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, &error))
+        {
+          success = TRUE;
+        }
+      else
+        {
+          prefixError(error, "Error fetching sequences by '%s' mode. ");
+          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+        }
+      
+      /* We're done with this list now, so free the memory. Don't delete it from
+       * the table yet, though, because that will invalidate the iterators. */
+      g_list_free(seqsToFetch);
     }
-  else if (error)
+  
+  /* We're done with the hash table now */
+  g_hash_table_unref(seqsTable);
+  
+  if (!success)
     {
-      prefixError(error, "Warning: ");
-      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+      g_critical("Error fetching sequences.\n");
     }
   
   return success;
@@ -539,7 +571,9 @@ gboolean blxview(CommandLineOptions *options,
   
   const char *net_id = NULL;
   int port = UNSET_INT;
-  gboolean status = blxviewFetchSequences(pfetch, External, options->parseFullEmblInfo, options->seqType, seqList, &options->fetchMode, &net_id, &port);
+  setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
+  
+  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, seqList, options->bulkFetchMode, net_id, port);
   
   if (status)
     {
@@ -1112,8 +1146,10 @@ void blviewResetGlobals()
 
 /* Checks the list of sequences for blixem to display to see which ones need populating with
  * sequence data (if getSequenceData is true) and/or the optional-columns' data (if getOptionalData
- * is true. Returns a list of all the sequences that require the requested data. */
-GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData)
+ * is true. 
+ * Returns a list of all the sequences that require the requested data. If you require a breakdown of
+ * sequences-to-fetch by the fetch-mode that they should use, use getSeqsToPopulateByMode instead. */
+static GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData)
 {
   GList *resultList = NULL;
 
@@ -1144,6 +1180,62 @@ GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const
     }
 
   return resultList;
+}
+
+
+/* Checks the list of sequences for blixem to display to see which ones need populating with
+ * sequence data (if getSequenceData is true) and/or the optional-columns' data (if getOptionalData
+ * is true. 
+ * Returns lists of all the sequences that require the requested data, categorised by the fetch 
+ * mode that should be used to fetch them. The return value is a map of a GQuark (representing the
+ * fetch-mode string) to the GList of sequences. */
+static GHashTable* getSeqsToPopulateByMode(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *defaultFetchMode)
+{
+  GHashTable *resultTable = g_hash_table_new(g_direct_hash, g_direct_equal);
+  
+  /* Loop through the input list */
+  GList *inputItem = inputList;
+  
+  for ( ; inputItem; inputItem = inputItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(inputItem->data);
+      
+      /* Check if sequence data was requested and is not already set. */
+      gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && getSequenceData && blxSeq->sequence == NULL);
+      
+      /* Check if optional data was requested and is not already set. We can assume that
+       * if any of the data fields is set then the parsing has been done for all of them
+       * (and any remaining empty fields just don't have that data available) */
+      getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
+                 getOptionalData && 
+                 !blxSeq->organism &&
+                 !blxSeq->geneName &&
+                 !blxSeq->tissueType &&
+                 !blxSeq->strain);
+      
+      if (getSeq)
+        {
+          GQuark dataTypeQuark = 0;
+          
+          if (blxSeq->dataType && blxSeq->dataType->bulkFetch)
+            dataTypeQuark = g_quark_from_string(blxSeq->dataType->bulkFetch);
+          else if (defaultFetchMode)
+            dataTypeQuark = g_quark_from_string(defaultFetchMode);
+          
+          if (dataTypeQuark)
+            {
+              /* Get the result list for this fetch method. It's ok if it is 
+               * null because the list will be created by g_list_prepend. */
+              GList *resultList = g_hash_table_lookup(resultTable, GINT_TO_POINTER(dataTypeQuark));
+              resultList = g_list_prepend(resultList, blxSeq);
+              
+              /* Update the existing (or insert the new) list */
+              g_hash_table_insert(resultTable, GINT_TO_POINTER(dataTypeQuark), resultList);
+            }
+        }
+    }
+  
+  return resultTable;
 }
 
 

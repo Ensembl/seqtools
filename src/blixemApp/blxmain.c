@@ -236,7 +236,7 @@ To make the datafile from blast output, run MSPcrunch with option -q.\n\
 
 
 /* set default values for command lines options */
-static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode, char *refSeqName)
+static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName)
 {
   options->refSeq = NULL;
   options->refSeqName = refSeqName;
@@ -264,6 +264,8 @@ static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode,
   options->mapCoords = FALSE;
   options->mapCoordsFrom = UNSET_INT;
   options->mapCoordsTo = 1; /* default to 1-based coordinate system if mapping coords but no 'to' value is specified */
+  options->bulkFetchMode = NULL;
+  options->userFetchMode = NULL;
 
   options->msgData.titlePrefix = g_strdup("Blixem - ");
   options->msgData.parent = NULL;
@@ -501,11 +503,10 @@ int main(int argc, char **argv)
   char *key_file = NULL ;           /* optional keyword file for passing style information */
   GError *error = NULL ;
  
-  char fetchMode[32] = BLX_FETCH_EFETCH;
   char refSeqName[FULLNAMESIZE+1] = "";
 
   static CommandLineOptions options;
-  initCommandLineOptions(&options, fetchMode, refSeqName);
+  initCommandLineOptions(&options, refSeqName);
  
   /* Set up the GLib message handlers
    * 

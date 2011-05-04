@@ -55,6 +55,11 @@
 #define XY_NOT_FILLED -1000        /* Magic value meaning "value not provided" */
 
 
+/* Value names for data-type group entries in the config file */
+#define SEQTOOLS_BULK_FETCH          "bulk-fetch"
+#define SEQTOOLS_USER_FETCH          "user-fetch"
+
+
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
 
@@ -127,11 +132,21 @@ typedef enum
   } BlxModelId;
 
 
+/* Defines a data type for sequences. The data type contains properties applicable
+ * to multiple sequences, e.g. which fetch method to use. */
+typedef struct _BlxDataType
+  {
+    char *name;                   /* the name of the data-type */
+    char *bulkFetch;              /* fetch method to use when bulk fetching sequences */
+    char *userFetch;              /* fetch method to use when fetching individual sequences */
+  } BlxDataType;
+
 
 /* Structure that contains information about a sequence */
 typedef struct _BlxSequence
 {
   BlxSequenceType type;            /* What type of collection of MSPs this is */
+  BlxDataType *dataType;           /* Optional data type that specifies additional properties for this type of sequence data */
 
   char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
   
@@ -174,14 +189,6 @@ typedef enum
 } BlxCurveShape;
 
 
-/* Defines a data type for MSPs. The data type contains properties applicable
- * to multiple msps, e.g. which fetch method to use. */
-typedef struct _BlxDataType
-{
-  char *fetchMode;
-} BlxDataType;
-
-  
 /* Structure holding information about a feature (see note at the top of this
  * file about the naming of this struct). */
 typedef struct _MSP

@@ -1151,6 +1151,7 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   BlxSequence *seq = g_malloc(sizeof(BlxSequence));
   
   seq->type = BLXSEQUENCE_UNSET;
+  seq->dataType = NULL;
   seq->idTag = idTag ? g_strdup(idTag) : NULL;
   
   seq->fullName = NULL;

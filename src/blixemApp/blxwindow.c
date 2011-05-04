@@ -2778,12 +2778,9 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   /* Load the optional data. (Note that we don't need to re-fetch sequence data.) */
   const gboolean getSequenceData = FALSE;
   const gboolean getOptionalData = TRUE;
-  GList *seqsToFetch = getSeqsToPopulate(bc->matchSeqs, getSequenceData, getOptionalData);
 
   GError *error = NULL;
-  gboolean success = fetchSequences(seqsToFetch, bc->matchSeqs, bc->fetchMode, bc->seqType, bc->net_id, bc->port, TRUE, FALSE, bc->external, &error);
-  
-  g_list_free(seqsToFetch);
+  gboolean success = blxviewFetchSequences(bc->external, getOptionalData, getSequenceData, bc->seqType, bc->matchSeqs, bc->bulkFetchMode, bc->net_id, bc->port);
   
   if (error)
     {
@@ -4663,10 +4660,16 @@ static void destroyBlxContext(BlxViewContext **bc)
       
       blxContextDeleteAllSequenceGroups(*bc);
       
-      if ((*bc)->fetchMode)
+      if ((*bc)->bulkFetchMode)
 	{
-	  g_free((*bc)->fetchMode);
-	  (*bc)->fetchMode = NULL;
+	  g_free((*bc)->bulkFetchMode);
+	  (*bc)->bulkFetchMode = NULL;
+	}
+
+      if ((*bc)->userFetchMode)
+	{
+	  g_free((*bc)->userFetchMode);
+	  (*bc)->userFetchMode = NULL;
 	}
       
       if ((*bc)->defaultColors)
@@ -4910,7 +4913,8 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->seqType = options->seqType;
   blxContext->numFrames = options->numFrames;
   blxContext->paddingSeq = paddingSeq;
-  blxContext->fetchMode = g_strdup(options->fetchMode);
+  blxContext->bulkFetchMode = g_strdup(options->bulkFetchMode);
+  blxContext->userFetchMode = g_strdup(options->userFetchMode);
   blxContext->matchSeqs = seqList;
   blxContext->supportedTypes = supportedTypes;
   
@@ -5031,10 +5035,18 @@ BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
   return blxContext ? blxContext->blastMode : FALSE;
 }
 
-const char* blxWindowGetFetchMode(GtkWidget *blxWindow)
+const char* blxWindowGetDefaultFetchMode(GtkWidget *blxWindow, const gboolean bulk)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->fetchMode : FALSE;
+  
+  char *result = NULL;
+  
+  if (blxContext)
+    {
+      result = bulk ? blxContext->bulkFetchMode : blxContext->userFetchMode;
+    }
+  
+  return result;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)

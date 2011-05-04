@@ -239,7 +239,9 @@ static BlxDataType* createBlxDataType()
 {
   BlxDataType *result = g_malloc(sizeof *result);
   
-  result->fetchMode = NULL;
+  result->name = NULL;
+  result->bulkFetch = NULL;
+  result->userFetch = NULL;
   
   return result;
 }
@@ -249,9 +251,15 @@ static void destroyBlxDataType(BlxDataType **blxDataType)
   if (!blxDataType)
     return;
   
-  if ((*blxDataType) && (*blxDataType)->fetchMode)
-    g_free((*blxDataType)->fetchMode);
-  
+  if ((*blxDataType) && (*blxDataType)->name)
+    g_free((*blxDataType)->name);
+
+  if ((*blxDataType) && (*blxDataType)->bulkFetch)
+    g_free((*blxDataType)->bulkFetch);
+
+  if ((*blxDataType) && (*blxDataType)->userFetch)
+    g_free((*blxDataType)->userFetch);
+
    g_free((*blxDataType));
    *blxDataType = NULL;
 }
@@ -303,7 +311,11 @@ BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
           result = createBlxDataType();
           GError *tmpError = NULL;
 
-          result->fetchMode = g_key_file_get_string(keyFile, typeName, "fetch-mode", &tmpError);
+          result->name = g_strdup(typeName);
+          result->bulkFetch = g_key_file_get_string(keyFile, typeName, SEQTOOLS_BULK_FETCH, &tmpError);
+          
+          if (!tmpError)
+            result->userFetch = g_key_file_get_string(keyFile, typeName, SEQTOOLS_USER_FETCH, &tmpError);
           
           if (!tmpError)
             {
@@ -417,7 +429,7 @@ static void createBlixemObject(BlxGffData *gffData,
 
 	  /* populate the gaps array */
 	  parseGapString(gffData->gapString, msp, resFactor, &tmpError);
-	}    
+	}
     }
     
   if (tmpError)

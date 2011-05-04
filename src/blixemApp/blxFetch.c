@@ -230,7 +230,7 @@ static gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **e
 ConfigGroup getConfig(char *config_name) ;
 static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
-static char *blxConfigGetDefaultFetchMode(void);
+static char *blxConfigGetDefaultFetchMode(const gboolean bulk);
 static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
 
 /* Pfetch local functions */
@@ -376,7 +376,8 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
 void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
 {
-  const char *fetchMode = blxWindowGetFetchMode(blxWindow);
+  const char *fetchMode = blxWindowGetDefaultFetchMode(blxWindow, FALSE);
+  
   GError *error = NULL;
   
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
@@ -438,13 +439,9 @@ static void blxFindDefaultFetchMode(char *fetchMode)
     {
       strcpy(fetchMode, BLX_FETCH_REGION);
     }
-  else if ((tmp_mode = blxConfigGetDefaultFetchMode()))
+  else if ((tmp_mode = blxConfigGetDefaultFetchMode(TRUE)))
     {
       strcpy(fetchMode, tmp_mode) ;
-    }
-  else
-    {
-      strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
     }
 }
 
@@ -967,7 +964,7 @@ GKeyFile *blxGetConfig(void)
 //}
 
 
-static char *blxConfigGetDefaultFetchMode(void)
+static char *blxConfigGetDefaultFetchMode(const gboolean bulk)
 {
   char *fetch_mode = NULL ;
   GKeyFile *key_file ;
@@ -976,8 +973,21 @@ static char *blxConfigGetDefaultFetchMode(void)
   key_file = blxGetConfig() ;
   g_assert(key_file) ;
 
-  fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, &error) ;
-
+  if (bulk)
+    {
+      fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_BULK_FETCH, &error) ;
+      
+      if (error)
+        {
+          /* For backwards compatibility with old config files, try the old key name... */
+          fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, BLIXEM_OLD_BULK_FETCH, NULL) ;
+        }
+    }
+  else
+    {
+      fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_USER_FETCH, &error) ;
+    }
+  
   return fetch_mode ;
 }
 
@@ -1781,31 +1791,40 @@ static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, con
 
 /* Set up the fetch modes. Sets required properties for each fetch mode, e.g.
  * net_id and port for pfetch-socket etc. */
-void setupFetchModes(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port)
+void setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, const char **net_id, int *port)
 {
+  *bulkFetchMode = g_malloc(32 * sizeof(char));
+  *userFetchMode = g_malloc(32 * sizeof(char));
+  
   /* Set up the pfetch and www-pfetch config from the file / env vars etc. We need
    * to set them up even if we're not using that mode initially, because the user can 
    * change the mode */
   blxConfigGetPFetchWWWPrefs();
       
-  /* Set the fetch mode */
+  /* Set the fetch mode for bulk fetch. */
   if (pfetch && blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
     {
-      *fetchMode = BLX_FETCH_PFETCH;
+      *bulkFetchMode = BLX_FETCH_PFETCH;
     }
   else
     {
-      blxFindDefaultFetchMode(*fetchMode);
+      blxFindDefaultFetchMode(*bulkFetchMode);
     }
-  
 
   /* For pfetch mode, find the net_id and port */
-  setupPfetchMode(pfetch, *fetchMode, net_id, port, NULL);
+  setupPfetchMode(pfetch, *bulkFetchMode, net_id, port, NULL);
+
+  /* Get the user fetch mode. This is only supplied via the config file and is
+   * optional - if it is not set, use the same as the bulk fetch mode. */
+  *userFetchMode = blxConfigGetDefaultFetchMode(FALSE);
+
+  if (*userFetchMode[0] == 0)
+    strcpy(*userFetchMode, *bulkFetchMode) ;
 }
 
 
-/* Callback called when the sort order has been changed in the drop-down box */
-static gboolean onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
+/* Callback called when the user has changed the fetch mode */
+static gboolean onUserFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   BlxViewContext *bc = (BlxViewContext*)data;
   GtkComboBox *combo = GTK_COMBO_BOX(widget);
@@ -1819,18 +1838,18 @@ static gboolean onFetchModeChanged(GtkWidget *widget, const gint responseId, gpo
       GValue val = {0};
       gtk_tree_model_get_value(model, &iter, 0, &val);
       
-      const char *fetchMode = g_value_get_string(&val);
+      const char *userFetchMode = g_value_get_string(&val);
       
-      g_free(bc->fetchMode);
-      bc->fetchMode = g_strdup(fetchMode);
+      g_free(bc->userFetchMode);
+      bc->userFetchMode = g_strdup(userFetchMode);
     }
     
   return TRUE;
 }
 
 
-/* Add an item to the pfetch drop-down list */
-static void addPfetchItem(GtkTreeStore *store, GtkTreeIter *parent, const char *itemName, const char *currentFetchMode, GtkComboBox *combo)
+/* Add an item to the drop-down list for selecting a user fetch mode */
+static void addUserFetchItem(GtkTreeStore *store, GtkTreeIter *parent, const char *itemName, const char *currentFetchMode, GtkComboBox *combo)
 {
   GtkTreeIter iter;
   gtk_tree_store_append(store, &iter, parent);
@@ -1867,17 +1886,17 @@ void createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow)
   
   /* Set the callback function */
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  widgetSetCallbackData(GTK_WIDGET(combo), onFetchModeChanged, bc);
+  widgetSetCallbackData(GTK_WIDGET(combo), onUserFetchModeChanged, bc);
   
   /* Add the list items */
-  addPfetchItem(store, NULL, BLX_FETCH_PFETCH, bc->fetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_PFETCH, bc->userFetchMode, combo);
   
 #ifdef PFETCH_HTML
-  addPfetchItem(store, NULL, BLX_FETCH_PFETCH_HTML, bc->fetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_PFETCH_HTML, bc->userFetchMode, combo);
 #endif
   
-  addPfetchItem(store, NULL, BLX_FETCH_EFETCH, bc->fetchMode, combo);
-  addPfetchItem(store, NULL, BLX_FETCH_WWW_EFETCH, bc->fetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_EFETCH, bc->userFetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_WWW_EFETCH, bc->userFetchMode, combo);
 }
 
 
