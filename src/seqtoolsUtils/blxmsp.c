@@ -1172,6 +1172,33 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
 }
 
 
+
+BlxDataType* createBlxDataType()
+{
+  BlxDataType *result = g_malloc(sizeof *result);
+  
+  result->name = NULL;
+  result->bulkFetch = NULL;
+  
+  return result;
+}
+
+void destroyBlxDataType(BlxDataType **blxDataType)
+{
+  if (!blxDataType)
+    return;
+  
+  if ((*blxDataType) && (*blxDataType)->name)
+    g_free((*blxDataType)->name);
+  
+  if ((*blxDataType) && (*blxDataType)->bulkFetch)
+    g_free((*blxDataType)->bulkFetch);
+  
+  g_free((*blxDataType));
+  *blxDataType = NULL;
+}
+
+
 /* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
  * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
  * the BlxMspType enum. */

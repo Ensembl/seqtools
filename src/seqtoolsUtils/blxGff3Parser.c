@@ -235,36 +235,6 @@ void parseGff3Header(const int lineNum,
 }
 
 
-static BlxDataType* createBlxDataType()
-{
-  BlxDataType *result = g_malloc(sizeof *result);
-  
-  result->name = NULL;
-  result->bulkFetch = NULL;
-  result->userFetch = NULL;
-  
-  return result;
-}
-
-static void destroyBlxDataType(BlxDataType **blxDataType)
-{
-  if (!blxDataType)
-    return;
-  
-  if ((*blxDataType) && (*blxDataType)->name)
-    g_free((*blxDataType)->name);
-
-  if ((*blxDataType) && (*blxDataType)->bulkFetch)
-    g_free((*blxDataType)->bulkFetch);
-
-  if ((*blxDataType) && (*blxDataType)->userFetch)
-    g_free((*blxDataType)->userFetch);
-
-   g_free((*blxDataType));
-   *blxDataType = NULL;
-}
-
-
 /* Get the BlxDataType with the given name. Returns null and sets the error if 
  * we expected to find the name but didn't. */
 BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
@@ -313,9 +283,6 @@ BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
 
           result->name = g_strdup(typeName);
           result->bulkFetch = g_key_file_get_string(keyFile, typeName, SEQTOOLS_BULK_FETCH, &tmpError);
-          
-          if (!tmpError)
-            result->userFetch = g_key_file_get_string(keyFile, typeName, SEQTOOLS_USER_FETCH, &tmpError);
           
           if (!tmpError)
             {

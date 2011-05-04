@@ -138,7 +138,6 @@ typedef struct _BlxDataType
   {
     char *name;                   /* the name of the data-type */
     char *bulkFetch;              /* fetch method to use when bulk fetching sequences */
-    char *userFetch;              /* fetch method to use when fetching individual sequences */
   } BlxDataType;
 
 
@@ -335,6 +334,8 @@ gint		      fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 /* BlxSequence */
 char*		      blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
 BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
+BlxDataType*          createBlxDataType();
+void                  destroyBlxDataType(BlxDataType **blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
 BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
 void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
