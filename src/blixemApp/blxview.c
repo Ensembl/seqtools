@@ -404,6 +404,17 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList)
 }
 
 
+/* Fetch sequences for a given region. This uses the config file to find the
+ * script and arguments to call to fetch the sequences.
+ * The input GList contains a list of BlxSequences that are parent objects for
+ * MSPs that identify regions. For each region, the script is called to fetch
+ * all sequences that lie within that region, and the results are placed in 
+ * a GFF file, which is then parsed to get the results. */
+static void regionFetchSequences(GList *regionsToFetch, const char *fetchMode, GError **error)
+{
+}
+
+
 /* This function actually performs the work of fetching the given list of sequences.
  * The first argument is the list of sequences to fetch and the second is the list of all
  * sequences. */
@@ -438,7 +449,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
         }
       else if (strcmp(fetchMode, BLX_FETCH_REGION) == 0)
         {
-          g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
+          regionFetchSequences(seqsToFetch, fetchMode, error);
         }
       else if (fetchMode)
         {

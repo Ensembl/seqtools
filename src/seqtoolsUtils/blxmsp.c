@@ -442,6 +442,12 @@ const char* mspGetMatchSeq(const MSP const *msp)
   return blxSequenceGetSeq(msp->sSequence);
 }
 
+/* Get the source of the MSP */
+const char* mspGetSource(const MSP const *msp)
+{
+  return blxSequenceGetSource(msp->sSequence);
+}
+
 
 /* Return the color matching the given properties from the given style */
 static const GdkColor *styleGetColor(const BlxStyle *style, const gboolean selected, const gboolean usePrintColors, const gboolean fill, const gboolean utr)
@@ -890,11 +896,8 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
 {
   const char *result = NULL;
   
-  if (seq && seq->mspList && g_list_length(seq->mspList) > 0 && seq->mspList->data)
-    {
-      const MSP const *msp = (const MSP const*)(seq->mspList->data);
-      result = msp->source;
-    }
+  if (seq)
+    result = seq->source;
   
   return result;
 }
@@ -1101,17 +1104,18 @@ void destroyBlxSequence(BlxSequence *seq)
 {
   if (seq)
     {
-    g_free(seq->fullName);
-    g_free(seq->variantName);
-    g_free(seq->shortName);
-    
-    if (seq->sequence)      g_string_free(seq->sequence, TRUE);
-    if (seq->organism)      g_string_free(seq->organism, TRUE);
-    if (seq->geneName)      g_string_free(seq->geneName, TRUE);
-    if (seq->tissueType)    g_string_free(seq->tissueType, TRUE);
-    if (seq->strain)        g_string_free(seq->strain, TRUE);
-    
-    g_free(seq);
+      g_free(seq->fullName);
+      g_free(seq->variantName);
+      g_free(seq->shortName);
+      
+      if (seq->source)        g_free(seq->source);
+      if (seq->sequence)      g_string_free(seq->sequence, TRUE);
+      if (seq->organism)      g_string_free(seq->organism, TRUE);
+      if (seq->geneName)      g_string_free(seq->geneName, TRUE);
+      if (seq->tissueType)    g_string_free(seq->tissueType, TRUE);
+      if (seq->strain)        g_string_free(seq->strain, TRUE);
+      
+      g_free(seq);
     }
 }
 
@@ -1153,6 +1157,7 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   seq->type = BLXSEQUENCE_UNSET;
   seq->dataType = NULL;
   seq->idTag = idTag ? g_strdup(idTag) : NULL;
+  seq->source = NULL;
   
   seq->fullName = NULL;
   seq->variantName = NULL;
@@ -1282,6 +1287,7 @@ BlxSequence* addBlxSequence(const char *name,
 			    BlxStrand strand,
 			    const BlxMspType mspType,
 			    BlxDataType *dataType,
+                            const char *source,
 			    GArray* featureLists[],
 			    GList **seqList, 
 			    char *sequence, 
@@ -1311,14 +1317,19 @@ BlxSequence* addBlxSequence(const char *name,
           *seqList = g_list_prepend(*seqList, blxSeq);
           blxSeq->strand = strand;
           blxSeq->dataType = dataType;
+          blxSeq->source = g_strdup(source);
         }
-      else if (dataType && !blxSeq->dataType)
+      else
         {
-          blxSeq->dataType = dataType;
-        }
-      else if (dataType && blxSeq->dataType != dataType)
-        {
-          g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, blxSeq->dataType->name, dataType->name);
+          if (dataType && !blxSeq->dataType)
+            blxSeq->dataType = dataType;
+          else if (dataType && blxSeq->dataType != dataType)
+            g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, blxSeq->dataType->name, dataType->name);
+          
+          if (source && !blxSeq->source)
+            blxSeq->source = g_strdup(source);
+          else if (source && !stringsEqual(blxSeq->source, source, FALSE))
+            g_warning("Duplicate sequences have different sources [name=%s, ID=%s, strand=%d, orig source=%s, new source=%s].\n", name, idTag, strand, blxSeq->source, source);
         }
       
       if (seqName && !blxSeq->fullName)
@@ -1640,7 +1651,6 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->fullSRange.max = 0;
   
   msp->desc = NULL;
-  msp->source = NULL;
   
   msp->style = NULL;
   
@@ -1673,7 +1683,6 @@ void destroyMspData(MSP *msp)
   freeStringPointer(&msp->qname);
   freeStringPointer(&msp->sname);
   freeStringPointer(&msp->desc);
-  freeStringPointer(&msp->source);
   freeStringPointer(&msp->url);
   
   if (msp->gaps)
@@ -1727,7 +1736,6 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->score = score; 
   msp->id = percentId; 
   msp->phase = phase;
-  msp->source = g_strdup(source);
   msp->url = g_strdup(url);
   
   msp->qname = qName ? g_strdup(qName) : NULL;
@@ -1753,7 +1761,7 @@ MSP* createNewMsp(GArray* featureLists[],
       typeIsMatch(mspType) || typeIsShortRead(mspType) || 
       typeIsVariation(mspType))
     {
-      addBlxSequence(msp->sname, idTag, sStrand, msp->type, dataType, featureLists, seqList, sequence, msp, error);
+      addBlxSequence(msp->sname, idTag, sStrand, msp->type, dataType, source, featureLists, seqList, sequence, msp, error);
     }
 
   /* Add it to the relevant feature list. */
@@ -1896,7 +1904,7 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, NULL,
+      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, blxSeq->source,
                                   UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
                                   qname, newStart, newEnd, blxSeq->strand, newFrame, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
@@ -1994,7 +2002,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
               
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, curExon->source, 
+                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, blxSeq->source, 
                                curExon->score, curExon->id, 0, g_strdup(curExon->url), blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);

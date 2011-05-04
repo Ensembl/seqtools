@@ -335,13 +335,7 @@ static void createBlixemObject(BlxGffData *gffData,
       if (gffData->mspType == BLXMSP_TRANSCRIPT)
         {
           /* For transcripts, although we don't create an MSP we do create a sequence */
-          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, dataType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
-        }
-      else if (gffData->mspType == BLXMSP_REGION)
-        {
-          /* Also for regions, we create a sequence but not an MSP. Pass the source as the name because
-           * regions don't have a target name or ID. */
-          addBlxSequence(NULL, gffData->source, gffData->qStrand, gffData->mspType, dataType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, dataType, gffData->source, featureLists, seqList, gffData->sequence, NULL, &tmpError);
         }
     }
   else

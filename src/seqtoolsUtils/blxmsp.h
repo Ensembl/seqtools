@@ -99,12 +99,14 @@ typedef enum
   BLXMSP_FS_SEG,                 /* Feature Series Segment - obsolete? */
   BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves - obsolete? */
 
+  BLXMSP_REGION,                 /* Region */
+
+  
   
   BLXMSP_NUM_TYPES,               /* the number of valid MSP types - any types following this may be used
                                    * e.g. for parsing, but no real MSP will be created from them */
   
-  BLXMSP_TRANSCRIPT,             /* Transcript */
-  BLXMSP_REGION                 /* Region */
+  BLXMSP_TRANSCRIPT		 /* Transcript */
 } BlxMspType;
 
 
@@ -146,7 +148,8 @@ typedef struct _BlxSequence
   BlxDataType *dataType;           /* Optional data type that specifies additional properties for this type of sequence data */
 
   char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
-  
+  char *source;                    /* Optional source text for the sequence */
+
   char *fullName;                  /* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
   char *shortName;                 /* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
   char *variantName;               /* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
@@ -219,7 +222,6 @@ typedef struct _MSP
   IntRange	    fullSRange;	   /* the full range of coords on the match sequence that we're showing (including any unaligned portions of sequence) */
   
   char              *desc;         /* Optional description text for the MSP */
-  char              *source;       /* Optional source text for the MSP */
   GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer because the array
                                     * gives the ranges of the bits that align rather than the ranges of the gaps in between */
   
@@ -247,6 +249,7 @@ int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
 const char*           mspGetMatchSeq(const MSP const *msp);
+const char*           mspGetSource(const MSP const *msp);
 const char*	      mspGetSName(const MSP *msp);
 const IntRange const* mspGetRefCoords(const MSP const *msp);
 const IntRange const* mspGetMatchCoords(const MSP const *msp);
@@ -332,7 +335,7 @@ BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *i
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, BlxDataType *dataType, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, BlxDataType *dataType, const char *source, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
 void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*	      blxSequenceGetFullName(const BlxSequence *seq);
 const char*	      blxSequenceGetVariantName(const BlxSequence *seq);
