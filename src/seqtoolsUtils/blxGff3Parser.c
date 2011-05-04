@@ -341,6 +341,14 @@ static void createBlixemObject(BlxGffData *gffData,
   else
     {
       /* For all other types, create an MSP */
+      
+      /* Regions don't necessarily have a name or ID, but they should have a
+       * source, so use that as the name */
+      if (gffData->mspType == BLXMSP_REGION && !gffData->sName)
+        {
+          gffData->sName = gffData->source;
+        }
+      
       if (!gffData->sName && !gffData->parentIdTag && 
 	  (gffData->mspType == BLXMSP_TRANSCRIPT || typeIsExon(gffData->mspType) || 
 	   typeIsMatch(gffData->mspType) || typeIsShortRead(gffData->mspType)))

@@ -88,6 +88,11 @@ gboolean typeIsShortRead(const BlxMspType mspType)
   return (mspType == BLXMSP_SHORT_READ);
 }
 
+gboolean typeIsRegion(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_REGION);
+}
+
 /* This returns true if the given type should be shown in the detail-view */
 gboolean typeShownInDetailView(const BlxMspType mspType)
 {
@@ -950,11 +955,15 @@ char *blxSequenceGetSeq(const BlxSequence *seq)
   return (seq && seq->sequence ? seq->sequence->str : NULL);
 }
 
+/* This returns true if the given sequence object requires sequence data
+ * (i.e. the actual dna or peptide sequence string) */
 gboolean blxSequenceRequiresSeqData(const BlxSequence *seq)
 {
-  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION || seq->type == BLXSEQUENCE_READ_PAIR));
+  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION || seq->type == BLXSEQUENCE_READ_PAIR || seq->type == BLXSEQUENCE_REGION));
 }
 
+/* This returns true if the given sequence object requires optional data such
+ * as organism and tissue-type, if this data is available. */
 gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
 {
   return (seq && seq->type == BLXSEQUENCE_MATCH);
@@ -1271,6 +1280,10 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
   else if (typeIsShortRead(mspType))
     {
       result = BLXSEQUENCE_READ_PAIR;
+    }
+  else if (mspType == BLXMSP_REGION)
+    {
+      result = BLXSEQUENCE_REGION;
     }
 
   return result;
@@ -1759,7 +1772,7 @@ MSP* createNewMsp(GArray* featureLists[],
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (typeIsExon(mspType) || typeIsIntron(mspType) || 
       typeIsMatch(mspType) || typeIsShortRead(mspType) || 
-      typeIsVariation(mspType))
+      typeIsVariation(mspType) || typeIsRegion(mspType))
     {
       addBlxSequence(msp->sname, idTag, sStrand, msp->type, dataType, source, featureLists, seqList, sequence, msp, error);
     }

@@ -76,7 +76,7 @@ MSP score codes (for obsolete exblx file format):
 static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
-static GList*          getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
+static GList*          getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *fetchMode);
 static GHashTable*     getSeqsToPopulateByMode(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *defaultFetchMode);
 
 
@@ -300,7 +300,7 @@ static gboolean pfetchSequences(GList *seqsToFetch,
            * fasta sequence. */
           if (success && parseSequenceData)
             {
-              GList *remainingSeqs = getSeqsToPopulate(seqList, TRUE, FALSE);
+              GList *remainingSeqs = getSeqsToPopulate(seqList, TRUE, FALSE, BLX_FETCH_PFETCH);
               
               if (g_list_length(remainingSeqs) > 0)
                 {
@@ -346,7 +346,7 @@ static gboolean pfetchSequencesHttp(GList *seqsToFetch,
        * fasta sequence. */
       if (success && parseSequenceData)
         {
-          GList *remainingSeqs = getSeqsToPopulate(seqList, TRUE, FALSE);
+          GList *remainingSeqs = getSeqsToPopulate(seqList, TRUE, FALSE, BLX_FETCH_PFETCH_HTML);
           
           if (g_list_length(remainingSeqs) > 0)
             {
@@ -516,6 +516,8 @@ gboolean blxviewFetchSequences(gboolean External,
       GList *seqsToFetch = (GList*)value;
       
       GError *error = NULL;
+      
+      DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
       
       if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, &error))
         {
@@ -1161,10 +1163,10 @@ void blviewResetGlobals()
 
 /* Checks the list of sequences for blixem to display to see which ones need populating with
  * sequence data (if getSequenceData is true) and/or the optional-columns' data (if getOptionalData
- * is true. 
+ * is true. Only returns sequences that use the given fetch mode.
  * Returns a list of all the sequences that require the requested data. If you require a breakdown of
  * sequences-to-fetch by the fetch-mode that they should use, use getSeqsToPopulateByMode instead. */
-static GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData)
+static GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *fetchMode)
 {
   GList *resultList = NULL;
 
@@ -1188,7 +1190,7 @@ static GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData
                      !blxSeq->tissueType &&
                      !blxSeq->strain);
           
-      if (getSeq)
+      if (getSeq && (!blxSeq->dataType || stringsEqual(blxSeq->dataType->bulkFetch, fetchMode, FALSE)))
         {
           resultList = g_list_prepend(resultList, blxSeq);
         }

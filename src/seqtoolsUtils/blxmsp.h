@@ -117,7 +117,8 @@ typedef enum
     BLXSEQUENCE_TRANSCRIPT,         /* transcript (i.e. collection of exons and introns) */
     BLXSEQUENCE_MATCH,              /* match sequence (i.e. collection of matches) */
     BLXSEQUENCE_VARIATION,          /* variation (i.e. insertion, deletion or substitution) */
-    BLXSEQUENCE_READ_PAIR           /* read pair */
+    BLXSEQUENCE_READ_PAIR,          /* read pair */
+    BLXSEQUENCE_REGION              /* region */
   } BlxSequenceType;
 
 
@@ -241,6 +242,7 @@ gboolean              typeIsIntron(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
 gboolean              typeIsShortRead(const BlxMspType mspType);
+gboolean              typeIsRegion(const BlxMspType mspType);
 gboolean              typeShownInDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
 gboolean	      blxSequenceShownInGrid(const BlxSequence *blxSeq);
