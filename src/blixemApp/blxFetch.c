@@ -1640,7 +1640,6 @@ ConfigGroup getConfig(char *config_name)
                                             {NULL, KEY_TYPE_INVALID}} ;
 
   static ConfigKeyValueStruct region_fetch[] = {{REGION_FETCH_SCRIPT, KEY_TYPE_STRING},
-                                                {REGION_FETCH_ARGS, KEY_TYPE_STRING},
                                                 {NULL, KEY_TYPE_INVALID}} ;
   
   static ConfigGroupStruct groups[] = {{PFETCH_PROXY_GROUP, pfetch_http},

@@ -235,6 +235,103 @@ void parseGff3Header(const int lineNum,
 }
 
 
+static BlxDataType* createBlxDataType()
+{
+  BlxDataType *result = g_malloc(sizeof *result);
+  
+  result->fetchMode = NULL;
+  result->bulkFetchMode = NULL;
+  
+  return result;
+}
+
+static void destroyBlxDataType(BlxDataType **blxDataType)
+{
+  if (!blxDataType)
+    return;
+  
+  if ((*blxDataType) && (*blxDataType)->fetchMode)
+    g_free((*blxDataType)->fetchMode);
+  
+  if ((*blxDataType) && (*blxDataType)->bulkFetchMode)
+    g_free((*blxDataType)->bulkFetchMode);
+  
+   g_free((*blxDataType));
+   *blxDataType = NULL;
+}
+
+
+/* Get the BlxDataType with the given name. Returns null and sets the error if 
+ * we expected to find the name but didn't. */
+BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
+{
+  /* A keyfile might not be supplied if the calling program is not interested
+   * in the data-type data (i.e. the data-type data is currently only used to
+   * supply fetch methods, which are not used by Dotter). */
+  if (!keyFile)
+    return NULL;
+  
+  BlxDataType *result = NULL;
+  static GHashTable *seenTypes = NULL;
+  static GHashTable *dataTypes = NULL;
+
+  if (!seenTypes)
+    seenTypes = g_hash_table_new(g_int_hash, g_int_equal);
+
+  if (!dataTypes)
+    dataTypes = g_hash_table_new(g_int_hash, g_int_equal);
+
+  if (dataType)
+    {
+      /* See if we've looked for this data type before. If not, record now that
+       * we've seen it. */
+      gboolean seen = FALSE;
+      if (g_hash_table_lookup(seenTypes, &dataType))
+        seen = TRUE;
+      else
+        g_hash_table_insert(seenTypes, &dataType, &dataType);
+
+      if (seen)
+        {
+          /* If we've seen it before, then the datatype struct should already exist
+           * in dataTypes or, if not, we will have already reported the error, so do not
+           * report it again. */
+          result = (BlxDataType *)g_hash_table_lookup(dataTypes, &dataType);
+        }
+      else
+        {
+          /* We haven't requested this datatype before; look it up in the config file
+           * and if we find it then create a new BlxDataType struct for it. */
+          const gchar *typeName = g_quark_to_string(dataType);
+
+          result = createBlxDataType();
+          GError *tmpError = NULL;
+
+          result->fetchMode = g_key_file_get_string(keyFile, typeName, "fetch", &tmpError);
+          
+          if (!tmpError)
+            result->bulkFetchMode = g_key_file_get_string(keyFile, typeName, "bulk-fetch", &tmpError);
+          
+          if (!tmpError)
+            {
+              /* Insert it into the table of data types */
+              g_hash_table_insert(dataTypes, &dataType, result);
+            }
+          else
+            {
+              /* There was a problem parsing this data-type, so return NULL */
+              destroyBlxDataType(&result);
+              prefixError(tmpError, "Error parsing data type [%s]: ", typeName);
+              postfixError(tmpError, "\n");
+              g_propagate_error(error, tmpError);
+            }
+        }
+    }
+  
+  return result;
+}
+
+
 /* Create a blixem object from the given parsed GFF data. Creates an MSP if the type is
  * exon or match, or a BlxSequence if the type is transcript. Does nothing for other types. */
 static void createBlixemObject(BlxGffData *gffData, 
@@ -244,6 +341,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			       GList **seqList, 
 			       GSList *styles,
                                const int resFactor,
+                               GKeyFile *keyFile,
 			       GError **error)
 {
   if (!gffData)
@@ -309,9 +407,13 @@ static void createBlixemObject(BlxGffData *gffData,
 
     if (!tmpError)
 	{ 
+          /* Get the data type struct */
+          msp->dataType = getBlxDataType(gffData->dataType, keyFile, &tmpError);
+          reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+          
 	  /* Get the style based on the source */
 	  msp->style = getBlxStyle(gffData->source, styles, &tmpError);
-	  
+          
 	  if (tmpError)
 	    {
 	      /* style errors are not critical */
@@ -342,7 +444,8 @@ void parseGff3Body(const int lineNum,
 		   GList **seqList,
                    GSList *supportedTypes,
                    GSList *styles,
-                   const int resFactor)
+                   const int resFactor, 
+                   GKeyFile *keyFile)
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
@@ -356,7 +459,7 @@ void parseGff3Body(const int lineNum,
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, resFactor, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, resFactor, keyFile, &error);
     }
   
   if (error)

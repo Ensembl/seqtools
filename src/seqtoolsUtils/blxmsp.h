@@ -174,7 +174,15 @@ typedef enum
 } BlxCurveShape;
 
 
+/* Defines a data type for MSPs. The data type contains properties applicable
+ * to multiple msps, e.g. which fetch method to use. */
+typedef struct _BlxDataType
+{
+  char *fetchMode;
+  char *bulkFetchMode;
+} BlxDataType;
 
+  
 /* Structure holding information about a feature (see note at the top of this
  * file about the naming of this struct). */
 typedef struct _MSP
@@ -185,8 +193,8 @@ typedef struct _MSP
   GList             *childMsps;    /* Child MSPs of this MSP if it has them, e.g. an exon has CDS and UTR children (part_of relationship). */
   
   BlxMspType        type;          /* The type of the MSP, e.g. match, exon, SNP etc. */
-  GQuark            dataType;      /* An optional identifier representing a stanza from the config file which defines
-                                    * properties such as the fetch method to use for this feature. 0 represents NULL. */
+  BlxDataType       *dataType;      /* An optional identifier representing a stanza from the config file which defines
+                                     * properties such as the fetch method to use for this feature. */
   
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */

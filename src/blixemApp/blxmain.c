@@ -808,7 +808,7 @@ int main(int argc, char **argv)
   char dummyseqname[FULLNAMESIZE+1] = "";
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname) ;
+          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, blxGetConfig()) ;
   
   if (FSfile != stdin)
     {
@@ -823,7 +823,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles, &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname) ;
+      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles, &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, blxGetConfig()) ;
       fclose(xtra_file) ;
     }
 

@@ -712,7 +712,7 @@ int main(int argc, char **argv)
         GSList *supportedTypes = blxCreateSupportedGffTypeList();
         IntRange qRange = {UNSET_INT, UNSET_INT};
 
-	parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, &qRange, &options.sseq, options.sname);
+	parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, &qRange, &options.sseq, options.sname, NULL);
         
         finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
         
