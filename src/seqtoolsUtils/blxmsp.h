@@ -179,7 +179,6 @@ typedef enum
 typedef struct _BlxDataType
 {
   char *fetchMode;
-  char *bulkFetchMode;
 } BlxDataType;
 
   

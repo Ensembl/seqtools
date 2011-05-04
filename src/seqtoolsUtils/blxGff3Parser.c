@@ -240,7 +240,6 @@ static BlxDataType* createBlxDataType()
   BlxDataType *result = g_malloc(sizeof *result);
   
   result->fetchMode = NULL;
-  result->bulkFetchMode = NULL;
   
   return result;
 }
@@ -252,9 +251,6 @@ static void destroyBlxDataType(BlxDataType **blxDataType)
   
   if ((*blxDataType) && (*blxDataType)->fetchMode)
     g_free((*blxDataType)->fetchMode);
-  
-  if ((*blxDataType) && (*blxDataType)->bulkFetchMode)
-    g_free((*blxDataType)->bulkFetchMode);
   
    g_free((*blxDataType));
    *blxDataType = NULL;
@@ -307,10 +303,7 @@ BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
           result = createBlxDataType();
           GError *tmpError = NULL;
 
-          result->fetchMode = g_key_file_get_string(keyFile, typeName, "fetch", &tmpError);
-          
-          if (!tmpError)
-            result->bulkFetchMode = g_key_file_get_string(keyFile, typeName, "bulk-fetch", &tmpError);
+          result->fetchMode = g_key_file_get_string(keyFile, typeName, "fetch-mode", &tmpError);
           
           if (!tmpError)
             {
