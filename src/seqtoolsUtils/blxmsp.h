@@ -99,14 +99,12 @@ typedef enum
   BLXMSP_FS_SEG,                 /* Feature Series Segment - obsolete? */
   BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves - obsolete? */
 
-  BLXMSP_REGION,                 /* Region */
-
-  
   
   BLXMSP_NUM_TYPES,               /* the number of valid MSP types - any types following this may be used
                                    * e.g. for parsing, but no real MSP will be created from them */
   
-  BLXMSP_TRANSCRIPT		 /* Transcript */
+  BLXMSP_TRANSCRIPT,             /* Transcript */
+  BLXMSP_REGION                 /* Region */
 } BlxMspType;
 
 
@@ -198,9 +196,6 @@ typedef struct _MSP
   GList             *childMsps;    /* Child MSPs of this MSP if it has them, e.g. an exon has CDS and UTR children (part_of relationship). */
   
   BlxMspType        type;          /* The type of the MSP, e.g. match, exon, SNP etc. */
-  BlxDataType       *dataType;      /* An optional identifier representing a stanza from the config file which defines
-                                     * properties such as the fetch method to use for this feature. */
-  
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
@@ -316,7 +311,7 @@ void                  readMspFromText(MSP *msp, char *text);
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
-                                   const char *source, const gdouble score, const gdouble percentId, const int phase,
+                                   BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
 				   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence, GError **error);  
@@ -337,7 +332,7 @@ BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *i
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, BlxDataType *dataType, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
 void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*	      blxSequenceGetFullName(const BlxSequence *seq);
 const char*	      blxSequenceGetVariantName(const BlxSequence *seq);

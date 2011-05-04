@@ -323,14 +323,25 @@ static void createBlixemObject(BlxGffData *gffData,
     
   GError *tmpError = NULL;
 
+  /* Get the data type struct */
+  BlxDataType *dataType = getBlxDataType(gffData->dataType, keyFile, &tmpError);
+  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+
+  
   if (gffData->mspType > BLXMSP_NUM_TYPES)
     {
       /* "Invalid" MSP types, i.e. don't create a real MSP from these types. */
       
       if (gffData->mspType == BLXMSP_TRANSCRIPT)
         {
-          /* For transcripts, although we don't create an MSP but we do create a sequence */
-          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+          /* For transcripts, although we don't create an MSP we do create a sequence */
+          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, dataType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+        }
+      else if (gffData->mspType == BLXMSP_REGION)
+        {
+          /* Also for regions, we create a sequence but not an MSP. Pass the source as the name because
+           * regions don't have a target name or ID. */
+          addBlxSequence(NULL, gffData->source, gffData->qStrand, gffData->mspType, dataType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
         }
     }
   else
@@ -359,6 +370,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      mspList, 
 			      seqList, 
 			      gffData->mspType,
+                              dataType,
 			      gffData->source,
 			      gffData->score, 
 			      gffData->percentId, 
@@ -379,10 +391,6 @@ static void createBlixemObject(BlxGffData *gffData,
 
     if (!tmpError)
 	{ 
-          /* Get the data type struct */
-          msp->dataType = getBlxDataType(gffData->dataType, keyFile, &tmpError);
-          reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
-          
 	  /* Get the style based on the source */
 	  msp->style = getBlxStyle(gffData->source, styles, &tmpError);
           

@@ -509,6 +509,10 @@ gboolean blxviewFetchSequences(gboolean External,
       if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, &error))
         {
           success = TRUE;
+          
+          /* If there were any issues, report them as a warning */
+          prefixError(error, "Issues found while fetching sequences by '%s' mode: ");
+          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
         }
       else
         {

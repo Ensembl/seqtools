@@ -1281,6 +1281,7 @@ BlxSequence* addBlxSequence(const char *name,
 			    const char *idTag, 
 			    BlxStrand strand,
 			    const BlxMspType mspType,
+			    BlxDataType *dataType,
 			    GArray* featureLists[],
 			    GList **seqList, 
 			    char *sequence, 
@@ -1309,6 +1310,15 @@ BlxSequence* addBlxSequence(const char *name,
           blxSeq = createEmptyBlxSequence(seqName, idTag, NULL);
           *seqList = g_list_prepend(*seqList, blxSeq);
           blxSeq->strand = strand;
+          blxSeq->dataType = dataType;
+        }
+      else if (dataType && !blxSeq->dataType)
+        {
+          blxSeq->dataType = dataType;
+        }
+      else if (dataType && blxSeq->dataType != dataType)
+        {
+          g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, blxSeq->dataType->name, dataType->name);
         }
       
       if (seqName && !blxSeq->fullName)
@@ -1692,6 +1702,7 @@ MSP* createNewMsp(GArray* featureLists[],
                   MSP **mspList,
                   GList **seqList,
                   const BlxMspType mspType,
+                  BlxDataType *dataType,
 		  const char *source,
                   const gdouble score,
                   const gdouble percentId,
@@ -1742,7 +1753,7 @@ MSP* createNewMsp(GArray* featureLists[],
       typeIsMatch(mspType) || typeIsShortRead(mspType) || 
       typeIsVariation(mspType))
     {
-      addBlxSequence(msp->sname, idTag, sStrand, msp->type, featureLists, seqList, sequence, msp, error);
+      addBlxSequence(msp->sname, idTag, sStrand, msp->type, dataType, featureLists, seqList, sequence, msp, error);
     }
 
   /* Add it to the relevant feature list. */
@@ -1885,7 +1896,8 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
+      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, NULL,
+                                  UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
                                   qname, newStart, newEnd, blxSeq->strand, newFrame, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
       
@@ -1982,7 +1994,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
               
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, curExon->source, 
+                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, curExon->source, 
                                curExon->score, curExon->id, 0, g_strdup(curExon->url), blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
