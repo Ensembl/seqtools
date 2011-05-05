@@ -876,6 +876,36 @@ void removeRedundantSeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const doub
   updateOnVScrollSizeChaged(belvuAlignment);  
 }
 
+/* Get rid of outlier seqs (those that are less than the given % identical to any other). */
+void removeOutliers(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff)
+{
+  rmOutliers(bc, cutoff);
+  updateOnVScrollSizeChaged(belvuAlignment);  
+}
+
+/* Get rid of seqs that have a score below the given value */
+void removeByScore(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff)
+{
+  rmScore(bc, cutoff);
+  updateOnVScrollSizeChaged(belvuAlignment);
+  centerHighlighted(bc, belvuAlignment);
+}
+
+
+/* Center the vertical scrollbar on the currently highlighted sequence */
+void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
+{
+  if (bc->highlightedAln) 
+    {
+      BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+      GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->seqArea));
+      
+      vAdjustment->value = bc->highlightedAln->nr * properties->charHeight;
+      gtk_adjustment_changed(vAdjustment);
+    }
+}
+
+
 /* Mouse button handler */
 static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {

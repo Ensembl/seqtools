@@ -379,6 +379,8 @@ void                                      rmPartialSeqs(BelvuContext *bc);
 void                                      rmEmptyColumns(BelvuContext *bc, double cutoff);
 void                                      rmGappySeqs(BelvuContext *bc, double cutoff);
 void                                      rmFinaliseGapRemoval(BelvuContext *bc);
+void					  rmOutliers(BelvuContext *bc, const double cutoff);
+void					  rmScore(BelvuContext *bc, const double cutoff);
 
 void                                      readMul(BelvuContext *bc, FILE *pipe);
 void                                      writeMul(BelvuContext *bc, FILE *fil);

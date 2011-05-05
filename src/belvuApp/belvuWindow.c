@@ -123,6 +123,8 @@ static void                      showWrapDialog(GtkWidget *belvuWindow);
 static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
 static void			 showMakeNonRedundantDialog(GtkWidget *belvuWindow);
+static void			 showRemoveOutliersDialog(GtkWidget *belvuWindow);
+static void			 showRemoveByScoreDialog(GtkWidget *belvuWindow);
 
 static void			 startRemovingSequences(GtkWidget *belvuWindow);
 static void			 endRemovingSequences(GtkWidget *belvuWindow);
@@ -590,10 +592,14 @@ static void onmkNonRedundantPromptMenu(GtkAction *action, gpointer data)
 
 static void onrmOutliersMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showRemoveOutliersDialog(belvuWindow);
 }
 
 static void onrmScoreMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showRemoveByScoreDialog(belvuWindow);
 }
 
 static void onrmColumnPromptMenu(GtkAction *action, gpointer data)
@@ -1002,6 +1008,57 @@ static void showMakeNonRedundantDialog(GtkWidget *belvuWindow)
   gtk_widget_destroy(dialog);
 }
 
+
+static void showRemoveOutliersDialog(GtkWidget *belvuWindow)
+{
+  static char *inputText = NULL;
+  
+  if (!inputText)
+    inputText = g_strdup("20.0");
+  
+  GtkWidget *entry = NULL;
+  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that are less than ", "% identical with any other.", &entry);
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      if (inputText)
+	g_free(inputText);
+      
+      inputText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
+      const gdouble cutoff = g_strtod(inputText, NULL);
+      
+      BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+      removeOutliers(properties->bc, properties->belvuAlignment, cutoff);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
+
+
+static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
+{
+  static char *inputText = NULL;
+  
+  if (!inputText)
+    inputText = g_strdup("20.0");
+  
+  GtkWidget *entry = NULL;
+  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that have a score less than ", "", &entry);
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      if (inputText)
+	g_free(inputText);
+      
+      inputText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
+      const gdouble cutoff = g_strtod(inputText, NULL);
+      
+      BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+      removeByScore(properties->bc, properties->belvuAlignment, cutoff);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
 
 /***********************************************************
  *                         Wrap window                     *

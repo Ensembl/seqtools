@@ -432,7 +432,6 @@ static void treeBootstrapStats(treeNode *tree);
 static void wrapAlignmentWindow(void);
 static void mkNonRedundant(double cutoff);
 static void mkNonRedundantPrompt(void);
-static void rmOutliers(void);
 static void rmPartialSeqs(void);
 static void rmGappySeqs(double cutoff);
 static void rmGappySeqsPrompt(void);
@@ -1388,13 +1387,6 @@ static void belvuMenuDestroy()
     return ;
 }
 
-
-
-static void centerHighlighted(void)
-{
-    if (bc->highlightedAln) 
-	AlignYstart = bc->highlightedAln->nr - Alignheig/2;
-}
 
 
 static void lowercase(void)
@@ -2399,29 +2391,6 @@ static void simSort(void) {
 
 static void idSort(void) {
     highlightScoreSort('I');
-}
-
-
-
-static void scoreSort(void)
-{
-    if (bc->highlightedAln)
-	alncpy(&aln, bc->highlightedAln);
-
-    arraySort(Align, (void*)scoreorder);
-
-    if (bc->highlightedAln) {
-	if (!alignFind(Align, &aln, &ip)) {
-	    messout("Cannot find back highlighted seq after sort - probably a bug");
-	    bc->highlightedAln = 0;
-	}
-	else
-	    bc->highlightedAln = arrp(Align, ip, ALN);
-    }
-
-    arrayOrder();
-    AlignYstart = 0;
-    belvuRedraw();
 }
 
 
@@ -3676,56 +3645,6 @@ static void rmFinaliseColumnRemoval(void)
 }
 
 
-
-/* Get rid of seqs that are less than x% identical with any of the others. 
- */
-static void rmOutliers(void)
-{
-    int i,j, n=0;
-    ALN *alni, *alnj;
-    static double cutoff = 20.0, id, maxid;
-
-    if (!(ace_in = messPrompt ("Remove sequences less identical to others than (%) :", 
-		      messprintf("%.0f", cutoff), 
-			       "fz", 0)))
-	return;
-
-    aceInDouble(ace_in, &cutoff);
-    aceInDestroy(ace_in);
-    ace_in = NULL ;
-
-    for (i = 0; i < nseq-1; ) {
-	alni = &g_array_index(bc->alignArr, ALN, i);
-
-	for (maxid=0, j = 0; j < nseq; j++) {
-	    if (i == j) continue;
-	    alnj = arrp(Align, j, ALN);
-	    id = identity(alni->seq, alnj->seq);
-	    if (id > maxid) maxid = id;
-	}
-
-	if (maxid < cutoff) {
-
-	    printf("%s/%d-%d was max %.1f%% identical to any other sequence and was removed.\n",
-		   alni->name, alni->start, alni->end, maxid);
-	    
-	    /* Remove entry */
-	    n++;
-	    nseq--;
-	    if (bc->highlightedAln == alni) bc->highlightedAln = 0;
-	    arrayRemove(Align, alni, (void*)nrorder);
-	    saved = 0;
-	}
-	else i++;
-    }
-
-    printf("%d sequences removed at the %.0f%% level.  %d seqs left\n\n", n, cutoff, nseq);
-
-    arrayOrder();
-    rmFinaliseGapRemoval();
-}
-
-
 static void rmGappySeqsPrompt()
 {
     static double cutoff = 50.0 ;
@@ -3855,62 +3774,6 @@ static void selectGaps(void) {
 }
 
 
-
-static void rmScore(void)
-{
-    int 
-	i;
-    static double 
-	cutoff = 20.0;
-
-    if (!(ace_in = messPrompt ("Remove sequences scoring less than: ", 
-		      messprintf("%.0f", cutoff), 
-			       "fz", 0)))
-	return;
-
-    aceInDouble(ace_in, &cutoff);
-    aceInDestroy(ace_in);
-    ace_in = NULL ;
-
-    scoreSort();
-
-    /* Save bc->highlightedAln */
-    if (bc->highlightedAln)
-	alncpy(&aln, bc->highlightedAln);
-
-    for (i = 0; i < nseq; ) {
-	alnp = &g_array_index(bc->alignArr, ALN, i);
-	if (alnp->score < cutoff) {
-	    fprintf(stderr, "Removing %s/%d-%d (score %.1f\n",
-		   alnp->name, alnp->start, alnp->end, alnp->score);
-		
-	    nseq--;
-	    if (bc->highlightedAln == alnp) bc->highlightedAln = 0;
-	    arrayRemove(Align, alnp, (void*)nrorder);
-	    saved = 0;
-	}
-	else
-	    i++;
-    }
-    
-    arrayOrder();
-
-    /* Find bc->highlightedAln in new array */
-    if (bc->highlightedAln) {
-	if (!arrayFind(Align, &aln, &ip, (void*)scoreorder)) {
-	    bc->highlightedAln = 0;
-	}
-	else
-	    bc->highlightedAln = arrp(Align, ip, ALN);
-	centerHighlighted();
-    }
-
-    AlignYstart = 0;
-
-    rmFinaliseGapRemoval();
-}
-
-
 static void listIdentity(void)
 {
     int 
@@ -4014,7 +3877,7 @@ static void rmPicked(void)
 	return;
     }
 
-    printf("Removed %s/%d-%d.  ", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end);
+    g_message("Removed %s/%d-%d.  ", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end);
 
     nseq--;
     arrayRemove(Align, bc->highlightedAln, (void*)nrorder);
@@ -4022,7 +3885,7 @@ static void rmPicked(void)
     arrayOrder();
     bc->highlightedAln = 0;
 
-    printf("%d seqs left\n\n", nseq);
+    g_message("%d seqs left.\n\n", nseq);
 
     rmFinaliseGapRemoval();
 }
@@ -4433,7 +4296,7 @@ static int a2b_sean[] =
 
 /* Local function declarations */
 static gboolean            arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer));
-
+static void		   alncpy(ALN *dest, ALN *src);
 
 
 /* Sort comparision function to sort ALNs by name */
@@ -4538,6 +4401,33 @@ gint nrorder(gconstpointer xIn, gconstpointer yIn)
   else return 0;
 }
 
+
+void scoreSort(BelvuContext *bc)
+{
+  ALN aln;
+  
+  if (bc->highlightedAln)
+    alncpy(&aln, bc->highlightedAln);
+  
+  g_array_sort(bc->alignArr, scoreorder);
+  
+  if (bc->highlightedAln) 
+    {
+      int ip = 0;
+    
+      if (!alignFind(bc->alignArr, &aln, &ip)) 
+	{
+	  g_critical("Program error: cannot find back highlighted sequence after sort.\n");
+	  bc->highlightedAln = NULL;
+	}
+      else
+	{
+	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	}
+  }
+  
+  arrayOrder(bc->alignArr);
+}
 
 
 
@@ -7451,7 +7341,7 @@ void rmPartialSeqs(BelvuContext *bc)
       else i++;
     }
   
-  g_message("%d partial sequences removed.  %d seqs left\n\n", n, bc->alignArr->len);
+  g_message("%d partial sequences removed.  %d seqs left.\n\n", n, bc->alignArr->len);
   
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);
@@ -7492,7 +7382,7 @@ void rmGappySeqs(BelvuContext *bc, const double cutoff)
 	}
     }
 
-    g_message("%d gappy sequences removed.  %d seqs left\n\n", n, bc->alignArr->len);
+    g_message("%d gappy sequences removed.  %d seqs left.\n\n", n, bc->alignArr->len);
 
     arrayOrder(bc->alignArr);
 }
@@ -7559,9 +7449,123 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
 	}
     }
 
-  g_message("%d sequences removed at the %.0f%% level.  %d seqs left\n\n", n, cutoff, bc->alignArr->len);
+  g_message("%d sequences removed at the %.0f%% level.  %d seqs left.\n\n", n, cutoff, bc->alignArr->len);
   
   arrayOrder(bc->alignArr);
+  rmFinaliseGapRemoval(bc);
+}
+
+
+/* Get rid of seqs that are less than x% identical with any of the others. 
+ */
+void rmOutliers(BelvuContext *bc, const double cutoff)
+{
+  int i,j, n=0;
+  ALN *alni, *alnj;
+  
+  for (i = 0; i < bc->alignArr->len - 1; ) 
+    {
+      alni = &g_array_index(bc->alignArr, ALN, i);
+    
+      double maxid = 0;
+      for (maxid=0, j = 0; j < bc->alignArr->len; ++j) 
+	{
+	  if (i == j) 
+	    continue;
+	
+	  alnj = &g_array_index(bc->alignArr, ALN, j);
+	  double id = identity(alni->seq, alnj->seq, bc->penalize_gaps);
+	
+	  if (id > maxid) 
+	    maxid = id;
+	}
+    
+      if (maxid < cutoff) 
+	{
+	  g_message("%s/%d-%d was max %.1f%% identical to any other sequence and was removed.\n",
+		    alni->name, alni->start, alni->end, maxid);
+	
+	  /* Remove entry */
+	  n++;
+	
+	  if (bc->highlightedAln == alni) 
+	    bc->highlightedAln = NULL;
+	
+	  g_array_remove_index(bc->alignArr, i);
+	  bc->saved = FALSE;
+	}
+      else 
+	{
+	  i++;
+	}
+    }
+  
+  g_message("%d sequences removed at the %.0f%% level.  %d seqs left.\n\n", n, cutoff, bc->alignArr->len);
+  
+  arrayOrder(bc->alignArr);
+  rmFinaliseGapRemoval(bc);
+}
+
+
+/* Remove sequences that have a score below the given value */
+void rmScore(BelvuContext *bc, const double cutoff)
+{
+  scoreSort(bc);
+  
+  /* Save bc->highlightedAln */
+  ALN aln;
+  
+  if (bc->highlightedAln)
+    alncpy(&aln, bc->highlightedAln);
+  
+  int numRemoved = 0;
+  int i = 0;
+  
+  for (i = 0; i < bc->alignArr->len; ) 
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+    
+      if (alnp->score < cutoff) 
+	{ 
+	  ++numRemoved;
+	  
+	  g_message("Removing %s/%d-%d (score %.1f)\n",
+		    alnp->name, alnp->start, alnp->end, alnp->score);
+	
+	  if (bc->highlightedAln == alnp) 
+	    bc->highlightedAln = NULL;
+	  
+	  g_array_remove_index(bc->alignArr, i);
+	  bc->saved = FALSE;
+	}
+      else
+	{
+	  i++;
+	}
+    }
+  
+  arrayOrder(bc->alignArr);
+  
+  g_message("%d sequences with score < %.1f removed.  %d seqs left.\n\n", numRemoved, cutoff, bc->alignArr->len);
+  
+  /* Find bc->highlightedAln in new array */
+  if (bc->highlightedAln) 
+    { 
+      int ip = 0;
+      ALN aln;
+      
+      if (!arrayFind(bc->alignArr, &aln, &ip, (void*)scoreorder)) 
+	{
+	  bc->highlightedAln = NULL;
+	}
+      else
+	{
+	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	}
+  }
+  
+  bc->alignYStart = 0;
+  
   rmFinaliseGapRemoval(bc);
 }
 
