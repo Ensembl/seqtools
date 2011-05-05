@@ -433,7 +433,7 @@ static void wrapAlignmentWindow(void);
 static void mkNonRedundant(double cutoff);
 static void mkNonRedundantPrompt(void);
 static void rmOutliers(void);
-static void rmPartial(void);
+static void rmPartialSeqs(void);
 static void rmGappySeqs(double cutoff);
 static void rmGappySeqsPrompt(void);
 static void readLabels(void);
@@ -2831,7 +2831,7 @@ int main(int argc, char **argv)
 	mkNonRedundant(makeNRinit);
     
     if (init_rmPartial)
-	rmPartial();
+	rmPartialSeqs();
 
     if (init_rmEmptyColumns)
 	rmEmptyColumns(init_rmEmptyColumns/100.0);
@@ -3854,23 +3854,6 @@ static void selectGaps(void) {
     graphRedraw();
 }
 
-
-
-static void mkNonRedundantPrompt(void)
-{
-    static double cutoff = 80.0;
-
-    if (!(ace_in = messPrompt ("Remove sequences more identical than (%):", 
-		      messprintf("%.0f", cutoff), 
-			       "fz", 0)))
-	return;
-    
-    aceInDouble(ace_in, &cutoff);
-    aceInDestroy(ace_in);
-    ace_in = NULL ;
-
-    mkNonRedundant(cutoff);
-}
 
 
 static void rmScore(void)
@@ -7443,7 +7426,7 @@ static void rmFinalise(BelvuContext *bc)
 
 /* Get rid of seqs that start or end with a gap.
  */
-void rmPartial(BelvuContext *bc)
+void rmPartialSeqs(BelvuContext *bc)
 {
   int i, n=0;
   ALN *alni;
@@ -7468,7 +7451,7 @@ void rmPartial(BelvuContext *bc)
       else i++;
     }
   
-  fprintf(stderr, "%d partial sequences removed.  %d seqs left\n\n", n, bc->alignArr->len);
+  g_message("%d partial sequences removed.  %d seqs left\n\n", n, bc->alignArr->len);
   
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);
@@ -7477,7 +7460,7 @@ void rmPartial(BelvuContext *bc)
 
 /* Get rid of seqs that are too gappy.
  */
-void rmGappySeqs(BelvuContext *bc, double cutoff)
+void rmGappySeqs(BelvuContext *bc, const double cutoff)
 {
   int i, j, n=0, gaps;
   ALN *alni;
@@ -7527,7 +7510,7 @@ void rmFinaliseGapRemoval(BelvuContext *bc)
 /* Get rid of seqs that are more than x% identical with others. 
  * Keep the  first one.
  */
-void mkNonRedundant(BelvuContext *bc, double cutoff)
+void mkNonRedundant(BelvuContext *bc, const double cutoff)
 {
   int i,j, n=0, overhang;
   ALN *alni, *alnj;
@@ -7549,11 +7532,11 @@ void mkNonRedundant(BelvuContext *bc, double cutoff)
 
           if (!overhang && id > cutoff)
 	    {
-              fprintf(stderr, "%s/%d-%d and %s/%d-%d are %.1f%% identical. "
-                      "The first includes the latter which was removed.\n",
-                      alni->name, alni->start, alni->end,
-                      alnj->name, alnj->start, alnj->end,
-                      id);
+              g_message("%s/%d-%d and %s/%d-%d are %.1f%% identical. "
+			"The first includes the latter which was removed.\n",
+			alni->name, alni->start, alni->end,
+			alnj->name, alnj->start, alnj->end,
+			id);
 		
               /* Remove entry j */
               n++;
@@ -7561,7 +7544,7 @@ void mkNonRedundant(BelvuContext *bc, double cutoff)
               if (bc->highlightedAln == alnj) 
                 bc->highlightedAln = NULL;
               
-              g_array_remove_index(bc->alignArr, alnj->nr);
+              g_array_remove_index(bc->alignArr, j);
               g_array_sort(bc->alignArr, nrorder);
 
               bc->saved = FALSE;
@@ -7576,7 +7559,7 @@ void mkNonRedundant(BelvuContext *bc, double cutoff)
 	}
     }
 
-  fprintf(stderr, "%d sequences removed at the %.0f%% level.  %d seqs left\n\n", n, cutoff, bc->alignArr->len);
+  g_message("%d sequences removed at the %.0f%% level.  %d seqs left\n\n", n, cutoff, bc->alignArr->len);
   
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);

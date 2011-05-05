@@ -845,7 +845,7 @@ void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
   
   bc->saved = FALSE;
   
-  g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
+  g_message("Removed %s/%d-%d.  %d sequences left.  Esc to cancel.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
   
   bc->highlightedAln = NULL;
   
@@ -856,12 +856,25 @@ void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
 
 
 /* Get rid of seqs that are too gappy. */
-void removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, double cutoff)
+void removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff)
 {
   rmGappySeqs(bc, cutoff);
   updateOnVScrollSizeChaged(belvuAlignment);  
 }
 
+/* Get rid of partial seqs. */
+void removePartialSeqs(BelvuContext *bc, GtkWidget *belvuAlignment)
+{
+  rmPartialSeqs(bc);
+  updateOnVScrollSizeChaged(belvuAlignment);  
+}
+
+/* Get rid of redundant seqs (those that are more than the given % identical). */
+void removeRedundantSeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff)
+{
+  mkNonRedundant(bc, cutoff);
+  updateOnVScrollSizeChaged(belvuAlignment);  
+}
 
 /* Mouse button handler */
 static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *event, gpointer data)

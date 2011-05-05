@@ -86,7 +86,7 @@ static void                      onrmPickedMenu(GtkAction *action, gpointer data
 static void                      onRemoveSeqsMenu(GtkAction *action, gpointer data);
 static void                      onCancelRemoveSeqs(GtkAction *action, gpointer data);
 static void                      onrmGappySeqsMenu(GtkAction *action, gpointer data);
-static void                      onrmPartialMenu(GtkAction *action, gpointer data);
+static void                      onrmPartialSeqsMenu(GtkAction *action, gpointer data);
 static void                      onmkNonRedundantPromptMenu(GtkAction *action, gpointer data);
 static void                      onrmOutliersMenu(GtkAction *action, gpointer data);
 static void                      onrmScoreMenu(GtkAction *action, gpointer data);
@@ -122,6 +122,7 @@ static void			 showAboutDialog(GtkWidget *parent);
 static void                      showWrapDialog(GtkWidget *belvuWindow);
 static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
+static void			 showMakeNonRedundantDialog(GtkWidget *belvuWindow);
 
 static void			 startRemovingSequences(GtkWidget *belvuWindow);
 static void			 endRemovingSequences(GtkWidget *belvuWindow);
@@ -177,7 +178,7 @@ static const GtkActionEntry menuEntries[] = {
   {"rmPicked",               NULL,    "Remove highlighted line",  NULL, "Remove highlighted line",  G_CALLBACK(onrmPickedMenu)},
   {"rmMany",		     NULL,    "Remove many sequences",    NULL, "Remove many sequences",    G_CALLBACK(onRemoveSeqsMenu)},
   {"rmGappySeqs",	     NULL,    "Remove gappy sequences",   NULL, "Remove gappy sequences",   G_CALLBACK(onrmGappySeqsMenu)},
-  {"rmPartial",              NULL,    "Remove partial sequences", NULL, "Remove partial sequences", G_CALLBACK(onrmPartialMenu)},
+  {"rmPartialSeqs",          NULL,    "Remove partial sequences", NULL, "Remove partial sequences", G_CALLBACK(onrmPartialSeqsMenu)},
   {"mkNonRedundantPrompt",   NULL,    "Make non-redundant",       NULL, "Make non-redundant",       G_CALLBACK(onmkNonRedundantPromptMenu)},
   {"rmOutliers",             NULL,    "Remove outliers",          NULL, "Remove outliers",          G_CALLBACK(onrmOutliersMenu)},
   {"rmScore",                NULL,    "Remove sequences below given score",                    NULL, "Remove sequences below given score",                    G_CALLBACK(onrmScoreMenu)},
@@ -266,7 +267,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='rmPicked'/>"
 "      <menuitem action='rmMany'/>"
 "      <menuitem action='rmGappySeqs'/>"
-"      <menuitem action='rmPartial'/>"
+"      <menuitem action='rmPartialSeqs'/>"
 "      <menuitem action='mkNonRedundantPrompt'/>"
 "      <menuitem action='rmOutliers'/>"
 "      <menuitem action='rmScore'/>"
@@ -574,12 +575,17 @@ static void onrmGappySeqsMenu(GtkAction *action, gpointer data)
   showRemoveGappySeqsDialog(belvuWindow);
 }
 
-static void onrmPartialMenu(GtkAction *action, gpointer data)
+static void onrmPartialSeqsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  removePartialSeqs(properties->bc, properties->belvuAlignment);
 }
 
 static void onmkNonRedundantPromptMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showMakeNonRedundantDialog(belvuWindow);
 }
 
 static void onrmOutliersMenu(GtkAction *action, gpointer data)
@@ -760,7 +766,7 @@ static void updateSequenceRemovalMode(GtkWidget *belvuWindow)
   if (properties->bc->removingSeqs)
     {
       gdk_window_set_cursor(belvuWindow->window, properties->removeSeqsCursor);
-      g_message("Double-click on sequences to remove; press Esc or right-click to cancel.\n");
+      g_message("Double-click on sequences to remove.  Esc or right-click to cancel.\n");
     }
   else
     {
@@ -899,14 +905,15 @@ static void showHelpDialog()
 
 
 /***********************************************************
- *                      Help dialog                        *
+ *                Remove sequences dialogs                 *
  ***********************************************************/
 
-/* Show a dialog to ask the user what threshold to use for removing
- * "gappy" sequences (i.e. sequences that are more than the given 
- * percentage of gaps). */
-static void showRemoveGappySeqsDialog(GtkWidget *belvuWindow)
-{
+static GtkWidget* createRemoveDialog(GtkWidget *belvuWindow,
+			 	     const char *defaultResult,
+			 	     const char *text1,
+			 	     const char *text2,
+				     GtkWidget **entry)
+{ 
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - remove sequences", 
                                                   GTK_WINDOW(belvuWindow), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -919,39 +926,77 @@ static void showRemoveGappySeqsDialog(GtkWidget *belvuWindow)
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 12);
   
-  GtkWidget *label1 = gtk_label_new("Remove sequences that are ");
+  GtkWidget *label1 = gtk_label_new(text1);
   gtk_misc_set_alignment(GTK_MISC(label1), 1, 0.5);
   gtk_box_pack_start(GTK_BOX(hbox), label1, FALSE, FALSE, 0);
   
-  GtkWidget *entry = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
+  *entry = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), *entry, FALSE, FALSE, 0);
 
-  gtk_entry_set_width_chars(GTK_ENTRY(entry), 3);
-  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  gtk_entry_set_width_chars(GTK_ENTRY(*entry), 3);
+  gtk_entry_set_activates_default(GTK_ENTRY(*entry), TRUE);
 
-  static char *inputText = NULL;
+  gtk_entry_set_text(GTK_ENTRY(*entry), defaultResult);
   
-  if (!inputText)
-    inputText = g_strdup("50");
-  
-  gtk_entry_set_text(GTK_ENTRY(entry), inputText);
-  
-  GtkWidget *label2 = gtk_label_new("% or more gaps.");
+  GtkWidget *label2 = gtk_label_new(text2);
   gtk_misc_set_alignment(GTK_MISC(label2), 0, 0.5);
   gtk_box_pack_start(GTK_BOX(hbox), label2, FALSE, FALSE, 0);
 
   gtk_widget_show_all(dialog);
   
+  return dialog;
+}
+
+
+/* Show a dialog to ask the user what threshold to use for removing
+ * "gappy" sequences (i.e. sequences that are more than the given 
+ * percentage of gaps). */
+static void showRemoveGappySeqsDialog(GtkWidget *belvuWindow)
+{
+  static char *inputText = NULL;
+  
+  if (!inputText)
+    inputText = g_strdup("50");
+  
+  GtkWidget *entry = NULL;
+  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that are ", "% or more gaps.", &entry);
+  
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
       if (inputText)
 	g_free(inputText);
-    
+      
       inputText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
       const gdouble cutoff = g_strtod(inputText, NULL);
-    
+      
       BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
       removeGappySeqs(properties->bc, properties->belvuAlignment, cutoff);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
+
+
+static void showMakeNonRedundantDialog(GtkWidget *belvuWindow)
+{
+  static char *inputText = NULL;
+  
+  if (!inputText)
+    inputText = g_strdup("80.0");
+  
+  GtkWidget *entry = NULL;
+  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that are more than ", "% identical.", &entry);
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      if (inputText)
+	g_free(inputText);
+      
+      inputText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
+      const gdouble cutoff = g_strtod(inputText, NULL);
+      
+      BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+      removeRedundantSeqs(properties->bc, properties->belvuAlignment, cutoff);
     }
   
   gtk_widget_destroy(dialog);

@@ -45,6 +45,8 @@ GtkWidget*              createBelvuAlignment(BelvuContext *bc, const char *title
 void			belvuAlignmentRedrawAll(GtkWidget *belvuAlignment);
 void			updateOnVScrollSizeChaged(GtkWidget *belvuAlignment);
 void			removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment);
-void			removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, double cutoff);
+void			removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
+void			removePartialSeqs(BelvuContext *bc, GtkWidget *belvuAlignment);
+void			removeRedundantSeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
 
 #endif /* _belvualignment_h_included_ */

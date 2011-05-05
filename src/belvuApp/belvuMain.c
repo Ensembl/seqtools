@@ -598,7 +598,7 @@ int main(int argc, char **argv)
     mkNonRedundant(bc, makeNRinit);
   
   if (init_rmPartial)
-    rmPartial(bc);
+    rmPartialSeqs(bc);
   
   if (init_rmEmptyColumns)
     rmEmptyColumns(bc, init_rmEmptyColumns/100.0);

@@ -375,7 +375,7 @@ void                                      initResidueColors(BelvuContext *bc);
 void                                      initMarkupColors(void);              
 void                                      readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr);
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);
-void                                      rmPartial(BelvuContext *bc);         
+void                                      rmPartialSeqs(BelvuContext *bc);         
 void                                      rmEmptyColumns(BelvuContext *bc, double cutoff);
 void                                      rmGappySeqs(BelvuContext *bc, double cutoff);
 void                                      rmFinaliseGapRemoval(BelvuContext *bc);
