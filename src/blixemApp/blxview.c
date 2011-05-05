@@ -66,6 +66,7 @@ MSP score codes (for obsolete exblx file format):
 #include <blixemApp/detailview.h>
 #include <blixemApp/blxdotter.h>
 #include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/blxparser.h>
 #include <seqtoolsUtils/utilities.h>
 
 
@@ -408,13 +409,45 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList)
 }
 
 
+static void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
+{
+  /* Append new MSPs to MSP list */
+  MSP *lastMsp = *mspList;
+  
+  while (lastMsp->next)
+    lastMsp = lastMsp->next;
+  
+  lastMsp->next = newMsps;
+  
+  /* Append new sequences to sequence list */
+  GList *seqItem = newSeqs;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      *seqList = g_list_prepend(*seqList, seqItem->data);
+    }
+}
+
+
 /* Fetch sequences for a given region. This uses the config file to find the
  * script and arguments to call to fetch the sequences.
  * The input GList contains a list of BlxSequences that are parent objects for
  * MSPs that identify regions. For each region, the script is called to fetch
  * all sequences that lie within that region, and the results are placed in 
  * a GFF file, which is then parsed to get the results. */
-static void regionFetchSequences(GList *regionsToFetch, const char *fetchMode, GError **error)
+static void regionFetchSequences(GList *regionsToFetch, 
+				 GList *seqListIn, 
+				 const char *fetchMode, 
+				 MSP **mspListIn,
+				 BlxBlastMode *blastMode,
+				 GArray* featureLists[],
+				 GSList *supportedTypes, 
+				 GSList *styles,
+				 gboolean External,
+				 const gboolean parseFullEmblInfo,
+				 const gboolean parseSequenceData,
+				 const BlxSeqType seqType,
+				 GError **error)
 {
   GKeyFile *keyFile = blxGetConfig();
   GError *tmpError = NULL;
@@ -457,12 +490,31 @@ static void regionFetchSequences(GList *regionsToFetch, const char *fetchMode, G
 		  FILE *outputFile = fopen(fileName, "w");
 		
 		  fprintf(outputFile, "%s\n", GFF3_VERSION_HEADER);
-		  fprintf(outputFile, "%s %s %d %d\n", GFF3_SEQUENCE_REGION_HEADER, mspGetSName(msp), mspGetQStart(msp), mspGetQEnd(msp));
+		  fprintf(outputFile, "%s %s %d %d\n", GFF3_SEQUENCE_REGION_HEADER, mspGetRefName(msp), mspGetQStart(msp), mspGetQEnd(msp));
 		
 		  /* to do: implement this (for now just add some test data) */
 		  fprintf(outputFile, "%s\n", "chr4-04_210623-364887	EST_Human	nucleotide_match	79196	79229	32.000000	+	.	Target=AA935244.1 77 110 +;percentID=97.1");
 		  fprintf(outputFile, "%s\n", "chr4-04_210623-364887	EST_Human	nucleotide_match	79196	79319	88.000000	-	.	Target=DA000562.1 133 256 +;percentID=85.5");
 
+		  fclose(outputFile);
+		  
+		  /* Parse the sequences from the new file */
+		  outputFile = fopen(fileName, "r");
+		
+		  char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+		  char dummyseqname1[FULLNAMESIZE+1] = "";
+		  char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+		  char dummyseqname2[FULLNAMESIZE+1] = "";
+		  IntRange dummyRange;
+		  
+		  MSP *newMsps = NULL;
+		  GList *newSeqs = NULL;
+		
+		  parseFS(&newMsps, outputFile, blastMode, featureLists, &newSeqs, supportedTypes, styles,
+			  &dummyseq1, dummyseqname1, &dummyRange, &dummyseq2, dummyseqname2, keyFile) ;
+		  
+		  appendNewSequences(newMsps, newSeqs, mspListIn, &seqListIn);
+		
 		  fclose(outputFile);
 		}
 
@@ -492,6 +544,11 @@ static gboolean fetchSequences(GList *seqsToFetch,
                                const gboolean parseOptionalData,
                                const gboolean parseSequenceData,
                                const gboolean External,
+			       MSP **mspList,
+			       BlxBlastMode *blastMode,
+			       GArray* featureLists[],
+			       GSList *supportedTypes, 
+			       GSList *styles,
                                GError **error)
 {
   gboolean success = TRUE;
@@ -514,7 +571,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
         }
       else if (strcmp(fetchMode, BLX_FETCH_REGION) == 0)
         {
-          regionFetchSequences(seqsToFetch, fetchMode, error);
+          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, supportedTypes, styles, External, parseOptionalData, parseSequenceData, seqType, error);
         }
       else if (fetchMode && fetchMode[0] != 0)
         {
@@ -539,7 +596,12 @@ gboolean blxviewFetchSequences(gboolean External,
                                GList *seqList, /* list of BlxSequence structs for all required sequences */
                                char *bulkFetchMode,
                                const char *net_id,
-                               const int port)
+                               const int port,
+			       MSP **mspList,
+			       BlxBlastMode *blastMode,
+			       GArray* featureLists[],
+			       GSList *supportedTypes, 
+			       GSList *styles)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
@@ -563,7 +625,7 @@ gboolean blxviewFetchSequences(gboolean External,
       
       DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
       
-      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, &tmpError))
+      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, &tmpError))
         {
           success = TRUE;
           
@@ -668,7 +730,7 @@ gboolean blxview(CommandLineOptions *options,
   int port = UNSET_INT;
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
   
-  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, seqList, options->bulkFetchMode, net_id, port);
+  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, seqList, options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, featureLists, supportedTypes, NULL);
   
   if (status)
     {

@@ -418,6 +418,12 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
   return result;
 }
 
+/* Return the reference sequence name that this msp aligns against */
+const char* mspGetRefName(const MSP const *msp)
+{
+  return msp->qname;
+}
+
 /* Return the strand of the ref sequence that the given MSP is a match against */
 BlxStrand mspGetRefStrand(const MSP const *msp)
 {

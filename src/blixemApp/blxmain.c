@@ -46,9 +46,6 @@
 #include <unistd.h>
 
 
-/* would be good to get rid of this.... */
-#define FULLNAMESIZE               255
-
 
 /* Some globals.... */
 

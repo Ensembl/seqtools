@@ -110,6 +110,10 @@ AUTHOR_TEXT "\n"
 #define BLX_FETCH_REGION           REGION_FETCH_GROUP
 
 
+/* would be good to get rid of this.... */
+#define FULLNAMESIZE               255
+
+
 /* The following are used to define default colors for certain types of features in Blixem.
  * One of several different actual colors from the BlxColor struct may be used depending 
  * on state, e.g. we use a different color if "print colors" (i.e. black and 
@@ -453,7 +457,13 @@ gboolean                           blxviewFetchSequences(gboolean External,
                                                          GList *seqList, /* list of BlxSequence structs for all required sequences */
                                                          char *bulkFetchMode,
                                                          const char *net_id,
-                                                         const int port);
+                                                         const int port,
+							 MSP **mspList,
+							 BlxBlastMode *blastMode,
+							 GArray* featureLists[],
+							 GSList *supportedTypes, 
+							 GSList *styles
+							 );
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */

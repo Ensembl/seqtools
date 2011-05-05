@@ -2780,7 +2780,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   const gboolean getOptionalData = TRUE;
 
   GError *error = NULL;
-  gboolean success = blxviewFetchSequences(bc->external, getOptionalData, getSequenceData, bc->seqType, bc->matchSeqs, bc->bulkFetchMode, bc->net_id, bc->port);
+  gboolean success = blxviewFetchSequences(bc->external, getOptionalData, getSequenceData, bc->seqType, bc->matchSeqs, bc->bulkFetchMode, bc->net_id, bc->port, &bc->mspList, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL);
   
   if (error)
     {

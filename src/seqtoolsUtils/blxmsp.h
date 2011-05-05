@@ -247,6 +247,7 @@ gboolean              typeShownInDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
 gboolean	      blxSequenceShownInGrid(const BlxSequence *blxSeq);
 
+const char*	      mspGetRefName(const MSP const *msp);
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
