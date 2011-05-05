@@ -343,7 +343,7 @@ const char *mspGetSName(const MSP const *msp)
   
   if (msp)
     {
-      if (msp->sname)
+      if (msp->sname && msp->sname[0] != 0)
         {
           result = msp->sname;
         }
@@ -1756,7 +1756,8 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->qFrame = qFrame;
   msp->qStrand = qStrand;
   
-  msp->sname = sName ? g_ascii_strup(sName, -1) : NULL;
+  msp->sname = sName ? g_strdup(sName) : NULL;
+  //g_ascii_strup(sName, -1)
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);

@@ -57,6 +57,7 @@ MSP score codes (for obsolete exblx file format):
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <ctype.h>
 #include <gdk/gdkkeysyms.h>
 
@@ -70,8 +71,10 @@ MSP score codes (for obsolete exblx file format):
 
 #define MAXALIGNLEN			      10000
 #define ORGANISM_PREFIX_SEPARATOR	      "  "
-#define MKSTEMP_REPLACEMENT_CHARS	      "XXXXXX"
-#define MKSTEMP_CONST_CHARS		      "BLIXEM_gff"
+#define MKSTEMP_CONST_CHARS		      "BLIXEM_gff"	  /* the prefix to use when creating a temp file name */
+#define MKSTEMP_REPLACEMENT_CHARS	      "XXXXXX"		  /* the required string that will be replaced by unique chars when creating a temp file name */
+#define GFF3_VERSION_HEADER		      "##gff-version 3"	  /* the header line of a GFF v3 file */
+#define GFF3_SEQUENCE_REGION_HEADER	      "##sequence-region" /* the start comment of the sequence-region comment line in a GFF v3 file */
 
 
 static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
@@ -424,24 +427,55 @@ static void regionFetchSequences(GList *regionsToFetch, const char *fetchMode, G
     }
   else
     {
-      gchar *args = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, &tmpError);
-      
+      gchar *args = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, NULL); /* args are optional, so ignore any error */
       const gchar *tmpDir = g_get_tmp_dir();
-      char *fileName = blxprintf("%s%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
-      int tmpFile = g_mkstemp(fileName);
-      
-      if (tmpFile == -1)
-	{
-	  g_set_error(error, BLX_ERROR, 1, "Error creating temp file for region-fetch results.\n");
-	}
-      else
-	{
-	  printf("Calling script '%s' with args '%s'.\nResult file = '%s'.\n", script, args, fileName);
-	}
 
+      /* Loop through each region, creating a GFF file with the results for each region */
+      GList *regionItem = regionsToFetch;
+    
+      for ( ; regionItem && !tmpError; regionItem = regionItem->next)
+	{
+	  BlxSequence *blxSeq = (BlxSequence*)(regionItem->data);
+	  GList *mspItem = blxSeq->mspList;
+	
+	  for ( ; mspItem; mspItem = mspItem->next)
+	    {
+	      const MSP const *msp = (const MSP const*)(mspItem->data);
+	    
+	      char *fileName = blxprintf("%s%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
+	      int fileDesc = g_mkstemp(fileName);
+	      
+	      if (fileDesc == -1)
+		{
+		  g_set_error(&tmpError, BLX_ERROR, 1, "Error creating temp file for region-fetch results.\n");
+		}
+	      else
+		{
+		  printf("Calling script '%s' with args '%s'.\nResult file = '%s'.\n", script, args, fileName);
+		  close(fileDesc);
+		
+		  FILE *outputFile = fopen(fileName, "w");
+		
+		  fprintf(outputFile, "%s\n", GFF3_VERSION_HEADER);
+		  fprintf(outputFile, "%s %s %d %d\n", GFF3_SEQUENCE_REGION_HEADER, mspGetSName(msp), mspGetQStart(msp), mspGetQEnd(msp));
+		
+		  /* to do: implement this (for now just add some test data) */
+		  fprintf(outputFile, "%s\n", "chr4-04_210623-364887	EST_Human	nucleotide_match	79196	79229	32.000000	+	.	Target=AA935244.1 77 110 +;percentID=97.1");
+		  fprintf(outputFile, "%s\n", "chr4-04_210623-364887	EST_Human	nucleotide_match	79196	79319	88.000000	-	.	Target=DA000562.1 133 256 +;percentID=85.5");
+
+		  fclose(outputFile);
+		}
+
+	      g_free(fileName);
+	    }
+	}
+    
       g_free(args);
     }
 
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+  
   g_free(script);
 }
 
