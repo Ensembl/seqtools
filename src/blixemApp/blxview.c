@@ -412,6 +412,24 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList)
  * a GFF file, which is then parsed to get the results. */
 static void regionFetchSequences(GList *regionsToFetch, const char *fetchMode, GError **error)
 {
+  GKeyFile *keyFile = blxGetConfig();
+  GError *tmpError = NULL;
+  
+  gchar *script = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_SCRIPT, &tmpError);
+
+  if (tmpError || !script)
+    {
+      g_set_error(error, BLX_ERROR, 1, "Error fetching sequences for fetch-mode [%s].\n", fetchMode);
+      if (script) g_free(script);
+      return;
+    }
+  
+  gchar *args = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, &tmpError);
+  
+  printf("Calling script '%s' with args '%s'.\n", script, args);
+  
+  g_free(script);
+  g_free(args);
 }
 
 
@@ -451,38 +469,16 @@ static gboolean fetchSequences(GList *seqsToFetch,
         {
           regionFetchSequences(seqsToFetch, fetchMode, error);
         }
-      else if (fetchMode)
+      else if (fetchMode && fetchMode[0] != 0)
         {
           g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
         }
       else
         {
-          g_set_error(error, BLX_ERROR, 1, "Cannot fetch sequences - fetch mode not specified.\n");
+          g_set_error(error, BLX_ERROR, 1, "Fetch mode not specified.\n");
         }
     }
     
-  
-  if (parseOptionalData)
-    {
-      /* Once we've fetched all the sequences we need to do some post-processing. Loop 
-       * twice: once to modify any fields in our own custom manner, and once more to
-       * see if any with missing data can copy it from their parent. (Need to do these in
-       * separate loops or we don't know if the data we're copying is processed or not.) */
-      GList *seqItem = seqList;
-      for ( ; seqItem; seqItem = seqItem->next)
-        {
-          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-          processGeneName(blxSeq);
-          processOrganism(blxSeq);
-        }
-
-      for (seqItem = seqList; seqItem; seqItem = seqItem->next)
-        {
-          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-          populateMissingDataFromParent(blxSeq, seqList);
-        }
-    }
-  
   return success;
 }
 
@@ -508,6 +504,7 @@ gboolean blxviewFetchSequences(gboolean External,
   GHashTableIter iter;
   g_hash_table_iter_init(&iter, seqsTable);
   gpointer key, value;
+  GError *error = NULL;
   
   while (g_hash_table_iter_next(&iter, &key, &value))
     {
@@ -515,22 +512,25 @@ gboolean blxviewFetchSequences(gboolean External,
       const gchar *fetchMode = g_quark_to_string(dataTypeQuark);
       GList *seqsToFetch = (GList*)value;
       
-      GError *error = NULL;
+      GError *tmpError = NULL;
       
       DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
       
-      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, &error))
+      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, &tmpError))
         {
           success = TRUE;
           
-          /* If there were any issues, report them as a warning */
-          prefixError(error, "Issues found while fetching sequences by '%s' mode: ");
-          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
-        }
-      else
-        {
-          prefixError(error, "Error fetching sequences by '%s' mode. ");
-          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+          /* Compile all errors into a single error */
+	  if (error)
+	    {
+	      prefixError(error, tmpError->message);
+	      g_error_free(tmpError);
+	      tmpError = NULL;
+	    }
+	  else
+	    {
+	      error = tmpError;
+	    }
         }
       
       /* We're done with this list now, so free the memory. Don't delete it from
@@ -541,10 +541,41 @@ gboolean blxviewFetchSequences(gboolean External,
   /* We're done with the hash table now */
   g_hash_table_unref(seqsTable);
   
-  if (!success)
+  if (success && error)
     {
-      g_critical("Error fetching sequences.\n");
+      /* Some fetches succeeded, so just issue a warning */
+      prefixError(error, "Error fetching sequences:\n");
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
+  else if (error)
+    {
+      /* All failed, so issue a critical warning */
+      prefixError(error, "Error fetching sequences:\n");
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+    }
+  
+  
+  if (parseFullEmblInfo)
+    {
+      /* Once we've fetched all the sequences we need to do some post-processing. Loop 
+       * twice: once to modify any fields in our own custom manner, and once more to
+       * see if any with missing data can copy it from their parent. (Need to do these in
+       * separate loops or we don't know if the data we're copying is processed or not.) */
+      GList *seqItem = seqList;
+      for ( ; seqItem; seqItem = seqItem->next)
+	{
+	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+	  processGeneName(blxSeq);
+	  processOrganism(blxSeq);
+	}
+      
+      for (seqItem = seqList; seqItem; seqItem = seqItem->next)
+	{
+	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+	  populateMissingDataFromParent(blxSeq, seqList);
+	}
+    }
+  
   
   return success;
 }

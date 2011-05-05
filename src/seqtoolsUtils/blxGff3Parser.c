@@ -293,7 +293,7 @@ BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
             {
               /* There was a problem parsing this data-type, so return NULL */
               destroyBlxDataType(&result);
-              prefixError(tmpError, "Error parsing data type [%s]: ", typeName);
+              prefixError(tmpError, "Config file error: Error parsing data type '%s': ", typeName);
               postfixError(tmpError, "\n");
               g_propagate_error(error, tmpError);
             }

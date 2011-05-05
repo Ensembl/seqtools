@@ -442,6 +442,11 @@ static void blxFindDefaultFetchMode(char *fetchMode)
   else if ((tmp_mode = blxConfigGetDefaultFetchMode(TRUE)))
     {
       strcpy(fetchMode, tmp_mode) ;
+      g_free(tmp_mode);
+    }
+  else
+    {
+      fetchMode[0] = 0;
     }
 }
 
@@ -1816,10 +1821,17 @@ void setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetc
 
   /* Get the user fetch mode. This is only supplied via the config file and is
    * optional - if it is not set, use the same as the bulk fetch mode. */
-  *userFetchMode = blxConfigGetDefaultFetchMode(FALSE);
+  char *tmp_mode = blxConfigGetDefaultFetchMode(FALSE);
 
-  if (*userFetchMode[0] == 0)
-    strcpy(*userFetchMode, *bulkFetchMode) ;
+  if (tmp_mode)
+    {
+      strcpy(*userFetchMode, tmp_mode);
+      g_free(tmp_mode);
+    }
+  else
+    {
+      strcpy(*userFetchMode, *bulkFetchMode);
+    }
 }
 
 

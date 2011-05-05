@@ -808,8 +808,12 @@ int main(int argc, char **argv)
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname[FULLNAMESIZE+1] = "";
   
+  /* Pass the config file to parseFS, but only if it was a genuine input file; if we created
+   * an empty config file ourselves, don't pass it. */
+  GKeyFile *inputConfigFile = config_file ? blxGetConfig() : NULL;
+  
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, blxGetConfig()) ;
+          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile) ;
   
   if (FSfile != stdin)
     {
