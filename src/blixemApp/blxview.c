@@ -68,9 +68,10 @@ MSP score codes (for obsolete exblx file format):
 #include <seqtoolsUtils/utilities.h>
 
 
-#define MAXALIGNLEN                   10000
-#define ORGANISM_PREFIX_SEPARATOR     "  "
-
+#define MAXALIGNLEN			      10000
+#define ORGANISM_PREFIX_SEPARATOR	      "  "
+#define MKSTEMP_REPLACEMENT_CHARS	      "XXXXXX"
+#define MKSTEMP_CONST_CHARS		      "BLIXEM_gff"
 
 
 static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
@@ -420,16 +421,28 @@ static void regionFetchSequences(GList *regionsToFetch, const char *fetchMode, G
   if (tmpError || !script)
     {
       g_set_error(error, BLX_ERROR, 1, "Error fetching sequences for fetch-mode [%s].\n", fetchMode);
-      if (script) g_free(script);
-      return;
     }
-  
-  gchar *args = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, &tmpError);
-  
-  printf("Calling script '%s' with args '%s'.\n", script, args);
-  
+  else
+    {
+      gchar *args = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, &tmpError);
+      
+      const gchar *tmpDir = g_get_tmp_dir();
+      char *fileName = blxprintf("%s%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
+      int tmpFile = g_mkstemp(fileName);
+      
+      if (tmpFile == -1)
+	{
+	  g_set_error(error, BLX_ERROR, 1, "Error creating temp file for region-fetch results.\n");
+	}
+      else
+	{
+	  printf("Calling script '%s' with args '%s'.\nResult file = '%s'.\n", script, args, fileName);
+	}
+
+      g_free(args);
+    }
+
   g_free(script);
-  g_free(args);
 }
 
 
