@@ -45,8 +45,8 @@
 
 
 #define BELVU_TREE_WINDOW_NAME                  "BelvuTreeWindow"
-#define DEFAULT_TREE_WINDOW_WIDTH_FRACTION      0.6    /* default width of tree window (as fraction of screen width) */
-#define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.85   /* default height of tree window (as fraction of screen height) */
+#define DEFAULT_TREE_WINDOW_WIDTH_FRACTION      0.5    /* default width of tree window (as fraction of screen width) */
+#define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.4   /* default height of tree window (as fraction of screen height) */
 #define DEFAULT_XPAD                            5
 #define DEFAULT_YPAD                            5
 
@@ -1243,13 +1243,6 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
   Tree *treeStruct = g_malloc(sizeof(Tree));
   treeStruct->head = properties->treeHead;
   
-  char *title = blxprintf("Belvu %s using %s distances of %s", 
-                          bc->treeMethod == NJ ? "Neighbor-joining tree" : "UPGMA tree",
-                          bc->treeDistString,
-                          bc->Title);
-  
-  g_free(title);
-  
   //  treeGraph = graphCreate (TEXT_FULL_SCROLL, 
   //                           title,
   //                           0, 0,
@@ -1439,6 +1432,14 @@ void showBelvuTree(BelvuContext *bc, TreeNode *treeHead)
   /* Create the window */
   GtkWidget *treeWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setTreeWindowStyleProperties(treeWindow);
+
+  char *title = blxprintf("Belvu - %s using %s distances of %s", 
+                          bc->treeMethod == NJ ? "Neighbor-joining tree" : "UPGMA tree",
+                          bc->treeDistString,
+                          bc->Title);
+  
+  gtk_window_set_title(GTK_WINDOW(treeWindow), title);
+  g_free(title);
   
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(treeWindow, bc, NULL);

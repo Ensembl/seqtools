@@ -460,8 +460,9 @@ static void onCloseMenu(GtkAction *action, gpointer data)
 
 static void onQuitMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  gtk_widget_destroy(belvuWindow);
+  GtkWidget *window = GTK_WIDGET(data);
+  gtk_widget_destroy(window);
+  gtk_main_quit();
 }
 
 static void onHelpMenu(GtkAction *action, gpointer data)
@@ -1189,6 +1190,10 @@ static void showBelvuAlignment(GtkWidget *belvuWindow, const int linelen, const 
   GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setWrapWindowStyleProperties(wrapWindow);
   
+  char *windowTitle = blxprintf("Belvu - %s", properties->bc->Title);
+  gtk_window_set_title(GTK_WINDOW(wrapWindow), windowTitle);
+  g_free(windowTitle);
+  
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(wrapWindow, properties->bc, NULL);
   GtkWidget *contextmenu = createBelvuMenu(wrapWindow, "/WrapContextMenu", uiManager);
@@ -1305,6 +1310,10 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_name(window, MAIN_BELVU_WINDOW_NAME);
+  
+  char *title = blxprintf("Belvu - %s", bc->Title);
+  gtk_window_set_title(GTK_WINDOW(window), title);
+  g_free(title);
   
   createBelvuColors(bc, window);
   
