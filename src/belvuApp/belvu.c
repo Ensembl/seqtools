@@ -1874,25 +1874,25 @@ static void treeUNCORRselect(void){
 static void treeJUKESCANTORselect(void){
     strcpy(treeDistString, JUKESCANTORstr);
     treeDistCorr = JUKESCANTOR;
-    setTreeScaleCorr();
+    setTreeScaleCorr(bc);
     treeSettings();
 }
 static void treeKIMURAselect(void){
     strcpy(treeDistString, KIMURAstr);
     treeDistCorr = KIMURA;
-    setTreeScaleCorr();
+    setTreeScaleCorr(bc);
     treeSettings();
 }
 static void treeSTORMSONNselect(void){
     strcpy(treeDistString, STORMSONNstr);
     treeDistCorr = STORMSONN;
-    setTreeScaleCorr();
+    setTreeScaleCorr(bc);
     treeSettings();
 }
 static void treeScoredistselect(void){
     strcpy(treeDistString, Scorediststr);
     treeDistCorr = Scoredist;
-    setTreeScaleCorr();
+    setTreeScaleCorr(bc);
     treeSettings();
 }
 
@@ -2601,7 +2601,7 @@ int main(int argc, char **argv)
     treeDistCorr = Scoredist;
     strcpy(treePickString, SWAPstr);
     treePickMode = NODESWAP;
-    setTreeScaleCorr();
+    setTreeScaleCorr(bc);
 
     while ((optc = getopt(argc, argv, optstring)) != -1)
 	switch (optc) 
@@ -4223,8 +4223,6 @@ myGraphDestroy(treeDestroy, treeGraph)
 
 
 /* Global variables */
-static double treeScale;
-
 static char *colorNames[NUM_TRUECOLORS] = {
 "WHITE", 
 "BLACK", 
@@ -4371,7 +4369,14 @@ gint organism_order(gconstpointer xIn, gconstpointer yIn)
   const ALN *x = (const ALN*)xIn;
   const ALN *y = (const ALN*)yIn;
 
-  return strcmp(x->organism, y->organism);
+  if (!x->organism && !y->organism)
+    return 0;
+  else if (!x->organism)
+    return -1;
+  else if (!y->organism)
+    return 1;
+  else
+    return strcmp(x->organism, y->organism);
 }
 
 
@@ -4476,22 +4481,22 @@ void resetALN(ALN *alnp)
   alnp->score = 0.0;
   alnp->color = WHITE;
   alnp->markup = 0;
-  alnp->organism = 0;
+  alnp->organism = NULL;
 }
 
 
-void setTreeScaleCorr(const int treeMethod) 
+void setTreeScaleCorr(BelvuContext *bc, const int treeMethod) 
 {
   if (treeMethod == UPGMA)
-      treeScale = 1.0;
+      bc->treeScale = 1.0;
   else if (treeMethod == NJ)
-      treeScale = 0.3;
+      bc->treeScale = 0.3;
 }
 
 
-void setTreeScale(const double newScale) 
+void setTreeScale(BelvuContext *bc, const double newScale) 
 {
-  treeScale = newScale;
+  bc->treeScale = newScale;
 }
 
 
@@ -4739,7 +4744,7 @@ gboolean arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer,
   int ord;
   int i = 0 , j = a->len, k;
 
-  if (!j || (ord = orderFunc(s, &g_array_index(a, BootstrapGroup, 0))) < 0)
+  if (!j || (ord = orderFunc(s, &g_array_index(a, ALN, 0))) < 0)
     { 
       if (ip)
 	*ip = -1; 
@@ -4753,7 +4758,7 @@ gboolean arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer,
       return TRUE;
     }
 
-  if ((ord = orderFunc(s, &g_array_index(a, BootstrapGroup, --j))) > 0)
+  if ((ord = orderFunc(s, &g_array_index(a, ALN, --j))) > 0)
     {
       if (ip)
 	*ip = j; 
@@ -4771,7 +4776,7 @@ gboolean arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer,
     { 
       k = i + ((j-i) >> 1) ; /* midpoint */
 
-      if ((ord = orderFunc(s, &g_array_index(a, BootstrapGroup, k))) == 0)
+      if ((ord = orderFunc(s, &g_array_index(a, ALN, k))) == 0)
 	{ 
           if (ip)
 	    *ip = k; 
@@ -4982,160 +4987,6 @@ void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcI
       {
         g_array_index(alignArrDest, ALN, i).seq[destIdx] = g_array_index(alignArrSrc, ALN, i).seq[srcIdx];
       }
-}
-
-
-/* Draws clickable boxes for horizontal lines.  The routine must be in sync with
-   treeDrawNode, but can not be integrated since a box may
-   accidentally overwrite some text.  Therefore all boxes must be 
-   drawn before any text or lines.
-*/
-static double treeDrawNodeBox(BelvuContext *bc, Tree *tree, TreeNode *node, double x) 
-{
-  double y, yl, yr;
-  int box;
-
-  if (!node) 
-    return 0.0;
-
-  yl = treeDrawNodeBox(bc, tree, node->left, x + node->branchlen*treeScale);
-  yr = treeDrawNodeBox(bc, tree, node->right, x + node->branchlen*treeScale);
-
-  if (yl) 
-    {
-      y = (yl + yr) / 2.0;
-    }
-  else 
-    {
-      y = bc->tree_y++;
-    }
-
-  /* Make box around horizontal lines */
-//  box = graphBoxStart();
-//  graphLine(x + node->branchlen*treeScale, y, x, y);
-//  oldlinew = graphLinewidth(0.0); graphColor(BG);
-//  graphRectangle(x + node->branchlen*treeScale, y-0.5, x, y+0.5);
-//  graphColor(BLACK); graphLinewidth(oldlinew);
-//  graphBoxEnd();
-    
-//    graphAssociate(assVoid(100+box), node);
-
-  node->box = box;
-  tree->lastNodeBox = box;
-
-  return y;
-}
-
-
-/* The actual tree drawing routine.
-   Note: must be in sync with treeDrawNodeBox, which draws clickable
-   boxes first.
-*/
-static double treeDrawNode(BelvuContext *bc, Tree *tree, TreeNode *node, double x) 
-{
-  double y, yl, yr;
-  int leftcolor;
-
-  if (!node) 
-    return 0.0;
-
-  yl = treeDrawNode(bc, tree, node->left, x + node->branchlen*treeScale);
-  //  leftcolor = graphColor(BLACK);
-  yr = treeDrawNode(bc, tree, node->right, x + node->branchlen*treeScale);
-
-  if (yl) 
-    {
-      /* internal node */
-      y = (yl + yr) / 2.0;
-
-      /* connect children */
-//      graphLine(x + node->branchlen*treeScale, yr, x + node->branchlen*treeScale, y);
-//      graphColor(leftcolor);
-//      graphLine(x + node->branchlen*treeScale, yl, x + node->branchlen*treeScale, y);
-
-      if (node->left->organism != node->right->organism)
-        {
-          //graphColor(BLACK);
-        }
-    }
-  else 
-    {
-      /* Sequence name */
-      int box ;
-
-      y = bc->tree_y++;
-
-      if (bc->treeColorsOn && node->organism) 
-        {
-          ALN aln;
-          aln.organism = node->organism;
-
-          int ip = 0;
-          if (arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order)) 
-            {
-              //graphColor(arrp(organismArr, ip, ALN)->color);
-	    }
-	}
-      else
-        {
-          //graphColor(BLACK);
-        }
-
-      /* Make clickable box for sequence */
-      //      box = graphBoxStart();
-//      graphText(node->name, x + node->branchlen*treeScale + 1, y-0.5);
-//      graphBoxEnd();
-//      graphAssociate(assVoid(100+box), node);
-
-      if (bc->highlightedAln && node->aln == bc->highlightedAln) 
-        {
-          //graphBoxDraw(box, WHITE, BLACK);
-          tree->currentPickedBox = box;
-	}
-      else if (node->aln) 
-        {
-          //graphBoxDraw(box, BLACK, node->aln->color);
-	}	    
-
-      if (bc->treeShowOrganism && node->organism) 
-        {
-          //graphText(node->organism, x + node->branchlen*treeScale + 2 + strlen(node->name), y-0.5);
-        }
-      
-      {
-        int pos = x + node->branchlen*treeScale + strlen(node->name);
-        if (pos > bc->maxTreeWidth) 
-          bc->maxTreeWidth = pos;
-      }
-    }
-
-  /* Horizontal branches */
-  //  graphLine(x + node->branchlen*treeScale, y, x, y);
-
-  if (bc->treeShowBranchlen && node->branchlen) 
-    {
-      char *tmpStr = blxprintf("%.1f", node->branchlen);
-      double pos = x + node->branchlen * treeScale * 0.5 - strlen(tmpStr) * 0.5;
-      //      graphText(tmpStr, pos, y);
-      g_free(tmpStr);
-    }
-
-  if (bc->treebootstraps && !node->name && node != bc->treeHead  && !bc->treebootstrapsDisplay) 
-    {
-      //graphColor(BLUE);
-      char *tmpStr = blxprintf("%.0f", node->boot);
-      double pos = x + node->branchlen*treeScale - strlen(tmpStr) - 0.5;
-
-      if (pos < 0.0) 
-        pos = 0;
-      
-      printf("%f  %f   \n", node->boot, pos);
-      //graphText(tmpStr, pos, y);
-      //graphColor(BLACK);
-      g_free(tmpStr);
-    }
-
-  return y;
 }
 
 
@@ -7526,6 +7377,75 @@ int* getColorArray()
 int* getMarkupColorArray()
 {
   return markupColor;
+}
+
+
+/* Convert one of the old acedb-style color numbers to a hex string */
+static const char* convertColorNumToStr(const int colorNum)
+{
+  const char *result = NULL;
+  
+  switch (colorNum)
+  {
+    case WHITE: result = BLX_WHITE; break;
+    case BLACK: result = BLX_BLACK; break;
+    case LIGHTGRAY: result = BLX_LIGHT_GREY; break;
+    case DARKGRAY: result = BLX_DARK_GREY; break;
+    case RED: result = BLX_RED; break;
+    case GREEN: result = BLX_GREEN; break;
+    case BLUE: result = BLX_BLUE; break;
+    case YELLOW: result = BLX_YELLOW; break;
+    case CYAN: result = BLX_CYAN; break;
+    case MAGENTA: result = BLX_MAGENTA; break;
+    case LIGHTRED: result = BLX_LIGHT_RED; break;
+    case LIGHTGREEN: result = BLX_LIGHT_GREEN; break;
+    case LIGHTBLUE: result = BLX_SKY_BLUE; break;
+    case DARKRED: result = BLX_DARK_RED; break;
+    case DARKGREEN: result = BLX_DARK_GREEN; break;
+    case DARKBLUE: result = BLX_DARK_BLUE; break;
+    case PALERED: result = BLX_LIGHT_RED; break;
+    case PALEGREEN: result = BLX_LIGHT_GREEN; break;
+    case PALEBLUE: result = BLX_PALE_BLUE; break;
+    case PALEYELLOW: result = BLX_PALE_YELLOW; break;
+    case PALECYAN: result = BLX_LIGHT_CYAN; break;
+    case PALEMAGENTA: result = BLX_PALE_MAGENTA; break;
+    case BROWN: result = BLX_BROWN; break;
+    case ORANGE: result = BLX_ORANGE; break;
+    case PALEORANGE: result = BLX_PALE_ORANGE; break;
+    case PURPLE: result = BLX_PURPLE; break;
+    case VIOLET: result = BLX_VIOLET; break;
+    case PALEVIOLET: result = BLX_PALE_VIOLET; break;
+    case GRAY: result = BLX_GREY; break;
+    case PALEGRAY: result = BLX_VERY_LIGHT_GREY; break;
+    case CERISE: result = BLX_CERISE; break;
+    case MIDBLUE: result = BLX_MID_BLUE; break;
+    default: result = BLX_WHITE; break;
+  };
+  
+  return result;
+}
+
+
+/* Convert an old-style ACEDB color number to a GdkColor */
+void convertColorNumToGdkColor(const int colorNum, GdkColor *result)
+{
+  const char *colorStr = convertColorNumToStr(colorNum);
+  getColorFromString(colorStr, result, NULL);
+}
+
+
+void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text)
+{
+  PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
+  gdk_draw_layout(drawable, gc, x, y, layout);
+  g_object_unref(layout);
+}
+
+void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value)
+{
+  char *tmpStr = blxprintf("%d", value);
+  drawText(widget, drawable, gc, x, y, tmpStr);
+  g_free(tmpStr);
 }
 
 

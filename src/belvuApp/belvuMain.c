@@ -148,14 +148,24 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
            sequences of the same organism point to the same place and to make a 
            non-redundant list of present organisms */
           alnp->organism = suffix;
-          g_array_insert_val(organismArr, i, alnp);
+          
+          /* Only insert it if this organism is not already in the array */
+          int ip = 0;
+          if (!arrayFind(organismArr, alnp, &ip, (void*)organism_order))
+            {
+              g_array_append_val(organismArr, *alnp);
+              g_array_sort(organismArr, organism_order);
+            }
           
           /* Store pointer to unique organism in ALN struct */
-          alnp->organism = g_array_index(organismArr, ALN, i).organism;
+          ip = 0;
+          if (arrayFind(organismArr, alnp, &ip, (void*)organism_order))
+            {
+              ALN *alnTmp = &g_array_index(organismArr, ALN, ip);
+              alnp->organism = alnTmp->organism;
+            }
         }
     }
-  
-  g_array_sort(organismArr, organism_order);
 }
 
 
@@ -357,7 +367,7 @@ int main(int argc, char **argv)
   strcpy(treePickString, SWAPstr);
   
   double treePickMode = NODESWAP;
-  setTreeScaleCorr(bc->treeMethod);
+  setTreeScaleCorr(bc, bc->treeMethod);
   
   
   char *OrganismLabel = "OS";
@@ -444,11 +454,11 @@ int main(int argc, char **argv)
 	  case 'j':
 	    strcpy(bc->treeDistString, JUKESCANTORstr);
 	    bc->treeDistCorr = JUKESCANTOR;
-	    setTreeScaleCorr(bc->treeMethod);         break;
+	    setTreeScaleCorr(bc, bc->treeMethod);         break;
 	  case 'k':
 	    strcpy(bc->treeDistString, KIMURAstr);
 	    bc->treeDistCorr = KIMURA;
-	    setTreeScaleCorr(bc->treeMethod);         break;
+	    setTreeScaleCorr(bc, bc->treeMethod);         break;
 	  case 'o':
 	    bc->treeCoordsOn = FALSE;         break;
 	  case 'p':
@@ -459,15 +469,15 @@ int main(int argc, char **argv)
 	  case 's':
 	    strcpy(bc->treeDistString, STORMSONNstr);
 	    bc->treeDistCorr = STORMSONN;
-	    setTreeScaleCorr(bc->treeMethod);         break;
+	    setTreeScaleCorr(bc, bc->treeMethod);         break;
 	  case 'b':
 	    strcpy(bc->treeDistString, SCOREDISTstr);
 	    bc->treeDistCorr = SCOREDIST;
-	    setTreeScaleCorr(bc->treeMethod);         break;
+	    setTreeScaleCorr(bc, bc->treeMethod);         break;
 	  case 'r':
 	    strcpy(bc->treeDistString, UNCORRstr);
 	    bc->treeDistCorr = UNCORR;
-	    setTreeScale(1.0);          break;
+	    setTreeScale(bc, 1.0);          break;
 	  default : g_error("Illegal sorting order: %s", optarg);
 	}
       }                                 break;

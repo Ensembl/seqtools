@@ -152,75 +152,7 @@ void belvuAlignmentRedrawAll(GtkWidget *belvuAlignment)
   gtk_widget_queue_draw(belvuAlignment);
 }
 
-static void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text)
-{
-  PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
-  gdk_draw_layout(drawable, gc, x, y, layout);
-  g_object_unref(layout);
-}
 
-static void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value)
-{
-  char *tmpStr = blxprintf("%d", value);
-  drawText(widget, drawable, gc, x, y, tmpStr);
-  g_free(tmpStr);
-}
-
-
-/* Convert one of the old acedb-style color numbers to a hex string */
-static const char* convertColorNumToStr(const int colorNum)
-{
-  const char *result = NULL;
-  
-  switch (colorNum)
-    {
-      case WHITE: result = BLX_WHITE; break;
-      case BLACK: result = BLX_BLACK; break;
-      case LIGHTGRAY: result = BLX_LIGHT_GREY; break;
-      case DARKGRAY: result = BLX_DARK_GREY; break;
-      case RED: result = BLX_RED; break;
-      case GREEN: result = BLX_GREEN; break;
-      case BLUE: result = BLX_BLUE; break;
-      case YELLOW: result = BLX_YELLOW; break;
-      case CYAN: result = BLX_CYAN; break;
-      case MAGENTA: result = BLX_MAGENTA; break;
-      case LIGHTRED: result = BLX_LIGHT_RED; break;
-      case LIGHTGREEN: result = BLX_LIGHT_GREEN; break;
-      case LIGHTBLUE: result = BLX_SKY_BLUE; break;
-      case DARKRED: result = BLX_DARK_RED; break;
-      case DARKGREEN: result = BLX_DARK_GREEN; break;
-      case DARKBLUE: result = BLX_DARK_BLUE; break;
-      case PALERED: result = BLX_LIGHT_RED; break;
-      case PALEGREEN: result = BLX_LIGHT_GREEN; break;
-      case PALEBLUE: result = BLX_PALE_BLUE; break;
-      case PALEYELLOW: result = BLX_PALE_YELLOW; break;
-      case PALECYAN: result = BLX_LIGHT_CYAN; break;
-      case PALEMAGENTA: result = BLX_PALE_MAGENTA; break;
-      case BROWN: result = BLX_BROWN; break;
-      case ORANGE: result = BLX_ORANGE; break;
-      case PALEORANGE: result = BLX_PALE_ORANGE; break;
-      case PURPLE: result = BLX_PURPLE; break;
-      case VIOLET: result = BLX_VIOLET; break;
-      case PALEVIOLET: result = BLX_PALE_VIOLET; break;
-      case GRAY: result = BLX_GREY; break;
-      case PALEGRAY: result = BLX_VERY_LIGHT_GREY; break;
-      case CERISE: result = BLX_CERISE; break;
-      case MIDBLUE: result = BLX_MID_BLUE; break;
-      default: result = BLX_WHITE; break;
-    };
-  
-  return result;
-}
-
-
-/* Convert an old-style ACEDB color number to a GdkColor */
-static void convertColorNumToGdkColor(const int colorNum, GdkColor *result)
-{
-  const char *colorStr = convertColorNumToStr(colorNum);
-  getColorFromString(colorStr, result, NULL);
-}
-  
-  
 /* Find the background color of the given residue index i in the given alignment */
 static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, GdkColor *result) 
 {

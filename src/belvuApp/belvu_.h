@@ -142,6 +142,8 @@ typedef enum _BelvuColorId
     
     BELCOLOR_BACKGROUND,                      /* background color for widgets */
     BELCOLOR_ALIGN_TEXT,                      /* text color for alignments */
+    BELCOLOR_TREE_DEFAULT,                    /* default line color for the tree */
+    BELCOLOR_TREE_BOOTSTRAP,
     
     BELCOLOR_NUM_COLORS
   } BelvuColorId;
@@ -300,7 +302,8 @@ typedef struct BelvuContextStruct
   double maxSimCutoff;	           /* %id cutoff for maximum colour */
   double colorByResIdCutoff;       /* Colour by residue + id cutoff */
   double mksubfamilies_cutoff; 
-
+  double treeScale;                /* scale to use for drawing the tree */
+  
   char saveSeparator;
   char treeDistString[50];
   char treeMethodString[50];
@@ -345,8 +348,8 @@ typedef struct BelvuContextStruct
 BelvuContext*                             createBelvuContext();
 void                                      destroyBelvuContext(BelvuContext **bc);
 
-void					  setTreeScaleCorr(const int treeMethod);
-void					  setTreeScale(const double newScale) ;
+void					  setTreeScaleCorr(BelvuContext *bc, const int treeMethod);
+void					  setTreeScale(BelvuContext *bc, const double newScale) ;
 
 gint                                      alphaorder(gconstpointer xIn, gconstpointer yIn);
 gint                                      organism_order(gconstpointer xIn, gconstpointer yIn);
@@ -412,6 +415,10 @@ gboolean                                  arrayFind(GArray *a, void *s, int *ip,
 GArray*                                   copyAlignArray(GArray *inputArr);
 void                                      columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcIdx);
 double                                    identity(char *s1, char *s2, const gboolean penalize_gaps);
+
+void                                      convertColorNumToGdkColor(const int colorNum, GdkColor *result);
+void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text);
+void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value);
 
 
 #endif /* DEF_BELVU_P_H */

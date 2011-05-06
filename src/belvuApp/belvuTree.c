@@ -47,8 +47,8 @@
 #define BELVU_TREE_WINDOW_NAME                  "BelvuTreeWindow"
 #define DEFAULT_TREE_WINDOW_WIDTH_FRACTION      0.5    /* default width of tree window (as fraction of screen width) */
 #define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.4   /* default height of tree window (as fraction of screen height) */
-#define DEFAULT_XPAD                            5
-#define DEFAULT_YPAD                            5
+#define DEFAULT_XPAD                            10
+#define DEFAULT_YPAD                            10
 
 
 /*  BLOSUM62 930809
@@ -791,7 +791,7 @@ static char *fillOrganism(TreeNode *node)
   
   /* printf("\nFill: (left=%s, right=%s):  ", leftorganism, rightorganism); */
   
-  node->organism = (leftorganism == rightorganism ? leftorganism : 0);
+  node->organism = (leftorganism == rightorganism ? leftorganism : NULL);
   
   return node->organism;
 }
@@ -1200,7 +1200,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       newnode->right->branchlen = rlen;
       
       newnode->organism = (node[maxi]->organism == node[maxj]->organism ?
-                           node[maxi]->organism : 0);
+                           node[maxi]->organism : NULL);
       
       node[maxi] = newnode;
       node[maxj] = 0;
@@ -1232,6 +1232,188 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
  *                        Drawing                          *
  ***********************************************************/
 
+/* Draws clickable boxes for horizontal lines.  The routine must be in sync with
+ * treeDrawNode, but can not be integrated since a box may
+ * accidentally overwrite some text.  Therefore all boxes must be 
+ * drawn before any text or lines.
+ */
+//static double treeDrawNodeBox(BelvuContext *bc, Tree *tree, TreeNode *node, double x) 
+//{
+//  double y, yl, yr;
+//  int box;
+//  
+//  if (!node) 
+//    return 0.0;
+//  
+//  yl = treeDrawNodeBox(bc, tree, node->left, x + node->branchlen*treeScale);
+//  yr = treeDrawNodeBox(bc, tree, node->right, x + node->branchlen*treeScale);
+//  
+//  if (yl) 
+//    {
+//      y = (yl + yr) / 2.0;
+//    }
+//  else 
+//    {
+//      y = bc->tree_y++;
+//    }
+//  
+//  /* Make box around horizontal lines */
+//  //  box = graphBoxStart();
+//  //  graphLine(x + node->branchlen*treeScale, y, x, y);
+//  //  oldlinew = graphLinewidth(0.0); graphColor(BG);
+//  //  graphRectangle(x + node->branchlen*treeScale, y-0.5, x, y+0.5);
+//  //  graphColor(BLACK); graphLinewidth(oldlinew);
+//  //  graphBoxEnd();
+//  
+//  //    graphAssociate(assVoid(100+box), node);
+//  
+//  node->box = box;
+//  tree->lastNodeBox = box;
+//  
+//  return y;
+//}
+
+
+/* The actual tree drawing routine.
+ Note: must be in sync with treeDrawNodeBox, which draws clickable
+ boxes first.
+ */
+static double treeDrawNode(BelvuContext *bc, 
+                           GtkWidget *widget,
+                           GdkDrawable *drawable, 
+                           GdkGC *gc, 
+                           BelvuTreeProperties *properties,
+                           GdkColor *defaultColor, 
+                           Tree *tree, 
+                           TreeNode *node, 
+                           double x) 
+{
+  double y, yl, yr;
+  const int charHeight = 12;
+  const int charWidth = 8;
+  
+  if (!node) 
+    return 0.0;
+  
+  const int curX = x + (node->branchlen * (bc->treeScale * charWidth));
+
+  GdkGC *leftGc = gdk_gc_new(drawable);
+  gdk_gc_copy(leftGc, gc);
+  yl = treeDrawNode(bc, widget, drawable, leftGc, properties, defaultColor, tree, node->left, curX);
+  
+  gdk_gc_set_foreground(gc, defaultColor);
+  yr = treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, tree, node->right, curX);
+  
+  if (yl) 
+    {
+      /* internal node */
+      y = (yl + yr) / 2.0;
+      
+      /* connect children */
+      gdk_draw_line(drawable, gc, curX, yr, curX, y);
+      gdk_gc_copy(gc, leftGc);
+      gdk_draw_line(drawable, gc, curX, yl, curX, y);
+      
+      if (node->left->organism != node->right->organism)
+        {
+          /* Reset color */
+          gdk_gc_set_foreground(gc, defaultColor);
+        }
+    }
+  else 
+    {
+      /* Sequence name */
+      int box ;
+      
+      y = bc->tree_y * charHeight;
+      bc->tree_y++;
+      
+      if (bc->treeColorsOn && node->organism) 
+        {
+          /* Get the color for this organism */
+          ALN aln;
+          aln.organism = node->organism;
+          
+          int ip = 0;
+          if (arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order)) 
+            {
+              GdkColor color;
+              int colorNum = g_array_index(bc->organismArr, ALN, ip).color;
+              convertColorNumToGdkColor(colorNum, &color);
+              
+              gdk_gc_set_foreground(gc, &color);
+	    }
+	}
+      else
+        {
+          /* Just use the default color */
+          gdk_gc_set_foreground(gc, defaultColor);
+        }
+      
+      /* Make clickable box for sequence */
+      //      box = graphBoxStart();
+      //      graphText(node->name, x + node->branchlen*treeScale + 1, y-0.5);
+      //      graphBoxEnd();
+      //      graphAssociate(assVoid(100+box), node);
+      
+      if (bc->highlightedAln && node->aln == bc->highlightedAln) 
+        {
+          //graphBoxDraw(box, WHITE, BLACK);
+          tree->currentPickedBox = box;
+	}
+      else if (node->aln) 
+        {
+          //graphBoxDraw(box, BLACK, node->aln->color);
+	}	    
+      
+      if (bc->treeShowOrganism && node->organism) 
+        {
+          drawText(widget, drawable, gc, curX + 2 + strlen(node->name), y - charHeight / 2, node->organism);
+        }
+      
+        {
+        int pos = curX + strlen(node->name);
+          
+        if (pos > bc->maxTreeWidth) 
+          bc->maxTreeWidth = pos;
+        }
+    }
+  
+  /* Horizontal branches */
+  gdk_draw_line(drawable, gc, curX, y, x, y);
+  
+  if (bc->treeShowBranchlen && node->branchlen) 
+    {
+      char *tmpStr = blxprintf("%.1f", node->branchlen);
+      double pos = curX * 0.5 - strlen(tmpStr) * 0.5;
+
+      drawText(widget, drawable, gc, pos, y, tmpStr);
+      
+      g_free(tmpStr);
+    }
+  
+  if (bc->treebootstraps && !node->name && node != bc->treeHead  && !bc->treebootstrapsDisplay) 
+    {
+      GdkColor *color = getGdkColor(BELCOLOR_TREE_BOOTSTRAP, bc->defaultColors, FALSE, FALSE);
+      gdk_gc_set_foreground(gc, color);
+
+      char *tmpStr = blxprintf("%.0f", node->boot);
+      double pos = curX - strlen(tmpStr) - 0.5;
+      
+      if (pos < 0.0) 
+        pos = 0;
+      
+      printf("%f  %f   \n", node->boot, pos);
+      drawText(widget, drawable, gc, pos, y, tmpStr);
+
+      g_free(tmpStr);
+      gdk_gc_set_foreground(gc, defaultColor);
+    }
+  
+  return y;
+}
+
+
 static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreeProperties *properties)
 {
   BelvuContext *bc = properties->bc;
@@ -1243,28 +1425,19 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
   Tree *treeStruct = g_malloc(sizeof(Tree));
   treeStruct->head = properties->treeHead;
   
-  //  treeGraph = graphCreate (TEXT_FULL_SCROLL, 
-  //                           title,
-  //                           0, 0,
   //                           (bc->treeMethod == UPGMA ? 130 : 110) / fontwidth * screenWidth, 
   //                           (bc->alignArr->len + 7) / fontheight * screenHeight);
-  //    
-  //  graphTextFormat(FIXED_WIDTH);
   //  graphRegister(PICK, treeboxPick);
-  //  graphRegister(DESTROY, treeDestroy);
   
-  //  graphAssociate(assVoid(1), treestruct);
+                    
+  GdkGC *gc = gdk_gc_new(drawable);
+  GdkColor *defaultColor = getGdkColor(BELCOLOR_TREE_DEFAULT, bc->defaultColors, FALSE, FALSE);
   
-  //  oldlinew = graphLinewidth(treeLinewidth);
-  //  graphClear();
-  //  graphMenu(treeMenu);
+  bc->maxTreeWidth = 0;
+  bc->tree_y = 1;
+  treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, treeStruct, treeStruct->head, properties->treeRect.x);
+
   
-//  bc->maxTreeWidth = 0;
-//  bc->tree_y = 1;
-//  treeDrawNodeBox(bc, treeStruct, treeStruct->head, 1.0);
-//  bc->tree_y = 1;
-//  treeDrawNode(bc, treeStruct, treeStruct->head, 1.0);
-  //graphColor(BLACK);
   //graphTextBounds(bc->maxTreeWidth+2 + (treeShowOrganism ? 25 : 0), nseq+6);
   
   /* Draw scale */
@@ -1359,8 +1532,8 @@ static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
   
   properties->treeRect.x = DEFAULT_XPAD;
   properties->treeRect.y = DEFAULT_YPAD;
-  properties->treeRect.width = 500; /* to do: calculate real width and height */
-  properties->treeRect.height = 500;
+  properties->treeRect.width = 1000; /* to do: calculate real width and height */
+  properties->treeRect.height = 800;
   
   gtk_layout_set_size(GTK_LAYOUT(properties->treeArea), properties->treeRect.x * 2 + properties->treeRect.width, 
                       properties->treeRect.y * 2 + properties->treeRect.height);
