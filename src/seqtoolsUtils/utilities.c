@@ -2107,7 +2107,8 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-/* Create and cache a blank pixmap drawable in the given widget */
+/* Create and cache a blank pixmap drawable in the given widget. The size of the
+ * resultant pixmap is the same as the widget's allocation size. */
 GdkDrawable* createBlankPixmap(GtkWidget *widget)
 {
   GdkWindow *window = GTK_IS_LAYOUT(widget) ? GTK_LAYOUT(widget)->bin_window : widget->window;
@@ -2126,6 +2127,27 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
   g_object_unref(gc);
   
   return drawable;
+}
+
+
+/* Like createBlankPixmap, but allows the caller to specify a different size to
+ * the widget allocation size */
+GdkDrawable* createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height)
+{
+  GdkDrawable *bitmap = gdk_pixmap_new(window, width, height, -1);
+  gdk_drawable_set_colormap(bitmap, gdk_colormap_get_system());
+  widgetSetDrawable(widget, bitmap); /* deletes the old drawable, if there is one */
+  
+  /* Paint a blank rectangle for the background, the same color as the widget's background */
+  GdkGC *gc = gdk_gc_new(bitmap);
+  
+  GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColor);
+  gdk_draw_rectangle(bitmap, gc, TRUE, 0, 0, width, height);
+  
+  g_object_unref(gc);
+  
+  return bitmap;
 }
 
 

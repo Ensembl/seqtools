@@ -37,6 +37,7 @@
 
 #include <belvuApp/belvu_.h>
 #include <belvuApp/belvuWindow.h>
+#include <belvuApp/belvuTree.h>
 #include <seqtoolsUtils/utilities.h>
 #include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
@@ -725,7 +726,7 @@ int main(int argc, char **argv)
 
   if (init_tree)
     {
-      treeDisplay(bc);
+      createAndShowBelvuTree(bc);
     
       if (only_tree)
         {

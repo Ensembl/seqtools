@@ -1,6 +1,6 @@
 /*  File: belvu_.h
  *  Author: Gemma Barson, 2011-03-06
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2011 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -366,8 +366,6 @@ void                                      setOrganismColors(GArray *organismArr)
 
 void                                      parseMulLine(BelvuContext *bc, char *line, ALN *aln);
 
-void                                      treeBootstrap(BelvuContext *bc);
-
 void                                      readMatch(BelvuContext *bc, FILE *fil);                
 void                                      checkAlignment(BelvuContext *bc);
 void                                      setConservColors(BelvuContext *bc);
@@ -388,6 +386,7 @@ void                                      writeFasta(BelvuContext *bc, FILE *pip
 void                                      writeMSF(BelvuContext *bc, FILE *pipe);
 
 void                                      separateMarkupLines(BelvuContext *bc);
+void                                      reInsertMarkupLines(BelvuContext *bc);
 TreeNode*                                 treeMake(BelvuContext *bc, const gboolean doBootstrap);
 void                                      treePrintNH(Tree *tree, TreeNode *node, FILE *file);
 
@@ -408,6 +407,11 @@ int*                                      getColorArray();
 int*                                      getMarkupColorArray();
 
 gboolean                                  isGap(char c);
+int                                       strcmp_(gconstpointer xIn, gconstpointer yIn);
+gboolean                                  arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer));
+GArray*                                   copyAlignArray(GArray *inputArr);
+void                                      columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcIdx);
+double                                    identity(char *s1, char *s2, const gboolean penalize_gaps);
 
 
 #endif /* DEF_BELVU_P_H */

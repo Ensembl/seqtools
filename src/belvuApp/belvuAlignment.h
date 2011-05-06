@@ -1,6 +1,6 @@
 /*  File: belvuAlignment.h
  *  Author: Gemma Barson, 2011-04-12
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2011 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

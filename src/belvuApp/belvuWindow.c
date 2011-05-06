@@ -1,6 +1,6 @@
 /*  File: belvuWindow.c
  *  Author: Gemma Barson, 2011-04-11
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2011 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 
 #include <belvuApp/belvuWindow.h>
 #include <belvuApp/belvuAlignment.h>
+#include <belvuApp/belvuTree.h>
 #include <belvuApp/belvu_.h>
 #include <gtk/gtk.h>
 #include <string.h>
@@ -50,6 +51,7 @@
 #define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
 #define DEFAULT_WRAP_WINDOW_WIDTH_FRACTION      0.6    /* default width of wrap window (as fraction of screen width) */
 #define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.85   /* default height of wrap window (as fraction of screen height) */
+
 
 /* Properties specific to the belvu window */
 typedef struct _BelvuWindowProperties
@@ -120,7 +122,7 @@ static void                      oneditColorCodesMenu(GtkAction *action, gpointe
 static void                      showHelpDialog();
 static void			 showAboutDialog(GtkWidget *parent);
 static void                      showWrapDialog(GtkWidget *belvuWindow);
-static void                      showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
+static void                      showBelvuAlignment(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
 static void			 showMakeNonRedundantDialog(GtkWidget *belvuWindow);
 static void			 showRemoveOutliersDialog(GtkWidget *belvuWindow);
@@ -129,8 +131,6 @@ static void			 showRemoveByScoreDialog(GtkWidget *belvuWindow);
 static void			 startRemovingSequences(GtkWidget *belvuWindow);
 static void			 endRemovingSequences(GtkWidget *belvuWindow);
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
-
-static gboolean                  onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -399,9 +399,9 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
 
 
 /* Utility function to create the UI manager for the menus */
-static GtkUIManager* createUiManager(GtkWidget *window, 
-                                     BelvuContext *bc, 
-                                     GtkActionGroup **actionGroupOut)
+GtkUIManager* createUiManager(GtkWidget *window, 
+                              BelvuContext *bc, 
+                              GtkActionGroup **actionGroupOut)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   
@@ -432,13 +432,12 @@ static GtkUIManager* createUiManager(GtkWidget *window,
 
 
 /* Create a menu */
-static GtkWidget* createBelvuMenu(GtkWidget *window, 
-                                  const char *menuDescription, 
-                                  const char *path, 
-                                  GtkUIManager *ui_manager)
+GtkWidget* createBelvuMenu(GtkWidget *window, 
+                           const char *path, 
+                           GtkUIManager *ui_manager)
 {
   GError *error = NULL;
-  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+  if (!gtk_ui_manager_add_ui_from_string (ui_manager, standardMenuDescription, -1, &error))
     {
       prefixError(error, "Building menus failed: ");
       reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
@@ -520,7 +519,12 @@ static void onWrapMenu(GtkAction *action, gpointer data)
 
 static void onMakeTreeMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  createAndShowBelvuTree(properties->bc);
 }
+
 
 static void onTreeOptsMenu(GtkAction *action, gpointer data)
 {
@@ -1130,7 +1134,7 @@ static void showWrapDialog(GtkWidget *belvuWindow)
       
       const gchar *title = gtk_entry_get_text(GTK_ENTRY(titleEntry));
       
-      showWrapWindow(belvuWindow, linelen, title);
+      showBelvuAlignment(belvuWindow, linelen, title);
     }
   
   gtk_widget_destroy(dialog);
@@ -1177,7 +1181,7 @@ static void setWrapWindowStyleProperties(GtkWidget *window)
 }
 
 
-static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title)
+static void showBelvuAlignment(GtkWidget *belvuWindow, const int linelen, const gchar *title)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
@@ -1187,7 +1191,7 @@ static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gcha
   
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(wrapWindow, properties->bc, NULL);
-  GtkWidget *contextmenu = createBelvuMenu(wrapWindow, standardMenuDescription, "/WrapContextMenu", uiManager);
+  GtkWidget *contextmenu = createBelvuMenu(wrapWindow, "/WrapContextMenu", uiManager);
   
   gtk_widget_add_events(wrapWindow, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(wrapWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
@@ -1204,12 +1208,13 @@ static void showWrapWindow(GtkWidget *belvuWindow, const int linelen, const gcha
   gtk_window_present(GTK_WINDOW(wrapWindow));
 }
 
+
 /***********************************************************
  *                         Events                      *
  ***********************************************************/
 
 /* Mouse button handler */
-static gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data)
+gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
   
@@ -1316,9 +1321,9 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   /* Create the menu and toolbar */
   GtkActionGroup *actionGroup = NULL;
   GtkUIManager *uiManager = createUiManager(window, bc, &actionGroup);
-  GtkWidget *menubar = createBelvuMenu(window, standardMenuDescription, "/MenuBar", uiManager);
-  GtkWidget *contextmenu = createBelvuMenu(window, standardMenuDescription, "/ContextMenu", uiManager);
-  GtkWidget *toolbar = createBelvuMenu(window, standardMenuDescription, "/Toolbar", uiManager);
+  GtkWidget *menubar = createBelvuMenu(window, "/MenuBar", uiManager);
+  GtkWidget *contextmenu = createBelvuMenu(window, "/ContextMenu", uiManager);
+  GtkWidget *toolbar = createBelvuMenu(window, "/Toolbar", uiManager);
 
   /* Set the style properties */
   setStyleProperties(window, GTK_TOOLBAR(toolbar));

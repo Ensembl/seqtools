@@ -1,5 +1,5 @@
-/*  File: belvuWindow.h
- *  Author: Gemma Barson, 2011-04-11
+/*  File: belvuTree.h
+ *  Author: Gemma Barson, 2011-05-06
  *  Copyright (c) 2011 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
@@ -31,21 +31,24 @@
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: The main Belvu window
+ * Description: Takes care of drawing the tree windows for belvu
  *----------------------------------------------------------------------------
  */
 
-#ifndef _belvuwindow_h_included_
-#define _belvuwindow_h_included_
+
+#ifndef _belvutree_h_included_
+#define _belvutree_h_included_
+
 
 #include <belvuApp/belvu_.h>
 #include <gtk/gtk.h>
 
-gboolean              createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData);
 
-GtkUIManager*         createUiManager(GtkWidget *window, BelvuContext *bc, GtkActionGroup **actionGroupOut);
-GtkWidget*            createBelvuMenu(GtkWidget *window, const char *path, GtkUIManager *ui_manager);
 
-gboolean              onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
+void                      createAndShowBelvuTree(BelvuContext *bc);
+void                      showBelvuTree(BelvuContext *bc, TreeNode *treeHead);
 
-#endif /* _belvuwindow_h_included_ */
+void                      treeBootstrap(BelvuContext *bc);
+
+
+#endif /* _belvutree_h_included_ */

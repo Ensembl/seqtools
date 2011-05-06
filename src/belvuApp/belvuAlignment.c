@@ -1,6 +1,6 @@
 /*  File: belvuAlignment.c
  *  Author: Gemma Barson, 2011-04-12
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2011 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,7 +45,7 @@
 #define DEFAULT_NAME_COLUMN_PADDING_CHARS       2  /* number of char widths to use to pad after the name column */
 #define WRAP_DISPLAY_PADDING_CHARS              4
 
-/* Properties specific to the belvu window */
+/* Properties specific to the belvu alignment */
 typedef struct _BelvuAlignmentProperties
 {
   BelvuContext *bc;	            /* The belvu context */
@@ -572,25 +572,6 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
       drawSingleSequence(widget, drawable, properties, alnp, i);
     }
-}
-
-
-static GdkDrawable* createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height)
-{
-  GdkDrawable *bitmap = gdk_pixmap_new(window, width, height, -1);
-  gdk_drawable_set_colormap(bitmap, gdk_colormap_get_system());
-  widgetSetDrawable(widget, bitmap); /* deletes the old drawable, if there is one */
-  
-  /* Paint a blank rectangle for the background, the same color as the widget's background */
-  GdkGC *gc = gdk_gc_new(bitmap);
-  
-  GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
-  gdk_gc_set_foreground(gc, bgColor);
-  gdk_draw_rectangle(bitmap, gc, TRUE, 0, 0, width, height);
-
-  g_object_unref(gc);
-  
-  return bitmap;
 }
 
 

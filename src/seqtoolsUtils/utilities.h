@@ -278,6 +278,7 @@ void                  callFuncOnAllChildWidgets(GtkWidget *widget, gpointer data
 gboolean	      onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
 GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
+GdkDrawable*          createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height);
 
 BlxSeqType            determineSeqType(char *seq);
 void                  argvAdd(int *argc, char ***argv, char *s);
