@@ -171,10 +171,10 @@ gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
 
 int			getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange);
 
-void			prevMatch(GtkWidget *detailView, GList *seqList);
-void			nextMatch(GtkWidget *detailView, GList *seqList);
-void			firstMatch(GtkWidget *detailView, GList *seqList);
-void			lastMatch(GtkWidget *detailView, GList *seqList);
+MSP*			prevMatch(GtkWidget *detailView, GList *seqList);
+MSP*			nextMatch(GtkWidget *detailView, GList *seqList);
+MSP*			firstMatch(GtkWidget *detailView, GList *seqList);
+MSP*			lastMatch(GtkWidget *detailView, GList *seqList);
 void			goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
 void			setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
 void			setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);

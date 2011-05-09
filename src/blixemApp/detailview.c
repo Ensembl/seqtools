@@ -94,6 +94,7 @@ typedef struct
 
     int offset;				/* the offset of the found MSP */
     int foundFrame;			/* which ref seq frame the MSP we chose is in */
+    MSP *foundMsp;                      /* the found msp */
   } MatchSearchData;
 
 
@@ -3788,6 +3789,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 		{
 		  searchData->offset = currentBest;
 		  searchData->foundFrame = currentFrame;
+                  searchData->foundMsp = msp;
 		}
 	    }
 	}
@@ -3801,7 +3803,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
  * If a list of sequence names is given, only look at matches in those sequences.
  * startDnaIdx determines where to start searching from. Sets the found match idx as
  * the currently-selected base index */
-static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gboolean searchRight, GList *seqList)
+static MSP* goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gboolean searchRight, GList *seqList)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
   
@@ -3816,7 +3818,8 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 				&bc->refSeqRange,
 				seqList,
 				UNSET_INT,
-				UNSET_INT};
+				UNSET_INT,
+                                NULL};
 
   /* Loop through the MSPs in all visible trees */
   int frame = 1;
@@ -3848,11 +3851,13 @@ static void goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
       int newDnaIdx = searchData.startDnaIdx + (searchData.offset * searchDirection);
       detailViewSetSelectedDnaBaseIdx(detailView, newDnaIdx, searchData.foundFrame, TRUE, FALSE);
     }
+  
+  return searchData.foundMsp;
 }
 
 
 /* Go to the previous match (optionally limited to matches in the given list)  */
-void prevMatch(GtkWidget *detailView, GList *seqList)
+MSP* prevMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
@@ -3870,12 +3875,12 @@ void prevMatch(GtkWidget *detailView, GList *seqList)
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
-  goToNextMatch(detailView, startDnaIdx, FALSE, seqList);
+  return goToNextMatch(detailView, startDnaIdx, FALSE, seqList);
 }
 
 
 /* Go to the next match (optionally limited to matches in the given list)  */
-void nextMatch(GtkWidget *detailView, GList *seqList)
+MSP* nextMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
@@ -3893,29 +3898,29 @@ void nextMatch(GtkWidget *detailView, GList *seqList)
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
-  goToNextMatch(detailView, startDnaIdx, TRUE, seqList);
+  return goToNextMatch(detailView, startDnaIdx, TRUE, seqList);
 }
 
 
 /* Go to the first match (optionally limited to matches in the given list)  */
-void firstMatch(GtkWidget *detailView, GList *seqList)
+MSP* firstMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the start of the ref seq */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max : refSeqRange->min;
   
-  goToNextMatch(detailView, startIdx, TRUE, seqList);
+  return goToNextMatch(detailView, startIdx, TRUE, seqList);
 }
 
 
 /* Go to the last match (optionally limited to matches in the given list)  */
-void lastMatch(GtkWidget *detailView, GList *seqList)
+MSP* lastMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the end of the reference sequence */
   const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->min : refSeqRange->max;
 
-  goToNextMatch(detailView, startIdx, FALSE, seqList);
+  return goToNextMatch(detailView, startIdx, FALSE, seqList);
 }
 
 /***********************************************************

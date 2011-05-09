@@ -727,18 +727,27 @@ static void blviewCreate(char *align_types,
       (mspIsBlastMatch(options->mspList) || options->mspList->type == BLXMSP_HSP || options->mspList->type == BLXMSP_GSP))
     {
       /* We must select the sequence before calling callDotter. Get the first
-       * sequence to the right of the start coord */
-      blxWindowSelectSeq(blixemWindow, options->mspList->sSequence);
+       * sequence to the right of the start coord. */
+      MSP *msp = nextMatch(blxWindowGetDetailView(blixemWindow), NULL);
       
-      GError *error = NULL;
-      char *dotterSSeq = getDotterSSeq(blixemWindow, &error);
-      
-      if (!error)
+      if (msp)
         {
-          callDotter(blixemWindow, FALSE, dotterSSeq, NULL);
+          blxWindowSelectSeq(blixemWindow, msp->sSequence);
+          
+          GError *error = NULL;
+          char *dotterSSeq = getDotterSSeq(blixemWindow, &error);
+          
+          if (!error)
+            {
+              callDotter(blixemWindow, FALSE, dotterSSeq, NULL);
+            }
+            
+          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
         }
-        
-      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      else 
+        {
+          g_error("Could not run Dotter on first sequence; no sequences found to the right of the start coord.\n");
+        }
     }
 
   if (options->startNextMatch)
