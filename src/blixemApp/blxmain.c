@@ -533,7 +533,7 @@ int main(int argc, char **argv)
       {"version",		no_argument,        &showVersion, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
       {"invert-sort",		no_argument,        &options.sortInverted, 1},
-      {"hide-big-picture",      no_argument,        &options.bigPictON, 1},
+      {"hide-big-picture",      no_argument,        &options.bigPictON, 0},
       {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
       {"remove-input-files",    no_argument,        &rm_input_files, 1},
       {"styles-file",           required_argument,  NULL, 0},

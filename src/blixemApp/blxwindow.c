@@ -5832,11 +5832,17 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
    * hide the grid at the moment; hide the detail-view pane as well?  */
   if (options->hideInactive && options->activeStrand == BLXSTRAND_FORWARD)
     {
-      widgetSetHidden(fwdStrandGrid, TRUE);
+      widgetSetHidden(revStrandGrid, TRUE);
     }
   else if (options->hideInactive && options->activeStrand == BLXSTRAND_REVERSE)
     {
-      widgetSetHidden(revStrandGrid, TRUE);
+      widgetSetHidden(fwdStrandGrid, TRUE);
+    }
+
+  /* If the big picture is not enabled, hide it */
+  if (!options->bigPictON)
+    {
+      widgetSetHidden(bigPicture, TRUE);
     }
   
   /* Set the initial column widths. (This must be called after the widgets are 
