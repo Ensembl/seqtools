@@ -301,6 +301,9 @@ typedef struct _CommandLineOptions
   int numFrames;                  /* the number of reading frames */
   char *fetchMode;		  /* the default method for fetching sequences */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
+  gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
+  gboolean mapCoordsFrom;         /* the coord to map from */
+  gboolean mapCoordsTo;           /* the coord to map to */
 } CommandLineOptions;
 
 

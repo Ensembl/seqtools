@@ -77,16 +77,13 @@ gboolean blixem_debug_G = FALSE ;
 \n\
 \n\
  Options:\n\
-  -m <mode>, --display-mode  MANDATORY\n\
-    Whether to display sequences in nucleotide or protein mode. Valid values for <mode> are:\n\
+  -t <type>, --display-type=<type>  MANDATORY\n\
+    Whether to display sequences in nucleotide or protein mode. Must be one of:\n\
       N = nucleotide\n\
       P = protein\n\
 \n\
   -a <names>, --alignment-names=<names>\n\
     Specify a string giving the names of the alignments, e.g. \"EST_mouse EST_human\" etc.\n\
-\n\
-  -b, --disable-big-picture\n\
-    Hide the big picture section.\n\
 \n\
   -c <file>, --config-file=<file>\n\
     Read configuration options from 'file'.\n\
@@ -94,58 +91,65 @@ gboolean blixem_debug_G = FALSE ;
   -h, --help\n\
     More detailed usage information.\n\
 \n\
-  -I, --invert-sort\n\
-    Invert sorting order\n\
+  -m <from[:to]>, --map-coords=<from[:to]>\n\
+    Map the coordinate system so that the given 'from' coordinate maps to the given\n\
+    'to' coordinate (or to '1' if 'to' is not given).\n\
 \n\
-  -k <file>, --key-file=<file>\n\
-    Read color options from a key-value file. Use --help option to see details.\n\
-\n\
-  -N, --negate-coords\n\
+  -n, --negate-coords\n\
     When showing the reverse strand, negate the display coordinates.\n\
 \n\
-  -O <n>, --offset=<n>\n\
+  -o <n>, --offset=<n>\n\
     Offset the reference sequence coordinate system by n.\n\
 \n\
-  -P <nodeid:port>\n\
-    Causes Blixem to get sequences from a pfetch server at machine nodeid on the given\n\
-    port (default 22100).\n\
-\n\
-  -r, --remove-input-files\n\
-    Remove input files after parsing.\n\
-\n\
-  -R, --reverse-strand\n\
+  -r, --reverse-strand\n\
     Indicates that the given reference sequence is the reverse strand.\n\
 \n\
-  -s <mode>, --sort-mode=<mode>\n\
-    Default sort mode. Use --help option to see details.\n\
-\n\
-  -S <n>, --start-coord=<n>\n\
+  -s <n>, --start-coord=<n>\n\
     Start with the display centred on coordinate n.\n\
 \n\
-  -z, --zoom-whole\n\
-    Start with the big picture zoomed out to view the full reference sequence range.\n\
+  --compiled\n\
+    Show package compile date.\n\
 \n\
-  --start-next-match\n\
-    Start with the display centred on the first match to the right of the default start coord.\n\
-\n\
-  --dotter-first\n\
+  --dotter-first-match\n\
     Call Dotter on the first match to the right of the default start coord.\n\
+\n\
+  --fetch-server <nodeid:port>\n\
+    Causes Blixem to get sequences from a fetch server at machine 'nodeid' on the given\n\
+    port (default 22100).\n\
+\n\
+  --hide-big-picture\n\
+    Hide the big picture section on start-up.\n\
+\n\
+  --hide-inactive-strand\n\
+    Hide the inactive strand (i.e. the reverse strand, or the forward strand if the -R option\n\
+    is used).\n\
 \n\
   --highlight-diffs\n\
     Enable 'highlight differences' mode, where mismatches (rather than matches) are highlighted.\n\
 \n\
-  --hide-inactive\n\
-    Hide the inactive strand (i.e. the reverse strand, or the forward strand if the -R option\n\
-    is used).\n\
+  --invert-sort\n\
+    Invert sorting order\n\
 \n\
   --optional-data\n\
     Parse additional data such as organism and tissue-type on start-up.\n\
 \n\
+  --remove-input-files\n\
+    Remove input files after parsing.\n\
+\n\
+  --sort-mode=<mode>\n\
+    Default sort mode. Use --help option to see details.\n\
+\n\
+  --start-next-match\n\
+    Start with the display centred on the first match to the right of the default start coord.\n\
+\n\
+  --styles-file=<file>\n\
+    Read color options from a key-value file. Use --help option to see details.\n\
+\n\
   --version\n\
     Show package version number.\n\
 \n\
-  --compiled\n\
-    Show package compile date.\n\
+  --zoom-whole\n\
+    Start with the big picture zoomed out to view the full reference sequence range.\n\
 \n\
  Some X options:\n\
  -acefont <font> Main font.\n\
@@ -178,7 +182,7 @@ FEATURES\n\
   transcripts, variations and polyA tails. The supported SO terms are:\n%s\
 \n\
 SORT MODE\n\
-  The sort mode is specified with the -s <mode> or --sort-mode=<mode> argument, where <mode> is\n\
+  The sort mode is specified with the --sort-mode=<mode> argument, where <mode> is\n\
   one of the following:\n\
     s = by Score\n\
     i = by Identity\n\
@@ -257,6 +261,9 @@ static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode,
   options->seqType = BLXSEQ_INVALID;
   options->numFrames = 1;
   options->fetchMode = fetchMode;
+  options->mapCoords = FALSE;
+  options->mapCoordsFrom = UNSET_INT;
+  options->mapCoordsTo = 1; /* default to 1-based coordinate system if mapping coords but no 'to' value is specified */
 
   options->msgData.titlePrefix = g_strdup("Blixem - ");
   options->msgData.parent = NULL;
@@ -366,25 +373,6 @@ static BlxSeqType getSeqTypeFromChar(char seqChar)
     result = BLXSEQ_PEPTIDE;
   else
     g_error("Bad display mode '%c'\n", seqChar);
-  
-  return result;
-}
-
-
-/* For backwards compatibility only: get the blast mode from one of the chars X,P,N,L,T */
-static BlxBlastMode getBlastModeFromChar(char modeChar)
-{
-  BlxBlastMode result = BLXMODE_UNSET;
-  
-  switch (modeChar)
-    {
-      case 'N': result = BLXMODE_BLASTN;        break;
-      case 'X': result = BLXMODE_BLASTX;        break;
-      case 'P': result = BLXMODE_BLASTP;        break;
-      case 'T': result = BLXMODE_TBLASTN;       break;
-      case 'L': result = BLXMODE_TBLASTX;       break;
-      default: break;
-    };
   
   return result;
 }
@@ -503,7 +491,7 @@ int main(int argc, char **argv)
   static gboolean showVersion = FALSE;	    /* gets set to true if blixem was called with --version option */
   static gboolean showCompiled = FALSE;	    /* gets set to true if blixem was called with --compiled option */
   
-  gboolean rm_input_files = FALSE ; /* whether to remove input files once we're done with them */
+  static gboolean rm_input_files = FALSE ; /* whether to remove input files once we're done with them */
   PfetchParams *pfetch = NULL ;
   gboolean xtra_data = FALSE ;      /* whether we have an extra data file to parse */
   FILE *xtra_file = NULL ;          /* the extra data file */
@@ -540,37 +528,32 @@ int main(int argc, char **argv)
       {"start-next-match",      no_argument,        &options.startNextMatch, 1},
       {"dotter-first",          no_argument,        &options.dotterFirst, 1},
       {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
-      {"hide-inactive",         no_argument,        &options.hideInactive, 1},
+      {"hide-inactive-strand",  no_argument,        &options.hideInactive, 1},
       {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
       {"version",		no_argument,        &showVersion, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
+      {"invert-sort",		no_argument,        &options.sortInverted, 1},
+      {"hide-big-picture",      no_argument,        &options.bigPictON, 1},
+      {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
+      {"remove-input-files",    no_argument,        &rm_input_files, 1},
+      {"styles-file",           required_argument,  NULL, 0},
+      {"fetch-server",          required_argument,  NULL, 0},
+      {"sort-mode",             required_argument,  NULL, 0},
 
       {"alignment-names",       required_argument,  0, 'a'},
-      {"disable-big-picture",   no_argument,        0, 'b'},
       {"config-file",           required_argument,  0, 'c'},
-      {"single-intput-file",    required_argument,  0, 'F'}, /* obsolete */
       {"help",                  no_argument,        0, 'h'},
       {"disable-install",       no_argument,        0, 'i'}, /* "secret" option (hide from user) */
-      {"invert-sort",           no_argument,        0, 'I'},
-      {"key-file",              required_argument,  0, 'k'},
-      {"tblastx",               no_argument,        0, 'l'}, /* obsolete */
-      {"display-mode",          required_argument,  0, 'm'},
-      {"blastn",                no_argument,        0, 'n'}, /* obsolete */
       {"negate-coords",         no_argument,        0, 'N'}, 
-      {"offset",                required_argument,  0, 'O'},
-      {"blastp",                no_argument,        0, 'p'}, /* obsolete */
-      {"pfetch-server",         required_argument,  0, 'P'},
-      {"remove-input-files",    no_argument,        0, 'r'},
-      {"reverse-strand",        no_argument,        0, 'R'},
-      {"start-coord",           required_argument,  0, 'S'},
-      {"sort-mode",             required_argument,  0, 's'},
-      {"tblastn",               no_argument,        0, 't'}, /* obsolete */
-      {"extra-file",            required_argument,  0, 'x'},
-      {"zoom-whole",            no_argument,        0, 'z'},
+      {"offset",                required_argument,  0, 'o'},
+      {"reverse-strand",        no_argument,        0, 'r'},
+      {"start-coord",           required_argument,  0, 's'},
+      {"display-type",          required_argument,  0, 't'},
+      {"extra-file",            required_argument,  0, 'x'}, /* obsolete? */
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:bc:F:hiIk:lm:nNo:O:pP:rRS:s:tx:z";
+  char        *optstring="a:c:hiK:lm:no:prs:t:x:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -581,16 +564,31 @@ int main(int argc, char **argv)
       switch (optc)
 	{
         case 0:
-          break; /* we get here if getopt_long set a flag; nothing else to do */
+            if (long_options[optionIndex].flag != 0)
+              {
+                /* we get here if getopt_long set a flag; nothing else to do */
+              }
+            else if (stringsEqual(long_options[optionIndex].name, "styles-file", TRUE))
+              {
+                key_file = g_strdup(optarg) ;
+              }
+            else if (stringsEqual(long_options[optionIndex].name, "fetch-server", TRUE))
+              {
+                pfetch = g_malloc(sizeof(PfetchParams)) ;
+                pfetch->net_id = strtok(optarg, ":") ;
+                pfetch->port = atoi(strtok(NULL, ":")) ;
+              }                
+            else if (stringsEqual(long_options[optionIndex].name, "sort-mode", TRUE))
+              {
+                options.initSortColumn = getSortModeFromChar(*optarg);
+              }
+          break; 
           
         case '?':
           break; /* getopt_long already printed an error message */
           
 	case 'a':
 	  align_types = blxprintf("%s", optarg) ;
-	  break;
-	case 'b':
-          options.bigPictON = FALSE;
 	  break;
 	case 'c': 
 	  config_file = g_strdup(optarg) ;
@@ -607,61 +605,25 @@ int main(int argc, char **argv)
 	case 'i':
 	  install = 0;
 	  break;
-	case 'I':
-	  options.sortInverted = TRUE;
-	  break;
-	case 'k': 
-	  key_file = g_strdup(optarg) ;
-          break;
-	case 'l':
-	  options.blastMode = BLXMODE_TBLASTX;
-	  break;
-	case 'm':
+	case 't':
 	  options.seqType = getSeqTypeFromChar(*optarg);
 	  break;
-	case 'n':
-	  options.blastMode = BLXMODE_BLASTN;
-	  break;
-        case 'N':
+        case 'n':
           options.negateCoords = TRUE;
           break;
-        case 'o':
-          /* obsolete: but for backwards compatibility with ZMap, get the mode from the first char in the opts string */
-          options.blastMode = getBlastModeFromChar(*optarg);
-          break;
-	case 'O':
+	case 'o':
           options.refSeqOffset = convertStringToInt(optarg);
 	  break;
-	case 'p':
-	  options.blastMode = BLXMODE_BLASTP;
-	  break;
-	case 'P':
-	  pfetch = g_malloc(sizeof(PfetchParams)) ;
-	  pfetch->net_id = strtok(optarg, ":") ;
-	  pfetch->port = atoi(strtok(NULL, ":")) ;
-	  break;
-	case 'r':
-	  rm_input_files = TRUE ;
-	  break ;
-        case 'R':
+        case 'r':
           options.activeStrand = BLXSTRAND_REVERSE;
           break ;
-        case 'S': 
+        case 's': 
 	  options.startCoord = atoi(optarg);
-	  break;
-	case 's': 
-	  options.initSortColumn = getSortModeFromChar(*optarg);
-	  break;
-	case 't':
-	  options.blastMode = BLXMODE_TBLASTN;
 	  break;
 	case 'x': 
 	  xtra_data = TRUE ;
 	  strcpy(xtra_filename, optarg);
 	  break;
-        case 'z': 
-          options.zoomWhole = TRUE;
-          break;
             
 	default : g_error("Illegal option\n");
 	}
