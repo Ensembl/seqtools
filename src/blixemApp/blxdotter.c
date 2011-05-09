@@ -1468,7 +1468,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
       g_propagate_error(error, rangeError);
       return FALSE;
     }
-  else if (ok && rangeError)
+  else if (ok && rangeError && error) /* if error is null, don't issue warnings */
     {
       /* There was a warning when calculating the range. Ask the user if they want to continue. */
       prefixError(rangeError, "Warning: ");

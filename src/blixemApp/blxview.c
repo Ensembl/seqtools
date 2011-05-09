@@ -724,8 +724,10 @@ static void blviewCreate(char *align_types,
     }
   
   if (options->dotterFirst && options->mspList && options->mspList->sname &&
-      (options->mspList->type == BLXMSP_HSP || options->mspList->type == BLXMSP_GSP))
+      (mspIsBlastMatch(options->mspList) || options->mspList->type == BLXMSP_HSP || options->mspList->type == BLXMSP_GSP))
     {
+      /* We must select the sequence before calling callDotter. Get the first
+       * sequence to the right of the start coord */
       blxWindowSelectSeq(blixemWindow, options->mspList->sSequence);
       
       GError *error = NULL;
@@ -733,7 +735,7 @@ static void blviewCreate(char *align_types,
       
       if (!error)
         {
-          callDotter(blixemWindow, FALSE, dotterSSeq, &error);
+          callDotter(blixemWindow, FALSE, dotterSSeq, NULL);
         }
         
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
