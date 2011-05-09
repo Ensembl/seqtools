@@ -544,7 +544,8 @@ int main(int argc, char **argv)
       {"config-file",           required_argument,  0, 'c'},
       {"help",                  no_argument,        0, 'h'},
       {"disable-install",       no_argument,        0, 'i'}, /* "secret" option (hide from user) */
-      {"negate-coords",         no_argument,        0, 'N'}, 
+      {"map-coords",            required_argument,  0, 'm'}, 
+      {"negate-coords",         no_argument,        0, 'n'}, 
       {"offset",                required_argument,  0, 'o'},
       {"reverse-strand",        no_argument,        0, 'r'},
       {"start-coord",           required_argument,  0, 's'},
@@ -553,7 +554,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:c:hiK:lm:no:prs:t:x:";
+  char        *optstring="a:c:him:no:rs:t:x:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -593,9 +594,6 @@ int main(int argc, char **argv)
 	case 'c': 
 	  config_file = g_strdup(optarg) ;
 	  break;
-	case 'F': 
-	  strcpy(FSfilename, optarg);
-	  break;
 	case 'h': 
           {
 	    showHelpText(supportedTypes);
@@ -605,9 +603,18 @@ int main(int argc, char **argv)
 	case 'i':
 	  install = 0;
 	  break;
-	case 't':
-	  options.seqType = getSeqTypeFromChar(*optarg);
-	  break;
+        case 'm':
+          {
+            options.mapCoords = TRUE;
+            options.mapCoordsFrom = atoi(optarg); /* will ignore anything after ':', if it exists */
+              
+            /* Optionally there may be a second number after a ':' character */
+            const char *cp = strchr(optarg, ':');
+            if (cp)
+              options.mapCoordsTo = atoi(cp + 1);
+              
+            break;
+          }
         case 'n':
           options.negateCoords = TRUE;
           break;
@@ -620,7 +627,10 @@ int main(int argc, char **argv)
         case 's': 
 	  options.startCoord = atoi(optarg);
 	  break;
-	case 'x': 
+        case 't':
+          options.seqType = getSeqTypeFromChar(*optarg);
+          break;
+        case 'x': 
 	  xtra_data = TRUE ;
 	  strcpy(xtra_filename, optarg);
 	  break;
@@ -643,9 +653,9 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
     }
   
-  /* We expect one or two input files, or 0 input files if the FSfilename was already set with the -F option */
+  /* We expect one or two input files */
   const int numFiles = argc - optind;
-  if (!(numFiles == 1 || numFiles == 2 || (numFiles == 0 && *FSfilename != '\0')))
+  if (!(numFiles == 1 || numFiles == 2))
     {
       showUsageText();
       exit(EXIT_FAILURE);
@@ -658,6 +668,16 @@ int main(int argc, char **argv)
 
   gtk_init(&argc, &argv);
 
+  /* mapCoords essentially does the same thing as offset, so we shouldn't be
+   * given both.  Get the offset from mapCoords, if given. */
+  if (options.mapCoords)
+    {
+      if (options.refSeqOffset)
+        g_error("Error: 'map-coords' and 'offset' arguments are incompatible; please only specify one or the other.\n");
+      else
+        options.refSeqOffset = options.mapCoordsTo - options.mapCoordsFrom;
+    }
+  
   /* Set up program configuration. */
   if (!blxInitConfig(config_file, &error))
     {
