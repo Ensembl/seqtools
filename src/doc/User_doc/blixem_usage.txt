@@ -13,16 +13,13 @@
 
 
  Options:
-  -m <mode>, --display-mode  MANDATORY
-    Whether to display sequences in nucleotide or protein mode. Valid values for <mode> are:
+  -t <type>, --display-type=<type>  MANDATORY
+    Whether to display sequences in nucleotide or protein mode. Must be one of:
       N = nucleotide
       P = protein
 
   -a <names>, --alignment-names=<names>
     Specify a string giving the names of the alignments, e.g. "EST_mouse EST_human" etc.
-
-  -b, --disable-big-picture
-    Hide the big picture section.
 
   -c <file>, --config-file=<file>
     Read configuration options from 'file'.
@@ -30,59 +27,66 @@
   -h, --help
     More detailed usage information.
 
-  -I, --invert-sort
-    Invert sorting order
+  -m <from[:to]>, --map-coords=<from[:to]>
+    Map the coordinate system so that the given 'from' coordinate maps to the given
+    'to' coordinate (or to '1' if 'to' is not given).
 
-  -k <file>, --key-file=<file>
-    Read color options from a key-value file. Use --help option to see details.
-
-  -N, --negate-coords
+  -n, --negate-coords
     When showing the reverse strand, negate the display coordinates.
 
-  -O <n>, --offset=<n>
+  -o <n>, --offset=<n>
     Offset the reference sequence coordinate system by n.
 
-  -P <nodeid:port>
-    Causes Blixem to get sequences from a pfetch server at machine nodeid on the given
-    port (default 22100).
-
-  -r, --remove-input-files
-    Remove input files after parsing.
-
-  -R, --reverse-strand
+  -r, --reverse-strand
     Indicates that the given reference sequence is the reverse strand.
 
-  -s <mode>, --sort-mode=<mode>
-    Default sort mode. Use --help option to see details.
-
-  -S <n>, --start-coord=<n>
+  -s <n>, --start-coord=<n>
     Start with the display centred on coordinate n.
-
-  -z, --zoom-whole
-    Start with the big picture zoomed out to view the full reference sequence range.
-
-  --start-next-match
-    Start with the display centred on the first match to the right of the default start coord.
-
-  --dotter-first
-    Call Dotter on the first match to the right of the default start coord.
-
-  --highlight-diffs
-    Enable 'highlight differences' mode, where mismatches (rather than matches) are highlighted.
-
-  --hide-inactive
-    Hide the inactive strand (i.e. the reverse strand, or the forward strand if the -R option
-    is used).
-
-  --optional-data
-    Parse additional data such as organism and tissue-type on start-up.
-
-  --version
-    Show package version number.
 
   --compiled
     Show package compile date.
 
+  --dotter-first-match
+    Call Dotter on the first match to the right of the default start coord.
+
+  --fetch-server <nodeid:port>
+    Causes Blixem to get sequences from a fetch server at machine 'nodeid' on the given
+    port (default 22100).
+
+  --hide-big-picture
+    Hide the big picture section on start-up.
+
+  --hide-inactive-strand
+    Hide the inactive strand (i.e. the reverse strand, or the forward strand if the -R option
+    is used).
+
+  --highlight-diffs
+    Enable 'highlight differences' mode, where mismatches (rather than matches) are highlighted.
+
+  --invert-sort
+    Invert sorting order
+
+  --optional-data
+    Parse additional data such as organism and tissue-type on start-up.
+
+  --remove-input-files
+    Remove input files after parsing.
+
+  --sort-mode=<mode>
+    Default sort mode. Use --help option to see details.
+
+  --start-next-match
+    Start with the display centred on the first match to the right of the default start coord.
+
+  --styles-file=<file>
+    Read color options from a key-value file. Use --help option to see details.
+
+  --version
+    Show package version number.
+
+  --zoom-whole
+    Start with the big picture zoomed out to view the full reference sequence range.
+
  Some X options:
  -acefont <font> Main font.
- -font    <font> Menu font.n
+ -font    <font> Menu font.
