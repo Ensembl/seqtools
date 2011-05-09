@@ -526,7 +526,7 @@ int main(int argc, char **argv)
   static struct option long_options[] =
     {
       {"start-next-match",      no_argument,        &options.startNextMatch, 1},
-      {"dotter-first",          no_argument,        &options.dotterFirst, 1},
+      {"dotter-first-match",    no_argument,        &options.dotterFirst, 1},
       {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
       {"hide-inactive-strand",  no_argument,        &options.hideInactive, 1},
       {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
