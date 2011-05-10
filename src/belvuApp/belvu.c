@@ -5073,7 +5073,7 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 	    return;
             }*/
     
-  bc->displayScores = 1;
+  bc->displayScores = TRUE;
 
   /* Calculate score relative to highlighted sequence */
   int i = 0;
@@ -7301,7 +7301,7 @@ BelvuContext* createBelvuContext()
   bc->penalize_gaps = FALSE;
   bc->stripCoordTokensOn = TRUE;
   bc->saveCoordsOn = TRUE;
-  bc->displayScores = TRUE;
+  bc->displayScores = FALSE;
   bc->outputBootstrapTrees = FALSE;
   bc->treeColorsOn = TRUE;
   bc->treeShowOrganism = TRUE;
