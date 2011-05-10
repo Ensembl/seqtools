@@ -1624,24 +1624,80 @@ static gboolean onBoolChangedCallback(GtkWidget *button, const gint responseId, 
   return TRUE;
 }
 
-
-static void createTreeDisplayOptsButtons(GtkBox *box, gboolean *showBranchLen, gboolean *showOrganism)
+/* Callback to set the value of an integer (passed as the user data) when the
+ * given text entry (which must contain a double or int as text) has changed value */
+static gboolean onDoubleChangedCallback(GtkWidget *entry, const gint responseId, gpointer data)
 {
+  double *value = (double*)data;
+  
+  const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry));
+  *value = g_strtod(text, NULL);
+  
+  return TRUE;
+}
+
+/* Utility to create a check button and place it in the given parent box. The
+ * button will control the setting of the given boolean value, which will be 
+ * updated when the button's parent dialog gets a response. */
+static void createCheckButton(GtkBox *box, const char *mnemonic, gboolean *value)
+{
+  g_assert(value);
+
+  GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
+  gtk_box_pack_start(box, button, FALSE, FALSE, 0);
+  
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), *value);
+  widgetSetCallbackData(button, onBoolChangedCallback, value);
+}
+
+/* Utility to create a text entry box for updating the given integer value.
+ * The text entry is added to the given box, which should belong to a dialog.
+ * The value will be updated when the dialog gets a response. */
+static void createDoubleTextEntry(GtkBox *box, const char *labelText, double *value)
+{
+  g_assert(value);
+  
+  /* Put the label and entry in an hbox */
+  GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
+  gtk_box_pack_start(box, GTK_WIDGET(hbox), FALSE, FALSE, 0);
+
+  /* Create the label */
+  gtk_box_pack_start(hbox, gtk_label_new(labelText), FALSE, FALSE, 0);
+  
+  /* Create the text entry */
+  GtkWidget *entry = gtk_entry_new();
+  gtk_box_pack_start(box, entry, FALSE, FALSE, 0);
+  widgetSetCallbackData(entry, onDoubleChangedCallback, value);
+  
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+
+  char *defaultInput = convertDoubleToString(*value, 2);
+  gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
+
+  
+  const int defaultLen = min(strlen(defaultInput) * 8, 500);
+  gtk_widget_set_size_request(entry, defaultLen, -1);
+
+  g_free(defaultInput);
+}
+
+static void createTreeDisplayOptsButtons(GtkBox *box, 
+                                         double *treeScale,
+                                         double *lineWidth,
+                                         gboolean *showBranchLen, 
+                                         gboolean *showOrganism)
+{
+  /* Put the display options in a vbox in a frame */
   GtkContainer *frame = GTK_CONTAINER(gtk_frame_new("Display options"));
   gtk_box_pack_start(box, GTK_WIDGET(frame), FALSE, FALSE, 12);
   
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_container_add(frame, GTK_WIDGET(vbox));
-  
-  GtkWidget *button1 = gtk_check_button_new_with_mnemonic("Display branch lengths");
-  gtk_box_pack_start(vbox, button1, FALSE, FALSE, 0);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), *showBranchLen);
-  widgetSetCallbackData(button1, onBoolChangedCallback, showBranchLen);
-  
-  GtkWidget *button2 = gtk_check_button_new_with_mnemonic("Display organism");
-  gtk_box_pack_start(vbox, button2, FALSE, FALSE, 0);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), *showOrganism);
-  widgetSetCallbackData(button2, onBoolChangedCallback, (gpointer)showOrganism);
+
+  createDoubleTextEntry(vbox, "Tree scale: ", treeScale);
+  createDoubleTextEntry(vbox, "Line width: ", lineWidth);
+  createCheckButton(vbox, "Display branch lengths", showBranchLen);
+  createCheckButton(vbox, "Display organism", showOrganism);
 }
 
 static void createTreeInteractionButtons(GtkBox *box)
@@ -1650,12 +1706,17 @@ static void createTreeInteractionButtons(GtkBox *box)
 }
 
 /* Utility function to create the content for the tree settings dialog */
-void createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, int *showBranchLen, int *showOrganism)
+void createTreeSettingsDialogContent(BelvuContext *bc, 
+                                     GtkWidget *dialog, 
+                                     double *treeScale,
+                                     double *lineWidth,
+                                     gboolean *showBranchLen, 
+                                     gboolean *showOrganism)
 {
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(vbox), FALSE, FALSE, 0);
   
-  createTreeDisplayOptsButtons(vbox, showBranchLen, showOrganism);
+  createTreeDisplayOptsButtons(vbox, treeScale, lineWidth, showBranchLen, showOrganism);
   createTreeInteractionButtons(vbox);
 }
 
@@ -1716,7 +1777,9 @@ void showTreeSettingsDialog(GtkWidget *belvuTree)
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseTreeSettingsDialog), belvuTree);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
   
-  createTreeSettingsDialogContent(bc, dialog, &properties->showBranchLen, &properties->showOrganism);
+  createTreeSettingsDialogContent(bc, dialog, 
+                                  &properties->treeScale, &properties->lineWidth,
+                                  &properties->showBranchLen, &properties->showOrganism);
   
   gtk_widget_show_all(dialog);
   gtk_window_present(GTK_WINDOW(dialog));

@@ -1288,7 +1288,7 @@ static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFro
   createTreeBuildMethodButtons(GTK_BOX(GTK_DIALOG(dialog)->vbox));
   
   /* Add the standard tree settings content */
-  createTreeSettingsDialogContent(bc, dialog, &bc->treeShowBranchlen, &bc->treeShowOrganism);
+  createTreeSettingsDialogContent(bc, dialog, &bc->treeScale, &bc->treeLineWidth, &bc->treeShowBranchlen, &bc->treeShowOrganism);
 
   gtk_widget_show_all(dialog);
   
