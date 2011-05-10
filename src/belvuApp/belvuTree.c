@@ -49,7 +49,6 @@
 #define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.4   /* default height of tree window (as fraction of screen height) */
 #define DEFAULT_XPAD                            10
 #define DEFAULT_YPAD                            10
-#define DEFAULT_CONNECTOR_LINE_WIDTH            2
 
 
 /*  BLOSUM62 930809
@@ -130,7 +129,14 @@ typedef struct _BelvuTreeProperties
     
     TreeNode *treeHead;             /* The head node of the tree */
     
-    int lineWidth;                  /* Line width of tree branches */
+    int charWidth;
+    int charHeight;
+    
+    double lineWidth;               /* The line width of the branches */
+    double treeScale;               /* The tree scale */
+    gboolean showBranchLen;         /* Whether to show the branch lengths on the branches */
+    gboolean showOrganism;          /* Whether to show the organism name */
+    
   } BelvuTreeProperties;
 
 
@@ -171,7 +177,14 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
       properties->bc = bc;
       properties->treeArea = treeArea;
       properties->treeHead = treeHead;
-      properties->lineWidth = DEFAULT_CONNECTOR_LINE_WIDTH;
+
+      properties->charHeight = 14;
+      properties->charWidth = 8;
+
+      properties->lineWidth = bc->treeLineWidth;
+      properties->treeScale = bc->treeScale;
+      properties->showBranchLen = bc->treeShowBranchlen;
+      properties->showOrganism = bc->treeShowOrganism;
       
       g_object_set_data(G_OBJECT(belvuTree), "BelvuTreeProperties", properties);
       g_signal_connect(G_OBJECT(belvuTree), "destroy", G_CALLBACK (onDestroyBelvuTree), NULL);
@@ -356,7 +369,7 @@ void treeBootstrap(BelvuContext *bc)
         {
           if (bc->treebootstrapsDisplay) 
             {
-              showBelvuTree(bc, treeStruct->head);
+              createBelvuTreeWindow(bc, treeStruct->head);
             }
           else
             {
@@ -579,8 +592,9 @@ static double treeSCOREDIST(char *seq1, char *seq2, BelvuContext *bc)
 static double treeSize3way(TreeNode *node, TreeNode *fromnode) 
 {
   int root = 0;
-  TreeNode *left, *right;
-  double len;
+  TreeNode *left = NULL;
+  TreeNode *right = NULL;
+  double len = 0.0;
   
   if (!node) 
     return 0.0;
@@ -1293,13 +1307,11 @@ static double treeDrawNode(BelvuContext *bc,
                            double x) 
 {
   double y, yl, yr;
-  const int charHeight = 14;
-  const int charWidth = 8;
   
   if (!node) 
     return 0.0;
   
-  const int curX = x + (node->branchlen * (bc->treeScale * charWidth));
+  const int curX = x + (node->branchlen * (properties->treeScale * properties->charWidth));
 
   GdkGC *leftGc = gdk_gc_new(drawable);
   gdk_gc_copy(leftGc, gc);
@@ -1329,7 +1341,7 @@ static double treeDrawNode(BelvuContext *bc,
       /* Sequence name */
       int box ;
       
-      y = bc->tree_y * charHeight;
+      y = bc->tree_y * properties->charHeight;
       bc->tree_y++;
       
       if (bc->treeColorsOn && node->organism) 
@@ -1357,7 +1369,7 @@ static double treeDrawNode(BelvuContext *bc,
       /* Make clickable box for sequence */
       GdkGC *gcTmp = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gcTmp, defaultColor);
-      drawText(widget, drawable, gcTmp, curX + charWidth, y - charHeight / 2, node->name);
+      drawText(widget, drawable, gcTmp, curX + properties->charWidth, y - properties->charHeight / 2, node->name);
       //      graphAssociate(assVoid(100+box), node);
       
       if (bc->highlightedAln && node->aln == bc->highlightedAln) 
@@ -1370,9 +1382,9 @@ static double treeDrawNode(BelvuContext *bc,
           //graphBoxDraw(box, BLACK, node->aln->color);
 	}	    
       
-      if (bc->treeShowOrganism && node->organism) 
+      if (properties->showOrganism && node->organism) 
         {
-          drawText(widget, drawable, gc, curX + (2 + strlen(node->name)) * charWidth, y - charHeight / 2, node->organism);
+          drawText(widget, drawable, gc, curX + (2 + strlen(node->name)) * properties->charWidth, y - properties->charHeight / 2, node->organism);
         }
       
         {
@@ -1386,7 +1398,7 @@ static double treeDrawNode(BelvuContext *bc,
   /* Horizontal branches */
   gdk_draw_line(drawable, gc, curX, y, x, y);
   
-  if (bc->treeShowBranchlen && node->branchlen) 
+  if (properties->showBranchLen && node->branchlen) 
     {
       char *tmpStr = blxprintf("%.1f", node->branchlen);
       double pos = curX * 0.5 - strlen(tmpStr) * 0.5;
@@ -1438,7 +1450,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
                     
   GdkGC *gc = gdk_gc_new(drawable);
   GdkColor *defaultColor = getGdkColor(BELCOLOR_TREE_DEFAULT, bc->defaultColors, FALSE, FALSE);
-  gdk_gc_set_line_attributes(gc, properties->lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+  gdk_gc_set_line_attributes(gc, properties->lineWidth * properties->charWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
   
   bc->maxTreeWidth = 0;
   bc->tree_y = 1;
@@ -1532,6 +1544,79 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
 
 
 /***********************************************************
+ *                    Settings dialog                      *
+ ***********************************************************/
+
+/* Callback to set the value of a boolean pointer (passed as the user data)
+ * when the given toggle button has changed value. */
+static gboolean onBoolChangedCallback(GtkWidget *button, const gint responseId, gpointer data)
+{
+  gboolean *value = (gboolean*)data;
+  *value = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  
+  return TRUE;
+}
+
+
+static void createTreeDisplayOptsButtons(GtkBox *box, gboolean *showBranchLen, gboolean *showOrganism)
+{
+  GtkContainer *frame = GTK_CONTAINER(gtk_frame_new("Display options"));
+  gtk_box_pack_start(box, GTK_WIDGET(frame), FALSE, FALSE, 12);
+  
+  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_container_add(frame, GTK_WIDGET(vbox));
+  
+  GtkWidget *button1 = gtk_check_button_new_with_mnemonic("Display branch lengths");
+  gtk_box_pack_start(vbox, button1, FALSE, FALSE, 0);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), *showBranchLen);
+  widgetSetCallbackData(button1, onBoolChangedCallback, showBranchLen);
+  
+  GtkWidget *button2 = gtk_check_button_new_with_mnemonic("Display organism");
+  gtk_box_pack_start(vbox, button2, FALSE, FALSE, 0);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), *showOrganism);
+  widgetSetCallbackData(button2, onBoolChangedCallback, (gpointer)showOrganism);
+}
+
+static void createTreeInteractionButtons(GtkBox *box)
+{
+  
+}
+
+/* Utility function to create the content for the tree settings dialog */
+void createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, int *showBranchLen, int *showOrganism)
+{
+  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(vbox), FALSE, FALSE, 0);
+  
+  createTreeDisplayOptsButtons(vbox, showBranchLen, showOrganism);
+  createTreeInteractionButtons(vbox);
+}
+
+
+/* Dialog to allow the user to edit the settings for a tree */
+void showTreeSettingsDialog(GtkWidget *belvuTree)
+{
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+  BelvuContext *bc = properties->bc;
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Tree Settings", 
+                                       GTK_WINDOW(belvuTree), 
+                                       GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+                                       GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                       GTK_STOCK_APPLY, GTK_RESPONSE_APPLY,
+                                       GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                       NULL);
+      
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), bc);
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
+  
+  createTreeSettingsDialogContent(bc, dialog, &properties->showBranchLen, &properties->showOrganism);
+  
+  gtk_widget_show_all(dialog);
+  gtk_window_present(GTK_WINDOW(dialog));
+}
+
+/***********************************************************
  *                          Sizing                         *
  ***********************************************************/
 
@@ -1562,29 +1647,25 @@ static void setBelvuTreeStyle(BelvuContext *bc, GtkWidget *belvuTree)
 }
 
 
-/* Create a widget for drawing a tree. */
-static GtkWidget* createBelvuTree(BelvuContext *bc, TreeNode *treeHead)
+/* Create a widget for drawing a tree. Returns the GtkLayout widget that 
+ * does the drawing. Places the widget into the given parent box. */
+static GtkWidget* createBelvuTreeWidget(BelvuContext *bc, TreeNode *treeHead, GtkBox *box)
 {
   /* Create the drawing area */
   GtkWidget *treeArea = gtk_layout_new(NULL, NULL);
   
   /* Make it scrollable. The scroll-window will be the outermost container and
    * therefore will be the widget that we treat as the "belvu tree". */
-  GtkWidget *belvuTree = gtk_scrolled_window_new(NULL, NULL);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(belvuTree), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  gtk_container_add(GTK_CONTAINER(belvuTree), treeArea);
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_box_pack_start(box, scrollWin, TRUE, TRUE, 0);
+  
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_container_add(GTK_CONTAINER(scrollWin), treeArea);
 
-  /* Set the style and properties */
+  /* Set the style */
   setBelvuTreeStyle(bc, treeArea);
-  belvuTreeCreateProperties(belvuTree, bc, treeArea, treeHead);
   
-  /* Set the initial size (must be called after properties are set) */
-  calculateBelvuTreeBorders(belvuTree);
-  
-  /* Connect signals */
-  g_signal_connect(G_OBJECT(treeArea), "expose-event", G_CALLBACK(onExposeBelvuTree), belvuTree);  
-  
-  return belvuTree;
+  return treeArea;
 }
 
 
@@ -1609,48 +1690,57 @@ static void setTreeWindowStyleProperties(GtkWidget *window)
 
 
 /* Display an existing tree. Opens in a new window. */
-void showBelvuTree(BelvuContext *bc, TreeNode *treeHead)
+void createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
 {
   /* Create the window */
-  GtkWidget *treeWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  setTreeWindowStyleProperties(treeWindow);
+  GtkWidget *belvuTree = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  setTreeWindowStyleProperties(belvuTree);
 
   char *title = blxprintf("Belvu - %s using %s distances of %s", 
                           bc->treeMethod == NJ ? "Neighbor-joining tree" : "UPGMA tree",
                           bc->treeDistString,
                           bc->Title);
   
-  gtk_window_set_title(GTK_WINDOW(treeWindow), title);
+  gtk_window_set_title(GTK_WINDOW(belvuTree), title);
   g_free(title);
   
   /* Create the context menu and set a callback to show it */
-  GtkUIManager *uiManager = createUiManager(treeWindow, bc, NULL);
-  GtkWidget *contextmenu = createBelvuMenu(treeWindow, "/TreeContextMenu", uiManager);
+  GtkUIManager *uiManager = createUiManager(belvuTree, bc, NULL);
+  GtkWidget *contextmenu = createBelvuMenu(belvuTree, "/TreeContextMenu", uiManager);
   
-  gtk_widget_add_events(treeWindow, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(treeWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
+  gtk_widget_add_events(belvuTree, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(belvuTree), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
   
   /* We'll place everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(treeWindow), vbox);
+  gtk_container_add(GTK_CONTAINER(belvuTree), vbox);
   
   /* Add the alignment section */
-  GtkWidget *belvuTree = createBelvuTree(bc, treeHead);
-  gtk_box_pack_start(GTK_BOX(vbox), belvuTree, TRUE, TRUE, 0);
-  
-  gtk_widget_show_all(treeWindow);
-  gtk_window_present(GTK_WINDOW(treeWindow));
+  GtkWidget *treeArea = createBelvuTreeWidget(bc, treeHead, GTK_BOX(vbox));
+
+  /* Set the properties on the tree window */
+  belvuTreeCreateProperties(belvuTree, bc, treeArea, treeHead);
+
+  /* Set the initial size (must be called after properties are set) */
+  calculateBelvuTreeBorders(belvuTree);
+
+  /* Connect expose signal for the drawing area. Pass the window as the data. */
+  g_signal_connect(G_OBJECT(treeArea), "expose-event", G_CALLBACK(onExposeBelvuTree), belvuTree);  
+
+  gtk_widget_show_all(belvuTree);
+  gtk_window_present(GTK_WINDOW(belvuTree));
 }
 
 
-/* Create a new tree and display it. Opens in a new window. */
+/* Create a new tree and create a tree-window to display it. */
 void createAndShowBelvuTree(BelvuContext *bc)
 {
   separateMarkupLines(bc);
   
   bc->treeHead = treeMake(bc, TRUE);
-  showBelvuTree(bc, bc->treeHead);
+  createBelvuTreeWindow(bc, bc->treeHead);
   
   reInsertMarkupLines(bc);
   
 }
+

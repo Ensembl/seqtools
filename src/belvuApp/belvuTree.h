@@ -46,7 +46,9 @@
 
 
 void                      createAndShowBelvuTree(BelvuContext *bc);
-void                      showBelvuTree(BelvuContext *bc, TreeNode *treeHead);
+void                      createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
+void                      showTreeSettingsDialog(GtkWidget *belvuTree);
+void                      createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, int *showBranchLen, int *showOrganism);
 
 void                      treeBootstrap(BelvuContext *bc);
 

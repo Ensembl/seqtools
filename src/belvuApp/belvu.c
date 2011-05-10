@@ -7262,7 +7262,7 @@ BelvuContext* createBelvuContext()
   bc->maxEndLen = 0; 
   bc->maxScoreLen = 0; 
   bc->colorScheme = COLORSIM;
-  
+
   bc->maxfgColor = BLACK;
   bc->midfgColor = BLACK,
   bc->lowfgColor = BLACK;
@@ -7274,6 +7274,7 @@ BelvuContext* createBelvuContext()
   bc->treeBestBalance = 0.0;
   bc->treeBestBalance_subtrees = 0.0;
   bc->tree_y = 0.3;
+  bc->treeLineWidth = 0.3;
   bc->lowIdCutoff = 0.4;
   bc->midIdCutoff = 0.6;
   bc->maxIdCutoff = 0.8;

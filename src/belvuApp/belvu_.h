@@ -118,18 +118,34 @@ enum Colour
 };
 
 
-enum {UPGMA, NJ};		/* Tree building methods */
-
 enum { MUL, RAW };		/* Input formats for IN_FORMAT */
 enum { dummy, GF, GC, GS, GR };	/* Markup types in Stockholm format */
-enum { UNCORR, KIMURA, STORMSONN, SCOREDIST, JUKESCANTOR}; /* Distance correction for tree building */
 
 enum { COLORBYRESIDUE, COLORSCHEMESTANDARD, COLORSCHEMEGIBSON, COLORSCHEMECYS, 
-  COLORSCHEMEEMPTY, COLORSIM, COLORID, COLORIDSIM }; /* Modes - used for checkmarks */
+       COLORSCHEMEEMPTY, COLORSIM, COLORID, COLORIDSIM }; /* Modes - used for checkmarks */
 
 enum { NOLL, SORT_ALPHA, SORT_ORGANISM, SORT_TREE, SORT_SCORE, SORT_SIM, SORT_ID }; /* Initial sorting modes */
 
 enum {NODESWAP, NODEROOT};		/* Tree picking methods */
+
+
+/* Tree building methods */
+typedef enum _BelvuBuildMethodId
+{
+  UPGMA,
+  NJ
+} BelvuBuildMethodId;		
+
+
+/* Distance correction methods for tree building */
+typedef enum _BelvuDistCorrId
+{
+  UNCORR,
+  KIMURA,
+  STORMSONN,
+  SCOREDIST,
+  JUKESCANTOR
+} BelvuDistCorrId; 
 
 
 /* The following are used to define default colors for certain types of features in Belvu.
@@ -254,6 +270,19 @@ typedef struct SegStruct
 } SEG;
 
 
+/* This enum contains IDs for all the persistent dialogs in the application, and should be used
+ * to access a stored dialog in the dialogList array in the BelvuContext. Note that the dialogList
+ * array will contain null entries until the dialogs are created for the first time */
+typedef enum
+  {
+    BELDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
+    
+    BELDIALOG_MAKE_TREE,            /* The make-tree dialog */
+    
+    BELDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
+  } BelvuDialogId;
+
+
 typedef struct BelvuContextStruct
 {
   GArray *defaultColors;            /* Default colors used by Belvu */
@@ -270,7 +299,6 @@ typedef struct BelvuContextStruct
 
   FILE *treeReadDistancesPipe;
 
-  int treeMethod;
   int IN_FORMAT;
   int maxScoreLen;
   int alignYStart;
@@ -290,7 +318,9 @@ typedef struct BelvuContextStruct
   int midbgColor;
   int lowbgColor;
                 
-  double treeDistCorr;
+  BelvuBuildMethodId treeMethod;  /* Default building method for trees */
+  BelvuDistCorrId treeDistCorr;   /* Default distance correction method for trees */
+
   double treeBestBalance;
   double treeBestBalance_subtrees;
   double tree_y;
@@ -302,7 +332,8 @@ typedef struct BelvuContextStruct
   double maxSimCutoff;	           /* %id cutoff for maximum colour */
   double colorByResIdCutoff;       /* Colour by residue + id cutoff */
   double mksubfamilies_cutoff; 
-  double treeScale;                /* scale to use for drawing the tree */
+  double treeScale;                /* Default scale to use for drawing the tree */
+  double treeLineWidth;            /* Default line width of the branch lines in trees */
   
   char saveSeparator;
   char treeDistString[50];
@@ -327,9 +358,9 @@ typedef struct BelvuContextStruct
   gboolean displayScores;
   gboolean outputBootstrapTrees;   /* Output the individual bootstrap trees */
   gboolean treebootstrapsDisplay;  /* Display bootstrap trees on screen */
-  gboolean treeColorsOn;
-  gboolean treeShowOrganism;
-  gboolean treeShowBranchlen;
+  gboolean treeColorsOn;           
+  gboolean treeShowOrganism;       /* whether to display the organism name in the tree */
+  gboolean treeShowBranchlen;      /* whether to display the branch length in the tree */
   gboolean matchFooter;
   gboolean saved;
   gboolean color_by_similarity;    /* FALSE => by id */
@@ -340,6 +371,8 @@ typedef struct BelvuContextStruct
   gboolean rmEmptyColumnsOn;
   gboolean lowercaseOn;
   gboolean removingSeqs;	   /* Set to true if in the 'removing sequences' mode */
+  
+  GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   
 } BelvuContext;
 

@@ -131,6 +131,7 @@ static void			 showRemoveByScoreDialog(GtkWidget *belvuWindow);
 static void			 startRemovingSequences(GtkWidget *belvuWindow);
 static void			 endRemovingSequences(GtkWidget *belvuWindow);
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
+static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -169,8 +170,8 @@ static const GtkActionEntry menuEntries[] = {
   { "Print",	GTK_STOCK_PRINT,      "_Print",               "<control>P", "Print  Ctrl+P",                    G_CALLBACK(onPrintMenu)},
   { "Wrap",	NULL,                 "_Wrap for printing",   NULL,         "Wrap alignments for printing",     G_CALLBACK(onWrapMenu)},
   { "MakeTree",	NULL,                 "_Make tree",           NULL,         "Make tree from current alignment", G_CALLBACK(onMakeTreeMenu)},
-  { "TreeOpts",	GTK_STOCK_PROPERTIES, "_Tree options",        NULL,         "Tree options",                     G_CALLBACK(onTreeOptsMenu)},
-  { "ConsPlot",	NULL,                 "Conservation p_lot",   NULL,         "Plot conservation profile",        G_CALLBACK(onConsPlotMenu)},
+  { "TreeOpts",	GTK_STOCK_PROPERTIES, "_Tree settings",       NULL,         "Edit tree settings",               G_CALLBACK(onTreeOptsMenu)},
+  { "ConsPlot",	NULL,                 "Show conservation p_lot",NULL,       "Plot conservation profile",        G_CALLBACK(onConsPlotMenu)},
   { "Save",	GTK_STOCK_SAVE,       "_Save",                "<control>S", "Save alignment",                   G_CALLBACK(onSaveMenu)},
   { "SaveAs",	GTK_STOCK_SAVE_AS,    "Save _as...",          NULL,         "Save alignment as",                G_CALLBACK(onSaveAsMenu)},
   { "Output",	NULL,                 "_Output score/coords", NULL,         "Output current alignment's score and coords",  G_CALLBACK(onOutputMenu)},
@@ -253,8 +254,6 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Print'/>"
 "      <separator/>"
 "      <menuitem action='MakeTree'/>"
-"      <menuitem action='TreeOpts'/>"
-"      <separator/>"
 "      <menuitem action='ConsPlot'/>"
 "      <separator/>"
 "      <menuitem action='Save'/>"
@@ -337,8 +336,6 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Print'/>"
 "    <separator/>"
 "    <menuitem action='MakeTree'/>"
-"    <menuitem action='TreeOpts'/>"
-"    <separator/>"
 "    <menuitem action='ConsPlot'/>"
 "    <separator/>"
 "    <menuitem action='Save'/>"
@@ -521,14 +518,14 @@ static void onWrapMenu(GtkAction *action, gpointer data)
 static void onMakeTreeMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  
-  createAndShowBelvuTree(properties->bc);
+  showMakeTreeDialog(belvuWindow, TRUE);
 }
 
 
 static void onTreeOptsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuTree = GTK_WIDGET(data);
+  showTreeSettingsDialog(belvuTree);
 }
 
 static void onConsPlotMenu(GtkAction *action, gpointer data)
@@ -1211,6 +1208,94 @@ static void showBelvuAlignment(GtkWidget *belvuWindow, const int linelen, const 
   
   gtk_widget_show_all(wrapWindow);
   gtk_window_present(GTK_WINDOW(wrapWindow));
+}
+
+
+/***********************************************************
+ *                    Make tree dialog                     *
+ ***********************************************************/
+
+/* Callback when the user makes a response on the 'make tree' dialog */
+static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      /* Update the settings by calling all the callbacks, then create the tree.
+       * Destroy the dialog if successful */
+      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      BelvuContext *bc = (BelvuContext*)data;
+      createAndShowBelvuTree(bc);
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      /* This is a persistent dialog, so just hide it */
+      gtk_widget_hide_all(GTK_WIDGET(dialog));
+    }
+}
+
+
+static void createTreeBuildMethodButtons(GtkBox *box)
+{
+}
+
+
+/* Dialog to prompt the user to make a tree */
+static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  const BelvuDialogId dialogId = BELDIALOG_MAKE_TREE;
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
+  
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Belvu - Make Tree", 
+                                           GTK_WINDOW(belvuWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                           NULL);
+      
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseMakeTreeDialog), bc);
+    }
+  else
+    {
+      /* Need to refresh the dialog contents, so clear and re-create content area */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  /* Add the build method buttons */
+  createTreeBuildMethodButtons(GTK_BOX(GTK_DIALOG(dialog)->vbox));
+  
+  /* Add the standard tree settings content */
+  createTreeSettingsDialogContent(bc, dialog, &bc->treeShowBranchlen, &bc->treeShowOrganism);
+
+  gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
 }
 
 
