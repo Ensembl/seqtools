@@ -914,10 +914,10 @@ static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *tree)
 TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 {
   TreeNode *newnode = NULL ;
-  int maxi, maxj;
+  int maxi = -1, maxj = -1;
   double maxid = 0.0, pmaxid, **pairmtx, **Dmtx, **mtx, *src, *trg, 
   *avgdist,		/* vector r in Durbin et al */
-  llen, rlen;
+  llen = 0, rlen = 0;
   TreeNode **node ;					    /* Array of (primary) nodes.  Value=0 => stale column */
   static BlxHandle handle = 0;
   BlxHandle treeHandle = NULL ;
@@ -956,11 +956,18 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 		  aln_i->start,
 		  aln_i->end);
 	}
+      
       node[i]->aln = aln_i;
       node[i]->organism = aln_i->organism;
+
+      node[i]->dist = 0.0;
+      node[i]->branchlen = 0.0;
+      node[i]->boot = 0.0;
       node[i]->left = NULL;
       node[i]->right = NULL;
       node[i]->parent = NULL;
+      node[i]->box = 0;
+      node[i]->color = 0;
     }
   
   
@@ -1259,7 +1266,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
                            node[maxi]->organism : NULL);
       
       node[maxi] = newnode;
-      node[maxj] = 0;
+      node[maxj] = NULL;
     }
   
   fillParents(newnode, newnode->left);
@@ -1657,7 +1664,7 @@ void showTreeSettingsDialog(GtkWidget *belvuTree)
                                        GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                        NULL);
       
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), bc);
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(FALSE)); /* not a persistent dialog */
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
   
   createTreeSettingsDialogContent(bc, dialog, &properties->showBranchLen, &properties->showOrganism);
