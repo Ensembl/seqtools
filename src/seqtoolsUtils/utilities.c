@@ -1648,7 +1648,11 @@ gboolean widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
 
 /* Generic callback to call all user-specified callbacks for all child widgets of
  * the given dialog if ACCEPT or APPLY responses received. Also closes the dialog 
- * if ACCEPT or REJECT responses received. */
+ * if ACCEPT or REJECT responses received.
+ * The user data must be a boolean (which has been converted to a pointer using
+ * GINT_TO_POINTER), that is true if this dialog is persistent or false 
+ * otherwise. If it is persistent, the dialog will be hidden rather than being 
+ * destroyed. */
 void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
   gboolean destroy = TRUE;
