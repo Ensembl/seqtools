@@ -1295,6 +1295,16 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
  *                        Drawing                          *
  ***********************************************************/
 
+/* Clear any cached drawables and redraw everything */
+static void redrawBelvuTree(GtkWidget *belvuTree)
+{
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+  
+  widgetClearCachedDrawable(properties->treeArea, NULL);
+  
+  gtk_widget_queue_draw(belvuTree);
+}
+
 /* Draws clickable boxes for horizontal lines.  The routine must be in sync with
  * treeDrawNode, but can not be integrated since a box may
  * accidentally overwrite some text.  Therefore all boxes must be 
@@ -1650,6 +1660,45 @@ void createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, int *s
 }
 
 
+/* Called when the user makes a response on the tree settings dialog. The tree
+ * window is passed as the user data. */
+void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  GtkWidget *belvuTree = GTK_WIDGET(data);
+  gboolean destroy = TRUE;
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      /* Call all of the callbacks for each individual widget to update the 
+       * properties. Then refresh the window. Destroy if successful. */
+      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      redrawBelvuTree(belvuTree);
+      break;
+      
+    case GTK_RESPONSE_APPLY:
+      /* Never destroy */
+      destroy = FALSE;
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      redrawBelvuTree(belvuTree);
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      destroy = TRUE;
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
+}
+
+
 /* Dialog to allow the user to edit the settings for a tree */
 void showTreeSettingsDialog(GtkWidget *belvuTree)
 {
@@ -1664,7 +1713,7 @@ void showTreeSettingsDialog(GtkWidget *belvuTree)
                                        GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                        NULL);
       
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(FALSE)); /* not a persistent dialog */
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseTreeSettingsDialog), belvuTree);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
   
   createTreeSettingsDialogContent(bc, dialog, &properties->showBranchLen, &properties->showOrganism);
