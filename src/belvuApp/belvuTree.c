@@ -1439,7 +1439,7 @@ static double treeDrawNode(BelvuContext *bc,
   if (properties->showBranchLen && node->branchlen) 
     {
       char *tmpStr = blxprintf("%.1f", node->branchlen);
-      double pos = curX * 0.5 - strlen(tmpStr) * 0.5;
+      double pos = x + (node->branchlen - strlen(tmpStr)) * properties->treeScale * properties->charWidth * 0.5;
 
       drawText(widget, drawable, gc, pos, y, tmpStr);
       
