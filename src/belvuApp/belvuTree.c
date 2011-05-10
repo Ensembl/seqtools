@@ -141,6 +141,9 @@ typedef struct _BelvuTreeProperties
 
 
 
+/* Local function declarations */
+static Tree*                        createEmptyTree();
+
 /***********************************************************
  *                         Properties                      *
  ***********************************************************/
@@ -220,12 +223,23 @@ static int BSorder(gconstpointer xIn, gconstpointer yIn)
 }
 
 
+static BootstrapGroup* createEmptyBootstrapGroup()
+{
+  BootstrapGroup *result = g_malloc(sizeof *result);
+  
+  result->node = NULL;
+  result->s = NULL;
+  
+  return result;
+}
+
+
 /* Combines left and right sequence groups and insert to bootstrap group list */
 static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *rootnode, int maintree) 
 {
-  int i;
-  int ssize=0;
-  BootstrapGroup *BS = (BootstrapGroup *)g_malloc(sizeof(BootstrapGroup));
+  GArray *result = NULL;
+  
+  BootstrapGroup *BS = createEmptyBootstrapGroup();
   
   if (!node->name)
     {
@@ -235,65 +249,67 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
       GArray *left = fillBootstrapGroups(bc, node->left, rootnode, maintree);
       GArray *right = fillBootstrapGroups(bc, node->right, rootnode, maintree);
       
-      /* No need to do root */
-      if (node == rootnode)
-        return NULL ;
-      
-      /* Combine left and right groups */
-      for (i = 0 ; i < left->len; ++i) 
-        {
-          char *s = g_array_index(left, char*, i);
-          g_array_append_val(right, s);
-          g_array_sort(right, strcmp_);
-        }
-      
-      g_array_unref(left);
-      
-      /* Create string with group members */
-      for (i = 0 ; i < right->len ; ++i) 
-        ssize += (strlen(g_array_index(right, char*, i)) + 1);
-      
-      BS->s = g_malloc(ssize+1);
-      
-      for (i = 0 ; i < right->len ; ++i) 
-        {
-          strcat(BS->s, g_array_index(right, char*, i));
-          strcat(BS->s, " ");
-        }
-      
-      /* printf("   New bootstrap group: %s\n", BS->s); */
-      
-      if (maintree) 
-        {
-          /* Associate this node with the group string */
-          BS->node =  node;
-          
-          /* Add group string to array of bootstrap groups */
-          g_array_append_val(bc->bootstrapGroups, BS);
-          g_array_sort(bc->bootstrapGroups, BSorder);
-        }
-      else
-        {
-          /* Find group string and increment counter if exists */
-          BootstrapGroup *BS2;
-          
-          int ip = 0;
-          if (arrayFind(bc->bootstrapGroups, BS, &ip, (void *)BSorder)) 
+      /* Nothing to do for root */
+      if (node != rootnode)
+        {      
+          /* Combine left and right groups */
+          int i = 0;
+          for (i = 0 ; i < left->len; ++i) 
             {
-              BS2 = &g_array_index(bc->bootstrapGroups, BootstrapGroup, ip);
-              BS2->node->boot++;
-              /* printf("Found bootgroup %s\n", BS->s); */
+              char *s = g_array_index(left, char*, i);
+              g_array_append_val(right, s);
+              g_array_sort(right, strcmp_);
+            }
+          
+          g_array_unref(left);
+          
+          /* Create string with group members */
+          int ssize = 0;
+          for (i = 0 ; i < right->len ; ++i) 
+            ssize += (strlen(g_array_index(right, char*, i)) + 1);
+          
+          BS->s = g_malloc(ssize+1);
+          
+          for (i = 0 ; i < right->len ; ++i) 
+            {
+              strcat(BS->s, g_array_index(right, char*, i));
+              strcat(BS->s, " ");
+            }
+          
+          /* printf("   New bootstrap group: %s\n", BS->s); */
+          
+          if (maintree) 
+            {
+              /* Associate this node with the group string */
+              BS->node =  node;
+              
+              /* Add group string to array of bootstrap groups */
+              g_array_append_val(bc->bootstrapGroups, BS);
+              g_array_sort(bc->bootstrapGroups, BSorder);
             }
           else
             {
-              /* printf("Did not find bootgroup %s\n", BS->s); */
+              /* Find group string and increment counter if exists */
+              BootstrapGroup *BS2;
+              
+              int ip = 0;
+              if (arrayFind(bc->bootstrapGroups, BS, &ip, (void *)BSorder)) 
+                {
+                  BS2 = &g_array_index(bc->bootstrapGroups, BootstrapGroup, ip);
+                  BS2->node->boot++;
+                  /* printf("Found bootgroup %s\n", BS->s); */
+                }
+              else
+                {
+                  /* printf("Did not find bootgroup %s\n", BS->s); */
+                }
+              
+              g_free(BS->s);
+              g_free(BS);
             }
           
-          g_free(BS->s);
-          g_free(BS);
+          result = right;
         }
-      
-      return right;
     }
   else
     {
@@ -301,9 +317,10 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
       GArray *leaf = g_array_sized_new(FALSE, FALSE, sizeof(char*), bc->alignArr->len);
       g_array_append_val(leaf, node->name);
       g_array_sort(leaf, strcmp_);
-      return leaf;
+      result = leaf;
     }
   
+  return result;
 }
 
 
@@ -333,7 +350,7 @@ static void treeBootstrapStats(BelvuContext *bc, TreeNode *tree)
 
 void treeBootstrap(BelvuContext *bc)
 {
-  Tree *treeStruct = g_malloc(sizeof(Tree));
+  Tree *treeStruct = createEmptyTree();
   
   separateMarkupLines(bc);
   GArray *alignArrTmp = copyAlignArray(bc->alignArr);
@@ -815,6 +832,27 @@ static char *fillOrganism(TreeNode *node)
 }
 
 
+/* Allocate memory for a new TreeNode and initialise its contents to empty values */
+static TreeNode* createEmptyTreeNode()
+{
+  TreeNode *result = g_malloc(sizeof *result);
+  
+  result->dist = 0.0;
+  result->branchlen = 0.0;
+  result->boot = 0.0;
+  result->left = NULL;
+  result->right = NULL;
+  result->parent = NULL;
+  result->name = NULL;
+  result->organism =NULL;
+  result->aln = NULL;
+  result->box = 0;
+  result->color = 0;
+  
+  return result;
+}
+
+
 /* Rerooting works roughly this way:
  
  - A new node is created with one child being the node chosen as new root 
@@ -832,7 +870,7 @@ static char *fillOrganism(TreeNode *node)
  */
 static TreeNode *treeReroot(BelvuContext *bc, TreeNode *node)
 {
-  TreeNode *newroot = g_malloc(sizeof(TreeNode));
+  TreeNode *newroot = createEmptyTreeNode();
   
   newroot->left = node;
   newroot->right = treeParent2leaf(node, node->parent);
@@ -1167,7 +1205,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
         }
       
       /* Create node for maxi and maxj */
-      newnode = g_malloc(sizeof(TreeNode));
+      newnode = createEmptyTreeNode();
       
       if (bc->treeMethod == UPGMA)
         {
@@ -1432,6 +1470,18 @@ static double treeDrawNode(BelvuContext *bc,
 }
 
 
+static Tree* createEmptyTree()
+{
+  Tree *result = g_malloc(sizeof *result);
+  
+  result->head = NULL;
+  result->lastNodeBox = 0;
+  result->currentPickedBox = 0;
+  
+  return result;
+}
+
+
 static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreeProperties *properties)
 {
   BelvuContext *bc = properties->bc;
@@ -1440,7 +1490,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
 //  int i;
 //  double oldlinew;
   
-  Tree *treeStruct = g_malloc(sizeof(Tree));
+  Tree *treeStruct = createEmptyTree();
   treeStruct->head = properties->treeHead;
   
   //                           (bc->treeMethod == UPGMA ? 130 : 110) / fontwidth * screenWidth, 
