@@ -120,6 +120,15 @@ NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 };
 
 
+/* This struct represents an area on the main tree drawing area
+ * where a node is drawn. It can be used to find a node that was 
+ * clicked on. */
+typedef struct _ClickableRect
+{
+  GdkRectangle rect;                /* The area that this clickable rect covers on the drawing area */
+  TreeNode *node;                   /* The node associated with this area */
+  gboolean isBranch;                /* True if this is a tree branch line (false if it's the actual sequence name) */
+} ClickableRect;
 
 
 /* Properties specific to the belvu tree */
@@ -141,6 +150,7 @@ typedef struct _BelvuTreeProperties
     gboolean showOrganism;          /* Whether to show the organism name */
     BelvuPickMode pickMode;         /* The action to take when selecting a node in the tree */
     
+    GArray *clickableRects;         /* Array of rectangles that associate clickable areas in treeArea to TreeNodes. */
   } BelvuTreeProperties;
 
 
@@ -194,6 +204,8 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
       properties->treeScale = bc->treeScale;
       properties->showBranchLen = bc->treeShowBranchlen;
       properties->showOrganism = bc->treeShowOrganism;
+      
+      properties->clickableRects = g_array_new(FALSE, FALSE, sizeof(ClickableRect));
       
       g_object_set_data(G_OBJECT(belvuTree), "BelvuTreeProperties", properties);
       g_signal_connect(G_OBJECT(belvuTree), "destroy", G_CALLBACK (onDestroyBelvuTree), NULL);
@@ -1351,6 +1363,28 @@ static void redrawBelvuTree(GtkWidget *belvuTree)
 //}
 
 
+static void createClickableArea(BelvuTreeProperties *properties,
+                                TreeNode *node,
+                                const int x,
+                                const int y,
+                                const int width,
+                                const int height,
+                                const gboolean isBranch)
+{
+  ClickableRect clickRect;
+
+  clickRect.node = node;
+  clickRect.isBranch = isBranch;
+  
+  clickRect.rect.x = x;
+  clickRect.rect.y = y;
+  clickRect.rect.width = width;
+  clickRect.rect.height = height;
+  
+  g_array_append_val(properties->clickableRects, clickRect);
+}
+
+
 /* The actual tree drawing routine.
  Note: must be in sync with treeDrawNodeBox, which draws clickable
  boxes first.
@@ -1431,8 +1465,9 @@ static double treeDrawNode(BelvuContext *bc,
       GdkGC *gcTmp = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gcTmp, defaultColor);
       
-      int nameWidth = 0;
-      drawText(widget, drawable, gcTmp, curX + DEFAULT_XPAD, y - properties->charHeight / 2, node->name, &nameWidth, NULL);
+      int nameWidth = 0, nameHeight = 0;
+      drawText(widget, drawable, gcTmp, curX + DEFAULT_XPAD, y - properties->charHeight / 2, node->name, &nameWidth, &nameHeight);
+      createClickableArea(properties, node, curX + DEFAULT_XPAD, y - properties->charHeight/ 2, nameWidth, properties->charHeight, FALSE);
       //      graphAssociate(assVoid(100+box), node);
       
       if (bc->highlightedAln && node->aln == bc->highlightedAln) 
@@ -1453,6 +1488,7 @@ static double treeDrawNode(BelvuContext *bc,
   
   /* Horizontal branches */
   gdk_draw_line(drawable, gc, curX, y, x, y);
+  createClickableArea(properties, node, x, y - properties->charHeight/2, curX - x, properties->charHeight, TRUE);
   
   if (properties->showBranchLen && node->branchlen) 
     {
@@ -1627,6 +1663,54 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
     }
   
   return TRUE;
+}
+
+
+/***********************************************************
+ *                       Mouse events                      *
+ ***********************************************************/
+
+static gboolean pointInRect(const int x, const int y, GdkRectangle *rect)
+{
+  return (x >= rect->x && x <= rect->x + rect->width && y >= rect->y && y <= rect->y + rect->height);
+}
+
+
+static gboolean onButtonPressBelvuTree(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
+    {
+      GtkWidget *belvuTree = GTK_WIDGET(data);
+      BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+      
+      int i = 0;
+      for ( ; i < properties->clickableRects->len; ++i)
+        {
+          ClickableRect *clickRect = &g_array_index(properties->clickableRects, ClickableRect, i);
+          
+          if (pointInRect(event->x, event->y, &clickRect->rect))
+            {
+              if (clickRect->isBranch)
+                {
+                  printf("Clicked branch\n");
+                }
+              
+              if (clickRect->node->name)
+                {
+                  printf("clicked node %s\n", clickRect->node->name);
+                }
+              
+              
+              break;
+            }
+        }
+      
+      handled = TRUE;
+    }
+  
+  return handled;
 }
 
 
@@ -1979,8 +2063,10 @@ void createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   /* Set the initial size (must be called after properties are set) */
   calculateBelvuTreeBorders(belvuTree);
 
-  /* Connect expose signal for the drawing area. Pass the window as the data. */
+  /* Connect signals. Pass the window as the data. */
+  gtk_widget_add_events(treeArea, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(treeArea), "expose-event", G_CALLBACK(onExposeBelvuTree), belvuTree);  
+  g_signal_connect(G_OBJECT(treeArea), "button-press-event", G_CALLBACK(onButtonPressBelvuTree), belvuTree);  
 
   gtk_widget_show_all(belvuTree);
   gtk_window_present(GTK_WINDOW(belvuTree));
