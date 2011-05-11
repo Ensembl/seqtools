@@ -45,8 +45,8 @@
 
 
 #define BELVU_TREE_WINDOW_NAME                  "BelvuTreeWindow"
-#define DEFAULT_TREE_WINDOW_WIDTH_FRACTION      0.5    /* default width of tree window (as fraction of screen width) */
-#define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.4   /* default height of tree window (as fraction of screen height) */
+#define DEFAULT_TREE_WINDOW_WIDTH_FRACTION      0.6    /* default width of tree window (as fraction of screen width) */
+#define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.35   /* default height of tree window (as fraction of screen height) */
 #define DEFAULT_XPAD                            10
 #define DEFAULT_YPAD                            10
 #define DIALOG_XPAD                             12      /* default x padding around dialog widgets */
@@ -1370,7 +1370,7 @@ static double treeDrawNode(BelvuContext *bc,
   if (!node) 
     return 0.0;
   
-  const int curX = x + (node->branchlen * (properties->treeScale * properties->charWidth));
+  const int curX = x + roundNearest(node->branchlen * (double)(properties->treeScale * properties->charWidth));
 
   GdkGC *leftGc = gdk_gc_new(drawable);
   gdk_gc_copy(leftGc, gc);
@@ -1457,7 +1457,7 @@ static double treeDrawNode(BelvuContext *bc,
   if (properties->showBranchLen && node->branchlen) 
     {
       char *tmpStr = blxprintf("%.1f", node->branchlen);
-      double pos = x + (node->branchlen - strlen(tmpStr)) * properties->treeScale * properties->charWidth * 0.5;
+      double pos = x + roundNearest((node->branchlen - (double)strlen(tmpStr)) * (properties->treeScale * properties->charWidth * 0.5));
 
       drawText(widget, drawable, gc, pos, y, tmpStr, NULL, NULL);
       
@@ -1504,9 +1504,6 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
 {
   BelvuContext *bc = properties->bc;
   
-//  int i;
-//  double oldlinew;
-  
   Tree *treeStruct = createEmptyTree();
   treeStruct->head = properties->treeHead;
 
@@ -1519,50 +1516,78 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
   
   treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, treeStruct, treeStruct->head, properties->treeRect.x);
 
-  //graphTextBounds(bc->maxTreeWidth+2 + (treeShowOrganism ? 25 : 0), nseq+6);
+  int xscale = properties->treeScale * properties->charWidth;
+  int yscale = properties->charHeight;
+  
+  const int markerHt = 0.5 * yscale;
+  
+  const int xStart = properties->treeRect.x;
+  const int xWidth = 10 * xscale;
+  const int xHalfWidth = xWidth / 2;
+  int xMax = 0;
   
   /* Draw scale */
-//  if (bc->treeMethod == UPGMA) 
-//    {
-//      bc->tree_y += 2;
-//      //graphLine(1*treeScale, tree_y, 101*treeScale, tree_y);
-//      for (i=1; i<=101; i += 10) 
-//        {
-//          //graphLine(i*treeScale, tree_y, i*treeScale, tree_y+0.5);
-//          
-//          if (i < 101) 
-//            {
-//              //graphLine((i+5)*treeScale, tree_y, (i+5)*treeScale, tree_y+0.5);
-//            }
-//          
-//          //graphText(messprintf("%d", i-1), (i-0.5)*treeScale, tree_y+1);
-//        }
-//    }
-//  else
-//    {
-//      bc->tree_y += 3;
-//      //graphText("0.1", 5*treeScale, tree_y-1);
-//      //graphLine(1*treeScale, tree_y, 11*treeScale, tree_y);
-//      //graphLine(1*treeScale, tree_y-0.5, 1*treeScale, tree_y+0.5);
-//      //graphLine(11*treeScale, tree_y-0.5, 11*treeScale, tree_y+0.5);
-//    }
-//  //graphLinewidth(oldlinew);
-//  
-//  if (bc->treeMethod == NJ) 
-//    {	
-//      double lweight, rweight;
-//      TreeNode *tree = treeStruct->head;
-//      
-//      lweight = treeSize3way(tree->left, tree);
-//      rweight = treeSize3way(tree->right, tree);
-//      
-//      //      graphText((debug ? messprintf("Tree balance = %.1f (%.1f-%.1f)", 
-//      //                                    fabsf(lweight - rweight), lweight, rweight) :
-//      //                 messprintf("Tree balance = %.1f", fabsf(lweight - rweight))),
-//      //                14, tree_y-0.5);
-//    }
-//  
-  //    graphRedraw();
+  if (bc->treeMethod == UPGMA) 
+    {
+      xMax = xStart + (100 * xscale);
+
+      bc->tree_y += 2;
+      int y = bc->tree_y * yscale;
+
+      gdk_draw_line(drawable, gc, xStart, y, xMax, y);
+      
+      int x = xStart;
+      int i = 1;
+      for (; i <= 101; i += 10, x += xWidth) 
+        {
+          if (i < 101) 
+            {
+              /* Draw half-way marker lines */
+              gdk_draw_line(drawable, gc, x + xHalfWidth, y, x + xHalfWidth, y + markerHt);
+            }
+          
+          /* Draw the full marker line, with a label */
+          gdk_draw_line(drawable, gc, x, y, x, y + markerHt);
+
+          char *tmpStr = blxprintf("%d", i - 1);
+          drawText(widget, drawable, gc,  x - (0.5 * xscale), y + (2 * markerHt), tmpStr, NULL, NULL);
+          g_free(tmpStr);
+        }
+    }
+  else
+    {
+      xMax = xStart + (10 * xscale);
+
+      bc->tree_y += 3;
+      int y = bc->tree_y * yscale;
+      int x = xStart;
+      
+      drawText(widget, drawable, gc, x + xHalfWidth, y - 3 * markerHt, "0.1", NULL, NULL);
+      
+      gdk_draw_line(drawable, gc, x, y, x + xWidth, y);
+      gdk_draw_line(drawable, gc, x, y - markerHt, x, y + markerHt);
+      gdk_draw_line(drawable, gc, x + xWidth, y - markerHt, x + xWidth, y + markerHt);
+    }
+  
+  if (bc->treeMethod == NJ) 
+    {	
+      int y = bc->tree_y * yscale;
+
+      double lweight, rweight;
+      TreeNode *tree = treeStruct->head;
+      
+      lweight = treeSize3way(tree->left, tree);
+      rweight = treeSize3way(tree->right, tree);
+      
+      char *tmpStr = blxprintf("Tree balance = %.1f", fabsf(lweight - rweight));
+      drawText(widget, drawable, gc, xMax + 2 * DEFAULT_XPAD, y - markerHt, tmpStr, NULL, NULL);
+      g_free(tmpStr);
+      
+      //      graphText((debug ? messprintf("Tree balance = %.1f (%.1f-%.1f)", 
+      //                                    fabsf(lweight - rweight), lweight, rweight) :
+      //                 messprintf("Tree balance = %.1f", fabsf(lweight - rweight))),
+      //                14, tree_y-0.5);
+    }
   
   g_object_unref(gc);
 }
