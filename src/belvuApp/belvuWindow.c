@@ -1331,11 +1331,16 @@ static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFro
   createTreeBuildMethodButtons(GTK_BOX(GTK_DIALOG(dialog)->vbox), &bc->treeMethod, &bc->treeDistCorr);
   
   /* Add the standard tree settings content */
-  createTreeSettingsDialogContent(bc, dialog, 
-                                  &bc->treeScale, &bc->treeLineWidth,
-                                  &bc->treeShowBranchlen, &bc->treeShowOrganism,
-                                  &bc->treePickMode);
+  GtkWidget *content = createTreeSettingsDialogContent(bc, dialog, 
+                                                       &bc->treeScale, &bc->treeLineWidth,
+                                                       &bc->treeShowBranchlen, &bc->treeShowOrganism,
+                                                       &bc->treePickMode);
 
+  /* Set the focus on the main content area, because this has widgets that can
+   * activate the default response, thereby allowing the user to create the tree
+   * very quickly just by pressing Enter. */
+  gtk_container_set_focus_child(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), content);
+  
   gtk_widget_show_all(dialog);
   
   if (bringToFront)

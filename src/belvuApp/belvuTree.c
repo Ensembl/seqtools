@@ -1728,19 +1728,21 @@ static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
 }
 
 /* Utility function to create the content for the tree settings dialog */
-void createTreeSettingsDialogContent(BelvuContext *bc, 
-                                     GtkWidget *dialog, 
-                                     double *treeScale,
-                                     double *lineWidth,
-                                     gboolean *showBranchLen, 
-                                     gboolean *showOrganism,
-                                     BelvuPickMode *pickMode)
+GtkWidget* createTreeSettingsDialogContent(BelvuContext *bc, 
+                                           GtkWidget *dialog, 
+                                           double *treeScale,
+                                           double *lineWidth,
+                                           gboolean *showBranchLen, 
+                                           gboolean *showOrganism,
+                                           BelvuPickMode *pickMode)
 {
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(vbox), FALSE, FALSE, 0);
   
   createTreeDisplayOptsButtons(vbox, treeScale, lineWidth, showBranchLen, showOrganism);
   createTreeInteractionButtons(vbox, pickMode);
+  
+  return GTK_WIDGET(vbox);
 }
 
 
