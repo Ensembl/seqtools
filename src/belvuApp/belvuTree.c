@@ -915,7 +915,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 {
   TreeNode *newnode = NULL ;
   int maxi = -1, maxj = -1;
-  double maxid = 0.0, pmaxid, **pairmtx, **Dmtx, **mtx, *src, *trg, 
+  double maxid = 0.0, pmaxid, **pairmtx, **Dmtx, **curMtx, *src, *trg, 
   *avgdist,		/* vector r in Durbin et al */
   llen = 0, rlen = 0;
   TreeNode **node ;					    /* Array of (primary) nodes.  Value=0 => stale column */
@@ -934,7 +934,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
   Dmtx = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double *));
   node = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(TreeNode *));
   avgdist = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
-  
+
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
@@ -970,7 +970,6 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       node[i]->color = 0;
     }
   
-  
   if (bc->treeReadDistancesOn)
     {
       treeReadDistances(bc, pairmtx);
@@ -1001,7 +1000,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
             }
         }
     }
-  
+
   if (bc->treePrintDistances) 
     {
       double dist;
@@ -1040,7 +1039,6 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
         }
       exit(0);
     }
-  
   
   /* Construct tree */
   int iter = 0;
@@ -1128,11 +1126,11 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
                     }
                 }
             }
-          mtx = Dmtx;
+          curMtx = Dmtx;
         }
       else 
         {
-          mtx = pairmtx;
+          curMtx = pairmtx;
         }
       
 #ifdef DEBUG
@@ -1153,8 +1151,9 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       /* Find smallest distance pair in pairmtx */
       maxi = -1;
       maxj = -1;
-      maxid = pmaxid = 1000000;
-      
+      maxid = 1000000;
+      pmaxid = 1000000;
+
       for (i = 0; i < bc->alignArr->len - 1; ++i) 
         {
           if (!node[i]) 
@@ -1166,11 +1165,10 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
               if (!node[j]) 
                 continue;
               
-              /* printf("iter %d, i=%d. j=%d, dist= %f\n", iter, i, j, mtx[i][j]);*/
-              
-              if (mtx[i][j] < maxid) 
+              /* printf("iter %d, i=%d. j=%d, dist= %f\n", iter, i, j, curMtx[i][j]);*/
+              if (curMtx[i][j] < maxid) 
                 {
-                  maxid = mtx[i][j];
+                  maxid = curMtx[i][j];
                   pmaxid = pairmtx[i][j];
                   maxi = i;
                   maxj = j;
@@ -1185,7 +1183,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
         }
       
       maxid = pairmtx[maxi][maxj]; /* Don't want to point to Dmtx in NJ */
-      
+
       /* Merge rows & columns of maxi and maxj into maxi
        Recalculate distances to other nodes */
       for (i = 0; i < bc->alignArr->len; ++i)
@@ -1249,7 +1247,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 #ifdef DEBUG
       {
         printf("Iter %d: Merging %d and %d, dist= %f\n", 
-               iter, maxi+1, maxj+1, mtx[maxi][maxj]);
+               iter, maxi+1, maxj+1, curMtx[maxi][maxj]);
         printf("maxid= %f  llen= %f  rlen= %f\n", maxid, llen, rlen);
         printf("avgdist[left]= %f  avgdist[right]= %f\n\n", 
                avgdist[maxi], avgdist[maxj]);
@@ -1268,7 +1266,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       node[maxi] = newnode;
       node[maxj] = NULL;
     }
-  
+
   fillParents(newnode, newnode->left);
   fillParents(newnode, newnode->right);
   
@@ -1403,6 +1401,8 @@ static double treeDrawNode(BelvuContext *bc,
         {
           /* Get the color for this organism */
           ALN aln;
+          initAln(&aln);
+          
           aln.organism = node->organism;
           
           int ip = 0;
@@ -1639,12 +1639,13 @@ static gboolean onDoubleChangedCallback(GtkWidget *entry, const gint responseId,
 /* Utility to create a check button and place it in the given parent box. The
  * button will control the setting of the given boolean value, which will be 
  * updated when the button's parent dialog gets a response. */
-static void createCheckButton(GtkBox *box, const char *mnemonic, gboolean *value)
+static void createCheckButton(const char *mnemonic, gboolean *value, GtkTable *table, const int row, const int col)
 {
   g_assert(value);
-
+  int pad = 2;
+  
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
-  gtk_box_pack_start(box, button, FALSE, FALSE, 0);
+  gtk_table_attach(table, button, col, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, pad, pad);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), *value);
   widgetSetCallbackData(button, onBoolChangedCallback, value);
@@ -1653,22 +1654,20 @@ static void createCheckButton(GtkBox *box, const char *mnemonic, gboolean *value
 /* Utility to create a text entry box for updating the given integer value.
  * The text entry is added to the given box, which should belong to a dialog.
  * The value will be updated when the dialog gets a response. */
-static void createDoubleTextEntry(GtkBox *box, const char *labelText, double *value)
+static void createDoubleTextEntry(const char *labelText, double *value, GtkTable *table, int row, int col)
 {
   g_assert(value);
-  
-  /* Put the label and entry in an hbox */
-  GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
-  gtk_box_pack_start(box, GTK_WIDGET(hbox), FALSE, FALSE, 0);
+  int pad = 2;
 
   /* Create the label */
-  gtk_box_pack_start(hbox, gtk_label_new(labelText), FALSE, FALSE, 0);
+  GtkWidget *label = gtk_label_new(labelText);
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, pad, pad);
   
   /* Create the text entry */
   GtkWidget *entry = gtk_entry_new();
-  gtk_box_pack_start(box, entry, FALSE, FALSE, 0);
+  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, pad, pad);
   widgetSetCallbackData(entry, onDoubleChangedCallback, value);
-  
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
   char *defaultInput = convertDoubleToString(*value, 2);
@@ -1687,17 +1686,17 @@ static void createTreeDisplayOptsButtons(GtkBox *box,
                                          gboolean *showBranchLen, 
                                          gboolean *showOrganism)
 {
-  /* Put the display options in a vbox in a frame */
+  /* Put the display options in a table in a frame */
   GtkContainer *frame = GTK_CONTAINER(gtk_frame_new("Display options"));
   gtk_box_pack_start(box, GTK_WIDGET(frame), FALSE, FALSE, 12);
   
-  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_container_add(frame, GTK_WIDGET(vbox));
+  GtkTable *table = GTK_TABLE(gtk_table_new(2, 2, FALSE));
+  gtk_container_add(frame, GTK_WIDGET(table));
 
-  createDoubleTextEntry(vbox, "Tree scale: ", treeScale);
-  createDoubleTextEntry(vbox, "Line width: ", lineWidth);
-  createCheckButton(vbox, "Display branch lengths", showBranchLen);
-  createCheckButton(vbox, "Display organism", showOrganism);
+  createDoubleTextEntry("Tree scale: ", treeScale, table, 0, 0);
+  createDoubleTextEntry("Line width: ", lineWidth, table, 1, 0);
+  createCheckButton("Display branch lengths", showBranchLen, table, 2, 0);
+  createCheckButton("Display organism", showOrganism, table, 3, 0);
 }
 
 static void createTreeInteractionButtons(GtkBox *box)

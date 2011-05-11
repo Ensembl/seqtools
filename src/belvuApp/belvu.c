@@ -2394,7 +2394,8 @@ static void treeFindAln(treeNode *node) {
 static void treeSort(void)
 {
     ALN aln;
-
+    initAln(&aln);
+  
     if (bc->highlightedAln)
 	alncpy(&aln, bc->highlightedAln);
     
@@ -4446,7 +4447,8 @@ gint nrorder(gconstpointer xIn, gconstpointer yIn)
 void scoreSort(BelvuContext *bc)
 {
   ALN aln;
-  
+  initAln(&aln);
+
   if (bc->highlightedAln)
     alncpy(&aln, bc->highlightedAln);
   
@@ -4470,19 +4472,6 @@ void scoreSort(BelvuContext *bc)
   arrayOrder(bc->alignArr);
 }
 
-
-
-/* Reset an ALN struct to default values */
-void resetALN(ALN *alnp)
-{
-  *alnp->name = *alnp->fetch = 0;
-  alnp->start = alnp->end = alnp->len = alnp->nr = 0;
-  alnp->seq = 0;
-  alnp->score = 0.0;
-  alnp->color = WHITE;
-  alnp->markup = 0;
-  alnp->organism = NULL;
-}
 
 
 void setTreeScaleCorr(BelvuContext *bc, const int treeMethod) 
@@ -4530,13 +4519,33 @@ static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln, char *seq)
 }
 
 
+/* initialise an ALN with empty values */
+void initAln(ALN *alnp)
+{
+  alnp->name[0] = '\0';
+  alnp->start = 0;
+  alnp->end = 0;
+  alnp->len = 0;
+  alnp->seq = NULL;
+  alnp->nr = 0;
+  alnp->fetch[0] = '\0';
+  alnp->score = 0.0;
+  alnp->color = 0;
+  alnp->markup = 0;
+  alnp->hide = FALSE;
+  alnp->nocolor = FALSE;
+  alnp->organism = NULL; 
+}
+
 /* Read in fasta sequences from a file and create a sequence in the given
  * alignments array for each of the fasta sequences. */
 static void readFastaAln(BelvuContext *bc, FILE *pipe)
 {
   char line[MAXLENGTH+1];
   GString *currentSeq = NULL;
+
   ALN currentAln;
+  initAln(&currentAln);
 
   while (!feof (pipe))
     { 
@@ -4638,7 +4647,7 @@ void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
   
   strncpy(cp, line, MAXLENGTH);
   
-  resetALN(aln);
+  initAln(aln);
   
   if (!strncmp(cp, "#=GC", 4))
     {
@@ -4885,6 +4894,8 @@ void separateMarkupLines(BelvuContext *bc)
   bc->markupAlignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);
     
   ALN aln;
+  initAln(&aln);
+
   if (bc->highlightedAln)
     alncpy(&aln, bc->highlightedAln);
 
@@ -5064,6 +5075,7 @@ void highlightScoreSort(char mode, BelvuContext *bc)
     }
 
   ALN aln;
+  initAln(&aln);
   alncpy(&aln, bc->highlightedAln);
     
   separateMarkupLines(bc);
@@ -5325,7 +5337,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	    }
 
           ALN aln;
-	  resetALN(&aln);
+          initAln(&aln);
 
 	  /* Name */
 	  if (!strtok(line, "/"))
@@ -5857,9 +5869,9 @@ void initMarkupColors(void)
 
 void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
 {
-  char *cp, line[MAXLINE+1], setColor[MAXLINE+1];
+  char *cp=NULL, line[MAXLINE+1], setColor[MAXLINE+1];
   unsigned char c ;
-  int i, colornr;
+  int i=0, colornr=0;
 
   while (!feof(fil)) 
     {
@@ -5895,6 +5907,7 @@ void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
 	    
           /* Find organism and set its colour */
           ALN aln;
+          initAln(&aln);
           aln.organism = cp;
           
           int ip = 0;
@@ -5976,9 +5989,9 @@ static int alnOverhang(char *s1, char *s2)
 static void rmColumn(BelvuContext *bc, int from, int to)
 {
   int
-    i, j, len = to - from + 1;
+    i=0, j=0, len = to - from + 1;
   ALN 
-    *alni;
+    *alni=NULL;
   
   fprintf(stderr, "Removing Columns %d-%d.\n", from, to);
 
@@ -6025,11 +6038,11 @@ static void rmColumn(BelvuContext *bc, int from, int to)
 void rmEmptyColumns(BelvuContext *bc, double cutoff)
 {
   int
-    i, j, gaps, totseq, removed=0, oldmaxLen=bc->maxLen;
+    i=0, j=0, gaps=0, totseq=0, removed=0, oldmaxLen=bc->maxLen;
   ALN 
-    *alni;
+    *alni=NULL;
   char
-    c;
+    c='\0';
 
   for (totseq = i = 0; i < bc->alignArr->len; ++i) 
     {
@@ -6079,8 +6092,8 @@ static void rmFinalise(BelvuContext *bc)
  */
 void rmPartialSeqs(BelvuContext *bc)
 {
-  int i, n=0;
-  ALN *alni;
+  int i=0, n=0;
+  ALN *alni = NULL;
 
   for (i = 0; i < bc->alignArr->len; ) 
     {
@@ -6113,8 +6126,8 @@ void rmPartialSeqs(BelvuContext *bc)
  */
 void rmGappySeqs(BelvuContext *bc, const double cutoff)
 {
-  int i, j, n=0, gaps;
-  ALN *alni;
+  int i=0, j=0, n=0, gaps;
+  ALN *alni = NULL;
 
   for (i = 0; i < bc->alignArr->len; ) 
     {
@@ -6163,9 +6176,9 @@ void rmFinaliseGapRemoval(BelvuContext *bc)
  */
 void mkNonRedundant(BelvuContext *bc, const double cutoff)
 {
-  int i,j, n=0, overhang;
-  ALN *alni, *alnj;
-  double id;
+  int i=0,j=0, n=0, overhang;
+  ALN *alni=NULL, *alnj=NULL;
+  double id = 0.0;
 
   for (i = 0; i < bc->alignArr->len; i++) 
     {
@@ -6221,8 +6234,8 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
  */
 void rmOutliers(BelvuContext *bc, const double cutoff)
 {
-  int i,j, n=0;
-  ALN *alni, *alnj;
+  int i=0,j=0, n=0;
+  ALN *alni=NULL, *alnj=NULL;
   
   for (i = 0; i < bc->alignArr->len - 1; ) 
     {
@@ -6275,6 +6288,7 @@ void rmScore(BelvuContext *bc, const double cutoff)
   
   /* Save bc->highlightedAln */
   ALN aln;
+  initAln(&aln);
   
   if (bc->highlightedAln)
     alncpy(&aln, bc->highlightedAln);
@@ -6314,6 +6328,7 @@ void rmScore(BelvuContext *bc, const double cutoff)
     { 
       int ip = 0;
       ALN aln;
+      initAln(&aln);
       
       if (!arrayFind(bc->alignArr, &aln, &ip, (void*)scoreorder)) 
 	{
@@ -6336,7 +6351,7 @@ int GCGchecksum(BelvuContext *bc, char *seq)
   int  
     check = 0, 
     count = 0, 
-    i;
+    i=0;
   
   for (i = 0; i < bc->maxLen; ++i) 
     {
@@ -6354,7 +6369,7 @@ int GCGchecksum(BelvuContext *bc, char *seq)
 int GCGgrandchecksum(BelvuContext *bc)
 {
   int 
-    i,
+    i=0,
     grand_checksum=0;
 
   for(i=0; i < bc->alignArr->len; ++i) 
@@ -6366,10 +6381,9 @@ int GCGgrandchecksum(BelvuContext *bc)
 
 void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and coordinates */
 {
-  int 
-    i, j,
-    maxfullnamelen = bc->maxNameLen + 1 + bc->maxStartLen + 1 + bc->maxEndLen,
-    paragraph=0, alnstart, alnend, alnlen, linelen=50, blocklen=10;
+  int i=0, j=0;
+  int maxfullnamelen = bc->maxNameLen + 1 + bc->maxStartLen + 1 + bc->maxEndLen;
+  int paragraph=0, alnstart=0, alnend=0, alnlen=0, linelen=50, blocklen=10;
   
   if (bc->saveCoordsOn)
     maxfullnamelen = bc->maxNameLen + 1 + bc->maxStartLen + 1 + bc->maxEndLen;
@@ -6502,11 +6516,15 @@ static void saveMSF(BelvuContext *bc)
 
 static void readMSF(BelvuContext *bc, FILE *pipe)
 {
-  char seq[1001], *cp, *cq;
-  int i;
-  ALN aln;
+  char seq[1001], *cp=NULL, *cq=NULL;
+  int i=0;
   char line[MAXLENGTH + 1];
-
+  line[0] = 0;
+  seq[0] = 0;
+  
+  ALN aln;
+  initAln(&aln);
+  
   fprintf(stderr, "\nDetected MSF format\n");
 
   /* Read sequence names */
@@ -6592,10 +6610,11 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
 /* Called from readMul.  Does the work to parse a selex file. */
 static void readSelex(BelvuContext *bc, FILE *pipe)
 {
-  char   *cp, *cq, ch = '\0';
-  int    len, i, alnstart;
+  char   *cp=NULL, *cq=NULL, ch = '\0';
+  int    len=0, i=0, alnstart=0;
   
   char line[MAXLENGTH+1];
+  line[0] = 0;
 
   /* Read raw alignment into stack
    *******************************/
@@ -6892,6 +6911,7 @@ void readMul(BelvuContext *bc, FILE *pipe)
 {
   char   ch = '\0';
   char line[MAXLENGTH+1];
+  line[0] = 0;
   
   /* Parse header to check for MSF or Fasta format */
   while (!feof (pipe))
@@ -6931,8 +6951,8 @@ void readMul(BelvuContext *bc, FILE *pipe)
 
 void writeFasta(BelvuContext *bc, FILE *pipe)
 {
-  int i, n;
-  char *cp;
+  int i=0, n=0;
+  char *cp = NULL;
 
   for (i = 0; i < bc->alignArr->len; ++i) 
     {
@@ -6995,7 +7015,7 @@ static void saveFasta(BelvuContext *bc)
 
 static int getMatchStates(BelvuContext *bc)
 {
-  int i, j, n, retval=0;
+  int i=0, j=0, n=0, retval=0;
 
   for (j = 0; j < bc->maxLen; ++j) 
     {
@@ -7039,9 +7059,9 @@ void outputProbs(BelvuContext *bc, FILE *fil)
     .01475, .04043, .05068, .03826, .04090, .06958, .05854, .06472, .01049, .02992
   };
 
-  double p;
-  int i, c[21], n=0, nmat;
-  char *cp;
+  double p = 0.0;
+  int i = 0, c[21], n=0, nmat = 0;
+  char *cp = NULL;
 
   for (i = 1; i <= 20; i++) 
     c[i] = 0;
@@ -7119,7 +7139,7 @@ static void treeTraverseLRfirst(BelvuContext *bc, TreeNode *node, void (*func)(B
 
 static void subfamilyTrav(BelvuContext *bc, TreeNode *node) 
 {
-  static double dist;
+  static double dist = 0.0;
   static int 
     newgroup = 1,
     groupnr = 0;
@@ -7250,7 +7270,6 @@ BelvuContext* createBelvuContext()
 
   bc->treeReadDistancesPipe = NULL;
 
-  bc->treeMethod = NJ;
   bc->IN_FORMAT = MUL;
   bc->maxScoreLen = 0;
   bc->alignYStart = 0;
@@ -7270,11 +7289,12 @@ BelvuContext* createBelvuContext()
   bc->midbgColor = MIDBLUE;
   bc->lowbgColor = LIGHTGRAY;
 
+  bc->treeMethod = NJ;
   bc->treeDistCorr = SCOREDIST;
+  
   bc->treeBestBalance = 0.0;
   bc->treeBestBalance_subtrees = 0.0;
   bc->tree_y = 0.3;
-  bc->treeLineWidth = 0.3;
   bc->lowIdCutoff = 0.4;
   bc->midIdCutoff = 0.6;
   bc->maxIdCutoff = 0.8;
@@ -7283,13 +7303,16 @@ BelvuContext* createBelvuContext()
   bc->maxSimCutoff = 3.0;
   bc->colorByResIdCutoff = 20.0;
   bc->mksubfamilies_cutoff = 0.0;
+  bc->treeScale = 0.3;
+  bc->treeLineWidth = 0.3;
 
+  bc->saveSeparator = '/';
   strcpy(bc->treeDistString, SCOREDISTstr);
   strcpy(bc->treeMethodString, NJstr);
-  
-  bc->saveSeparator = '/';
   bc->Title[0] = '\0';
   bc->saveFormat[0] = '\0';
+  bc->fileName[0] = 0;
+  bc->dirName[0] = 0;
   
   bc->conservCount = NULL;
   bc->colorMap = NULL;
@@ -7304,6 +7327,7 @@ BelvuContext* createBelvuContext()
   bc->saveCoordsOn = TRUE;
   bc->displayScores = FALSE;
   bc->outputBootstrapTrees = FALSE;
+  bc->treebootstrapsDisplay = FALSE;
   bc->treeColorsOn = TRUE;
   bc->treeShowOrganism = TRUE;
   bc->treeShowBranchlen = FALSE;
@@ -7316,6 +7340,14 @@ BelvuContext* createBelvuContext()
   bc->id_blosum = TRUE;
   bc->rmEmptyColumnsOn = TRUE;
   bc->lowercaseOn = FALSE;
+  bc->removingSeqs = FALSE;
+
+  /* Null out all the entries in the dialogs list */
+  int dialogId = 0;
+  for ( ; dialogId < BELDIALOG_NUM_DIALOGS; ++dialogId)
+    {
+      bc->dialogList[dialogId] = NULL;
+    }
   
   return bc;
 }

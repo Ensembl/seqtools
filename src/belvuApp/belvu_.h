@@ -217,8 +217,8 @@ typedef struct alnStruct {
   float score;
   int  color;			/* Background color of name */
   int  markup;		/* Markup line */
-  int  hide;			/* Hide this line */
-  int  nocolor;		/* Exclude from coloring */
+  gboolean  hide;			/* Hide this line */
+  gboolean nocolor;		/* Exclude from coloring */
   char *organism;
 } ALN;
 
@@ -396,7 +396,7 @@ void                                      treeSortBatch(BelvuContext *bc);
 
 void                                      arrayOrder(GArray *alignArr);
 gboolean                                  alignFind(GArray *alignArr, ALN *obj, int *idx);
-void                                      resetALN(ALN *alnp);
+void                                      initAln(ALN *alnp);
 
 void                                      setOrganismColors(GArray *organismArr);
 

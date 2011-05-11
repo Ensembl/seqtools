@@ -174,7 +174,8 @@ static int treeReadDistancesNames(BelvuContext *bc)
 {
   char   *cp = NULL;
   ALN     aln;
-
+  initAln(&aln);
+  
   char line[MAXLENGTH + 1];
   
   if (!fgets (line, MAXLENGTH, bc->treeReadDistancesPipe))
@@ -187,7 +188,7 @@ static int treeReadDistancesNames(BelvuContext *bc)
   
   while ((cp = strtok(nseq ? 0 : line, " \t")))
     {
-      resetALN(&aln);
+      initAln(&aln);
       
       strncpy(aln.name, cp, MAXNAMESIZE);
       aln.name[MAXNAMESIZE] = 0;
@@ -242,9 +243,11 @@ static void readScores(char *filename, BelvuContext *bc)
 {
   char line[MAXLENGTH+1], linecp[MAXLENGTH+1], *cp;
   FILE *file;
-  ALN aln;
   int scoreLen;
-  
+
+  ALN aln;
+  initAln(&aln);
+
   if (!(file = fopen(filename, "r")))
     g_error("Cannot open file %s", filename);
   
@@ -253,7 +256,7 @@ static void readScores(char *filename, BelvuContext *bc)
       if (!fgets (line, MAXLENGTH, file)) break;
       strcpy(linecp, line);
       
-      resetALN(&aln);
+      initAln(&aln);
       
       if (!(cp = strtok(line, " "))) g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
       if (!(sscanf(cp, "%f", &aln.score)))
