@@ -205,19 +205,19 @@ static void drawSingleHeader(GtkWidget *widget,
   if (alnp->name)
     {
       x += properties->columnPadding;
-      drawText(widget, drawable, gc, x, y, alnp->name);
+      drawText(widget, drawable, gc, x, y, alnp->name, NULL, NULL);
       x += (properties->bc->maxNameLen * properties->charWidth) + properties->columnPadding;
     }
   
   /* Draw the coords */
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
   x += properties->columnPadding;
-  drawIntAsText(widget, drawable, gc, x, y, alnp->start);
+  drawIntAsText(widget, drawable, gc, x, y, alnp->start, NULL, NULL);
   x += (properties->bc->maxStartLen * properties->charWidth) + properties->columnPadding;
   
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
   x += properties->columnPadding;
-  drawIntAsText(widget, drawable, gc, x, y, alnp->end);
+  drawIntAsText(widget, drawable, gc, x, y, alnp->end, NULL, NULL);
   x += (properties->bc->maxEndLen * properties->charWidth) + properties->columnPadding;
 
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
@@ -265,7 +265,7 @@ static void drawSingleSequence(GtkWidget *widget,
   
   char *cp = alnp->seq + (int)hAdjustment->value;
   char *displayText = g_strndup(cp, displayLen);
-  drawText(widget, drawable, gc, startX, y, displayText);
+  drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
   
   g_free(displayText);
   g_object_unref(gc);
@@ -341,7 +341,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
       const int x = properties->columnPadding;
       const int y = line * properties->charHeight;
       
-      drawText(widget, drawable, gcText, x, y, properties->title);
+      drawText(widget, drawable, gcText, x, y, properties->title, NULL, NULL);
       line += 2; /* increment, and also add another blank line for spacing */
     }
   
@@ -405,7 +405,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                       alnend -= 3;
                       
                       sprintf(collapseStr, "[%3d]", collapseRes);
-                      drawText(widget, drawable, gcText, x, y, collapseStr);
+                      drawText(widget, drawable, gcText, x, y, collapseStr, NULL, NULL);
 
                       continue;
                     }
@@ -443,21 +443,21 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   gdk_gc_set_foreground(gc, &fgColor);
 
                   *ch = alnp->seq[i];
-                  drawText(widget, drawable, gc, x, y, ch);
+                  drawText(widget, drawable, gc, x, y, ch, NULL, NULL);
                 }
 
-              drawText(widget, drawable, gcText, properties->charWidth, y, alnp->name);
+              drawText(widget, drawable, gcText, properties->charWidth, y, alnp->name, NULL, NULL);
               
               if (!alnp->markup) 
                 {
                   char *tmpStr = blxprintf("%*d", bc->maxEndLen, oldpos);
-                  drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr);
+                  drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr, NULL, NULL);
                   g_free(tmpStr);
                   
                   if (alnend == bc->maxLen) 
                     {
                       char *tmpStr = blxprintf("%-d", pos[j] - 1);
-                      drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr);
+                      drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr, NULL, NULL);
                       g_free(tmpStr);
                     }
                 }

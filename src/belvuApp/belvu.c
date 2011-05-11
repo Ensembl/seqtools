@@ -7468,17 +7468,29 @@ void convertColorNumToGdkColor(const int colorNum, GdkColor *result)
 }
 
 
-void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text)
+ void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight)
 {
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
-  gdk_draw_layout(drawable, gc, x, y, layout);
+  
+  if (drawable)
+    gdk_draw_layout(drawable, gc, x, y, layout);
+  
+  /* Return the width and height of the layout, if requested */
+  pango_layout_get_size(layout, textWidth, textHeight);
+  
+  if (textWidth)
+    *textWidth /= PANGO_SCALE;
+
+  if (textHeight)
+    *textHeight /= PANGO_SCALE;
+
   g_object_unref(layout);
 }
 
-void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value)
+void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight)
 {
   char *tmpStr = blxprintf("%d", value);
-  drawText(widget, drawable, gc, x, y, tmpStr);
+  drawText(widget, drawable, gc, x, y, tmpStr, textWidth, textHeight);
   g_free(tmpStr);
 }
 

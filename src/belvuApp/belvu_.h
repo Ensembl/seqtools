@@ -462,8 +462,8 @@ void                                      columnCopy(GArray *alignArrDest, int d
 double                                    identity(char *s1, char *s2, const gboolean penalize_gaps);
 
 void                                      convertColorNumToGdkColor(const int colorNum, GdkColor *result);
-void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text);
-void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value);
+void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight);
+void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight);
 
 
 #endif /* DEF_BELVU_P_H */

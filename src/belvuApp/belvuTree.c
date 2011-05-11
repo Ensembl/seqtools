@@ -147,6 +147,8 @@ typedef struct _BelvuTreeProperties
 
 /* Local function declarations */
 static Tree*                        createEmptyTree();
+static void                         calculateBelvuTreeBorders(GtkWidget *belvuTree);
+
 
 /***********************************************************
  *                         Properties                      *
@@ -1428,7 +1430,9 @@ static double treeDrawNode(BelvuContext *bc,
       /* Make clickable box for sequence */
       GdkGC *gcTmp = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gcTmp, defaultColor);
-      drawText(widget, drawable, gcTmp, curX + properties->charWidth, y - properties->charHeight / 2, node->name);
+      
+      int nameWidth = 0;
+      drawText(widget, drawable, gcTmp, curX + DEFAULT_XPAD, y - properties->charHeight / 2, node->name, &nameWidth, NULL);
       //      graphAssociate(assVoid(100+box), node);
       
       if (bc->highlightedAln && node->aln == bc->highlightedAln) 
@@ -1443,14 +1447,7 @@ static double treeDrawNode(BelvuContext *bc,
       
       if (properties->showOrganism && node->organism) 
         {
-          drawText(widget, drawable, gc, curX + (2 + strlen(node->name)) * properties->charWidth, y - properties->charHeight / 2, node->organism);
-        }
-      
-        {
-        int pos = curX + strlen(node->name);
-          
-        if (pos > bc->maxTreeWidth) 
-          bc->maxTreeWidth = pos;
+          drawText(widget, drawable, gc, curX + nameWidth + DEFAULT_XPAD * 2, y - properties->charHeight / 2, node->organism, NULL, NULL);
         }
     }
   
@@ -1462,7 +1459,7 @@ static double treeDrawNode(BelvuContext *bc,
       char *tmpStr = blxprintf("%.1f", node->branchlen);
       double pos = x + (node->branchlen - strlen(tmpStr)) * properties->treeScale * properties->charWidth * 0.5;
 
-      drawText(widget, drawable, gc, pos, y, tmpStr);
+      drawText(widget, drawable, gc, pos, y, tmpStr, NULL, NULL);
       
       g_free(tmpStr);
     }
@@ -1479,7 +1476,7 @@ static double treeDrawNode(BelvuContext *bc,
         pos = 0;
       
       printf("%f  %f   \n", node->boot, pos);
-      drawText(widget, drawable, gc, pos, y, tmpStr);
+      drawText(widget, drawable, gc, pos, y, tmpStr, NULL, NULL);
 
       g_free(tmpStr);
       gdk_gc_set_foreground(gc, defaultColor);
@@ -1507,27 +1504,21 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
 {
   BelvuContext *bc = properties->bc;
   
-  
 //  int i;
 //  double oldlinew;
   
   Tree *treeStruct = createEmptyTree();
   treeStruct->head = properties->treeHead;
-  
-  //                           (bc->treeMethod == UPGMA ? 130 : 110) / fontwidth * screenWidth, 
-  //                           (bc->alignArr->len + 7) / fontheight * screenHeight);
-  //  graphRegister(PICK, treeboxPick);
-  
-                    
+
+  bc->maxTreeWidth = 0;
+  bc->tree_y = 1;
+
   GdkGC *gc = gdk_gc_new(drawable);
   GdkColor *defaultColor = getGdkColor(BELCOLOR_TREE_DEFAULT, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_line_attributes(gc, properties->lineWidth * properties->charWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
   
-  bc->maxTreeWidth = 0;
-  bc->tree_y = 1;
   treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, treeStruct, treeStruct->head, properties->treeRect.x);
 
-  
   //graphTextBounds(bc->maxTreeWidth+2 + (treeShowOrganism ? 25 : 0), nseq+6);
   
   /* Draw scale */
@@ -1759,6 +1750,7 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       /* Call all of the callbacks for each individual widget to update the 
        * properties. Then refresh the window. Destroy if successful. */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      calculateBelvuTreeBorders(belvuTree);
       redrawBelvuTree(belvuTree);
       break;
       
@@ -1766,6 +1758,7 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       /* Never destroy */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      calculateBelvuTreeBorders(belvuTree);
       redrawBelvuTree(belvuTree);
       break;
       
@@ -1815,17 +1808,59 @@ void showTreeSettingsDialog(GtkWidget *belvuTree)
  *                          Sizing                         *
  ***********************************************************/
 
+static int getTextWidth(GtkWidget *widget, const char *text)
+{
+  int tmpWidth = 0;
+  
+  if (widget && text)
+    {
+      PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
+      pango_layout_get_size(layout, &tmpWidth, NULL);
+      g_object_unref(layout);
+    }
+  
+  return tmpWidth / PANGO_SCALE;
+}
+
+
+static void calculateNodeWidth(BelvuTreeProperties *properties, TreeNode *node, const int x)
+{
+  if (!node)
+    return;
+  
+  const int curX = x + (node->branchlen * properties->treeScale * properties->charWidth);
+  
+  /* Recurse left and right */
+  calculateNodeWidth(properties, node->left, curX);
+  calculateNodeWidth(properties, node->right, curX);
+  
+  /* Check if the end of this text is outside the maximum x position found so far */
+  int textWidth = 0;
+  textWidth += getTextWidth(properties->treeArea, node->name) + DEFAULT_XPAD;
+  textWidth += getTextWidth(properties->treeArea, node->organism) + DEFAULT_XPAD;
+  
+  int pos = curX + textWidth;
+  
+  if (pos > properties->bc->maxTreeWidth) 
+    properties->bc->maxTreeWidth = pos;
+}
+
 static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
 {
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+
+  /* This loops through all nodes and calculates the max tree width */
+  calculateNodeWidth(properties, properties->treeHead, properties->treeRect.x);
   
+  const int treeHeight = (properties->bc->alignArr->len + 7) * properties->charHeight;
+
   properties->treeRect.x = DEFAULT_XPAD;
   properties->treeRect.y = DEFAULT_YPAD;
-  properties->treeRect.width = 1000; /* to do: calculate real width and height */
-  properties->treeRect.height = 800;
+  properties->treeRect.width = properties->bc->maxTreeWidth;
+  properties->treeRect.height = treeHeight;
   
-  gtk_layout_set_size(GTK_LAYOUT(properties->treeArea), properties->treeRect.x * 2 + properties->treeRect.width, 
-                      properties->treeRect.y * 2 + properties->treeRect.height);
+  gtk_layout_set_size(GTK_LAYOUT(properties->treeArea), DEFAULT_XPAD * 2 + properties->treeRect.width, 
+                      DEFAULT_YPAD * 2 + properties->treeRect.height);
 }
 
 
