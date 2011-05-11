@@ -118,16 +118,6 @@ enum Colour
 };
 
 
-/* This enum defines the columns for a combo box with the common combination
- * of two columns: an int relating to an enum, and a text description. */
-typedef enum _BelvuComboColumns
-{
-  COMBO_ENUM_COL,
-  COMBO_TEXT_COL,
-  N_COMBO_COLUMNS
-} BelvuComboColumns;
-
-
 enum { MUL, RAW };		/* Input formats for IN_FORMAT */
 enum { dummy, GF, GC, GS, GR };	/* Markup types in Stockholm format */
 

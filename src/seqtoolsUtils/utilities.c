@@ -3790,6 +3790,73 @@ void forceResize(GtkWidget *widget)
 
 
 /***********************************************************
+ *		         Combo boxes			   * 
+ ***********************************************************/
+
+/* Callback for when the value in a 2-column combo box has changed. 
+ * The value to update is an enum, a pointer to which is passed in the user
+ * data.
+ * This is called as a result of a response on a dialog, and the response
+ * function of the dialog is responsible for updating the display. */
+gboolean onComboChanged(GtkWidget *combo, const gint responseId, gpointer data)
+{
+  int *result = (int*)data;
+  GtkTreeIter iter;
+  
+  if (gtk_combo_box_get_active_iter(GTK_COMBO_BOX(combo), &iter))
+    {
+      GtkTreeModel *model = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
+      
+      GValue val = {0};
+      gtk_tree_model_get_value(model, &iter, COMBO_ENUM_COL, &val);
+      
+      *result = g_value_get_int(&val);
+    }
+  
+  return TRUE;
+}
+
+
+/* Utility to add an item to our 2-column combo box */
+void addComboItem(GtkComboBox *combo,
+                         GtkTreeIter *parent, 
+                         const int val,
+                         const char *text,
+                         const int initVal)
+{
+  GtkTreeStore *store = GTK_TREE_STORE(gtk_combo_box_get_model(combo));
+  
+  GtkTreeIter iter;
+  gtk_tree_store_append(store, &iter, parent);
+  
+  gtk_tree_store_set(store, &iter, COMBO_ENUM_COL, val, COMBO_TEXT_COL, text, -1);
+  
+  if (val == initVal)
+    {
+      gtk_combo_box_set_active_iter(combo, &iter);
+    }
+}
+
+
+/* Utility to create a 2-column combo box with column1 as an enum and column2 
+ * as a text description */
+GtkComboBox* createComboBox()
+{
+  /* Create a data-store for the combo box, and the combo itself */
+  GtkTreeStore *store = gtk_tree_store_new(N_COMBO_COLUMNS, G_TYPE_INT, G_TYPE_STRING);
+  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
+  g_object_unref(store);
+  
+  /* Create a cell renderer to display the text column. */
+  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
+  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", COMBO_TEXT_COL, NULL);
+  
+  return combo;
+}
+
+
+/***********************************************************
  *		         Action groups			   * 
  ***********************************************************/
 
@@ -3824,5 +3891,4 @@ void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, c
       gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), active);
     }
 }
-
 

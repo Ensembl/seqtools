@@ -74,6 +74,7 @@
 #define DEBUG_EXIT(format, args...)
 #endif
 
+
 /* Generic SeqTools error domain */
 #define SEQTOOLS_ERROR g_quark_from_string("SeqTools")
 
@@ -84,6 +85,16 @@ typedef enum
   SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
   SEQTOOLS_ERROR_NO_STYLE	      /* style does not exist */
 } SeqToolsError;
+
+
+/* This enum defines the columns for a combo box with the common combination
+ * of two columns: an int relating to an enum, and a text description. */
+typedef enum _BlxComboColumns
+  {
+    COMBO_ENUM_COL,
+    COMBO_TEXT_COL,
+    N_COMBO_COLUMNS
+  } BlxComboColumns;
 
 
 /* Printing scale type - we can scale to fit the page width, or height, or both */
@@ -490,8 +501,14 @@ void                               setWidgetBackgroundColor(GtkWidget *widget, g
 gboolean                           findCommand (char *command, char **resultOut);
 void                               forceResize(GtkWidget *widget);
 
+<<<<<<< HEAD
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
+=======
+gboolean                           onComboChanged(GtkWidget *combo, const gint responseId, gpointer data);
+GtkComboBox*                       createComboBox();
+void                               addComboItem(GtkComboBox *combo, GtkTreeIter *parent, const int val, const char *text, const int initVal);
+>>>>>>> Generalised combo box functions
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);

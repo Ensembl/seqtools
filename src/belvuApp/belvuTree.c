@@ -1704,68 +1704,6 @@ static void createTreeDisplayOptsButtons(GtkBox *box,
 }
 
 
-/* Callback for when the tree pick mode has changed. The value to update
- * is a BelvuPickMode enum, a pointer to which is passed in the user data.
- * This is called as a result of a response on a dialog, and the response
- * function of the dialog is responsible for updating the display. */
-static gboolean onPickModeChanged(GtkWidget *combo, const gint responseId, gpointer data)
-{
-  BelvuPickMode *result = (BelvuPickMode*)data;
-  GtkTreeIter iter;
-  
-  if (gtk_combo_box_get_active_iter(GTK_COMBO_BOX(combo), &iter))
-    {
-      GtkTreeModel *model = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
-      
-      GValue val = {0};
-      gtk_tree_model_get_value(model, &iter, COMBO_ENUM_COL, &val);
-      
-      *result = g_value_get_int(&val);
-    }
-  
-  return TRUE;
-}
-
-
-/* Utility to add an item to our 2-column combo box */
-static void addComboItem(GtkComboBox *combo,
-                         GtkTreeIter *parent, 
-                         const int val,
-                         const char *text,
-                         const int initVal)
-{
-  GtkTreeStore *store = GTK_TREE_STORE(gtk_combo_box_get_model(combo));
-  
-  GtkTreeIter iter;
-  gtk_tree_store_append(store, &iter, parent);
-  
-  gtk_tree_store_set(store, &iter, COMBO_ENUM_COL, val, COMBO_TEXT_COL, text, -1);
-  
-  if (val == initVal)
-    {
-      gtk_combo_box_set_active_iter(combo, &iter);
-    }
-}
-
-
-/* Utility to create a 2-column combo box with column1 as an enum and column2 
- * as a text description */
-static GtkComboBox* createComboBox()
-{
-  /* Create a data-store for the combo box, and the combo itself */
-  GtkTreeStore *store = gtk_tree_store_new(N_COMBO_COLUMNS, G_TYPE_INT, G_TYPE_STRING);
-  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
-  g_object_unref(store);
-  
-  /* Create a cell renderer to display the text column. */
-  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
-  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", COMBO_TEXT_COL, NULL);
-  
-  return combo;
-}
-
-
 static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
 {
   GtkWidget *frame = gtk_frame_new("Interactions");
@@ -1786,7 +1724,7 @@ static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
   addComboItem(combo, iter, NODESWAP, PICK_ACTION_SWAP_TEXT, initMode);
   addComboItem(combo, iter, NODEROOT, PICK_ACTION_REROOT_TEXT, initMode);
 
-  widgetSetCallbackData(GTK_WIDGET(combo), onPickModeChanged, pickMode);
+  widgetSetCallbackData(GTK_WIDGET(combo), onComboChanged, pickMode);
   
   gtk_box_pack_start(hbox, GTK_WIDGET(combo), FALSE, FALSE, DIALOG_XPAD);
 }
