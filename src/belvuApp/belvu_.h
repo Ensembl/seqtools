@@ -66,6 +66,12 @@ UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
 AUTHOR_TEXT "\n"
 
 
+#define DIALOG_XPAD                             12      /* default x padding around dialog widgets */
+#define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
+#define TABLE_XPAD                              12      /* default x padding around table elements */
+#define TABLE_YPAD                              2       /* default y padding around table elements */
+
+
 /* _MAX_PATH is 260 in WIN32 but each path component can be max. 256 in size */
 #define FIL_BUFFER_SIZE 256
 #define DIR_BUFFER_SIZE MAXPATHLEN

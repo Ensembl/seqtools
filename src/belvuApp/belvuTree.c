@@ -49,8 +49,6 @@
 #define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.4   /* default height of tree window (as fraction of screen height) */
 #define DEFAULT_XPAD                            10
 #define DEFAULT_YPAD                            10
-#define PICK_ACTION_SWAP_TEXT                   "Swap"
-#define PICK_ACTION_REROOT_TEXT                 "Reroot"
 #define DIALOG_XPAD                             12      /* default x padding around dialog widgets */
 #define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
 #define TABLE_XPAD                              12      /* default x padding around table elements */
@@ -1650,7 +1648,7 @@ static void createCheckButton(const char *mnemonic, gboolean *value, GtkTable *t
   g_assert(value);
   
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
-  gtk_table_attach(table, button, col, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  gtk_table_attach(table, button, col, col + 2, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), *value);
   widgetSetCallbackData(button, onBoolChangedCallback, value);
@@ -1666,7 +1664,7 @@ static void createDoubleTextEntry(const char *labelText, double *value, GtkTable
   /* Create the label */
   GtkWidget *label = gtk_label_new(labelText);
   gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
-  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   
   /* Create the text entry */
   GtkWidget *entry = gtk_entry_new();
@@ -1697,8 +1695,8 @@ static void createTreeDisplayOptsButtons(GtkBox *box,
   GtkTable *table = GTK_TABLE(gtk_table_new(2, 2, FALSE));
   gtk_container_add(frame, GTK_WIDGET(table));
 
-  createDoubleTextEntry("Tree scale: ", treeScale, table, 0, 0);
-  createDoubleTextEntry("Line width: ", lineWidth, table, 1, 0);
+  createDoubleTextEntry("Tree scale:", treeScale, table, 0, 0);
+  createDoubleTextEntry("Line width:", lineWidth, table, 1, 0);
   createCheckButton("Display branch lengths", showBranchLen, table, 2, 0);
   createCheckButton("Display organism", showOrganism, table, 3, 0);
 }
@@ -1721,8 +1719,8 @@ static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
   GtkTreeIter *iter = NULL;
   BelvuPickMode initMode = *pickMode;
   
-  addComboItem(combo, iter, NODESWAP, PICK_ACTION_SWAP_TEXT, initMode);
-  addComboItem(combo, iter, NODEROOT, PICK_ACTION_REROOT_TEXT, initMode);
+  addComboItem(combo, iter, NODESWAP, SWAPstr, initMode);
+  addComboItem(combo, iter, NODEROOT, ROOTstr, initMode);
 
   widgetSetCallbackData(GTK_WIDGET(combo), onComboChanged, pickMode);
   

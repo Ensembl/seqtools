@@ -1247,8 +1247,51 @@ static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointe
 }
 
 
-static void createTreeBuildMethodButtons(GtkBox *box)
+/* Utility to create a standard 2-column combo box and place it in the given
+ * table with a label with the given text. */
+static GtkComboBox* createComboWithLabel(GtkTable *table, const char *labelText, int *valueToUpdate, const int col, const int row)
 {
+  /* Create the label, and right-align it */
+  GtkWidget *label = gtk_label_new(labelText);
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  
+  GtkComboBox *combo = createComboBox();
+  gtk_table_attach(table, GTK_WIDGET(combo), col + 1, col + 2, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  
+  widgetSetCallbackData(GTK_WIDGET(combo), onComboChanged, valueToUpdate);
+  
+  return combo;
+}
+
+
+static void createTreeBuildMethodButtons(GtkBox *box, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr)
+{
+  /* We'll put everything in a table inside a frame */
+  GtkWidget *frame = gtk_frame_new("Build methods");
+  gtk_box_pack_start(box, GTK_WIDGET(frame), FALSE, FALSE, DIALOG_YPAD);
+
+  GtkTable *table = GTK_TABLE(gtk_table_new(2, 2, FALSE));
+  gtk_container_add(GTK_CONTAINER(frame), GTK_WIDGET(table));
+  
+  /* Create the build-method drop-down box */
+  GtkComboBox *combo = createComboWithLabel(table, "Tree building method:", (int*)buildMethod, 0, 0);
+  
+  GtkTreeIter *iter = NULL;
+  int initMode = *buildMethod;
+  addComboItem(combo, iter, NJ, NJstr, initMode);
+  addComboItem(combo, iter, UPGMA, UPGMAstr, initMode);
+
+  /* Create the distance-correction method drop-down box */
+  combo = createComboWithLabel(table, "Distance correction method:", (int*)distCorr, 0, 1);
+  
+  iter = NULL;
+  initMode = *distCorr;
+  addComboItem(combo, iter, UNCORR, UNCORRstr, initMode);
+  addComboItem(combo, iter, JUKESCANTOR, JUKESCANTORstr, initMode);
+  addComboItem(combo, iter, KIMURA, KIMURAstr, initMode);
+  addComboItem(combo, iter, STORMSONN, STORMSONNstr, initMode);
+  addComboItem(combo, iter, SCOREDIST, SCOREDISTstr, initMode);
 }
 
 
@@ -1285,7 +1328,7 @@ static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFro
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
   /* Add the build method buttons */
-  createTreeBuildMethodButtons(GTK_BOX(GTK_DIALOG(dialog)->vbox));
+  createTreeBuildMethodButtons(GTK_BOX(GTK_DIALOG(dialog)->vbox), &bc->treeMethod, &bc->treeDistCorr);
   
   /* Add the standard tree settings content */
   createTreeSettingsDialogContent(bc, dialog, 
