@@ -49,7 +49,12 @@
 #define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.4   /* default height of tree window (as fraction of screen height) */
 #define DEFAULT_XPAD                            10
 #define DEFAULT_YPAD                            10
-
+#define PICK_ACTION_SWAP_TEXT                   "Swap"
+#define PICK_ACTION_REROOT_TEXT                 "Reroot"
+#define DIALOG_XPAD                             12      /* default x padding around dialog widgets */
+#define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
+#define TABLE_XPAD                              12      /* default x padding around table elements */
+#define TABLE_YPAD                              2       /* default y padding around table elements */
 
 /*  BLOSUM62 930809
  
@@ -136,6 +141,7 @@ typedef struct _BelvuTreeProperties
     double treeScale;               /* The tree scale */
     gboolean showBranchLen;         /* Whether to show the branch lengths on the branches */
     gboolean showOrganism;          /* Whether to show the organism name */
+    BelvuPickMode pickMode;         /* The action to take when selecting a node in the tree */
     
   } BelvuTreeProperties;
 
@@ -1642,10 +1648,9 @@ static gboolean onDoubleChangedCallback(GtkWidget *entry, const gint responseId,
 static void createCheckButton(const char *mnemonic, gboolean *value, GtkTable *table, const int row, const int col)
 {
   g_assert(value);
-  int pad = 2;
   
   GtkWidget *button = gtk_check_button_new_with_mnemonic(mnemonic);
-  gtk_table_attach(table, button, col, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, pad, pad);
+  gtk_table_attach(table, button, col, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), *value);
   widgetSetCallbackData(button, onBoolChangedCallback, value);
@@ -1657,16 +1662,15 @@ static void createCheckButton(const char *mnemonic, gboolean *value, GtkTable *t
 static void createDoubleTextEntry(const char *labelText, double *value, GtkTable *table, int row, int col)
 {
   g_assert(value);
-  int pad = 2;
 
   /* Create the label */
   GtkWidget *label = gtk_label_new(labelText);
   gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
-  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, pad, pad);
+  gtk_table_attach(table, label, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   
   /* Create the text entry */
   GtkWidget *entry = gtk_entry_new();
-  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, pad, pad);
+  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   widgetSetCallbackData(entry, onDoubleChangedCallback, value);
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
@@ -1688,7 +1692,7 @@ static void createTreeDisplayOptsButtons(GtkBox *box,
 {
   /* Put the display options in a table in a frame */
   GtkContainer *frame = GTK_CONTAINER(gtk_frame_new("Display options"));
-  gtk_box_pack_start(box, GTK_WIDGET(frame), FALSE, FALSE, 12);
+  gtk_box_pack_start(box, GTK_WIDGET(frame), FALSE, FALSE, DIALOG_YPAD);
   
   GtkTable *table = GTK_TABLE(gtk_table_new(2, 2, FALSE));
   gtk_container_add(frame, GTK_WIDGET(table));
@@ -1699,9 +1703,92 @@ static void createTreeDisplayOptsButtons(GtkBox *box,
   createCheckButton("Display organism", showOrganism, table, 3, 0);
 }
 
-static void createTreeInteractionButtons(GtkBox *box)
+
+/* Callback for when the tree pick mode has changed. The value to update
+ * is a BelvuPickMode enum, a pointer to which is passed in the user data.
+ * This is called as a result of a response on a dialog, and the response
+ * function of the dialog is responsible for updating the display. */
+static gboolean onPickModeChanged(GtkWidget *combo, const gint responseId, gpointer data)
 {
+  BelvuPickMode *result = (BelvuPickMode*)data;
+  GtkTreeIter iter;
   
+  if (gtk_combo_box_get_active_iter(GTK_COMBO_BOX(combo), &iter))
+    {
+      GtkTreeModel *model = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
+      
+      GValue val = {0};
+      gtk_tree_model_get_value(model, &iter, COMBO_ENUM_COL, &val);
+      
+      *result = g_value_get_int(&val);
+    }
+  
+  return TRUE;
+}
+
+
+/* Utility to add an item to our 2-column combo box */
+static void addComboItem(GtkComboBox *combo,
+                         GtkTreeIter *parent, 
+                         const int val,
+                         const char *text,
+                         const int initVal)
+{
+  GtkTreeStore *store = GTK_TREE_STORE(gtk_combo_box_get_model(combo));
+  
+  GtkTreeIter iter;
+  gtk_tree_store_append(store, &iter, parent);
+  
+  gtk_tree_store_set(store, &iter, COMBO_ENUM_COL, val, COMBO_TEXT_COL, text, -1);
+  
+  if (val == initVal)
+    {
+      gtk_combo_box_set_active_iter(combo, &iter);
+    }
+}
+
+
+/* Utility to create a 2-column combo box with column1 as an enum and column2 
+ * as a text description */
+static GtkComboBox* createComboBox()
+{
+  /* Create a data-store for the combo box, and the combo itself */
+  GtkTreeStore *store = gtk_tree_store_new(N_COMBO_COLUMNS, G_TYPE_INT, G_TYPE_STRING);
+  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
+  g_object_unref(store);
+  
+  /* Create a cell renderer to display the text column. */
+  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
+  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", COMBO_TEXT_COL, NULL);
+  
+  return combo;
+}
+
+
+static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
+{
+  GtkWidget *frame = gtk_frame_new("Interactions");
+  gtk_box_pack_start(box, GTK_WIDGET(frame), FALSE, FALSE, DIALOG_YPAD);
+  
+  /* Create the tree pick-method drop-down box */
+  GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
+  gtk_container_add(GTK_CONTAINER(frame), GTK_WIDGET(hbox));
+
+  GtkWidget *label = gtk_label_new("Action when picking a node:");
+  gtk_box_pack_start(hbox, label, FALSE, FALSE, DIALOG_XPAD);
+  
+  GtkComboBox *combo = createComboBox();
+  
+  GtkTreeIter *iter = NULL;
+  BelvuPickMode initMode = *pickMode;
+  
+  addComboItem(combo, iter, NODESWAP, PICK_ACTION_SWAP_TEXT, initMode);
+  addComboItem(combo, iter, NODEROOT, PICK_ACTION_REROOT_TEXT, initMode);
+
+  widgetSetCallbackData(GTK_WIDGET(combo), onPickModeChanged, pickMode);
+  
+  gtk_box_pack_start(hbox, GTK_WIDGET(combo), FALSE, FALSE, DIALOG_XPAD);
 }
 
 /* Utility function to create the content for the tree settings dialog */
@@ -1710,13 +1797,14 @@ void createTreeSettingsDialogContent(BelvuContext *bc,
                                      double *treeScale,
                                      double *lineWidth,
                                      gboolean *showBranchLen, 
-                                     gboolean *showOrganism)
+                                     gboolean *showOrganism,
+                                     BelvuPickMode *pickMode)
 {
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(vbox), FALSE, FALSE, 0);
   
   createTreeDisplayOptsButtons(vbox, treeScale, lineWidth, showBranchLen, showOrganism);
-  createTreeInteractionButtons(vbox);
+  createTreeInteractionButtons(vbox, pickMode);
 }
 
 
@@ -1778,7 +1866,8 @@ void showTreeSettingsDialog(GtkWidget *belvuTree)
   
   createTreeSettingsDialogContent(bc, dialog, 
                                   &properties->treeScale, &properties->lineWidth,
-                                  &properties->showBranchLen, &properties->showOrganism);
+                                  &properties->showBranchLen, &properties->showOrganism,
+                                  &properties->pickMode);
   
   gtk_widget_show_all(dialog);
   gtk_window_present(GTK_WINDOW(dialog));

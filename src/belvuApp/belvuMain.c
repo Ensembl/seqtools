@@ -369,7 +369,6 @@ int main(int argc, char **argv)
   char treePickString[50];
   strcpy(treePickString, SWAPstr);
   
-  double treePickMode = NODESWAP;
   setTreeScaleCorr(bc, bc->treeMethod);
   
   

@@ -7291,6 +7291,7 @@ BelvuContext* createBelvuContext()
 
   bc->treeMethod = NJ;
   bc->treeDistCorr = SCOREDIST;
+  bc->treePickMode = NODESWAP;
   
   bc->treeBestBalance = 0.0;
   bc->treeBestBalance_subtrees = 0.0;

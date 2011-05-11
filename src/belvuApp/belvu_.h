@@ -118,6 +118,16 @@ enum Colour
 };
 
 
+/* This enum defines the columns for a combo box with the common combination
+ * of two columns: an int relating to an enum, and a text description. */
+typedef enum _BelvuComboColumns
+{
+  COMBO_ENUM_COL,
+  COMBO_TEXT_COL,
+  N_COMBO_COLUMNS
+} BelvuComboColumns;
+
+
 enum { MUL, RAW };		/* Input formats for IN_FORMAT */
 enum { dummy, GF, GC, GS, GR };	/* Markup types in Stockholm format */
 
@@ -126,26 +136,31 @@ enum { COLORBYRESIDUE, COLORSCHEMESTANDARD, COLORSCHEMEGIBSON, COLORSCHEMECYS,
 
 enum { NOLL, SORT_ALPHA, SORT_ORGANISM, SORT_TREE, SORT_SCORE, SORT_SIM, SORT_ID }; /* Initial sorting modes */
 
-enum {NODESWAP, NODEROOT};		/* Tree picking methods */
+/* Tree picking methods */
+typedef enum _BelvuPickMode
+{
+  NODESWAP,
+  NODEROOT
+} BelvuPickMode;
 
 
 /* Tree building methods */
-typedef enum _BelvuBuildMethodId
+typedef enum _BelvuBuildMethod
 {
   UPGMA,
   NJ
-} BelvuBuildMethodId;		
+} BelvuBuildMethod;
 
 
 /* Distance correction methods for tree building */
-typedef enum _BelvuDistCorrId
+typedef enum _BelvuDistCorr
 {
   UNCORR,
   KIMURA,
   STORMSONN,
   SCOREDIST,
   JUKESCANTOR
-} BelvuDistCorrId; 
+} BelvuDistCorr; 
 
 
 /* The following are used to define default colors for certain types of features in Belvu.
@@ -318,9 +333,10 @@ typedef struct BelvuContextStruct
   int midbgColor;
   int lowbgColor;
                 
-  BelvuBuildMethodId treeMethod;  /* Default building method for trees */
-  BelvuDistCorrId treeDistCorr;   /* Default distance correction method for trees */
-
+  BelvuBuildMethod treeMethod;  /* Default building method for trees */
+  BelvuDistCorr treeDistCorr;   /* Default distance correction method for trees */
+  BelvuPickMode treePickMode;   /* Default action when picking a node in a tree */
+  
   double treeBestBalance;
   double treeBestBalance_subtrees;
   double tree_y;
