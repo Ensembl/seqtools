@@ -676,9 +676,16 @@ static void onToggleSchemeType(GtkRadioAction *action, GtkRadioAction *current, 
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
+  /* Set the new scheme type */
   properties->bc->schemeType = gtk_radio_action_get_current_value(current);
 
+  /* Some menu options are greyed out depending on which scheme type is selected, so update
+   * them now. */
   greyOutInvalidActions(properties->bc, properties->actionGroup);
+  
+  /* Update */
+  onColorSchemeChanged(properties->bc);
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 
 
@@ -692,7 +699,9 @@ static void onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *curren
   
   /* Set the scheme-type to be "by residue" */
   setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
-  
+
+  /* Update */
+  onColorSchemeChanged(properties->bc);
   belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 
@@ -709,7 +718,7 @@ static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, 
   setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
   
   /* Update */
-  setConsSchemeColors(properties->bc);
+  onColorSchemeChanged(properties->bc);
   belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 

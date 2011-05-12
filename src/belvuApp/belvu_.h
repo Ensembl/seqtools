@@ -421,6 +421,7 @@ void                                      parseMulLine(BelvuContext *bc, char *l
 void                                      readMatch(BelvuContext *bc, FILE *fil);                
 void                                      checkAlignment(BelvuContext *bc);
 void                                      setConsSchemeColors(BelvuContext *bc);
+void					  onColorSchemeChanged(BelvuContext *bc);
 void                                      initResidueColors(BelvuContext *bc);
 void                                      initMarkupColors(void);              
 void                                      readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr);
