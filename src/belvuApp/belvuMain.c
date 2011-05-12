@@ -206,44 +206,6 @@ static int treeReadDistancesNames(BelvuContext *bc)
 }
 
 
-static void scoreSortBatch(GArray *alignArr, const gboolean displayScores)
-{
-  if (!displayScores) 
-    g_error("No scores available");
-
-  g_array_sort(alignArr, scoreorder);
-  arrayOrder(alignArr);
-}
-
-
-static void init_sort_do(const BelvuSortType init_sort, BelvuContext *bc)
-{
-  g_array_sort(bc->alignArr, nrorder);
-  
-  switch(init_sort) 
-    {
-      case BELVU_SORT_ALPHA :	  g_array_sort(bc->alignArr, alphaorder);   break;
-      case BELVU_SORT_ORGANISM :  g_array_sort(bc->alignArr, organismorder);   break;
-      case BELVU_SORT_SCORE :	  scoreSortBatch(bc->alignArr, bc->displayScores);   break;
-      case BELVU_SORT_TREE  :	  treeSortBatch(bc);    break;
-      
-      case BELVU_SORT_SIM :
-	bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
-	highlightScoreSort('P', bc); break;
-      
-      case BELVU_SORT_ID : 
-	bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
-	highlightScoreSort('I', bc); break;
-      
-      case BELVU_UNSORTED : break;
-      
-      default: 
-	g_warning("Initial sort order '%d' not recognised.\n", init_sort);
-	break;
-    }
-}
-
-
 static void readScores(char *filename, BelvuContext *bc)
 {
   char line[MAXLENGTH+1], linecp[MAXLENGTH+1], *cp;
@@ -319,7 +281,7 @@ int main(int argc, char **argv)
   
   int     
   i,
-  pw, ph,	 /* pixel width and height */
+//  pw, ph,	 /* pixel width and height */
   output_probs = 0,
   init_tree = 0,
   only_tree = 0,
@@ -379,7 +341,7 @@ int main(int argc, char **argv)
   
   char *OrganismLabel = "OS";
     
-  BelvuSortType init_sort = 0;
+  BelvuSortType init_sort = BELVU_UNSORTED;
   
   gboolean verbose = FALSE;
   gboolean gridOn = FALSE;
@@ -536,7 +498,7 @@ int main(int argc, char **argv)
   if (scoreFile) 
     readScores(scoreFile, bc);
   
-  init_sort_do(init_sort, bc);
+  doSort(bc, init_sort);
   
   if (!bc->matchFooter && readMatchFile) 
     {

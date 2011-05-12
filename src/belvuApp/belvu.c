@@ -12,8 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * You should have received a copy of the GNU General Public License2 * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
@@ -2188,50 +2187,6 @@ static void conservationPlot()
 }
 
 
-static void alphaSort(void)
-{
-    if (bc->highlightedAln)
-	alncpy(&aln, bc->highlightedAln);
-
-    arraySort(Align, (void*)alphaorder);
-
-    if (bc->highlightedAln) {
-	if (!alignFind(Align, &aln, &ip)) {
-	    messout("Cannot find back highlighted seq after sort - probably a bug");
-	    bc->highlightedAln = 0;
-	}
-	else
-	    bc->highlightedAln = arrp(Align, ip, ALN);
-    }
-
-    arrayOrder();
-    centerHighlighted();
-    belvuRedraw();
-}
-
-
-static void organismSort(void)
-{
-    if (bc->highlightedAln)
-	alncpy(&aln, bc->highlightedAln);
-
-    arraySort(Align, (void*)organismorder);
-
-    if (bc->highlightedAln) {
-	if (!alignFind(Align, &aln, &ip)) {
-	    messout("Cannot find back highlighted seq after sort - probably a bug");
-	    bc->highlightedAln = 0;
-	}
-	else
-	    bc->highlightedAln = arrp(Align, ip, ALN);
-    }
-
-    arrayOrder();
-    centerHighlighted();
-    belvuRedraw();
-}
-
-
 static void treeSetLinewidth(char *cp)
 {
     treeLinewidth = atof(cp);
@@ -2414,7 +2369,6 @@ static void treeSort(void)
 	}
 	else
 	    bc->highlightedAln = arrp(Align, ip, ALN);
-	centerHighlighted();
     }
     
     treeDraw(treeHead);
@@ -2423,12 +2377,14 @@ static void treeSort(void)
 }
 
 
-static void simSort(void) {
-    highlightScoreSort('P');
+static void simSort(void) 
+{
+  highlightScoreSort('P');
 }
 
-static void idSort(void) {
-    highlightScoreSort('I');
+static void idSort(void) 
+{
+  highlightScoreSort('I');
 }
 
 
@@ -4332,7 +4288,14 @@ static int a2b_sean[] =
 
 /* Local function declarations */
 static void		   alncpy(ALN *dest, ALN *src);
+static double		   score(char *s1, char *s2, const gboolean penalize_gaps);
+static void		   initConservMtx(BelvuContext *bc);
+static int		   countResidueFreqs(BelvuContext *bc);
 
+
+/***********************************************************
+ *		          Sorting			   *
+ ***********************************************************/
 
 /* Sort comparision function to sort ALNs by name */
 gint alphaorder(gconstpointer xIn, gconstpointer yIn)
@@ -4428,8 +4391,6 @@ static gint scoreorderRev(gconstpointer xIn, gconstpointer yIn)
 }
 
 
-
-
 /* Sort comparison function to sort ALNs by nr */
 gint nrorder(gconstpointer xIn, gconstpointer yIn)
 {
@@ -4473,6 +4434,173 @@ void scoreSort(BelvuContext *bc)
 }
 
 
+static void alphaSort(BelvuContext *bc)
+{
+  ALN aln;
+  initAln(&aln);
+  
+  if (bc->highlightedAln)
+    alncpy(&aln, bc->highlightedAln);
+  
+  g_array_sort(bc->alignArr, alphaorder);
+  
+  if (bc->highlightedAln) 
+    { 
+      int ip = 0;
+      if (!alignFind(bc->alignArr, &aln, &ip)) 
+	{
+	  g_critical("Program error: cannot find back highlighted seq after sort.\n");
+	  bc->highlightedAln = NULL;
+	}
+      else
+	{
+	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	}
+    }
+  
+  arrayOrder(bc->alignArr);
+}
+
+
+static void organismSort(BelvuContext *bc)
+{
+  ALN aln;
+  initAln(&aln);
+
+  if (bc->highlightedAln)
+    alncpy(&aln, bc->highlightedAln);
+  
+  g_array_sort(bc->alignArr, organismorder);
+  
+  if (bc->highlightedAln) 
+    {
+      int ip = 0;
+      if (!alignFind(bc->alignArr, &aln, &ip)) 
+	{
+	  g_critical("Program error: cannot find back highlighted seq after sort.\n");
+	  bc->highlightedAln = NULL;
+	}
+      else
+	{
+	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	}
+    }
+  
+  arrayOrder(bc->alignArr);
+}
+
+static void scoreSortBatch(GArray *alignArr, const gboolean displayScores)
+{
+  if (!displayScores) 
+    g_critical("No scores available.\n");
+  
+  g_array_sort(alignArr, scoreorder);
+  arrayOrder(alignArr);
+}
+
+
+void highlightScoreSort(char mode, BelvuContext *bc)
+{
+  if (!bc->highlightedAln) 
+    {
+      g_critical("Please highlight a sequence first");
+      return;
+    }
+  
+  if (bc->highlightedAln->markup) 
+    {
+      g_critical("Please do not highlight a markup line");
+      return;
+    }
+  
+  ALN aln;
+  initAln(&aln);
+  alncpy(&aln, bc->highlightedAln);
+  
+  separateMarkupLines(bc);
+  
+  /* if (displayScores) {
+   if (!(graphQuery("This will erase the current scores, do you want to continue?")))
+   return;
+   }*/
+  
+  bc->displayScores = TRUE;
+  
+  /* Calculate score relative to highlighted sequence */
+  int i = 0;
+  
+  for (i = 0; i < bc->alignArr->len; ++i)
+    {
+      if (mode == 'P')
+	{
+	  ALN *curAln = &g_array_index(bc->alignArr, ALN, i);
+	  curAln->score = score(aln.seq, curAln->seq, bc->penalize_gaps);
+	}
+      else if (mode == 'I')
+	{
+	  ALN *curAln = &g_array_index(bc->alignArr, ALN, i);
+	  curAln->score = identity(aln.seq, curAln->seq, bc->penalize_gaps);
+	}
+      
+      char *scoreStr = blxprintf("%.1f", g_array_index(bc->alignArr,ALN, i).score);
+      int len = strlen(scoreStr);
+      
+      if (len > bc->maxScoreLen)
+	bc->maxScoreLen = len;
+      
+      g_free(scoreStr);
+    }
+  
+  g_array_sort(bc->alignArr, scoreorderRev);
+  
+  reInsertMarkupLines(bc);
+  
+  if (!alignFind(bc->alignArr, &aln, &i)) 
+    {
+      g_critical("Cannot find back highlighted seq after sort - probably a bug");
+      bc->highlightedAln = 0;
+    }
+  else
+    {
+      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, i);
+    }
+  
+  arrayOrder(bc->alignArr);
+  bc->alignYStart = 0;
+}
+
+
+
+void doSort(BelvuContext *bc, const BelvuSortType sortType)
+{
+  g_array_sort(bc->alignArr, nrorder);
+  
+  switch(sortType) 
+  {
+    case BELVU_SORT_ALPHA :	  g_array_sort(bc->alignArr, alphaorder);   break;
+    case BELVU_SORT_ORGANISM :	  g_array_sort(bc->alignArr, organismorder);   break;
+    case BELVU_SORT_SCORE :	  scoreSortBatch(bc->alignArr, bc->displayScores);   break;
+    case BELVU_SORT_TREE  :	  treeSortBatch(bc);    break;
+    
+    case BELVU_SORT_SIM :
+      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
+      highlightScoreSort('P', bc); break;
+    
+    case BELVU_SORT_ID : 
+      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
+      highlightScoreSort('I', bc); break;
+    
+    case BELVU_UNSORTED : break;
+    
+    default: 
+      g_warning("Initial sort order '%d' not recognised.\n", sortType);
+      break;
+  }
+}
+
+/***********************************************************
+ *		          Trees				   *
+ ***********************************************************/
 
 void setTreeScaleCorr(BelvuContext *bc, const int treeMethod) 
 {
@@ -4488,6 +4616,133 @@ void setTreeScale(BelvuContext *bc, const double newScale)
   bc->treeScale = newScale;
 }
 
+
+
+/* Print tree in New Hampshire format */
+void treePrintNH(Tree *tree, TreeNode *node, FILE *file)
+{
+  if (!node) 
+    return;
+  
+  if (node->left && node->right) 
+    {
+    fprintf(file, "(\n");
+    treePrintNH(tree, node->left, file);
+    fprintf(file, ",\n");
+    treePrintNH(tree, node->right, file);
+    fprintf(file, ")\n");
+    
+    if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
+      fprintf(file, "%.0f", node->boot+0.5);
+    }
+  else
+    {
+    fprintf(file, "%s", node->name);
+    }
+  
+  if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
+    fprintf(file, ":%.3f", node->branchlen/100.0);
+}
+
+
+static int treeOrder(TreeNode *node, const int treeOrderNrIn) 
+{
+  int treeOrderNr = treeOrderNrIn;
+  
+  if (node) 
+    {
+    treeOrderNr = treeOrder(node->left, treeOrderNr);
+    
+    if (node->aln)
+      node->aln->nr = treeOrderNr++;
+    
+    treeOrderNr = treeOrder(node->right, treeOrderNr);    
+    }
+  
+  return treeOrderNr;
+}
+
+
+void treeSortBatch(BelvuContext *bc)
+{
+  separateMarkupLines(bc);
+  
+  bc->treeHead = treeMake(bc, FALSE);
+  
+  treeOrder(bc->treeHead, 1); /* Set nr field according to tree order */
+  
+  g_array_sort(bc->alignArr, nrorder);
+  
+  reInsertMarkupLines(bc);
+}
+
+
+static void treeTraverseLRfirst(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *node)) 
+{
+  if (!node) 
+    return;
+  
+  treeTraverseLRfirst(bc, node->left, func);
+  treeTraverseLRfirst(bc, node->right, func);
+  func(bc, node);
+}
+
+
+static void subfamilyTrav(BelvuContext *bc, TreeNode *node) 
+{
+  static double dist = 0.0;
+  static int 
+  newgroup = 1,
+  groupnr = 0;
+  
+  if (!node) 
+    return;
+  
+  if (node->name) 
+    {
+    dist = node->branchlen;
+    
+    if (newgroup) 
+      {
+      printf("\nGroup nr %d:\n", ++groupnr);
+      newgroup = 0;
+      }
+    
+    printf("%s\n", node->name);
+    }
+  else
+    {
+    /* internal node */
+    dist += node->branchlen;
+    }
+  
+  if ( bc->mksubfamilies_cutoff > (100.0-dist) )
+    { 
+      newgroup = 1; 
+    }
+  
+  /* printf("abs=%.1f  branch=%.1f\n", dist, node->branchlen); */
+}
+
+
+void mksubfamilies(BelvuContext *bc, double cutoff)
+{
+  Tree *treeStruct = g_malloc(sizeof(Tree));
+  
+  separateMarkupLines(bc);
+  
+  strcpy(bc->treeMethodString, UPGMAstr);
+  bc->treeMethod = UPGMA;
+  
+  treeStruct->head = treeMake(bc, 0);
+  
+  treeTraverseLRfirst(bc, treeStruct->head, subfamilyTrav);
+}
+
+
+/***********************************************************
+ *		          Alignments			   *
+ ***********************************************************/
 
 static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln, char *seq)
 {
@@ -4610,6 +4865,9 @@ static void alncpy(ALN *dest, ALN *src)
 }
 
 
+/***********************************************************
+ *		          Parsing			   *
+ ***********************************************************/
 
 /* Convenience routine for converting "name/start-end" to "name start end".
  Used by parsing routines.
@@ -4707,6 +4965,9 @@ void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
 }
 
 
+/***********************************************************
+ *		          Colours			   *
+ ***********************************************************/
 
 /* Set the default colors of organisms to something somewhat intelligent */
 void setOrganismColors(GArray *organismArr) 
@@ -4742,6 +5003,118 @@ void setOrganismColors(GArray *organismArr)
     }
 }
 
+
+
+/* Return the markup color for the given char */
+int getMarkupColor(const char inputChar)
+{
+  return markupColor[(unsigned char)(inputChar)];
+}
+
+/* Return the conservation color for the given char at the given index */
+int getConservColor(BelvuContext *bc, const char inputChar, const int idx)
+{
+  return bc->colorMap[a2b[(unsigned char)(inputChar)]][idx];
+}
+
+/* Return the color from the colors array for the given char */
+int getColor(const char inputChar)
+{
+  return color[(unsigned char)(inputChar)];
+}
+
+/* Returns the 'color' array */
+int* getColorArray()
+{
+  return color;
+}
+
+/* Returns the 'markupColor' array */
+int* getMarkupColorArray()
+{
+  return markupColor;
+}
+
+
+/* Convert one of the old acedb-style color numbers to a hex string */
+static const char* convertColorNumToStr(const int colorNum)
+{
+  const char *result = NULL;
+  
+  switch (colorNum)
+  {
+    case WHITE: result = BLX_WHITE; break;
+    case BLACK: result = BLX_BLACK; break;
+    case LIGHTGRAY: result = BLX_LIGHT_GREY; break;
+    case DARKGRAY: result = BLX_DARK_GREY; break;
+    case RED: result = BLX_RED; break;
+    case GREEN: result = BLX_GREEN; break;
+    case BLUE: result = BLX_BLUE; break;
+    case YELLOW: result = BLX_YELLOW; break;
+    case CYAN: result = BLX_CYAN; break;
+    case MAGENTA: result = BLX_MAGENTA; break;
+    case LIGHTRED: result = BLX_LIGHT_RED; break;
+    case LIGHTGREEN: result = BLX_LIGHT_GREEN; break;
+    case LIGHTBLUE: result = BLX_SKY_BLUE; break;
+    case DARKRED: result = BLX_DARK_RED; break;
+    case DARKGREEN: result = BLX_DARK_GREEN; break;
+    case DARKBLUE: result = BLX_DARK_BLUE; break;
+    case PALERED: result = BLX_LIGHT_RED; break;
+    case PALEGREEN: result = BLX_LIGHT_GREEN; break;
+    case PALEBLUE: result = BLX_PALE_BLUE; break;
+    case PALEYELLOW: result = BLX_PALE_YELLOW; break;
+    case PALECYAN: result = BLX_LIGHT_CYAN; break;
+    case PALEMAGENTA: result = BLX_PALE_MAGENTA; break;
+    case BROWN: result = BLX_BROWN; break;
+    case ORANGE: result = BLX_ORANGE; break;
+    case PALEORANGE: result = BLX_PALE_ORANGE; break;
+    case PURPLE: result = BLX_PURPLE; break;
+    case VIOLET: result = BLX_VIOLET; break;
+    case PALEVIOLET: result = BLX_PALE_VIOLET; break;
+    case GRAY: result = BLX_GREY; break;
+    case PALEGRAY: result = BLX_VERY_LIGHT_GREY; break;
+    case CERISE: result = BLX_CERISE; break;
+    case MIDBLUE: result = BLX_MID_BLUE; break;
+    default: result = BLX_WHITE; break;
+  };
+  
+  return result;
+}
+
+
+/* Convert an old-style ACEDB color number to a GdkColor */
+void convertColorNumToGdkColor(const int colorNum, GdkColor *result)
+{
+  const char *colorStr = convertColorNumToStr(colorNum);
+  getColorFromString(colorStr, result, NULL);
+}
+
+
+static void colorCons(BelvuContext *bc)
+{
+  setConservColors(bc);
+  
+  //  menuSetFlags(menuItem(colorMenu, thresholdStr), MENUFLAG_DISABLED);
+  //  menuUnsetFlags(menuItem(colorMenu, printColorsStr), MENUFLAG_DISABLED);
+  //  menuUnsetFlags(menuItem(colorMenu, ignoreGapsStr), MENUFLAG_DISABLED);
+  
+  bc->colorByResIdOn = FALSE;
+  //  belvuRedraw();
+}
+
+
+void colorSim(BelvuContext *bc)
+{
+  bc->colorScheme = COLORSIM;
+  bc->color_by_conserv = 1;
+  bc->color_by_similarity = 1;
+  colorCons(bc);
+}
+
+
+/***********************************************************
+ *		          Arrays			   *
+ ***********************************************************/
 
 /* Finds Entry s from Array  a
  * sorted in ascending order of order()
@@ -4847,6 +5220,598 @@ static void arrayOrder10(GArray *alignArr)
 
 
 
+/* Separate markuplines to another array before resorting
+ */
+void separateMarkupLines(BelvuContext *bc)
+{
+  bc->markupAlignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);
+  
+  ALN aln;
+  initAln(&aln);
+  
+  if (bc->highlightedAln)
+    alncpy(&aln, bc->highlightedAln);
+  
+  arrayOrder(bc->alignArr);
+  
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len; ) 
+    {
+    ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+    
+    if (alnp->markup) 
+      {
+      /* printf ("Moving line %d, %s/%d-%d, nseq=%d\n", i, alnp->name, alnp->start, alnp->end, nseq);*/
+      g_array_append_val(bc->markupAlignArr, *alnp);
+      g_array_sort(bc->markupAlignArr, alphaorder);
+      g_array_remove_index(bc->alignArr, i);
+      }
+    else
+      {
+      ++i;
+      }
+    }
+  
+  arrayOrder(bc->alignArr);
+  
+  if (bc->highlightedAln) 
+    {
+    int idx = 0;
+    
+    if (!alignFind(bc->alignArr, &aln, &idx))
+      bc->highlightedAln = 0;
+    else
+      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, idx);
+    }
+}
+
+
+/* Reinsert markuplines after mother sequence or if orphan at bottom */
+void reInsertMarkupLines(BelvuContext *bc)
+{
+  int i, j;
+  char tmpname[MAXNAMESIZE+1], *cp;
+  
+  for (i = bc->markupAlignArr->len - 1; i >=0 ; --i)
+    {
+    ALN *alnp = &g_array_index(bc->markupAlignArr, ALN, i);
+    strcpy(tmpname, alnp->name);
+    
+    if ((cp = strchr(tmpname, ' ')))
+      *cp = 0;
+    
+    arrayOrder10(bc->alignArr);
+    
+    for (j = 0; j < bc->alignArr->len; ++j)
+      {
+      if (!strcmp(tmpname, g_array_index(bc->alignArr, ALN, j).name))
+	break;
+      }
+    
+    alnp->nr = (j+1)*10+5;
+    
+    g_array_append_val(bc->alignArr, *alnp);
+    g_array_sort(bc->alignArr, nrorder); /* to do: can we move this out of the loop ? */
+    }
+  
+  arrayOrder(bc->alignArr);
+}
+
+
+int strcmp_(gconstpointer xIn, gconstpointer yIn)
+{
+  const char *x = (const char*)xIn;
+  const char *y = (const char*)yIn;
+  
+  int retval = strcmp(x, y);
+  return retval;
+}
+
+
+GArray *copyAlignArray(GArray *inputArr)
+{
+  GArray *result = g_array_sized_new(FALSE, FALSE, sizeof(ALN), inputArr->len);
+  memcpy(result->data, inputArr->data, inputArr->len * sizeof(ALN));
+  
+  int i = 0;
+  for ( ; i < inputArr->len; ++i)
+    {
+    g_array_index(result, ALN, i).seq = g_strdup(g_array_index(inputArr, ALN, i).seq);
+    }
+  
+  return result;
+}
+
+
+void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcIdx)
+{
+  int i;
+  
+  for (i = 0; i < alignArrSrc->len; ++i)
+    {
+    g_array_index(alignArrDest, ALN, i).seq[destIdx] = g_array_index(alignArrSrc, ALN, i).seq[srcIdx];
+    }
+}
+
+
+/* Return 1 if c1 has priority over c2, 0 otherwise */
+static int colorPriority(BelvuContext *bc, int c1, int c2) 
+{
+  if (c2 == WHITE) return 1;
+  if (c2 == bc->maxbgColor) return 0;
+  if (c2 == bc->lowbgColor) {
+    if (c1 == bc->lowbgColor) return 0;
+    else return 1;
+  }
+  if (c2 == bc->midbgColor) {
+    if (c1 == bc->maxbgColor) return 1;
+    else return 0;
+  }
+  
+  g_error("Unknown colour %s", colorNames[c2]);		    /* exits program. */
+  
+  return 0 ;
+}
+
+
+void setConservColors(BelvuContext *bc)
+{
+  int i, j, k, l, colornr, simCount, n, nseqeff;
+  double id, maxid;
+  
+  if (!bc->conservCount) 
+    initConservMtx(bc);
+  
+  nseqeff = countResidueFreqs(bc);
+  
+  for (i = 0; i < bc->maxLen; ++i)
+    for (k = 1; k < 21; ++k)
+      bc->colorMap[k][i] = WHITE;
+  
+  for (i = 0; i < bc->maxLen; ++i) 
+    {
+    maxid = -100.0;
+    for (k = 1; k < 21; k++) 
+      {
+      if (bc->color_by_similarity) 
+	{
+	/* Convert counts to similarity counts */
+	simCount = 0;
+	for (j = 1; j < 21; j++) 
+	  {
+	  if (j == k) 
+	    {
+	    if (1)
+	      {
+	      simCount += (bc->conservCount[j][i]-1) * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
+	      }
+	    else
+	      {
+	      /* Alternative, less good way */
+	      simCount += 
+	      (int)floor(bc->conservCount[j][i]/2.0)*
+	      (int)ceil(bc->conservCount[k][i]/2.0)*
+	      BLOSUM62[j-1][k-1];
+	      }
+	    }
+	  else
+	    {
+	    simCount += bc->conservCount[j][i] * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
+	    }
+	  }
+	
+	if (bc->ignoreGapsOn) 
+	  n = bc->conservResidues[i];
+	else 
+	  n = nseqeff;
+	
+	if (n < 2)
+	  id = 0.0;
+	else 
+	  {
+	  if (1)
+	    id = (double)simCount/(n*(n-1));
+	  else
+	    /* Alternative, less good way */
+	    id = (double)simCount/(n/2.0 * n/2.0);
+	  }
+	
+	/* printf("%d, %c:  simCount= %d, id= %.2f\n", i, b2a[k], simCount, id); */
+	
+	if (id > bc->lowSimCutoff) 
+	  {
+	  if (id > bc->maxSimCutoff) 
+	    colornr = bc->maxbgColor;
+	  else if (id > bc->midSimCutoff) colornr = bc->midbgColor;
+	  else colornr = bc->lowbgColor;
+	  
+	  if (colorPriority(bc, colornr, bc->colorMap[k][i]))
+	    bc->colorMap[k][i] = colornr;
+	  
+	  /* Colour all similar residues too */
+	  for (l = 1; l < 21; l++) 
+	    {
+	    if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
+	      {
+	      /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
+	      bc->colorMap[l][i] = colornr;
+	      }
+	    }
+	  }
+	}
+      else 
+	{
+	if (bc->ignoreGapsOn && bc->conservResidues[i] != 1)
+	  id = (double)bc->conservCount[k][i]/bc->conservResidues[i];
+	else
+	  id = (double)bc->conservCount[k][i]/nseqeff;
+	
+	if (bc->colorByResIdOn) 
+	  {
+	  if (id*100.0 > bc->colorByResIdCutoff)
+	    bc->colorMap[k][i] = color[(unsigned char)(b2a[k])];
+	  else
+	    bc->colorMap[k][i] = WHITE;
+	  }
+	else if (id > bc->lowIdCutoff) 
+	  {
+	  if (id > bc->maxIdCutoff) 
+	    colornr = bc->maxbgColor;
+	  else if (id > bc->midIdCutoff) 
+	    colornr = bc->midbgColor;
+	  else
+	    colornr = bc->lowbgColor;
+	  
+	  bc->colorMap[k][i] = colornr;
+	  
+	  if (bc->id_blosum) 
+	    {
+	    /* Colour all similar residues too */
+	    for (l = 1; l < 21; l++) 
+	      {
+	      if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
+		{
+		/*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
+		bc->colorMap[l][i] = colornr;
+		}
+	      }
+	    }
+	  }
+	}
+      if (id > maxid) 
+	maxid = id;
+      }
+    
+    bc->conservation[i] = maxid;
+    }
+}
+
+
+void initResidueColors(BelvuContext *bc)
+{
+  bc->colorScheme = COLORBYRESIDUE;
+  
+  color['A'] = color['a'] = WHITE;
+  color['B'] = color['b'] = NOCOLOR;
+  color['C'] = color['c'] = WHITE;
+  color['D'] = color['d'] = WHITE;
+  color['E'] = color['e'] = WHITE;
+  color['F'] = color['f'] = WHITE;
+  color['G'] = color['g'] = WHITE;
+  color['H'] = color['h'] = WHITE;
+  color['I'] = color['i'] = WHITE;
+  color['J'] = color['j'] = WHITE;
+  color['K'] = color['k'] = WHITE;
+  color['L'] = color['l'] = WHITE;
+  color['M'] = color['m'] = WHITE;
+  color['N'] = color['n'] = WHITE;
+  color['O'] = color['o'] = WHITE;
+  color['P'] = color['p'] = WHITE;
+  color['Q'] = color['q'] = WHITE;
+  color['R'] = color['r'] = WHITE;
+  color['S'] = color['s'] = WHITE;
+  color['T'] = color['t'] = WHITE;
+  color['V'] = color['v'] = WHITE;
+  color['U'] = color['u'] = WHITE;
+  color['W'] = color['w'] = WHITE;
+  color['X'] = color['x'] = WHITE;
+  color['Y'] = color['y'] = WHITE;
+  color['Z'] = color['z'] = NOCOLOR;
+}
+
+
+void initMarkupColors(void)
+{
+  markupColor['0'] = DARKBLUE;
+  markupColor['1'] = BLUE;
+  markupColor['2'] = MIDBLUE;
+  markupColor['3'] = LIGHTBLUE;
+  markupColor['4'] = VIOLET;
+  markupColor['5'] = PALEBLUE;
+  markupColor['6'] = PALECYAN;
+  markupColor['7'] = CYAN;
+  markupColor['8'] = CYAN;
+  markupColor['9'] = CYAN;
+  markupColor['A'] = markupColor['a'] = WHITE;
+  markupColor['B'] = markupColor['b'] = RED;
+  markupColor['C'] = markupColor['c'] = PALEYELLOW;
+  markupColor['D'] = markupColor['d'] = WHITE;
+  markupColor['E'] = markupColor['e'] = RED;
+  markupColor['F'] = markupColor['f'] = WHITE;
+  markupColor['G'] = markupColor['g'] = DARKGREEN;
+  markupColor['H'] = markupColor['h'] = DARKGREEN;
+  markupColor['I'] = markupColor['i'] = DARKGREEN;
+  markupColor['J'] = markupColor['j'] = WHITE;
+  markupColor['K'] = markupColor['k'] = WHITE;
+  markupColor['L'] = markupColor['l'] = WHITE;
+  markupColor['M'] = markupColor['m'] = WHITE;
+  markupColor['N'] = markupColor['n'] = WHITE;
+  markupColor['O'] = markupColor['o'] = WHITE;
+  markupColor['P'] = markupColor['p'] = WHITE;
+  markupColor['Q'] = markupColor['q'] = WHITE;
+  markupColor['R'] = markupColor['r'] = WHITE;
+  markupColor['S'] = markupColor['s'] = YELLOW;
+  markupColor['T'] = markupColor['t'] = YELLOW;
+  markupColor['V'] = markupColor['v'] = WHITE;
+  markupColor['U'] = markupColor['u'] = WHITE;
+  markupColor['W'] = markupColor['w'] = WHITE;
+  markupColor['X'] = markupColor['x'] = WHITE;
+  markupColor['Y'] = markupColor['y'] = WHITE;
+  markupColor['Z'] = markupColor['z'] = NOCOLOR;
+}
+
+
+void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
+{
+  char *cp=NULL, line[MAXLINE+1], setColor[MAXLINE+1];
+  unsigned char c ;
+  int i=0, colornr=0;
+  
+  while (!feof(fil)) 
+    {
+    if (!fgets (line, MAXLINE, fil)) 
+      break;
+    
+    /* remove newline */
+    if ((cp = strchr(line, '\n'))) 
+      *cp = 0 ;
+    
+    /* Parse color of organism in tree 
+     Format:  #=OS BLUE D. melanogaster*/
+    if (!strncmp(line, "#=OS ", 5)) 
+      {
+      cp = line+5;
+      sscanf(cp, "%s", setColor);
+      
+      for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
+	{
+	if (!strcasecmp(colorNames[i], setColor)) 
+	  colornr = i;
+	}
+      
+      if (colornr == -1) 
+	{
+	printf("Unrecognized color: %s, using black instead.\n", setColor);
+	colornr = BLACK;
+	}
+      
+      while(*cp == ' ') cp++;
+      while(*cp != ' ') cp++;
+      while(*cp == ' ') cp++;
+      
+      /* Find organism and set its colour */
+      ALN aln;
+      initAln(&aln);
+      aln.organism = cp;
+      
+      int ip = 0;
+      if (!arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
+	g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok", aln.organism);
+      else
+	g_array_index(bc->organismArr, ALN, ip).color = colornr;
+      }
+    
+    /* Ignore comments */
+    if (*line == '#') 
+      continue;
+    
+    /* Parse character colours */
+    if (sscanf(line, "%c%s", &c, setColor) == 2) 
+      {
+      c = toupper(c);
+      for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
+	{
+	if (!strcasecmp(colorNames[i], setColor)) 
+	  colornr = i;
+	}
+      
+      if (colornr == -1) 
+	{
+	printf("Unrecognized color: %s\n", setColor);
+	colornr = 0;
+	}
+      
+      colorarr[(unsigned char)(c)] = colornr;
+      
+      if (c > 64 && c <= 96)
+	colorarr[(unsigned char)(c+32)] = colorarr[(unsigned char)(c)];
+      else if (c > 96 && c <= 128)
+	colorarr[(unsigned char)(c-32)] = colorarr[(unsigned char)(c)];
+      }
+    }
+  
+  fclose(fil);
+  
+  bc->color_by_conserv = 0;
+}
+
+
+/***********************************************************
+ *		          Utilities			   *
+ ***********************************************************/
+
+
+
+/* Create the context, which contains all program-wide variables */
+BelvuContext* createBelvuContext()
+{
+  BelvuContext *bc = g_malloc(sizeof *bc);
+  
+  bc->defaultColors = NULL;
+  
+  bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);  /* was called 'Align' */
+  bc->organismArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);
+  bc->markupAlignArr = NULL;
+  bc->bootstrapGroups = NULL;
+  
+  bc->highlightedAln = NULL;
+  
+  bc->treeHead = NULL;
+  bc->treeBestBalancedNode = NULL;
+  
+  bc->treeReadDistancesPipe = NULL;
+  
+  bc->IN_FORMAT = MUL;
+  bc->maxScoreLen = 0;
+  bc->alignYStart = 0;
+  bc->treebootstraps = 0; 
+  bc->maxLen = 0;
+  bc->maxTreeWidth = 0;
+  bc->maxNameLen = 0;   
+  bc->maxStartLen = 0; 
+  bc->maxEndLen = 0; 
+  bc->maxScoreLen = 0; 
+  bc->colorScheme = COLORSIM;
+  
+  bc->maxfgColor = BLACK;
+  bc->midfgColor = BLACK,
+  bc->lowfgColor = BLACK;
+  bc->maxbgColor = CYAN;
+  bc->midbgColor = MIDBLUE;
+  bc->lowbgColor = LIGHTGRAY;
+  
+  bc->treeMethod = NJ;
+  bc->treeDistCorr = SCOREDIST;
+  bc->treePickMode = NODESWAP;
+  
+  bc->treeBestBalance = 0.0;
+  bc->treeBestBalance_subtrees = 0.0;
+  bc->tree_y = 0.3;
+  bc->lowIdCutoff = 0.4;
+  bc->midIdCutoff = 0.6;
+  bc->maxIdCutoff = 0.8;
+  bc->lowSimCutoff = 0.5;
+  bc->midSimCutoff = 1.5;
+  bc->maxSimCutoff = 3.0;
+  bc->colorByResIdCutoff = 20.0;
+  bc->mksubfamilies_cutoff = 0.0;
+  bc->treeScale = 0.3;
+  bc->treeLineWidth = 0.3;
+  
+  bc->saveSeparator = '/';
+  strcpy(bc->treeDistString, SCOREDISTstr);
+  strcpy(bc->treeMethodString, NJstr);
+  bc->Title[0] = '\0';
+  bc->saveFormat[0] = '\0';
+  bc->fileName[0] = 0;
+  bc->dirName[0] = 0;
+  
+  bc->conservCount = NULL;
+  bc->colorMap = NULL;
+  bc->conservResidues = NULL;
+  bc->conservation = NULL;
+  
+  bc->treeCoordsOn = TRUE;
+  bc->treeReadDistancesOn = FALSE;
+  bc->treePrintDistances = FALSE;
+  bc->penalize_gaps = FALSE;
+  bc->stripCoordTokensOn = TRUE;
+  bc->saveCoordsOn = TRUE;
+  bc->displayScores = FALSE;
+  bc->outputBootstrapTrees = FALSE;
+  bc->treebootstrapsDisplay = FALSE;
+  bc->treeColorsOn = TRUE;
+  bc->treeShowOrganism = TRUE;
+  bc->treeShowBranchlen = FALSE;
+  bc->matchFooter = FALSE;
+  bc->saved = TRUE;
+  bc->color_by_similarity = TRUE;
+  bc->color_by_conserv = TRUE;
+  bc->ignoreGapsOn = FALSE;
+  bc->colorByResIdOn = FALSE;
+  bc->id_blosum = TRUE;
+  bc->rmEmptyColumnsOn = TRUE;
+  bc->lowercaseOn = FALSE;
+  bc->removingSeqs = FALSE;
+  
+  /* Null out all the entries in the dialogs list */
+  int dialogId = 0;
+  for ( ; dialogId < BELDIALOG_NUM_DIALOGS; ++dialogId)
+    {
+    bc->dialogList[dialogId] = NULL;
+    }
+  
+  return bc;
+}
+
+
+/* Destroy the context */
+void destroyBelvuContext(BelvuContext **bc)
+{
+  if (bc && *bc)
+    {
+    if ((*bc)->alignArr)
+      g_array_unref((*bc)->alignArr);
+    
+    if ((*bc)->organismArr)
+      g_array_unref((*bc)->organismArr);
+    
+    if ((*bc)->markupAlignArr)
+      g_array_unref((*bc)->markupAlignArr);
+    
+    if ((*bc)->bootstrapGroups)
+      g_array_unref((*bc)->bootstrapGroups);
+    
+    g_free(*bc);
+    *bc = NULL;
+    }
+}
+
+
+/* This function just returns the value in the b2a array at the given index */
+char b2aIndex(const int idx)
+{
+  return b2a[idx];
+}
+
+
+void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight)
+{
+  PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
+  
+  if (drawable)
+    gdk_draw_layout(drawable, gc, x, y, layout);
+  
+  /* Return the width and height of the layout, if requested */
+  pango_layout_get_size(layout, textWidth, textHeight);
+  
+  if (textWidth)
+    *textWidth /= PANGO_SCALE;
+  
+  if (textHeight)
+    *textHeight /= PANGO_SCALE;
+  
+  g_object_unref(layout);
+}
+
+void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight)
+{
+  char *tmpStr = blxprintf("%d", value);
+  drawText(widget, drawable, gc, x, y, tmpStr, textWidth, textHeight);
+  g_free(tmpStr);
+}
+
+
 /* Calculate percent identity of two strings */
 double identity(char *s1, char *s2, const gboolean penalize_gaps)
 {
@@ -4887,250 +5852,61 @@ static double score(char *s1, char *s2, const gboolean penalize_gaps)
 }
 
 
-/* Separate markuplines to another array before resorting
-*/
-void separateMarkupLines(BelvuContext *bc)
+gboolean isGap(char c) 
 {
-  bc->markupAlignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);
-    
-  ALN aln;
-  initAln(&aln);
-
-  if (bc->highlightedAln)
-    alncpy(&aln, bc->highlightedAln);
-
-  arrayOrder(bc->alignArr);
-
-  int i = 0;
-  for (i = 0; i < bc->alignArr->len; ) 
-    {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-
-      if (alnp->markup) 
-        {
-          /* printf ("Moving line %d, %s/%d-%d, nseq=%d\n", i, alnp->name, alnp->start, alnp->end, nseq);*/
-          g_array_append_val(bc->markupAlignArr, *alnp);
-          g_array_sort(bc->markupAlignArr, alphaorder);
-          g_array_remove_index(bc->alignArr, i);
-	}
-      else
-        {
-          ++i;
-        }
-    }
-  
-  arrayOrder(bc->alignArr);
-
-  if (bc->highlightedAln) 
-    {
-      int idx = 0;
-      
-      if (!alignFind(bc->alignArr, &aln, &idx))
-        bc->highlightedAln = 0;
-      else
-        bc->highlightedAln = &g_array_index(bc->alignArr, ALN, idx);
-    }
-}
-
-
-/* Reinsert markuplines after mother sequence or if orphan at bottom */
-void reInsertMarkupLines(BelvuContext *bc)
-{
-  int i, j;
-  char tmpname[MAXNAMESIZE+1], *cp;
-
-  for (i = bc->markupAlignArr->len - 1; i >=0 ; --i)
-    {
-      ALN *alnp = &g_array_index(bc->markupAlignArr, ALN, i);
-      strcpy(tmpname, alnp->name);
-
-      if ((cp = strchr(tmpname, ' ')))
-        *cp = 0;
-
-      arrayOrder10(bc->alignArr);
-
-      for (j = 0; j < bc->alignArr->len; ++j)
-        {
-          if (!strcmp(tmpname, g_array_index(bc->alignArr, ALN, j).name))
-            break;
-        }
-
-      alnp->nr = (j+1)*10+5;
-
-      g_array_append_val(bc->alignArr, *alnp);
-      g_array_sort(bc->alignArr, nrorder); /* to do: can we move this out of the loop ? */
-    }
-
-  arrayOrder(bc->alignArr);
-}
-
-
-int strcmp_(gconstpointer xIn, gconstpointer yIn)
-{
-  const char *x = (const char*)xIn;
-  const char *y = (const char*)yIn;
-  
-  int retval = strcmp(x, y);
-  return retval;
-}
-
-
-GArray *copyAlignArray(GArray *inputArr)
-{
-  GArray *result = g_array_sized_new(FALSE, FALSE, sizeof(ALN), inputArr->len);
-  memcpy(result->data, inputArr->data, inputArr->len * sizeof(ALN));
-
-  int i = 0;
-  for ( ; i < inputArr->len; ++i)
-    {
-      g_array_index(result, ALN, i).seq = g_strdup(g_array_index(inputArr, ALN, i).seq);
-    }
-
-  return result;
-}
-
-
-void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcIdx)
-{
-    int i;
-
-    for (i = 0; i < alignArrSrc->len; ++i)
-      {
-        g_array_index(alignArrDest, ALN, i).seq[destIdx] = g_array_index(alignArrSrc, ALN, i).seq[srcIdx];
-      }
-}
-
-
-/* Print tree in New Hampshire format */
-void treePrintNH(Tree *tree, TreeNode *node, FILE *file)
- {
-   if (!node) 
-     return;
-    
-   if (node->left && node->right) 
-     {
-       fprintf(file, "(\n");
-       treePrintNH(tree, node->left, file);
-       fprintf(file, ",\n");
-       treePrintNH(tree, node->right, file);
-       fprintf(file, ")\n");
-       
-       if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
-         fprintf(file, "%.0f", node->boot+0.5);
-     }
-   else
-     {
-       fprintf(file, "%s", node->name);
-     }
-    
-   if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
-     fprintf(file, ":%.3f", node->branchlen/100.0);
-}
-
-
-static int treeOrder(TreeNode *node, const int treeOrderNrIn) 
-{
-  int treeOrderNr = treeOrderNrIn;
-  
-  if (node) 
-    {
-      treeOrderNr = treeOrder(node->left, treeOrderNr);
-      
-      if (node->aln)
-        node->aln->nr = treeOrderNr++;
-
-      treeOrderNr = treeOrder(node->right, treeOrderNr);    
-    }
-  
-  return treeOrderNr;
-}
-
-
-void treeSortBatch(BelvuContext *bc)
-{
-  separateMarkupLines(bc);
-
-  bc->treeHead = treeMake(bc, FALSE);
-
-  treeOrder(bc->treeHead, 1); /* Set nr field according to tree order */
-
-  g_array_sort(bc->alignArr, nrorder);
-  
-  reInsertMarkupLines(bc);
-}
-
-
-void highlightScoreSort(char mode, BelvuContext *bc)
-{
-  if (!bc->highlightedAln) 
-    {
-      g_critical("Please highlight a sequence first");
-      return;
-    }
-    
-  if (bc->highlightedAln->markup) 
-    {
-      g_critical("Please do not highlight a markup line");
-      return;
-    }
-
-  ALN aln;
-  initAln(&aln);
-  alncpy(&aln, bc->highlightedAln);
-    
-  separateMarkupLines(bc);
-
-  /* if (displayScores) {
-     if (!(graphQuery("This will erase the current scores, do you want to continue?")))
-	    return;
-            }*/
-    
-  bc->displayScores = TRUE;
-
-  /* Calculate score relative to highlighted sequence */
-  int i = 0;
-  
-  for (i = 0; i < bc->alignArr->len; ++i)
-    {
-      if (mode == 'P')
-        {
-          ALN *curAln = &g_array_index(bc->alignArr, ALN, i);
-          curAln->score = score(aln.seq, curAln->seq, bc->penalize_gaps);
-        }
-      else if (mode == 'I')
-        {
-          ALN *curAln = &g_array_index(bc->alignArr, ALN, i);
-          curAln->score = identity(aln.seq, curAln->seq, bc->penalize_gaps);
-        }
-      
-      char *scoreStr = blxprintf("%.1f", g_array_index(bc->alignArr,ALN, i).score);
-      int len = strlen(scoreStr);
-      
-      if (len > bc->maxScoreLen)
-        bc->maxScoreLen = len;
-      
-      g_free(scoreStr);
-    }
-  
-  g_array_sort(bc->alignArr, scoreorderRev);
-
-  reInsertMarkupLines(bc);
-
-  if (!alignFind(bc->alignArr, &aln, &i)) 
-    {
-      g_critical("Cannot find back highlighted seq after sort - probably a bug");
-      bc->highlightedAln = 0;
-    }
+  if (c == '.' || c == '-' ||
+      c == '[' || c == ']' /* Collapse-control chars */ ) 
+    return TRUE;
   else
-    {
-      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, i);
-    }
-  
-  arrayOrder(bc->alignArr);
-  bc->alignYStart = 0;
-  //belvuRedraw();
+    return FALSE;
 }
 
+
+static gboolean isAlign(char c)
+{
+  if (isalpha(c) || isGap(c) || c == '*')
+    return TRUE;
+  else 
+    return FALSE;
+}
+
+
+int GCGchecksum(BelvuContext *bc, char *seq)
+{
+  int  
+  check = 0, 
+  count = 0, 
+  i=0;
+  
+  for (i = 0; i < bc->maxLen; ++i) 
+    {
+    ++count;
+    check += count * toupper((int) seq[i]);
+    
+    if (count == 57) 
+      count = 0;
+    }
+  
+  return (check % 10000);
+}
+
+
+int GCGgrandchecksum(BelvuContext *bc)
+{
+  int 
+  i=0,
+  grand_checksum=0;
+  
+  for(i=0; i < bc->alignArr->len; ++i) 
+    grand_checksum += GCGchecksum(bc, g_array_index(bc->alignArr, ALN, i).seq);
+  
+  return (grand_checksum % 10000);
+}
+
+
+/***********************************************************
+ *		          			   *
+ ***********************************************************/
 
 static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
 {
@@ -5501,25 +6277,6 @@ void readMatch(BelvuContext *bc, FILE *fil)
 }
 
 
-gboolean isGap(char c) 
-{
-  if (c == '.' || c == '-' ||
-      c == '[' || c == ']' /* Collapse-control chars */ ) 
-    return TRUE;
-  else
-    return FALSE;
-}
-
-
-static gboolean isAlign(char c)
-{
-  if (isalpha(c) || isGap(c) || c == '*')
-    return TRUE;
-  else 
-    return FALSE;
-}
-
-
 void checkAlignment(BelvuContext *bc)
 {
   int i, g, cres, nres, tmp;
@@ -5640,318 +6397,6 @@ static int countResidueFreqs(BelvuContext *bc)
 }
 
 
-/* Return 1 if c1 has priority over c2, 0 otherwise */
-static int colorPriority(BelvuContext *bc, int c1, int c2) 
-{
-  if (c2 == WHITE) return 1;
-  if (c2 == bc->maxbgColor) return 0;
-  if (c2 == bc->lowbgColor) {
-    if (c1 == bc->lowbgColor) return 0;
-    else return 1;
-  }
-  if (c2 == bc->midbgColor) {
-    if (c1 == bc->maxbgColor) return 1;
-    else return 0;
-  }
-  
-  g_error("Unknown colour %s", colorNames[c2]);		    /* exits program. */
-
-  return 0 ;
-}
-
-
-void setConservColors(BelvuContext *bc)
-{
-  int i, j, k, l, colornr, simCount, n, nseqeff;
-  double id, maxid;
-
-  if (!bc->conservCount) 
-    initConservMtx(bc);
-
-  nseqeff = countResidueFreqs(bc);
-
-  for (i = 0; i < bc->maxLen; ++i)
-    for (k = 1; k < 21; ++k)
-      bc->colorMap[k][i] = WHITE;
-
-  for (i = 0; i < bc->maxLen; ++i) 
-    {
-      maxid = -100.0;
-      for (k = 1; k < 21; k++) 
-        {
-          if (bc->color_by_similarity) 
-            {
-              /* Convert counts to similarity counts */
-              simCount = 0;
-              for (j = 1; j < 21; j++) 
-                {
-                  if (j == k) 
-                    {
-                      if (1)
-                        {
-                          simCount += (bc->conservCount[j][i]-1) * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
-                        }
-                      else
-                        {
-                          /* Alternative, less good way */
-                          simCount += 
-                            (int)floor(bc->conservCount[j][i]/2.0)*
-                            (int)ceil(bc->conservCount[k][i]/2.0)*
-                            BLOSUM62[j-1][k-1];
-                        }
-		    }
-                  else
-                    {
-                      simCount += bc->conservCount[j][i] * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
-                    }
-		}
-              
-              if (bc->ignoreGapsOn) 
-                n = bc->conservResidues[i];
-              else 
-                n = nseqeff;
-		    
-              if (n < 2)
-                id = 0.0;
-              else 
-                {
-                  if (1)
-                    id = (double)simCount/(n*(n-1));
-                  else
-                    /* Alternative, less good way */
-                    id = (double)simCount/(n/2.0 * n/2.0);
-		}
-		
-              /* printf("%d, %c:  simCount= %d, id= %.2f\n", i, b2a[k], simCount, id); */
-
-              if (id > bc->lowSimCutoff) 
-                {
-                  if (id > bc->maxSimCutoff) 
-                    colornr = bc->maxbgColor;
-                  else if (id > bc->midSimCutoff) colornr = bc->midbgColor;
-                  else colornr = bc->lowbgColor;
-		    
-                  if (colorPriority(bc, colornr, bc->colorMap[k][i]))
-                    bc->colorMap[k][i] = colornr;
-		    
-                  /* Colour all similar residues too */
-                  for (l = 1; l < 21; l++) 
-                    {
-                      if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
-                        {
-                          /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
-                          bc->colorMap[l][i] = colornr;
-			}
-		    }
-		}
-	    }
-          else 
-            {
-              if (bc->ignoreGapsOn && bc->conservResidues[i] != 1)
-                id = (double)bc->conservCount[k][i]/bc->conservResidues[i];
-              else
-                id = (double)bc->conservCount[k][i]/nseqeff;
-		
-              if (bc->colorByResIdOn) 
-                {
-                  if (id*100.0 > bc->colorByResIdCutoff)
-                    bc->colorMap[k][i] = color[(unsigned char)(b2a[k])];
-                  else
-                    bc->colorMap[k][i] = WHITE;
-		}
-              else if (id > bc->lowIdCutoff) 
-                {
-                  if (id > bc->maxIdCutoff) 
-                    colornr = bc->maxbgColor;
-                  else if (id > bc->midIdCutoff) 
-                    colornr = bc->midbgColor;
-                  else
-                    colornr = bc->lowbgColor;
-		    
-                  bc->colorMap[k][i] = colornr;
-		    
-                  if (bc->id_blosum) 
-                    {
-                      /* Colour all similar residues too */
-                      for (l = 1; l < 21; l++) 
-                        {
-                          if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
-                            {
-                              /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
-                              bc->colorMap[l][i] = colornr;
-			    }
-			}
-		    }
-		}
-	    }
-          if (id > maxid) 
-            maxid = id;
-	}
-      
-      bc->conservation[i] = maxid;
-    }
-}
-	    
-
-void initResidueColors(BelvuContext *bc)
-{
-  bc->colorScheme = COLORBYRESIDUE;
-
-  color['A'] = color['a'] = WHITE;
-  color['B'] = color['b'] = NOCOLOR;
-  color['C'] = color['c'] = WHITE;
-  color['D'] = color['d'] = WHITE;
-  color['E'] = color['e'] = WHITE;
-  color['F'] = color['f'] = WHITE;
-  color['G'] = color['g'] = WHITE;
-  color['H'] = color['h'] = WHITE;
-  color['I'] = color['i'] = WHITE;
-  color['J'] = color['j'] = WHITE;
-  color['K'] = color['k'] = WHITE;
-  color['L'] = color['l'] = WHITE;
-  color['M'] = color['m'] = WHITE;
-  color['N'] = color['n'] = WHITE;
-  color['O'] = color['o'] = WHITE;
-  color['P'] = color['p'] = WHITE;
-  color['Q'] = color['q'] = WHITE;
-  color['R'] = color['r'] = WHITE;
-  color['S'] = color['s'] = WHITE;
-  color['T'] = color['t'] = WHITE;
-  color['V'] = color['v'] = WHITE;
-  color['U'] = color['u'] = WHITE;
-  color['W'] = color['w'] = WHITE;
-  color['X'] = color['x'] = WHITE;
-  color['Y'] = color['y'] = WHITE;
-  color['Z'] = color['z'] = NOCOLOR;
-}
-
-
-void initMarkupColors(void)
-{
-  markupColor['0'] = DARKBLUE;
-  markupColor['1'] = BLUE;
-  markupColor['2'] = MIDBLUE;
-  markupColor['3'] = LIGHTBLUE;
-  markupColor['4'] = VIOLET;
-  markupColor['5'] = PALEBLUE;
-  markupColor['6'] = PALECYAN;
-  markupColor['7'] = CYAN;
-  markupColor['8'] = CYAN;
-  markupColor['9'] = CYAN;
-  markupColor['A'] = markupColor['a'] = WHITE;
-  markupColor['B'] = markupColor['b'] = RED;
-  markupColor['C'] = markupColor['c'] = PALEYELLOW;
-  markupColor['D'] = markupColor['d'] = WHITE;
-  markupColor['E'] = markupColor['e'] = RED;
-  markupColor['F'] = markupColor['f'] = WHITE;
-  markupColor['G'] = markupColor['g'] = DARKGREEN;
-  markupColor['H'] = markupColor['h'] = DARKGREEN;
-  markupColor['I'] = markupColor['i'] = DARKGREEN;
-  markupColor['J'] = markupColor['j'] = WHITE;
-  markupColor['K'] = markupColor['k'] = WHITE;
-  markupColor['L'] = markupColor['l'] = WHITE;
-  markupColor['M'] = markupColor['m'] = WHITE;
-  markupColor['N'] = markupColor['n'] = WHITE;
-  markupColor['O'] = markupColor['o'] = WHITE;
-  markupColor['P'] = markupColor['p'] = WHITE;
-  markupColor['Q'] = markupColor['q'] = WHITE;
-  markupColor['R'] = markupColor['r'] = WHITE;
-  markupColor['S'] = markupColor['s'] = YELLOW;
-  markupColor['T'] = markupColor['t'] = YELLOW;
-  markupColor['V'] = markupColor['v'] = WHITE;
-  markupColor['U'] = markupColor['u'] = WHITE;
-  markupColor['W'] = markupColor['w'] = WHITE;
-  markupColor['X'] = markupColor['x'] = WHITE;
-  markupColor['Y'] = markupColor['y'] = WHITE;
-  markupColor['Z'] = markupColor['z'] = NOCOLOR;
-}
-
-
-void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
-{
-  char *cp=NULL, line[MAXLINE+1], setColor[MAXLINE+1];
-  unsigned char c ;
-  int i=0, colornr=0;
-
-  while (!feof(fil)) 
-    {
-      if (!fgets (line, MAXLINE, fil)) 
-        break;
-	
-      /* remove newline */
-      if ((cp = strchr(line, '\n'))) 
-        *cp = 0 ;
-
-      /* Parse color of organism in tree 
-         Format:  #=OS BLUE D. melanogaster*/
-      if (!strncmp(line, "#=OS ", 5)) 
-        {
-          cp = line+5;
-          sscanf(cp, "%s", setColor);
-	  
-          for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
-            {
-              if (!strcasecmp(colorNames[i], setColor)) 
-                colornr = i;
-            }
-          
-          if (colornr == -1) 
-            {
-              printf("Unrecognized color: %s, using black instead.\n", setColor);
-              colornr = BLACK;
-            }
-	    
-          while(*cp == ' ') cp++;
-          while(*cp != ' ') cp++;
-          while(*cp == ' ') cp++;
-	    
-          /* Find organism and set its colour */
-          ALN aln;
-          initAln(&aln);
-          aln.organism = cp;
-          
-          int ip = 0;
-          if (!arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
-            g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok", aln.organism);
-          else
-            g_array_index(bc->organismArr, ALN, ip).color = colornr;
-	}
-
-      /* Ignore comments */
-      if (*line == '#') 
-        continue;
-
-      /* Parse character colours */
-      if (sscanf(line, "%c%s", &c, setColor) == 2) 
-	{
-          c = toupper(c);
-          for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
-            {
-              if (!strcasecmp(colorNames[i], setColor)) 
-                colornr = i;
-            }
-          
-          if (colornr == -1) 
-            {
-              printf("Unrecognized color: %s\n", setColor);
-              colornr = 0;
-	    }
-
-          colorarr[(unsigned char)(c)] = colornr;
-
-          if (c > 64 && c <= 96)
-            colorarr[(unsigned char)(c+32)] = colorarr[(unsigned char)(c)];
-          else if (c > 96 && c <= 128)
-            colorarr[(unsigned char)(c-32)] = colorarr[(unsigned char)(c)];
-	}
-    }
-    
-  fclose(fil);
-
-  bc->color_by_conserv = 0;
-}
-
-
 /* Calculate overhang between two aligned sequences 
    Return nr of residues at the ends unique to s1 (overhanging s2).
 */
@@ -5983,6 +6428,10 @@ static int alnOverhang(char *s1, char *s2)
   return overhang;
 }
 
+
+/***********************************************************
+ *		Removing alignments/columns		   *
+ ***********************************************************/
 
 /* Removes all columns between from and to, inclusively.
  * Note that from and to are sequence coordinates, 1...maxLen !!!!!  */
@@ -6346,38 +6795,9 @@ void rmScore(BelvuContext *bc, const double cutoff)
 }
 
 
-int GCGchecksum(BelvuContext *bc, char *seq)
-{
-  int  
-    check = 0, 
-    count = 0, 
-    i=0;
-  
-  for (i = 0; i < bc->maxLen; ++i) 
-    {
-      ++count;
-      check += count * toupper((int) seq[i]);
-      
-      if (count == 57) 
-        count = 0;
-    }
-  
-  return (check % 10000);
-}
-
-
-int GCGgrandchecksum(BelvuContext *bc)
-{
-  int 
-    i=0,
-    grand_checksum=0;
-
-  for(i=0; i < bc->alignArr->len; ++i) 
-    grand_checksum += GCGchecksum(bc, g_array_index(bc->alignArr, ALN, i).seq);
-
-  return (grand_checksum % 10000);
-}
-
+/***********************************************************
+ *		      Read/write files 			   *
+ ***********************************************************/
 
 void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and coordinates */
 {
@@ -6610,11 +7030,11 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
 /* Called from readMul.  Does the work to parse a selex file. */
 static void readSelex(BelvuContext *bc, FILE *pipe)
 {
-  char   *cp=NULL, *cq=NULL, ch = '\0';
-  int    len=0, i=0, alnstart=0;
-  
-  char line[MAXLENGTH+1];
-  line[0] = 0;
+//  char   *cp=NULL, *cq=NULL, ch = '\0';
+//  int    len=0, i=0, alnstart=0;
+//  
+//  char line[MAXLENGTH+1];
+//  line[0] = 0;
 
   /* Read raw alignment into stack
    *******************************/
@@ -7126,68 +7546,6 @@ void outputProbs(BelvuContext *bc, FILE *fil)
 }
 
 
-static void treeTraverseLRfirst(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *node)) 
-{
-  if (!node) 
-    return;
-
-  treeTraverseLRfirst(bc, node->left, func);
-  treeTraverseLRfirst(bc, node->right, func);
-  func(bc, node);
-}
-
-
-static void subfamilyTrav(BelvuContext *bc, TreeNode *node) 
-{
-  static double dist = 0.0;
-  static int 
-    newgroup = 1,
-    groupnr = 0;
-  
-  if (!node) 
-    return;
-
-  if (node->name) 
-    {
-      dist = node->branchlen;
-
-      if (newgroup) 
-        {
-          printf("\nGroup nr %d:\n", ++groupnr);
-          newgroup = 0;
-	}
-      
-      printf("%s\n", node->name);
-    }
-  else
-    {
-      /* internal node */
-      dist += node->branchlen;
-    }
-
-  if ( bc->mksubfamilies_cutoff > (100.0-dist) )
-    { 
-      newgroup = 1; 
-    }
-
-  /* printf("abs=%.1f  branch=%.1f\n", dist, node->branchlen); */
-}
-
-
-void mksubfamilies(BelvuContext *bc, double cutoff)
-{
-  Tree *treeStruct = g_malloc(sizeof(Tree));
-  
-  separateMarkupLines(bc);
-  
-  strcpy(bc->treeMethodString, UPGMAstr);
-  bc->treeMethod = UPGMA;
-  
-  treeStruct->head = treeMake(bc, 0);
-  
-  treeTraverseLRfirst(bc, treeStruct->head, subfamilyTrav);
-}
-
 
 void showAnnotation(BelvuContext *bc)
 {
@@ -7227,271 +7585,4 @@ void showAnnotation(BelvuContext *bc)
 //  
 //  graphRedraw();
 }
-
-
-static void colorCons(BelvuContext *bc)
-{
-  setConservColors(bc);
-
-//  menuSetFlags(menuItem(colorMenu, thresholdStr), MENUFLAG_DISABLED);
-//  menuUnsetFlags(menuItem(colorMenu, printColorsStr), MENUFLAG_DISABLED);
-//  menuUnsetFlags(menuItem(colorMenu, ignoreGapsStr), MENUFLAG_DISABLED);
-
-  bc->colorByResIdOn = FALSE;
-  //  belvuRedraw();
-}
-
-
-void colorSim(BelvuContext *bc)
-{
-  bc->colorScheme = COLORSIM;
-  bc->color_by_conserv = 1;
-  bc->color_by_similarity = 1;
-  colorCons(bc);
-}
-
-
-/* Create the context, which contains all program-wide variables */
-BelvuContext* createBelvuContext()
-{
-  BelvuContext *bc = g_malloc(sizeof *bc);
-  
-  bc->defaultColors = NULL;
-  
-  bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);  /* was called 'Align' */
-  bc->organismArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);
-  bc->markupAlignArr = NULL;
-  bc->bootstrapGroups = NULL;
-
-  bc->highlightedAln = NULL;
-
-  bc->treeHead = NULL;
-  bc->treeBestBalancedNode = NULL;
-
-  bc->treeReadDistancesPipe = NULL;
-
-  bc->IN_FORMAT = MUL;
-  bc->maxScoreLen = 0;
-  bc->alignYStart = 0;
-  bc->treebootstraps = 0; 
-  bc->maxLen = 0;
-  bc->maxTreeWidth = 0;
-  bc->maxNameLen = 0;   
-  bc->maxStartLen = 0; 
-  bc->maxEndLen = 0; 
-  bc->maxScoreLen = 0; 
-  bc->colorScheme = COLORSIM;
-
-  bc->maxfgColor = BLACK;
-  bc->midfgColor = BLACK,
-  bc->lowfgColor = BLACK;
-  bc->maxbgColor = CYAN;
-  bc->midbgColor = MIDBLUE;
-  bc->lowbgColor = LIGHTGRAY;
-
-  bc->treeMethod = NJ;
-  bc->treeDistCorr = SCOREDIST;
-  bc->treePickMode = NODESWAP;
-  
-  bc->treeBestBalance = 0.0;
-  bc->treeBestBalance_subtrees = 0.0;
-  bc->tree_y = 0.3;
-  bc->lowIdCutoff = 0.4;
-  bc->midIdCutoff = 0.6;
-  bc->maxIdCutoff = 0.8;
-  bc->lowSimCutoff = 0.5;
-  bc->midSimCutoff = 1.5;
-  bc->maxSimCutoff = 3.0;
-  bc->colorByResIdCutoff = 20.0;
-  bc->mksubfamilies_cutoff = 0.0;
-  bc->treeScale = 0.3;
-  bc->treeLineWidth = 0.3;
-
-  bc->saveSeparator = '/';
-  strcpy(bc->treeDistString, SCOREDISTstr);
-  strcpy(bc->treeMethodString, NJstr);
-  bc->Title[0] = '\0';
-  bc->saveFormat[0] = '\0';
-  bc->fileName[0] = 0;
-  bc->dirName[0] = 0;
-  
-  bc->conservCount = NULL;
-  bc->colorMap = NULL;
-  bc->conservResidues = NULL;
-  bc->conservation = NULL;
-  
-  bc->treeCoordsOn = TRUE;
-  bc->treeReadDistancesOn = FALSE;
-  bc->treePrintDistances = FALSE;
-  bc->penalize_gaps = FALSE;
-  bc->stripCoordTokensOn = TRUE;
-  bc->saveCoordsOn = TRUE;
-  bc->displayScores = FALSE;
-  bc->outputBootstrapTrees = FALSE;
-  bc->treebootstrapsDisplay = FALSE;
-  bc->treeColorsOn = TRUE;
-  bc->treeShowOrganism = TRUE;
-  bc->treeShowBranchlen = FALSE;
-  bc->matchFooter = FALSE;
-  bc->saved = TRUE;
-  bc->color_by_similarity = TRUE;
-  bc->color_by_conserv = TRUE;
-  bc->ignoreGapsOn = FALSE;
-  bc->colorByResIdOn = FALSE;
-  bc->id_blosum = TRUE;
-  bc->rmEmptyColumnsOn = TRUE;
-  bc->lowercaseOn = FALSE;
-  bc->removingSeqs = FALSE;
-
-  /* Null out all the entries in the dialogs list */
-  int dialogId = 0;
-  for ( ; dialogId < BELDIALOG_NUM_DIALOGS; ++dialogId)
-    {
-      bc->dialogList[dialogId] = NULL;
-    }
-  
-  return bc;
-}
-
-
-/* Destroy the context */
-void destroyBelvuContext(BelvuContext **bc)
-{
-  if (bc && *bc)
-    {
-      if ((*bc)->alignArr)
-        g_array_unref((*bc)->alignArr);
-
-      if ((*bc)->organismArr)
-        g_array_unref((*bc)->organismArr);
-
-      if ((*bc)->markupAlignArr)
-        g_array_unref((*bc)->markupAlignArr);
-
-      if ((*bc)->bootstrapGroups)
-        g_array_unref((*bc)->bootstrapGroups);
-      
-      g_free(*bc);
-      *bc = NULL;
-    }
-}
-
-
-/* This function just returns the value in the b2a array at the given index */
-char b2aIndex(const int idx)
-{
-  return b2a[idx];
-}
-
-/* Return the markup color for the given char */
-int getMarkupColor(const char inputChar)
-{
-  return markupColor[(unsigned char)(inputChar)];
-}
-
-/* Return the conservation color for the given char at the given index */
-int getConservColor(BelvuContext *bc, const char inputChar, const int idx)
-{
-  return bc->colorMap[a2b[(unsigned char)(inputChar)]][idx];
-}
-
-/* Return the color from the colors array for the given char */
-int getColor(const char inputChar)
-{
-  return color[(unsigned char)(inputChar)];
-}
-
-/* Returns the 'color' array */
-int* getColorArray()
-{
-  return color;
-}
-
-/* Returns the 'markupColor' array */
-int* getMarkupColorArray()
-{
-  return markupColor;
-}
-
-
-/* Convert one of the old acedb-style color numbers to a hex string */
-static const char* convertColorNumToStr(const int colorNum)
-{
-  const char *result = NULL;
-  
-  switch (colorNum)
-  {
-    case WHITE: result = BLX_WHITE; break;
-    case BLACK: result = BLX_BLACK; break;
-    case LIGHTGRAY: result = BLX_LIGHT_GREY; break;
-    case DARKGRAY: result = BLX_DARK_GREY; break;
-    case RED: result = BLX_RED; break;
-    case GREEN: result = BLX_GREEN; break;
-    case BLUE: result = BLX_BLUE; break;
-    case YELLOW: result = BLX_YELLOW; break;
-    case CYAN: result = BLX_CYAN; break;
-    case MAGENTA: result = BLX_MAGENTA; break;
-    case LIGHTRED: result = BLX_LIGHT_RED; break;
-    case LIGHTGREEN: result = BLX_LIGHT_GREEN; break;
-    case LIGHTBLUE: result = BLX_SKY_BLUE; break;
-    case DARKRED: result = BLX_DARK_RED; break;
-    case DARKGREEN: result = BLX_DARK_GREEN; break;
-    case DARKBLUE: result = BLX_DARK_BLUE; break;
-    case PALERED: result = BLX_LIGHT_RED; break;
-    case PALEGREEN: result = BLX_LIGHT_GREEN; break;
-    case PALEBLUE: result = BLX_PALE_BLUE; break;
-    case PALEYELLOW: result = BLX_PALE_YELLOW; break;
-    case PALECYAN: result = BLX_LIGHT_CYAN; break;
-    case PALEMAGENTA: result = BLX_PALE_MAGENTA; break;
-    case BROWN: result = BLX_BROWN; break;
-    case ORANGE: result = BLX_ORANGE; break;
-    case PALEORANGE: result = BLX_PALE_ORANGE; break;
-    case PURPLE: result = BLX_PURPLE; break;
-    case VIOLET: result = BLX_VIOLET; break;
-    case PALEVIOLET: result = BLX_PALE_VIOLET; break;
-    case GRAY: result = BLX_GREY; break;
-    case PALEGRAY: result = BLX_VERY_LIGHT_GREY; break;
-    case CERISE: result = BLX_CERISE; break;
-    case MIDBLUE: result = BLX_MID_BLUE; break;
-    default: result = BLX_WHITE; break;
-  };
-  
-  return result;
-}
-
-
-/* Convert an old-style ACEDB color number to a GdkColor */
-void convertColorNumToGdkColor(const int colorNum, GdkColor *result)
-{
-  const char *colorStr = convertColorNumToStr(colorNum);
-  getColorFromString(colorStr, result, NULL);
-}
-
-
- void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight)
-{
-  PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
-  
-  if (drawable)
-    gdk_draw_layout(drawable, gc, x, y, layout);
-  
-  /* Return the width and height of the layout, if requested */
-  pango_layout_get_size(layout, textWidth, textHeight);
-  
-  if (textWidth)
-    *textWidth /= PANGO_SCALE;
-
-  if (textHeight)
-    *textHeight /= PANGO_SCALE;
-
-  g_object_unref(layout);
-}
-
-void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight)
-{
-  char *tmpStr = blxprintf("%d", value);
-  drawText(widget, drawable, gc, x, y, tmpStr, textWidth, textHeight);
-  g_free(tmpStr);
-}
-
 

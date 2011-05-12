@@ -404,6 +404,7 @@ gint                                      nrorder(gconstpointer xIn, gconstpoint
 
 void                                      highlightScoreSort(char mode, BelvuContext *bc);
 void                                      treeSortBatch(BelvuContext *bc);
+void					  doSort(BelvuContext *bc, const BelvuSortType sortType);
 
 
 void                                      arrayOrder(GArray *alignArr);

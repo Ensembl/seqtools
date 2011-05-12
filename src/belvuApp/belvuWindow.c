@@ -665,6 +665,14 @@ static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, 
 
 static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  const BelvuSortType sortType = gtk_radio_action_get_current_value(current);
+  
+  doSort(properties->bc, sortType);
+  centerHighlighted(properties->bc, properties->belvuAlignment);
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 
 static void ontogglePaletteMenu(GtkAction *action, gpointer data)
