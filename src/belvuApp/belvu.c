@@ -105,7 +105,7 @@
 */
 
 
-/*  Description of color_by_similarity algorithm in setConservColors():
+/*  Description of color_by_similarity algorithm in setConsSchemeColors():
 
     ( Corresponds to summing all pairwise scores)
 
@@ -2740,7 +2740,7 @@ int main(int argc, char **argv)
 
     if (!treeReadDistancesON) {
 	checkAlignment();
-	setConservColors();
+	setConsSchemeColors();
     }
 
     if (verbose)
@@ -2775,7 +2775,7 @@ int main(int argc, char **argv)
 	exit(0);
       }
 
-    initResidueColors();
+    initResidueColors(bc);
     if (colorCodesFile) {
 	if (!(file = fopen(colorCodesFile, "r"))) 
 	    fatal("Cannot open file %s", colorCodesFile);
@@ -2983,7 +2983,7 @@ static void finishShowColorCancel(void)
     else
 	for (i=65; i<96; i++) color[i] = oldColor[i];
     
-    setConservColors();
+    setConsSchemeColors();
 
     finishShowColorOK();
 }
@@ -3133,7 +3133,8 @@ static void showColorCodesRedraw(void)
 	    graphText("Colouring by %identity.", 1, 1.5*i++);
 	    i++;
 
-	    if (bc->id_blosum) paintMessage(&i);
+	    if (bc->consScheme == BELVU_SCHEME_ID_BLOSUM) 
+	      paintMessage(&i);
 
 	    sprintf(maxText, "%.1f", bc->maxIdCutoff);
 	    showConservCode("Max:", &bc->maxfgColor, &bc->maxbgColor, 1.5*i++, maxText, maxBox, setId);
@@ -3149,7 +3150,7 @@ static void showColorCodesRedraw(void)
 	graphButton("OK", finishShowColorOK, 1.5, i*1.5+1);
 	graphButton("Cancel", finishShowColorCancel, 5.5, i*1.5+1);
 
-	setConservColors();
+	setConsSchemeColors();
     }
     else {
 	int used, col=1, row=1;
@@ -3189,7 +3190,7 @@ static void showColorCodesRedraw(void)
 	graphButton("OK", finishShowColorOK, 1.5, ++row*1.5+1);
 	graphButton("Cancel", finishShowColorCancel, 5.5, row*1.5+1);
 
-	if (bc->colorByResIdOn) setConservColors();
+	if (bc->colorByResIdOn) setConsSchemeColors();
     }
     graphColor(BLACK);
     belvuRedraw();
@@ -3214,20 +3215,12 @@ static void colorByResId(void)
       color_by_similarity = 0;
   
       bc->colorByResIdOn = 1;
-      setConservColors();
+      setConsSchemeColors();
 
       belvuRedraw();
     }
 
   return ;
-}
-
-
-/* toggles the 'display colors' option */
-static void colorRect(void)
-{
-    colorRectangles = (!colorRectangles);
-    belvuRedraw();
 }
 
 
@@ -3272,118 +3265,6 @@ static void colorByResidue(void)
     colorScheme = COLORBYRESIDUE;
     colorRes();
 }
-
-
-static void colorSchemeCys(void)
-{
-    colorScheme = COLORSCHEMECYS;
-
-    initResidueColors();
-    color['C'] = color['c'] = CYAN;
-    color['G'] = color['g'] = RED;
-    color['P'] = color['p'] = GREEN;
-
-    colorRes();
-}
-
-
-static void colorSchemeEmpty(void)
-{
-    colorScheme = COLORSCHEMEEMPTY;
-
-    initResidueColors();
-    colorRes();
-}
-
-
-static void colorSchemeStandard(void)
-{
-    colorScheme = COLORSCHEMESTANDARD;
-
-    /* Erik's favorite colours:
-
-       C        - MIDBLUE
-       GP       - CYAN
-       HKR      - GREEN
-       AFILMVWY - YELLOW
-       BDENQSTZ - LIGHTRED
-    */
-
-    color['A'] = color['a'] = YELLOW;
-    color['B'] = color['b'] = NOCOLOR;
-    color['C'] = color['c'] = MIDBLUE;
-    color['D'] = color['d'] = LIGHTRED;
-    color['E'] = color['e'] = LIGHTRED;
-    color['F'] = color['f'] = YELLOW;
-    color['G'] = color['g'] = CYAN;
-    color['H'] = color['h'] = GREEN;
-    color['I'] = color['i'] = YELLOW;
-    color['K'] = color['k'] = GREEN;
-    color['L'] = color['l'] = YELLOW;
-    color['M'] = color['m'] = YELLOW;
-    color['N'] = color['n'] = LIGHTRED;
-    color['P'] = color['p'] = CYAN;
-    color['Q'] = color['q'] = LIGHTRED;
-    color['R'] = color['r'] = GREEN;
-    color['S'] = color['s'] = LIGHTRED;
-    color['T'] = color['t'] = LIGHTRED;
-    color['V'] = color['v'] = YELLOW;
-    color['W'] = color['w'] = YELLOW;
-    color['Y'] = color['y'] = YELLOW;
-    color['Z'] = color['z'] = NOCOLOR;
-
-    colorRes();
-}
-
-
-static void colorSchemeGibson(void)
-{
-    colorScheme = COLORSCHEMEGIBSON;
-
-/* Colour scheme by Gibson et. al (1994) TIBS 19:349-353
-
-   Listed in Figure 1:
-
-
-   Gibson      AA        Here
-
-   orange      G         ORANGE (16-colours: LIGHTRED)
-   yellow      P         YELLOW
-   blue        ACFILMVW  MIDBLUE
-   light blue  Y         LIGHTBLUE (16-colours: CYAN)
-   green       NQST      GREEN
-   purple      DE        PURPLE (16-colours: MAGENTA)
-   red         RK        RED
-   pink        H         LIGHTRED (16-colours: DARKRED)
-*/
-
-    color['A'] = color['a'] = MIDBLUE;
-    color['B'] = color['b'] = NOCOLOR;
-    color['C'] = color['c'] = MIDBLUE;
-    color['D'] = color['d'] = PURPLE;
-    color['E'] = color['e'] = PURPLE;
-    color['F'] = color['f'] = MIDBLUE;
-    color['G'] = color['g'] = ORANGE;
-    color['H'] = color['h'] = LIGHTRED;
-    color['I'] = color['i'] = MIDBLUE;
-    color['K'] = color['k'] = RED;
-    color['L'] = color['l'] = MIDBLUE;
-    color['M'] = color['m'] = MIDBLUE;
-    color['N'] = color['n'] = GREEN;
-    color['P'] = color['p'] = YELLOW;
-    color['Q'] = color['q'] = GREEN;
-    color['R'] = color['r'] = RED;
-    color['S'] = color['s'] = GREEN;
-    color['T'] = color['t'] = GREEN;
-    color['V'] = color['v'] = MIDBLUE;
-    color['W'] = color['w'] = MIDBLUE;
-    color['Y'] = color['y'] = LIGHTBLUE;
-    color['Z'] = color['z'] = NOCOLOR;
-
-    colorRes();
-}
-
-
 
 
 /* call an external shell command and print output in a text_scroll window
@@ -3595,7 +3476,7 @@ static void wrapAlignmentWindow(void)
 
 
 		    /* Foreground color */
-		    if (bc->color_by_conserv)
+		    if (colorByConservation(bc))
 			graphColor(bg2fgColor(bkcol));
 		    else
 			graphColor(BLACK);
@@ -3935,7 +3816,7 @@ static void rmColumnCutoff(void)
 	to = 0.9,
       cons ;
 
-    if (!bc->color_by_conserv) {
+    if (!colorByConservation(bc)) {
 	messout("You must use a conservation coloring scheme");
 	return;
     }
@@ -4101,7 +3982,7 @@ static void printColors (void)
 	bc->lowfgColor = oldlowfg;
 	printColorsOn = 0;
     }
-    setConservColors();
+    setConsSchemeColors();
     belvuRedraw();
 }
 
@@ -4109,7 +3990,7 @@ static void printColors (void)
 static void ignoreGaps (void)
 {
     ignoreGapsOn = (ignoreGapsOn ? 0 : 1);
-    setConservColors();
+    setConsSchemeColors();
     belvuRedraw();
 }
 
@@ -5092,25 +4973,490 @@ void convertColorNumToGdkColor(const int colorNum, GdkColor *result)
 }
 
 
-static void colorCons(BelvuContext *bc)
+//static void colorCons(BelvuContext *bc)
+//{
+//  setConsSchemeColors(bc);
+//  
+//  //  menuSetFlags(menuItem(colorMenu, thresholdStr), MENUFLAG_DISABLED);
+//  //  menuUnsetFlags(menuItem(colorMenu, printColorsStr), MENUFLAG_DISABLED);
+//  //  menuUnsetFlags(menuItem(colorMenu, ignoreGapsStr), MENUFLAG_DISABLED);
+//  
+//  bc->colorByResIdOn = FALSE;
+//  //  belvuRedraw();
+//}
+
+
+/* Returns true if we're coloring by conservation */
+gboolean colorByConservation(BelvuContext *bc)
 {
-  setConservColors(bc);
-  
-  //  menuSetFlags(menuItem(colorMenu, thresholdStr), MENUFLAG_DISABLED);
-  //  menuUnsetFlags(menuItem(colorMenu, printColorsStr), MENUFLAG_DISABLED);
-  //  menuUnsetFlags(menuItem(colorMenu, ignoreGapsStr), MENUFLAG_DISABLED);
-  
-  bc->colorByResIdOn = FALSE;
-  //  belvuRedraw();
+  return (bc->schemeType == BELVU_SCHEME_TYPE_CONS);
 }
 
 
-void colorSim(BelvuContext *bc)
+/* Returns true if we're coloring by similarity */
+gboolean colorBySimilarity(BelvuContext *bc)
 {
-  bc->colorScheme = COLORSIM;
-  bc->color_by_conserv = 1;
-  bc->color_by_similarity = 1;
-  colorCons(bc);
+  return (colorByConservation(bc) && bc->consScheme == BELVU_SCHEME_BLOSUM);
+}
+
+
+void initResidueColors(BelvuContext *bc)
+{
+  color['A'] = color['a'] = WHITE;
+  color['B'] = color['b'] = NOCOLOR;
+  color['C'] = color['c'] = WHITE;
+  color['D'] = color['d'] = WHITE;
+  color['E'] = color['e'] = WHITE;
+  color['F'] = color['f'] = WHITE;
+  color['G'] = color['g'] = WHITE;
+  color['H'] = color['h'] = WHITE;
+  color['I'] = color['i'] = WHITE;
+  color['J'] = color['j'] = WHITE;
+  color['K'] = color['k'] = WHITE;
+  color['L'] = color['l'] = WHITE;
+  color['M'] = color['m'] = WHITE;
+  color['N'] = color['n'] = WHITE;
+  color['O'] = color['o'] = WHITE;
+  color['P'] = color['p'] = WHITE;
+  color['Q'] = color['q'] = WHITE;
+  color['R'] = color['r'] = WHITE;
+  color['S'] = color['s'] = WHITE;
+  color['T'] = color['t'] = WHITE;
+  color['V'] = color['v'] = WHITE;
+  color['U'] = color['u'] = WHITE;
+  color['W'] = color['w'] = WHITE;
+  color['X'] = color['x'] = WHITE;
+  color['Y'] = color['y'] = WHITE;
+  color['Z'] = color['z'] = NOCOLOR;
+}
+
+
+static void colorSchemeCys(BelvuContext *bc)
+{
+  initResidueColors(bc);
+  
+  color['C'] = color['c'] = CYAN;
+  color['G'] = color['g'] = RED;
+  color['P'] = color['p'] = GREEN;
+}
+
+
+static void colorSchemeEmpty(BelvuContext *bc)
+{
+  initResidueColors(bc);
+}
+
+
+static void colorSchemeErik(BelvuContext *bc)
+{
+  /* Erik's favorite colours:
+   
+   C        - MIDBLUE
+   GP       - CYAN
+   HKR      - GREEN
+   AFILMVWY - YELLOW
+   BDENQSTZ - LIGHTRED
+   */
+  
+  color['A'] = color['a'] = YELLOW;
+  color['B'] = color['b'] = NOCOLOR;
+  color['C'] = color['c'] = MIDBLUE;
+  color['D'] = color['d'] = LIGHTRED;
+  color['E'] = color['e'] = LIGHTRED;
+  color['F'] = color['f'] = YELLOW;
+  color['G'] = color['g'] = CYAN;
+  color['H'] = color['h'] = GREEN;
+  color['I'] = color['i'] = YELLOW;
+  color['K'] = color['k'] = GREEN;
+  color['L'] = color['l'] = YELLOW;
+  color['M'] = color['m'] = YELLOW;
+  color['N'] = color['n'] = LIGHTRED;
+  color['P'] = color['p'] = CYAN;
+  color['Q'] = color['q'] = LIGHTRED;
+  color['R'] = color['r'] = GREEN;
+  color['S'] = color['s'] = LIGHTRED;
+  color['T'] = color['t'] = LIGHTRED;
+  color['V'] = color['v'] = YELLOW;
+  color['W'] = color['w'] = YELLOW;
+  color['Y'] = color['y'] = YELLOW;
+  color['Z'] = color['z'] = NOCOLOR;
+}
+
+
+static void colorSchemeGibson(BelvuContext *bc)
+{
+  /* Colour scheme by Gibson et. al (1994) TIBS 19:349-353
+   
+   Listed in Figure 1:
+   
+   
+   Gibson      AA        Here
+   
+   orange      G         ORANGE (16-colours: LIGHTRED)
+   yellow      P         YELLOW
+   blue        ACFILMVW  MIDBLUE
+   light blue  Y         LIGHTBLUE (16-colours: CYAN)
+   green       NQST      GREEN
+   purple      DE        PURPLE (16-colours: MAGENTA)
+   red         RK        RED
+   pink        H         LIGHTRED (16-colours: DARKRED)
+   */
+  
+  color['A'] = color['a'] = MIDBLUE;
+  color['B'] = color['b'] = NOCOLOR;
+  color['C'] = color['c'] = MIDBLUE;
+  color['D'] = color['d'] = PURPLE;
+  color['E'] = color['e'] = PURPLE;
+  color['F'] = color['f'] = MIDBLUE;
+  color['G'] = color['g'] = ORANGE;
+  color['H'] = color['h'] = LIGHTRED;
+  color['I'] = color['i'] = MIDBLUE;
+  color['K'] = color['k'] = RED;
+  color['L'] = color['l'] = MIDBLUE;
+  color['M'] = color['m'] = MIDBLUE;
+  color['N'] = color['n'] = GREEN;
+  color['P'] = color['p'] = YELLOW;
+  color['Q'] = color['q'] = GREEN;
+  color['R'] = color['r'] = RED;
+  color['S'] = color['s'] = GREEN;
+  color['T'] = color['t'] = GREEN;
+  color['V'] = color['v'] = MIDBLUE;
+  color['W'] = color['w'] = MIDBLUE;
+  color['Y'] = color['y'] = LIGHTBLUE;
+  color['Z'] = color['z'] = NOCOLOR;
+}
+
+
+/* This is called when the color scheme has been set to 'by residue'. It updates
+ * the colors according to the active color scheme. */
+static void setResidueSchemeColors(BelvuContext *bc)
+{
+  switch (bc->residueScheme)
+    {
+      case BELVU_SCHEME_ERIK:     colorSchemeErik(bc);	    break;
+      case BELVU_SCHEME_GIBSON:   colorSchemeGibson(bc);    break;
+      case BELVU_SCHEME_CYS:      colorSchemeCys(bc);	    break;
+      case BELVU_SCHEME_NONE:     colorSchemeEmpty(bc);	    break;
+      
+      default: 
+	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme); 
+	break;
+    }
+}
+
+
+/* This should be called when the color scheme has changed. It updates the
+ * colors according to the active scheme. */
+void onColorSchemeChanged(BelvuContext *bc)
+{
+  switch (bc->schemeType)
+  {
+    case BELVU_SCHEME_TYPE_RESIDUE:
+      setResidueSchemeColors(bc);
+      break;
+    
+    case BELVU_SCHEME_TYPE_CONS:
+      setConsSchemeColors(bc);
+      break;
+    
+    default:
+      g_warning("Program error: unrecognised color scheme type '%d'.\n", bc->schemeType);
+      break;
+  }
+  
+}
+
+
+/* Return 1 if c1 has priority over c2, 0 otherwise */
+static int colorPriority(BelvuContext *bc, int c1, int c2) 
+{
+  if (c2 == WHITE) return 1;
+  if (c2 == bc->maxbgColor) return 0;
+  if (c2 == bc->lowbgColor) {
+    if (c1 == bc->lowbgColor) return 0;
+    else return 1;
+  }
+  if (c2 == bc->midbgColor) {
+    if (c1 == bc->maxbgColor) return 1;
+    else return 0;
+  }
+  
+  g_error("Unknown colour %s", colorNames[c2]);		    /* exits program. */
+  
+  return 0 ;
+}
+
+
+/* This is called when the color scheme type has been changed to 'by conservation'. It updates
+ * the colors according to the active color scheme. */
+void setConsSchemeColors(BelvuContext *bc)
+{
+  int i, j, k, l, colornr, simCount, n, nseqeff;
+  double id, maxid;
+  
+  if (!bc->conservCount) 
+    initConservMtx(bc);
+  
+  nseqeff = countResidueFreqs(bc);
+  
+  for (i = 0; i < bc->maxLen; ++i)
+    {
+      for (k = 1; k < 21; ++k)
+	{
+	  bc->colorMap[k][i] = WHITE;
+	}
+    }
+  
+  for (i = 0; i < bc->maxLen; ++i) 
+    {
+      maxid = -100.0;
+    
+      for (k = 1; k < 21; k++) 
+	{
+	  if (colorBySimilarity(bc)) 
+	    {
+              /* Convert counts to similarity counts */
+              simCount = 0;
+              for (j = 1; j < 21; j++) 
+                {
+                  if (j == k) 
+                    {
+                      if (1)
+                        {
+                          simCount += (bc->conservCount[j][i]-1) * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
+                        }
+                      else
+                        {
+                          /* Alternative, less good way */
+                          simCount += 
+                            (int)floor(bc->conservCount[j][i]/2.0)*
+                            (int)ceil(bc->conservCount[k][i]/2.0)*
+                            BLOSUM62[j-1][k-1];
+                        }
+                    }
+                  else
+                    {
+                      simCount += bc->conservCount[j][i] * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
+                    }
+                }
+	    
+              if (bc->ignoreGapsOn) 
+                n = bc->conservResidues[i];
+              else 
+                n = nseqeff;
+              
+              if (n < 2)
+                {
+                  id = 0.0;
+                }
+              else 
+                {
+                  if (1)
+                    id = (double)simCount/(n*(n-1));
+                  else
+                    /* Alternative, less good way */
+                    id = (double)simCount/(n/2.0 * n/2.0);
+                }
+              
+              /* printf("%d, %c:  simCount= %d, id= %.2f\n", i, b2a[k], simCount, id); */
+	    
+              if (id > bc->lowSimCutoff) 
+                {
+                  if (id > bc->maxSimCutoff) 
+                    colornr = bc->maxbgColor;
+                  else if (id > bc->midSimCutoff) 
+                    colornr = bc->midbgColor;
+                  else
+                    colornr = bc->lowbgColor;
+                  
+                  if (colorPriority(bc, colornr, bc->colorMap[k][i]))
+                    bc->colorMap[k][i] = colornr;
+	      
+                  /* Colour all similar residues too */
+                  for (l = 1; l < 21; l++) 
+                    {
+                      if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
+                        {
+                          /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
+                          bc->colorMap[l][i] = colornr;
+                        }
+                    }
+                }
+	    }
+	  else 
+	    {
+              if (bc->ignoreGapsOn && bc->conservResidues[i] != 1)
+                id = (double)bc->conservCount[k][i]/bc->conservResidues[i];
+              else
+                id = (double)bc->conservCount[k][i]/nseqeff;
+              
+              if (bc->colorByResIdOn) 
+                {
+                  if (id*100.0 > bc->colorByResIdCutoff)
+                    bc->colorMap[k][i] = color[(unsigned char)(b2a[k])];
+                  else
+                    bc->colorMap[k][i] = WHITE;
+                }
+              else if (id > bc->lowIdCutoff) 
+                {
+                  if (id > bc->maxIdCutoff) 
+                    colornr = bc->maxbgColor;
+                  else if (id > bc->midIdCutoff) 
+                    colornr = bc->midbgColor;
+                  else
+                    colornr = bc->lowbgColor;
+                  
+                  bc->colorMap[k][i] = colornr;
+                  
+                  if (bc->consScheme == BELVU_SCHEME_ID_BLOSUM) 
+                    {
+                      /* Colour all similar residues too */
+                      for (l = 1; l < 21; l++) 
+                        {
+                          if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
+                            {
+                              /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
+                              bc->colorMap[l][i] = colornr;
+                            }
+                        }
+                    }
+                }
+	    }
+	
+	  if (id > maxid) 
+	    {
+	      maxid = id;
+	    }
+	}
+      
+      bc->conservation[i] = maxid;
+    }
+}
+
+
+void initMarkupColors(void)
+{
+  markupColor['0'] = DARKBLUE;
+  markupColor['1'] = BLUE;
+  markupColor['2'] = MIDBLUE;
+  markupColor['3'] = LIGHTBLUE;
+  markupColor['4'] = VIOLET;
+  markupColor['5'] = PALEBLUE;
+  markupColor['6'] = PALECYAN;
+  markupColor['7'] = CYAN;
+  markupColor['8'] = CYAN;
+  markupColor['9'] = CYAN;
+  markupColor['A'] = markupColor['a'] = WHITE;
+  markupColor['B'] = markupColor['b'] = RED;
+  markupColor['C'] = markupColor['c'] = PALEYELLOW;
+  markupColor['D'] = markupColor['d'] = WHITE;
+  markupColor['E'] = markupColor['e'] = RED;
+  markupColor['F'] = markupColor['f'] = WHITE;
+  markupColor['G'] = markupColor['g'] = DARKGREEN;
+  markupColor['H'] = markupColor['h'] = DARKGREEN;
+  markupColor['I'] = markupColor['i'] = DARKGREEN;
+  markupColor['J'] = markupColor['j'] = WHITE;
+  markupColor['K'] = markupColor['k'] = WHITE;
+  markupColor['L'] = markupColor['l'] = WHITE;
+  markupColor['M'] = markupColor['m'] = WHITE;
+  markupColor['N'] = markupColor['n'] = WHITE;
+  markupColor['O'] = markupColor['o'] = WHITE;
+  markupColor['P'] = markupColor['p'] = WHITE;
+  markupColor['Q'] = markupColor['q'] = WHITE;
+  markupColor['R'] = markupColor['r'] = WHITE;
+  markupColor['S'] = markupColor['s'] = YELLOW;
+  markupColor['T'] = markupColor['t'] = YELLOW;
+  markupColor['V'] = markupColor['v'] = WHITE;
+  markupColor['U'] = markupColor['u'] = WHITE;
+  markupColor['W'] = markupColor['w'] = WHITE;
+  markupColor['X'] = markupColor['x'] = WHITE;
+  markupColor['Y'] = markupColor['y'] = WHITE;
+  markupColor['Z'] = markupColor['z'] = NOCOLOR;
+}
+
+
+void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
+{
+  char *cp=NULL, line[MAXLINE+1], setColor[MAXLINE+1];
+  unsigned char c ;
+  int i=0, colornr=0;
+  
+  while (!feof(fil)) 
+    {
+      if (!fgets (line, MAXLINE, fil)) 
+	break;
+    
+      /* remove newline */
+      if ((cp = strchr(line, '\n'))) 
+        *cp = 0 ;
+    
+      /* Parse color of organism in tree 
+         Format:  #=OS BLUE D. melanogaster*/
+      if (!strncmp(line, "#=OS ", 5)) 
+        {
+          cp = line+5;
+          sscanf(cp, "%s", setColor);
+          
+          for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
+            {
+              if (!strcasecmp(colorNames[i], setColor)) 
+                colornr = i;
+            }
+          
+          if (colornr == -1) 
+            {
+              printf("Unrecognized color: %s, using black instead.\n", setColor);
+              colornr = BLACK;
+            }
+          
+          while(*cp == ' ') cp++;
+          while(*cp != ' ') cp++;
+          while(*cp == ' ') cp++;
+          
+          /* Find organism and set its colour */
+          ALN aln;
+          initAln(&aln);
+          aln.organism = cp;
+          
+          int ip = 0;
+          if (!arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
+            g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok", aln.organism);
+          else
+            g_array_index(bc->organismArr, ALN, ip).color = colornr;
+        }
+      
+      /* Ignore comments */
+      if (*line == '#') 
+        continue;
+      
+      /* Parse character colours */
+      if (sscanf(line, "%c%s", &c, setColor) == 2) 
+        {
+          c = toupper(c);
+          for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
+            {
+              if (!strcasecmp(colorNames[i], setColor)) 
+                colornr = i;
+            }
+          
+          if (colornr == -1) 
+            {
+              printf("Unrecognized color: %s\n", setColor);
+              colornr = 0;
+            }
+          
+          colorarr[(unsigned char)(c)] = colornr;
+          
+          if (c > 64 && c <= 96)
+            colorarr[(unsigned char)(c+32)] = colorarr[(unsigned char)(c)];
+          else if (c > 96 && c <= 128)
+            colorarr[(unsigned char)(c-32)] = colorarr[(unsigned char)(c)];
+        }
+    }
+  
+  fclose(fil);
+  
+  bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
 }
 
 
@@ -5336,317 +5682,6 @@ void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcI
 }
 
 
-/* Return 1 if c1 has priority over c2, 0 otherwise */
-static int colorPriority(BelvuContext *bc, int c1, int c2) 
-{
-  if (c2 == WHITE) return 1;
-  if (c2 == bc->maxbgColor) return 0;
-  if (c2 == bc->lowbgColor) {
-    if (c1 == bc->lowbgColor) return 0;
-    else return 1;
-  }
-  if (c2 == bc->midbgColor) {
-    if (c1 == bc->maxbgColor) return 1;
-    else return 0;
-  }
-  
-  g_error("Unknown colour %s", colorNames[c2]);		    /* exits program. */
-  
-  return 0 ;
-}
-
-
-void setConservColors(BelvuContext *bc)
-{
-  int i, j, k, l, colornr, simCount, n, nseqeff;
-  double id, maxid;
-  
-  if (!bc->conservCount) 
-    initConservMtx(bc);
-  
-  nseqeff = countResidueFreqs(bc);
-  
-  for (i = 0; i < bc->maxLen; ++i)
-    for (k = 1; k < 21; ++k)
-      bc->colorMap[k][i] = WHITE;
-  
-  for (i = 0; i < bc->maxLen; ++i) 
-    {
-    maxid = -100.0;
-    for (k = 1; k < 21; k++) 
-      {
-      if (bc->color_by_similarity) 
-	{
-	/* Convert counts to similarity counts */
-	simCount = 0;
-	for (j = 1; j < 21; j++) 
-	  {
-	  if (j == k) 
-	    {
-	    if (1)
-	      {
-	      simCount += (bc->conservCount[j][i]-1) * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
-	      }
-	    else
-	      {
-	      /* Alternative, less good way */
-	      simCount += 
-	      (int)floor(bc->conservCount[j][i]/2.0)*
-	      (int)ceil(bc->conservCount[k][i]/2.0)*
-	      BLOSUM62[j-1][k-1];
-	      }
-	    }
-	  else
-	    {
-	    simCount += bc->conservCount[j][i] * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
-	    }
-	  }
-	
-	if (bc->ignoreGapsOn) 
-	  n = bc->conservResidues[i];
-	else 
-	  n = nseqeff;
-	
-	if (n < 2)
-	  id = 0.0;
-	else 
-	  {
-	  if (1)
-	    id = (double)simCount/(n*(n-1));
-	  else
-	    /* Alternative, less good way */
-	    id = (double)simCount/(n/2.0 * n/2.0);
-	  }
-	
-	/* printf("%d, %c:  simCount= %d, id= %.2f\n", i, b2a[k], simCount, id); */
-	
-	if (id > bc->lowSimCutoff) 
-	  {
-	  if (id > bc->maxSimCutoff) 
-	    colornr = bc->maxbgColor;
-	  else if (id > bc->midSimCutoff) colornr = bc->midbgColor;
-	  else colornr = bc->lowbgColor;
-	  
-	  if (colorPriority(bc, colornr, bc->colorMap[k][i]))
-	    bc->colorMap[k][i] = colornr;
-	  
-	  /* Colour all similar residues too */
-	  for (l = 1; l < 21; l++) 
-	    {
-	    if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
-	      {
-	      /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
-	      bc->colorMap[l][i] = colornr;
-	      }
-	    }
-	  }
-	}
-      else 
-	{
-	if (bc->ignoreGapsOn && bc->conservResidues[i] != 1)
-	  id = (double)bc->conservCount[k][i]/bc->conservResidues[i];
-	else
-	  id = (double)bc->conservCount[k][i]/nseqeff;
-	
-	if (bc->colorByResIdOn) 
-	  {
-	  if (id*100.0 > bc->colorByResIdCutoff)
-	    bc->colorMap[k][i] = color[(unsigned char)(b2a[k])];
-	  else
-	    bc->colorMap[k][i] = WHITE;
-	  }
-	else if (id > bc->lowIdCutoff) 
-	  {
-	  if (id > bc->maxIdCutoff) 
-	    colornr = bc->maxbgColor;
-	  else if (id > bc->midIdCutoff) 
-	    colornr = bc->midbgColor;
-	  else
-	    colornr = bc->lowbgColor;
-	  
-	  bc->colorMap[k][i] = colornr;
-	  
-	  if (bc->id_blosum) 
-	    {
-	    /* Colour all similar residues too */
-	    for (l = 1; l < 21; l++) 
-	      {
-	      if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
-		{
-		/*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
-		bc->colorMap[l][i] = colornr;
-		}
-	      }
-	    }
-	  }
-	}
-      if (id > maxid) 
-	maxid = id;
-      }
-    
-    bc->conservation[i] = maxid;
-    }
-}
-
-
-void initResidueColors(BelvuContext *bc)
-{
-  bc->colorScheme = COLORBYRESIDUE;
-  
-  color['A'] = color['a'] = WHITE;
-  color['B'] = color['b'] = NOCOLOR;
-  color['C'] = color['c'] = WHITE;
-  color['D'] = color['d'] = WHITE;
-  color['E'] = color['e'] = WHITE;
-  color['F'] = color['f'] = WHITE;
-  color['G'] = color['g'] = WHITE;
-  color['H'] = color['h'] = WHITE;
-  color['I'] = color['i'] = WHITE;
-  color['J'] = color['j'] = WHITE;
-  color['K'] = color['k'] = WHITE;
-  color['L'] = color['l'] = WHITE;
-  color['M'] = color['m'] = WHITE;
-  color['N'] = color['n'] = WHITE;
-  color['O'] = color['o'] = WHITE;
-  color['P'] = color['p'] = WHITE;
-  color['Q'] = color['q'] = WHITE;
-  color['R'] = color['r'] = WHITE;
-  color['S'] = color['s'] = WHITE;
-  color['T'] = color['t'] = WHITE;
-  color['V'] = color['v'] = WHITE;
-  color['U'] = color['u'] = WHITE;
-  color['W'] = color['w'] = WHITE;
-  color['X'] = color['x'] = WHITE;
-  color['Y'] = color['y'] = WHITE;
-  color['Z'] = color['z'] = NOCOLOR;
-}
-
-
-void initMarkupColors(void)
-{
-  markupColor['0'] = DARKBLUE;
-  markupColor['1'] = BLUE;
-  markupColor['2'] = MIDBLUE;
-  markupColor['3'] = LIGHTBLUE;
-  markupColor['4'] = VIOLET;
-  markupColor['5'] = PALEBLUE;
-  markupColor['6'] = PALECYAN;
-  markupColor['7'] = CYAN;
-  markupColor['8'] = CYAN;
-  markupColor['9'] = CYAN;
-  markupColor['A'] = markupColor['a'] = WHITE;
-  markupColor['B'] = markupColor['b'] = RED;
-  markupColor['C'] = markupColor['c'] = PALEYELLOW;
-  markupColor['D'] = markupColor['d'] = WHITE;
-  markupColor['E'] = markupColor['e'] = RED;
-  markupColor['F'] = markupColor['f'] = WHITE;
-  markupColor['G'] = markupColor['g'] = DARKGREEN;
-  markupColor['H'] = markupColor['h'] = DARKGREEN;
-  markupColor['I'] = markupColor['i'] = DARKGREEN;
-  markupColor['J'] = markupColor['j'] = WHITE;
-  markupColor['K'] = markupColor['k'] = WHITE;
-  markupColor['L'] = markupColor['l'] = WHITE;
-  markupColor['M'] = markupColor['m'] = WHITE;
-  markupColor['N'] = markupColor['n'] = WHITE;
-  markupColor['O'] = markupColor['o'] = WHITE;
-  markupColor['P'] = markupColor['p'] = WHITE;
-  markupColor['Q'] = markupColor['q'] = WHITE;
-  markupColor['R'] = markupColor['r'] = WHITE;
-  markupColor['S'] = markupColor['s'] = YELLOW;
-  markupColor['T'] = markupColor['t'] = YELLOW;
-  markupColor['V'] = markupColor['v'] = WHITE;
-  markupColor['U'] = markupColor['u'] = WHITE;
-  markupColor['W'] = markupColor['w'] = WHITE;
-  markupColor['X'] = markupColor['x'] = WHITE;
-  markupColor['Y'] = markupColor['y'] = WHITE;
-  markupColor['Z'] = markupColor['z'] = NOCOLOR;
-}
-
-
-void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
-{
-  char *cp=NULL, line[MAXLINE+1], setColor[MAXLINE+1];
-  unsigned char c ;
-  int i=0, colornr=0;
-  
-  while (!feof(fil)) 
-    {
-    if (!fgets (line, MAXLINE, fil)) 
-      break;
-    
-    /* remove newline */
-    if ((cp = strchr(line, '\n'))) 
-      *cp = 0 ;
-    
-    /* Parse color of organism in tree 
-     Format:  #=OS BLUE D. melanogaster*/
-    if (!strncmp(line, "#=OS ", 5)) 
-      {
-      cp = line+5;
-      sscanf(cp, "%s", setColor);
-      
-      for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
-	{
-	if (!strcasecmp(colorNames[i], setColor)) 
-	  colornr = i;
-	}
-      
-      if (colornr == -1) 
-	{
-	printf("Unrecognized color: %s, using black instead.\n", setColor);
-	colornr = BLACK;
-	}
-      
-      while(*cp == ' ') cp++;
-      while(*cp != ' ') cp++;
-      while(*cp == ' ') cp++;
-      
-      /* Find organism and set its colour */
-      ALN aln;
-      initAln(&aln);
-      aln.organism = cp;
-      
-      int ip = 0;
-      if (!arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
-	g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok", aln.organism);
-      else
-	g_array_index(bc->organismArr, ALN, ip).color = colornr;
-      }
-    
-    /* Ignore comments */
-    if (*line == '#') 
-      continue;
-    
-    /* Parse character colours */
-    if (sscanf(line, "%c%s", &c, setColor) == 2) 
-      {
-      c = toupper(c);
-      for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
-	{
-	if (!strcasecmp(colorNames[i], setColor)) 
-	  colornr = i;
-	}
-      
-      if (colornr == -1) 
-	{
-	printf("Unrecognized color: %s\n", setColor);
-	colornr = 0;
-	}
-      
-      colorarr[(unsigned char)(c)] = colornr;
-      
-      if (c > 64 && c <= 96)
-	colorarr[(unsigned char)(c+32)] = colorarr[(unsigned char)(c)];
-      else if (c > 96 && c <= 128)
-	colorarr[(unsigned char)(c-32)] = colorarr[(unsigned char)(c)];
-      }
-    }
-  
-  fclose(fil);
-  
-  bc->color_by_conserv = 0;
-}
-
 
 /***********************************************************
  *		          Utilities			   *
@@ -5683,7 +5718,6 @@ BelvuContext* createBelvuContext()
   bc->maxStartLen = 0; 
   bc->maxEndLen = 0; 
   bc->maxScoreLen = 0; 
-  bc->colorScheme = COLORSIM;
   
   bc->maxfgColor = BLACK;
   bc->midfgColor = BLACK,
@@ -5691,6 +5725,10 @@ BelvuContext* createBelvuContext()
   bc->maxbgColor = CYAN;
   bc->midbgColor = MIDBLUE;
   bc->lowbgColor = LIGHTGRAY;
+  
+  bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
+  bc->residueScheme = BELVU_SCHEME_ERIK;
+  bc->consScheme = BELVU_SCHEME_BLOSUM;
   
   bc->treeMethod = NJ;
   bc->treeDistCorr = SCOREDIST;
@@ -5737,11 +5775,8 @@ BelvuContext* createBelvuContext()
   bc->treeShowBranchlen = FALSE;
   bc->matchFooter = FALSE;
   bc->saved = TRUE;
-  bc->color_by_similarity = TRUE;
-  bc->color_by_conserv = TRUE;
   bc->ignoreGapsOn = FALSE;
   bc->colorByResIdOn = FALSE;
-  bc->id_blosum = TRUE;
   bc->rmEmptyColumnsOn = TRUE;
   bc->lowercaseOn = FALSE;
   bc->removingSeqs = FALSE;
@@ -5751,7 +5786,7 @@ BelvuContext* createBelvuContext()
   int dialogId = 0;
   for ( ; dialogId < BELDIALOG_NUM_DIALOGS; ++dialogId)
     {
-    bc->dialogList[dialogId] = NULL;
+      bc->dialogList[dialogId] = NULL;
     }
   
   return bc;
@@ -6535,7 +6570,7 @@ static void rmFinalise(BelvuContext *bc)
 {
   /*    ruler[maxLen] = 0;*/
   checkAlignment(bc);
-  setConservColors(bc);
+  setConsSchemeColors(bc);
   //  belvuRedraw();
 }
 

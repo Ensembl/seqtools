@@ -164,7 +164,7 @@ static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, GdkColor *res
     colorNum = BOXCOLOR;
   else if (alnp->markup)
     colorNum = getMarkupColor(alnp->seq[i]);
-  else if (bc->color_by_conserv || bc->colorByResIdOn)
+  else if (colorByConservation(bc) || bc->colorByResIdOn)
     colorNum = getConservColor(bc, alnp->seq[i], i);
   else
     colorNum = getColor(alnp->seq[i]);
@@ -282,7 +282,7 @@ static gboolean colorsEqual(GdkColor *color1, GdkColor *color2)
 
 
 /* Return the foreground color selected for a given
-   background color in bc->color_by_conserv mode 
+   background color in color-by-conservation mode 
  */
 static void bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result)
 {
@@ -438,7 +438,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   
                   /* Foreground color */
                   GdkColor fgColor;
-                  if (bc->color_by_conserv)
+                  if (colorByConservation(bc))
                     bg2fgColor(bc, pBgColor, &fgColor);
                   else
                     convertColorNumToGdkColor(BLACK, &fgColor);

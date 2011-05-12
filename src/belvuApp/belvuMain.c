@@ -516,7 +516,7 @@ int main(int argc, char **argv)
   if (!bc->treeReadDistancesOn) 
     {
       checkAlignment(bc);
-      setConservColors(bc);
+      setConsSchemeColors(bc);
     }
   
   if (verbose)
@@ -559,8 +559,8 @@ int main(int argc, char **argv)
         g_error("Cannot open file %s", colorCodesFile);
       
       readColorCodes(bc, file, getColorArray());
-      bc->colorScheme = COLORBYRESIDUE;
-      bc->color_by_conserv = bc->colorByResIdOn = FALSE;
+      bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
+      bc->colorByResIdOn = FALSE;
     }
   
   initMarkupColors();
@@ -727,11 +727,13 @@ int main(int argc, char **argv)
       
       treeBootstrap(bc);
     }
-  
-  
 
   if (!colorCodesFile) 
-    colorSim(bc) ;
+    {
+      bc->schemeType = BELVU_SCHEME_TYPE_CONS;
+      bc->consScheme = BELVU_SCHEME_BLOSUM;
+      setConsSchemeColors(bc);
+    }
   
   /* Create the main belvu graph display of aligned sequences. */
   if (createBelvuWindow(bc, &msgData))

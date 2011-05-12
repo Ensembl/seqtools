@@ -221,7 +221,7 @@ static const GtkRadioActionEntry schemeMenuEntries[] = {
 static const GtkRadioActionEntry residueSchemeMenuEntries[] = {
 {"colorSchemeStandard",  NULL, "Erik's",                            NULL, "Erik's",                            BELVU_SCHEME_ERIK},
 {"colorSchemeGibson",    NULL, "Toby's",                            NULL, "Toby's",                            BELVU_SCHEME_GIBSON},
-{"colorSchemeCys",       NULL, "Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CGP},
+{"colorSchemeCys",       NULL, "Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CYS},
 {"colorSchemeEmpty",     NULL, "Clean slate",                       NULL, "Clean slate",                       BELVU_SCHEME_NONE}
 };
 
@@ -376,10 +376,36 @@ static const char standardMenuDescription[] =
 "</ui>";
 
 
+/* Utility to enable/disable an item in a menu. The action name must be the value of a valid action. */
 static void enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable)
 {
   GtkAction *action = gtk_action_group_get_action(action_group, actionName);
-  gtk_action_set_sensitive(action, enable);
+  
+  if (!action)
+    g_warning("Error %s menu item: action '%s' not found.\n", (enable ? "enabling" : "disabling"), actionName);
+  else
+    gtk_action_set_sensitive(action, enable);
+}
+
+
+/* Utility to set the status of a toggle item in a menu. The action name must be the name 
+ * of a valid toggle action. */
+static void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active)
+{
+  GtkAction *action = gtk_action_group_get_action(action_group, actionName);
+  
+  if (!action)
+    {
+      g_warning("Error toggling menu item: action '%s' not found.\n", actionName);
+    }
+  else if (!GTK_IS_TOGGLE_ACTION(action))
+    {
+      g_warning("Error toggling menu item: action '%s' is not a valid toggle action.\n", actionName);
+    }
+  else
+    {
+      gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), active);
+    }
 }
 
 
@@ -390,10 +416,10 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
   enableMenuAction(action_group, "rmScore", bc->displayScores);
   enableMenuAction(action_group, "scoreSort", bc->displayScores);
   
-  enableMenuAction(action_group, "colorByResId", !bc->color_by_conserv);
+  enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
 
-  enableMenuAction(action_group, "ignoreGaps", bc->color_by_conserv);
-  enableMenuAction(action_group, "printColors", bc->color_by_conserv);
+  enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
+  enableMenuAction(action_group, "printColors", colorByConservation(bc));
 }
 
 
@@ -407,9 +433,7 @@ GtkUIManager* createUiManager(GtkWidget *window,
   gtk_action_group_add_actions(action_group, menuEntries, G_N_ELEMENTS(menuEntries), window);
   gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS(toggleMenuEntries), window);
 
-  BelvuSchemeType schemeType = bc->color_by_conserv ? BELVU_SCHEME_TYPE_CONS : BELVU_SCHEME_TYPE_RESIDUE;
-  
-  gtk_action_group_add_radio_actions(action_group, schemeMenuEntries, G_N_ELEMENTS(schemeMenuEntries), schemeType, G_CALLBACK(onToggleSchemeType), window);
+  gtk_action_group_add_radio_actions(action_group, schemeMenuEntries, G_N_ELEMENTS(schemeMenuEntries), bc->schemeType, G_CALLBACK(onToggleSchemeType), window);
   gtk_action_group_add_radio_actions(action_group, residueSchemeMenuEntries, G_N_ELEMENTS(residueSchemeMenuEntries), BELVU_SCHEME_ERIK, G_CALLBACK(onToggleResidueScheme), window);
   gtk_action_group_add_radio_actions(action_group, consSchemeMenuEntries, G_N_ELEMENTS(consSchemeMenuEntries), BELVU_SCHEME_BLOSUM, G_CALLBACK(onToggleConsScheme), window);
   gtk_action_group_add_radio_actions(action_group, sortMenuEntries, G_N_ELEMENTS(sortMenuEntries), BELVU_SORT_CONS, G_CALLBACK(onToggleSortOrder), window);
@@ -652,18 +676,43 @@ static void onToggleSchemeType(GtkRadioAction *action, GtkRadioAction *current, 
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  properties->bc->color_by_conserv = !properties->bc->color_by_conserv;
+  properties->bc->schemeType = gtk_radio_action_get_current_value(current);
 
   greyOutInvalidActions(properties->bc, properties->actionGroup);
 }
 
+
 static void onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  /* Set the scheme */
+  properties->bc->residueScheme = gtk_radio_action_get_current_value(current);
+  
+  /* Set the scheme-type to be "by residue" */
+  setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+  
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
+
 
 static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  /* Set the scheme */
+  properties->bc->consScheme = gtk_radio_action_get_current_value(current);
+  
+  /* Set the scheme-type to be "by conservation" */
+  setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+  
+  /* Update */
+  setConsSchemeColors(properties->bc);
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
+
 
 static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
 {
@@ -677,9 +726,11 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
   belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 
+
 static void ontogglePaletteMenu(GtkAction *action, gpointer data)
 {
 }
+
 
 static void oncolorByResIdMenu(GtkAction *action, gpointer data)
 {

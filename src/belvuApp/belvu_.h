@@ -127,8 +127,6 @@ enum Colour
 enum { MUL, RAW };		/* Input formats for IN_FORMAT */
 enum { dummy, GF, GC, GS, GR };	/* Markup types in Stockholm format */
 
-enum { COLORBYRESIDUE, COLORSCHEMESTANDARD, COLORSCHEMEGIBSON, COLORSCHEMECYS, 
-       COLORSCHEMEEMPTY, COLORSIM, COLORID, COLORIDSIM }; /* Modes - used for checkmarks */
 
 /* Tree picking methods */
 typedef enum _BelvuPickMode
@@ -203,8 +201,8 @@ typedef enum _ResidueColorSchemes
     BELVU_SCHEME_NONE,              /* Clean slate (no coloring) */
     BELVU_SCHEME_ERIK,              /* Erik's original scheme */
     BELVU_SCHEME_GIBSON,            /* Toby's */
-    BELVU_SCHEME_CGP                /* Cyc/Gly/Pro */
-  } ResidueColorSchemes;
+    BELVU_SCHEME_CYS               /* Cys/Gly/Pro */
+  } ResidueColorScheme;
 
 
 /* This defines the color schemes when coloring by conservation */
@@ -213,7 +211,7 @@ typedef enum _ConsColorSchemes
     BELVU_SCHEME_BLOSUM,            /* Average similarity by BLOSUM62 */
     BELVU_SCHEME_ID,                /* Percent identity */
     BELVU_SCHEME_ID_BLOSUM          /* Percent ID and BLOSUM62 */
-  } ConsColorSchemes;
+  } ConsColorScheme;
 
 
 
@@ -321,7 +319,6 @@ typedef struct BelvuContextStruct
   int maxStartLen;                 /* Max string length of any sequence start */
   int maxEndLen;                   /* Max string length of any sequence end */
   int maxScoreen;                  /* Max string length of any sequence score */
-  int colorScheme;                 /* Current colour scheme mode (used for checkmarks) */
 
   int maxfgColor;
   int midfgColor;
@@ -330,6 +327,10 @@ typedef struct BelvuContextStruct
   int midbgColor;
   int lowbgColor;
                 
+  BelvuSchemeType schemeType;	      /* Current colour scheme mode (color-by-residue or -by-conservation) */
+  ResidueColorScheme residueScheme;   /* Which color-by-residue color scheme is selected */
+  ConsColorScheme consScheme;	      /* Which color-by-conservation color scheme is selected */
+  
   BelvuBuildMethod treeMethod;  /* Default building method for trees */
   BelvuDistCorr treeDistCorr;   /* Default distance correction method for trees */
   BelvuPickMode treePickMode;   /* Default action when picking a node in a tree */
@@ -376,8 +377,8 @@ typedef struct BelvuContextStruct
   gboolean treeShowBranchlen;      /* whether to display the branch length in the tree */
   gboolean matchFooter;
   gboolean saved;
-  gboolean color_by_similarity;    /* FALSE => by id */
-  gboolean color_by_conserv;       /* TRUE => by id or similarity; FALSE => by residue  */
+//  gboolean color_by_similarity;    /* FALSE => by id */
+//  gboolean color_by_conserv;       /* TRUE => by id or similarity; FALSE => by residue  */
   gboolean ignoreGapsOn;
   gboolean colorByResIdOn;         /* colour by residue type above identity cutoff */
   gboolean id_blosum;              /* Paint similar residues too */
@@ -419,10 +420,14 @@ void                                      parseMulLine(BelvuContext *bc, char *l
 
 void                                      readMatch(BelvuContext *bc, FILE *fil);                
 void                                      checkAlignment(BelvuContext *bc);
-void                                      setConservColors(BelvuContext *bc);
+void                                      setConsSchemeColors(BelvuContext *bc);
 void                                      initResidueColors(BelvuContext *bc);
 void                                      initMarkupColors(void);              
 void                                      readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr);
+gboolean				  colorByConservation(BelvuContext *bc);
+gboolean				  colorBySimilarity(BelvuContext *bc);
+
+
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);
 void                                      rmPartialSeqs(BelvuContext *bc);         
 void                                      rmEmptyColumns(BelvuContext *bc, double cutoff);
