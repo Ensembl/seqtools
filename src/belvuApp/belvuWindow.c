@@ -109,6 +109,7 @@ static void                      onToggleConsScheme(GtkRadioAction *action, GtkR
 static void                      onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, gpointer data);
 
 static void                      ontogglePaletteMenu(GtkAction *action, gpointer data);
+static void                      ontoggleColorByResIdMenu(GtkAction *action, gpointer data);
 static void                      oncolorByResIdMenu(GtkAction *action, gpointer data);
 static void                      onsaveColorCodesMenu(GtkAction *action, gpointer data);
 static void                      onloadColorCodesMenu(GtkAction *action, gpointer data);
@@ -149,7 +150,7 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 #define displayColorsStr        "Display colors (faster without)"
 #define printColorsStr         "Use gray shades (for printing)"
 #define ignoreGapsStr          "Ignore gaps in conservation calculation"
-#define thresholdStr           "Only colour residues above %id threshold"
+#define thresholdStr           "Only colour residues above %ID threshold"
 
 
 /* Define the menu actions for standard menu entries */
@@ -199,6 +200,7 @@ static const GtkActionEntry menuEntries[] = {
   {"unhide",                 NULL,    "Unhide all hidden lines",  NULL,"Unhide all hidden lines", G_CALLBACK(onunhideMenu)},
 
   {"togglePalette",        NULL, "Toggle color schemes",              "T",  "Toggle between conservation and residue color schemes", G_CALLBACK(ontogglePaletteMenu)},
+  {"colorByResId",         NULL, "Set %ID threshold",                 NULL, "Set the threshold above which to color residues", G_CALLBACK(oncolorByResIdMenu)},
   {"saveColorCodes",       NULL, "Save colour scheme",                NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorCodesMenu)},
   {"loadColorCodes",       NULL, "Load colour scheme",                NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorCodesMenu)},
   {"editColorCodes",       NULL, "Edit colour scheme",                NULL, "Open window to edit colour scheme", G_CALLBACK(oneditColorCodesMenu)},
@@ -206,7 +208,7 @@ static const GtkActionEntry menuEntries[] = {
 
 /* Define the menu actions for toggle menu entries */
 static const GtkToggleActionEntry toggleMenuEntries[] = {
-{"colorByResId",         NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(oncolorByResIdMenu), FALSE},
+{"toggleColorByResId",   NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
 {"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu), FALSE},
 {"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu), FALSE},
 {"markup",               NULL, "Exclude highlighted from calculations", NULL, "Exclude highlighted from calculations", G_CALLBACK(onmarkupMenu), FALSE},
@@ -297,6 +299,7 @@ static const char standardMenuDescription[] =
 "        <menuitem action='colorSchemeCys'/>"
 "        <menuitem action='colorSchemeEmpty'/>"
 "      </menu>"
+"      <menuitem action='toggleColorByResId'/>"
 "      <menuitem action='colorByResId'/>"
 "      <separator/>"
 "      <menuitem action='ColorByCons'/>"
@@ -418,6 +421,7 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
   enableMenuAction(action_group, "rmScore", bc->displayScores);
   enableMenuAction(action_group, "scoreSort", bc->displayScores);
   
+  enableMenuAction(action_group, "toggleColorByResId", !colorByConservation(bc));
   enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
 
   enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
@@ -764,8 +768,8 @@ static void ontogglePaletteMenu(GtkAction *action, gpointer data)
   onColorSchemeChanged(properties);
 }
 
-
-static void oncolorByResIdMenu(GtkAction *action, gpointer data)
+/* This controls whether the color-by-residue-id option is toggle on or off */
+static void ontoggleColorByResIdMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
@@ -773,14 +777,16 @@ static void oncolorByResIdMenu(GtkAction *action, gpointer data)
   /* Toggle the flag */
   properties->bc->colorByResIdOn = !properties->bc->colorByResIdOn;
   
-  /* If we've just turned the option on, pop up the prompt to as the user to 
-   * confirm the cutoff.*/
-  if (properties->bc->colorByResIdOn)
-    showColorByResIdDialog(belvuWindow);
-  
   /* Update the color scheme and redraw */
   updateSchemeColors(properties->bc);
   belvuAlignmentRedrawAll(properties->belvuAlignment);
+}
+
+/* This pops up a dialog to set the color-by-res-id threshold, and turns the option on */
+static void oncolorByResIdMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showColorByResIdDialog(belvuWindow);  
 }
 
 static void onsaveColorCodesMenu(GtkAction *action, gpointer data)
@@ -1186,6 +1192,7 @@ static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
  *                Color by residue ID dialog               *
  ***********************************************************/
 
+/* Dialog to prompt the user to enter a threshold for coloring residues by ID */
 static void showColorByResIdDialog(GtkWidget *belvuWindow)
 {
   static char *inputText = NULL;
@@ -1205,6 +1212,13 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
 
       BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
       properties->bc->colorByResIdCutoff = g_strtod(inputText, NULL);
+    
+      /* This sets the flag and also updates the associated 'toggle' menu item */
+      setToggleMenuStatus(properties->actionGroup, "toggleColorByResId", TRUE);
+    
+      /* Update the color scheme and redraw */
+      updateSchemeColors(properties->bc);
+      belvuAlignmentRedrawAll(properties->belvuAlignment);
     }
   
   gtk_widget_destroy(dialog);  
