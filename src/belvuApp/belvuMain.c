@@ -216,25 +216,30 @@ static void scoreSortBatch(GArray *alignArr, const gboolean displayScores)
 }
 
 
-static void init_sort_do(const int init_sort, BelvuContext *bc)
+static void init_sort_do(const BelvuSortType init_sort, BelvuContext *bc)
 {
   g_array_sort(bc->alignArr, nrorder);
   
-  if (init_sort) 
+  switch(init_sort) 
     {
-      switch(init_sort) 
-        {
-        case SORT_ALPHA : g_array_sort(bc->alignArr, alphaorder);   break;
-        case SORT_ORGANISM : g_array_sort(bc->alignArr, organismorder);   break;
-        case SORT_SCORE : scoreSortBatch(bc->alignArr, bc->displayScores);   break;
-        case SORT_SIM :
-          bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
-          highlightScoreSort('P', bc); break;
-        case SORT_ID : 
-          bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
-          highlightScoreSort('I', bc); break;
-        case SORT_TREE  : treeSortBatch(bc);    break;
-        }
+      case BELVU_SORT_ALPHA :	  g_array_sort(bc->alignArr, alphaorder);   break;
+      case BELVU_SORT_ORGANISM :  g_array_sort(bc->alignArr, organismorder);   break;
+      case BELVU_SORT_SCORE :	  scoreSortBatch(bc->alignArr, bc->displayScores);   break;
+      case BELVU_SORT_TREE  :	  treeSortBatch(bc);    break;
+      
+      case BELVU_SORT_SIM :
+	bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
+	highlightScoreSort('P', bc); break;
+      
+      case BELVU_SORT_ID : 
+	bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
+	highlightScoreSort('I', bc); break;
+      
+      case BELVU_UNSORTED : break;
+      
+      default: 
+	g_warning("Initial sort order '%d' not recognised.\n", init_sort);
+	break;
     }
 }
 
@@ -374,7 +379,7 @@ int main(int argc, char **argv)
   
   char *OrganismLabel = "OS";
     
-  int init_sort = 0;
+  BelvuSortType init_sort = 0;
   
   gboolean verbose = FALSE;
   gboolean gridOn = FALSE;
@@ -419,17 +424,17 @@ int main(int argc, char **argv)
       case 'S': 
       switch (*optarg)
       {
-	case 'a': init_sort = SORT_ALPHA;    break;
-	case 'o': init_sort = SORT_ORGANISM; break;
-	case 's': init_sort = SORT_SCORE;    break;
-	case 'S': init_sort = SORT_SIM;      break;
-	case 'i': init_sort = SORT_ID;       break;
+	case 'a': init_sort = BELVU_SORT_ALPHA;    break;
+	case 'o': init_sort = BELVU_SORT_ORGANISM; break;
+	case 's': init_sort = BELVU_SORT_SCORE;    break;
+	case 'S': init_sort = BELVU_SORT_SIM;      break;
+	case 'i': init_sort = BELVU_SORT_ID;       break;
 	case 'n': 
 	  bc->treeMethod = NJ;
-	  init_sort = SORT_TREE;           break;
+	  init_sort = BELVU_SORT_TREE;           break;
 	case 'u': 
 	  bc->treeMethod = UPGMA; 
-	  init_sort = SORT_TREE;           break;
+	  init_sort = BELVU_SORT_TREE;           break;
 	default : g_error("Illegal sorting order: %s", optarg);
       }                                    break;
       case 's': 

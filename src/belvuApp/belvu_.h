@@ -130,8 +130,6 @@ enum { dummy, GF, GC, GS, GR };	/* Markup types in Stockholm format */
 enum { COLORBYRESIDUE, COLORSCHEMESTANDARD, COLORSCHEMEGIBSON, COLORSCHEMECYS, 
        COLORSCHEMEEMPTY, COLORSIM, COLORID, COLORIDSIM }; /* Modes - used for checkmarks */
 
-enum { NOLL, SORT_ALPHA, SORT_ORGANISM, SORT_TREE, SORT_SCORE, SORT_SIM, SORT_ID }; /* Initial sorting modes */
-
 /* Tree picking methods */
 typedef enum _BelvuPickMode
 {
@@ -179,6 +177,8 @@ typedef enum _BelvuColorId
 /* This defines the possible sort orders */
 typedef enum _BelvuSortType
   {
+    BELVU_UNSORTED,	       /* Not sorted */
+  
     BELVU_SORT_SCORE,          /* Sort by score */
     BELVU_SORT_ALPHA,          /* Sort alphabetically */
     BELVU_SORT_ORGANISM,       /* Sort by organism */
