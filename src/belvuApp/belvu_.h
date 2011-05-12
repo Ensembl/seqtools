@@ -383,7 +383,7 @@ typedef struct BelvuContextStruct
   gboolean colorByResIdOn;         /* colour by residue type above identity cutoff */
   gboolean id_blosum;              /* Paint similar residues too */
   gboolean rmEmptyColumnsOn;
-  gboolean lowercaseOn;
+  gboolean lowercaseOn;		   /* Set to true to highlight lowercase characters */
   gboolean removingSeqs;	   /* Set to true if in the 'removing sequences' mode */
   gboolean displayColors;	   /* Whether to display colors (faster without) */
   

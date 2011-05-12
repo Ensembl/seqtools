@@ -799,6 +799,11 @@ static void ondisplayColorsMenu(GtkAction *action, gpointer data)
 
 static void onlowercaseMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  properties->bc->lowercaseOn = !properties->bc->lowercaseOn;
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 
 static void oneditColorCodesMenu(GtkAction *action, gpointer data)
