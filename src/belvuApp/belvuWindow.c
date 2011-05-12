@@ -130,8 +130,10 @@ static void			 showRemoveByScoreDialog(GtkWidget *belvuWindow);
 
 static void			 startRemovingSequences(GtkWidget *belvuWindow);
 static void			 endRemovingSequences(GtkWidget *belvuWindow);
+
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
 static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
+static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -765,6 +767,20 @@ static void ontogglePaletteMenu(GtkAction *action, gpointer data)
 
 static void oncolorByResIdMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  /* Toggle the flag */
+  properties->bc->colorByResIdOn = !properties->bc->colorByResIdOn;
+  
+  /* If we've just turned the option on, pop up the prompt to as the user to 
+   * confirm the cutoff.*/
+  if (properties->bc->colorByResIdOn)
+    showColorByResIdDialog(belvuWindow);
+  
+  /* Update the color scheme and redraw */
+  updateSchemeColors(properties->bc);
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 
 static void onsaveColorCodesMenu(GtkAction *action, gpointer data)
@@ -1019,13 +1035,14 @@ static void showHelpDialog()
  *                Remove sequences dialogs                 *
  ***********************************************************/
 
-static GtkWidget* createRemoveDialog(GtkWidget *belvuWindow,
+static GtkWidget* createPropmtDialog(GtkWidget *belvuWindow,
 			 	     const char *defaultResult,
+				     const char *title,
 			 	     const char *text1,
 			 	     const char *text2,
 				     GtkWidget **entry)
 { 
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - remove sequences", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(belvuWindow), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
@@ -1070,7 +1087,7 @@ static void showRemoveGappySeqsDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("50");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that are ", "% or more gaps.", &entry);
+  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are ", "% or more gaps.", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -1096,7 +1113,7 @@ static void showMakeNonRedundantDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("80.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that are more than ", "% identical.", &entry);
+  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are more than ", "% identical.", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -1122,7 +1139,7 @@ static void showRemoveOutliersDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that are less than ", "% identical with any other.", &entry);
+  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are less than ", "% identical with any other.", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -1148,7 +1165,7 @@ static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createRemoveDialog(belvuWindow, inputText, "Remove sequences that have a score less than ", "", &entry);
+  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that have a score less than ", "", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -1164,6 +1181,35 @@ static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
   
   gtk_widget_destroy(dialog);
 }
+
+/***********************************************************
+ *                Color by residue ID dialog               *
+ ***********************************************************/
+
+static void showColorByResIdDialog(GtkWidget *belvuWindow)
+{
+  static char *inputText = NULL;
+  
+  if (!inputText)
+    inputText = g_strdup("20.0");
+  
+  GtkWidget *entry = NULL;
+  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - Color by Residue ID", "Only colour residues above ", "% identity", &entry);
+
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      if (inputText)
+	g_free(inputText);
+      
+      inputText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
+
+      BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+      properties->bc->colorByResIdCutoff = g_strtod(inputText, NULL);
+    }
+  
+  gtk_widget_destroy(dialog);  
+}
+
 
 /***********************************************************
  *                         Wrap window                     *
