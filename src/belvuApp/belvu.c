@@ -4577,10 +4577,11 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType)
   
   switch(sortType) 
   {
-    case BELVU_SORT_ALPHA :	  g_array_sort(bc->alignArr, alphaorder);   break;
-    case BELVU_SORT_ORGANISM :	  g_array_sort(bc->alignArr, organismorder);   break;
+    case BELVU_SORT_ALPHA :	  g_array_sort(bc->alignArr, alphaorder);	     break;
+    case BELVU_SORT_ORGANISM :	  g_array_sort(bc->alignArr, organismorder);	     break;
     case BELVU_SORT_SCORE :	  scoreSortBatch(bc->alignArr, bc->displayScores);   break;
     case BELVU_SORT_TREE  :	  treeSortBatch(bc);    break;
+    case BELVU_SORT_CONS  :	  break; /* sort by nrorder - already done */
     
     case BELVU_SORT_SIM :
       bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);

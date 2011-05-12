@@ -232,6 +232,7 @@ static const GtkRadioActionEntry consSchemeMenuEntries[] = {
 };
 
 static const GtkRadioActionEntry sortMenuEntries[] = {
+{"defaultSort",          NULL, "by conservation",              NULL, "Sort by conservation order",        BELVU_SORT_CONS},
 {"scoreSort",            NULL, "by score",                     NULL, "Sort by score",                     BELVU_SORT_SCORE},
 {"alphaSort",            NULL, "alphabetically",               NULL, "Sort alphabetically",               BELVU_SORT_ALPHA},
 {"organismSort",         NULL, "by swissprot organism",        NULL, "Sort by swissprot organism",        BELVU_SORT_ORGANISM},
@@ -316,6 +317,7 @@ static const char standardMenuDescription[] =
 "    </menu>"
     /* Sort menu */
 "    <menu action='SortMenuAction'>"
+"      <menuitem action='defaultSort'/>"
 "      <menuitem action='scoreSort'/>"
 "      <menuitem action='alphaSort'/>"
 "      <menuitem action='organismSort'/>"
@@ -410,7 +412,7 @@ GtkUIManager* createUiManager(GtkWidget *window,
   gtk_action_group_add_radio_actions(action_group, schemeMenuEntries, G_N_ELEMENTS(schemeMenuEntries), schemeType, G_CALLBACK(onToggleSchemeType), window);
   gtk_action_group_add_radio_actions(action_group, residueSchemeMenuEntries, G_N_ELEMENTS(residueSchemeMenuEntries), BELVU_SCHEME_ERIK, G_CALLBACK(onToggleResidueScheme), window);
   gtk_action_group_add_radio_actions(action_group, consSchemeMenuEntries, G_N_ELEMENTS(consSchemeMenuEntries), BELVU_SCHEME_BLOSUM, G_CALLBACK(onToggleConsScheme), window);
-  gtk_action_group_add_radio_actions(action_group, sortMenuEntries, G_N_ELEMENTS(sortMenuEntries), BELVU_SORT_TREE, G_CALLBACK(onToggleSortOrder), window);
+  gtk_action_group_add_radio_actions(action_group, sortMenuEntries, G_N_ELEMENTS(sortMenuEntries), BELVU_SORT_CONS, G_CALLBACK(onToggleSortOrder), window);
 
   greyOutInvalidActions(bc, action_group);
 

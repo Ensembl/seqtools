@@ -185,6 +185,7 @@ typedef enum _BelvuSortType
     BELVU_SORT_TREE,           /* Sort by tree order */
     BELVU_SORT_SIM,            /* Sort by similarity to selected sequence */
     BELVU_SORT_ID,             /* Sort by identity to selected sequence */
+    BELVU_SORT_CONS            /* Sort by conservation order */
   } BelvuSortType;
 
 
