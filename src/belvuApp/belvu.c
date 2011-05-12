@@ -5149,12 +5149,14 @@ static void setResidueSchemeColors(BelvuContext *bc)
  * colors according to the active scheme. */
 void updateSchemeColors(BelvuContext *bc)
 {
+  /* Set the residue colors if coloring by residue. We need to do this first if
+   * colorByResIdOn is true because setConsSchemeColors uses its results. */
+  if (bc->schemeType == BELVU_SCHEME_TYPE_RESIDUE)
+    setResidueSchemeColors(bc);
+
+  /* Set the color scheme if coloring by conservation or by residue id */
   if (bc->schemeType == BELVU_SCHEME_TYPE_CONS || bc->colorByResIdOn)
     setConsSchemeColors(bc);
-  else if (bc->schemeType == BELVU_SCHEME_TYPE_RESIDUE)
-    setResidueSchemeColors(bc);
-  else
-    g_warning("Program error: unrecognised color scheme type '%d'.\n", bc->schemeType);  
 }
 
 
