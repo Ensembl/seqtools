@@ -5147,7 +5147,7 @@ static void setResidueSchemeColors(BelvuContext *bc)
 
 /* This should be called when the color scheme has changed. It updates the
  * colors according to the active scheme. */
-void onColorSchemeChanged(BelvuContext *bc)
+void updateSchemeColors(BelvuContext *bc)
 {
   switch (bc->schemeType)
   {

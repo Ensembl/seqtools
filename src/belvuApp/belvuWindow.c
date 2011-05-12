@@ -196,7 +196,7 @@ static const GtkActionEntry menuEntries[] = {
   {"hide",                   NULL,    "Hide highlighted line",    NULL, "Hide highlighted line",  G_CALLBACK(onhideMenu)},
   {"unhide",                 NULL,    "Unhide all hidden lines",  NULL,"Unhide all hidden lines", G_CALLBACK(onunhideMenu)},
 
-  {"togglePalette",          NULL, "Toggle last palette",               "T",  "Last palette",                    G_CALLBACK(ontogglePaletteMenu)},
+  {"togglePalette",        NULL, "Toggle color schemes",              "T",  "Toggle between conservation and residue color schemes", G_CALLBACK(ontogglePaletteMenu)},
   {"saveColorCodes",       NULL, "Save colour scheme",                NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorCodesMenu)},
   {"loadColorCodes",       NULL, "Load colour scheme",                NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorCodesMenu)},
   {"editColorCodes",       NULL, "Edit colour scheme",                NULL, "Open window to edit colour scheme", G_CALLBACK(oneditColorCodesMenu)},
@@ -671,21 +671,44 @@ static void onunhideMenu(GtkAction *action, gpointer data)
 }
 
 /* COLOR MENU ACTIONS */
+
+/* This function is called when the color scheme has been changed. It performs all 
+ * required updates. */
+static void onColorSchemeChanged(BelvuWindowProperties *properties)
+{
+  /* Make sure the correct scheme type is set in the menus */
+  switch (properties->bc->schemeType)
+    {
+      case BELVU_SCHEME_TYPE_RESIDUE:
+	setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+	break;
+
+      case BELVU_SCHEME_TYPE_CONS:
+	setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+	break;
+    
+      default:
+	g_warning("Program error: unrecognised color scheme type '%d'.\n", properties->bc->schemeType);
+	break;
+    };
+  
+  /* Some menu actions are enabled/disabled depending on which scheme type is selected */
+  greyOutInvalidActions(properties->bc, properties->actionGroup);
+  
+  /* Update the display */
+  updateSchemeColors(properties->bc);
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
+}
+
+
 static void onToggleSchemeType(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  /* Set the new scheme type */
   properties->bc->schemeType = gtk_radio_action_get_current_value(current);
-
-  /* Some menu options are greyed out depending on which scheme type is selected, so update
-   * them now. */
-  greyOutInvalidActions(properties->bc, properties->actionGroup);
   
-  /* Update */
-  onColorSchemeChanged(properties->bc);
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  onColorSchemeChanged(properties);
 }
 
 
@@ -694,15 +717,10 @@ static void onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *curren
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  /* Set the scheme */
   properties->bc->residueScheme = gtk_radio_action_get_current_value(current);
-  
-  /* Set the scheme-type to be "by residue" */
   setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
 
-  /* Update */
-  onColorSchemeChanged(properties->bc);
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  onColorSchemeChanged(properties);
 }
 
 
@@ -711,15 +729,10 @@ static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, 
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  /* Set the scheme */
   properties->bc->consScheme = gtk_radio_action_get_current_value(current);
-  
-  /* Set the scheme-type to be "by conservation" */
   setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
   
-  /* Update */
-  onColorSchemeChanged(properties->bc);
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  onColorSchemeChanged(properties);
 }
 
 
@@ -738,6 +751,15 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
 
 static void ontogglePaletteMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  if (properties->bc->schemeType == BELVU_SCHEME_TYPE_CONS)
+    properties->bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
+  else
+    properties->bc->schemeType = BELVU_SCHEME_TYPE_CONS;
+  
+  onColorSchemeChanged(properties);
 }
 
 
