@@ -115,7 +115,7 @@ static void                      onloadColorCodesMenu(GtkAction *action, gpointe
 static void                      onignoreGapsMenu(GtkAction *action, gpointer data);
 static void                      onprintColorsMenu(GtkAction *action, gpointer data);
 static void                      onmarkupMenu(GtkAction *action, gpointer data);
-static void                      oncolorRectMenu(GtkAction *action, gpointer data);
+static void                      ondisplayColorsMenu(GtkAction *action, gpointer data);
 static void                      onlowercaseMenu(GtkAction *action, gpointer data);
 static void                      oneditColorCodesMenu(GtkAction *action, gpointer data);
 
@@ -144,7 +144,7 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 #define colorSimStr            "Average similarity by Blosum62"
 #define colorIdStr             "Percent identity only"
 #define colorIdSimStr          "Percent identity + Blosum62"
-#define colorRectStr           "Display colors (faster without)"
+#define displayColorsStr        "Display colors (faster without)"
 #define printColorsStr         "Use gray shades (for printing)"
 #define ignoreGapsStr          "Ignore gaps in conservation calculation"
 #define thresholdStr           "Only colour residues above %id threshold"
@@ -208,7 +208,7 @@ static const GtkToggleActionEntry toggleMenuEntries[] = {
 {"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu), FALSE},
 {"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu), FALSE},
 {"markup",               NULL, "Exclude highlighted from calculations", NULL, "Exclude highlighted from calculations", G_CALLBACK(onmarkupMenu), FALSE},
-{"colorRect",            NULL, colorRectStr,                        NULL, colorRectStr,                        G_CALLBACK(oncolorRectMenu), TRUE},
+{"displayColors",        NULL, displayColorsStr,                    NULL, displayColorsStr,                    G_CALLBACK(ondisplayColorsMenu), TRUE},
 {"lowercase",            NULL, "Highlight lowercase characters",    NULL, "Highlight lowercase characters",    G_CALLBACK(onlowercaseMenu), FALSE},
 };
 
@@ -308,7 +308,7 @@ static const char standardMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='togglePalette'/>"
 "      <menuitem action='markup'/>"
-"      <menuitem action='colorRect'/>"
+"      <menuitem action='displayColors'/>"
 "      <menuitem action='lowercase'/>"
 "      <separator/>"
 "      <menuitem action='editColorCodes'/>"
@@ -705,8 +705,14 @@ static void onmarkupMenu(GtkAction *action, gpointer data)
 {
 }
 
-static void oncolorRectMenu(GtkAction *action, gpointer data)
+static void ondisplayColorsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  properties->bc->displayColors = !properties->bc->displayColors;
+  
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
 }
 
 static void onlowercaseMenu(GtkAction *action, gpointer data)

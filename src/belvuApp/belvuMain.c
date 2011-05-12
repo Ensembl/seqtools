@@ -346,7 +346,6 @@ int main(int argc, char **argv)
   gboolean verbose = FALSE;
   gboolean gridOn = FALSE;
   gboolean init_rmPartial = FALSE;
-  gboolean colorRectangles = TRUE;
   
   while ((optc = getopt(argc, argv, optstring)) != -1)
     switch (optc) 
@@ -451,10 +450,10 @@ int main(int argc, char **argv)
 	}
       }                                 break;
       case 't': 
-        strncpy(bc->Title, optarg, 255);         break;
-      case 'u': colorRectangles = FALSE;           break;
+        strncpy(bc->Title, optarg, 255);		  break;
+      case 'u': bc->displayColors = FALSE;		  break;
       case 'X': bc->mksubfamilies_cutoff = atof(optarg);  break;
-      case 'z': bc->saveSeparator = *optarg;       break;
+      case 'z': bc->saveSeparator = *optarg;		  break;
       default : g_error("Illegal option");
     }
   

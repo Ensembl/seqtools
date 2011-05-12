@@ -242,23 +242,26 @@ static void drawSingleSequence(GtkWidget *widget,
   
   GdkGC *gc = gdk_gc_new(drawable);
   GtkAdjustment *hAdjustment = properties->hAdjustment;
-  
-  /* Loop through each character in the current display range and color
-   * the background */
-  int i = hAdjustment->value;
   const int displayLen = hAdjustment->page_size;
-  const int iMax = hAdjustment->value + displayLen;
   
-  for ( ; i < iMax; ++i)
+  if (properties->bc->displayColors)
     {
-      GdkColor bgColor;
-      findResidueBGcolor(properties->bc, alnp, i, &bgColor);
-      gdk_gc_set_foreground(gc, &bgColor);
+      /* Loop through each character in the current display range and color
+       * the background */
+      int i = hAdjustment->value;
+      const int iMax = hAdjustment->value + displayLen;
       
-      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
-      x += properties->charWidth;
+      for ( ; i < iMax; ++i)
+	{
+	  GdkColor bgColor;
+	  findResidueBGcolor(properties->bc, alnp, i, &bgColor);
+	  gdk_gc_set_foreground(gc, &bgColor);
+	  
+	  gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
+	  x += properties->charWidth;
+	}
     }
-
+  
   /* Draw the text for the current display range */
   GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_foreground(gc, textColor);

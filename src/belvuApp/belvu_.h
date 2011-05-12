@@ -384,6 +384,7 @@ typedef struct BelvuContextStruct
   gboolean rmEmptyColumnsOn;
   gboolean lowercaseOn;
   gboolean removingSeqs;	   /* Set to true if in the 'removing sequences' mode */
+  gboolean displayColors;	   /* Whether to display colors (faster without) */
   
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   

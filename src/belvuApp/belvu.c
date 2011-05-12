@@ -3223,6 +3223,7 @@ static void colorByResId(void)
 }
 
 
+/* toggles the 'display colors' option */
 static void colorRect(void)
 {
     colorRectangles = (!colorRectangles);
@@ -5744,6 +5745,7 @@ BelvuContext* createBelvuContext()
   bc->rmEmptyColumnsOn = TRUE;
   bc->lowercaseOn = FALSE;
   bc->removingSeqs = FALSE;
+  bc->displayColors = TRUE;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
