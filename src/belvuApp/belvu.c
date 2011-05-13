@@ -3190,7 +3190,7 @@ static void showColorCodesRedraw(void)
 	graphButton("OK", finishShowColorOK, 1.5, ++row*1.5+1);
 	graphButton("Cancel", finishShowColorCancel, 5.5, row*1.5+1);
 
-	if (bc->colorByResIdOn) setConsSchemeColors();
+	if (colorByResId(bc)) setConsSchemeColors();
     }
     graphColor(BLACK);
     belvuRedraw();
@@ -4992,11 +4992,24 @@ gboolean colorByConservation(BelvuContext *bc)
   return (bc->schemeType == BELVU_SCHEME_TYPE_CONS);
 }
 
+/* Returns true if we're coloring by residue */
+gboolean colorByResidue(BelvuContext *bc)
+{
+  return (bc->schemeType == BELVU_SCHEME_TYPE_RESIDUE);
+}
 
 /* Returns true if we're coloring by similarity */
 gboolean colorBySimilarity(BelvuContext *bc)
 {
   return (colorByConservation(bc) && bc->consScheme == BELVU_SCHEME_BLOSUM);
+}
+
+
+/* Returns true if we should only color residues above a set threshold */
+gboolean colorByResId(BelvuContext *bc)
+{
+  /* This only applies in color-by-residue mode */
+  return (colorByResidue(bc) && bc->colorByResIdOn);
 }
 
 
@@ -5151,11 +5164,12 @@ void updateSchemeColors(BelvuContext *bc)
 {
   /* Set the residue colors if coloring by residue. We need to do this first if
    * colorByResIdOn is true because setConsSchemeColors uses its results. */
-  if (bc->schemeType == BELVU_SCHEME_TYPE_RESIDUE)
+  if (colorByResidue(bc))
     setResidueSchemeColors(bc);
 
-  /* Set the color scheme if coloring by conservation or by residue id */
-  if (bc->schemeType == BELVU_SCHEME_TYPE_CONS || bc->colorByResIdOn)
+  /* Set the color scheme if coloring by conservation or if applying a 
+   * threshold when coloring by residue */
+  if (colorByConservation(bc) || colorByResId(bc))
     setConsSchemeColors(bc);
 }
 
@@ -5283,7 +5297,7 @@ void setConsSchemeColors(BelvuContext *bc)
               else
                 id = (double)bc->conservCount[k][i]/nseqeff;
               
-              if (bc->colorByResIdOn) 
+              if (colorByResId(bc)) 
                 {
                   if (id*100.0 > bc->colorByResIdCutoff)
                     bc->colorMap[k][i] = color[(unsigned char)(b2a[k])];

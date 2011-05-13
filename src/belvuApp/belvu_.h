@@ -426,7 +426,9 @@ void                                      initResidueColors(BelvuContext *bc);
 void                                      initMarkupColors(void);              
 void                                      readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr);
 gboolean				  colorByConservation(BelvuContext *bc);
+gboolean				  colorByResidue(BelvuContext *bc);
 gboolean				  colorBySimilarity(BelvuContext *bc);
+gboolean                                  colorByResId(BelvuContext *bc);
 
 
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);

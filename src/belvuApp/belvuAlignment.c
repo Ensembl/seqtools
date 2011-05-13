@@ -164,7 +164,7 @@ static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, GdkColor *res
     colorNum = BOXCOLOR;
   else if (alnp->markup)
     colorNum = getMarkupColor(alnp->seq[i]);
-  else if (colorByConservation(bc) || bc->colorByResIdOn)
+  else if (colorByConservation(bc) || colorByResId(bc))
     colorNum = getConservColor(bc, alnp->seq[i], i);
   else
     colorNum = getColor(alnp->seq[i]);
