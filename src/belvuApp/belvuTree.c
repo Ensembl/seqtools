@@ -879,6 +879,17 @@ static TreeNode* createEmptyTreeNode()
 }
 
 
+/* Swap the left and right branches of the given node */
+static void treeSwapNode(TreeNode *node)
+{
+  void *tmp;
+  
+  tmp = node->left;
+  node->left = node->right;
+  node->right = tmp;
+}
+
+
 /* Rerooting works roughly this way:
  
  - A new node is created with one child being the node chosen as new root 
@@ -894,7 +905,7 @@ static TreeNode* createEmptyTreeNode()
  Note that treeReroot destroys the old tree, since it reuses the nodes.  
  Use treecpy if you still need it for something later.
  */
-static TreeNode *treeReroot(BelvuContext *bc, TreeNode *node)
+static TreeNode *treeReroot(TreeNode *node, TreeNode **treeHead)
 {
   TreeNode *newroot = createEmptyTreeNode();
   
@@ -908,7 +919,9 @@ static TreeNode *treeReroot(BelvuContext *bc, TreeNode *node)
   treeBalanceByWeight(newroot->left, newroot->right, 
                       &newroot->left->branchlen, &newroot->right->branchlen);
   
-  bc->treeHead = newroot;
+  if (treeHead)
+    *treeHead = newroot;
+  
   return newroot;
 }
 
@@ -933,7 +946,7 @@ static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *tree)
   if (bc->treeBestBalancedNode == tree)
     return tree;
   else
-    return treeReroot(bc, bc->treeBestBalancedNode);
+    return treeReroot(bc->treeBestBalancedNode, &bc->treeHead);
 }
 
 
@@ -1330,49 +1343,8 @@ void belvuTreeRedrawAll(gpointer widget, gpointer data)
   gtk_widget_queue_draw(belvuTree);
 }
 
-/* Draws clickable boxes for horizontal lines.  The routine must be in sync with
- * treeDrawNode, but can not be integrated since a box may
- * accidentally overwrite some text.  Therefore all boxes must be 
- * drawn before any text or lines.
- */
-//static double treeDrawNodeBox(BelvuContext *bc, Tree *tree, TreeNode *node, double x) 
-//{
-//  double y, yl, yr;
-//  int box;
-//  
-//  if (!node) 
-//    return 0.0;
-//  
-//  yl = treeDrawNodeBox(bc, tree, node->left, x + node->branchlen*treeScale);
-//  yr = treeDrawNodeBox(bc, tree, node->right, x + node->branchlen*treeScale);
-//  
-//  if (yl) 
-//    {
-//      y = (yl + yr) / 2.0;
-//    }
-//  else 
-//    {
-//      y = bc->tree_y++;
-//    }
-//  
-//  /* Make box around horizontal lines */
-//  //  box = graphBoxStart();
-//  //  graphLine(x + node->branchlen*treeScale, y, x, y);
-//  //  oldlinew = graphLinewidth(0.0); graphColor(BG);
-//  //  graphRectangle(x + node->branchlen*treeScale, y-0.5, x, y+0.5);
-//  //  graphColor(BLACK); graphLinewidth(oldlinew);
-//  //  graphBoxEnd();
-//  
-//  //    graphAssociate(assVoid(100+box), node);
-//  
-//  node->box = box;
-//  tree->lastNodeBox = box;
-//  
-//  return y;
-//}
 
-
-static void createClickableArea(BelvuTreeProperties *properties,
+static void createClickableRect(BelvuTreeProperties *properties,
                                 TreeNode *node,
                                 const int x,
                                 const int y,
@@ -1496,7 +1468,7 @@ static double treeDrawNode(BelvuContext *bc,
         }
       
       /* Make a clickable box for the sequence name */
-      createClickableArea(properties, node, textX, textY, nameWidth, properties->charHeight, FALSE);
+      createClickableRect(properties, node, textX, textY, nameWidth, properties->charHeight, FALSE);
 
       if (properties->showOrganism && node->organism) 
         {
@@ -1506,7 +1478,7 @@ static double treeDrawNode(BelvuContext *bc,
   
   /* Horizontal branches */
   gdk_draw_line(drawable, gc, curX, y, x, y);
-  createClickableArea(properties, node, x, y - properties->charHeight/2, curX - x, properties->charHeight, TRUE);
+  createClickableRect(properties, node, x, y - properties->charHeight/2, curX - x, properties->charHeight, TRUE);
   
   if (properties->showBranchLen && node->branchlen) 
     {
@@ -1542,6 +1514,13 @@ static double treeDrawNode(BelvuContext *bc,
 }
 
 
+static void destroyTree(Tree **tree)
+{
+  g_free(*tree);
+  *tree = NULL;
+}
+
+
 static Tree* createEmptyTree()
 {
   Tree *result = g_malloc(sizeof *result);
@@ -1557,6 +1536,10 @@ static Tree* createEmptyTree()
 static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreeProperties *properties)
 {
   BelvuContext *bc = properties->bc;
+
+  /* Clear any previous clickable rects that were created */
+  g_array_unref(properties->clickableRects);
+  properties->clickableRects = g_array_new(FALSE, FALSE, sizeof(ClickableRect));
   
   Tree *treeStruct = createEmptyTree();
   treeStruct->head = properties->treeHead;
@@ -1643,6 +1626,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
       //                14, tree_y-0.5);
     }
   
+  destroyTree(&treeStruct);
   g_object_unref(gc);
 }
 
@@ -1694,6 +1678,53 @@ static gboolean pointInRect(const int x, const int y, GdkRectangle *rect)
 }
 
 
+/* Called when the tree has been left-clicked */
+static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
+{
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+
+  /* We store a list of rectangles in our properties that tell us where 
+   * clickable items lie. Loop through them and see if the click point lies
+   * inside any of them. */
+  int i = 0;
+  for ( ; i < properties->clickableRects->len; ++i)
+    {
+      ClickableRect *clickRect = &g_array_index(properties->clickableRects, ClickableRect, i);
+      
+      if (pointInRect(x, y, &clickRect->rect))
+        {
+          if (clickRect->isBranch)
+            {
+              /* We clicked on a tree branch - swap or re-root */
+              if (properties->pickMode == NODESWAP)
+                {
+                  treeSwapNode(clickRect->node);
+                }
+              else if (properties->pickMode == NODEROOT)
+                {
+                  treeReroot(clickRect->node, &properties->treeHead);
+                }
+              else
+                { 
+                  g_warning("Program error: unrecognised tree selection mode '%d'.\n", properties->pickMode);
+                }
+              
+              belvuTreeRedrawAll(belvuTree, NULL);
+              onTreeOrderChanged(properties->bc);
+            }
+          else if (clickRect->node)
+            {
+              /* We clicked on a node name - select this alignment */
+              properties->bc->highlightedAln = clickRect->node->aln;
+              onSelectionChanged(properties->bc);
+            }
+          
+          break; /* we shouldn't have overlapping items, so exit once we have found one */
+        }
+    }
+  
+}
+
 static gboolean onButtonPressBelvuTree(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
@@ -1701,30 +1732,7 @@ static gboolean onButtonPressBelvuTree(GtkWidget *widget, GdkEventButton *event,
   if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
     {
       GtkWidget *belvuTree = GTK_WIDGET(data);
-      BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
-      
-      int i = 0;
-      for ( ; i < properties->clickableRects->len; ++i)
-        {
-          ClickableRect *clickRect = &g_array_index(properties->clickableRects, ClickableRect, i);
-          
-          if (pointInRect(event->x, event->y, &clickRect->rect))
-            {
-              if (clickRect->isBranch)
-                {
-                  /* to do */
-                }
-              else if (clickRect->node)
-                {
-                  /* We clicked on a node name - select this alignment */
-                  properties->bc->highlightedAln = clickRect->node->aln;
-                  onSelectionChanged(properties->bc);
-                }
-              
-              break;
-            }
-        }
-      
+      onLeftClickTree(belvuTree, event->x, event->y);
       handled = TRUE;
     }
   

@@ -2229,17 +2229,6 @@ static treeNode *treecpy(treeNode *node)
 }
 
 
-static void treeSwapNode(treeNode *node)
-{
-    void *tmp;
-
-    tmp = node->left;
-    node->left = node->right;
-    node->right = tmp;
-}
-
-
-
 /* Save tree in New Hampshire format */
 static void treePrintNH_init(void) {
     FILE *file;

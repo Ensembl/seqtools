@@ -806,7 +806,8 @@ void removeByScore(BelvuContext *bc, GtkWidget *belvuAlignment, const double cut
 }
 
 
-/* Center the vertical scrollbar on the currently highlighted sequence */
+/* Scroll the alignment list if necessary to make sure that the currently
+ * highlighted sequence is visible */
 void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
 {
   if (bc->highlightedAln) 
@@ -814,19 +815,12 @@ void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
       BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
       GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->seqArea));
       
-      int newIdx = bc->highlightedAln->nr - 1;
-      int numLines = belvuAlignment->allocation.height / properties->charHeight;
-      newIdx = newIdx - numLines / 2;
-      int newVal = newIdx * properties->charHeight;
+      /* Create the range of y coords that we want to be in range */
+      const int newIdx = bc->highlightedAln->nr - 1;
+      const int lower = properties->seqRect.y + (newIdx * properties->charHeight);
+      const int upper = lower + properties->charHeight;
       
-      if (newVal < vAdjustment->lower)
-        newVal = vAdjustment->lower;
-      
-      if (newVal > vAdjustment->upper - vAdjustment->page_size)
-        newVal = vAdjustment->upper - vAdjustment->page_size;
-      
-      vAdjustment->value = newVal;
-      gtk_adjustment_value_changed(vAdjustment);
+      gtk_adjustment_clamp_page(vAdjustment, lower, upper);
     }
 }
 

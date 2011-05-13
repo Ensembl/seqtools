@@ -1555,6 +1555,12 @@ void onSelectionChanged(BelvuContext *bc)
 }
 
 
+/* This is called after a tree has changed */
+void onTreeOrderChanged(BelvuContext *bc)
+{
+//  belvuAlignmentRedrawAll(bc->belvuAlignment);              
+}
+
 /***********************************************************
  *                           Events                        *
  ***********************************************************/

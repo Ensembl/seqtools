@@ -49,5 +49,6 @@ GtkWidget*            createBelvuMenu(GtkWidget *window, const char *path, GtkUI
 gboolean              onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
 
 void                  onSelectionChanged(BelvuContext *bc);
+void                  onTreeOrderChanged(BelvuContext *bc);
 
 #endif /* _belvuwindow_h_included_ */
