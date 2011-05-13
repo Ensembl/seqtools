@@ -178,7 +178,7 @@ static const GtkActionEntry menuEntries[] = {
   { "SaveAs",	GTK_STOCK_SAVE_AS,    "Save _as...",          NULL,         "Save alignment as",                G_CALLBACK(onSaveAsMenu)},
   { "Output",	NULL,                 "_Output score/coords", NULL,         "Output current alignment's score and coords",  G_CALLBACK(onOutputMenu)},
   { "Compare",	NULL,                 "Co_mpare all",         NULL,         "Compare all vs all, list identity",            G_CALLBACK(onCompareMenu)},
-  { "CleanUp",	GTK_STOCK_CLOSE,      "Clean _up windows",    NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)},
+  { "CleanUp",	GTK_STOCK_CLEAR,      "Clean _up windows",    NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)},
 
   {"rmPicked",               NULL,    "Remove highlighted line",  NULL, "Remove highlighted line",  G_CALLBACK(onrmPickedMenu)},
   {"rmMany",		     NULL,    "Remove many sequences",    NULL, "Remove many sequences",    G_CALLBACK(onRemoveSeqsMenu)},
@@ -579,8 +579,20 @@ static void onCompareMenu(GtkAction *action, gpointer data)
 {
 }
 
+/* This just calls gtk_widget_destroy but accepts gpointer arguments so
+ * that we can call it from a foreach fucntion. */
+static void destroyWidget(gpointer widget, gpointer data)
+{
+  gtk_widget_destroy(GTK_WIDGET(widget));
+}
+
 static void onCleanUpMenu(GtkAction *action, gpointer data)
 {
+  /* Close all windows that were spawned from the main window */
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  g_slist_foreach(properties->bc->spawnedWindows, destroyWidget, NULL);
 }
 
 /* EDIT MENU ACTIONS */
