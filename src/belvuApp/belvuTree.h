@@ -53,7 +53,7 @@ void                      showTreeSettingsDialog(GtkWidget *belvuTree);
 GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, 
                                                           double *treeScale, double *lineWidth, 
                                                           gboolean *showBranchLen, gboolean *showOrganism,
-                                                          BelvuPickMode *pickMode);
+                                                          BelvuPickMode *pickMode, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr);
 
 void                      treeBootstrap(BelvuContext *bc);
 

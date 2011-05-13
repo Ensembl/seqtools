@@ -4539,7 +4539,8 @@ void treeSortBatch(BelvuContext *bc)
 {
   separateMarkupLines(bc);
   
-  bc->treeHead = treeMake(bc, FALSE);
+  if (!bc->treeHead)
+    bc->treeHead = treeMake(bc, FALSE);
   
   treeOrder(bc->treeHead, 1); /* Set nr field according to tree order */
   
@@ -5694,7 +5695,7 @@ BelvuContext* createBelvuContext()
   
   bc->belvuWindow = NULL;
   bc->spawnedWindows = NULL;
-  bc->treeWindows = NULL;
+  bc->belvuTree = NULL;
   bc->belvuAlignment = NULL;
   
   bc->defaultColors = NULL;

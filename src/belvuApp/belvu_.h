@@ -299,7 +299,7 @@ typedef struct BelvuContextStruct
 {
   GtkWidget *belvuWindow;          /* Pointer to the main belvu window, or NULL if it has not been created yet */
   GSList *spawnedWindows;          /* List of all top-level windows spawned from the main window */
-  GSList *treeWindows;             /* List of all tree windows associated with this session */
+  GtkWidget *belvuTree;            /* The tree window */
   GtkWidget *belvuAlignment;       /* The widget that draws the alignments for the main window */
   
   GArray *defaultColors;            /* Default colors used by Belvu */
