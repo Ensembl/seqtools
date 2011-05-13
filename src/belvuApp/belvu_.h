@@ -163,9 +163,11 @@ typedef enum _BelvuColorId
   {
     BELCOLOR_MIN,                             /* dummy value so that we don't get a zero ID */
     
-    BELCOLOR_BACKGROUND,                      /* background color for widgets */
+    BELCOLOR_BACKGROUND,                      /* default background color for general widgets */
     BELCOLOR_ALIGN_TEXT,                      /* text color for alignments */
-    BELCOLOR_TREE_DEFAULT,                    /* default line color for the tree */
+    BELCOLOR_TREE_BACKGROUND,                 /* background color for trees */
+    BELCOLOR_TREE_LINE,                       /* default line color for the tree */
+    BELCOLOR_TREE_TEXT,                       /* default text color for the tree */
     BELCOLOR_TREE_BOOTSTRAP,
     
     BELCOLOR_NUM_COLORS
@@ -474,7 +476,7 @@ GArray*                                   copyAlignArray(GArray *inputArr);
 void                                      columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcIdx);
 double                                    identity(char *s1, char *s2, const gboolean penalize_gaps);
 
-void                                      convertColorNumToGdkColor(const int colorNum, GdkColor *result);
+void                                      convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, GdkColor *result);
 void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight);
 void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight);
 

@@ -154,7 +154,7 @@ void belvuAlignmentRedrawAll(GtkWidget *belvuAlignment)
 
 
 /* Find the background color of the given residue index i in the given alignment */
-static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, GdkColor *result) 
+static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, const gboolean isSelected, GdkColor *result) 
 {
   int colorNum = 0;
 
@@ -169,11 +169,7 @@ static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, GdkColor *res
   else
     colorNum = getColor(alnp->seq[i]);
 
-  convertColorNumToGdkColor(colorNum, result);
-  
-  /* If this alignment is selected, use a slightly different shade to highlight it */
-  if (alnp == bc->highlightedAln)
-    getSelectionColor(result, result);
+  convertColorNumToGdkColor(colorNum, isSelected, result);
 }
 
 
@@ -250,11 +246,12 @@ static void drawSingleSequence(GtkWidget *widget,
        * the background */
       int i = hAdjustment->value;
       const int iMax = hAdjustment->value + displayLen;
+      const gboolean isSelected = (alnp == properties->bc->highlightedAln);
       
       for ( ; i < iMax; ++i)
 	{
 	  GdkColor bgColor;
-	  findResidueBGcolor(properties->bc, alnp, i, &bgColor);
+	  findResidueBGcolor(properties->bc, alnp, i, isSelected, &bgColor);
 	  gdk_gc_set_foreground(gc, &bgColor);
 	  
 	  gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
@@ -286,20 +283,20 @@ static gboolean colorsEqual(GdkColor *color1, GdkColor *color2)
  */
 static void bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result)
 {
-  convertColorNumToGdkColor(bc->maxbgColor, result);
+  convertColorNumToGdkColor(bc->maxbgColor, FALSE, result);
   if (colorsEqual(bgColor, result))
-    return convertColorNumToGdkColor(bc->maxfgColor, result);
+    return convertColorNumToGdkColor(bc->maxfgColor, FALSE, result);
   
-  convertColorNumToGdkColor(bc->midbgColor, result);
+  convertColorNumToGdkColor(bc->midbgColor, FALSE, result);
   if (colorsEqual(bgColor, result))
-    return convertColorNumToGdkColor(bc->midfgColor, result);
+    return convertColorNumToGdkColor(bc->midfgColor, FALSE, result);
   
-  convertColorNumToGdkColor(bc->lowbgColor, result);
+  convertColorNumToGdkColor(bc->lowbgColor, FALSE, result);
   if (colorsEqual(bgColor, result))
-    return convertColorNumToGdkColor(bc->lowfgColor, result);
+    return convertColorNumToGdkColor(bc->lowfgColor, FALSE, result);
   
   /* Anything else is either uncolored or markup - make them black */
-  convertColorNumToGdkColor(BLACK, result);
+  convertColorNumToGdkColor(BLACK, FALSE, result);
 }
 
 
@@ -428,7 +425,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   
                   if (!isGap(alnp->seq[i]) && alnp->seq[i] != ' ') 
                     {
-                      findResidueBGcolor(bc, alnp, i, pBgColor);
+                      findResidueBGcolor(bc, alnp, i, FALSE, pBgColor);
                       gdk_gc_set_foreground(gc, pBgColor);
                       
                       gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
@@ -441,7 +438,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   if (colorByConservation(bc))
                     bg2fgColor(bc, pBgColor, &fgColor);
                   else
-                    convertColorNumToGdkColor(BLACK, &fgColor);
+                    convertColorNumToGdkColor(BLACK, FALSE, &fgColor);
                   
                   gdk_gc_set_foreground(gc, &fgColor);
 

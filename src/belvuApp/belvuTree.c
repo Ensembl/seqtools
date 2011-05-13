@@ -1432,7 +1432,7 @@ static double treeDrawNode(BelvuContext *bc,
   else 
     {
       /* Sequence name */
-      int box ;
+      const gboolean isSelected = (bc->highlightedAln && bc->highlightedAln == node->aln);
       
       y = bc->tree_y * properties->charHeight;
       bc->tree_y++;
@@ -1450,7 +1450,7 @@ static double treeDrawNode(BelvuContext *bc,
             {
               GdkColor color;
               int colorNum = g_array_index(bc->organismArr, ALN, ip).color;
-              convertColorNumToGdkColor(colorNum, &color);
+              convertColorNumToGdkColor(colorNum, FALSE, &color); /* we currently don't change the text color when the node is selected */
               
               gdk_gc_set_foreground(gc, &color);
 	    }
@@ -1461,25 +1461,34 @@ static double treeDrawNode(BelvuContext *bc,
           gdk_gc_set_foreground(gc, defaultColor);
         }
       
-      /* Make clickable box for sequence */
+      /* Draw the sequence name */
       GdkGC *gcTmp = gdk_gc_new(drawable);
       gdk_gc_set_foreground(gcTmp, defaultColor);
       
       int nameWidth = 0, nameHeight = 0;
-      drawText(widget, drawable, gcTmp, curX + DEFAULT_XPAD, y - properties->charHeight / 2, node->name, &nameWidth, &nameHeight);
-      createClickableArea(properties, node, curX + DEFAULT_XPAD, y - properties->charHeight/ 2, nameWidth, properties->charHeight, FALSE);
-      //      graphAssociate(assVoid(100+box), node);
-      
-      if (bc->highlightedAln && node->aln == bc->highlightedAln) 
+      const int textX = curX + DEFAULT_XPAD;
+      const int textY = y - properties->charHeight / 2;
+
+      drawText(widget, drawable, gcTmp, textX, textY, node->name, &nameWidth, &nameHeight);
+
+      if (isSelected)
         {
-          //graphBoxDraw(box, WHITE, BLACK);
-          tree->currentPickedBox = box;
-	}
-      else if (node->aln) 
-        {
-          //graphBoxDraw(box, BLACK, node->aln->color);
-	}	    
+          /* The node is selected, so highlight it */
+          GdkColor *color = getGdkColor(BELCOLOR_TREE_BACKGROUND, bc->defaultColors, isSelected, FALSE);
+          gdk_gc_set_foreground(gcTmp, color);
+          gdk_draw_rectangle(drawable, gcTmp, TRUE, textX - DEFAULT_XPAD/2, textY - 1, nameWidth + DEFAULT_XPAD, nameHeight + 2);
+          
+          /* This is a bit hacky because it re-draws text we've already drawn because it was covered by the
+           * background. We should rearrange things slightly so that we can get nameWidth and nameHeight another
+           * way so we can avoidthis, but it's a very small performance hit so not worth worrying about. */
+          color = getGdkColor(BELCOLOR_TREE_TEXT, bc->defaultColors, isSelected, FALSE);
+          gdk_gc_set_foreground(gcTmp, color);
+          drawText(widget, drawable, gcTmp, curX + DEFAULT_XPAD, y - properties->charHeight / 2, node->name, NULL, NULL);
+        }
       
+      /* Make a clickable box for the sequence name */
+      createClickableArea(properties, node, textX, textY, nameWidth, properties->charHeight, FALSE);
+
       if (properties->showOrganism && node->organism) 
         {
           drawText(widget, drawable, gc, curX + nameWidth + DEFAULT_XPAD * 2, y - properties->charHeight / 2, node->organism, NULL, NULL);
@@ -1547,7 +1556,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
   bc->tree_y = 1;
 
   GdkGC *gc = gdk_gc_new(drawable);
-  GdkColor *defaultColor = getGdkColor(BELCOLOR_TREE_DEFAULT, bc->defaultColors, FALSE, FALSE);
+  GdkColor *defaultColor = getGdkColor(BELCOLOR_TREE_LINE, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_line_attributes(gc, properties->lineWidth * properties->charWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
   
   treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, treeStruct, treeStruct->head, properties->treeRect.x);

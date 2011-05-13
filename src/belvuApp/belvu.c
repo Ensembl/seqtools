@@ -4966,10 +4966,14 @@ static const char* convertColorNumToStr(const int colorNum)
 
 
 /* Convert an old-style ACEDB color number to a GdkColor */
-void convertColorNumToGdkColor(const int colorNum, GdkColor *result)
+void convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, GdkColor *result)
 {
   const char *colorStr = convertColorNumToStr(colorNum);
   getColorFromString(colorStr, result, NULL);
+  
+  /* If an item is selected, we use a slightly different shade of the same color. */
+  if (isSelected)
+    getSelectionColor(result, result);
 }
 
 
