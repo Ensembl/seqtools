@@ -215,6 +215,7 @@ static const GtkToggleActionEntry toggleMenuEntries[] = {
 {"lowercase",            NULL, "Highlight lowercase characters",    NULL, "Highlight lowercase characters",    G_CALLBACK(onlowercaseMenu), FALSE},
 };
 
+
 /* Define the menu actions for radio-button menu entries */
 static const GtkRadioActionEntry schemeMenuEntries[] = {
 {"ColorByResidue",       NULL, "By _residue",                       NULL, "Color by residue",                  BELVU_SCHEME_TYPE_RESIDUE},
@@ -1547,6 +1548,7 @@ void onSelectionChanged(BelvuContext *bc)
 {
   /* Redraw the alignment widget */
   belvuAlignmentRedrawAll(bc->belvuAlignment);
+  centerHighlighted(bc, bc->belvuAlignment);
   
   /* Redraw all of the trees */
   g_slist_foreach(bc->treeWindows, belvuTreeRedrawAll, NULL);

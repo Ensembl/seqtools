@@ -814,8 +814,19 @@ void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
       BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
       GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->seqArea));
       
-      vAdjustment->value = bc->highlightedAln->nr * properties->charHeight;
-      gtk_adjustment_changed(vAdjustment);
+      int newIdx = bc->highlightedAln->nr - 1;
+      int numLines = belvuAlignment->allocation.height / properties->charHeight;
+      newIdx = newIdx - numLines / 2;
+      int newVal = newIdx * properties->charHeight;
+      
+      if (newVal < vAdjustment->lower)
+        newVal = vAdjustment->lower;
+      
+      if (newVal > vAdjustment->upper - vAdjustment->page_size)
+        newVal = vAdjustment->upper - vAdjustment->page_size;
+      
+      vAdjustment->value = newVal;
+      gtk_adjustment_value_changed(vAdjustment);
     }
 }
 
