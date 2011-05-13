@@ -45,8 +45,9 @@
 
 
 
-void                      createAndShowBelvuTree(BelvuContext *bc);
-void                      createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
+GtkWidget*                createAndShowBelvuTree(BelvuContext *bc);
+GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
+
 void                      showTreeSettingsDialog(GtkWidget *belvuTree);
 
 GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, 
@@ -55,6 +56,8 @@ GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkW
                                                           BelvuPickMode *pickMode);
 
 void                      treeBootstrap(BelvuContext *bc);
+
+void                      belvuTreeRedrawAll(gpointer belvuTree, gpointer data);
 
 
 #endif /* _belvutree_h_included_ */

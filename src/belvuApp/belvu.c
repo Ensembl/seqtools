@@ -5695,10 +5695,8 @@ void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcI
 
 
 /***********************************************************
- *		          Utilities			   *
+ *		          Context			   *
  ***********************************************************/
-
-
 
 /* Create the context, which contains all program-wide variables */
 BelvuContext* createBelvuContext()
@@ -5706,6 +5704,9 @@ BelvuContext* createBelvuContext()
   BelvuContext *bc = g_malloc(sizeof *bc);
   
   bc->belvuWindow = NULL;
+  bc->spawnedWindows = NULL;
+  bc->treeWindows = NULL;
+  bc->belvuAlignment = NULL;
   
   bc->defaultColors = NULL;
   
@@ -5828,6 +5829,10 @@ void destroyBelvuContext(BelvuContext **bc)
     }
 }
 
+
+/***********************************************************
+ *                           Utilities                     *
+ ***********************************************************/
 
 /* This function just returns the value in the b2a array at the given index */
 char b2aIndex(const int idx)

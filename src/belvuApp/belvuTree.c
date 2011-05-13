@@ -144,6 +144,8 @@ typedef struct _BelvuTreeProperties
     int charWidth;
     int charHeight;
     
+    BelvuBuildMethod treeMethod;    /* The build method used to create this tree */
+    BelvuDistCorr distCorr;         /* The distance correction method used to create this tree */
     double lineWidth;               /* The line width of the branches */
     double treeScale;               /* The tree scale */
     gboolean showBranchLen;         /* Whether to show the branch lengths on the branches */
@@ -172,6 +174,10 @@ static BelvuTreeProperties* belvuTreeGetProperties(GtkWidget *widget)
 static void onDestroyBelvuTree(GtkWidget *belvuTree)
 {
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+
+  /* We must remove the tree from the list of spawned windows and list of trees */
+  properties->bc->spawnedWindows = g_slist_remove(properties->bc->spawnedWindows, belvuTree);
+  properties->bc->treeWindows = g_slist_remove(properties->bc->treeWindows, belvuTree);
   
   if (properties)
     {
@@ -200,6 +206,8 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
       properties->charHeight = 14;
       properties->charWidth = 8;
 
+      properties->treeMethod = bc->treeMethod;
+      properties->distCorr = bc->treeDistCorr;
       properties->lineWidth = bc->treeLineWidth;
       properties->treeScale = bc->treeScale;
       properties->showBranchLen = bc->treeShowBranchlen;
@@ -1312,8 +1320,9 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
  ***********************************************************/
 
 /* Clear any cached drawables and redraw everything */
-static void redrawBelvuTree(GtkWidget *belvuTree)
+void belvuTreeRedrawAll(gpointer widget, gpointer data)
 {
+  GtkWidget *belvuTree = GTK_WIDGET(widget);
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
   
   widgetClearCachedDrawable(properties->treeArea, NULL);
@@ -1572,7 +1581,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
   int xMax = 0;
   
   /* Draw scale */
-  if (bc->treeMethod == UPGMA) 
+  if (properties->treeMethod == UPGMA) 
     {
       xMax = xStart + (100 * xscale);
 
@@ -1614,7 +1623,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
       gdk_draw_line(drawable, gc, x + xWidth, y - markerHt, x + xWidth, y + markerHt);
     }
   
-  if (bc->treeMethod == NJ) 
+  if (properties->treeMethod == NJ) 
     {	
       int y = bc->tree_y * yscale;
 
@@ -1709,7 +1718,7 @@ static gboolean onButtonPressBelvuTree(GtkWidget *widget, GdkEventButton *event,
                 {
                   /* We clicked on a node name - select this alignment */
                   properties->bc->highlightedAln = clickRect->node->aln;
-                  belvuWindowSelectionChanged(properties->bc->belvuWindow);
+                  onSelectionChanged(properties->bc);
                 }
               
               break;
@@ -1869,7 +1878,7 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
        * properties. Then refresh the window. Destroy if successful. */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
       calculateBelvuTreeBorders(belvuTree);
-      redrawBelvuTree(belvuTree);
+      belvuTreeRedrawAll(belvuTree, NULL);
       break;
       
     case GTK_RESPONSE_APPLY:
@@ -1877,7 +1886,7 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
       calculateBelvuTreeBorders(belvuTree);
-      redrawBelvuTree(belvuTree);
+      belvuTreeRedrawAll(belvuTree, NULL);
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -2038,7 +2047,7 @@ static void setTreeWindowStyleProperties(GtkWidget *window)
 
 
 /* Display an existing tree. Opens in a new window. */
-void createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
+GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
 {
   /* Create the window */
   GtkWidget *belvuTree = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -2052,6 +2061,12 @@ void createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   gtk_window_set_title(GTK_WINDOW(belvuTree), title);
   g_free(title);
   
+  /* We must add all toplevel windows to the list of spawned windows */
+  bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, belvuTree);
+
+  /* Remember all trees that we create so that we can perform updates on them */
+  bc->treeWindows = g_slist_prepend(bc->treeWindows, belvuTree);
+
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(belvuTree, bc, NULL);
   GtkWidget *contextmenu = createBelvuMenu(belvuTree, "/TreeContextMenu", uiManager);
@@ -2079,18 +2094,21 @@ void createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
 
   gtk_widget_show_all(belvuTree);
   gtk_window_present(GTK_WINDOW(belvuTree));
+  
+  return belvuTree;
 }
 
 
 /* Create a new tree and create a tree-window to display it. */
-void createAndShowBelvuTree(BelvuContext *bc)
+GtkWidget* createAndShowBelvuTree(BelvuContext *bc)
 {
   separateMarkupLines(bc);
   
   bc->treeHead = treeMake(bc, TRUE);
-  createBelvuTreeWindow(bc, bc->treeHead);
+  GtkWidget *belvuTree = createBelvuTreeWindow(bc, bc->treeHead);
   
   reInsertMarkupLines(bc);
   
+  return belvuTree;
 }
 

@@ -38,12 +38,12 @@
 #ifndef DEF_BELVU_P_H
 #define DEF_BELVU_P_H
 
+#include "seqtoolsUtils/utilities.h"
+#include "seqtoolsUtils/blxmsp.h"
+#include "seqtoolsUtils/version.h"
+#include <sys/param.h>
 #include <gtk/gtk.h>
 #include <config.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxmsp.h>
-#include <seqtoolsUtils/version.h>
-#include <sys/param.h>
 
 
 /*            blixem program version and information.                        */
@@ -298,6 +298,9 @@ typedef enum
 typedef struct BelvuContextStruct
 {
   GtkWidget *belvuWindow;          /* Pointer to the main belvu window, or NULL if it has not been created yet */
+  GSList *spawnedWindows;          /* List of all top-level windows spawned from the main window */
+  GSList *treeWindows;             /* List of all tree windows associated with this session */
+  GtkWidget *belvuAlignment;       /* The widget that draws the alignments for the main window */
   
   GArray *defaultColors;            /* Default colors used by Belvu */
   
@@ -479,6 +482,5 @@ double                                    identity(char *s1, char *s2, const gbo
 void                                      convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, GdkColor *result);
 void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight);
 void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight);
-
 
 #endif /* DEF_BELVU_P_H */

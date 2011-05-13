@@ -35,7 +35,8 @@
  *----------------------------------------------------------------------------
  */
 
-#include <belvuApp/belvuAlignment.h>
+#include "belvuApp/belvuAlignment.h"
+#include "belvuApp/belvuWindow.h"
 #include <math.h>
 
 
@@ -763,8 +764,8 @@ void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
   bc->highlightedAln = NULL;
   
   rmFinaliseGapRemoval(bc);
-  
   updateOnVScrollSizeChaged(belvuAlignment);  
+  onSelectionChanged(bc);
 }
 
 
@@ -831,10 +832,8 @@ static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *e
     {
       /* Select the clicked sequence */
       const int idx = (event->y - properties->seqRect.y) / properties->charHeight;
-    
       properties->bc->highlightedAln = &g_array_index(properties->bc->alignArr, ALN, idx);
-    
-      belvuAlignmentRedrawAll(belvuAlignment);
+      onSelectionChanged(properties->bc);
     
       handled = TRUE;
     }

@@ -35,10 +35,10 @@
  *----------------------------------------------------------------------------
  */
 
-#include <belvuApp/belvuWindow.h>
-#include <belvuApp/belvuAlignment.h>
-#include <belvuApp/belvuTree.h>
-#include <belvuApp/belvu_.h>
+#include "belvuApp/belvuWindow.h"
+#include "belvuApp/belvuAlignment.h"
+#include "belvuApp/belvuTree.h"
+#include "belvuApp/belvu_.h"
 #include <gtk/gtk.h>
 #include <string.h>
 
@@ -59,8 +59,7 @@ typedef struct _BelvuWindowProperties
     BelvuContext *bc;                   /* The belvu context */
     GtkActionGroup *actionGroup;        /* Holds the menu and toolbar actions */
     GtkWidget *statusBar;		/* Message bar at the bottom of the main window */
-    GtkWidget *belvuAlignment;		/* The widget that draws the alignments */
-  
+    
     GdkCursor *defaultCursor;		/* default cursor */
     GdkCursor *removeSeqsCursor;	/* cursor to use when removing sequences */
   } BelvuWindowProperties;
@@ -123,7 +122,7 @@ static void                      oneditColorCodesMenu(GtkAction *action, gpointe
 static void                      showHelpDialog();
 static void			 showAboutDialog(GtkWidget *parent);
 static void                      showWrapDialog(GtkWidget *belvuWindow);
-static void                      showBelvuAlignment(GtkWidget *belvuWindow, const int linelen, const gchar *title);
+static void                      createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
 static void			 showMakeNonRedundantDialog(GtkWidget *belvuWindow);
 static void			 showRemoveOutliersDialog(GtkWidget *belvuWindow);
@@ -590,7 +589,7 @@ static void onrmPickedMenu(GtkAction *action, gpointer data)
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  removeSelectedSequence(properties->bc, properties->belvuAlignment);
+  removeSelectedSequence(properties->bc, properties->bc->belvuAlignment);
 }
 
 static void onRemoveSeqsMenu(GtkAction *action, gpointer data)
@@ -615,7 +614,7 @@ static void onrmPartialSeqsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  removePartialSeqs(properties->bc, properties->belvuAlignment);
+  removePartialSeqs(properties->bc, properties->bc->belvuAlignment);
 }
 
 static void onmkNonRedundantPromptMenu(GtkAction *action, gpointer data)
@@ -703,7 +702,7 @@ static void onColorSchemeChanged(BelvuWindowProperties *properties)
   
   /* Update the display */
   updateSchemeColors(properties->bc);
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
 
@@ -750,8 +749,8 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
   const BelvuSortType sortType = gtk_radio_action_get_current_value(current);
   
   doSort(properties->bc, sortType);
-  centerHighlighted(properties->bc, properties->belvuAlignment);
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  centerHighlighted(properties->bc, properties->bc->belvuAlignment);
+  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
 
@@ -779,7 +778,7 @@ static void ontoggleColorByResIdMenu(GtkAction *action, gpointer data)
   
   /* Update the color scheme and redraw */
   updateSchemeColors(properties->bc);
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
 /* This pops up a dialog to set the color-by-res-id threshold, and turns the option on */
@@ -816,7 +815,7 @@ static void ondisplayColorsMenu(GtkAction *action, gpointer data)
   
   properties->bc->displayColors = !properties->bc->displayColors;
   
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
 static void onlowercaseMenu(GtkAction *action, gpointer data)
@@ -825,7 +824,7 @@ static void onlowercaseMenu(GtkAction *action, gpointer data)
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
   properties->bc->lowercaseOn = !properties->bc->lowercaseOn;
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
 static void oneditColorCodesMenu(GtkAction *action, gpointer data)
@@ -866,8 +865,7 @@ static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
 static void belvuWindowCreateProperties(GtkWidget *belvuWindow, 
 					BelvuContext *bc, 
 					GtkActionGroup *actionGroup,
-					GtkWidget *statusBar,
-					GtkWidget *belvuAlignment)
+					GtkWidget *statusBar)
 {
   if (belvuWindow)
     {
@@ -876,8 +874,7 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
       properties->bc = bc;
       properties->actionGroup = actionGroup;
       properties->statusBar = statusBar;
-      properties->belvuAlignment = belvuAlignment;
-    
+      
       properties->defaultCursor = NULL; /* get from gdkwindow once it is shown */
       properties->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
       
@@ -1104,7 +1101,7 @@ static void showRemoveGappySeqsDialog(GtkWidget *belvuWindow)
       const gdouble cutoff = g_strtod(inputText, NULL);
       
       BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-      removeGappySeqs(properties->bc, properties->belvuAlignment, cutoff);
+      removeGappySeqs(properties->bc, properties->bc->belvuAlignment, cutoff);
     }
   
   gtk_widget_destroy(dialog);
@@ -1130,7 +1127,7 @@ static void showMakeNonRedundantDialog(GtkWidget *belvuWindow)
       const gdouble cutoff = g_strtod(inputText, NULL);
       
       BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-      removeRedundantSeqs(properties->bc, properties->belvuAlignment, cutoff);
+      removeRedundantSeqs(properties->bc, properties->bc->belvuAlignment, cutoff);
     }
   
   gtk_widget_destroy(dialog);
@@ -1156,7 +1153,7 @@ static void showRemoveOutliersDialog(GtkWidget *belvuWindow)
       const gdouble cutoff = g_strtod(inputText, NULL);
       
       BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-      removeOutliers(properties->bc, properties->belvuAlignment, cutoff);
+      removeOutliers(properties->bc, properties->bc->belvuAlignment, cutoff);
     }
   
   gtk_widget_destroy(dialog);
@@ -1182,7 +1179,7 @@ static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
       const gdouble cutoff = g_strtod(inputText, NULL);
       
       BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-      removeByScore(properties->bc, properties->belvuAlignment, cutoff);
+      removeByScore(properties->bc, properties->bc->belvuAlignment, cutoff);
     }
   
   gtk_widget_destroy(dialog);
@@ -1218,7 +1215,7 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
     
       /* Update the color scheme and redraw */
       updateSchemeColors(properties->bc);
-      belvuAlignmentRedrawAll(properties->belvuAlignment);
+      belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
     }
   
   gtk_widget_destroy(dialog);  
@@ -1295,7 +1292,7 @@ static void showWrapDialog(GtkWidget *belvuWindow)
       
       const gchar *title = gtk_entry_get_text(GTK_ENTRY(titleEntry));
       
-      showBelvuAlignment(belvuWindow, linelen, title);
+      createWrapWindow(belvuWindow, linelen, title);
     }
   
   gtk_widget_destroy(dialog);
@@ -1342,7 +1339,15 @@ static void setWrapWindowStyleProperties(GtkWidget *window)
 }
 
 
-static void showBelvuAlignment(GtkWidget *belvuWindow, const int linelen, const gchar *title)
+static void destroyWrapWindow(GtkWidget *wrapWindow, gpointer data)
+{
+  /* We must remove the window from the list of spawned windows */
+  BelvuContext *bc = (BelvuContext*)data;
+  bc->spawnedWindows = g_slist_remove(bc->spawnedWindows, wrapWindow);
+}
+
+
+static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
@@ -1354,12 +1359,16 @@ static void showBelvuAlignment(GtkWidget *belvuWindow, const int linelen, const 
   gtk_window_set_title(GTK_WINDOW(wrapWindow), windowTitle);
   g_free(windowTitle);
   
+  /* We must add all toplevel windows to the list of spawned windows */
+  properties->bc->spawnedWindows = g_slist_prepend(properties->bc->spawnedWindows, wrapWindow);
+  
   /* Create the context menu and set a callback to show it */
   GtkUIManager *uiManager = createUiManager(wrapWindow, properties->bc, NULL);
   GtkWidget *contextmenu = createBelvuMenu(wrapWindow, "/WrapContextMenu", uiManager);
   
   gtk_widget_add_events(wrapWindow, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(wrapWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
+  g_signal_connect(G_OBJECT(wrapWindow), "destroy", G_CALLBACK(destroyWrapWindow), properties->bc);
   
   /* We'll place everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -1386,12 +1395,16 @@ static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointe
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
+    {
       /* Update the settings by calling all the callbacks, then create the tree.
        * Destroy the dialog if successful */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      
       BelvuContext *bc = (BelvuContext*)data;
       createAndShowBelvuTree(bc);
+
       break;
+    }
       
     case GTK_RESPONSE_CANCEL:
     case GTK_RESPONSE_REJECT:
@@ -1518,10 +1531,13 @@ static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFro
  ***********************************************************/
 
 /* This should be called whenever the selected sequence has changed */
-void belvuWindowSelectionChanged(GtkWidget *belvuWindow)
+void onSelectionChanged(BelvuContext *bc)
 {
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  belvuAlignmentRedrawAll(properties->belvuAlignment);
+  /* Redraw the alignment widget */
+  belvuAlignmentRedrawAll(bc->belvuAlignment);
+  
+  /* Redraw all of the trees */
+  g_slist_foreach(bc->treeWindows, belvuTreeRedrawAll, NULL);
 }
 
 
@@ -1658,8 +1674,8 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   /* Set the style properties */
   setStyleProperties(window, GTK_TOOLBAR(toolbar));
 
-  /* Create the alignment section */
-  GtkWidget *belvuAlignment = createBelvuAlignment(bc, NULL, UNSET_INT);
+  /* Create the alignment section. Store it in the context so that we can update it. */
+  bc->belvuAlignment = createBelvuAlignment(bc, NULL, UNSET_INT);
   
   /* We'll put everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -1667,7 +1683,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 
   gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), belvuAlignment, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), bc->belvuAlignment, TRUE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), statusBar, FALSE, FALSE, 0);
 
   /* Connect signals */
@@ -1681,7 +1697,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
 
-  belvuWindowCreateProperties(window, bc,  actionGroup, statusBar, belvuAlignment);
+  belvuWindowCreateProperties(window, bc, actionGroup, statusBar);
   
   gtk_widget_show_all(window);
   
