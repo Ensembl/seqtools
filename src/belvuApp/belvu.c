@@ -5701,6 +5701,8 @@ BelvuContext* createBelvuContext()
 {
   BelvuContext *bc = g_malloc(sizeof *bc);
   
+  bc->belvuWindow = NULL;
+  
   bc->defaultColors = NULL;
   
   bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);  /* was called 'Align' */

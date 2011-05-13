@@ -1694,14 +1694,14 @@ static gboolean onButtonPressBelvuTree(GtkWidget *widget, GdkEventButton *event,
             {
               if (clickRect->isBranch)
                 {
-                  printf("Clicked branch\n");
+                  /* to do */
                 }
-              
-              if (clickRect->node->name)
+              else if (clickRect->node)
                 {
-                  printf("clicked node %s\n", clickRect->node->name);
+                  /* We clicked on a node name - select this alignment */
+                  properties->bc->highlightedAln = clickRect->node->aln;
+                  belvuWindowSelectionChanged(properties->bc->belvuWindow);
                 }
-              
               
               break;
             }

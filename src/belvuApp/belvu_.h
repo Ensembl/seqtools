@@ -295,6 +295,8 @@ typedef enum
 
 typedef struct BelvuContextStruct
 {
+  GtkWidget *belvuWindow;          /* Pointer to the main belvu window, or NULL if it has not been created yet */
+  
   GArray *defaultColors;            /* Default colors used by Belvu */
   
   GArray *alignArr;

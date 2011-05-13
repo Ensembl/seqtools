@@ -1514,7 +1514,19 @@ static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFro
 
 
 /***********************************************************
- *                         Events                      *
+ *                           Updates                       *
+ ***********************************************************/
+
+/* This should be called whenever the selected sequence has changed */
+void belvuWindowSelectionChanged(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  belvuAlignmentRedrawAll(properties->belvuAlignment);
+}
+
+
+/***********************************************************
+ *                           Events                        *
  ***********************************************************/
 
 /* Mouse button handler */
@@ -1546,7 +1558,6 @@ gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer d
   
   return handled;
 }
-
 
 
 /***********************************************************
@@ -1611,11 +1622,16 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_name(window, MAIN_BELVU_WINDOW_NAME);
-  
+
+  /* Set a pointer to the main window in the context */
+  bc->belvuWindow = window;
+
+  /* Set the title */
   char *title = blxprintf("Belvu - %s", bc->Title);
   gtk_window_set_title(GTK_WINDOW(window), title);
   g_free(title);
   
+  /* Create the list of default colors */
   createBelvuColors(bc, window);
   
   /* Create the status bar */

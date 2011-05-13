@@ -48,4 +48,6 @@ GtkWidget*            createBelvuMenu(GtkWidget *window, const char *path, GtkUI
 
 gboolean              onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
 
+void                  belvuWindowSelectionChanged(GtkWidget *belvuWindow);
+
 #endif /* _belvuwindow_h_included_ */
