@@ -1729,7 +1729,8 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
                 }
               else if (properties->bc->treePickMode == NODEROOT)
                 {
-                  treeReroot(clickRect->node, &properties->treeHead);
+                  properties->bc->treeHead = treeReroot(clickRect->node, &properties->treeHead);
+                  properties->treeHead = properties->bc->treeHead;
                 }
               else
                 { 
