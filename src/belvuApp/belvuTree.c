@@ -1729,8 +1729,13 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
                 }
               else if (properties->bc->treePickMode == NODEROOT)
                 {
+                  /* Re-routing changes the tree's head node, so make sure
+                   * to update it in the context as well as our properties. */
                   properties->bc->treeHead = treeReroot(clickRect->node, &properties->treeHead);
                   properties->treeHead = properties->bc->treeHead;
+                  
+                  /* Re-routing can also affect the drawing area size, so recalculate borders */
+                  calculateBelvuTreeBorders(belvuTree);
                 }
               else
                 { 
