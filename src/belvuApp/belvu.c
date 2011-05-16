@@ -4210,6 +4210,12 @@ gint nrorder(gconstpointer xIn, gconstpointer yIn)
 
 void scoreSort(BelvuContext *bc)
 {
+  if (!bc->displayScores) 
+    { 
+      g_critical("No scores available.\n");
+      return;
+    }
+
   ALN aln;
   initAln(&aln);
 
@@ -4292,15 +4298,6 @@ static void organismSort(BelvuContext *bc)
   arrayOrder(bc->alignArr);
 }
 
-static void scoreSortBatch(GArray *alignArr, const gboolean displayScores)
-{
-  if (!displayScores) 
-    g_critical("No scores available.\n");
-  
-  g_array_sort(alignArr, scoreorder);
-  arrayOrder(alignArr);
-}
-
 
 void highlightScoreSort(char mode, BelvuContext *bc)
 {
@@ -4360,8 +4357,8 @@ void highlightScoreSort(char mode, BelvuContext *bc)
   
   if (!alignFind(bc->alignArr, &aln, &i)) 
     {
-      g_critical("Cannot find back highlighted seq after sort - probably a bug");
-      bc->highlightedAln = 0;
+      g_critical("Program error: cannot find back highlighted seq after sort.\n");
+      bc->highlightedAln = NULL;
     }
   else
     {
@@ -4380,15 +4377,16 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType)
   
   switch(sortType) 
   {
-    case BELVU_SORT_ALPHA :	  g_array_sort(bc->alignArr, alphaorder);	     break;
-    case BELVU_SORT_ORGANISM :	  g_array_sort(bc->alignArr, organismorder);	     break;
-    case BELVU_SORT_SCORE :	  scoreSortBatch(bc->alignArr, bc->displayScores);   break;
-    case BELVU_SORT_TREE  :	  treeSort(bc);    break;
-    case BELVU_SORT_CONS  :	  break; /* sort by nrorder - already done */
+    case BELVU_SORT_ALPHA :	  alphaSort(bc);                        break;
+    case BELVU_SORT_ORGANISM :	  organismSort(bc);                     break;
+    case BELVU_SORT_SCORE :	  scoreSort(bc);                        break;
+    case BELVU_SORT_TREE  :	  treeSort(bc);                         break;
+    case BELVU_SORT_CONS  :	  /* sort by nrorder - already done */  break; 
     
     case BELVU_SORT_SIM :
       bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
-      highlightScoreSort('P', bc); break;
+      highlightScoreSort('P', bc); 
+      break;
     
     case BELVU_SORT_ID : 
       bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
@@ -5571,8 +5569,12 @@ gboolean alignFind(GArray *alignArr, ALN *obj, int *idx)
 void arrayOrder(GArray *alignArr)
 {
   int i = 0;
+  
   for (i = 0; i < alignArr->len; ++i) 
-    g_array_index(alignArr, ALN, i).nr = i + 1;
+    {
+      ALN *alnp = &g_array_index(alignArr, ALN, i);
+      alnp->nr = i + 1;
+    }
 }
 
 
