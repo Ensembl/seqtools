@@ -1154,28 +1154,6 @@ static void highlight(int ON)
 	}
 }
 
-/* General purpose routine to convert a string to ALN struct.
-   Note: only fields Name, Start, End are filled!
- */
-static void str2aln(char *src, ALN *alnp) {
-
-    char *tmp = g_malloc(strlen(src)+1) ;
-
-    strcpy(tmp, src);
-    stripCoordTokens(tmp);
-    if (sscanf(tmp, "%s%d%d", alnp->name, &alnp->start, &alnp->end) != 3)
-      {
-	messout("Name to field conversion failed for %s (%s)", src, tmp);
-	return;
-      }
-
-    if (strlen(alnp->name) > MAXNAMESIZE)
-      fatal("buffer overrun in %s !!!!!!!!!\n", "str2aln") ;
-
-    g_free(tmp);
-}
-
-
 
 /* Action to picking a box in a tree window
 */
@@ -2316,53 +2294,6 @@ static void printMtx(double **mtx) {
 	    printf("%6.2f ", mtx[i][j]);
 	printf ("\n");
     }
-}
-
-
-
-/* Find back the ALN pointers lost in treeSortBatch
-*/
-static void treeFindAln(treeNode *node) {
-
-    if (!node->name) return;
-
-    str2aln(node->name, &aln);
-
-    if (!alignFind(Align, &aln, &ip)) {
-	messout("Cannot find back seq after sort - probably a bug");
-    }
-    else
-	node->aln = arrp(Align, ip, ALN);
-}
-
-static void treeSort(void)
-{
-    ALN aln;
-    initAln(&aln);
-  
-    if (bc->highlightedAln)
-	alncpy(&aln, bc->highlightedAln);
-    
-    treeSortBatch();
-
-    /* After treeSortBatch the treeNodes point to the wrong ALN,
-       because arraySort only copies contents and not entire
-       structs. This can be fixed by either a linear string search or
-       by remaking the tree... */
-    treeTraverse(treeHead, treeFindAln);
-
-    if (bc->highlightedAln) {
-	if (!alignFind(Align, &aln, &ip)) {
-	    messout("Cannot find back highlighted seq after sort - probably a bug");
-	    bc->highlightedAln = 0;
-	}
-	else
-	    bc->highlightedAln = arrp(Align, ip, ALN);
-    }
-    
-    treeDraw(treeHead);
-
-    belvuRedraw();
 }
 
 
@@ -4162,6 +4093,7 @@ static void		   alncpy(ALN *dest, ALN *src);
 static double		   score(char *s1, char *s2, const gboolean penalize_gaps);
 static void		   initConservMtx(BelvuContext *bc);
 static int		   countResidueFreqs(BelvuContext *bc);
+static int                 stripCoordTokens(char *cp, BelvuContext *bc);
 
 
 /***********************************************************
@@ -4451,7 +4383,7 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType)
     case BELVU_SORT_ALPHA :	  g_array_sort(bc->alignArr, alphaorder);	     break;
     case BELVU_SORT_ORGANISM :	  g_array_sort(bc->alignArr, organismorder);	     break;
     case BELVU_SORT_SCORE :	  scoreSortBatch(bc->alignArr, bc->displayScores);   break;
-    case BELVU_SORT_TREE  :	  treeSortBatch(bc);    break;
+    case BELVU_SORT_TREE  :	  treeSort(bc);    break;
     case BELVU_SORT_CONS  :	  break; /* sort by nrorder - already done */
     
     case BELVU_SORT_SIM :
@@ -4547,6 +4479,94 @@ void treeSortBatch(BelvuContext *bc)
   g_array_sort(bc->alignArr, nrorder);
   
   reInsertMarkupLines(bc);
+}
+
+
+void treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode)) 
+{
+  if (!node) 
+    return;
+  
+  treeTraverse(bc, node->left, func);
+  func(bc, node);
+  treeTraverse(bc, node->right, func);
+}
+
+
+/* General purpose routine to convert a string to ALN struct.
+   Note: only fields Name, Start, End are filled!
+ */
+static void str2aln(BelvuContext *bc, char *src, ALN *alnp) 
+{
+  char *tmp = g_strdup(src);
+  stripCoordTokens(tmp, bc);
+
+  if (sscanf(tmp, "%s%d%d", alnp->name, &alnp->start, &alnp->end) != 3)
+    {
+      g_critical("Name to field conversion failed for %s (%s).\n", src, tmp);
+      return;
+    }
+  
+  if (strlen(alnp->name) > MAXNAMESIZE)
+    g_error("buffer overrun in %s !!!!!!!!!\n", "str2aln") ;
+  
+  g_free(tmp);
+}
+
+
+/* Find back the ALN pointers lost in treeSortBatch */
+static void treeFindAln(BelvuContext *bc, TreeNode *node) 
+{
+  if (!node->name) 
+    return;
+
+  ALN aln;
+  initAln(&aln);
+  
+  str2aln(bc, node->name, &aln);
+
+  int ip = 0;
+  
+  if (!alignFind(bc->alignArr, &aln, &ip)) 
+    {
+      g_critical("Program error: cannot find back seq after sort.\n");
+    }
+  else
+    {
+      node->aln = &g_array_index(bc->alignArr, ALN, ip);
+    }
+}
+
+
+void treeSort(BelvuContext *bc)
+{
+  ALN aln;
+  initAln(&aln);
+  
+  if (bc->highlightedAln)
+    alncpy(&aln, bc->highlightedAln);
+  
+  treeSortBatch(bc);
+  
+  /* After treeSortBatch the treeNodes point to the wrong ALN,
+   because arraySort only copies contents and not entire
+   structs. This can be fixed by either a linear string search or
+   by remaking the tree... */
+  treeTraverse(bc, bc->treeHead, treeFindAln);
+  
+  if (bc->highlightedAln) 
+    {
+      int ip = 0;
+      if (!alignFind(bc->alignArr, &aln, &ip)) 
+        {
+          g_critical("Program error: cannot find back highlighted seq after sort.\n");
+          bc->highlightedAln = 0;
+        }
+      else
+        {
+          bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+        }
+    }
 }
 
 
@@ -5737,6 +5757,8 @@ BelvuContext* createBelvuContext()
   bc->treeMethod = NJ;
   bc->treeDistCorr = SCOREDIST;
   bc->treePickMode = NODESWAP;
+  
+  bc->sortType = BELVU_UNSORTED;
   
   bc->treeBestBalance = 0.0;
   bc->treeBestBalance_subtrees = 0.0;

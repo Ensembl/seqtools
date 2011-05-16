@@ -775,9 +775,9 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
-  const BelvuSortType sortType = gtk_radio_action_get_current_value(current);
+  properties->bc->sortType = gtk_radio_action_get_current_value(current);
+  doSort(properties->bc, properties->bc->sortType);
   
-  doSort(properties->bc, sortType);
   centerHighlighted(properties->bc, properties->bc->belvuAlignment);
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
@@ -1518,7 +1518,16 @@ void onSelectionChanged(BelvuContext *bc)
 /* This is called after a tree has changed */
 void onTreeOrderChanged(BelvuContext *bc)
 {
-//  belvuAlignmentRedrawAll(bc->belvuAlignment);              
+  /* If sorting by tree order, we need to refresh the sort order */
+  if (bc->sortType == BELVU_SORT_TREE);
+    doSort(bc, bc->sortType);
+
+  /* Recenter on the highlighted alignment */
+  centerHighlighted(bc, bc->belvuAlignment);
+
+  /* Redraw the tree and the alignment list */
+  belvuTreeRedrawAll(bc->belvuTree, NULL);
+  belvuAlignmentRedrawAll(bc->belvuAlignment);
 }
 
 /***********************************************************

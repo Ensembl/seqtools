@@ -341,8 +341,6 @@ int main(int argc, char **argv)
   
   char *OrganismLabel = "OS";
     
-  BelvuSortType init_sort = BELVU_UNSORTED;
-  
   gboolean verbose = FALSE;
   gboolean gridOn = FALSE;
   gboolean init_rmPartial = FALSE;
@@ -385,17 +383,17 @@ int main(int argc, char **argv)
       case 'S': 
       switch (*optarg)
       {
-	case 'a': init_sort = BELVU_SORT_ALPHA;    break;
-	case 'o': init_sort = BELVU_SORT_ORGANISM; break;
-	case 's': init_sort = BELVU_SORT_SCORE;    break;
-	case 'S': init_sort = BELVU_SORT_SIM;      break;
-	case 'i': init_sort = BELVU_SORT_ID;       break;
+	case 'a': bc->sortType = BELVU_SORT_ALPHA;    break;
+	case 'o': bc->sortType = BELVU_SORT_ORGANISM; break;
+	case 's': bc->sortType = BELVU_SORT_SCORE;    break;
+	case 'S': bc->sortType = BELVU_SORT_SIM;      break;
+	case 'i': bc->sortType = BELVU_SORT_ID;       break;
 	case 'n': 
 	  bc->treeMethod = NJ;
-	  init_sort = BELVU_SORT_TREE;           break;
+	  bc->sortType = BELVU_SORT_TREE;           break;
 	case 'u': 
 	  bc->treeMethod = UPGMA; 
-	  init_sort = BELVU_SORT_TREE;           break;
+	  bc->sortType = BELVU_SORT_TREE;           break;
 	default : g_error("Illegal sorting order: %s", optarg);
       }                                    break;
       case 's': 
@@ -497,7 +495,7 @@ int main(int argc, char **argv)
   if (scoreFile) 
     readScores(scoreFile, bc);
   
-  doSort(bc, init_sort);
+  doSort(bc, bc->sortType);
   
   if (!bc->matchFooter && readMatchFile) 
     {

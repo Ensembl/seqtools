@@ -338,23 +338,25 @@ typedef struct BelvuContextStruct
   ResidueColorScheme residueScheme;   /* Which color-by-residue color scheme is selected */
   ConsColorScheme consScheme;	      /* Which color-by-conservation color scheme is selected */
   
-  BelvuBuildMethod treeMethod;  /* Default building method for trees */
-  BelvuDistCorr treeDistCorr;   /* Default distance correction method for trees */
-  BelvuPickMode treePickMode;   /* Default action when picking a node in a tree */
+  BelvuBuildMethod treeMethod;        /* Default building method for trees */
+  BelvuDistCorr treeDistCorr;         /* Default distance correction method for trees */
+  BelvuPickMode treePickMode;         /* Default action when picking a node in a tree */
+  
+  BelvuSortType sortType;             /* What data to sort the alignments by */
   
   double treeBestBalance;
   double treeBestBalance_subtrees;
   double tree_y;
-  double lowIdCutoff;	           /* %id cutoff for lowest colour */
-  double midIdCutoff;	           /* %id cutoff for medium colour */
-  double maxIdCutoff;	           /* %id cutoff for maximum colour */
-  double lowSimCutoff;	           /* %id cutoff for lowest colour */
-  double midSimCutoff;	           /* %id cutoff for medium colour */
-  double maxSimCutoff;	           /* %id cutoff for maximum colour */
-  double colorByResIdCutoff;       /* Colour by residue + id cutoff */
+  double lowIdCutoff;                 /* %id cutoff for lowest colour */
+  double midIdCutoff;                 /* %id cutoff for medium colour */
+  double maxIdCutoff;                 /* %id cutoff for maximum colour */
+  double lowSimCutoff;                /* %id cutoff for lowest colour */
+  double midSimCutoff;                /* %id cutoff for medium colour */
+  double maxSimCutoff;                /* %id cutoff for maximum colour */
+  double colorByResIdCutoff;          /* Colour by residue + id cutoff */
   double mksubfamilies_cutoff; 
-  double treeScale;                /* Default scale to use for drawing the tree */
-  double treeLineWidth;            /* Default line width of the branch lines in trees */
+  double treeScale;                   /* Default scale to use for drawing the tree */
+  double treeLineWidth;               /* Default line width of the branch lines in trees */
   
   char saveSeparator;
   char treeDistString[50];
@@ -482,5 +484,8 @@ double                                    identity(char *s1, char *s2, const gbo
 void                                      convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, GdkColor *result);
 void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight);
 void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight);
+
+void                                      treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode));
+void                                      treeSort(BelvuContext *bc);          
 
 #endif /* DEF_BELVU_P_H */

@@ -215,21 +215,6 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
 
 
 /***********************************************************
- *                       Tree utils                        *
- ***********************************************************/
-
-static void treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode)) 
-{
-  if (!node) 
-    return;
-  
-  treeTraverse(bc, node->left, func);
-  func(bc, node);
-  treeTraverse(bc, node->right, func);
-}
-
-
-/***********************************************************
  *                   Tree bootstrapping                    *
  ***********************************************************/
 
@@ -1325,6 +1310,52 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
  *                        Drawing                          *
  ***********************************************************/
 
+/* This is called to re-make the underlying tree for the given tree
+ * widget. It must be called after a change that renders the existing
+ * tree invalid, e.g. deleting an alignment or changing the build method */
+static void belvuTreeRemakeTree(GtkWidget *belvuTree, BelvuTreeProperties *properties)
+{
+  BelvuContext *bc = properties->bc;
+
+  /* Re-make the tree */
+  separateMarkupLines(bc);
+  bc->treeHead = treeMake(bc, TRUE);
+  reInsertMarkupLines(bc);
+  
+  /* Make sure our properties are up to date with the data used to create
+   * the new tree. */
+  properties->treeHead = bc->treeHead;
+  properties->buildMethod = bc->treeMethod;
+  properties->distCorr = bc->treeDistCorr;
+  
+  calculateBelvuTreeBorders(belvuTree);
+  
+  /* If sorting by tree, we need to refresh the sort order */
+  onTreeOrderChanged(bc);
+}
+
+
+/* This is called when the tree settings have been changed. */
+static void belvuTreeUpdateSettings(GtkWidget *belvuTree)
+{
+  calculateBelvuTreeBorders(belvuTree);
+
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+  BelvuContext *bc = properties->bc;
+  
+  if (bc->treeMethod != properties->buildMethod || bc->treeDistCorr != properties->distCorr)
+    {
+      /* The build method has changed, so we'll need to re-make the whole tree. */
+      belvuTreeRemakeTree(belvuTree, properties);
+    }
+  else
+    {
+      /* Just redraw the existing tree */
+      belvuTreeRedrawAll(belvuTree, NULL);
+    }
+}
+
+
 /* Clear any cached drawables and redraw everything. It also recalculates
  * the tree if the build method has changed. */
 void belvuTreeRedrawAll(gpointer widget, gpointer data)
@@ -1334,21 +1365,6 @@ void belvuTreeRedrawAll(gpointer widget, gpointer data)
   
   GtkWidget *belvuTree = GTK_WIDGET(widget);
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
-  BelvuContext *bc = properties->bc;
-
-  /* If the build method has changed, we'll need to re-make the whole tree. */
-  if (bc->treeMethod != properties->buildMethod || bc->treeDistCorr != properties->distCorr)
-    {
-      separateMarkupLines(bc);
-      bc->treeHead = treeMake(bc, TRUE);
-      reInsertMarkupLines(bc);
-      
-      properties->treeHead = bc->treeHead;
-      properties->buildMethod = bc->treeMethod;
-      properties->distCorr = bc->treeDistCorr;
-      
-      calculateBelvuTreeBorders(belvuTree);
-    }
 
   widgetClearCachedDrawable(properties->treeArea, NULL);
   gtk_widget_queue_draw(belvuTree);
@@ -1720,7 +1736,6 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
                   g_warning("Program error: unrecognised tree selection mode '%d'.\n", properties->bc->treePickMode);
                 }
               
-              belvuTreeRedrawAll(belvuTree, NULL);
               onTreeOrderChanged(properties->bc);
             }
           else if (clickRect->node)
@@ -1955,8 +1970,7 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       /* Call all of the callbacks for each individual widget to update the 
        * properties. Then refresh the window. Destroy if successful. */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      calculateBelvuTreeBorders(belvuTree);
-      belvuTreeRedrawAll(belvuTree, NULL);
+      belvuTreeUpdateSettings(belvuTree);
       break;
       
     case GTK_RESPONSE_APPLY:
