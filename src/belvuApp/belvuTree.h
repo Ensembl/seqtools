@@ -44,11 +44,17 @@
 #include <gtk/gtk.h>
 
 
+#define BELVU_TREE_WINDOW_NAME                  "BelvuTreeWindow"
+
 
 GtkWidget*                createAndShowBelvuTree(BelvuContext *bc);
 GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
+void                      belvuTreeRemakeTree(GtkWidget *belvuTree);
+void                      destroyTreeNodes(TreeNode **node);
 
-void                      showTreeSettingsDialog(GtkWidget *belvuTree);
+BelvuContext*             belvuTreeGetContext(GtkWidget *belvuTree);
+
+void                      showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc);
 
 GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, 
                                                           double *treeScale, double *lineWidth, 

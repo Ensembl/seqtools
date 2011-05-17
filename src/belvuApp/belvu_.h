@@ -235,16 +235,16 @@ typedef struct alnStruct {
 } ALN;
 
 
-typedef struct TreeNodeStruct {
+typedef struct _TreeNode {
 
     /* KEEP IN SYNC WITH TREECPY !!!! */
 
     double dist;			/* Absolute distance position */
     double branchlen;		/* Length of branch to higher node */
     double boot;	/* Bootstrap value */
-    struct TreeNodeStruct *left;
-    struct TreeNodeStruct *right;
-    struct TreeNodeStruct *parent;
+    struct _TreeNode *left;
+    struct _TreeNode *right;
+    struct _TreeNode *parent;
     char *name;
     char *organism;
     ALN *aln;

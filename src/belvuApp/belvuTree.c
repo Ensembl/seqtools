@@ -44,7 +44,6 @@
 #include <math.h>
 
 
-#define BELVU_TREE_WINDOW_NAME                  "BelvuTreeWindow"
 #define DEFAULT_TREE_WINDOW_WIDTH_FRACTION      0.6    /* default width of tree window (as fraction of screen width) */
 #define DEFAULT_TREE_WINDOW_HEIGHT_FRACTION     0.35   /* default height of tree window (as fraction of screen height) */
 #define DEFAULT_XPAD                            10
@@ -213,6 +212,12 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
     }
 }
 
+
+BelvuContext* belvuTreeGetContext(GtkWidget *belvuTree)
+{
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+  return properties ? properties->bc : NULL;
+}
 
 /***********************************************************
  *                   Tree bootstrapping                    *
@@ -384,7 +389,7 @@ void treeBootstrap(BelvuContext *bc)
         }
       
       
-      treeStruct->head = treeMake(bc, 0);
+      treeStruct->head = treeMake(bc, FALSE);
       
       if (bc->outputBootstrapTrees) 
         {
@@ -857,6 +862,23 @@ static TreeNode* createEmptyTreeNode()
 }
 
 
+/* Recursively destroy the given tree node and all its child branches */
+void destroyTreeNodes(TreeNode **node)
+{
+  if (*node == NULL)
+    return;
+  
+  if ((*node)->left)
+    destroyTreeNodes(&(*node)->left);
+  
+  if ((*node)->right)
+    destroyTreeNodes(&(*node)->right);
+  
+  g_free(*node);
+  *node = NULL;
+}
+
+
 /* Swap the left and right branches of the given node */
 static void treeSwapNode(TreeNode *node)
 {
@@ -1313,11 +1335,14 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 /* This is called to re-make the underlying tree for the given tree
  * widget. It must be called after a change that renders the existing
  * tree invalid, e.g. deleting an alignment or changing the build method */
-static void belvuTreeRemakeTree(GtkWidget *belvuTree, BelvuTreeProperties *properties)
+void belvuTreeRemakeTree(GtkWidget *belvuTree)
 {
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
   BelvuContext *bc = properties->bc;
 
   /* Re-make the tree */
+  destroyTreeNodes(&bc->treeHead);
+  
   separateMarkupLines(bc);
   bc->treeHead = treeMake(bc, TRUE);
   reInsertMarkupLines(bc);
@@ -1346,7 +1371,7 @@ static void belvuTreeUpdateSettings(GtkWidget *belvuTree)
   if (bc->treeMethod != properties->buildMethod || bc->treeDistCorr != properties->distCorr)
     {
       /* The build method has changed, so we'll need to re-make the whole tree. */
-      belvuTreeRemakeTree(belvuTree, properties);
+      belvuTreeRemakeTree(belvuTree);
     }
   else
     {
@@ -1967,7 +1992,7 @@ GtkWidget* createTreeSettingsDialogContent(BelvuContext *bc,
  * window is passed as the user data. */
 void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
-  GtkWidget *belvuTree = GTK_WIDGET(data);
+  BelvuContext *bc = (BelvuContext*)data;
   gboolean destroy = TRUE;
   
   switch (responseId)
@@ -1976,15 +2001,15 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       /* Call all of the callbacks for each individual widget to update the 
        * properties. Then refresh the window. Destroy if successful. */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      belvuTreeUpdateSettings(belvuTree);
+      belvuTreeUpdateSettings(bc->belvuTree);
       break;
       
     case GTK_RESPONSE_APPLY:
       /* Never destroy */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      calculateBelvuTreeBorders(belvuTree);
-      belvuTreeRedrawAll(belvuTree, NULL);
+      calculateBelvuTreeBorders(bc->belvuTree);
+      belvuTreeRedrawAll(bc->belvuTree, NULL);
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -2004,20 +2029,17 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
 
 
 /* Dialog to allow the user to edit the settings for a tree */
-void showTreeSettingsDialog(GtkWidget *belvuTree)
+void showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc)
 {
-  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
-  BelvuContext *bc = properties->bc;
-  
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Tree Settings", 
-                                       GTK_WINDOW(belvuTree), 
+                                       GTK_WINDOW(window), 
                                        GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                        GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                        GTK_STOCK_APPLY, GTK_RESPONSE_APPLY,
                                        GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                        NULL);
       
-  g_signal_connect(dialog, "response", G_CALLBACK(onResponseTreeSettingsDialog), belvuTree);
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseTreeSettingsDialog), bc);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
   
   createTreeSettingsDialogContent(bc, dialog, 

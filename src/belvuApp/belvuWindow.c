@@ -74,7 +74,8 @@ static void                      onHelpMenu(GtkAction *action, gpointer data);
 static void                      onAboutMenu(GtkAction *action, gpointer data);
 static void                      onPrintMenu(GtkAction *action, gpointer data);
 static void                      onWrapMenu(GtkAction *action, gpointer data);
-static void                      onMakeTreeMenu(GtkAction *action, gpointer data);
+static void                      onShowTreeMenu(GtkAction *action, gpointer data);
+static void                      onRecalcTreeMenu(GtkAction *action, gpointer data);
 static void                      onTreeOptsMenu(GtkAction *action, gpointer data);
 static void                      onConsPlotMenu(GtkAction *action, gpointer data);
 static void                      onSaveMenu(GtkAction *action, gpointer data);
@@ -163,22 +164,23 @@ static const GtkActionEntry menuEntries[] = {
   { "ByResidueMenuAction", NULL, "Choose color scheme"},
   { "ByConsMenuAction",    NULL, "Choose color scheme"},
 
-  { "CancelRemove", NULL,	      "Cancel remove sequences", "Escape",  "Cancel 'remove sequences' mode",       G_CALLBACK(onCancelRemoveSeqs)},
+  { "CancelRemove", NULL,	      "Cancel remove sequences", "Escape",  "Cancel 'remove sequences' mode",     G_CALLBACK(onCancelRemoveSeqs)},
 
-  { "Close",	GTK_STOCK_CLOSE,      "_Close",               "<control>W", "Close",                            G_CALLBACK(onCloseMenu)},
-  { "Quit",	GTK_STOCK_QUIT,       "_Quit",                "<control>Q", "Quit  Ctrl+Q",                     G_CALLBACK(onQuitMenu)},
-  { "Help",	GTK_STOCK_HELP,       "_Help",                "<control>H", "Display help  Ctrl+H",             G_CALLBACK(onHelpMenu)},
-  { "About",	GTK_STOCK_ABOUT,      "A_bout",               NULL,         "About",                            G_CALLBACK(onAboutMenu)},
-  { "Print",	GTK_STOCK_PRINT,      "_Print",               "<control>P", "Print  Ctrl+P",                    G_CALLBACK(onPrintMenu)},
-  { "Wrap",	NULL,                 "_Wrap for printing",   NULL,         "Wrap alignments for printing",     G_CALLBACK(onWrapMenu)},
-  { "MakeTree",	NULL,                 "Show _tree",           NULL,          "Show tree",                        G_CALLBACK(onMakeTreeMenu)},
-  { "TreeOpts",	GTK_STOCK_PROPERTIES, "Tree settings",       NULL,         "Edit tree settings",               G_CALLBACK(onTreeOptsMenu)},
-  { "ConsPlot",	NULL,                 "Show conservation p_lot",NULL,       "Plot conservation profile",        G_CALLBACK(onConsPlotMenu)},
-  { "Save",	GTK_STOCK_SAVE,       "_Save",                "<control>S", "Save alignment",                   G_CALLBACK(onSaveMenu)},
-  { "SaveAs",	GTK_STOCK_SAVE_AS,    "Save _as...",          NULL,         "Save alignment as",                G_CALLBACK(onSaveAsMenu)},
-  { "Output",	NULL,                 "_Output score/coords", NULL,         "Output current alignment's score and coords",  G_CALLBACK(onOutputMenu)},
-  { "Compare",	NULL,                 "Co_mpare all",         NULL,         "Compare all vs all, list identity",            G_CALLBACK(onCompareMenu)},
-  { "CleanUp",	GTK_STOCK_CLEAR,      "Clean _up windows",    NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)},
+  { "Close",	GTK_STOCK_CLOSE,      "_Close",                 "<control>W", "Close",                            G_CALLBACK(onCloseMenu)},
+  { "Quit",	GTK_STOCK_QUIT,       "_Quit",                  "<control>Q", "Quit  Ctrl+Q",                     G_CALLBACK(onQuitMenu)},
+  { "Help",	GTK_STOCK_HELP,       "_Help",                  "<control>H", "Display help  Ctrl+H",             G_CALLBACK(onHelpMenu)},
+  { "About",	GTK_STOCK_ABOUT,      "A_bout",                 NULL,         "About",                            G_CALLBACK(onAboutMenu)},
+  { "Print",	GTK_STOCK_PRINT,      "_Print",                 "<control>P", "Print  Ctrl+P",                    G_CALLBACK(onPrintMenu)},
+  { "Wrap",	NULL,                 "_Wrap for printing",     NULL,         "Wrap alignments for printing",     G_CALLBACK(onWrapMenu)},
+  { "ShowTree",	NULL,                 "Show _tree",             NULL,         "Show tree",                        G_CALLBACK(onShowTreeMenu)},
+  { "RecalcTree",NULL,                "Recalculate tree",       NULL,         "Recalculate tree",                 G_CALLBACK(onRecalcTreeMenu)},
+  { "TreeOpts",	GTK_STOCK_PROPERTIES, "Tree settings",          NULL,          "Edit tree settings",              G_CALLBACK(onTreeOptsMenu)},
+  { "ConsPlot",	NULL,                 "Show conservation p_lot",NULL,         "Plot conservation profile",        G_CALLBACK(onConsPlotMenu)},
+  { "Save",	GTK_STOCK_SAVE,       "_Save",                  "<control>S", "Save alignment",                   G_CALLBACK(onSaveMenu)},
+  { "SaveAs",	GTK_STOCK_SAVE_AS,    "Save _as...",            NULL,         "Save alignment as",                G_CALLBACK(onSaveAsMenu)},
+  { "Output",	NULL,                 "_Output score/coords",   NULL,         "Output current alignment's score and coords",  G_CALLBACK(onOutputMenu)},
+  { "Compare",	NULL,                 "Co_mpare all",           NULL,         "Compare all vs all, list identity",            G_CALLBACK(onCompareMenu)},
+  { "CleanUp",	GTK_STOCK_CLEAR,      "Clean _up windows",      NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)},
 
   {"rmPicked",               NULL,    "Remove highlighted line",  NULL, "Remove highlighted line",  G_CALLBACK(onrmPickedMenu)},
   {"rmMany",		     NULL,    "Remove many sequences",    NULL, "Remove many sequences",    G_CALLBACK(onRemoveSeqsMenu)},
@@ -258,7 +260,10 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Wrap'/>"
 "      <menuitem action='Print'/>"
 "      <separator/>"
-"      <menuitem action='MakeTree'/>"
+"      <menuitem action='ShowTree'/>"
+"      <menuitem action='TreeOpts'/>"
+"      <menuitem action='RecalcTree'/>"
+"      <separator/>"
 "      <menuitem action='ConsPlot'/>"
 "      <separator/>"
 "      <menuitem action='Save'/>"
@@ -342,7 +347,10 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Wrap'/>"
 "    <menuitem action='Print'/>"
 "    <separator/>"
-"    <menuitem action='MakeTree'/>"
+"    <menuitem action='ShowTree'/>"
+"    <menuitem action='TreeOpts'/>"
+"    <menuitem action='RecalcTree'/>"
+"    <separator/>"
 "    <menuitem action='ConsPlot'/>"
 "    <separator/>"
 "    <menuitem action='Save'/>"
@@ -363,6 +371,7 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Close'/>"
 "    <menuitem action='Print'/>"
 "    <menuitem action='TreeOpts'/>"
+"    <menuitem action='RecalcTree'/>"
 //"    <menuitem action='SaveTree'/>"
 //"    <menuitem action='FindOrthogs'/>"
 //"    <menuitem action='ShowOrgs'/>"
@@ -547,7 +556,7 @@ static void onWrapMenu(GtkAction *action, gpointer data)
   showWrapDialog(belvuWindow);
 }
 
-static void onMakeTreeMenu(GtkAction *action, gpointer data)
+static void onShowTreeMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
@@ -569,11 +578,53 @@ static void onMakeTreeMenu(GtkAction *action, gpointer data)
     }
 }
 
+/* Utility to extract the context from a belvu window or belvu tree */
+static BelvuContext* windowGetContext(GtkWidget *window)
+{
+  BelvuContext *bc = NULL;
+  
+  if (stringsEqual(gtk_widget_get_name(window), MAIN_BELVU_WINDOW_NAME, TRUE))
+    {
+      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+      bc = properties->bc;
+    }
+  else if (stringsEqual(gtk_widget_get_name(window), BELVU_TREE_WINDOW_NAME, TRUE))
+    {
+      bc = belvuTreeGetContext(window);
+    }
+  else
+    {
+      g_critical("Program error: unexpected window type in windowGetContext.\n");
+    }
+  
+  return bc;
+}
+
+static void onRecalcTreeMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+  
+  if (bc->belvuTree)
+    {
+      /* Update the tree window */
+      belvuTreeRemakeTree(bc->belvuTree);
+    }
+  else
+    {
+      /* No tree window, but make/re-make the underlying tree structure */
+      destroyTreeNodes(&bc->treeHead);
+      bc->treeHead = treeMake(bc, FALSE);
+      onTreeOrderChanged(bc);
+    }
+}
 
 static void onTreeOptsMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuTree = GTK_WIDGET(data);
-  showTreeSettingsDialog(belvuTree);
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+  
+  showTreeSettingsDialog(window, bc);
 }
 
 static void onConsPlotMenu(GtkAction *action, gpointer data)

@@ -4625,7 +4625,7 @@ void mksubfamilies(BelvuContext *bc, double cutoff)
   strcpy(bc->treeMethodString, UPGMAstr);
   bc->treeMethod = UPGMA;
   
-  treeStruct->head = treeMake(bc, 0);
+  treeStruct->head = treeMake(bc, FALSE);
   
   treeTraverseLRfirst(bc, treeStruct->head, subfamilyTrav);
 }
@@ -6603,7 +6603,8 @@ static void rmFinalise(BelvuContext *bc)
   /*    ruler[maxLen] = 0;*/
   checkAlignment(bc);
   setConsSchemeColors(bc);
-  //  belvuRedraw();
+  
+  destroyTreeNodes(&bc->treeHead);
 }
 
 
