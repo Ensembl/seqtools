@@ -4453,14 +4453,14 @@ static int treeOrder(TreeNode *node, const int treeOrderNrIn)
   
   if (node) 
     {
-    treeOrderNr = treeOrder(node->left, treeOrderNr);
-    
-    if (node->aln)
-      node->aln->nr = treeOrderNr++;
-    
-    treeOrderNr = treeOrder(node->right, treeOrderNr);    
+      treeOrderNr = treeOrder(node->left, treeOrderNr);
+      
+      if (node->aln)
+        node->aln->nr = treeOrderNr++;
+      
+      treeOrderNr = treeOrder(node->right, treeOrderNr);    
     }
-  
+
   return treeOrderNr;
 }
 
