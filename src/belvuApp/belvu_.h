@@ -290,6 +290,7 @@ typedef enum
     BELDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
     
     BELDIALOG_MAKE_TREE,            /* The make-tree dialog */
+    BELDIALOG_EDIT_COLORS,          /* The edit-colors dialog */
     
     BELDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
   } BelvuDialogId;
@@ -438,6 +439,7 @@ gboolean				  colorByConservation(BelvuContext *bc);
 gboolean				  colorByResidue(BelvuContext *bc);
 gboolean				  colorBySimilarity(BelvuContext *bc);
 gboolean                                  colorByResId(BelvuContext *bc);
+void                                      setResidueSchemeColors(BelvuContext *bc);
 
 
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);
@@ -470,7 +472,7 @@ char                                      b2aIndex(const int idx);
 int                                       getMarkupColor(const char inputChar);
 int                                       getConservColor(BelvuContext *bc, const char inputChar, const int idx);
 int                                       getColor(const char inputChar);
-
+void                                      setColor(const char inputChar, const int colorNum);
 int*                                      getColorArray();
 int*                                      getMarkupColorArray();
 

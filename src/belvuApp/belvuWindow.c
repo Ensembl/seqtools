@@ -53,6 +53,15 @@
 #define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.85   /* default height of wrap window (as fraction of screen height) */
 
 
+/* Utility struct to pass data to the color-changed callback
+ * when a color has been changed on the edit-colors dialog */
+typedef struct _ColorChangeData
+{
+  GtkWidget *colorButton;               /* The color-picker button */
+  char *residue;                        /* The residue that this color applies to */
+} ColorChangeData;
+
+
 /* Properties specific to the belvu window */
 typedef struct _BelvuWindowProperties
   {
@@ -111,14 +120,14 @@ static void                      onToggleSortOrder(GtkRadioAction *action, GtkRa
 static void                      ontogglePaletteMenu(GtkAction *action, gpointer data);
 static void                      ontoggleColorByResIdMenu(GtkAction *action, gpointer data);
 static void                      oncolorByResIdMenu(GtkAction *action, gpointer data);
-static void                      onsaveColorCodesMenu(GtkAction *action, gpointer data);
-static void                      onloadColorCodesMenu(GtkAction *action, gpointer data);
+static void                      onsaveColorSchemeMenu(GtkAction *action, gpointer data);
+static void                      onloadColorSchemeMenu(GtkAction *action, gpointer data);
 static void                      onignoreGapsMenu(GtkAction *action, gpointer data);
 static void                      onprintColorsMenu(GtkAction *action, gpointer data);
 static void                      onmarkupMenu(GtkAction *action, gpointer data);
 static void                      ondisplayColorsMenu(GtkAction *action, gpointer data);
 static void                      onlowercaseMenu(GtkAction *action, gpointer data);
-static void                      oneditColorCodesMenu(GtkAction *action, gpointer data);
+static void                      oneditColorSchemeMenu(GtkAction *action, gpointer data);
 
 static void                      showHelpDialog();
 static void			 showAboutDialog(GtkWidget *parent);
@@ -135,6 +144,7 @@ static void			 endRemovingSequences(GtkWidget *belvuWindow);
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
 static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
+static void                      showEditColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -202,9 +212,9 @@ static const GtkActionEntry menuEntries[] = {
 
   {"togglePalette",        NULL, "Toggle color schemes",              "T",  "Toggle between conservation and residue color schemes", G_CALLBACK(ontogglePaletteMenu)},
   {"colorByResId",         NULL, "Set %ID threshold",                 NULL, "Set the threshold above which to color residues", G_CALLBACK(oncolorByResIdMenu)},
-  {"saveColorCodes",       NULL, "Save colour scheme",                NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorCodesMenu)},
-  {"loadColorCodes",       NULL, "Load colour scheme",                NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorCodesMenu)},
-  {"editColorCodes",       NULL, "Edit colour scheme",                NULL, "Open window to edit colour scheme", G_CALLBACK(oneditColorCodesMenu)},
+  {"saveColorScheme",      NULL, "Save colour scheme",                NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorSchemeMenu)},
+  {"loadColorScheme",      NULL, "Load colour scheme",                NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorSchemeMenu)},
+  {"editColorScheme",      NULL, "Edit colour scheme",                NULL, "Open window to edit colour scheme", G_CALLBACK(oneditColorSchemeMenu)},
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -321,9 +331,9 @@ static const char standardMenuDescription[] =
 "      <menuitem action='displayColors'/>"
 "      <menuitem action='lowercase'/>"
 "      <separator/>"
-"      <menuitem action='editColorCodes'/>"
-"      <menuitem action='saveColorCodes'/>"
-"      <menuitem action='loadColorCodes'/>"
+"      <menuitem action='editColorScheme'/>"
+"      <menuitem action='saveColorScheme'/>"
+"      <menuitem action='loadColorScheme'/>"
 "    </menu>"
     /* Sort menu */
 "    <menu action='SortMenuAction'>"
@@ -790,9 +800,13 @@ static void onToggleSchemeType(GtkRadioAction *action, GtkRadioAction *current, 
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  properties->bc->schemeType = gtk_radio_action_get_current_value(current);
+  BelvuSchemeType newScheme = gtk_radio_action_get_current_value(current);
   
-  onColorSchemeChanged(properties);
+  if (newScheme != properties->bc->schemeType)
+    {
+      properties->bc->schemeType = newScheme;
+      onColorSchemeChanged(properties);
+    }
 }
 
 
@@ -801,10 +815,16 @@ static void onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *curren
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  properties->bc->residueScheme = gtk_radio_action_get_current_value(current);
-  setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
-
-  onColorSchemeChanged(properties);
+  ResidueColorScheme newScheme = gtk_radio_action_get_current_value(current);
+  
+  if (newScheme != properties->bc->residueScheme)
+    {
+      properties->bc->residueScheme = newScheme;
+      setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+      
+      setResidueSchemeColors(properties->bc);
+      onColorSchemeChanged(properties);
+    }
 }
 
 
@@ -813,10 +833,14 @@ static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, 
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  properties->bc->consScheme = gtk_radio_action_get_current_value(current);
-  setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+  ConsColorScheme newScheme = gtk_radio_action_get_current_value(current);
   
-  onColorSchemeChanged(properties);
+  if (newScheme != properties->bc->consScheme)
+    {
+      properties->bc->consScheme = newScheme;
+      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+      onColorSchemeChanged(properties);
+    }
 }
 
 
@@ -874,11 +898,11 @@ static void oncolorByResIdMenu(GtkAction *action, gpointer data)
   showColorByResIdDialog(belvuWindow);  
 }
 
-static void onsaveColorCodesMenu(GtkAction *action, gpointer data)
+static void onsaveColorSchemeMenu(GtkAction *action, gpointer data)
 {
 }
 
-static void onloadColorCodesMenu(GtkAction *action, gpointer data)
+static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
 {
 }
 
@@ -913,8 +937,10 @@ static void onlowercaseMenu(GtkAction *action, gpointer data)
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
-static void oneditColorCodesMenu(GtkAction *action, gpointer data)
+static void oneditColorSchemeMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showEditColorsDialog(belvuWindow, TRUE);
 }
 
 /* SORT MENU ACTIONS */
@@ -1305,6 +1331,310 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
     }
   
   gtk_widget_destroy(dialog);  
+}
+
+
+/***********************************************************
+ *                    Edit Colors dialog                   *
+ ***********************************************************/
+
+/* Utility function to get the color display name for a color number */
+static const char* getColorNumName(const int colorNum)
+{
+  const char *result = NULL;
+  
+  switch (colorNum)
+  {
+    case 0: result = "WHITE"; break;
+    case 1: result = "BLACK"; break;
+    case 2: result = "LIGHTGRAY"; break;
+    case 3: result = "DARKGRAY"; break;
+    case 4: result = "RED"; break;
+    case 5: result = "GREEN"; break;
+    case 6: result = "BLUE"; break;
+    case 7: result = "YELLOW"; break;
+    case 8: result = "CYAN"; break;
+    case 9: result = "MAGENTA"; break;
+    case 10: result = "LIGHTRED"; break;
+    case 11: result = "LIGHTGREEN"; break;
+    case 12: result = "LIGHTBLUE"; break;
+    case 13: result = "DARKRED"; break;
+    case 14: result = "DARKGREEN"; break;
+    case 15: result = "DARKBLUE"; break;
+    case 16: result = "PALERED"; break;
+    case 17: result = "PALEGREEN"; break;
+    case 18: result = "PALEBLUE"; break;
+    case 19: result = "PALEYELLOW"; break;
+    case 20: result = "PALECYAN"; break;
+    case 21: result = "PALEMAGENTA"; break;
+    case 22: result = "BROWN"; break;
+    case 23: result = "ORANGE"; break;
+    case 24: result = "PALEORANGE"; break;
+    case 25: result = "PURPLE"; break;
+    case 26: result = "VIOLET"; break;
+    case 27: result = "PALEVIOLET"; break;
+    case 28: result = "GRAY"; break;
+    case 29: result = "PALEGRAY"; break;
+    case 30: result = "CERISE"; break;
+    case 31: result = "MIDBLUE"; break;
+    default: break;
+  };
+  
+  return result;
+}
+
+
+/* This creates a drop-down box for selecting a color */
+static GtkComboBox* createColorCombo(const int colorNum)
+{
+  GtkComboBox *combo = createComboBox();
+  GtkTreeIter *iter = NULL;
+  
+  int i = 0;
+  for (i = 0; i < NUM_TRUECOLORS; ++i)
+    addComboItem(combo, iter, i, getColorNumName(i), colorNum);
+  
+  return combo;
+}
+
+
+/* This is called when a color combo box has been changed and it updates
+ * the given color button (passed as the user data) to be the same color */
+static void updateColorButton(GtkWidget *combo, gpointer data)
+{
+  GtkWidget *colorButton = GTK_WIDGET(data);
+  
+  const int colorNum = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
+  
+  GdkColor color;
+  convertColorNumToGdkColor(colorNum, FALSE, &color);
+  
+  gtk_color_button_set_color(GTK_COLOR_BUTTON(colorButton), &color);
+}
+
+
+/* This is called when a color combo box has been changed and it updates the
+ * given residue (passed as the user data) */
+static void updateColorResidue(GtkWidget *combo, gpointer data)
+{
+  const int colorNum = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
+  const char *residue = (const char*)data;
+  
+  setColor(*residue, colorNum);
+  
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(combo));
+  GtkWidget *belvuWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  onColorSchemeChanged(properties);
+}
+
+
+/* This creates a single color item on the edit-residue-colors dialog */
+static void createResidueColorBox(GtkTable *table, 
+                                  char *residue,
+                                  GString *groups[],
+                                  int *row, 
+                                  int *col,
+                                  const int xpad,
+                                  const int ypad)
+{
+  /* Create the label */
+  GtkWidget *label = gtk_label_new(residue);
+  gtk_table_attach(table, label, *col, *col + 1, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  /* Create the color chooser. First get the current color for this residue */
+  const int colorNum = getColor(*residue);
+  GdkColor color;
+  convertColorNumToGdkColor(colorNum, FALSE, &color);
+  
+  /* Append this residue to the group for this color */
+//  g_string_append(groups[colorNum], residue);
+  
+  GtkWidget *colorButton = gtk_color_button_new_with_color(&color);
+  gtk_table_attach(table, colorButton, *col + 1, *col + 2, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  GtkComboBox *combo = createColorCombo(colorNum);
+  gtk_table_attach(table, GTK_WIDGET(combo), *col + 2, *col + 3, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(updateColorButton), colorButton);
+  g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(updateColorResidue), residue);
+  
+  *row += 1;
+}
+
+
+/* Utility function to create the list of residues that belvu knows about */
+static GSList* createResidueList()
+{
+  GSList *list = NULL;
+  
+  list = g_slist_prepend(list, g_strdup("V"));
+  list = g_slist_prepend(list, g_strdup("Y"));
+  list = g_slist_prepend(list, g_strdup("W"));
+  list = g_slist_prepend(list, g_strdup("T"));
+  list = g_slist_prepend(list, g_strdup("S"));
+  list = g_slist_prepend(list, g_strdup("P"));
+  list = g_slist_prepend(list, g_strdup("F"));
+  list = g_slist_prepend(list, g_strdup("M"));
+  list = g_slist_prepend(list, g_strdup("K"));
+  list = g_slist_prepend(list, g_strdup("L"));
+  list = g_slist_prepend(list, g_strdup("I"));
+  list = g_slist_prepend(list, g_strdup("H"));
+  list = g_slist_prepend(list, g_strdup("G"));
+  list = g_slist_prepend(list, g_strdup("E"));
+  list = g_slist_prepend(list, g_strdup("Q"));
+  list = g_slist_prepend(list, g_strdup("C"));
+  list = g_slist_prepend(list, g_strdup("D"));
+  list = g_slist_prepend(list, g_strdup("N"));
+  list = g_slist_prepend(list, g_strdup("R"));
+  list = g_slist_prepend(list, g_strdup("A"));
+  
+  return list;
+}
+
+
+/* Create the colour boxes for the edit-residue-colors dialog */
+static void createResidueColorBoxes(GtkBox *box, GSList *residueList, GString *groups[])
+{
+  const int numRows = 10;
+  const int numCols = 7;
+  int xpad = 4;
+  int ypad = TABLE_YPAD;
+  
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_box_pack_start(box, GTK_WIDGET(table), FALSE, FALSE, 0);
+  
+  int row = 0;
+  int col = 0;
+  
+  int i = 0;
+  GSList *residueItem = residueList;
+  const int numResidues = g_slist_length(residueList);
+  
+  for ( ; residueItem && i < numResidues / 2; ++i, residueItem = residueItem->next)
+    {
+      createResidueColorBox(table, (char*)(residueItem->data), groups, &row, &col, xpad, ypad);
+    }
+
+  GtkWidget *spacer = gtk_label_new(" ");
+  gtk_table_attach(table, spacer, col + 3, col + 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, 30, ypad);
+
+  col += 4;
+  row = 0;
+
+  for ( ; residueItem; residueItem = residueItem->next)
+    {
+      createResidueColorBox(table, (char*)(residueItem->data), groups, &row, &col, xpad, ypad);
+    }
+}
+
+
+/* Create the content for the edit-residue-colors dialog */
+static void createEditResidueContent(GtkBox *box)
+{
+  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_box_pack_start(box, GTK_WIDGET(vbox), TRUE, TRUE, 0);
+  
+  static GSList *residueList = NULL;
+  
+  if (!residueList)
+    residueList = createResidueList();
+  
+//  GString* groups[NUM_TRUECOLORS];
+//  int i = 0;
+//  for (i = 0; i < NUM_TRUECOLORS; ++i)
+//    groups[i] = g_string_new("");
+  
+  createResidueColorBoxes(vbox, residueList, NULL);
+  
+  
+//  GtkTable *table = GTK_TABLE(gtk_table_new(g_slist_length(residueList) + 1, 3, FALSE));
+//  gtk_box_pack_start(vbox, GTK_WIDGET(table), TRUE, TRUE, 0);
+//  int row = 0;
+//  const int xpad = TABLE_XPAD;
+//  const int ypad = TABLE_YPAD;
+//  
+//  GtkWidget *header = gtk_label_new("Groups:");
+//  gtk_table_attach(table, header, 0, 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+//  ++row;
+//  
+//  for (i = 0; i < NUM_TRUECOLORS; ++i)
+//    {
+//      if (groups[i]->len > 0 && groups[i]->str)
+//        {
+//          GdkColor color;
+//          convertColorNumToGdkColor(i, FALSE, &color);
+//          
+//          GtkWidget *eventBox = gtk_event_box_new();
+//          gtk_widget_modify_bg(eventBox, GTK_STATE_NORMAL, &color);
+//          gtk_table_attach(table, eventBox, 0, 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+//          
+//          GtkWidget *label = gtk_label_new(getColorNumName(i));
+//          gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+//          gtk_container_add(GTK_CONTAINER(eventBox), label);
+//          
+//          gtk_table_attach(table, gtk_label_new(":"), 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+//
+//          label = gtk_label_new(groups[i]->str);
+//          gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+//          gtk_table_attach(table, label, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+//          
+//          ++row;
+//        }
+//    }
+// 
+}
+
+
+/* Show a dialog to allow the user to edit the current color scheme */
+static void showEditColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  const BelvuDialogId dialogId = BELDIALOG_EDIT_COLORS;
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
+  
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Belvu - Edit Colors", 
+                                           GTK_WINDOW(belvuWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                           NULL);
+      
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+    }
+  else
+    {
+      /* Need to refresh the dialog contents, so clear and re-create content area */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  /* Create separate tabs for the 'by residue' and 'by conservation' color schemes */
+  GtkBox *vbox = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+  GtkNotebook *notebook = GTK_NOTEBOOK(gtk_notebook_new());
+  gtk_box_pack_start(vbox, GTK_WIDGET(notebook), TRUE, TRUE, 0);
+  
+  createEditResidueContent(vbox);
+
+  /* Show / bring to front */
+  gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
+  
 }
 
 

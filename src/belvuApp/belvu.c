@@ -4914,6 +4914,12 @@ int getColor(const char inputChar)
   return color[(unsigned char)(inputChar)];
 }
 
+/* Set the color in the colors array for the given char */
+void setColor(const char inputChar, const int colorNum)
+{
+  color[(unsigned char)(inputChar)] = colorNum;
+}
+
 /* Returns the 'color' array */
 int* getColorArray()
 {
@@ -5025,7 +5031,8 @@ gboolean colorByResId(BelvuContext *bc)
 }
 
 
-void initResidueColors(BelvuContext *bc)
+/* Utility to clear all residue colors to white */
+static void clearResidueColors(BelvuContext *bc)
 {
   color['A'] = color['a'] = WHITE;
   color['B'] = color['b'] = NOCOLOR;
@@ -5058,7 +5065,7 @@ void initResidueColors(BelvuContext *bc)
 
 static void colorSchemeCys(BelvuContext *bc)
 {
-  initResidueColors(bc);
+  clearResidueColors(bc);
   
   color['C'] = color['c'] = CYAN;
   color['G'] = color['g'] = RED;
@@ -5068,7 +5075,7 @@ static void colorSchemeCys(BelvuContext *bc)
 
 static void colorSchemeEmpty(BelvuContext *bc)
 {
-  initResidueColors(bc);
+  clearResidueColors(bc);
 }
 
 
@@ -5154,7 +5161,7 @@ static void colorSchemeGibson(BelvuContext *bc)
 
 /* This is called when the color scheme has been set to 'by residue'. It updates
  * the colors according to the active color scheme. */
-static void setResidueSchemeColors(BelvuContext *bc)
+void setResidueSchemeColors(BelvuContext *bc)
 {
   switch (bc->residueScheme)
     {
@@ -5174,11 +5181,6 @@ static void setResidueSchemeColors(BelvuContext *bc)
  * colors according to the active scheme. */
 void updateSchemeColors(BelvuContext *bc)
 {
-  /* Set the residue colors if coloring by residue. We need to do this first if
-   * colorByResIdOn is true because setConsSchemeColors uses its results. */
-  if (colorByResidue(bc))
-    setResidueSchemeColors(bc);
-
   /* Set the color scheme if coloring by conservation or if applying a 
    * threshold when coloring by residue */
   if (colorByConservation(bc) || colorByResId(bc))

@@ -549,7 +549,7 @@ int main(int argc, char **argv)
       exit(0);
     }
   
-  initResidueColors(bc);
+  setResidueSchemeColors(bc);
   
   if (colorCodesFile) 
     {
