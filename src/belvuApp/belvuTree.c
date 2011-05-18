@@ -1339,22 +1339,32 @@ void belvuTreeRemakeTree(GtkWidget *belvuTree)
 
 
 /* This is called when the tree settings have been changed. */
-static void belvuTreeUpdateSettings(GtkWidget *belvuTree)
+static void belvuTreeUpdateSettings(BelvuContext *bc)
 {
-  calculateBelvuTreeBorders(belvuTree);
-
-  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
-  BelvuContext *bc = properties->bc;
-  
-  if (bc->treeMethod != properties->buildMethod || bc->treeDistCorr != properties->distCorr)
+  if (bc->belvuTree)
     {
-      /* The build method has changed, so we'll need to re-make the whole tree. */
-      belvuTreeRemakeTree(belvuTree);
+      /* The tree window exists, so must be updated */
+      if (!bc->treeHead)
+        {
+          /* The underlying tree has been invalidated, so we'll need to re-make
+           * the whole tree. */
+          belvuTreeRemakeTree(bc->belvuTree);
+        }
+      else
+        {
+          /* Just redraw the existing tree */
+          calculateBelvuTreeBorders(bc->belvuTree);
+          belvuTreeRedrawAll(bc->belvuTree, NULL);
+        }
     }
   else
     {
-      /* Just redraw the existing tree */
-      belvuTreeRedrawAll(belvuTree, NULL);
+      /* There is no tree window, so just re-make the underlying tree */
+      separateMarkupLines(bc);
+      bc->treeHead = treeMake(bc, TRUE);
+      reInsertMarkupLines(bc);
+      
+      onTreeOrderChanged(bc);
     }
 }
 
@@ -1890,9 +1900,40 @@ static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
 }
 
 
+/* Callback for when the build method has been changed. */
+gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer data)
+{
+  BelvuContext *bc = (BelvuContext*)data;
+  onComboChanged(combo, responseId, &bc->treeMethod);
+
+  /* This change invalidates the tree, so set the tree head to null to indicate this */
+  bc->treeHead = NULL;  
+  
+  return TRUE;
+}
+
+
+/* Callback for when the distance-correction method has been changed. */
+gboolean onDistCorrChanged(GtkWidget *combo, const gint responseId, gpointer data)
+{
+  BelvuContext *bc = (BelvuContext*)data;
+  onComboChanged(combo, responseId, &bc->treeDistCorr);
+  
+  /* This change invalidates the tree, so set the tree head to null to indicate this */
+  bc->treeHead = NULL;  
+  
+  return TRUE;
+}
+
+
 /* Utility to create a standard 2-column combo box and place it in the given
  * table with a label with the given text. */
-static GtkComboBox* createComboWithLabel(GtkTable *table, const char *labelText, int *valueToUpdate, const int col, const int row)
+static GtkComboBox* createComboWithLabel(GtkTable *table, 
+                                         const char *labelText, 
+                                         const int col, 
+                                         const int row,
+                                         BlxResponseCallback callbackFunc,
+                                         gpointer data)
 {
   /* Create the label, and right-align it */
   GtkWidget *label = gtk_label_new(labelText);
@@ -1902,13 +1943,13 @@ static GtkComboBox* createComboWithLabel(GtkTable *table, const char *labelText,
   GtkComboBox *combo = createComboBox();
   gtk_table_attach(table, GTK_WIDGET(combo), col + 1, col + 2, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   
-  widgetSetCallbackData(GTK_WIDGET(combo), onComboChanged, valueToUpdate);
+  widgetSetCallbackData(GTK_WIDGET(combo), callbackFunc, data);
   
   return combo;
 }
 
 
-static void createTreeBuildMethodButtons(GtkBox *box, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr)
+static void createTreeBuildMethodButtons(BelvuContext *bc, GtkBox *box, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr)
 {
   /* We'll put everything in a table inside a frame */
   GtkWidget *frame = gtk_frame_new("Build methods");
@@ -1918,7 +1959,7 @@ static void createTreeBuildMethodButtons(GtkBox *box, BelvuBuildMethod *buildMet
   gtk_container_add(GTK_CONTAINER(frame), GTK_WIDGET(table));
   
   /* Create the build-method drop-down box */
-  GtkComboBox *combo = createComboWithLabel(table, "Tree building method:", (int*)buildMethod, 0, 0);
+  GtkComboBox *combo = createComboWithLabel(table, "Tree building method:", 0, 0, onBuildMethodChanged, bc);
   
   GtkTreeIter *iter = NULL;
   int initMode = *buildMethod;
@@ -1926,7 +1967,7 @@ static void createTreeBuildMethodButtons(GtkBox *box, BelvuBuildMethod *buildMet
   addComboItem(combo, iter, UPGMA, UPGMAstr, initMode);
   
   /* Create the distance-correction method drop-down box */
-  combo = createComboWithLabel(table, "Distance correction method:", (int*)distCorr, 0, 1);
+  combo = createComboWithLabel(table, "Distance correction method:", 0, 1, onDistCorrChanged, bc);
   
   iter = NULL;
   initMode = *distCorr;
@@ -1952,7 +1993,7 @@ GtkWidget* createTreeSettingsDialogContent(BelvuContext *bc,
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(vbox), FALSE, FALSE, 0);
   
-  createTreeBuildMethodButtons(vbox, buildMethod, distCorr);
+  createTreeBuildMethodButtons(bc, vbox, buildMethod, distCorr);
   GtkWidget *content = createTreeDisplayOptsButtons(vbox, treeScale, lineWidth, showBranchLen, showOrganism);
   createTreeInteractionButtons(vbox, pickMode);
 
@@ -1978,14 +2019,14 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       /* Call all of the callbacks for each individual widget to update the 
        * properties. Then refresh the window. Destroy if successful. */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      belvuTreeUpdateSettings(bc->belvuTree);
+      belvuTreeUpdateSettings(bc);
       break;
       
     case GTK_RESPONSE_APPLY:
       /* Never destroy */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      belvuTreeUpdateSettings(bc->belvuTree);
+      belvuTreeUpdateSettings(bc);
       break;
       
     case GTK_RESPONSE_CANCEL:
