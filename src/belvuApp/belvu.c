@@ -6604,7 +6604,8 @@ static void rmFinalise(BelvuContext *bc)
   checkAlignment(bc);
   setConsSchemeColors(bc);
   
-  destroyTreeNodes(&bc->treeHead);
+  /* This invalidates the tree, so set the tree head to NULL. */
+  bc->treeHead = NULL;
 }
 
 

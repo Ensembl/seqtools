@@ -2710,7 +2710,9 @@ void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble 
 /* Create a handle. A handle is just a GSList so should be initialised to NULL */
 BlxHandle handleCreate()
 {
-  return NULL;
+  BlxHandle handle = g_malloc(sizeof(BlxHandleStruct));
+  handle->memoryList = NULL;
+  return handle;
 }
 
 /* Utility to allocate memory of the given size with g_malloc. Returns the allocated memory and
@@ -2721,7 +2723,7 @@ gpointer handleAlloc(BlxHandle *handle, size_t numBytes)
   gpointer result = g_malloc(numBytes);
   
   /* prepend so that we delete data in reverse order */
-  *handle = g_slist_prepend(*handle, result); 
+  (*handle)->memoryList = g_slist_prepend((*handle)->memoryList, result); 
 
   return result;
 }
@@ -2731,14 +2733,15 @@ void handleDestroy(BlxHandle *handle)
 {
   DEBUG_ENTER("handleDestroy");
 
-  GSList *listItem = *handle;
+  GSList *listItem = (*handle)->memoryList;
   for ( ; listItem; listItem = listItem->next)
     {
       g_free(listItem->data);
       listItem->data = NULL;
     }
   
-  g_slist_free(*handle);
+  g_slist_free((*handle)->memoryList);
+  g_free(*handle);
   *handle = NULL;
   
   DEBUG_EXIT("handleDestroy returning ");

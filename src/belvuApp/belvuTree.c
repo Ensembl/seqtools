@@ -138,8 +138,6 @@ typedef struct _BelvuTreeProperties
     GtkWidget *treeArea;            /* Drawing widget for the tree */
     GdkRectangle treeRect;          /* Specifies the actual area in which we'll draw the tree within treeAre */
     
-    TreeNode *treeHead;             /* The head node of the tree */
-    
     int charWidth;
     int charHeight;
     
@@ -187,7 +185,6 @@ static void onDestroyBelvuTree(GtkWidget *belvuTree)
 static void belvuTreeCreateProperties(GtkWidget *belvuTree, 
                                       BelvuContext *bc,
                                       GtkWidget *treeArea,
-                                      TreeNode *treeHead,
                                       BelvuBuildMethod buildMethod,
                                       BelvuDistCorr distCorr)
 {
@@ -197,7 +194,6 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
       
       properties->bc = bc;
       properties->treeArea = treeArea;
-      properties->treeHead = treeHead;
 
       properties->buildMethod = buildMethod;
       properties->distCorr = distCorr;
@@ -862,23 +858,6 @@ static TreeNode* createEmptyTreeNode()
 }
 
 
-/* Recursively destroy the given tree node and all its child branches */
-void destroyTreeNodes(TreeNode **node)
-{
-  if (*node == NULL)
-    return;
-  
-  if ((*node)->left)
-    destroyTreeNodes(&(*node)->left);
-  
-  if ((*node)->right)
-    destroyTreeNodes(&(*node)->right);
-  
-  g_free(*node);
-  *node = NULL;
-}
-
-
 /* Swap the left and right branches of the given node */
 static void treeSwapNode(TreeNode *node)
 {
@@ -905,7 +884,7 @@ static void treeSwapNode(TreeNode *node)
  Note that treeReroot destroys the old tree, since it reuses the nodes.  
  Use treecpy if you still need it for something later.
  */
-static TreeNode *treeReroot(TreeNode *node, TreeNode **treeHead)
+static TreeNode *treeReroot(TreeNode *node)
 {
   TreeNode *newroot = createEmptyTreeNode();
   
@@ -918,9 +897,6 @@ static TreeNode *treeReroot(TreeNode *node, TreeNode **treeHead)
   newroot->left->branchlen = newroot->right->branchlen = node->branchlen / 2.0;
   treeBalanceByWeight(newroot->left, newroot->right, 
                       &newroot->left->branchlen, &newroot->right->branchlen);
-  
-  if (treeHead)
-    *treeHead = newroot;
   
   return newroot;
 }
@@ -946,7 +922,7 @@ static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *tree)
   if (bc->treeBestBalancedNode == tree)
     return tree;
   else
-    return treeReroot(bc->treeBestBalancedNode, &bc->treeHead);
+    return treeReroot(bc->treeBestBalancedNode);
 }
 
 
@@ -958,17 +934,14 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
   *avgdist,		/* vector r in Durbin et al */
   llen = 0, rlen = 0;
   TreeNode **node ;					    /* Array of (primary) nodes.  Value=0 => stale column */
-  static BlxHandle handle = 0;
-  BlxHandle treeHandle = NULL ;
-  
-  if (doBootstrap)
-    treeHandle = handle;
-  
-  /* Allocate memory */
+  BlxHandle treeHandle = NULL;
+
   if (treeHandle)
     handleDestroy(&treeHandle);
   
+  /* Allocate memory */
   treeHandle = handleCreate();
+  
   pairmtx = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double *));
   Dmtx = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double *));
   node = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(TreeNode *));
@@ -1015,7 +988,9 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
     }
   else
     {
-      /* Calculate pairwise distance matrix */
+      /* Calculate pairwise distance matrix. Note that this only calculates
+       * the portion of the array above the diagonal (where j > i); the other
+       * values are left uninitialised and should not be used. */
       arrayOrder(bc->alignArr);
       
       for (i = 0; i < bc->alignArr->len - 1; ++i)
@@ -1101,7 +1076,11 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
                   if (!node[j]) 
                     continue;
                   
-                  avgdist[i] += (i < j ? pairmtx[i][j] : pairmtx[j][i]);
+                  if (i < j)
+                    avgdist[i] += pairmtx[i][j];
+                  else if (i > j)
+                    avgdist[i] += pairmtx[j][i];
+                  
                   count++;
                 }
               
@@ -1111,7 +1090,9 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
                 avgdist[i] /= 1.0*(count - 2);
             }
           
-          /* Calculate corrected matrix Dij */
+          /* Calculate corrected matrix Dij. Note again that only values 
+           * above the diagonal (where j > i) are populated; other values
+           * are uninitialised and should not be used. */
           if (1 /* gjm */)
             {
               for (i = 0; i < bc->alignArr->len - 1; ++i)
@@ -1341,15 +1322,12 @@ void belvuTreeRemakeTree(GtkWidget *belvuTree)
   BelvuContext *bc = properties->bc;
 
   /* Re-make the tree */
-  destroyTreeNodes(&bc->treeHead);
-  
   separateMarkupLines(bc);
   bc->treeHead = treeMake(bc, TRUE);
   reInsertMarkupLines(bc);
   
   /* Make sure our properties are up to date with the data used to create
    * the new tree. */
-  properties->treeHead = bc->treeHead;
   properties->buildMethod = bc->treeMethod;
   properties->distCorr = bc->treeDistCorr;
   
@@ -1594,7 +1572,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
   properties->clickableRects = g_array_new(FALSE, FALSE, sizeof(ClickableRect));
   
   Tree *treeStruct = createEmptyTree();
-  treeStruct->head = properties->treeHead;
+  treeStruct->head = bc->treeHead;
 
   bc->maxTreeWidth = 0;
   bc->tree_y = 1;
@@ -1756,8 +1734,7 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
                 {
                   /* Re-routing changes the tree's head node, so make sure
                    * to update it in the context as well as our properties. */
-                  properties->bc->treeHead = treeReroot(clickRect->node, &properties->treeHead);
-                  properties->treeHead = properties->bc->treeHead;
+                  properties->bc->treeHead = treeReroot(clickRect->node);
                   
                   /* Re-routing can also affect the drawing area size, so recalculate borders */
                   calculateBelvuTreeBorders(belvuTree);
@@ -2008,8 +1985,7 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       /* Never destroy */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      calculateBelvuTreeBorders(bc->belvuTree);
-      belvuTreeRedrawAll(bc->belvuTree, NULL);
+      belvuTreeUpdateSettings(bc->belvuTree);
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -2097,7 +2073,7 @@ static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
 
   /* This loops through all nodes and calculates the max tree width */
-  calculateNodeWidth(properties, properties->treeHead, properties->treeRect.x);
+  calculateNodeWidth(properties, properties->bc->treeHead, properties->treeRect.x);
   
   const int treeHeight = (properties->bc->alignArr->len + 7) * properties->charHeight;
 
@@ -2202,7 +2178,7 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   GtkWidget *treeArea = createBelvuTreeWidget(bc, treeHead, GTK_BOX(vbox));
 
   /* Set the properties on the tree window */
-  belvuTreeCreateProperties(belvuTree, bc, treeArea, treeHead, bc->treeMethod, bc->treeDistCorr);
+  belvuTreeCreateProperties(belvuTree, bc, treeArea, bc->treeMethod, bc->treeDistCorr);
 
   /* Set the initial size (must be called after properties are set) */
   calculateBelvuTreeBorders(belvuTree);

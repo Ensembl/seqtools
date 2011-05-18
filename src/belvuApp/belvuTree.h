@@ -50,7 +50,6 @@
 GtkWidget*                createAndShowBelvuTree(BelvuContext *bc);
 GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
 void                      belvuTreeRemakeTree(GtkWidget *belvuTree);
-void                      destroyTreeNodes(TreeNode **node);
 
 BelvuContext*             belvuTreeGetContext(GtkWidget *belvuTree);
 

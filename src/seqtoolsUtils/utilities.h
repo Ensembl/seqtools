@@ -182,9 +182,12 @@ typedef struct _BlxColor
   } BlxColor;
   
   
-/* This handle holds a list of pointers to all memory allocated via this handle. Use handleDestroy
- * to free the handle and all its allocated memory. */
-typedef GSList* BlxHandle;
+/* This handle holds a list of pointers to all memory allocated via this handle. 
+ * Use handleDestroy to free the handle and all its allocated memory. */
+typedef struct _BlxHandle
+  {
+    GSList *memoryList;
+  } BlxHandleStruct, *BlxHandle;
   
   
 /* This struct is used to pass user data to the message handlers */

@@ -613,7 +613,6 @@ static void onRecalcTreeMenu(GtkAction *action, gpointer data)
   else
     {
       /* No tree window, but make/re-make the underlying tree structure */
-      destroyTreeNodes(&bc->treeHead);
       bc->treeHead = treeMake(bc, FALSE);
       onTreeOrderChanged(bc);
     }
