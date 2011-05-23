@@ -46,6 +46,12 @@
 #define DEFAULT_NAME_COLUMN_PADDING_CHARS       2  /* number of char widths to use to pad after the name column */
 #define WRAP_DISPLAY_PADDING_CHARS              4
 
+
+/* Local function declarations */
+static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
+
+
+
 /* Properties specific to the belvu alignment */
 typedef struct _BelvuAlignmentProperties
 {
@@ -241,41 +247,57 @@ static void drawSingleSequence(GtkWidget *widget,
   GtkAdjustment *hAdjustment = properties->hAdjustment;
   const int displayLen = hAdjustment->page_size;
   
+  GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
+  
   if (properties->bc->displayColors)
     {
       /* Loop through each character in the current display range and color
-       * the background */
+       * the text and background according to the relevant highlight colors */
       int i = hAdjustment->value;
       const int iMax = hAdjustment->value + displayLen;
       const gboolean isSelected = (alnp == properties->bc->highlightedAln);
       
       for ( ; i < iMax; ++i)
 	{
+          /* Draw the background */
 	  GdkColor bgColor;
 	  findResidueBGcolor(properties->bc, alnp, i, isSelected, &bgColor);
 	  gdk_gc_set_foreground(gc, &bgColor);
 	  
 	  gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
+          
+          /* Draw the text */
+          if (colorByConservation(properties->bc))
+            {
+              GdkColor fgColor;
+              bg2fgColor(properties->bc, &bgColor, &fgColor);
+              gdk_gc_set_foreground(gc, &fgColor);
+            }
+          else
+            {
+              gdk_gc_set_foreground(gc, defaultFgColor);
+            }
+          
+          char displayText[2];
+          displayText[0] = alnp->seq[i];
+          displayText[1] = '\0';
+          drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
+          
+          /* Increment the x position */
 	  x += properties->charWidth;
 	}
     }
   
-  /* Draw the text for the current display range */
-  GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
-  gdk_gc_set_foreground(gc, textColor);
-  
-  char *cp = alnp->seq + (int)hAdjustment->value;
-  char *displayText = g_strndup(cp, displayLen);
-  drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
-  
-  g_free(displayText);
   g_object_unref(gc);
 }
 
 
 static gboolean colorsEqual(GdkColor *color1, GdkColor *color2)
 {
-  return (color1->pixel = color2->pixel);
+  return (color1->pixel == color2->pixel &&
+          color1->red == color2->red &&
+          color1->green == color2->green &&
+          color1->blue == color2->blue);
 }
 
 
