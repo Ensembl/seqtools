@@ -127,7 +127,8 @@ static void                      onprintColorsMenu(GtkAction *action, gpointer d
 static void                      onmarkupMenu(GtkAction *action, gpointer data);
 static void                      ondisplayColorsMenu(GtkAction *action, gpointer data);
 static void                      onlowercaseMenu(GtkAction *action, gpointer data);
-static void                      oneditColorSchemeMenu(GtkAction *action, gpointer data);
+static void                      oneditResidueSchemeMenu(GtkAction *action, gpointer data);
+static void                      oneditConsSchemeMenu(GtkAction *action, gpointer data);
 
 static void                      showHelpDialog();
 static void			 showAboutDialog(GtkWidget *parent);
@@ -144,7 +145,8 @@ static void			 endRemovingSequences(GtkWidget *belvuWindow);
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
 static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
-static void                      showEditColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
+static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
+static void                      showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -171,8 +173,8 @@ static const GtkActionEntry menuEntries[] = {
   { "SortMenuAction",  NULL, "_Sort"},
   { "HelpMenuAction",  NULL, "_Help"},
 
-  { "ByResidueMenuAction", NULL, "Choose color scheme"},
-  { "ByConsMenuAction",    NULL, "Choose color scheme"},
+  { "ByResidueMenuAction", NULL, "Change color scheme"},
+  { "ByConsMenuAction",    NULL, "Change color scheme"},
 
   { "CancelRemove", NULL,	      "Cancel remove sequences", "Escape",  "Cancel 'remove sequences' mode",     G_CALLBACK(onCancelRemoveSeqs)},
 
@@ -214,7 +216,8 @@ static const GtkActionEntry menuEntries[] = {
   {"colorByResId",         NULL, "Set %ID threshold",                 NULL, "Set the threshold above which to color residues", G_CALLBACK(oncolorByResIdMenu)},
   {"saveColorScheme",      NULL, "Save colour scheme",                NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorSchemeMenu)},
   {"loadColorScheme",      NULL, "Load colour scheme",                NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorSchemeMenu)},
-  {"editColorScheme",      NULL, "Edit colour scheme",                NULL, "Open window to edit colour scheme", G_CALLBACK(oneditColorSchemeMenu)},
+  {"editResidueScheme",    NULL, "Edit color scheme",                 NULL, "Open window to edit residue colors", G_CALLBACK(oneditResidueSchemeMenu)},
+  {"editConsScheme",       NULL, "Edit color scheme",                 NULL, "Open window to edit conservation colour scheme", G_CALLBACK(oneditConsSchemeMenu)},
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -238,7 +241,8 @@ static const GtkRadioActionEntry residueSchemeMenuEntries[] = {
 {"colorSchemeStandard",  NULL, "Erik's",                            NULL, "Erik's",                            BELVU_SCHEME_ERIK},
 {"colorSchemeGibson",    NULL, "Toby's",                            NULL, "Toby's",                            BELVU_SCHEME_GIBSON},
 {"colorSchemeCys",       NULL, "Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CYS},
-{"colorSchemeEmpty",     NULL, "Clean slate",                       NULL, "Clean slate",                       BELVU_SCHEME_NONE}
+{"colorSchemeEmpty",     NULL, "Clean slate",                       NULL, "Clean slate",                       BELVU_SCHEME_NONE},
+{"colorSchemeCustom",    NULL, "Custom",                            NULL, "Custom",                            BELVU_SCHEME_CUSTOM}
 };
 
 static const GtkRadioActionEntry consSchemeMenuEntries[] = {
@@ -313,6 +317,11 @@ static const char standardMenuDescription[] =
 "        <menuitem action='colorSchemeGibson'/>"
 "        <menuitem action='colorSchemeCys'/>"
 "        <menuitem action='colorSchemeEmpty'/>"
+"        <menuitem action='colorSchemeCustom'/>"
+"        <separator/>"
+"        <menuitem action='editResidueScheme'/>"
+"        <menuitem action='saveColorScheme'/>"
+"        <menuitem action='loadColorScheme'/>"
 "      </menu>"
 "      <menuitem action='toggleColorByResId'/>"
 "      <menuitem action='colorByResId'/>"
@@ -322,6 +331,8 @@ static const char standardMenuDescription[] =
 "        <menuitem action='colorSim'/>"
 "        <menuitem action='colorId'/>"
 "        <menuitem action='colorIdSim'/>"
+"        <separator/>"
+"        <menuitem action='editConsScheme'/>"
 "      </menu>"
 "      <menuitem action='ignoreGaps'/>"
 "      <menuitem action='printColors'/>"
@@ -330,10 +341,6 @@ static const char standardMenuDescription[] =
 "      <menuitem action='markup'/>"
 "      <menuitem action='displayColors'/>"
 "      <menuitem action='lowercase'/>"
-"      <separator/>"
-"      <menuitem action='editColorScheme'/>"
-"      <menuitem action='saveColorScheme'/>"
-"      <menuitem action='loadColorScheme'/>"
 "    </menu>"
     /* Sort menu */
 "    <menu action='SortMenuAction'>"
@@ -443,6 +450,8 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
   enableMenuAction(action_group, "toggleColorByResId", !colorByConservation(bc));
   enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
 
+  enableMenuAction(action_group, "colorSchemeCustom", bc->residueScheme == BELVU_SCHEME_CUSTOM);
+  
   enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
   enableMenuAction(action_group, "printColors", colorByConservation(bc));
 }
@@ -937,10 +946,16 @@ static void onlowercaseMenu(GtkAction *action, gpointer data)
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
-static void oneditColorSchemeMenu(GtkAction *action, gpointer data)
+static void oneditResidueSchemeMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
-  showEditColorsDialog(belvuWindow, TRUE);
+  showEditResidueColorsDialog(belvuWindow, TRUE);
+}
+
+static void oneditConsSchemeMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showEditConsColorsDialog(belvuWindow, TRUE);
 }
 
 /* SORT MENU ACTIONS */
@@ -1588,18 +1603,107 @@ static void createEditResidueContent(GtkBox *box)
 }
 
 
-/* Show a dialog to allow the user to edit the current color scheme */
-static void showEditColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
+/* Called when the user responds to the edit-residue-colors dialog */
+void onResponseEditResidueColorsDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      /* Set color scheme to 'custom' and close the dialog if successful. */
+      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      if (destroy)
+        setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      /* Reset the color scheme, refresh, and close the dialog. */
+      destroy = TRUE;
+      setResidueSchemeColors(bc);
+      updateSchemeColors(bc);
+      belvuAlignmentRedrawAll(bc->belvuAlignment);
+      break;
+      
+    default:
+      break;
+  };
+  
+  if (destroy)
+    {
+      gtk_widget_hide_all(GTK_WIDGET(dialog));
+    }
+}
+
+
+
+
+/* Show a dialog to allow the user to edit the residue colors */
+static void showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   BelvuContext *bc = properties->bc;
   
-  const BelvuDialogId dialogId = BELDIALOG_EDIT_COLORS;
+  const BelvuDialogId dialogId = BELDIALOG_EDIT_RESIDUE_COLORS;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Belvu - Edit Colors", 
+      dialog = gtk_dialog_new_with_buttons("Belvu - Edit Residue Colors", 
+                                           GTK_WINDOW(belvuWindow), 
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                           NULL);
+      
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+      
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseEditResidueColorsDialog), belvuWindow);
+    }
+  else
+    {
+      /* Need to refresh the dialog contents, so clear and re-create content area */
+      dialogClearContentArea(GTK_DIALOG(dialog));
+    }
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  /* Create separate tabs for the 'by residue' and 'by conservation' color schemes */
+  GtkBox *vbox = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+  GtkNotebook *notebook = GTK_NOTEBOOK(gtk_notebook_new());
+  gtk_box_pack_start(vbox, GTK_WIDGET(notebook), TRUE, TRUE, 0);
+  
+  createEditResidueContent(vbox);
+
+  /* Show / bring to front */
+  gtk_widget_show_all(dialog);
+  
+  if (bringToFront)
+    {
+      gtk_window_present(GTK_WINDOW(dialog));
+    }
+  
+}
+
+
+/* Show a dialog to allow the user to edit the conservation color scheme */
+static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  const BelvuDialogId dialogId = BELDIALOG_EDIT_CONS_COLORS;
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
+  
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Belvu - Edit Conservation Colors", 
                                            GTK_WINDOW(belvuWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
@@ -1626,7 +1730,7 @@ static void showEditColorsDialog(GtkWidget *belvuWindow, const gboolean bringToF
   gtk_box_pack_start(vbox, GTK_WIDGET(notebook), TRUE, TRUE, 0);
   
   createEditResidueContent(vbox);
-
+  
   /* Show / bring to front */
   gtk_widget_show_all(dialog);
   

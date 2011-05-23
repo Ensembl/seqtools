@@ -5169,6 +5169,7 @@ void setResidueSchemeColors(BelvuContext *bc)
       case BELVU_SCHEME_GIBSON:   colorSchemeGibson(bc);    break;
       case BELVU_SCHEME_CYS:      colorSchemeCys(bc);	    break;
       case BELVU_SCHEME_NONE:     colorSchemeEmpty(bc);	    break;
+      case BELVU_SCHEME_CUSTOM:   /* do nothing (i.e. keep existing colors) */ break;
       
       default: 
 	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme); 

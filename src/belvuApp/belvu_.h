@@ -203,7 +203,8 @@ typedef enum _ResidueColorSchemes
     BELVU_SCHEME_NONE,              /* Clean slate (no coloring) */
     BELVU_SCHEME_ERIK,              /* Erik's original scheme */
     BELVU_SCHEME_GIBSON,            /* Toby's */
-    BELVU_SCHEME_CYS               /* Cys/Gly/Pro */
+    BELVU_SCHEME_CYS,               /* Cys/Gly/Pro */
+    BELVU_SCHEME_CUSTOM             /* Custom color scheme (this is activated after colors have been edited) */
   } ResidueColorScheme;
 
 
@@ -290,7 +291,8 @@ typedef enum
     BELDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
     
     BELDIALOG_MAKE_TREE,            /* The make-tree dialog */
-    BELDIALOG_EDIT_COLORS,          /* The edit-colors dialog */
+    BELDIALOG_EDIT_RESIDUE_COLORS,  /* The edit-residue-colors dialog */
+    BELDIALOG_EDIT_CONS_COLORS,     /* The edit-conservation-colors dialog */
     
     BELDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
   } BelvuDialogId;
