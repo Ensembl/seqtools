@@ -3980,6 +3980,16 @@ myGraphDestroy(treeDestroy, treeGraph)
 
 
 
+/* These values define the defaults for the thresholds when coloring by
+ * conservation; the first three are when coloring by %ID and the last 
+ * three when coloring by similarity (i.e. BLOSUM62) */
+#define DEFAULT_LOW_ID_CUTOFF           0.4
+#define DEFAULT_MID_ID_CUTOFF           0.6
+#define DEFAULT_MAX_ID_CUTOFF           0.8
+#define DEFAULT_LOW_SIM_CUTOFF          0.5
+#define DEFAULT_MID_SIM_CUTOFF          1.5
+#define DEFAULT_MAX_SIM_CUTOFF          3.0
+
 
 /* Global variables */
 static char *colorNames[NUM_TRUECOLORS] = {
@@ -5882,12 +5892,12 @@ BelvuContext* createBelvuContext()
   bc->treeBestBalance = 0.0;
   bc->treeBestBalance_subtrees = 0.0;
   bc->tree_y = 0.3;
-  bc->lowIdCutoff = 0.4;
-  bc->midIdCutoff = 0.6;
-  bc->maxIdCutoff = 0.8;
-  bc->lowSimCutoff = 0.5;
-  bc->midSimCutoff = 1.5;
-  bc->maxSimCutoff = 3.0;
+  bc->lowIdCutoff = DEFAULT_LOW_ID_CUTOFF;
+  bc->midIdCutoff = DEFAULT_MID_ID_CUTOFF;
+  bc->maxIdCutoff = DEFAULT_MAX_ID_CUTOFF;
+  bc->lowSimCutoff = DEFAULT_LOW_SIM_CUTOFF;
+  bc->midSimCutoff = DEFAULT_MID_SIM_CUTOFF;
+  bc->maxSimCutoff = DEFAULT_MAX_SIM_CUTOFF;
   bc->colorByResIdCutoff = 20.0;
   bc->mksubfamilies_cutoff = 0.0;
   bc->treeScale = 0.3;

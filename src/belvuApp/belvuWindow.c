@@ -148,6 +148,8 @@ static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
 static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 
+static void                      saveOrResetConsColors(BelvuContext *bc, const gboolean save);
+
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
 /***********************************************************
@@ -1446,6 +1448,39 @@ static void updateColorResidue(GtkWidget *combo, gpointer data)
 }
 
 
+/* Create a color chooser button. This is a bit of a hack because it has to 
+ * deal with the old-style acedb colors, whereas ideally we would get rid of
+ * those and just use a GTK color-button widget. */
+static void createColorButton(const int colorNum, 
+                              GtkTable *table, 
+                              const int row, 
+                              const int col,
+                              const int xpad,
+                              const int ypad,
+                              GCallback callbackFunc,
+                              gpointer data)
+{
+  /* Create the color chooser. First get the current color for this residue */
+  GdkColor color;
+  convertColorNumToGdkColor(colorNum, FALSE, &color);
+  
+  /* Create a color-chooser button. To do: we should disable clicking this button
+   * until we are able to use its result. */
+  GtkWidget *colorButton = gtk_color_button_new_with_color(&color);
+  gtk_table_attach(table, colorButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  /* Create a drop-down box to allow the user to select one of the old-style acedb colors. */
+  GtkWidget *combo = GTK_WIDGET(createColorCombo(colorNum));
+  gtk_table_attach(table, combo, col + 1, col + 2, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+
+  /* This just updates the gtk color button with the new color when the combo box value has changed. */
+  g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(updateColorButton), colorButton);
+
+  /* This attaches the 'proper' user callback function */
+  g_signal_connect(G_OBJECT(combo), "changed", callbackFunc, data);
+}
+
+
 /* This creates a single color item on the edit-residue-colors dialog */
 static void createResidueColorBox(GtkTable *table, 
                                   char *residue,
@@ -1461,20 +1496,10 @@ static void createResidueColorBox(GtkTable *table,
   
   /* Create the color chooser. First get the current color for this residue */
   const int colorNum = getColor(*residue);
-  GdkColor color;
-  convertColorNumToGdkColor(colorNum, FALSE, &color);
+  createColorButton(colorNum, table, *row, *col + 1, xpad, ypad, G_CALLBACK(updateColorResidue), residue);
   
   /* Append this residue to the group for this color */
 //  g_string_append(groups[colorNum], residue);
-  
-  GtkWidget *colorButton = gtk_color_button_new_with_color(&color);
-  gtk_table_attach(table, colorButton, *col + 1, *col + 2, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  
-  GtkComboBox *combo = createColorCombo(colorNum);
-  gtk_table_attach(table, GTK_WIDGET(combo), *col + 2, *col + 3, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  
-  g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(updateColorButton), colorButton);
-  g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(updateColorResidue), residue);
   
   *row += 1;
 }
@@ -1643,8 +1668,6 @@ void onResponseEditResidueColorsDialog(GtkDialog *dialog, gint responseId, gpoin
 }
 
 
-
-
 /* Show a dialog to allow the user to edit the residue colors */
 static void showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
 {
@@ -1677,11 +1700,7 @@ static void showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean b
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
-  /* Create separate tabs for the 'by residue' and 'by conservation' color schemes */
   GtkBox *vbox = GTK_BOX(GTK_DIALOG(dialog)->vbox);
-  GtkNotebook *notebook = GTK_NOTEBOOK(gtk_notebook_new());
-  gtk_box_pack_start(vbox, GTK_WIDGET(notebook), TRUE, TRUE, 0);
-  
   createEditResidueContent(vbox);
 
   /* Show / bring to front */
@@ -1692,6 +1711,236 @@ static void showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean b
       gtk_window_present(GTK_WINDOW(dialog));
     }
   
+}
+
+
+
+/* Called when the user responds to the edit-conservation-colors dialog */
+void onResponseConsColorsDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  gboolean destroy = TRUE;
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  switch (responseId)
+  {
+    case GTK_RESPONSE_ACCEPT:
+      /* Close dialog if successful */
+      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      break;
+      
+    case GTK_RESPONSE_APPLY:
+      /* Never close */
+      destroy = FALSE;
+      widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      break;
+      
+    case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_REJECT:
+      /* Reset the color scheme. */
+      destroy = TRUE;
+      saveOrResetConsColors(bc, FALSE); /* restores old values */
+      break;
+      
+    default:
+      break;
+  };
+  
+  onColorSchemeChanged(properties);
+
+  if (destroy)
+    {
+      gtk_widget_hide_all(GTK_WIDGET(dialog));
+    }
+}
+
+
+/* Callback called when a foreground conservation color has been changed */
+static void updateConsFgColor(GtkWidget *combo, gpointer data)
+{
+  int *colorNum = (int*)data;
+  *colorNum = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(combo));
+  GtkWidget *belvuWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  onColorSchemeChanged(properties);
+}
+
+
+/* Callback called when a background conservation color has been changed */
+static void updateConsBgColor(GtkWidget *combo, gpointer data)
+{
+  int *colorNum = (int*)data;
+  *colorNum = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
+  
+  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(combo));
+  GtkWidget *belvuWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  onColorSchemeChanged(properties);
+}
+
+/* Callback called when the user 'ok's the edit-conservation-colors dialog
+ * to set the new threshold values. The given widget must be a GtkEntry and the
+ * user data a pointer to a double. */
+static gboolean onConsThresholdChanged(GtkWidget *widget, gint responseId, gpointer data)
+{
+  GtkEntry *entry = GTK_ENTRY(widget);
+  double *val = (double*)data;
+  
+  const gchar *inputText = gtk_entry_get_text(entry);
+  *val = g_strtod(inputText, NULL);
+  
+  return TRUE;
+}
+
+
+/* Add a single line in the edit-cons-colors dialog */
+static void addConsColorLine(const char *labelText, int *fgColorNum, int *bgColorNum, double *cutoff, GtkTable *table, int *row)
+{
+  /* Label */
+  GtkWidget *label = gtk_label_new(labelText);
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.0);
+  gtk_table_attach(table, label, 0, 1, *row, *row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  
+  /* Threshold entry box */
+  GtkWidget *entry = gtk_entry_new();
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  char *defaultInput = blxprintf("%.1f", *cutoff);
+  gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(defaultInput) + 2);
+  g_free(defaultInput);
+  defaultInput = NULL;
+  
+  gtk_table_attach(table, entry, 1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  widgetSetCallbackData(entry, onConsThresholdChanged, cutoff);
+  
+  /* Text color chooser */
+  createColorButton(*fgColorNum, table, *row, 2, 2, TABLE_YPAD, G_CALLBACK(updateConsFgColor), fgColorNum);
+
+  /* Background color chooser */
+  createColorButton(*bgColorNum, table, *row, 4, 2, TABLE_YPAD, G_CALLBACK(updateConsBgColor), bgColorNum);
+
+  *row += 1;
+}
+
+
+/* Hacky function to save the current conservation colors or reset them to
+ * previously saved values (if 'save' is false). Ideally, the drawing 
+ * functions would not use the colors in the BelvuContext directly and we'd
+ * therefore be able to show the user different colors without having to change
+ * the BelvuContext, and hence without the need for this hacky undo function. */
+static void saveOrResetConsColors(BelvuContext *bc, const gboolean save)
+{
+  /* These are all the values we need to be able to restore if the dialog
+   * is cancelled... */
+  static double lowIdCutoff = 0;
+  static double midIdCutoff = 0;
+  static double maxIdCutoff = 0;
+  static double lowSimCutoff = 0;
+  static double midSimCutoff = 0;
+  static double maxSimCutoff = 0;
+  
+  static int maxfgColor = 0;
+  static int midfgColor = 0;
+  static int lowfgColor = 0;
+  static int maxbgColor = 0;
+  static int midbgColor = 0;
+  static int lowbgColor = 0;
+  
+  if (save)
+    {
+      /* Remember the current conservation colors */
+      lowIdCutoff = bc->lowIdCutoff;
+      midIdCutoff = bc->midIdCutoff;
+      maxIdCutoff = bc->maxIdCutoff;
+      lowSimCutoff = bc->lowSimCutoff;
+      midSimCutoff = bc->midSimCutoff;
+      maxSimCutoff = bc->maxSimCutoff;
+
+      maxfgColor = bc->maxfgColor;
+      midfgColor = bc->midfgColor;
+      lowfgColor = bc->lowfgColor;
+      maxbgColor = bc->maxbgColor;
+      midbgColor = bc->midbgColor;
+      lowbgColor = bc->lowbgColor;
+    }
+  else
+    {
+      /* Reset to the previously-saved values */
+      bc->lowIdCutoff = lowIdCutoff;
+      bc->midIdCutoff = midIdCutoff;
+      bc->maxIdCutoff = maxIdCutoff;
+      bc->lowSimCutoff = lowSimCutoff;
+      bc->midSimCutoff = midSimCutoff;
+      bc->maxSimCutoff = maxSimCutoff;
+
+      bc->maxfgColor = maxfgColor;
+      bc->midfgColor = midfgColor;
+      bc->lowfgColor = lowfgColor;
+      bc->maxbgColor = maxbgColor;
+      bc->midbgColor = midbgColor;
+      bc->lowbgColor = lowbgColor;
+    }
+}
+
+
+/* Create the content for the edit-conservation-color-scheme dialog */
+static void createEditConsColorsContent(GtkBox *box, BelvuContext *bc)
+{
+  /* Save current values so that we can restore them later if we cancel */
+  saveOrResetConsColors(bc, TRUE);
+  
+  /* We'll put everything in a vbox */
+  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_box_pack_start(box, GTK_WIDGET(vbox), FALSE, FALSE, 0);
+  
+  /* Create the labels */
+  char *tmpStr = blxprintf("Coloring by %s", bc->consScheme == BELVU_SCHEME_BLOSUM ? "average BLOSUM62 score" : "% identity");
+  
+  GtkWidget *label = gtk_label_new(tmpStr);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_box_pack_start(vbox, label, FALSE, FALSE, DIALOG_YPAD);
+  
+  g_free(tmpStr);
+  tmpStr = NULL;
+
+  const gboolean colorById = (bc->consScheme == BELVU_SCHEME_ID || bc->consScheme == BELVU_SCHEME_ID_BLOSUM);
+  const gboolean colorBySim = (bc->consScheme == BELVU_SCHEME_BLOSUM || bc->consScheme == BELVU_SCHEME_ID_BLOSUM);
+  
+  if (colorBySim)
+    {
+      label = gtk_label_new("Similar residues according to BLOSUM62 are coloured as the most conserved one.");
+      gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+      gtk_box_pack_start(vbox, label, FALSE, FALSE, DIALOG_YPAD);
+    }
+  
+  /* Place the main widgets in a table */
+  GtkTable *table = GTK_TABLE(gtk_table_new(4, 6, FALSE));
+  gtk_box_pack_start(vbox, GTK_WIDGET(table), TRUE, TRUE, DIALOG_YPAD);
+  
+  /* 1st row contains labels */
+  int row = 0;
+  label = gtk_label_new("Threshold");\
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+
+  label = gtk_label_new("Text colour");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_table_attach(table, label, 2, 4, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+
+  label = gtk_label_new("Background colour");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_table_attach(table, label, 4, 6, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  
+  ++row;
+  addConsColorLine("Max:", &bc->maxfgColor, &bc->maxbgColor, colorById ? &bc->maxIdCutoff : &bc->maxSimCutoff, table, &row);
+  addConsColorLine("Mid:", &bc->midfgColor, &bc->midbgColor, colorById ? &bc->midIdCutoff : &bc->midSimCutoff, table, &row);
+  addConsColorLine("Low:", &bc->lowfgColor, &bc->lowbgColor, colorById ? &bc->lowIdCutoff : &bc->lowSimCutoff, table, &row);
 }
 
 
@@ -1710,14 +1959,15 @@ static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean brin
                                            GTK_WINDOW(belvuWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_APPLY, GTK_RESPONSE_APPLY,
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                            NULL);
-      
+
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
-      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseConsColorsDialog), belvuWindow);
     }
   else
     {
@@ -1725,14 +1975,10 @@ static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean brin
       dialogClearContentArea(GTK_DIALOG(dialog));
     }
   
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
   
-  /* Create separate tabs for the 'by residue' and 'by conservation' color schemes */
   GtkBox *vbox = GTK_BOX(GTK_DIALOG(dialog)->vbox);
-  GtkNotebook *notebook = GTK_NOTEBOOK(gtk_notebook_new());
-  gtk_box_pack_start(vbox, GTK_WIDGET(notebook), TRUE, TRUE, 0);
-  
-  createEditResidueContent(vbox);
+  createEditConsColorsContent(vbox, bc);
   
   /* Show / bring to front */
   gtk_widget_show_all(dialog);

@@ -356,7 +356,7 @@ typedef struct BelvuContextStruct
   double lowSimCutoff;                /* %id cutoff for lowest colour */
   double midSimCutoff;                /* %id cutoff for medium colour */
   double maxSimCutoff;                /* %id cutoff for maximum colour */
-  double colorByResIdCutoff;          /* Colour by residue + id cutoff */
+  double colorByResIdCutoff;          /* Cutoff when only coloring residues above a given %ID */
   double mksubfamilies_cutoff; 
   double treeScale;                   /* Default scale to use for drawing the tree */
   double treeLineWidth;               /* Default line width of the branch lines in trees */
