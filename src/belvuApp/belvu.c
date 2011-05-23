@@ -5606,6 +5606,14 @@ void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
 }
 
 
+/* Utility function to get the color display name for a color number */
+const char* getColorNumName(const int colorNum)
+{
+  g_assert(colorNum < NUM_TRUECOLORS);
+  return colorNames[colorNum];
+}
+
+
 /***********************************************************
  *		          Arrays			   *
  ***********************************************************/

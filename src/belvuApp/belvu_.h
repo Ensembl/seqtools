@@ -445,6 +445,7 @@ gboolean				  colorByResidue(BelvuContext *bc);
 gboolean				  colorBySimilarity(BelvuContext *bc);
 gboolean                                  colorByResId(BelvuContext *bc);
 void                                      setResidueSchemeColors(BelvuContext *bc);
+const char*                               getColorNumName(const int colorNum);
 
 
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);

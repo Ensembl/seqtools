@@ -1355,52 +1355,6 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
  *                    Edit Colors dialog                   *
  ***********************************************************/
 
-/* Utility function to get the color display name for a color number */
-static const char* getColorNumName(const int colorNum)
-{
-  const char *result = NULL;
-  
-  switch (colorNum)
-  {
-    case 0: result = "WHITE"; break;
-    case 1: result = "BLACK"; break;
-    case 2: result = "LIGHTGRAY"; break;
-    case 3: result = "DARKGRAY"; break;
-    case 4: result = "RED"; break;
-    case 5: result = "GREEN"; break;
-    case 6: result = "BLUE"; break;
-    case 7: result = "YELLOW"; break;
-    case 8: result = "CYAN"; break;
-    case 9: result = "MAGENTA"; break;
-    case 10: result = "LIGHTRED"; break;
-    case 11: result = "LIGHTGREEN"; break;
-    case 12: result = "LIGHTBLUE"; break;
-    case 13: result = "DARKRED"; break;
-    case 14: result = "DARKGREEN"; break;
-    case 15: result = "DARKBLUE"; break;
-    case 16: result = "PALERED"; break;
-    case 17: result = "PALEGREEN"; break;
-    case 18: result = "PALEBLUE"; break;
-    case 19: result = "PALEYELLOW"; break;
-    case 20: result = "PALECYAN"; break;
-    case 21: result = "PALEMAGENTA"; break;
-    case 22: result = "BROWN"; break;
-    case 23: result = "ORANGE"; break;
-    case 24: result = "PALEORANGE"; break;
-    case 25: result = "PURPLE"; break;
-    case 26: result = "VIOLET"; break;
-    case 27: result = "PALEVIOLET"; break;
-    case 28: result = "GRAY"; break;
-    case 29: result = "PALEGRAY"; break;
-    case 30: result = "CERISE"; break;
-    case 31: result = "MIDBLUE"; break;
-    default: break;
-  };
-  
-  return result;
-}
-
-
 /* This creates a drop-down box for selecting a color */
 static GtkComboBox* createColorCombo(const int colorNum)
 {
