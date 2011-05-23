@@ -4018,7 +4018,7 @@ static char *colorNames[NUM_TRUECOLORS] = {
 };
 
 
-/* Residue colors */
+/* Current residue colors */
 static int color[] = {
         NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
         NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
@@ -4037,6 +4037,28 @@ static int color[] = {
         NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
         NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
         NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
+};
+
+
+/* Saved custom residue colors */
+static int customColor[] = {
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
+NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
 };
 
 
@@ -4917,7 +4939,8 @@ int getColor(const char inputChar)
 /* Set the color in the colors array for the given char */
 void setColor(const char inputChar, const int colorNum)
 {
-  color[(unsigned char)(inputChar)] = colorNum;
+  color[(unsigned char)(toupper(inputChar))] = colorNum;
+  color[(unsigned char)(tolower(inputChar))] = colorNum;
 }
 
 /* Returns the 'color' array */
@@ -5063,6 +5086,38 @@ static void clearResidueColors(BelvuContext *bc)
 }
 
 
+/* Utility to clear all custom colors to white. Should be called during initialisation. */
+void initCustomColors()
+{
+  customColor['A'] = customColor['a'] = WHITE;
+  customColor['B'] = customColor['b'] = NOCOLOR;
+  customColor['C'] = customColor['c'] = WHITE;
+  customColor['D'] = customColor['d'] = WHITE;
+  customColor['E'] = customColor['e'] = WHITE;
+  customColor['F'] = customColor['f'] = WHITE;
+  customColor['G'] = customColor['g'] = WHITE;
+  customColor['H'] = customColor['h'] = WHITE;
+  customColor['I'] = customColor['i'] = WHITE;
+  customColor['J'] = customColor['j'] = WHITE;
+  customColor['K'] = customColor['k'] = WHITE;
+  customColor['L'] = customColor['l'] = WHITE;
+  customColor['M'] = customColor['m'] = WHITE;
+  customColor['N'] = customColor['n'] = WHITE;
+  customColor['O'] = customColor['o'] = WHITE;
+  customColor['P'] = customColor['p'] = WHITE;
+  customColor['Q'] = customColor['q'] = WHITE;
+  customColor['R'] = customColor['r'] = WHITE;
+  customColor['S'] = customColor['s'] = WHITE;
+  customColor['T'] = customColor['t'] = WHITE;
+  customColor['V'] = customColor['v'] = WHITE;
+  customColor['U'] = customColor['u'] = WHITE;
+  customColor['W'] = customColor['w'] = WHITE;
+  customColor['X'] = customColor['x'] = WHITE;
+  customColor['Y'] = customColor['y'] = WHITE;
+  customColor['Z'] = customColor['z'] = NOCOLOR;
+}
+
+
 static void colorSchemeCys(BelvuContext *bc)
 {
   clearResidueColors(bc);
@@ -5159,6 +5214,65 @@ static void colorSchemeGibson(BelvuContext *bc)
 }
 
 
+/* Save the current residue colors as the 'custom' color scheme */
+void saveCustomColors(BelvuContext *bc)
+{
+  bc->haveCustomColors = TRUE;
+  
+  customColor['A'] = customColor['a'] = color['a'];
+  customColor['B'] = customColor['b'] = color['b'];
+  customColor['C'] = customColor['c'] = color['c'];
+  customColor['D'] = customColor['d'] = color['d'];
+  customColor['E'] = customColor['e'] = color['e'];
+  customColor['F'] = customColor['f'] = color['f'];
+  customColor['G'] = customColor['g'] = color['g'];
+  customColor['H'] = customColor['h'] = color['h'];
+  customColor['I'] = customColor['i'] = color['i'];
+  customColor['K'] = customColor['k'] = color['k'];
+  customColor['L'] = customColor['l'] = color['l'];
+  customColor['M'] = customColor['m'] = color['m'];
+  customColor['N'] = customColor['n'] = color['n'];
+  customColor['P'] = customColor['p'] = color['p'];
+  customColor['Q'] = customColor['q'] = color['q'];
+  customColor['R'] = customColor['r'] = color['r'];
+  customColor['S'] = customColor['s'] = color['s'];
+  customColor['T'] = customColor['t'] = color['t'];
+  customColor['V'] = customColor['v'] = color['v'];
+  customColor['W'] = customColor['w'] = color['w'];
+  customColor['Y'] = customColor['y'] = color['y'];
+  customColor['Z'] = customColor['z'] = color['z'];
+  
+}
+
+
+/* Set the current colors the the last-saved 'custom' color scheme */
+static void colorSchemeCustom(BelvuContext *bc)
+{
+  color['A'] = color['a'] = customColor['a'];
+  color['B'] = color['b'] = customColor['b'];
+  color['C'] = color['c'] = customColor['c'];
+  color['D'] = color['d'] = customColor['d'];
+  color['E'] = color['e'] = customColor['e'];
+  color['F'] = color['f'] = customColor['f'];
+  color['G'] = color['g'] = customColor['g'];
+  color['H'] = color['h'] = customColor['h'];
+  color['I'] = color['i'] = customColor['i'];
+  color['K'] = color['k'] = customColor['k'];
+  color['L'] = color['l'] = customColor['l'];
+  color['M'] = color['m'] = customColor['m'];
+  color['N'] = color['n'] = customColor['n'];
+  color['P'] = color['p'] = customColor['p'];
+  color['Q'] = color['q'] = customColor['q'];
+  color['R'] = color['r'] = customColor['r'];
+  color['S'] = color['s'] = customColor['s'];
+  color['T'] = color['t'] = customColor['t'];
+  color['V'] = color['v'] = customColor['v'];
+  color['W'] = color['w'] = customColor['w'];
+  color['Y'] = color['y'] = customColor['y'];
+  color['Z'] = color['z'] = customColor['z'];
+}
+
+
 /* This is called when the color scheme has been set to 'by residue'. It updates
  * the colors according to the active color scheme. */
 void setResidueSchemeColors(BelvuContext *bc)
@@ -5169,7 +5283,7 @@ void setResidueSchemeColors(BelvuContext *bc)
       case BELVU_SCHEME_GIBSON:   colorSchemeGibson(bc);    break;
       case BELVU_SCHEME_CYS:      colorSchemeCys(bc);	    break;
       case BELVU_SCHEME_NONE:     colorSchemeEmpty(bc);	    break;
-      case BELVU_SCHEME_CUSTOM:   /* do nothing (i.e. keep existing colors) */ break;
+      case BELVU_SCHEME_CUSTOM:   colorSchemeCustom(bc);    break;
       
       default: 
 	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme); 
@@ -5812,6 +5926,7 @@ BelvuContext* createBelvuContext()
   bc->lowercaseOn = FALSE;
   bc->removingSeqs = FALSE;
   bc->displayColors = TRUE;
+  bc->haveCustomColors = FALSE;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;

@@ -398,6 +398,7 @@ typedef struct BelvuContextStruct
   gboolean lowercaseOn;		   /* Set to true to highlight lowercase characters */
   gboolean removingSeqs;	   /* Set to true if in the 'removing sequences' mode */
   gboolean displayColors;	   /* Whether to display colors (faster without) */
+  gboolean haveCustomColors;       /* Whether the custom colors have been set */
   
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   
@@ -434,8 +435,10 @@ void                                      readMatch(BelvuContext *bc, FILE *fil)
 void                                      checkAlignment(BelvuContext *bc);
 void                                      setConsSchemeColors(BelvuContext *bc);
 void					  updateSchemeColors(BelvuContext *bc);
+void                                      saveCustomColors(BelvuContext *bc);
 void                                      initResidueColors(BelvuContext *bc);
 void                                      initMarkupColors(void);              
+void                                      initCustomColors(void);              
 void                                      readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr);
 gboolean				  colorByConservation(BelvuContext *bc);
 gboolean				  colorByResidue(BelvuContext *bc);

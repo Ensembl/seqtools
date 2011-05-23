@@ -562,7 +562,8 @@ int main(int argc, char **argv)
     }
   
   initMarkupColors();
-
+  initCustomColors();
+  
   if (markupColorCodesFile) 
     {
       if (!(file = fopen(markupColorCodesFile, "r"))) 

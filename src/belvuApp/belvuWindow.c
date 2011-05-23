@@ -450,7 +450,7 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
   enableMenuAction(action_group, "toggleColorByResId", !colorByConservation(bc));
   enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
 
-  enableMenuAction(action_group, "colorSchemeCustom", bc->residueScheme == BELVU_SCHEME_CUSTOM);
+  enableMenuAction(action_group, "colorSchemeCustom", bc->haveCustomColors);
   
   enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
   enableMenuAction(action_group, "printColors", colorByConservation(bc));
@@ -1614,10 +1614,13 @@ void onResponseEditResidueColorsDialog(GtkDialog *dialog, gint responseId, gpoin
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
-      /* Set color scheme to 'custom' and close the dialog if successful. */
-      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      if (destroy)
-        setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+      if (widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId)))
+        {
+          /* Save the current color set and set the color scheme to 'custom' */
+          destroy = TRUE;
+          saveCustomColors(bc);
+          setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+        }
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -1655,7 +1658,7 @@ static void showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean b
     {
       dialog = gtk_dialog_new_with_buttons("Belvu - Edit Residue Colors", 
                                            GTK_WINDOW(belvuWindow), 
-                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                            NULL);
@@ -1705,7 +1708,7 @@ static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean brin
     {
       dialog = gtk_dialog_new_with_buttons("Belvu - Edit Conservation Colors", 
                                            GTK_WINDOW(belvuWindow), 
-                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                            NULL);
