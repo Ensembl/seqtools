@@ -175,8 +175,8 @@ static const GtkActionEntry menuEntries[] = {
   { "SortMenuAction",  NULL, "_Sort"},
   { "HelpMenuAction",  NULL, "_Help"},
 
-  { "ByResidueMenuAction", NULL, "Change color scheme"},
-  { "ByConsMenuAction",    NULL, "Change color scheme"},
+  { "ByResidueMenuAction", NULL, "Select color scheme"},
+  { "ByConsMenuAction",    NULL, "Select color scheme"},
 
   { "CancelRemove", NULL,	      "Cancel remove sequences", "Escape",  "Cancel 'remove sequences' mode",     G_CALLBACK(onCancelRemoveSeqs)},
 
@@ -218,8 +218,8 @@ static const GtkActionEntry menuEntries[] = {
   {"colorByResId",         NULL, "Set %ID threshold",                 NULL, "Set the threshold above which to color residues", G_CALLBACK(oncolorByResIdMenu)},
   {"saveColorScheme",      NULL, "Save colour scheme",                NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorSchemeMenu)},
   {"loadColorScheme",      NULL, "Load colour scheme",                NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorSchemeMenu)},
-  {"editResidueScheme",    NULL, "Edit color scheme",                 NULL, "Open window to edit residue colors", G_CALLBACK(oneditResidueSchemeMenu)},
-  {"editConsScheme",       NULL, "Edit color scheme",                 NULL, "Open window to edit conservation colour scheme", G_CALLBACK(oneditConsSchemeMenu)},
+  {"editResidueScheme",    NULL, "Edit colour scheme",                NULL, "Open window to edit residue colors", G_CALLBACK(oneditResidueSchemeMenu)},
+  {"editConsScheme",       NULL, "Edit colour scheme",                NULL, "Open window to edit conservation colour scheme", G_CALLBACK(oneditConsSchemeMenu)},
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -320,11 +320,10 @@ static const char standardMenuDescription[] =
 "        <menuitem action='colorSchemeCys'/>"
 "        <menuitem action='colorSchemeEmpty'/>"
 "        <menuitem action='colorSchemeCustom'/>"
-"        <separator/>"
-"        <menuitem action='editResidueScheme'/>"
-"        <menuitem action='saveColorScheme'/>"
-"        <menuitem action='loadColorScheme'/>"
 "      </menu>"
+"      <menuitem action='editResidueScheme'/>"
+"      <menuitem action='saveColorScheme'/>"
+"      <menuitem action='loadColorScheme'/>"
 "      <menuitem action='toggleColorByResId'/>"
 "      <menuitem action='colorByResId'/>"
 "      <separator/>"
@@ -333,9 +332,8 @@ static const char standardMenuDescription[] =
 "        <menuitem action='colorSim'/>"
 "        <menuitem action='colorId'/>"
 "        <menuitem action='colorIdSim'/>"
-"        <separator/>"
-"        <menuitem action='editConsScheme'/>"
 "      </menu>"
+"      <menuitem action='editConsScheme'/>"
 "      <menuitem action='ignoreGaps'/>"
 "      <menuitem action='printColors'/>"
 "      <separator/>"
