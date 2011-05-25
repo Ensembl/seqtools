@@ -946,6 +946,13 @@ static void onignoreGapsMenu(GtkAction *action, gpointer data)
 
 static void onprintColorsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  /* Toggle the 'ignore gaps' option */
+  properties->bc->printColorsOn = !properties->bc->printColorsOn;
+  
+  onColorSchemeChanged(properties);
 }
 
 static void onmarkupMenu(GtkAction *action, gpointer data)
@@ -1778,7 +1785,7 @@ static gboolean onConsThresholdChanged(GtkWidget *widget, gint responseId, gpoin
 
 
 /* Add a single line in the edit-cons-colors dialog */
-static void addConsColorLine(const char *labelText, int *fgColorNum, int *bgColorNum, double *cutoff, GtkTable *table, int *row)
+static void addConsColorLine(BelvuContext *bc, const char *labelText, const BelvuConsLevel consLevel, double *cutoff, GtkTable *table, int *row)
 {
   /* Label */
   GtkWidget *label = gtk_label_new(labelText);
@@ -1799,9 +1806,11 @@ static void addConsColorLine(const char *labelText, int *fgColorNum, int *bgColo
   widgetSetCallbackData(entry, onConsThresholdChanged, cutoff);
   
   /* Text color chooser */
+  int *fgColorNum = getConsColor(bc, consLevel, TRUE);
   createColorButton(*fgColorNum, table, *row, 2, 2, TABLE_YPAD, G_CALLBACK(updateConsFgColor), fgColorNum);
 
   /* Background color chooser */
+  int *bgColorNum = getConsColor(bc, consLevel, FALSE);
   createColorButton(*bgColorNum, table, *row, 4, 2, TABLE_YPAD, G_CALLBACK(updateConsBgColor), bgColorNum);
 
   *row += 1;
@@ -1830,7 +1839,12 @@ static void saveOrResetConsColors(BelvuContext *bc, const gboolean save)
   static int maxbgColor = 0;
   static int midbgColor = 0;
   static int lowbgColor = 0;
-  
+  static int maxfgPrintColor = 0;
+  static int midfgPrintColor = 0;
+  static int lowfgPrintColor = 0;
+  static int maxbgPrintColor = 0;
+  static int midbgPrintColor = 0;
+  static int lowbgPrintColor = 0;  
   if (save)
     {
       /* Remember the current conservation colors */
@@ -1847,6 +1861,12 @@ static void saveOrResetConsColors(BelvuContext *bc, const gboolean save)
       maxbgColor = bc->maxbgColor;
       midbgColor = bc->midbgColor;
       lowbgColor = bc->lowbgColor;
+      maxfgPrintColor = bc->maxfgPrintColor;
+      midfgPrintColor = bc->midfgPrintColor;
+      lowfgPrintColor = bc->lowfgPrintColor;
+      maxbgPrintColor = bc->maxbgPrintColor;
+      midbgPrintColor = bc->midbgPrintColor;
+      lowbgPrintColor = bc->lowbgPrintColor;
     }
   else
     {
@@ -1864,6 +1884,12 @@ static void saveOrResetConsColors(BelvuContext *bc, const gboolean save)
       bc->maxbgColor = maxbgColor;
       bc->midbgColor = midbgColor;
       bc->lowbgColor = lowbgColor;
+      bc->maxfgPrintColor = maxfgPrintColor;
+      bc->midfgPrintColor = midfgPrintColor;
+      bc->lowfgPrintColor = lowfgPrintColor;
+      bc->maxbgPrintColor = maxbgPrintColor;
+      bc->midbgPrintColor = midbgPrintColor;
+      bc->lowbgPrintColor = lowbgPrintColor;
     }
 }
 
@@ -1917,9 +1943,9 @@ static void createEditConsColorsContent(GtkBox *box, BelvuContext *bc)
   gtk_table_attach(table, label, 4, 6, row, row + 1, GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   
   ++row;
-  addConsColorLine("Max:", &bc->maxfgColor, &bc->maxbgColor, colorById ? &bc->maxIdCutoff : &bc->maxSimCutoff, table, &row);
-  addConsColorLine("Mid:", &bc->midfgColor, &bc->midbgColor, colorById ? &bc->midIdCutoff : &bc->midSimCutoff, table, &row);
-  addConsColorLine("Low:", &bc->lowfgColor, &bc->lowbgColor, colorById ? &bc->lowIdCutoff : &bc->lowSimCutoff, table, &row);
+  addConsColorLine(bc, "Max:", CONS_LEVEL_MAX, colorById ? &bc->maxIdCutoff : &bc->maxSimCutoff, table, &row);
+  addConsColorLine(bc, "Mid:", CONS_LEVEL_MID, colorById ? &bc->midIdCutoff : &bc->midSimCutoff, table, &row);
+  addConsColorLine(bc, "Low:", CONS_LEVEL_LOW, colorById ? &bc->lowIdCutoff : &bc->lowSimCutoff, table, &row);
   
   label = gtk_label_new("Press Enter or click Add to update the display after changing threshold values.");
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);

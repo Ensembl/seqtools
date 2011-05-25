@@ -3956,6 +3956,19 @@ myGraphDestroy(treeDestroy, treeGraph)
 #define DEFAULT_MID_SIM_CUTOFF          1.5
 #define DEFAULT_MAX_SIM_CUTOFF          3.0
 
+/* These values define the default color IDs for the conservation colors */
+#define DEFAULT_MAX_FG_COLOR            BLACK
+#define DEFAULT_MID_FG_COLOR            BLACK
+#define DEFAULT_LOW_FG_COLOR            BLACK
+#define DEFAULT_MAX_BG_COLOR            CYAN
+#define DEFAULT_MID_BG_COLOR            MIDBLUE
+#define DEFAULT_LOW_BG_COLOR            LIGHTGRAY  
+#define DEFAULT_MAX_FG_PRINT_COLOR      WHITE
+#define DEFAULT_MID_FG_PRINT_COLOR      BLACK
+#define DEFAULT_LOW_FG_PRINT_COLOR      BLACK
+#define DEFAULT_MAX_BG_PRINT_COLOR      BLACK
+#define DEFAULT_MID_BG_PRINT_COLOR      GRAY
+#define DEFAULT_LOW_BG_PRINT_COLOR      LIGHTGRAY  
 
 /* Global variables */
 static char *colorNames[NUM_TRUECOLORS] = {
@@ -4092,6 +4105,7 @@ static double		   score(char *s1, char *s2, const gboolean penalize_gaps);
 static void		   initConservMtx(BelvuContext *bc);
 static int		   countResidueFreqs(BelvuContext *bc);
 static int                 stripCoordTokens(char *cp, BelvuContext *bc);
+int*                       getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground);
 
 /***********************************************************
  *		          Sorting			   *
@@ -5281,18 +5295,29 @@ void updateSchemeColors(BelvuContext *bc)
 /* Return 1 if c1 has priority over c2, 0 otherwise */
 static int colorPriority(BelvuContext *bc, int c1, int c2) 
 {
-  if (c2 == WHITE) return 1;
-  if (c2 == bc->maxbgColor) return 0;
-  if (c2 == bc->lowbgColor) {
-    if (c1 == bc->lowbgColor) return 0;
-    else return 1;
-  }
-  if (c2 == bc->midbgColor) {
-    if (c1 == bc->maxbgColor) return 1;
-    else return 0;
-  }
+  if (c2 == WHITE) 
+    return 1;
   
-  g_error("Unknown colour %s", colorNames[c2]);		    /* exits program. */
+  if (c2 == *getConsColor(bc, CONS_LEVEL_MAX, FALSE))
+    return 0;
+  
+  if (c2 == *getConsColor(bc, CONS_LEVEL_LOW, FALSE)) 
+    {
+      if (c1 ==*getConsColor(bc, CONS_LEVEL_LOW, FALSE)) 
+        return 0;
+      else 
+        return 1;
+    }
+  
+  if (c2 == *getConsColor(bc, CONS_LEVEL_MID, FALSE)) 
+    {
+      if (c1 == *getConsColor(bc, CONS_LEVEL_MAX, FALSE)) 
+        return 1;
+      else
+        return 0;
+    }
+  
+  g_critical("Program error: invalid background colour '%s' when calculating color priority.\n", colorNames[c2]);
   
   return 0 ;
 }
@@ -5374,11 +5399,11 @@ void setConsSchemeColors(BelvuContext *bc)
               if (id > bc->lowSimCutoff) 
                 {
                   if (id > bc->maxSimCutoff) 
-                    colornr = bc->maxbgColor;
+                    colornr = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
                   else if (id > bc->midSimCutoff) 
-                    colornr = bc->midbgColor;
+                    colornr = *getConsColor(bc, CONS_LEVEL_MID, FALSE);
                   else
-                    colornr = bc->lowbgColor;
+                    colornr = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
                   
                   if (colorPriority(bc, colornr, bc->colorMap[k][i]))
                     bc->colorMap[k][i] = colornr;
@@ -5411,11 +5436,11 @@ void setConsSchemeColors(BelvuContext *bc)
               else if (id > bc->lowIdCutoff) 
                 {
                   if (id > bc->maxIdCutoff) 
-                    colornr = bc->maxbgColor;
+                    colornr = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
                   else if (id > bc->midIdCutoff) 
-                    colornr = bc->midbgColor;
+                    colornr = *getConsColor(bc, CONS_LEVEL_MID, FALSE);
                   else
-                    colornr = bc->lowbgColor;
+                    colornr = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
                   
                   bc->colorMap[k][i] = colornr;
                   
@@ -5596,6 +5621,65 @@ const char* getColorNumName(const int colorNum)
 {
   g_assert(colorNum < NUM_TRUECOLORS);
   return colorNames[colorNum];
+}
+
+
+int* getConsPrintColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground)
+{
+  int *result = &bc->lowbgPrintColor;
+
+  switch (consLevel)
+    {
+      case CONS_LEVEL_MAX:
+        result = foreground ? &bc->maxfgPrintColor : &bc->maxbgPrintColor;
+        break;
+        
+      case CONS_LEVEL_MID:
+        result = foreground ? &bc->midfgPrintColor : &bc->midbgPrintColor;
+        break;
+        
+      case CONS_LEVEL_LOW:
+        result = foreground ? &bc->lowfgPrintColor : &bc->lowbgPrintColor;
+        break;
+
+      default:
+        g_critical("Program error: invalid conservation level '%d' when getting conservation colour.\n", consLevel);
+        break;
+    };
+
+  return result;
+}
+
+
+/* Utility to get foreground/background the colour number for the given
+ * conservation level. Returns a pointer to the value in the context. */
+int* getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground)
+{
+  if (bc->printColorsOn)
+    return getConsPrintColor(bc, consLevel, foreground);
+
+  int *result = &bc->lowbgColor;
+
+  switch (consLevel)
+    {
+      case CONS_LEVEL_MAX:
+        result = foreground ? &bc->maxfgColor : &bc->maxbgColor;
+        break;
+        
+      case CONS_LEVEL_MID:
+        result = foreground ? &bc->midfgColor : &bc->midbgColor;
+        break;
+        
+      case CONS_LEVEL_LOW:
+        result = foreground ? &bc->lowfgColor : &bc->lowbgColor;
+        break;
+
+      default:
+        g_critical("Program error: invalid conservation level '%d' when getting conservation colour.\n", consLevel);
+        break;
+    };
+
+  return result;
 }
 
 
@@ -5865,12 +5949,18 @@ BelvuContext* createBelvuContext()
   bc->maxEndLen = 0; 
   bc->maxScoreLen = 0; 
   
-  bc->maxfgColor = BLACK;
-  bc->midfgColor = BLACK,
-  bc->lowfgColor = BLACK;
-  bc->maxbgColor = CYAN;
-  bc->midbgColor = MIDBLUE;
-  bc->lowbgColor = LIGHTGRAY;
+  bc->maxfgColor = DEFAULT_MAX_FG_COLOR;
+  bc->midfgColor = DEFAULT_MID_FG_COLOR,
+  bc->lowfgColor = DEFAULT_LOW_FG_COLOR;
+  bc->maxbgColor = DEFAULT_MAX_BG_COLOR;
+  bc->midbgColor = DEFAULT_MID_BG_COLOR;
+  bc->lowbgColor = DEFAULT_LOW_BG_COLOR;
+  bc->maxfgPrintColor = DEFAULT_MAX_FG_PRINT_COLOR;
+  bc->midfgPrintColor = DEFAULT_MID_FG_PRINT_COLOR,
+  bc->lowfgPrintColor = DEFAULT_LOW_FG_PRINT_COLOR;
+  bc->maxbgPrintColor = DEFAULT_MAX_BG_PRINT_COLOR;
+  bc->midbgPrintColor = DEFAULT_MID_BG_PRINT_COLOR;
+  bc->lowbgPrintColor = DEFAULT_LOW_BG_PRINT_COLOR;
   
   bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
   bc->residueScheme = BELVU_SCHEME_ERIK;
@@ -5930,6 +6020,7 @@ BelvuContext* createBelvuContext()
   bc->removingSeqs = FALSE;
   bc->displayColors = TRUE;
   bc->haveCustomColors = FALSE;
+  bc->printColorsOn = FALSE;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;

@@ -307,20 +307,39 @@ static gboolean colorsEqual(GdkColor *color1, GdkColor *color2)
  */
 static void bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result)
 {
-  convertColorNumToGdkColor(bc->maxbgColor, FALSE, result);
-  if (colorsEqual(bgColor, result))
-    return convertColorNumToGdkColor(bc->maxfgColor, FALSE, result);
+  int fgColorNum = BLACK; /* default colour for uncoloured or markup */
   
-  convertColorNumToGdkColor(bc->midbgColor, FALSE, result);
-  if (colorsEqual(bgColor, result))
-    return convertColorNumToGdkColor(bc->midfgColor, FALSE, result);
+  /* See if the given bgcolor matches the max-conservation background colour */
+  int testColor = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
+  convertColorNumToGdkColor(testColor, FALSE, result);
   
-  convertColorNumToGdkColor(bc->lowbgColor, FALSE, result);
   if (colorsEqual(bgColor, result))
-    return convertColorNumToGdkColor(bc->lowfgColor, FALSE, result);
-  
-  /* Anything else is either uncolored or markup - make them black */
-  convertColorNumToGdkColor(BLACK, FALSE, result);
+    {
+      fgColorNum = *getConsColor(bc, CONS_LEVEL_MAX, TRUE);
+    }
+  else
+    {
+      /* Try the mid-conservation colour */
+      int testColor = *getConsColor(bc, CONS_LEVEL_MID, FALSE);
+      convertColorNumToGdkColor(testColor, FALSE, result);
+      
+      if (colorsEqual(bgColor, result))
+        {
+          fgColorNum = *getConsColor(bc, CONS_LEVEL_MID, TRUE);
+        }
+      else
+        {
+          /* Lastly, try the low-conservation colour */
+          int testColor = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
+          convertColorNumToGdkColor(testColor, FALSE, result);
+          
+          if (colorsEqual(bgColor, result))
+            fgColorNum = *getConsColor(bc, CONS_LEVEL_LOW, TRUE);
+        }
+    }
+
+  /* Convert the foreground colour number into the GdkColor result. */
+  convertColorNumToGdkColor(fgColorNum, FALSE, result);
 }
 
 

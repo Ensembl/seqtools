@@ -216,6 +216,14 @@ typedef enum _ConsColorSchemes
     BELVU_SCHEME_ID_BLOSUM          /* Percent ID and BLOSUM62 */
   } ConsColorScheme;
 
+/* This defines the different levels of conservation that we colour by
+ * in color-by-conservation mode */
+typedef enum _BelvuConsLevel
+  {
+    CONS_LEVEL_MAX,                /* maximum conservation */
+    CONS_LEVEL_MID,                /* medium conservation */
+    CONS_LEVEL_LOW                 /* lowest conservation */
+  } BelvuConsLevel;
 
 
 /* Structs */
@@ -330,13 +338,19 @@ typedef struct BelvuContextStruct
   int maxEndLen;                   /* Max string length of any sequence end */
   int maxScoreen;                  /* Max string length of any sequence score */
 
-  int maxfgColor;
-  int midfgColor;
-  int lowfgColor;
-  int maxbgColor;
-  int midbgColor;
-  int lowbgColor;
-                
+  int maxfgColor;                  /* Foreground color for max conservation */
+  int midfgColor;                  /* Foreground color for mid conservation */
+  int lowfgColor;                  /* Foreground color for lowmax conservation */
+  int maxbgColor;                  /* Background color for max conservation */
+  int midbgColor;                  /* Background color for mid conservation */
+  int lowbgColor;                  /* Background color for low conservation */
+  int maxfgPrintColor;             /* As above but for when the 'print colors' option is enabled */
+  int midfgPrintColor;
+  int lowfgPrintColor;
+  int maxbgPrintColor;
+  int midbgPrintColor;
+  int lowbgPrintColor;
+  
   BelvuSchemeType schemeType;	      /* Current colour scheme mode (color-by-residue or -by-conservation) */
   ResidueColorScheme residueScheme;   /* Which color-by-residue color scheme is selected */
   ConsColorScheme consScheme;	      /* Which color-by-conservation color scheme is selected */
@@ -399,6 +413,7 @@ typedef struct BelvuContextStruct
   gboolean removingSeqs;	   /* Set to true if in the 'removing sequences' mode */
   gboolean displayColors;	   /* Whether to display colors (faster without) */
   gboolean haveCustomColors;       /* Whether the custom colors have been set */
+  gboolean printColorsOn;          /* Whether to use greyscale colors for printing */
   
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   
@@ -445,6 +460,7 @@ gboolean				  colorBySimilarity(BelvuContext *bc);
 gboolean                                  colorByResId(BelvuContext *bc);
 void                                      setResidueSchemeColors(BelvuContext *bc);
 const char*                               getColorNumName(const int colorNum);
+int*                                      getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground);
 
 
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);
