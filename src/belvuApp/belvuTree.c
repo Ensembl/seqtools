@@ -1577,6 +1577,9 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
 {
   BelvuContext *bc = properties->bc;
 
+  if (!bc->treeHead)
+    return;
+  
   /* Clear any previous clickable rects that were created */
   g_array_unref(properties->clickableRects);
   properties->clickableRects = g_array_new(FALSE, FALSE, sizeof(ClickableRect));
