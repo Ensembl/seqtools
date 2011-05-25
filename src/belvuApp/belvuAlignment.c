@@ -249,43 +249,44 @@ static void drawSingleSequence(GtkWidget *widget,
   
   GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
   
-  if (properties->bc->displayColors)
+  /* Loop through each character in the current display range and color
+   * the text and background according to the relevant highlight colors */
+  int i = hAdjustment->value;
+  const int iMax = hAdjustment->value + displayLen;
+  const gboolean isSelected = (alnp == properties->bc->highlightedAln);
+  
+  for ( ; i < iMax; ++i)
     {
-      /* Loop through each character in the current display range and color
-       * the text and background according to the relevant highlight colors */
-      int i = hAdjustment->value;
-      const int iMax = hAdjustment->value + displayLen;
-      const gboolean isSelected = (alnp == properties->bc->highlightedAln);
-      
-      for ( ; i < iMax; ++i)
-	{
+      GdkColor bgColor;
+      if (properties->bc->displayColors)
+        {
           /* Draw the background */
-	  GdkColor bgColor;
-	  findResidueBGcolor(properties->bc, alnp, i, isSelected, &bgColor);
-	  gdk_gc_set_foreground(gc, &bgColor);
-	  
-	  gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
+          findResidueBGcolor(properties->bc, alnp, i, isSelected, &bgColor);
+          gdk_gc_set_foreground(gc, &bgColor);
           
-          /* Draw the text */
-          if (colorByConservation(properties->bc))
-            {
-              GdkColor fgColor;
-              bg2fgColor(properties->bc, &bgColor, &fgColor);
-              gdk_gc_set_foreground(gc, &fgColor);
-            }
-          else
-            {
-              gdk_gc_set_foreground(gc, defaultFgColor);
-            }
-          
-          char displayText[2];
-          displayText[0] = alnp->seq[i];
-          displayText[1] = '\0';
-          drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
-          
-          /* Increment the x position */
-	  x += properties->charWidth;
-	}
+          gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
+        }
+      
+      /* Draw the text. We get the text colour from the background color in 
+       * color-by-conservation mode (if displaying colours is enabled) */
+      if (colorByConservation(properties->bc) && properties->bc->displayColors)
+        {
+          GdkColor fgColor;
+          bg2fgColor(properties->bc, &bgColor, &fgColor);
+          gdk_gc_set_foreground(gc, &fgColor);
+        }
+      else
+        {
+          gdk_gc_set_foreground(gc, defaultFgColor);
+        }
+      
+      char displayText[2];
+      displayText[0] = alnp->seq[i];
+      displayText[1] = '\0';
+      drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
+      
+      /* Increment the x position */
+      x += properties->charWidth;
     }
   
   g_object_unref(gc);
