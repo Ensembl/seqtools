@@ -935,6 +935,13 @@ static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
 
 static void onignoreGapsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  /* Toggle the 'ignore gaps' option */
+  properties->bc->ignoreGapsOn = !properties->bc->ignoreGapsOn;
+  
+  onColorSchemeChanged(properties);
 }
 
 static void onprintColorsMenu(GtkAction *action, gpointer data)

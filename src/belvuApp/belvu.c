@@ -3881,14 +3881,6 @@ static void printColors (void)
 }
 
 
-static void ignoreGaps (void)
-{
-    ignoreGapsOn = (ignoreGapsOn ? 0 : 1);
-    setConsSchemeColors();
-    belvuRedraw();
-}
-
-
 /* Not used - the idea was to find balancing point of a tree by walking to
    neighbors and checking if they are better.  However, the best balanced
    node may be beyond less balanced nodes.  (This is because the subtree weights
@@ -7747,4 +7739,7 @@ void showAnnotation(BelvuContext *bc)
 //  
 //  graphRedraw();
 }
+
+
+
 
