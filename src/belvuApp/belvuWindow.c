@@ -143,6 +143,7 @@ static void			 startRemovingSequences(GtkWidget *belvuWindow);
 static void			 endRemovingSequences(GtkWidget *belvuWindow);
 
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
+static void                      showRemoveColumnsDialog(GtkWidget *belvuWindow);
 static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
 static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
@@ -737,6 +738,8 @@ static void onrmScoreMenu(GtkAction *action, gpointer data)
 
 static void onrmColumnPromptMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showRemoveColumnsDialog(belvuWindow);
 }
 
 static void onrmColumnLeftMenu(GtkAction *action, gpointer data)
@@ -1361,6 +1364,70 @@ static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
   
   gtk_widget_destroy(dialog);
 }
+
+
+/***********************************************************
+ *                     Remove columns                      *
+ ***********************************************************/
+
+static void showRemoveColumnsDialog(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Remove Columns", 
+                                                  GTK_WINDOW(belvuWindow), 
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                                  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                                  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 12);
+  
+  GtkWidget *label1 = gtk_label_new("Remove columns from");
+  gtk_misc_set_alignment(GTK_MISC(label1), 1, 0.5);
+  gtk_box_pack_start(GTK_BOX(hbox), label1, FALSE, FALSE, 0);
+  
+  char *maxLenText = blxprintf("%d", bc->maxLen);
+  GtkWidget *entry1 = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), entry1, FALSE, FALSE, 0);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry1), strlen(maxLenText) + 1);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry1), TRUE);
+  gtk_entry_set_text(GTK_ENTRY(entry1), "1");
+  
+  GtkWidget *label2 = gtk_label_new("to");
+  gtk_misc_set_alignment(GTK_MISC(label2), 0, 0.5);
+  gtk_box_pack_start(GTK_BOX(hbox), label2, FALSE, FALSE, 0);
+
+  GtkWidget *entry2 = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), entry2, FALSE, FALSE, 0);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry2), strlen(maxLenText) + 3);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry2), TRUE);
+  gtk_entry_set_text(GTK_ENTRY(entry2), maxLenText);
+  g_free(maxLenText);
+  maxLenText = NULL;
+  
+  gtk_widget_show_all(dialog);
+
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      const char *inputText1 = gtk_entry_get_text(GTK_ENTRY(entry1));
+      const int fromVal = convertStringToInt(inputText1);
+      
+      const char *inputText2 = gtk_entry_get_text(GTK_ENTRY(entry2));
+      const int toVal = convertStringToInt(inputText2);
+
+      rmColumn(bc, fromVal, toVal);
+      belvuAlignmentRedrawAll(bc->belvuAlignment);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
+
 
 /***********************************************************
  *                Color by residue ID dialog               *

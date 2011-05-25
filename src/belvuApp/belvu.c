@@ -3408,13 +3408,6 @@ static void wrapAlignmentWindow(void)
 }
 
 
-static void rmFinaliseColumnRemoval(void)
-{
-    rmGappySeqs(100.0);
-    rmFinalise();
-}
-
-
 static void rmGappySeqsPrompt()
 {
     static double cutoff = 50.0 ;
@@ -4075,6 +4068,8 @@ static void		   initConservMtx(BelvuContext *bc);
 static int		   countResidueFreqs(BelvuContext *bc);
 static int                 stripCoordTokens(char *cp, BelvuContext *bc);
 int*                       getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground);
+static void                rmFinalise(BelvuContext *bc) ;
+
 
 /***********************************************************
  *		          Sorting			   *
@@ -6726,9 +6721,15 @@ static int alnOverhang(char *s1, char *s2)
  *		Removing alignments/columns		   *
  ***********************************************************/
 
+static void rmFinaliseColumnRemoval(BelvuContext *bc)
+{
+  rmGappySeqs(bc, 100.0);
+  rmFinalise(bc);
+}
+
 /* Removes all columns between from and to, inclusively.
  * Note that from and to are sequence coordinates, 1...maxLen !!!!!  */
-static void rmColumn(BelvuContext *bc, int from, int to)
+void rmColumn(BelvuContext *bc, const int from, const int to)
 {
   int
     i=0, j=0, len = to - from + 1;
@@ -6773,7 +6774,9 @@ static void rmColumn(BelvuContext *bc, int from, int to)
 
   bc->maxLen -= len;
 
-  bc->saved = 0;
+  bc->saved = FALSE;
+  
+  rmFinaliseColumnRemoval(bc);
 }
 
 
