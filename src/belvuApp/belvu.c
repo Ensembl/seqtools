@@ -5954,6 +5954,7 @@ BelvuContext* createBelvuContext()
   bc->maxStartLen = 0; 
   bc->maxEndLen = 0; 
   bc->maxScoreLen = 0; 
+  bc->pickedCol = 0;
   
   bc->maxfgColor = DEFAULT_MAX_FG_COLOR;
   bc->midfgColor = DEFAULT_MID_FG_COLOR,
