@@ -124,7 +124,7 @@ static void                      onsaveColorSchemeMenu(GtkAction *action, gpoint
 static void                      onloadColorSchemeMenu(GtkAction *action, gpointer data);
 static void                      onignoreGapsMenu(GtkAction *action, gpointer data);
 static void                      onprintColorsMenu(GtkAction *action, gpointer data);
-static void                      onmarkupMenu(GtkAction *action, gpointer data);
+static void                      onexcludeHighlightedMenu(GtkAction *action, gpointer data);
 static void                      ondisplayColorsMenu(GtkAction *action, gpointer data);
 static void                      onlowercaseMenu(GtkAction *action, gpointer data);
 static void                      oneditResidueSchemeMenu(GtkAction *action, gpointer data);
@@ -227,7 +227,7 @@ static const GtkToggleActionEntry toggleMenuEntries[] = {
 {"toggleColorByResId",   NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
 {"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu), FALSE},
 {"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu), FALSE},
-{"markup",               NULL, "Exclude highlighted from calculations", NULL, "Exclude highlighted from calculations", G_CALLBACK(onmarkupMenu), FALSE},
+{"excludeHighlighted",   NULL, "Exclude highlighted from calculations", NULL, "Exclude highlighted from calculations", G_CALLBACK(onexcludeHighlightedMenu), FALSE},
 {"displayColors",        NULL, displayColorsStr,                    NULL, displayColorsStr,                    G_CALLBACK(ondisplayColorsMenu), TRUE},
 {"lowercase",            NULL, "Highlight lowercase characters",    NULL, "Highlight lowercase characters",    G_CALLBACK(onlowercaseMenu), FALSE},
 };
@@ -338,7 +338,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='printColors'/>"
 "      <separator/>"
 "      <menuitem action='togglePalette'/>"
-"      <menuitem action='markup'/>"
+"      <menuitem action='excludeHighlighted'/>"
 "      <menuitem action='displayColors'/>"
 "      <menuitem action='lowercase'/>"
 "    </menu>"
@@ -454,6 +454,8 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
   
   enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
   enableMenuAction(action_group, "printColors", colorByConservation(bc));
+
+  enableMenuAction(action_group, "excludeHighlighted", bc->highlightedAln != NULL);
 }
 
 
@@ -955,8 +957,16 @@ static void onprintColorsMenu(GtkAction *action, gpointer data)
   onColorSchemeChanged(properties);
 }
 
-static void onmarkupMenu(GtkAction *action, gpointer data)
+static void onexcludeHighlightedMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  const gboolean exclude = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+  
+  setExcludeFromConsCalc(properties->bc, exclude);
+  
+  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
 static void ondisplayColorsMenu(GtkAction *action, gpointer data)
@@ -1068,15 +1078,23 @@ static void updateSequenceRemovalMode(GtkWidget *belvuWindow)
 static void startRemovingSequences(GtkWidget *belvuWindow)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  properties->bc->removingSeqs = TRUE;
-  updateSequenceRemovalMode(belvuWindow);
+  
+  if (!properties->bc->removingSeqs)
+    {
+      properties->bc->removingSeqs = TRUE;
+      updateSequenceRemovalMode(belvuWindow);
+    }
 }
 
 static void endRemovingSequences(GtkWidget *belvuWindow)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  properties->bc->removingSeqs = FALSE;
-  updateSequenceRemovalMode(belvuWindow);
+  
+  if (properties->bc->removingSeqs)
+    {
+      properties->bc->removingSeqs = FALSE;
+      updateSequenceRemovalMode(belvuWindow);
+    }
 }
 
 
@@ -2265,6 +2283,17 @@ void onSelectionChanged(BelvuContext *bc)
   
   /* Redraw all of the trees */
   belvuTreeRedrawAll(bc->belvuTree, NULL);
+  
+  /* Set the status of the 'exclude highlighted' toggle menu option
+   * depending on whether the newly-selected sequence is selected or not
+   * (or grey it out if nothing is selected) */
+  BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
+  enableMenuAction(properties->actionGroup, "excludeHighlighted", bc->highlightedAln != NULL);
+  
+  if (bc->highlightedAln)
+    {
+      setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->highlightedAln->nocolor);
+    }
 }
 
 

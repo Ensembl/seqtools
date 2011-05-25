@@ -3586,37 +3586,6 @@ static void listIdentity(void)
 }
 
 
-static void markup (void)
-{
-    if (!bc->highlightedAln) {
-	messout ("Pick a sequence first!");
-	return;
-    }
-
-    /* Store orignal state in the nocolor field:
-       1 = normal sequence
-       2 = markup line
-
-       This is needed to restore markup lines (nocolor lines are always markups)
-    */
-
-    if (!bc->highlightedAln->nocolor) {
-	if (bc->highlightedAln->markup)
-	    bc->highlightedAln->nocolor = 2;
-	else
-	    bc->highlightedAln->nocolor = 1;
-	bc->highlightedAln->markup = 1;
-    }
-    else {
-	if (bc->highlightedAln->nocolor == 1) 
-	    bc->highlightedAln->markup = 0;
-	bc->highlightedAln->nocolor = 0;
-    }
-    
-    belvuRedraw();
-}
-
-
 static void hide (void)
 {
     if (!bc->highlightedAln) {
@@ -5682,6 +5651,48 @@ int* getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboole
   return result;
 }
 
+
+/* Set whether the currently-selected sequence should be excluded
+ * from the conservation colours calculations */
+void setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude)
+{
+  if (!bc->highlightedAln) 
+    {
+      g_critical("Please select a sequence first.\n");
+      return;
+  }
+  
+  if ((exclude && bc->highlightedAln->nocolor) ||
+     (!exclude && !bc->highlightedAln->nocolor))
+    {
+      /* Nothing to do */
+      return;
+    }
+  
+  /* Store orignal state in the nocolor field:
+   1 = normal sequence
+   2 = markup line
+   
+   This is needed to restore markup lines (nocolor lines are always markups)
+   */
+  
+  if (exclude) 
+    {
+      if (bc->highlightedAln->markup)
+        bc->highlightedAln->nocolor = 2;
+      else
+        bc->highlightedAln->nocolor = 1;
+      
+      bc->highlightedAln->markup = 1;
+    }
+  else 
+    {
+      if (bc->highlightedAln->nocolor == 1) 
+        bc->highlightedAln->markup = 0;
+      
+      bc->highlightedAln->nocolor = 0;
+    }
+}
 
 /***********************************************************
  *		          Arrays			   *

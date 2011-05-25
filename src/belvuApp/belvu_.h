@@ -461,6 +461,7 @@ gboolean                                  colorByResId(BelvuContext *bc);
 void                                      setResidueSchemeColors(BelvuContext *bc);
 const char*                               getColorNumName(const int colorNum);
 int*                                      getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground);
+void                                      setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude);
 
 
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);

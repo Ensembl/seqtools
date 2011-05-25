@@ -801,7 +801,7 @@ void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
   
   bc->saved = FALSE;
   
-  g_message("Removed %s/%d-%d.  %d sequences left.  Esc to cancel.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
+  g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
   
   bc->highlightedAln = NULL;
   
