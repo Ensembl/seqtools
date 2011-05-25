@@ -439,7 +439,6 @@ void                                      saveCustomColors(BelvuContext *bc);
 void                                      initResidueColors(BelvuContext *bc);
 void                                      initMarkupColors(void);              
 void                                      initCustomColors(void);              
-void                                      readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr);
 gboolean				  colorByConservation(BelvuContext *bc);
 gboolean				  colorByResidue(BelvuContext *bc);
 gboolean				  colorBySimilarity(BelvuContext *bc);
@@ -481,6 +480,8 @@ int                                       getColor(const char inputChar);
 void                                      setColor(const char inputChar, const int colorNum);
 int*                                      getColorArray();
 int*                                      getMarkupColorArray();
+void                                      saveResidueColorScheme(BelvuContext *bc, FILE *fil);
+void                                      readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr);
 
 gboolean                                  isGap(char c);
 int                                       strcmp_(gconstpointer xIn, gconstpointer yIn);

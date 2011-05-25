@@ -1687,74 +1687,6 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
 }
 
 
-/* Utility to ask the user for a file to save to. Returns the file name, which should be freed with
- * g_free. */
-static const char* getSaveFileName(GtkWidget *widget, const char *currentName, const char *defaultPath)
-{
-  const char *filename = NULL;
-  
-  GtkWindow *window = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-
-  GtkWidget *dialog = gtk_file_chooser_dialog_new ("Save File",
-                                                   window,
-                                                   GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                   GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-                                                   NULL);
-  
-  gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
-  
-  if (defaultPath)
-    {
-      gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), defaultPath);
-    }
-  
-  if (currentName)
-    {
-      gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), currentName);
-    }
-  else
-    {
-      gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), ".dotter");
-    }
-  
-  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
-    {
-      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-    }
-  
-  gtk_widget_destroy (dialog);
-  return filename;
-}
-
-
-/* Utility to ask the user for a file to load. Returns the file name, which should be freed with
- * g_free. */
-//static const char* getLoadFileName(GtkWidget *widget)
-//{
-//  const char *filename = NULL;
-//  
-//  GtkWindow *window = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-//  
-//  GtkWidget *dialog = gtk_file_chooser_dialog_new ("Open File",
-//                                                   window,
-//                                                   GTK_FILE_CHOOSER_ACTION_OPEN,
-//                                                   GTK_STOCK_CANCEL, 
-//                                                   GTK_RESPONSE_CANCEL,
-//                                                   GTK_STOCK_OPEN, 
-//                                                   GTK_RESPONSE_ACCEPT,
-//                                                   NULL);
-//  
-//  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
-//    {
-//      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-//    }
-//  
-//  gtk_widget_destroy (dialog);
-//  return filename;
-//}
-
-
 /* savePlot writes a 1 byte unsigned-char at the start of the file to indicate the file format. 
  * It then writes various parameters (as determined by that format) and then the dot-matrix itself.
  *
@@ -1792,7 +1724,7 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   if (batch)
     fileName = saveFileName;
   else if (dotplot)
-    fileName = getSaveFileName(dotplot, fileName, NULL);
+    fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", NULL);
   
   FILE *saveFile = NULL;
   

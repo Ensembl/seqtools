@@ -556,7 +556,9 @@ int main(int argc, char **argv)
       if (!(file = fopen(colorCodesFile, "r"))) 
         g_error("Cannot open file %s", colorCodesFile);
       
-      readColorCodes(bc, file, getColorArray());
+      readResidueColorScheme(bc, file, getColorArray());
+
+      bc->residueScheme = BELVU_SCHEME_CUSTOM;
       bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
       bc->colorByResIdOn = FALSE;
     }
@@ -569,7 +571,10 @@ int main(int argc, char **argv)
       if (!(file = fopen(markupColorCodesFile, "r"))) 
         g_error("Cannot open file %s", markupColorCodesFile);
 
-      readColorCodes(bc, file, getMarkupColorArray());
+      readResidueColorScheme(bc, file, getMarkupColorArray());
+
+      bc->residueScheme = BELVU_SCHEME_CUSTOM;
+      bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
     }
   
   if (makeNRinit)

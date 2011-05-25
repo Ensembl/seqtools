@@ -2699,7 +2699,7 @@ int main(int argc, char **argv)
     if (colorCodesFile) {
 	if (!(file = fopen(colorCodesFile, "r"))) 
 	    fatal("Cannot open file %s", colorCodesFile);
-	readColorCodes(file, color);
+	readResidueColorScheme(file, color);
  	colorScheme = COLORBYRESIDUE;
 	bc->color_by_conserv = bc->colorByResIdOn = 0;
    }
@@ -2707,7 +2707,7 @@ int main(int argc, char **argv)
     if (markupColorCodesFile) {
 	if (!(file = fopen(markupColorCodesFile, "r"))) 
 	    fatal("Cannot open file %s", markupColorCodesFile);
-	readColorCodes(file, markupColor);
+	readResidueColorScheme(file, markupColor);
     }
     
     if (makeNRinit)
@@ -3143,32 +3143,6 @@ static void colorByResId(void)
   return ;
 }
 
-
-static void readColorCodesMenu(void)
-{
-    FILE *fil;
-
-    if (!(fil = filqueryopen(dirName, fileName, "","r", "Read file:"))) return;
-
-    readColorCodes(fil, color);
-    belvuRedraw();
-}
-
-
-static void saveColorCodes(void)
-{
-    FILE *fil;
-    int i;
-
-    if (!(fil = filqueryopen(dirName, fileName, "","w", "Save to file:"))) return;
-
-    for (i = 1; i < 21; i++)
-      {
-	fprintf(fil, "%c %s\n", b2a[i], colorNames[color[(unsigned char)(b2a[i])]]);
-      }
-
-    fclose(fil);
-}
 
 static void colorRes(void)
 {
@@ -4126,7 +4100,6 @@ static double		   score(char *s1, char *s2, const gboolean penalize_gaps);
 static void		   initConservMtx(BelvuContext *bc);
 static int		   countResidueFreqs(BelvuContext *bc);
 static int                 stripCoordTokens(char *cp, BelvuContext *bc);
-
 
 /***********************************************************
  *		          Sorting			   *
@@ -5521,8 +5494,27 @@ void initMarkupColors(void)
 }
 
 
-void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
+/* Save the current color-by-residue color scheme */
+void saveResidueColorScheme(BelvuContext *bc, FILE *fil)
 {
+  if (!fil) 
+    return;
+  
+  int i = 1;
+  for (i = 1; i < 21; i++)
+    {
+      fprintf(fil, "%c %s\n", b2a[i], colorNames[color[(unsigned char)(b2a[i])]]);
+    }
+  
+  fclose(fil);
+}
+
+
+void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr)
+{
+  if (!fil) 
+    return;
+
   char *cp=NULL, line[MAXLINE+1], setColor[MAXLINE+1];
   unsigned char c ;
   int i=0, colornr=0;
@@ -5602,7 +5594,8 @@ void readColorCodes(BelvuContext *bc, FILE *fil, int *colorarr)
   
   fclose(fil);
   
-  bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
+  /* Store the custom colors */
+  saveCustomColors(bc);
 }
 
 
@@ -7088,49 +7081,10 @@ void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and co
 }
 
 
-/* Utility to ask the user for a file to save to. Returns the file name */
-static const char* getSaveFileName(GtkWidget *widget, 
-                                   const char *currentName, 
-                                   const char *defaultPath,
-                                   const char *title)
-{
-  const char *filename = NULL;
-  
-  GtkWindow *window = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-
-  GtkWidget *dialog = gtk_file_chooser_dialog_new (title,
-                                                   window,
-                                                   GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                   GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-                                                   NULL);
-  
-  gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
-  
-  if (defaultPath)
-    {
-      gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), defaultPath);
-    }
-  
-  if (currentName)
-    {
-      gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), currentName);
-    }
-  
-  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
-    {
-      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-    }
-  
-  gtk_widget_destroy (dialog);
-  return filename;
-}
-
-
 static void saveMSF(BelvuContext *bc)
 {
   /* to do: pass parent widget */
-  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, "Save as MSF (/) file:");
+  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, NULL, "Save as MSF (/) file:");
   
   FILE *fil = fopen(filename, "w");
   
@@ -7513,7 +7467,7 @@ void writeMul(BelvuContext *bc, FILE *fil)
 static void saveMul(BelvuContext *bc)
 {
   /* to do: pass parent widget */
-  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, "Save as Stockholm file:");
+  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, NULL, "Save as Stockholm file:");
   FILE *fil = fopen(filename, "w");
 
   if (fil)
@@ -7629,7 +7583,7 @@ void writeFasta(BelvuContext *bc, FILE *pipe)
 static void saveFasta(BelvuContext *bc)
 {
   /* to do: pass parent widget */
-  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, "Save as unaligned Fasta file:");
+  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, NULL, "Save as unaligned Fasta file:");
   
   FILE *fil = fopen(filename, "w");
   

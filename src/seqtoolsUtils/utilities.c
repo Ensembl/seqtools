@@ -3895,3 +3895,86 @@ void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, c
     }
 }
 
+/***********************************************************
+ *		         Files    			   * 
+ ***********************************************************/
+
+/* Utility to ask the user for a file to save to. Returns the file name (or
+ * NULL if the user cancels). The current file name, default file path, 
+ * default file extension and dialog title can all be specified, or passed
+ * as null to use defaults. */
+const char* getSaveFileName(GtkWidget *widget, 
+                            const char *currentName,   
+                            const char *defaultPath,
+                            const char *defaultExtension,
+                            const char *title)
+{
+  const char *filename = NULL;
+  
+  GtkWindow *window = widget ? GTK_WINDOW(gtk_widget_get_toplevel(widget)) : NULL;
+  
+  GtkWidget *dialog = gtk_file_chooser_dialog_new (title ? title : "Save File",
+                                                   window,
+                                                   GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                   GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+                                                   NULL);
+  
+  gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+  
+  if (defaultPath)
+    {
+      gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), defaultPath);
+    }
+  
+  if (currentName)
+    {
+      gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), currentName);
+    }
+  else if (defaultExtension)
+    {
+      gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), defaultExtension);
+    }
+  
+  
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+    }
+  
+  gtk_widget_destroy (dialog);
+  return filename;
+}
+
+/* Utility to ask the user for a file to load. Returns the file name (or
+ * NULL if the user cancels). The default file path and dialog title can be
+ * specified, or passed as null to use defaults. */
+const char* getLoadFileName(GtkWidget *widget, 
+                            const char *defaultPath,
+                            const char *title)
+{
+  const char *filename = NULL;
+  
+  GtkWindow *window = widget ? GTK_WINDOW(gtk_widget_get_toplevel(widget)) : NULL;
+  
+  GtkWidget *dialog = gtk_file_chooser_dialog_new (title ? title : "Open File",
+                                                   window,
+                                                   GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                   NULL);
+  
+  if (defaultPath)
+    {
+      gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), defaultPath);
+    }
+  
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+    }
+  
+  gtk_widget_destroy (dialog);
+  return filename;
+}
+

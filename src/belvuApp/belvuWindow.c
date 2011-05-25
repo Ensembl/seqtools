@@ -911,10 +911,28 @@ static void oncolorByResIdMenu(GtkAction *action, gpointer data)
 
 static void onsaveColorSchemeMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  const char *filename = getSaveFileName(belvuWindow, properties->bc->fileName, properties->bc->dirName, NULL, "Save colour scheme");
+  FILE *fil = fopen(filename, "w");
+
+  saveResidueColorScheme(properties->bc, fil);
 }
 
 static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  const char *filename = getLoadFileName(belvuWindow, properties->bc->dirName, "Read color scheme");
+  FILE *fil = fopen(filename, "r");
+  
+  readResidueColorScheme(properties->bc, fil, getColorArray());
+
+  setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+  setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+  onColorSchemeChanged(properties);
 }
 
 static void onignoreGapsMenu(GtkAction *action, gpointer data)
@@ -1682,12 +1700,14 @@ void onResponseConsColorsDialog(GtkDialog *dialog, gint responseId, gpointer dat
     case GTK_RESPONSE_ACCEPT:
       /* Close dialog if successful */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
       break;
       
     case GTK_RESPONSE_APPLY:
       /* Never close */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -1895,6 +1915,14 @@ static void createEditConsColorsContent(GtkBox *box, BelvuContext *bc)
   addConsColorLine("Max:", &bc->maxfgColor, &bc->maxbgColor, colorById ? &bc->maxIdCutoff : &bc->maxSimCutoff, table, &row);
   addConsColorLine("Mid:", &bc->midfgColor, &bc->midbgColor, colorById ? &bc->midIdCutoff : &bc->midSimCutoff, table, &row);
   addConsColorLine("Low:", &bc->lowfgColor, &bc->lowbgColor, colorById ? &bc->lowIdCutoff : &bc->lowSimCutoff, table, &row);
+  
+  label = gtk_label_new("Press Enter or click Add to update the display after changing threshold values.");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_box_pack_start(vbox, label, FALSE, FALSE, DIALOG_YPAD);
+
+  label = gtk_label_new("Click OK to save changes.");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_box_pack_start(vbox, label, FALSE, FALSE, DIALOG_YPAD);
 }
 
 
@@ -1913,7 +1941,7 @@ static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean brin
                                            GTK_WINDOW(belvuWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
-                                           GTK_STOCK_APPLY, GTK_RESPONSE_APPLY,
+                                           GTK_STOCK_ADD, GTK_RESPONSE_APPLY,
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                            NULL);
 
