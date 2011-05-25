@@ -344,7 +344,7 @@ static const char standardMenuDescription[] =
 "    </menu>"
     /* Sort menu */
 "    <menu action='SortMenuAction'>"
-"      <menuitem action='defaultSort'/>"
+//"      <menuitem action='defaultSort'/>"  /* to do: this is supposed to restore the default start-up sort order but it gets messed up after sorting by tree */
 "      <menuitem action='scoreSort'/>"
 "      <menuitem action='alphaSort'/>"
 "      <menuitem action='organismSort'/>"
