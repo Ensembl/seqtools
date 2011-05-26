@@ -300,7 +300,7 @@ MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 

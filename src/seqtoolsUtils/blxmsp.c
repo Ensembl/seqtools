@@ -2030,18 +2030,141 @@ static void findSequenceExtents(BlxSequence *blxSeq)
 }
 
 
+/* Get the offset required from the given base to give the coord that is the first base in 
+ * the first codon of reading frame 1 (or the last codon in reading frame 3 for the reverse strand) */
+static int getOffsetToCodonStart(const int coord, const int numFrames, const BlxStrand strand)
+{
+  int offset = 0;
+  
+  if (strand == BLXSTRAND_FORWARD)
+    {
+      /* If the sequence is 
+       *     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ...
+       * then the calculated base below will be
+       *     0, 1, 2, 0, 1, 2, 0, 1, 2, 0,  1, ...
+       * so we have to offset the coords by the following values to get to a base1 coord
+       *     0, 2, 1, 0, 2, 1, 0, 2, 1, 0,  2, ...
+       */
+      
+      int base = ((coord - 1) % numFrames); /* 0, 1 or 2 */
+      offset = numFrames - base;            /* 3, 2 or 1 */
+      
+      if (offset >= numFrames)
+	offset -= numFrames;                /* 0, 2 or 1 */
+    }
+  else
+    {
+      /* I'm not sure if there is a convention for where the reading frame starts in the reverse
+       * strand, so I've made up my own convention. It essentially means that we want the first 
+       * coord in the reversed sequence to be the last base in the last reading frame, i.e. base 3 in frame 3.
+       *
+       * If the forward strand coords are
+       *             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+       * then the have the following base numbers for each frame
+       * frame 1:    1, 2, 3, 1, 2, 3, 1, 2, 3, 1,  2
+       * frame 2:    3, 1, 2, 3, 1, 2, 3, 1, 2, 3,  1
+       * frame 3:    2, 3, 1, 2, 3, 1, 2, 3, 1, 2,  3 (I've included up to coord 11 so we end at base 3 in frame 3)
+       *
+       * Looking at frame 1 in reverse we have
+       *             11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+       *              2,  1, 3, 2, 1, 3, 2, 1, 3, 2, 1
+       *
+       * Base 3 in frame 3 is base 2 in frame 1, so this is where we want to start. The offsets we need
+       * to get to a frame1-base2 coord are:
+       *              0,  2, 1, 0, 2, 1, 0, 2, 1, 0, 2
+       */
+      
+      int base = (coord + 1) % numFrames;   /* 0, 2 or 1 */
+      offset = base;
+    }
+  
+  return offset;
+}
+
+
+/* Calculate the reference sequence reading frame that the given MSP belongs to, if not
+ * already set. Requires either the phase to be set, or the frame to already be set; otherwise
+ * assumes a phase of 0 and gives a warning. */
+static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange)
+{
+  /* For matches and exons, calculate frame if the phase is known, because the old code that 
+   * used to pass the reading frame in exblx files seemed to occasionally pass an incorrect reading frame. */
+  if (!mspIsIntron(msp))
+    {
+      /* Get the first coord of the first complete codon. This is the start coord (5' end) of the match
+       * plus (or minus) the phase (if non-zero), which initially gets stored in the qFrame field in the MSP... */
+      const int direction = (msp->qStrand == BLXSTRAND_FORWARD ? 1 : -1);
+      const int coord = mspGetQStart(msp) + (direction * msp->phase);
+      
+      /* Find the reading frame that this coord belongs in. This is the same as the base number within
+       * reading frame 1. */
+      int frame = UNSET_INT;
+      const gboolean invertCoords = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
+      
+      convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, invertCoords, refSeqRange, &frame);
+      
+      if (frame > 0)
+	{
+	  if (msp->qFrame > 0 && mspIsExon(msp))
+	    {
+	      /* Frame is already set. This means we have the old exblx file format, which does not provide phase for exons
+	       * so we must use the reading frame that was passed in the file. However, this used to assume that the first base
+	       * in the ref seq was base 1 in reading frame 1, which is not always the case (we now calculate the correct reading frame
+	       * based on mod3 of the coord). Therefore, we must offset the given frame if the first coord is not base1 in frame1. */
+	      const int startCoord = (msp->qStrand == BLXSTRAND_REVERSE ? refSeqRange->max : refSeqRange->min);
+	      const int offset = getOffsetToCodonStart(startCoord, numFrames, msp->qStrand);
+	      msp->qFrame += offset;
+	      
+	      if (msp->qFrame > numFrames)
+		{
+		  msp->qFrame -= numFrames;
+		}
+	      
+	      if (msp->qFrame != frame && seqType == BLXSEQ_PEPTIDE)
+		{
+		  g_warning("MSP '%s' (q=%d-%d; s=%d-%d) has reading frame '%d' but calculated frame was '%d'\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qFrame, frame);
+		}
+	    }
+	  else
+	    {
+	      /* We either have the new file format which provides phase or it's not an exon so phase 
+	       * is not applicable, so we can trust the calculated value. */
+	      msp->qFrame = frame;
+	    }
+	}
+      
+      if (msp->qFrame == UNSET_INT)
+	{
+	  g_warning("Reading frame could not be calculated for MSP '%s' (q=%d-%d; s=%d-%d) - setting to 1.\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+	  msp->qFrame = 1;
+	}
+    }
+}
+
+
 /* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
  * data and the introns etc. */
-void finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset)
+void finaliseBlxSequences(GArray* featureLists[], 
+			  MSP **mspList, 
+			  GList **seqList, 
+			  const int offset,
+			  const BlxSeqType seqType, 
+			  const int numFrames,
+			  const IntRange const *refSeqRange,
+			  const gboolean calcFrame)
 {
-  /* Loop through all MSPs and adjust their coords by the offest. Also find
-   * the last MSP in the list. */
+  /* Loop through all MSPs and adjust their coords by the offest, then calculate their reading
+   * frame. Also find the last MSP in the list. */
   MSP *msp = *mspList;
   MSP *lastMsp = msp;
 
   while (msp)
     {
       adjustMspCoordsByOffset(msp, offset);
+    
+      if (calcFrame)
+	calcReadingFrame(msp, seqType, numFrames, refSeqRange);
+    
       msp = msp->next;
       if (msp)
         lastMsp = msp;
