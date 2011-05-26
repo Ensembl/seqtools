@@ -1038,7 +1038,8 @@ static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
 static void belvuWindowCreateProperties(GtkWidget *belvuWindow, 
 					BelvuContext *bc, 
 					GtkActionGroup *actionGroup,
-					GtkWidget *statusBar)
+					GtkWidget *statusBar,
+					GtkWidget *feedbackBox)
 {
   if (belvuWindow)
     {
@@ -1047,6 +1048,7 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
       properties->bc = bc;
       properties->actionGroup = actionGroup;
       properties->statusBar = statusBar;
+      properties->feedbackBox = feedbackBox;
       
       properties->defaultCursor = NULL; /* get from gdkwindow once it is shown */
       properties->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
