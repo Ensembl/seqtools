@@ -111,7 +111,6 @@ static int		      snpTrackGetStrand(GtkWidget *snpTrack);
 static void		      getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange const *refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 
 static void		      detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight);
-static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		      widgetIsTree(GtkWidget *widget);
 static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
 static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
@@ -4229,21 +4228,6 @@ static GtkWidget* createStatusBar(GtkToolbar *toolbar)
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
 
   return statusBar;
-}
-
-
-/* Makes the given widget into a toolbar item on the given toolbar */
-static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
-{
-  GtkToolItem *toolItem = gtk_tool_item_new();
-  gtk_container_add(GTK_CONTAINER(toolItem), widget);
-  gtk_toolbar_insert(toolbar, toolItem, -1);	    /* -1 means "append" to the toolbar. */
-  
-  gtk_tool_item_set_visible_horizontal(toolItem, TRUE);
-  gtk_tool_item_set_visible_vertical(toolItem, TRUE);
-  gtk_tool_item_set_is_important(toolItem, TRUE);
-
-  return toolItem;
 }
 
 
