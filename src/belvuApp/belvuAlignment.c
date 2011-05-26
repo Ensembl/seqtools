@@ -807,7 +807,7 @@ void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
   
   rmFinaliseGapRemoval(bc);
   updateOnVScrollSizeChaged(belvuAlignment);  
-  onSelectionChanged(bc);
+  onRowSelectionChanged(bc);
 }
 
 
@@ -867,21 +867,27 @@ void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
 }
 
 
-/* Select the row at the given y coord and the column at the given x coord */
-static void selectClickedRowAndCol(BelvuAlignmentProperties *properties, const int x, const int y)
+/* Select the row at the given y coord */
+static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
 {
   BelvuContext *bc = properties->bc;
   
-  /* Select the sequence in the clicked row */
   const int rowIdx = (y - properties->seqRect.y) / properties->charHeight;
   bc->highlightedAln = &g_array_index(properties->bc->alignArr, ALN, rowIdx);
+}
 
-  /* Select the clicked column */
+
+/* Select the column at the given x coord */
+static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int x)
+{
+  BelvuContext *bc = properties->bc;
+
   const int colIdx = (x - properties->seqRect.x) / properties->charWidth;
-
+  
   if (colIdx >= 0 && colIdx < bc->maxLen)
     {
       bc->pickedCol = colIdx + properties->hAdjustment->value + 1;
+      g_message("Clicked column %d.\n", bc->pickedCol);
     }
 }
 
@@ -894,14 +900,25 @@ static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *e
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
 
-  if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
+  if (event->type == GDK_BUTTON_PRESS &&
+      (event->button == 1 || event->button == 3))  /* single click left or middle buttons */
     {
-      /* Select the clicked row/column */
-      selectClickedRowAndCol(properties, event->x, event->y);
-      onSelectionChanged(properties->bc);
+      /* Select the clicked row  and column */
+      selectRowAtCoord(properties, event->y);
+      selectColumnAtCoord(properties, event->x);
+
+      /* If the middle button was pressed, also highlight the selected column */
+      if (event->button == 3)
+	{
+	  /* to do */
+	}
+      
+      onRowSelectionChanged(properties->bc);
+//      onColSelectionChanged(properties->bc);
+    
       handled = TRUE;
     }
-  else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double-click */
+  else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
     {
       if (properties->bc->removingSeqs)
 	{

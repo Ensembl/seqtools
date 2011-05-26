@@ -2342,7 +2342,7 @@ static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFro
  ***********************************************************/
 
 /* This should be called whenever the selected sequence has changed */
-void onSelectionChanged(BelvuContext *bc)
+void onRowSelectionChanged(BelvuContext *bc)
 {
   /* Redraw the alignment widget */
   belvuAlignmentRedrawAll(bc->belvuAlignment);
@@ -2361,6 +2361,17 @@ void onSelectionChanged(BelvuContext *bc)
     {
       setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->highlightedAln->nocolor);
     }
+}
+
+
+/* This should be called whenever the selected column has changed */
+void onColSelectionChanged(BelvuContext *bc)
+{
+  /* Update the feedback box */
+  /* to do */
+  
+  /* Redraw the alignment widget */
+  belvuAlignmentRedrawAll(bc->belvuAlignment);
 }
 
 

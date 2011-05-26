@@ -1763,7 +1763,7 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
             {
               /* We clicked on a node name - select this alignment */
               properties->bc->highlightedAln = clickRect->node->aln;
-              onSelectionChanged(properties->bc);
+              onRowSelectionChanged(properties->bc);
             }
           
           break; /* we shouldn't have overlapping items, so exit once we have found one */
