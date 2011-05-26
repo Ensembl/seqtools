@@ -2777,6 +2777,22 @@ GtkWidget *createToolbarHandle()
 }
 
 
+/* Makes the given widget into a toolbar item on the given toolbar */
+GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
+{
+  GtkToolItem *toolItem = gtk_tool_item_new();
+  gtk_container_add(GTK_CONTAINER(toolItem), widget);
+  gtk_toolbar_insert(toolbar, toolItem, -1);	    /* -1 means "append" to the toolbar. */
+  
+  gtk_tool_item_set_visible_horizontal(toolItem, TRUE);
+  gtk_tool_item_set_visible_vertical(toolItem, TRUE);
+  gtk_tool_item_set_is_important(toolItem, TRUE);
+  
+  return toolItem;
+}
+
+
+
 /***********************************************************
  * Customisation to GtkTextView to allow pango markup.     
  * 

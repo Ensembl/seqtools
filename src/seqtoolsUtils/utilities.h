@@ -495,6 +495,7 @@ const char*			   findFixedWidthFontFamily(GtkWidget *widget, GList *pref_familie
 void                               getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height);
 
 GtkWidget*                         createToolbarHandle();
+GtkToolItem*			   addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 
 void                               onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 void                               collatePixmaps(GtkWidget *widget, gpointer data);

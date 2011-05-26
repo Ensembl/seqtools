@@ -68,6 +68,7 @@ typedef struct _BelvuWindowProperties
     BelvuContext *bc;                   /* The belvu context */
     GtkActionGroup *actionGroup;        /* Holds the menu and toolbar actions */
     GtkWidget *statusBar;		/* Message bar at the bottom of the main window */
+    GtkWidget *feedbackBox;		/* Feedback area showing info about the current selction */
     
     GdkCursor *defaultCursor;		/* default cursor */
     GdkCursor *removeSeqsCursor;	/* cursor to use when removing sequences */
@@ -2429,6 +2430,30 @@ gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer d
  *                      Initialisation                     *
  ***********************************************************/
 
+static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
+{
+  GtkWidget *feedbackBox = gtk_entry_new();
+  
+  /* User can copy text out but not edit contents */
+  gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
+  
+  /* want fixed width because feedback area needs as much space as possible - 
+   * could do with a way to make sure this box is always wide enough though */
+  const int numChars = 36; /* guesstimate of max number of chars we'll need */
+  const int charWidth = 8; /* guesstimate of char width for default font */
+  
+  gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1);
+  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox);
+  gtk_tool_item_set_expand(item, FALSE); 
+  
+  /* We want the box to be printed, so connect the expose function that will 
+   * draw to a pixmap for printing */
+  g_signal_connect(G_OBJECT(feedbackBox), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  
+  return feedbackBox;
+}
+
+
 /* Create the colors that belvu will use for various specific purposes */
 static void createBelvuColors(BelvuContext *bc, GtkWidget *widget)
 {
@@ -2520,6 +2545,8 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   GtkWidget *contextmenu = createBelvuMenu(window, "/ContextMenu", uiManager);
   GtkWidget *toolbar = createBelvuMenu(window, "/Toolbar", uiManager);
 
+  GtkWidget *feedbackBox = createFeedbackBox(GTK_TOOLBAR(toolbar));
+  
   /* Set the style properties */
   setStyleProperties(window, GTK_TOOLBAR(toolbar));
 
@@ -2546,7 +2573,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
 
-  belvuWindowCreateProperties(window, bc, actionGroup, statusBar);
+  belvuWindowCreateProperties(window, bc, actionGroup, statusBar, feedbackBox);
   
   gtk_widget_show_all(window);
   

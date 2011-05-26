@@ -914,7 +914,7 @@ static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *e
 	}
       
       onRowSelectionChanged(properties->bc);
-//      onColSelectionChanged(properties->bc);
+      onColSelectionChanged(properties->bc);
     
       handled = TRUE;
     }
