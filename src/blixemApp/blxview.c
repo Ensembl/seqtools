@@ -447,6 +447,7 @@ static void regionFetchSequences(GList *regionsToFetch,
 				 const gboolean parseFullEmblInfo,
 				 const gboolean parseSequenceData,
 				 const BlxSeqType seqType,
+                                 const int refSeqOffset,
 				 GError **error)
 {
   GKeyFile *keyFile = blxGetConfig();
@@ -489,8 +490,13 @@ static void regionFetchSequences(GList *regionsToFetch,
 		
 		  FILE *outputFile = fopen(fileName, "w");
 		
+                  /* Get the start and end coord (using the original input coordinate 
+                   * system - i.e. undo any offset that was applied) */
+                  const int startCoord = mspGetQStart(msp) + refSeqOffset;
+                  const int endCoord = mspGetQEnd(msp) + refSeqOffset;
+                  
 		  fprintf(outputFile, "%s\n", GFF3_VERSION_HEADER);
-		  fprintf(outputFile, "%s %s %d %d\n", GFF3_SEQUENCE_REGION_HEADER, mspGetRefName(msp), mspGetQStart(msp), mspGetQEnd(msp));
+		  fprintf(outputFile, "%s %s %d %d\n", GFF3_SEQUENCE_REGION_HEADER, mspGetRefName(msp), startCoord, endCoord);
 		
 		  /* to do: implement this (for now just add some test data) */
 		  fprintf(outputFile, "%s\n", "chr4-04_210623-364887	EST_Human	nucleotide_match	79196	79229	32.000000	+	.	Target=AA935244.1 77 110 +;percentID=97.1");
@@ -549,6 +555,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
 			       GArray* featureLists[],
 			       GSList *supportedTypes, 
 			       GSList *styles,
+                               const int refSeqOffset,
                                GError **error)
 {
   gboolean success = TRUE;
@@ -571,7 +578,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
         }
       else if (strcmp(fetchMode, BLX_FETCH_REGION) == 0)
         {
-          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, supportedTypes, styles, External, parseOptionalData, parseSequenceData, seqType, error);
+          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, supportedTypes, styles, External, parseOptionalData, parseSequenceData, seqType, refSeqOffset, error);
         }
       else if (fetchMode && fetchMode[0] != 0)
         {
@@ -601,7 +608,8 @@ gboolean blxviewFetchSequences(gboolean External,
 			       BlxBlastMode *blastMode,
 			       GArray* featureLists[],
 			       GSList *supportedTypes, 
-			       GSList *styles)
+			       GSList *styles,
+                               const int refSeqOffset)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
@@ -625,7 +633,7 @@ gboolean blxviewFetchSequences(gboolean External,
       
       DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
       
-      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, &tmpError))
+      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, &tmpError))
         {
           success = TRUE;
           
@@ -730,7 +738,7 @@ gboolean blxview(CommandLineOptions *options,
   int port = UNSET_INT;
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
   
-  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, seqList, options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, featureLists, supportedTypes, NULL);
+  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, seqList, options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, featureLists, supportedTypes, NULL, options->refSeqOffset);
   
   if (status)
     {

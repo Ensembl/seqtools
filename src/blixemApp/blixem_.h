@@ -335,7 +335,8 @@ typedef struct _BlxViewContext
     const char *refSeqName;                 /* The name of the reference sequence */
     IntRange refSeqRange;		    /* The range of the reference sequence */
     IntRange fullDisplayRange;	            /* The range of the displayed sequence */
-    
+    int refSeqOffset;                       /* how much the coordinate system has been offset from the input coords */
+
     BlxBlastMode blastMode;	            /* The type of blast matching that was used */
     BlxSeqType seqType;		            /* The type of sequence, e.g. DNA or peptide */
     char **geneticCode;		            /* The genetic code used to translate DNA <-> peptide */
@@ -379,7 +380,7 @@ typedef struct _BlxViewContext
     int *depthArray;		            /* this array holds the depth (num alignments) at each coord of the ref seq */
     int minDepth;                           /* minimum value in the depthArray */
     int maxDepth;                           /* maximum value in the depthArray */
-  } BlxViewContext;
+} BlxViewContext;
 
 
 
@@ -462,7 +463,8 @@ gboolean                           blxviewFetchSequences(gboolean External,
 							 BlxBlastMode *blastMode,
 							 GArray* featureLists[],
 							 GSList *supportedTypes, 
-							 GSList *styles
+							 GSList *styles,
+                                                         const int refSeqOffset
 							 );
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */

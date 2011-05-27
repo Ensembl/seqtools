@@ -257,7 +257,6 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_INVALID;
   options->numFrames = 1;
-  options->fetchMode = fetchMode;
   options->mapCoords = FALSE;
   options->mapCoordsFrom = UNSET_INT;
   options->mapCoordsTo = 1; /* default to 1-based coordinate system if mapping coords but no 'to' value is specified */
