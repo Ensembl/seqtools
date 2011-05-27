@@ -2367,11 +2367,87 @@ void onRowSelectionChanged(BelvuContext *bc)
 }
 
 
+/* Update the feedback box to show info about the currently-selected items */
+static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
+{
+  GString *resultStr = g_string_new("");
+  
+  char *tmpStr = NULL;
+  
+  /* If a column is selected, display the column number */
+  if (bc->pickedCol > 0)
+    {
+      tmpStr = blxprintf("Column %d: ", bc->pickedCol);
+      g_string_append(resultStr, tmpStr);
+      g_free(tmpStr);
+    }
+  
+  /* If an alignment is selected, display info about it */
+  if (bc->highlightedAln)
+    {
+      tmpStr = blxprintf("%s/%d-%d", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end);
+      g_string_append(resultStr, tmpStr);
+      g_free(tmpStr);
+  
+      /* If a column is selected, display info about the selected alignment's
+       * coord at that column position. */
+      if (bc->pickedCol > 0)
+        {
+          tmpStr = blxprintf("  %c = ", bc->highlightedAln->seq[bc->pickedCol - 1]);
+          g_string_append(resultStr, tmpStr);
+          g_free(tmpStr);
+          
+          /* Loop through each column before the selected column and calculate the
+           * number of gaps. Also note whether we see an asterisk in the sequence */
+          gboolean hasAsterisk = FALSE;
+          int numGaps = 0;
+          int colIdx = 0;
+          
+          for ( ; colIdx < bc->pickedCol; colIdx++)
+            {
+              if (isGap(bc->highlightedAln->seq[colIdx])) 
+                numGaps++;
+              else if (bc->highlightedAln->seq[colIdx] == '*') 
+                hasAsterisk = TRUE;
+            }
+          
+          if (hasAsterisk)
+            {
+              g_string_append(resultStr, "(unknown position due to insertion)");
+            }
+          else
+            {
+              tmpStr = blxprintf("%d", bc->pickedCol - 1 + bc->highlightedAln->start - numGaps);
+              g_string_append(resultStr, tmpStr);
+              g_free(tmpStr);
+            }
+        }
+
+      /* Display the total number of highlighted alignments */
+      const int numHighlighted = 0; //g_list_length(bc->highlightedAlns);
+      
+      tmpStr = blxprintf(" (%d match", numHighlighted);
+      g_string_append(resultStr, tmpStr);
+      g_free(tmpStr);
+      
+      if (numHighlighted != 1)
+        g_string_append(resultStr, "es");
+      
+      g_string_append(resultStr, ")");
+    }
+
+  gtk_entry_set_text(GTK_ENTRY(feedbackBox), resultStr->str);
+  
+  g_string_free(resultStr, TRUE);
+}
+
+
 /* This should be called whenever the selected column has changed */
 void onColSelectionChanged(BelvuContext *bc)
 {
   /* Update the feedback box */
-  /* to do */
+  BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
+  updateFeedbackBox(properties->bc, properties->feedbackBox);
   
   /* Redraw the alignment widget */
   belvuAlignmentRedrawAll(bc->belvuAlignment);
@@ -2446,7 +2522,7 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   
   gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1);
   GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox);
-  gtk_tool_item_set_expand(item, FALSE); 
+  gtk_tool_item_set_expand(item, TRUE); 
   
   /* We want the box to be printed, so connect the expose function that will 
    * draw to a pixmap for printing */
