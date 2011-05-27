@@ -457,7 +457,7 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
   enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
   enableMenuAction(action_group, "printColors", colorByConservation(bc));
 
-  enableMenuAction(action_group, "excludeHighlighted", bc->highlightedAln != NULL);
+  enableMenuAction(action_group, "excludeHighlighted", bc->selectedAln != NULL);
 }
 
 
@@ -2358,11 +2358,11 @@ void onRowSelectionChanged(BelvuContext *bc)
    * depending on whether the newly-selected sequence is selected or not
    * (or grey it out if nothing is selected) */
   BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
-  enableMenuAction(properties->actionGroup, "excludeHighlighted", bc->highlightedAln != NULL);
+  enableMenuAction(properties->actionGroup, "excludeHighlighted", bc->selectedAln != NULL);
   
-  if (bc->highlightedAln)
+  if (bc->selectedAln)
     {
-      setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->highlightedAln->nocolor);
+      setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
     }
 }
 
@@ -2383,9 +2383,9 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
     }
   
   /* If an alignment is selected, display info about it */
-  if (bc->highlightedAln)
+  if (bc->selectedAln)
     {
-      tmpStr = blxprintf("%s/%d-%d", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end);
+      tmpStr = blxprintf("%s/%d-%d", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end);
       g_string_append(resultStr, tmpStr);
       g_free(tmpStr);
   
@@ -2393,7 +2393,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
        * coord at that column position. */
       if (bc->selectedCol > 0)
         {
-          tmpStr = blxprintf("  %c = ", bc->highlightedAln->seq[bc->selectedCol - 1]);
+          tmpStr = blxprintf("  %c = ", bc->selectedAln->seq[bc->selectedCol - 1]);
           g_string_append(resultStr, tmpStr);
           g_free(tmpStr);
           
@@ -2405,9 +2405,9 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
           
           for ( ; colIdx < bc->selectedCol; colIdx++)
             {
-              if (isGap(bc->highlightedAln->seq[colIdx])) 
+              if (isGap(bc->selectedAln->seq[colIdx])) 
                 numGaps++;
-              else if (bc->highlightedAln->seq[colIdx] == '*') 
+              else if (bc->selectedAln->seq[colIdx] == '*') 
                 hasAsterisk = TRUE;
             }
           
@@ -2417,14 +2417,14 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
             }
           else
             {
-              tmpStr = blxprintf("%d", bc->selectedCol - 1 + bc->highlightedAln->start - numGaps);
+              tmpStr = blxprintf("%d", bc->selectedCol - 1 + bc->selectedAln->start - numGaps);
               g_string_append(resultStr, tmpStr);
               g_free(tmpStr);
             }
         }
 
       /* Display the total number of highlighted alignments */
-      const int numHighlighted = 0; //g_list_length(bc->highlightedAlns);
+      const int numHighlighted = 0; //g_list_length(bc->selectedAlns);
       
       tmpStr = blxprintf(" (%d match", numHighlighted);
       g_string_append(resultStr, tmpStr);

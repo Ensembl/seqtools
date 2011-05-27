@@ -1453,7 +1453,7 @@ static double treeDrawNode(BelvuContext *bc,
   else 
     {
       /* Sequence name */
-      const gboolean isSelected = (bc->highlightedAln && bc->highlightedAln == node->aln);
+      const gboolean isSelected = (bc->selectedAln && bc->selectedAln == node->aln);
       
       y = bc->tree_y * properties->charHeight;
       bc->tree_y++;
@@ -1762,7 +1762,7 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
           else if (clickRect->node)
             {
               /* We clicked on a node name - select this alignment */
-              properties->bc->highlightedAln = clickRect->node->aln;
+              properties->bc->selectedAln = clickRect->node->aln;
               onRowSelectionChanged(properties->bc);
             }
           

@@ -190,7 +190,7 @@ static void drawSingleHeader(GtkWidget *widget,
   int x = 0;
   const int y = properties->headersRect.y + (properties->charHeight * lineNum);
   
-  const gboolean isSelected = (alnp == properties->bc->highlightedAln);
+  const gboolean isSelected = (alnp == properties->bc->selectedAln);
   GdkGC *gc = gdk_gc_new(drawable);
   
   if (isSelected)
@@ -253,7 +253,7 @@ static void drawSingleSequence(GtkWidget *widget,
    * the text and background according to the relevant highlight colors */
   int i = hAdjustment->value;
   const int iMax = hAdjustment->value + displayLen;
-  const gboolean isSelected = (alnp == properties->bc->highlightedAln);
+  const gboolean isSelected = (alnp == properties->bc->selectedAln);
   
   for ( ; i < iMax; ++i)
     {
@@ -789,21 +789,21 @@ static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *alloc
 
 void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
 { 
-  if (!bc->highlightedAln) 
+  if (!bc->selectedAln) 
     {
       g_critical("Please select a sequence to remove.\n");
       return;
     }
   
-  const int idx = bc->highlightedAln->nr - 1;
+  const int idx = bc->selectedAln->nr - 1;
   g_array_remove_index(bc->alignArr, idx);
   arrayOrder(bc->alignArr);
   
   bc->saved = FALSE;
   
-  g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end, bc->alignArr->len);
+  g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end, bc->alignArr->len);
   
-  bc->highlightedAln = NULL;
+  bc->selectedAln = NULL;
   
   rmFinaliseGapRemoval(bc);
   updateOnVScrollSizeChaged(belvuAlignment);  
@@ -852,13 +852,13 @@ void removeByScore(BelvuContext *bc, GtkWidget *belvuAlignment, const double cut
  * highlighted sequence is visible */
 void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
 {
-  if (bc->highlightedAln) 
+  if (bc->selectedAln) 
     {
       BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
       GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->seqArea));
       
       /* Create the range of y coords that we want to be in range */
-      const int newIdx = bc->highlightedAln->nr - 1;
+      const int newIdx = bc->selectedAln->nr - 1;
       const int lower = properties->seqRect.y + (newIdx * properties->charHeight);
       const int upper = lower + properties->charHeight;
       
@@ -873,7 +873,7 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
   BelvuContext *bc = properties->bc;
   
   const int rowIdx = (y - properties->seqRect.y) / properties->charHeight;
-  bc->highlightedAln = &g_array_index(properties->bc->alignArr, ALN, rowIdx);
+  bc->selectedAln = &g_array_index(properties->bc->alignArr, ALN, rowIdx);
 }
 
 

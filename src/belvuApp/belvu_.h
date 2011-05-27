@@ -320,7 +320,7 @@ typedef struct BelvuContextStruct
   GArray *markupAlignArr;
   GArray *bootstrapGroups;
 
-  ALN *highlightedAln;
+  ALN *selectedAln;
 
   TreeNode *treeHead;              /* global current tree head */
   TreeNode *treeBestBalancedNode;

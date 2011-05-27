@@ -1023,7 +1023,7 @@ static void middleDrag(double x, double y)
 
     if (selectedCol == Vcrosshair) return;
 
-    updateStatus(bc->highlightedAln, selectedCol);
+    updateStatus(bc->selectedAln, selectedCol);
 
     Vcrosshair = selectedCol;
 
@@ -1077,7 +1077,7 @@ static void middleDown(double x, double y)
 	graphRegister(MIDDLE_UP, middleUp);
 
 	selectedCol = x2col(&x);
-	updateStatus(bc->highlightedAln, selectedCol);
+	updateStatus(bc->selectedAln, selectedCol);
 
 	Vcrosshair = selectedCol;
 
@@ -1109,15 +1109,15 @@ static void showOrganisms(void)
 }
 
 
-/* Highlight the box of bc->highlightedAln
+/* Highlight the box of bc->selectedAln
  */
 static void highlight(int ON)
 {
     int i, box;
 
-    if (!bc->highlightedAln) return;
+    if (!bc->selectedAln) return;
 
-    box = bc->highlightedAln->nr - AlignYstart;
+    box = bc->selectedAln->nr - AlignYstart;
 
     if (box > 0 && box <= Alignheig) {
 
@@ -1130,7 +1130,7 @@ static void highlight(int ON)
 
     /* All names * /
     for (i = Highlight_matches = 0; i < Alignheig; i++)
-	if (!strcmp(arrp(Align, AlignYstart+i, ALN)->name, bc->highlightedAln->name)) {
+	if (!strcmp(arrp(Align, AlignYstart+i, ALN)->name, bc->selectedAln->name)) {
 	    if (ON) {
 		graphBoxDraw(Alignheig+i+1, WHITE, BLACK);
 		Highlight_matches++;
@@ -1142,7 +1142,7 @@ static void highlight(int ON)
 
     /* All names - also count all matches */
     for (i = Highlight_matches = 0; i < nseq; i++)
-	if (!strcmp(arrp(Align, i, ALN)->name, bc->highlightedAln->name)) {
+	if (!strcmp(arrp(Align, i, ALN)->name, bc->selectedAln->name)) {
 	    Highlight_matches++;
 
 	    if (i >= AlignYstart && i < AlignYstart+Alignheig) {
@@ -1184,7 +1184,7 @@ static void treeboxPick (int box, double x, double y, int modifier_unused)
     if (box > treestruct->lastNodeBox) { /* sequence box */
 
 	/* Highlight it in the alignment */
-	bc->highlightedAln = treenodePicked->aln;
+	bc->selectedAln = treenodePicked->aln;
 	centerHighlighted();
 	belvuRedraw();
     }
@@ -1255,7 +1255,7 @@ static void boxPick (int box, double x, double y, int modifier_unused)
 
     /* Turn all selections off */
     if (!box) {
-	bc->highlightedAln = 0;
+	bc->selectedAln = 0;
 	return;
     }
 
@@ -1265,7 +1265,7 @@ static void boxPick (int box, double x, double y, int modifier_unused)
 	messout("boxPick: Cannot find row %d in alignment array", aln.nr);
 	return;
     }
-    bc->highlightedAln = alnp = arrp(Align, ip, ALN);
+    bc->selectedAln = alnp = arrp(Align, ip, ALN);
     
 
     /* Double click */
@@ -2310,16 +2310,16 @@ static void idSort(void)
 
 static void printScore(void)
 {
-    if (!bc->highlightedAln) {
+    if (!bc->selectedAln) {
 	messout("Select a line first");
 	return;
     }
 
     printf("%.1f %s/%d-%d\n", 
-	   bc->highlightedAln->score,
-	   bc->highlightedAln->name,
-	   bc->highlightedAln->start,
-	   bc->highlightedAln->end);
+	   bc->selectedAln->score,
+	   bc->selectedAln->name,
+	   bc->selectedAln->start,
+	   bc->selectedAln->end);
     fflush(stdout);
 }
 
@@ -3435,7 +3435,7 @@ static void readLabels(void)
       *cp, *cq;
     FILE *fil;
 
-    if (!bc->highlightedAln) {
+    if (!bc->selectedAln) {
         messout("pick a sequence first");
 	return;
     }
@@ -3444,7 +3444,7 @@ static void readLabels(void)
     label = g_malloc(maxLen+1);
 
     if (!(fil = filqueryopen(dirName, fileName, "","r", 
-			     messprintf("Read labels of %s from file:", bc->highlightedAln->name))))
+			     messprintf("Read labels of %s from file:", bc->selectedAln->name))))
       return;
 
     /* read file */
@@ -3460,7 +3460,7 @@ static void readLabels(void)
     fclose(fil);
     
     /* Warn if seq too long, return if too short */
-    seqlen = bc->highlightedAln->end - bc->highlightedAln->start +1;
+    seqlen = bc->selectedAln->end - bc->selectedAln->start +1;
     if (strlen(labelseq) > seqlen)
         messout(messprintf("The sequence of labels is longer (%d) than the sequence (%d).  "
 			   "Hope that's ok", 
@@ -3475,7 +3475,7 @@ static void readLabels(void)
     /* map labels to alignment */
     for (col = 0, seqpos = 0; col < maxLen; col++) {
         label[col] = labelseq[seqpos];
-	if (isalpha(bc->highlightedAln->seq[col]) && labelseq[seqpos+1]) seqpos++;
+	if (isalpha(bc->selectedAln->seq[col]) && labelseq[seqpos+1]) seqpos++;
     }
 
     for (row = 0; row < nseq; row++) {
@@ -3581,12 +3581,12 @@ static void listIdentity(void)
 
 static void hide (void)
 {
-    if (!bc->highlightedAln) {
+    if (!bc->selectedAln) {
 	messout ("Pick a sequence first!");
 	return;
     }
 
-    bc->highlightedAln->hide = 1;
+    bc->selectedAln->hide = 1;
     belvuRedraw();
 }
 
@@ -3604,18 +3604,18 @@ static void unhide (void)
 
 static void rmPicked(void)
 {
-    if (!bc->highlightedAln) {
+    if (!bc->selectedAln) {
 	messout ("Pick a sequence first!");
 	return;
     }
 
-    g_message("Removed %s/%d-%d.  ", bc->highlightedAln->name, bc->highlightedAln->start, bc->highlightedAln->end);
+    g_message("Removed %s/%d-%d.  ", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end);
 
     nseq--;
-    arrayRemove(Align, bc->highlightedAln, (void*)nrorder);
+    arrayRemove(Align, bc->selectedAln, (void*)nrorder);
     saved = 0;
     arrayOrder();
-    bc->highlightedAln = 0;
+    bc->selectedAln = 0;
 
     g_message("%d seqs left.\n\n", nseq);
 
@@ -4194,23 +4194,23 @@ void scoreSort(BelvuContext *bc)
   ALN aln;
   initAln(&aln);
 
-  if (bc->highlightedAln)
-    alncpy(&aln, bc->highlightedAln);
+  if (bc->selectedAln)
+    alncpy(&aln, bc->selectedAln);
   
   g_array_sort(bc->alignArr, scoreorder);
   
-  if (bc->highlightedAln) 
+  if (bc->selectedAln) 
     {
       int ip = 0;
     
       if (!alignFind(bc->alignArr, &aln, &ip)) 
 	{
 	  g_critical("Program error: cannot find back highlighted sequence after sort.\n");
-	  bc->highlightedAln = NULL;
+	  bc->selectedAln = NULL;
 	}
       else
 	{
-	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	  bc->selectedAln = &g_array_index(bc->alignArr, ALN, ip);
 	}
   }
   
@@ -4223,22 +4223,22 @@ static void alphaSort(BelvuContext *bc)
   ALN aln;
   initAln(&aln);
   
-  if (bc->highlightedAln)
-    alncpy(&aln, bc->highlightedAln);
+  if (bc->selectedAln)
+    alncpy(&aln, bc->selectedAln);
   
   g_array_sort(bc->alignArr, alphaorder);
   
-  if (bc->highlightedAln) 
+  if (bc->selectedAln) 
     { 
       int ip = 0;
       if (!alignFind(bc->alignArr, &aln, &ip)) 
 	{
 	  g_critical("Program error: cannot find back highlighted seq after sort.\n");
-	  bc->highlightedAln = NULL;
+	  bc->selectedAln = NULL;
 	}
       else
 	{
-	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	  bc->selectedAln = &g_array_index(bc->alignArr, ALN, ip);
 	}
     }
   
@@ -4251,22 +4251,22 @@ static void organismSort(BelvuContext *bc)
   ALN aln;
   initAln(&aln);
 
-  if (bc->highlightedAln)
-    alncpy(&aln, bc->highlightedAln);
+  if (bc->selectedAln)
+    alncpy(&aln, bc->selectedAln);
   
   g_array_sort(bc->alignArr, organismorder);
   
-  if (bc->highlightedAln) 
+  if (bc->selectedAln) 
     {
       int ip = 0;
       if (!alignFind(bc->alignArr, &aln, &ip)) 
 	{
 	  g_critical("Program error: cannot find back highlighted seq after sort.\n");
-	  bc->highlightedAln = NULL;
+	  bc->selectedAln = NULL;
 	}
       else
 	{
-	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	  bc->selectedAln = &g_array_index(bc->alignArr, ALN, ip);
 	}
     }
   
@@ -4276,13 +4276,13 @@ static void organismSort(BelvuContext *bc)
 
 void highlightScoreSort(char mode, BelvuContext *bc)
 {
-  if (!bc->highlightedAln) 
+  if (!bc->selectedAln) 
     {
       g_critical("Please highlight a sequence first");
       return;
     }
   
-  if (bc->highlightedAln->markup) 
+  if (bc->selectedAln->markup) 
     {
       g_critical("Please do not highlight a markup line");
       return;
@@ -4290,7 +4290,7 @@ void highlightScoreSort(char mode, BelvuContext *bc)
   
   ALN aln;
   initAln(&aln);
-  alncpy(&aln, bc->highlightedAln);
+  alncpy(&aln, bc->selectedAln);
   
   separateMarkupLines(bc);
   
@@ -4333,11 +4333,11 @@ void highlightScoreSort(char mode, BelvuContext *bc)
   if (!alignFind(bc->alignArr, &aln, &i)) 
     {
       g_critical("Program error: cannot find back highlighted seq after sort.\n");
-      bc->highlightedAln = NULL;
+      bc->selectedAln = NULL;
     }
   else
     {
-      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, i);
+      bc->selectedAln = &g_array_index(bc->alignArr, ALN, i);
     }
   
   arrayOrder(bc->alignArr);
@@ -4359,12 +4359,12 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType)
     case BELVU_SORT_CONS  :	  /* sort by nrorder - already done */  break; 
     
     case BELVU_SORT_SIM :
-      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
+      bc->selectedAln = &g_array_index(bc->alignArr, ALN, 0);
       highlightScoreSort('P', bc); 
       break;
     
     case BELVU_SORT_ID : 
-      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, 0);
+      bc->selectedAln = &g_array_index(bc->alignArr, ALN, 0);
       highlightScoreSort('I', bc); break;
     
     case BELVU_UNSORTED : break;
@@ -4516,8 +4516,8 @@ void treeSort(BelvuContext *bc)
   ALN aln;
   initAln(&aln);
   
-  if (bc->highlightedAln)
-    alncpy(&aln, bc->highlightedAln);
+  if (bc->selectedAln)
+    alncpy(&aln, bc->selectedAln);
   
   treeSortBatch(bc);
   
@@ -4527,17 +4527,17 @@ void treeSort(BelvuContext *bc)
    by remaking the tree... */
   treeTraverse(bc, bc->treeHead, treeFindAln);
   
-  if (bc->highlightedAln) 
+  if (bc->selectedAln) 
     {
       int ip = 0;
       if (!alignFind(bc->alignArr, &aln, &ip)) 
         {
           g_critical("Program error: cannot find back highlighted seq after sort.\n");
-          bc->highlightedAln = 0;
+          bc->selectedAln = 0;
         }
       else
         {
-          bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+          bc->selectedAln = &g_array_index(bc->alignArr, ALN, ip);
         }
     }
 }
@@ -5651,14 +5651,14 @@ int* getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboole
  * from the conservation colours calculations */
 void setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude)
 {
-  if (!bc->highlightedAln) 
+  if (!bc->selectedAln) 
     {
       g_critical("Please select a sequence first.\n");
       return;
   }
   
-  if ((exclude && bc->highlightedAln->nocolor) ||
-     (!exclude && !bc->highlightedAln->nocolor))
+  if ((exclude && bc->selectedAln->nocolor) ||
+     (!exclude && !bc->selectedAln->nocolor))
     {
       /* Nothing to do */
       return;
@@ -5673,19 +5673,19 @@ void setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude)
   
   if (exclude) 
     {
-      if (bc->highlightedAln->markup)
-        bc->highlightedAln->nocolor = 2;
+      if (bc->selectedAln->markup)
+        bc->selectedAln->nocolor = 2;
       else
-        bc->highlightedAln->nocolor = 1;
+        bc->selectedAln->nocolor = 1;
       
-      bc->highlightedAln->markup = 1;
+      bc->selectedAln->markup = 1;
     }
   else 
     {
-      if (bc->highlightedAln->nocolor == 1) 
-        bc->highlightedAln->markup = 0;
+      if (bc->selectedAln->nocolor == 1) 
+        bc->selectedAln->markup = 0;
       
-      bc->highlightedAln->nocolor = 0;
+      bc->selectedAln->nocolor = 0;
     }
 }
 
@@ -5810,8 +5810,8 @@ void separateMarkupLines(BelvuContext *bc)
   ALN aln;
   initAln(&aln);
   
-  if (bc->highlightedAln)
-    alncpy(&aln, bc->highlightedAln);
+  if (bc->selectedAln)
+    alncpy(&aln, bc->selectedAln);
   
   arrayOrder(bc->alignArr);
   
@@ -5835,14 +5835,14 @@ void separateMarkupLines(BelvuContext *bc)
   
   arrayOrder(bc->alignArr);
   
-  if (bc->highlightedAln) 
+  if (bc->selectedAln) 
     {
     int idx = 0;
     
     if (!alignFind(bc->alignArr, &aln, &idx))
-      bc->highlightedAln = 0;
+      bc->selectedAln = 0;
     else
-      bc->highlightedAln = &g_array_index(bc->alignArr, ALN, idx);
+      bc->selectedAln = &g_array_index(bc->alignArr, ALN, idx);
     }
 }
 
@@ -5937,7 +5937,7 @@ BelvuContext* createBelvuContext()
   bc->markupAlignArr = NULL;
   bc->bootstrapGroups = NULL;
   
-  bc->highlightedAln = NULL;
+  bc->selectedAln = NULL;
   
   bc->treeHead = NULL;
   bc->treeBestBalancedNode = NULL;
@@ -6852,8 +6852,8 @@ void rmPartialSeqs(BelvuContext *bc)
           /* Remove entry */
           n++;
 
-          if (bc->highlightedAln == alni) 
-            bc->highlightedAln = 0;
+          if (bc->selectedAln == alni) 
+            bc->selectedAln = 0;
           
           g_array_remove_index(bc->alignArr, alni->nr);
           g_array_sort(bc->alignArr, nrorder);
@@ -6890,8 +6890,8 @@ void rmGappySeqs(BelvuContext *bc, const double cutoff)
           /* Remove entry */
           n++;
           
-          if (bc->highlightedAln == alni) 
-            bc->highlightedAln = 0;
+          if (bc->selectedAln == alni) 
+            bc->selectedAln = 0;
           
           g_array_remove_index(bc->alignArr, i);
           g_array_sort(bc->alignArr, nrorder);
@@ -6953,8 +6953,8 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
               /* Remove entry j */
               n++;
 		
-              if (bc->highlightedAln == alnj) 
-                bc->highlightedAln = NULL;
+              if (bc->selectedAln == alnj) 
+                bc->selectedAln = NULL;
               
               g_array_remove_index(bc->alignArr, j);
               g_array_sort(bc->alignArr, nrorder);
@@ -7010,8 +7010,8 @@ void rmOutliers(BelvuContext *bc, const double cutoff)
 	  /* Remove entry */
 	  n++;
 	
-	  if (bc->highlightedAln == alni) 
-	    bc->highlightedAln = NULL;
+	  if (bc->selectedAln == alni) 
+	    bc->selectedAln = NULL;
 	
 	  g_array_remove_index(bc->alignArr, i);
 	  bc->saved = FALSE;
@@ -7034,12 +7034,12 @@ void rmScore(BelvuContext *bc, const double cutoff)
 {
   scoreSort(bc);
   
-  /* Save bc->highlightedAln */
+  /* Save bc->selectedAln */
   ALN aln;
   initAln(&aln);
   
-  if (bc->highlightedAln)
-    alncpy(&aln, bc->highlightedAln);
+  if (bc->selectedAln)
+    alncpy(&aln, bc->selectedAln);
   
   int numRemoved = 0;
   int i = 0;
@@ -7055,8 +7055,8 @@ void rmScore(BelvuContext *bc, const double cutoff)
 	  g_message("Removing %s/%d-%d (score %.1f)\n",
 		    alnp->name, alnp->start, alnp->end, alnp->score);
 	
-	  if (bc->highlightedAln == alnp) 
-	    bc->highlightedAln = NULL;
+	  if (bc->selectedAln == alnp) 
+	    bc->selectedAln = NULL;
 	  
 	  g_array_remove_index(bc->alignArr, i);
 	  bc->saved = FALSE;
@@ -7071,8 +7071,8 @@ void rmScore(BelvuContext *bc, const double cutoff)
   
   g_message("%d sequences with score < %.1f removed.  %d seqs left.\n\n", numRemoved, cutoff, bc->alignArr->len);
   
-  /* Find bc->highlightedAln in new array */
-  if (bc->highlightedAln) 
+  /* Find bc->selectedAln in new array */
+  if (bc->selectedAln) 
     { 
       int ip = 0;
       ALN aln;
@@ -7080,11 +7080,11 @@ void rmScore(BelvuContext *bc, const double cutoff)
       
       if (!arrayFind(bc->alignArr, &aln, &ip, (void*)scoreorder)) 
 	{
-	  bc->highlightedAln = NULL;
+	  bc->selectedAln = NULL;
 	}
       else
 	{
-	  bc->highlightedAln = &g_array_index(bc->alignArr, ALN, ip);
+	  bc->selectedAln = &g_array_index(bc->alignArr, ALN, ip);
 	}
   }
   
