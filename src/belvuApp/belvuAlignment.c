@@ -882,12 +882,21 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
 }
 
 
+/* Utility to find the column index (0-based from left edge) at the given
+ * x coordinate in the sequence area of the alignment view. */
+static int getColumnAtCoord(BelvuAlignmentProperties *properties, const int x)
+{
+  int result = (x - properties->seqRect.x) / properties->charWidth;
+  return result;
+}
+
+
 /* Select the column at the given x coord */
 static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int x, const gboolean highlightCol)
 {
   BelvuContext *bc = properties->bc;
 
-  const int colIdx = (x - properties->seqRect.x) / properties->charWidth;
+  const int colIdx = getColumnAtCoord(properties, x);
   
   if (colIdx >= 0 && colIdx < bc->maxLen)
     {
@@ -898,46 +907,6 @@ static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int 
       else
         bc->highlightedCol = 0;
     }
-}
-
-
-/* Mouse button handler for the sequence area of the alignment window */
-static gboolean onButtonPressSeqArea(GtkWidget *widget, GdkEventButton *event, gpointer data)
-{
-  gboolean handled = FALSE;
-  
-  GtkWidget *belvuAlignment = GTK_WIDGET(data);
-  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-
-  if (event->type == GDK_BUTTON_PRESS &&
-      (event->button == 1 || event->button == 2))  /* single click left or middle buttons */
-    {
-      /* If the middle button was pressed, highlight the selected column */
-      const gboolean highlightCol = (event->button == 2);
-      
-      /* If the left button was pressed, select the clicked row */
-      if (event->button == 1)
-        {
-          selectRowAtCoord(properties, event->y);
-          onRowSelectionChanged(properties->bc);
-        }
-      
-      /* Select the clicked column */
-      selectColumnAtCoord(properties, event->x, highlightCol);
-      onColSelectionChanged(properties->bc);
-    
-      handled = TRUE;
-    }
-  else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
-    {
-      if (properties->bc->removingSeqs)
-	{
-	  /* Removed the clicked sequence (which will be the selected one) */
-	  removeSelectedSequence(properties->bc, belvuAlignment);
-	}
-    }
-  
-  return handled;
 }
 
 
@@ -963,6 +932,101 @@ static gboolean onButtonPressHeadersArea(GtkWidget *widget, GdkEventButton *even
 	  /* Removed the clicked sequence (which will be the selected one) */
 	  removeSelectedSequence(properties->bc, belvuAlignment);
 	}
+    }
+  
+  return handled;
+}
+
+
+/* Mouse button handler for the sequence area of the alignment window */
+static gboolean onButtonPressSeqArea(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  if (event->type == GDK_BUTTON_PRESS &&
+      (event->button == 1 || event->button == 2))  /* single click left or middle buttons */
+    {
+      /* If the middle button was pressed, highlight the selected column */
+      const gboolean highlightCol = (event->button == 2);
+      
+      /* If the left button was pressed, select the clicked row */
+      if (event->button == 1)
+        {
+          selectRowAtCoord(properties, event->y);
+          onRowSelectionChanged(properties->bc);
+        }
+      
+      /* Select the clicked column */
+      selectColumnAtCoord(properties, event->x, highlightCol);
+      onColSelectionChanged(properties->bc);
+      
+      handled = TRUE;
+    }
+  else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
+    {
+      if (properties->bc->removingSeqs)
+	{
+	  /* Removed the clicked sequence (which will be the selected one) */
+	  removeSelectedSequence(properties->bc, belvuAlignment);
+	}
+    }
+  
+  return handled;
+}
+
+
+/* Mouse button handler release for the sequence area of the alignment window */
+static gboolean onButtonReleaseSeqArea(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  if (event->button == 2)  /* released middle button */
+    {
+      /* Scroll to centre on the current column */
+      int colIdx = getColumnAtCoord(properties, event->x);
+      double newValue = colIdx + properties->hAdjustment->value - (properties->hAdjustment->page_size / 2.0);
+      
+      if (newValue > properties->hAdjustment->upper - properties->hAdjustment->page_size)
+        newValue = properties->hAdjustment->upper - properties->hAdjustment->page_size;
+        
+      gtk_adjustment_set_value(properties->hAdjustment, newValue);
+      
+      handled = TRUE;
+    }
+  else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
+    {
+      if (properties->bc->removingSeqs)
+	{
+	  /* Removed the clicked sequence (which will be the selected one) */
+	  removeSelectedSequence(properties->bc, belvuAlignment);
+	}
+    }
+  
+  return handled;
+}
+
+
+/* Mouse move handler for the sequence area of the alignment window */
+static gboolean onMouseMoveSeqArea(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  if (event->state & GDK_BUTTON2_MASK) /* middle button pressed */
+    {
+      /* Update the selected/highlighted column */
+      selectColumnAtCoord(properties, event->x, TRUE);
+      onColSelectionChanged(properties->bc);
+      
+      handled = TRUE;
     }
   
   return handled;
@@ -1038,10 +1102,14 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       g_signal_connect(G_OBJECT(headersArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
     
       /* Also only connect button press handler if this is a standard (i.e. not wrapped) alignment window */
-      gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
       gtk_widget_add_events(headersArea, GDK_BUTTON_PRESS_MASK);
+      gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
+      gtk_widget_add_events(seqArea, GDK_BUTTON_RELEASE_MASK);
+      gtk_widget_add_events(seqArea, GDK_POINTER_MOTION_MASK);
       g_signal_connect(G_OBJECT(headersArea), "button-press-event", G_CALLBACK(onButtonPressHeadersArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-press-event", G_CALLBACK(onButtonPressSeqArea), belvuAlignment);
+      g_signal_connect(G_OBJECT(seqArea), "button-release-event", G_CALLBACK(onButtonReleaseSeqArea), belvuAlignment);
+      g_signal_connect(G_OBJECT(seqArea), "motion-notify-event", G_CALLBACK(onMouseMoveSeqArea), belvuAlignment);
     }
   
   /* Set the style and properties */
