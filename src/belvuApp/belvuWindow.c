@@ -2433,7 +2433,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
         }
 
       /* Display the total number of highlighted alignments */
-      const int numHighlighted = 0; //g_list_length(bc->selectedAlns);
+      const int numHighlighted = g_slist_length(bc->highlightedAlns);
       
       tmpStr = blxprintf(" (%d match", numHighlighted);
       g_string_append(resultStr, tmpStr);

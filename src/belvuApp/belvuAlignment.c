@@ -49,7 +49,7 @@
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
-
+static gboolean           highlightAlignment(BelvuContext *bc, ALN *alnp);
 
 
 /* Properties specific to the belvu alignment */
@@ -190,18 +190,18 @@ static void drawSingleHeader(GtkWidget *widget,
   int x = 0;
   const int y = properties->headersRect.y + (properties->charHeight * lineNum);
   
-  const gboolean isSelected = (alnp == properties->bc->selectedAln);
+  const gboolean highlightAln = highlightAlignment(properties->bc, alnp);
   GdkGC *gc = gdk_gc_new(drawable);
   
-  if (isSelected)
+  if (highlightAln)
     {
       /* Highlight the background */
-      GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, properties->bc->defaultColors, isSelected, FALSE);
+      GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, properties->bc->defaultColors, highlightAln, FALSE);
       gdk_gc_set_foreground(gc, bgColor);
       gdk_draw_rectangle(drawable, gc, TRUE, properties->headersRect.x, y, properties->headersRect.width, properties->charHeight);
     }
   
-  GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, isSelected, FALSE);
+  GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, highlightAln, FALSE);
   gdk_gc_set_foreground(gc, textColor);
 
   /* Draw the name */
@@ -229,6 +229,14 @@ static void drawSingleHeader(GtkWidget *widget,
 }
 
 
+/* Utility to return true if the given alignment should be highlighted */
+static gboolean highlightAlignment(BelvuContext *bc, ALN *alnp)
+{
+  /* Return true if this alignment has the same name as the selected alignment */
+  return (bc->selectedAln && stringsEqual(alnp->name, bc->selectedAln->name, TRUE));
+}
+
+
 /* Draw a single line in the sequence area */
 static void drawSingleSequence(GtkWidget *widget,
                                 GdkDrawable *drawable, 
@@ -253,7 +261,7 @@ static void drawSingleSequence(GtkWidget *widget,
    * the text and background according to the relevant highlight colors */
   int i = hAdjustment->value;
   const int iMax = hAdjustment->value + displayLen;
-  const gboolean rowHighlighted = (alnp == properties->bc->selectedAln);
+  const gboolean rowHighlighted = highlightAlignment(properties->bc, alnp);
   
   for ( ; i < iMax; ++i)
     {
@@ -878,7 +886,22 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
   BelvuContext *bc = properties->bc;
   
   const int rowIdx = (y - properties->seqRect.y) / properties->charHeight;
+  
+  /* Set the selected alignment */
   bc->selectedAln = &g_array_index(properties->bc->alignArr, ALN, rowIdx);
+  
+  /* Highlight any alignments that have the same name as the selected alignment */
+  g_slist_free(bc->highlightedAlns); /* clear current list */
+  bc->highlightedAlns = NULL;
+  
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len; ++i)
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      
+      if (highlightAlignment(bc, alnp))
+        bc->highlightedAlns = g_slist_prepend(bc->highlightedAlns, alnp);
+    }
 }
 
 
