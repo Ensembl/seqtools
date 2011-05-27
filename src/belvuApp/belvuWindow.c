@@ -2375,9 +2375,9 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
   char *tmpStr = NULL;
   
   /* If a column is selected, display the column number */
-  if (bc->pickedCol > 0)
+  if (bc->selectedCol > 0)
     {
-      tmpStr = blxprintf("Column %d: ", bc->pickedCol);
+      tmpStr = blxprintf("Column %d: ", bc->selectedCol);
       g_string_append(resultStr, tmpStr);
       g_free(tmpStr);
     }
@@ -2391,9 +2391,9 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
   
       /* If a column is selected, display info about the selected alignment's
        * coord at that column position. */
-      if (bc->pickedCol > 0)
+      if (bc->selectedCol > 0)
         {
-          tmpStr = blxprintf("  %c = ", bc->highlightedAln->seq[bc->pickedCol - 1]);
+          tmpStr = blxprintf("  %c = ", bc->highlightedAln->seq[bc->selectedCol - 1]);
           g_string_append(resultStr, tmpStr);
           g_free(tmpStr);
           
@@ -2403,7 +2403,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
           int numGaps = 0;
           int colIdx = 0;
           
-          for ( ; colIdx < bc->pickedCol; colIdx++)
+          for ( ; colIdx < bc->selectedCol; colIdx++)
             {
               if (isGap(bc->highlightedAln->seq[colIdx])) 
                 numGaps++;
@@ -2417,7 +2417,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
             }
           else
             {
-              tmpStr = blxprintf("%d", bc->pickedCol - 1 + bc->highlightedAln->start - numGaps);
+              tmpStr = blxprintf("%d", bc->selectedCol - 1 + bc->highlightedAln->start - numGaps);
               g_string_append(resultStr, tmpStr);
               g_free(tmpStr);
             }

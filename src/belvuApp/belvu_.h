@@ -337,7 +337,7 @@ typedef struct BelvuContextStruct
   int maxStartLen;                 /* Max string length of any sequence start */
   int maxEndLen;                   /* Max string length of any sequence end */
   int maxScoreen;                  /* Max string length of any sequence score */
-  int pickedCol;                   /* The currently-selected column index (0 for unset) */
+  int selectedCol;                   /* The currently-selected column index (0 for unset) */
 
   int maxfgColor;                  /* Foreground color for max conservation */
   int midfgColor;                  /* Foreground color for mid conservation */

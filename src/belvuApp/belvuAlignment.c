@@ -886,8 +886,7 @@ static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int 
   
   if (colIdx >= 0 && colIdx < bc->maxLen)
     {
-      bc->pickedCol = colIdx + properties->hAdjustment->value + 1;
-      g_message("Clicked column %d.\n", bc->pickedCol);
+      bc->selectedCol = colIdx + properties->hAdjustment->value + 1;
     }
 }
 

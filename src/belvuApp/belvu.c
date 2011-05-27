@@ -286,7 +286,7 @@ static int    **conservCount=0,	   /* Matrix of conservation values  - 21 x maxL
                 init_sort=0, 
                 init_rmPartial=0, 
                 rmPickLeftOn,
-                pickedCol = 0,	/* Last picked column */
+                selectedCol = 0,	/* Last picked column */
                 colorRectangles=1,
                 maxNameLen,	/* Max string length of any sequence name */
                 maxStartLen=0,	/* Max string length of any sequence start */
@@ -1019,21 +1019,21 @@ static void xorVcrosshair(int mode, double x)
 
 static void middleDrag(double x, double y) 
 {
-    pickedCol = x2col(&x);
+    selectedCol = x2col(&x);
 
-    if (pickedCol == Vcrosshair) return;
+    if (selectedCol == Vcrosshair) return;
 
-    updateStatus(bc->highlightedAln, pickedCol);
+    updateStatus(bc->highlightedAln, selectedCol);
 
-    Vcrosshair = pickedCol;
+    Vcrosshair = selectedCol;
 
     xorVcrosshair(1, x);
 }
 static void middleUp(double x, double y) 
 {
-    pickedCol = x2col(&x);
+    selectedCol = x2col(&x);
 
-    AlignXstart = pickedCol - Alignwid/2;
+    AlignXstart = selectedCol - Alignwid/2;
     unregister();
     belvuRedraw();
 }
@@ -1076,10 +1076,10 @@ static void middleDown(double x, double y)
 	graphRegister(MIDDLE_DRAG, middleDrag);
 	graphRegister(MIDDLE_UP, middleUp);
 
-	pickedCol = x2col(&x);
-	updateStatus(bc->highlightedAln, pickedCol);
+	selectedCol = x2col(&x);
+	updateStatus(bc->highlightedAln, selectedCol);
 
-	Vcrosshair = pickedCol;
+	Vcrosshair = selectedCol;
 
 	xorVcrosshair(0, x);
     }
@@ -1213,7 +1213,7 @@ static void boxPick (int box, double x, double y, int modifier_unused)
   static Graph  ga, lastga ;
   static time_t   lasttime;
 
-    pickedCol = (int)x+1+AlignXstart;
+    selectedCol = (int)x+1+AlignXstart;
 
     ga = graphActive();
 
@@ -1297,7 +1297,7 @@ static void boxPick (int box, double x, double y, int modifier_unused)
     if (box <= Alignheig)
       {
 	/* In alignment - update status bar */
-	updateStatus(alnp, pickedCol);
+	updateStatus(alnp, selectedCol);
       }
     else
       {
@@ -3745,9 +3745,9 @@ static void rmColumnPrompt(void)
 static void rmColumnLeft(void)
 {
     int 
-	from=1, to=pickedCol;
+	from=1, to=selectedCol;
     
-    if (!pickedCol) {
+    if (!selectedCol) {
 	messout("Pick a column first");
 	return;
     }
@@ -3762,9 +3762,9 @@ static void rmColumnLeft(void)
 static void rmColumnRight(void)
 {
     int 
-	from=pickedCol, to=maxLen;
+	from=selectedCol, to=maxLen;
     
-    if (!pickedCol) {
+    if (!selectedCol) {
 	messout("Pick a column first");
 	return;
     }
@@ -5954,7 +5954,7 @@ BelvuContext* createBelvuContext()
   bc->maxStartLen = 0; 
   bc->maxEndLen = 0; 
   bc->maxScoreLen = 0; 
-  bc->pickedCol = 0;
+  bc->selectedCol = 0;
   
   bc->maxfgColor = DEFAULT_MAX_FG_COLOR;
   bc->midfgColor = DEFAULT_MID_FG_COLOR,
