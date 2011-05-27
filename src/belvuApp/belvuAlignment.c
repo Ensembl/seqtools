@@ -249,19 +249,24 @@ static void drawSingleSequence(GtkWidget *widget,
   
   GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
   
-  /* Loop through each character in the current display range and color
+  /* Loop through each column in the current display range and color
    * the text and background according to the relevant highlight colors */
   int i = hAdjustment->value;
   const int iMax = hAdjustment->value + displayLen;
-  const gboolean isSelected = (alnp == properties->bc->selectedAln);
+  const gboolean rowHighlighted = (alnp == properties->bc->selectedAln);
   
   for ( ; i < iMax; ++i)
     {
+      /* This base should be highlighted if the row is highlighted OR if the
+       * column is highlighted (but not both) */
+      const gboolean colHighlighted = (i == properties->bc->highlightedCol - 1);
+      const gboolean highlight = (rowHighlighted != colHighlighted);
+      
       GdkColor bgColor;
       if (properties->bc->displayColors)
         {
           /* Draw the background */
-          findResidueBGcolor(properties->bc, alnp, i, isSelected, &bgColor);
+          findResidueBGcolor(properties->bc, alnp, i, highlight, &bgColor);
           gdk_gc_set_foreground(gc, &bgColor);
           
           gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
@@ -878,7 +883,7 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
 
 
 /* Select the column at the given x coord */
-static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int x)
+static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int x, const gboolean highlightCol)
 {
   BelvuContext *bc = properties->bc;
 
@@ -887,6 +892,11 @@ static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int 
   if (colIdx >= 0 && colIdx < bc->maxLen)
     {
       bc->selectedCol = colIdx + properties->hAdjustment->value + 1;
+      
+      if (highlightCol)
+        bc->highlightedCol = bc->selectedCol;
+      else
+        bc->highlightedCol = 0;
     }
 }
 
@@ -900,19 +910,20 @@ static gboolean onButtonPressBelvuAlignment(GtkWidget *widget, GdkEventButton *e
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
 
   if (event->type == GDK_BUTTON_PRESS &&
-      (event->button == 1 || event->button == 3))  /* single click left or middle buttons */
+      (event->button == 1 || event->button == 2))  /* single click left or middle buttons */
     {
-      /* Select the clicked row  and column */
-      selectRowAtCoord(properties, event->y);
-      selectColumnAtCoord(properties, event->x);
-
-      /* If the middle button was pressed, also highlight the selected column */
-      if (event->button == 3)
-	{
-	  /* to do */
-	}
+      /* If the middle button was pressed, highlight the selected column */
+      const gboolean highlightCol = (event->button == 2);
       
-      onRowSelectionChanged(properties->bc);
+      /* If the left button was pressed, select the clicked row */
+      if (event->button == 1)
+        {
+          selectRowAtCoord(properties, event->y);
+          onRowSelectionChanged(properties->bc);
+        }
+      
+      /* Select the clicked column */
+      selectColumnAtCoord(properties, event->x, highlightCol);
       onColSelectionChanged(properties->bc);
     
       handled = TRUE;

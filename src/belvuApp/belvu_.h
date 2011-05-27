@@ -313,14 +313,17 @@ typedef struct BelvuContextStruct
   GtkWidget *belvuTree;            /* The tree window */
   GtkWidget *belvuAlignment;       /* The widget that draws the alignments for the main window */
   
-  GArray *defaultColors;            /* Default colors used by Belvu */
+  GArray *defaultColors;           /* Default colors used by Belvu */
   
   GArray *alignArr;
   GArray *organismArr;
   GArray *markupAlignArr;
   GArray *bootstrapGroups;
 
-  ALN *selectedAln;
+  ALN *selectedAln;                /* The currently-selected alignment */
+  GSList *highlightedAlns;         /* List of all currently-highlighted alignments
+                                    * (generally, all ALNs with the same name as
+                                    * the selectedAln are highlighted) */
 
   TreeNode *treeHead;              /* global current tree head */
   TreeNode *treeBestBalancedNode;
@@ -337,7 +340,8 @@ typedef struct BelvuContextStruct
   int maxStartLen;                 /* Max string length of any sequence start */
   int maxEndLen;                   /* Max string length of any sequence end */
   int maxScoreen;                  /* Max string length of any sequence score */
-  int selectedCol;                   /* The currently-selected column index (0 for unset) */
+  int selectedCol;                 /* The currently-selected column index (0 for unset) */
+  int highlightedCol;              /* The currently-highlighted column index (0 for unset) */
 
   int maxfgColor;                  /* Foreground color for max conservation */
   int midfgColor;                  /* Foreground color for mid conservation */
