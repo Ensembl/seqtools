@@ -534,6 +534,21 @@ static BlxStrand readStrand(char *token, GError **error)
 }
 
 
+/* To do: This is a bit of a hack to distinguish short-read matches from other
+ * matches. It assumes that anything coming from a "sam/bam" source is a 
+ * short-read, and anything else is not. This is obviously not ideal but at
+ * the time of writing there is no consensus for how to represent short-reads
+ * in a GFF file, and with our current input files we have no other way to 
+ * distinguish them. */
+static void updateInputMspType(BlxGffData *gffData)
+{
+  if (gffData->mspType == BLXMSP_MATCH && stringsEqual(gffData->source, "sam/bam", FALSE))
+    {
+      gffData->mspType = BLXMSP_SHORT_READ;
+    }
+}
+
+
 /* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
 static void parseGffColumns(GString *line_string, 
                             const int lineNum, 
@@ -564,6 +579,7 @@ static void parseGffColumns(GString *line_string,
 	}
 	
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
+      updateInputMspType(gffData);
     }
     
   if (!tmpError)
