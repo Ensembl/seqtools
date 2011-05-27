@@ -461,7 +461,7 @@ static void regionFetchSequences(GList *regionsToFetch,
     }
   else
     {
-      gchar *args = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, NULL); /* args are optional, so ignore any error */
+      gchar *fixedArgs = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, NULL); /* fixedArgs are optional, so ignore any error */
       const gchar *tmpDir = g_get_tmp_dir();
 
       /* Loop through each region, creating a GFF file with the results for each region */
@@ -485,23 +485,20 @@ static void regionFetchSequences(GList *regionsToFetch,
 		}
 	      else
 		{
-		  printf("Calling script '%s' with args '%s'.\nResult file = '%s'.\n", script, args, fileName);
-		  close(fileDesc);
-		
-		  FILE *outputFile = fopen(fileName, "w");
-		
+                  close(fileDesc);
+
                   /* Get the start and end coord (using the original input coordinate 
                    * system - i.e. undo any offset that was applied) */
                   const int startCoord = mspGetQStart(msp) + refSeqOffset;
                   const int endCoord = mspGetQEnd(msp) + refSeqOffset;
-                  
-		  fprintf(outputFile, "%s\n", GFF3_VERSION_HEADER);
-		  fprintf(outputFile, "%s %s %d %d\n", GFF3_SEQUENCE_REGION_HEADER, mspGetRefName(msp), startCoord, endCoord);
-		
-		  /* to do: implement this (for now just add some test data) */
-		  fprintf(outputFile, "%s\n", "chr4-04_210623-364887	EST_Human	nucleotide_match	79196	79229	32.000000	+	.	Target=AA935244.1 77 110 +;percentID=97.1");
-		  fprintf(outputFile, "%s\n", "chr4-04_210623-364887	EST_Human	nucleotide_match	79196	79319	88.000000	-	.	Target=DA000562.1 133 256 +;percentID=85.5");
 
+                  /* Set up the command to send output to the given file */
+                  char *command = blxprintf("%s %s %s %d %d > %s", script, fixedArgs, mspGetRefName(msp), startCoord, endCoord, fileName);
+		  g_debug("Executing command:\n%s\n", command);
+
+                  /* Execute the command */
+		  FILE *outputFile = fopen(fileName, "w");
+                  system(command);
 		  fclose(outputFile);
 		  
 		  /* Parse the sequences from the new file */
@@ -528,7 +525,7 @@ static void regionFetchSequences(GList *regionsToFetch,
 	    }
 	}
     
-      g_free(args);
+      g_free(fixedArgs);
     }
 
   if (tmpError)
