@@ -436,7 +436,7 @@ static void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GLis
  * all sequences that lie within that region, and the results are placed in 
  * a GFF file, which is then parsed to get the results. */
 static void regionFetchSequences(GList *regionsToFetch, 
-				 GList *seqListIn, 
+				 GList **seqList, 
 				 const char *fetchMode, 
 				 MSP **mspListIn,
 				 BlxBlastMode *blastMode,
@@ -516,7 +516,7 @@ static void regionFetchSequences(GList *regionsToFetch,
 		  parseFS(&newMsps, outputFile, blastMode, featureLists, &newSeqs, supportedTypes, styles,
 			  &dummyseq1, dummyseqname1, &dummyRange, &dummyseq2, dummyseqname2, keyFile) ;
 		  
-		  appendNewSequences(newMsps, newSeqs, mspListIn, &seqListIn);
+		  appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
 		
 		  fclose(outputFile);
 		}
@@ -539,7 +539,7 @@ static void regionFetchSequences(GList *regionsToFetch,
  * The first argument is the list of sequences to fetch and the second is the list of all
  * sequences. */
 static gboolean fetchSequences(GList *seqsToFetch, 
-                               GList *seqList,
+                               GList **seqList,
                                const gchar *fetchMode, 
                                const BlxSeqType seqType,
                                const char *net_id, 
@@ -561,12 +561,12 @@ static gboolean fetchSequences(GList *seqsToFetch,
     {
       if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0)
         {  
-          success = pfetchSequences(seqsToFetch, seqList, net_id, port, parseOptionalData, parseSequenceData, External, seqType, error);
+          success = pfetchSequences(seqsToFetch, *seqList, net_id, port, parseOptionalData, parseSequenceData, External, seqType, error);
 	}
 #ifdef PFETCH_HTML 
       else if (strcmp(fetchMode, BLX_FETCH_PFETCH_HTML) == 0)
 	{
-          success = pfetchSequencesHttp(seqsToFetch, seqList, parseOptionalData, parseSequenceData, seqType, error);
+          success = pfetchSequencesHttp(seqsToFetch, *seqList, parseOptionalData, parseSequenceData, seqType, error);
 	}
 #endif
       else if (strcmp(fetchMode, BLX_FETCH_DB) == 0)
@@ -597,7 +597,7 @@ gboolean blxviewFetchSequences(gboolean External,
                                const gboolean parseFullEmblInfo,
                                const gboolean parseSequenceData,
                                const BlxSeqType seqType,
-                               GList *seqList, /* list of BlxSequence structs for all required sequences */
+                               GList **seqList, /* list of BlxSequence structs for all required sequences */
                                char *bulkFetchMode,
                                const char *net_id,
                                const int port,
@@ -612,7 +612,7 @@ gboolean blxviewFetchSequences(gboolean External,
   
   /* Fetch any sequences that do not have their sequence data already populated (or
    * optional data too, if requested). */
-  GHashTable *seqsTable = getSeqsToPopulateByMode(seqList, TRUE, parseFullEmblInfo, bulkFetchMode);
+  GHashTable *seqsTable = getSeqsToPopulateByMode(*seqList, TRUE, parseFullEmblInfo, bulkFetchMode);
 
   /* Loop through each fetch mode */
   GHashTableIter iter;
@@ -675,7 +675,7 @@ gboolean blxviewFetchSequences(gboolean External,
        * twice: once to modify any fields in our own custom manner, and once more to
        * see if any with missing data can copy it from their parent. (Need to do these in
        * separate loops or we don't know if the data we're copying is processed or not.) */
-      GList *seqItem = seqList;
+      GList *seqItem = *seqList;
       for ( ; seqItem; seqItem = seqItem->next)
 	{
 	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
@@ -683,10 +683,10 @@ gboolean blxviewFetchSequences(gboolean External,
 	  processOrganism(blxSeq);
 	}
       
-      for (seqItem = seqList; seqItem; seqItem = seqItem->next)
+      for (seqItem = *seqList; seqItem; seqItem = seqItem->next)
 	{
 	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  populateMissingDataFromParent(blxSeq, seqList);
+	  populateMissingDataFromParent(blxSeq, *seqList);
 	}
     }
   
@@ -735,7 +735,7 @@ gboolean blxview(CommandLineOptions *options,
   int port = UNSET_INT;
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
   
-  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, seqList, options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, featureLists, supportedTypes, NULL, options->refSeqOffset);
+  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, &seqList, options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, featureLists, supportedTypes, NULL, options->refSeqOffset);
   
   if (status)
     {

@@ -455,7 +455,7 @@ gboolean                           blxviewFetchSequences(gboolean External,
                                                          const gboolean parseFullEmblInfo,
                                                          const gboolean parseSequenceData,
                                                          const BlxSeqType seqType,
-                                                         GList *seqList, /* list of BlxSequence structs for all required sequences */
+                                                         GList **seqList, /* list of BlxSequence structs for all required sequences */
                                                          char *bulkFetchMode,
                                                          const char *net_id,
                                                          const int port,
