@@ -666,7 +666,11 @@ static void onHScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
    * that will fit in the width */
   properties->hAdjustment->page_size = (int)(properties->seqArea->allocation.width / properties->charWidth);
   properties->hAdjustment->page_increment = properties->hAdjustment->page_size;
-  
+
+  /* Make sure the scroll position still lies within upper - page_size. */
+  if (properties->hAdjustment->value > properties->hAdjustment->upper - properties->hAdjustment->page_size)
+    properties->hAdjustment->value = properties->hAdjustment->upper - properties->hAdjustment->page_size;
+
   widgetClearCachedDrawable(properties->seqArea, NULL);
   gtk_widget_queue_draw(properties->seqArea);
 }
@@ -682,6 +686,20 @@ void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
   
   belvuAlignmentRedrawAll(belvuAlignment);
   gtk_adjustment_changed(vAdjustment);
+}
+
+
+/* This should be called when the alignment length has changed, i.e. when columns
+ * have been deleted. */
+void updateOnAlignmentLenChanged(GtkWidget *belvuAlignment)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  if (properties->hAdjustment)
+    {
+      properties->hAdjustment->upper = properties->bc->maxLen + 1;
+      gtk_adjustment_changed(properties->hAdjustment);
+    }
 }
 
 /***********************************************************
@@ -785,7 +803,9 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
   gtk_layout_set_size(GTK_LAYOUT(properties->seqArea), properties->seqRect.width, properties->seqRect.height);
 
   if (properties->hAdjustment)
-    gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
+    {
+      gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
+    }
 }
 
 

@@ -757,10 +757,45 @@ static void onrmColumnPromptMenu(GtkAction *action, gpointer data)
 
 static void onrmColumnLeftMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  if (properties->bc->selectedCol > 0)
+    {
+      rmColumn(properties->bc, 1, properties->bc->selectedCol);
+
+      updateOnAlignmentLenChanged(properties->bc->belvuAlignment);
+
+      properties->bc->selectedCol = 0; /* cancel selection, because this col is deleted now */
+      properties->bc->highlightedCol = 0; /* cancel selection, because this col is deleted now */
+      
+      onColSelectionChanged(properties->bc);
+    }
+  else
+    {
+      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.");
+    }
 }
 
 static void onrmColumnRightMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  if (properties->bc->selectedCol > 0)
+    {
+      rmColumn(properties->bc, properties->bc->selectedCol, properties->bc->maxLen);
+      
+      updateOnAlignmentLenChanged(properties->bc->belvuAlignment);
+
+      properties->bc->selectedCol = 0; /* cancel selection, because this col is deleted now */
+      properties->bc->highlightedCol = 0; /* cancel selection, because this col is deleted now */
+      onColSelectionChanged(properties->bc);
+    }
+  else
+    {
+      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.");
+    }
 }
 
 static void onrmColumnCutoffMenu(GtkAction *action, gpointer data)
