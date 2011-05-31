@@ -493,7 +493,7 @@ static void regionFetchSequences(GList *regionsToFetch,
                   const int endCoord = mspGetQEnd(msp) + refSeqOffset;
 
                   /* Set up the command to send output to the given file */
-                  char *command = blxprintf("%s %s %s %d %d > %s", script, fixedArgs, mspGetRefName(msp), startCoord, endCoord, fileName);
+                  char *command = blxprintf("%s %s -chr=%s -start=%d -end=%d > %s", script, fixedArgs, mspGetRefName(msp), startCoord, endCoord, fileName);
 		  g_debug("Executing command:\n%s\n", command);
 
                   /* Execute the command */
@@ -614,60 +614,67 @@ gboolean blxviewFetchSequences(gboolean External,
    * optional data too, if requested). */
   GHashTable *seqsTable = getSeqsToPopulateByMode(*seqList, TRUE, parseFullEmblInfo, bulkFetchMode);
 
-  /* Loop through each fetch mode */
-  GHashTableIter iter;
-  g_hash_table_iter_init(&iter, seqsTable);
-  gpointer key, value;
-  GError *error = NULL;
-  
-  while (g_hash_table_iter_next(&iter, &key, &value))
+  if (g_hash_table_size(seqsTable) < 1)
     {
-      GQuark dataTypeQuark = GPOINTER_TO_INT(key);
-      const gchar *fetchMode = g_quark_to_string(dataTypeQuark);
-      GList *seqsToFetch = (GList*)value;
+      /* Nothing to fetch */
+      success = TRUE;
+    }
+  else
+    {
+      /* Loop through each fetch mode */
+      GHashTableIter iter;
+      g_hash_table_iter_init(&iter, seqsTable);
+      gpointer key, value;
+      GError *error = NULL;
       
-      GError *tmpError = NULL;
-      
-      DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
-      
-      if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, &tmpError))
+      while (g_hash_table_iter_next(&iter, &key, &value))
         {
-          success = TRUE;
+          GQuark dataTypeQuark = GPOINTER_TO_INT(key);
+          const gchar *fetchMode = g_quark_to_string(dataTypeQuark);
+          GList *seqsToFetch = (GList*)value;
           
-          /* Compile all errors into a single error */
-	  if (error)
-	    {
-	      prefixError(error, tmpError->message);
-	      g_error_free(tmpError);
-	      tmpError = NULL;
-	    }
-	  else
-	    {
-	      error = tmpError;
-	    }
+          GError *tmpError = NULL;
+          
+          DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
+          
+          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, &tmpError))
+            {
+              success = TRUE;
+              
+              /* Compile all errors into a single error */
+              if (error)
+                {
+                  prefixError(error, tmpError->message);
+                  g_error_free(tmpError);
+                  tmpError = NULL;
+                }
+              else
+                {
+                  error = tmpError;
+                }
+            }
+          
+          /* We're done with this list now, so free the memory. Don't delete it from
+           * the table yet, though, because that will invalidate the iterators. */
+          g_list_free(seqsToFetch);
         }
       
-      /* We're done with this list now, so free the memory. Don't delete it from
-       * the table yet, though, because that will invalidate the iterators. */
-      g_list_free(seqsToFetch);
-    }
-  
-  /* We're done with the hash table now */
-  g_hash_table_unref(seqsTable);
-  
-  if (success && error)
-    {
-      /* Some fetches succeeded, so just issue a warning */
-      prefixError(error, "Error fetching sequences:\n");
-      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-    }
-  else if (error)
-    {
-      /* All failed, so issue a critical warning */
-      prefixError(error, "Error fetching sequences:\n");
-      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
-    }
-  
+      /* We're done with the hash table now */
+      g_hash_table_unref(seqsTable);
+      
+      if (success && error)
+        {
+          /* Some fetches succeeded, so just issue a warning */
+          prefixError(error, "Error fetching sequences:\n");
+          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+        }
+      else if (error)
+        {
+          /* All failed, so issue a critical warning */
+          prefixError(error, "Error fetching sequences:\n");
+          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+        }
+    }      
   
   if (parseFullEmblInfo)
     {
@@ -689,7 +696,6 @@ gboolean blxviewFetchSequences(gboolean External,
 	  populateMissingDataFromParent(blxSeq, *seqList);
 	}
     }
-  
   
   return success;
 }
@@ -735,12 +741,17 @@ gboolean blxview(CommandLineOptions *options,
   int port = UNSET_INT;
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
   
-  gboolean status = blxviewFetchSequences(External, options->parseFullEmblInfo, TRUE, options->seqType, &seqList, options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, featureLists, supportedTypes, NULL, options->refSeqOffset);
+  gboolean status = blxviewFetchSequences(
+    External, options->parseFullEmblInfo, TRUE, options->seqType, &seqList, 
+    options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, 
+    featureLists, supportedTypes, NULL, 0); /* offset has not been applied yet, so pass offset=0 */
   
   if (status)
     {
       /* Construct missing data and do any other required processing now we have all the sequence data */
-      finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->refSeqOffset, options->seqType, options->numFrames, &options->refSeqRange, TRUE);
+      finaliseBlxSequences(featureLists, &options->mspList, &seqList, 
+                           options->refSeqOffset, options->seqType, 
+                           options->numFrames, &options->refSeqRange, TRUE);
 
       /* Sort msp arrays by start coord (only applicable to msp types that
        * appear in the detail-view because the order is only applicable when

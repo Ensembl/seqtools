@@ -542,11 +542,14 @@ static BlxStrand readStrand(char *token, GError **error)
  * distinguish them. */
 static void updateInputMspType(BlxGffData *gffData)
 {
-  if (gffData->mspType == BLXMSP_MATCH && stringsEqual(gffData->source, "sam/bam", FALSE))
+  if (gffData->mspType == BLXMSP_MATCH && gffData->source && stringsEqual(gffData->source, "sam/bam", FALSE))
     {
       gffData->mspType = BLXMSP_SHORT_READ;
     }
 }
+
+
+
 
 
 /* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
@@ -569,15 +572,12 @@ static void parseGffColumns(GString *line_string,
   if (!tmpError)
     {
       gffData->qName = tokens[0] ? g_ascii_strup(tokens[0], -1) : NULL;
-      gffData->source = tokens[1] && strcmp(tokens[1], ".") ? g_strdup(tokens[1]) : NULL;
       
-      if (tmpError)
-	{
-	  /* An error getting the style is not critical so report it and clear the error */
-	  prefixError(tmpError, "[line %d] Error getting style (default styles will be used instead). ", lineNum);
-	  reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING); 
-	}
-	
+      if (tokens[1] && strcmp(tokens[1], "."))
+          {
+            gffData->source = g_uri_unescape_string(tokens[1], NULL);
+          }
+      
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
       updateInputMspType(gffData);
     }
