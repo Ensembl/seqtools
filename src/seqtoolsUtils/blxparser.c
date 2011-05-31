@@ -230,7 +230,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 	  break;
 	}
       const int lineLen = strlen(line);
-      if (lineLen == 0)
+      if (lineLen == 0 || line[0] == '\n')
 	{
 	  continue; /* empty file??? */
 	}
