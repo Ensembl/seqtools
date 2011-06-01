@@ -55,6 +55,11 @@
 #define XY_NOT_FILLED -1000        /* Magic value meaning "value not provided" */
 
 
+/* Value names for data-type group entries in the config file */
+#define SEQTOOLS_BULK_FETCH          "bulk-fetch"
+#define SEQTOOLS_USER_FETCH          "user-fetch"
+
+
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
 
@@ -82,20 +87,26 @@ typedef enum
   BLXMSP_UTR,                    /* UTR (untranslated) region of an exon */
   BLXMSP_INTRON,                 /* Intron */
   BLXMSP_EXON,			 /* Exon (should appear AFTER CDS and UTR for sorting, as required by constructTranscriptData) */
-  BLXMSP_TRANSCRIPT,		 /* Transcript */
   BLXMSP_POLYA_SITE,		 /* polyA tail site */
   BLXMSP_POLYA_SIGNAL,		 /* polyA signal */
   
   BLXMSP_VARIATION,              /* SNP, substitution, deletion, insertion */
   BLXMSP_SHORT_READ,             /* one fragment of a read-pair */
   
-  BLXMSP_HSP,                    /*  */
-  BLXMSP_GSP,                    /*  */
+  BLXMSP_HSP,                    /* obsolete? */
+  BLXMSP_GSP,                    /* obsolete? */
   
-  BLXMSP_FS_SEG,                 /* Feature Series Segment */
-  BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves */
+  BLXMSP_FS_SEG,                 /* Feature Series Segment - obsolete? */
+  BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves - obsolete? */
+
+  BLXMSP_REGION,                 /* Region */
+
   
-  BLXMSP_NUM_TYPES               /* the number of MSP types. MUST BE LAST IN LIST */
+  
+  BLXMSP_NUM_TYPES,               /* the number of valid MSP types - any types following this may be used
+                                   * e.g. for parsing, but no real MSP will be created from them */
+  
+  BLXMSP_TRANSCRIPT		 /* Transcript */
 } BlxMspType;
 
 
@@ -106,7 +117,8 @@ typedef enum
     BLXSEQUENCE_TRANSCRIPT,         /* transcript (i.e. collection of exons and introns) */
     BLXSEQUENCE_MATCH,              /* match sequence (i.e. collection of matches) */
     BLXSEQUENCE_VARIATION,          /* variation (i.e. insertion, deletion or substitution) */
-    BLXSEQUENCE_READ_PAIR           /* read pair */
+    BLXSEQUENCE_READ_PAIR,          /* read pair */
+    BLXSEQUENCE_REGION              /* region */
   } BlxSequenceType;
 
 
@@ -121,14 +133,24 @@ typedef enum
   } BlxModelId;
 
 
+/* Defines a data type for sequences. The data type contains properties applicable
+ * to multiple sequences, e.g. which fetch method to use. */
+typedef struct _BlxDataType
+  {
+    char *name;                   /* the name of the data-type */
+    char *bulkFetch;              /* fetch method to use when bulk fetching sequences */
+  } BlxDataType;
+
 
 /* Structure that contains information about a sequence */
 typedef struct _BlxSequence
 {
   BlxSequenceType type;            /* What type of collection of MSPs this is */
+  BlxDataType *dataType;           /* Optional data type that specifies additional properties for this type of sequence data */
 
   char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
-  
+  char *source;                    /* Optional source text for the sequence */
+
   char *fullName;                  /* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
   char *shortName;                 /* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
   char *variantName;               /* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
@@ -168,7 +190,6 @@ typedef enum
 } BlxCurveShape;
 
 
-
 /* Structure holding information about a feature (see note at the top of this
  * file about the naming of this struct). */
 typedef struct _MSP
@@ -178,7 +199,7 @@ typedef struct _MSP
   struct _MSP       *next;
   GList             *childMsps;    /* Child MSPs of this MSP if it has them, e.g. an exon has CDS and UTR children (part_of relationship). */
   
-  BlxMspType        type;          /* Whether this is a match, exon, SNP etc. */
+  BlxMspType        type;          /* The type of the MSP, e.g. match, exon, SNP etc. */
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
@@ -202,12 +223,12 @@ typedef struct _MSP
   IntRange	    fullSRange;	   /* the full range of coords on the match sequence that we're showing (including any unaligned portions of sequence) */
   
   char              *desc;         /* Optional description text for the MSP */
-  char              *source;       /* Optional source text for the MSP */
   GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer because the array
                                     * gives the ranges of the bits that align rather than the ranges of the gaps in between */
   
   BlxStyle          *style;        /* Specifies drawing style for this MSP, e.g. fill color and line color */
   
+  /* obsolete? */
   FeatureSeries     *fs;           /* Feature series that this MSP belongs to */
   int               fsColor;       /* Color to draw this MSP in the feature series */
   BlxCurveShape     fsShape;       /* Shape data for drawing feature series curves, i.e. XY type PARTIAL or INTERPOLATE shapes */
@@ -221,14 +242,17 @@ gboolean              typeIsIntron(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
 gboolean              typeIsShortRead(const BlxMspType mspType);
+gboolean              typeIsRegion(const BlxMspType mspType);
 gboolean              typeShownInDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
 gboolean	      blxSequenceShownInGrid(const BlxSequence *blxSeq);
 
+const char*	      mspGetRefName(const MSP const *msp);
 int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
 BlxStrand	      mspGetRefStrand(const MSP const *msp);
 BlxStrand	      mspGetMatchStrand(const MSP const *msp);
 const char*           mspGetMatchSeq(const MSP const *msp);
+const char*           mspGetSource(const MSP const *msp);
 const char*	      mspGetSName(const MSP *msp);
 const IntRange const* mspGetRefCoords(const MSP const *msp);
 const IntRange const* mspGetMatchCoords(const MSP const *msp);
@@ -293,7 +317,7 @@ void                  readMspFromText(MSP *msp, char *text);
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
-                                   const char *source, const gdouble score, const gdouble percentId, const int phase,
+                                   BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
 				   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence, GError **error);  
@@ -311,8 +335,10 @@ gint		      fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 /* BlxSequence */
 char*		      blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
 BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
+BlxDataType*          createBlxDataType();
+void                  destroyBlxDataType(BlxDataType **blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, BlxDataType *dataType, const char *source, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
 void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*	      blxSequenceGetFullName(const BlxSequence *seq);
 const char*	      blxSequenceGetVariantName(const BlxSequence *seq);

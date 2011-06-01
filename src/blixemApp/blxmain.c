@@ -46,9 +46,6 @@
 #include <unistd.h>
 
 
-/* would be good to get rid of this.... */
-#define FULLNAMESIZE               255
-
 
 /* Some globals.... */
 
@@ -236,7 +233,7 @@ To make the datafile from blast output, run MSPcrunch with option -q.\n\
 
 
 /* set default values for command lines options */
-static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode, char *refSeqName)
+static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName)
 {
   options->refSeq = NULL;
   options->refSeqName = refSeqName;
@@ -260,10 +257,11 @@ static void initCommandLineOptions(CommandLineOptions *options, char *fetchMode,
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_INVALID;
   options->numFrames = 1;
-  options->fetchMode = fetchMode;
   options->mapCoords = FALSE;
   options->mapCoordsFrom = UNSET_INT;
   options->mapCoordsTo = 1; /* default to 1-based coordinate system if mapping coords but no 'to' value is specified */
+  options->bulkFetchMode = NULL;
+  options->userFetchMode = NULL;
 
   options->msgData.titlePrefix = g_strdup("Blixem - ");
   options->msgData.parent = NULL;
@@ -501,11 +499,10 @@ int main(int argc, char **argv)
   char *key_file = NULL ;           /* optional keyword file for passing style information */
   GError *error = NULL ;
  
-  char fetchMode[32] = BLX_FETCH_EFETCH;
   char refSeqName[FULLNAMESIZE+1] = "";
 
   static CommandLineOptions options;
-  initCommandLineOptions(&options, fetchMode, refSeqName);
+  initCommandLineOptions(&options, refSeqName);
  
   /* Set up the GLib message handlers
    * 
@@ -807,8 +804,12 @@ int main(int argc, char **argv)
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname[FULLNAMESIZE+1] = "";
   
+  /* Pass the config file to parseFS, but only if it was a genuine input file; if we created
+   * an empty config file ourselves, don't pass it. */
+  GKeyFile *inputConfigFile = config_file ? blxGetConfig() : NULL;
+  
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname) ;
+          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile) ;
   
   if (FSfile != stdin)
     {
@@ -823,7 +824,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles, &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname) ;
+      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles, &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, blxGetConfig()) ;
       fclose(xtra_file) ;
     }
 

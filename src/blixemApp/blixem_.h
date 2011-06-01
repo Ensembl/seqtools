@@ -68,24 +68,35 @@ AUTHOR_TEXT "\n"
 /* 
  * config file groups/keywords, these should not be changed willy nilly as they
  * are used external programs and users when constructing config files.
+ * If you change things or add additional groups or values, then you should
+ * update the getConfig function.
  */
 
 /* For overall blixem settings. */
 #define BLIXEM_GROUP               "blixem"
-#define BLIXEM_DEFAULT_FETCH_MODE  "default-fetch-mode"
+#define BLIXEM_OLD_BULK_FETCH      "default-fetch-mode" /* for compatibility with old config files (new config files use SEQTOOLS_BULK_FETCH) */
 
 
-/* For http pfetch proxy fetching of sequences/entries */
+/* For http pfetch proxy fetching of sequences/entries by name */
 #define PFETCH_PROXY_GROUP         "pfetch-http"
 #define PFETCH_PROXY_LOCATION      "pfetch"
 #define PFETCH_PROXY_COOKIE_JAR    "cookie-jar"
 #define PFETCH_PROXY_MODE          "pfetch-mode"
 #define PFETCH_PROXY_PORT          "port"
 
-/* For direct pfetch socket fetching of sequences/entries */
+/* For direct pfetch socket fetching of sequences/entries by name */
 #define PFETCH_SOCKET_GROUP        "pfetch-socket"
 #define PFETCH_SOCKET_NODE         "node"
 #define PFETCH_SOCKET_PORT         "port"
+
+/* For fetching sequences/entries from a database by name */
+#define DB_FETCH_GROUP             "db-fetch"
+#define DB_FETCH_DATABASE          "db"
+
+/* For fetching sequences/entries that lie within a given region. */
+#define REGION_FETCH_GROUP         "region-fetch"
+#define REGION_FETCH_SCRIPT        "script"
+#define REGION_FETCH_ARGS          "arguments"
 
 
 /* Fetch programs for sequence entries. */
@@ -95,6 +106,12 @@ AUTHOR_TEXT "\n"
 #endif
 #define BLX_FETCH_EFETCH           "efetch"
 #define BLX_FETCH_WWW_EFETCH       "WWW-efetch"
+#define BLX_FETCH_DB               DB_FETCH_GROUP
+#define BLX_FETCH_REGION           REGION_FETCH_GROUP
+
+
+/* would be good to get rid of this.... */
+#define FULLNAMESIZE               255
 
 
 /* The following are used to define default colors for certain types of features in Blixem.
@@ -299,7 +316,8 @@ typedef struct _CommandLineOptions
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
-  char *fetchMode;		  /* the default method for fetching sequences */
+  char *bulkFetchMode;            /* the default method for bulk fetching sequences (can be overridden by an MSPs data-type properties) */
+  char *userFetchMode;            /* the default method for fetching individual sequences interactively */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
   gboolean mapCoordsFrom;         /* the coord to map from */
@@ -314,52 +332,55 @@ typedef struct _BlxViewContext
     GtkWidget *statusBar;		    /* The Blixem window's status bar */
     
     char *refSeq;			    /* The reference sequence (always forward strand, always DNA sequence) */
-    const char *refSeqName;	    /* The name of the reference sequence */
+    const char *refSeqName;                 /* The name of the reference sequence */
     IntRange refSeqRange;		    /* The range of the reference sequence */
-    IntRange fullDisplayRange;	    /* The range of the displayed sequence */
+    IntRange fullDisplayRange;	            /* The range of the displayed sequence */
+    int refSeqOffset;                       /* how much the coordinate system has been offset from the input coords */
+
+    BlxBlastMode blastMode;	            /* The type of blast matching that was used */
+    BlxSeqType seqType;		            /* The type of sequence, e.g. DNA or peptide */
+    char **geneticCode;		            /* The genetic code used to translate DNA <-> peptide */
+    int numFrames;		            /* The number of reading frames */
+
+    char* bulkFetchMode;                    /* The default method of bulk fetching sequences (can be overridden by an MSPs data-type properties) */
+    char* userFetchMode;                    /* The default method for interactively fetching individual sequences */
+
+    MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
+    GArray* featureLists[BLXMSP_NUM_TYPES]; /* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
     
-    BlxBlastMode blastMode;	    /* The type of blast matching that was used */
-    BlxSeqType seqType;		    /* The type of sequence, e.g. DNA or peptide */
-    char* fetchMode;		    /* The fetch method to use */
-    char **geneticCode;		    /* The genetic code used to translate DNA <-> peptide */
-    int numFrames;		    /* The number of reading frames */
-    
-    MSP *mspList;                          /* List of all MSPs. Obsolete - use featureLists array instead */
-    GArray* featureLists[BLXMSP_NUM_TYPES];/* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
-    
-    GList *matchSeqs;		    /* List of all match sequences (as BlxSequences). */
-    GSList *supportedTypes;           /* List of supported GFF types */
-    const char *paddingSeq;	    /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
-     * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
+    GList *matchSeqs;		            /* List of all match sequences (as BlxSequences). */
+    GSList *supportedTypes;                 /* List of supported GFF types */
+    const char *paddingSeq;	            /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
+                                             * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
     
     gboolean displayRev;		    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
-    const char *net_id;               /* pfetch-socket net id */
-    int port;                         /* pfetch-socket port */
-    gboolean external;                /* True if Blixem was run externally or false if it was run internally from another program */
+    const char *net_id;                     /* pfetch-socket net id */
+    int port;                               /* pfetch-socket port */
+    gboolean external;                      /* True if Blixem was run externally or false if it was run internally from another program */
     
     GList *selectedSeqs;		    /* A list of sequences that are selected (as BlxSequences) */
-    GList *sequenceGroups;	    /* A list of SequenceGroups */
+    GList *sequenceGroups;	            /* A list of SequenceGroups */
     SequenceGroup *matchSetGroup;	    /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
     
     gboolean autoDotter;		    /* Whether to use automatic dotter params */
     gboolean dotterSelf;		    /* Whether the dotter "call on self" option is on by default */
     gboolean dotterHsps;		    /* Whether the dotter "HSPs only" option is on by default */
-    int dotterStart;		    /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
-    int dotterEnd;		    /* End coord to call dotter on, or UNSET_INT to calculate automatically */
-    int dotterZoom;		    /* Zoom param to call dotter with, if using manual params */
+    int dotterStart;		            /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
+    int dotterEnd;		            /* End coord to call dotter on, or UNSET_INT to calculate automatically */
+    int dotterZoom;		            /* Zoom param to call dotter with, if using manual params */
     
-    GArray *defaultColors;	    /* Default colors used by Blixem */
-    gboolean usePrintColors;	    /* Whether to use print colors (i.e. black and white) */
+    GArray *defaultColors;	            /* Default colors used by Blixem */
+    gboolean usePrintColors;	            /* Whether to use print colors (i.e. black and white) */
     
     gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
-    GSList *spawnedProcesses;			  /* List of processes spawned by Blixem */
-    BlxModelId modelId;             /* which tree model to use (i.e. normal or squashed) */
+    GSList *spawnedProcesses;			    /* List of processes spawned by Blixem */
+    BlxModelId modelId;                             /* which tree model to use (i.e. normal or squashed) */
   
-    int *depthArray;		    /* this array holds the depth (num alignments) at each coord of the ref seq */
-    int minDepth;                   /* minimum value in the depthArray */
-    int maxDepth;                   /* maximum value in the depthArray */
-  } BlxViewContext;
+    int *depthArray;		            /* this array holds the depth (num alignments) at each coord of the ref seq */
+    int minDepth;                           /* minimum value in the depthArray */
+    int maxDepth;                           /* maximum value in the depthArray */
+} BlxViewContext;
 
 
 
@@ -383,7 +404,6 @@ gboolean                            blxview(CommandLineOptions *options,
                                             gboolean External) ;
 
 void                               blviewRedraw(void);
-GList*                             getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData);
 const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
 const IntRange*                    mspGetDisplayRange(const MSP const *msp);
 const IntRange*                    mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
@@ -406,7 +426,6 @@ char*                              readFastaSeq(FILE *seqfile, char *qname);
 
 /* blxFetch.c */
 void                               fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow) ;
-void                               blxFindInitialFetchMode(char *fetchMode) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 
@@ -430,18 +449,23 @@ BlxStyle*                          createBlxStyle(const char *styleName, const c
 void                               destroyBlxStyle(BlxStyle *style);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
-void                               setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port);
+void                               setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, const char **net_id, int *port);
 
-gboolean                           fetchSequences(GList *seqsToFetch, 
-                                                  GList *seqList,
-                                                  char *fetchMode, 
-                                                  const BlxSeqType seqType,
-                                                  const char *net_id, 
-                                                  int port, 
-                                                  const gboolean parseOptionalData,
-                                                  const gboolean parseSequenceData,
-                                                  const gboolean External,
-                                                  GError **error);
+gboolean                           blxviewFetchSequences(gboolean External, 
+                                                         const gboolean parseFullEmblInfo,
+                                                         const gboolean parseSequenceData,
+                                                         const BlxSeqType seqType,
+                                                         GList **seqList, /* list of BlxSequence structs for all required sequences */
+                                                         char *bulkFetchMode,
+                                                         const char *net_id,
+                                                         const int port,
+							 MSP **mspList,
+							 BlxBlastMode *blastMode,
+							 GArray* featureLists[],
+							 GSList *supportedTypes, 
+							 GSList *styles,
+                                                         const int refSeqOffset
+							 );
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */

@@ -75,7 +75,8 @@ static gboolean	    parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *ms
 static void	    parseBody(char *line, const int lineNum, BlxBlastMode blastMode, const int resFactor, MSP **msp, GString *line_string, char **seq1, 
                               char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
                               BlxParserState *parserState, GArray* featureLists[], MSP **mspList, GList **seqList, 
-                              GSList *supportedTypes, GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
+                              GSList *supportedTypes, GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, 
+                              GKeyFile *keyFile);
 
 static void	    parseEXBLXSEQBL(GArray* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
 static void	    parseEXBLXSEQBLExtended(GArray* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList);
@@ -183,7 +184,7 @@ static int getResFactorFromMode(const BlxBlastMode blastMode)
  */
 void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
              GArray* featureLists[], GList **seqList, GSList *supportedTypes, GSList *styles,
-	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name)
+	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile)
 {
   DEBUG_ENTER("parseFS");
 
@@ -216,7 +217,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
   char **readSeq = NULL;            /* buffer to hold the sequence we're reading in */
   int readSeqMaxLen = UNSET_INT;    /* current max length of the buffer */
   int readSeqLen = UNSET_INT;       /* current end pos of the data in the buffer */
-  
+
   while (!feof(file) && parserState != PARSER_ERROR)
     { 
       ++lineNum;
@@ -229,7 +230,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 	  break;
 	}
       const int lineLen = strlen(line);
-      if (lineLen == 0)
+      if (lineLen == 0 || line[0] == '\n')
 	{
 	  continue; /* empty file??? */
 	}
@@ -258,7 +259,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 	{
 	  parseBody(line, lineNum, *blastMode, resFactor, &msp, line_string, 
 		    seq1, seq1name, seq1Range, seq2, seq2name, &parserState, featureLists, MSPlist, seqList, supportedTypes,
-		    styles, &readSeq, &readSeqLen, &readSeqMaxLen);
+		    styles, &readSeq, &readSeqLen, &readSeqMaxLen, keyFile);
 	}
     }
 
@@ -551,7 +552,8 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, UNSET_INT, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, NULL,
+                          score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
                           &error);
@@ -764,7 +766,8 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, score, UNSET_INT, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, NULL,
+                          score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame, 
                           sName, sStart, sEnd, sStrand, NULL,
                           &error);
@@ -1328,9 +1331,10 @@ static void parseFsHsp(char *line, BlxBlastMode blastMode, GArray* featureLists[
   /* Create the new MSP */
   GError *error = NULL;
 
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_HSP, NULL, score, UNSET_INT, 0, NULL,
-                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                           sName, sStart, sEnd, sStrand, sSeq, &error);
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_HSP, NULL,  NULL,
+                          score, UNSET_INT, 0, NULL,
+                          NULL, qName, qStart, qEnd, qStrand, qFrame, 
+                          sName, sStart, sEnd, sStrand, sSeq, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   checkReversedSubjectAllowed(msp, blastMode);
@@ -1379,7 +1383,8 @@ static void parseFsSeg(char *line, BlxBlastMode blastMode, GArray* featureLists[
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, UNSET_INT, UNSET_INT, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, NULL,
+                          UNSET_INT, UNSET_INT, 0, NULL,
                           NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
                           series, qStart, qEnd, BLXSTRAND_NONE, NULL, &error);
 
@@ -1428,7 +1433,8 @@ static void parseFsGff(char *line, BlxBlastMode blastMode, GArray* featureLists[
   /* Create the new MSP */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, score, UNSET_INT, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, NULL,
+                          score, UNSET_INT, 0, NULL,
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
                           series, qStart, qEnd, BLXSTRAND_FORWARD, NULL, &error);
   
@@ -1503,7 +1509,8 @@ static void parseFsXyHeader(char *line,
   /* Create an MSP to put the data in */
   GError *error = NULL;
   
-  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_XY_PLOT, NULL, UNSET_INT, UNSET_INT, 0, NULL,
+  MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_XY_PLOT, NULL, NULL,
+                          UNSET_INT, UNSET_INT, 0, NULL,
                           NULL, qName, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, 1,
                           series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, &error);
   
@@ -1618,7 +1625,7 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
 static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, const int resFactor, MSP **lastMsp, GString *line_string,
                       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
                       BlxParserState *parserState, GArray *featureLists[], MSP **mspList, GList **seqList, GSList *supportedTypes,
-                      GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
+                      GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, GKeyFile *keyFile)
 {
   DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
   
@@ -1630,7 +1637,7 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
       break;
       
     case GFF_3_BODY:
-      parseGff3Body(lineNum, featureLists, lastMsp, mspList, parserState, line_string, seqList, supportedTypes, styles, resFactor);
+      parseGff3Body(lineNum, featureLists, lastMsp, mspList, parserState, line_string, seqList, supportedTypes, styles, resFactor, keyFile);
       break;
 
     case SEQBL_BODY: /* fall through */

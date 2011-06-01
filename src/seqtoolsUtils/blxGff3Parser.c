@@ -41,6 +41,7 @@
 #include <string.h>
 
 
+
 /* Error codes and domain */
 #define BLX_GFF3_ERROR g_quark_from_string("GFF 3 parser")
 
@@ -53,8 +54,8 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT,        /* invalid CIGAR format */
   BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
   BLX_GFF3_ERROR_UNKNOWN_MODE,                /* unknown blast mode */
-  BLX_GFF3_ERROR_BAD_COLOR                    /* Bad color string found when parsing color */
-} BlxDotterError;
+  BLX_GFF3_ERROR_BAD_COLOR                   /* Bad color string found when parsing color */
+} BlxGff3Error;
 
 
 /* Utility struct to compile GFF fields and attributes into */
@@ -81,6 +82,7 @@ typedef struct _BlxGffData
     char *parentIdTag;	/* Parent ID of the item */
     char *sequence;	/* sequence data */
     char *gapString;	/* the gaps cigar string */
+    GQuark dataType;    /* represents a string that should correspond to a data type in the config file */
   } BlxGffData;
 
 
@@ -150,7 +152,7 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
 
-  addGffType(&supportedTypes, "read_pair", "SO:0000007", BLXMSP_SHORT_READ);
+  addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
 
   return supportedTypes;
 }
@@ -233,6 +235,75 @@ void parseGff3Header(const int lineNum,
 }
 
 
+/* Get the BlxDataType with the given name. Returns null and sets the error if 
+ * we expected to find the name but didn't. */
+BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
+{
+  /* A keyfile might not be supplied if the calling program is not interested
+   * in the data-type data (i.e. the data-type data is currently only used to
+   * supply fetch methods, which are not used by Dotter). */
+  if (!keyFile)
+    return NULL;
+  
+  BlxDataType *result = NULL;
+  static GHashTable *seenTypes = NULL;
+  static GHashTable *dataTypes = NULL;
+
+  if (!seenTypes)
+    seenTypes = g_hash_table_new(g_int_hash, g_int_equal);
+
+  if (!dataTypes)
+    dataTypes = g_hash_table_new(g_int_hash, g_int_equal);
+
+  if (dataType)
+    {
+      /* See if we've looked for this data type before. If not, record now that
+       * we've seen it. */
+      gboolean seen = FALSE;
+      if (g_hash_table_lookup(seenTypes, &dataType))
+        seen = TRUE;
+      else
+        g_hash_table_insert(seenTypes, &dataType, &dataType);
+
+      if (seen)
+        {
+          /* If we've seen it before, then the datatype struct should already exist
+           * in dataTypes or, if not, we will have already reported the error, so do not
+           * report it again. */
+          result = (BlxDataType *)g_hash_table_lookup(dataTypes, &dataType);
+        }
+      else
+        {
+          /* We haven't requested this datatype before; look it up in the config file
+           * and if we find it then create a new BlxDataType struct for it. */
+          const gchar *typeName = g_quark_to_string(dataType);
+
+          result = createBlxDataType();
+          GError *tmpError = NULL;
+
+          result->name = g_strdup(typeName);
+          result->bulkFetch = g_key_file_get_string(keyFile, typeName, SEQTOOLS_BULK_FETCH, &tmpError);
+          
+          if (!tmpError)
+            {
+              /* Insert it into the table of data types */
+              g_hash_table_insert(dataTypes, &dataType, result);
+            }
+          else
+            {
+              /* There was a problem parsing this data-type, so return NULL */
+              destroyBlxDataType(&result);
+              prefixError(tmpError, "Config file error: Error parsing data type '%s': ", typeName);
+              postfixError(tmpError, "\n");
+              g_propagate_error(error, tmpError);
+            }
+        }
+    }
+  
+  return result;
+}
+
+
 /* Create a blixem object from the given parsed GFF data. Creates an MSP if the type is
  * exon or match, or a BlxSequence if the type is transcript. Does nothing for other types. */
 static void createBlixemObject(BlxGffData *gffData, 
@@ -242,6 +313,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			       GList **seqList, 
 			       GSList *styles,
                                const int resFactor,
+                               GKeyFile *keyFile,
 			       GError **error)
 {
   if (!gffData)
@@ -251,14 +323,32 @@ static void createBlixemObject(BlxGffData *gffData,
     
   GError *tmpError = NULL;
 
-  if (gffData->mspType == BLXMSP_TRANSCRIPT)
+  /* Get the data type struct */
+  BlxDataType *dataType = getBlxDataType(gffData->dataType, keyFile, &tmpError);
+  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+
+  
+  if (gffData->mspType > BLXMSP_NUM_TYPES)
     {
-      /* For transcript types, don't create an MSP, but do create a sequence */
-      addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+      /* "Invalid" MSP types, i.e. don't create a real MSP from these types. */
+      
+      if (gffData->mspType == BLXMSP_TRANSCRIPT)
+        {
+          /* For transcripts, although we don't create an MSP we do create a sequence */
+          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, dataType, gffData->source, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+        }
     }
   else
     {
       /* For all other types, create an MSP */
+      
+      /* Regions don't necessarily have a name or ID, but they should have a
+       * source, so use that as the name */
+      if (gffData->mspType == BLXMSP_REGION && !gffData->sName)
+        {
+          gffData->sName = gffData->source;
+        }
+      
       if (!gffData->sName && !gffData->parentIdTag && 
 	  (gffData->mspType == BLXMSP_TRANSCRIPT || typeIsExon(gffData->mspType) || 
 	   typeIsMatch(gffData->mspType) || typeIsShortRead(gffData->mspType)))
@@ -282,6 +372,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      mspList, 
 			      seqList, 
 			      gffData->mspType,
+                              dataType,
 			      gffData->source,
 			      gffData->score, 
 			      gffData->percentId, 
@@ -304,7 +395,7 @@ static void createBlixemObject(BlxGffData *gffData,
 	{ 
 	  /* Get the style based on the source */
 	  msp->style = getBlxStyle(gffData->source, styles, &tmpError);
-	  
+          
 	  if (tmpError)
 	    {
 	      /* style errors are not critical */
@@ -315,7 +406,7 @@ static void createBlixemObject(BlxGffData *gffData,
 
 	  /* populate the gaps array */
 	  parseGapString(gffData->gapString, msp, resFactor, &tmpError);
-	}    
+	}
     }
     
   if (tmpError)
@@ -335,13 +426,14 @@ void parseGff3Body(const int lineNum,
 		   GList **seqList,
                    GSList *supportedTypes,
                    GSList *styles,
-                   const int resFactor)
+                   const int resFactor, 
+                   GKeyFile *keyFile)
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
   /* Parse the data into a temporary struct */
   BlxGffData gffData = {NULL, NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
-			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL};
+			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0};
 		      
   GError *error = NULL;
   parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, &gffData, &error);
@@ -349,7 +441,7 @@ void parseGff3Body(const int lineNum,
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, resFactor, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, resFactor, keyFile, &error);
     }
   
   if (error)
@@ -442,6 +534,24 @@ static BlxStrand readStrand(char *token, GError **error)
 }
 
 
+/* To do: This is a bit of a hack to distinguish short-read matches from other
+ * matches. It assumes that anything coming from a "sam/bam" source is a 
+ * short-read, and anything else is not. This is obviously not ideal but at
+ * the time of writing there is no consensus for how to represent short-reads
+ * in a GFF file, and with our current input files we have no other way to 
+ * distinguish them. */
+static void updateInputMspType(BlxGffData *gffData)
+{
+  if (gffData->mspType == BLXMSP_MATCH && gffData->source && stringsEqual(gffData->source, "sam/bam", FALSE))
+    {
+      gffData->mspType = BLXMSP_SHORT_READ;
+    }
+}
+
+
+
+
+
 /* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
 static void parseGffColumns(GString *line_string, 
                             const int lineNum, 
@@ -462,16 +572,14 @@ static void parseGffColumns(GString *line_string,
   if (!tmpError)
     {
       gffData->qName = tokens[0] ? g_ascii_strup(tokens[0], -1) : NULL;
-      gffData->source = tokens[1] && strcmp(tokens[1], ".") ? g_strdup(tokens[1]) : NULL;
       
-      if (tmpError)
-	{
-	  /* An error getting the style is not critical so report it and clear the error */
-	  prefixError(tmpError, "[line %d] Error getting style (default styles will be used instead). ", lineNum);
-	  reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING); 
-	}
-	
+      if (tokens[1] && strcmp(tokens[1], "."))
+          {
+            gffData->source = g_uri_unescape_string(tokens[1], NULL);
+          }
+      
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
+      updateInputMspType(gffData);
     }
     
   if (!tmpError)
@@ -611,6 +719,10 @@ static void parseTagDataPair(char *text,
           g_warning("Cannot unescape string (requires GTK version 2.16 or greater). URL may contain unescaped characters.\n");
           gffData->url = g_strdup(tokens[1]);
 #endif
+        }
+      else if (!strcmp(tokens[0], "dataType"))
+        {
+          gffData->dataType = g_quark_from_string(tokens[1]);
         }
       else
         {

@@ -64,6 +64,19 @@
 #define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
 
 
+/* Blixem config error domain */
+#define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
+
+/* Error codes */
+typedef enum
+  {
+    BLX_CONFIG_ERROR_NO_GROUPS,             /* no groups in config file */
+    BLX_CONFIG_ERROR_INVALID_KEY_TYPE,      /* invalid key type given in config file */
+    BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
+  } BlxConfigError;
+
+
+
 /* States for parsing EMBL files */
 typedef enum
   {
@@ -217,7 +230,7 @@ static gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **e
 ConfigGroup getConfig(char *config_name) ;
 static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
-static char *blxConfigGetFetchMode(void);
+static char *blxConfigGetDefaultFetchMode(const gboolean bulk);
 static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
 
 /* Pfetch local functions */
@@ -363,7 +376,8 @@ static void externalCommand (char *command, GtkWidget *blxWindow)
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
 void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
 {
-  const char *fetchMode = blxWindowGetFetchMode(blxWindow);
+  const char *fetchMode = blxWindowGetDefaultFetchMode(blxWindow, FALSE);
+  
   GError *error = NULL;
   
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
@@ -400,7 +414,7 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
 
 
 /* Needs a better name really, sets the fetch mode by looking at env. vars etc. */
-void blxFindInitialFetchMode(char *fetchMode)
+static void blxFindDefaultFetchMode(char *fetchMode)
 {
   char *tmp_mode ;
 
@@ -417,13 +431,22 @@ void blxFindInitialFetchMode(char *fetchMode)
     {
       strcpy(fetchMode, BLX_FETCH_EFETCH);
     }
-  else if ((tmp_mode = blxConfigGetFetchMode()))
+  else if (g_getenv("BLIXEM_FETCH_DB"))
+    {
+      strcpy(fetchMode, BLX_FETCH_DB);
+    }
+  else if (g_getenv("BLIXEM_FETCH_REGION"))
+    {
+      strcpy(fetchMode, BLX_FETCH_REGION);
+    }
+  else if ((tmp_mode = blxConfigGetDefaultFetchMode(TRUE)))
     {
       strcpy(fetchMode, tmp_mode) ;
+      g_free(tmp_mode);
     }
   else
     {
-      strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
+      fetchMode[0] = 0;
     }
 }
 
@@ -932,21 +955,21 @@ GKeyFile *blxGetConfig(void)
 }
 
 
-gboolean blxConfigSetFetchMode(char *mode)
-{
-  gboolean result = FALSE ;
-  GKeyFile *key_file ;
+//gboolean blxConfigSetFetchMode(char *mode)
+//{
+//  gboolean result = FALSE ;
+//  GKeyFile *key_file ;
+//
+//  key_file = blxGetConfig() ;
+//  g_assert(key_file) ;
+//
+//  g_key_file_set_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, mode) ;
+//
+//  return result ;
+//}
 
-  key_file = blxGetConfig() ;
-  g_assert(key_file) ;
 
-  g_key_file_set_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, mode) ;
-
-  return result ;
-}
-
-
-static char *blxConfigGetFetchMode(void)
+static char *blxConfigGetDefaultFetchMode(const gboolean bulk)
 {
   char *fetch_mode = NULL ;
   GKeyFile *key_file ;
@@ -955,8 +978,21 @@ static char *blxConfigGetFetchMode(void)
   key_file = blxGetConfig() ;
   g_assert(key_file) ;
 
-  fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, &error) ;
-
+  if (bulk)
+    {
+      fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_BULK_FETCH, &error) ;
+      
+      if (error)
+        {
+          /* For backwards compatibility with old config files, try the old key name... */
+          fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, BLIXEM_OLD_BULK_FETCH, NULL) ;
+        }
+    }
+  else
+    {
+      fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_USER_FETCH, &error) ;
+    }
+  
   return fetch_mode ;
 }
 
@@ -1589,8 +1625,7 @@ gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
 
       if (!config_loaded)
 	{
-	  *error = g_error_new_literal(g_quark_from_string("BLIXEM_CONFIG"), 1,
-				       "No groups found in config file.\n") ;
+          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_GROUPS, "No groups found in config file.\n") ;
 	  result = FALSE ;
 	}
         
@@ -1611,11 +1646,21 @@ ConfigGroup getConfig(char *config_name)
 					       {PFETCH_PROXY_MODE, KEY_TYPE_STRING},
 					       {PFETCH_PROXY_PORT, KEY_TYPE_INT},
 					       {NULL, KEY_TYPE_INVALID}} ;
+  
   static ConfigKeyValueStruct pfetch_socket[] = {{PFETCH_SOCKET_NODE, KEY_TYPE_STRING},
 						 {PFETCH_SOCKET_PORT, KEY_TYPE_INT},
 						 {NULL, KEY_TYPE_INVALID}} ;
+  
+  static ConfigKeyValueStruct db_fetch[] = {{DB_FETCH_DATABASE, KEY_TYPE_STRING},
+                                            {NULL, KEY_TYPE_INVALID}} ;
+
+  static ConfigKeyValueStruct region_fetch[] = {{REGION_FETCH_SCRIPT, KEY_TYPE_STRING},
+                                                {NULL, KEY_TYPE_INVALID}} ;
+  
   static ConfigGroupStruct groups[] = {{PFETCH_PROXY_GROUP, pfetch_http},
 				       {PFETCH_SOCKET_GROUP, pfetch_socket},
+                                       {DB_FETCH_GROUP, db_fetch},
+                                       {REGION_FETCH_GROUP, region_fetch},
 				       {NULL, NULL}} ;
   ConfigGroup tmp ;
 
@@ -1638,30 +1683,23 @@ ConfigGroup getConfig(char *config_name)
 /* Tries to load values for all keyvalues given in ConfigGroup fails if any are missing. */
 static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
 {
-  gboolean result = TRUE ;
-  ConfigKeyValue key_value ;
-
-  key_value = group->key_values ;
+  gboolean result = TRUE;
+  GError *tmpError = NULL;
+  
+  ConfigKeyValue key_value = group->key_values ;
+  
   while (key_value->name && result)
     {
       switch(key_value->type)
 	{
 	case KEY_TYPE_BOOL:
 	  {
-	    gboolean tmp ;
-
-	    if (!(tmp = g_key_file_get_boolean(key_file, group->name, key_value->name, error)))
-	      result = FALSE ;
-
+	    g_key_file_get_boolean(key_file, group->name, key_value->name, &tmpError);
 	    break ;
 	  }
 	case KEY_TYPE_INT:
 	  {
-	    int tmp ;
-
-	    if (!(tmp = g_key_file_get_integer(key_file, group->name, key_value->name, error)))
-	      result = FALSE ;
-
+	    g_key_file_get_integer(key_file, group->name, key_value->name, &tmpError);
 	    break ;
 	  }
 	case KEY_TYPE_DOUBLE:
@@ -1669,12 +1707,9 @@ static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error
 #ifdef ED_G_NEVER_INCLUDE_THIS_CODE
 	    /* We can do this by steam using our own funcs in fact.... */
 
-	    double tmp ;
-
 	    /* Needs 2.12.... */
 
-	    if (!(tmp = g_key_file_get_double(key_file, group->name, key_value->name, &error)))
-	      result = FALSE ;
+	    g_key_file_get_double(key_file, group->name, key_value->name, &tmpError);
 
 #endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
 
@@ -1682,111 +1717,126 @@ static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error
 	  }
 	case KEY_TYPE_STRING:
 	  {
-	    char *tmp ;
-
-	    if (!(tmp = g_key_file_get_string(key_file, group->name, key_value->name, error)))
-	      result = FALSE ;
-
+	    g_key_file_get_string(key_file, group->name, key_value->name, &tmpError);
 	    break ;
 	  }
 	default:
-	  g_error("Bad Copnfig key type") ;
-	  break ;
-	}
+          {
+            g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_KEY_TYPE, "Invalid key type in configuration file.\n") ;
+            break ;
+          }
+        }
 
+      /* If we got an error, record what group we were reading and then quit the loop */
+      if (tmpError)
+        {
+          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_MISSING_KEY, "Group [%s] does not have the required key '%s': ", group->name, key_value->name);
+          g_error_free(tmpError);
+          tmpError = NULL;
+          
+          result = FALSE;
+        }
+      
       key_value++ ;
     }
-
 
   return result ;
 }
 
 
-/* Set up the net id and port if the mode is pfetch */
+/* Set up the net id and port for the pfetch mode, if these are available */
 static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, const char **net_id, int *port, GError **error)
 {
   gboolean success = TRUE;
   
-  if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0)
+  /* three ways to determine this:
+   *    1) call blixem main with "-P node:port" commandline option
+   *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
+   *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
+   *       or to the name of the machine, e.g. "plato"
+   *       and optionally setenv BLIXEM_PORT to the port number for
+   *       the pfetch server.
+   *    3) call blixem with the -c option to specify a config file*/
+  enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
+  *port = PFETCH_PORT ;
+  
+  if (pfetch)
     {
-      /* three ways to determine this:
-       *    1) call blixem main with "-P node:port" commandline option
-       *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
-       *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
-       *       or to the name of the machine, e.g. "plato"
-       *       and optionally setenv BLIXEM_PORT to the port number for
-       *       the pfetch server.
-       *    3) call blixem with the -c option to specify a config file*/
-      enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
-      *port = PFETCH_PORT ;
+      *net_id = pfetch->net_id ;
+      if (!(*port = pfetch->port))
+        *port = PFETCH_PORT ;
+    }
+  else if ((*net_id = g_getenv("BLIXEM_PFETCH")))
+    {
+      const char *port_str = g_getenv("BLIXEM_PORT");
       
-      if (pfetch)
+      *port = port_str ? atoi(port_str) : 0 ;
+      
+      if (*port <= 0)
         {
-          *net_id = pfetch->net_id ;
-          if (!(*port = pfetch->port))
-            *port = PFETCH_PORT ;
+          *port = PFETCH_PORT ;
         }
-      else if ((*net_id = g_getenv("BLIXEM_PFETCH")))
-        {
-          const char *port_str = g_getenv("BLIXEM_PORT");
-          
-	  *port = port_str ? atoi(port_str) : 0 ;
-          
-          if (*port <= 0)
-	    {
-	      *port = PFETCH_PORT ;
-	    }
-        }
-      else
-        {
-          /* Lastly try for a config file. */
-          blxConfigGetPFetchSocketPrefs(net_id, port) ;
-        }
+    }
+  else
+    {
+      /* Lastly try for a config file. */
+      blxConfigGetPFetchSocketPrefs(net_id, port) ;
+    }
 
-      if (*net_id == NULL || *port == UNSET_INT)
-        {
-          g_set_error(error, BLX_ERROR, 1, "Network ID and port number were not found. These must be specified in the Blixem command line options, in the Blixem config file or in the BLIXEM_PFETCH and BLIXEM_PORT enviroment variables.");
-          success = FALSE;
-        }
+  if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0 && 
+      (*net_id == NULL || *port == UNSET_INT))
+    {
+      g_set_error(error, BLX_ERROR, 1, "Network ID and port number were not found. These must be specified in the Blixem command line options, in the Blixem config file or in the BLIXEM_PFETCH and BLIXEM_PORT enviroment variables.");
+      success = FALSE;
     }
   
   return success;
 }
 
 
-/* Set up the fetch mode. Sets the fetch-mode, and also net_id and port if relevant */
-void setupFetchMode(PfetchParams *pfetch, char **fetchMode, const char **net_id, int *port)
+/* Set up the fetch modes. Sets required properties for each fetch mode, e.g.
+ * net_id and port for pfetch-socket etc. */
+void setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, const char **net_id, int *port)
 {
+  *bulkFetchMode = g_malloc(32 * sizeof(char));
+  *userFetchMode = g_malloc(32 * sizeof(char));
+  
   /* Set up the pfetch and www-pfetch config from the file / env vars etc. We need
    * to set them up even if we're not using that mode initially, because the user can 
    * change the mode */
   blxConfigGetPFetchWWWPrefs();
       
-  /* Set the fetch mode */
+  /* Set the fetch mode for bulk fetch. */
   if (pfetch && blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
     {
-      *fetchMode = BLX_FETCH_PFETCH;
+      *bulkFetchMode = BLX_FETCH_PFETCH;
     }
   else
     {
-      blxFindInitialFetchMode(*fetchMode);
+      blxFindDefaultFetchMode(*bulkFetchMode);
     }
-  
 
   /* For pfetch mode, find the net_id and port */
-  GError *error = NULL;
-  const gboolean success = setupPfetchMode(pfetch, *fetchMode, net_id, port, &error);
-  
-  if (!success)
+  setupPfetchMode(pfetch, *bulkFetchMode, net_id, port, NULL);
+
+  /* Get the user fetch mode. This is only supplied via the config file and is
+   * optional - if it is not set, use the same as the bulk fetch mode. */
+  char *tmp_mode = blxConfigGetDefaultFetchMode(FALSE);
+
+  if (tmp_mode)
     {
-      prefixError(error, "Error setting fetch mode. ");
-      reportAndClearIfError(&error, success ? G_LOG_LEVEL_WARNING : G_LOG_LEVEL_CRITICAL);
+      strcpy(*userFetchMode, tmp_mode);
+      g_free(tmp_mode);
+    }
+  else
+    {
+      strcpy(*userFetchMode, *bulkFetchMode);
     }
 }
 
 
-/* Callback called when the sort order has been changed in the drop-down box */
-static gboolean onFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
+/* Callback called when the user has changed the fetch mode */
+static gboolean onUserFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
   BlxViewContext *bc = (BlxViewContext*)data;
   GtkComboBox *combo = GTK_COMBO_BOX(widget);
@@ -1800,31 +1850,18 @@ static gboolean onFetchModeChanged(GtkWidget *widget, const gint responseId, gpo
       GValue val = {0};
       gtk_tree_model_get_value(model, &iter, 0, &val);
       
-      const char *fetchMode = g_value_get_string(&val);
+      const char *userFetchMode = g_value_get_string(&val);
       
-      g_free(bc->fetchMode);
-      bc->fetchMode = g_strdup(fetchMode);
-      
-      if (!strcmp(bc->fetchMode, BLX_FETCH_PFETCH) && (bc->net_id == NULL || bc->port == UNSET_INT))
-        {
-          /* If this is the first time we've been set to pfetch mode, initialise the net id and port */
-          GError *error = NULL;
-          setupPfetchMode(NULL, bc->fetchMode, &bc->net_id, &bc->port, &error);
-          
-          if (error)
-            {
-              prefixError(error, "Error setting fetch mode. ");
-              reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
-            }
-        }
+      g_free(bc->userFetchMode);
+      bc->userFetchMode = g_strdup(userFetchMode);
     }
     
   return TRUE;
 }
 
 
-/* Add an item to the pfetch drop-down list */
-static void addPfetchItem(GtkTreeStore *store, GtkTreeIter *parent, const char *itemName, const char *currentFetchMode, GtkComboBox *combo)
+/* Add an item to the drop-down list for selecting a user fetch mode */
+static void addUserFetchItem(GtkTreeStore *store, GtkTreeIter *parent, const char *itemName, const char *currentFetchMode, GtkComboBox *combo)
 {
   GtkTreeIter iter;
   gtk_tree_store_append(store, &iter, parent);
@@ -1861,17 +1898,17 @@ void createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow)
   
   /* Set the callback function */
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  widgetSetCallbackData(GTK_WIDGET(combo), onFetchModeChanged, bc);
+  widgetSetCallbackData(GTK_WIDGET(combo), onUserFetchModeChanged, bc);
   
   /* Add the list items */
-  addPfetchItem(store, NULL, BLX_FETCH_PFETCH, bc->fetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_PFETCH, bc->userFetchMode, combo);
   
 #ifdef PFETCH_HTML
-  addPfetchItem(store, NULL, BLX_FETCH_PFETCH_HTML, bc->fetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_PFETCH_HTML, bc->userFetchMode, combo);
 #endif
   
-  addPfetchItem(store, NULL, BLX_FETCH_EFETCH, bc->fetchMode, combo);
-  addPfetchItem(store, NULL, BLX_FETCH_WWW_EFETCH, bc->fetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_EFETCH, bc->userFetchMode, combo);
+  addUserFetchItem(store, NULL, BLX_FETCH_WWW_EFETCH, bc->userFetchMode, combo);
 }
 
 

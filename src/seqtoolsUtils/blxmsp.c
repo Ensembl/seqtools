@@ -88,6 +88,11 @@ gboolean typeIsShortRead(const BlxMspType mspType)
   return (mspType == BLXMSP_SHORT_READ);
 }
 
+gboolean typeIsRegion(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_REGION);
+}
+
 /* This returns true if the given type should be shown in the detail-view */
 gboolean typeShownInDetailView(const BlxMspType mspType)
 {
@@ -338,7 +343,7 @@ const char *mspGetSName(const MSP const *msp)
   
   if (msp)
     {
-      if (msp->sname)
+      if (msp->sname && msp->sname[0] != 0)
         {
           result = msp->sname;
         }
@@ -413,6 +418,12 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
   return result;
 }
 
+/* Return the reference sequence name that this msp aligns against */
+const char* mspGetRefName(const MSP const *msp)
+{
+  return msp->qname;
+}
+
 /* Return the strand of the ref sequence that the given MSP is a match against */
 BlxStrand mspGetRefStrand(const MSP const *msp)
 {
@@ -440,6 +451,12 @@ BlxStrand mspGetMatchStrand(const MSP const *msp)
 const char* mspGetMatchSeq(const MSP const *msp)
 {
   return blxSequenceGetSeq(msp->sSequence);
+}
+
+/* Get the source of the MSP */
+const char* mspGetSource(const MSP const *msp)
+{
+  return blxSequenceGetSource(msp->sSequence);
 }
 
 
@@ -890,11 +907,8 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
 {
   const char *result = NULL;
   
-  if (seq && seq->mspList && g_list_length(seq->mspList) > 0 && seq->mspList->data)
-    {
-      const MSP const *msp = (const MSP const*)(seq->mspList->data);
-      result = msp->source;
-    }
+  if (seq)
+    result = seq->source;
   
   return result;
 }
@@ -947,11 +961,15 @@ char *blxSequenceGetSeq(const BlxSequence *seq)
   return (seq && seq->sequence ? seq->sequence->str : NULL);
 }
 
+/* This returns true if the given sequence object requires sequence data
+ * (i.e. the actual dna or peptide sequence string) */
 gboolean blxSequenceRequiresSeqData(const BlxSequence *seq)
 {
-  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION || seq->type == BLXSEQUENCE_READ_PAIR));
+  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION || seq->type == BLXSEQUENCE_READ_PAIR || seq->type == BLXSEQUENCE_REGION));
 }
 
+/* This returns true if the given sequence object requires optional data such
+ * as organism and tissue-type, if this data is available. */
 gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
 {
   return (seq && seq->type == BLXSEQUENCE_MATCH);
@@ -1101,17 +1119,18 @@ void destroyBlxSequence(BlxSequence *seq)
 {
   if (seq)
     {
-    g_free(seq->fullName);
-    g_free(seq->variantName);
-    g_free(seq->shortName);
-    
-    if (seq->sequence)      g_string_free(seq->sequence, TRUE);
-    if (seq->organism)      g_string_free(seq->organism, TRUE);
-    if (seq->geneName)      g_string_free(seq->geneName, TRUE);
-    if (seq->tissueType)    g_string_free(seq->tissueType, TRUE);
-    if (seq->strain)        g_string_free(seq->strain, TRUE);
-    
-    g_free(seq);
+      g_free(seq->fullName);
+      g_free(seq->variantName);
+      g_free(seq->shortName);
+      
+      if (seq->source)        g_free(seq->source);
+      if (seq->sequence)      g_string_free(seq->sequence, TRUE);
+      if (seq->organism)      g_string_free(seq->organism, TRUE);
+      if (seq->geneName)      g_string_free(seq->geneName, TRUE);
+      if (seq->tissueType)    g_string_free(seq->tissueType, TRUE);
+      if (seq->strain)        g_string_free(seq->strain, TRUE);
+      
+      g_free(seq);
     }
 }
 
@@ -1151,7 +1170,9 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   BlxSequence *seq = g_malloc(sizeof(BlxSequence));
   
   seq->type = BLXSEQUENCE_UNSET;
+  seq->dataType = NULL;
   seq->idTag = idTag ? g_strdup(idTag) : NULL;
+  seq->source = NULL;
   
   seq->fullName = NULL;
   seq->variantName = NULL;
@@ -1168,6 +1189,33 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   seq->strain = NULL;
   
   return seq;
+}
+
+
+
+BlxDataType* createBlxDataType()
+{
+  BlxDataType *result = g_malloc(sizeof *result);
+  
+  result->name = NULL;
+  result->bulkFetch = NULL;
+  
+  return result;
+}
+
+void destroyBlxDataType(BlxDataType **blxDataType)
+{
+  if (!blxDataType)
+    return;
+  
+  if ((*blxDataType) && (*blxDataType)->name)
+    g_free((*blxDataType)->name);
+  
+  if ((*blxDataType) && (*blxDataType)->bulkFetch)
+    g_free((*blxDataType)->bulkFetch);
+  
+  g_free((*blxDataType));
+  *blxDataType = NULL;
 }
 
 
@@ -1239,6 +1287,10 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
     {
       result = BLXSEQUENCE_READ_PAIR;
     }
+  else if (mspType == BLXMSP_REGION)
+    {
+      result = BLXSEQUENCE_REGION;
+    }
 
   return result;
 }
@@ -1253,6 +1305,8 @@ BlxSequence* addBlxSequence(const char *name,
 			    const char *idTag, 
 			    BlxStrand strand,
 			    const BlxMspType mspType,
+			    BlxDataType *dataType,
+                            const char *source,
 			    GArray* featureLists[],
 			    GList **seqList, 
 			    char *sequence, 
@@ -1281,6 +1335,20 @@ BlxSequence* addBlxSequence(const char *name,
           blxSeq = createEmptyBlxSequence(seqName, idTag, NULL);
           *seqList = g_list_prepend(*seqList, blxSeq);
           blxSeq->strand = strand;
+          blxSeq->dataType = dataType;
+          blxSeq->source = g_strdup(source);
+        }
+      else
+        {
+          if (dataType && !blxSeq->dataType)
+            blxSeq->dataType = dataType;
+          else if (dataType && blxSeq->dataType != dataType)
+            g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, blxSeq->dataType->name, dataType->name);
+          
+          if (source && !blxSeq->source)
+            blxSeq->source = g_strdup(source);
+          else if (source && !stringsEqual(blxSeq->source, source, FALSE))
+            g_warning("Duplicate sequences have different sources [name=%s, ID=%s, strand=%d, orig source=%s, new source=%s].\n", name, idTag, strand, blxSeq->source, source);
         }
       
       if (seqName && !blxSeq->fullName)
@@ -1602,7 +1670,6 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->fullSRange.max = 0;
   
   msp->desc = NULL;
-  msp->source = NULL;
   
   msp->style = NULL;
   
@@ -1635,7 +1702,6 @@ void destroyMspData(MSP *msp)
   freeStringPointer(&msp->qname);
   freeStringPointer(&msp->sname);
   freeStringPointer(&msp->desc);
-  freeStringPointer(&msp->source);
   freeStringPointer(&msp->url);
   
   if (msp->gaps)
@@ -1664,6 +1730,7 @@ MSP* createNewMsp(GArray* featureLists[],
                   MSP **mspList,
                   GList **seqList,
                   const BlxMspType mspType,
+                  BlxDataType *dataType,
 		  const char *source,
                   const gdouble score,
                   const gdouble percentId,
@@ -1688,7 +1755,6 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->score = score; 
   msp->id = percentId; 
   msp->phase = phase;
-  msp->source = g_strdup(source);
   msp->url = g_strdup(url);
   
   msp->qname = qName ? g_strdup(qName) : NULL;
@@ -1696,7 +1762,8 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->qFrame = qFrame;
   msp->qStrand = qStrand;
   
-  msp->sname = sName ? g_ascii_strup(sName, -1) : NULL;
+  msp->sname = sName ? g_strdup(sName) : NULL;
+  //g_ascii_strup(sName, -1)
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
@@ -1712,9 +1779,9 @@ MSP* createNewMsp(GArray* featureLists[],
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (typeIsExon(mspType) || typeIsIntron(mspType) || 
       typeIsMatch(mspType) || typeIsShortRead(mspType) || 
-      typeIsVariation(mspType))
+      typeIsVariation(mspType) || typeIsRegion(mspType))
     {
-      addBlxSequence(msp->sname, idTag, sStrand, msp->type, featureLists, seqList, sequence, msp, error);
+      addBlxSequence(msp->sname, idTag, sStrand, msp->type, dataType, source, featureLists, seqList, sequence, msp, error);
     }
 
   /* Add it to the relevant feature list. */
@@ -1857,7 +1924,8 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
+      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, blxSeq->source,
+                                  UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
                                   qname, newStart, newEnd, blxSeq->strand, newFrame, blxSeq->fullName,
                                   UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
       
@@ -1954,7 +2022,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
               
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, curExon->source, 
+                  createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, blxSeq->source, 
                                curExon->score, curExon->id, 0, g_strdup(curExon->url), blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);

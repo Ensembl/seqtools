@@ -245,7 +245,7 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, mspGetSName(msp),
-			     BLXCOL_SOURCE, msp->source,
+			     BLXCOL_SOURCE, mspGetSource(msp),
 			     BLXCOL_ORGANISM, NULL,
 			     BLXCOL_GENE_NAME, NULL,
 			     BLXCOL_TISSUE_TYPE, NULL,
@@ -263,7 +263,7 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 	  /* Add generic info about the sequence */
 	  gtk_list_store_set(store, &iter,
 			     BLXCOL_SEQNAME, blxSequenceGetDisplayName(blxSeq),
-			     BLXCOL_SOURCE, NULL,
+			     BLXCOL_SOURCE, blxSequenceGetSource(blxSeq),
 			     BLXCOL_ORGANISM, NULL,
 			     BLXCOL_GENE_NAME, NULL,
 			     BLXCOL_TISSUE_TYPE, NULL,
@@ -1647,7 +1647,7 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
       
       gtk_list_store_set(store, &iter,
 			 BLXCOL_SEQNAME, mspGetSName(msp),
-			 BLXCOL_SOURCE, msp->source,
+			 BLXCOL_SOURCE, mspGetSource(msp),
                          BLXCOL_ORGANISM, NULL,
                          BLXCOL_GENE_NAME, NULL,
                          BLXCOL_TISSUE_TYPE, NULL,
@@ -2014,9 +2014,9 @@ static void cellDataFunctionSourceCol(GtkTreeViewColumn *column, GtkCellRenderer
   if (g_list_length(mspGList) > 0)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
-      if (msp->source)
+      if (mspGetSource(msp))
 	{
-	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->source, NULL);
+	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, mspGetSource(msp), NULL);
 	}
     }
 }
@@ -2591,7 +2591,7 @@ static gint sortByStartCompareFuncMultiple(GList *mspList1, GList *mspList2, con
 
 /* Sort comparison function for sorting by string values. Allows NULL values and
  * sorts them AFTER non-null values. Comparison is case-insensitive. */
-static int sortByStringCompareFunc(char *str1, char *str2)
+static int sortByStringCompareFunc(const char *str1, const char *str2)
 {
   int result = 0;
 
@@ -2654,7 +2654,7 @@ static gint sortByColumnCompareFunc(GtkTreeModel *model,
       break;
       
     case BLXCOL_SOURCE:
-      result = sortByStringCompareFunc(msp1->source, msp2->source);
+      result = sortByStringCompareFunc(mspGetSource(msp1), mspGetSource(msp2));
       break;
       
     case BLXCOL_SCORE:
