@@ -462,7 +462,11 @@ static void regionFetchSequences(GList *regionsToFetch,
   else
     {
       gchar *fixedArgs = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, NULL); /* fixedArgs are optional, so ignore any error */
-      const gchar *tmpDir = g_get_tmp_dir();
+      char *tmpDir = g_strdup(g_get_tmp_dir());
+      
+      /* Some systems seem to have a trailing slash, some not, so remove it... */
+      if (tmpDir[strlen(tmpDir) - 1] == '/')
+        tmpDir[strlen(tmpDir) - 1] = '\0';
 
       /* Loop through each region, creating a GFF file with the results for each region */
       GList *regionItem = regionsToFetch;
@@ -476,12 +480,12 @@ static void regionFetchSequences(GList *regionsToFetch,
 	    {
 	      const MSP const *msp = (const MSP const*)(mspItem->data);
 	    
-	      char *fileName = blxprintf("%s%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
-	      int fileDesc = g_mkstemp(fileName);
+	      char *fileName = blxprintf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
+	      int fileDesc = mkstemp(fileName);
 	      
 	      if (fileDesc == -1)
 		{
-		  g_set_error(&tmpError, BLX_ERROR, 1, "Error creating temp file for region-fetch results.\n");
+		  g_set_error(&tmpError, BLX_ERROR, 1, "Error creating temp file for region-fetch results (filename=%s)\n", fileName);
 		}
 	      else
 		{
