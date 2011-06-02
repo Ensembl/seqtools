@@ -262,6 +262,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->mapCoordsTo = 1; /* default to 1-based coordinate system if mapping coords but no 'to' value is specified */
   options->bulkFetchMode = NULL;
   options->userFetchMode = NULL;
+  options->dataset = NULL;
 
   options->msgData.titlePrefix = g_strdup("Blixem - ");
   options->msgData.parent = NULL;
@@ -536,6 +537,7 @@ int main(int argc, char **argv)
       {"styles-file",           required_argument,  NULL, 0},
       {"fetch-server",          required_argument,  NULL, 0},
       {"sort-mode",             required_argument,  NULL, 0},
+      {"dataset",	        required_argument,  NULL, 0},
 
       {"alignment-names",       required_argument,  0, 'a'},
       {"config-file",           required_argument,  0, 'c'},
@@ -579,6 +581,10 @@ int main(int argc, char **argv)
             else if (stringsEqual(long_options[optionIndex].name, "sort-mode", TRUE))
               {
                 options.initSortColumn = getSortModeFromChar(*optarg);
+              }
+            else if (stringsEqual(long_options[optionIndex].name, "dataset", TRUE))
+              {
+		options.dataset = g_strdup(optarg);
               }
           break; 
           

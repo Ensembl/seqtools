@@ -448,6 +448,7 @@ static void regionFetchSequences(GList *regionsToFetch,
 				 const gboolean parseSequenceData,
 				 const BlxSeqType seqType,
                                  const int refSeqOffset,
+				 const char *dataset,
 				 GError **error)
 {
   GKeyFile *keyFile = blxGetConfig();
@@ -496,8 +497,14 @@ static void regionFetchSequences(GList *regionsToFetch,
                   const int startCoord = mspGetQStart(msp) + refSeqOffset;
                   const int endCoord = mspGetQEnd(msp) + refSeqOffset;
 
-                  /* Set up the command to send output to the given file */
-                  char *command = blxprintf("%s %s -chr=%s -start=%d -end=%d > %s", script, fixedArgs, mspGetRefName(msp), startCoord, endCoord, fileName);
+                  /* Set up the command to send output to the given file. Include the dataset,
+		   * if given. */
+		  char *command = NULL;
+		  if (dataset)
+		    command = blxprintf("%s %s -dataset=%s -chr=%s -start=%d -end=%d > %s", script, fixedArgs, dataset, mspGetRefName(msp), startCoord, endCoord, fileName);
+		  else
+		    command = blxprintf("%s %s -chr=%s -start=%d -end=%d > %s", script, fixedArgs, mspGetRefName(msp), startCoord, endCoord, fileName);
+		
 		  g_debug("Executing command:\n%s\n", command);
 
                   /* Execute the command */
@@ -557,6 +564,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
 			       GSList *supportedTypes, 
 			       GSList *styles,
                                const int refSeqOffset,
+			       const char *dataset,
                                GError **error)
 {
   gboolean success = TRUE;
@@ -579,7 +587,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
         }
       else if (strcmp(fetchMode, BLX_FETCH_REGION) == 0)
         {
-          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, supportedTypes, styles, External, parseOptionalData, parseSequenceData, seqType, refSeqOffset, error);
+          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, supportedTypes, styles, External, parseOptionalData, parseSequenceData, seqType, refSeqOffset, dataset, error);
         }
       else if (fetchMode && fetchMode[0] != 0)
         {
@@ -610,7 +618,8 @@ gboolean blxviewFetchSequences(gboolean External,
 			       GArray* featureLists[],
 			       GSList *supportedTypes, 
 			       GSList *styles,
-                               const int refSeqOffset)
+                               const int refSeqOffset,
+			       const char *dataset)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
@@ -641,7 +650,7 @@ gboolean blxviewFetchSequences(gboolean External,
           
           DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
           
-          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, &tmpError))
+          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, dataset, &tmpError))
             {
               success = TRUE;
               
@@ -748,7 +757,7 @@ gboolean blxview(CommandLineOptions *options,
   gboolean status = blxviewFetchSequences(
     External, options->parseFullEmblInfo, TRUE, options->seqType, &seqList, 
     options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, 
-    featureLists, supportedTypes, NULL, 0); /* offset has not been applied yet, so pass offset=0 */
+    featureLists, supportedTypes, NULL, 0, options->dataset); /* offset has not been applied yet, so pass offset=0 */
   
   if (status)
     {

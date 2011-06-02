@@ -318,6 +318,7 @@ typedef struct _CommandLineOptions
   int numFrames;                  /* the number of reading frames */
   char *bulkFetchMode;            /* the default method for bulk fetching sequences (can be overridden by an MSPs data-type properties) */
   char *userFetchMode;            /* the default method for fetching individual sequences interactively */
+  char *dataset;		  /* the name of a dataset, e.g. 'human' */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
   gboolean mapCoordsFrom;         /* the coord to map from */
@@ -344,6 +345,7 @@ typedef struct _BlxViewContext
 
     char* bulkFetchMode;                    /* The default method of bulk fetching sequences (can be overridden by an MSPs data-type properties) */
     char* userFetchMode;                    /* The default method for interactively fetching individual sequences */
+    char* dataset;			    /* the name of a dataset, e.g. 'human' */
 
     MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
     GArray* featureLists[BLXMSP_NUM_TYPES]; /* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
@@ -464,7 +466,8 @@ gboolean                           blxviewFetchSequences(gboolean External,
 							 GArray* featureLists[],
 							 GSList *supportedTypes, 
 							 GSList *styles,
-                                                         const int refSeqOffset
+                                                         const int refSeqOffset,
+							 const char *dataset
 							 );
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */

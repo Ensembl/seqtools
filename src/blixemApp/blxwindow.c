@@ -2783,7 +2783,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   gboolean success = blxviewFetchSequences(
     bc->external, getOptionalData, getSequenceData, bc->seqType, &bc->matchSeqs, 
     bc->bulkFetchMode, bc->net_id, bc->port, &bc->mspList, &bc->blastMode, 
-    bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset);
+    bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, bc->dataset);
   
   if (error)
     {
@@ -4919,6 +4919,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->paddingSeq = paddingSeq;
   blxContext->bulkFetchMode = g_strdup(options->bulkFetchMode);
   blxContext->userFetchMode = g_strdup(options->userFetchMode);
+  blxContext->dataset = g_strdup(options->dataset);
   blxContext->matchSeqs = seqList;
   blxContext->supportedTypes = supportedTypes;
   
