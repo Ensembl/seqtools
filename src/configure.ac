@@ -11,6 +11,12 @@ AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile seqtoolsUtils/Makefile libpfetch/Makefile blixemApp/Makefile dotterApp/Makefile doc/Makefile doc/User_doc/Makefile])
 
+AM_CONDITIONAL([IS_GIT_REPO], [test -d "$srcdir/../.git"])
+
+AM_COND_IF([IS_GIT_REPO], 
+           [AC_DEFINE_UNQUOTED([SEQTOOLS_VERSION], ["`git describe --dirty`"], ["SeqTools package version"])],
+           [AC_DEFINE([SEQTOOLS_VERSION], [PACKAGE_VERSION], ["SeqTools package version"])])
+
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
