@@ -62,8 +62,8 @@ extern char *stdcode1[];        /* 1-letter amino acid translation code */
 #define DOTTER_DESC    "Dot-matrix plotter for detailed comparision of two sequences."
 
 /* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
-#define DOTTER_VERSION_STRING	   PACKAGE_VERSION
-#define DOTTER_PACKAGE_VERSION	   UT_MAKE_VERSION_INFO_STRING(PACKAGE_NAME, PACKAGE_VERSION)
+#define DOTTER_VERSION_STRING	   SEQTOOLS_VERSION
+#define DOTTER_PACKAGE_VERSION	   UT_MAKE_VERSION_INFO_STRING(PACKAGE_NAME, SEQTOOLS_VERSION)
 #define DOTTER_TITLE_STRING	   UT_MAKE_TITLE_STRING(DOTTER_TITLE, DOTTER_VERSION_STRING)
 #define DOTTER_VERSION_COMPILE	   DOTTER_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
