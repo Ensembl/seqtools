@@ -13,9 +13,10 @@ AC_CONFIG_FILES([Makefile seqtoolsUtils/Makefile libpfetch/Makefile blixemApp/Ma
 
 AM_CONDITIONAL([IS_GIT_REPO], [test -d "$srcdir/../.git"])
 
-AM_COND_IF([IS_GIT_REPO], 
-           [AC_DEFINE_UNQUOTED([SEQTOOLS_VERSION], ["`git describe --dirty`"], ["SeqTools package version"])],
-           [AC_DEFINE([SEQTOOLS_VERSION], [PACKAGE_VERSION], ["SeqTools package version"])])
+if test -d "$srcdir/../.git" 
+then AC_DEFINE_UNQUOTED([SEQTOOLS_VERSION], ["`git describe --dirty`"], ["SeqTools package version"])
+else AC_DEFINE([SEQTOOLS_VERSION], [PACKAGE_VERSION], ["SeqTools package version"])
+fi
 
 # Checks for programs.
 AC_PROG_CXX
