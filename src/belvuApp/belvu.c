@@ -6900,6 +6900,8 @@ void rmGappySeqs(BelvuContext *bc, const double cutoff)
 }
 
 
+/* Remove empty (gappy) columns if the 'remove empty columns' option
+ * is enabled. */
 void rmFinaliseGapRemoval(BelvuContext *bc)
 {
   if (bc->rmEmptyColumnsOn) 

@@ -160,7 +160,7 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
  *                      Menus and Toolbar                  *
  ***********************************************************/
 
-#define rmEmptyColumnsStr "Automatically remove all-gap columns after sequence removals"
+#define rmEmptyColumnsStr "Automatically remove empty columns after deleting sequences"
 
 #define colorSimStr            "Average similarity by Blosum62"
 #define colorIdStr             "Percent identity only"
@@ -212,7 +212,6 @@ static const GtkActionEntry menuEntries[] = {
   {"rmColumnRight",          NULL,    "Remove columns to the right of cursor (inclusive) -> ", NULL, "Remove columns to the right of cursor (inclusive) -> ", G_CALLBACK(onrmColumnRightMenu)},
   {"rmColumnCutoff",         NULL,    "Remove columns according to conservation",              NULL, "Remove columns according to conservation",              G_CALLBACK(onrmColumnCutoffMenu)},
   {"rmEmptyColumnsInteract", NULL,    "Remove gappy columns",     NULL, "Remove gappy columns",   G_CALLBACK(onrmEmptyColumnsInteractMenu)},
-  {"rmEmptyColumnsToggle",   NULL,    rmEmptyColumnsStr,          NULL, rmEmptyColumnsStr,        G_CALLBACK(onrmEmptyColumnsToggleMenu)},
   {"readLabels",             NULL,    "Read labels of highlighted sequence and spread them",   NULL, "Read labels of highlighted sequence and spread them",   G_CALLBACK(onreadLabelsMenu)},
   {"selectGaps",             NULL,    "Select gap character",     NULL, "Select gap character",   G_CALLBACK(onselectGapsMenu)},
   {"hide",                   NULL,    "Hide highlighted line",    NULL, "Hide highlighted line",  G_CALLBACK(onhideMenu)},
@@ -228,6 +227,7 @@ static const GtkActionEntry menuEntries[] = {
 
 /* Define the menu actions for toggle menu entries */
 static const GtkToggleActionEntry toggleMenuEntries[] = {
+{"rmEmptyColumnsToggle", NULL, rmEmptyColumnsStr,                   NULL, rmEmptyColumnsStr,                   G_CALLBACK(onrmEmptyColumnsToggleMenu), TRUE},
 {"toggleColorByResId",   NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
 {"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu), FALSE},
 {"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu), FALSE},
@@ -822,6 +822,15 @@ static void onrmEmptyColumnsInteractMenu(GtkAction *action, gpointer data)
 
 static void onrmEmptyColumnsToggleMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  const gboolean newVal = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+  
+  if (properties->bc->rmEmptyColumnsOn != newVal)
+    {
+      properties->bc->rmEmptyColumnsOn = newVal;
+    }
 }
 
 static void onreadLabelsMenu(GtkAction *action, gpointer data)
