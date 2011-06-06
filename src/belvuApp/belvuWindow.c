@@ -2427,7 +2427,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
     }
   
   /* If an alignment is selected, display info about it */
-  if (bc->selectedAln)
+  if (bc->selectedAln && bc->selectedAln->seq)
     {
       tmpStr = blxprintf("%s/%d-%d", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end);
       g_string_append(resultStr, tmpStr);
@@ -2437,10 +2437,11 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
        * coord at that column position. */
       if (bc->selectedCol > 0)
         {
+          /* Print the char of the current sequence at the selected column */
           tmpStr = blxprintf("  %c = ", bc->selectedAln->seq[bc->selectedCol - 1]);
           g_string_append(resultStr, tmpStr);
           g_free(tmpStr);
-          
+      
           /* Loop through each column before the selected column and calculate the
            * number of gaps. Also note whether we see an asterisk in the sequence */
           gboolean hasAsterisk = FALSE;
@@ -2454,7 +2455,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
               else if (bc->selectedAln->seq[colIdx] == '*') 
                 hasAsterisk = TRUE;
             }
-          
+      
           if (hasAsterisk)
             {
               g_string_append(resultStr, "(unknown position due to insertion)");
