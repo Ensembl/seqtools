@@ -167,13 +167,16 @@ gboolean blixem_debug_G = FALSE ;
  -acefont <font> Main font.\n\
  -font    <font> Menu font.\n\n"
 
+
 /* Text to show the authors, version and compile date */
 #define FOOTER_TEXT "\
 -----\n\
 "AUTHOR_TEXT_FULL" \n\
 \n\
- Reference:  Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
-	     Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
+ Reference: Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
+            Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
+\n\
+ See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.\n\
 \n\
  "BLIXEM_COPYRIGHT_STRING"\n\
  "BLIXEM_LICENSE_STRING"\n\

@@ -52,13 +52,13 @@
 
 #define USAGE_TEXT "\
 \n\
-Belvu - View multiple alignments in good-looking colours.\n\
+ Belvu - View multiple alignments in good-looking colours.\n\
 \n\
-Usage: belvu [options] <multiple_alignment>|- [X options]\n\
+ Usage: belvu [options] <multiple_alignment>|- [X options]\n\
 \n\
-<multiple_alignment>|- = alignment file or pipe.\n\
+   <multiple_alignment>|- = alignment file or pipe.\n\
 \n\
-Options:\n\
+ Options:\n\
   -c          Print Conservation table.\n\
   -l <file>   Load residue color code file.\n\
   -L <file>   Load markup and organism color code file.\n\
@@ -68,7 +68,7 @@ Options:\n\
   -o <format> Write alignment or tree to stdout in this format and exit.\n\
                 Valid formats: MSF, Mul(Stockholm), Selex, \n\
                 FastaAlign, Fasta, tree.\n\
-  -X <#>      Print UPGMA-based subfamilies at cutoff #.\n\
+  -X <cutoff> Print UPGMA-based subfamilies at cutoff <cutoff>.\n\
   -n <cutoff> Make non-redundant to <cutoff> %identity at startup.\n\
   -Q <cutoff> Remove columns more gappy than <cutoff>.\n\
   -q <cutoff> Remove sequences more gappy than <cutoff>.\n\
@@ -105,28 +105,48 @@ Options:\n\
                 p -> Print distance matrix and exit\n\
                 R -> Read distance matrix instead of alignment\n\
               (only in combination with Tree routines)\n\
-  -b <#>      Apply boostrap analysis with # bootstrap samples\n\
+  -b <n>      Apply boostrap analysis with <n> bootstrap samples\n\
   -B          Print out bootstrap trees and exit\n\
-  (Negative value -> display bootstrap trees on screen)\n\
+              (Negative value -> display bootstrap trees on screen)\n\
   -O <label>  Read organism info after this label (default OS)\n\
   -t <title>  Set window title.\n\
   -g          Draw grid line (for debugging).\n\
   -u          Start up with uncoloured alignment (faster).\n\
 \n\
-Some X options:\n\
+ Some X options:\n\
   -acefont <font>   Main font.\n\
   -font    <font>   Menu font.\n\
 \n\
-Note: X options only work after \"setenv POSIXLY_CORRECT\"\n\
+ Note: X options only work after \"setenv POSIXLY_CORRECT\"\n\
 \n\
-setenv BELVU_FETCH to desired sequence fetching program.\n\
+ setenv BELVU_FETCH to desired sequence fetching program.\n\n\
+"
+
+
+/* Text to show the authors, version and compile date */
+#define FOOTER_TEXT "\
+-----\n\
+"AUTHOR_TEXT_FULL" \n\
 \n\
-For documentation, see:\n\
-  http://sonnhammer.sbc.su.se/Belvu.html\n\
+ Reference: Scoredist: A simple and robust protein sequence distance estimator.\n\
+            Erik LL Sonnhammer and Volker Hollich.\n\
+            BMC Bioinformatics 6:108 (2005)\n\
 \n\
-Originally written by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>\n\
-Rewritten by Gemma Barson <gb10@sanger.ac.uk>\n\
-Version ";
+ See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.\n\
+\n\
+ "BELVU_COPYRIGHT_STRING"\n\
+ "BELVU_LICENSE_STRING"\n\
+\n\
+ Version "BELVU_VERSION_COMPILE"\n\
+\n\
+"
+
+/* Prints usage info to stderr */
+static void showUsageText()
+{
+  /* Pring usage info followed by authors */
+  fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
+}
 
 
 /* Convert swissprot name suffixes to organisms */
@@ -320,14 +340,6 @@ int main(int argc, char **argv)
                     popupMessageHandler, &msgData);
 
 
-  /* Set up the usage text */
-  char *usage;
-  static char usageText[] = USAGE_TEXT;   
-
-  usage = g_malloc(strlen(usageText) + strlen(BELVU_VERSION_COMPILE) + 20);
-  sprintf(usage, "%s\n%s\n", usageText, BELVU_VERSION_COMPILE);
-
-  
   /* Initialise up the context with default values */
   BelvuContext *bc = createBelvuContext();
 
@@ -456,7 +468,7 @@ int main(int argc, char **argv)
     }
   
   if (argc-optind < 1) {
-    fprintf(stderr, "%s\n", usage); 
+    showUsageText();
     exit(1);
   }
   

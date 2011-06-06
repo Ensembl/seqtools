@@ -106,7 +106,7 @@
  	    with dynamic threshold control suited for genomic DNA and protein\n\
  	    sequence analysis. Gene 167(2):GC1-10.\n\
 \n\
- See http://www.cgb.ki.se/cgb/groups/sonnhammer/Dotter.html for more info.\n\
+ See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.\n\
 \n\
  "DOTTER_COPYRIGHT_STRING"\n\
  "DOTTER_LICENSE_STRING"\n\
