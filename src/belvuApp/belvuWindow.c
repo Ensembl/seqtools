@@ -160,7 +160,7 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
  *                      Menus and Toolbar                  *
  ***********************************************************/
 
-#define rmEmptyColumnsStr "Automatically remove empty columns after deleting sequences"
+#define rmEmptyColumnsStr      "Automatically remove empty columns"
 
 #define colorSimStr            "Average similarity by Blosum62"
 #define colorIdStr             "Percent identity only"
@@ -1527,7 +1527,7 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 12);
   
-  GtkWidget *label1 = gtk_label_new("Remove columns with a (maximum) conservation >");
+  GtkWidget *label1 = gtk_label_new("Remove columns with a (maximum) conservation > ");
   gtk_misc_set_alignment(GTK_MISC(label1), 1, 0.5);
   gtk_box_pack_start(GTK_BOX(hbox), label1, FALSE, FALSE, 0);
   
@@ -1535,9 +1535,9 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
   gtk_box_pack_start(GTK_BOX(hbox), entry1, FALSE, FALSE, 0);
   gtk_entry_set_width_chars(GTK_ENTRY(entry1), strlen(fromText) + 1);
   gtk_entry_set_activates_default(GTK_ENTRY(entry1), TRUE);
-  gtk_entry_set_text(GTK_ENTRY(entry1), "1");
+  gtk_entry_set_text(GTK_ENTRY(entry1), fromText);
   
-  GtkWidget *label2 = gtk_label_new("and <=");
+  GtkWidget *label2 = gtk_label_new(" and <= ");
   gtk_misc_set_alignment(GTK_MISC(label2), 0, 0.5);
   gtk_box_pack_start(GTK_BOX(hbox), label2, FALSE, FALSE, 0);
   
