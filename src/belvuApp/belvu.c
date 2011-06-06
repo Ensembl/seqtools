@@ -3663,60 +3663,6 @@ static void rmEmptyColumnsInteract(void)
 }
 
 
-static void rmColumnCutoff(void)
-{
-    int 
-	i, j, max, removed=0, oldmaxLen=maxLen;
-    static double 
-	from = -1,
-	to = 0.9,
-      cons ;
-
-    if (!colorByConservation(bc)) {
-	messout("You must use a conservation coloring scheme");
-	return;
-    }
-
-    if (!(ace_in = messPrompt ("Remove columns with a (maximum) conservation between x1 and x2 ( i.e. if (c > x1 && c <= x2) ).  Provide x1 and x2:", 
-		      messprintf("%.2f %.2f", from, to), 
-			       "ffz", 0)))
-	return;
-
-    aceInDouble(ace_in, &from);
-    aceInDouble(ace_in, &to);
-    aceInDestroy(ace_in);
-    ace_in = NULL ;
-
-
-    for (i = maxLen-1; i >= 0; i--) {
-
-	if (color_by_similarity) {
-	    cons = conservation[i];
-	}
-	else {
-	    max = 0;
-	    for (j = 1; j < 21; j++) {
-		if (conservCount[j][i] > max) {
-		    max = conservCount[j][i];
-		}
-	    }	
-	    cons = (double)max/nseq;
-	}
-
-
-	if (cons > from && cons <= to) {
-	    printf("removing %d, cons= %.2f\n", i+1, cons);
-	    rmColumn(i+1, i+1);
-	    if (++removed == oldmaxLen) {
-		messExit("You have removed all columns.  Prepare to exit Belvu");
-	    }
-	}
-    }
-
-    rmFinaliseColumnRemoval();
-}
-
-
 static void rmColumnPrompt(void)
 {
     int 
@@ -6724,7 +6670,7 @@ static int alnOverhang(char *s1, char *s2)
  *		Removing alignments/columns		   *
  ***********************************************************/
 
-static void rmFinaliseColumnRemoval(BelvuContext *bc)
+void rmFinaliseColumnRemoval(BelvuContext *bc)
 {
   rmGappySeqs(bc, 100.0);
   rmFinalise(bc);
@@ -6778,7 +6724,49 @@ void rmColumn(BelvuContext *bc, const int from, const int to)
   bc->maxLen -= len;
 
   bc->saved = FALSE;
+}
+
+
+/* Remove columns whose conservation is below the given cutoff */
+void rmColumnCutoff(BelvuContext *bc, const double from, const double to)
+{
+  int 
+    i, j, max, removed=0, oldmaxLen=bc->maxLen;
+  static double cons ;
   
+  
+  for (i = bc->maxLen-1; i >= 0; i--) 
+    {
+      if (colorBySimilarity(bc)) 
+        {
+          cons = bc->conservation[i];
+        }
+      else 
+        {
+          max = 0;
+          for (j = 1; j < 21; j++)
+            {
+              if (bc->conservCount[j][i] > max) 
+                {
+                  max = bc->conservCount[j][i];
+                }
+            }	
+          cons = (double)max / bc->alignArr->len;
+        }
+      
+      if (cons > from && cons <= to) 
+        {
+          printf("removing %d, cons= %.2f\n", i+1, cons);
+          rmColumn(bc, i+1, i+1);
+          if (++removed == oldmaxLen) 
+            {
+              g_critical("You have removed all columns.  Prepare to exit Belvu");
+              exit(EXIT_SUCCESS);
+            }
+        }
+    }
+  
+  bc->saved = FALSE;
   rmFinaliseColumnRemoval(bc);
 }
 

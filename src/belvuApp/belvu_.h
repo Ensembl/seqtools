@@ -477,6 +477,8 @@ void                                      rmFinaliseGapRemoval(BelvuContext *bc)
 void					  rmOutliers(BelvuContext *bc, const double cutoff);
 void					  rmScore(BelvuContext *bc, const double cutoff);
 void                                      rmColumn(BelvuContext *bc, const int from, const int to);
+void                                      rmColumnCutoff(BelvuContext *bc, const double from, const double to);
+void                                      rmFinaliseColumnRemoval(BelvuContext *bc);
 
 void                                      readMul(BelvuContext *bc, FILE *pipe);
 void                                      writeMul(BelvuContext *bc, FILE *fil);

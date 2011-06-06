@@ -145,6 +145,8 @@ static void			 endRemovingSequences(GtkWidget *belvuWindow);
 
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
 static void                      showRemoveColumnsDialog(GtkWidget *belvuWindow);
+static void                      showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow);
+
 static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
 static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
@@ -763,6 +765,7 @@ static void onrmColumnLeftMenu(GtkAction *action, gpointer data)
   if (properties->bc->selectedCol > 0)
     {
       rmColumn(properties->bc, 1, properties->bc->selectedCol);
+      rmFinaliseColumnRemoval(properties->bc);
 
       updateOnAlignmentLenChanged(properties->bc->belvuAlignment);
 
@@ -785,7 +788,8 @@ static void onrmColumnRightMenu(GtkAction *action, gpointer data)
   if (properties->bc->selectedCol > 0)
     {
       rmColumn(properties->bc, properties->bc->selectedCol, properties->bc->maxLen);
-      
+      rmFinaliseColumnRemoval(properties->bc);
+
       updateOnAlignmentLenChanged(properties->bc->belvuAlignment);
 
       properties->bc->selectedCol = 0; /* cancel selection, because this col is deleted now */
@@ -800,6 +804,16 @@ static void onrmColumnRightMenu(GtkAction *action, gpointer data)
 
 static void onrmColumnCutoffMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  if (!colorByConservation(properties->bc)) 
+    {
+      g_critical("Please select a conservation coloring scheme from the Color menu first.\n");
+      return;
+    }
+
+  showRemoveColumnsCutoffDialog(belvuWindow);
 }
 
 static void onrmEmptyColumnsInteractMenu(GtkAction *action, gpointer data)
@@ -1469,6 +1483,75 @@ static void showRemoveColumnsDialog(GtkWidget *belvuWindow)
       const int toVal = convertStringToInt(inputText2);
 
       rmColumn(bc, fromVal, toVal);
+      rmFinaliseColumnRemoval(bc);
+      belvuAlignmentRedrawAll(bc->belvuAlignment);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
+
+
+/* Remove columns with conservation below a given cutoff */
+static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  static char *fromText = NULL;
+  static char *toText = NULL;
+
+  if (!fromText)
+    fromText = blxprintf("%.2f", -1.0);
+  
+  if (!toText)
+    toText = blxprintf("%.2f", 0.9);
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Remove Columns", 
+                                                  GTK_WINDOW(belvuWindow), 
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                                  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                                  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 12);
+  
+  GtkWidget *label1 = gtk_label_new("Remove columns with a (maximum) conservation >");
+  gtk_misc_set_alignment(GTK_MISC(label1), 1, 0.5);
+  gtk_box_pack_start(GTK_BOX(hbox), label1, FALSE, FALSE, 0);
+  
+  GtkWidget *entry1 = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), entry1, FALSE, FALSE, 0);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry1), strlen(fromText) + 1);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry1), TRUE);
+  gtk_entry_set_text(GTK_ENTRY(entry1), "1");
+  
+  GtkWidget *label2 = gtk_label_new("and <=");
+  gtk_misc_set_alignment(GTK_MISC(label2), 0, 0.5);
+  gtk_box_pack_start(GTK_BOX(hbox), label2, FALSE, FALSE, 0);
+  
+  GtkWidget *entry2 = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), entry2, FALSE, FALSE, 0);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry2), strlen(toText) + 3);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry2), TRUE);
+  gtk_entry_set_text(GTK_ENTRY(entry2), toText);
+  
+  gtk_widget_show_all(dialog);
+  
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      g_free(fromText);
+      fromText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry1)));
+      const double fromVal = g_strtod(fromText, NULL);
+
+      g_free(toText);
+      toText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry2)));
+      const double toVal = g_strtod(toText, NULL);
+    
+      rmColumnCutoff(bc, fromVal, toVal);
       belvuAlignmentRedrawAll(bc->belvuAlignment);
     }
   
