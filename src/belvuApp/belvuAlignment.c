@@ -260,7 +260,7 @@ static void drawSingleSequence(GtkWidget *widget,
   /* Loop through each column in the current display range and color
    * the text and background according to the relevant highlight colors */
   int i = hAdjustment->value;
-  const int iMax = hAdjustment->value + displayLen;
+  const int iMax = hAdjustment->value + min(displayLen, properties->bc->maxLen);
   const gboolean rowHighlighted = highlightAlignment(properties->bc, alnp);
   
   for ( ; i < iMax; ++i)
@@ -670,6 +670,10 @@ static void onHScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
   /* Make sure the scroll position still lies within upper - page_size. */
   if (properties->hAdjustment->value > properties->hAdjustment->upper - properties->hAdjustment->page_size)
     properties->hAdjustment->value = properties->hAdjustment->upper - properties->hAdjustment->page_size;
+
+  /* Make sure we're still within the lower limit */
+  if (properties->hAdjustment->value < properties->hAdjustment->lower)
+    properties->hAdjustment->value = properties->hAdjustment->lower;
 
   widgetClearCachedDrawable(properties->seqArea, NULL);
   gtk_widget_queue_draw(properties->seqArea);
