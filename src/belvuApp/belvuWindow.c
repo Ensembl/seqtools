@@ -99,7 +99,7 @@ static void                      onRemoveSeqsMenu(GtkAction *action, gpointer da
 static void                      onCancelSeqs(GtkAction *action, gpointer data);
 static void                      onrmGappySeqsMenu(GtkAction *action, gpointer data);
 static void                      onrmPartialSeqsMenu(GtkAction *action, gpointer data);
-static void                      onmkNonRedundantPromptMenu(GtkAction *action, gpointer data);
+static void                      onrmRedundantMenu(GtkAction *action, gpointer data);
 static void                      onrmOutliersMenu(GtkAction *action, gpointer data);
 static void                      onrmScoreMenu(GtkAction *action, gpointer data);
 static void                      onrmColumnPromptMenu(GtkAction *action, gpointer data);
@@ -107,7 +107,7 @@ static void                      onrmColumnLeftMenu(GtkAction *action, gpointer 
 static void                      onrmColumnRightMenu(GtkAction *action, gpointer data);
 static void                      onrmColumnCutoffMenu(GtkAction *action, gpointer data);
 static void                      onrmGappyColumnsMenu(GtkAction *action, gpointer data);
-static void                      onAutoRemoveEmptyColumnsMenu(GtkAction *action, gpointer data);
+static void                      onAutoRmEmptyColumnsMenu(GtkAction *action, gpointer data);
 static void                      onreadLabelsMenu(GtkAction *action, gpointer data);
 static void                      onselectGapsMenu(GtkAction *action, gpointer data);
 static void                      onhideMenu(GtkAction *action, gpointer data);
@@ -161,7 +161,58 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
  *                      Menus and Toolbar                  *
  ***********************************************************/
 
-#define autoRemoveEmptyColumnsStr  "Automatically remove empty columns"
+#define rmPickedStr        "Remove highlighted line"
+#define rmPickedDesc       "Remove highlighted line"
+#define rmManyStr          "Remove many sequences..."
+#define rmManyDesc         "Remove many sequences"
+#define rmGappySeqsStr     "Remove gappy sequences..."
+#define rmGappySeqsDesc    "Remove gappy sequences"
+#define rmPartialSeqsStr   "Remove partial sequences"
+#define rmPartialSeqsDesc  "Remove partial sequences"
+#define rmRedundantStr     "Remove redundant sequences..."
+#define rmRedundantDesc    "Remove sequneces that are more than a given percentage identical"
+#define rmOutliersStr      "Remove outliers..."
+#define rmOutliersDesc     "Remove sequences that are less than a given percentage identical"
+#define rmScoreStr         "Remove sequences by score..."
+#define rmScoreDesc        "Remove sequences below a given score"
+#define rmColumnPromptStr  "Remove columns..."
+#define rmColumnPromptDesc "Remove specific columns"
+#define rmColumnLeftStr    "<- Remove columns left of selection (inclusive)"
+#define rmColumnLeftDesc   "Remove columns to the left of the currently-selected column (inclusive)"
+#define rmColumnRightStr   "Remove columns right of selection (inclusive) -> "
+#define rmColumnRightDesc  "Remove columns to the right of the currently-selected column (inclusive) -> "
+#define rmColumnCutoffStr  "Remove columns by conservation..."
+#define rmColumnCutoffDesc "Remove columns with conservation between specific values"
+#define rmGappyColumnsStr  "Remove gappy columns..."
+#define rmGappyColumnsDesc "Remove columns with more than a specified percentage of gaps"
+#define readLabelsStr      "Read labels of highlighted sequence and spread them"
+#define readLabelsDesc     "Read labels of highlighted sequence and spread them"
+#define selectGapsStr      "Select gap character..."
+#define selectGapsDesc     "Select the character to use for displaying gaps"
+#define hideStr            "Hide highlighted line"
+#define hideDesc           "Hide the currently-highlighted line"
+#define unhideStr          "Unhide all hidden lines"
+#define unhideDesc         "Unhide all hidden lines"
+
+#define togglePaletteStr      "Toggle color schemes"
+#define togglePaletteDesc     "Toggle between conservation and residue color schemes"
+#define colorByResIdStr       "Set %ID threshold..."
+#define colorByResIdDesc      "Set the threshold above which to color residues"
+#define saveColorSchemeStr    "Save colour scheme..."
+#define saveColorSchemeDesc   "Save current colour scheme"
+#define loadColorSchemeStr    "Load colour scheme..."
+#define loadColorSchemeDesc   "Read colour scheme from file"
+#define editResidueSchemeStr  "Edit colour scheme..."
+#define editResidueSchemeDesc "Open window to edit residue colors"
+#define editConsSchemeStr     "Edit colour scheme..."
+#define editConsSchemeDesc    "Open window to edit conservation colour scheme"
+
+#define autoRmEmptyColumnsStr  "Automatically remove empty columns"
+#define autoRmEmptyColumnsDesc "Automatically remove columns that are 100% gaps after sequence deletions"
+#define excludeHighlightedStr  "Exclude highlighted from calculations"
+#define excludeHighlightedDesc "Exclude highlighted from calculations"
+#define lowercaseStr           "Highlight lowercase characters"
+#define lowercaseDesc          "Highlight lowercase characters"
 
 #define colorSimStr            "Average similarity by Blosum62"
 #define colorIdStr             "Percent identity only"
@@ -170,6 +221,15 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 #define printColorsStr         "Use gray shades (for printing)"
 #define ignoreGapsStr          "Ignore gaps in conservation calculation"
 #define thresholdStr           "Only colour residues above %ID threshold"
+
+#define ConsPlotStr            "Show conservation p_lot"
+#define ConsPlotDesc           "Plot conservation profile"
+#define WrapStr                "_Wrap for printing..."
+#define WrapDesc               "Wrap alignments for printing"
+#define OutputStr              "_Output score/coords"
+#define OutputDesc             "Output current alignment's score and coords"
+#define CompareStr             "Co_mpare all"
+#define CompareDesc            "Compage all vs all, list identity"
 
 
 /* Define the menu actions for standard menu entries */
@@ -183,89 +243,89 @@ static const GtkActionEntry menuEntries[] = {
   { "ByResidueMenuAction", NULL, "Select color scheme"},
   { "ByConsMenuAction",    NULL, "Select color scheme"},
 
-  { "Cancel",   GTK_STOCK_CANCEL,     "Cancel",                 "Escape",     "Cancel",                           G_CALLBACK(onCancelSeqs)},
+  { "Cancel",              GTK_STOCK_CANCEL,     "Cancel",             "Escape",            "Cancel",                G_CALLBACK(onCancelSeqs)},
 
-  { "Close",	GTK_STOCK_CLOSE,      "_Close",                 "<control>W", "Close",                            G_CALLBACK(onCloseMenu)},
-  { "Quit",	GTK_STOCK_QUIT,       "_Quit",                  "<control>Q", "Quit  Ctrl+Q",                     G_CALLBACK(onQuitMenu)},
-  { "Help",	GTK_STOCK_HELP,       "_Help",                  "<control>H", "Display help  Ctrl+H",             G_CALLBACK(onHelpMenu)},
-  { "About",	GTK_STOCK_ABOUT,      "A_bout",                 NULL,         "About",                            G_CALLBACK(onAboutMenu)},
-  { "Print",	GTK_STOCK_PRINT,      "_Print...",              "<control>P", "Print  Ctrl+P",                    G_CALLBACK(onPrintMenu)},
-  { "Wrap",	NULL,                 "_Wrap for printing...",  NULL,         "Wrap alignments for printing",     G_CALLBACK(onWrapMenu)},
-  { "ShowTree",	NULL,                 "Show _tree",             NULL,         "Show tree",                        G_CALLBACK(onShowTreeMenu)},
-  { "RecalcTree",NULL,                "Recalculate tree",       NULL,         "Recalculate tree",                 G_CALLBACK(onRecalcTreeMenu)},
-  { "TreeOpts",	GTK_STOCK_PROPERTIES, "Tree settings...",       NULL,          "Edit tree settings",              G_CALLBACK(onTreeOptsMenu)},
-  { "ConsPlot",	NULL,                 "Show conservation p_lot",NULL,         "Plot conservation profile",        G_CALLBACK(onConsPlotMenu)},
-  { "Save",	GTK_STOCK_SAVE,       "_Save",                  "<control>S", "Save alignment",                   G_CALLBACK(onSaveMenu)},
-  { "SaveAs",	GTK_STOCK_SAVE_AS,    "Save _as...",            NULL,         "Save alignment as",                G_CALLBACK(onSaveAsMenu)},
-  { "Output",	NULL,                 "_Output score/coords",   NULL,         "Output current alignment's score and coords",  G_CALLBACK(onOutputMenu)},
-  { "Compare",	NULL,                 "Co_mpare all",           NULL,         "Compare all vs all, list identity",            G_CALLBACK(onCompareMenu)},
-  { "CleanUp",	GTK_STOCK_CLEAR,      "Clean _up windows",      NULL,         "Clean up windows",                 G_CALLBACK(onCleanUpMenu)},
+  { "Close",	           GTK_STOCK_CLOSE,      "_Close",             "<control>W",        "Close",                 G_CALLBACK(onCloseMenu)},
+  { "Quit",	           GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
+  { "Help",	           GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
+  { "About",	           GTK_STOCK_ABOUT,      "A_bout",             NULL,                "About",                 G_CALLBACK(onAboutMenu)},
+  { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
+  { "Wrap",	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
+  { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
+  { "RecalcTree"           ,NULL,                "Recalculate tree",   NULL,                "Recalculate tree",      G_CALLBACK(onRecalcTreeMenu)},
+  { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
+  { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
+  { "Save",	           GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
+  { "SaveAs",	           GTK_STOCK_SAVE_AS,    "Save _as...",        NULL,                "Save alignment as",     G_CALLBACK(onSaveAsMenu)},
+  { "Output",	           NULL,                 OutputStr,            NULL,                OutputDesc,              G_CALLBACK(onOutputMenu)},
+  { "Compare",	           NULL,                 CompareStr,           NULL,                CompareDesc,             G_CALLBACK(onCompareMenu)},
+  { "CleanUp",	           GTK_STOCK_CLEAR,      "Clean _up windows",  NULL,                "Clean up windows",      G_CALLBACK(onCleanUpMenu)},
 
-  {"rmPicked",               NULL,    "Remove highlighted line",        NULL, "Remove highlighted line",  G_CALLBACK(onrmPickedMenu)},
-  {"rmMany",		     NULL,    "Remove many sequences...",       NULL, "Remove many sequences",    G_CALLBACK(onRemoveSeqsMenu)},
-  {"rmGappySeqs",	     NULL,    "Remove gappy sequences...",      NULL, "Remove gappy sequences",   G_CALLBACK(onrmGappySeqsMenu)},
-  {"rmPartialSeqs",          NULL,    "Remove partial sequences",       NULL, "Remove partial sequences", G_CALLBACK(onrmPartialSeqsMenu)},
-  {"mkNonRedundantPrompt",   NULL,    "Remove redundant sequences...",  NULL, "Remove sequneces that are more than a given percentage identical", G_CALLBACK(onmkNonRedundantPromptMenu)},
-  {"rmOutliers",             NULL,    "Remove outliers...",             NULL, "Remove sequences that are less than a given percentage identical", G_CALLBACK(onrmOutliersMenu)},
-  {"rmScore",                NULL,    "Remove sequences by score...",   NULL, "Remove sequences below a given score",                             G_CALLBACK(onrmScoreMenu)},
-  {"rmColumnPrompt",         NULL,    "Remove columns...",              NULL, "Remove specific columns",  G_CALLBACK(onrmColumnPromptMenu)},
-  {"rmColumnLeft",           NULL,    "<- Remove columns left of selection (inclusive)",   NULL, "Remove columns to the left of the currently-selected column (inclusive)",      G_CALLBACK(onrmColumnLeftMenu)},
-  {"rmColumnRight",          NULL,    "Remove columns right of selection (inclusive) -> ", NULL, "Remove columns to the right of the currently-selected column (inclusive) -> ", G_CALLBACK(onrmColumnRightMenu)},
-  {"rmColumnCutoff",         NULL,    "Remove columns by conservation...",                 NULL, "Remove columns with conservation between specific values",                     G_CALLBACK(onrmColumnCutoffMenu)},
-  {"rmGappyColumns",         NULL,    "Remove gappy columns...",        NULL, "Remove columns with more than a specified percentage of gaps",   G_CALLBACK(onrmGappyColumnsMenu)},
-  {"readLabels",             NULL,    "Read labels of highlighted sequence and spread them",   NULL, "Read labels of highlighted sequence and spread them",   G_CALLBACK(onreadLabelsMenu)},
-  {"selectGaps",             NULL,    "Select gap character...",        NULL, "Select the character to use for displaying gaps",                G_CALLBACK(onselectGapsMenu)},
-  {"hide",                   NULL,    "Hide highlighted line",          NULL, "Hide the currently-highlighted line",                                  G_CALLBACK(onhideMenu)},
-  {"unhide",                 NULL,    "Unhide all hidden lines",        NULL,"Unhide all hidden lines", G_CALLBACK(onunhideMenu)},
+  {"rmPicked",             NULL,                 rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
+  {"rmMany",		   NULL,                 rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
+  {"rmGappySeqs",	   NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
+  {"rmPartialSeqs",        NULL,                 rmPartialSeqsStr,     NULL,                rmPartialSeqsDesc,       G_CALLBACK(onrmPartialSeqsMenu)},
+  {"rmRedundant",          NULL,                 rmRedundantStr,       NULL,                rmRedundantDesc,         G_CALLBACK(onrmRedundantMenu)},
+  {"rmOutliers",           NULL,                 rmOutliersStr,        NULL,                rmOutliersDesc,          G_CALLBACK(onrmOutliersMenu)},
+  {"rmScore",              NULL,                 rmScoreStr,           NULL,                rmScoreDesc,             G_CALLBACK(onrmScoreMenu)},
+  {"rmColumnPrompt",       NULL,                 rmColumnPromptStr,    NULL,                rmColumnPromptDesc,      G_CALLBACK(onrmColumnPromptMenu)},
+  {"rmColumnLeft",         NULL,                 rmColumnLeftStr,      NULL,                rmColumnLeftDesc,        G_CALLBACK(onrmColumnLeftMenu)},
+  {"rmColumnRight",        NULL,                 rmColumnRightStr,     NULL,                rmColumnRightDesc,       G_CALLBACK(onrmColumnRightMenu)},
+  {"rmColumnCutoff",       NULL,                 rmColumnCutoffStr,    NULL,                rmColumnCutoffDesc,      G_CALLBACK(onrmColumnCutoffMenu)},
+  {"rmGappyColumns",       NULL,                 rmGappyColumnsStr,    NULL,                rmGappyColumnsDesc,      G_CALLBACK(onrmGappyColumnsMenu)},
+  {"readLabels",           NULL,                 readLabelsStr,        NULL,                readLabelsDesc,          G_CALLBACK(onreadLabelsMenu)},
+  {"selectGaps",           NULL,                 selectGapsStr,        NULL,                selectGapsDesc,          G_CALLBACK(onselectGapsMenu)},
+  {"hide",                 NULL,                 hideStr,              NULL,                hideDesc,                G_CALLBACK(onhideMenu)},
+  {"unhide",               NULL,                 unhideStr,            NULL,                unhideDesc,              G_CALLBACK(onunhideMenu)},
 
-  {"togglePalette",        NULL, "Toggle color schemes",              "T",  "Toggle between conservation and residue color schemes", G_CALLBACK(ontogglePaletteMenu)},
-  {"colorByResId",         NULL, "Set %ID threshold...",              NULL, "Set the threshold above which to color residues", G_CALLBACK(oncolorByResIdMenu)},
-  {"saveColorScheme",      NULL, "Save colour scheme...",             NULL, "Save current colour scheme",        G_CALLBACK(onsaveColorSchemeMenu)},
-  {"loadColorScheme",      NULL, "Load colour scheme...",             NULL, "Read colour scheme from file",      G_CALLBACK(onloadColorSchemeMenu)},
-  {"editResidueScheme",    NULL, "Edit colour scheme...",             NULL, "Open window to edit residue colors", G_CALLBACK(oneditResidueSchemeMenu)},
-  {"editConsScheme",       NULL, "Edit colour scheme...",             NULL, "Open window to edit conservation colour scheme", G_CALLBACK(oneditConsSchemeMenu)},
+  {"togglePalette",        NULL,                 togglePaletteStr,     "T",                 togglePaletteDesc,       G_CALLBACK(ontogglePaletteMenu)},
+  {"colorByResId",         NULL,                 colorByResIdStr,      NULL,                colorByResIdDesc,        G_CALLBACK(oncolorByResIdMenu)},
+  {"saveColorScheme",      NULL,                 saveColorSchemeStr,   NULL,                saveColorSchemeDesc,     G_CALLBACK(onsaveColorSchemeMenu)},
+  {"loadColorScheme",      NULL,                 loadColorSchemeStr,   NULL,                loadColorSchemeDesc,     G_CALLBACK(onloadColorSchemeMenu)},
+  {"editResidueScheme",    NULL,                 editResidueSchemeStr, NULL,                editResidueSchemeDesc,   G_CALLBACK(oneditResidueSchemeMenu)},
+  {"editConsScheme",       NULL,                 editConsSchemeStr,    NULL,                editConsSchemeDesc,      G_CALLBACK(oneditConsSchemeMenu)}
 };
 
 /* Define the menu actions for toggle menu entries */
 static const GtkToggleActionEntry toggleMenuEntries[] = {
-{"autoRemoveEmptyColumns", NULL, autoRemoveEmptyColumnsStr,         NULL, "Automatically remove columns that are 100% gaps after sequence deletions", G_CALLBACK(onAutoRemoveEmptyColumnsMenu), TRUE},
-{"toggleColorByResId",   NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
-{"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu), FALSE},
-{"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu), FALSE},
-{"excludeHighlighted",   NULL, "Exclude highlighted from calculations", NULL, "Exclude highlighted from calculations", G_CALLBACK(onexcludeHighlightedMenu), FALSE},
-{"displayColors",        NULL, displayColorsStr,                    NULL, displayColorsStr,                    G_CALLBACK(ondisplayColorsMenu), TRUE},
-{"lowercase",            NULL, "Highlight lowercase characters",    NULL, "Highlight lowercase characters",    G_CALLBACK(onlowercaseMenu), FALSE},
+  {"autoRmEmptyColumns",     NULL, autoRmEmptyColumnsStr,                NULL,                autoRmEmptyColumnsDesc,  G_CALLBACK(onAutoRmEmptyColumnsMenu), TRUE}, 
+  {"toggleColorByResId",     NULL, thresholdStr,                         NULL,                thresholdStr,            G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
+  {"ignoreGaps",             NULL, ignoreGapsStr,                        NULL,                ignoreGapsStr,           G_CALLBACK(onignoreGapsMenu),         FALSE},
+  {"printColors",            NULL, printColorsStr,                       NULL,                printColorsStr,          G_CALLBACK(onprintColorsMenu),        FALSE},
+  {"excludeHighlighted",     NULL, excludeHighlightedStr,                NULL,                excludeHighlightedDesc,  G_CALLBACK(onexcludeHighlightedMenu), FALSE},
+  {"displayColors",          NULL, displayColorsStr,                     NULL,                displayColorsStr,        G_CALLBACK(ondisplayColorsMenu),      TRUE},
+  {"lowercase",              NULL, lowercaseStr,                         NULL,                lowercaseDesc,           G_CALLBACK(onlowercaseMenu),          FALSE}
 };
 
 
 /* Define the menu actions for radio-button menu entries */
 static const GtkRadioActionEntry schemeMenuEntries[] = {
-{"ColorByResidue",       NULL, "By _residue",                       NULL, "Color by residue",                  BELVU_SCHEME_TYPE_RESIDUE},
-{"ColorByCons",          NULL, "By _conservation",                  NULL, "Color by conservation",             BELVU_SCHEME_TYPE_CONS}
+  {"ColorByResidue",       NULL, "By _residue",                       NULL, "Color by residue",                  BELVU_SCHEME_TYPE_RESIDUE},
+  {"ColorByCons",          NULL, "By _conservation",                  NULL, "Color by conservation",             BELVU_SCHEME_TYPE_CONS}
 };
 
 static const GtkRadioActionEntry residueSchemeMenuEntries[] = {
-{"colorSchemeStandard",  NULL, "Erik's",                            NULL, "Erik's",                            BELVU_SCHEME_ERIK},
-{"colorSchemeGibson",    NULL, "Toby's",                            NULL, "Toby's",                            BELVU_SCHEME_GIBSON},
-{"colorSchemeCys",       NULL, "Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CYS},
-{"colorSchemeEmpty",     NULL, "Clean slate",                       NULL, "Clean slate",                       BELVU_SCHEME_NONE},
-{"colorSchemeCustom",    NULL, "Custom",                            NULL, "Custom",                            BELVU_SCHEME_CUSTOM}
+  {"colorSchemeStandard",  NULL, "Erik's",                            NULL, "Erik's",                            BELVU_SCHEME_ERIK},
+  {"colorSchemeGibson",    NULL, "Toby's",                            NULL, "Toby's",                            BELVU_SCHEME_GIBSON},
+  {"colorSchemeCys",       NULL, "Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CYS},
+  {"colorSchemeEmpty",     NULL, "Clean slate",                       NULL, "Clean slate",                       BELVU_SCHEME_NONE},
+  {"colorSchemeCustom",    NULL, "Custom",                            NULL, "Custom",                            BELVU_SCHEME_CUSTOM}
 };
 
 static const GtkRadioActionEntry consSchemeMenuEntries[] = {
-{"colorSim",             NULL, colorSimStr,                         NULL, colorSimStr,                         BELVU_SCHEME_BLOSUM},
-{"colorId",              NULL, colorIdStr,                          NULL, colorIdStr,                          BELVU_SCHEME_ID},
-{"colorIdSim",           NULL, colorIdSimStr,                       NULL, colorIdSimStr,                       BELVU_SCHEME_ID_BLOSUM}
+  {"colorSim",             NULL, colorSimStr,                         NULL, colorSimStr,                         BELVU_SCHEME_BLOSUM},
+  {"colorId",              NULL, colorIdStr,                          NULL, colorIdStr,                          BELVU_SCHEME_ID},
+  {"colorIdSim",           NULL, colorIdSimStr,                       NULL, colorIdSimStr,                       BELVU_SCHEME_ID_BLOSUM}
 };
 
 static const GtkRadioActionEntry sortMenuEntries[] = {
-{"defaultSort",          NULL, "by conservation",              NULL, "Sort by conservation order",        BELVU_SORT_CONS},
-{"scoreSort",            NULL, "by score",                     NULL, "Sort by score",                     BELVU_SORT_SCORE},
-{"alphaSort",            NULL, "alphabetically",               NULL, "Sort alphabetically",               BELVU_SORT_ALPHA},
-{"organismSort",         NULL, "by swissprot organism",        NULL, "Sort by swissprot organism",        BELVU_SORT_ORGANISM},
-{"treeSort",             NULL, "by tree order",                NULL, "Sort by tree order",                BELVU_SORT_TREE},
-{"simSort",              NULL, "by similarity to highlighted sequence", NULL, "Sort by similarity to highlighted sequence", BELVU_SORT_SIM},
-{"idSort",               NULL, "by identity to highlighted sequence",   NULL, "Sort by identity to highlighted sequence",   BELVU_SORT_ID}
+  {"defaultSort",          NULL, "by conservation",                       NULL, "Sort by conservation order",        BELVU_SORT_CONS},
+  {"scoreSort",            NULL, "by score",                              NULL, "Sort by score",                     BELVU_SORT_SCORE},
+  {"alphaSort",            NULL, "alphabetically",                        NULL, "Sort alphabetically",               BELVU_SORT_ALPHA},
+  {"organismSort",         NULL, "by swissprot organism",                 NULL, "Sort by swissprot organism",        BELVU_SORT_ORGANISM},
+  {"treeSort",             NULL, "by tree order",                         NULL, "Sort by tree order",                BELVU_SORT_TREE},
+  {"simSort",              NULL, "by similarity to highlighted sequence", NULL, "Sort by similarity to highlighted sequence", BELVU_SORT_SIM},
+  {"idSort",               NULL, "by identity to highlighted sequence",   NULL, "Sort by identity to highlighted sequence",   BELVU_SORT_ID}
 };
 
 
@@ -300,7 +360,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='rmMany'/>"
 "      <menuitem action='rmGappySeqs'/>"
 "      <menuitem action='rmPartialSeqs'/>"
-"      <menuitem action='mkNonRedundantPrompt'/>"
+"      <menuitem action='rmRedundant'/>"
 "      <menuitem action='rmOutliers'/>"
 "      <menuitem action='rmScore'/>"
 "      <separator/>"
@@ -309,7 +369,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='rmColumnRight'/>"
 "      <menuitem action='rmColumnCutoff'/>"
 "      <menuitem action='rmGappyColumns'/>"
-"      <menuitem action='autoRemoveEmptyColumns'/>"
+"      <menuitem action='autoRmEmptyColumns'/>"
 "      <separator/>"
 "      <menuitem action='readLabels'/>"
 "      <menuitem action='selectGaps'/>"
@@ -734,7 +794,7 @@ static void onrmPartialSeqsMenu(GtkAction *action, gpointer data)
   removePartialSeqs(properties->bc, properties->bc->belvuAlignment);
 }
 
-static void onmkNonRedundantPromptMenu(GtkAction *action, gpointer data)
+static void onrmRedundantMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   showMakeNonRedundantDialog(belvuWindow);
@@ -826,7 +886,7 @@ static void onrmGappyColumnsMenu(GtkAction *action, gpointer data)
 }
 
 /* Toggle the 'auto-remove empty columns' option */
-static void onAutoRemoveEmptyColumnsMenu(GtkAction *action, gpointer data)
+static void onAutoRmEmptyColumnsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
