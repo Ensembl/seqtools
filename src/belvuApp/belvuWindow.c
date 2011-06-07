@@ -106,8 +106,8 @@ static void                      onrmColumnPromptMenu(GtkAction *action, gpointe
 static void                      onrmColumnLeftMenu(GtkAction *action, gpointer data);
 static void                      onrmColumnRightMenu(GtkAction *action, gpointer data);
 static void                      onrmColumnCutoffMenu(GtkAction *action, gpointer data);
-static void                      onrmEmptyColumnsInteractMenu(GtkAction *action, gpointer data);
-static void                      onrmEmptyColumnsToggleMenu(GtkAction *action, gpointer data);
+static void                      onrmGappyColumnsMenu(GtkAction *action, gpointer data);
+static void                      onAutoRemoveEmptyColumnsMenu(GtkAction *action, gpointer data);
 static void                      onreadLabelsMenu(GtkAction *action, gpointer data);
 static void                      onselectGapsMenu(GtkAction *action, gpointer data);
 static void                      onhideMenu(GtkAction *action, gpointer data);
@@ -146,6 +146,7 @@ static void			 endRemovingSequences(GtkWidget *belvuWindow);
 static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
 static void                      showRemoveColumnsDialog(GtkWidget *belvuWindow);
 static void                      showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow);
+static void                      showRemoveGappyColumnsDialog(GtkWidget *belvuWindow);
 
 static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
@@ -160,7 +161,7 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
  *                      Menus and Toolbar                  *
  ***********************************************************/
 
-#define rmEmptyColumnsStr      "Automatically remove empty columns"
+#define autoRemoveEmptyColumnsStr  "Automatically remove empty columns"
 
 #define colorSimStr            "Average similarity by Blosum62"
 #define colorIdStr             "Percent identity only"
@@ -211,7 +212,7 @@ static const GtkActionEntry menuEntries[] = {
   {"rmColumnLeft",           NULL,    "<- Remove columns to the left of cursor (inclusive)",   NULL, "<- Remove columns to the left of cursor (inclusive)",   G_CALLBACK(onrmColumnLeftMenu)},
   {"rmColumnRight",          NULL,    "Remove columns to the right of cursor (inclusive) -> ", NULL, "Remove columns to the right of cursor (inclusive) -> ", G_CALLBACK(onrmColumnRightMenu)},
   {"rmColumnCutoff",         NULL,    "Remove columns according to conservation",              NULL, "Remove columns according to conservation",              G_CALLBACK(onrmColumnCutoffMenu)},
-  {"rmEmptyColumnsInteract", NULL,    "Remove gappy columns",     NULL, "Remove gappy columns",   G_CALLBACK(onrmEmptyColumnsInteractMenu)},
+  {"rmGappyColumns",         NULL,    "Remove gappy columns",     NULL, "Remove columns with more than a specified percentage of gaps",   G_CALLBACK(onrmGappyColumnsMenu)},
   {"readLabels",             NULL,    "Read labels of highlighted sequence and spread them",   NULL, "Read labels of highlighted sequence and spread them",   G_CALLBACK(onreadLabelsMenu)},
   {"selectGaps",             NULL,    "Select gap character",     NULL, "Select gap character",   G_CALLBACK(onselectGapsMenu)},
   {"hide",                   NULL,    "Hide highlighted line",    NULL, "Hide highlighted line",  G_CALLBACK(onhideMenu)},
@@ -227,7 +228,7 @@ static const GtkActionEntry menuEntries[] = {
 
 /* Define the menu actions for toggle menu entries */
 static const GtkToggleActionEntry toggleMenuEntries[] = {
-{"rmEmptyColumnsToggle", NULL, rmEmptyColumnsStr,                   NULL, rmEmptyColumnsStr,                   G_CALLBACK(onrmEmptyColumnsToggleMenu), TRUE},
+{"autoRemoveEmptyColumns", NULL, autoRemoveEmptyColumnsStr,         NULL, "Automatically remove columns that are 100% gaps after sequence deletions", G_CALLBACK(onAutoRemoveEmptyColumnsMenu), TRUE},
 {"toggleColorByResId",   NULL, thresholdStr,                        NULL, thresholdStr,                        G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
 {"ignoreGaps",           NULL, ignoreGapsStr,                       NULL, ignoreGapsStr,                       G_CALLBACK(onignoreGapsMenu), FALSE},
 {"printColors",          NULL, printColorsStr,                      NULL, printColorsStr,                      G_CALLBACK(onprintColorsMenu), FALSE},
@@ -307,8 +308,8 @@ static const char standardMenuDescription[] =
 "      <menuitem action='rmColumnLeft'/>"
 "      <menuitem action='rmColumnRight'/>"
 "      <menuitem action='rmColumnCutoff'/>"
-"      <menuitem action='rmEmptyColumnsInteract'/>"
-"      <menuitem action='rmEmptyColumnsToggle'/>"
+"      <menuitem action='rmGappyColumns'/>"
+"      <menuitem action='autoRemoveEmptyColumns'/>"
 "      <separator/>"
 "      <menuitem action='readLabels'/>"
 "      <menuitem action='selectGaps'/>"
@@ -802,6 +803,7 @@ static void onrmColumnRightMenu(GtkAction *action, gpointer data)
     }
 }
 
+/* Remove columns based on a conservation-cutoff */
 static void onrmColumnCutoffMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
@@ -816,11 +818,15 @@ static void onrmColumnCutoffMenu(GtkAction *action, gpointer data)
   showRemoveColumnsCutoffDialog(belvuWindow);
 }
 
-static void onrmEmptyColumnsInteractMenu(GtkAction *action, gpointer data)
+/* Remove columns with more than a specified percentage of gaps */
+static void onrmGappyColumnsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showRemoveGappyColumnsDialog(belvuWindow);
 }
 
-static void onrmEmptyColumnsToggleMenu(GtkAction *action, gpointer data)
+/* Toggle the 'auto-remove empty columns' option */
+static void onAutoRemoveEmptyColumnsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
@@ -1492,8 +1498,9 @@ static void showRemoveColumnsDialog(GtkWidget *belvuWindow)
       const int toVal = convertStringToInt(inputText2);
 
       rmColumn(bc, fromVal, toVal);
+      
       rmFinaliseColumnRemoval(bc);
-      belvuAlignmentRedrawAll(bc->belvuAlignment);
+      updateOnAlignmentLenChanged(bc->belvuAlignment);
     }
   
   gtk_widget_destroy(dialog);
@@ -1561,6 +1568,37 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
       const double toVal = g_strtod(toText, NULL);
     
       rmColumnCutoff(bc, fromVal, toVal);
+      belvuAlignmentRedrawAll(bc->belvuAlignment);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
+
+
+/* Remove columns with a higher fraction of gaps than a specified cutoff */
+static void showRemoveGappyColumnsDialog(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  static char *inputText = NULL;
+  
+  if (!inputText)
+    inputText = blxprintf("%.0f", 50.0);
+  
+  GtkWidget *entry = NULL;
+  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - Remove Columns", "Remove columns with more than ", " % gaps", &entry);
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      g_free(inputText);
+      inputText = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
+      const double cutoff = g_strtod(inputText, NULL);
+      
+      rmEmptyColumns(bc, cutoff/100.0);
+      
+      rmFinaliseColumnRemoval(bc);
+      updateOnAlignmentLenChanged(bc->belvuAlignment);
       belvuAlignmentRedrawAll(bc->belvuAlignment);
     }
   
