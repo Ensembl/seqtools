@@ -543,7 +543,12 @@ static void regionFetchSequences(GList *regionsToFetch,
           
           appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
         
+          /* Clean up */
           fclose(outputFile);
+          
+          if (unlink(fileName) != 0)
+            g_warning("Error removing temp file '%s'.\n", fileName);
+          
           g_free(fileName);
           g_free(args);
           g_string_free(commandStr, TRUE);
