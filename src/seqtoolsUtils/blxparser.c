@@ -359,7 +359,7 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName)
           break;
         }
       
-      if (strchr(line, '>'))
+      if (*line == '>')
         {
           /* This line contains the sequence name, so start a new sequence */
           SeqStruct currentSeq = {g_string_new(NULL), g_string_new(NULL)};
@@ -367,7 +367,7 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName)
           ++curIdx;
           currentSeqPtr = &g_array_index(resultArr, SeqStruct, curIdx);
           
-          char *linePos = line;
+          char *linePos = line + 1;
           
           for ( ; *linePos && *linePos != ' ' && *linePos != '\n'; ++linePos)
             g_string_append_c(currentSeqPtr->seqName, *linePos);
