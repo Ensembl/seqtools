@@ -152,8 +152,8 @@ static void                      showMakeTreeDialog(GtkWidget *belvuWindow, cons
 static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
 static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
-
 static void                      saveOrResetConsColors(BelvuContext *bc, const gboolean save);
+static void                      showSelectGapCharDialog(GtkWidget *belvuWindow);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -926,6 +926,8 @@ static void onreadLabelsMenu(GtkAction *action, gpointer data)
 
 static void onselectGapsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showSelectGapCharDialog(belvuWindow);
 }
 
 static void onhideMenu(GtkAction *action, gpointer data)
@@ -1684,6 +1686,79 @@ static void showRemoveGappyColumnsDialog(GtkWidget *belvuWindow)
     }
   
   gtk_widget_destroy(dialog);
+}
+
+/***********************************************************
+ *               Select gap character dialog                *
+ ***********************************************************/
+
+static void showSelectGapCharDialog(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Gap Character", 
+                                                  GTK_WINDOW(belvuWindow), 
+                                                  GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+                                                  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                                  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                                  NULL);
+  
+  g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), belvuWindow);
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 12));
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(hbox), FALSE, FALSE, 12);
+
+  GtkWidget *label = gtk_label_new("Select gap character:");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_box_pack_start(hbox, label, FALSE, FALSE, 12);
+  
+  /* Create radio buttons for each gap character (only dot or dash at the moment) */
+  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 12));
+  gtk_box_pack_start(hbox, GTK_WIDGET(vbox), TRUE, TRUE, 0);
+  
+  const gboolean button1Active = (bc->gapChar == '.');
+  
+  GtkWidget *button1 = gtk_radio_button_new_with_label_from_widget(NULL, "dot  (.) ");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), button1Active);
+  gtk_box_pack_start(vbox, button1, FALSE, FALSE, 0);
+
+  GtkWidget *button2 = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(button1), "dash  (-) ");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), !button1Active);
+  gtk_box_pack_start(vbox, button2, FALSE, FALSE, 0);
+  
+  gtk_window_set_default_size(GTK_WINDOW(dialog), 300, -1);
+  gtk_widget_show_all(dialog);
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      char newChar;
+      
+      if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button1)))
+        newChar = '.';
+      else 
+        newChar = '-';
+      
+      if (newChar != bc->gapChar)
+        {
+          bc->gapChar = newChar;
+          
+          /* Change all the gaps in the sequences to use the new gap char */
+          int i,j;
+          for (i = 0; i < bc->alignArr->len; ++i) 
+            {
+              ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+              for (j = 0; j < bc->maxLen; ++j) 
+                {
+                  if (isGap(alnp->seq[j])) 
+                    alnp->seq[j] = bc->gapChar;
+                }
+            }
+          
+          belvuAlignmentRedrawAll(bc->belvuAlignment);
+        }
+    }
 }
 
 

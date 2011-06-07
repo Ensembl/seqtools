@@ -5877,6 +5877,7 @@ BelvuContext* createBelvuContext()
   bc->treeScale = 0.3;
   bc->treeLineWidth = 0.3;
   
+  bc->gapChar = '.';
   bc->saveSeparator = '/';
   strcpy(bc->treeDistString, SCOREDISTstr);
   strcpy(bc->treeMethodString, NJstr);

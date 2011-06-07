@@ -380,6 +380,7 @@ typedef struct BelvuContextStruct
   double treeScale;                   /* Default scale to use for drawing the tree */
   double treeLineWidth;               /* Default line width of the branch lines in trees */
   
+  char gapChar;
   char saveSeparator;
   char treeDistString[50];
   char treeMethodString[50];
