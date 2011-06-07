@@ -3425,70 +3425,6 @@ static void rmGappySeqsPrompt()
     rmFinaliseGapRemoval();
 }
 
-static void readLabels(void)
-{
-    int row, col, seqpos, seqlen;
-    ALN *alnrow;
-    char 
-      *labelseq,		/* The raw sequence of labels */
-      *label,			/* The mapped sequence of labels, 1-maxlen */
-      *cp, *cq;
-    FILE *fil;
-
-    if (!bc->selectedAln) {
-        messout("pick a sequence first");
-	return;
-    }
-
-    labelseq = g_malloc(maxLen+1);
-    label = g_malloc(maxLen+1);
-
-    if (!(fil = filqueryopen(dirName, fileName, "","r", 
-			     messprintf("Read labels of %s from file:", bc->selectedAln->name))))
-      return;
-
-    /* read file */
-    cq = labelseq;
-    while (!feof (fil)) { 
-	if (!fgets (line, MAXLENGTH, fil)) break;
-	cp = line;
-	while (*cp) {
-	    if (isalpha(*cp)) *cq++ = *cp;
-	    cp++;
-	}
-    }
-    fclose(fil);
-    
-    /* Warn if seq too long, return if too short */
-    seqlen = bc->selectedAln->end - bc->selectedAln->start +1;
-    if (strlen(labelseq) > seqlen)
-        messout(messprintf("The sequence of labels is longer (%d) than the sequence (%d).  "
-			   "Hope that's ok", 
-			   strlen(labelseq), seqlen));
-    if (strlen(labelseq) < seqlen) {
-        messout(messprintf("The sequence of labels is shorter (%d) than the sequence (%d).  "
-			   "Aborting", 
-			   strlen(labelseq), seqlen));
-	return;
-    }
-
-    /* map labels to alignment */
-    for (col = 0, seqpos = 0; col < maxLen; col++) {
-        label[col] = labelseq[seqpos];
-	if (isalpha(bc->selectedAln->seq[col]) && labelseq[seqpos+1]) seqpos++;
-    }
-
-    for (row = 0; row < nseq; row++) {
-	alnrow = arrp(Align, row, ALN);
-	for (col = 0; col < maxLen; col++)
-  	    if (isalpha(alnrow->seq[col]))
-	        alnrow->seq[col] = label[col];
-    }
-      
-    g_free(labelseq);
-    belvuRedraw();
-}
-
 
 static void gapCharOK (void) {
 
@@ -6140,6 +6076,74 @@ int GCGgrandchecksum(BelvuContext *bc)
   return (grand_checksum % 10000);
 }
 
+
+/* Read labels of highlighted sequence and spread them */
+void readLabels(BelvuContext *bc, FILE *fil)
+{
+  char *labelseq = g_malloc(bc->maxLen + 1); /* The raw sequence of labels */
+  char *label = g_malloc(bc->maxLen + 1);    /* The mapped sequence of labels, 1-maxlen */
+  char line[MAXLENGTH+1];
+  
+  /* read file */
+  char *cq = labelseq;
+  while (!feof (fil)) 
+    {
+      if (!fgets (line, MAXLENGTH, fil)) 
+        break;
+      
+      char *cp = line;
+      while (*cp) 
+        {
+          if (isalpha(*cp)) 
+            *cq++ = *cp;
+          cp++;
+        }
+    }
+
+  fclose(fil);
+  
+  /* Warn if seq too long, return if too short */
+  int seqlen = bc->selectedAln->end - bc->selectedAln->start + 1;
+  if (strlen(labelseq) > seqlen)
+    {
+      char *msg = blxprintf("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok", 
+                            strlen(labelseq), seqlen);
+      g_critical(msg);
+      g_free(msg);
+    }
+  else if (strlen(labelseq) < seqlen) 
+    {
+      char *msg = blxprintf("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting", 
+                            strlen(labelseq), seqlen);
+      g_critical(msg);
+      g_free(msg);
+      return;
+    }
+  
+  /* map labels to alignment */
+  int col = 0;
+  int seqpos = 0;
+  
+  for (col = 0, seqpos = 0; col < bc->maxLen; col++) 
+    {
+      label[col] = labelseq[seqpos];
+      if (isalpha(bc->selectedAln->seq[col]) && labelseq[seqpos+1]) 
+        seqpos++;
+    }
+  
+  int row = 0;
+  for (row = 0; row < bc->alignArr->len; ++row) 
+    {
+      ALN *alnrow = &g_array_index(bc->alignArr, ALN, row);
+      for (col = 0; col < bc->maxLen; col++)
+        {
+          if (isalpha(alnrow->seq[col]))
+            alnrow->seq[col] = label[col];
+        }
+    }
+  
+  g_free(labelseq);
+}
 
 /***********************************************************
  *		          			   *

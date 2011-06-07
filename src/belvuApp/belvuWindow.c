@@ -901,6 +901,27 @@ static void onAutoRmEmptyColumnsMenu(GtkAction *action, gpointer data)
 
 static void onreadLabelsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  if (!properties->bc->selectedAln) 
+    {
+      g_critical("Please select a sequence first.\n");
+      return;
+    }
+
+  char *title = blxprintf("Read labels of %s from file", properties->bc->selectedAln->name);
+
+  const char *filename = getLoadFileName(belvuWindow, properties->bc->dirName, title);
+  g_free(title);
+
+  FILE *fil = fopen(filename, "r");
+
+  if (fil)
+    {
+      readLabels(properties->bc, fil);
+      belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
+    }
 }
 
 static void onselectGapsMenu(GtkAction *action, gpointer data)

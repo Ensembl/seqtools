@@ -468,6 +468,7 @@ const char*                               getColorNumName(const int colorNum);
 int*                                      getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground);
 void                                      setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude);
 
+void                                      readLabels(BelvuContext *bc, FILE *fil);
 
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);
 void                                      rmPartialSeqs(BelvuContext *bc);         
