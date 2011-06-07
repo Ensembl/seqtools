@@ -454,89 +454,100 @@ static void regionFetchSequences(GList *regionsToFetch,
   GKeyFile *keyFile = blxGetConfig();
   GError *tmpError = NULL;
   
+  /* Get the 'script' field from the region-fetch stanza */
   gchar *script = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_SCRIPT, &tmpError);
 
   if (tmpError || !script)
     {
       g_set_error(error, BLX_ERROR, 1, "Error fetching sequences for fetch-mode [%s].\n", fetchMode);
+      return;
     }
-  else
+
+  /* Get the temp directory. Some systems seem to have a trailing slash, 
+   * some not, so if it has one then remove it... */
+  char *tmpDir = g_strdup(g_get_tmp_dir());
+  
+  if (tmpDir[strlen(tmpDir) - 1] == '/')
+    tmpDir[strlen(tmpDir) - 1] = '\0';
+
+  /* Loop through each region, creating a GFF file with the results for each region */
+  GList *regionItem = regionsToFetch;
+
+  for ( ; regionItem && !tmpError; regionItem = regionItem->next)
     {
-      gchar *fixedArgs = g_key_file_get_string(keyFile, fetchMode, REGION_FETCH_ARGS, NULL); /* fixedArgs are optional, so ignore any error */
-      char *tmpDir = g_strdup(g_get_tmp_dir());
-      
-      /* Some systems seem to have a trailing slash, some not, so remove it... */
-      if (tmpDir[strlen(tmpDir) - 1] == '/')
-        tmpDir[strlen(tmpDir) - 1] = '\0';
-
-      /* Loop through each region, creating a GFF file with the results for each region */
-      GList *regionItem = regionsToFetch;
+      BlxSequence *blxSeq = (BlxSequence*)(regionItem->data);
+      GList *mspItem = blxSeq->mspList;
     
-      for ( ; regionItem && !tmpError; regionItem = regionItem->next)
-	{
-	  BlxSequence *blxSeq = (BlxSequence*)(regionItem->data);
-	  GList *mspItem = blxSeq->mspList;
-	
-	  for ( ; mspItem; mspItem = mspItem->next)
-	    {
-	      const MSP const *msp = (const MSP const*)(mspItem->data);
-	    
-	      char *fileName = blxprintf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
-	      int fileDesc = mkstemp(fileName);
-	      
-	      if (fileDesc == -1)
-		{
-		  g_set_error(&tmpError, BLX_ERROR, 1, "Error creating temp file for region-fetch results (filename=%s)\n", fileName);
-		}
-	      else
-		{
-                  close(fileDesc);
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          const MSP const *msp = (const MSP const*)(mspItem->data);
+        
+          /* Create a temp file for the results */
+          char *fileName = blxprintf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
+          int fileDesc = mkstemp(fileName);
 
-                  /* Get the start and end coord (using the original input coordinate 
-                   * system - i.e. undo any offset that was applied) */
-                  const int startCoord = mspGetQStart(msp) + refSeqOffset;
-                  const int endCoord = mspGetQEnd(msp) + refSeqOffset;
+          if (fileDesc == -1)
+            {
+              g_set_error(&tmpError, BLX_ERROR, 1, "Error creating temp file for region-fetch results (filename=%s)\n", fileName);
+              g_free(fileName);
+              continue;
+            }
+          
+          close(fileDesc);
 
-                  /* Set up the command to send output to the given file. Include the dataset,
-		   * if given. */
-		  char *command = NULL;
-		  if (dataset)
-		    command = blxprintf("%s %s -dataset=%s -chr=%s -start=%d -end=%d > %s", script, fixedArgs, dataset, mspGetRefName(msp), startCoord, endCoord, fileName);
-		  else
-		    command = blxprintf("%s %s -chr=%s -start=%d -end=%d > %s", script, fixedArgs, mspGetRefName(msp), startCoord, endCoord, fileName);
-		
-		  g_debug("Executing command:\n%s\n", command);
+          /* Get the arguments that we need to pass to the script for this 
+           * MSP's source; these will all be in an "arguments" field for this
+           * source in the blixem config file. The args are optional, so 
+           * ignore any error. */
+          gchar *args = NULL;
+          
+          if (blxSeq->source)
+            args = g_key_file_get_string(keyFile, blxSeq->source, REGION_FETCH_ARGS, NULL); 
 
-                  /* Execute the command */
-		  FILE *outputFile = fopen(fileName, "w");
-                  system(command);
-		  fclose(outputFile);
-		  
-		  /* Parse the sequences from the new file */
-		  outputFile = fopen(fileName, "r");
-		
-		  char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-		  char dummyseqname1[FULLNAMESIZE+1] = "";
-		  char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-		  char dummyseqname2[FULLNAMESIZE+1] = "";
-		  IntRange dummyRange;
-		  
-		  MSP *newMsps = NULL;
-		  GList *newSeqs = NULL;
-		
-		  parseFS(&newMsps, outputFile, blastMode, featureLists, &newSeqs, supportedTypes, styles,
-			  &dummyseq1, dummyseqname1, &dummyRange, &dummyseq2, dummyseqname2, keyFile) ;
-		  
-		  appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
-		
-		  fclose(outputFile);
-		}
+          /* Get the start and end coord (using the original input coordinate 
+           * system - i.e. undo any offset that was applied) */
+          const int startCoord = mspGetQStart(msp) + refSeqOffset;
+          const int endCoord = mspGetQEnd(msp) + refSeqOffset;
 
-	      g_free(fileName);
-	    }
-	}
-    
-      g_free(fixedArgs);
+          /* Set up the command to call the script with the required args, and
+           * so that it outputs to the temp file. */
+          GString *commandStr = g_string_new(script);
+          g_string_append_printf(commandStr, " -chr=%s -start=%d -end=%d", mspGetRefName(msp), startCoord, endCoord);
+
+          if (args) g_string_append_printf(commandStr, " %s", args);
+          if (dataset) g_string_append_printf(commandStr, " -dataset=%s", dataset);
+          
+          g_string_append_printf(commandStr, " > %s", fileName);
+          
+          g_debug("Fetching sequences for region:\n%s\n", commandStr->str);
+
+          /* Execute the command */
+          FILE *outputFile = fopen(fileName, "w");
+          system(commandStr->str);
+          fclose(outputFile);
+          
+          /* Parse the sequences from the new file */
+          outputFile = fopen(fileName, "r");
+        
+          char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+          char dummyseqname1[FULLNAMESIZE+1] = "";
+          char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+          char dummyseqname2[FULLNAMESIZE+1] = "";
+          IntRange dummyRange;
+          
+          MSP *newMsps = NULL;
+          GList *newSeqs = NULL;
+        
+          parseFS(&newMsps, outputFile, blastMode, featureLists, &newSeqs, supportedTypes, styles,
+                  &dummyseq1, dummyseqname1, &dummyRange, &dummyseq2, dummyseqname2, keyFile) ;
+          
+          appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
+        
+          fclose(outputFile);
+          g_free(fileName);
+          g_free(args);
+          g_string_free(commandStr, TRUE);
+        }
     }
 
   if (tmpError)
