@@ -411,7 +411,13 @@ void treeBootstrap(BelvuContext *bc)
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
-      strcpy(g_array_index(bc->alignArr, ALN, i).seq, g_array_index(alignArrTmp, ALN, i).seq);
+      ALN *srcAln = &g_array_index(alignArrTmp, ALN, i);
+      ALN *destAln = &g_array_index(bc->alignArr, ALN, i);
+      
+      if (srcAln->sequenceStr)
+        destAln->sequenceStr = g_string_new(srcAln->sequenceStr->str);
+      else 
+        destAln->sequenceStr = NULL;
     }
 }
 
@@ -996,12 +1002,15 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       for (i = 0; i < bc->alignArr->len - 1; ++i)
         {
           ALN *aln_i = &g_array_index(bc->alignArr, ALN, i);
+          char *alniSeq = alnGetSeq(aln_i);
           
           int j = i+1;
           for (j = i+1; j < bc->alignArr->len; ++j)
             {
               ALN *aln_j = &g_array_index(bc->alignArr, ALN, j);
-              pairmtx[i][j] = 100.0 - identity(aln_i->seq, aln_j->seq, bc->penalize_gaps);
+              char *alnjSeq = alnGetSeq(aln_j);
+              
+              pairmtx[i][j] = 100.0 - identity(alniSeq, alnjSeq, bc->penalize_gaps);
               
               if (bc->treeDistCorr == KIMURA) 
                 pairmtx[i][j] = treeKimura(pairmtx[i][j]);
@@ -1010,7 +1019,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
               else if (bc->treeDistCorr == STORMSONN) 
                 pairmtx[i][j] = treeSTORMSONN(pairmtx[i][j]);
               else if (bc->treeDistCorr == SCOREDIST) 
-                pairmtx[i][j] = treeSCOREDIST(aln_i->seq, aln_j->seq, bc);
+                pairmtx[i][j] = treeSCOREDIST(alniSeq, alnjSeq, bc);
             }
         }
     }

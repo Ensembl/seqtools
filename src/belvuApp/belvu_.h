@@ -231,8 +231,7 @@ typedef struct alnStruct {
   char name[MAXNAMESIZE + 1];
   int  start;
   int  end;
-  int  len;			/* Length of this sequence - Do not use!  Use maxLen instead ! */
-  char *seq;
+  GString *sequenceStr;         /* The sequence data */
   int  nr;			/* Ordinal number in array - must be sorted on this */
   char fetch[MAXNAMESIZE + 11];
   float score;
@@ -241,6 +240,7 @@ typedef struct alnStruct {
   gboolean  hide;               /* Hide this line */
   gboolean nocolor;		/* Exclude from coloring */
   char *organism;
+  int startColIdx;              /* 0-based index indicating which column the sequence data starts in */
 } ALN;
 
 
@@ -388,7 +388,7 @@ typedef struct BelvuContextStruct
   char saveFormat[50];
   char fileName[FIL_BUFFER_SIZE + 1];
   char dirName[DIR_BUFFER_SIZE + 1]; /* Default directory for file browser */
-  
+  char organismLabel[3];
   
   int **conservCount;              /* Matrix of conservation values  - 21 x maxLen */
   int **colorMap;                  /* Matrix of conservation colours - 21 x maxLen */
@@ -510,6 +510,8 @@ int*                                      getMarkupColorArray();
 void                                      saveResidueColorScheme(BelvuContext *bc, FILE *fil);
 void                                      readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr);
 
+char*                                     alnGetSeq(ALN *aln);
+int                                       alnGetSeqLen(ALN *aln);
 gboolean                                  isGap(char c);
 int                                       strcmp_(gconstpointer xIn, gconstpointer yIn);
 gboolean                                  arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer));

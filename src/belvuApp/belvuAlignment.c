@@ -164,17 +164,20 @@ void belvuAlignmentRedrawAll(GtkWidget *belvuAlignment)
 static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, const gboolean isSelected, GdkColor *result) 
 {
   int colorNum = 0;
-
-  if (bc->lowercaseOn && alnp->seq[i] >= 'a' && alnp->seq[i] <= 'z') 
+  char *alnpSeq = alnGetSeq(alnp);
+  
+  if (!alnpSeq || i >= alnGetSeqLen(alnp))
+    colorNum = WHITE;
+  else if (bc->lowercaseOn && alnpSeq[i] >= 'a' && alnpSeq[i] <= 'z') 
     colorNum = ORANGE;
   else if (alnp->nocolor)
     colorNum = BOXCOLOR;
   else if (alnp->markup)
-    colorNum = getMarkupColor(alnp->seq[i]);
+    colorNum = getMarkupColor(alnpSeq[i]);
   else if (colorByConservation(bc) || colorByResId(bc))
-    colorNum = getConservColor(bc, alnp->seq[i], i);
+    colorNum = getConservColor(bc, alnpSeq[i], i);
   else
-    colorNum = getColor(alnp->seq[i]);
+    colorNum = getColor(alnpSeq[i]);
 
   convertColorNumToGdkColor(colorNum, isSelected, result);
 }
@@ -237,49 +240,35 @@ static gboolean highlightAlignment(BelvuContext *bc, ALN *alnp)
 }
 
 
-/* Draw a single line in the sequence area */
-static void drawSingleSequence(GtkWidget *widget,
-                                GdkDrawable *drawable, 
-                                BelvuAlignmentProperties *properties,
-                                ALN *alnp, 
-                                const int lineNum)
+/* Draw a single character in the given sequence */
+static void drawSequenceChar(BelvuAlignmentProperties *properties, 
+                             ALN *alnp,
+                             const int colIdx,
+                             const gboolean rowHighlighted,
+                             GtkWidget *widget,
+                             GdkDrawable *drawable,
+                             GdkGC *gc,
+                             GdkColor *defaultFgColor,
+                             const int x, 
+                             const int y)
 {
-  if (!alnp->seq)
-    return;
+  /* This base should be highlighted if the row is highlighted OR if the
+   * column is highlighted (but not both) */
+  const gboolean colHighlighted = (colIdx == properties->bc->highlightedCol - 1);
+  const gboolean highlight = (rowHighlighted != colHighlighted);
   
-  const int startX = 0;
-  int x = startX;
-  const int y = properties->seqRect.y + (properties->charHeight * lineNum);
+  GdkColor bgColor;
   
-  GdkGC *gc = gdk_gc_new(drawable);
-  GtkAdjustment *hAdjustment = properties->hAdjustment;
-  const int displayLen = hAdjustment->page_size;
-  
-  GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
-  
-  /* Loop through each column in the current display range and color
-   * the text and background according to the relevant highlight colors */
-  int i = hAdjustment->value;
-  const int iMax = hAdjustment->value + min(displayLen, properties->bc->maxLen);
-  const gboolean rowHighlighted = highlightAlignment(properties->bc, alnp);
-  
-  for ( ; i < iMax; ++i)
+  if (properties->bc->displayColors)
     {
-      /* This base should be highlighted if the row is highlighted OR if the
-       * column is highlighted (but not both) */
-      const gboolean colHighlighted = (i == properties->bc->highlightedCol - 1);
-      const gboolean highlight = (rowHighlighted != colHighlighted);
-      
-      GdkColor bgColor;
-      if (properties->bc->displayColors)
-        {
-          /* Draw the background */
-          findResidueBGcolor(properties->bc, alnp, i, highlight, &bgColor);
-          gdk_gc_set_foreground(gc, &bgColor);
-          
-          gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
-        }
-      
+      /* Draw the background */
+      findResidueBGcolor(properties->bc, alnp, colIdx, highlight, &bgColor);
+      gdk_gc_set_foreground(gc, &bgColor);
+      gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
+    }
+  
+  if (colIdx < alnGetSeqLen(alnp))
+    {
       /* Draw the text. We get the text colour from the background color in 
        * color-by-conservation mode (if displaying colours is enabled) */
       if (colorByConservation(properties->bc) && properties->bc->displayColors)
@@ -294,9 +283,43 @@ static void drawSingleSequence(GtkWidget *widget,
         }
       
       char displayText[2];
-      displayText[0] = alnp->seq[i];
+      displayText[0] = alnGetSeq(alnp)[colIdx];
       displayText[1] = '\0';
       drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
+    }
+  
+}
+
+
+/* Draw a single line in the sequence area */
+static void drawSingleSequence(GtkWidget *widget,
+                                GdkDrawable *drawable, 
+                                BelvuAlignmentProperties *properties,
+                                ALN *alnp, 
+                                const int lineNum)
+{
+  if (!alnGetSeq(alnp))
+    return;
+  
+  const int startX = 0;
+  int x = startX;
+  const int y = properties->seqRect.y + (properties->charHeight * lineNum);
+  
+  GdkGC *gc = gdk_gc_new(drawable);
+  GtkAdjustment *hAdjustment = properties->hAdjustment;
+  const int displayLen = hAdjustment->page_size;
+  
+  GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
+  
+  /* Loop through each column in the current display range and color
+   * the text and background according to the relevant highlight colors */
+  int colIdx = hAdjustment->value;
+  int iMax = hAdjustment->value + min(displayLen, properties->bc->maxLen);
+  const gboolean rowHighlighted = highlightAlignment(properties->bc, alnp);
+  
+  for ( ; colIdx < iMax; ++colIdx)
+    {
+      drawSequenceChar(properties, alnp, colIdx, rowHighlighted, widget, drawable, gc, defaultFgColor, x, y);
       
       /* Increment the x position */
       x += properties->charWidth;
@@ -406,6 +429,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
       for (j = 0; j < bc->alignArr->len; ++j)
 	{
           ALN *alnp = &g_array_index(bc->alignArr, ALN, j);
+          char *alnpSeq = alnGetSeq(alnp);
           
           if (alnp->hide) 
             continue;
@@ -417,7 +441,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
           gboolean empty = TRUE;
           for (empty=1, i = alnstart; i < alnend; i++) 
             {
-              if (!isGap(alnp->seq[i]) && alnp->seq[i] != ' ') 
+              if (!isGap(alnpSeq[i]) && alnpSeq[i] != ' ') 
                 {
                   empty = FALSE;
                   break;
@@ -433,7 +457,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   const int xpos = bc->maxNameLen + bc->maxEndLen + numSpaces + i - alnstart - collapsePos;
                   const int x = xpos * properties->charWidth;
                   
-                  if (alnp->seq[i] == '[') 
+                  if (alnpSeq[i] == '[') 
                     {
                       /* Experimental - collapse block: "[" -> Collapse start, "]" -> Collapse end, e.g.
                        1 S[..........]FKSJFE
@@ -454,7 +478,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                       continue;
                     }
                   
-                  if (alnp->seq[i] == ']') 
+                  if (alnpSeq[i] == ']') 
                     {
                       collapseOn = 0;
                       collapsePos -= 4;
@@ -469,7 +493,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   if (collapseOn) 
                     {
                       collapsePos++;
-                      if (!isGap(alnp->seq[i])) 
+                      if (!isGap(alnpSeq[i])) 
                         {
                           collapseRes++;
                           pos[j]++;
@@ -479,7 +503,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                     }
                   
                   
-                  if (!isGap(alnp->seq[i]) && alnp->seq[i] != ' ') 
+                  if (!isGap(alnpSeq[i]) && alnpSeq[i] != ' ') 
                     {
                       findResidueBGcolor(bc, alnp, i, FALSE, pBgColor);
                       gdk_gc_set_foreground(gc, pBgColor);
@@ -498,7 +522,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   
                   gdk_gc_set_foreground(gc, &fgColor);
 
-                  *ch = alnp->seq[i];
+                  *ch = alnpSeq[i];
                   drawText(widget, drawable, gc, x, y, ch, NULL, NULL);
                 }
 

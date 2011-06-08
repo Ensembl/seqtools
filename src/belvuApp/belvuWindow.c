@@ -1786,10 +1786,12 @@ static void showSelectGapCharDialog(GtkWidget *belvuWindow)
           for (i = 0; i < bc->alignArr->len; ++i) 
             {
               ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+              char *alnpSeq = alnGetSeq(alnp);
+              
               for (j = 0; j < bc->maxLen; ++j) 
                 {
-                  if (isGap(alnp->seq[j])) 
-                    alnp->seq[j] = bc->gapChar;
+                  if (isGap(alnpSeq[j])) 
+                    alnpSeq[j] = bc->gapChar;
                 }
             }
           
@@ -2750,8 +2752,10 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
     }
   
   /* If an alignment is selected, display info about it */
-  if (bc->selectedAln && bc->selectedAln->seq)
+  if (bc->selectedAln && alnGetSeq(bc->selectedAln))
     {
+      char *selectedSeq = alnGetSeq(bc->selectedAln);
+      
       tmpStr = blxprintf("%s/%d-%d", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end);
       g_string_append(resultStr, tmpStr);
       g_free(tmpStr);
@@ -2761,7 +2765,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
       if (bc->selectedCol > 0)
         {
           /* Print the char of the current sequence at the selected column */
-          tmpStr = blxprintf("  %c = ", bc->selectedAln->seq[bc->selectedCol - 1]);
+          tmpStr = blxprintf("  %c = ", selectedSeq[bc->selectedCol - 1]);
           g_string_append(resultStr, tmpStr);
           g_free(tmpStr);
       
@@ -2773,9 +2777,9 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
           
           for ( ; colIdx < bc->selectedCol; colIdx++)
             {
-              if (isGap(bc->selectedAln->seq[colIdx])) 
+              if (isGap(selectedSeq[colIdx])) 
                 numGaps++;
-              else if (bc->selectedAln->seq[colIdx] == '*') 
+              else if (selectedSeq[colIdx] == '*') 
                 hasAsterisk = TRUE;
             }
       
