@@ -1614,25 +1614,32 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 12);
+  GtkWidget *vbox = gtk_vbox_new(FALSE, DIALOG_YPAD);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), vbox, FALSE, FALSE, DIALOG_YPAD);
   
-  GtkWidget *label1 = gtk_label_new("Remove columns with a (maximum) conservation > ");
-  gtk_misc_set_alignment(GTK_MISC(label1), 1, 0.5);
-  gtk_box_pack_start(GTK_BOX(hbox), label1, FALSE, FALSE, 0);
+  /* Place a label at the top */
+  GtkWidget *label1 = gtk_label_new("Remove columns with a (maximum) conservation between: ");
+  gtk_misc_set_alignment(GTK_MISC(label1), 0.0, 0.5);
+  gtk_box_pack_start(GTK_BOX(vbox), label1, FALSE, FALSE, 0);
+  
+  /* Place the text entry boxes in an hbox */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, DIALOG_YPAD);
+
+  gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new(""), FALSE, FALSE, DIALOG_XPAD);
   
   GtkWidget *entry1 = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(hbox), entry1, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), entry1, FALSE, FALSE, DIALOG_XPAD);
   gtk_entry_set_width_chars(GTK_ENTRY(entry1), strlen(fromText) + 1);
   gtk_entry_set_activates_default(GTK_ENTRY(entry1), TRUE);
   gtk_entry_set_text(GTK_ENTRY(entry1), fromText);
   
-  GtkWidget *label2 = gtk_label_new(" and <= ");
+  GtkWidget *label2 = gtk_label_new("<   conservation   <=");
   gtk_misc_set_alignment(GTK_MISC(label2), 0, 0.5);
   gtk_box_pack_start(GTK_BOX(hbox), label2, FALSE, FALSE, 0);
   
   GtkWidget *entry2 = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(hbox), entry2, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), entry2, FALSE, FALSE, DIALOG_XPAD);
   gtk_entry_set_width_chars(GTK_ENTRY(entry2), strlen(toText) + 3);
   gtk_entry_set_activates_default(GTK_ENTRY(entry2), TRUE);
   gtk_entry_set_text(GTK_ENTRY(entry2), toText);
