@@ -233,6 +233,22 @@ static void drawSingleHeader(GtkWidget *widget,
   x += (properties->bc->maxEndLen * properties->charWidth) + properties->columnPadding;
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
   
+  /* Draw the score, if displaying scores (and if not a markup row) */
+  if (properties->bc->displayScores)
+    {
+      x += properties->columnPadding;
+      
+      if (!alnp->markup)
+        {
+          char *tmpStr = blxprintf("%*.1f", alnp->score);
+          drawText(widget, drawable, gc, x, y, tmpStr, NULL, NULL);
+          g_free(tmpStr);
+        }
+      
+      x += (properties->bc->maxScoreLen * properties->charWidth) + properties->columnPadding;
+      gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
+    }
+  
   g_object_unref(gc);
 }
 
@@ -772,7 +788,8 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
         properties->columnPadding + (properties->bc->maxNameLen * properties->charWidth) + 
         properties->nameColumnPadding + (properties->bc->maxEndLen * properties->charWidth) +
         properties->columnPadding + (properties->wrapWidth * properties->charWidth) + 
-        properties->columnPadding + (properties->bc->maxEndLen * properties->charWidth);
+        properties->columnPadding + (properties->bc->maxEndLen * properties->charWidth) + 
+        properties->columnPadding + (properties->bc->maxScoreLen * properties->charWidth);
     }
   
   return result;
@@ -838,6 +855,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
       properties->headersRect.width = (properties->bc->maxNameLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->bc->maxStartLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->bc->maxEndLen * properties->charWidth) + (2 * properties->columnPadding) +
+                                      (properties->bc->maxScoreLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->columnPadding / 2);
       
       
