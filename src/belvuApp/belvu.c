@@ -7171,7 +7171,6 @@ static void saveMSF(BelvuContext *bc)
 static void readMSF(BelvuContext *bc, FILE *pipe)
 {
   char seq[1001], *cp=NULL, *cq=NULL;
-  int i=0;
   char line[MAXLENGTH + 1];
   line[0] = 0;
   seq[0] = 0;
@@ -7246,7 +7245,7 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
           int ip = 0;
           if (arrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder)) 
             {
-              ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+              ALN *alnp = &g_array_index(bc->alignArr, ALN, ip);
               strcat(alnp->seq, seq);
 	    }
           else
@@ -7584,7 +7583,7 @@ void readMul(BelvuContext *bc, FILE *pipe)
               break;
             }
         }
-      else if (ch != '\n')
+      else if (ch == '\n')
         {
           if (!fgets (line, MAXLENGTH, pipe)) 
             break;
