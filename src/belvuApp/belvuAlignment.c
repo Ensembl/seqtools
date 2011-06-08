@@ -436,22 +436,22 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
           
           int alnstart = paragraph*properties->wrapWidth +totCollapsed; 
           int alnlen = ( (paragraph+1)*properties->wrapWidth +totCollapsed < bc->maxLen ? properties->wrapWidth : bc->maxLen - alnstart );
-          int alnend = alnstart + alnlen;
+          int alnend = min(alnstart + alnlen, alnGetSeqLen(alnp));
           
           gboolean empty = TRUE;
           for (empty=1, i = alnstart; i < alnend; i++) 
             {
-              if (!isGap(alnpSeq[i]) && alnpSeq[i] != ' ') 
+              if (alnpSeq && !isGap(alnpSeq[i]) && alnpSeq[i] != ' ') 
                 {
                   empty = FALSE;
                   break;
                 }
             }
           
+          const int y = line * properties->charHeight;
+
           if (!empty) 
             {
-              const int y = line * properties->charHeight;
-
               for (collapsePos = 0, oldpos = pos[j], i = alnstart; i < alnend; i++) 
                 {	
                   const int xpos = bc->maxNameLen + bc->maxEndLen + numSpaces + i - alnstart - collapsePos;
@@ -525,25 +525,25 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   *ch = alnpSeq[i];
                   drawText(widget, drawable, gc, x, y, ch, NULL, NULL);
                 }
-
-              drawText(widget, drawable, gcText, properties->charWidth, y, alnp->name, NULL, NULL);
-              
-              if (!alnp->markup) 
-                {
-                  char *tmpStr = blxprintf("%*d", bc->maxEndLen, oldpos);
-                  drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr, NULL, NULL);
-                  g_free(tmpStr);
-                  
-                  if (alnend == bc->maxLen) 
-                    {
-                      char *tmpStr = blxprintf("%-d", pos[j] - 1);
-                      drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr, NULL, NULL);
-                      g_free(tmpStr);
-                    }
-                }
-              
-              line++;
             }
+          
+          drawText(widget, drawable, gcText, properties->charWidth, y, alnp->name, NULL, NULL);
+          
+          if (!alnp->markup) 
+            {
+              char *tmpStr = blxprintf("%*d", bc->maxEndLen, oldpos);
+              drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr, NULL, NULL);
+              g_free(tmpStr);
+              
+              if (alnend == bc->maxLen) 
+                {
+                  char *tmpStr = blxprintf("%-d", pos[j] - 1);
+                  drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr, NULL, NULL);
+                  g_free(tmpStr);
+                }
+            }
+          
+          line++;
         }
       
       paragraph++;
