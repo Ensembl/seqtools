@@ -251,8 +251,8 @@ static const GtkActionEntry menuEntries[] = {
   { "About",	           GTK_STOCK_ABOUT,      "A_bout",             NULL,                "About",                 G_CALLBACK(onAboutMenu)},
   { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
   { "Wrap",	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
-  { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
-  { "RecalcTree"           ,NULL,                "Recalculate tree",   NULL,                "Recalculate tree",      G_CALLBACK(onRecalcTreeMenu)},
+  { "ShowTree",	           GTK_STOCK_CONVERT,    "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
+  { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree",      G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
   { "Save",	           GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
@@ -261,7 +261,7 @@ static const GtkActionEntry menuEntries[] = {
   { "Compare",	           NULL,                 CompareStr,           NULL,                CompareDesc,             G_CALLBACK(onCompareMenu)},
   { "CleanUp",	           GTK_STOCK_CLEAR,      "Clean _up windows",  NULL,                "Clean up windows",      G_CALLBACK(onCleanUpMenu)},
 
-  {"rmPicked",             NULL,                 rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
+  {"rmPicked",             GTK_STOCK_DELETE,     rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
   {"rmMany",		   NULL,                 rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
   {"rmGappySeqs",	   NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
   {"rmPartialSeqs",        NULL,                 rmPartialSeqsStr,     NULL,                rmPartialSeqsDesc,       G_CALLBACK(onrmPartialSeqsMenu)},
@@ -319,13 +319,13 @@ static const GtkRadioActionEntry consSchemeMenuEntries[] = {
 };
 
 static const GtkRadioActionEntry sortMenuEntries[] = {
-  {"defaultSort",          NULL, "by conservation",                       NULL, "Sort by conservation order",        BELVU_SORT_CONS},
-  {"scoreSort",            NULL, "by score",                              NULL, "Sort by score",                     BELVU_SORT_SCORE},
-  {"alphaSort",            NULL, "alphabetically",                        NULL, "Sort alphabetically",               BELVU_SORT_ALPHA},
-  {"organismSort",         NULL, "by swissprot organism",                 NULL, "Sort by swissprot organism",        BELVU_SORT_ORGANISM},
-  {"treeSort",             NULL, "by tree order",                         NULL, "Sort by tree order",                BELVU_SORT_TREE},
-  {"simSort",              NULL, "by similarity to highlighted sequence", NULL, "Sort by similarity to highlighted sequence", BELVU_SORT_SIM},
-  {"idSort",               NULL, "by identity to highlighted sequence",   NULL, "Sort by identity to highlighted sequence",   BELVU_SORT_ID}
+  {"defaultSort",          NULL,                     "by conservation",                    NULL, "Sort by conservation order",        BELVU_SORT_CONS},
+  {"scoreSort",            NULL,                     "by score",                           NULL, "Sort by score",                     BELVU_SORT_SCORE},
+  {"alphaSort",            GTK_STOCK_SORT_ASCENDING, "alphabetically",                     NULL, "Sort alphabetically",               BELVU_SORT_ALPHA},
+  {"organismSort",         NULL,                     "by swissprot organism",              NULL, "Sort by swissprot organism",        BELVU_SORT_ORGANISM},
+  {"treeSort",             NULL,                     "by tree order",                      NULL, "Sort by tree order",                BELVU_SORT_TREE},
+  {"simSort",              NULL,                     "by similarity to selected sequence", NULL, "Sort by similarity to highlighted sequence", BELVU_SORT_SIM},
+  {"idSort",               NULL,                     "by identity to selected sequence",   NULL, "Sort by identity to highlighted sequence",   BELVU_SORT_ID}
 };
 
 
@@ -468,6 +468,13 @@ static const char standardMenuDescription[] =
 "  <toolbar name='Toolbar'>"
 "    <toolitem action='Help'/>"
 "    <toolitem action='About'/>"
+"    <toolitem action='Save'/>"
+"    <separator/>"
+"    <toolitem action='rmPicked'/>"
+"    <separator/>"
+"    <toolitem action='ShowTree'/>"
+"    <toolitem action='alphaSort'/>"
+"    <separator/>"
 "  </toolbar>"
 "</ui>";
 
