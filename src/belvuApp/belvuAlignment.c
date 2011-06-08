@@ -215,19 +215,24 @@ static void drawSingleHeader(GtkWidget *widget,
       x += (properties->bc->maxNameLen * properties->charWidth) + properties->columnPadding;
     }
   
-  /* Draw the coords */
+  /* Draw the coords (but only if this is not GC markup; note that we always
+   * draw the column separator lines for the coords, though) */
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
   x += properties->columnPadding;
-  drawIntAsText(widget, drawable, gc, x, y, alnp->start, NULL, NULL);
-  x += (properties->bc->maxStartLen * properties->charWidth) + properties->columnPadding;
+
+  if (alnp->markup != GC)
+    drawIntAsText(widget, drawable, gc, x, y, alnp->start, NULL, NULL);
   
+  x += (properties->bc->maxStartLen * properties->charWidth) + properties->columnPadding;
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
   x += properties->columnPadding;
-  drawIntAsText(widget, drawable, gc, x, y, alnp->end, NULL, NULL);
+
+  if (alnp->markup != GC)
+    drawIntAsText(widget, drawable, gc, x, y, alnp->end, NULL, NULL);
+
   x += (properties->bc->maxEndLen * properties->charWidth) + properties->columnPadding;
-
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
-
+  
   g_object_unref(gc);
 }
 
