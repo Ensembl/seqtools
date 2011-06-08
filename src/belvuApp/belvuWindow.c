@@ -939,10 +939,33 @@ static void onselectGapsMenu(GtkAction *action, gpointer data)
 
 static void onhideMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  if (!properties->bc->selectedAln)
+    {
+      g_critical("Please select a sequence to hide.\n");
+    }
+  else
+    {
+      properties->bc->selectedAln->hide = TRUE;
+      belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
+    }
 }
 
 static void onunhideMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+
+  /* Reset the 'hide' flag to false in all sequences */
+  int i = 0;
+  for (i = 0; i < properties->bc->alignArr->len; ++i)
+    {
+      g_array_index(properties->bc->alignArr, ALN, i).hide = FALSE;
+    }
+  
+  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
 /* COLOR MENU ACTIONS */

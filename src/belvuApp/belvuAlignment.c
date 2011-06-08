@@ -540,10 +540,17 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
   
   /* Loop through each alignment */
   int i = 0;
+  int lineNum = 0;
+  
   for ( ; i < bc->alignArr->len; ++i)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-      drawSingleHeader(widget, drawable, properties, alnp, i);
+      
+      if (!alnp->hide)
+        {
+          drawSingleHeader(widget, drawable, properties, alnp, lineNum);
+          ++lineNum;
+        }
     }
 }
 
@@ -555,10 +562,17 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
   
   /* Loop through each alignment */
   int i = 0;
+  int lineNum = 0;
+  
   for ( ; i < bc->alignArr->len; ++i)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-      drawSingleSequence(widget, drawable, properties, alnp, i);
+      
+      if (!alnp->hide)
+        {
+          drawSingleSequence(widget, drawable, properties, alnp, lineNum);
+          ++lineNum;
+        }
     }
 }
 
@@ -911,14 +925,31 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
   
   const int rowIdx = (y - properties->seqRect.y) / properties->charHeight;
   
-  /* Set the selected alignment */
-  bc->selectedAln = &g_array_index(properties->bc->alignArr, ALN, rowIdx);
+  /* Set the selected alignment. Note that some alignments are hidden so
+   * we need to count how many visible alignments there are up to this row. */
+  int i = 0;
+  int count = -1;
+  bc->selectedAln = NULL;
+  
+  for ( i = 0; i < bc->alignArr->len; ++i)
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      
+      if (!alnp->hide)
+        {
+          ++count;
+          if (count == rowIdx)
+            {
+              bc->selectedAln = alnp;
+              break;
+            }
+        }
+    }
   
   /* Highlight any alignments that have the same name as the selected alignment */
   g_slist_free(bc->highlightedAlns); /* clear current list */
   bc->highlightedAlns = NULL;
   
-  int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);

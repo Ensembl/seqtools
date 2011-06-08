@@ -3515,29 +3515,6 @@ static void listIdentity(void)
 }
 
 
-static void hide (void)
-{
-    if (!bc->selectedAln) {
-	messout ("Pick a sequence first!");
-	return;
-    }
-
-    bc->selectedAln->hide = 1;
-    belvuRedraw();
-}
-
-
-static void unhide (void)
-{
-    int i;
-
-    for (i = 0; i < nseq; i++)
-	arrp(Align, i, ALN)->hide = 0;
-    
-    belvuRedraw();
-}
-
-
 static void rmPicked(void)
 {
     if (!bc->selectedAln) {

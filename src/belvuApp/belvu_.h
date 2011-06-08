@@ -237,8 +237,8 @@ typedef struct alnStruct {
   char fetch[MAXNAMESIZE + 11];
   float score;
   int  color;			/* Background color of name */
-  int  markup;		/* Markup line */
-  gboolean  hide;			/* Hide this line */
+  int  markup;                  /* Markup line */
+  gboolean  hide;               /* Hide this line */
   gboolean nocolor;		/* Exclude from coloring */
   char *organism;
 } ALN;
