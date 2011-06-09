@@ -1510,18 +1510,24 @@ static void showSaveAsDialog(GtkWidget *belvuWindow)
   GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
   
   /* Create a drop-down for selectin the file format */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, DIALOG_XPAD);
+  gtk_box_pack_start(contentArea, hbox, FALSE, FALSE, DIALOG_XPAD);
+  
   GtkComboBox *combo = createFileFormatCombo(bc->saveFormat);
-  gtk_box_pack_start(contentArea, GTK_WIDGET(combo), FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(combo), FALSE, FALSE, DIALOG_YPAD);
   
   /* Create a tick box for enabling the 'save coords' option */
-  
+  GtkToggleButton *checkButton = GTK_TOGGLE_BUTTON(gtk_check_button_new_with_mnemonic("Save _coordinates"));
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkButton), bc->saveCoordsOn);
+  gtk_box_pack_start(contentArea, GTK_WIDGET(checkButton), FALSE, FALSE, DIALOG_YPAD);
   
   gtk_widget_show_all(dialog);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
       bc->saveFormat = gtk_combo_box_get_active(combo);
-      
+      bc->saveCoordsOn = gtk_toggle_button_get_active(checkButton);
+    
       saveAlignment(bc, belvuWindow);
     }
   
