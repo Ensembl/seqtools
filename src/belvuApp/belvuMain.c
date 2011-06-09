@@ -322,6 +322,10 @@ int main(int argc, char **argv)
   char        *optstring="aBb:CcGgil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
   
 
+  /* Initialise GTK - do this early so we can show any errors in a pop-up dialog */
+  gtk_init(&argc, &argv);
+  
+  
   /* Set up the GLib message handlers
    * 
    * There are two handlers: the default one for all non-critical messages, which will just log
@@ -472,6 +476,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   
+  
   if (!strcmp(argv[optind], "-")) {
     pipe = stdin;
     if (!*bc->Title) strcpy(bc->Title, "stdin");
@@ -617,12 +622,12 @@ int main(int argc, char **argv)
         }
       else if (!strcasecmp(output_format, "FastaAlign")) 
         {
-          strcpy(bc->saveFormat, FastaAlnStr);
+	  bc->saveFormat = BELVU_FILE_ALIGNED_FASTA;
           writeFasta(bc, stdout);
         }
       else if (!strcasecmp(output_format, "Fasta")) 
         {
-          strcpy(bc->saveFormat, FastaStr);
+	  bc->saveFormat = BELVU_FILE_UNALIGNED_FASTA;
           writeFasta(bc, stdout);
         }
       else if (!strcasecmp(output_format, "tree")) 
@@ -673,9 +678,6 @@ int main(int argc, char **argv)
       argvAdd(&argc, &argv, "-font");
       argvAdd(&argc, &argv, "8x13");
     }
-  
-  /* Initialise GTK */
-  gtk_init(&argc, &argv);
   
   // to do: get font size?
 //  graphScreenSize(&screenWidth, &screenHeight, &fontwidth, &fontheight, &pw, &ph);

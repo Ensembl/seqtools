@@ -83,11 +83,6 @@ AUTHOR_TEXT "\n"
 #define UPGMAstr "UPGMA"
 #define NJstr "NJ"
 
-#define MSFStr "MSF"
-#define MulStr "Stockholm (Pfam/HMMER)"
-#define FastaAlnStr "Aligned Fasta"
-#define FastaStr "Unaligned Fasta"
-
 #define SWAPstr "Swap"
 #define ROOTstr "Reroot"
 
@@ -103,7 +98,7 @@ AUTHOR_TEXT "\n"
 #define BOXCOLOR  WHITE /* LIGHTGRAY */
 
 
-
+/* List of color ids. Must be kept in sync with colorNames in belvu.c */
 enum Colour    
 {
   WHITE, BLACK, LIGHTGRAY, DARKGRAY,
@@ -126,6 +121,19 @@ enum Colour
 
 enum { MUL, RAW };		/* Input formats for IN_FORMAT */
 enum { dummy, GF, GC, GS, GR };	/* Markup types in Stockholm format */
+
+
+/* Define the different file formats that belvu supports. This list
+ * must be kept in sync with fileFormatNames in belvu.c */
+typedef enum _BelvuFileFormat
+{
+  BELVU_FILE_MUL,		/* Stockholm or selex file format */
+  BELVU_FILE_MSF,		/* MSF file format */
+  BELVU_FILE_ALIGNED_FASTA,	/* Aligned FASTA file format */
+  BELVU_FILE_UNALIGNED_FASTA,	/* Unaligned FASTA file format */
+  
+  BELVU_NUM_FILE_FORMATS	/* must be last in list */
+} BelvuFileFormat;  
 
 
 /* Tree picking methods */
@@ -365,6 +373,7 @@ typedef struct BelvuContextStruct
   BelvuPickMode treePickMode;         /* Default action when picking a node in a tree */
   
   BelvuSortType sortType;             /* What data to sort the alignments by */
+  BelvuFileFormat saveFormat;	      /* Which file format to use for saving alignments */
   
   double treeBestBalance;
   double treeBestBalance_subtrees;
@@ -385,7 +394,6 @@ typedef struct BelvuContextStruct
   char treeDistString[50];
   char treeMethodString[50];
   char Title[256];
-  char saveFormat[50];
   char fileName[FIL_BUFFER_SIZE + 1];
   char dirName[DIR_BUFFER_SIZE + 1]; /* Default directory for file browser */
   char organismLabel[3];
@@ -468,6 +476,7 @@ gboolean				  colorBySimilarity(BelvuContext *bc);
 gboolean                                  colorByResId(BelvuContext *bc);
 void                                      setResidueSchemeColors(BelvuContext *bc);
 const char*                               getColorNumName(const int colorNum);
+const char*				  getFileFormatString(const int formatId);
 int*                                      getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground);
 void                                      setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude);
 

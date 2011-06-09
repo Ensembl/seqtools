@@ -158,6 +158,8 @@ static void                      showSelectGapCharDialog(GtkWidget *belvuWindow)
 static void			 saveFasta(BelvuContext *bc, GtkWidget *parent);
 static void			 saveMul(BelvuContext *bc, GtkWidget *parent);
 static void			 saveMsf(BelvuContext *bc, GtkWidget *parent);
+static void			 showSaveAsDialog(GtkWidget *belvuWindow);
+static void			 saveAlignment(BelvuContext *bc, GtkWidget *window);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -260,7 +262,7 @@ static const GtkActionEntry menuEntries[] = {
   { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
   { "Save",	           GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
-  { "SaveAs",	           GTK_STOCK_SAVE_AS,    "Save _as...",        NULL,                "Save alignment as",     G_CALLBACK(onSaveAsMenu)},
+  { "SaveAs",	           GTK_STOCK_SAVE_AS,    "Save _as...",        "<shift><control>S", "Save alignment as",     G_CALLBACK(onSaveAsMenu)},
   { "Output",	           NULL,                 OutputStr,            NULL,                OutputDesc,              G_CALLBACK(onOutputMenu)},
   { "Compare",	           NULL,                 CompareStr,           NULL,                CompareDesc,             G_CALLBACK(onCompareMenu)},
   { "CleanUp",	           GTK_STOCK_CLEAR,      "Clean _up windows",  NULL,                "Clean up windows",      G_CALLBACK(onCleanUpMenu)},
@@ -727,23 +729,19 @@ static void onConsPlotMenu(GtkAction *action, gpointer data)
 {
 }
 
+
 static void onSaveMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
   BelvuContext *bc = windowGetContext(window);
 
-  if (!strcmp(bc->saveFormat, MSFStr))
-    saveMsf(bc, window);
-  else if (!strcmp(bc->saveFormat, FastaAlnStr))
-    saveFasta(bc, window);
-  else if (!strcmp(bc->saveFormat, FastaStr))
-    saveFasta(bc, window);
-  else
-    saveMul(bc, window);
+  saveAlignment(bc, window);
 }
 
 static void onSaveAsMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  showSaveAsDialog(belvuWindow);
 }
 
 static void onOutputMenu(GtkAction *action, gpointer data)
@@ -990,7 +988,9 @@ static void onunhideMenu(GtkAction *action, gpointer data)
 
 static void saveFasta(BelvuContext *bc, GtkWidget *parent)
 {
-  const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, "Save as unaligned Fasta file:");
+  char *title = blxprintf("%s", bc->saveFormat == BELVU_FILE_UNALIGNED_FASTA ? "Save as unaligned Fasta file:" : "Save as aligned Fasta file:");
+  const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, title);
+  g_free(title);
   
   FILE *fil = fopen(filename, "w");
   
@@ -1462,6 +1462,74 @@ static void showHelpDialog()
 
 
 /***********************************************************
+ *                   Save As dialog                        *
+ ***********************************************************/
+
+/* Utility to call the correct save function for the current save format */
+static void saveAlignment(BelvuContext *bc, GtkWidget *window)
+{
+  if (bc->saveFormat == BELVU_FILE_MSF)
+    saveMsf(bc, window);
+  else if (bc->saveFormat == BELVU_FILE_ALIGNED_FASTA)
+    saveFasta(bc, window);
+  else if (bc->saveFormat == BELVU_FILE_UNALIGNED_FASTA)
+    saveFasta(bc, window);
+  else
+    saveMul(bc, window);
+}
+
+
+/* This creates a drop-down box for selecting a file format */
+static GtkComboBox* createFileFormatCombo(const int initFormatId)
+{
+  GtkComboBox *combo = createComboBox();
+  GtkTreeIter *iter = NULL;
+  
+  int i = 0;
+  for ( ; i < BELVU_NUM_FILE_FORMATS; ++i)
+    addComboItem(combo, iter, i, getFileFormatString(i), initFormatId);
+  
+  return combo;
+}
+
+
+static void showSaveAsDialog(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  BelvuContext *bc = properties->bc;
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Save As", 
+                                                  GTK_WINDOW(belvuWindow), 
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+                                                  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                                                  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+  
+  /* Create a drop-down for selectin the file format */
+  GtkComboBox *combo = createFileFormatCombo(bc->saveFormat);
+  gtk_box_pack_start(contentArea, GTK_WIDGET(combo), FALSE, FALSE, 0);
+  
+  /* Create a tick box for enabling the 'save coords' option */
+  
+  
+  gtk_widget_show_all(dialog);
+  
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      bc->saveFormat = gtk_combo_box_get_active(combo);
+      
+      saveAlignment(bc, belvuWindow);
+    }
+  
+  gtk_widget_destroy(dialog);
+}
+
+
+/***********************************************************
  *                Remove sequences dialogs                 *
  ***********************************************************/
 
@@ -1856,6 +1924,8 @@ static void showSelectGapCharDialog(GtkWidget *belvuWindow)
           belvuAlignmentRedrawAll(bc->belvuAlignment);
         }
     }
+  
+  gtk_widget_destroy(dialog);
 }
 
 

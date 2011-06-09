@@ -403,7 +403,6 @@ static char     belvuVersion[] = "2.35",
                 maxText[11],	/* Cutoff text arrays for boxes */
                 midText[11],
                 lowText[11],
-                saveFormat[50],
                 treeMethodString[50],
                 treeDistString[50],
                 treePickString[50],
@@ -1737,23 +1736,6 @@ static void graphButtonCheck(char* text, void (*func)(void), double x, double *y
 
     graphButton(buttont, func, x, *y);
     *y += 2;
-}
-
-static void saveMSFSelect(void) {
-    strcpy(saveFormat, MSFStr);
-    saveRedraw();
-}
-static void saveMulSelect(void){
-    strcpy(saveFormat, MulStr);
-    saveRedraw();
-}
-static void saveFastaAlnSelect(void){
-    strcpy(saveFormat, FastaAlnStr);
-    saveRedraw();
-}
-static void saveFastaSelect(void){ /* unaligned */
-    strcpy(saveFormat, FastaStr);
-    saveRedraw();
 }
 
 static void treeUPGMAselect(void){
@@ -3221,6 +3203,8 @@ myGraphDestroy(treeDestroy, treeGraph)
 #define DEFAULT_LOW_BG_PRINT_COLOR      LIGHTGRAY  
 
 /* Global variables */
+
+/* Color names (must be in same order as Color enum) */
 static char *colorNames[NUM_TRUECOLORS] = {
 "WHITE", 
 "BLACK", 
@@ -3254,6 +3238,14 @@ static char *colorNames[NUM_TRUECOLORS] = {
 "PALEGRAY",
 "CERISE", 
 "MIDBLUE"
+};
+
+/* File format names (must be in same order as BelvuFileFormat enum)  */
+static char *fileFormatNames[BELVU_NUM_FILE_FORMATS] = {
+  "Stockholm (Pfam/HMMER)",
+  "MSF",
+  "Aligned Fasta",
+  "Unaligned Fasta"
 };
 
 
@@ -3996,7 +3988,7 @@ static void readFastaAln(BelvuContext *bc, FILE *pipe)
       currentSeq = NULL;
     }
 
-  strcpy(bc->saveFormat, FastaAlnStr);
+  bc->saveFormat = BELVU_FILE_ALIGNED_FASTA;
   
   return ;
 }
@@ -4872,6 +4864,13 @@ const char* getColorNumName(const int colorNum)
   return colorNames[colorNum];
 }
 
+/* Utility function to get the file format name for a format id */
+const char* getFileFormatString(const int formatId)
+{
+  g_assert(formatId < BELVU_NUM_FILE_FORMATS);
+  return fileFormatNames[formatId];
+}
+
 
 int* getConsPrintColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboolean foreground)
 {
@@ -5299,7 +5298,7 @@ BelvuContext* createBelvuContext()
   strcpy(bc->treeDistString, SCOREDISTstr);
   strcpy(bc->treeMethodString, NJstr);
   bc->Title[0] = '\0';
-  bc->saveFormat[0] = '\0';
+  bc->saveFormat = BELVU_FILE_MUL;
   bc->fileName[0] = 0;
   bc->dirName[0] = 0;
   bc->organismLabel[0] = 'O';
@@ -6719,7 +6718,7 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
 	}
     }
   
-  strcpy(bc->saveFormat, MSFStr);
+  bc->saveFormat = BELVU_FILE_MSF;
 }
 
 
@@ -7027,7 +7026,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
   if (bc->alignArr->len == 0 || bc->maxLen == 0) 
     g_error("Unable to read sequence data");
   
-  strcpy(bc->saveFormat, MulStr);
+  bc->saveFormat = BELVU_FILE_MUL;
 }
 
 
@@ -7192,7 +7191,7 @@ void writeFasta(BelvuContext *bc, FILE *pipe)
 	
       for (n=0, cp = alnGetSeq(alnp); *cp; cp++)
         {
-          if (!strcmp(bc->saveFormat, FastaAlnStr)) 
+	  if (bc->saveFormat == BELVU_FILE_ALIGNED_FASTA)
             {
               fputc(*cp, pipe);
               n++;
