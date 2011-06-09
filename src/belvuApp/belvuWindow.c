@@ -1493,6 +1493,21 @@ static GtkComboBox* createFileFormatCombo(const int initFormatId)
 }
 
 
+/* Callback called when the 'save coords' toggle button is toggled. It updates
+ * the given widget (passed as data)  to be enabled if the toggle button is active
+ * or disabled otherwise. */
+static void onSaveCoordsToggled(GtkWidget *button, gpointer data)
+{
+  GtkWidget *otherWidget = GTK_WIDGET(data);
+  
+  if (otherWidget)
+    {
+      const gboolean isActive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+      gtk_widget_set_sensitive(otherWidget, isActive); 
+    }
+}
+
+
 static void showSaveAsDialog(GtkWidget *belvuWindow)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
@@ -1513,6 +1528,9 @@ static void showSaveAsDialog(GtkWidget *belvuWindow)
   GtkWidget *hbox = gtk_hbox_new(FALSE, DIALOG_XPAD);
   gtk_box_pack_start(contentArea, hbox, FALSE, FALSE, DIALOG_XPAD);
   
+  GtkWidget *label = gtk_label_new("Format: ");
+  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, DIALOG_XPAD);
+  
   GtkComboBox *combo = createFileFormatCombo(bc->saveFormat);
   gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(combo), FALSE, FALSE, DIALOG_YPAD);
   
@@ -1521,12 +1539,43 @@ static void showSaveAsDialog(GtkWidget *belvuWindow)
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkButton), bc->saveCoordsOn);
   gtk_box_pack_start(contentArea, GTK_WIDGET(checkButton), FALSE, FALSE, DIALOG_YPAD);
   
+  /* Create selection buttons to allow user to specify separator char */
+  GtkBox *hbox2 = GTK_BOX(gtk_hbox_new(FALSE, DIALOG_XPAD));
+  gtk_box_pack_start(contentArea, GTK_WIDGET(hbox2), FALSE, FALSE, DIALOG_YPAD);
+  
+  GtkWidget *separatorLabel = gtk_label_new("Separator character between name and coords:\n(Use = for GCG)");
+  gtk_misc_set_alignment(GTK_MISC(separatorLabel), 0.0, 0.0);
+  gtk_box_pack_start(hbox2, separatorLabel, FALSE, FALSE, DIALOG_XPAD);
+  
+  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, DIALOG_YPAD));
+  gtk_box_pack_start(hbox2, GTK_WIDGET(vbox), FALSE, FALSE, DIALOG_XPAD);
+  
+  const gboolean button1Active = (bc->saveSeparator == '/');
+  GtkWidget *button1 = gtk_radio_button_new_with_label_from_widget(NULL, "slash  (/) ");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), button1Active);
+  gtk_box_pack_start(vbox, button1, FALSE, FALSE, 0);
+  
+  GtkWidget *button2 = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(button1), "equals  (=) ");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), !button1Active);
+  gtk_box_pack_start(vbox, button2, FALSE, FALSE, 0);
+  
+  /* The save separator is only applicable if saving coords */
+  gtk_widget_set_sensitive(GTK_WIDGET(hbox2), bc->saveCoordsOn); 
+  g_signal_connect(G_OBJECT(checkButton), "toggled", G_CALLBACK(onSaveCoordsToggled), hbox2);
+  
+  
   gtk_widget_show_all(dialog);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
       bc->saveFormat = gtk_combo_box_get_active(combo);
       bc->saveCoordsOn = gtk_toggle_button_get_active(checkButton);
+    
+      if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button1)))
+	bc->saveSeparator = '/';
+      else 
+	bc->saveSeparator = '=';
+    
     
       saveAlignment(bc, belvuWindow);
     }
