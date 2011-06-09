@@ -496,7 +496,7 @@ int main(int argc, char **argv)
     }
   else
     {
-      readMul(bc, pipe);
+      readFile(bc, pipe);
     }
   
   if (bc->organismArr->len == 0)

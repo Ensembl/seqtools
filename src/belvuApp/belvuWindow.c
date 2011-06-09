@@ -155,6 +155,10 @@ static void                      showEditConsColorsDialog(GtkWidget *belvuWindow
 static void                      saveOrResetConsColors(BelvuContext *bc, const gboolean save);
 static void                      showSelectGapCharDialog(GtkWidget *belvuWindow);
 
+static void			 saveFasta(BelvuContext *bc, GtkWidget *parent);
+static void			 saveMul(BelvuContext *bc, GtkWidget *parent);
+static void			 saveMsf(BelvuContext *bc, GtkWidget *parent);
+
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
 /***********************************************************
@@ -725,6 +729,17 @@ static void onConsPlotMenu(GtkAction *action, gpointer data)
 
 static void onSaveMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  if (!strcmp(bc->saveFormat, MSFStr))
+    saveMsf(bc, window);
+  else if (!strcmp(bc->saveFormat, FastaAlnStr))
+    saveFasta(bc, window);
+  else if (!strcmp(bc->saveFormat, FastaStr))
+    saveFasta(bc, window);
+  else
+    saveMul(bc, window);
 }
 
 static void onSaveAsMenu(GtkAction *action, gpointer data)
@@ -968,7 +983,52 @@ static void onunhideMenu(GtkAction *action, gpointer data)
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
-/* COLOR MENU ACTIONS */
+
+/***********************************************************
+ *                  File menu actions                      *
+ ***********************************************************/
+
+static void saveFasta(BelvuContext *bc, GtkWidget *parent)
+{
+  const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, "Save as unaligned Fasta file:");
+  
+  FILE *fil = fopen(filename, "w");
+  
+  if (fil)
+    {
+      writeFasta(bc, fil);
+    }
+}
+
+
+static void saveMsf(BelvuContext *bc, GtkWidget *parent)
+{
+  const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, "Save as MSF (/) file:");
+  
+  FILE *fil = fopen(filename, "w");
+  
+  if (fil)
+    {
+      writeMSF(bc, fil);
+    }
+}
+
+
+static void saveMul(BelvuContext *bc, GtkWidget *parent)
+{
+  const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, "Save as Stockholm file:");
+  FILE *fil = fopen(filename, "w");
+  
+  if (fil)
+    {
+      writeMul(bc, fil);
+    }
+}
+
+
+/***********************************************************
+ *                 Colour menu actions                     *
+ ***********************************************************/
 
 /* This function is called when the color scheme has been changed. It performs all 
  * required updates. */
@@ -1192,8 +1252,6 @@ static void oneditConsSchemeMenu(GtkAction *action, gpointer data)
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   showEditConsColorsDialog(belvuWindow, TRUE);
 }
-
-/* SORT MENU ACTIONS */
 
 
 /***********************************************************

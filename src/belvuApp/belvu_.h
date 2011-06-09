@@ -395,6 +395,8 @@ typedef struct BelvuContextStruct
   int *conservResidues;            /* Array of number of residues present in each column */
   double *conservation;            /* The max conservation in each column [0..maxLen] */
 
+  GSList *annotationList;	   /* List of annotation lines from the input file */
+  
   gboolean treeCoordsOn;
   gboolean treeReadDistancesOn;
   gboolean treePrintDistances;
@@ -482,7 +484,7 @@ void                                      rmColumn(BelvuContext *bc, const int f
 void                                      rmColumnCutoff(BelvuContext *bc, const double from, const double to);
 void                                      rmFinaliseColumnRemoval(BelvuContext *bc);
 
-void                                      readMul(BelvuContext *bc, FILE *pipe);
+void                                      readFile(BelvuContext *bc, FILE *pipe);
 void                                      writeMul(BelvuContext *bc, FILE *fil);
 void                                      writeFasta(BelvuContext *bc, FILE *pipe);
 void                                      writeMSF(BelvuContext *bc, FILE *pipe);

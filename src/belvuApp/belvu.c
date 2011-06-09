@@ -447,9 +447,6 @@ static void colorSim(void);
 static void colorRect(void);
 static void xmosaicFetch(void);
 static void saveAlignment(void);
-static void saveMul(void);
-static void saveFasta(void);
-static void saveMSF(void);
 static void saveRedraw(void);
 static void saveMSFSelect(void);
 static void saveMulSelect(void);
@@ -1732,58 +1729,6 @@ static void belvuRedraw(void)
 
 
 
-
-/* 
-   Format the name/start-end string 
-
-   For convenience, used by writeMul
-*/
-char *writeMulName(ALN *aln) {
-
-    static char name[MAXNAMESIZE+50];
-    char *cp, *namep, GRname[MAXNAMESIZE*2+2], GRfeat[MAXNAMESIZE+1];
-
-    if (aln->markup == GC) 
-	return messprintf("#=GC %s", aln->name);
-
-    /* NOTE: GR lines have the feature concatenated in aln->name - must separate */
-    if (aln->markup == GR) {
-	namep = GRname;
-	strncpy(namep, aln->name, 50);
-	cp = strchr(namep, ' ');
-	strncpy(GRfeat, cp+1, 50);
-	*cp = 0;
-    }
-    else
-	namep = aln->name;
-
-    if (!saveCoordsOn) {
-	strcpy(name, messprintf("%s", namep));
-    }
-    else {
-	strcpy(name, messprintf("%s%c%d-%d", namep, saveSeparator, aln->start, aln->end));
-    }
-
-    if (aln->markup == GR)
-	return messprintf("#=GR %s %s", name, GRfeat);
-    else
-	return name;
-}
-
-
-static void saveAlignment(void)
-{
-    if (!strcmp(saveFormat, MSFStr))
-	saveMSF();
-    else if (!strcmp(saveFormat, FastaAlnStr))
-	saveFasta();
-    else if (!strcmp(saveFormat, FastaStr))
-	saveFasta();
-    else
-	saveMul();
-}
-
-
 static void graphButtonCheck(char* text, void (*func)(void), double x, double *y, int On)
 {
     char buttont[1024];
@@ -2347,522 +2292,6 @@ void argvAdd(int *argc, char ***argv, char *s)
     /* free(*argv); */   /* Too risky */
     
     *argv = v;
-}
-
-
-int main(int argc, char **argv)
-{
-    FILE    
-	*file, *pipe;
-    char    
-	*scoreFile = 0,
-	*readMatchFile = 0,
-	*colorCodesFile = 0,
-	*markupColorCodesFile = 0,
-	*output_format = 0,
-	*optargc;
-    int     
-	i,
-	pw, ph,	 /* pixel width and height */
-	output_probs = 0,
-	init_tree = 0,
-	only_tree = 0,
-        show_ann = 0;
-    double   
-        makeNRinit = 0.0,
-        init_rmEmptyColumns = 0.0,
-        init_rmGappySeqs = 0.0,
-	cw;      /* character width of initial alignment */
-
-/*    extern int printOnePage;*/
-
-    int          optc;
-    extern int   optind;
-    extern char *optarg;
-    char        *optstring="aBb:CcGgil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
-
-    static char *cc_date = 
-#if defined(__DATE__)
-    __DATE__
-#else
-    ""
-#endif
-    ;
-
-    char *usage;
-    static char usageText[] = "\
-\n\
- Belvu - View multiple alignments in good-looking colours.\n\
-\n\
- Usage: belvu [options] <multiple_alignment>|- [X options]\n\
-\n\
- <multiple_alignment>|- = alignment file or pipe.\n\
-\n\
- Options:\n\
- -c          Print Conservation table.\n\
- -l <file>   Load residue color code file.\n\
- -L <file>   Load markup and organism color code file.\n\
- -m <file>   Read file with matching sequence segments.\n\
- -r          Read alignment in 'raw' format (Name sequence).\n\
- -R          Do not parse coordinates when reading alignment.\n\
- -o <format> Write alignment or tree to stdout in this format and exit.\n\
-                Valid formats: MSF, Mul(Stockholm), Selex, \n\
-                               FastaAlign, Fasta, tree.\n\
- -X <#>      Print UPGMA-based subfamilies at cutoff #.\n\
- -n <cutoff> Make non-redundant to <cutoff> %identity at startup.\n\
- -Q <cutoff> Remove columns more gappy than <cutoff>.\n\
- -q <cutoff> Remove sequences more gappy than <cutoff>.\n\
- -G          Penalize gaps in pairwise comparisons.\n\
- -i          Ignore gaps in conservation calculation.\n\
- -P          Remove partial sequences at startup.\n\
- -C          Don't write coordinates to saved file.\n\
- -z <char>   Separator char between name and coordinates in saved file.\n\
- -a          Show alignment annotations on screen (Stockholm format only).\n\
- -p          Output random model probabilites for HMMER.\n\
-                (Based on all residues.)\n\
- -S <order>  Sort sequences in this order.\n\
-                a -> alphabetically\n\
-                o -> by Swissprot organism, alphabetically\n\
-                s -> by score\n\
-                n -> by Neighbor-joining tree\n\
-                u -> by UPGMA tree\n\
-                S -> by similarity to first sequence\n\
-                i -> by identity to first sequence\n\
- -s <file>   Read in file of scores.\n\
- -T <method> Tree options:\n\
-                i -> Start up showing tree\n\
-                I -> Start up showing only tree\n\
-                d -> Show distances in tree\n\
-                n -> Neighbor-joining\n\
-                u -> UPGMA\n\
-                c -> Don't color tree by organism\n\
-                o -> Don't display sequence coordinates in tree\n\
-                b -> Use Scoredist distance correction (default)\n\
-                j -> Use Jukes-Cantor distance correction\n\
-                k -> Use Kimura distance correction\n\
-                s -> Use Storm & Sonnhammer distance correction\n\
-                r -> Use uncorrected distances\n\
-                p -> Print distance matrix and exit\n\
-                R -> Read distance matrix instead of alignment\n\
-                     (only in combination with Tree routines)\n\
- -b <#>      Apply boostrap analysis with # bootstrap samples\n\
- -B          Print out bootstrap trees and exit\n\
-               (Negative value -> display bootstrap trees on screen)\n\
- -O <label>  Read organism info after this label (default OS)\n\
- -t <title>  Set window title.\n\
- -g          Draw grid line (for debugging).\n\
- -u          Start up with uncoloured alignment (faster).\n\
-\n\
- Some X options:\n\
- -acefont <font>   Main font.\n\
- -font    <font>   Menu font.\n\
-\n\
- Note: X options only work after \"setenv POSIXLY_CORRECT\"\n\
-\n\
- setenv BELVU_FETCH to desired sequence fetching program.\n\
-\n\
- For documentation, see:\n\
- http://sonnhammer.sbc.su.se/Belvu.html\n\
-\n\
- by Erik.Sonnhammer@sbc.su.se\n\
- Version ";
-
-
-    usage = g_malloc(strlen(usageText) + strlen(belvuVersion) + strlen(cc_date) + 20);
-    sprintf(usage, "%s%s, compiled %s\n", usageText, belvuVersion, cc_date);
-
-    /* Set up tree defaults */
-    strcpy(treeMethodString, NJstr);
-    treeMethod = NJ;
-    strcpy(treeDistString, Scorediststr);
-    treeDistCorr = Scoredist;
-    strcpy(treePickString, SWAPstr);
-    treePickMode = NODESWAP;
-    setTreeScaleCorr(bc);
-
-    while ((optc = getopt(argc, argv, optstring)) != -1)
-	switch (optc) 
-	{
-	case 'a': show_ann = 1;                  break;
-	case 'B':  outputBootstrapTrees = 1; break;
-	case 'b': treebootstraps = atoi(optarg); break;
-	case 'C': saveCoordsOn = 0;              break;
-	case 'c': verbose = 1;                   break;
-	case 'G': penalize_gaps = 1;             break;
-	case 'g': gridOn = 1;                    break;
-	case 'l': 
-	    colorCodesFile = g_malloc(strlen(optarg)+1);
-	    strcpy(colorCodesFile, optarg);      break;
-	case 'i': 
-	    ignoreGapsOn = 1;                           break;
-	case 'L': 
-	    markupColorCodesFile = g_malloc(strlen(optarg)+1);
-	    strcpy(markupColorCodesFile, optarg);break;
-	case 'm': 
-	    readMatchFile = g_malloc(strlen(optarg)+1);
-	    strcpy(readMatchFile, optarg); 
-	                                         break;
-	case 'n':
-	    makeNRinit = atof(optarg);           break;
-	case 'O': 
-	    strncpy(OrganismLabel, optarg, 2);    break;
-	case 'o': 
-	    output_format = g_malloc(strlen(optarg)+1);
-	    strcpy(output_format, optarg);       break;
-	case 'P': init_rmPartial = 1;            break;
-	case 'Q': init_rmEmptyColumns = atof(optarg); break;
-	case 'q': init_rmGappySeqs = atof(optarg); break;
-	case 'p': output_probs = 1;              break;
-	case 'R': stripCoordTokensOn = saveCoordsOn = 0; break;
-	case 'r': IN_FORMAT = RAW;               break;
-	case 'S': 
-	    switch (*optarg)
-	    {
-	    case 'a': init_sort = SORT_ALPHA;    break;
-	    case 'o': init_sort = SORT_ORGANISM; break;
-	    case 's': init_sort = SORT_SCORE;    break;
-	    case 'S': init_sort = SORT_SIM;      break;
-	    case 'i': init_sort = SORT_ID;       break;
-	    case 'n': 
-		treeMethod = NJ;
-		init_sort = SORT_TREE;           break;
-	    case 'u': 
-		treeMethod = UPGMA; 
-		init_sort = SORT_TREE;           break;
-	    default : fatal("Illegal sorting order: %s", optarg);
-	    }                                    break;
-	case 's': 
-	    scoreFile = g_malloc(strlen(optarg)+1);
-	    strcpy(scoreFile, optarg);           break;
-	case 'T': 
-	    for (optargc = optarg; *optargc; optargc++) {
-		switch (*optargc)
-		{
-		case 'n': 
-		    strcpy(treeMethodString, NJstr);
-		    treeMethod = NJ;          break;
-		case 'u': 
-		    strcpy(treeMethodString, UPGMAstr);
-		    treeMethod = UPGMA;       break;
-		case 'c':
-		    treeColorsOn = 0;         break;
-		case 'd':
-		    treeShowBranchlen = 1;    break;
-		case 'I':
-		    only_tree=1;
-		case 'i':
-		    init_tree = 1;            break;
-		case 'j':
-		    strcpy(treeDistString, JUKESCANTORstr);
-		    treeDistCorr = JUKESCANTOR;
-		    setTreeScaleCorr();         break;
-		case 'k':
-		    strcpy(treeDistString, KIMURAstr);
-		    treeDistCorr = KIMURA;
-		    setTreeScaleCorr();         break;
-		case 'o':
-		    treeCoordsOn = 0;         break;
-		case 'p':
-		    treePrintDistances = 1;  
-		    init_tree = 1;            break;
-		case 'R':
-		    treeReadDistancesON = 1;  break;
-		case 's':
-		    strcpy(treeDistString, STORMSONNstr);
-		    treeDistCorr = STORMSONN;
-		    setTreeScaleCorr();         break;
-		case 'b':
-		    strcpy(treeDistString, SCOREDISTstr);
-		    treeDistCorr = SCOREDIST;
-		    setTreeScaleCorr();         break;
-		case 'r':
-		    strcpy(treeDistString, UNCORRstr);
-		    treeDistCorr = UNCORR;
-		    treeScale = 1.0;          break;
-		default : fatal("Illegal sorting order: %s", optarg);
-		}
-	    }                                 break;
-	case 't': 
-	    strncpy(Title, optarg, 255);         break;
-	case 'u': colorRectangles = 0;           break;
-	case 'X': mksubfamilies_cutoff = atof(optarg);  break;
-	case 'z': saveSeparator = *optarg;       break;
-	default : fatal("Illegal option");
-	}
-
-    if (argc-optind < 1) {
-	fprintf(stderr, "%s\n", usage); 
-	exit(1);
-    }
-
-    if (!strcmp(argv[optind], "-")) {
-	pipe = stdin;
-	if (!*Title) strcpy(Title, "stdin");
-    }
-    else {
-	if (!(pipe = fopen(argv[optind], "r")))
-	    fatal("Cannot open file %s", argv[optind]);
-	if (!*Title) strncpy(Title, argv[optind], 255);
-	strncpy(fileName, argv[optind], FIL_BUFFER_SIZE);
-    }
-
-/*    printOnePage = TRUE;*/
-
- #if defined(LINUX) 
-    Align = arrayCreate(100000, ALN);
-    organismArr = arrayCreate(10000, ALN);
-    /* Note: this excessive initialization size is a temporary fix to stop
-    Belvu from segfaulting under linux.  The segfaulting happens during 
-    arrayInsert expansions but only under linux. As I can't find any bugs
-    in Belvu it seems the array package may be bugged under linux. For
-    now, avoiding arrayInsert expansions by initializing it to over twice the largest
-    family in Pfam 040401 buys me some time to find the problem. */    
-#else
-    Align = arrayCreate(100, ALN);
-    organismArr = arrayCreate(100, ALN);
-#endif
-
-    if (treeReadDistancesON) 
-      {
-        /* Should this really be either or?  Problem: cannot read organism info when reading tree */
-	treeReadDistancesPipe = pipe;
-	treeReadDistancesNames();
-	
-	init_tree = 1;
-	only_tree = 1;
-	treeCoordsOn = 0;
-      }
-    else
-      {
-        readMul(pipe);
-      }
-
-    if (!arrayMax(organismArr))
-      suffix2organism();
-
-    setOrganismColors();
-
-    if (scoreFile) readScores(scoreFile);
-    
-    init_sort_do();
-
-    if (!matchFooter && readMatchFile) {
-	if (!(file = fopen(readMatchFile, "r"))) 
-	    fatal("Cannot open file %s", readMatchFile);
-	readMatch(file);
-	fclose(file);
-    }
-    else if (matchFooter) 
-    {	 
-        readMatch(pipe);
-	fclose(pipe);
-    }
-
-    if (!treeReadDistancesON) {
-	checkAlignment();
-	setConsSchemeColors();
-    }
-
-    if (verbose)
-      {
-	/* Print conservation statistics */
-	int i, j, max, consensus = 0 ;
-	double totcons = 0.0;
-
-	printf("\nColumn Consensus        Identity       Conservation\n");
-	printf  ("------ ---------  -------------------  ------------\n");
-
-	for (i = 0; i < maxLen; i++)
-	  {
-	    max = 0;
-
-	    for (j = 1; j < 21; j++)
-	      {
-		if (conservCount[j][i] > max)
-		  {
-		    max = conservCount[j][i];
-		    consensus = j;
-		  }
-	      }
-
-	    printf("%4d       %c      %4d/%-4d = %5.1f %%  %4.1f\n", 
-		   i+1, b2a[consensus], max, nseq, (double)max/nseq*100, conservation[i]);
-	    totcons += conservation[i];
-	  }
-
-	printf ("\nAverage conservation = %.1f\n", totcons/(maxLen*1.0));
-
-	exit(0);
-      }
-
-    initResidueColors(bc);
-    if (colorCodesFile) {
-	if (!(file = fopen(colorCodesFile, "r"))) 
-	    fatal("Cannot open file %s", colorCodesFile);
-	readResidueColorScheme(file, color);
- 	colorScheme = COLORBYRESIDUE;
-	bc->color_by_conserv = bc->colorByResIdOn = 0;
-   }
-    initMarkupColors();
-    if (markupColorCodesFile) {
-	if (!(file = fopen(markupColorCodesFile, "r"))) 
-	    fatal("Cannot open file %s", markupColorCodesFile);
-	readResidueColorScheme(file, markupColor);
-    }
-    
-    if (makeNRinit)
-	mkNonRedundant(makeNRinit);
-    
-    if (init_rmPartial)
-	rmPartialSeqs();
-
-    if (init_rmEmptyColumns)
-	rmEmptyColumns(init_rmEmptyColumns/100.0);
-
-    if (init_rmGappySeqs) {
-	rmGappySeqs(init_rmGappySeqs);
-	rmFinaliseGapRemoval();
-    }
-
-    if (output_format) {
-	if (!strcasecmp(output_format, "Stockholm") ||
-	    !strcasecmp(output_format, "Mul") ||
-	    !strcasecmp(output_format, "Selex"))
-	    writeMul(stdout);
-	else if (!strcasecmp(output_format, "MSF"))
-	    writeMSF(stdout);
-	else if (!strcasecmp(output_format, "FastaAlign")) {
-	    strcpy(saveFormat, FastaAlnStr);
-	    writeFasta(stdout);
-	}
-	else if (!strcasecmp(output_format, "Fasta")) {
-	    strcpy(saveFormat, FastaStr);
-	    writeFasta(stdout);
-	}
-	else if (!strcasecmp(output_format, "tree")) {
-	    treeStruct *treestruct = g_malloc(sizeof(treeStruct));
-	    separateMarkupLines();
-	    treestruct->head = treeMake(1);
-	    treePrintNH(treestruct, treestruct->head, stdout);
-	    printf(";\n");
-	}
-	else 
-	    fatal("Illegal output format: %s", output_format);
-	exit(0);
-    }
-    
-    if (outputBootstrapTrees && treebootstraps > 0) {
-	treeBootstrap();
-	exit(0);
-    } 
-   
-    if (output_probs) {
-	outputProbs(stdout);
-	exit(0);
-    }
-
-    if (bc->mksubfamilies_cutoff) {
-	mksubfamilies(bc->mksubfamilies_cutoff);
-	exit(0);
-    
-    }
-    fprintf(stderr, "\n%d sequences, max len = %d\n", nseq, maxLen);
-
-    /* Try to get 8x13 font for menus, if not set on command line */
-    for ( i=0; i < argc; i++)
-	if (!strcmp(argv[i], "-font")) break;
-    if (i == argc) {
-	argvAdd(&argc, &argv, "-font");
-	argvAdd(&argc, &argv, "8x13");
-    }
-
-    graphInit(&argc, argv);
-    gexInit(&argc, argv);
-
-    graphScreenSize(&screenWidth, &screenHeight, &fontwidth, &fontheight, &pw, &ph);
-    Aspect = (pw/fontwidth)/(ph/fontheight);
-    VSCRWID = HSCRWID/Aspect;
-
-    if (show_ann) showAnnotation();
-
-    /* Calculate screen width of alignment */
-    cw = 1 + maxNameLen+1;
-    if (maxStartLen) cw += maxStartLen+1;
-    if (maxEndLen)   cw += maxEndLen+1;
-    if (maxScoreLen) cw += maxScoreLen+1;
-    cw += maxLen + ceil(VSCRWID) + 2;
-
-     colorMenu = menuInitialise ("color", (MENUSPEC*)colorMENU);
-    colorEditingMenu = menuInitialise ("color", (MENUSPEC*)colorEditingMENU);
-    sortMenu = menuInitialise ("sort", (MENUSPEC*)sortMENU);
-    editMenu = menuInitialise ("edit", (MENUSPEC*)editMENU);
-    showColorMenu =  menuInitialise ("", (MENUSPEC*)showColorMENU);
-    saveMenu =  menuInitialise ("", (MENUSPEC*)saveMENU);
-    belvuMenu = menuInitialise ("belvu", (MENUSPEC*)mainMenu);
-    treeGUIMenu = menuInitialise ("", (MENUSPEC*)treeGUIMENU);
-    treeDistMenu = menuInitialise ("", (MENUSPEC*)treeDistMENU);
-    treePickMenu = menuInitialise ("", (MENUSPEC*)treePickMENU);
-    if (!displayScores) {
-	menuSetFlags(menuItem(sortMenu, "Sort by score"), MENUFLAG_DISABLED);
-	menuSetFlags(menuItem(editMenu, "Remove sequences below given score"), MENUFLAG_DISABLED);
-	menuSetFlags(menuItem(belvuMenu, "Print score and coords of line"), MENUFLAG_DISABLED);
-	menuSetFlags(menuItem(belvuMenu, "Output score and coords of line"), MENUFLAG_DISABLED);
-    }
-    menuSetFlags(menuItem(colorMenu, thresholdStr), MENUFLAG_DISABLED);
-
-   if (init_tree)
-      {
-	treeDisplay();
-
-	if (only_tree)
-	  {
-
-	    /*ACEOUT out = aceOutCreateToFile("t", "w", 0);
-	    graphGIF(treeGraph, out, 0);*/
-
-	    graphLoop(FALSE);
-	    graphFinish();
-	    
-	    exit(0);
-	  }
-      }
-
-    if (outputBootstrapTrees && treebootstraps < 0)
-      {	/* Display [treebootstraps] bootstrap trees */
-	bc->treebootstrapsDisplay = TRUE;
-	
-	treebootstraps = -treebootstraps;
-
-	treeBootstrap();
-
-	/* graphLoop(FALSE);
-	graphFinish();
-	exit(0); */
-      }
-
-
-
-    /* Create the main belvu graph display of aligned sequences. */
-
-    belvuGraph = graphCreate (TEXT_FIT, messprintf("Belvu:  %s", Title), 0, 0, 
-			      cw*screenWidth/fontwidth, 0.44*screenHeight);
-
-
-    graphRegister(PICK, boxPick);
-    graphRegister(MIDDLE_DOWN, middleDown);
-    graphRegister(RESIZE, belvuRedraw);
-    graphRegister(KEYBOARD, keyboard);
-    graphRegister(DESTROY, belvuDestroy) ;
-
-    if (!colorCodesFile) colorSim() ;
-
-    belvuRedraw() ;
-
-    graphLoop(FALSE) ;
-
-    graphFinish() ;
-
-    return(0) ;
 }
 
 
@@ -5849,6 +5278,8 @@ BelvuContext* createBelvuContext()
   
   bc->sortType = BELVU_UNSORTED;
   
+  bc->annotationList = NULL;
+  
   bc->treeBestBalance = 0.0;
   bc->treeBestBalance_subtrees = 0.0;
   bc->tree_y = 0.3;
@@ -6115,17 +5546,13 @@ void readLabels(BelvuContext *bc, FILE *fil)
   int seqlen = bc->selectedAln->end - bc->selectedAln->start + 1;
   if (strlen(labelseq) > seqlen)
     {
-      char *msg = blxprintf("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok", 
-                            strlen(labelseq), seqlen);
-      g_critical(msg);
-      g_free(msg);
+      g_critical("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok", 
+		 (int)strlen(labelseq), seqlen);
     }
   else if (strlen(labelseq) < seqlen) 
     {
-      char *msg = blxprintf("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting", 
-                            strlen(labelseq), seqlen);
-      g_critical(msg);
-      g_free(msg);
+      g_critical("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting", 
+		 (int)strlen(labelseq), seqlen);
       return;
     }
   
@@ -7200,21 +6627,8 @@ void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and co
 
   fclose(pipe);
   fflush(pipe);
-}
-
-
-static void saveMSF(BelvuContext *bc)
-{
-  /* to do: pass parent widget */
-  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, NULL, "Save as MSF (/) file:");
   
-  FILE *fil = fopen(filename, "w");
-  
-  if (fil)
-    {
-      writeMSF(bc, fil);
-      bc->saved = TRUE;
-    }
+  bc->saved = TRUE;
 }
 
 
@@ -7309,10 +6723,10 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
 }
 
 
-/* Parse sequence attributes from #=GS lines in selex file format */
-static void parseSelexMarkupLine(BelvuContext *bc, char *seqLine)
+/* Parse annotation lines from #=GS lines in the Mul file format */
+static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
 {
-  char *cp = seqLine;
+  const char *cp = seqLine;
 
   char
     *namep,		/* Seqname */
@@ -7320,6 +6734,7 @@ static void parseSelexMarkupLine(BelvuContext *bc, char *seqLine)
     *labelp,		/* Label (OS) */
     *valuep;		/* Organism (c. elegans) */
 
+  
   /* Ignore anything that's not a 'GS' line */
   if (strncmp(cp, "#=GS", 4) != 0)
     return;
@@ -7488,8 +6903,19 @@ static void appendSequenceDataToAln(BelvuContext *bc, char *line, const int alns
 }
 
 
-/* Called from readMul.  Does the work to parse a selex file. */
-static void readSelex(BelvuContext *bc, FILE *pipe)
+/* ReadMul 
+ * parses an alignment file in mul (stockholm) or selex format and puts it in the Align array
+ *
+ * Assumes header contains ' ' or '#'
+ *
+ * Alignment can have one of the following formats:
+ *  CSW_DROME  VTHIKIQNNGDFFDLYGGEKFATLP
+ *  CSW_DROME  51   75   VTHIKIQNNGDFFDLYGGEKFATLP
+ *  CSW_DROME  51   75   VTHIKIQNNGDFFDLYGGEKFATLP P29349
+ *  KFES_MOUSE/458-539    .........WYHGAIPW.....AEVAELLT........HTGDFLVRESQG
+ *
+ */
+static void readMul(BelvuContext *bc, FILE *pipe)
 {
   char line[MAXLENGTH+1];
   line[0] = 0;
@@ -7549,8 +6975,10 @@ static void readSelex(BelvuContext *bc, FILE *pipe)
       else if (!strncmp(line, "#=GF ", 5) || 
                !strncmp(line, "#=GS ", 5)) 
         {
-          /* Markup line */
-          parseSelexMarkupLine(bc, line);
+	  /* Store all annotation lines in a list. Prepend the items because that
+	   * is more efficient, and then reverse the list at the end */
+	  bc->annotationList = g_slist_prepend(bc->annotationList, g_strdup(line));
+          parseMulAnnotationLine(bc, line);
         }
       else if (!strncmp(line, "#=GC ", 5) || 
                !strncmp(line, "#=GR ", 5) || 
@@ -7566,6 +6994,9 @@ static void readSelex(BelvuContext *bc, FILE *pipe)
           break;
         }
     }
+  
+  /* Reverse the annotation list, because we prepended items instead of appending them */
+  bc->annotationList = g_slist_reverse(bc->annotationList);
   
   /* Loop through all of the alignment lines and extract the sequence string */
   GSList *alnItem = alnList;
@@ -7600,65 +7031,107 @@ static void readSelex(BelvuContext *bc, FILE *pipe)
 }
 
 
+/* 
+ Format the name/start-end string 
+ 
+ For convenience, used by writeMul. Returns a newly allocated string
+ which must be freed with g_free
+ */
+static char *writeMulName(BelvuContext *bc, ALN *aln) 
+{  
+  char *name = NULL; /* result */
+  
+  char *cp, *namep, GRname[MAXNAMESIZE*2+2], GRfeat[MAXNAMESIZE+1];
+  
+  if (aln->markup == GC) 
+    {
+      name = blxprintf("#=GC %s", aln->name);
+      return name;
+    }
+  
+  /* NOTE: GR lines have the feature concatenated in aln->name - must separate */
+  if (aln->markup == GR) 
+    {
+      namep = GRname;
+      strncpy(namep, aln->name, 50);
+      cp = strchr(namep, ' ');
+      strncpy(GRfeat, cp+1, 50);
+      *cp = 0;
+    }
+  else
+    {
+      namep = aln->name;
+    }
+  
+  if (!bc->saveCoordsOn) 
+    {
+      name = blxprintf("%s", namep);
+    }
+  else 
+    {
+      name = blxprintf("%s%c%d-%d", namep, bc->saveSeparator, aln->start, aln->end);
+    }
+  
+  if (aln->markup == GR)
+    name = blxprintf("#=GR %s %s", name, GRfeat);
+  
+  return name;
+}
+
+
 void writeMul(BelvuContext *bc, FILE *fil)
 {
-//  static char *cp;
-//  int i, w, W;
-//
-//  /* Write Annotation */
-//  if (!stackEmpty(AnnStack))
-//    {
-//      stackCursor(AnnStack, 0);
-//      while ((cp = stackNextText(AnnStack)))
-//        {
-//          fprintf(fil, "%s\n", cp);
-//        }
-//    }
-//
-//  /* Find max width of name column */
-//  for (i = w = 0; i < bc->alignArr->len; i++)
-//    if ( (W = strlen(writeMulName(g_array_index(bc->alignArr, ALN, i)))) > w) 
-//      w = W;
-//    
-//  /* Write alignment */
-//  for (i = 0; i < bc->alignArr->len; i++)
-//    fprintf(fil, "%-*s %s\n", w, writeMulName(g_array_index(bc->alignArr, ALN, i)), g_array_index(bc->alignArr, ALN, i)->seq);
-//  
-//  fprintf(fil, "//\n");
-//  
-//  fclose(fil);
-//  fflush(fil);
-//
-//  bc->saved = 1;
-}
-
-
-static void saveMul(BelvuContext *bc)
-{
-  /* to do: pass parent widget */
-  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, NULL, "Save as Stockholm file:");
-  FILE *fil = fopen(filename, "w");
-
-  if (fil)
+  /* Write Annotation */
+  GSList *annotationItem = bc->annotationList;
+  
+  for ( ; annotationItem; annotationItem = annotationItem->next)
     {
-      writeMul(bc, fil);
+      const char *line = (const char*)(annotationItem->data);
+      fprintf(fil, "%s\n", line);
     }
+
+  /* Find max width of name column */
+  int i = 0;
+  int maxWidth = 0;
+  
+  for ( ; i < bc->alignArr->len; ++i)
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+
+      char *mulName = writeMulName(bc, alnp);
+      int curWidth = strlen(mulName);
+      g_free(mulName);
+    
+      if ( curWidth > maxWidth) 
+	maxWidth = curWidth;
+    }
+    
+  /* Write alignment */
+  for (i = 0; i < bc->alignArr->len; i++)
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      char *mulName = writeMulName(bc, alnp);
+      const char *alnpSeq = alnGetSeq(alnp);
+    
+      fprintf(fil, "%-*s %s\n", maxWidth, mulName, (alnpSeq ? alnpSeq : ""));
+    
+      g_free(mulName);
+    }
+  
+  fprintf(fil, "//\n");
+  
+  fclose(fil);
+  fflush(fil);
+
+  bc->saved = TRUE;
 }
 
 
-/* ReadMul 
- * parses an alignment file in mul or selex format and puts it in the Align array
- *
- * Assumes header contains ' ' or '#'
- *
- * Alignment can have one of the following formats:
- *  CSW_DROME  VTHIKIQNNGDFFDLYGGEKFATLP
- *  CSW_DROME  51   75   VTHIKIQNNGDFFDLYGGEKFATLP
- *  CSW_DROME  51   75   VTHIKIQNNGDFFDLYGGEKFATLP P29349
- *  KFES_MOUSE/458-539    .........WYHGAIPW.....AEVAELLT........HTGDFLVRESQG
- *
+/* readFile 
+ * Determines the format of the input file and calls the appropriate 
+ * parser. Valid file formats are fasta, MSF, mul (stockholm) or selex.
  */
-void readMul(BelvuContext *bc, FILE *pipe)
+void readFile(BelvuContext *bc, FILE *pipe)
 {
   char   ch = '\0';
   char line[MAXLENGTH+1];
@@ -7696,7 +7169,7 @@ void readMul(BelvuContext *bc, FILE *pipe)
   if (!feof(pipe))
     ungetc(ch, pipe);
 
-  return readSelex(bc, pipe);
+  return readMul(bc, pipe);
 }
 
 
@@ -7746,21 +7219,8 @@ void writeFasta(BelvuContext *bc, FILE *pipe)
 
   fclose(pipe);
   fflush(pipe);
-}
-
-
-static void saveFasta(BelvuContext *bc)
-{
-  /* to do: pass parent widget */
-  const char *filename = getSaveFileName(NULL, bc->fileName, bc->dirName, NULL, "Save as unaligned Fasta file:");
   
-  FILE *fil = fopen(filename, "w");
-  
-  if (fil)
-    {
-      writeFasta(bc, fil);
-      bc->saved = TRUE;
-    }
+  bc->saved = TRUE;
 }
 
 
@@ -7881,6 +7341,7 @@ void outputProbs(BelvuContext *bc, FILE *fil)
 
 void showAnnotation(BelvuContext *bc)
 {
+  /* to do: implement this */
 //  int maxwidth=0,
 //    nlines=0,
 //    i=0;
