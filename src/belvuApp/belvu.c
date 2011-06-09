@@ -5299,8 +5299,8 @@ BelvuContext* createBelvuContext()
   strcpy(bc->treeMethodString, NJstr);
   bc->Title[0] = '\0';
   bc->saveFormat = BELVU_FILE_MUL;
-  bc->fileName[0] = 0;
-  bc->dirName[0] = 0;
+  bc->fileName = NULL;
+  bc->dirName = NULL;
   bc->organismLabel[0] = 'O';
   bc->organismLabel[0] = 'S';   
   bc->organismLabel[0] = '\0'; 

@@ -394,8 +394,8 @@ typedef struct BelvuContextStruct
   char treeDistString[50];
   char treeMethodString[50];
   char Title[256];
-  char fileName[FIL_BUFFER_SIZE + 1];
-  char dirName[DIR_BUFFER_SIZE + 1]; /* Default directory for file browser */
+  char *fileName;		   /* Default file name for file browser */
+  char *dirName;		   /* Default directory for file browser */
   char organismLabel[3];
   
   int **conservCount;              /* Matrix of conservation values  - 21 x maxLen */

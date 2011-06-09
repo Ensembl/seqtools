@@ -155,9 +155,9 @@ static void                      showEditConsColorsDialog(GtkWidget *belvuWindow
 static void                      saveOrResetConsColors(BelvuContext *bc, const gboolean save);
 static void                      showSelectGapCharDialog(GtkWidget *belvuWindow);
 
-static void			 saveFasta(BelvuContext *bc, GtkWidget *parent);
-static void			 saveMul(BelvuContext *bc, GtkWidget *parent);
-static void			 saveMsf(BelvuContext *bc, GtkWidget *parent);
+static const char*		 saveFasta(BelvuContext *bc, GtkWidget *parent);
+static const char*		 saveMul(BelvuContext *bc, GtkWidget *parent);
+static const char*		 saveMsf(BelvuContext *bc, GtkWidget *parent);
 static void			 showSaveAsDialog(GtkWidget *belvuWindow);
 static void			 saveAlignment(BelvuContext *bc, GtkWidget *window);
 
@@ -986,7 +986,7 @@ static void onunhideMenu(GtkAction *action, gpointer data)
  *                  File menu actions                      *
  ***********************************************************/
 
-static void saveFasta(BelvuContext *bc, GtkWidget *parent)
+static const char* saveFasta(BelvuContext *bc, GtkWidget *parent)
 {
   char *title = blxprintf("%s", bc->saveFormat == BELVU_FILE_UNALIGNED_FASTA ? "Save as unaligned Fasta file:" : "Save as aligned Fasta file:");
   const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, title);
@@ -998,10 +998,12 @@ static void saveFasta(BelvuContext *bc, GtkWidget *parent)
     {
       writeFasta(bc, fil);
     }
+  
+  return filename;
 }
 
 
-static void saveMsf(BelvuContext *bc, GtkWidget *parent)
+static const char* saveMsf(BelvuContext *bc, GtkWidget *parent)
 {
   const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, "Save as MSF (/) file:");
   
@@ -1011,10 +1013,12 @@ static void saveMsf(BelvuContext *bc, GtkWidget *parent)
     {
       writeMSF(bc, fil);
     }
+  
+  return filename;
 }
 
 
-static void saveMul(BelvuContext *bc, GtkWidget *parent)
+static const char* saveMul(BelvuContext *bc, GtkWidget *parent)
 {
   const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, "Save as Stockholm file:");
   FILE *fil = fopen(filename, "w");
@@ -1023,6 +1027,8 @@ static void saveMul(BelvuContext *bc, GtkWidget *parent)
     {
       writeMul(bc, fil);
     }
+  
+  return filename;
 }
 
 
@@ -1170,6 +1176,14 @@ static void onsaveColorSchemeMenu(GtkAction *action, gpointer data)
   const char *filename = getSaveFileName(belvuWindow, properties->bc->fileName, properties->bc->dirName, NULL, "Save colour scheme");
   FILE *fil = fopen(filename, "w");
 
+  if (filename)
+    {
+      if (properties->bc->dirName) g_free(properties->bc->dirName);
+      if (properties->bc->fileName) g_free(properties->bc->fileName);
+      properties->bc->dirName = g_path_get_dirname(filename);
+      properties->bc->fileName = g_path_get_basename(filename);
+    }
+  
   saveResidueColorScheme(properties->bc, fil);
 }
 
@@ -1180,6 +1194,14 @@ static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
 
   const char *filename = getLoadFileName(belvuWindow, properties->bc->dirName, "Read color scheme");
   FILE *fil = fopen(filename, "r");
+
+  if (filename)
+    {
+      if (properties->bc->dirName) g_free(properties->bc->dirName);
+      if (properties->bc->fileName) g_free(properties->bc->fileName);
+      properties->bc->dirName = g_path_get_dirname(filename);
+      properties->bc->fileName = g_path_get_basename(filename);
+    }
   
   readResidueColorScheme(properties->bc, fil, getColorArray());
 
@@ -1468,14 +1490,25 @@ static void showHelpDialog()
 /* Utility to call the correct save function for the current save format */
 static void saveAlignment(BelvuContext *bc, GtkWidget *window)
 {
+  const char *filename = NULL;
+  
   if (bc->saveFormat == BELVU_FILE_MSF)
-    saveMsf(bc, window);
+    filename = saveMsf(bc, window);
   else if (bc->saveFormat == BELVU_FILE_ALIGNED_FASTA)
-    saveFasta(bc, window);
+    filename = saveFasta(bc, window);
   else if (bc->saveFormat == BELVU_FILE_UNALIGNED_FASTA)
-    saveFasta(bc, window);
+    filename = saveFasta(bc, window);
   else
-    saveMul(bc, window);
+    filename = saveMul(bc, window);
+  
+  /* Remember the last filename */
+  if (filename)	
+    {
+      if (bc->dirName) g_free(bc->dirName);
+      if (bc->fileName) g_free(bc->fileName);
+      bc->dirName = g_path_get_dirname(filename);
+      bc->fileName = g_path_get_basename(filename);
+    }
 }
 
 

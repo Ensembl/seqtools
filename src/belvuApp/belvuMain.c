@@ -477,16 +477,21 @@ int main(int argc, char **argv)
   }
   
   
-  if (!strcmp(argv[optind], "-")) {
-    pipe = stdin;
-    if (!*bc->Title) strcpy(bc->Title, "stdin");
-  }
-  else {
-    if (!(pipe = fopen(argv[optind], "r")))
-      g_error("Cannot open file %s", argv[optind]);
-    if (!*bc->Title) strncpy(bc->Title, argv[optind], 255);
-    strncpy(bc->fileName, argv[optind], FIL_BUFFER_SIZE);
-  }
+  if (!strcmp(argv[optind], "-")) 
+    {
+      pipe = stdin;
+      if (!*bc->Title) strcpy(bc->Title, "stdin");
+    }
+  else 
+    {
+      if (!(pipe = fopen(argv[optind], "r")))
+	g_error("Cannot open file %s", argv[optind]);
+      if (!*bc->Title) 
+	strncpy(bc->Title, argv[optind], 255);
+      
+      bc->fileName = g_path_get_basename(argv[optind]);
+      bc->dirName = g_path_get_dirname(argv[optind]);
+    }
   
   int nseq = 0;
   if (bc->treeReadDistancesOn) 
