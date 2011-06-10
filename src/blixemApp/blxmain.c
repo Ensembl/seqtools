@@ -107,6 +107,9 @@ gboolean blixem_debug_G = FALSE ;
   --compiled\n\
     Show package compile date.\n\
 \n\
+  --show-coverage\n\
+    Display the coverage section on start-up.\n\
+\n\
   --dotter-first-match\n\
     Call Dotter on the first match to the right of the default start coord.\n\
 \n\
@@ -258,6 +261,8 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->startNextMatch = FALSE;
   options->parseFullEmblInfo = FALSE;
   options->saveTempFiles = FALSE;
+  options->coverageOn = FALSE;
+  
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_INVALID;
   options->numFrames = 1;
@@ -528,6 +533,7 @@ int main(int argc, char **argv)
   static struct option long_options[] =
     {
       {"start-next-match",      no_argument,        &options.startNextMatch, 1},
+      {"show-coverage",         no_argument,        &options.coverageOn, 1},
       {"dotter-first-match",    no_argument,        &options.dotterFirst, 1},
       {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
       {"hide-inactive-strand",  no_argument,        &options.hideInactive, 1},

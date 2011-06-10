@@ -5842,8 +5842,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   if (options->activeStrand == BLXSTRAND_REVERSE)
     toggleStrand(detailView);
 
-  /* Hide the coverage view by default */
-  widgetSetHidden(coverageView, TRUE);
+  /* Hide the coverage view by default (unless told to display it) */
+  if (!options->coverageOn)
+    widgetSetHidden(coverageView, TRUE);
   
   /* If the options say to hide the inactive strand, hide it now. (This must be done
    * after showing the widgets, or it will get shown again in show_all.). To do: we just
@@ -5855,7 +5856,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   if (!options->bigPictON)
     widgetSetHidden(bigPicture, TRUE);
-  
+
   if (options->sortInverted)
     {
       blxContext->flags[BLXFLAG_INVERT_SORT] = TRUE;

@@ -315,6 +315,8 @@ typedef struct _CommandLineOptions
   gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
   gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
+  gboolean coverageOn;            /* show the coverage view on start-up */
+
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
