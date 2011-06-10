@@ -809,6 +809,13 @@ int main(int argc, char **argv)
 
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname[FULLNAMESIZE+1] = "";
+
+  /* Initialise ref seq range to sequence length, if known */
+  if (options.refSeq)
+    {
+      options.refSeqRange.min = 1;
+      options.refSeqRange.max = strlen(options.refSeq);
+    }
   
   /* Pass the config file to parseFS, but only if it was a genuine input file; if we created
    * an empty config file ourselves, don't pass it. */

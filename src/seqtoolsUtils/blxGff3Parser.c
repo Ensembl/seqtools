@@ -54,7 +54,8 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT,        /* invalid CIGAR format */
   BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
   BLX_GFF3_ERROR_UNKNOWN_MODE,                /* unknown blast mode */
-  BLX_GFF3_ERROR_BAD_COLOR                   /* Bad color string found when parsing color */
+  BLX_GFF3_ERROR_BAD_COLOR,                   /* Bad color string found when parsing color */
+  BLX_GFF3_ERROR_OUT_OF_RANGE                /* Feature is not in the reference sequence range */
 } BlxGff3Error;
 
 
@@ -87,7 +88,7 @@ typedef struct _BlxGffData
 
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, GSList *styles, BlxGffData *gffData, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, GSList *styles, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
 static void           parseAttributes(char *attributes, GList **seqList, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
@@ -427,7 +428,8 @@ void parseGff3Body(const int lineNum,
                    GSList *supportedTypes,
                    GSList *styles,
                    const int resFactor, 
-                   GKeyFile *keyFile)
+                   GKeyFile *keyFile,
+                   const IntRange const *refSeqRange)
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
@@ -436,7 +438,7 @@ void parseGff3Body(const int lineNum,
 			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0};
 		      
   GError *error = NULL;
-  parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, &gffData, &error);
+  parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, refSeqRange, &gffData, &error);
   
   /* Create a blixem object based on the parsed data */
   if (!error)
@@ -447,7 +449,7 @@ void parseGff3Body(const int lineNum,
   if (error)
     {
       prefixError(error, "[line %d] Error parsing GFF data. ", lineNum);
-      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
   
   DEBUG_EXIT("parseGff3Body");
@@ -558,6 +560,7 @@ static void parseGffColumns(GString *line_string,
                             GList **seqList,
                             GSList *supportedTypes,
                             GSList *styles, 
+                            const IntRange const *refSeqRange,
 			    BlxGffData *gffData,
                             GError **error)
 {
@@ -571,22 +574,40 @@ static void parseGffColumns(GString *line_string,
 
   if (!tmpError)
     {
+      /* Reference sequence name */
       gffData->qName = tokens[0] ? g_ascii_strup(tokens[0], -1) : NULL;
       
+      /* Source (optional) */
       if (tokens[1] && strcmp(tokens[1], "."))
           {
             gffData->source = g_uri_unescape_string(tokens[1], NULL);
           }
       
+      /* Type (needs to converting to a seqtools type) */
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
       updateInputMspType(gffData);
     }
     
   if (!tmpError)
     {
+      /* Reference sequence coords - ignore anything not in refSeqRange
+       * (Note though that we accept features that are partially in range) */
       gffData->qStart = convertStringToInt(tokens[3]);
       gffData->qEnd = convertStringToInt(tokens[4]);
-      
+
+      /* We can only check the range if the refseqrange is set... */
+      if (refSeqRange->min != UNSET_INT || refSeqRange->max != UNSET_INT)
+        {
+          IntRange featureRange;
+          intrangeSetValues(&featureRange, gffData->qStart, gffData->qEnd); /* makes sure min < max */
+          
+          if (!rangesOverlap(&featureRange, refSeqRange))
+            g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_OUT_OF_RANGE, "Feature is outside the reference sequence range.\n");
+        }
+    }
+  
+  if (!tmpError)
+    {
       if (!stringsEqual(tokens[5], ".", TRUE))
         {
           gffData->score = g_ascii_strtod(tokens[5], NULL);

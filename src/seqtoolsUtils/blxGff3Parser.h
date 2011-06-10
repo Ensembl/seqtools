@@ -125,7 +125,8 @@ void parseGff3Body(const int lineNum,
                    GSList *supportedTypes,
                    GSList *styles,
                    const int resFactor,
-                   GKeyFile *keyFile);
+                   GKeyFile *keyFile,
+                   const IntRange const *refSeqRange);
 
 void parseFastaSeqHeader(char *line, const int lineNum,
                          char **refSeq, char *refSeqName,
