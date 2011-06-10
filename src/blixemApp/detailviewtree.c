@@ -1716,7 +1716,7 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	    {
 	      BlxViewContext *bc = treeGetContext(tree);
 	    
-	      if (bc->flags[BLXFLAG_SQUASH_MATCHES] && numMsps > 1)
+	      if (bc->modelId == BLXMODEL_SQUASHED && numMsps > 1)
 		{
 		  char *name2 = blxprintf("(%d) %s", numMsps, name);
 		  displayName = abbreviateText(name2, maxLen - 2);

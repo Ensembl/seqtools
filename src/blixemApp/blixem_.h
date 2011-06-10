@@ -165,7 +165,6 @@ typedef enum
   {
     BLXFLAG_MIN,		    /* Start index for looping through flags */
   
-    BLXFLAG_SQUASH_MATCHES,	    /* Puts all MSPs from the same sequence on the same row in the detail view */
     BLXFLAG_INVERT_SORT,	    /* Inverts the default sort order */
     BLXFLAG_HIGHLIGHT_DIFFS,	    /* Hides matching bases and highlights mis-matching ones */
     BLXFLAG_HIGHLIGHT_VARIATIONS,   /* Whether to highlight bases that have variations in the reference sequence */
@@ -313,6 +312,7 @@ typedef struct _CommandLineOptions
   gboolean highlightDiffs;        /* whether the initial display should highlight mismatches rather than matches */
   gboolean dotterFirst;		  /* open dotter when blixem starts */
   gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
+  gboolean squashMatches;         /* start with the 'squash matches' option on */
   gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */

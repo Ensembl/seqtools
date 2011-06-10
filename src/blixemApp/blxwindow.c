@@ -2667,8 +2667,8 @@ static void onToggleFlag(GtkWidget *button, gpointer data)
 /* Callback function called when the 'squash matches' button is toggled */
 static void onSquashMatches(GtkWidget *button, gpointer data)
 {
-  const gboolean squash = setFlagFromButton(button, data);
-  
+  const gboolean squash = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
@@ -3516,6 +3516,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   /* Display options */
   GtkWidget *vbox2 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
+  const gboolean squashMatches = (bc->modelId == BLXMODEL_SQUASHED);
   
   /* show-unaligned-sequence option and its sub-options */
   GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
@@ -3525,7 +3526,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   createCheckButton(GTK_BOX(vbox2), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
 
   createCheckButton(GTK_BOX(vbox2), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
-  createCheckButton(GTK_BOX(vbox2), "_Squash matches", bc->flags[BLXFLAG_SQUASH_MATCHES], G_CALLBACK(onSquashMatches), GINT_TO_POINTER(BLXFLAG_SQUASH_MATCHES));
+  createCheckButton(GTK_BOX(vbox2), "_Squash matches", squashMatches, G_CALLBACK(onSquashMatches), NULL);
 
   
   /* Other boxes */
@@ -4968,7 +4969,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
     }
     
   blxContext->spawnedProcesses = NULL;
-  blxContext->modelId = BLXMODEL_NORMAL;
+  blxContext->modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
   blxContext->depthArray = NULL;
   blxContext->minDepth = 0;
   blxContext->maxDepth = 0;
@@ -5845,6 +5846,14 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Hide the coverage view by default (unless told to display it) */
   if (!options->coverageOn)
     widgetSetHidden(coverageView, TRUE);
+  
+  /* The trees use the normal model by default, so if we're starting in 
+   * 'squash matches' mode we need to change the model */
+  if (blxContext->modelId == BLXMODEL_SQUASHED)
+    {
+      callFuncOnAllDetailViewTrees(detailView, treeUpdateSquashMatches, NULL);
+      gtk_widget_queue_draw(detailView);
+    }
   
   /* If the options say to hide the inactive strand, hide it now. (This must be done
    * after showing the widgets, or it will get shown again in show_all.). To do: we just
