@@ -226,7 +226,10 @@ static void drawCoverageBar(const double x1,
  * gridline (the height of the widget is made big enough to accommodate this). */
 static int coverageViewGetMaxLabeledDepth(CoverageViewProperties *properties)
 {
-  int numCells = roundNearest(properties->numVCells);
+  /* to do: ideally we would round numcells to the nearest int rather than
+   * truncating, but there is a bug with that where the horizontal grid lines
+   * are sometimes not drawn with the correct labels */
+  int numCells = (int)(properties->numVCells);
   const int result = properties->rangePerCell * numCells;
   return result;
 }
@@ -319,7 +322,7 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
   const int maxDepth = coverageViewGetMaxLabeledDepth(properties);
   
   drawHorizontalGridLines(coverageView, bigPicture, &properties->viewRect, bc, bpProperties, drawable,
-			  properties->numVCells, properties->rangePerCell, (gdouble)maxDepth, "");
+			  (int)(properties->numVCells), properties->rangePerCell, (gdouble)maxDepth, "");
   
   drawCoveragePlot(coverageView, drawable);
 }
