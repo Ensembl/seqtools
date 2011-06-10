@@ -131,7 +131,10 @@ gboolean blixem_debug_G = FALSE ;
     Parse additional data such as organism and tissue-type on start-up.\n\
 \n\
   --remove-input-files\n\
-    Remove input files after parsing.\n\
+    Delete the input files after they have been parsed.\n\
+\n\
+  --save-temp-files\n\
+    Save any temporary files created by Blixem.\n\
 \n\
   --sort-mode=<mode>\n\
     Default sort mode. Use --help option to see details.\n\
@@ -254,6 +257,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->dotterFirst = FALSE;	
   options->startNextMatch = FALSE;
   options->parseFullEmblInfo = FALSE;
+  options->saveTempFiles = FALSE;
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_INVALID;
   options->numFrames = 1;
@@ -534,6 +538,7 @@ int main(int argc, char **argv)
       {"hide-big-picture",      no_argument,        &options.bigPictON, 0},
       {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
       {"remove-input-files",    no_argument,        &rm_input_files, 1},
+      {"save-temp-files",       no_argument,        &options.saveTempFiles, 1},
       {"styles-file",           required_argument,  NULL, 0},
       {"fetch-server",          required_argument,  NULL, 0},
       {"sort-mode",             required_argument,  NULL, 0},

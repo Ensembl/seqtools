@@ -2781,9 +2781,9 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
 
   GError *error = NULL;
   gboolean success = blxviewFetchSequences(
-    bc->external, getOptionalData, getSequenceData, bc->seqType, &bc->matchSeqs, 
-    bc->bulkFetchMode, bc->net_id, bc->port, &bc->mspList, &bc->blastMode, 
-    bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, bc->dataset);
+    bc->external, getOptionalData, getSequenceData, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
+    bc->seqType, &bc->matchSeqs, bc->bulkFetchMode, bc->net_id, bc->port, &bc->mspList,
+    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, bc->dataset);
   
   if (error)
     {
@@ -4958,6 +4958,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
+  blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;

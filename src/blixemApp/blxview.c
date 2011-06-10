@@ -446,6 +446,7 @@ static void regionFetchSequences(GList *regionsToFetch,
 				 gboolean External,
 				 const gboolean parseFullEmblInfo,
 				 const gboolean parseSequenceData,
+				 const gboolean saveTempFiles,
 				 const BlxSeqType seqType,
                                  const int refSeqOffset,
 				 const char *dataset,
@@ -546,8 +547,12 @@ static void regionFetchSequences(GList *regionsToFetch,
           /* Clean up */
           fclose(outputFile);
           
-          if (unlink(fileName) != 0)
-            g_warning("Error removing temp file '%s'.\n", fileName);
+          /* Delete temp files (unless the 'save temp files' option is on) */
+          if (!saveTempFiles)
+            {
+              if (unlink(fileName) != 0)
+                g_warning("Error removing temp file '%s'.\n", fileName);
+            }
           
           g_free(fileName);
           g_free(args);
@@ -573,6 +578,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
                                int port, 
                                const gboolean parseOptionalData,
                                const gboolean parseSequenceData,
+                               const gboolean saveTempFiles,
                                const gboolean External,
 			       MSP **mspList,
 			       BlxBlastMode *blastMode,
@@ -603,7 +609,9 @@ static gboolean fetchSequences(GList *seqsToFetch,
         }
       else if (strcmp(fetchMode, BLX_FETCH_REGION) == 0)
         {
-          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, supportedTypes, styles, External, parseOptionalData, parseSequenceData, seqType, refSeqOffset, dataset, error);
+          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, 
+                               supportedTypes, styles, External, parseOptionalData, parseSequenceData,
+                               saveTempFiles, seqType, refSeqOffset, dataset, error);
         }
       else if (fetchMode && fetchMode[0] != 0)
         {
@@ -624,6 +632,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
 gboolean blxviewFetchSequences(gboolean External, 
                                const gboolean parseFullEmblInfo,
                                const gboolean parseSequenceData,
+                               const gboolean saveTempFiles,
                                const BlxSeqType seqType,
                                GList **seqList, /* list of BlxSequence structs for all required sequences */
                                char *bulkFetchMode,
@@ -666,7 +675,7 @@ gboolean blxviewFetchSequences(gboolean External,
           
           DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
           
-          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, dataset, &tmpError))
+          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, dataset, &tmpError))
             {
               success = TRUE;
               
@@ -771,7 +780,7 @@ gboolean blxview(CommandLineOptions *options,
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
   
   gboolean status = blxviewFetchSequences(
-    External, options->parseFullEmblInfo, TRUE, options->seqType, &seqList, 
+    External, options->parseFullEmblInfo, TRUE, options->saveTempFiles, options->seqType, &seqList, 
     options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, 
     featureLists, supportedTypes, NULL, 0, options->dataset); /* offset has not been applied yet, so pass offset=0 */
   
