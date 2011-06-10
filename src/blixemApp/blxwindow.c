@@ -2783,7 +2783,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   gboolean success = blxviewFetchSequences(
     bc->external, getOptionalData, getSequenceData, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
     bc->seqType, &bc->matchSeqs, bc->bulkFetchMode, bc->net_id, bc->port, &bc->mspList,
-    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, bc->dataset);
+    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
   
   if (error)
     {

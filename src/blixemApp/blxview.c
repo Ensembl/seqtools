@@ -438,15 +438,21 @@ static char* getRegionFetchCommand(const MSP const *msp,
                                    const char *script,
                                    const char *dataset,
                                    const char *fileName,
-                                   const int refSeqOffset)
+                                   const int refSeqOffset,
+                                   const IntRange const *refSeqRange)
                                    
 {
   GString *commandStr = g_string_new(script);
 
   /* Note that we need the original input coords, so undo any offset 
-   * that was subtracted */
-  const int startCoord = mspGetQStart(msp) + refSeqOffset;
-  const int endCoord = mspGetQEnd(msp) + refSeqOffset;
+   * that was subtracted. */
+  int startCoord = mspGetQStart(msp) + refSeqOffset;
+  int endCoord = mspGetQEnd(msp) + refSeqOffset;
+  
+  /* Limit the region to our display range (anything outside this is not worth
+   * fetching because it won't be displayed). */
+  boundsLimitValue(&startCoord, refSeqRange);
+  boundsLimitValue(&endCoord, refSeqRange);
   
   /* Pass the reference sequence name and the start and end coords */
   g_string_append_printf(commandStr, " -chr=%s -start=%d -end=%d", mspGetRefName(msp), startCoord, endCoord);
@@ -528,6 +534,7 @@ static void fetchSequencesForRegion(const MSP const *msp,
                                     GSList *supportedTypes, 
                                     GSList *styles,
                                     const gboolean saveTempFiles,
+                                    const IntRange const *refSeqRange,
                                     GError **error)
 {
   /* Create a temp file for the results */
@@ -544,7 +551,7 @@ static void fetchSequencesForRegion(const MSP const *msp,
   close(fileDesc);
   
   /* Execute the command */
-  char *command = getRegionFetchCommand(msp, blxSeq, keyFile, script, dataset, fileName, refSeqOffset);
+  char *command = getRegionFetchCommand(msp, blxSeq, keyFile, script, dataset, fileName, refSeqOffset, refSeqRange);
   FILE *outputFile = fopen(fileName, "w");
 
   g_debug("Fetching sequences for region:\n%s\n", command);
@@ -589,6 +596,7 @@ static void regionFetchSequences(GList *regionsToFetch,
 				 const BlxSeqType seqType,
                                  const int refSeqOffset,
 				 const char *dataset,
+                                 const IntRange const *refSeqRange,
 				 GError **error)
 {
   GKeyFile *keyFile = blxGetConfig();
@@ -621,10 +629,14 @@ static void regionFetchSequences(GList *regionsToFetch,
       for ( ; mspItem; mspItem = mspItem->next)
         {
           const MSP const *msp = (const MSP const*)(mspItem->data);
+
+          /* Only fetch regions that are at least partly inside our display range */
+          if (!rangesOverlap(&msp->qRange, refSeqRange))
+            continue;
           
           fetchSequencesForRegion(msp, blxSeq, keyFile, script, dataset, tmpDir, refSeqOffset,
                                   blastMode, seqList, mspListIn, featureLists, supportedTypes,
-                                  styles, saveTempFiles, &tmpError);
+                                  styles, saveTempFiles, refSeqRange, &tmpError);
         }
     }
 
@@ -654,6 +666,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
 			       GSList *supportedTypes, 
 			       GSList *styles,
                                const int refSeqOffset,
+                               const IntRange const *refSeqRange,
 			       const char *dataset,
                                GError **error)
 {
@@ -679,7 +692,7 @@ static gboolean fetchSequences(GList *seqsToFetch,
         {
           regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, 
                                supportedTypes, styles, External, parseOptionalData, parseSequenceData,
-                               saveTempFiles, seqType, refSeqOffset, dataset, error);
+                               saveTempFiles, seqType, refSeqOffset, dataset, refSeqRange, error);
         }
       else if (fetchMode && fetchMode[0] != 0)
         {
@@ -712,6 +725,7 @@ gboolean blxviewFetchSequences(gboolean External,
 			       GSList *supportedTypes, 
 			       GSList *styles,
                                const int refSeqOffset,
+                               const IntRange const *refSeqRange,
 			       const char *dataset)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
@@ -743,7 +757,7 @@ gboolean blxviewFetchSequences(gboolean External,
           
           DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
           
-          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, dataset, &tmpError))
+          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, net_id, port, parseFullEmblInfo, parseSequenceData, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, refSeqRange, dataset, &tmpError))
             {
               success = TRUE;
               
@@ -850,7 +864,7 @@ gboolean blxview(CommandLineOptions *options,
   gboolean status = blxviewFetchSequences(
     External, options->parseFullEmblInfo, TRUE, options->saveTempFiles, options->seqType, &seqList, 
     options->bulkFetchMode, net_id, port, &options->mspList, &options->blastMode, 
-    featureLists, supportedTypes, NULL, 0, options->dataset); /* offset has not been applied yet, so pass offset=0 */
+    featureLists, supportedTypes, NULL, 0, &options->refSeqRange, options->dataset); /* offset has not been applied yet, so pass offset=0 */
   
   if (status)
     {

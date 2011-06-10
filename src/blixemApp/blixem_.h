@@ -470,6 +470,7 @@ gboolean                           blxviewFetchSequences(gboolean External,
 							 GSList *supportedTypes, 
 							 GSList *styles,
                                                          const int refSeqOffset,
+                                                         const IntRange const *refSeqRange,
 							 const char *dataset
 							 );
 
