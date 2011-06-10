@@ -555,7 +555,19 @@ static void fetchSequencesForRegion(const MSP const *msp,
   FILE *outputFile = fopen(fileName, "w");
 
   g_debug("Fetching sequences for region:\n%s\n", command);
-  system(command);
+  int status = system(command);
+  
+  if (WIFEXITED(status))
+    {
+      if (WEXITSTATUS(status) != 0)
+        g_critical("Failed to fetch sequences for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
+      else
+        g_debug("Success.\n");
+    }
+  else
+    {
+      g_critical("Error executing region-fetch script for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
+    }
   
   fclose(outputFile);
   g_free(command);
