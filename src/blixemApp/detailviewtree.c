@@ -1711,15 +1711,14 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	      name = mspGetSName(msp); /* use the full name */
 	    }
 	
-	  /* If the display is squashed, for short reads, append the number of items
-	   * in the row to the name. */
-	  if (mspIsShortRead(msp))
+	  /* If the display is squashed, append the number of items in the row to the name. */
+	  if (mspIsShortRead(msp)) /* just for short reads, or useful for all matches? NB don't do for transcripts because get many! */
 	    {
 	      BlxViewContext *bc = treeGetContext(tree);
 	    
-	      if (bc->flags[BLXFLAG_SQUASH_MATCHES])
+	      if (bc->flags[BLXFLAG_SQUASH_MATCHES] && numMsps > 1)
 		{
-		  char *name2 = blxprintf("%d %s%s", numMsps, name, (numMsps > 1 ? "s" : ""));
+		  char *name2 = blxprintf("(%d) %s", numMsps, name);
 		  displayName = abbreviateText(name2, maxLen - 2);
                   g_free(name2);
 		}

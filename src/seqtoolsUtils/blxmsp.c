@@ -367,12 +367,13 @@ char* mspGetSequenceName(const MSP *msp)
 {
   char *name = NULL;
   
-  if (mspIsShortRead(msp))
-    {
-      /* <#comment#> */
-      name = g_strdup("short read");
-    }
-  else
+//  if (mspIsShortRead(msp))
+//    {
+//      /* Short reads have meaningless names so rename them? Currently
+//       * commented out because we need the name to identify the pair */
+//      name = g_strdup("short read");
+//    }
+//  else
     {
       name = g_strdup(msp->sname);
   
