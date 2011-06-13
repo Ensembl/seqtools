@@ -59,7 +59,6 @@ MSP score codes (for obsolete exblx file format):
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <wait.h>
 #include <gdk/gdkkeysyms.h>
 
 #include <blixemApp/blixem_.h>
@@ -556,25 +555,19 @@ static void fetchSequencesForRegion(const MSP const *msp,
   FILE *outputFile = fopen(fileName, "w");
 
   g_debug("Fetching sequences for region:\n%s\n", command);
-  int status = system(command);
+  const gboolean success = (system(command) == 0);
   
-  if (WIFEXITED(status))
-    {
-      if (WEXITSTATUS(status) != 0)
-        g_critical("Failed to fetch sequences for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
-      else
-        g_debug("Success.\n");
-    }
+  if (success)
+    g_debug("Region-fetch succeeded.\n");
   else
-    {
-      g_critical("Error executing region-fetch script for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
-    }
+    g_critical("Failed to fetch sequences for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
   
   fclose(outputFile);
   g_free(command);
   
   /* Parse the sequences from the new file */
-  loadGffFile(fileName, keyFile, blastMode, seqList, mspListIn, featureLists, supportedTypes, styles);
+  if (success)
+    loadGffFile(fileName, keyFile, blastMode, seqList, mspListIn, featureLists, supportedTypes, styles);
   
   /* Delete the temp file (unless the 'save temp files' option is on) */
   if (!saveTempFiles)
