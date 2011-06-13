@@ -280,12 +280,12 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
       int len = strlen(*seq1);
       if (getRangeLength(seq1Range) > len)
         {
-          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len - 1);
+          g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len - 1);
           seq1Range->max = seq1Range->min + len - 1;
         }
       else if (getRangeLength(seq1Range) < len)
         {
-          g_warning("Sequence range in file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
+          g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
         }
     }
 
@@ -1637,7 +1637,8 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
       break;
       
     case GFF_3_BODY:
-      parseGff3Body(lineNum, featureLists, lastMsp, mspList, parserState, line_string, seqList, supportedTypes, styles, resFactor, keyFile);
+      parseGff3Body(lineNum, featureLists, lastMsp, mspList, parserState, line_string, 
+                    seqList, supportedTypes, styles, resFactor, keyFile, seq1Range);
       break;
 
     case SEQBL_BODY: /* fall through */

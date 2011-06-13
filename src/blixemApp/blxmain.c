@@ -107,6 +107,9 @@ gboolean blixem_debug_G = FALSE ;
   --compiled\n\
     Show package compile date.\n\
 \n\
+  --dataset\n\
+    Optional string to indicate a data-set that the alignments are from.\n\
+\n\
   --dotter-first-match\n\
     Call Dotter on the first match to the right of the default start coord.\n\
 \n\
@@ -131,10 +134,19 @@ gboolean blixem_debug_G = FALSE ;
     Parse additional data such as organism and tissue-type on start-up.\n\
 \n\
   --remove-input-files\n\
-    Remove input files after parsing.\n\
+    Delete the input files after they have been parsed.\n\
+\n\
+  --save-temp-files\n\
+    Save any temporary files created by Blixem.\n\
+\n\
+  --show-coverage\n\
+    Display the coverage section on start-up.\n\
 \n\
   --sort-mode=<mode>\n\
     Default sort mode. Use --help option to see details.\n\
+\n\
+  --squash-matches\n\
+    Compress the alignment lists on start-up.\n\
 \n\
   --start-next-match\n\
     Start with the display centred on the first match to the right of the default start coord.\n\
@@ -244,8 +256,9 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->mspList = NULL;
   options->geneticCode = stdcode1;
   options->activeStrand = BLXSTRAND_FORWARD;
-  options->zoomWhole = FALSE;
   options->bigPictZoom = 10;          
+  
+  options->zoomWhole = FALSE;
   options->bigPictON = TRUE;          
   options->hideInactive = FALSE;         
   options->initSortColumn = BLXCOL_ID;
@@ -253,7 +266,11 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->highlightDiffs = FALSE;   
   options->dotterFirst = FALSE;	
   options->startNextMatch = FALSE;
+  options->squashMatches = FALSE;
   options->parseFullEmblInfo = FALSE;
+  options->saveTempFiles = FALSE;
+  options->coverageOn = FALSE;
+  
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_INVALID;
   options->numFrames = 1;
@@ -523,21 +540,24 @@ int main(int argc, char **argv)
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
-      {"start-next-match",      no_argument,        &options.startNextMatch, 1},
-      {"dotter-first-match",    no_argument,        &options.dotterFirst, 1},
-      {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
-      {"hide-inactive-strand",  no_argument,        &options.hideInactive, 1},
-      {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
-      {"version",		no_argument,        &showVersion, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
-      {"invert-sort",		no_argument,        &options.sortInverted, 1},
-      {"hide-big-picture",      no_argument,        &options.bigPictON, 0},
-      {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
-      {"remove-input-files",    no_argument,        &rm_input_files, 1},
-      {"styles-file",           required_argument,  NULL, 0},
-      {"fetch-server",          required_argument,  NULL, 0},
-      {"sort-mode",             required_argument,  NULL, 0},
       {"dataset",	        required_argument,  NULL, 0},
+      {"dotter-first-match",    no_argument,        &options.dotterFirst, 1},
+      {"fetch-server",          required_argument,  NULL, 0},
+      {"hide-big-picture",      no_argument,        &options.bigPictON, 0},
+      {"hide-inactive-strand",  no_argument,        &options.hideInactive, 1},
+      {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
+      {"invert-sort",		no_argument,        &options.sortInverted, 1},
+      {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
+      {"remove-input-files",    no_argument,        &rm_input_files, 1},
+      {"save-temp-files",       no_argument,        &options.saveTempFiles, 1},
+      {"show-coverage",         no_argument,        &options.coverageOn, 1},
+      {"sort-mode",             required_argument,  NULL, 0},
+      {"squash-matches",        no_argument,        &options.squashMatches, 1},
+      {"start-next-match",      no_argument,        &options.startNextMatch, 1},
+      {"styles-file",           required_argument,  NULL, 0},
+      {"version",		no_argument,        &showVersion, 1},
+      {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
 
       {"alignment-names",       required_argument,  0, 'a'},
       {"config-file",           required_argument,  0, 'c'},
@@ -809,6 +829,13 @@ int main(int argc, char **argv)
 
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname[FULLNAMESIZE+1] = "";
+
+  /* Initialise ref seq range to sequence length, if known */
+  if (options.refSeq)
+    {
+      options.refSeqRange.min = 1;
+      options.refSeqRange.max = strlen(options.refSeq);
+    }
   
   /* Pass the config file to parseFS, but only if it was a genuine input file; if we created
    * an empty config file ourselves, don't pass it. */

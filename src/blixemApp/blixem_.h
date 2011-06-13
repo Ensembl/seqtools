@@ -165,7 +165,6 @@ typedef enum
   {
     BLXFLAG_MIN,		    /* Start index for looping through flags */
   
-    BLXFLAG_SQUASH_MATCHES,	    /* Puts all MSPs from the same sequence on the same row in the detail view */
     BLXFLAG_INVERT_SORT,	    /* Inverts the default sort order */
     BLXFLAG_HIGHLIGHT_DIFFS,	    /* Hides matching bases and highlights mis-matching ones */
     BLXFLAG_HIGHLIGHT_VARIATIONS,   /* Whether to highlight bases that have variations in the reference sequence */
@@ -182,6 +181,7 @@ typedef enum
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
+    BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     
     BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
   } BlxFlag;
@@ -312,7 +312,11 @@ typedef struct _CommandLineOptions
   gboolean highlightDiffs;        /* whether the initial display should highlight mismatches rather than matches */
   gboolean dotterFirst;		  /* open dotter when blixem starts */
   gboolean startNextMatch;	  /* start at the coord of the next match from the default start coord */
+  gboolean squashMatches;         /* start with the 'squash matches' option on */
   gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
+  gboolean saveTempFiles;         /* save any temporary files that blixem creates */
+  gboolean coverageOn;            /* show the coverage view on start-up */
+
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
@@ -456,6 +460,7 @@ void                               setupFetchModes(PfetchParams *pfetch, char **
 gboolean                           blxviewFetchSequences(gboolean External, 
                                                          const gboolean parseFullEmblInfo,
                                                          const gboolean parseSequenceData,
+                                                         const gboolean saveTempFiles,
                                                          const BlxSeqType seqType,
                                                          GList **seqList, /* list of BlxSequence structs for all required sequences */
                                                          char *bulkFetchMode,
@@ -467,6 +472,7 @@ gboolean                           blxviewFetchSequences(gboolean External,
 							 GSList *supportedTypes, 
 							 GSList *styles,
                                                          const int refSeqOffset,
+                                                         const IntRange const *refSeqRange,
 							 const char *dataset
 							 );
 
