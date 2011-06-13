@@ -810,14 +810,10 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
       const char *seqName = blxSequenceGetDisplayName(seq);
       
       if (seqName)
-	{
-	  g_string_append_printf(resultString, "%s", seqName);
-	}
+        g_string_append_printf(resultString, "%s", seqName);
         
       if (seq->type == BLXSEQUENCE_VARIATION && seq->sequence && seq->sequence->str)
-        {
-          g_string_append_printf(resultString, " : %s", seq->sequence->str);
-        }
+        g_string_append_printf(resultString, " : %s", seq->sequence->str);
     }
   else if (qIdx != UNSET_INT)
     {

@@ -1883,21 +1883,19 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 
   if (searchData->searchCol == BLXCOL_SEQNAME)
     {
-      /* Historically, Blixem did a lot of messing around with prefixes and
-       * postfixes on sequence names. This bit of code tries all the different
-       * combinations of prefixes and postfixes to make sure we match a valid
-       * name with or without them. */
+      /* Sequence names have a variant number postfix; try to match the text
+       * both with or without this postfix. */
       if (!found)
         {
-          /* Try the sequence name without the prefix, e.g. AB123456.1 */
-          dataToCompare = blxSequenceGetVariantName(seq);
+          /* Try the full sequence name e.g. AB123456.1 */
+          dataToCompare = blxSequenceGetFullName(seq);
           found = wildcardSearch(dataToCompare, searchData->searchStr);
         }
   
       if (!found)
         {
-          /* Try without the variant postfix. e.g. Em:AB123456 */
-          dataToCompare = blxSequenceGetFullName(seq);
+          /* Try without the postfix. e.g. AB123456 */
+          dataToCompare = blxSequenceGetShortName(seq);
           char *seqName = g_strdup(dataToCompare);
           char *cutPoint = strchr(seqName, '.');
           
@@ -1909,32 +1907,6 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
           
           g_free(seqName);
         }
-  
-      if (!found)
-        {
-          /* Try without the prefix or variant e.g. AB123456 */
-          found = wildcardSearch(blxSequenceGetShortName(seq), searchData->searchStr);
-        }
-
-      if (!found)
-        {
-          const int len = strlen(searchData->searchStr);
-          
-          if (len > 2 &&
-              (searchData->searchStr[len - 1] == 'x' || searchData->searchStr[len - 1] == 'X' ||
-               searchData->searchStr[len - 1] == 'i' || searchData->searchStr[len - 1] == 'I'))
-            {
-              /* BlxSequence names don't have the 'x' or 'i' postfix for exons or introns. If the search
-               * string has an 'x' or 'i' on the end, ignore it. */
-              char *searchStr = g_strdup(searchData->searchStr);
-              searchStr[len - 1] = '\0';
-          
-              dataToCompare = blxSequenceGetFullName(seq);
-              found = wildcardSearch(dataToCompare, searchStr);
-          
-              g_free(searchStr);
-            }
-        }  
     }
   
   if (found)

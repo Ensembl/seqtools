@@ -357,44 +357,6 @@ const char *mspGetSName(const MSP const *msp)
 }
 
 
-/* Get the sequence name that we want to use for the given MSP. For old-style exon/introns, these
- * were postfixed with 'x' or 'i' to indicate exon and intron; we need to remove this postfix in 
- * order to find the real transcript name so that we can group exons and introns from the same 
- * transcript together in the same BlxSequence.
- * For short reads, the name is irrelevant, so just use something generic.
- * For other MSPs, just returns a copy of the msp name. The result should be free'd with g_free. */
-char* mspGetSequenceName(const MSP *msp)
-{
-  char *name = NULL;
-  
-//  if (mspIsShortRead(msp))
-//    {
-//      /* Short reads have meaningless names so rename them? Currently
-//       * commented out because we need the name to identify the pair */
-//      name = g_strdup("short read");
-//    }
-//  else
-    {
-      name = g_strdup(msp->sname);
-  
-      if (name)
-	{
-	  int i = strlen(name) - 1;
-	  
-	  if (mspIsExon(msp) && (name[i] == 'x' || name[i] == 'X'))
-	    {
-	      name[i] = '\0';
-	    }
-	  else if (mspIsIntron(msp) && (name[i] == 'i' || name[i] == 'I'))
-	    {
-	      name[i] = '\0';
-	    }
-	}
-    }
-  
-  return name;
-}
-
 /* Return the length of the match sequence that the given MSP lies on */
 int mspGetMatchSeqLen(const MSP const *msp)
 {
@@ -915,13 +877,6 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
 }
 
 
-/* Return the variant name of a BlxSequence (excludes prefix but includes variant) */
-const char *blxSequenceGetVariantName(const BlxSequence *seq)
-{
-  /* Only applicable for matches; for anything else, return the full name */
-  return (seq->type == BLXSEQUENCE_MATCH ? seq->variantName : seq->fullName);
-}
-
 /* Return the display name of a BlxSequence (same as full name for now) */
 const char *blxSequenceGetDisplayName(const BlxSequence *seq)
 {
@@ -1121,7 +1076,6 @@ void destroyBlxSequence(BlxSequence *seq)
   if (seq)
     {
       g_free(seq->fullName);
-      g_free(seq->variantName);
       g_free(seq->shortName);
       
       if (seq->source)        g_free(seq->source);
@@ -1144,17 +1098,13 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
     {
       seq->fullName = fullName ? g_strdup(fullName) : NULL;
       
-      /* To do: variant name and short name are only applicable to matches so 
-       * ideally we wouldn't even attempt to calculate them for other types; 
+      /* To do: short name is only applicable to matches so 
+       * ideally we wouldn't even attempt to calculate it for other types; 
        * however, when we create an empty blxsequence we don't know the type... */
       
-      /* The variant name: just cut off the prefix chars. We can use a pointer into
-       * the original string. */
-      seq->variantName = g_strdup(getSeqVariantName(fullName));
-      
-      /* The short name: cut off the prefix chars (before the ':') and the variant
-       * number (after the '.'). Need to duplicate the string to change the end of it. */
-      seq->shortName = g_strdup(seq->variantName);
+      /* The short name: cut off the variant number (after the '.'). Need to 
+       * duplicate the string to change the end of it. */
+      seq->shortName = g_strdup(seq->fullName);
       char *cutPoint = strchr(seq->shortName, '.');
       
       if (cutPoint)
@@ -1176,7 +1126,6 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   seq->source = NULL;
   
   seq->fullName = NULL;
-  seq->variantName = NULL;
   seq->shortName = NULL;
   blxSequenceSetName(seq, fullName);
   
@@ -1327,7 +1276,7 @@ BlxSequence* addBlxSequence(const char *name,
     
       /* See if this strand for this sequence already exists. Horrible hack for backwards compatibility:
        * if the msp is an exon/intron, cut off the old-style 'x' or 'i' postfix from the name, if it has one. */
-      char *seqName = msp ? mspGetSequenceName(msp) : g_strdup(name);
+      char *seqName = g_strdup(name);
       blxSeq = findBlxSequence(featureLists, *seqList, seqName, idTag, mspType, strand, msp, sequence);
       
       if (!blxSeq)

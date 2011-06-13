@@ -1245,23 +1245,6 @@ char getStrandAsChar(const BlxStrand strand)
 }
 
 
-/* Utility function to extract the variant name from a 
- * long sequence name (of the form LL:LLdddddd.d, where L means letter and d
- * means digit). The result is a pointer into the original string, so should 
- * not be free'd. */
-const char* getSeqVariantName(const char *longName)
-{
-  /* Ignore the text before the colon */
-  char *cutPoint = strchr(longName, ':');
-  
-  if (cutPoint)
-    ++cutPoint;
-  
-  const char *result = cutPoint ? cutPoint : longName;
-  
-  return result;
-}
-
 /* Extract the short version of a sequence name. If the original is of the format
  * "Em:AB12345.1", this cuts off the bit before the ":" and the bit after the "."
  * The result is a new string that must be free'd with g_free. */

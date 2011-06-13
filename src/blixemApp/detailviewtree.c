@@ -1697,28 +1697,19 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 
       if (maxLen > 2)
 	{
-	  /* Get the variant name (i.e. ignore any prefix) */
-          const char *name = NULL;
+	  /* Get the display name */
+          const char *name = mspGetSName(msp);
           char *displayName = NULL;
-          
-	  if (msp && msp->sSequence)
-	    {
-	      name = blxSequenceGetVariantName(msp->sSequence);
-	    }
-
-	  if (!name)
-	    {
-	      name = mspGetSName(msp); /* use the full name */
-	    }
 	
-	  /* If the display is squashed, append the number of items in the row to the name. */
-	  if (mspIsShortRead(msp)) /* just for short reads, or useful for all matches? NB don't do for transcripts because get many! */
+	  /* If the display is squashed, then for short reads, we need to 
+           * create a name that includes the number of duplicate reads. */
+	  if (mspIsShortRead(msp))
 	    {
 	      BlxViewContext *bc = treeGetContext(tree);
 	    
 	      if (bc->modelId == BLXMODEL_SQUASHED && numMsps > 1)
 		{
-		  char *name2 = blxprintf("(%d) %s", numMsps, name);
+		  char *name2 = blxprintf(DUPLICATE_READS_COLUMN_NAME, numMsps);
 		  displayName = abbreviateText(name2, maxLen - 2);
                   g_free(name2);
 		}

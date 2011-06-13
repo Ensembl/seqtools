@@ -151,9 +151,8 @@ typedef struct _BlxSequence
   char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
   char *source;                    /* Optional source text for the sequence */
 
-  char *fullName;                  /* full name of the sequence and variant, including prefix characters, e.g. EM:AV274505.2 */
-  char *shortName;                 /* short name of the sequence, excluding prefix and variant, e.g. AV274505 */
-  char *variantName;               /* short name of the variant, excluding prefix but including variant number, e.g. AV274505.2 */
+  char *fullName;                  /* full name of the sequence, including variant postfix, e.g. AV274505.2 */
+  char *shortName;                 /* short name of the sequence, excluding variant, e.g. AV274505 */
   
   GString *organism;               /* organism from the EMBL data OS line */
   GString *geneName;               /* gene name from the EMBL data GN line */
@@ -341,7 +340,6 @@ void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GE
 BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, BlxDataType *dataType, const char *source, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
 void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*	      blxSequenceGetFullName(const BlxSequence *seq);
-const char*	      blxSequenceGetVariantName(const BlxSequence *seq);
 const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);
 const char*	      blxSequenceGetShortName(const BlxSequence *seq);
 int		      blxSequenceGetLength(const BlxSequence *seq);
