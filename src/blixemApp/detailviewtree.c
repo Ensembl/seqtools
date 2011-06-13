@@ -210,7 +210,7 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, GtkCallback func, gpoin
 }
 
 
-/* Add a BlxSequence to as a row in the given tree store */
+/* Add the given BlxSequence as a row in the given tree store */
 static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
 {
   /* Only add matches and transcripts to the detail-view */
@@ -290,6 +290,7 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 }
 
 
+/* Add all of the BlxSequences that are in the given tree's strand to the tree */
 void addSequencesToTree(GtkWidget *tree, gpointer data)
 {
   GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
