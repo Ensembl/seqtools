@@ -96,7 +96,7 @@ AUTHOR_TEXT "\n"
 /* For fetching sequences/entries that lie within a given region. */
 #define REGION_FETCH_GROUP         "region-fetch"
 #define REGION_FETCH_SCRIPT        "script"
-#define REGION_FETCH_ARGS          "arguments"
+#define REGION_FETCH_ARGS          "args"
 
 
 /* Fetch programs for sequence entries. */
