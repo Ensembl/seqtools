@@ -1814,17 +1814,14 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	
 	  /* If the display is squashed, then for short reads, we need to 
            * create a name that includes the number of duplicate reads. */
-	  if (mspIsShortRead(msp))
+          BlxViewContext *bc = treeGetContext(tree);
+
+	  if (bc->modelId == BLXMODEL_SQUASHED && mspIsShortRead(msp))
 	    {
-	      BlxViewContext *bc = treeGetContext(tree);
-	    
-	      if (bc->modelId == BLXMODEL_SQUASHED && numMsps > 1)
-		{
-		  char *name2 = blxprintf(DUPLICATE_READS_COLUMN_NAME, numMsps);
-		  displayName = abbreviateText(name2, maxLen - 2);
-                  g_free(name2);
-		}
-	    }
+              char *name2 = blxprintf(numMsps == 1 ? DUPLICATE_READS_COLUMN_NAME_SGL : DUPLICATE_READS_COLUMN_NAME, numMsps);
+              displayName = abbreviateText(name2, maxLen - 2);
+              g_free(name2);
+            }
           
           if (!displayName)
             displayName = abbreviateText(name, maxLen - 2);
