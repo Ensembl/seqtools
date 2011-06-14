@@ -5169,6 +5169,9 @@ SequenceGroup *blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSeq
 {
   SequenceGroup *result = NULL;
   
+  if (!seqToFind)
+    return result;
+  
   /* Loop through all the groups until we find this sequence in one */
   GList *groupItem = bc->sequenceGroups;
   for ( ; groupItem; groupItem = groupItem->next)

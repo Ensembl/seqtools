@@ -1204,6 +1204,43 @@ static GtkStateType getState(GtkWidget *widget, guint flags)
 }
 
 
+/* Utility function that returns true if any of the MSPs in the given list
+ * is selected. */
+static gboolean listContainsSelectedMsp(GList *mspList, const BlxViewContext const *bc)
+{
+  gboolean isSelected = FALSE;
+  GList *mspItem = mspList;
+  
+  for ( ; mspItem && !isSelected; mspItem = mspItem->next)
+    {
+      const MSP const *msp = (const MSP const *)(mspItem->data);
+      isSelected = blxContextIsSeqSelected(bc, msp->sSequence);
+    }
+  
+  return isSelected;
+}
+
+
+/* Utility to determine if any MSP in the given list is in a group and, if so
+ * to return that group.  Returns the first group found and ignores any 
+ * subsequent MSPs in the list that also have groups. Returns null if no group
+ * was found. */
+static SequenceGroup* listContainsGroupedMsp(GList *mspList, const BlxViewContext const *bc)
+{
+  SequenceGroup *group = NULL;
+  GList *mspItem = mspList;
+  
+  for ( ; mspItem && !group; mspItem = mspItem->next)
+    {
+      const MSP const *msp = (const MSP const *)(mspItem->data);
+      group = blxContextGetSequenceGroup(bc, msp->sSequence);
+    }
+  
+  return group;
+  
+}
+
+
 /* This function sets the background color for the row. */
 static void setBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow *window, GdkRectangle *background_area)
 {
@@ -1213,10 +1250,11 @@ static void setBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow
     {
       /* Find out whether the MSP(s) that this cell is displaying are in 
        * a grouped sequence or are selected. */
-      MSP *msp = (MSP*)(renderer->data->data);
-      GtkWidget *blxWindow = treeGetBlxWindow(tree);
-      SequenceGroup *group = blxWindowGetSequenceGroup(blxWindow, msp->sSequence);
-      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
+      const BlxViewContext const *bc = blxWindowGetContext(treeGetBlxWindow(tree));
+      GList *mspList = renderer->data;
+      
+      const gboolean isSelected = listContainsSelectedMsp(mspList, bc);
+      const SequenceGroup const *group = listContainsGroupedMsp(mspList, bc);
       
       GdkGC *gc = gdk_gc_new(window);
 
