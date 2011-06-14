@@ -336,7 +336,7 @@ static void createBlixemObject(BlxGffData *gffData,
       if (gffData->mspType == BLXMSP_TRANSCRIPT)
         {
           /* For transcripts, although we don't create an MSP we do create a sequence */
-          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, gffData->mspType, dataType, gffData->source, featureLists, seqList, gffData->sequence, NULL, &tmpError);
+          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, dataType, gffData->source, seqList, gffData->sequence, NULL, &tmpError);
         }
     }
   else

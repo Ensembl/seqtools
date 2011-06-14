@@ -210,7 +210,7 @@ static const GtkActionEntry menuEntries[] = {
 
 /* Toggle-able menu entries are listed here: */
 static GtkToggleActionEntry toggleMenuEntries[] = {
-{ "TogglePixmap",     NULL, "Pixelmap",              NULL,  "Show the pixelmap",              G_CALLBACK(onTogglePixelmapMenu),        TRUE},
+{ "TogglePixmap",     NULL, "Pixelmap",              NULL,  "Show the pixelmap",              G_CALLBACK(onTogglePixelmapMenu),        TRUE}, /* must be item 0 in list */
 { "ToggleGrid",       NULL, "Gridlines",             NULL,  "Show grid lines",                G_CALLBACK(onToggleGridMenu),            FALSE},
 { "ToggleCrosshair",  NULL, "Crosshair",             NULL,  "Show the crosshair",             G_CALLBACK(onToggleCrosshairMenu),       TRUE},
 { "ToggleCoords",     NULL, "Crosshair label",       NULL,  "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),          TRUE},

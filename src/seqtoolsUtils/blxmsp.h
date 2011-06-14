@@ -337,7 +337,7 @@ BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *i
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, const BlxMspType mspType, BlxDataType *dataType, const char *source, GArray *featureLists[], GList **seqList, char *sequence, MSP *msp, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, GError **error);
 void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*	      blxSequenceGetFullName(const BlxSequence *seq);
 const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);

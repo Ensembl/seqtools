@@ -210,7 +210,7 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, GtkCallback func, gpoin
 }
 
 
-/* Add a BlxSequence to as a row in the given tree store */
+/* Add the given BlxSequence as a row in the given tree store */
 static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
 {
   /* Only add matches and transcripts to the detail-view */
@@ -231,7 +231,7 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
           mspsToAdd = g_list_prepend(mspsToAdd, msp);
         }
     }
-  
+
   if (g_list_length(mspsToAdd) > 0)
     {
       /* Add a row to the tree store */
@@ -239,43 +239,43 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
       gtk_list_store_append(store, &iter);
       
       if (g_list_length(mspsToAdd) == 1)
-	{
-	  /* Only one MSP - get specific info about this MSP. */
-	  MSP *msp = (MSP*)(mspsToAdd->data);
-
-	  gtk_list_store_set(store, &iter,
-			     BLXCOL_SEQNAME, mspGetSName(msp),
-			     BLXCOL_SOURCE, mspGetSource(msp),
-			     BLXCOL_ORGANISM, NULL,
-			     BLXCOL_GENE_NAME, NULL,
-			     BLXCOL_TISSUE_TYPE, NULL,
-			     BLXCOL_STRAIN, NULL,
-			     BLXCOL_GROUP, NULL,
-			     BLXCOL_SCORE, msp->score,
-			     BLXCOL_ID, msp->id,
-			     BLXCOL_START, msp->sRange.min,
-			     BLXCOL_SEQUENCE, mspsToAdd,
-			     BLXCOL_END, msp->sRange.max,
-			     -1);
-	}
+        {
+          /* Only one MSP - get specific info about this MSP. */
+          MSP *msp = (MSP*)(mspsToAdd->data);
+          
+          gtk_list_store_set(store, &iter,
+                             BLXCOL_SEQNAME, mspGetSName(msp),
+                             BLXCOL_SOURCE, mspGetSource(msp),
+                             BLXCOL_ORGANISM, NULL,
+                             BLXCOL_GENE_NAME, NULL,
+                             BLXCOL_TISSUE_TYPE, NULL,
+                             BLXCOL_STRAIN, NULL,
+                             BLXCOL_GROUP, NULL,
+                             BLXCOL_SCORE, msp->score,
+                             BLXCOL_ID, msp->id,
+                             BLXCOL_START, msp->sRange.min,
+                             BLXCOL_SEQUENCE, mspsToAdd,
+                             BLXCOL_END, msp->sRange.max,
+                             -1);
+        }
       else
-	{
-	  /* Add generic info about the sequence */
-	  gtk_list_store_set(store, &iter,
-			     BLXCOL_SEQNAME, blxSequenceGetDisplayName(blxSeq),
-			     BLXCOL_SOURCE, blxSequenceGetSource(blxSeq),
-			     BLXCOL_ORGANISM, NULL,
-			     BLXCOL_GENE_NAME, NULL,
-			     BLXCOL_TISSUE_TYPE, NULL,
-			     BLXCOL_STRAIN, NULL,
-			     BLXCOL_GROUP, NULL,
-			     BLXCOL_SCORE, 0.0,
-			     BLXCOL_ID, 0.0,
-			     BLXCOL_START, blxSequenceGetStart(blxSeq, treeStrand),
-			     BLXCOL_SEQUENCE, mspsToAdd,
-			     BLXCOL_END, blxSequenceGetEnd(blxSeq, treeStrand),
-			     -1);
-	}
+        {
+          /* Add generic info about the sequence */
+          gtk_list_store_set(store, &iter,
+                             BLXCOL_SEQNAME, blxSequenceGetDisplayName(blxSeq),
+                             BLXCOL_SOURCE, blxSequenceGetSource(blxSeq),
+                             BLXCOL_ORGANISM, NULL,
+                             BLXCOL_GENE_NAME, NULL,
+                             BLXCOL_TISSUE_TYPE, NULL,
+                             BLXCOL_STRAIN, NULL,
+                             BLXCOL_GROUP, NULL,
+                             BLXCOL_SCORE, 0.0,
+                             BLXCOL_ID, 0.0,
+                             BLXCOL_START, blxSequenceGetStart(blxSeq, treeStrand),
+                             BLXCOL_SEQUENCE, mspsToAdd,
+                             BLXCOL_END, blxSequenceGetEnd(blxSeq, treeStrand),
+                             -1);
+        }
       
       /* Remember which row these msps are in */
       GtkTreePath *path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
@@ -290,6 +290,112 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 }
 
 
+/* Comparison function for sorting by sequence DNA */
+static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
+{
+  int result = 0;
+  
+  const MSP const *msp1 = *((const MSP const**)a);
+  const MSP const *msp2 = *((const MSP const**)b);
+  
+  const gboolean msp1HasSeq = msp1->sSequence && msp1->sSequence->sequence && msp1->sSequence->sequence->str;
+  const gboolean msp2HasSeq = msp2->sSequence && msp2->sSequence->sequence && msp2->sSequence->sequence->str;
+
+  if (msp1HasSeq && msp2HasSeq)
+    result = strcmp(msp1->sSequence->sequence->str, msp2->sSequence->sequence->str);
+  else if (!msp1HasSeq && !msp2HasSeq)
+    result = 0;
+  else if (!msp1HasSeq)
+    result = -1;
+  else 
+    result = 1;
+  
+  return result;
+}
+
+
+/* Add all short reads to the given tree, placing duplicate sequences on
+ * the same row as each other to create a compact tree. */
+static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, GtkWidget *blxWindow)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxStrand treeStrand = treeGetStrand(tree);
+
+  /* Sort the short reads by DNA sequence so that duplicates are adjacent. */
+  GArray *shortReadArray = bc->featureLists[BLXMSP_SHORT_READ];
+  g_array_sort(shortReadArray, sortByDnaCompareFunc);
+
+  /* Loop through each short read MSP, compiling a list of MSPs to add to the
+   * current row. */
+  int i = 0;
+  MSP *prevMsp = NULL;
+  MSP *msp = mspArrayIdx(shortReadArray, i);
+  GList *mspsToAdd = NULL;
+  
+  for ( ; msp; msp = mspArrayIdx(shortReadArray, ++i))
+    {
+      if (mspGetRefStrand(msp) != treeStrand)
+        continue;
+      
+      if (prevMsp && sortByDnaCompareFunc(&prevMsp, &msp) == 0)
+        {
+          /* Same as previous sequence; add to current row */
+          mspsToAdd = g_list_prepend(mspsToAdd, msp);
+        }
+      else
+        {
+          if (g_list_length(mspsToAdd) > 0)
+            {
+              /* Add the current list to the tree */
+              GtkTreeIter iter;
+              gtk_list_store_append(store, &iter);
+              
+              gtk_list_store_set(store, &iter,
+                                 BLXCOL_SEQNAME, mspGetSName(prevMsp),
+                                 BLXCOL_SOURCE, mspGetSource(prevMsp),
+                                 BLXCOL_ORGANISM, NULL,
+                                 BLXCOL_GENE_NAME, NULL,
+                                 BLXCOL_TISSUE_TYPE, NULL,
+                                 BLXCOL_STRAIN, NULL,
+                                 BLXCOL_GROUP, NULL,
+                                 BLXCOL_SCORE, prevMsp->score,
+                                 BLXCOL_ID, prevMsp->id,
+                                 BLXCOL_START, prevMsp->sRange.min,
+                                 BLXCOL_SEQUENCE, mspsToAdd,
+                                 BLXCOL_END, prevMsp->sRange.max,
+                                 -1);
+              
+              /* Remember which row these msps are in */
+              GtkTreePath *path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
+              GList *mspItem = mspsToAdd;
+          
+              for ( ; mspItem; mspItem = mspItem->next)
+                {
+                  MSP *curMsp = (MSP*)(mspItem->data);
+                  curMsp->treePaths[BLXMODEL_SQUASHED] = gtk_tree_path_to_string(path);
+                }
+
+          
+              /* Reset the list pointer ready for the next row. Note that
+               * we do not free the list because it is now owned by the tree */
+              mspsToAdd = NULL;
+            }
+          
+          /* Add the new msp */
+          mspsToAdd = g_list_prepend(mspsToAdd, msp);
+        }
+      
+      prevMsp = msp;
+    }
+  
+  /* Re-sort by default sort order (required for filtering) if this msp type
+   * appears in the detail-view */
+  if (typeShownInDetailView(BLXMSP_SHORT_READ))
+    g_array_sort(bc->featureLists[BLXMSP_SHORT_READ], compareFuncMspArray);
+}
+
+
+/* Add all of the BlxSequences that are in the given tree's strand to the tree */
 void addSequencesToTree(GtkWidget *tree, gpointer data)
 {
   GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
@@ -303,13 +409,18 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
 
   /* Add the rows - one row per sequence. Use the list we've already compiled of all
    * sequences as BlxSequences */
-  GList *seqItem = blxWindowGetAllMatchSeqs(treeGetBlxWindow(tree));
+  GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  GList *seqItem = blxWindowGetAllMatchSeqs(blxWindow);
   
   for ( ; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
       addSequenceToTree(blxSeq, tree, store);
     }
+
+  /* Also add one row for each piece of short read DNA (i.e. where duplicate
+   * short reads all appear on the same row) */
+  addShortReadsToCompactTree(tree, store, blxWindow);
   
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
@@ -1703,17 +1814,14 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	
 	  /* If the display is squashed, then for short reads, we need to 
            * create a name that includes the number of duplicate reads. */
-	  if (mspIsShortRead(msp))
+          BlxViewContext *bc = treeGetContext(tree);
+
+	  if (bc->modelId == BLXMODEL_SQUASHED && mspIsShortRead(msp))
 	    {
-	      BlxViewContext *bc = treeGetContext(tree);
-	    
-	      if (bc->modelId == BLXMODEL_SQUASHED && numMsps > 1)
-		{
-		  char *name2 = blxprintf(DUPLICATE_READS_COLUMN_NAME, numMsps);
-		  displayName = abbreviateText(name2, maxLen - 2);
-                  g_free(name2);
-		}
-	    }
+              char *name2 = blxprintf(numMsps == 1 ? DUPLICATE_READS_COLUMN_NAME_SGL : DUPLICATE_READS_COLUMN_NAME, numMsps);
+              displayName = abbreviateText(name2, maxLen - 2);
+              g_free(name2);
+            }
           
           if (!displayName)
             displayName = abbreviateText(name, maxLen - 2);

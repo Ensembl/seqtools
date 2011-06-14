@@ -595,7 +595,7 @@ gboolean getColorFromString(const char *colorStr, GdkColor *color, GError **erro
 
 
 /* Increase the brightness of a color by the given factor */
-static void increaseColorBrightness(GdkColor *origColor, const double factor, GdkColor *result)
+static void increaseColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result)
 {
   result->pixel = 0;
   const int maxRgb = 65535;
@@ -662,7 +662,7 @@ static void increaseColorBrightness(GdkColor *origColor, const double factor, Gd
 
 
 /* Reduce the brightness of a color by the given factor (e.g. 0.5 for half brightness) */
-static void reduceColorBrightness(GdkColor *origColor, const double factor, GdkColor *result)
+static void reduceColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result)
 {
   result->pixel = 0;
   result->red = origColor->red * factor;
@@ -684,7 +684,7 @@ static void reduceColorBrightness(GdkColor *origColor, const double factor, GdkC
 
 
 /* Increase/decrease color brightness by given factor */
-void adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *result)
+void adjustColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result)
 {
   if (factor > 1)
     increaseColorBrightness(origColor, factor, result);
@@ -695,7 +695,7 @@ void adjustColorBrightness(GdkColor *origColor, const double factor, GdkColor *r
 
 /* Utility to take a gdk color and return a slightly darker shade of it, for higlighting
  * things of that color when they are selected. */
-void getSelectionColor(GdkColor *origColor, GdkColor *result)
+void getSelectionColor(const GdkColor const *origColor, GdkColor *result)
 {
   const double factor = 0.8;
   adjustColorBrightness(origColor, factor, result);
@@ -703,7 +703,7 @@ void getSelectionColor(GdkColor *origColor, GdkColor *result)
 
 
 /* Utility to take a gdk color and return a greyscale version of it */
-void convertToGrayscale(GdkColor *origColor, GdkColor *result)
+void convertToGrayscale(const GdkColor const *origColor, GdkColor *result)
 {
   result->red = result->green = result->blue =
    ((11 * origColor->red) + (16 * origColor->green) + (5 * origColor->blue)) / 32;
@@ -726,7 +726,7 @@ void convertToGrayscale(GdkColor *origColor, GdkColor *result)
 
 
 /* Utility to take a gdk color and return a much darker shade of it, for use as a drop-shadow */
-void getDropShadowColor(GdkColor *origColor, GdkColor *result)
+void getDropShadowColor(const GdkColor const *origColor, GdkColor *result)
 {
   const double factor = 0.3;
   adjustColorBrightness(origColor, factor, result);
@@ -3009,6 +3009,21 @@ gtk_text_buffer_set_markup (GtkTextBuffer *buffer,
  *                     Message handlers
  ***********************************************************/
 
+/* GLib doesn't have a convenience function to log a message with the 
+ * G_LOG_LEVEL_INFO flag, so this provides us one. In seqtools, this is usd
+ * to provide overall task progress messages (whereas we use g_message to 
+ * provide more detailed sub-task progress messages). */
+void g_message_info(char *formatStr, ...)
+{
+  va_list argp;
+  va_start(argp, formatStr);
+  
+  g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, formatStr, argp);
+  
+  va_end(argp);
+}
+
+
 /* Default handler for GLib log messages (e.g. from g_message() etc.) */
 void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
 {
@@ -3027,7 +3042,10 @@ void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, co
 #ifdef DEBUG
   DEBUG_OUT("%s%s", prefixText, (char*)message);
 #else
-  printf("%s%s", prefixText, (char*)message);
+  if (log_level & G_LOG_LEVEL_INFO)
+    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
+  else
+    printf("%s%s", prefixText, (char*)message);
 #endif
   
   /* also display the message in the status bar (unless it's debug output) */
@@ -3061,7 +3079,10 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
 #ifdef DEBUG
   DEBUG_OUT("%s%s", prefixText, (char*)message);
 #else
-  printf("%s%s", prefixText, (char*)message);
+  if (log_level & G_LOG_LEVEL_INFO)
+    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
+  else
+    printf("%s%s", prefixText, (char*)message);
 #endif
 
   BlxMessageData *msgData = data ? (BlxMessageData*)data : NULL;

@@ -102,7 +102,7 @@ gboolean typeShownInDetailView(const BlxMspType mspType)
 /* This returns true if the given sequence should be shown in the detail-view */
 gboolean blxSequenceShownInDetailView(const BlxSequence *blxSeq)
 {
-  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR || blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
+  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
 }
 
 /* This returns true if the given sequence should be shown in the big picture grids */
@@ -762,7 +762,7 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
 
 
 /* Find a blxsequence with the given name or id in the given list */
-static BlxSequence *findBlxSequenceInList(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand)
+static BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand)
 {
   BlxSequence *result = NULL;
 
@@ -784,65 +784,6 @@ static BlxSequence *findBlxSequenceInList(GList *seqList, const char *reqdName, 
   
   return result;
 }
-
-
-/* Returns the pointer to the BlxSequence that matches the given strand and sequence name/tag.
- * Returns NULL if no match was found. */
-static BlxSequence *findBlxSequence(GArray *featureLists[], 
-				    GList *seqList,
-				    const char *reqdName, 
-				    const char *reqdIdTag, 
-				    const BlxMspType reqdMspType,
-				    const BlxStrand reqdStrand,
-				    const MSP const *newMsp,
-				    const char *sequence)
-{
-  BlxSequence *result = NULL;
-  
-  if (!typeIsShortRead(reqdMspType))
-    {
-      /* For most msp types, just look for a blxsequence that matches the same name/tag and strand */
-      result = findBlxSequenceInList(seqList, reqdName, reqdIdTag, reqdStrand);
-    }
-  else if (newMsp && sequence)
-    {
-      /* For short reads, loop through all MSPs of the same BlxSequence type that
-       * we're looking for. Look for an MSP from the same strand that has identical
-       * sequence data and and alignment coords; we want to group duplicate alignments
-       * under the same blxsequence to compress the view (rather than grouping by name, 
-       * which is not useful for short reads). */
-      int typeId = 0;
-      
-      for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-	{
-	  if (getBlxSequenceTypeForMsp(typeId) != getBlxSequenceTypeForMsp(reqdMspType))
-	    continue;
-	
-	  /* See if any MSP in this array is a duplicate of our MSP */
-	  int i = 0;
-	  const MSP *msp = mspArrayIdx(featureLists[typeId], i);
-	
-	  for ( ; msp; msp = mspArrayIdx(featureLists[typeId], ++i))
-	    {
-	      if (msp->sSequence && msp->sSequence->sequence && msp->sSequence->sequence->str && /* has a sequence */
-                  msp->sSequence->strand == reqdStrand &&                                        /* is the correct strand */
-		  rangesEqual(&msp->qRange, &newMsp->qRange) &&                                  /* correct range on the ref seq */
-		  rangesEqual(&msp->sRange, &newMsp->sRange) &&                                  /* correct range from the match seq */
-		  stringsEqual(sequence, msp->sSequence->sequence->str, FALSE))                  /* sequence is identical */
-		{
-		  result = msp->sSequence;
-		  break;
-		}
-	    }
-	
-	if (result)
-	  break;
-	}
-    }
-  
-  return result;
-}
-
 
 
 /* Return the full name of a BlxSequence (including prefix and variant) */
@@ -1254,10 +1195,8 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
 BlxSequence* addBlxSequence(const char *name, 
 			    const char *idTag, 
 			    BlxStrand strand,
-			    const BlxMspType mspType,
 			    BlxDataType *dataType,
                             const char *source,
-			    GArray* featureLists[],
 			    GList **seqList, 
 			    char *sequence, 
 			    MSP *msp, 
@@ -1277,7 +1216,7 @@ BlxSequence* addBlxSequence(const char *name,
       /* See if this strand for this sequence already exists. Horrible hack for backwards compatibility:
        * if the msp is an exon/intron, cut off the old-style 'x' or 'i' postfix from the name, if it has one. */
       char *seqName = g_strdup(name);
-      blxSeq = findBlxSequence(featureLists, *seqList, seqName, idTag, mspType, strand, msp, sequence);
+      blxSeq = findBlxSequence(*seqList, seqName, idTag, strand);
       
       if (!blxSeq)
         {
@@ -1731,7 +1670,7 @@ MSP* createNewMsp(GArray* featureLists[],
       typeIsMatch(mspType) || typeIsShortRead(mspType) || 
       typeIsVariation(mspType) || typeIsRegion(mspType))
     {
-      addBlxSequence(msp->sname, idTag, sStrand, msp->type, dataType, source, featureLists, seqList, sequence, msp, error);
+      addBlxSequence(msp->sname, idTag, sStrand, dataType, source, seqList, sequence, msp, error);
     }
 
   /* Add it to the relevant feature list. */
