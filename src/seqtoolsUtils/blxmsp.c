@@ -102,7 +102,7 @@ gboolean typeShownInDetailView(const BlxMspType mspType)
 /* This returns true if the given sequence should be shown in the detail-view */
 gboolean blxSequenceShownInDetailView(const BlxSequence *blxSeq)
 {
-  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_READ_PAIR || blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
+  return (blxSeq->type == BLXSEQUENCE_MATCH || blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
 }
 
 /* This returns true if the given sequence should be shown in the big picture grids */
