@@ -61,7 +61,7 @@ typedef struct _RenderData
     const BlxStrand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
-    const gboolean seqSelected;
+    gboolean seqSelected;
     const int cellXPadding;
     const int cellYPadding;
     const gdouble charWidth;
@@ -1128,6 +1128,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
 
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;
+  MSP *savedMsp = NULL;
+  
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
       MSP *msp = (MSP*)(mspListItem->data);
@@ -1138,17 +1140,38 @@ static void drawMsps(SequenceCellRenderer *renderer,
 	    }
 	  else if (mspIsBlastMatch(msp))
 	    {
-	      drawDnaSequence(renderer, msp, tree, &data);
-              
               if (mspIsShortRead(msp))
                 {
                   /* Short reads that are in the same row are duplicates, so
-                   * we only need to draw one. (to do: protect against the
-                   * case where this might change!) */
-                  break;
+                   * we only need to draw one. 
+                   * (to do: protect against the case where this might change!)
+                   * If any of the duplicates is selected, we want to draw the
+                   * row as selected, so for the first pass, only draw an MSP
+                   * if it is selected; but remember the first MSP that we see
+                   * so that we can go back and draw that if none were found to
+                   * be selected. */
+                  if (blxWindowIsSeqSelected(detailViewProperties->blxWindow, msp->sSequence))
+                    {
+                      data.seqSelected = TRUE;
+                      drawDnaSequence(renderer, msp, tree, &data);
+                      savedMsp = NULL;
+                      break;
+                    }
+                  else if (!savedMsp)
+                    {
+                      savedMsp = msp;
+                    }
+                }
+              else
+                {
+                  /* Ordinary row: draw all MSPs */
+                  drawDnaSequence(renderer, msp, tree, &data);
                 }
 	    }
 	}
+  
+  if (savedMsp)
+    drawDnaSequence(renderer, savedMsp, tree, &data);
   
   drawVisibleExonBoundaries(tree, &data);
   
