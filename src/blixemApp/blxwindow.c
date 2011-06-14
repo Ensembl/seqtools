@@ -112,6 +112,7 @@ static void                       onPageLeftMenu(GtkAction *action, gpointer dat
 static void                       onPageRightMenu(GtkAction *action, gpointer data);
 static void                       onScrollLeft1Menu(GtkAction *action, gpointer data);
 static void                       onScrollRight1Menu(GtkAction *action, gpointer data);
+static void                       onSquashMatchesMenu(GtkAction *action, gpointer data);
 static void                       onToggleStrandMenu(GtkAction *action, gpointer data);
 static void			  onViewMenu(GtkAction *action, gpointer data);
 static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
@@ -154,7 +155,9 @@ static void                       killAllSpawned(BlxViewContext *bc);
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
 
 
-/* Menu builders */
+/* MENU BUILDERS */
+
+/* Standard menu entries */
 static const GtkActionEntry mainMenuEntries[] = {
   { "Quit",		GTK_STOCK_QUIT,           "_Quit",                    "<control>Q",         "Quit  Ctrl+Q",                         G_CALLBACK(onQuit)},
   { "Help",		GTK_STOCK_HELP,           "_Help",                    "<control>H",         "Display help  Ctrl+H",                 G_CALLBACK(onHelpMenu)},
@@ -192,6 +195,12 @@ static const GtkActionEntry mainMenuEntries[] = {
 };
 
 
+/* Menu entries for toggle-able actions */
+static GtkToggleActionEntry toggleMenuEntries[] = {
+  { "SquashMatches",    GTK_STOCK_DND_MULTIPLE,  "Squash matches",           NULL,                 "Squash matches", G_CALLBACK(onSquashMatchesMenu), FALSE} /* must be item 0 in list */
+};
+
+
 /* This defines the layout of the menu for a standard user */
 static const char standardMenuDescription[] =
 "<ui>"
@@ -217,6 +226,7 @@ static const char standardMenuDescription[] =
 "    <toolitem action='Settings'/>"
 "    <separator/>"
 "    <toolitem action='Sort'/>"
+"    <toolitem action='SquashMatches'/>"
 "    <toolitem action='ZoomIn'/>"
 "    <toolitem action='ZoomOut'/>"
 "    <separator/>"
@@ -4160,6 +4170,16 @@ static void onScrollRight1Menu(GtkAction *action, gpointer data)
   scrollDetailViewRight1(blxWindowGetDetailView(blxWindow));
 }
 
+static void onSquashMatchesMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  
+  const gboolean squash = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+  
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  detailViewUpdateSquashMatches(detailView, squash);
+}
+
 static void onToggleStrandMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
@@ -5424,11 +5444,16 @@ static void setStyleProperties(GtkWidget *widget)
 
 
 /* Create the main menu */
-static void createMainMenu(GtkWidget *window, GtkWidget **mainmenu, GtkWidget **toolbar)
+static void createMainMenu(GtkWidget *window, CommandLineOptions *options, GtkWidget **mainmenu, GtkWidget **toolbar)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
+
+  /* Set the squash-matches toggle button depending on the initial state */
+  toggleMenuEntries[0].is_active = options->squashMatches;  
+
   gtk_action_group_add_actions (action_group, mainMenuEntries, G_N_ELEMENTS (mainMenuEntries), window);
-  
+  gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS (toggleMenuEntries), window);
+
   GtkUIManager *ui_manager = gtk_ui_manager_new ();
   gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
   
@@ -5700,7 +5725,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;
   GtkWidget *toolbar = NULL;
-  createMainMenu(window, &mainmenu, &toolbar);
+  createMainMenu(window, options, &mainmenu, &toolbar);
   
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
