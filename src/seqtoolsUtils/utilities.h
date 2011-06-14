@@ -351,6 +351,7 @@ int                   invertCoord(const int coord, const IntRange const *range, 
 
 void                  popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
+void                  g_message_info(char *formatStr, ...);
 
 GtkWidget*	      showMessageDialog(const char *title,  
 					const char *messageText,

@@ -3009,6 +3009,21 @@ gtk_text_buffer_set_markup (GtkTextBuffer *buffer,
  *                     Message handlers
  ***********************************************************/
 
+/* GLib doesn't have a convenience function to log a message with the 
+ * G_LOG_LEVEL_INFO flag, so this provides us one. In seqtools, this is usd
+ * to provide overall task progress messages (whereas we use g_message to 
+ * provide more detailed sub-task progress messages). */
+void g_message_info(char *formatStr, ...)
+{
+  va_list argp;
+  va_start(argp, formatStr);
+  
+  g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, formatStr, argp);
+  
+  va_end(argp);
+}
+
+
 /* Default handler for GLib log messages (e.g. from g_message() etc.) */
 void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
 {
@@ -3027,7 +3042,10 @@ void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, co
 #ifdef DEBUG
   DEBUG_OUT("%s%s", prefixText, (char*)message);
 #else
-  printf("%s%s", prefixText, (char*)message);
+  if (log_level & G_LOG_LEVEL_INFO)
+    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
+  else
+    printf("%s%s", prefixText, (char*)message);
 #endif
   
   /* also display the message in the status bar (unless it's debug output) */
@@ -3061,7 +3079,10 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
 #ifdef DEBUG
   DEBUG_OUT("%s%s", prefixText, (char*)message);
 #else
-  printf("%s%s", prefixText, (char*)message);
+  if (log_level & G_LOG_LEVEL_INFO)
+    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
+  else
+    printf("%s%s", prefixText, (char*)message);
 #endif
 
   BlxMessageData *msgData = data ? (BlxMessageData*)data : NULL;

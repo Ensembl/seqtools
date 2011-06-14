@@ -5835,7 +5835,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
 
   /* Realise the widgets */
-  g_debug("Running %s\n", g_get_prgname());
+  g_message_info("Starting %s\n", g_get_prgname());
   gtk_widget_show_all(window);
 
 

@@ -554,20 +554,26 @@ static void fetchSequencesForRegion(const MSP const *msp,
   char *command = getRegionFetchCommand(msp, blxSeq, keyFile, script, dataset, fileName, refSeqOffset, refSeqRange);
   FILE *outputFile = fopen(fileName, "w");
 
-  g_debug("Fetching sequences for region:\n%s\n", command);
+  g_debug("%s command:\n%s\n", REGION_FETCH_GROUP, command);
+
+  g_message_info("Calling %s script...\n", REGION_FETCH_GROUP);
   const gboolean success = (system(command) == 0);
-  
-  if (success)
-    g_debug("Region-fetch succeeded.\n");
-  else
-    g_critical("Failed to fetch sequences for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
   
   fclose(outputFile);
   g_free(command);
   
-  /* Parse the sequences from the new file */
   if (success)
-    loadGffFile(fileName, keyFile, blastMode, seqList, mspListIn, featureLists, supportedTypes, styles);
+    {
+      /* Parse the results */
+      g_message_info("Parsing %s results...", REGION_FETCH_GROUP);
+      loadGffFile(fileName, keyFile, blastMode, seqList, mspListIn, featureLists, supportedTypes, styles);
+      g_message_info(" complete.\n");
+    }
+  else
+    {
+      g_message_info("... failed.\n");
+      g_critical("Failed to fetch sequences for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
+    }
   
   /* Delete the temp file (unless the 'save temp files' option is on) */
   if (!saveTempFiles)
