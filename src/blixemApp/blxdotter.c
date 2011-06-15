@@ -1107,7 +1107,7 @@ static char *fetchSeqRaw(const char *seqname, const char *fetchMode)
       char *fetch_prog = blxGetFetchProg(fetchMode);
       char *seq_buf = fetchSequence(seqname, fetch_prog);
       
-      if (seq_buf)
+      if (seq_buf && !stringsEqual(seq_buf, "no match", FALSE))
 	{
 	  result = g_strdup(seq_buf);
 	}
