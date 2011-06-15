@@ -80,7 +80,8 @@ typedef struct _BlxWindowProperties
   {
     GtkWidget *bigPicture;	    /* The top section of the view, showing a "big picture" overview of the alignments */
     GtkWidget *detailView;	    /* The bottom section of the view, showing a detailed list of the alignments */
-    GtkWidget *mainmenu;	      /* The main menu */
+    GtkWidget *mainmenu;	    /* The main menu */
+    GtkActionGroup *actionGroup;    /* The action-group for the menus */
 
     BlxViewContext *blxContext;	      /* The blixem view context */
 
@@ -2652,9 +2653,9 @@ static void onSquashMatches(GtkWidget *button, gpointer data)
   const gboolean squash = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
 
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   
-  detailViewUpdateSquashMatches(detailView, squash);
+  setToggleMenuStatus(properties->actionGroup, "SquashMatches", squash);
 }
 
 
@@ -4178,6 +4179,9 @@ static void onSquashMatchesMenu(GtkAction *action, gpointer data)
   
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   detailViewUpdateSquashMatches(detailView, squash);
+  
+  /* Refresh the settings dialog, if it is open */
+  refreshDialog(BLXDIALOG_SETTINGS, blxWindow);
 }
 
 static void onToggleStrandMenu(GtkAction *action, gpointer data)
@@ -4977,6 +4981,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
 				      GtkWidget *bigPicture, 
 				      GtkWidget *detailView,
 				      GtkWidget *mainmenu,
+                                      GtkActionGroup *actionGroup,
 				      const IntRange const *refSeqRange,
 				      const IntRange const *fullDisplayRange,
 				      const char *paddingSeq)
@@ -4990,6 +4995,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
       properties->mainmenu = mainmenu;
+      properties->actionGroup = actionGroup;
 
       properties->pageSetup = gtk_page_setup_new();
       gtk_page_setup_set_orientation(properties->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
@@ -5447,9 +5453,12 @@ static void setStyleProperties(GtkWidget *widget)
 
 
 /* Create the main menu */
-static void createMainMenu(GtkWidget *window, CommandLineOptions *options, GtkWidget **mainmenu, GtkWidget **toolbar)
+static void createMainMenu(GtkWidget *window, CommandLineOptions *options, GtkWidget **mainmenu, GtkWidget **toolbar, GtkActionGroup **actionGroupOut)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
+  
+  if (actionGroupOut)
+    *actionGroupOut = action_group;
 
   /* Set the squash-matches toggle button depending on the initial state */
   toggleMenuEntries[0].is_active = options->squashMatches;  
@@ -5728,7 +5737,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;
   GtkWidget *toolbar = NULL;
-  createMainMenu(window, options, &mainmenu, &toolbar);
+  GtkActionGroup *actionGroup = NULL;
+  createMainMenu(window, options, &mainmenu, &toolbar, &actionGroup);
   
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
@@ -5807,6 +5817,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 			    bigPicture, 
 			    detailView, 
 			    mainmenu,
+                            actionGroup,
 			    &refSeqRange, 
 			    &fullDisplayRange,
 			    paddingSeq);
