@@ -2629,7 +2629,8 @@ static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *
   return result;
 }
 
-/* Sort comparison function for sorting by the start position on the reference sequence */
+/* Sort comparison function for sorting by the start position on the 
+ * reference sequence. (Does a secondary sort by the alignment length) */
 static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *tree)
 {
   gint result = 0;
@@ -2643,6 +2644,13 @@ static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *
   else 
     {
       result = msp1->qRange.min - msp2->qRange.min;
+    }
+  
+  if (result == 0)
+    {
+      /* If the MSPs have the same start coord, do a secondary sort 
+       * by alignment length */
+      result = getRangeLength(&msp1->qRange) - getRangeLength(&msp2->qRange);
     }
 
   return result;
@@ -2666,7 +2674,7 @@ static gint sortByDoubleCompareFunc(const MSP *msp1, const MSP *msp2)
 }
 
 /* Sort comparison function for sorting by the start position on the reference sequence
- * when we have multiple MSPs to compare */
+ * when we have multiple MSPs to compare (does a secondary sort by alignment length) */
 static gint sortByStartCompareFuncMultiple(GList *mspList1, GList *mspList2, const gboolean msp1Fwd, const gboolean msp2Fwd, GtkWidget *tree)
 {
   gint result = 0;

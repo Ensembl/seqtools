@@ -469,6 +469,9 @@ void                               setWidgetBackgroundColor(GtkWidget *widget, g
 gboolean                           findCommand (char *command, char **resultOut);
 void                               forceResize(GtkWidget *widget);
 
+void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
+void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
+
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
 
