@@ -3876,42 +3876,6 @@ GtkComboBox* createComboBox()
 
 
 /***********************************************************
- *		         Action groups			   * 
- ***********************************************************/
-
-/* Utility to enable/disable an item in a menu. The action name must be the value of a valid action. */
-void enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable)
-{
-  GtkAction *action = gtk_action_group_get_action(action_group, actionName);
-  
-  if (!action)
-    g_warning("Error %s menu item: action '%s' not found.\n", (enable ? "enabling" : "disabling"), actionName);
-  else
-    gtk_action_set_sensitive(action, enable);
-}
-
-
-/* Utility to set the status of a toggle item in a menu. The action name must be the name 
- * of a valid toggle action. */
-void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active)
-{
-  GtkAction *action = gtk_action_group_get_action(action_group, actionName);
-  
-  if (!action)
-    {
-      g_warning("Error toggling menu item: action '%s' not found.\n", actionName);
-    }
-  else if (!GTK_IS_TOGGLE_ACTION(action))
-    {
-      g_warning("Error toggling menu item: action '%s' is not a valid toggle action.\n", actionName);
-    }
-  else
-    {
-      gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), active);
-    }
-}
-
-/***********************************************************
  *		         Files    			   * 
  ***********************************************************/
 
