@@ -132,7 +132,7 @@ static void                      oneditResidueSchemeMenu(GtkAction *action, gpoi
 static void                      oneditConsSchemeMenu(GtkAction *action, gpointer data);
 
 static void                      showHelpDialog();
-static void			 showAboutDialog(GtkWidget *parent);
+static void                      showAboutDialog(GtkWidget *parent);
 static void                      showWrapDialog(GtkWidget *belvuWindow);
 static void                      createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
@@ -252,24 +252,24 @@ static const GtkActionEntry menuEntries[] = {
   { "Cancel",              GTK_STOCK_CANCEL,     "Cancel",             "Escape",            "Cancel",                G_CALLBACK(onCancelSeqs)},
 
   { "Close",	           GTK_STOCK_CLOSE,      "_Close",             "<control>W",        "Close",                 G_CALLBACK(onCloseMenu)},
-  { "Quit",	           GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
-  { "Help",	           GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
+  { "Quit",	               GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
+  { "Help",	               GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
   { "About",	           GTK_STOCK_ABOUT,      "A_bout",             NULL,                "About",                 G_CALLBACK(onAboutMenu)},
   { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
-  { "Wrap",	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
+  { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
   { "ShowTree",	           GTK_STOCK_CONVERT,    "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
   { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree",      G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
-  { "Save",	           GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
+  { "Save",	               GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
   { "SaveAs",	           GTK_STOCK_SAVE_AS,    "Save _as...",        "<shift><control>S", "Save alignment as",     G_CALLBACK(onSaveAsMenu)},
   { "Output",	           NULL,                 OutputStr,            NULL,                OutputDesc,              G_CALLBACK(onOutputMenu)},
   { "Compare",	           NULL,                 CompareStr,           NULL,                CompareDesc,             G_CALLBACK(onCompareMenu)},
   { "CleanUp",	           GTK_STOCK_CLEAR,      "Clean _up windows",  NULL,                "Clean up windows",      G_CALLBACK(onCleanUpMenu)},
 
   {"rmPicked",             GTK_STOCK_DELETE,     rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
-  {"rmMany",		   NULL,                 rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
-  {"rmGappySeqs",	   NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
+  {"rmMany",               NULL,                 rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
+  {"rmGappySeqs",	       NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
   {"rmPartialSeqs",        NULL,                 rmPartialSeqsStr,     NULL,                rmPartialSeqsDesc,       G_CALLBACK(onrmPartialSeqsMenu)},
   {"rmRedundant",          NULL,                 rmRedundantStr,       NULL,                rmRedundantDesc,         G_CALLBACK(onrmRedundantMenu)},
   {"rmOutliers",           NULL,                 rmOutliersStr,        NULL,                rmOutliersDesc,          G_CALLBACK(onrmOutliersMenu)},
@@ -628,13 +628,7 @@ static void onShowTreeMenu(GtkAction *action, gpointer data)
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
-  if (properties->bc->belvuTree)
-    {
-      /* Window already exists - just show it */
-      gtk_widget_show_all(properties->bc->belvuTree);
-      gtk_window_present(GTK_WINDOW(properties->bc->belvuTree));
-    }
-  else
+  if (!properties->bc->belvuTree)
     {
       /* If the tree exists, create a window from it. Otherwise prompt the
        * user to enter tree settings. */
@@ -643,6 +637,9 @@ static void onShowTreeMenu(GtkAction *action, gpointer data)
       else
         showMakeTreeDialog(belvuWindow, TRUE);
     }
+
+  if (properties->bc->belvuTree)
+    gtk_window_present(GTK_WINDOW(properties->bc->belvuTree));
 }
 
 /* Utility to extract the context from a belvu window or belvu tree */
@@ -2814,7 +2811,8 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
 static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
   gboolean destroy = TRUE;
-  
+  BelvuContext *bc = (BelvuContext*)data;
+
   switch (responseId)
   {
     case GTK_RESPONSE_ACCEPT:
@@ -2822,10 +2820,7 @@ static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointe
       /* Update the settings by calling all the callbacks, then create the tree.
        * Destroy the dialog if successful */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      
-      BelvuContext *bc = (BelvuContext*)data;
       createAndShowBelvuTree(bc);
-
       break;
     }
       
@@ -2843,6 +2838,9 @@ static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointe
       /* This is a persistent dialog, so just hide it */
       gtk_widget_hide_all(GTK_WIDGET(dialog));
     }
+
+  if (bc->belvuTree)
+    gtk_window_present(GTK_WINDOW(bc->belvuTree));
 }
 
 
