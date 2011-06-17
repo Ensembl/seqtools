@@ -332,12 +332,12 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
   MSP *msp = mspArrayIdx(shortReadArray, i);
   GList *mspsToAdd = NULL;
   
-  for ( ; msp; msp = mspArrayIdx(shortReadArray, ++i))
+  for ( ; msp || prevMsp; msp = mspArrayIdx(shortReadArray, ++i))
     {
-      if (mspGetRefStrand(msp) != treeStrand)
+      if (msp && mspGetRefStrand(msp) != treeStrand)
         continue;
       
-      if (prevMsp && sortByDnaCompareFunc(&prevMsp, &msp) == 0)
+      if (msp && prevMsp && sortByDnaCompareFunc(&prevMsp, &msp) == 0)
         {
           /* Same as previous sequence; add to current row */
           mspsToAdd = g_list_prepend(mspsToAdd, msp);
@@ -382,7 +382,8 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
             }
           
           /* Add the new msp */
-          mspsToAdd = g_list_prepend(mspsToAdd, msp);
+          if (msp)
+            mspsToAdd = g_list_prepend(mspsToAdd, msp);
         }
       
       prevMsp = msp;
