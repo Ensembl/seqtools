@@ -62,6 +62,7 @@ typedef struct _BelvuAlignmentProperties
   GdkRectangle headersRect;         /* Drawing area for the header columns (i.e. name and coord columns) */
   GdkRectangle seqRect;             /* Drawing area for the actual sequence */
   GtkAdjustment *hAdjustment;       /* Controls horizontal scroll bar */
+  GtkAdjustment *vAdjustment;       /* Controls vertical scroll bar */
   
   int columnPadding;                /* Padding in between columns, in pixels */
   int nameColumnPadding;            /* Padding after name column, in pixels */
@@ -109,6 +110,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
                                            GtkWidget *headersArea,
                                            GtkWidget *seqArea,
                                            GtkAdjustment *hAdjustment,
+                                           GtkAdjustment *vAdjustment,
                                            const char *title,
                                            const int wrapWidth)
 {
@@ -121,6 +123,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       properties->seqArea = seqArea;
       properties->columnPadding = 0; /* calculated in calculate-borders */
       properties->hAdjustment = hAdjustment;
+      properties->vAdjustment = vAdjustment;
       properties->title = g_strdup(title);
       properties->wrapWidth = wrapWidth;
       
@@ -583,11 +586,14 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
 {
   BelvuContext *bc = properties->bc;
   
-  /* Loop through each alignment */
-  int i = 0;
-  int lineNum = 0;
+  /* Loop through each visible alignment */
+  GtkAdjustment *vAdjustment = properties->vAdjustment;
   
-  for ( ; i < bc->alignArr->len; ++i)
+  int i = vAdjustment->value;
+  int lineNum = 0;
+  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
+  
+  for ( ; i < iMax; ++i)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
       
@@ -605,11 +611,14 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
 {
   BelvuContext *bc = properties->bc;
   
-  /* Loop through each alignment */
-  int i = 0;
-  int lineNum = 0;
+  /* Loop through each visible alignment */
+  GtkAdjustment *vAdjustment = properties->vAdjustment;
   
-  for ( ; i < bc->alignArr->len; ++i)
+  int i = vAdjustment->value;
+  int lineNum = 0;
+  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
+  
+  for ( ; i < iMax; ++i)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
       
@@ -715,6 +724,23 @@ static void onHScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
     }
 }
 
+/* Called when the vertical scroll position has changed */
+static void onVScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
+{
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  if (properties->wrapWidth == UNSET_INT)
+    {
+      /* We need to clear and re-draw the sequence area (unless we're displaying
+       * wrapped sequences, in which case we've already drawn the full sequence
+       * height in the drawing area */
+      widgetClearCachedDrawable(properties->seqArea, NULL);
+      gtk_widget_queue_draw(properties->seqArea);
+    }
+}
+
+
 /* Called when the horizontal scroll range has changed */
 static void onHScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data)
 {
@@ -738,13 +764,37 @@ static void onHScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
   gtk_widget_queue_draw(properties->seqArea);
 }
 
+/* Called when the vertical scroll range has changed */
+static void onVScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data)
+{
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  /* Set the horizontal adjustment page size to be the number of characters
+   * that will fit in the width */
+  properties->hAdjustment->page_size = (int)(properties->seqArea->allocation.width / properties->charWidth);
+  properties->hAdjustment->page_increment = properties->hAdjustment->page_size;
+  
+  /* Make sure the scroll position still lies within upper - page_size. */
+  if (properties->hAdjustment->value > properties->hAdjustment->upper - properties->hAdjustment->page_size)
+    properties->hAdjustment->value = properties->hAdjustment->upper - properties->hAdjustment->page_size;
+  
+  /* Make sure we're still within the lower limit */
+  if (properties->hAdjustment->value < properties->hAdjustment->lower)
+    properties->hAdjustment->value = properties->hAdjustment->lower;
+  
+  widgetClearCachedDrawable(properties->seqArea, NULL);
+  gtk_widget_queue_draw(properties->seqArea);
+}
+
+
 /* Called when the vertical scroll range upper value has changed (i.e. the length
  * of the alignments array has changed). */
 void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
   
-  GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->seqArea));
+  GtkAdjustment *vAdjustment = properties->vAdjustment;
   vAdjustment->upper = properties->bc->alignArr->len;
   
   belvuAlignmentRedrawAll(belvuAlignment);
@@ -798,10 +848,13 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
 
 static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
 {
-  /* Calculate the height required to draw one row for each sequence */
-  int result = properties->bc->alignArr->len * properties->charHeight + (2 * DEFAULT_YPAD);
+  int result = 0;
   
-  if (properties->wrapWidth != UNSET_INT)
+  if (properties->wrapWidth == UNSET_INT)
+    {
+      result = properties->seqArea->allocation.height - properties->charHeight - (2 * DEFAULT_YPAD);
+    }  
+  else
     {
       /* Divide the full sequence length by the display width to give the number
        * of paragraphs we require */
@@ -840,7 +893,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
   
   /* Calculate the size of the drawing area for the sequences */
   properties->seqRect.x = DEFAULT_XPAD;
-  properties->seqRect.y = DEFAULT_YPAD;
+  properties->seqRect.y = DEFAULT_YPAD * 2 + properties->charHeight;
   properties->seqRect.width = getAlignmentDisplayWidth(properties);
   properties->seqRect.height = getAlignmentDisplayHeight(properties);
   
@@ -849,7 +902,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
       /* There is a separate drawing area for the columns that contain the row
        * headers; calculate its size. */
       properties->headersRect.x = DEFAULT_XPAD;
-      properties->headersRect.y = DEFAULT_YPAD;
+      properties->headersRect.y = DEFAULT_YPAD * 2 + properties->charHeight;
       properties->headersRect.height = properties->seqRect.height;
       
       properties->headersRect.width = (properties->bc->maxNameLen * properties->charWidth) + (2 * properties->columnPadding) +
@@ -953,7 +1006,7 @@ void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
   if (bc->selectedAln) 
     {
       BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-      GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(properties->seqArea));
+      GtkAdjustment *vAdjustment = properties->vAdjustment;
       
       /* Create the range of y coords that we want to be in range */
       const int newIdx = bc->selectedAln->nr - 1;
@@ -1180,66 +1233,81 @@ static void setBelvuAlignmentStyle(BelvuContext *bc, GtkWidget *seqArea, GtkWidg
  * which to wrap for the wrapped view. */
 GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int wrapWidth)
 {
-  /* We'll put everything in a table */
-  GtkWidget *belvuAlignment = gtk_table_new(2, 2, FALSE);
-  const int xpad = 0, ypad = 0;
-  
-  /* Create the sequence drawing area and the columns drawing area (for the
-   * name and coords etc). The sequence drawing area will have a horizontal 
-   * scrollbar, and both sections will share the same vertical scrollbar. If the
-   * display is wrapped, there is no headers area, so just use the default 
-   * layout scrollbars for the sequence area.*/
+  GtkWidget *belvuAlignment = NULL;      /* the outermost container */
+  GtkWidget *seqArea = NULL;             /* the "sequence area", which will draw the actual peptide sequences */
+  GtkWidget *headersArea = NULL;         /* optional "headers" column for drawing names, coords etc. */
   GtkAdjustment *hAdjustment = NULL;
+  GtkAdjustment *vAdjustment = NULL;
   
   if (wrapWidth == UNSET_INT)
     {
+      /* The standard (unwrapped) view. Two columns that share the same vertical
+       * scrollbar but only the sequence area will have a horizontal scrollbar. */
+      
+      /* Place everything in a table */
+      belvuAlignment = gtk_table_new(2, 3, FALSE);
+      const int xpad = 0, ypad = 0;
+
+      /* Create the scrollbars */
       hAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->maxLen + 1, 1, 0, 0));
+      vAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->alignArr->len + 1, 1, 0, 0));
       GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
-      gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar, 2, 3, 2, 3, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-
-      g_signal_connect(G_OBJECT(hAdjustment), "value-changed", G_CALLBACK(onHScrollPosChangedBelvuAlignment), belvuAlignment);
-      g_signal_connect(G_OBJECT(hAdjustment), "changed", G_CALLBACK(onHScrollRangeChangedBelvuAlignment), belvuAlignment);
-    }
-  
-  /* Create the sequence area */
-  GtkWidget *seqArea = gtk_layout_new(NULL, NULL);
-  GtkWidget *seqScrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_container_add(GTK_CONTAINER(seqScrollWin), seqArea);
-  gtk_table_attach(GTK_TABLE(belvuAlignment), seqScrollWin, 2, 3, 1, 2, GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
-  
-  g_signal_connect(G_OBJECT(seqArea), "expose-event", G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
-  g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
-
-  /* If we've already got a horizontal scrollbar, just set the scrollwin to use the vertical one. */
-  if (hAdjustment)
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(seqScrollWin), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-  else
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(seqScrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-
-  /* Only create the header columns if the display is not wrapped */
-  GtkWidget *headersArea = NULL;
-
-  if (wrapWidth == UNSET_INT)
-    {
-      GtkAdjustment *vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(seqArea));
+      GtkWidget *vScrollbar = gtk_vscrollbar_new(vAdjustment);
+      
+      /* Create the drawing areas */
+      seqArea = gtk_layout_new(hAdjustment, vAdjustment);
       headersArea = gtk_layout_new(NULL, vAdjustment);
-      gtk_table_attach(GTK_TABLE(belvuAlignment), headersArea, 1, 2, 1, 2, GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
-      g_signal_connect(G_OBJECT(headersArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
-    
-      /* Also only connect button press handler if this is a standard (i.e. not wrapped) alignment window */
+      
+      /* Place all the widgets in the table */
+      gtk_table_attach(GTK_TABLE(belvuAlignment), headersArea,  0, 1, 0, 1, GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), seqArea,      1, 2, 0, 1, GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar,   1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), vScrollbar,   2, 3, 0, 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+
+      /* Connect signals */
       gtk_widget_add_events(headersArea, GDK_BUTTON_PRESS_MASK);
       gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
       gtk_widget_add_events(seqArea, GDK_BUTTON_RELEASE_MASK);
       gtk_widget_add_events(seqArea, GDK_POINTER_MOTION_MASK);
+
+      g_signal_connect(G_OBJECT(headersArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
+      g_signal_connect(G_OBJECT(seqArea), "expose-event", G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
+      g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
+      
       g_signal_connect(G_OBJECT(headersArea), "button-press-event", G_CALLBACK(onButtonPressHeadersArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-press-event", G_CALLBACK(onButtonPressSeqArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-release-event", G_CALLBACK(onButtonReleaseSeqArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "motion-notify-event", G_CALLBACK(onMouseMoveSeqArea), belvuAlignment);
+
+      g_signal_connect(G_OBJECT(hAdjustment), "changed", G_CALLBACK(onHScrollRangeChangedBelvuAlignment), belvuAlignment);
+      g_signal_connect(G_OBJECT(vAdjustment), "changed", G_CALLBACK(onVScrollRangeChangedBelvuAlignment), belvuAlignment);
+      g_signal_connect(G_OBJECT(hAdjustment), "value-changed", G_CALLBACK(onHScrollPosChangedBelvuAlignment), belvuAlignment);
+      g_signal_connect(G_OBJECT(vAdjustment), "value-changed", G_CALLBACK(onVScrollPosChangedBelvuAlignment), belvuAlignment);
+    }
+  else
+    {
+      /* For the wrapped view, we just have a single layout area. We'll need to
+       * draw the entire contents at once so that it can be printed. We can
+       * therefore just place it in a standard scrolled window. We also don't
+       * need to worry about button-press events because this widget is not
+       * interactive; it's just for printing. */
+      seqArea = gtk_layout_new(hAdjustment, vAdjustment);
+
+      belvuAlignment = gtk_scrolled_window_new(NULL, NULL);
+      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(belvuAlignment), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+      gtk_container_add(GTK_CONTAINER(belvuAlignment), seqArea);
+      
+      hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(seqArea));
+      vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(seqArea));
+      
+      g_signal_connect(G_OBJECT(seqArea), "expose-event", G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
+      g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
     }
   
   /* Set the style and properties */
+  g_assert(belvuAlignment);
   setBelvuAlignmentStyle(bc, seqArea, headersArea);
-  belvuAlignmentCreateProperties(belvuAlignment, bc, headersArea, seqArea, hAdjustment, title, wrapWidth);
+  belvuAlignmentCreateProperties(belvuAlignment, bc, headersArea, seqArea, hAdjustment, vAdjustment, title, wrapWidth);
 
   return belvuAlignment;
 }
