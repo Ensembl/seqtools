@@ -1960,7 +1960,8 @@ static void cellDataFunctionScoreCol(GtkTreeViewColumn *column,
     {
       const MSP const *msp = (const MSP const *)(mspGList->data);
     
-      if (mspIsBlastMatch(msp) && (g_list_length(mspGList) == 1 || mspIsShortRead(msp)))
+      /* If the score is negative it means do not show */
+      if (msp->score >= 0.0 && (g_list_length(mspGList) == 1 || mspIsShortRead(msp)))
 	{
 	  const gdouble score = msp->score;
 	  char displayText[numDigitsInInt((int)score) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
@@ -1997,10 +1998,10 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
     {
       const MSP const *msp = (const MSP const *)(mspGList->data);
 
-      /* Only display matches. Only display the ID if we only have one msp in
-       * the row (unless they are short reads, in which case the ID should be the
-       * same for all of them) */
-      if ((g_list_length(mspGList) == 1 && mspIsBlastMatch(msp)) || mspIsShortRead(msp))
+      /* If the score is negative it means do not show. Also only display the
+       * ID if we only have one msp in the row (unless they are short reads, in 
+       * which case the ID should be the same for all of them) */
+      if (msp->id >= 0.0 && (g_list_length(mspGList) == 1 || mspIsShortRead(msp)))
 	{
 	  const gdouble id = msp->id;
 	  char displayText[numDigitsInInt((int)id) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
