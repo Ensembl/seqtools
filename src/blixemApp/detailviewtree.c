@@ -44,6 +44,7 @@
 #include <seqtoolsUtils/blxmsp.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
+#include <math.h>
 
 
 /* Local function declarations */
@@ -290,10 +291,12 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 }
 
 
-/* Comparison function for sorting by sequence DNA */
+/* Comparison function for sorting/determining if two alignments are identical;
+ * they are identical if the DNA sequence, start positions, score and ID are
+ * also identical */
 static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
 {
-  int result = 0;
+  double result = 0;
   
   const MSP const *msp1 = *((const MSP const**)a);
   const MSP const *msp2 = *((const MSP const**)b);
@@ -302,15 +305,36 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
   const gboolean msp2HasSeq = msp2->sSequence && msp2->sSequence->sequence && msp2->sSequence->sequence->str;
 
   if (msp1HasSeq && msp2HasSeq)
-    result = strcmp(msp1->sSequence->sequence->str, msp2->sSequence->sequence->str);
+    {
+      result = msp1->qRange.min - msp2->qRange.min;
+
+      if (result == 0) result = msp1->sRange.min - msp2->sRange.min;
+      if (result == 0) result = msp1->score - msp2->score;
+      if (result == 0) result = msp1->id - msp2->id;
+      if (result == 0) result = strcmp(msp1->sSequence->sequence->str, msp2->sSequence->sequence->str);
+    }
   else if (!msp1HasSeq && !msp2HasSeq)
-    result = 0;
+    {
+      result = 0;
+    }
   else if (!msp1HasSeq)
-    result = -1;
+    {
+      result = -1;
+    }
   else 
-    result = 1;
-  
-  return result;
+    {
+      result = 1;
+    }
+
+  /* For fractional results, round up (or down if negative), so that we still
+   * recognise a fracional difference as a difference (e.g. a difference of 
+   * -0.2 in the scores would mean a < b, so we return -1). */
+  if (result > 0)
+    return ceil(result);
+  else if (result < 0)
+    return floor(result);
+  else 
+    return 0;
 }
 
 
