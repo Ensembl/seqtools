@@ -331,14 +331,13 @@ static void drawSingleSequence(GtkWidget *widget,
   
   GdkGC *gc = gdk_gc_new(drawable);
   GtkAdjustment *hAdjustment = properties->hAdjustment;
-  const int displayLen = hAdjustment->page_size;
   
   GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
   
   /* Loop through each column in the current display range and color
    * the text and background according to the relevant highlight colors */
   int colIdx = hAdjustment->value;
-  int iMax = hAdjustment->value + min(displayLen, properties->bc->maxLen);
+  int iMax = min(properties->bc->maxLen + 1, hAdjustment->value + hAdjustment->page_size);
   const gboolean rowHighlighted = highlightAlignment(properties->bc, alnp);
   
   for ( ; colIdx < iMax; ++colIdx)
@@ -591,7 +590,7 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
   
   int i = vAdjustment->value;
   int lineNum = 0;
-  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
+  const int iMax = min(bc->alignArr->len + 2, vAdjustment->value + vAdjustment->page_size);
   
   for ( ; i < iMax; ++i)
     {
@@ -616,7 +615,7 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
   
   int i = vAdjustment->value;
   int lineNum = 0;
-  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
+  const int iMax = min(bc->alignArr->len + 2, vAdjustment->value + vAdjustment->page_size);
   
   for ( ; i < iMax; ++i)
     {
@@ -732,11 +731,7 @@ static void onVScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
   
   if (properties->wrapWidth == UNSET_INT)
     {
-      /* We need to clear and re-draw the sequence area (unless we're displaying
-       * wrapped sequences, in which case we've already drawn the full sequence
-       * height in the drawing area */
-      widgetClearCachedDrawable(properties->seqArea, NULL);
-      gtk_widget_queue_draw(properties->seqArea);
+      belvuAlignmentRedrawAll(belvuAlignment);
     }
 }
 
@@ -772,19 +767,18 @@ static void onVScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
   
   /* Set the horizontal adjustment page size to be the number of characters
    * that will fit in the width */
-  properties->hAdjustment->page_size = (int)(properties->seqArea->allocation.width / properties->charWidth);
-  properties->hAdjustment->page_increment = properties->hAdjustment->page_size;
+  properties->vAdjustment->page_size = (int)(properties->seqArea->allocation.height / properties->charHeight);
+  properties->vAdjustment->page_increment = properties->vAdjustment->page_size;
   
   /* Make sure the scroll position still lies within upper - page_size. */
-  if (properties->hAdjustment->value > properties->hAdjustment->upper - properties->hAdjustment->page_size)
-    properties->hAdjustment->value = properties->hAdjustment->upper - properties->hAdjustment->page_size;
+  if (properties->vAdjustment->value > properties->vAdjustment->upper - properties->vAdjustment->page_size)
+    properties->vAdjustment->value = properties->vAdjustment->upper - properties->vAdjustment->page_size;
   
   /* Make sure we're still within the lower limit */
-  if (properties->hAdjustment->value < properties->hAdjustment->lower)
-    properties->hAdjustment->value = properties->hAdjustment->lower;
-  
-  widgetClearCachedDrawable(properties->seqArea, NULL);
-  gtk_widget_queue_draw(properties->seqArea);
+  if (properties->vAdjustment->value < properties->vAdjustment->lower)
+    properties->vAdjustment->value = properties->vAdjustment->lower;
+
+  belvuAlignmentRedrawAll(belvuAlignment);
 }
 
 
@@ -795,7 +789,7 @@ void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
   
   GtkAdjustment *vAdjustment = properties->vAdjustment;
-  vAdjustment->upper = properties->bc->alignArr->len;
+  vAdjustment->upper = properties->bc->alignArr->len + 2;
   
   belvuAlignmentRedrawAll(belvuAlignment);
   gtk_adjustment_changed(vAdjustment);
@@ -921,9 +915,10 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
   gtk_layout_set_size(GTK_LAYOUT(properties->seqArea), properties->seqRect.width, properties->seqRect.height);
 
   if (properties->hAdjustment)
-    {
-      gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
-    }
+    gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
+
+  if (properties->vAdjustment)
+    gtk_adjustment_changed(properties->vAdjustment);
 }
 
 
@@ -1250,19 +1245,19 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
 
       /* Create the scrollbars */
       hAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->maxLen + 1, 1, 0, 0));
-      vAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->alignArr->len + 1, 1, 0, 0));
+      vAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->alignArr->len + 2, 1, 0, 0));
       GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
       GtkWidget *vScrollbar = gtk_vscrollbar_new(vAdjustment);
       
       /* Create the drawing areas */
-      seqArea = gtk_layout_new(hAdjustment, vAdjustment);
-      headersArea = gtk_layout_new(NULL, vAdjustment);
+      seqArea = gtk_layout_new(NULL, NULL);
+      headersArea = gtk_layout_new(NULL, NULL);
       
       /* Place all the widgets in the table */
       gtk_table_attach(GTK_TABLE(belvuAlignment), headersArea,  0, 1, 0, 1, GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
       gtk_table_attach(GTK_TABLE(belvuAlignment), seqArea,      1, 2, 0, 1, GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
       gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar,   1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(GTK_TABLE(belvuAlignment), vScrollbar,   2, 3, 0, 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), vScrollbar,   2, 3, 0, 1, GTK_SHRINK, GTK_EXPAND | GTK_FILL, xpad, ypad);
 
       /* Connect signals */
       gtk_widget_add_events(headersArea, GDK_BUTTON_PRESS_MASK);
