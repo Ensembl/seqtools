@@ -580,8 +580,8 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
 }
 
 
-/* Draw the alignment view */
-static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
+/* Draw the header line for the columns section */
+static void drawBelvuColumnsHeader(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
   BelvuContext *bc = properties->bc;
 
@@ -591,7 +591,7 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
   
   char *tmpStr = blxprintf("(%dx%d)", bc->alignArr->len, bc->maxLen);
   GdkGC *gc = gdk_gc_new(drawable);
-
+  
   drawText(widget, drawable, gc, x, y, tmpStr, NULL, NULL);
   y += properties->charHeight + DEFAULT_YPAD;
   
@@ -601,13 +601,20 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
   x = 0;
   gdk_draw_line(drawable, gc, x, y, x + properties->headersRect.width, y);
   g_object_unref(gc);
-  
+}
+
+
+/* Draw the alignment view */
+static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
+{
+  BelvuContext *bc = properties->bc;
+
   /* Draw each visible alignment */
   GtkAdjustment *vAdjustment = properties->vAdjustment;
   
   int i = vAdjustment->value;
   int lineNum = 0;
-  const int iMax = min(bc->alignArr->len + 2, vAdjustment->value + vAdjustment->page_size);
+  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
   
   for ( ; i < iMax; ++i)
     {
@@ -622,17 +629,36 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
 }
 
 
+/* Draw the header line in the sequence area */
+static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
+{
+  BelvuContext *bc = properties->bc;
+
+  /* Draw the summary line, which shows the number of sequences & alignment length */
+  int x = properties->columnPadding;
+  int y = DEFAULT_YPAD;
+  
+  char *tmpStr = blxprintf("(%dx%d)", bc->alignArr->len, bc->maxLen);
+  GdkGC *gc = gdk_gc_new(drawable);
+  
+  drawText(widget, drawable, gc, x, y, tmpStr, NULL, NULL);
+  y += properties->charHeight + DEFAULT_YPAD;
+  
+  g_free(tmpStr);
+}
+
+
 /* Draw the alignment view */
 static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
   BelvuContext *bc = properties->bc;
   
-  /* Loop through each visible alignment */
+  /* Draw each visible alignment */
   GtkAdjustment *vAdjustment = properties->vAdjustment;
   
   int i = vAdjustment->value;
   int lineNum = 0;
-  const int iMax = min(bc->alignArr->len + 2, vAdjustment->value + vAdjustment->page_size);
+  const int iMax = min(bc->alignArr->len + 1, vAdjustment->value + vAdjustment->page_size);
   
   for ( ; i < iMax; ++i)
     {
@@ -805,7 +831,7 @@ static void updateOnAlignmentSizeChanged(GtkWidget *belvuAlignment)
   
   if (properties->vAdjustment)
     {
-      properties->vAdjustment->upper = properties->bc->alignArr->len + 2;
+      properties->vAdjustment->upper = properties->bc->alignArr->len + 1;
       gtk_adjustment_changed(properties->vAdjustment);
     }
   
@@ -871,7 +897,7 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
   
   if (properties->wrapWidth == UNSET_INT)
     {
-      result = properties->seqArea->allocation.height - properties->charHeight - (3 * DEFAULT_YPAD);
+      result = properties->seqArea->allocation.height - DEFAULT_YPAD;
     }  
   else
     {
@@ -912,7 +938,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
   
   /* Calculate the size of the drawing area for the sequences */
   properties->seqRect.x = DEFAULT_XPAD;
-  properties->seqRect.y = DEFAULT_YPAD * 3 + properties->charHeight;
+  properties->seqRect.y = DEFAULT_YPAD;
   properties->seqRect.width = getAlignmentDisplayWidth(properties);
   properties->seqRect.height = getAlignmentDisplayHeight(properties);
   
@@ -921,7 +947,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
       /* There is a separate drawing area for the columns that contain the row
        * headers; calculate its size. */
       properties->headersRect.x = DEFAULT_XPAD;
-      properties->headersRect.y = DEFAULT_YPAD * 3 + properties->charHeight;
+      properties->headersRect.y = DEFAULT_YPAD;
       properties->headersRect.height = properties->seqRect.height;
       
       properties->headersRect.width = (properties->bc->maxNameLen * properties->charWidth) + (2 * properties->columnPadding) +
@@ -1029,7 +1055,7 @@ void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
       GtkAdjustment *vAdjustment = properties->vAdjustment;
       
       /* Create the range of y coords that we want to be in range */
-      const int newIdx = vAdjustment->value + bc->selectedAln->nr;
+      const int newIdx = bc->selectedAln->nr - 1;
       gtk_adjustment_clamp_page(vAdjustment, newIdx, newIdx + 1);
     }
 }
@@ -1267,7 +1293,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
 
       /* Create the scrollbars */
       hAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->maxLen + 1, 1, 0, 0));
-      vAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->alignArr->len + 2, 1, 0, 0));
+      vAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->alignArr->len + 1, 1, 0, 0));
       GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
       GtkWidget *vScrollbar = gtk_vscrollbar_new(vAdjustment);
       
