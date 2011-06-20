@@ -215,8 +215,8 @@ static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, const gboolea
 }
 
 
-/* Draw a single line in the headers area */
-static void drawSingleHeader(GtkWidget *widget,
+/* Draw a single row in the columns area */
+static void drawSingleColumn(GtkWidget *widget,
                              GdkDrawable *drawable, 
                              BelvuAlignmentProperties *properties,
                              ALN *alnp, 
@@ -250,19 +250,20 @@ static void drawSingleHeader(GtkWidget *widget,
   /* Draw the coords (but only if this is not GC markup; note that we always
    * draw the column separator lines for the coords, though) */
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
-  x += properties->columnPadding;
+  x += properties->columnPadding + properties->bc->maxStartLen * properties->charWidth; /* right-hand edge of column for right-aligned text */
 
   if (alnp->markup != GC)
-    drawIntAsText(widget, drawable, gc, x, y, alnp->start, NULL, NULL);
+    drawIntAsText(widget, drawable, gc, x, y, alnp->start);
   
-  x += (properties->bc->maxStartLen * properties->charWidth) + properties->columnPadding;
-  gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
   x += properties->columnPadding;
+  gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
+  
+  x += properties->columnPadding + properties->bc->maxEndLen * properties->charWidth; /* right-aligned */
 
   if (alnp->markup != GC)
-    drawIntAsText(widget, drawable, gc, x, y, alnp->end, NULL, NULL);
+    drawIntAsText(widget, drawable, gc, x, y, alnp->end);
 
-  x += (properties->bc->maxEndLen * properties->charWidth) + properties->columnPadding;
+  x += properties->columnPadding;
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
   
   /* Draw the score, if displaying scores (and if not a markup row) */
@@ -271,11 +272,7 @@ static void drawSingleHeader(GtkWidget *widget,
       x += properties->columnPadding;
       
       if (!alnp->markup)
-        {
-          char *tmpStr = blxprintf("%*.1f", alnp->score);
-          drawText(widget, drawable, gc, x, y, tmpStr, NULL, NULL);
-          g_free(tmpStr);
-        }
+        drawDoubleAsText(widget, drawable, gc, x, y, alnp->score);
       
       x += (properties->bc->maxScoreLen * properties->charWidth) + properties->columnPadding;
       gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
@@ -652,7 +649,7 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
       
       if (alnp && !alnp->hide)
         {
-          drawSingleHeader(widget, drawable, properties, alnp, lineNum);
+          drawSingleColumn(widget, drawable, properties, alnp, lineNum);
           ++lineNum;
         }
     }

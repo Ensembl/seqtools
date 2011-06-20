@@ -532,7 +532,8 @@ double                                    identity(char *s1, char *s2, const gbo
 
 void                                      convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, GdkColor *result);
 void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight);
-void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight);
+void                                      drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value);
+void                                      drawDoubleAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const double value);
 
 void                                      treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode));
 void                                      treeSort(BelvuContext *bc);          

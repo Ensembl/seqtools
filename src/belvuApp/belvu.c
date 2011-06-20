@@ -5413,11 +5413,46 @@ void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, 
   g_object_unref(layout);
 }
 
-void drawIntAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const int value, int *textWidth, int *textHeight)
+
+/* Utility to draw the given integer as text. The text is right-aligned, so 
+ * the input x coord must be the RIGHTMOST EDGE of where you want the text. */
+void drawIntAsText(GtkWidget *widget, 
+                   GdkDrawable *drawable, 
+                   GdkGC *gc, 
+                   const int x, 
+                   const int y, 
+                   const int value)
 {
   char *tmpStr = blxprintf("%d", value);
-  drawText(widget, drawable, gc, x, y, tmpStr, textWidth, textHeight);
+  PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
   g_free(tmpStr);
+
+  int textWidth;
+  pango_layout_get_pixel_size(layout, &textWidth, NULL);
+
+  gdk_draw_layout(drawable, gc, x - textWidth, y, layout);
+  g_object_unref(layout);
+}
+
+
+/* Utility to draw the given double as text. The text is right-aligned, so 
+ * the input x coord must be the RIGHTMOST EDGE of where you want the text. */
+void drawDoubleAsText(GtkWidget *widget, 
+                      GdkDrawable *drawable, 
+                      GdkGC *gc, 
+                      const int x, 
+                      const int y, 
+                      const double value)
+{
+  char *tmpStr = blxprintf("%.1f", value);
+  PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
+  g_free(tmpStr);
+  
+  int textWidth;
+  pango_layout_get_pixel_size(layout, &textWidth, NULL);
+  
+  gdk_draw_layout(drawable, gc, x - textWidth, y, layout);
+  g_object_unref(layout);
 }
 
 
