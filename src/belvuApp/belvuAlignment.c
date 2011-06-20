@@ -337,7 +337,7 @@ static void drawSingleSequence(GtkWidget *widget,
   /* Loop through each column in the current display range and color
    * the text and background according to the relevant highlight colors */
   int colIdx = hAdjustment->value;
-  int iMax = min(properties->bc->maxLen + 1, hAdjustment->value + hAdjustment->page_size);
+  int iMax = min(properties->bc->maxLen, hAdjustment->value + hAdjustment->page_size);
   const gboolean rowHighlighted = highlightAlignment(properties->bc, alnp);
   
   for ( ; colIdx < iMax; ++colIdx)
@@ -620,7 +620,7 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
       
-      if (!alnp->hide)
+      if (alnp && !alnp->hide)
         {
           drawSingleHeader(widget, drawable, properties, alnp, lineNum);
           ++lineNum;
@@ -658,13 +658,13 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
   
   int i = vAdjustment->value;
   int lineNum = 0;
-  const int iMax = min(bc->alignArr->len + 1, vAdjustment->value + vAdjustment->page_size);
+  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
   
   for ( ; i < iMax; ++i)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
       
-      if (!alnp->hide)
+      if (alnp && !alnp->hide)
         {
           drawSingleSequence(widget, drawable, properties, alnp, lineNum);
           ++lineNum;
