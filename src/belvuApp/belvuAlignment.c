@@ -41,7 +41,7 @@
 
 
 #define DEFAULT_XPAD                            2
-#define DEFAULT_YPAD                            2
+#define DEFAULT_YPAD                            4
 #define DEFAULT_PADDING_CHARS                   1  /* number of char widths to use to pad between columns */
 #define DEFAULT_NAME_COLUMN_PADDING_CHARS       2  /* number of char widths to use to pad after the name column */
 #define WRAP_DISPLAY_PADDING_CHARS              4
@@ -584,8 +584,25 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
 static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
   BelvuContext *bc = properties->bc;
+
+  /* Draw the summary line, which shows the number of sequences & alignment length */
+  int x = properties->columnPadding;
+  int y = DEFAULT_YPAD;
   
-  /* Loop through each visible alignment */
+  char *tmpStr = blxprintf("(%dx%d)", bc->alignArr->len, bc->maxLen);
+  GdkGC *gc = gdk_gc_new(drawable);
+
+  drawText(widget, drawable, gc, x, y, tmpStr, NULL, NULL);
+  y += properties->charHeight + DEFAULT_YPAD;
+  
+  g_free(tmpStr);
+  
+  /* Draw a horizontal separator line */
+  x = 0;
+  gdk_draw_line(drawable, gc, x, y, x + properties->headersRect.width, y);
+  g_object_unref(gc);
+  
+  /* Draw each visible alignment */
   GtkAdjustment *vAdjustment = properties->vAdjustment;
   
   int i = vAdjustment->value;
@@ -854,7 +871,7 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
   
   if (properties->wrapWidth == UNSET_INT)
     {
-      result = properties->seqArea->allocation.height - properties->charHeight - (2 * DEFAULT_YPAD);
+      result = properties->seqArea->allocation.height - properties->charHeight - (3 * DEFAULT_YPAD);
     }  
   else
     {
@@ -895,7 +912,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
   
   /* Calculate the size of the drawing area for the sequences */
   properties->seqRect.x = DEFAULT_XPAD;
-  properties->seqRect.y = DEFAULT_YPAD * 2 + properties->charHeight;
+  properties->seqRect.y = DEFAULT_YPAD * 3 + properties->charHeight;
   properties->seqRect.width = getAlignmentDisplayWidth(properties);
   properties->seqRect.height = getAlignmentDisplayHeight(properties);
   
@@ -904,7 +921,7 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
       /* There is a separate drawing area for the columns that contain the row
        * headers; calculate its size. */
       properties->headersRect.x = DEFAULT_XPAD;
-      properties->headersRect.y = DEFAULT_YPAD * 2 + properties->charHeight;
+      properties->headersRect.y = DEFAULT_YPAD * 3 + properties->charHeight;
       properties->headersRect.height = properties->seqRect.height;
       
       properties->headersRect.width = (properties->bc->maxNameLen * properties->charWidth) + (2 * properties->columnPadding) +
