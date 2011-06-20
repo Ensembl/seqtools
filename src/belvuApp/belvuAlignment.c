@@ -782,17 +782,31 @@ static void onVScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
 }
 
 
+static void updateOnAlignmentSizeChanged(GtkWidget *belvuAlignment)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  if (properties->vAdjustment)
+    {
+      properties->vAdjustment->upper = properties->bc->alignArr->len + 2;
+      gtk_adjustment_changed(properties->vAdjustment);
+    }
+  
+  if (properties->hAdjustment)
+    {
+      properties->hAdjustment->upper = properties->bc->maxLen + 1;
+      gtk_adjustment_changed(properties->hAdjustment);
+    }
+
+  belvuAlignmentRedrawAll(belvuAlignment);
+}
+
+
 /* Called when the vertical scroll range upper value has changed (i.e. the length
  * of the alignments array has changed). */
 void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
 {
-  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
-  GtkAdjustment *vAdjustment = properties->vAdjustment;
-  vAdjustment->upper = properties->bc->alignArr->len + 2;
-  
-  belvuAlignmentRedrawAll(belvuAlignment);
-  gtk_adjustment_changed(vAdjustment);
+  updateOnAlignmentSizeChanged(belvuAlignment);
 }
 
 
@@ -800,13 +814,7 @@ void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
  * have been deleted. */
 void updateOnAlignmentLenChanged(GtkWidget *belvuAlignment)
 {
-  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
-  if (properties->hAdjustment)
-    {
-      properties->hAdjustment->upper = properties->bc->maxLen + 1;
-      gtk_adjustment_changed(properties->hAdjustment);
-    }
+  updateOnAlignmentSizeChanged(belvuAlignment);
 }
 
 /***********************************************************
