@@ -155,11 +155,13 @@ static void                      showEditConsColorsDialog(GtkWidget *belvuWindow
 static void                      saveOrResetConsColors(BelvuContext *bc, const gboolean save);
 static void                      showSelectGapCharDialog(GtkWidget *belvuWindow);
 
+static gboolean                  saveAlignmentPrompt(GtkWidget *window, BelvuContext *bc);
+
 static const char*		 saveFasta(BelvuContext *bc, GtkWidget *parent);
 static const char*		 saveMul(BelvuContext *bc, GtkWidget *parent);
 static const char*		 saveMsf(BelvuContext *bc, GtkWidget *parent);
 static void			 showSaveAsDialog(GtkWidget *belvuWindow);
-static void			 saveAlignment(BelvuContext *bc, GtkWidget *window);
+static gboolean			 saveAlignment(BelvuContext *bc, GtkWidget *window);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 
@@ -566,8 +568,27 @@ static void onCloseMenu(GtkAction *action, gpointer data)
 static void onQuitMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
-  gtk_widget_destroy(window);
-  gtk_main_quit();
+
+  gboolean quit = TRUE;
+  
+  /* If this is the main window and the alignment has not been saved, ask
+   * the user if they want to save it. */
+  if (stringsEqual(gtk_widget_get_name(window), MAIN_BELVU_WINDOW_NAME, TRUE))
+    {
+      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+      
+      if (!properties->bc->saved)
+        {
+          BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+          quit = saveAlignmentPrompt(window, properties->bc);
+        }
+    }
+  
+  if (quit)
+    {
+      gtk_widget_destroy(window);
+      gtk_main_quit();
+    }
 }
 
 static void onHelpMenu(GtkAction *action, gpointer data)
@@ -946,6 +967,53 @@ static void onunhideMenu(GtkAction *action, gpointer data)
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
+
+/***********************************************************
+ *                  Save on exit dialog                    *
+ ***********************************************************/
+
+/* Pops up a dialog asking the user whether they want to save the alignment
+ * or not. Deals with the save, if applicable, and returns true if the user
+ * still wishes to quit (or false if the user cancelled). */
+static gboolean saveAlignmentPrompt(GtkWidget *widget, BelvuContext *bc)
+{
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Save alignment?", 
+                                                  GTK_WINDOW(widget), 
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_YES, GTK_RESPONSE_YES,        /* yes, save the alignment and exit */
+                                                  GTK_STOCK_NO, GTK_RESPONSE_NO,          /* no, don't save (but still exit) */
+                                                  GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,  /* don't save and don't exit */
+                                                  NULL);
+
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_YES);
+
+  /* Put message and icon into an hbox */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
+
+  GtkWidget *image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_QUESTION, GTK_ICON_SIZE_DIALOG);
+  gtk_box_pack_start(GTK_BOX(hbox), image, TRUE, TRUE, 0);
+
+  GtkWidget *label = gtk_label_new("Alignment was modified - save ?");
+  gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
+  gtk_widget_show_all(hbox);
+
+  gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+  gboolean quit = FALSE;
+  
+  if (response == GTK_RESPONSE_YES)
+    {
+      quit = saveAlignment(bc, widget);
+    }
+  else if (response == GTK_RESPONSE_NO)
+    {
+      quit = TRUE;
+    }
+
+  gtk_widget_destroy(dialog);
+  
+  return quit;
+}
 
 /***********************************************************
  *                  File menu actions                      *
@@ -1452,8 +1520,10 @@ static void showHelpDialog()
  *                   Save As dialog                        *
  ***********************************************************/
 
-/* Utility to call the correct save function for the current save format */
-static void saveAlignment(BelvuContext *bc, GtkWidget *window)
+/* Utility to call the correct save function for the current save format.
+ * Returns true if successful (false if not saved, e.g. if the user cancelled
+ * the save dialog). */
+static gboolean saveAlignment(BelvuContext *bc, GtkWidget *window)
 {
   const char *filename = NULL;
   
@@ -1474,6 +1544,9 @@ static void saveAlignment(BelvuContext *bc, GtkWidget *window)
       bc->dirName = g_path_get_dirname(filename);
       bc->fileName = g_path_get_basename(filename);
     }
+  
+  /* If the filename is null, the user must have cancelled. */
+  return (filename != NULL);
 }
 
 
