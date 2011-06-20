@@ -1029,11 +1029,8 @@ void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
       GtkAdjustment *vAdjustment = properties->vAdjustment;
       
       /* Create the range of y coords that we want to be in range */
-      const int newIdx = bc->selectedAln->nr - 1;
-      const int lower = properties->seqRect.y + (newIdx * properties->charHeight);
-      const int upper = lower + properties->charHeight;
-      
-      gtk_adjustment_clamp_page(vAdjustment, lower, upper);
+      const int newIdx = vAdjustment->value + bc->selectedAln->nr;
+      gtk_adjustment_clamp_page(vAdjustment, newIdx, newIdx + 1);
     }
 }
 
@@ -1043,7 +1040,7 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
 {
   BelvuContext *bc = properties->bc;
   
-  const int rowIdx = (y - properties->seqRect.y) / properties->charHeight;
+  const int rowIdx = properties->vAdjustment->value + ((y - properties->seqRect.y) / properties->charHeight);
   
   /* Set the selected alignment. Note that some alignments are hidden so
    * we need to count how many visible alignments there are up to this row. */
