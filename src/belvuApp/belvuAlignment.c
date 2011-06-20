@@ -50,7 +50,7 @@
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
-static gboolean           highlightAlignment(BelvuContext *bc, ALN *alnp);
+static gboolean           alignmentHighlighted(BelvuContext *bc, ALN *alnp);
 
 
 /* Properties specific to the belvu alignment */
@@ -225,7 +225,7 @@ static void drawSingleColumn(GtkWidget *widget,
   int x = 0;
   const int y = properties->columnsRect.y + (properties->charHeight * lineNum);
   
-  const gboolean highlightAln = highlightAlignment(properties->bc, alnp);
+  const gboolean highlightAln = alignmentHighlighted(properties->bc, alnp);
   GdkGC *gc = gdk_gc_new(drawable);
   
   if (highlightAln)
@@ -282,11 +282,20 @@ static void drawSingleColumn(GtkWidget *widget,
 }
 
 
-/* Utility to return true if the given alignment should be highlighted */
-static gboolean highlightAlignment(BelvuContext *bc, ALN *alnp)
+/* Utility to return true if the given alignment is highlighted (i.e. has the
+ * same name as the selected alignment) */
+static gboolean alignmentHighlighted(BelvuContext *bc, ALN *alnp)
 {
   /* Return true if this alignment has the same name as the selected alignment */
   return (bc->selectedAln && stringsEqual(alnp->name, bc->selectedAln->name, TRUE));
+}
+
+
+/* Utility to return true if the given alignment is selected */
+static gboolean alignmentSelected(BelvuContext *bc, ALN *alnp)
+{
+  /* Return true if this alignment has the same name as the selected alignment */
+  return (bc->selectedAln && bc->selectedAln == alnp);
 }
 
 
@@ -364,7 +373,7 @@ static void drawSingleSequence(GtkWidget *widget,
    * the text and background according to the relevant highlight colors */
   int colIdx = hAdjustment->value;
   int iMax = min(properties->bc->maxLen, hAdjustment->value + hAdjustment->page_size);
-  const gboolean rowHighlighted = highlightAlignment(properties->bc, alnp);
+  const gboolean rowHighlighted = alignmentSelected(properties->bc, alnp);
   
   for ( ; colIdx < iMax; ++colIdx)
     {
@@ -1225,7 +1234,7 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
     {
       ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
       
-      if (highlightAlignment(bc, alnp))
+      if (alignmentHighlighted(bc, alnp))
         bc->highlightedAlns = g_slist_prepend(bc->highlightedAlns, alnp);
     }
 }
