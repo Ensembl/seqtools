@@ -173,6 +173,8 @@ typedef enum _BelvuColorId
     
     BELCOLOR_BACKGROUND,                      /* default background color for general widgets */
     BELCOLOR_ALIGN_TEXT,                      /* text color for alignments */
+    BELCOLOR_COLUMN_HIGHLIGHT,                /* highlight colour for the currently-selected column */
+    
     BELCOLOR_TREE_BACKGROUND,                 /* background color for trees */
     BELCOLOR_TREE_LINE,                       /* default line color for the tree */
     BELCOLOR_TREE_TEXT,                       /* default text color for the tree */

@@ -156,6 +156,13 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
  *                         Drawing                         *
  ***********************************************************/
 
+/* Refresh all */
+void belvuAlignmentRefreshAll(GtkWidget *belvuAlignment)
+{
+  gtk_widget_queue_draw(belvuAlignment);
+}
+
+
 /* Clear cached drawables and redraw all */
 void belvuAlignmentRedrawAll(GtkWidget *belvuAlignment)
 {
@@ -311,17 +318,12 @@ static void drawSequenceChar(BelvuAlignmentProperties *properties,
                              const int x, 
                              const int y)
 {
-  /* This base should be highlighted if the row is highlighted OR if the
-   * column is highlighted (but not both) */
-  const gboolean colHighlighted = (colIdx == properties->bc->highlightedCol - 1);
-  const gboolean highlight = (rowHighlighted != colHighlighted);
-  
   GdkColor bgColor;
   
   if (properties->bc->displayColors)
     {
       /* Draw the background */
-      findResidueBGcolor(properties->bc, alnp, colIdx, highlight, &bgColor);
+      findResidueBGcolor(properties->bc, alnp, colIdx, rowHighlighted, &bgColor);
       gdk_gc_set_foreground(gc, &bgColor);
       gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
     }
@@ -711,6 +713,52 @@ static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, Be
 }
 
 
+/* This draws some shading where the currently-selected column is in order to
+ * highlight it.  If there is no column selected, does nothing. */
+static void drawSelectedColumn(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
+{
+  BelvuContext *bc = properties->bc;
+  
+  /* Quit if there is no column selected */
+  if (bc->highlightedCol < 1)
+    return;
+
+  GtkAdjustment *hAdjustment = properties->hAdjustment;
+  
+  const int iMin = properties->hAdjustment->value + 1;
+  const int iMax = min(bc->maxLen, hAdjustment->value + hAdjustment->page_size + 1);
+
+  /* Quit if the selected column is not in the visible range */
+  if (bc->highlightedCol < iMin || bc->highlightedCol > iMax)
+    return;
+
+  /* Get the column number as a zero-based index in the current range and 
+   * convert this to a distance from the left edge, which will be our x coord.
+   * Add half a char's width to get the x coord at the centre of the char. */
+  const int colIdx = bc->highlightedCol - iMin;
+  const int x = (colIdx * properties->charWidth) + (properties->charWidth / 2);
+  
+
+  /* Draw a vertical line at this index */
+  GdkGC *gc = gdk_gc_new(drawable);
+
+  GdkColor *color = getGdkColor(BELCOLOR_COLUMN_HIGHLIGHT, bc->defaultColors, FALSE, FALSE);
+  gdk_gc_set_foreground(gc, color);
+  gdk_gc_set_function(gc, GDK_INVERT);
+  gdk_draw_line(drawable, gc, x, 0, x, properties->seqRect.height);
+  
+  g_object_unref(gc);
+  
+//  /* Draw a transparent box at this index */
+//  cairo_t *cr = gdk_cairo_create(drawable);
+//  gdk_cairo_set_source_color(cr, color);
+//  cairo_rectangle(cr, x, 0, properties->charWidth, properties->seqRect.height);
+//  cairo_clip(cr);
+//  cairo_paint_with_alpha(cr, 0.2);
+//  cairo_destroy(cr);
+}
+
+
 /* Draw the alignment view */
 static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
@@ -799,6 +847,9 @@ static gboolean onExposeBelvuSequence(GtkWidget *widget, GdkEventExpose *event, 
           GdkGC *gc = gdk_gc_new(window);
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
           g_object_unref(gc);
+          
+          /* Draw the currently-selected column on top */
+          drawSelectedColumn(widget, window, properties);
         }
       else
 	{
@@ -1354,6 +1405,10 @@ static gboolean onButtonReleaseSeqArea(GtkWidget *widget, GdkEventButton *event,
         newValue = properties->hAdjustment->upper - properties->hAdjustment->page_size;
         
       gtk_adjustment_set_value(properties->hAdjustment, newValue);
+      
+      /* Clear the current column highlihting */
+      properties->bc->highlightedCol = 0;
+      onColSelectionChanged(properties->bc);
       
       handled = TRUE;
     }

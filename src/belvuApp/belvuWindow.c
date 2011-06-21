@@ -254,8 +254,8 @@ static const GtkActionEntry menuEntries[] = {
   { "Cancel",              GTK_STOCK_CANCEL,     "Cancel",             "Escape",            "Cancel",                G_CALLBACK(onCancelSeqs)},
 
   { "Close",	           GTK_STOCK_CLOSE,      "_Close",             "<control>W",        "Close",                 G_CALLBACK(onCloseMenu)},
-  { "Quit",	               GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
-  { "Help",	               GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
+  { "Quit",	           GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
+  { "Help",	           GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
   { "About",	           GTK_STOCK_ABOUT,      "A_bout",             NULL,                "About",                 G_CALLBACK(onAboutMenu)},
   { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
@@ -783,7 +783,7 @@ static void onCancelSeqs(GtkAction *action, gpointer data)
     {
       /* Otherwise, remove any column highlighting, if applicable */
       properties->bc->highlightedCol = 0;
-      belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
+      belvuAlignmentRefreshAll(properties->bc->belvuAlignment);
     }
 }
 
@@ -3076,8 +3076,8 @@ void onColSelectionChanged(BelvuContext *bc)
   BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
   updateFeedbackBox(properties->bc, properties->feedbackBox);
   
-  /* Redraw the alignment widget */
-  belvuAlignmentRedrawAll(bc->belvuAlignment);
+  /* Refresh the alignment widget */
+  belvuAlignmentRefreshAll(bc->belvuAlignment);
 }
 
 
@@ -3176,6 +3176,7 @@ static void createBelvuColors(BelvuContext *bc, GtkWidget *widget)
   
   createBlxColor(bc->defaultColors, BELCOLOR_BACKGROUND, "Background", "Background color", BLX_WHITE, BLX_WHITE, "#bdbdbd", NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_ALIGN_TEXT, "Text color for alignments", "Text color for alignments", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_COLUMN_HIGHLIGHT, "Highlight color for selected column", "Highlight color for selected column",  "#dddddd", BLX_BLACK, NULL, NULL);
 
   /* Trees */
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_BACKGROUND, "Tree background", "Tree background color", BLX_WHITE, BLX_WHITE, NULL, NULL);

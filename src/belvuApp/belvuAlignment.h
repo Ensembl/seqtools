@@ -43,6 +43,7 @@
 
 GtkWidget*              createBelvuAlignment(BelvuContext *bc, const char *title, const int wrapWidth);
 void			belvuAlignmentRedrawAll(GtkWidget *belvuAlignment);
+void                    belvuAlignmentRefreshAll(GtkWidget *belvuAlignment);
 void                    updateOnAlignmentLenChanged(GtkWidget *belvuAlignment);
 
 void			updateOnVScrollSizeChaged(GtkWidget *belvuAlignment);
