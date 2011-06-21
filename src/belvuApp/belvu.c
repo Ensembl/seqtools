@@ -3240,6 +3240,44 @@ static char *colorNames[NUM_TRUECOLORS] = {
 "MIDBLUE"
 };
 
+
+/* Define the old-style acedb colors as hex values that can be parsed by GDK */
+static char* colorTable[NUM_TRUECOLORS]= {
+"#ffffff", 	   /* WHITE           */
+"#000000",	   /* BLACK           */
+"#c8c8c8",	   /* LIGHTGRAY       */
+"#646464", 	   /* DARKGRAY        */
+"#ff0000",         /* RED             */
+"#00ff00",         /* GREEN           */
+"#0000ff",	   /* BLUE            */
+"#ffff00",	   /* YELLOW          */
+"#00ffff",	   /* CYAN            */
+"#ff00ff", 	   /* MAGENTA         */
+"#ffa0a0",	   /* LIGHTRED        */
+"#a0ffa0",	   /* LIGHTGREEN      */
+"#a0c8ff",	   /* LIGHTBLUE       */
+"#af0000", 	   /* DARKRED         */
+"#00af00",	   /* DARKGREEN       */
+"#0000af",         /* DARKBLUE        */
+"#ffe6d2",	   /* PALERED         */ 
+"#d2ffd2", 	   /* PALEGREEN       */
+"#d2ebff",	   /* PALEBLUE        */
+"#ffffc8",	   /* PALEYELLOW      */
+"#c8ffff",	   /* PALECYAN        */
+"#ffc8ff",	   /* PALEMAGENTA     */
+"#a05000",	   /* BROWN           */
+"#ff8000",	   /* ORANGE          */
+"#ffdc6e",         /* PALEORANGE      */
+"#c000ff",	   /* PURPLE          */
+"#c9aaff",	   /* VIOLET          */
+"#ebd7ff",	   /* PALEVIOLET      */
+"#969696",	   /* GRAY            */
+"#ebebeb",	   /* PALEGRAY        */
+"#ff0080",	   /* CERISE          */
+"#56b2de"	   /* MIDBLUE         */
+} ;
+
+
 /* File format names (must be in same order as BelvuFileFormat enum)  */
 static char *fileFormatNames[BELVU_NUM_FILE_FORMATS] = {
   "Stockholm (Pfam/HMMER)",
@@ -4189,44 +4227,10 @@ int* getMarkupColorArray()
 /* Convert one of the old acedb-style color numbers to a hex string */
 static const char* convertColorNumToStr(const int colorNum)
 {
-  const char *result = NULL;
+  const char *result = colorTable[WHITE];
   
-  switch (colorNum)
-  {
-    case WHITE: result = BLX_WHITE; break;
-    case BLACK: result = BLX_BLACK; break;
-    case LIGHTGRAY: result = BLX_LIGHT_GREY; break;
-    case DARKGRAY: result = BLX_DARK_GREY; break;
-    case RED: result = BLX_RED; break;
-    case GREEN: result = BLX_GREEN; break;
-    case BLUE: result = BLX_BLUE; break;
-    case YELLOW: result = BLX_YELLOW; break;
-    case CYAN: result = BLX_CYAN; break;
-    case MAGENTA: result = BLX_MAGENTA; break;
-    case LIGHTRED: result = BLX_LIGHT_RED; break;
-    case LIGHTGREEN: result = BLX_LIGHT_GREEN; break;
-    case LIGHTBLUE: result = BLX_SKY_BLUE; break;
-    case DARKRED: result = BLX_DARK_RED; break;
-    case DARKGREEN: result = BLX_DARK_GREEN; break;
-    case DARKBLUE: result = BLX_DARK_BLUE; break;
-    case PALERED: result = BLX_LIGHT_RED; break;
-    case PALEGREEN: result = BLX_LIGHT_GREEN; break;
-    case PALEBLUE: result = BLX_PALE_BLUE; break;
-    case PALEYELLOW: result = BLX_PALE_YELLOW; break;
-    case PALECYAN: result = BLX_LIGHT_CYAN; break;
-    case PALEMAGENTA: result = BLX_PALE_MAGENTA; break;
-    case BROWN: result = BLX_BROWN; break;
-    case ORANGE: result = BLX_ORANGE; break;
-    case PALEORANGE: result = BLX_PALE_ORANGE; break;
-    case PURPLE: result = BLX_PURPLE; break;
-    case VIOLET: result = BLX_VIOLET; break;
-    case PALEVIOLET: result = BLX_PALE_VIOLET; break;
-    case GRAY: result = BLX_GREY; break;
-    case PALEGRAY: result = BLX_VERY_LIGHT_GREY; break;
-    case CERISE: result = BLX_CERISE; break;
-    case MIDBLUE: result = BLX_MID_BLUE; break;
-    default: result = BLX_WHITE; break;
-  };
+  if (colorNum >= 0 && colorNum < NUM_TRUECOLORS)
+    result = colorTable[colorNum];
   
   return result;
 }
