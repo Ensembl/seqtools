@@ -141,11 +141,28 @@
 \n\
 "
 
+/* Text to show the version */
+#define VERSION_TEXT BELVU_PACKAGE_VERSION"\n"
+
+
+
 /* Prints usage info to stderr */
 static void showUsageText()
 {
   /* Pring usage info followed by authors */
   fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
+}
+
+/* Prints version info to stderr */
+static void showVersionInfo()
+{
+  fprintf(stderr, VERSION_TEXT);  
+}
+
+/* Prints compiled date (must go to stdout for our build scripts to work) */
+static void showCompiledInfo()
+{
+  fprintf(stdout, "%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -314,14 +331,6 @@ int main(int argc, char **argv)
   
   
   
-  /*    extern int printOnePage;*/
-  
-  int          optc;
-  extern int   optind;
-  extern char *optarg;
-  char        *optstring="aBb:CcGgil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
-  
-
   /* Initialise GTK - do this early so we can show any errors in a pop-up dialog */
   gtk_init(&argc, &argv);
   
@@ -361,121 +370,160 @@ int main(int argc, char **argv)
   gboolean gridOn = FALSE;
   gboolean init_rmPartial = FALSE;
   
-  while ((optc = getopt(argc, argv, optstring)) != -1)
-    switch (optc) 
+  static gboolean showCompiled = FALSE;
+  static gboolean showVersion = FALSE;
+  
+  /* Get the input args. We allow long args, so we need to create a long_options array */
+  static struct option long_options[] =
     {
-      case 'a': show_ann = 1;                  break;
-      case 'B': bc->outputBootstrapTrees = TRUE;  break;
-      case 'b': bc->treebootstraps = atoi(optarg); break;
-      case 'C': bc->saveCoordsOn = FALSE;          break;
-      case 'c': verbose = TRUE;                break;
-      case 'G': bc->penalize_gaps = TRUE;          break;
-      case 'g': gridOn = TRUE;                 break;
-      case 'l': 
-	colorCodesFile = g_malloc(strlen(optarg)+1);
-	strcpy(colorCodesFile, optarg);      break;
-      case 'i': 
-	bc->ignoreGapsOn = TRUE;                     break;
-      case 'L': 
-	markupColorCodesFile = g_malloc(strlen(optarg)+1);
-	strcpy(markupColorCodesFile, optarg);break;
-      case 'm': 
-	readMatchFile = g_malloc(strlen(optarg)+1);
-	strcpy(readMatchFile, optarg); 
-      break;
-      case 'n':
-	makeNRinit = atof(optarg);           break;
-      case 'O': 
-	strncpy(OrganismLabel, optarg, 2);    break;
-      case 'o': 
-	output_format = g_malloc(strlen(optarg)+1);
-	strcpy(output_format, optarg);       break;
-      case 'P': init_rmPartial = TRUE;            break;
-      case 'Q': init_rmEmptyColumns = atof(optarg); break;
-      case 'q': init_rmGappySeqs = atof(optarg); break;
-      case 'p': output_probs = 1;              break;
-      case 'R': bc->stripCoordTokensOn = bc->saveCoordsOn = FALSE; break;
-      case 'r': bc->IN_FORMAT = RAW;               break;
-      case 'S': 
-      switch (*optarg)
-      {
-	case 'a': bc->sortType = BELVU_SORT_ALPHA;    break;
-	case 'o': bc->sortType = BELVU_SORT_ORGANISM; break;
-	case 's': bc->sortType = BELVU_SORT_SCORE;    break;
-	case 'S': bc->sortType = BELVU_SORT_SIM;      break;
-	case 'i': bc->sortType = BELVU_SORT_ID;       break;
-	case 'n': 
-	  bc->treeMethod = NJ;
-	  bc->sortType = BELVU_SORT_TREE;           break;
-	case 'u': 
-	  bc->treeMethod = UPGMA; 
-	  bc->sortType = BELVU_SORT_TREE;           break;
-	default : g_error("Illegal sorting order: %s", optarg);
-      }                                    break;
-      case 's': 
-	scoreFile = g_malloc(strlen(optarg)+1);
-	strcpy(scoreFile, optarg);           break;
-      case 'T': 
-      for (optargc = optarg; *optargc; optargc++) {
-	switch (*optargc)
-	{
-	  case 'n': 
-	    strcpy(bc->treeMethodString, NJstr);
-	    bc->treeMethod = NJ;          break;
-	  case 'u': 
-	    strcpy(bc->treeMethodString, UPGMAstr);
-	    bc->treeMethod = UPGMA;       break;
-	  case 'c':
-	    bc->treeColorsOn = FALSE;         break;
-	  case 'd':
-	    bc->treeShowBranchlen = TRUE;    break;
-	  case 'I':
-	    only_tree=1;
-	  case 'i':
-	    init_tree = 1;            break;
-	  case 'j':
-	    strcpy(bc->treeDistString, JUKESCANTORstr);
-	    bc->treeDistCorr = JUKESCANTOR;
-	    setTreeScaleCorr(bc, bc->treeMethod);         break;
-	  case 'k':
-	    strcpy(bc->treeDistString, KIMURAstr);
-	    bc->treeDistCorr = KIMURA;
-	    setTreeScaleCorr(bc, bc->treeMethod);         break;
-	  case 'o':
-	    bc->treeCoordsOn = FALSE;         break;
-	  case 'p':
-	    bc->treePrintDistances = TRUE;  
-	    init_tree = 1;            break;
-	  case 'R':
-	    bc->treeReadDistancesOn = TRUE;  break;
-	  case 's':
-	    strcpy(bc->treeDistString, STORMSONNstr);
-	    bc->treeDistCorr = STORMSONN;
-	    setTreeScaleCorr(bc, bc->treeMethod);         break;
-	  case 'b':
-	    strcpy(bc->treeDistString, SCOREDISTstr);
-	    bc->treeDistCorr = SCOREDIST;
-	    setTreeScaleCorr(bc, bc->treeMethod);         break;
-	  case 'r':
-	    strcpy(bc->treeDistString, UNCORRstr);
-	    bc->treeDistCorr = UNCORR;
-	    setTreeScale(bc, 1.0);          break;
-	  default : g_error("Illegal sorting order: %s", optarg);
-	}
-      }                                 break;
-      case 't': 
-        strncpy(bc->Title, optarg, 255);		  break;
-      case 'u': bc->displayColors = FALSE;		  break;
-      case 'X': bc->mksubfamilies_cutoff = atof(optarg);  break;
-      case 'z': bc->saveSeparator = *optarg;		  break;
-      default : g_error("Illegal option");
+      {"compiled",		no_argument,        &showCompiled, 1},
+      {"version",	        no_argument,        &showVersion, 1},
+      {0, 0, 0, 0}
+    };
+  
+  char        *optstring="aBb:CcGgil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
+  extern int   optind;
+  extern char *optarg;
+  int          optionIndex; /* getopt_long stores the index into the option struct here */
+  int          optc;        /* the current option gets stored here */
+  
+  while ((optc = getopt_long(argc, argv, optstring, long_options, &optionIndex)) != EOF)
+    {
+      switch (optc) 
+        {
+          case 0:
+            /* we get here if getopt_long set a flag; nothing else to do */
+            break; 
+            
+          case 'a': show_ann = 1;                       break;
+          case 'B': bc->outputBootstrapTrees = TRUE;    break;
+          case 'b': bc->treebootstraps = atoi(optarg);  break;
+          case 'C': bc->saveCoordsOn = FALSE;           break;
+          case 'c': verbose = TRUE;                     break;
+          case 'G': bc->penalize_gaps = TRUE;           break;
+          case 'g': gridOn = TRUE;                      break;
+          case 'l': 
+            colorCodesFile = g_malloc(strlen(optarg)+1);
+            strcpy(colorCodesFile, optarg);             break;
+          case 'i': 
+            bc->ignoreGapsOn = TRUE;                    break;
+          case 'L': 
+            markupColorCodesFile = g_malloc(strlen(optarg)+1);
+            strcpy(markupColorCodesFile, optarg);       break;
+          case 'm': 
+            readMatchFile = g_malloc(strlen(optarg)+1);
+            strcpy(readMatchFile, optarg);              break;
+          case 'n':  makeNRinit = atof(optarg);         break;
+          case 'O': strncpy(OrganismLabel, optarg, 2);  break;
+          case 'o': 
+            output_format = g_malloc(strlen(optarg)+1);
+            strcpy(output_format, optarg);              break;
+          case 'P': init_rmPartial = TRUE;              break;
+          case 'Q': init_rmEmptyColumns = atof(optarg); break;
+          case 'q': init_rmGappySeqs = atof(optarg);    break;
+          case 'p': output_probs = 1;                   break;
+          case 'R': bc->stripCoordTokensOn = bc->saveCoordsOn = FALSE;    break;
+          case 'r': bc->IN_FORMAT = RAW;                break;
+            
+          case 'S': 
+            switch (*optarg)
+            {
+              case 'a': bc->sortType = BELVU_SORT_ALPHA;    break;
+              case 'o': bc->sortType = BELVU_SORT_ORGANISM; break;
+              case 's': bc->sortType = BELVU_SORT_SCORE;    break;
+              case 'S': bc->sortType = BELVU_SORT_SIM;      break;
+              case 'i': bc->sortType = BELVU_SORT_ID;       break;
+              case 'n': 
+                bc->treeMethod = NJ;
+                bc->sortType = BELVU_SORT_TREE;             break;
+              case 'u': 
+                bc->treeMethod = UPGMA; 
+                bc->sortType = BELVU_SORT_TREE;             break;
+              default : g_error("Illegal sorting order: %s", optarg);
+            };
+            break;
+            
+          case 's': 
+            scoreFile = g_malloc(strlen(optarg)+1);
+            strcpy(scoreFile, optarg);                      break;
+            
+          case 'T': 
+          for (optargc = optarg; *optargc; optargc++) 
+            {
+              switch (*optargc)
+                {
+                  case 'n': 
+                    strcpy(bc->treeMethodString, NJstr);
+                    bc->treeMethod = NJ;          break;
+                  case 'u': 
+                    strcpy(bc->treeMethodString, UPGMAstr);
+                    bc->treeMethod = UPGMA;       break;
+                  case 'c':
+                    bc->treeColorsOn = FALSE;         break;
+                  case 'd':
+                    bc->treeShowBranchlen = TRUE;    break;
+                  case 'I':
+                    only_tree=1;
+                  case 'i':
+                    init_tree = 1;            break;
+                  case 'j':
+                    strcpy(bc->treeDistString, JUKESCANTORstr);
+                    bc->treeDistCorr = JUKESCANTOR;
+                    setTreeScaleCorr(bc, bc->treeMethod);         break;
+                  case 'k':
+                    strcpy(bc->treeDistString, KIMURAstr);
+                    bc->treeDistCorr = KIMURA;
+                    setTreeScaleCorr(bc, bc->treeMethod);         break;
+                  case 'o':
+                    bc->treeCoordsOn = FALSE;         break;
+                  case 'p':
+                    bc->treePrintDistances = TRUE;  
+                    init_tree = 1;            break;
+                  case 'R':
+                    bc->treeReadDistancesOn = TRUE;  break;
+                  case 's':
+                    strcpy(bc->treeDistString, STORMSONNstr);
+                    bc->treeDistCorr = STORMSONN;
+                    setTreeScaleCorr(bc, bc->treeMethod);         break;
+                  case 'b':
+                    strcpy(bc->treeDistString, SCOREDISTstr);
+                    bc->treeDistCorr = SCOREDIST;
+                    setTreeScaleCorr(bc, bc->treeMethod);         break;
+                  case 'r':
+                    strcpy(bc->treeDistString, UNCORRstr);
+                    bc->treeDistCorr = UNCORR;
+                    setTreeScale(bc, 1.0);          break;
+                  default : g_error("Illegal sorting order: %s", optarg);
+                }
+            } 
+            break;
+            
+          case 't': strncpy(bc->Title, optarg, 255);		  break;
+          case 'u': bc->displayColors = FALSE;                    break;
+          case 'X': bc->mksubfamilies_cutoff = atof(optarg);      break;
+          case 'z': bc->saveSeparator = *optarg;		  break;
+          default : g_error("Illegal option");                    break;
+        }
     }
   
-  if (argc-optind < 1) {
-    showUsageText();
-    exit(1);
-  }
+  if (showVersion)
+    {
+      showVersionInfo();
+      exit (EXIT_FAILURE);
+    }
+
+  if (showCompiled)
+    {
+      showCompiledInfo();
+      exit (EXIT_FAILURE);
+    }
   
+  
+  if (argc-optind < 1) 
+    { 
+      showUsageText();
+      exit(1);
+    }
   
   if (!strcmp(argv[optind], "-")) 
     {
