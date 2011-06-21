@@ -40,11 +40,12 @@
 #include "belvuApp/belvuTree.h"
 #include "belvuApp/belvu_.h"
 #include <gtk/gtk.h>
+#include <gdk/gdkkeysyms.h>
 #include <string.h>
 
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
-#define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
+#define DEFAULT_FONT_SIZE_ADJUSTMENT     -2   /* used to start with a smaller font than the default widget font */
 #define MAIN_BELVU_WINDOW_NAME           "BelvuWindow"
 #define WRAPPED_BELVU_WINDOW_NAME        "WrappedBelvuWindow"
 #define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95   /* default width of belvu window (as fraction of screen width) */
@@ -67,11 +68,11 @@ typedef struct _BelvuWindowProperties
   {
     BelvuContext *bc;                   /* The belvu context */
     GtkActionGroup *actionGroup;        /* Holds the menu and toolbar actions */
-    GtkWidget *statusBar;		/* Message bar at the bottom of the main window */
-    GtkWidget *feedbackBox;		/* Feedback area showing info about the current selction */
+    GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
+    GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
     
-    GdkCursor *defaultCursor;		/* default cursor */
-    GdkCursor *removeSeqsCursor;	/* cursor to use when removing sequences */
+    GdkCursor *defaultCursor;           /* default cursor */
+    GdkCursor *removeSeqsCursor;        /* cursor to use when removing sequences */
   } BelvuWindowProperties;
 
 
@@ -96,7 +97,6 @@ static void                      onCleanUpMenu(GtkAction *action, gpointer data)
 
 static void                      onrmPickedMenu(GtkAction *action, gpointer data);
 static void                      onRemoveSeqsMenu(GtkAction *action, gpointer data);
-static void                      onCancelSeqs(GtkAction *action, gpointer data);
 static void                      onrmGappySeqsMenu(GtkAction *action, gpointer data);
 static void                      onrmPartialSeqsMenu(GtkAction *action, gpointer data);
 static void                      onrmRedundantMenu(GtkAction *action, gpointer data);
@@ -251,8 +251,6 @@ static const GtkActionEntry menuEntries[] = {
   { "ByResidueMenuAction", NULL, "Select color scheme"},
   { "ByConsMenuAction",    NULL, "Select color scheme"},
 
-  { "Cancel",              GTK_STOCK_CANCEL,     "Cancel",             "Escape",            "Cancel",                G_CALLBACK(onCancelSeqs)},
-
   { "Close",	           GTK_STOCK_CLOSE,      "_Close",             "<control>W",        "Close",                 G_CALLBACK(onCloseMenu)},
   { "Quit",	           GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
   { "Help",	           GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
@@ -263,7 +261,7 @@ static const GtkActionEntry menuEntries[] = {
   { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree",      G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
-  { "Save",	               GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
+  { "Save",                GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
   { "SaveAs",	           GTK_STOCK_SAVE_AS,    "Save _as...",        "<shift><control>S", "Save alignment as",     G_CALLBACK(onSaveAsMenu)},
   { "Output",	           NULL,                 OutputStr,            NULL,                OutputDesc,              G_CALLBACK(onOutputMenu)},
   { "Compare",	           NULL,                 CompareStr,           NULL,                CompareDesc,             G_CALLBACK(onCompareMenu)},
@@ -271,7 +269,7 @@ static const GtkActionEntry menuEntries[] = {
 
   {"rmPicked",             GTK_STOCK_DELETE,     rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
   {"rmMany",               NULL,                 rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
-  {"rmGappySeqs",	       NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
+  {"rmGappySeqs",          NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
   {"rmPartialSeqs",        NULL,                 rmPartialSeqsStr,     NULL,                rmPartialSeqsDesc,       G_CALLBACK(onrmPartialSeqsMenu)},
   {"rmRedundant",          NULL,                 rmRedundantStr,       NULL,                rmRedundantDesc,         G_CALLBACK(onrmRedundantMenu)},
   {"rmOutliers",           NULL,                 rmOutliersStr,        NULL,                rmOutliersDesc,          G_CALLBACK(onrmOutliersMenu)},
@@ -340,9 +338,9 @@ static const GtkRadioActionEntry sortMenuEntries[] = {
 /* Define the menu layout */
 static const char standardMenuDescription[] =
 "<ui>"
+
 /* MAIN MENU BAR */
-"  <accelerator action='Cancel'/>"
-"  <menubar name='MenuBar'>"
+"  <menubar name='MenuBar' accelerators='true'>"
      /* File menu */
 "    <menu action='FileMenuAction'>"
 "      <menuitem action='Quit'/>"
@@ -431,6 +429,9 @@ static const char standardMenuDescription[] =
 "      <menuitem action='About'/>"
 "    </menu>"
 "  </menubar>"
+
+/* CONTEXT MENUS */
+
 /* Main context menu */
 "  <popup name='ContextMenu' accelerators='true'>"
 "    <menuitem action='Quit'/>"
@@ -472,7 +473,8 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Print'/>"
 //"    <menuitem action='PlotOpts'/>"
 "  </popup>"
-/* Toolbar */
+
+/* TOOLBAR */
 "  <toolbar name='Toolbar'>"
 "    <toolitem action='Help'/>"
 "    <toolitem action='About'/>"
@@ -767,24 +769,6 @@ static void onRemoveSeqsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   startRemovingSequences(belvuWindow);
-}
-
-static void onCancelSeqs(GtkAction *action, gpointer data)
-{
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  
-  if (properties->bc->removingSeqs)
-    {
-      /* Cancel 'removing sequences' mode */
-      endRemovingSequences(belvuWindow);
-    }
-  else
-    {
-      /* Otherwise, remove any column highlighting, if applicable */
-      properties->bc->highlightedCol = 0;
-      belvuAlignmentRefreshAll(properties->bc->belvuAlignment);
-    }
 }
 
 static void onrmGappySeqsMenu(GtkAction *action, gpointer data)
@@ -3096,9 +3080,136 @@ void onTreeOrderChanged(BelvuContext *bc)
   belvuAlignmentRedrawAll(bc->belvuAlignment);
 }
 
+
+/***********************************************************
+ *                         Key handlers                    *
+ ***********************************************************/
+
+static gboolean onKeyPressEscape(BelvuContext *bc)
+{
+  if (bc->removingSeqs)
+    {
+      /* Cancel 'removing sequences' mode */
+      endRemovingSequences(bc->belvuWindow);
+    }
+  
+  return TRUE;
+}
+
+static gboolean onKeyPressHomeEnd(BelvuContext *bc, const gboolean home, const gboolean ctrl, const gboolean shift)
+{
+  /* Scroll to the top/bottom of the alignment list */
+  vScrollStartEnd(bc->belvuAlignment, home);
+  return TRUE;
+}
+
+static gboolean onKeyPressPageUpDown(BelvuContext *bc, const gboolean up, const gboolean ctrl, const gboolean shift)
+{
+  /* Scroll to the top/bottom of the alignment list */
+  vScrollPageUpDown(bc->belvuAlignment, up);
+  return TRUE;
+}
+
+static gboolean onKeyPressLeftRight(BelvuContext *bc, const gboolean left, const gboolean ctrl, const gboolean shift)
+{
+  if (ctrl)
+    {
+      /* Scroll one character left/right */
+      hScrollLeftRight(bc->belvuAlignment, left, 1);
+    }
+  else
+    {
+      /* Scroll to the top/bottom of the alignment list */
+      hScrollPageLeftRight(bc->belvuAlignment, left);
+    }
+  
+  return TRUE;
+}
+
+static gboolean onKeyPressUpDown(BelvuContext *bc, const gboolean up, const gboolean ctrl, const gboolean shift)
+{
+  if (ctrl)
+    {
+      /* Scroll one row up/down */
+      vScrollUpDown(bc->belvuAlignment, up, 1);
+    }
+  else
+    {
+      /* Scroll one page up/down */
+      vScrollPageUpDown(bc->belvuAlignment, up);
+    }
+  
+  return TRUE;
+}
+
+static gboolean onKeyPressCommaPeriod(BelvuContext *bc, const gboolean comma, const gboolean ctrl, const gboolean shift)
+{
+  if (ctrl)
+    {
+      if (shift) /* scroll to very start/end */
+        hScrollStartEnd(bc->belvuAlignment, comma);
+      else
+        hScrollPageLeftRight(bc->belvuAlignment, comma); /* Scroll left/right by one page */
+    }
+  else
+    {
+      /* Scroll left/right by one character */
+      hScrollLeftRight(bc->belvuAlignment, comma, 1);
+    }
+  
+  return TRUE;
+}
+
+static gboolean onKeyPressInsDel(BelvuContext *bc, const gboolean insert, const gboolean ctrl, const gboolean shift)
+{
+  /* Scroll to the leftmost/rightmost extent of the display */
+  hScrollStartEnd(bc->belvuAlignment, insert);
+  return TRUE;
+}
+
+
 /***********************************************************
  *                           Events                        *
  ***********************************************************/
+
+/* Key press handler */
+gboolean onKeyPressBelvu(GtkWidget *window, GdkEventKey *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  BelvuContext *bc = (BelvuContext*)data;
+
+  const gboolean ctrl = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;	
+  const gboolean shift = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;	
+  
+  switch (event->keyval)
+    {
+      case GDK_Escape:    handled = onKeyPressEscape(bc);                          break;
+        
+      case GDK_Home:      handled = onKeyPressHomeEnd(bc, TRUE, ctrl, shift);      break;
+      case GDK_End:       handled = onKeyPressHomeEnd(bc, FALSE, ctrl, shift);     break;
+      case GDK_Page_Up:   handled = onKeyPressPageUpDown(bc, TRUE, ctrl, shift);   break;
+      case GDK_Page_Down: handled = onKeyPressPageUpDown(bc, FALSE, ctrl, shift);  break;
+        
+      case GDK_Left:      handled = onKeyPressLeftRight(bc, TRUE, ctrl, shift);    break;
+      case GDK_Right:     handled = onKeyPressLeftRight(bc, FALSE, ctrl, shift);   break;
+      case GDK_Up:        handled = onKeyPressUpDown(bc, TRUE, ctrl, shift);       break;
+      case GDK_Down:      handled = onKeyPressUpDown(bc, FALSE, ctrl, shift);      break;
+        
+      case GDK_less:      /* fall through */
+      case GDK_comma:     handled = onKeyPressCommaPeriod(bc, TRUE, ctrl, shift);  break;
+      case GDK_greater:   /* fall through */
+      case GDK_period:    handled = onKeyPressCommaPeriod(bc, FALSE, ctrl, shift); break;
+        
+      case GDK_Insert:    handled = onKeyPressInsDel(bc, TRUE, ctrl, shift);       break;
+      case GDK_Delete:    handled = onKeyPressInsDel(bc, FALSE, ctrl, shift);      break;
+        
+      default: break;
+    };
+  
+  return handled;
+}
+
 
 /* Mouse button handler */
 gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data)
@@ -3270,7 +3381,9 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 
   /* Connect signals */
   gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_add_events(window, GDK_KEY_PRESS_MASK);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
+  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBelvu), bc);
   
 //  graphRegister(PICK, boxPick);
 //  graphRegister(MIDDLE_DOWN, middleDown);
@@ -3286,6 +3399,6 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   /* Set the default cursor (can only get the window's cursor after window is shown) */
   BelvuWindowProperties *properties = belvuWindowGetProperties(window);
   properties->defaultCursor = gdk_window_get_cursor(window->window);
-
+  
   return ok;
 }

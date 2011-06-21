@@ -1263,6 +1263,93 @@ void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
 }
 
 
+/* Utility to set the value of an adjustment and to bounds-limit it to lie
+ * between 'lower' and 'upper - page_size' */
+static void setAdjustmentValue(GtkAdjustment *adjustment, const int value)
+{
+  int newValue = value;
+
+  /* _set_value checks the lower limit, but we need to check the upper... */
+  if (newValue > adjustment->upper - adjustment->page_size)
+    newValue = adjustment->upper - adjustment->page_size;
+                     
+  gtk_adjustment_set_value(adjustment, newValue);
+}
+
+
+/* Utility to scroll an adjustment to the start/end of its range */
+static void adjustmentScrollExtremity(GtkAdjustment *adjustment, const gboolean start)
+{
+  if (start)
+    setAdjustmentValue(adjustment, adjustment->lower);
+  else
+    setAdjustmentValue(adjustment, adjustment->upper);
+}
+
+/* Utility to scroll an adjustment up or down by one page */
+static void adjustmentScrollPage(GtkAdjustment *adjustment, const gboolean lower)
+{
+  if (lower)
+    setAdjustmentValue(adjustment, adjustment->value - adjustment->page_size);
+  else
+    setAdjustmentValue(adjustment, adjustment->value + adjustment->page_size);
+}
+
+/* Utility to scroll an adjustment up or down by the given value */
+static void adjustmentScrollValue(GtkAdjustment *adjustment, const gboolean lower, const int value)
+{
+  if (lower)
+    setAdjustmentValue(adjustment, adjustment->value - value);
+  else
+    setAdjustmentValue(adjustment, adjustment->value + value);
+}
+
+
+/* Scroll vertically to the start (top) or end (bottom) of the alignment list */
+void vScrollStartEnd(GtkWidget *belvuAlignment, const gboolean start)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  adjustmentScrollExtremity(properties->vAdjustment, start);
+}
+
+/* Scroll horizontally to the start (leftmost) or end (rightmost) coord */
+void hScrollStartEnd(GtkWidget *belvuAlignment, const gboolean start)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  adjustmentScrollExtremity(properties->hAdjustment, start);
+}
+
+/* Scroll vertically one page up or down */
+void vScrollPageUpDown(GtkWidget *belvuAlignment, const gboolean up)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  adjustmentScrollPage(properties->vAdjustment, up);
+}
+
+/* Scroll horizontally one page left or right */
+void hScrollPageLeftRight(GtkWidget *belvuAlignment, const gboolean left)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  adjustmentScrollPage(properties->hAdjustment, left);
+}
+
+/* Scroll vertically the given number of rows up or down */
+void vScrollUpDown(GtkWidget *belvuAlignment, const gboolean up, const int numRows)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  adjustmentScrollValue(properties->vAdjustment, up, numRows);
+}
+
+/* Scroll horizontally the given number of characters left or right */
+void hScrollLeftRight(GtkWidget *belvuAlignment, const gboolean left, const int numChars)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  adjustmentScrollValue(properties->hAdjustment, left, numChars);
+}
+
+
+
+
 /* Select the row at the given y coord */
 static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
 {

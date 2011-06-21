@@ -56,4 +56,11 @@ void			removeRedundantSeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const do
 void			removeOutliers(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
 void			removeByScore(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
 
+void                    vScrollStartEnd(GtkWidget *belvuAlignment, const gboolean start);
+void                    hScrollStartEnd(GtkWidget *belvuAlignment, const gboolean start);
+void                    vScrollPageUpDown(GtkWidget *belvuAlignment, const gboolean up);
+void                    hScrollPageLeftRight(GtkWidget *belvuAlignment, const gboolean left);
+void                    vScrollUpDown(GtkWidget *belvuAlignment, const gboolean up, const int numRows);
+void                    hScrollLeftRight(GtkWidget *belvuAlignment, const gboolean left, const int numChars);
+
 #endif /* _belvualignment_h_included_ */
