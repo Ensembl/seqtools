@@ -328,26 +328,26 @@ static void drawSequenceChar(BelvuAlignmentProperties *properties,
       gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
     }
   
-  if (colIdx < alnGetSeqLen(alnp))
-    {
-      /* Draw the text. We get the text colour from the background color in 
-       * color-by-conservation mode (if displaying colours is enabled) */
-      if (colorByConservation(properties->bc) && properties->bc->displayColors)
-        {
-          GdkColor fgColor;
-          bg2fgColor(properties->bc, &bgColor, &fgColor);
-          gdk_gc_set_foreground(gc, &fgColor);
-        }
-      else
-        {
-          gdk_gc_set_foreground(gc, defaultFgColor);
-        }
-      
-      char displayText[2];
-      displayText[0] = alnGetSeq(alnp)[colIdx];
-      displayText[1] = '\0';
-      drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
-    }
+//  if (colIdx < alnGetSeqLen(alnp))
+//    {
+//      /* Draw the text. We get the text colour from the background color in 
+//       * color-by-conservation mode (if displaying colours is enabled) */
+//      if (colorByConservation(properties->bc) && properties->bc->displayColors)
+//        {
+//          GdkColor fgColor;
+//          bg2fgColor(properties->bc, &bgColor, &fgColor);
+//          gdk_gc_set_foreground(gc, &fgColor);
+//        }
+//      else
+//        {
+//          gdk_gc_set_foreground(gc, defaultFgColor);
+//        }
+//      
+//      char displayText[2];
+//      displayText[0] = alnGetSeq(alnp)[colIdx];
+//      displayText[1] = '\0';
+//      drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
+//    }
   
 }
 
@@ -383,6 +383,20 @@ static void drawSingleSequence(GtkWidget *widget,
       
       /* Increment the x position */
       x += properties->charWidth;
+    }
+  
+  /* Draw the text for the current display range */
+  if (alnGetSeq(alnp))
+    {
+      GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
+      gdk_gc_set_foreground(gc, textColor);
+      
+      char *cp = alnGetSeq(alnp) + (int)hAdjustment->value;
+      char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value + 1);
+      
+      drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
+      
+      g_free(displayText);
     }
   
   g_object_unref(gc);
