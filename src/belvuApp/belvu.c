@@ -7408,7 +7408,7 @@ void listIdentity(BelvuContext *bc)
       if (alni->markup > 0) /* ignore markup lines */
         continue;
 
-      for (j = i+1; j < bc->alignArr->len; ++j, ++n) 
+      for (j = i+1; j < bc->alignArr->len; ++j) 
         {
           ALN *alnj = &g_array_index(bc->alignArr, ALN, j);
 
@@ -7438,6 +7438,7 @@ void listIdentity(BelvuContext *bc)
                  alnj->name, alnj->start, alnj->end,
                  id, sc);
           
+          ++n;
         }
       printf("\n");
     }
