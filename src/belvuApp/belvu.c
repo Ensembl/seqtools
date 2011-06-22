@@ -5193,6 +5193,7 @@ BelvuContext* createBelvuContext()
   bc->displayColors = TRUE;
   bc->haveCustomColors = FALSE;
   bc->printColorsOn = FALSE;
+  bc->highlightOrthologs = FALSE;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;

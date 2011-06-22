@@ -65,6 +65,6 @@ GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkW
                                                           BelvuPickMode *pickMode, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr);
 
 
-void                      treeFindOrthologs(BelvuContext *bc, TreeNode *node) ;
+void                      treePrintOrthologs(BelvuContext *bc);
 
 #endif /* _belvutree_h_included_ */

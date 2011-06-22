@@ -432,7 +432,8 @@ typedef struct BelvuContextStruct
   gboolean displayColors;	   /* Whether to display colors (faster without) */
   gboolean haveCustomColors;       /* Whether the custom colors have been set */
   gboolean printColorsOn;          /* Whether to use greyscale colors for printing */
-  
+  gboolean highlightOrthologs;     /* Whether to highlight orthologs or not in the tree */
+
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   
 } BelvuContext;

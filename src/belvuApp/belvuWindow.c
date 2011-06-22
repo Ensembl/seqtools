@@ -308,13 +308,13 @@ static const GtkActionEntry menuEntries[] = {
   {"editColorScheme",    GTK_STOCK_SELECT_COLOR, editColorSchemeStr,   NULL,                editColorSchemeDesc,     G_CALLBACK(oneditColorSchemeMenu)},
 
   {"SaveTree",             GTK_STOCK_SAVE,       SaveTreeStr,          NULL,                SaveTreeDesc,            G_CALLBACK(onSaveTreeMenu)},
-  {"FindOrthogs",          NULL,                 FindOrthogsStr,       NULL,                FindOrthogsDesc,         G_CALLBACK(onFindOrthogsMenu)},
   {"ShowOrgs",             NULL,                 ShowOrgsStr,          NULL,                ShowOrgsDesc,            G_CALLBACK(onShowOrgsMenu)}
 };
 
 /* Define the menu actions for toggle menu entries */
 static const GtkToggleActionEntry toggleMenuEntries[] = {
   {"rmMany",     GTK_STOCK_DELETE, rmManyStr,                            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu),         FALSE},
+  {"FindOrthogs",            NULL, FindOrthogsStr,                       NULL,                FindOrthogsDesc,         G_CALLBACK(onFindOrthogsMenu),        FALSE},
   {"autoRmEmptyColumns",     NULL, autoRmEmptyColumnsStr,                NULL,                autoRmEmptyColumnsDesc,  G_CALLBACK(onAutoRmEmptyColumnsMenu), TRUE}, 
   {"toggleColorByResId",     NULL, thresholdStr,                         NULL,                thresholdStr,            G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
   {"ignoreGaps",             NULL, ignoreGapsStr,                        NULL,                ignoreGapsStr,           G_CALLBACK(onignoreGapsMenu),         FALSE},
@@ -1337,9 +1337,20 @@ static void onFindOrthogsMenu(GtkAction *action, gpointer data)
   BelvuContext *bc = windowGetContext(window);
   
   if (!bc->treeHead)
-    g_critical("Tree has not been calculated.\n");
+    {
+      g_critical("Tree has not been calculated.\n");
+    }
   else
-    treeFindOrthologs(bc, bc->treeHead);
+    {
+      bc->highlightOrthologs = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+      
+      /* If turning the option on, print the orthologs to stdout */
+      if (bc->highlightOrthologs)
+        treePrintOrthologs(bc);
+
+      /* Refresh the tree to show or hide the orthologs */
+      belvuTreeRedrawAll(bc->belvuTree, NULL);
+    }
 }
 
 static void onShowOrgsMenu(GtkAction *action, gpointer data)

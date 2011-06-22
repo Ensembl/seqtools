@@ -1340,10 +1340,12 @@ static void treePrintNode(BelvuContext *bc, TreeNode *node)
 }
 
 
-void treeFindOrthologs(BelvuContext *bc, TreeNode *node) 
+static gboolean treePrintOrthologsRecur(BelvuContext *bc, TreeNode *node) 
 {
+  gboolean found = FALSE;
+  
   if (!node || !node->left || !node->right) 
-    return;
+    return found;
   
   DEBUG_OUT("\n 1 (%s, seq=%s):  ", node->left->organism, node->left->name);
   DEBUG_OUT("\n 2 (%s, seq=%s)\n: ", node->right->organism, node->right->name);
@@ -1351,6 +1353,8 @@ void treeFindOrthologs(BelvuContext *bc, TreeNode *node)
   if (node->left->organism && node->right->organism &&
       node->left->organism != node->right->organism) 
     {
+      found = TRUE;
+      
       printf("\nSpecies 1 (%s):  ", node->left->organism);
       treeTraverse(bc, node->left, treePrintNode);
       printf("\nSpecies 2 (%s): ", node->right->organism);
@@ -1359,9 +1363,23 @@ void treeFindOrthologs(BelvuContext *bc, TreeNode *node)
     }
   else 
     {
-      treeFindOrthologs(bc, node->left);
-      treeFindOrthologs(bc, node->right);
+      if (treePrintOrthologsRecur(bc, node->left))
+        found = TRUE;
+      
+      if (treePrintOrthologsRecur(bc, node->right))
+        found = TRUE;
     }
+  
+  return found;
+}
+
+
+void treePrintOrthologs(BelvuContext *bc) 
+{
+  if (treePrintOrthologsRecur(bc, bc->treeHead))
+    g_message("Found orthologs\n");
+  else
+    g_message("No orthologs\n");
 }
 
 
@@ -1492,6 +1510,9 @@ static double treeDrawNode(BelvuContext *bc,
   gdk_gc_set_foreground(gc, defaultColor);
   yr = treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, tree, node->right, curX);
   
+  GdkGC *gcTmp = gdk_gc_new(drawable);
+  gdk_gc_set_foreground(gcTmp, defaultColor);
+
   if (yl) 
     {
       /* internal node */
@@ -1541,9 +1562,6 @@ static double treeDrawNode(BelvuContext *bc,
         }
       
       /* Draw the sequence name */
-      GdkGC *gcTmp = gdk_gc_new(drawable);
-      gdk_gc_set_foreground(gcTmp, defaultColor);
-      
       int nameWidth = 0, nameHeight = 0;
       const int textX = curX + DEFAULT_XPAD;
       const int textY = y - properties->charHeight / 2;
@@ -1574,7 +1592,17 @@ static double treeDrawNode(BelvuContext *bc,
         }
     }
   
-  /* Horizontal branches */
+  /* Horizontal branches. If highlighting orthologs, draw a shaded area underneath
+   * the branch. */
+  if (bc->highlightOrthologs && 
+      node->left && node->right &&
+      node->left->organism && node->right->organism &&
+      node->left->organism != node->right->organism) 
+    {
+      gdk_gc_set_foreground(gcTmp, defaultColor);
+      gdk_draw_rectangle(drawable, gcTmp, TRUE, x, y - properties->charHeight/2, curX - x, properties->charHeight);
+    }
+  
   gdk_draw_line(drawable, gc, curX, y, x, y);
   createClickableRect(properties, node, x, y - properties->charHeight/2, curX - x, properties->charHeight, TRUE);
   
