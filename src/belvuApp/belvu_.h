@@ -322,7 +322,8 @@ typedef struct BelvuContextStruct
   GSList *spawnedWindows;          /* List of all top-level windows spawned from the main window */
   GtkWidget *belvuTree;            /* The tree window */
   GtkWidget *belvuAlignment;       /* The widget that draws the alignments for the main window */
-  
+  GtkActionGroup *actionGroup;     /* Holds the menu and toolbar actions */
+
   GArray *defaultColors;           /* Default colors used by Belvu */
   
   GArray *alignArr;

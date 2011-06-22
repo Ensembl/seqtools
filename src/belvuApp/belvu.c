@@ -5137,6 +5137,7 @@ BelvuContext* createBelvuContext()
   bc->spawnedWindows = NULL;
   bc->belvuTree = NULL;
   bc->belvuAlignment = NULL;
+  bc->actionGroup = NULL;
   
   bc->defaultColors = NULL;
   

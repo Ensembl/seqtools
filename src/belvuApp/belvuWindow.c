@@ -67,7 +67,6 @@ typedef struct _ColorChangeData
 typedef struct _BelvuWindowProperties
   {
     BelvuContext *bc;                   /* The belvu context */
-    GtkActionGroup *actionGroup;        /* Holds the menu and toolbar actions */
     GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
     GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
     
@@ -276,7 +275,6 @@ static const GtkActionEntry menuEntries[] = {
   { "CleanUp",	           GTK_STOCK_CLEAR,      "Clean _up windows",  NULL,                "Clean up windows",      G_CALLBACK(onCleanUpMenu)},
 
   {"rmPicked",             NULL,                 rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
-  {"rmMany",               GTK_STOCK_DELETE,     rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
   {"rmGappySeqs",          NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
   {"rmPartialSeqs",        NULL,                 rmPartialSeqsStr,     NULL,                rmPartialSeqsDesc,       G_CALLBACK(onrmPartialSeqsMenu)},
   {"rmRedundant",          NULL,                 rmRedundantStr,       NULL,                rmRedundantDesc,         G_CALLBACK(onrmRedundantMenu)},
@@ -305,6 +303,7 @@ static const GtkActionEntry menuEntries[] = {
 
 /* Define the menu actions for toggle menu entries */
 static const GtkToggleActionEntry toggleMenuEntries[] = {
+  {"rmMany",     GTK_STOCK_DELETE, rmManyStr,                            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu),         FALSE},
   {"autoRmEmptyColumns",     NULL, autoRmEmptyColumnsStr,                NULL,                autoRmEmptyColumnsDesc,  G_CALLBACK(onAutoRmEmptyColumnsMenu), TRUE}, 
   {"toggleColorByResId",     NULL, thresholdStr,                         NULL,                thresholdStr,            G_CALLBACK(ontoggleColorByResIdMenu), FALSE},
   {"ignoreGaps",             NULL, ignoreGapsStr,                        NULL,                ignoreGapsStr,           G_CALLBACK(onignoreGapsMenu),         FALSE},
@@ -500,6 +499,8 @@ static const char standardMenuDescription[] =
 /* Certain actions need to be enabled/disabled depending on certain properties */
 static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group)
 {
+  g_assert(bc && action_group);
+  
   enableMenuAction(action_group, "Output", bc->displayScores);
   enableMenuAction(action_group, "rmScore", bc->displayScores);
   enableMenuAction(action_group, "scoreSort", bc->displayScores);
@@ -778,12 +779,6 @@ static void onrmPickedMenu(GtkAction *action, gpointer data)
   removeSelectedSequence(properties->bc, properties->bc->belvuAlignment);
 }
 
-static void onRemoveSeqsMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  startRemovingSequences(belvuWindow);
-}
-
 static void onrmGappySeqsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
@@ -886,6 +881,19 @@ static void onrmGappyColumnsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   showRemoveGappyColumnsDialog(belvuWindow);
+}
+
+/* Toggle the 'remove-many-sequences' option on or off */
+static void onRemoveSeqsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  
+  const gboolean optionOn = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+  
+  if (optionOn)
+    startRemovingSequences(belvuWindow);
+  else
+    endRemovingSequences(belvuWindow);
 }
 
 /* Toggle the 'auto-remove empty columns' option */
@@ -1074,11 +1082,11 @@ static void onColorSchemeChanged(BelvuWindowProperties *properties)
   switch (properties->bc->schemeType)
     {
       case BELVU_SCHEME_TYPE_RESIDUE:
-	setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+	setToggleMenuStatus(properties->bc->actionGroup, "ColorByResidue", TRUE);
 	break;
 
       case BELVU_SCHEME_TYPE_CONS:
-	setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+	setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
 	break;
     
       default:
@@ -1087,7 +1095,7 @@ static void onColorSchemeChanged(BelvuWindowProperties *properties)
     };
   
   /* Some menu actions are enabled/disabled depending on which scheme type is selected */
-  greyOutInvalidActions(properties->bc, properties->actionGroup);
+  greyOutInvalidActions(properties->bc, properties->bc->actionGroup);
   
   /* Update the display */
   updateSchemeColors(properties->bc);
@@ -1120,7 +1128,7 @@ static void onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *curren
   if (newScheme != properties->bc->residueScheme)
     {
       properties->bc->residueScheme = newScheme;
-      setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+      setToggleMenuStatus(properties->bc->actionGroup, "ColorByResidue", TRUE);
       
       setResidueSchemeColors(properties->bc);
       onColorSchemeChanged(properties);
@@ -1138,7 +1146,7 @@ static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, 
   if (newScheme != properties->bc->consScheme)
     {
       properties->bc->consScheme = newScheme;
-      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+      setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
       onColorSchemeChanged(properties);
     }
 }
@@ -1235,8 +1243,8 @@ static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
   
   readResidueColorScheme(properties->bc, fil, getColorArray());
 
-  setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
-  setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+  setToggleMenuStatus(properties->bc->actionGroup, "colorSchemeCustom", TRUE);
+  setToggleMenuStatus(properties->bc->actionGroup, "ColorByResidue", TRUE);
   onColorSchemeChanged(properties);
 }
 
@@ -1365,7 +1373,6 @@ static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
 /* Create the properties struct and initialise all values. */
 static void belvuWindowCreateProperties(GtkWidget *belvuWindow, 
 					BelvuContext *bc, 
-					GtkActionGroup *actionGroup,
 					GtkWidget *statusBar,
 					GtkWidget *feedbackBox)
 {
@@ -1374,7 +1381,6 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
       BelvuWindowProperties *properties = g_malloc(sizeof *properties);
       
       properties->bc = bc;
-      properties->actionGroup = actionGroup;
       properties->statusBar = statusBar;
       properties->feedbackBox = feedbackBox;
       
@@ -2107,7 +2113,7 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
       properties->bc->colorByResIdCutoff = g_strtod(inputText, NULL);
     
       /* This sets the flag and also updates the associated 'toggle' menu item */
-      setToggleMenuStatus(properties->actionGroup, "toggleColorByResId", TRUE);
+      setToggleMenuStatus(properties->bc->actionGroup, "toggleColorByResId", TRUE);
     
       /* Update the color scheme and redraw */
       updateSchemeColors(properties->bc);
@@ -2365,7 +2371,7 @@ void onResponseEditResidueColorsDialog(GtkDialog *dialog, gint responseId, gpoin
           /* Save the current color set and set the color scheme to 'custom' */
           destroy = TRUE;
           saveCustomColors(bc);
-          setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+          setToggleMenuStatus(properties->bc->actionGroup, "colorSchemeCustom", TRUE);
         }
       break;
       
@@ -2449,14 +2455,14 @@ void onResponseConsColorsDialog(GtkDialog *dialog, gint responseId, gpointer dat
     case GTK_RESPONSE_ACCEPT:
       /* Close dialog if successful */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+      setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
       break;
       
     case GTK_RESPONSE_APPLY:
       /* Never close */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+      setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -3008,11 +3014,11 @@ void onRowSelectionChanged(BelvuContext *bc)
    * depending on whether the newly-selected sequence is selected or not
    * (or grey it out if nothing is selected) */
   BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
-  enableMenuAction(properties->actionGroup, "excludeHighlighted", bc->selectedAln != NULL);
+  enableMenuAction(properties->bc->actionGroup, "excludeHighlighted", bc->selectedAln != NULL);
   
   if (bc->selectedAln)
     {
-      setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
+      setToggleMenuStatus(properties->bc->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
     }
 }
 
@@ -3132,7 +3138,7 @@ static gboolean onKeyPressEscape(BelvuContext *bc)
   if (bc->removingSeqs)
     {
       /* Cancel 'removing sequences' mode */
-      endRemovingSequences(bc->belvuWindow);
+      setToggleMenuStatus(bc->actionGroup, "rmMany", !bc->removingSeqs);
     }
   
   return TRUE;
@@ -3267,7 +3273,7 @@ gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer d
 	  BelvuWindowProperties *properties = belvuWindowGetProperties(window);
 	  if (properties->bc->removingSeqs)
 	    {
-	      endRemovingSequences(window);
+              setToggleMenuStatus(properties->bc->actionGroup, "rmMany", !properties->bc->removingSeqs);
 	      handled = TRUE;
 	    }
 	}
@@ -3396,8 +3402,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   msgData->statusBar = GTK_STATUSBAR(statusBar);
 
   /* Create the menu and toolbar */
-  GtkActionGroup *actionGroup = NULL;
-  GtkUIManager *uiManager = createUiManager(window, bc, &actionGroup);
+  GtkUIManager *uiManager = createUiManager(window, bc, &bc->actionGroup);
   GtkWidget *menubar = createBelvuMenu(window, "/MenuBar", uiManager);
   GtkWidget *contextmenu = createBelvuMenu(window, "/ContextMenu", uiManager);
   GtkWidget *toolbar = createBelvuMenu(window, "/Toolbar", uiManager);
@@ -3438,7 +3443,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
 
-  belvuWindowCreateProperties(window, bc, actionGroup, statusBar, feedbackBox);
+  belvuWindowCreateProperties(window, bc, statusBar, feedbackBox);
   
   gtk_widget_show_all(window);
   
