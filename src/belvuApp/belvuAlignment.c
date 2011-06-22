@@ -52,6 +52,7 @@
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
 static gboolean           alignmentHighlighted(BelvuContext *bc, ALN *alnp);
+static void               calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment);
 
 
 /* Properties specific to the belvu alignment */
@@ -1050,6 +1051,10 @@ static void updateOnAlignmentSizeChanged(GtkWidget *belvuAlignment)
  * of the alignments array has changed). */
 void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
 {
+  /* Recalculate the borders, because the max name length etc. may have changed */
+  calculateBelvuAlignmentBorders(belvuAlignment);
+  
+  /* Update the scroll ranges because the number of rows and columns may have changed */
   updateOnAlignmentSizeChanged(belvuAlignment);
 }
 
