@@ -134,6 +134,7 @@ typedef struct _ClickableRect
 typedef struct _BelvuTreeProperties
   {
     BelvuContext *bc;	            /* The belvu context */
+    GtkActionGroup *actionGroup;
     
     GtkWidget *treeArea;            /* Drawing widget for the tree */
     GdkRectangle treeRect;          /* Specifies the actual area in which we'll draw the tree within treeAre */
@@ -184,6 +185,7 @@ static void onDestroyBelvuTree(GtkWidget *belvuTree)
 /* Create the properties struct and initialise all values. */
 static void belvuTreeCreateProperties(GtkWidget *belvuTree, 
                                       BelvuContext *bc,
+                                      GtkActionGroup *actionGroup,
                                       GtkWidget *treeArea,
                                       BelvuBuildMethod buildMethod,
                                       BelvuDistCorr distCorr)
@@ -194,7 +196,8 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
       
       properties->bc = bc;
       properties->treeArea = treeArea;
-
+      properties->actionGroup = actionGroup;
+      
       properties->buildMethod = buildMethod;
       properties->distCorr = distCorr;
       
@@ -214,6 +217,14 @@ BelvuContext* belvuTreeGetContext(GtkWidget *belvuTree)
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
   return properties ? properties->bc : NULL;
 }
+
+
+GtkActionGroup* belvuTreeGetActionGroup(GtkWidget *belvuTree)
+{
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+  return (properties ? properties->actionGroup : NULL);
+}
+
 
 /***********************************************************
  *                   Tree bootstrapping                    *
@@ -1319,6 +1330,42 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 
 
 /***********************************************************
+ *                   Find Orthologs                        *
+ ***********************************************************/
+
+static void treePrintNode(BelvuContext *bc, TreeNode *node) 
+{
+  if (node->name) 
+    printf("%s ", node->name);
+}
+
+
+void treeFindOrthologs(BelvuContext *bc, TreeNode *node) 
+{
+  if (!node || !node->left || !node->right) 
+    return;
+  
+  DEBUG_OUT("\n 1 (%s, seq=%s):  ", node->left->organism, node->left->name);
+  DEBUG_OUT("\n 2 (%s, seq=%s)\n: ", node->right->organism, node->right->name);
+  
+  if (node->left->organism && node->right->organism &&
+      node->left->organism != node->right->organism) 
+    {
+      printf("\nSpecies 1 (%s):  ", node->left->organism);
+      treeTraverse(bc, node->left, treePrintNode);
+      printf("\nSpecies 2 (%s): ", node->right->organism);
+      treeTraverse(bc, node->right, treePrintNode);
+      printf("\n");
+    }
+  else 
+    {
+      treeFindOrthologs(bc, node->left);
+      treeFindOrthologs(bc, node->right);
+    }
+}
+
+
+/***********************************************************
  *                        Drawing                          *
  ***********************************************************/
 
@@ -1332,7 +1379,8 @@ void belvuTreeRemakeTree(GtkWidget *belvuTree)
 
   /* Re-make the tree */
   separateMarkupLines(bc);
-  bc->treeHead = treeMake(bc, TRUE);
+  TreeNode *headNode = treeMake(bc, TRUE);
+  setTreeHead(bc, headNode);
   reInsertMarkupLines(bc);
   
   /* Make sure our properties are up to date with the data used to create
@@ -1370,7 +1418,8 @@ static void belvuTreeUpdateSettings(BelvuContext *bc)
     {
       /* There is no tree window, so just re-make the underlying tree */
       separateMarkupLines(bc);
-      bc->treeHead = treeMake(bc, TRUE);
+      TreeNode *headNode = treeMake(bc, TRUE);
+      setTreeHead(bc, headNode);
       reInsertMarkupLines(bc);
       
       onTreeOrderChanged(bc);
@@ -1756,7 +1805,8 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
                 {
                   /* Re-routing changes the tree's head node, so make sure
                    * to update it in the context as well as our properties. */
-                  properties->bc->treeHead = treeReroot(clickRect->node);
+                  TreeNode *newHead = treeReroot(clickRect->node);
+                  setTreeHead(properties->bc, newHead);
                   
                   /* Re-routing can also affect the drawing area size, so recalculate borders */
                   calculateBelvuTreeBorders(belvuTree);
@@ -1919,7 +1969,7 @@ gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer 
   onComboChanged(combo, responseId, &bc->treeMethod);
 
   /* This change invalidates the tree, so set the tree head to null to indicate this */
-  bc->treeHead = NULL;  
+  setTreeHead(bc, NULL);
   
   return TRUE;
 }
@@ -2217,7 +2267,8 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   bc->belvuTree = belvuTree;
 
   /* Create the context menu and set a callback to show it */
-  GtkUIManager *uiManager = createUiManager(belvuTree, bc, NULL);
+  GtkActionGroup *actionGroup = NULL;
+  GtkUIManager *uiManager = createUiManager(belvuTree, bc, &actionGroup);
   GtkWidget *contextmenu = createBelvuMenu(belvuTree, "/TreeContextMenu", uiManager);
   
   gtk_widget_add_events(belvuTree, GDK_BUTTON_PRESS_MASK);
@@ -2231,7 +2282,7 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   GtkWidget *treeArea = createBelvuTreeWidget(bc, treeHead, GTK_BOX(vbox));
 
   /* Set the properties on the tree window */
-  belvuTreeCreateProperties(belvuTree, bc, treeArea, bc->treeMethod, bc->treeDistCorr);
+  belvuTreeCreateProperties(belvuTree, bc, actionGroup, treeArea, bc->treeMethod, bc->treeDistCorr);
 
   /* Set the initial size (must be called after properties are set) */
   calculateBelvuTreeBorders(belvuTree);
@@ -2256,7 +2307,8 @@ GtkWidget* createAndShowBelvuTree(BelvuContext *bc)
   if (!bc->treeHead)
     {
       separateMarkupLines(bc);
-      bc->treeHead = treeMake(bc, TRUE);
+      TreeNode *treeHead = treeMake(bc, TRUE);
+      setTreeHead(bc, treeHead);
       belvuTree = createBelvuTreeWindow(bc, bc->treeHead);
       reInsertMarkupLines(bc);
     }

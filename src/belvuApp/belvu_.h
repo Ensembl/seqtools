@@ -322,7 +322,6 @@ typedef struct BelvuContextStruct
   GSList *spawnedWindows;          /* List of all top-level windows spawned from the main window */
   GtkWidget *belvuTree;            /* The tree window */
   GtkWidget *belvuAlignment;       /* The widget that draws the alignments for the main window */
-  GtkActionGroup *actionGroup;     /* Holds the menu and toolbar actions */
 
   GArray *defaultColors;           /* Default colors used by Belvu */
   
@@ -443,6 +442,9 @@ typedef struct BelvuContextStruct
 BelvuContext*                             createBelvuContext();
 void                                      destroyBelvuContext(BelvuContext **bc);
 
+void                                      greyOutInvalidActions(BelvuContext *bc);
+void                                      greyOutInvalidActionsForGroup(BelvuContext *bc, GtkActionGroup *action_group);
+
 void					  setTreeScaleCorr(BelvuContext *bc, const int treeMethod);
 void					  setTreeScale(BelvuContext *bc, const double newScale) ;
 
@@ -542,5 +544,6 @@ void                                      treeSort(BelvuContext *bc);
 void                                      saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file);
 
 void                                      listIdentity(BelvuContext *bc);
+void                                      setTreeHead(BelvuContext *bc, TreeNode *headNode);
 
 #endif /* DEF_BELVU_P_H */

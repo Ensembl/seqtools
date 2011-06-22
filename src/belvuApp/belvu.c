@@ -133,6 +133,8 @@
 
 
 #include <belvuApp/belvu_.h>
+#include <belvuApp/belvuWindow.h>
+#include <belvuApp/belvuTree.h>
 
 #include <stdarg.h>
 /*#include <stdlib.h> / * Needed for RAND_MAX but clashes with other stuff */
@@ -2134,62 +2136,6 @@ static treeNode *treecpy(treeNode *node)
 }
 
 
-static void treePrintNode(treeNode *node) {
-    if (node->name) printf("%s ", node->name);
-}
-
-
-static void treeFindOrthologsRecur(treeStruct *treestruct, treeNode *node, char *org1, char *org2) {
-
-    if (!node || !node->left || !node->right) return;
-
-    if (debug) {
-	printf("\n 1 (%s, seq=%s):  ", node->left->organism, node->left->name);
-	printf("\n 2 (%s, seq=%s)\n: ", node->right->organism, node->right->name);
-    }
-
-    /* The open-minded way */
-    if (node->left->organism && node->right->organism &&
-	node->left->organism != node->right->organism) {
-	
-	graphBoxDraw(node->box, WHITE, BLACK);
-	printf("\nSpecies 1 (%s):  ", node->left->organism);
-	treeTraverse(node->left, treePrintNode);
-	printf("\nSpecies 2 (%s): ", node->right->organism);
-	treeTraverse(node->right, treePrintNode);
-	printf("\n");
-    }
-    
-    /* The narrow-minded way * /
-    if ((node->left->organism == org1 && node->right->organism == org2) ||
-	(node->left->organism == org2 && node->right->organism == org1)) {
-	
-	printf("Found orthologs");
-    }*/
-
-    else {
-	treeFindOrthologsRecur(treestruct, node->left, org1, org2);
-	treeFindOrthologsRecur(treestruct, node->right, org1, org2);
-    }    
-}
-
-static void treeFindOrthologs(void) {
-    treeStruct *treestruct;
-    char *org1 = NULL, *org2 = NULL ;
-
-    
-    if (!graphAssFind(assVoid(1), &treestruct))
-      {
-	messout("Could not find tree for this graph");
-	return;
-      }
-
-    /* Dialog to define org1 and org2 */
-
-    treeFindOrthologsRecur(treestruct, treestruct->head, org1, org2);
-}
-
-
 static void printMtx(double **mtx) {
     int i, j;
 
@@ -3671,7 +3617,10 @@ void treeSortBatch(BelvuContext *bc)
   separateMarkupLines(bc);
   
   if (!bc->treeHead)
-    bc->treeHead = treeMake(bc, FALSE);
+    {
+      TreeNode *treeHead = treeMake(bc, FALSE);
+      setTreeHead(bc, treeHead);
+    }
   
   treeOrder(bc->treeHead, 1); /* Set nr field according to tree order */
   
@@ -5137,7 +5086,6 @@ BelvuContext* createBelvuContext()
   bc->spawnedWindows = NULL;
   bc->belvuTree = NULL;
   bc->belvuAlignment = NULL;
-  bc->actionGroup = NULL;
   
   bc->defaultColors = NULL;
   
@@ -6233,6 +6181,57 @@ void rmEmptyColumns(BelvuContext *bc, double cutoff)
 }
 
 
+/* Certain actions need to be enabled/disabled depending on certain properties */
+void greyOutInvalidActionsForGroup(BelvuContext *bc, GtkActionGroup *action_group)
+{
+  if (!action_group)
+    return;
+  
+  enableMenuAction(action_group, "Output", bc->displayScores);
+  enableMenuAction(action_group, "rmScore", bc->displayScores);
+  enableMenuAction(action_group, "scoreSort", bc->displayScores);
+  
+  enableMenuAction(action_group, "toggleColorByResId", !colorByConservation(bc));
+  enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
+  enableMenuAction(action_group, "saveColorScheme", !colorByConservation(bc));
+  enableMenuAction(action_group, "loadColorScheme", !colorByConservation(bc));
+  
+  enableMenuAction(action_group, "colorSchemeCustom", bc->haveCustomColors);
+  
+  enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
+  enableMenuAction(action_group, "printColors", colorByConservation(bc));
+  
+  enableMenuAction(action_group, "excludeHighlighted", bc->selectedAln != NULL);
+  
+  enableMenuAction(action_group, "RecalcTree", bc->treeHead == NULL);
+}
+
+
+/* Certain actions need to be enabled/disabled depending on certain properties */
+void greyOutInvalidActions(BelvuContext *bc)
+{
+  /* Need to do the action groups for the main window and the tree (wrapped
+   * windows currently don't have anything that gets greyed out but if they
+   * do in future they will need updating here too) */
+  
+  GtkActionGroup *actionGroup = belvuWindowGetActionGroup(bc->belvuWindow);
+  greyOutInvalidActionsForGroup(bc, actionGroup);
+
+  actionGroup = belvuTreeGetActionGroup(bc->belvuTree);
+  greyOutInvalidActionsForGroup(bc, actionGroup);
+}
+
+
+/* Set the head node of the main tree (null to reset) */
+void setTreeHead(BelvuContext *bc, TreeNode *headNode)
+{
+  bc->treeHead = headNode;
+  
+  /* Whether a tree exists affects whether some menu items are greyed out */
+  greyOutInvalidActions(bc);
+}
+
+
 static void rmFinalise(BelvuContext *bc) 
 {
   /*    ruler[maxLen] = 0;*/
@@ -6240,7 +6239,7 @@ static void rmFinalise(BelvuContext *bc)
   setConsSchemeColors(bc);
   
   /* This invalidates the tree, so set the tree head to NULL. */
-  bc->treeHead = NULL;
+  setTreeHead(bc, NULL);
 }
 
 

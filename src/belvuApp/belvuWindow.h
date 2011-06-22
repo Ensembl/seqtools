@@ -46,6 +46,8 @@ gboolean              createBelvuWindow(BelvuContext *bc, BlxMessageData *msgDat
 GtkUIManager*         createUiManager(GtkWidget *window, BelvuContext *bc, GtkActionGroup **actionGroupOut);
 GtkWidget*            createBelvuMenu(GtkWidget *window, const char *path, GtkUIManager *ui_manager);
 
+GtkActionGroup*       belvuWindowGetActionGroup(GtkWidget *belvuWindow);
+
 gboolean              onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer data);
 
 void                  onRowSelectionChanged(BelvuContext *bc);

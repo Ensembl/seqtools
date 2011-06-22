@@ -69,10 +69,19 @@ typedef struct _BelvuWindowProperties
     BelvuContext *bc;                   /* The belvu context */
     GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
     GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
+    GtkActionGroup *actionGroup;
     
     GdkCursor *defaultCursor;           /* default cursor */
     GdkCursor *removeSeqsCursor;        /* cursor to use when removing sequences */
   } BelvuWindowProperties;
+
+
+/* Properties specific to a wrapped-alignment window */
+typedef struct _WrapWindowProperties
+  {
+    BelvuContext *bc;                   /* The belvu context */
+    GtkActionGroup *actionGroup;
+  } WrapWindowProperties;
 
 
 
@@ -135,7 +144,7 @@ static void                      onShowOrgsMenu(GtkAction *action, gpointer data
 
 static void                      showHelpDialog();
 static void                      showAboutDialog(GtkWidget *parent);
-static void                      showWrapDialog(GtkWidget *belvuWindow);
+static void                      showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow);
 static void                      createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
 static void			 showMakeNonRedundantDialog(GtkWidget *belvuWindow);
@@ -166,6 +175,8 @@ static void			 showSaveAsDialog(GtkWidget *belvuWindow);
 static gboolean			 saveAlignment(BelvuContext *bc, GtkWidget *window);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
+static WrapWindowProperties*     wrapWindowGetProperties(GtkWidget *widget);
+static BelvuContext*             windowGetContext(GtkWidget *window);
 
 /***********************************************************
  *                      Menus and Toolbar                  *
@@ -187,9 +198,9 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 #define rmScoreDesc        "Remove sequences below a given score"
 #define rmColumnPromptStr  "Remove columns..."
 #define rmColumnPromptDesc "Remove specific columns"
-#define rmColumnLeftStr    "<- Remove columns left of selection (inclusive)"
+#define rmColumnLeftStr    "Remove columns left of selection (inclusive)"
 #define rmColumnLeftDesc   "Remove columns to the left of the currently-selected column (inclusive)"
-#define rmColumnRightStr   "Remove columns right of selection (inclusive) -> "
+#define rmColumnRightStr   "Remove columns right of selection (inclusive) "
 #define rmColumnRightDesc  "Remove columns to the right of the currently-selected column (inclusive) -> "
 #define rmColumnCutoffStr  "Remove columns by conservation..."
 #define rmColumnCutoffDesc "Remove columns with conservation between specific values"
@@ -265,7 +276,7 @@ static const GtkActionEntry menuEntries[] = {
   { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
   { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
-  { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree",      G_CALLBACK(onRecalcTreeMenu)},
+  { "RecalcTree",          NULL,                 "Calculate tree",     NULL,                "Calculate tree",      G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
   { "Save",                GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
@@ -281,8 +292,8 @@ static const GtkActionEntry menuEntries[] = {
   {"rmOutliers",           NULL,                 rmOutliersStr,        NULL,                rmOutliersDesc,          G_CALLBACK(onrmOutliersMenu)},
   {"rmScore",              NULL,                 rmScoreStr,           NULL,                rmScoreDesc,             G_CALLBACK(onrmScoreMenu)},
   {"rmColumnPrompt",       NULL,                 rmColumnPromptStr,    NULL,                rmColumnPromptDesc,      G_CALLBACK(onrmColumnPromptMenu)},
-  {"rmColumnLeft",         NULL,                 rmColumnLeftStr,      NULL,                rmColumnLeftDesc,        G_CALLBACK(onrmColumnLeftMenu)},
-  {"rmColumnRight",        NULL,                 rmColumnRightStr,     NULL,                rmColumnRightDesc,       G_CALLBACK(onrmColumnRightMenu)},
+  {"rmColumnLeft",         GTK_STOCK_GO_BACK,    rmColumnLeftStr,      NULL,                rmColumnLeftDesc,        G_CALLBACK(onrmColumnLeftMenu)},
+  {"rmColumnRight",        GTK_STOCK_GO_FORWARD, rmColumnRightStr,     NULL,                rmColumnRightDesc,       G_CALLBACK(onrmColumnRightMenu)},
   {"rmColumnCutoff",       NULL,                 rmColumnCutoffStr,    NULL,                rmColumnCutoffDesc,      G_CALLBACK(onrmColumnCutoffMenu)},
   {"rmGappyColumns",       NULL,                 rmGappyColumnsStr,    NULL,                rmGappyColumnsDesc,      G_CALLBACK(onrmGappyColumnsMenu)},
   {"readLabels",           NULL,                 readLabelsStr,        NULL,                readLabelsDesc,          G_CALLBACK(onreadLabelsMenu)},
@@ -496,29 +507,6 @@ static const char standardMenuDescription[] =
 
 
 
-/* Certain actions need to be enabled/disabled depending on certain properties */
-static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group)
-{
-  g_assert(bc && action_group);
-  
-  enableMenuAction(action_group, "Output", bc->displayScores);
-  enableMenuAction(action_group, "rmScore", bc->displayScores);
-  enableMenuAction(action_group, "scoreSort", bc->displayScores);
-  
-  enableMenuAction(action_group, "toggleColorByResId", !colorByConservation(bc));
-  enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
-  enableMenuAction(action_group, "saveColorScheme", !colorByConservation(bc));
-  enableMenuAction(action_group, "loadColorScheme", !colorByConservation(bc));
-
-  enableMenuAction(action_group, "colorSchemeCustom", bc->haveCustomColors);
-  
-  enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
-  enableMenuAction(action_group, "printColors", colorByConservation(bc));
-
-  enableMenuAction(action_group, "excludeHighlighted", bc->selectedAln != NULL);
-}
-
-
 /* Utility function to create the UI manager for the menus */
 GtkUIManager* createUiManager(GtkWidget *window, 
                               BelvuContext *bc, 
@@ -534,7 +522,7 @@ GtkUIManager* createUiManager(GtkWidget *window,
   gtk_action_group_add_radio_actions(action_group, consSchemeMenuEntries, G_N_ELEMENTS(consSchemeMenuEntries), BELVU_SCHEME_BLOSUM, G_CALLBACK(onToggleConsScheme), window);
   gtk_action_group_add_radio_actions(action_group, sortMenuEntries, G_N_ELEMENTS(sortMenuEntries), BELVU_SORT_CONS, G_CALLBACK(onToggleSortOrder), window);
 
-  greyOutInvalidActions(bc, action_group);
+  greyOutInvalidActionsForGroup(bc, action_group);
 
   GtkUIManager *ui_manager = gtk_ui_manager_new();
   gtk_ui_manager_insert_action_group(ui_manager, action_group, 0);
@@ -652,8 +640,10 @@ static void onPrintMenu(GtkAction *action, gpointer data)
 
 static void onWrapMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  showWrapDialog(belvuWindow);
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+  
+  showWrapDialog(bc, bc->belvuWindow);
 }
 
 static void onShowTreeMenu(GtkAction *action, gpointer data)
@@ -675,19 +665,26 @@ static void onShowTreeMenu(GtkAction *action, gpointer data)
     gtk_window_present(GTK_WINDOW(properties->bc->belvuTree));
 }
 
-/* Utility to extract the context from a belvu window or belvu tree */
+/* Utility to extract the context from any toplevel window type (i.e. the main
+ * window, the tree, or a wrapped-alignment window). */
 static BelvuContext* windowGetContext(GtkWidget *window)
 {
   BelvuContext *bc = NULL;
+  const char *name = gtk_widget_get_name(window);
   
-  if (stringsEqual(gtk_widget_get_name(window), MAIN_BELVU_WINDOW_NAME, TRUE))
+  if (stringsEqual(name, MAIN_BELVU_WINDOW_NAME, TRUE))
     {
       BelvuWindowProperties *properties = belvuWindowGetProperties(window);
       bc = properties->bc;
     }
-  else if (stringsEqual(gtk_widget_get_name(window), BELVU_TREE_WINDOW_NAME, TRUE))
+  else if (stringsEqual(name, BELVU_TREE_WINDOW_NAME, TRUE))
     {
       bc = belvuTreeGetContext(window);
+    }
+  else if (stringsEqual(name, WRAPPED_BELVU_WINDOW_NAME, TRUE))
+    {
+      WrapWindowProperties *properties = wrapWindowGetProperties(window);
+      bc = properties->bc;
     }
   else
     {
@@ -710,7 +707,8 @@ static void onRecalcTreeMenu(GtkAction *action, gpointer data)
   else
     {
       /* No tree window, but make/re-make the underlying tree structure */
-      bc->treeHead = treeMake(bc, FALSE);
+      TreeNode *headNode = treeMake(bc, FALSE);
+      setTreeHead(bc, headNode);
       onTreeOrderChanged(bc);
     }
 }
@@ -1082,11 +1080,11 @@ static void onColorSchemeChanged(BelvuWindowProperties *properties)
   switch (properties->bc->schemeType)
     {
       case BELVU_SCHEME_TYPE_RESIDUE:
-	setToggleMenuStatus(properties->bc->actionGroup, "ColorByResidue", TRUE);
+	setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
 	break;
 
       case BELVU_SCHEME_TYPE_CONS:
-	setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
+	setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
 	break;
     
       default:
@@ -1095,7 +1093,7 @@ static void onColorSchemeChanged(BelvuWindowProperties *properties)
     };
   
   /* Some menu actions are enabled/disabled depending on which scheme type is selected */
-  greyOutInvalidActions(properties->bc, properties->bc->actionGroup);
+  greyOutInvalidActions(properties->bc);
   
   /* Update the display */
   updateSchemeColors(properties->bc);
@@ -1128,7 +1126,7 @@ static void onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *curren
   if (newScheme != properties->bc->residueScheme)
     {
       properties->bc->residueScheme = newScheme;
-      setToggleMenuStatus(properties->bc->actionGroup, "ColorByResidue", TRUE);
+      setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
       
       setResidueSchemeColors(properties->bc);
       onColorSchemeChanged(properties);
@@ -1146,7 +1144,7 @@ static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, 
   if (newScheme != properties->bc->consScheme)
     {
       properties->bc->consScheme = newScheme;
-      setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
+      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
       onColorSchemeChanged(properties);
     }
 }
@@ -1243,8 +1241,8 @@ static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
   
   readResidueColorScheme(properties->bc, fil, getColorArray());
 
-  setToggleMenuStatus(properties->bc->actionGroup, "colorSchemeCustom", TRUE);
-  setToggleMenuStatus(properties->bc->actionGroup, "ColorByResidue", TRUE);
+  setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+  setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
   onColorSchemeChanged(properties);
 }
 
@@ -1335,12 +1333,18 @@ static void onSaveTreeMenu(GtkAction *action, gpointer data)
 
 static void onFindOrthogsMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+  
+  if (!bc->treeHead)
+    g_critical("Tree has not been calculated.\n");
+  else
+    treeFindOrthologs(bc, bc->treeHead);
 }
 
 static void onShowOrgsMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  //GtkWidget *belvuWindow = GTK_WIDGET(data);
 }
 
 /***********************************************************
@@ -1374,7 +1378,8 @@ static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
 static void belvuWindowCreateProperties(GtkWidget *belvuWindow, 
 					BelvuContext *bc, 
 					GtkWidget *statusBar,
-					GtkWidget *feedbackBox)
+					GtkWidget *feedbackBox,
+                                        GtkActionGroup *actionGroup)
 {
   if (belvuWindow)
     {
@@ -1383,12 +1388,61 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
       properties->bc = bc;
       properties->statusBar = statusBar;
       properties->feedbackBox = feedbackBox;
+      properties->actionGroup = actionGroup;
       
       properties->defaultCursor = NULL; /* get from gdkwindow once it is shown */
       properties->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
       
       g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", properties);
       g_signal_connect(G_OBJECT(belvuWindow), "destroy", G_CALLBACK (onDestroyBelvuWindow), NULL);
+    }
+}
+
+
+GtkActionGroup* belvuWindowGetActionGroup(GtkWidget *belvuWindow)
+{
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  return (properties ? properties->actionGroup : NULL);
+}
+
+
+/* Wrapped-alignment windows */
+static WrapWindowProperties* wrapWindowGetProperties(GtkWidget *widget)
+{
+  return widget ? (WrapWindowProperties*)(g_object_get_data(G_OBJECT(widget), "WrapWindowProperties")) : NULL;
+}
+
+static void onDestroyWrapWindow(GtkWidget *wrapWindow)
+{
+  WrapWindowProperties *properties = wrapWindowGetProperties(wrapWindow);
+
+  /* We must remove the window from the list of spawned windows */
+  properties->bc->spawnedWindows = g_slist_remove(properties->bc->spawnedWindows, wrapWindow);
+  
+  if (properties)
+    {
+      /* Free the properties struct */
+      g_free(properties);
+      properties = NULL;
+      g_object_set_data(G_OBJECT(wrapWindow), "WrapWindowProperties", NULL);
+    }
+}
+
+
+/* Create the properties struct and initialise all values. */
+static void wrapWindowCreateProperties(GtkWidget *wrapWindow, 
+                                       BelvuContext *bc,
+                                       GtkActionGroup *actionGroup)
+{
+  if (wrapWindow)
+    {
+      WrapWindowProperties *properties = g_malloc(sizeof *properties);
+      
+      properties->bc = bc;
+      properties->actionGroup = actionGroup;
+
+      g_object_set_data(G_OBJECT(wrapWindow), "WrapWindowProperties", properties);
+      g_signal_connect(G_OBJECT(wrapWindow), "destroy", G_CALLBACK (onDestroyWrapWindow), NULL);
     }
 }
 
@@ -2113,7 +2167,7 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
       properties->bc->colorByResIdCutoff = g_strtod(inputText, NULL);
     
       /* This sets the flag and also updates the associated 'toggle' menu item */
-      setToggleMenuStatus(properties->bc->actionGroup, "toggleColorByResId", TRUE);
+      setToggleMenuStatus(properties->actionGroup, "toggleColorByResId", TRUE);
     
       /* Update the color scheme and redraw */
       updateSchemeColors(properties->bc);
@@ -2371,7 +2425,7 @@ void onResponseEditResidueColorsDialog(GtkDialog *dialog, gint responseId, gpoin
           /* Save the current color set and set the color scheme to 'custom' */
           destroy = TRUE;
           saveCustomColors(bc);
-          setToggleMenuStatus(properties->bc->actionGroup, "colorSchemeCustom", TRUE);
+          setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
         }
       break;
       
@@ -2455,14 +2509,14 @@ void onResponseConsColorsDialog(GtkDialog *dialog, gint responseId, gpointer dat
     case GTK_RESPONSE_ACCEPT:
       /* Close dialog if successful */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
+      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
       break;
       
     case GTK_RESPONSE_APPLY:
       /* Never close */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      setToggleMenuStatus(properties->bc->actionGroup, "ColorByCons", TRUE);
+      setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -2787,10 +2841,8 @@ static GtkWidget* createTextEntryWithLabel(const char *labelText,
 
 /* This shows a dialog that asks the user for settings for the wrap-alignment
  * view and then opens the wrap-alignment window on ok. */
-static void showWrapDialog(GtkWidget *belvuWindow)
+static void showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow)
 {
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - wrap alignment", 
                                                   GTK_WINDOW(belvuWindow), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -2806,7 +2858,7 @@ static void showWrapDialog(GtkWidget *belvuWindow)
   gtk_box_pack_start(GTK_BOX(contentArea), table, TRUE, TRUE, 0);
   
   GtkWidget *widthEntry = createTextEntryWithLabel("Line width", "80", GTK_TABLE(table), 0, 0);
-  GtkWidget *titleEntry = createTextEntryWithLabel("Title", properties->bc->Title, GTK_TABLE(table), 0, 1);
+  GtkWidget *titleEntry = createTextEntryWithLabel("Title", bc->Title, GTK_TABLE(table), 0, 1);
   
   gtk_widget_show_all(dialog);
   
@@ -2864,14 +2916,6 @@ static void setWrapWindowStyleProperties(GtkWidget *window)
 }
 
 
-static void destroyWrapWindow(GtkWidget *wrapWindow, gpointer data)
-{
-  /* We must remove the window from the list of spawned windows */
-  BelvuContext *bc = (BelvuContext*)data;
-  bc->spawnedWindows = g_slist_remove(bc->spawnedWindows, wrapWindow);
-}
-
-
 static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
@@ -2888,12 +2932,12 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
   properties->bc->spawnedWindows = g_slist_prepend(properties->bc->spawnedWindows, wrapWindow);
   
   /* Create the context menu and set a callback to show it */
-  GtkUIManager *uiManager = createUiManager(wrapWindow, properties->bc, NULL);
+  GtkActionGroup *actionGroup = NULL;
+  GtkUIManager *uiManager = createUiManager(wrapWindow, properties->bc, &actionGroup);
   GtkWidget *contextmenu = createBelvuMenu(wrapWindow, "/WrapContextMenu", uiManager);
   
   gtk_widget_add_events(wrapWindow, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(wrapWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
-  g_signal_connect(G_OBJECT(wrapWindow), "destroy", G_CALLBACK(destroyWrapWindow), properties->bc);
   
   /* We'll place everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -2902,6 +2946,9 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
   /* Add the alignment section */
   GtkWidget *wrappedAlignment = createBelvuAlignment(properties->bc, title, linelen);
   gtk_box_pack_start(GTK_BOX(vbox), wrappedAlignment, TRUE, TRUE, 0);
+  
+  /* Set properties */
+  wrapWindowCreateProperties(wrapWindow, properties->bc, actionGroup);
   
   gtk_widget_show_all(wrapWindow);
   gtk_window_present(GTK_WINDOW(wrapWindow));
@@ -3014,11 +3061,11 @@ void onRowSelectionChanged(BelvuContext *bc)
    * depending on whether the newly-selected sequence is selected or not
    * (or grey it out if nothing is selected) */
   BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
-  enableMenuAction(properties->bc->actionGroup, "excludeHighlighted", bc->selectedAln != NULL);
+  enableMenuAction(properties->actionGroup, "excludeHighlighted", bc->selectedAln != NULL);
   
   if (bc->selectedAln)
     {
-      setToggleMenuStatus(properties->bc->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
+      setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
     }
 }
 
@@ -3138,7 +3185,8 @@ static gboolean onKeyPressEscape(BelvuContext *bc)
   if (bc->removingSeqs)
     {
       /* Cancel 'removing sequences' mode */
-      setToggleMenuStatus(bc->actionGroup, "rmMany", !bc->removingSeqs);
+      BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
+      setToggleMenuStatus(properties->actionGroup, "rmMany", !bc->removingSeqs);
     }
   
   return TRUE;
@@ -3273,7 +3321,7 @@ gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer d
 	  BelvuWindowProperties *properties = belvuWindowGetProperties(window);
 	  if (properties->bc->removingSeqs)
 	    {
-              setToggleMenuStatus(properties->bc->actionGroup, "rmMany", !properties->bc->removingSeqs);
+              setToggleMenuStatus(properties->actionGroup, "rmMany", !properties->bc->removingSeqs);
 	      handled = TRUE;
 	    }
 	}
@@ -3402,10 +3450,13 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   msgData->statusBar = GTK_STATUSBAR(statusBar);
 
   /* Create the menu and toolbar */
-  GtkUIManager *uiManager = createUiManager(window, bc, &bc->actionGroup);
+  GtkActionGroup *actionGroup = NULL;
+  GtkUIManager *uiManager = createUiManager(window, bc, &actionGroup);
+  
   GtkWidget *menubar = createBelvuMenu(window, "/MenuBar", uiManager);
   GtkWidget *contextmenu = createBelvuMenu(window, "/ContextMenu", uiManager);
   GtkWidget *toolbar = createBelvuMenu(window, "/Toolbar", uiManager);
+  
   addToolbarWidget(GTK_TOOLBAR(toolbar), gtk_label_new("    "), 0); /* hacky way to add some space at start of toolbar */
 
   /* Create the feedback box on the toolbar */
@@ -3443,7 +3494,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
 //  graphRegister(DESTROY, belvuDestroy) ;
 //  
 
-  belvuWindowCreateProperties(window, bc, statusBar, feedbackBox);
+  belvuWindowCreateProperties(window, bc, statusBar, feedbackBox, actionGroup);
   
   gtk_widget_show_all(window);
   

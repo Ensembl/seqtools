@@ -51,6 +51,10 @@ GtkWidget*                createAndShowBelvuTree(BelvuContext *bc);
 GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
 void                      belvuTreeRemakeTree(GtkWidget *belvuTree);
 
+GtkActionGroup*           belvuTreeGetActionGroup(GtkWidget *belvuTree);
+
+void                      treeBootstrap(BelvuContext *bc);
+void                      belvuTreeRedrawAll(gpointer belvuTree, gpointer data);
 BelvuContext*             belvuTreeGetContext(GtkWidget *belvuTree);
 
 void                      showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc);
@@ -60,9 +64,7 @@ GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkW
                                                           gboolean *showBranchLen, gboolean *showOrganism,
                                                           BelvuPickMode *pickMode, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr);
 
-void                      treeBootstrap(BelvuContext *bc);
 
-void                      belvuTreeRedrawAll(gpointer belvuTree, gpointer data);
-
+void                      treeFindOrthologs(BelvuContext *bc, TreeNode *node) ;
 
 #endif /* _belvutree_h_included_ */
