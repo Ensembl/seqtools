@@ -130,6 +130,10 @@ static void                      ondisplayColorsMenu(GtkAction *action, gpointer
 static void                      onlowercaseMenu(GtkAction *action, gpointer data);
 static void                      oneditColorSchemeMenu(GtkAction *action, gpointer data);
 
+static void                      onSaveTreeMenu(GtkAction *action, gpointer data);
+static void                      onFindOrthogsMenu(GtkAction *action, gpointer data);
+static void                      onShowOrgsMenu(GtkAction *action, gpointer data);
+
 static void                      showHelpDialog();
 static void                      showAboutDialog(GtkWidget *parent);
 static void                      showWrapDialog(GtkWidget *belvuWindow);
@@ -212,6 +216,13 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 #define editColorSchemeStr    "Edit colour scheme..."
 #define editColorSchemeDesc   "Edit the current colour scheme"
 
+#define SaveTreeStr           "Save Tree"
+#define SaveTreeDesc          "Save Tree in New Hampshire format"
+#define FindOrthogsStr        "Find putative orthologs"
+#define FindOrthogsDesc       "Find putative orthologs"
+#define ShowOrgsStr           "Show organisms"
+#define ShowOrgsDesc          "Show current organisms"
+
 #define autoRmEmptyColumnsStr  "Automatically remove empty columns"
 #define autoRmEmptyColumnsDesc "Automatically remove columns that are 100% gaps after sequence deletions"
 #define excludeHighlightedStr  "Exclude highlighted from calculations"
@@ -254,7 +265,7 @@ static const GtkActionEntry menuEntries[] = {
   { "About",	           GTK_STOCK_ABOUT,      "A_bout",             NULL,                "About",                 G_CALLBACK(onAboutMenu)},
   { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
-  { "ShowTree",	           GTK_STOCK_CONVERT,    "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
+  { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
   { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree",      G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
@@ -286,6 +297,10 @@ static const GtkActionEntry menuEntries[] = {
   {"saveColorScheme",      NULL,                 saveColorSchemeStr,   NULL,                saveColorSchemeDesc,     G_CALLBACK(onsaveColorSchemeMenu)},
   {"loadColorScheme",      NULL,                 loadColorSchemeStr,   NULL,                loadColorSchemeDesc,     G_CALLBACK(onloadColorSchemeMenu)},
   {"editColorScheme",    GTK_STOCK_SELECT_COLOR, editColorSchemeStr,   NULL,                editColorSchemeDesc,     G_CALLBACK(oneditColorSchemeMenu)},
+
+  {"SaveTree",             GTK_STOCK_SAVE,       SaveTreeStr,          NULL,                SaveTreeDesc,            G_CALLBACK(onSaveTreeMenu)},
+  {"FindOrthogs",          NULL,                 FindOrthogsStr,       NULL,                FindOrthogsDesc,         G_CALLBACK(onFindOrthogsMenu)},
+  {"ShowOrgs",             NULL,                 ShowOrgsStr,          NULL,                ShowOrgsDesc,            G_CALLBACK(onShowOrgsMenu)}
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -459,9 +474,9 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Print'/>"
 "    <menuitem action='TreeOpts'/>"
 "    <menuitem action='RecalcTree'/>"
-//"    <menuitem action='SaveTree'/>"
-//"    <menuitem action='FindOrthogs'/>"
-//"    <menuitem action='ShowOrgs'/>"
+"    <menuitem action='SaveTree'/>"
+"    <menuitem action='FindOrthogs'/>"
+"    <menuitem action='ShowOrgs'/>"
 "  </popup>"
 /* Conservation-plot context menu */
 "  <popup name='PlotContextMenu' accelerators='true'>"
@@ -1289,6 +1304,36 @@ static void oneditColorSchemeMenu(GtkAction *action, gpointer data)
     showEditResidueColorsDialog(belvuWindow, TRUE);
 }
 
+static void onSaveTreeMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+  
+  const char *filename = getSaveFileName(window, bc->fileName, bc->dirName, NULL, "Save tree in New Hampshire format");
+  
+  FILE *file = fopen(filename, "w");
+  
+  if (file)
+    {
+      saveTreeNH(bc->treeHead, bc->treeHead, file);
+
+      /* Add a terminating line and close the file. */
+      fprintf(file, ";\n");
+      fclose(file);
+      
+      g_message("Tree saved to %s\n", filename);
+    }
+}
+
+static void onFindOrthogsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+}
+
+static void onShowOrgsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+}
 
 /***********************************************************
  *                         Properties                      *

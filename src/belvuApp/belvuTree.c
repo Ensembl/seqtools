@@ -396,7 +396,7 @@ void treeBootstrap(BelvuContext *bc)
           else
             {
               printf("\n");
-              treePrintNH(treeStruct, treeStruct->head, stdout);
+              saveTreeNH(treeStruct->head, treeStruct->head, stdout);
               printf(";\n");
             }
         }

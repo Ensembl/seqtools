@@ -503,7 +503,6 @@ void                                      writeMSF(BelvuContext *bc, FILE *pipe)
 void                                      separateMarkupLines(BelvuContext *bc);
 void                                      reInsertMarkupLines(BelvuContext *bc);
 TreeNode*                                 treeMake(BelvuContext *bc, const gboolean doBootstrap);
-void                                      treePrintNH(Tree *tree, TreeNode *node, FILE *file);
 
 void                                      outputProbs(BelvuContext *bc, FILE *fil);
 void                                      mksubfamilies(BelvuContext *bc, double cutoff);        
@@ -539,6 +538,7 @@ void                                      drawDoubleAsText(GtkWidget *widget, Gd
 
 void                                      treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode));
 void                                      treeSort(BelvuContext *bc);          
+void                                      saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file);
 
 void                                      listIdentity(BelvuContext *bc);
 

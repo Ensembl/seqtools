@@ -688,7 +688,7 @@ int main(int argc, char **argv)
           Tree *treeStruct = g_malloc(sizeof(Tree));
           separateMarkupLines(bc);
           treeStruct->head = treeMake(bc, TRUE);
-          treePrintNH(treeStruct, treeStruct->head, stdout);
+          saveTreeNH(treeStruct->head, treeStruct->head, stdout);
           printf(";\n");
         }
       else

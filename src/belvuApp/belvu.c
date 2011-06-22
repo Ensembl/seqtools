@@ -2134,28 +2134,6 @@ static treeNode *treecpy(treeNode *node)
 }
 
 
-/* Save tree in New Hampshire format */
-static void treePrintNH_init(void) {
-    FILE *file;
-    treeStruct *treestruct;
-    
-    if (!(file = filqueryopen(dirName, fileName, "","w", "Write New Hampshire format tree to file:"))) 
-      return;
-
-    if (!graphAssFind(assVoid(1), &treestruct))
-      {
-	messout("Could not find tree for this graph");
-	return;
-      }
-
-    treePrintNH(treestruct, treestruct->head, file);
-    fprintf(file, ";\n");
-    fclose(file);
-
-    return ;
-}
-
-
 static void treePrintNode(treeNode *node) {
     if (node->name) printf("%s ", node->name);
 }
@@ -3667,34 +3645,6 @@ void setTreeScaleCorr(BelvuContext *bc, const int treeMethod)
 void setTreeScale(BelvuContext *bc, const double newScale) 
 {
   bc->treeScale = newScale;
-}
-
-
-
-/* Print tree in New Hampshire format */
-void treePrintNH(Tree *tree, TreeNode *node, FILE *file)
-{
-  if (!node) 
-    return;
-  
-  if (node->left && node->right) 
-    {
-    fprintf(file, "(\n");
-    treePrintNH(tree, node->left, file);
-    fprintf(file, ",\n");
-    treePrintNH(tree, node->right, file);
-    fprintf(file, ")\n");
-    
-    if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
-      fprintf(file, "%.0f", node->boot+0.5);
-    }
-  else
-    {
-    fprintf(file, "%s", node->name);
-    }
-  
-  if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
-    fprintf(file, ":%.3f", node->branchlen/100.0);
 }
 
 
@@ -6560,6 +6510,33 @@ void rmScore(BelvuContext *bc, const double cutoff)
 /***********************************************************
  *		      Read/write files 			   *
  ***********************************************************/
+
+/* Save the given tree to the given file in New Hampshire format */
+void saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file)
+{
+  if (!node) 
+    return;
+  
+  if (node->left && node->right) 
+    {
+      fprintf(file, "(\n");
+      saveTreeNH(headNode, node->left, file);
+      fprintf(file, ",\n");
+      saveTreeNH(headNode, node->right, file);
+      fprintf(file, ")\n");
+      
+      if (node != headNode)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
+        fprintf(file, "%.0f", node->boot+0.5);
+    }
+  else
+    {
+      fprintf(file, "%s", node->name);
+    }
+  
+  if (node != headNode)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
+    fprintf(file, ":%.3f", node->branchlen/100.0);
+}
+
 
 void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and coordinates */
 {
