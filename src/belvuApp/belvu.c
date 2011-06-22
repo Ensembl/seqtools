@@ -7404,11 +7404,17 @@ void listIdentity(BelvuContext *bc)
   for (i = n = 0; i < bc->alignArr->len - 1; ++i) 
     {
       ALN *alni = &g_array_index(bc->alignArr, ALN, i);
+      
+      if (alni->markup > 0) /* ignore markup lines */
+        continue;
 
       for (j = i+1; j < bc->alignArr->len; ++j, ++n) 
         {
           ALN *alnj = &g_array_index(bc->alignArr, ALN, j);
-          
+
+          if (alnj->markup > 0) /* ignore markup lines */
+            continue;
+
           double id = identity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
           totid += id;
 
