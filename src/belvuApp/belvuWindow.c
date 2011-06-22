@@ -236,8 +236,8 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 #define WrapDesc               "Wrap alignments for printing"
 #define OutputStr              "_Output score/coords"
 #define OutputDesc             "Output current alignment's score and coords"
-#define CompareStr             "Co_mpare all"
-#define CompareDesc            "Compage all vs all, list identity"
+#define CompareStr             "Compare all and output identities"
+#define CompareDesc            "Compage all sequences against all others and output their identities"
 
 
 /* Define the menu actions for standard menu entries */
@@ -738,6 +738,10 @@ static void onOutputMenu(GtkAction *action, gpointer data)
 
 static void onCompareMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  listIdentity(bc);
 }
 
 /* This just calls gtk_widget_destroy but accepts gpointer arguments so

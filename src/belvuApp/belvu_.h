@@ -540,4 +540,6 @@ void                                      drawDoubleAsText(GtkWidget *widget, Gd
 void                                      treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode));
 void                                      treeSort(BelvuContext *bc);          
 
+void                                      listIdentity(BelvuContext *bc);
+
 #endif /* DEF_BELVU_P_H */

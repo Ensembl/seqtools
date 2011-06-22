@@ -2884,48 +2884,6 @@ static void selectGaps(void) {
 }
 
 
-static void listIdentity(void)
-{
-    int 
-      i,j,n ;
-    ALN 
-	*alni, *alnj;
-    double 
-	sc, totsc=0, maxsc=0, minsc=1000000,
-	id, totid=0.0, maxid=0.0, minid=100.0;
-
-    for (i = n = 0; i < nseq-1; i++) {
-	alni = &g_array_index(bc->alignArr, ALN, i);
-	for (j = i+1; j < nseq; j++, n++) {
-	    alnj = arrp(Align, j, ALN);
-	    
-	    id = identity(alnGetSeq(alni), alnGetSeq(alnj));
-	    totid += id;
-	    if (id > maxid) maxid = id;
-	    if (id < minid) minid = id;
-	    
-	    sc = score(alnGetSeq(alni), alnGetSeq(alnj));
-	    totsc += sc;
-	    if (sc > maxsc) maxsc = sc;
-	    if (sc < minsc) minsc = sc;
-	    
-	    printf("%s/%d-%d and %s/%d-%d are %.1f%% identical, score=%f\n",
-		   alni->name, alni->start, alni->end,
-		   alnj->name, alnj->start, alnj->end,
-		   id, sc);
-		
-	}
-	printf("\n");
-    }
-    printf("Maximum %%id was: %.1f\n", maxid);
-    printf("Minimum %%id was: %.1f\n", minid);
-    printf("Mean    %%id was: %.1f\n", totid/n);
-    printf("Maximum score was: %.1f\n", maxsc);
-    printf("Minimum score was: %.1f\n", minsc);
-    printf("Mean    score was: %.1f\n", (double)totsc/n);
-}
-
-
 static void rmPicked(void)
 {
     if (!bc->selectedAln) {
@@ -5465,18 +5423,26 @@ double identity(char *s1, char *s2, const gboolean penalize_gaps)
 {
     int n, id;
 
-    for (n = id = 0; *s1 && *s2; s1++, s2++) {
-	if (isGap(*s1) && isGap(*s2)) continue;
+    for (n = id = 0; *s1 && *s2; s1++, s2++) 
+      {
+	if (isGap(*s1) && isGap(*s2)) 
+          continue;
+        
 	if (isGap(*s1) || isGap(*s2))
-	    if (!penalize_gaps) continue;
+          {
+	    if (!penalize_gaps) 
+              continue;
+          }
+        
 	n++;
-	if (toupper(*s1) == toupper(*s2)) id++;
-    }
+	if (toupper(*s1) == toupper(*s2)) 
+          id++;
+      }
 
     if (n)
-	return (double)id/n*100;
+      return (double)id/n*100;
     else
-	return 0.0;
+      return 0.0;
 }
 
 
@@ -5485,16 +5451,25 @@ static double score(char *s1, char *s2, const gboolean penalize_gaps)
 {
     double sc=0.0;
 
-    for (;*s1 && *s2; s1++, s2++) {
-
+    for (;*s1 && *s2; s1++, s2++) 
+      {
 	if (isGap(*s1) && isGap(*s2)) 
+          {
 	    continue;
-	else if (isGap(*s1) || isGap(*s2)) {
+          }
+	else if (isGap(*s1) || isGap(*s2)) 
+          {
 	    if (penalize_gaps) sc -= 0.6;
-	}
+          }
 	else
-	  sc += (double) BLOSUM62[a2b[(unsigned char)(*s1)]-1][a2b[(unsigned char)(*s2)]-1];
-    }
+          {
+            int val1 = a2b[(unsigned char)(*s1)];
+            int val2 = a2b[(unsigned char)(*s2)];
+            
+            if (val1 > 0 && val2 > 0)
+              sc += (double) BLOSUM62[val1 - 1][val2 - 1];
+          }
+      }
     
     return sc;
 }
@@ -7418,5 +7393,55 @@ void showAnnotation(BelvuContext *bc)
 }
 
 
+/* Calculate the identity of each sequence against each other, and print the
+ * results to stdout. */
+void listIdentity(BelvuContext *bc)
+{
+  int i=0,j=0,n=0 ;
+  double totsc=0, maxsc=0, minsc=1000000,
+         totid=0.0, maxid=0.0, minid=100.0;
+  
+  for (i = n = 0; i < bc->alignArr->len - 1; ++i) 
+    {
+      ALN *alni = &g_array_index(bc->alignArr, ALN, i);
+
+      for (j = i+1; j < bc->alignArr->len; ++j, ++n) 
+        {
+          ALN *alnj = &g_array_index(bc->alignArr, ALN, j);
+          
+          double id = identity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
+          totid += id;
+
+          if (id > maxid) 
+            maxid = id;
+          
+          if (id < minid) 
+            minid = id;
+      
+          double sc = score(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
+          totsc += sc;
+          
+          if (sc > maxsc) 
+            maxsc = sc;
+          
+          if (sc < minsc) 
+            minsc = sc;
+          
+          printf("%s/%d-%d and %s/%d-%d are %.1f%% identical, score=%f\n",
+                 alni->name, alni->start, alni->end,
+                 alnj->name, alnj->start, alnj->end,
+                 id, sc);
+          
+        }
+      printf("\n");
+    }
+
+  printf("Maximum %%id was: %.1f\n", maxid);
+  printf("Minimum %%id was: %.1f\n", minid);
+  printf("Mean    %%id was: %.1f\n", totid/n);
+  printf("Maximum score was: %.1f\n", maxsc);
+  printf("Minimum score was: %.1f\n", minsc);
+  printf("Mean    score was: %.1f\n", (double)totsc/n);
+}
 
 
