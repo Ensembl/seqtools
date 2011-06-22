@@ -4201,7 +4201,7 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   const int charWidth = 8; /* guesstimate of char width for default font */
   
   gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox) ;
+  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, -1) ;
   gtk_tool_item_set_expand(item, FALSE); 
   
   /* We want the box to be printed, so connect the expose function that will 
@@ -4222,7 +4222,7 @@ static GtkWidget* createStatusBar(GtkToolbar *toolbar)
   /* Make it expandable so we use all available space. Set minimum size to be 0
    * because it's better to show it small than not at all. */
   gtk_widget_set_size_request(statusBar, 0, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, statusBar) ;
+  GtkToolItem *item = addToolbarWidget(toolbar, statusBar, -1) ;
   gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
 
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");

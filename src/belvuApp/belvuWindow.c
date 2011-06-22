@@ -128,8 +128,7 @@ static void                      onprintColorsMenu(GtkAction *action, gpointer d
 static void                      onexcludeHighlightedMenu(GtkAction *action, gpointer data);
 static void                      ondisplayColorsMenu(GtkAction *action, gpointer data);
 static void                      onlowercaseMenu(GtkAction *action, gpointer data);
-static void                      oneditResidueSchemeMenu(GtkAction *action, gpointer data);
-static void                      oneditConsSchemeMenu(GtkAction *action, gpointer data);
+static void                      oneditColorSchemeMenu(GtkAction *action, gpointer data);
 
 static void                      showHelpDialog();
 static void                      showAboutDialog(GtkWidget *parent);
@@ -210,10 +209,8 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 #define saveColorSchemeDesc   "Save current colour scheme"
 #define loadColorSchemeStr    "Load colour scheme..."
 #define loadColorSchemeDesc   "Read colour scheme from file"
-#define editResidueSchemeStr  "Edit colour scheme..."
-#define editResidueSchemeDesc "Open window to edit residue colors"
-#define editConsSchemeStr     "Edit colour scheme..."
-#define editConsSchemeDesc    "Open window to edit conservation colour scheme"
+#define editColorSchemeStr    "Edit colour scheme..."
+#define editColorSchemeDesc   "Edit the current colour scheme"
 
 #define autoRmEmptyColumnsStr  "Automatically remove empty columns"
 #define autoRmEmptyColumnsDesc "Automatically remove columns that are 100% gaps after sequence deletions"
@@ -267,8 +264,8 @@ static const GtkActionEntry menuEntries[] = {
   { "Compare",	           NULL,                 CompareStr,           NULL,                CompareDesc,             G_CALLBACK(onCompareMenu)},
   { "CleanUp",	           GTK_STOCK_CLEAR,      "Clean _up windows",  NULL,                "Clean up windows",      G_CALLBACK(onCleanUpMenu)},
 
-  {"rmPicked",             GTK_STOCK_DELETE,     rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
-  {"rmMany",               NULL,                 rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
+  {"rmPicked",             NULL,                 rmPickedStr,          NULL,                rmPickedDesc,            G_CALLBACK(onrmPickedMenu)},
+  {"rmMany",               GTK_STOCK_DELETE,     rmManyStr,            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu)},
   {"rmGappySeqs",          NULL,                 rmGappySeqsStr,       NULL,                rmGappySeqsDesc,         G_CALLBACK(onrmGappySeqsMenu)},
   {"rmPartialSeqs",        NULL,                 rmPartialSeqsStr,     NULL,                rmPartialSeqsDesc,       G_CALLBACK(onrmPartialSeqsMenu)},
   {"rmRedundant",          NULL,                 rmRedundantStr,       NULL,                rmRedundantDesc,         G_CALLBACK(onrmRedundantMenu)},
@@ -288,8 +285,7 @@ static const GtkActionEntry menuEntries[] = {
   {"colorByResId",         NULL,                 colorByResIdStr,      NULL,                colorByResIdDesc,        G_CALLBACK(oncolorByResIdMenu)},
   {"saveColorScheme",      NULL,                 saveColorSchemeStr,   NULL,                saveColorSchemeDesc,     G_CALLBACK(onsaveColorSchemeMenu)},
   {"loadColorScheme",      NULL,                 loadColorSchemeStr,   NULL,                loadColorSchemeDesc,     G_CALLBACK(onloadColorSchemeMenu)},
-  {"editResidueScheme",    NULL,                 editResidueSchemeStr, NULL,                editResidueSchemeDesc,   G_CALLBACK(oneditResidueSchemeMenu)},
-  {"editConsScheme",       NULL,                 editConsSchemeStr,    NULL,                editConsSchemeDesc,      G_CALLBACK(oneditConsSchemeMenu)}
+  {"editColorScheme",    GTK_STOCK_SELECT_COLOR, editColorSchemeStr,   NULL,                editColorSchemeDesc,     G_CALLBACK(oneditColorSchemeMenu)},
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -392,9 +388,6 @@ static const char standardMenuDescription[] =
 "        <menuitem action='colorSchemeEmpty'/>"
 "        <menuitem action='colorSchemeCustom'/>"
 "      </menu>"
-"      <menuitem action='editResidueScheme'/>"
-"      <menuitem action='saveColorScheme'/>"
-"      <menuitem action='loadColorScheme'/>"
 "      <menuitem action='toggleColorByResId'/>"
 "      <menuitem action='colorByResId'/>"
 "      <separator/>"
@@ -404,7 +397,6 @@ static const char standardMenuDescription[] =
 "        <menuitem action='colorId'/>"
 "        <menuitem action='colorIdSim'/>"
 "      </menu>"
-"      <menuitem action='editConsScheme'/>"
 "      <menuitem action='ignoreGaps'/>"
 "      <menuitem action='printColors'/>"
 "      <separator/>"
@@ -412,6 +404,10 @@ static const char standardMenuDescription[] =
 "      <menuitem action='excludeHighlighted'/>"
 "      <menuitem action='displayColors'/>"
 "      <menuitem action='lowercase'/>"
+"      <separator/>"
+"      <menuitem action='editColorScheme'/>"
+"      <menuitem action='saveColorScheme'/>"
+"      <menuitem action='loadColorScheme'/>"
 "    </menu>"
     /* Sort menu */
 "    <menu action='SortMenuAction'>"
@@ -477,12 +473,8 @@ static const char standardMenuDescription[] =
 /* TOOLBAR */
 "  <toolbar name='Toolbar'>"
 "    <toolitem action='Help'/>"
-"    <toolitem action='About'/>"
-"    <toolitem action='Save'/>"
-"    <separator/>"
-"    <toolitem action='rmPicked'/>"
-"    <separator/>"
-"    <toolitem action='ShowTree'/>"
+"    <toolitem action='rmMany'/>"
+"    <toolitem action='editColorScheme'/>"
 "    <toolitem action='alphaSort'/>"
 "    <separator/>"
 "  </toolbar>"
@@ -499,6 +491,8 @@ static void greyOutInvalidActions(BelvuContext *bc, GtkActionGroup *action_group
   
   enableMenuAction(action_group, "toggleColorByResId", !colorByConservation(bc));
   enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
+  enableMenuAction(action_group, "saveColorScheme", !colorByConservation(bc));
+  enableMenuAction(action_group, "loadColorScheme", !colorByConservation(bc));
 
   enableMenuAction(action_group, "colorSchemeCustom", bc->haveCustomColors);
   
@@ -1284,16 +1278,15 @@ static void onlowercaseMenu(GtkAction *action, gpointer data)
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
 }
 
-static void oneditResidueSchemeMenu(GtkAction *action, gpointer data)
+static void oneditColorSchemeMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
-  showEditResidueColorsDialog(belvuWindow, TRUE);
-}
-
-static void oneditConsSchemeMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  showEditConsColorsDialog(belvuWindow, TRUE);
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  
+  if (colorByConservation(bc))
+    showEditConsColorsDialog(belvuWindow, TRUE);
+  else
+    showEditResidueColorsDialog(belvuWindow, TRUE);
 }
 
 
@@ -3252,18 +3245,16 @@ gboolean onButtonPressBelvu(GtkWidget *window, GdkEventButton *event, gpointer d
 
 static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
 {
+  /* Bit of a hack, but add some space before the feedback box, just
+   * to avoid the toolbar being too cluttered. */
+  addToolbarWidget(toolbar, gtk_label_new("    "), -1);
+  
   GtkWidget *feedbackBox = gtk_entry_new();
   
   /* User can copy text out but not edit contents */
   gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
   
-  /* want fixed width because feedback area needs as much space as possible - 
-   * could do with a way to make sure this box is always wide enough though */
-  const int numChars = 36; /* guesstimate of max number of chars we'll need */
-  const int charWidth = 8; /* guesstimate of char width for default font */
-  
-  gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1);
-  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox);
+  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, -1);
   gtk_tool_item_set_expand(item, TRUE); 
   
   /* We want the box to be printed, so connect the expose function that will 
@@ -3365,7 +3356,9 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   GtkWidget *menubar = createBelvuMenu(window, "/MenuBar", uiManager);
   GtkWidget *contextmenu = createBelvuMenu(window, "/ContextMenu", uiManager);
   GtkWidget *toolbar = createBelvuMenu(window, "/Toolbar", uiManager);
+  addToolbarWidget(GTK_TOOLBAR(toolbar), gtk_label_new("    "), 0); /* hacky way to add some space at start of toolbar */
 
+  /* Create the feedback box on the toolbar */
   GtkWidget *feedbackBox = createFeedbackBox(GTK_TOOLBAR(toolbar));
   
   /* Set the style properties */
@@ -3378,8 +3371,12 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(vbox));
 
-  gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
+  /* Put the menu and toolbar on the same row using an hbox */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), menubar, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), toolbar, TRUE, TRUE, 0);
+  
   gtk_box_pack_start(GTK_BOX(vbox), bc->belvuAlignment, TRUE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), statusBar, FALSE, FALSE, 0);
 

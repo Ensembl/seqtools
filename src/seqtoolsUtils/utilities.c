@@ -2777,12 +2777,13 @@ GtkWidget *createToolbarHandle()
 }
 
 
-/* Makes the given widget into a toolbar item on the given toolbar */
-GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
+/* Makes the given widget into a toolbar item on the given toolbar.
+ * 'position' is the position; can be 0 to add to the start or -1 to add to the end. */
+GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget, const int position)
 {
   GtkToolItem *toolItem = gtk_tool_item_new();
   gtk_container_add(GTK_CONTAINER(toolItem), widget);
-  gtk_toolbar_insert(toolbar, toolItem, -1);	    /* -1 means "append" to the toolbar. */
+  gtk_toolbar_insert(toolbar, toolItem, position);
   
   gtk_tool_item_set_visible_horizontal(toolItem, TRUE);
   gtk_tool_item_set_visible_vertical(toolItem, TRUE);
