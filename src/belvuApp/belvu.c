@@ -2159,22 +2159,6 @@ static void idSort(void)
 }
 
 
-static void printScore(void)
-{
-    if (!bc->selectedAln) {
-	messout("Select a line first");
-	return;
-    }
-
-    printf("%.1f %s/%d-%d\n", 
-	   bc->selectedAln->score,
-	   bc->selectedAln->name,
-	   bc->selectedAln->start,
-	   bc->selectedAln->end);
-    fflush(stdout);
-}
-
-
 void argvAdd(int *argc, char ***argv, char *s)
 {
     char **v;

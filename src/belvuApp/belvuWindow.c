@@ -749,6 +749,23 @@ static void onSaveAsMenu(GtkAction *action, gpointer data)
 
 static void onOutputMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *belvuWindow = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  
+  if (!bc->selectedAln) 
+    {
+      g_critical("Please select a sequence first.\n");
+    }
+  else
+    {
+      printf("%.1f %s/%d-%d\n", 
+	     bc->selectedAln->score,
+	     bc->selectedAln->name,
+	     bc->selectedAln->start,
+	     bc->selectedAln->end);
+    
+      fflush(stdout);
+    }
 }
 
 static void onCompareMenu(GtkAction *action, gpointer data)
