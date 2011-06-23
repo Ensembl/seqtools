@@ -137,7 +137,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       properties->wrapWidth = wrapWidth;
       
       /* Find a fixed-width font */
-      const char *fontFamily = findFixedWidthFont(belvuAlignment);
+      const char *fontFamily = findFixedWidthFont(seqArea);
       PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
       pango_font_description_set_size(fontDesc, pango_font_description_get_size(belvuAlignment->style->font_desc));
       gtk_widget_modify_font(seqArea, fontDesc);
@@ -1109,12 +1109,10 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
     {
       /* Divide the full sequence length by the display width to give the number
        * of paragraphs we require */
-      const int displayLen = properties->wrapWidth;
-      const int numParagraphs = ceil((double)properties->bc->maxLen / (double)displayLen);
-
-      /* Multiply the standard height (plus one row for separation) by the number 
-       * of paragraphs */
-      result = (result + properties->charHeight) * numParagraphs;
+      const int numParagraphs = ceil((double)properties->bc->maxLen / (double)properties->wrapWidth);
+      const int paragraphHeight = (properties->bc->alignArr->len + 1) * properties->charHeight;
+    
+      result = paragraphHeight * numParagraphs;
       
       /* Add space for the title, if given (one line for the title and one as a spacer) */
       if (properties->title)
@@ -1181,7 +1179,8 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
 
 
   /* Set the height of the header */
-  gtk_widget_set_size_request(properties->seqHeader, -1, properties->charHeight + headersHeight);
+  if (properties->seqHeader)
+    gtk_widget_set_size_request(properties->seqHeader, -1, properties->charHeight + headersHeight);
 }
 
 
