@@ -1159,7 +1159,10 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
       properties->columnsRect.width = (properties->bc->maxNameLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->bc->maxStartLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->bc->maxEndLen * properties->charWidth) + (2 * properties->columnPadding) +
-                                      (properties->bc->maxScoreLen * properties->charWidth) + (2 * properties->columnPadding);
+				      properties->columnPadding;
+    
+    if (properties->bc->displayScores)
+      properties->columnsRect.width += (properties->bc->maxScoreLen * properties->charWidth) + (2 * properties->columnPadding);
       
       
       gtk_widget_set_size_request(properties->columnsHeader, -1, properties->charHeight + headersHeight);

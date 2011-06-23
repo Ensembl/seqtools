@@ -248,6 +248,9 @@ static void readScores(char *filename, BelvuContext *bc)
   char line[MAXLENGTH+1], linecp[MAXLENGTH+1], *cp;
   FILE *file;
   int scoreLen;
+  
+  gboolean found = FALSE;
+  gboolean warnings = FALSE;
 
   ALN aln;
   initAln(&aln);
@@ -262,30 +265,41 @@ static void readScores(char *filename, BelvuContext *bc)
       
       initAln(&aln);
       
-      if (!(cp = strtok(line, " "))) g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      if (!(cp = strtok(line, " "))) 
+	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      
       if (!(sscanf(cp, "%f", &aln.score)))
         g_error("Error parsing score file %s - bad score.\nLine: %s", filename, linecp);
       
-      if (!(cp = strtok(0, "/"))) g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      if (!(cp = strtok(0, "/"))) 
+	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      
       strncpy(aln.name, cp, MAXNAMESIZE);
       aln.name[MAXNAMESIZE] = 0;
       
-      if (!(cp = strtok(0, "-"))) g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      if (!(cp = strtok(0, "-"))) 
+	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      
       if (!(aln.start = atoi(cp)))
         g_error("Error parsing score file %s - no start coordinate.\nLine: %s", filename, linecp);
       
-      if (!(cp = strtok(0, "\n"))) g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      if (!(cp = strtok(0, "\n"))) 
+	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+      
       if (!(aln.end = atoi(cp)))
         g_error("Error parsing score file %s - no end coordinate.\nLine: %s", filename, linecp);
       
       int idx = 0;
       if (!alignFind(bc->alignArr, &aln, &idx)) 
         {
+	  warnings = TRUE;
           /* printf("Warning: %s/%d-%d (score %.1f) not found in alignment\n", 
            aln.name, aln.start, aln.end, aln.score);*/
         }
       else
         {
+	  found = TRUE;
+	
           g_array_index(bc->alignArr, ALN, idx).score = aln.score;
 
           char *scoreStr = blxprintf("%.1f", aln.score);
@@ -299,7 +313,17 @@ static void readScores(char *filename, BelvuContext *bc)
 
   fclose(file);
   
-  bc->displayScores = TRUE;
+  if (found)
+    {
+      bc->displayScores = TRUE;
+    
+      if (warnings)
+	g_warning("Some sequences in the scores file were not found in the alignment.\n");
+    }
+  else
+    {
+      g_critical("Error reading scores file: no sequences in the scores file were found in the alignment.\n");
+    }
 }
 
 
