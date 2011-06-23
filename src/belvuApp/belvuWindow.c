@@ -48,10 +48,15 @@
 #define DEFAULT_FONT_SIZE_ADJUSTMENT     -2   /* used to start with a smaller font than the default widget font */
 #define MAIN_BELVU_WINDOW_NAME           "BelvuWindow"
 #define WRAPPED_BELVU_WINDOW_NAME        "WrappedBelvuWindow"
+#define BELVU_ORGS_WINDOW_NAME           "BelvuOrgsWindow" 
 #define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95   /* default width of belvu window (as fraction of screen width) */
 #define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
 #define DEFAULT_WRAP_WINDOW_WIDTH_FRACTION      0.6    /* default width of wrap window (as fraction of screen width) */
 #define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.85   /* default height of wrap window (as fraction of screen height) */
+#define MAX_ORGS_WINDOW_WIDTH_FRACTION      0.5    /* default width of organisms window (as fraction of screen width) */
+#define MAX_ORGS_WINDOW_HEIGHT_FRACTION     0.7   /* default height of organisms window (as fraction of screen height) */
+#define ORGS_WINDOW_XPAD		    20	  /* x padding for the organisms window */
+#define ORGS_WINDOW_YPAD		    20	  /* y padding for the organisms window */
 
 
 /* Utility struct to pass data to the color-changed callback
@@ -76,12 +81,12 @@ typedef struct _BelvuWindowProperties
   } BelvuWindowProperties;
 
 
-/* Properties specific to a wrapped-alignment window */
-typedef struct _WrapWindowProperties
+/* Properties for generic windows */
+typedef struct _GenericWindowProperties
   {
     BelvuContext *bc;                   /* The belvu context */
     GtkActionGroup *actionGroup;
-  } WrapWindowProperties;
+  } GenericWindowProperties;
 
 
 
@@ -175,8 +180,9 @@ static void			 showSaveAsDialog(GtkWidget *belvuWindow);
 static gboolean			 saveAlignment(BelvuContext *bc, GtkWidget *window);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
-static WrapWindowProperties*     wrapWindowGetProperties(GtkWidget *widget);
+static GenericWindowProperties*  windowGetProperties(GtkWidget *widget);
 static BelvuContext*             windowGetContext(GtkWidget *window);
+static void			 createOrganismWindow(BelvuContext *bc);
 
 /***********************************************************
  *                      Menus and Toolbar                  *
@@ -478,6 +484,11 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Print'/>"
 "    <menuitem action='Wrap'/>"
 "  </popup>"
+/* Organisms window context menu */
+"  <popup name='OrgsContextMenu' accelerators='true'>"
+"    <menuitem action='Close'/>"
+"    <menuitem action='Print'/>"
+"  </popup>"
 /* Tree context menu */
 "  <popup name='TreeContextMenu' accelerators='true'>"
 "    <menuitem action='Close'/>"
@@ -681,14 +692,10 @@ static BelvuContext* windowGetContext(GtkWidget *window)
     {
       bc = belvuTreeGetContext(window);
     }
-  else if (stringsEqual(name, WRAPPED_BELVU_WINDOW_NAME, TRUE))
+  else /* generic windows */
     {
-      WrapWindowProperties *properties = wrapWindowGetProperties(window);
+      GenericWindowProperties *properties = windowGetProperties(window);
       bc = properties->bc;
-    }
-  else
-    {
-      g_critical("Program error: unexpected window type in windowGetContext.\n");
     }
   
   return bc;
@@ -1355,7 +1362,13 @@ static void onFindOrthogsMenu(GtkAction *action, gpointer data)
 
 static void onShowOrgsMenu(GtkAction *action, gpointer data)
 {
-  //GtkWidget *belvuWindow = GTK_WIDGET(data);
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+  
+  if (bc->organismArr->len < 1)
+    g_critical("No organism details found.\n");
+  else
+    createOrganismWindow(bc);
 }
 
 /***********************************************************
@@ -1417,43 +1430,43 @@ GtkActionGroup* belvuWindowGetActionGroup(GtkWidget *belvuWindow)
 }
 
 
-/* Wrapped-alignment windows */
-static WrapWindowProperties* wrapWindowGetProperties(GtkWidget *widget)
+/* Properties for generic windows */
+static GenericWindowProperties* windowGetProperties(GtkWidget *widget)
 {
-  return widget ? (WrapWindowProperties*)(g_object_get_data(G_OBJECT(widget), "WrapWindowProperties")) : NULL;
+  return widget ? (GenericWindowProperties*)(g_object_get_data(G_OBJECT(widget), "GenericWindowProperties")) : NULL;
 }
 
-static void onDestroyWrapWindow(GtkWidget *wrapWindow)
+static void onDestroyGenericWindow(GtkWidget *window)
 {
-  WrapWindowProperties *properties = wrapWindowGetProperties(wrapWindow);
+  GenericWindowProperties *properties = windowGetProperties(window);
 
   /* We must remove the window from the list of spawned windows */
-  properties->bc->spawnedWindows = g_slist_remove(properties->bc->spawnedWindows, wrapWindow);
+  properties->bc->spawnedWindows = g_slist_remove(properties->bc->spawnedWindows, window);
   
   if (properties)
     {
       /* Free the properties struct */
       g_free(properties);
       properties = NULL;
-      g_object_set_data(G_OBJECT(wrapWindow), "WrapWindowProperties", NULL);
+      g_object_set_data(G_OBJECT(window), "GenericWindowProperties", NULL);
     }
 }
 
 
-/* Create the properties struct and initialise all values. */
-static void wrapWindowCreateProperties(GtkWidget *wrapWindow, 
-                                       BelvuContext *bc,
-                                       GtkActionGroup *actionGroup)
+/* Create the properties struct and initialise all values for a generic window. */
+static void genericWindowCreateProperties(GtkWidget *wrapWindow, 
+                                          BelvuContext *bc,
+                                          GtkActionGroup *actionGroup)
 {
   if (wrapWindow)
     {
-      WrapWindowProperties *properties = g_malloc(sizeof *properties);
+      GenericWindowProperties *properties = g_malloc(sizeof *properties);
       
       properties->bc = bc;
       properties->actionGroup = actionGroup;
 
-      g_object_set_data(G_OBJECT(wrapWindow), "WrapWindowProperties", properties);
-      g_signal_connect(G_OBJECT(wrapWindow), "destroy", G_CALLBACK (onDestroyWrapWindow), NULL);
+      g_object_set_data(G_OBJECT(wrapWindow), "GenericWindowProperties", properties);
+      g_signal_connect(G_OBJECT(wrapWindow), "destroy", G_CALLBACK (onDestroyGenericWindow), NULL);
     }
 }
 
@@ -2959,7 +2972,7 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
   gtk_box_pack_start(GTK_BOX(vbox), wrappedAlignment, TRUE, TRUE, 0);
   
   /* Set properties */
-  wrapWindowCreateProperties(wrapWindow, properties->bc, actionGroup);
+  genericWindowCreateProperties(wrapWindow, properties->bc, actionGroup);
   
   gtk_widget_show_all(wrapWindow);
   gtk_window_present(GTK_WINDOW(wrapWindow));
@@ -3051,6 +3064,140 @@ static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFro
     {
       gtk_window_present(GTK_WINDOW(dialog));
     }
+}
+
+
+/***********************************************************
+ *                      Organisms window                   *
+ ***********************************************************/
+
+static void setOrgsWindowStyleProperties(GtkWidget *window, BelvuContext *bc)
+{
+  gtk_widget_set_name(window, BELVU_ORGS_WINDOW_NAME);
+
+  /* Set default size based on number of alignments and max name width */
+  gdouble charWidth = 0, charHeight = 0;
+  getFontCharSize(window, window->style->font_desc, &charWidth, &charHeight);
+
+  GdkScreen *screen = gtk_widget_get_screen(window);
+  const int screenWidth = gdk_screen_get_width(screen);
+  const int screenHeight = gdk_screen_get_height(screen);
+  
+  const int maxWidth = screenWidth * MAX_ORGS_WINDOW_WIDTH_FRACTION;
+  const int maxHeight = screenHeight * MAX_ORGS_WINDOW_HEIGHT_FRACTION;
+  
+  int width = min(maxWidth, charWidth * bc->maxNameLen + ORGS_WINDOW_XPAD * 2);
+  int height = min(maxHeight, charHeight * bc->organismArr->len + ORGS_WINDOW_YPAD * 2);
+  gtk_window_set_default_size(GTK_WINDOW(window), width, height);
+  
+  /* Set the initial position */
+  const int x = (screenWidth - width) / 4;
+  const int y = (screenHeight - height) / 4;
+  gtk_window_move(GTK_WINDOW(window), x, y);
+}
+
+
+/* This does the work to draw the organisms. */
+static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext *bc)
+{
+  GdkGC *gc = gdk_gc_new(drawable);
+  GdkColor color;
+
+  gdouble height = 0;
+  getFontCharSize(widget, widget->style->font_desc, NULL, &height);
+
+  int y = ORGS_WINDOW_YPAD;
+  const int x = ORGS_WINDOW_XPAD;
+  int i = 0;
+
+  for ( ; i < bc->organismArr->len; ++i) 
+    {
+      ALN *alnp = &g_array_index(bc->organismArr, ALN, i);
+    
+      convertColorNumToGdkColor(alnp->color, FALSE, &color);
+      gdk_gc_set_foreground(gc, &color);
+    
+      drawText(widget, drawable, gc, x, y, alnp->organism, NULL, NULL);
+    
+      y += height;
+    }
+ 
+  g_message("%d organisms found\n", bc->organismArr->len);
+  g_object_unref(gc);
+}
+
+
+/* Expose handler for the organisms view */
+static gboolean onExposeOrganismsView(GtkWidget *widget, GdkEventExpose *event, gpointer data)
+{
+  GdkDrawable *window = widget->window;
+  BelvuContext *bc = (BelvuContext*)data;
+  
+  if (window)
+    {
+      GdkDrawable *bitmap = widgetGetDrawable(widget);
+      
+      if (!bitmap)
+	{
+	  /* There isn't a bitmap yet. Create it now. */
+	  bitmap = createBlankPixmap(widget);
+	  drawOrganisms(widget, bitmap, bc);
+	}
+      
+      if (bitmap)
+	{
+	  /* Push the bitmap onto the window */
+	  GdkGC *gc = gdk_gc_new(window);
+	  gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+	  g_object_unref(gc);
+	}
+      else
+	{
+	  g_warning("Failed to draw Organisms view [%p] - could not create bitmap.\n", widget);
+	}
+    }
+  
+  return TRUE;
+}
+
+
+static void createOrganismWindow(BelvuContext *bc)
+{
+  /* Create the window */
+  GtkWidget *orgsWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  setOrgsWindowStyleProperties(orgsWindow, bc);
+  
+  gtk_window_set_title(GTK_WINDOW(orgsWindow), "Belvu - Organisms");
+  
+  /* We must add all toplevel windows to the list of spawned windows */
+  bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, orgsWindow);
+  
+  /* Create the context menu and set a callback to show it */
+  GtkActionGroup *actionGroup = NULL;
+  GtkUIManager *uiManager = createUiManager(orgsWindow, bc, &actionGroup);
+  GtkWidget *contextmenu = createBelvuMenu(orgsWindow, "/OrgsContextMenu", uiManager);
+  
+  gtk_widget_add_events(orgsWindow, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(orgsWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
+  
+  /* We'll place everything in a vbox */
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(orgsWindow), vbox);
+  
+  /* Add the drawing area */
+  GtkWidget *drawing = gtk_drawing_area_new();
+  gtk_box_pack_start(GTK_BOX(vbox), drawing, TRUE, TRUE, 0);
+  g_signal_connect(G_OBJECT(drawing), "expose-event", G_CALLBACK(onExposeOrganismsView), bc);
+  
+  /* Set default background color */
+  GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);
+  gtk_widget_modify_bg(drawing, GTK_STATE_NORMAL, bgColor);
+  
+  /* Set properties */
+  genericWindowCreateProperties(orgsWindow, bc, actionGroup);
+  
+  gtk_widget_show_all(orgsWindow);
+  gtk_window_present(GTK_WINDOW(orgsWindow));
 }
 
 
