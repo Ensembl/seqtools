@@ -45,7 +45,8 @@
 
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
-
+#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
+#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.7
 
 
 /* Test char to see if it's a iupac dna/peptide code. */
@@ -3994,5 +3995,122 @@ void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, c
     {
       gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), active);
     }
+}
+
+
+/***********************************************************
+ *		         External calls			   * 
+ ***********************************************************/
+
+/* call an external shell command and print output in a text_scroll window
+ *
+ * This is a replacement for the old graph based text window, it has the advantage
+ * that it uses gtk directly and provides cut/paste/scrolling but...it has the
+ * disadvantage that it will use more memory as it collects all the output into
+ * one string and then this is _copied_ into the text widget.
+ * 
+ * If this proves to be a problem I expect there is a way to feed the text to the
+ * text widget a line a time. */
+GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GError **error)
+{
+  GtkWidget *resultWindow = NULL;
+
+#if !defined(MACINTOSH)
+  
+  GString *resultText = getExternalCommandOutput(command, error);
+  
+  if (!error || *error == NULL)
+    {
+      char *title = blxprintf("%s - %s", progName, command);
+      resultWindow = displayFetchResults(title, resultText->str, widget, NULL);
+      
+      g_free(title);
+      g_string_free(resultText, TRUE);
+    }
+  
+#endif
+  
+  return resultWindow;
+}
+
+
+/* Execute the given external command and return the output from the command as a GString. 
+ * The result should be free'd with g_string_free. */
+GString* getExternalCommandOutput(const char *command, GError **error)
+{
+  GString *resultText = g_string_new(NULL) ;
+  
+  char lineText[MAXLINE+1];
+  
+  FILE *pipe = popen (command, "r") ;
+  
+  if (pipe && !feof(pipe) && fgets (lineText, MAXLINE, pipe))
+    {
+      while (!feof (pipe))
+        { 
+          int len = strlen(lineText);
+          
+          if (len > 0)
+            { 
+              if (lineText[len-1] == '\n') 
+                {
+                  lineText[len-1] = '\0';
+                }
+              
+              g_string_append_printf(resultText, "%s\n", lineText) ;
+            }
+          
+          if (!fgets (lineText, MAXLINE, pipe))
+            {
+              break;
+            }
+        }
+    }
+  else
+    {
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n", command);
+    }
+
+  pclose (pipe);
+
+  return resultText;
+}
+
+
+/* Display a message dialog showing the given display text. This utility functions sets
+ * things like the font and default width based on properties of the main blixem window.
+ * Returns a pointer to the dialog, and optionally sets a pointer to the text buffer in the
+ * textBuffer return argument. */
+GtkWidget* displayFetchResults(const char *title, 
+                               const char *displayText, 
+                               GtkWidget *widget, 
+                               GtkTextBuffer **textBuffer)
+{
+  /* Use a fixed-width font */
+  const char *fontFamily = findFixedWidthFont(widget);
+  PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
+  
+  /* Set the initial width based on the default number of characters wide */
+//  PangoContext *context = gtk_widget_get_pango_context(widget);
+//  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+//  getFontCharSize(widget, fontDesc, &charWidth, NULL);
+  int charWidth = 8;
+
+  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
+  const int maxHeight = widget->allocation.height * DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION;
+  
+  GtkTextView *textView = NULL;
+  GtkWidget *result = showMessageDialog(title, displayText, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
+  
+  if (textBuffer && textView)
+    {
+      *textBuffer = gtk_text_view_get_buffer(textView);
+    }
+  
+  /* Clean up */
+//  pango_font_metrics_unref(metrics);
+//  pango_font_description_free(fontDesc);
+  
+  return result;
 }
 

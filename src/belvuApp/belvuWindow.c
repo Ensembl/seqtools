@@ -105,6 +105,7 @@ static void                      onConsPlotMenu(GtkAction *action, gpointer data
 static void                      onSaveMenu(GtkAction *action, gpointer data);
 static void                      onSaveAsMenu(GtkAction *action, gpointer data);
 static void                      onOutputMenu(GtkAction *action, gpointer data);
+static void                      onFetchWWWMenu(GtkAction *action, gpointer data);
 static void                      onCompareMenu(GtkAction *action, gpointer data);
 static void                      onCleanUpMenu(GtkAction *action, gpointer data);
 
@@ -262,6 +263,8 @@ static void			 createOrganismWindow(BelvuContext *bc);
 #define OutputDesc             "Output current alignment's score and coords"
 #define CompareStr             "Compare all and output identities"
 #define CompareDesc            "Compage all sequences against all others and output their identities"
+#define FetchWWWStr            "Fetch sequences via WWW"
+#define FetchWWWDesc           "Fetch sequences via WWW"
 
 
 /* Define the menu actions for standard menu entries */
@@ -319,6 +322,7 @@ static const GtkActionEntry menuEntries[] = {
 
 /* Define the menu actions for toggle menu entries */
 static const GtkToggleActionEntry toggleMenuEntries[] = {
+  {"FetchWWW",               NULL, FetchWWWStr,                          NULL,                FetchWWWDesc,            G_CALLBACK(onFetchWWWMenu),           FALSE},
   {"rmMany",     GTK_STOCK_DELETE, rmManyStr,                            NULL,                rmManyDesc,              G_CALLBACK(onRemoveSeqsMenu),         FALSE},
   {"FindOrthogs",            NULL, FindOrthogsStr,                       NULL,                FindOrthogsDesc,         G_CALLBACK(onFindOrthogsMenu),        FALSE},
   {"autoRmEmptyColumns",     NULL, autoRmEmptyColumnsStr,                NULL,                autoRmEmptyColumnsDesc,  G_CALLBACK(onAutoRmEmptyColumnsMenu), TRUE}, 
@@ -384,6 +388,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='SaveAs'/>"
 "      <menuitem action='Output'/>"
 "      <separator/>"
+"      <menuitem action='FetchWWW'/>"
 "      <menuitem action='Compare'/>"
 "      <menuitem action='CleanUp'/>"
 "    </menu>"
@@ -475,6 +480,7 @@ static const char standardMenuDescription[] =
 "    <menuitem action='SaveAs'/>"
 "    <menuitem action='Output'/>"
 "    <separator/>"
+"    <menuitem action='FetchWWW'/>"
 "    <menuitem action='Compare'/>"
 "    <menuitem action='CleanUp'/>"
 "  </popup>"
@@ -774,6 +780,14 @@ static void onCompareMenu(GtkAction *action, gpointer data)
   BelvuContext *bc = windowGetContext(window);
 
   listIdentity(bc);
+}
+
+static void onFetchWWWMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  bc->useWWWFetch = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
 }
 
 /* This just calls gtk_widget_destroy but accepts gpointer arguments so

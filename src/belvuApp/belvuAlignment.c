@@ -1454,6 +1454,11 @@ static gboolean onButtonPressColumnsArea(GtkWidget *widget, GdkEventButton *even
 	  /* Removed the clicked sequence (which will be the selected one) */
 	  removeSelectedSequence(properties->bc, belvuAlignment);
 	}
+      else 
+        {
+	  /* Fetch the clicked sequence (i.e. the currently selected one) */
+          fetchAln(properties->bc, properties->bc->selectedAln);
+        }
     }
   
   return handled;
@@ -1491,9 +1496,14 @@ static gboolean onButtonPressSeqArea(GtkWidget *widget, GdkEventButton *event, g
     {
       if (properties->bc->removingSeqs)
 	{
-	  /* Removed the clicked sequence (which will be the selected one) */
+	  /* Removed the clicked sequence (i.e. the currently selected one) */
 	  removeSelectedSequence(properties->bc, belvuAlignment);
 	}
+      else 
+        {
+	  /* Fetch the clicked sequence (i.e. the currently selected one) */
+          fetchAln(properties->bc, properties->bc->selectedAln);
+        }
     }
   
   return handled;

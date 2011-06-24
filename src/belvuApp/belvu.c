@@ -146,6 +146,13 @@
 #include <math.h>
 
 
+#define FETCH_PROG_ENV_VAR        "BELVU_FETCH"       /* environment variable used to specify the fetch program */
+#define FETCH_URL_ENV_VAR         "BELVU_FETCH_WWW"   /* environment variable used to specify the WWW-fetch URL */
+#define DEFAULT_FETCH_PROG        "efetch"            /* default program for fetching sequences */
+#define DEFAULT_FETCH_URL         "http://www.sanger.ac.uk/cgi-bin/otter/52/nph-pfetch?request=%s"
+//#define DEFAULT_FETCH_URL         "http://www.sanger.ac.uk/cgi-bin/seq-query?%s"  /* default url for fetching sequences in WWW-fetch mode */
+
+
 
 /*  BLOSUM62 930809
 
@@ -827,51 +834,6 @@ KEYBOARD:\n\
   Delete: Go to End of line.\n\
 For more details, see http://www.sanger.ac.uk/~esr/Belvu.html\n\
 ", belvuVersion, nseq, maxLen));
-}
-
-
-static void fetchAln(ALN *alnp)
-{
-  if (xmosaic)
-    {
-      static char *browser = NULL ;
-
-      if (!browser)
-	{
-	  printf("Looking for WWW browsers ...\n") ;
-
-	  if (!findCommand("netscape", &browser) &&
-	      !findCommand("Netscape", &browser) &&
-	      !findCommand("Mosaic", &browser) &&
-	      !findCommand("mosaic", &browser) &&
-	      !findCommand("xmosaic", &browser))
-	    {
-	      messout("Couldn't find any WWW browser.  Looked for "
-		      "netscape, Netscape, Mosaic, xmosaic & mosaic");
-	      return ;
-	    }
-	}
-
-      printf("Using WWW browser %s\n", browser);
-      fflush(stdout);
-      system(messprintf("%s http://www.sanger.ac.uk/cgi-bin/seq-query?%s&", 
-			browser,
-			alnp->fetch));
-      /* OLD: system(messprintf("xfetch '%s' &", alnp->fetch));*/
-    }
-  else
-    {
-      char  *env, fetchProg[1025]="";
-
-      if ((env = getenv("BELVU_FETCH")) )
-	strcpy(fetchProg, env);
-      else
-	strcpy(fetchProg, "efetch");
-	    
-      externalCommand(messprintf("%s '%s' &", fetchProg, alnp->fetch));
-    }
-
-  return ;
 }
 
 
@@ -5178,6 +5140,7 @@ BelvuContext* createBelvuContext()
   bc->haveCustomColors = FALSE;
   bc->printColorsOn = FALSE;
   bc->highlightOrthologs = FALSE;
+  bc->useWWWFetch = FALSE;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
@@ -7411,6 +7374,75 @@ void listIdentity(BelvuContext *bc)
   printf("Maximum score was: %.1f\n", maxsc);
   printf("Minimum score was: %.1f\n", minsc);
   printf("Mean    score was: %.1f\n", (double)totsc/n);
+}
+
+
+static void onDestroySpawnedWindow(GtkWidget *window, gpointer data)
+{
+  /* We must remove the window from the list of spawned windows */
+  BelvuContext *bc = (BelvuContext*)data;
+  bc->spawnedWindows = g_slist_remove(bc->spawnedWindows, window);
+}
+
+
+void fetchAln(BelvuContext *bc, ALN *alnp)
+{
+  GError *error = NULL;
+
+  if (bc->useWWWFetch)
+    {
+      /* Get the URL from the enviroment var (or use the hard-coded default
+       * value) */
+      char  *env, url[1025]="";
+      
+      if ((env = getenv(FETCH_URL_ENV_VAR)) )
+	strcpy(url, env);
+      else
+	strcpy(url, DEFAULT_FETCH_URL);
+
+      /* Add the sequence name to the url. The URL should be a format string
+       * containing '%s' for the name. */
+      char *cp = strchr(url, '%');
+      
+      if (cp)
+        ++cp;
+      
+      if (!cp || *cp != 's')
+        {
+          g_critical("Invalid URL string %s.\nThe URL must contain the search string \"%%s\", which will be replaced with the sequence name.", url);
+        }
+      else
+        {
+          char *link = blxprintf(url, alnp->name);
+          
+          g_message("Opening URL: %s\n", link);
+          seqtoolsLaunchWebBrowser(link, &error);
+          
+          g_free(link);
+        }
+    }
+  else
+    {
+      char  *env, fetchProg[1025]="";
+      
+      if ((env = getenv(FETCH_PROG_ENV_VAR)) )
+	strcpy(fetchProg, env);
+      else
+	strcpy(fetchProg, DEFAULT_FETCH_PROG);
+
+      char *cmd = blxprintf("%s '%s' &", fetchProg, alnp->name);
+      
+      GtkWidget *pfetchWin = externalCommand(cmd, BELVU_TITLE, bc->belvuAlignment, &error);
+      
+      /* Add the window to our list of spawned windows */
+      bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
+      g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);
+
+      g_free(cmd);
+    }
+  
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+
 }
 
 

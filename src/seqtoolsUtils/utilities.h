@@ -83,7 +83,8 @@ typedef enum
 {
   SEQTOOLS_ERROR_PARSING_COLOR,	      /* error parsing color string */
   SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
-  SEQTOOLS_ERROR_NO_STYLE	      /* style does not exist */
+  SEQTOOLS_ERROR_NO_STYLE,            /* style does not exist */
+  SEQTOOLS_ERROR_EXECUTING_CMD	      /* error executing command */
 } SeqToolsError;
 
 
@@ -514,6 +515,10 @@ const char*                        getLoadFileName(GtkWidget *widget, const char
 
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
+
+GtkWidget*                         externalCommand(char *command, char *progName, GtkWidget *widget, GError **error);
+GString*                           getExternalCommandOutput(const char *command, GError **error);
+GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkTextBuffer **textBuffer);
 
 
 /* seqtoolsWebBrowser.c */

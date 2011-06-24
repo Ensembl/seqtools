@@ -433,6 +433,7 @@ typedef struct BelvuContextStruct
   gboolean haveCustomColors;       /* Whether the custom colors have been set */
   gboolean printColorsOn;          /* Whether to use greyscale colors for printing */
   gboolean highlightOrthologs;     /* Whether to highlight orthologs or not in the tree */
+  gboolean useWWWFetch;            /* Whether to fetch sequences via a web URL rather than a local program */
 
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   
@@ -546,5 +547,7 @@ void                                      saveTreeNH(TreeNode *headNode, TreeNod
 
 void                                      listIdentity(BelvuContext *bc);
 void                                      setTreeHead(BelvuContext *bc, TreeNode *headNode);
+
+void                                      fetchAln(BelvuContext *bc, ALN *alnp);
 
 #endif /* DEF_BELVU_P_H */
