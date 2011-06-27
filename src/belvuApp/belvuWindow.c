@@ -53,8 +53,10 @@
 #define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
 #define DEFAULT_WRAP_WINDOW_WIDTH_FRACTION      0.6    /* default width of wrap window (as fraction of screen width) */
 #define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.85   /* default height of wrap window (as fraction of screen height) */
-#define MAX_ORGS_WINDOW_WIDTH_FRACTION      0.5    /* default width of organisms window (as fraction of screen width) */
-#define MAX_ORGS_WINDOW_HEIGHT_FRACTION     0.7   /* default height of organisms window (as fraction of screen height) */
+#define MAX_ORGS_WINDOW_WIDTH_FRACTION          0.5    /* max width of organisms window (as fraction of screen width) */
+#define MAX_ORGS_WINDOW_HEIGHT_FRACTION         0.7    /* max height of organisms window (as fraction of screen height) */
+#define MAX_ANNOTATION_WINDOW_WIDTH_FRACTION    0.6    /* max width of annotation window (as fraction of screen width) */
+#define MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION   0.7    /* max height of annotation window (as fraction of screen height) */
 #define ORGS_WINDOW_XPAD		    20	  /* x padding for the organisms window */
 #define ORGS_WINDOW_YPAD		    20	  /* y padding for the organisms window */
 
@@ -3229,6 +3231,69 @@ static void createOrganismWindow(BelvuContext *bc)
   
   gtk_widget_show_all(orgsWindow);
   gtk_window_present(GTK_WINDOW(orgsWindow));
+}
+
+
+/***********************************************************
+ *                           Updates                       *
+ ***********************************************************/
+
+void showAnnotationWindow(BelvuContext *bc)
+{
+  /* If there are no annotations, there's nothing to do */
+  if (g_slist_length(bc->annotationList) < 1) 
+    return;
+  
+  /* Loop through each annotation line */
+  GString *resultStr = g_string_new("");
+  int maxLen = 0;
+  GSList *annItem = bc->annotationList;
+  
+  for ( ; annItem; annItem = annItem->next)
+    {
+      /* Calculate the max line length */
+      const char *cp = (const char*)(annItem->data);
+      
+      if (strlen(cp) > maxLen) 
+        maxLen = strlen(cp);
+      
+      /* Append this text to the string */
+      g_string_append_printf(resultStr, "%s\n", cp);
+    }
+  
+  /* Create the dialog */
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Annotations", 
+                                                  NULL, 
+                                                  GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_CLOSE, GTK_RESPONSE_ACCEPT,
+                                                  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_CLOSE);
+  g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(gtk_widget_destroy), NULL);
+  
+  /* Use a fixed-width font */
+  const char *fontFamily = findFixedWidthFont(dialog);
+  PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
+  pango_font_description_set_size(fontDesc, pango_font_description_get_size(dialog->style->font_desc));
+  
+  GtkWidget *textView = createScrollableTextView(resultStr->str, FALSE, fontDesc, FALSE, NULL, NULL);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), textView, TRUE, TRUE, 0);
+
+  /* Set the initial size */
+  double charWidth, charHeight;
+  getFontCharSize(dialog, fontDesc, &charWidth, &charHeight);
+  int width = ((maxLen + 1) * charWidth) + scrollBarWidth();
+  int height = ((g_slist_length(bc->annotationList) + 1) * charHeight) + scrollBarWidth() + 40; /* extra fudge to allow space for buttons */
+
+  GdkScreen *screen = gtk_widget_get_screen(dialog);
+  const int maxWidth = gdk_screen_get_width(screen) * MAX_ANNOTATION_WINDOW_WIDTH_FRACTION;
+  const int maxHeight = gdk_screen_get_height(screen) * MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION;
+  width = min(width, maxWidth);
+  height = min(height, maxHeight);
+  
+  gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+
+  gtk_widget_show_all(dialog);
 }
 
 

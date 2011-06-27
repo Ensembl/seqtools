@@ -761,7 +761,7 @@ int main(int argc, char **argv)
 
 
   if (show_ann) 
-    showAnnotation(bc);
+    showAnnotationWindow(bc);
 
   /* Calculate screen width of alignment */
   double cw = 1 + bc->maxNameLen + 1;      /* character width of initial alignment */

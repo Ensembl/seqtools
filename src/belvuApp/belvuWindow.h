@@ -42,6 +42,7 @@
 #include <gtk/gtk.h>
 
 gboolean              createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData);
+void                  showAnnotationWindow(BelvuContext *bc);
 
 GtkUIManager*         createUiManager(GtkWidget *window, BelvuContext *bc, GtkActionGroup **actionGroupOut);
 GtkWidget*            createBelvuMenu(GtkWidget *window, const char *path, GtkUIManager *ui_manager);

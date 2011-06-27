@@ -123,31 +123,6 @@ static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite
  *		       Utility functions                   *
  ***********************************************************/
 
-/* Utility function to calculate the width of a vertical scrollbar */
-int scrollBarWidth()
-{
-  static int result = UNSET_INT;
-  
-  if (result == UNSET_INT)
-    {
-      /* Create a temp scrollbar and find the default width from the style properties. */
-      GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
-      
-      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
-      gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
-      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
-      gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
-      gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
-      
-      gtk_widget_destroy(scrollbar);
-      
-      result = sliderWidth + separatorWidth*2 + troughBorder*2 + stepperSpacing*2 + 4; /* to do: find out why the extra fudge factor is needed here */
-    }
-  
-  return result;
-}
-
-
 void detailViewRedrawAll(GtkWidget *detailView)
 {
   /* Redraw all the trees */

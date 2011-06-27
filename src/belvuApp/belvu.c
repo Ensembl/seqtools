@@ -7277,47 +7277,6 @@ void outputProbs(BelvuContext *bc, FILE *fil)
 
 
 
-void showAnnotation(BelvuContext *bc)
-{
-  /* to do: implement this */
-//  int maxwidth=0,
-//    nlines=0,
-//    i=0;
-//  char *cp;
-//
-//  if (stackEmpty(AnnStack)) 
-//    return;
-//
-//  stackCursor(AnnStack, 0);
-//  while ((cp = stackNextText(AnnStack))) 
-//    {
-//      nlines++;
-//      if (strlen(cp) > maxwidth) 
-//        maxwidth = strlen(cp);
-//    }
-//
-//  if (!graphActivate(annGraph)) 
-//    {
-//      annGraph = graphCreate (TEXT_FULL_SCROLL, "Annotations", 0, 0,
-//                              (maxwidth+1)/fontwidth*screenWidth, 
-//                              (nlines+1)/fontheight*screenHeight);
-//      graphTextFormat(FIXED_WIDTH);
-//    }
-//  
-//  graphClear();
-//  graphTextBounds(maxwidth+1, nlines+1);
-//
-//  stackCursor(AnnStack, 0);
-//
-//  while ((cp = stackNextText(AnnStack))) 
-//    {
-//      graphText(cp, 0, i++);
-//    }
-//  
-//  graphRedraw();
-}
-
-
 /* Calculate the identity of each sequence against each other, and print the
  * results to stdout. */
 void listIdentity(BelvuContext *bc)

@@ -515,7 +515,6 @@ void                                      mksubfamilies(BelvuContext *bc, double
 void                                      treeDisplay(BelvuContext *bc);       
 
 void                                      colorSim(BelvuContext *bc);          
-void                                      showAnnotation(BelvuContext *bc);    
 
 char                                      b2aIndex(const int idx);
 int                                       getMarkupColor(const char inputChar);

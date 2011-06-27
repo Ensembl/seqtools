@@ -520,6 +520,7 @@ GtkWidget*                         externalCommand(char *command, char *progName
 GString*                           getExternalCommandOutput(const char *command, GError **error);
 GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkTextBuffer **textBuffer);
 
+int                                scrollBarWidth();
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
