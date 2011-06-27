@@ -1777,7 +1777,10 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
           /* There isn't a bitmap yet. Create it now. */
           bitmap = createBlankSizedPixmap(widget, window, properties->treeRect.x * 2 + properties->treeRect.width, 
                                           properties->treeRect.y * 2 + properties->treeRect.height);
+          
+          separateMarkupLines(properties->bc);
           drawBelvuTree(widget, bitmap, properties);
+          reInsertMarkupLines(properties->bc);
         }
       
       if (bitmap)
