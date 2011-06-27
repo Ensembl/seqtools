@@ -112,6 +112,9 @@
   -t <title>  Set window title.\n\
   -g          Draw grid line (for debugging).\n\
   -u          Start up with uncoloured alignment (faster).\n\
+  -h, --help  Show this usage information\n\
+  --compiled  Show package compile date\n\
+  --version   Show package version number\n\
 \n\
  Some X options:\n\
   -acefont <font>   Main font.\n\
@@ -394,6 +397,7 @@ int main(int argc, char **argv)
   gboolean gridOn = FALSE;
   gboolean init_rmPartial = FALSE;
   
+  static gboolean showHelp = FALSE;
   static gboolean showCompiled = FALSE;
   static gboolean showVersion = FALSE;
   
@@ -402,10 +406,12 @@ int main(int argc, char **argv)
     {
       {"compiled",		no_argument,        &showCompiled, 1},
       {"version",	        no_argument,        &showVersion, 1},
+
+      {"help",                  no_argument,        0, 'h'},
       {0, 0, 0, 0}
     };
   
-  char        *optstring="aBb:CcGgil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
+  char        *optstring="aBb:CcGghil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -429,8 +435,8 @@ int main(int argc, char **argv)
           case 'l': 
             colorCodesFile = g_malloc(strlen(optarg)+1);
             strcpy(colorCodesFile, optarg);             break;
-          case 'i': 
-            bc->ignoreGapsOn = TRUE;                    break;
+          case 'h': showHelp = TRUE;                    break;
+          case 'i': bc->ignoreGapsOn = TRUE;            break;
           case 'L': 
             markupColorCodesFile = g_malloc(strlen(optarg)+1);
             strcpy(markupColorCodesFile, optarg);       break;
@@ -543,7 +549,7 @@ int main(int argc, char **argv)
     }
   
   
-  if (argc-optind < 1) 
+  if (argc-optind < 1 || showHelp) 
     { 
       showUsageText();
       exit(1);

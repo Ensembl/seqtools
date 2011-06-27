@@ -58,6 +58,9 @@
   -t <title>  Set window title.
   -g          Draw grid line (for debugging).
   -u          Start up with uncoloured alignment (faster).
+  -h, --help  Show this usage information
+  --compiled  Show package compile date
+  --version   Show package version number
 
  Some X options:
   -acefont <font>   Main font.
