@@ -1570,7 +1570,7 @@ static gboolean onMouseMoveSeqArea(GtkWidget *widget, GdkEventMotion *event, gpo
 
 
 /* Implement custom scrolling for horizontal mouse wheel movements over the alignment. */
-static gboolean onScrollAlignment(GtkWidget *grid, GdkEventScroll *event, gpointer data)
+static gboolean onScrollAlignment(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
   gboolean handled = FALSE;
   
@@ -1579,30 +1579,36 @@ static gboolean onScrollAlignment(GtkWidget *grid, GdkEventScroll *event, gpoint
   
   switch (event->direction)
     {
+      /* left/right scrolling for sequence area or sequence header only */
       case GDK_SCROLL_LEFT:
         {
-          hScrollLeftRight(belvuAlignment, TRUE, properties->hAdjustment->step_increment);
+          if (widget == properties->seqArea || widget == properties->seqHeader)
+            hScrollLeftRight(belvuAlignment, TRUE, properties->hAdjustment->step_increment);
           handled = TRUE;
           break;
         }
         
       case GDK_SCROLL_RIGHT:
         {
-          hScrollLeftRight(belvuAlignment, FALSE, properties->hAdjustment->step_increment);
+          if (widget == properties->seqArea || widget == properties->seqHeader)
+            hScrollLeftRight(belvuAlignment, FALSE, properties->hAdjustment->step_increment);
           handled = TRUE;
           break;
         }
 
+      /* up/down scrolling for sequence area or columns area only */
       case GDK_SCROLL_UP:
         {
-          vScrollUpDown(belvuAlignment, TRUE, properties->vAdjustment->step_increment);
+          if (widget == properties->seqArea || widget == properties->columnsArea)
+            vScrollUpDown(belvuAlignment, TRUE, properties->vAdjustment->step_increment);
           handled = TRUE;
           break;
         }
         
       case GDK_SCROLL_DOWN:
         {
-          vScrollUpDown(belvuAlignment, FALSE, properties->vAdjustment->step_increment);
+          if (widget == properties->seqArea || widget == properties->columnsArea)
+            vScrollUpDown(belvuAlignment, FALSE, properties->vAdjustment->step_increment);
           handled = TRUE;
           break;
         }
@@ -1682,14 +1688,18 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
 
       /* Connect signals */
       gtk_widget_add_events(columnsArea, GDK_BUTTON_PRESS_MASK);
+      g_signal_connect(G_OBJECT(columnsArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
+      g_signal_connect(G_OBJECT(columnsArea), "button-press-event", G_CALLBACK(onButtonPressColumnsArea), belvuAlignment);
+      g_signal_connect(G_OBJECT(columnsArea), "scroll-event",  G_CALLBACK(onScrollAlignment), belvuAlignment);
+      
+      g_signal_connect(G_OBJECT(columnsHeader), "expose-event", G_CALLBACK(onExposeBelvuColumnsHeader), belvuAlignment);  
+
+      gtk_widget_add_events(seqHeader, GDK_BUTTON_PRESS_MASK);
+      g_signal_connect(G_OBJECT(seqHeader), "expose-event", G_CALLBACK(onExposeBelvuSequenceHeader), belvuAlignment);  
+      g_signal_connect(G_OBJECT(seqHeader), "scroll-event",  G_CALLBACK(onScrollAlignment), belvuAlignment);
+
       gtk_widget_add_events(seqArea, GDK_BUTTON_RELEASE_MASK);
       gtk_widget_add_events(seqArea, GDK_POINTER_MOTION_MASK);
-
-      g_signal_connect(G_OBJECT(columnsArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
-      g_signal_connect(G_OBJECT(columnsHeader), "expose-event", G_CALLBACK(onExposeBelvuColumnsHeader), belvuAlignment);  
-      g_signal_connect(G_OBJECT(seqHeader), "expose-event", G_CALLBACK(onExposeBelvuSequenceHeader), belvuAlignment);  
-
-      g_signal_connect(G_OBJECT(columnsArea), "button-press-event", G_CALLBACK(onButtonPressColumnsArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-press-event", G_CALLBACK(onButtonPressSeqArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-release-event", G_CALLBACK(onButtonReleaseSeqArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "motion-notify-event", G_CALLBACK(onMouseMoveSeqArea), belvuAlignment);
