@@ -1569,6 +1569,54 @@ static gboolean onMouseMoveSeqArea(GtkWidget *widget, GdkEventMotion *event, gpo
 }
 
 
+/* Implement custom scrolling for horizontal mouse wheel movements over the alignment. */
+static gboolean onScrollAlignment(GtkWidget *grid, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  GtkWidget *belvuAlignment = GTK_WIDGET(data);
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  switch (event->direction)
+    {
+      case GDK_SCROLL_LEFT:
+        {
+          hScrollLeftRight(belvuAlignment, TRUE, properties->hAdjustment->step_increment);
+          handled = TRUE;
+          break;
+        }
+        
+      case GDK_SCROLL_RIGHT:
+        {
+          hScrollLeftRight(belvuAlignment, FALSE, properties->hAdjustment->step_increment);
+          handled = TRUE;
+          break;
+        }
+
+      case GDK_SCROLL_UP:
+        {
+          vScrollUpDown(belvuAlignment, TRUE, properties->vAdjustment->step_increment);
+          handled = TRUE;
+          break;
+        }
+        
+      case GDK_SCROLL_DOWN:
+        {
+          vScrollUpDown(belvuAlignment, FALSE, properties->vAdjustment->step_increment);
+          handled = TRUE;
+          break;
+        }
+        
+      default:
+        {
+          handled = FALSE;
+          break;
+        }
+    };
+  
+  return handled;
+}
+
 /***********************************************************
  *                      Initialisation                     *
  ***********************************************************/
@@ -1611,7 +1659,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       const int xpad = 0, ypad = 0;
 
       /* Create the scrollbars */
-      hAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->maxLen + 1, 1, 0, 0));
+      hAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->maxLen + 1, 5, 0, 0));
       vAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->alignArr->len + 1, 1, 0, 0));
       GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
       GtkWidget *vScrollbar = gtk_vscrollbar_new(vAdjustment);
@@ -1634,17 +1682,13 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
 
       /* Connect signals */
       gtk_widget_add_events(columnsArea, GDK_BUTTON_PRESS_MASK);
-      gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
       gtk_widget_add_events(seqArea, GDK_BUTTON_RELEASE_MASK);
       gtk_widget_add_events(seqArea, GDK_POINTER_MOTION_MASK);
 
+      g_signal_connect(G_OBJECT(columnsArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
       g_signal_connect(G_OBJECT(columnsHeader), "expose-event", G_CALLBACK(onExposeBelvuColumnsHeader), belvuAlignment);  
       g_signal_connect(G_OBJECT(seqHeader), "expose-event", G_CALLBACK(onExposeBelvuSequenceHeader), belvuAlignment);  
 
-      g_signal_connect(G_OBJECT(columnsArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
-      g_signal_connect(G_OBJECT(seqArea), "expose-event", G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
-      g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
-      
       g_signal_connect(G_OBJECT(columnsArea), "button-press-event", G_CALLBACK(onButtonPressColumnsArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-press-event", G_CALLBACK(onButtonPressSeqArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-release-event", G_CALLBACK(onButtonReleaseSeqArea), belvuAlignment);
@@ -1670,10 +1714,12 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       
       hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(seqArea));
       vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(seqArea));
-      
-      g_signal_connect(G_OBJECT(seqArea), "expose-event", G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
-      g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
     }
+
+  gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(seqArea), "expose-event",  G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
+  g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
+  g_signal_connect(G_OBJECT(seqArea), "scroll-event",  G_CALLBACK(onScrollAlignment), belvuAlignment);
   
   /* Set the style and properties */
   g_assert(belvuAlignment);
