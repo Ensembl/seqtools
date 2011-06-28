@@ -4909,19 +4909,19 @@ void separateMarkupLines(BelvuContext *bc)
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ) 
     {
-    ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-    
-    if (alnp->markup) 
-      {
-      /* printf ("Moving line %d, %s/%d-%d, nseq=%d\n", i, alnp->name, alnp->start, alnp->end, nseq);*/
-      g_array_append_val(bc->markupAlignArr, *alnp);
-      g_array_sort(bc->markupAlignArr, alphaorder);
-      g_array_remove_index(bc->alignArr, i);
-      }
-    else
-      {
-      ++i;
-      }
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      
+      if (alnp->markup) 
+        {
+          /* printf ("Moving line %d, %s/%d-%d, nseq=%d\n", i, alnp->name, alnp->start, alnp->end, nseq);*/
+          g_array_append_val(bc->markupAlignArr, *alnp);
+          g_array_sort(bc->markupAlignArr, alphaorder);
+          g_array_remove_index(bc->alignArr, i);
+        }
+      else
+        {
+          ++i;
+        }
     }
   
   arrayOrder(bc->alignArr);
@@ -6211,16 +6211,17 @@ void rmPartialSeqs(BelvuContext *bc)
           if (bc->selectedAln == alni) 
             bc->selectedAln = 0;
           
-          g_array_remove_index(bc->alignArr, alni->nr);
-          g_array_sort(bc->alignArr, nrorder);
-
+          g_array_remove_index(bc->alignArr, i);
           bc->saved = 0;
 	}
-      else i++;
+      else 
+        {
+          ++i;
+        }
     }
-  
+
   g_message("%d partial sequences removed.  %d seqs left.\n\n", n, bc->alignArr->len);
-  
+
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);
 }
@@ -6251,8 +6252,6 @@ void rmGappySeqs(BelvuContext *bc, const double cutoff)
             bc->selectedAln = 0;
           
           g_array_remove_index(bc->alignArr, i);
-          g_array_sort(bc->alignArr, nrorder);
-          
           bc->saved = 0;
 	}
       else 
@@ -6290,7 +6289,7 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
   for (i = 0; i < bc->alignArr->len; i++) 
     {
       alni = &g_array_index(bc->alignArr, ALN, i);
-      char *alniSeq = alnGetSeq(alnj);
+      char *alniSeq = alnGetSeq(alni);
 
       for (j = 0; j < bc->alignArr->len; j++) 
         {
@@ -6318,8 +6317,6 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
                 bc->selectedAln = NULL;
               
               g_array_remove_index(bc->alignArr, j);
-              g_array_sort(bc->alignArr, nrorder);
-
               bc->saved = FALSE;
               
               if (j < i) 

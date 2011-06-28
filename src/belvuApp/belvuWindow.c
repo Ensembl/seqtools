@@ -587,27 +587,7 @@ static void onCloseMenu(GtkAction *action, gpointer data)
 static void onQuitMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
-
-  gboolean quit = TRUE;
-  
-  /* If this is the main window and the alignment has not been saved, ask
-   * the user if they want to save it. */
-  if (stringsEqual(gtk_widget_get_name(window), MAIN_BELVU_WINDOW_NAME, TRUE))
-    {
-      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
-      
-      if (!properties->bc->saved)
-        {
-          BelvuWindowProperties *properties = belvuWindowGetProperties(window);
-          quit = saveAlignmentPrompt(window, properties->bc);
-        }
-    }
-  
-  if (quit)
-    {
-      gtk_widget_destroy(window);
-      gtk_main_quit();
-    }
+  gtk_widget_destroy(window);
 }
 
 static void onHelpMenu(GtkAction *action, gpointer data)
@@ -1416,7 +1396,9 @@ static BelvuWindowProperties* belvuWindowGetProperties(GtkWidget *widget)
   return widget ? (BelvuWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BelvuWindowProperties")) : NULL;
 }
 
-static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
+
+/* Does the job of destroying the belvu window */
+static void destroyBelvuWindow(GtkWidget *belvuWindow)
 {
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
@@ -1431,6 +1413,28 @@ static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
     }
 
   gtk_main_quit();  
+}
+
+
+/* Signal handler for when the main belvu window is closed (note that if the
+ * alignment is not saved the user may cancel) */
+static void onDestroyBelvuWindow(GtkWidget *belvuWindow)
+{
+  gboolean destroy = TRUE;
+  
+  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  
+  if (!properties->bc->saved)
+    {
+      /* The alignment has not been saved - ask the user if they want to save/cancel */
+      BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+      destroy = saveAlignmentPrompt(belvuWindow, properties->bc);
+    }
+  
+  if (destroy)
+    {
+      destroyBelvuWindow(belvuWindow);
+    }
 }
 
 
