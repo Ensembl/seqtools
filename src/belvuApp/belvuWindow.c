@@ -3308,28 +3308,6 @@ void showAnnotationWindow(BelvuContext *bc)
  *                           Updates                       *
  ***********************************************************/
 
-/* This should be called whenever the selected sequence has changed */
-void onRowSelectionChanged(BelvuContext *bc)
-{
-  /* Redraw the alignment widget */
-  belvuAlignmentRedrawAll(bc->belvuAlignment);
-  centerHighlighted(bc, bc->belvuAlignment);
-  
-  /* Redraw all of the trees */
-  belvuTreeRedrawAll(bc->belvuTree, NULL);
-  
-  /* Set the status of the 'exclude highlighted' toggle menu option
-   * depending on whether the newly-selected sequence is selected or not
-   * (or grey it out if nothing is selected) */
-  BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
-  enableMenuAction(properties->actionGroup, "excludeHighlighted", bc->selectedAln != NULL);
-  
-  if (bc->selectedAln)
-    {
-      setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
-    }
-}
-
 
 /* Update the feedback box to show info about the currently-selected items */
 static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
@@ -3354,7 +3332,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
       tmpStr = blxprintf("%s/%d-%d", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end);
       g_string_append(resultStr, tmpStr);
       g_free(tmpStr);
-  
+      
       /* If a column is selected, display info about the selected alignment's
        * coord at that column position. */
       if (bc->selectedCol > 0)
@@ -3363,7 +3341,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
           tmpStr = blxprintf("  %c = ", selectedSeq[bc->selectedCol - 1]);
           g_string_append(resultStr, tmpStr);
           g_free(tmpStr);
-      
+          
           /* Loop through each column before the selected column and calculate the
            * number of gaps. Also note whether we see an asterisk in the sequence */
           gboolean hasAsterisk = FALSE;
@@ -3377,7 +3355,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
               else if (selectedSeq[colIdx] == '*') 
                 hasAsterisk = TRUE;
             }
-      
+          
           if (hasAsterisk)
             {
               g_string_append(resultStr, "(unknown position due to insertion)");
@@ -3389,7 +3367,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
               g_free(tmpStr);
             }
         }
-
+      
       /* Display the total number of highlighted alignments */
       const int numHighlighted = g_slist_length(bc->highlightedAlns);
       
@@ -3402,10 +3380,36 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
       
       g_string_append(resultStr, ")");
     }
-
+  
   gtk_entry_set_text(GTK_ENTRY(feedbackBox), resultStr->str);
   
   g_string_free(resultStr, TRUE);
+}
+
+
+/* This should be called whenever the selected sequence has changed */
+void onRowSelectionChanged(BelvuContext *bc)
+{
+  /* Redraw the alignment widget */
+  belvuAlignmentRedrawAll(bc->belvuAlignment);
+  centerHighlighted(bc, bc->belvuAlignment);
+  
+  /* Redraw all of the trees */
+  belvuTreeRedrawAll(bc->belvuTree, NULL);
+  
+  /* Set the status of the 'exclude highlighted' toggle menu option
+   * depending on whether the newly-selected sequence is selected or not
+   * (or grey it out if nothing is selected) */
+  BelvuWindowProperties *properties = belvuWindowGetProperties(bc->belvuWindow);
+  enableMenuAction(properties->actionGroup, "excludeHighlighted", bc->selectedAln != NULL);
+  
+  if (bc->selectedAln)
+    {
+      setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
+    }
+
+  /* Update the feedback box */
+  updateFeedbackBox(properties->bc, properties->feedbackBox);
 }
 
 
