@@ -1703,6 +1703,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       g_signal_connect(G_OBJECT(seqArea), "button-press-event", G_CALLBACK(onButtonPressSeqArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "button-release-event", G_CALLBACK(onButtonReleaseSeqArea), belvuAlignment);
       g_signal_connect(G_OBJECT(seqArea), "motion-notify-event", G_CALLBACK(onMouseMoveSeqArea), belvuAlignment);
+      g_signal_connect(G_OBJECT(seqArea), "scroll-event",  G_CALLBACK(onScrollAlignment), belvuAlignment);
 
       g_signal_connect(G_OBJECT(hAdjustment), "changed", G_CALLBACK(onHScrollRangeChangedBelvuAlignment), belvuAlignment);
       g_signal_connect(G_OBJECT(vAdjustment), "changed", G_CALLBACK(onVScrollRangeChangedBelvuAlignment), belvuAlignment);
@@ -1716,7 +1717,7 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
        * therefore just place it in a standard scrolled window. We also don't
        * need to worry about button-press events because this widget is not
        * interactive; it's just for printing. */
-      seqArea = gtk_layout_new(hAdjustment, vAdjustment);
+      seqArea = gtk_layout_new(NULL, NULL);
 
       belvuAlignment = gtk_scrolled_window_new(NULL, NULL);
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(belvuAlignment), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
@@ -1729,7 +1730,6 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
   gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(seqArea), "expose-event",  G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
   g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
-  g_signal_connect(G_OBJECT(seqArea), "scroll-event",  G_CALLBACK(onScrollAlignment), belvuAlignment);
   
   /* Set the style and properties */
   g_assert(belvuAlignment);

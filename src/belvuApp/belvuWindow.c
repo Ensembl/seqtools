@@ -186,6 +186,8 @@ static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 static GenericWindowProperties*  windowGetProperties(GtkWidget *widget);
 static BelvuContext*             windowGetContext(GtkWidget *window);
 static void			 createOrganismWindow(BelvuContext *bc);
+static void                      onDestroyBelvuWindow(GtkWidget *belvuWindow);
+
 
 /***********************************************************
  *                      Menus and Toolbar                  *
@@ -587,7 +589,26 @@ static void onCloseMenu(GtkAction *action, gpointer data)
 static void onQuitMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
-  gtk_widget_destroy(window);
+  BelvuContext *bc = windowGetContext(window);
+
+  if (stringsEqual(gtk_widget_get_name(window), MAIN_BELVU_WINDOW_NAME, TRUE))
+    {
+      /* If this is the main window, just call its destructor function, which
+       * handles save-checking and quitting the application itself (and we don't
+       * want to do that twice). */
+      onDestroyBelvuWindow(window);
+    }
+  else
+    {
+      gboolean quit = TRUE;
+      
+      /* Check if the alignment has been save and if not give the option to cancel */
+      if (!bc->saved)
+        quit = saveAlignmentPrompt(window, bc);
+      
+      if (quit)
+        gtk_main_quit();
+    }
 }
 
 static void onHelpMenu(GtkAction *action, gpointer data)
