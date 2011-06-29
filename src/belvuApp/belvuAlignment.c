@@ -502,6 +502,8 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
   
   while (paragraph * properties->wrapWidth + totCollapsed < bc->maxLen)
     {
+      gboolean emptyPara = TRUE;
+      
       for (j = 0; j < bc->alignArr->len; ++j)
 	{
           ALN *alnp = &g_array_index(bc->alignArr, ALN, j);
@@ -514,20 +516,21 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
           int alnlen = ( (paragraph+1)*properties->wrapWidth +totCollapsed < bc->maxLen ? properties->wrapWidth : bc->maxLen - alnstart );
           int alnend = min(alnstart + alnlen, alnGetSeqLen(alnp));
           
-          gboolean empty = TRUE;
-          for (empty=1, i = alnstart; i < alnend; i++) 
+          gboolean emptyLine = TRUE;
+          for (i = alnstart; i < alnend; ++i) 
             {
               if (alnpSeq && !isGap(alnpSeq[i]) && alnpSeq[i] != ' ') 
                 {
-                  empty = FALSE;
+                  emptyLine = FALSE;
+                  emptyPara = FALSE;
                   break;
                 }
             }
           
-          const int y = line * properties->charHeight;
-
-          if (!empty) 
+          if (!emptyLine) 
             {
+              const int y = line * properties->charHeight;
+
               for (collapsePos = 0, oldpos = pos[j], i = alnstart; i < alnend; i++) 
                 {	
                   const int xpos = bc->maxNameLen + bc->maxEndLen + numSpaces + i - alnstart - collapsePos;
@@ -601,35 +604,53 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                   *ch = alnpSeq[i];
                   drawText(widget, drawable, gc, x, y, ch, NULL, NULL);
                 }
-            }
           
-          drawText(widget, drawable, gcText, properties->charWidth, y, alnp->name, NULL, NULL);
-          
-          if (!alnp->markup) 
-            {
-              char *tmpStr = blxprintf("%*d", bc->maxEndLen, oldpos);
-              drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr, NULL, NULL);
-              g_free(tmpStr);
+              drawText(widget, drawable, gcText, properties->charWidth, y, alnp->name, NULL, NULL);
               
-              if (alnend == bc->maxLen) 
+              if (!alnp->markup) 
                 {
-                  char *tmpStr = blxprintf("%-d", pos[j] - 1);
-                  drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr, NULL, NULL);
+                  char *tmpStr = blxprintf("%*d", bc->maxEndLen, oldpos);
+                  drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr, NULL, NULL);
                   g_free(tmpStr);
+                  
+                  if (alnend == bc->maxLen) 
+                    {
+                      char *tmpStr = blxprintf("%-d", pos[j] - 1);
+                      drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr, NULL, NULL);
+                      g_free(tmpStr);
+                    }
                 }
+              
+              line++;
             }
-          
-          line++;
         }
-      
+
+      /* Move to next paragraph */
       paragraph++;
-      line++;
+      
+      /* Add a blank line (unless nothing was drawn for this paragraph) */
+      if (!emptyPara)
+        line++;
+      
       totCollapsed += collapsePos;
     }
   
   g_free(seq);
   g_object_unref(gc);
   g_object_unref(gcText);
+
+  /* Set the layout size now we know how big it is */
+  properties->seqRect.height = line * properties->charHeight;
+  
+  gtk_layout_set_size(GTK_LAYOUT(properties->seqArea),
+                      properties->seqRect.x + properties->seqRect.width,
+                      properties->seqRect.y + properties->seqRect.height);
+  
+  if (properties->hAdjustment)
+    gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
+  
+  if (properties->vAdjustment)
+    gtk_adjustment_changed(properties->vAdjustment);
 }
 
 
@@ -1171,15 +1192,19 @@ static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
       if (properties->columnsRect.width != properties->columnsArea->allocation.width)
         gtk_widget_set_size_request(properties->columnsArea, properties->columnsRect.width, -1);
     }
-  
-  gtk_layout_set_size(GTK_LAYOUT(properties->seqArea), properties->seqRect.x + properties->seqRect.width, properties->seqRect.y + properties->seqRect.height);
 
-  if (properties->hAdjustment)
-    gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
+  /* Set the initial size for the sequence area (n/a for wrapped view because
+   * this gets done by the draw function). */
+  if (properties->wrapWidth == UNSET_INT)
+    {
+      gtk_layout_set_size(GTK_LAYOUT(properties->seqArea), properties->seqRect.x + properties->seqRect.width, properties->seqRect.y + properties->seqRect.height);
 
-  if (properties->vAdjustment)
-    gtk_adjustment_changed(properties->vAdjustment);
+      if (properties->hAdjustment)
+        gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
 
+      if (properties->vAdjustment)
+        gtk_adjustment_changed(properties->vAdjustment);
+    }
 
   /* Set the height of the header */
   if (properties->seqHeader)
