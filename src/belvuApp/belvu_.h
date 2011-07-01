@@ -66,6 +66,8 @@ UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
 AUTHOR_TEXT "\n"
 
 
+#define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95   /* default width of belvu window (as fraction of screen width) */
+#define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
 #define DIALOG_XPAD                             12      /* default x padding around dialog widgets */
 #define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
 #define TABLE_XPAD                              12      /* default x padding around table elements */
