@@ -49,12 +49,14 @@
 #define MAIN_BELVU_WINDOW_NAME           "BelvuWindow"
 #define WRAPPED_BELVU_WINDOW_NAME        "WrappedBelvuWindow"
 #define BELVU_ORGS_WINDOW_NAME           "BelvuOrgsWindow" 
+#define BELVU_CONS_PLOT_WINDOW_NAME      "BelvuConsPlot"
 #define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95   /* default width of belvu window (as fraction of screen width) */
 #define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
 #define DEFAULT_WRAP_WINDOW_WIDTH_FRACTION      0.6    /* default width of wrap window (as fraction of screen width) */
 #define DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION     0.85   /* default height of wrap window (as fraction of screen height) */
 #define MAX_ORGS_WINDOW_WIDTH_FRACTION          0.5    /* max width of organisms window (as fraction of screen width) */
 #define MAX_ORGS_WINDOW_HEIGHT_FRACTION         0.7    /* max height of organisms window (as fraction of screen height) */
+#define DEFAULT_CONS_PLOT_SCALE_HEIGHT          200    /* default height of the conservation plot scale */
 #define MAX_ANNOTATION_WINDOW_WIDTH_FRACTION    0.6    /* max width of annotation window (as fraction of screen width) */
 #define MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION   0.7    /* max height of annotation window (as fraction of screen height) */
 #define ORGS_WINDOW_XPAD		    20	  /* x padding for the organisms window */
@@ -155,20 +157,19 @@ static void                      showAboutDialog(GtkWidget *parent);
 static void                      showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow);
 static void                      createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
-static void			 showMakeNonRedundantDialog(GtkWidget *belvuWindow);
-static void			 showRemoveOutliersDialog(GtkWidget *belvuWindow);
-static void			 showRemoveByScoreDialog(GtkWidget *belvuWindow);
+static void	                     showMakeNonRedundantDialog(GtkWidget *belvuWindow);
+static void                      showRemoveOutliersDialog(GtkWidget *belvuWindow);
+static void                      showRemoveByScoreDialog(GtkWidget *belvuWindow);
+static void                      startRemovingSequences(GtkWidget *belvuWindow);
+static void                      endRemovingSequences(GtkWidget *belvuWindow);
 
-static void			 startRemovingSequences(GtkWidget *belvuWindow);
-static void			 endRemovingSequences(GtkWidget *belvuWindow);
-
-static void			 showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
+static void                      showRemoveGappySeqsDialog(GtkWidget *belvuWindow);
 static void                      showRemoveColumnsDialog(GtkWidget *belvuWindow);
 static void                      showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow);
 static void                      showRemoveGappyColumnsDialog(GtkWidget *belvuWindow);
 
 static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
-static void			 showColorByResIdDialog(GtkWidget *belvuWindow);
+static void                      showColorByResIdDialog(GtkWidget *belvuWindow);
 static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      saveOrResetConsColors(BelvuContext *bc, const gboolean save);
@@ -176,17 +177,19 @@ static void                      showSelectGapCharDialog(GtkWidget *belvuWindow)
 
 static gboolean                  saveAlignmentPrompt(GtkWidget *window, BelvuContext *bc);
 
-static const char*		 saveFasta(BelvuContext *bc, GtkWidget *parent);
-static const char*		 saveMul(BelvuContext *bc, GtkWidget *parent);
-static const char*		 saveMsf(BelvuContext *bc, GtkWidget *parent);
-static void			 showSaveAsDialog(GtkWidget *belvuWindow);
-static gboolean			 saveAlignment(BelvuContext *bc, GtkWidget *window);
+static const char*               saveFasta(BelvuContext *bc, GtkWidget *parent);
+static const char*               saveMul(BelvuContext *bc, GtkWidget *parent);
+static const char*               saveMsf(BelvuContext *bc, GtkWidget *parent);
+static void                      showSaveAsDialog(GtkWidget *belvuWindow);
+static gboolean                  saveAlignment(BelvuContext *bc, GtkWidget *window);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
 static GenericWindowProperties*  windowGetProperties(GtkWidget *widget);
 static BelvuContext*             windowGetContext(GtkWidget *window);
-static void			 createOrganismWindow(BelvuContext *bc);
+static void                      createOrganismWindow(BelvuContext *bc);
 static void                      onDestroyBelvuWindow(GtkWidget *belvuWindow);
+
+static void                      createConsPlot(BelvuContext *bc);
 
 
 /***********************************************************
@@ -583,7 +586,12 @@ GtkWidget* createBelvuMenu(GtkWidget *window,
 static void onCloseMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
-  gtk_widget_destroy(window);
+  BelvuContext *bc = windowGetContext(window);
+
+  if (window == bc->consPlot) /* conservation plot is persistent, so just hide it rather than closing */
+    gtk_widget_hide_all(window);
+  else
+    gtk_widget_destroy(window);
 }
 
 static void onQuitMenu(GtkAction *action, gpointer data)
@@ -742,6 +750,18 @@ static void onTreeOptsMenu(GtkAction *action, gpointer data)
 
 static void onConsPlotMenu(GtkAction *action, gpointer data)
 {
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  if (bc->consPlot)
+    {
+      gtk_widget_show_all(bc->consPlot);
+      gtk_window_present(GTK_WINDOW(bc->consPlot));
+    }
+  else
+    {
+      createConsPlot(bc);
+    }
 }
 
 
@@ -3263,6 +3283,112 @@ static void createOrganismWindow(BelvuContext *bc)
 
 
 /***********************************************************
+ *                    Conservation Plot                    *
+ ***********************************************************/
+
+static void setConsPlotStyleProperties(GtkWidget *window, BelvuContext *bc)
+{
+  gtk_widget_set_name(window, BELVU_CONS_PLOT_WINDOW_NAME);
+
+  /* Just hide the widget when it is closed rather than destroy it */
+  g_signal_connect(window, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+
+  /* Set default size based on scale height and alignment window width */
+  GdkScreen *screen = gtk_widget_get_screen(window);
+  const int screenWidth = gdk_screen_get_width(screen);
+  const int screenHeight = gdk_screen_get_height(screen);
+
+  const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
+  const int height = DEFAULT_CONS_PLOT_SCALE_HEIGHT;
+
+  gtk_window_set_default_size(GTK_WINDOW(window), width, height);
+
+  /* Set the initial position */
+  const int x = (screenWidth - width) / 4;
+  const int y = (screenHeight - height) / 4;
+  gtk_window_move(GTK_WINDOW(window), x, y);
+}
+
+
+static void drawConsPlot(GtkWidget *consPlot, GdkDrawable *drawable, BelvuContext *bc)
+{
+}
+
+
+static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpointer data)
+{
+  BelvuContext *bc = (BelvuContext*)data;
+
+  GdkDrawable *window = widget->window;
+
+  if (window)
+    {
+      GdkDrawable *bitmap = widgetGetDrawable(widget);
+
+      if (!bitmap)
+        {
+          /* There isn't a bitmap yet. Create it now. */
+          bitmap = createBlankSizedPixmap(widget, window, widget->allocation.width, widget->allocation.height);
+          drawConsPlot(widget, bitmap, bc);
+        }
+
+      if (bitmap)
+        {
+          /* Push the bitmap onto the window */
+          GdkGC *gc = gdk_gc_new(window);
+          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          g_object_unref(gc);
+        }
+      else
+        {
+          g_warning("Failed to draw conservation plot [%p] - could not create bitmap.\n", widget);
+        }
+    }
+
+  return TRUE;
+}
+
+
+static void createConsPlot(BelvuContext *bc)
+{
+  /* Create the window */
+  bc->consPlot = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  setConsPlotStyleProperties(bc->consPlot, bc);
+
+  gtk_window_set_title(GTK_WINDOW(bc->consPlot), "Belvu - Conservation Profile");
+
+  /* We must add all toplevel windows to the list of spawned windows */
+  bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, bc->consPlot);
+
+  /* Create the context menu and set a callback to show it */
+  GtkActionGroup *actionGroup = NULL;
+  GtkUIManager *uiManager = createUiManager(bc->consPlot, bc, &actionGroup);
+  GtkWidget *contextmenu = createBelvuMenu(bc->consPlot, "/PlotContextMenu", uiManager);
+
+  gtk_widget_add_events(bc->consPlot, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(bc->consPlot), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
+
+  /* We'll place everything in a vbox */
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(bc->consPlot), vbox);
+
+  /* Add the drawing area */
+  GtkWidget *drawing = gtk_drawing_area_new();
+  gtk_box_pack_start(GTK_BOX(vbox), drawing, TRUE, TRUE, 0);
+  g_signal_connect(G_OBJECT(drawing), "expose-event", G_CALLBACK(onExposeConsPlot), bc);
+
+  /* Set default background color */
+  GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);
+  gtk_widget_modify_bg(drawing, GTK_STATE_NORMAL, bgColor);
+
+  /* Set properties */
+  genericWindowCreateProperties(bc->consPlot, bc, actionGroup);
+
+  gtk_widget_show_all(bc->consPlot);
+  gtk_window_present(GTK_WINDOW(bc->consPlot));
+}
+
+/***********************************************************
  *                           Updates                       *
  ***********************************************************/
 
@@ -3772,13 +3898,6 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   gtk_widget_add_events(window, GDK_KEY_PRESS_MASK);
   g_signal_connect(G_OBJECT(window), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBelvu), bc);
-  
-//  graphRegister(PICK, boxPick);
-//  graphRegister(MIDDLE_DOWN, middleDown);
-//  graphRegister(RESIZE, belvuRedraw);
-//  graphRegister(KEYBOARD, keyboard);
-//  graphRegister(DESTROY, belvuDestroy) ;
-//  
 
   belvuWindowCreateProperties(window, bc, statusBar, feedbackBox, actionGroup);
   

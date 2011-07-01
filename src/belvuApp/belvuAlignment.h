@@ -42,19 +42,19 @@
 #include <gtk/gtk.h>
 
 GtkWidget*              createBelvuAlignment(BelvuContext *bc, const char *title, const int wrapWidth);
-void			belvuAlignmentRedrawAll(GtkWidget *belvuAlignment);
+void                    belvuAlignmentRedrawAll(GtkWidget *belvuAlignment);
 void                    belvuAlignmentRefreshAll(GtkWidget *belvuAlignment);
 void                    updateOnAlignmentLenChanged(GtkWidget *belvuAlignment);
 
-void			updateOnVScrollSizeChaged(GtkWidget *belvuAlignment);
-void			centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment);
+void                    updateOnVScrollSizeChaged(GtkWidget *belvuAlignment);
+void                    centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment);
 
-void			removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment);
-void			removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
-void			removePartialSeqs(BelvuContext *bc, GtkWidget *belvuAlignment);
-void			removeRedundantSeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
-void			removeOutliers(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
-void			removeByScore(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
+void                    removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment);
+void                    removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
+void                    removePartialSeqs(BelvuContext *bc, GtkWidget *belvuAlignment);
+void                    removeRedundantSeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
+void                    removeOutliers(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
+void                    removeByScore(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff);
 
 void                    vScrollStartEnd(GtkWidget *belvuAlignment, const gboolean start);
 void                    hScrollStartEnd(GtkWidget *belvuAlignment, const gboolean start);
@@ -62,5 +62,8 @@ void                    vScrollPageUpDown(GtkWidget *belvuAlignment, const gbool
 void                    hScrollPageLeftRight(GtkWidget *belvuAlignment, const gboolean left);
 void                    vScrollUpDown(GtkWidget *belvuAlignment, const gboolean up, const int numRows);
 void                    hScrollLeftRight(GtkWidget *belvuAlignment, const gboolean left, const int numChars);
+
+int                     belvuAlignmentGetWidth(GtkWidget *belvuAlignment);
+
 
 #endif /* _belvualignment_h_included_ */

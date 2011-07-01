@@ -522,6 +522,18 @@ GtkWidget*                         displayFetchResults(const char *title, const 
 
 int                                scrollBarWidth();
 
+void                               drawHScale(GtkWidget *widget, 
+                                              GdkDrawable *drawable,
+                                              const IntRange const *range,
+                                              const GdkRectangle const *rect,
+                                              const int widthPerVal,       
+                                              const int majorTickInterval, 
+                                              const int labelInterval,     
+                                              const int minorTickHeight,
+                                              const int majorTickHeight);
+
+
+
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
 

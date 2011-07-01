@@ -4139,3 +4139,64 @@ int scrollBarWidth()
   return result;
 }
 
+
+
+/***********************************************************
+ *		            Scale			   * 
+ ***********************************************************/
+
+/* Utility to draw a horizontal scale. Currently limited to draw a minor
+ * tickmark at every value in the given range. (Could be improved to allow
+ * minor tickmarks at larger intervals.) */
+void drawHScale(GtkWidget *widget, 
+                GdkDrawable *drawable,
+                const IntRange const *range, /* the range of values to draw */
+                const GdkRectangle const *rect, /* the drawing area */
+                const int widthPerVal,       /* the width between each value in the range */
+                const int majorTickInterval, /* how many values at which to draw major tickmarks */
+                const int labelInterval,     /* how many values at which to draw labels */
+                const int minorTickHeight,
+                const int majorTickHeight)
+{
+  GdkGC *gc = gdk_gc_new(drawable);
+  
+  int y = rect->y;
+  const int yBottom = y + rect->height;            /* bottom pos of tickmarks */
+  const int yTopMajor = yBottom - majorTickHeight; /* top position of major tickmarks */
+  const int yTopMinor = yBottom - minorTickHeight; /* top position of major tickmarks */
+  
+  int x = rect->x + widthPerVal / 2;
+  int tickmarkVal = range->min;
+
+  for ( ; tickmarkVal <= range->max; ++tickmarkVal, x += widthPerVal)
+    {
+      const gboolean major = (tickmarkVal % majorTickInterval == 0);
+      const gboolean drawLabel = (tickmarkVal % labelInterval == 0);
+      
+      /* Draw the tick mark */
+      const int yTop = (major ? yTopMajor : yTopMinor);
+      gdk_draw_line(drawable, gc, x, yTop, x, yBottom);
+      
+      if (drawLabel)
+        {
+          char *tmpStr = blxprintf("%d", tickmarkVal);
+          PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
+          g_free(tmpStr);
+          
+          /* Centre the text on the tick-mark position */
+          int width;
+          pango_layout_get_pixel_size(layout, &width, NULL);
+          
+          gdk_draw_layout(drawable, gc, x - width / 2, y, layout);
+          g_object_unref(layout);
+        }
+    }
+  
+  /* Draw a horizontal separator line */
+  y = yBottom - 1;
+  x = 0;
+  gdk_draw_line(drawable, gc, x, y, x + rect->width, y);
+  
+  g_object_unref(gc);
+}
+

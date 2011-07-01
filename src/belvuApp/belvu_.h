@@ -322,6 +322,7 @@ typedef struct BelvuContextStruct
   GSList *spawnedWindows;          /* List of all top-level windows spawned from the main window */
   GtkWidget *belvuTree;            /* The tree window */
   GtkWidget *belvuAlignment;       /* The widget that draws the alignments for the main window */
+  GtkWidget *consPlot;             /* The conservation-plot window */
 
   GArray *defaultColors;           /* Default colors used by Belvu */
   
