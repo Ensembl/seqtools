@@ -3692,6 +3692,10 @@ static void createBelvuColors(BelvuContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_LINE, "Default tree line color", "Default tree line color", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_TEXT, "Default tree text color", "Default tree text color", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_BOOTSTRAP, "Tree boostrap line color", "Tree boostrap line color", BLX_BLUE, BLX_BLUE, NULL, NULL);
+
+  /* Conservation plot */
+  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT, "Line color of the conservation plot", "Line color of the conservation plot", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_AVG, "Average-conservation line color on the conservation profile", "Average-conservation line color on the conservation profile", BLX_RED, BLX_GREY, NULL, NULL);
 }
 
 

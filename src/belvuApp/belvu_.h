@@ -181,7 +181,9 @@ typedef enum _BelvuColorId
     BELCOLOR_TREE_LINE,                       /* default line color for the tree */
     BELCOLOR_TREE_TEXT,                       /* default text color for the tree */
     BELCOLOR_TREE_BOOTSTRAP,
-    
+    BELCOLOR_CONS_PLOT,                       /* line color of the plot on the conservation profile */
+    BELCOLOR_CONS_PLOT_AVG,                   /* line color of the average line on the conservation plot */
+
     BELCOLOR_NUM_COLORS
   } BelvuColorId;
 

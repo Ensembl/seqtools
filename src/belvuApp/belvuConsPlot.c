@@ -58,6 +58,12 @@ typedef struct _ConsPlotProperties
   {
     BelvuContext *bc;                   /* The belvu context */
     GtkActionGroup *actionGroup;
+    
+    int windowSize;                     /* Size of the sliding window used for smothing the profile */
+    double lineWidth;                   /* Line width of the plot */
+    double xScale;                      /* Used for scaling the x axis */
+    double yScale;                      /* Used for scaling the y axis */
+    double conservationRange;           /* Used for position calculations; full range of the conservation plot in plot coords */
   } ConsPlotProperties;
 
 
@@ -95,6 +101,12 @@ static void consPlotCreateProperties(GtkWidget *consPlot,
       properties->bc = bc;
       properties->actionGroup = actionGroup;
 
+      properties->windowSize = 1;
+      properties->lineWidth = 0.2;
+      properties->xScale = 10.0;
+      properties->yScale = 20.0;
+      properties->conservationRange = 0.0;
+      
       g_object_set_data(G_OBJECT(consPlot), "BelvuConsPlotProperties", properties);
       g_signal_connect(G_OBJECT(consPlot), "destroy", G_CALLBACK (onDestroyConsPlot), NULL);
     }
@@ -112,26 +124,155 @@ BelvuContext* consPlotGetContext(GtkWidget *consPlot)
  *                         Drawing                         *
  ***********************************************************/
 
-static void drawConsPlotHeader(GtkWidget *widget, GdkDrawable *drawable, BelvuContext *bc)
+//static void drawConsPlotHeader(GtkWidget *widget, GdkDrawable *drawable, ConsPlotProperties *properties)
+//{
+//  IntRange range = {1, properties->bc->maxLen};
+//  GdkRectangle rect = {CONS_PLOT_XPAD, 0, widget->allocation.width, widget->allocation.height};
+//  const int charWidth = 8;
+//  
+//  drawHScale(widget, 
+//             drawable,
+//             &range,
+//             &rect,
+//             charWidth,
+//             TICKMARK_INTERVAL / 2,
+//             TICKMARK_INTERVAL, 
+//             MINOR_TICKMARK_HEIGHT, 
+//             MAJOR_TICKMARK_HEIGHT);
+//}
+
+
+/* Convert plot coordinates to screen coordinates */
+static double xTran(double x, ConsPlotProperties *properties)
 {
-  IntRange range = {1, bc->maxLen};
-  GdkRectangle rect = {CONS_PLOT_XPAD, 0, widget->allocation.width, widget->allocation.height};
-  const int charWidth = 8;
-  
-  drawHScale(widget, 
-             drawable,
-             &range,
-             &rect,
-             charWidth,
-             TICKMARK_INTERVAL / 2,
-             TICKMARK_INTERVAL, 
-             MINOR_TICKMARK_HEIGHT, 
-             MAJOR_TICKMARK_HEIGHT);
+  return(50 + x * properties->xScale);
+}
+
+static double yTran(double y, ConsPlotProperties *properties)
+{
+  return(30 + properties->conservationRange - y*properties->yScale);
 }
 
 
-static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, BelvuContext *bc)
+static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotProperties *properties)
 {
+  BelvuContext *bc = properties->bc;
+  char *tmpStr = NULL;
+  GdkGC *gc = gdk_gc_new(drawable);
+  
+  /* Smooth the conservation profile by applying a window */
+  double *smooth = g_malloc(bc->maxLen * sizeof(double));
+  
+  double sum = 0.0;
+  
+  int i = 0;
+  for (i = 0; i < properties->windowSize; ++i) 
+    sum += bc->conservation[i];
+  
+  smooth[properties->windowSize / 2] = sum / properties->windowSize;
+  
+  for ( ; i < bc->maxLen; ++i) 
+    {
+      sum -= bc->conservation[i-properties->windowSize];
+      sum += bc->conservation[i];
+      smooth[i - properties->windowSize / 2] = sum/properties->windowSize;
+    }
+  
+  /* Find max and min and avg conservation */
+  double maxcons = -1;
+  double mincons = 10000;
+  double avgcons = 0;
+  
+  for (i = 0; i < bc->maxLen; ++i) 
+    {
+      if (smooth[i] > maxcons) 
+        maxcons = smooth[i];
+      
+      if (smooth[i] < mincons) 
+        mincons = smooth[i];
+      
+      avgcons += bc->conservation[i];
+    }
+  
+  avgcons /= bc->maxLen * 1.0;
+  
+  properties->conservationRange = (maxcons - mincons) * properties->yScale;
+  //graphTextBounds(bc->maxLen * properties->xScale + 30, bc->conservationRange * properties->yScale + 10);
+  
+  tmpStr = blxprintf("Window = %d", properties->windowSize);
+  drawText(widget, drawable, gc, 10, 1, tmpStr, NULL, NULL);
+  g_free(tmpStr);
+  
+  /* Draw x scale */
+  double YscaleBase = -1;
+  
+  gdk_draw_line(drawable, gc, xTran(0, properties), yTran(YscaleBase, properties), xTran(bc->maxLen, properties), yTran(YscaleBase, properties));
+  
+  for (i=0; i < bc->maxLen; i += 10) 
+    {
+      gdk_draw_line(drawable, gc,
+                    xTran(i, properties), yTran(YscaleBase, properties), 
+                    xTran(i, properties), yTran(YscaleBase, properties) + 5);
+      
+      if (i+5 < bc->maxLen - 1)
+        {
+            gdk_draw_line(drawable, gc,
+                          xTran(i+5, properties), yTran(YscaleBase, properties), 
+                          xTran(i+5, properties), yTran(YscaleBase, properties) + 2.5);
+        }
+      
+      tmpStr = blxprintf("%d", i);
+      drawText(widget, drawable, gc, xTran(i, properties) - 5, yTran(YscaleBase, properties) + 1, tmpStr, NULL, NULL);
+      g_free(tmpStr);
+    }
+  
+  /* Draw y scale */
+  double XscaleBase = -1;
+  
+  gdk_draw_line(drawable, gc, xTran(XscaleBase, properties), yTran(0, properties), xTran(XscaleBase, properties), yTran(maxcons, properties));
+  
+  double f = mincons;
+  for ( ; f < maxcons; f += 1) 
+    {
+      gdk_draw_line(drawable, gc, 
+                    xTran(XscaleBase, properties), yTran(f, properties), 
+                    xTran(XscaleBase - 5, properties), yTran(f, properties));
+      
+      if (f+5 < maxcons) 
+        {
+          gdk_draw_line(drawable, gc,
+                        xTran(XscaleBase, properties), yTran(f+5, properties), 
+                        xTran(XscaleBase-2.5, properties), yTran(f+5, properties));
+        }
+      
+      tmpStr = blxprintf("%.0f", f);
+      drawText(widget, drawable, gc, xTran(XscaleBase, properties)-3, yTran(f, properties)-5, tmpStr, NULL, NULL);
+      g_free(tmpStr);
+    }
+  
+  /* Draw average line */
+  GdkColor *avgLineColor = getGdkColor(BELCOLOR_CONS_PLOT_AVG, bc->defaultColors, FALSE, FALSE);
+  gdk_gc_set_foreground(gc, avgLineColor);
+  
+  gdk_draw_line(drawable, gc, xTran(0, properties), yTran(avgcons, properties), xTran(bc->maxLen, properties), yTran(avgcons, properties));
+  drawText(widget, drawable, gc, xTran(bc->maxLen, properties), yTran(avgcons, properties), "Average conservation", NULL, NULL);
+  
+  /* Plot conservation */
+  GdkColor *plotColor = getGdkColor(BELCOLOR_CONS_PLOT, bc->defaultColors, FALSE, FALSE);
+  gdk_gc_set_foreground(gc, plotColor);
+  
+  for (i=1; i < bc->maxLen; ++i) 
+    {
+      gdk_draw_line(drawable, gc, 
+                    xTran(i, properties), yTran(smooth[i-1], properties), 
+                    xTran(i+1, properties), yTran(smooth[i], properties));
+    }
+
+  /* Set the size of the layout now we know how big we need it to be */
+  gtk_layout_set_size(GTK_LAYOUT(widget), 5000, 500);
+  
+  /* Clean up */
+  g_free(smooth);
 }
 
 
@@ -139,44 +280,47 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, BelvuContext 
  *                        Events                           *
  ***********************************************************/
 
-static gboolean onExposeConsPlotHeader(GtkWidget *widget, GdkEventExpose *event, gpointer data)
-{
-  BelvuContext *bc = (BelvuContext*)data;
-  GdkDrawable *window = widget->window;
-  
-  if (window)
-    {
-      GdkDrawable *bitmap = widgetGetDrawable(widget);
-      
-      if (!bitmap)
-        {
-          /* There isn't a bitmap yet. Create it now. */
-          bitmap = createBlankSizedPixmap(widget, window, widget->allocation.width, widget->allocation.height);
-          drawConsPlotHeader(widget, bitmap, bc);
-        }
-      
-      if (bitmap)
-        {
-          /* Push the bitmap onto the window */
-          GdkGC *gc = gdk_gc_new(window);
-          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
-          g_object_unref(gc);
-        }
-      else
-        {
-          g_warning("Failed to draw conservation plot [%p] - could not create bitmap.\n", widget);
-        }
-    }
-  
-  return TRUE;
-}
+//static gboolean onExposeConsPlotHeader(GtkWidget *widget, GdkEventExpose *event, gpointer data)
+//{
+//  GtkWidget *consPlot = GTK_WIDGET(data);
+//  ConsPlotProperties *properties = consPlotGetProperties(consPlot);
+//
+//  GdkDrawable *window = GTK_LAYOUT(widget)->bin_window;
+//  
+//  if (window)
+//    {
+//      GdkDrawable *bitmap = widgetGetDrawable(widget);
+//      
+//      if (!bitmap)
+//        {
+//          /* There isn't a bitmap yet. Create it now. */
+//          bitmap = createBlankSizedPixmap(widget, window, widget->allocation.width, widget->allocation.height);
+//          drawConsPlotHeader(widget, bitmap, properties);
+//        }
+//      
+//      if (bitmap)
+//        {
+//          /* Push the bitmap onto the window */
+//          GdkGC *gc = gdk_gc_new(window);
+//          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+//          g_object_unref(gc);
+//        }
+//      else
+//        {
+//          g_warning("Failed to draw conservation plot [%p] - could not create bitmap.\n", widget);
+//        }
+//    }
+//  
+//  return TRUE;
+//}
 
 
 static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-  BelvuContext *bc = (BelvuContext*)data;
+  GtkWidget *consPlot = GTK_WIDGET(data);
+  ConsPlotProperties *properties = consPlotGetProperties(consPlot);
   
-  GdkDrawable *window = widget->window;
+  GdkDrawable *window = GTK_LAYOUT(widget)->bin_window;
   
   if (window)
     {
@@ -186,7 +330,7 @@ static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpoin
         {
           /* There isn't a bitmap yet. Create it now. */
           bitmap = createBlankSizedPixmap(widget, window, widget->allocation.width, widget->allocation.height);
-          drawConsPlot(widget, bitmap, bc);
+          drawConsPlot(widget, bitmap, properties);
         }
       
       if (bitmap)
@@ -253,21 +397,21 @@ void createConsPlot(BelvuContext *bc)
   gtk_widget_add_events(bc->consPlot, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(bc->consPlot), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
   
-  /* We'll place everything in a vbox */
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(bc->consPlot), vbox);
+  /* We'll place the layout in a scrolled window */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(bc->consPlot), scrollWin);
+  
   
   /* Add the drawing area */
-  GtkWidget *drawing = gtk_drawing_area_new();
-  gtk_box_pack_start(GTK_BOX(vbox), drawing, TRUE, TRUE, 0);
-  g_signal_connect(G_OBJECT(drawing), "expose-event", G_CALLBACK(onExposeConsPlot), bc);
+  GtkWidget *drawing = gtk_layout_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(scrollWin), drawing);
+  g_signal_connect(G_OBJECT(drawing), "expose-event", G_CALLBACK(onExposeConsPlot), bc->consPlot);
   
-  /* Add the header */
-  GtkWidget *header = gtk_drawing_area_new();
-  gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
-  g_signal_connect(G_OBJECT(header), "expose-event", G_CALLBACK(onExposeConsPlotHeader), bc);
-  const int charHeight = 16;
-  gtk_widget_set_size_request(header, -1, charHeight + CONS_PLOT_YPAD);
+//  /* Add the header */
+//  GtkWidget *header = gtk_drawing_area_new();
+//  gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
+//  g_signal_connect(G_OBJECT(header), "expose-event", G_CALLBACK(onExposeConsPlotHeader), bc->consPlot);
+//  gtk_widget_set_size_request(header, -1, charHeight + CONS_PLOT_YPAD);
   
   /* Set default background color */
   GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);
