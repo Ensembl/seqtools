@@ -240,6 +240,8 @@ static void                      onDestroyBelvuWindow(GtkWidget *belvuWindow);
 #define FindOrthogsDesc       "Find putative orthologs"
 #define ShowOrgsStr           "Show organisms"
 #define ShowOrgsDesc          "Show current organisms"
+#define PlotOptsStr           "Properties..."
+#define PlotOptsDesc          "Edit conservation-profile properties"
 
 #define autoRmEmptyColumnsStr  "Automatically remove empty columns"
 #define autoRmEmptyColumnsDesc "Automatically remove columns that are 100% gaps after sequence deletions"
@@ -287,7 +289,7 @@ static const GtkActionEntry menuEntries[] = {
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
   { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
   { "RecalcTree",          NULL,                 "Calculate tree",     NULL,                "Calculate tree",      G_CALLBACK(onRecalcTreeMenu)},
-  { "TreeOpts",	           GTK_STOCK_PROPERTIES, "Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
+  { "TreeOpts",	           GTK_STOCK_PREFERENCES,"Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
   { "Save",                GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
   { "SaveAs",	           GTK_STOCK_SAVE_AS,    "Save _as...",        "<shift><control>S", "Save alignment as",     G_CALLBACK(onSaveAsMenu)},
@@ -318,7 +320,8 @@ static const GtkActionEntry menuEntries[] = {
   {"editColorScheme",    GTK_STOCK_SELECT_COLOR, editColorSchemeStr,   NULL,                editColorSchemeDesc,     G_CALLBACK(oneditColorSchemeMenu)},
 
   {"SaveTree",             GTK_STOCK_SAVE,       SaveTreeStr,          NULL,                SaveTreeDesc,            G_CALLBACK(onSaveTreeMenu)},
-  {"ShowOrgs",             NULL,                 ShowOrgsStr,          NULL,                ShowOrgsDesc,            G_CALLBACK(onShowOrgsMenu)}
+  {"ShowOrgs",             NULL,                 ShowOrgsStr,          NULL,                ShowOrgsDesc,            G_CALLBACK(onShowOrgsMenu)},
+  {"PlotOpts",             GTK_STOCK_PROPERTIES, PlotOptsStr,          NULL,                PlotOptsDesc,            G_CALLBACK(onPlotOptsMenu)}
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -510,7 +513,7 @@ static const char standardMenuDescription[] =
 "  <popup name='PlotContextMenu' accelerators='true'>"
 "    <menuitem action='Close'/>"
 "    <menuitem action='Print'/>"
-//"    <menuitem action='PlotOpts'/>"
+"    <menuitem action='PlotOpts'/>"
 "  </popup>"
 
 /* TOOLBAR */
@@ -3696,6 +3699,7 @@ static void createBelvuColors(BelvuContext *bc, GtkWidget *widget)
   /* Conservation plot */
   createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT, "Line color of the conservation plot", "Line color of the conservation plot", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_AVG, "Average-conservation line color on the conservation profile", "Average-conservation line color on the conservation profile", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_SCALE, "Scale color for the conservation profile", "Scale color for the conservation profile", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
 }
 
 
