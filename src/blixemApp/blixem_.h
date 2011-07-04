@@ -325,8 +325,8 @@ typedef struct _CommandLineOptions
   char *dataset;		  /* the name of a dataset, e.g. 'human' */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
-  gboolean mapCoordsFrom;         /* the coord to map from */
-  gboolean mapCoordsTo;           /* the coord to map to */
+  int mapCoordsFrom;              /* the coord to map from */
+  int mapCoordsTo;                /* the coord to map to */
 } CommandLineOptions;
 
 
