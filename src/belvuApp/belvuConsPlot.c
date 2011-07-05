@@ -47,7 +47,7 @@
 #define TICKMARK_INTERVAL                   10    /* how many values between tickmark labels */
 #define MAJOR_TICKMARK_HEIGHT               6     /* height of major tick marks in the sequence area header */
 #define MINOR_TICKMARK_HEIGHT               3     /* height of minor tick marks in the sequence area header */
-
+#define AVG_CONSERVATION_LABEL              "Average conservation"  /* label to show on the plot's "average conservation" line */
 
 
 /***********************************************************
@@ -139,40 +139,25 @@ BelvuContext* consPlotGetContext(GtkWidget *consPlot)
  *                         Drawing                         *
  ***********************************************************/
 
-//static void drawConsPlotHeader(GtkWidget *widget, GdkDrawable *drawable, ConsPlotProperties *properties)
-//{
-//  IntRange range = {1, properties->bc->maxLen};
-//  GdkRectangle rect = {CONS_PLOT_XPAD, 0, widget->allocation.width, widget->allocation.height};
-//  const int charWidth = 8;
-//  
-//  drawHScale(widget, 
-//             drawable,
-//             &range,
-//             &rect,
-//             charWidth,
-//             TICKMARK_INTERVAL / 2,
-//             TICKMARK_INTERVAL, 
-//             MINOR_TICKMARK_HEIGHT, 
-//             MAJOR_TICKMARK_HEIGHT);
-//}
-
-
-/* Convert plot coordinates to screen coordinates */
-static double xTran(double x, GdkRectangle *rect, ConsPlotProperties *properties)
-{
-  return(rect->x + x * properties->xScale);
-}
-
-static double yTran(double y, GdkRectangle *rect, ConsPlotProperties *properties)
-{
-  return(rect->y + rect->height - y * properties->yScale);
-}
-
-
 static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotProperties *properties)
 {
+  if (!properties->drawingArea)
+    return;
+  
   BelvuContext *bc = properties->bc;
   GdkGC *gc = gdk_gc_new(drawable);
+  
+  GtkAdjustment *hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(properties->drawingArea));
+  const double xMin = hAdjustment->value;
+  const double xMax = min(hAdjustment->value + hAdjustment->page_size, hAdjustment->upper);
+  int iMin = (xMin - (double)properties->plotRect.x) / properties->xScale;
+  int iMax = (xMax - (double)properties->plotRect.x) / properties->xScale;
+  
+  if (iMin < 0)
+    iMin = 0;
+  
+  if (iMax > bc->maxLen - 1)
+    iMax = bc->maxLen - 1;
   
   /* Draw the header line */
   char *tmpStr = blxprintf("Window = %d", properties->windowSize);
@@ -183,55 +168,71 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
   GdkColor *scaleColor = getGdkColor(BELCOLOR_CONS_PLOT_SCALE, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_foreground(gc, scaleColor);
 
-  double YscaleBase = properties->xScaleRect.y;
   const int majorXTickInterval = 10;
   const int minorXTickInterval = 5;
   
-  gdk_draw_line(drawable, gc, xTran(0, &properties->xScaleRect, properties), YscaleBase, xTran(bc->maxLen, &properties->xScaleRect, properties), YscaleBase);
+  /* Get the start and end x coords of the plot. Note that we offset by the
+   * minimum x coord so that the leftmost edge is 0 rather than xMin */
+  const double xStart = max(xMin, properties->xScaleRect.x) - xMin;
+  const double xEnd = xMax - xMin;
+  
+  /* Draw the base line for the x scale */
+  double y = properties->xScaleRect.y;
+  gdk_draw_line(drawable, gc, xStart, y, xEnd, y);
 
-  int i = 0;
-  for (i=0; i < bc->maxLen; i += majorXTickInterval) 
+  /* Loop through each visible column that will have a major tickmark. For
+   * each major tickmark we also draw the minor tickmark previous to it, so 
+   * loop until (i - minorXTickInterval) is outside the visible range. */
+  int i = roundToValue(iMin, majorXTickInterval);
+  double x = 0;
+  
+  for ( ; i - minorXTickInterval <= iMax; i += majorXTickInterval) 
     {
-      gdk_draw_line(drawable, gc,
-                    xTran(i, &properties->xScaleRect, properties), YscaleBase, 
-                    xTran(i, &properties->xScaleRect, properties), YscaleBase + MAJOR_TICKMARK_HEIGHT);
+      /* Get the x position of this column */
+      x = properties->xScaleRect.x + (i * properties->xScale) - xMin;
       
-      if (i + minorXTickInterval < bc->maxLen - 1)
+      /* Draw the major tickmark (if in range; the very last one might not be) */
+      if (i <= iMax)
+        gdk_draw_line(drawable, gc, x, y, x, y + MAJOR_TICKMARK_HEIGHT);
+
+      /* Decrement the column number to give the previous minor tickmark
+       * position and draw the minor tickmark there (if it is still in the
+       * visible area). */
+      if (i + minorXTickInterval <= iMax)
         {
-            gdk_draw_line(drawable, gc,
-                          xTran(i + minorXTickInterval, &properties->xScaleRect, properties), YscaleBase, 
-                          xTran(i + minorXTickInterval, &properties->xScaleRect, properties), YscaleBase + MINOR_TICKMARK_HEIGHT);
+          double x2 = properties->xScaleRect.x + ((i + minorXTickInterval) * properties->xScale) - xMin;
+          gdk_draw_line(drawable, gc, x2, y, x2, y + MINOR_TICKMARK_HEIGHT);
         }
       
       tmpStr = blxprintf("%d", i);
-      
-      drawText(widget, drawable, gc, 
-               xTran(i, &properties->xScaleRect, properties) - minorXTickInterval, 
-               YscaleBase + MAJOR_TICKMARK_HEIGHT + CONS_PLOT_LABEL_PAD, 
-               tmpStr, NULL, NULL);
-      
+      drawText(widget, drawable, gc, x - minorXTickInterval, y + MAJOR_TICKMARK_HEIGHT + CONS_PLOT_LABEL_PAD, tmpStr, NULL, NULL);
       g_free(tmpStr);
     }
   
-  /* Draw y scale */
-  double XscaleBase = properties->yScaleRect.x + properties->yScaleRect.width;
+  /* Draw the y scale. Note that the scale is inversed; that is, the lowest number
+   * is at the bottom, i.e. with the highest y position. */
   const double majorYTickInterval = 1.0;
   const double minorYTickInterval = 0.5;
+
+  x = xStart;
+  const double yStart = properties->yScaleRect.y + properties->yScaleRect.height;
+  const double yEnd = properties->yScaleRect.y;
   
-  gdk_draw_line(drawable, gc, XscaleBase, yTran(0, &properties->yScaleRect, properties), XscaleBase, yTran(properties->maxcons, &properties->yScaleRect, properties));
+  gdk_draw_line(drawable, gc, x, yEnd, x, yStart);
 
   double f = properties->mincons;
+  y = 0;
+
   for ( ; f < properties->maxcons; f += majorYTickInterval) 
     {
-      gdk_draw_line(drawable, gc, 
-                    XscaleBase, yTran(f, &properties->yScaleRect, properties), 
-                    XscaleBase - MAJOR_TICKMARK_HEIGHT, yTran(f, &properties->yScaleRect, properties));
+      y = yStart - (f * properties->yScale);
+      
+      gdk_draw_line(drawable, gc, x, y, x - MAJOR_TICKMARK_HEIGHT, y);
       
       if (f + minorYTickInterval < properties->maxcons) 
         {
-          gdk_draw_line(drawable, gc,
-                        XscaleBase, yTran(f + minorYTickInterval, &properties->yScaleRect, properties), 
-                        XscaleBase - MINOR_TICKMARK_HEIGHT, yTran(f + minorYTickInterval, &properties->yScaleRect, properties));
+          double y2 = yStart - ((f + minorYTickInterval) * properties->yScale);
+          gdk_draw_line(drawable, gc, x, y2, x - MINOR_TICKMARK_HEIGHT, y2);
         }
       
       tmpStr = blxprintf("%.0f", f);
@@ -243,10 +244,7 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
       textWidth /= PANGO_SCALE;
       textHeight /= PANGO_SCALE;
       
-      gdk_draw_layout(drawable, gc, 
-                      XscaleBase - textWidth - MAJOR_TICKMARK_HEIGHT - CONS_PLOT_LABEL_PAD, 
-                      yTran(f, &properties->yScaleRect, properties) - textHeight / 2, 
-                      layout);
+      gdk_draw_layout(drawable, gc, x - textWidth - MAJOR_TICKMARK_HEIGHT - CONS_PLOT_LABEL_PAD, y - textHeight / 2, layout);
       
       g_object_unref(layout);
     }
@@ -254,19 +252,23 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
   /* Draw average line */
   GdkColor *avgLineColor = getGdkColor(BELCOLOR_CONS_PLOT_AVG, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_foreground(gc, avgLineColor);
+  const double yAvg = yStart - (properties->avgcons * properties->yScale);
   
-  gdk_draw_line(drawable, gc, xTran(0, &properties->plotRect, properties), yTran(properties->avgcons, &properties->plotRect, properties), xTran(bc->maxLen, &properties->plotRect, properties), yTran(properties->avgcons, &properties->plotRect, properties));
-  drawText(widget, drawable, gc, xTran(bc->maxLen, &properties->plotRect, properties), yTran(properties->avgcons, &properties->plotRect, properties), "Average conservation", NULL, NULL);
+  gdk_draw_line(drawable, gc, xStart, yAvg, xEnd, yAvg);
+  drawText(widget, drawable, gc, xEnd, yAvg, AVG_CONSERVATION_LABEL, NULL, NULL);
   
-  /* Plot conservation */
+  /* Plot the conservation value for each column */
   GdkColor *plotColor = getGdkColor(BELCOLOR_CONS_PLOT, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_foreground(gc, plotColor);
   
-  for (i=1; i < bc->maxLen; ++i) 
+  for (i = iMin + 1; i <= iMax; ++i) 
     {
-      gdk_draw_line(drawable, gc, 
-                    xTran(i, &properties->plotRect, properties), yTran(properties->smooth[i-1], &properties->plotRect, properties), 
-                    xTran(i+1, &properties->plotRect, properties), yTran(properties->smooth[i], &properties->plotRect, properties));
+      x = properties->xScaleRect.x + (i * properties->xScale) - xMin;
+      
+      const double y1 = yStart - (properties->smooth[i - 1] * properties->yScale);
+      const double y2 = yStart - (properties->smooth[i] * properties->yScale);
+      
+      gdk_draw_line(drawable, gc, x, y1, x + properties->xScale, y2);
     }
 
   /* Clean up */
@@ -380,41 +382,6 @@ static void calculateConsPlotBorders(GtkWidget *consPlot)
  *                        Events                           *
  ***********************************************************/
 
-//static gboolean onExposeConsPlotHeader(GtkWidget *widget, GdkEventExpose *event, gpointer data)
-//{
-//  GtkWidget *consPlot = GTK_WIDGET(data);
-//  ConsPlotProperties *properties = consPlotGetProperties(consPlot);
-//
-//  GdkDrawable *window = GTK_LAYOUT(widget)->bin_window;
-//  
-//  if (window)
-//    {
-//      GdkDrawable *bitmap = widgetGetDrawable(widget);
-//      
-//      if (!bitmap)
-//        {
-//          /* There isn't a bitmap yet. Create it now. */
-//          bitmap = createBlankSizedPixmap(widget, window, widget->allocation.width, widget->allocation.height);
-//          drawConsPlotHeader(widget, bitmap, properties);
-//        }
-//      
-//      if (bitmap)
-//        {
-//          /* Push the bitmap onto the window */
-//          GdkGC *gc = gdk_gc_new(window);
-//          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
-//          g_object_unref(gc);
-//        }
-//      else
-//        {
-//          g_warning("Failed to draw conservation plot [%p] - could not create bitmap.\n", widget);
-//        }
-//    }
-//  
-//  return TRUE;
-//}
-
-
 static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
   GtkWidget *consPlot = GTK_WIDGET(data);
@@ -430,8 +397,8 @@ static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpoin
         {
           /* There isn't a bitmap yet. Create it now. */
           bitmap = createBlankSizedPixmap(widget, window, 
-                                          properties->plotRect.x + properties->plotRect.width, 
-                                          properties->xScaleRect.y + properties->xScaleRect.height);
+                                          widget->allocation.width, 
+                                          widget->allocation.height);
 
           drawConsPlot(widget, bitmap, properties);
         }
@@ -440,7 +407,8 @@ static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpoin
         {
           /* Push the bitmap onto the window */
           GdkGC *gc = gdk_gc_new(window);
-          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+          GtkAdjustment *hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(widget));
+          gdk_draw_drawable(window, gc, bitmap, 0, 0, hAdjustment->value, 0, -1, -1);
           g_object_unref(gc);
         }
       else
@@ -467,10 +435,27 @@ void onPlotOptsMenu(GtkAction *action, gpointer data)
   GtkWidget *consPlot = GTK_WIDGET(data);
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
   
-  widgetClearCachedDrawable(properties->drawingArea, NULL);
-  gtk_widget_queue_draw(properties->drawingArea);
+  if (properties->drawingArea)
+    {
+      widgetClearCachedDrawable(properties->drawingArea, NULL);
+      gtk_widget_queue_draw(properties->drawingArea);
+    }
 }
 
+
+static gboolean onScrollPosChangedConsPlot(GtkObject *object, gpointer data)
+{
+  GtkWidget *consPlot = GTK_WIDGET(data);
+  ConsPlotProperties *properties = consPlotGetProperties(consPlot);
+  
+  if (properties->drawingArea)
+    {
+      widgetClearCachedDrawable(properties->drawingArea, NULL);
+      gtk_widget_queue_draw(properties->drawingArea);
+    }
+  
+  return FALSE;
+}
 
 /***********************************************************
  *                     Initialisation                      *
@@ -525,14 +510,8 @@ void createConsPlot(BelvuContext *bc)
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(scrollWin), drawing);
   
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS);
   gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
-  
-//  /* Add the header */
-//  GtkWidget *header = gtk_drawing_area_new();
-//  gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
-//  g_signal_connect(G_OBJECT(header), "expose-event", G_CALLBACK(onExposeConsPlotHeader), bc->consPlot);
-//  gtk_widget_set_size_request(header, -1, charHeight + CONS_PLOT_YPAD);
   
   /* Set default background color */
   GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);
@@ -549,8 +528,10 @@ void createConsPlot(BelvuContext *bc)
   setConsPlotStyleProperties(bc->consPlot, bc, properties->xScaleRect.y + properties->xScaleRect.height + scrollBarWidth());
 
   /* Connect signals */
-  g_signal_connect(G_OBJECT(drawing), "expose-event", G_CALLBACK(onExposeConsPlot), bc->consPlot);
+  GtkAdjustment *hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(drawing));
   g_signal_connect(G_OBJECT(drawing), "size-allocate", G_CALLBACK(onSizeAllocateConsPlot), bc->consPlot);
+  g_signal_connect(G_OBJECT(drawing), "expose-event", G_CALLBACK(onExposeConsPlot), bc->consPlot);
+  g_signal_connect(G_OBJECT(hAdjustment), "value-changed",  G_CALLBACK(onScrollPosChangedConsPlot), bc->consPlot);
 
   gtk_widget_show_all(bc->consPlot);
   gtk_window_present(GTK_WINDOW(bc->consPlot));
