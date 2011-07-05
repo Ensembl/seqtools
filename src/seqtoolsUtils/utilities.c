@@ -4140,6 +4140,44 @@ int scrollBarWidth()
 }
 
 
+/* Utility to get the width and height of the given text as a pango layout
+ * on the given widget. Either width or height may be null if not required. 
+ * The results are in pixels. */
+void getTextSize(GtkWidget *widget, const char *text, int *width, int *height)
+{
+  if (widget && text && (width || height))
+    {
+      PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
+      pango_layout_get_size(layout, width, height);
+      g_object_unref(layout);
+      
+      if (width)
+        *width /= PANGO_SCALE;
+
+      if (height)
+        *height /= PANGO_SCALE;
+    }
+}
+
+
+/* Utility to get the width of the given text as a pango layout on the given
+ * widget. This is really just a convenience function for calling getTextSize. */
+int getTextWidth(GtkWidget *widget, const char *text)
+{
+  int width = 0;
+  getTextSize(widget, text, &width, NULL);
+  return width;
+}
+
+
+/* Utility to get the height of the given text as a pango layout on the given
+ * widget. This is really just a convenience function for calling getTextSize. */
+int getTextHeight(GtkWidget *widget, const char *text)
+{
+  int height = 0;
+  getTextSize(widget, text, NULL, &height);
+  return height;
+}
 
 /***********************************************************
  *		            Scale			   * 

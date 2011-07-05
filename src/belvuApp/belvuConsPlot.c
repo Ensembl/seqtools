@@ -174,7 +174,7 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
   /* Get the start and end x coords of the plot. Note that we offset by the
    * minimum x coord so that the leftmost edge is 0 rather than xMin */
   const double xStart = max(xMin, properties->xScaleRect.x) - xMin;
-  const double xEnd = xMax - xMin;
+  const double xEnd = min(xMax, properties->xScaleRect.x + properties->xScaleRect.width) - xMin;
   
   /* Draw the base line for the x scale */
   double y = properties->xScaleRect.y;
@@ -337,12 +337,9 @@ static void calculateConsPlotBorders(GtkWidget *consPlot)
   properties->plotRect.height = (properties->maxcons - properties->mincons) * properties->yScale;
 
   /* y scale size (based on width required to display max conservation) */
-  int textWidth, textHeight;
   char *tmpStr = blxprintf("%.0f", properties->maxcons);
-  PangoLayout *layout = gtk_widget_create_pango_layout(properties->drawingArea, tmpStr);
-  pango_layout_get_size(layout, &textWidth, &textHeight);
-  textWidth /= PANGO_SCALE;
-  textHeight /= PANGO_SCALE;
+  int textWidth, textHeight;
+  getTextSize(properties->drawingArea, tmpStr, &textWidth, &textHeight);
   g_free(tmpStr);
   
   properties->yScaleRect.width = textWidth + MAJOR_TICKMARK_HEIGHT + CONS_PLOT_XPAD;
@@ -369,9 +366,15 @@ static void calculateConsPlotBorders(GtkWidget *consPlot)
   properties->xScaleRect.x = properties->plotRect.x;
   properties->xScaleRect.y = properties->plotRect.y + properties->plotRect.height + properties->yScale;
 
-  /* Set the size of the layout */
+  /* Set the size of the layout. This must include the rightmost extent of the plot
+   * rectangle, and also some extra space on the right for the 'average conservation'
+   * label. */
+  const int width = properties->plotRect.x + properties->plotRect.width + 
+                    getTextWidth(properties->drawingArea, AVG_CONSERVATION_LABEL) +
+                    (CONS_PLOT_XPAD * 2);
+  
   gtk_layout_set_size(GTK_LAYOUT(properties->drawingArea), 
-                      properties->plotRect.x + properties->plotRect.width, 
+                      width, 
                       properties->xScaleRect.y + properties->xScaleRect.height);
   
   widgetClearCachedDrawable(properties->drawingArea, NULL);

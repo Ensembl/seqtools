@@ -2165,21 +2165,6 @@ void showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc)
  *                          Sizing                         *
  ***********************************************************/
 
-static int getTextWidth(GtkWidget *widget, const char *text)
-{
-  int tmpWidth = 0;
-  
-  if (widget && text)
-    {
-      PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
-      pango_layout_get_size(layout, &tmpWidth, NULL);
-      g_object_unref(layout);
-    }
-  
-  return tmpWidth / PANGO_SCALE;
-}
-
-
 static void calculateNodeWidth(BelvuTreeProperties *properties, TreeNode *node, const int x)
 {
   if (!node)

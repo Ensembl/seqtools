@@ -521,6 +521,9 @@ GString*                           getExternalCommandOutput(const char *command,
 GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkTextBuffer **textBuffer);
 
 int                                scrollBarWidth();
+void                               getTextSize(GtkWidget *widget, const char *text, int *width, int *height);
+int                                getTextWidth(GtkWidget *widget, const char *text);
+int                                getTextHeight(GtkWidget *widget, const char *text);
 
 void                               drawHScale(GtkWidget *widget, 
                                               GdkDrawable *drawable,
