@@ -275,11 +275,9 @@ static const GtkActionEntry menuEntries[] = {
   { "FileMenuAction",  NULL, "_File"},
   { "EditMenuAction",  NULL, "_Edit"},
   { "ColorMenuAction", NULL, "_Color"},
-  { "SortMenuAction",  NULL, "_Sort"},
+  { "SettingsMenuAction", NULL, "_Settings"},
+  { "SortMenuAction",  NULL, "S_ort"},
   { "HelpMenuAction",  NULL, "_Help"},
-
-  { "ByResidueMenuAction", NULL, "Select color scheme"},
-  { "ByConsMenuAction",    NULL, "Select color scheme"},
 
   { "Close",	           GTK_STOCK_CLOSE,      "_Close",             "<control>W",        "Close",                 G_CALLBACK(onCloseMenu)},
   { "Quit",	           GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
@@ -341,8 +339,8 @@ static const GtkToggleActionEntry toggleMenuEntries[] = {
 
 /* Define the menu actions for radio-button menu entries */
 static const GtkRadioActionEntry schemeMenuEntries[] = {
-  {"ColorByResidue",       NULL, "By _residue",                       NULL, "Color by residue",                  BELVU_SCHEME_TYPE_RESIDUE},
-  {"ColorByCons",          NULL, "By _conservation",                  NULL, "Color by conservation",             BELVU_SCHEME_TYPE_CONS}
+  {"ColorByResidue",       NULL, "Color by _residue",                       NULL, "Color by residue",                  BELVU_SCHEME_TYPE_RESIDUE},
+  {"ColorByCons",          NULL, "Color by _conservation",                  NULL, "Color by conservation",             BELVU_SCHEME_TYPE_CONS}
 };
 
 static const GtkRadioActionEntry residueSchemeMenuEntries[] = {
@@ -418,38 +416,37 @@ static const char standardMenuDescription[] =
 "      <menuitem action='hide'/>"
 "      <menuitem action='unhide'/>"
 "    </menu>"
-    /* Color menu */
+     /* Color schemes menu */
 "    <menu action='ColorMenuAction'>"
-"      <menuitem action='ColorByResidue'/>"
-"      <menu action='ByResidueMenuAction'>"
-"        <menuitem action='colorSchemeStandard'/>"
-"        <menuitem action='colorSchemeGibson'/>"
-"        <menuitem action='colorSchemeCys'/>"
-"        <menuitem action='colorSchemeEmpty'/>"
-"        <menuitem action='colorSchemeCustom'/>"
-"      </menu>"
-"      <menuitem action='toggleColorByResId'/>"
-"      <menuitem action='colorByResId'/>"
+"      <menuitem action='colorSchemeStandard'/>"
+"      <menuitem action='colorSchemeGibson'/>"
+"      <menuitem action='colorSchemeCys'/>"
+"      <menuitem action='colorSchemeEmpty'/>"
+"      <menuitem action='colorSchemeCustom'/>"
 "      <separator/>"
-"      <menuitem action='ColorByCons'/>"
-"      <menu action='ByConsMenuAction'>"
-"        <menuitem action='colorSim'/>"
-"        <menuitem action='colorId'/>"
-"        <menuitem action='colorIdSim'/>"
-"      </menu>"
-"      <menuitem action='ignoreGaps'/>"
-"      <menuitem action='printColors'/>"
-"      <separator/>"
-"      <menuitem action='togglePalette'/>"
-"      <menuitem action='excludeHighlighted'/>"
-"      <menuitem action='displayColors'/>"
-"      <menuitem action='lowercase'/>"
+"      <menuitem action='colorSim'/>"
+"      <menuitem action='colorId'/>"
+"      <menuitem action='colorIdSim'/>"
 "      <separator/>"
 "      <menuitem action='editColorScheme'/>"
 "      <menuitem action='saveColorScheme'/>"
 "      <menuitem action='loadColorScheme'/>"
 "    </menu>"
-    /* Sort menu */
+     /* View menu */
+"    <menu action='SettingsMenuAction'>"
+"      <menuitem action='ColorByResidue'/>"
+"      <menuitem action='ColorByCons'/>"
+"      <separator/>"
+"      <menuitem action='toggleColorByResId'/>"
+"      <menuitem action='colorByResId'/>"
+"      <menuitem action='ignoreGaps'/>"
+"      <menuitem action='excludeHighlighted'/>"
+"      <separator/>"
+"      <menuitem action='printColors'/>"
+"      <menuitem action='displayColors'/>"
+"      <menuitem action='lowercase'/>"
+"    </menu>"
+     /* Sort menu */
 "    <menu action='SortMenuAction'>"
 //"      <menuitem action='defaultSort'/>"  /* to do: this is supposed to restore the default start-up sort order but it gets messed up after sorting by tree */
 "      <menuitem action='scoreSort'/>"
@@ -1235,6 +1232,7 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
 }
 
 
+/* Toggle between color-by-conservation and color-by-residue modes */
 static void ontogglePaletteMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);

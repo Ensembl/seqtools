@@ -5998,7 +5998,12 @@ void greyOutInvalidActionsForGroup(BelvuContext *bc, GtkActionGroup *action_grou
   
   enableMenuAction(action_group, "colorSchemeCustom", bc->haveCustomColors);
   
-  enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc));
+  /* ignoreGaps used to be greyed out in old belvu when in color-by-residue
+   * mode; it does affect the display when in that mode if using a %ID
+   * threshold, though, so it should probably be enabled (or alternatively the 
+   * logic should be adjusted so that it does not affect the residue colors, if 
+   * that was the intent...) */
+  /* enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc)); */
   enableMenuAction(action_group, "printColors", colorByConservation(bc));
   
   enableMenuAction(action_group, "excludeHighlighted", bc->selectedAln != NULL);
