@@ -4039,9 +4039,9 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
 GString* getExternalCommandOutput(const char *command, GError **error)
 {
   GString *resultText = g_string_new(NULL) ;
-  
   char lineText[MAXLINE+1];
-  
+
+  g_message_info("Calling external command: %s\n", command);
   FILE *pipe = popen (command, "r") ;
   
   if (pipe && !feof(pipe) && fgets (lineText, MAXLINE, pipe))

@@ -7242,10 +7242,13 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       
       GtkWidget *pfetchWin = externalCommand(cmd, BELVU_TITLE, bc->belvuAlignment, &error);
       
-      /* Add the window to our list of spawned windows */
-      bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
-      g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);
-
+      if (pfetchWin)
+        {
+          /* Add the window to our list of spawned windows */
+          bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
+          g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);
+        }
+      
       g_free(cmd);
     }
   
