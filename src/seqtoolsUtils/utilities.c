@@ -4179,6 +4179,83 @@ int getTextHeight(GtkWidget *widget, const char *text)
   return height;
 }
 
+
+/* Create a text entry box initialised with the given integer. Adds the entry
+ * to the given table. Optionally adds a label with the given mnemonic; if 
+ * a label is included it will be drawn at the column before the given 'col'
+ * Optionally also sets a callback which will be called on the dialog response
+ * (if it uses the standard onResponseDialog function or similar). */
+GtkWidget* createTextEntryFromInt(GtkWidget *widget,
+                                  GtkTable *table, 
+                                  const int row,
+                                  const int col,
+                                  const int xpad,
+                                  const int ypad,
+                                  const char *mnemonic,
+                                  const int value,
+                                  BlxResponseCallback callback)
+{
+  if (mnemonic)
+    {
+      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
+      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
+      gtk_table_attach(table, label, col - 1, col, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+    }
+  
+  GtkWidget *entry = gtk_entry_new();
+  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  
+  char *displayText = convertIntToString(value);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
+  
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  if (callback)
+    widgetSetCallbackData(entry, callback, widget);
+  
+  return entry;
+}
+
+
+/* Similar to createTextEntryFromInt, but for doubles */
+GtkWidget* createTextEntryFromDouble(GtkWidget *widget,
+                                     GtkTable *table, 
+                                     const int row,
+                                     const int col,
+                                     const int xpad,
+                                     const int ypad,
+                                     const char *mnemonic,
+                                     const double value,
+                                     BlxResponseCallback callback)
+{
+  if (mnemonic)
+    {
+      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
+      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
+      gtk_table_attach(table, label, col - 1, col, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+    }
+  
+  GtkWidget *entry = gtk_entry_new();
+  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  
+  /* Only display decimal places if not a whole number */
+  const int numDp = value - (int)value > 0 ? 1 : 0;
+  
+  char *displayText = convertDoubleToString(value, numDp);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
+  
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  if (callback)
+    widgetSetCallbackData(entry, callback, widget);
+  
+  return entry;
+}
+
+
+
 /***********************************************************
  *		            Scale			   * 
  ***********************************************************/

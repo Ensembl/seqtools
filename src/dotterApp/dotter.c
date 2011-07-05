@@ -2315,68 +2315,6 @@ static gboolean onSetVertLabelsOn(GtkWidget *button, const gint responseId, gpoi
 }
 
 
-/* Create a text entry box initialised with the given double */
-static void createTextEntryFromDouble(GtkWidget *dotterWindow,
-                                      GtkTable *table, 
-                                      const int row,
-                                      const int col,
-                                      const int xpad,
-                                      const int ypad,
-                                      const char *mnemonic,
-                                      const double value,
-                                      BlxResponseCallback callback)
-{
-  if (mnemonic)
-    {
-      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
-      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
-      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-    }
-  
-  GtkWidget *entry = gtk_entry_new();
-  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-
-  /* Only display decimal places if not a whole number */
-  const int numDp = value - (int)value > 0 ? 1 : 0;
-  
-  char *displayText = convertDoubleToString(value, numDp);
-  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
-
-  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-  widgetSetCallbackData(entry, callback, dotterWindow);
-}
-
-/* Create a text entry box initialised with the given integer */
-static void createTextEntryFromInt(GtkWidget *dotterWindow,
-                                   GtkTable *table, 
-                                   const int row,
-                                   const int col,
-                                   const int xpad,
-                                   const int ypad,
-                                   const char *mnemonic,
-                                   const int value,
-                                   BlxResponseCallback callback)
-{
-  if (mnemonic)
-    {
-      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
-      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
-      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-    }
-  
-  GtkWidget *entry = gtk_entry_new();
-  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  
-  char *displayText = convertIntToString(value);
-  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
-
-  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-  widgetSetCallbackData(entry, callback, dotterWindow);
-}
-
-
 /* Callback when we receive a response for the settings dialog */
 static void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {

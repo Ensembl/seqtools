@@ -2978,11 +2978,11 @@ static gboolean onDepthPerCellChanged(GtkWidget *widget, const gint responseId, 
 /* Utility to create a text entry widget displaying the given double value. The
  * given callback will be called when the user OK's the dialog that this widget 
  * is a child of. */
-static void createTextEntryFromDouble(GtkWidget *parent, 
-                                      const char *title, 
-                                      const gdouble value, 
-                                      BlxResponseCallback callbackFunc, 
-                                      gpointer callbackData)
+static void createTextEntry(GtkWidget *parent, 
+                            const char *title, 
+                            const gdouble value, 
+                            BlxResponseCallback callbackFunc, 
+                            gpointer callbackData)
 {
   /* Pack label and text entry into a vbox */
   GtkWidget *vbox = createVBoxWithBorder(parent, 4, FALSE, NULL);
@@ -3016,9 +3016,9 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
   GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
   const DoubleRange const *percentIdRange = bigPictureGetPercentIdRange(bigPicture);
   
-  createTextEntryFromDouble(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
-  createTextEntryFromDouble(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
-  createTextEntryFromDouble(hbox, "Min %ID", percentIdRange->min, onMinPercentIdChanged, bigPicture);
+  createTextEntry(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
+  createTextEntry(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
+  createTextEntry(hbox, "Min %ID", percentIdRange->min, onMinPercentIdChanged, bigPicture);
 }
 
 
@@ -3035,7 +3035,7 @@ static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPictu
   GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
   const double rangePerCell = coverageViewGetDepthPerCell(properties->coverageView);
   
-  createTextEntryFromDouble(hbox, "Depth per cell", rangePerCell, onDepthPerCellChanged, properties->coverageView);
+  createTextEntry(hbox, "Depth per cell", rangePerCell, onDepthPerCellChanged, properties->coverageView);
 }
 
 

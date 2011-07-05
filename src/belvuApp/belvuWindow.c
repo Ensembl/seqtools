@@ -240,8 +240,8 @@ static void                      onDestroyBelvuWindow(GtkWidget *belvuWindow);
 #define FindOrthogsDesc       "Find putative orthologs"
 #define ShowOrgsStr           "Show organisms"
 #define ShowOrgsDesc          "Show current organisms"
-#define PlotOptsStr           "Properties..."
-#define PlotOptsDesc          "Edit conservation-profile properties"
+#define PlotOptsStr           "Plot settings..."
+#define PlotOptsDesc          "Edit conservation-plot settings"
 
 #define autoRmEmptyColumnsStr  "Automatically remove empty columns"
 #define autoRmEmptyColumnsDesc "Automatically remove columns that are 100% gaps after sequence deletions"

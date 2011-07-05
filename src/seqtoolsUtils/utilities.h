@@ -525,6 +525,26 @@ void                               getTextSize(GtkWidget *widget, const char *te
 int                                getTextWidth(GtkWidget *widget, const char *text);
 int                                getTextHeight(GtkWidget *widget, const char *text);
 
+GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
+                                                          GtkTable *table, 
+                                                          const int row,
+                                                          const int col,
+                                                          const int xpad,
+                                                          const int ypad,
+                                                          const char *mnemonic,
+                                                          const int value,
+                                                          BlxResponseCallback callback);
+
+GtkWidget*                         createTextEntryFromDouble(GtkWidget *widget,
+                                                             GtkTable *table, 
+                                                             const int row,
+                                                             const int col,
+                                                             const int xpad,
+                                                             const int ypad,
+                                                             const char *mnemonic,
+                                                             const double value,
+                                                             BlxResponseCallback callback);
+
 void                               drawHScale(GtkWidget *widget, 
                                               GdkDrawable *drawable,
                                               const IntRange const *range,
