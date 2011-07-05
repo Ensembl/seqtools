@@ -213,23 +213,21 @@ typedef enum _BelvuSchemeType
 
 
 /* This defines the color schemes when coloring by residue */
-typedef enum _ResidueColorSchemes
+typedef enum _BelvuColorSchemes
   {
     BELVU_SCHEME_NONE,              /* Clean slate (no coloring) */
     BELVU_SCHEME_ERIK,              /* Erik's original scheme */
     BELVU_SCHEME_GIBSON,            /* Toby's */
     BELVU_SCHEME_CYS,               /* Cys/Gly/Pro */
-    BELVU_SCHEME_CUSTOM             /* Custom color scheme (this is activated after colors have been edited) */
-  } ResidueColorScheme;
-
-
-/* This defines the color schemes when coloring by conservation */
-typedef enum _ConsColorSchemes
-  {
+    BELVU_SCHEME_CUSTOM,            /* Custom color scheme (this is activated after colors have been edited) */
+    
+    NUM_RESIDUE_SCHEMES,            /* this allows us to identify whether a scheme is a color-by-residue or -by-conservation mode scheme */
+    
     BELVU_SCHEME_BLOSUM,            /* Average similarity by BLOSUM62 */
     BELVU_SCHEME_ID,                /* Percent identity */
     BELVU_SCHEME_ID_BLOSUM          /* Percent ID and BLOSUM62 */
-  } ConsColorScheme;
+  } BelvuColorScheme;
+
 
 /* This defines the different levels of conservation that we colour by
  * in color-by-conservation mode */
@@ -373,8 +371,8 @@ typedef struct BelvuContextStruct
   int lowbgPrintColor;
   
   BelvuSchemeType schemeType;	      /* Current colour scheme mode (color-by-residue or -by-conservation) */
-  ResidueColorScheme residueScheme;   /* Which color-by-residue color scheme is selected */
-  ConsColorScheme consScheme;	      /* Which color-by-conservation color scheme is selected */
+  BelvuColorScheme residueScheme;     /* Which color-by-residue color scheme is selected */
+  BelvuColorScheme consScheme;	      /* Which color-by-conservation color scheme is selected */
   
   BelvuBuildMethod treeMethod;        /* Default building method for trees */
   BelvuDistCorr treeDistCorr;         /* Default distance correction method for trees */

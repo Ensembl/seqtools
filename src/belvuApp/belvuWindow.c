@@ -128,8 +128,7 @@ static void                      onhideMenu(GtkAction *action, gpointer data);
 static void                      onunhideMenu(GtkAction *action, gpointer data);
 
 static void                      onToggleSchemeType(GtkRadioAction *action, GtkRadioAction *current, gpointer data);
-static void                      onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data);
-static void                      onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data);
+static void                      onToggleColorScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data);
 static void                      onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, gpointer data);
 
 static void                      ontogglePaletteMenu(GtkAction *action, gpointer data);
@@ -343,15 +342,12 @@ static const GtkRadioActionEntry schemeMenuEntries[] = {
   {"ColorByCons",          NULL, "Color by _conservation",                  NULL, "Color by conservation",             BELVU_SCHEME_TYPE_CONS}
 };
 
-static const GtkRadioActionEntry residueSchemeMenuEntries[] = {
+static const GtkRadioActionEntry colorSchemeMenuEntries[] = {
   {"colorSchemeStandard",  NULL, "Erik's",                            NULL, "Erik's",                            BELVU_SCHEME_ERIK},
   {"colorSchemeGibson",    NULL, "Toby's",                            NULL, "Toby's",                            BELVU_SCHEME_GIBSON},
   {"colorSchemeCys",       NULL, "Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CYS},
   {"colorSchemeEmpty",     NULL, "Clean slate",                       NULL, "Clean slate",                       BELVU_SCHEME_NONE},
-  {"colorSchemeCustom",    NULL, "Custom",                            NULL, "Custom",                            BELVU_SCHEME_CUSTOM}
-};
-
-static const GtkRadioActionEntry consSchemeMenuEntries[] = {
+  {"colorSchemeCustom",    NULL, "Custom",                            NULL, "Custom",                            BELVU_SCHEME_CUSTOM},
   {"colorSim",             NULL, colorSimStr,                         NULL, colorSimStr,                         BELVU_SCHEME_BLOSUM},
   {"colorId",              NULL, colorIdStr,                          NULL, colorIdStr,                          BELVU_SCHEME_ID},
   {"colorIdSim",           NULL, colorIdSimStr,                       NULL, colorIdSimStr,                       BELVU_SCHEME_ID_BLOSUM}
@@ -536,8 +532,7 @@ GtkUIManager* createUiManager(GtkWidget *window,
   gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS(toggleMenuEntries), window);
 
   gtk_action_group_add_radio_actions(action_group, schemeMenuEntries, G_N_ELEMENTS(schemeMenuEntries), bc->schemeType, G_CALLBACK(onToggleSchemeType), window);
-  gtk_action_group_add_radio_actions(action_group, residueSchemeMenuEntries, G_N_ELEMENTS(residueSchemeMenuEntries), BELVU_SCHEME_ERIK, G_CALLBACK(onToggleResidueScheme), window);
-  gtk_action_group_add_radio_actions(action_group, consSchemeMenuEntries, G_N_ELEMENTS(consSchemeMenuEntries), BELVU_SCHEME_BLOSUM, G_CALLBACK(onToggleConsScheme), window);
+  gtk_action_group_add_radio_actions(action_group, colorSchemeMenuEntries, G_N_ELEMENTS(colorSchemeMenuEntries), BELVU_SCHEME_BLOSUM, G_CALLBACK(onToggleColorScheme), window);
   gtk_action_group_add_radio_actions(action_group, sortMenuEntries, G_N_ELEMENTS(sortMenuEntries), BELVU_SORT_CONS, G_CALLBACK(onToggleSortOrder), window);
 
   greyOutInvalidActionsForGroup(bc, action_group);
@@ -1173,41 +1168,51 @@ static void onToggleSchemeType(GtkRadioAction *action, GtkRadioAction *current, 
   if (newScheme != properties->bc->schemeType)
     {
       properties->bc->schemeType = newScheme;
-      onColorSchemeChanged(properties);
-    }
-}
-
-
-static void onToggleResidueScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
-{
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-
-  ResidueColorScheme newScheme = gtk_radio_action_get_current_value(current);
-  
-  if (newScheme != properties->bc->residueScheme)
-    {
-      properties->bc->residueScheme = newScheme;
-      setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
       
-      setResidueSchemeColors(properties->bc);
+      /* Toggle the actual scheme to the current default for this scheme type */
+      if (newScheme == BELVU_SCHEME_TYPE_RESIDUE)
+        setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->residueScheme);
+      else
+        setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
+      
       onColorSchemeChanged(properties);
     }
 }
 
 
-static void onToggleConsScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
+static void onToggleColorScheme(GtkRadioAction *action, GtkRadioAction *current, gpointer data)
 {
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  ConsColorScheme newScheme = gtk_radio_action_get_current_value(current);
-  
-  if (newScheme != properties->bc->consScheme)
+  /* Get the new color scheme */
+  BelvuColorScheme newScheme = gtk_radio_action_get_current_value(current);
+
+  /* Determine what scheme type this puts us in */
+  if (newScheme > NUM_RESIDUE_SCHEMES)
     {
-      properties->bc->consScheme = newScheme;
+      /* The new scheme is a color-by-conservation scheme type */
+      if (properties->bc->consScheme != newScheme)
+        {
+          properties->bc->consScheme = newScheme;
+          onColorSchemeChanged(properties);
+        }
+      
+      /* Update the scheme type, if necessary */
       setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
-      onColorSchemeChanged(properties);
+    }
+  else
+    {
+      /* The new scheme is a color-by-residue scheme type */
+      if (properties->bc->residueScheme != newScheme)
+        {
+          properties->bc->residueScheme = newScheme;
+          setResidueSchemeColors(properties->bc);
+          onColorSchemeChanged(properties);
+        }
+      
+      /* Update the scheme type, if necessary */
+      setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
     }
 }
 

@@ -3998,6 +3998,26 @@ void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, c
 }
 
 
+/* Utility to set the status of a radio button item in a menu. The action name must be the name 
+ * of a valid toggle action. */
+void setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value)
+{
+  GtkAction *action = gtk_action_group_get_action(action_group, actionName);
+  
+  if (!action)
+    {
+      g_warning("Error toggling menu item: action '%s' not found.\n", actionName);
+    }
+  else if (!GTK_IS_RADIO_ACTION(action))
+    {
+      g_warning("Error toggling menu item: action '%s' is not a valid toggle action.\n", actionName);
+    }
+  else
+    {
+      gtk_radio_action_set_current_value(GTK_RADIO_ACTION(action), value);
+    }
+}
+
 /***********************************************************
  *		         External calls			   * 
  ***********************************************************/
