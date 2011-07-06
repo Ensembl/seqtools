@@ -3452,6 +3452,9 @@ void onRowSelectionChanged(BelvuContext *bc)
   if (bc->selectedAln)
     {
       setToggleMenuStatus(properties->actionGroup, "excludeHighlighted", bc->selectedAln->nocolor);
+
+      /* Copy the selected sequence name to the PRIMARY clipboard */
+      setPrimaryClipboardText(bc->selectedAln->name);
     }
 
   /* Update the feedback box */
