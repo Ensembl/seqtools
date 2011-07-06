@@ -163,7 +163,7 @@ static void                      showRemoveColumnsDialog(GtkWidget *belvuWindow)
 static void                      showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow);
 static void                      showRemoveGappyColumnsDialog(GtkWidget *belvuWindow);
 
-static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
+//static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      showColorByResIdDialog(GtkWidget *belvuWindow);
 static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
@@ -378,9 +378,9 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Wrap'/>"
 "      <menuitem action='Print'/>"
 "      <separator/>"
-"      <menuitem action='ShowTree'/>"
 "      <menuitem action='TreeOpts'/>"
 "      <menuitem action='RecalcTree'/>"
+"      <menuitem action='ShowTree'/>"
 "      <separator/>"
 "      <menuitem action='ConsPlot'/>"
 "      <separator/>"
@@ -469,9 +469,9 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Wrap'/>"
 "    <menuitem action='Print'/>"
 "    <separator/>"
-"    <menuitem action='ShowTree'/>"
 "    <menuitem action='TreeOpts'/>"
 "    <menuitem action='RecalcTree'/>"
+"    <menuitem action='ShowTree'/>"
 "    <separator/>"
 "    <menuitem action='ConsPlot'/>"
 "    <separator/>"
@@ -672,12 +672,12 @@ static void onShowTreeMenu(GtkAction *action, gpointer data)
   
   if (!properties->bc->belvuTree)
     {
-      /* If the tree exists, create a window from it. Otherwise prompt the
-       * user to enter tree settings. */
+      /* If the tree exists, create a window from it. Otherwise we need to
+       * create it before we show it. */
       if (properties->bc->treeHead)
         createBelvuTreeWindow(properties->bc, properties->bc->treeHead);
       else
-        showMakeTreeDialog(belvuWindow, TRUE);
+        createAndShowBelvuTree(properties->bc);
     }
 
   if (properties->bc->belvuTree)
@@ -3070,88 +3070,88 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
  *                    Make tree dialog                     *
  ***********************************************************/
 
-/* Callback when the user makes a response on the 'make tree' dialog */
-static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointer data)
-{
-  gboolean destroy = TRUE;
-  BelvuContext *bc = (BelvuContext*)data;
-
-  switch (responseId)
-  {
-    case GTK_RESPONSE_ACCEPT:
-    {
-      /* Update the settings by calling all the callbacks, then create the tree.
-       * Destroy the dialog if successful */
-      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      createAndShowBelvuTree(bc);
-      break;
-    }
-      
-    case GTK_RESPONSE_CANCEL:
-    case GTK_RESPONSE_REJECT:
-      destroy = TRUE;
-      break;
-      
-    default:
-      break;
-  };
-  
-  if (destroy)
-    {
-      /* This is a persistent dialog, so just hide it */
-      gtk_widget_hide_all(GTK_WIDGET(dialog));
-    }
-
-  if (bc->belvuTree)
-    gtk_window_present(GTK_WINDOW(bc->belvuTree));
-}
+///* Callback when the user makes a response on the 'make tree' dialog */
+//static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointer data)
+//{
+//  gboolean destroy = TRUE;
+//  BelvuContext *bc = (BelvuContext*)data;
+//
+//  switch (responseId)
+//  {
+//    case GTK_RESPONSE_ACCEPT:
+//    {
+//      /* Update the settings by calling all the callbacks, then create the tree.
+//       * Destroy the dialog if successful */
+//      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
+//      createAndShowBelvuTree(bc);
+//      break;
+//    }
+//      
+//    case GTK_RESPONSE_CANCEL:
+//    case GTK_RESPONSE_REJECT:
+//      destroy = TRUE;
+//      break;
+//      
+//    default:
+//      break;
+//  };
+//  
+//  if (destroy)
+//    {
+//      /* This is a persistent dialog, so just hide it */
+//      gtk_widget_hide_all(GTK_WIDGET(dialog));
+//    }
+//
+//  if (bc->belvuTree)
+//    gtk_window_present(GTK_WINDOW(bc->belvuTree));
+//}
 
 
 /* Dialog to prompt the user to make a tree */
-static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
-{
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  BelvuContext *bc = properties->bc;
-  
-  const BelvuDialogId dialogId = BELDIALOG_MAKE_TREE;
-  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
-  
-  if (!dialog)
-    {
-      dialog = gtk_dialog_new_with_buttons("Belvu - Make Tree", 
-                                           GTK_WINDOW(belvuWindow), 
-                                           GTK_DIALOG_DESTROY_WITH_PARENT,
-                                           GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
-                                           GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
-                                           NULL);
-      
-      /* These calls are required to make the dialog persistent... */
-      addPersistentDialog(bc->dialogList, dialogId, dialog);
-      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-      
-      g_signal_connect(dialog, "response", G_CALLBACK(onResponseMakeTreeDialog), bc);
-    }
-  else
-    {
-      /* Need to refresh the dialog contents, so clear and re-create content area */
-      dialogClearContentArea(GTK_DIALOG(dialog));
-    }
-  
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-
-  /* Add the standard tree settings content */
-  createTreeSettingsDialogContent(bc, dialog, 
-                                  &bc->treeScale, &bc->treeLineWidth,
-                                  &bc->treeShowBranchlen, &bc->treeShowOrganism,
-                                  &bc->treePickMode, &bc->treeMethod, &bc->treeDistCorr);
-
-  gtk_widget_show_all(dialog);
-  
-  if (bringToFront)
-    {
-      gtk_window_present(GTK_WINDOW(dialog));
-    }
-}
+//static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
+//{
+//  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+//  BelvuContext *bc = properties->bc;
+//  
+//  const BelvuDialogId dialogId = BELDIALOG_MAKE_TREE;
+//  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
+//  
+//  if (!dialog)
+//    {
+//      dialog = gtk_dialog_new_with_buttons("Belvu - Make Tree", 
+//                                           GTK_WINDOW(belvuWindow), 
+//                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+//                                           GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+//                                           GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+//                                           NULL);
+//      
+//      /* These calls are required to make the dialog persistent... */
+//      addPersistentDialog(bc->dialogList, dialogId, dialog);
+//      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+//      
+//      g_signal_connect(dialog, "response", G_CALLBACK(onResponseMakeTreeDialog), bc);
+//    }
+//  else
+//    {
+//      /* Need to refresh the dialog contents, so clear and re-create content area */
+//      dialogClearContentArea(GTK_DIALOG(dialog));
+//    }
+//  
+//  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+//
+//  /* Add the standard tree settings content */
+//  createTreeSettingsDialogContent(bc, dialog, 
+//                                  &bc->treeScale, &bc->treeLineWidth,
+//                                  &bc->treeShowBranchlen, &bc->treeShowOrganism,
+//                                  &bc->treePickMode, &bc->treeMethod, &bc->treeDistCorr);
+//
+//  gtk_widget_show_all(dialog);
+//  
+//  if (bringToFront)
+//    {
+//      gtk_window_present(GTK_WINDOW(dialog));
+//    }
+//}
 
 
 /***********************************************************

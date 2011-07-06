@@ -945,6 +945,11 @@ static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *tree)
 
 TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 {
+  /* This can take a long time, so let the user know we're doing something.
+   * Force the message to be displayed before we get stuck into the calculations. */
+  g_message("Calculating tree...\n");
+  gdk_window_process_all_updates();
+
   TreeNode *newnode = NULL ;
   int maxi = -1, maxj = -1;
   double maxid = 0.0, pmaxid, **pairmtx, **Dmtx, **curMtx, *src, *trg, 
@@ -955,7 +960,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 
   if (treeHandle)
     handleDestroy(&treeHandle);
-  
+
   /* Allocate memory */
   treeHandle = handleCreate();
   
@@ -1325,6 +1330,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
   if (doBootstrap && bc->treebootstraps) 
     treeBootstrapStats(bc, newnode);
   
+  g_message("Finished calculating tree.\n");
   return newnode ;
 }
 
@@ -1431,16 +1437,6 @@ static void belvuTreeUpdateSettings(BelvuContext *bc)
           calculateBelvuTreeBorders(bc->belvuTree);
           belvuTreeRedrawAll(bc->belvuTree, NULL);
         }
-    }
-  else
-    {
-      /* There is no tree window, so just re-make the underlying tree */
-      separateMarkupLines(bc);
-      TreeNode *headNode = treeMake(bc, TRUE);
-      setTreeHead(bc, headNode);
-      reInsertMarkupLines(bc);
-      
-      onTreeOrderChanged(bc);
     }
 }
 
@@ -1997,10 +1993,13 @@ static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
 gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer data)
 {
   BelvuContext *bc = (BelvuContext*)data;
+  
+  const int origVal = bc->treeMethod;
   onComboChanged(combo, responseId, &bc->treeMethod);
-
+  
   /* This change invalidates the tree, so set the tree head to null to indicate this */
-  setTreeHead(bc, NULL);
+  if (origVal != bc->treeMethod)
+    setTreeHead(bc, NULL);
   
   return TRUE;
 }
@@ -2010,10 +2009,13 @@ gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer 
 gboolean onDistCorrChanged(GtkWidget *combo, const gint responseId, gpointer data)
 {
   BelvuContext *bc = (BelvuContext*)data;
+  
+  const int origVal = bc->treeDistCorr;
   onComboChanged(combo, responseId, &bc->treeDistCorr);
   
   /* This change invalidates the tree, so set the tree head to null to indicate this */
-  bc->treeHead = NULL;  
+  if (origVal != bc->treeDistCorr)
+    bc->treeHead = NULL;  
   
   return TRUE;
 }
