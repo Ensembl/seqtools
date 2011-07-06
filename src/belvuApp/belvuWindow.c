@@ -367,6 +367,8 @@ static const GtkRadioActionEntry sortMenuEntries[] = {
 /* Define the menu layout */
 static const char standardMenuDescription[] =
 "<ui>"
+/* ACCELERATORS */
+"  <accelerator action='togglePalette'/>"
 
 /* MAIN MENU BAR */
 "  <menubar name='MenuBar' accelerators='true'>"
