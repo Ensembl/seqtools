@@ -218,7 +218,8 @@ typedef enum _BelvuColorSchemes
     BELVU_SCHEME_NONE,              /* Clean slate (no coloring) */
     BELVU_SCHEME_ERIK,              /* Erik's original scheme */
     BELVU_SCHEME_GIBSON,            /* Toby's */
-    BELVU_SCHEME_CYS,               /* Cys/Gly/Pro */
+    BELVU_SCHEME_CGP,               /* Cys/Gly/Pro */
+    BELVU_SCHEME_CGPH,              /* Cys/Gly/Pro/His */
     BELVU_SCHEME_CUSTOM,            /* Custom color scheme (this is activated after colors have been edited) */
     
     NUM_RESIDUE_SCHEMES,            /* this allows us to identify whether a scheme is a color-by-residue or -by-conservation mode scheme */

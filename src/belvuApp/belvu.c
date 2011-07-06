@@ -4014,13 +4014,24 @@ void initCustomColors()
 }
 
 
-static void colorSchemeCys(BelvuContext *bc)
+static void colorSchemeCGP(BelvuContext *bc)
 {
   clearResidueColors(bc);
   
   color['C'] = color['c'] = CYAN;
   color['G'] = color['g'] = RED;
   color['P'] = color['p'] = GREEN;
+}
+
+
+static void colorSchemeCGPH(BelvuContext *bc)
+{
+  clearResidueColors(bc);
+  
+  color['C'] = color['c'] = CYAN;
+  color['G'] = color['g'] = RED;
+  color['P'] = color['p'] = GREEN;
+  color['H'] = color['p'] = YELLOW;
 }
 
 
@@ -4177,7 +4188,8 @@ void setResidueSchemeColors(BelvuContext *bc)
     {
       case BELVU_SCHEME_ERIK:     colorSchemeErik(bc);	    break;
       case BELVU_SCHEME_GIBSON:   colorSchemeGibson(bc);    break;
-      case BELVU_SCHEME_CYS:      colorSchemeCys(bc);	    break;
+      case BELVU_SCHEME_CGP:      colorSchemeCGP(bc);	    break;
+      case BELVU_SCHEME_CGPH:     colorSchemeCGPH(bc);	    break;
       case BELVU_SCHEME_NONE:     colorSchemeEmpty(bc);	    break;
       case BELVU_SCHEME_CUSTOM:   colorSchemeCustom(bc);    break;
       

@@ -345,7 +345,8 @@ static const GtkRadioActionEntry schemeMenuEntries[] = {
 static const GtkRadioActionEntry colorSchemeMenuEntries[] = {
   {"colorSchemeStandard",  NULL, "By residue: Erik's",                            NULL, "Erik's",                            BELVU_SCHEME_ERIK},
   {"colorSchemeGibson",    NULL, "By residue: Toby's",                            NULL, "Toby's",                            BELVU_SCHEME_GIBSON},
-  {"colorSchemeCys",       NULL, "By residue: Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CYS},
+  {"colorSchemeCGP",       NULL, "By residue: Cys/Gly/Pro",                       NULL, "Cys/Gly/Pro",                       BELVU_SCHEME_CGP},
+  {"colorSchemeCGPH",       NULL, "By residue: Cys/Gly/Pro/His",                  NULL, "Cys/Gly/Pro/His",                   BELVU_SCHEME_CGPH},
   {"colorSchemeEmpty",     NULL, "By residue: Clean slate",                       NULL, "Clean slate",                       BELVU_SCHEME_NONE},
   {"colorSchemeCustom",    NULL, "By residue: Custom",                            NULL, "Custom",                            BELVU_SCHEME_CUSTOM},
   {"colorSim",             NULL, colorSimStr,                         NULL, colorSimStr,                         BELVU_SCHEME_BLOSUM},
@@ -418,7 +419,8 @@ static const char standardMenuDescription[] =
 "    <menu action='ColorMenuAction'>"
 "      <menuitem action='colorSchemeStandard'/>"
 "      <menuitem action='colorSchemeGibson'/>"
-"      <menuitem action='colorSchemeCys'/>"
+"      <menuitem action='colorSchemeCGP'/>"
+"      <menuitem action='colorSchemeCGPH'/>"
 "      <menuitem action='colorSchemeEmpty'/>"
 "      <menuitem action='colorSchemeCustom'/>"
 "      <separator/>"
