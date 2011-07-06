@@ -2137,7 +2137,7 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
       const double toVal = g_strtod(toText, NULL);
     
       rmColumnCutoff(bc, fromVal, toVal);
-      belvuAlignmentRedrawAll(bc->belvuAlignment);
+      updateOnAlignmentLenChanged(bc->belvuAlignment);
     }
   
   gtk_widget_destroy(dialog);
@@ -2168,7 +2168,6 @@ static void showRemoveGappyColumnsDialog(GtkWidget *belvuWindow)
       
       rmFinaliseColumnRemoval(bc);
       updateOnAlignmentLenChanged(bc->belvuAlignment);
-      belvuAlignmentRedrawAll(bc->belvuAlignment);
     }
   
   gtk_widget_destroy(dialog);
