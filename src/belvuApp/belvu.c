@@ -3514,6 +3514,12 @@ void treeSort(BelvuContext *bc)
           bc->selectedAln = &g_array_index(bc->alignArr, ALN, ip);
         }
     }
+  
+  /* Show the tree window (create it if necessary) */
+  if (bc->belvuTree)
+    gtk_window_present(GTK_WINDOW(bc->belvuTree));
+  else
+    createBelvuTreeWindow(bc, bc->treeHead);
 }
 
 
