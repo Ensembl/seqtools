@@ -1278,6 +1278,7 @@ void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
 void removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff)
 {
   rmGappySeqs(bc, cutoff);
+  rmFinaliseGapRemoval(bc);
   updateOnVScrollSizeChaged(belvuAlignment);  
 }
 

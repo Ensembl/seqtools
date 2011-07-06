@@ -135,6 +135,7 @@
 #include <belvuApp/belvu_.h>
 #include <belvuApp/belvuWindow.h>
 #include <belvuApp/belvuTree.h>
+#include <belvuApp/belvuConsPlot.h>
 
 #include <stdarg.h>
 /*#include <stdlib.h> / * Needed for RAND_MAX but clashes with other stuff */
@@ -6037,14 +6038,18 @@ void setTreeHead(BelvuContext *bc, TreeNode *headNode)
 }
 
 
+/* This function should be called after removing sequences or columns */
 static void rmFinalise(BelvuContext *bc) 
 {
   /*    ruler[maxLen] = 0;*/
   checkAlignment(bc);
   setConsSchemeColors(bc);
   
-  /* This invalidates the tree, so set the tree head to NULL. */
+  /* Removing seqs/cols invalidates the tree, so set the tree head to NULL. */
   setTreeHead(bc, NULL);
+  
+  /* Removing seqs/cols invalidates the conservation plot, so recalculate it */
+  belvuConsPlotRecalcAll(bc->consPlot);
 }
 
 

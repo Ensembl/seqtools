@@ -41,6 +41,7 @@
 
 
 void                createConsPlot(BelvuContext *bc);
-BelvuContext*       consPlotGetContext(GtkWidget *consPlot);
-
+void                belvuConsPlotRecalcAll(GtkWidget *consPlot);
 void                onPlotOptsMenu(GtkAction *action, gpointer data);
+
+BelvuContext*       consPlotGetContext(GtkWidget *consPlot);

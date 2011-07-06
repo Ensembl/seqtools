@@ -49,7 +49,7 @@
 #define MAJOR_TICKMARK_HEIGHT               6     /* height of major tick marks in the sequence area header */
 #define MINOR_TICKMARK_HEIGHT               3     /* height of minor tick marks in the sequence area header */
 #define AVG_CONSERVATION_LABEL              "Average conservation"  /* label to show on the plot's "average conservation" line */
-
+#define CONS_PLOT_WINDOW_YPAD               30    /* extra y padding allocated to the plot's window on initialisation */
 
 
 /* Local function declarations */
@@ -159,6 +159,17 @@ static void belvuConsPlotRedrawAll(GtkWidget *consPlot)
     {
       widgetClearCachedDrawable(properties->drawingArea, NULL);
       gtk_widget_queue_draw(properties->drawingArea);
+    }
+}
+
+
+/* Recalculate the conservation array and redraw everything */
+void belvuConsPlotRecalcAll(GtkWidget *consPlot)
+{
+  if (consPlot)
+    {
+      calculateConservation(consPlot);
+      calculateConsPlotBorders(consPlot);
     }
 }
 
@@ -472,8 +483,7 @@ static void calculateConsPlotBorders(GtkWidget *consPlot)
                       width, 
                       properties->xScaleRect.y + properties->xScaleRect.height);
   
-  widgetClearCachedDrawable(properties->drawingArea, NULL);
-  gtk_widget_queue_draw(properties->drawingArea);
+  belvuConsPlotRedrawAll(consPlot);
 }
 
 /***********************************************************
@@ -496,7 +506,7 @@ static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpoin
           /* There isn't a bitmap yet. Create it now. */
           bitmap = createBlankSizedPixmap(widget, window, 
                                           widget->allocation.width, 
-                                          widget->allocation.height);
+                                          properties->xScaleRect.y + properties->xScaleRect.height);
 
           drawConsPlot(widget, bitmap, properties);
         }
@@ -522,9 +532,7 @@ static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpoin
 static void onSizeAllocateConsPlot(GtkWidget *widget, GtkAllocation *allocation, gpointer data)
 {
   GtkWidget *consPlot = GTK_WIDGET(data);
-  
-  calculateConservation(consPlot);
-  calculateConsPlotBorders(consPlot);
+  belvuConsPlotRecalcAll(consPlot);
 }
 
 
@@ -542,8 +550,7 @@ static gboolean onScrollPosChangedConsPlot(GtkObject *object, gpointer data)
   
   if (properties->drawingArea)
     {
-      widgetClearCachedDrawable(properties->drawingArea, NULL);
-      gtk_widget_queue_draw(properties->drawingArea);
+      belvuConsPlotRedrawAll(consPlot);
     }
   
   return FALSE;
@@ -567,7 +574,7 @@ static void setConsPlotStyleProperties(GtkWidget *window, BelvuContext *bc, cons
   
   const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
   
-  gtk_window_set_default_size(GTK_WINDOW(window), width, height);
+  gtk_window_set_default_size(GTK_WINDOW(window), width, height + CONS_PLOT_WINDOW_YPAD);
   
   /* Set the initial position */
   const int x = (screenWidth - width) / 4;
