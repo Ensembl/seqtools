@@ -137,7 +137,6 @@ static BlxColumnId                getColumnFromComboBox(GtkComboBox *combo);
 
 static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
 static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
-static GtkRadioButton*		  createRadioButton(GtkTable *table, const int col, const int row, GtkRadioButton *existingButton, const char *mnemonic, const gboolean isActive, const gboolean createTextEntry, const gboolean multiline, BlxResponseCallback callbackFunc, GtkWidget *blxWindow);
 static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
 static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error);
 
@@ -910,25 +909,6 @@ static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, co
     }
   
   return searchData.matchList;
-}
-
-
-/* Utility to extract the contents of a GtkEntry and return it as a string. The result is 
- * owned by the GtkTextEntry and should not be free'd. */
-static const char* getStringFromTextEntry(GtkEntry *entry)
-{
-  const char *result = NULL;
-  
-  if (!entry || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(entry)))
-    {
-      g_warning("Could not set search string: invalid text entry box\n");
-    }
-  else
-    {
-      result = gtk_entry_get_text(entry);
-    }
-  
-  return result;
 }
 
 
@@ -2230,114 +2210,6 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
       blxWindowDeleteSequenceGroup(blxWindow, group);
       refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
-}
-
-
-/* Callback for when a radio button with a secondary widget (passed as the user
- * data) is toggled. It enables/disables the other widget according to whether
- * the radio button is active or not. */
-static void onRadioButtonToggled(GtkWidget *button, gpointer data)
-{
-  GtkWidget *otherWidget = GTK_WIDGET(data);
-  
-  if (otherWidget)
-    {
-      const gboolean isActive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-      //      gtk_widget_set_sensitive(otherWidget, isActive); 
-      
-      if (isActive)
-	{
-	  GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
-	  GtkWindow *mainWin = gtk_window_get_transient_for(dialogWindow);
-
-	  gtk_window_set_focus(mainWin, otherWidget);
-	}
-    }
-}
-
-
-/* Callback when a text entry box in the groups dialog is clicked (for text that
- * is associated with a radio button). Clicking the text box activates its radio button */
-static gboolean onRadioButtonTextEntered(GtkWidget *textWidget, GdkEventButton *event, gpointer data)
-{
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(data), TRUE);
-  
-  return FALSE;
-}
-
-
-/* Utility to create a radio button with certain given properties, and to pack it
- * into the given container widget. Returns the radio button (so that further
- * buttons can be created in the same group by passing it as 'existingButton') */
-static GtkRadioButton* createRadioButton(GtkTable *table,
-                                         const int col,
-                                         const int row,
-					 GtkRadioButton *existingButton,
-					 const char *mnemonic, 
-					 const gboolean isActive, 
-					 const gboolean createTextEntry,
-					 const gboolean multiline,
-					 BlxResponseCallback callbackFunc,
-					 GtkWidget *blxWindow)
-{
-  GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
-  
-  GtkBox *box = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
-  
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
-  gtk_box_pack_start(box, button, FALSE, FALSE, 0);
-  
-  GtkWidget *entry = NULL;
-  
-  if (createTextEntry && multiline)
-    {
-      /* Multi-line text buffer */
-      GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
-      entry = gtk_text_view_new_with_buffer(GTK_TEXT_BUFFER(textBuffer));
-
-      /* Specify a min height */
-      const int numLines = 4;
-      const gdouble charHeight = detailViewGetCharHeight(blxWindowGetDetailView(blxWindow));
-      gtk_widget_set_size_request(entry, -1, roundNearest(charHeight * numLines));
-
-      GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-
-      GtkWidget *frame = gtk_frame_new(NULL);
-      gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-
-      gtk_container_add(GTK_CONTAINER(scrollWin), entry);
-      gtk_container_add(GTK_CONTAINER(frame), scrollWin);
-      gtk_box_pack_start(box, frame, TRUE, TRUE, 0);
-    }
-  else if (createTextEntry)
-    {
-      /* Single line text buffer */
-      entry = gtk_entry_new();
-      gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-      gtk_box_pack_start(box, entry, TRUE, TRUE, 0);
-    }
-
-  if (entry)
-    {
-      /* to do: don't want to set insensitive because want to receive clicks on text
-       * box to activate it; however, it would be good to grey out the background */
-//      gtk_widget_set_sensitive(entry, isActive);
-
-      if (isActive)
-	{
-	  gtk_window_set_focus(GTK_WINDOW(blxWindow), entry);
-	}
-
-      g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onRadioButtonToggled), entry);
-      g_signal_connect(G_OBJECT(entry), "focus-in-event", G_CALLBACK(onRadioButtonTextEntered), button);
-    }
-
-  /* Add the callback data. This specifies what callback to use when the dialog is ok'd. */
-  widgetSetCallbackData(button, callbackFunc, entry);
-
-  return GTK_RADIO_BUTTON(button);
 }
 
 

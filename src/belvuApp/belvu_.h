@@ -70,8 +70,6 @@ AUTHOR_TEXT "\n"
 #define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
 #define DIALOG_XPAD                             12      /* default x padding around dialog widgets */
 #define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
-#define TABLE_XPAD                              12      /* default x padding around table elements */
-#define TABLE_YPAD                              2       /* default y padding around table elements */
 
 
 /* _MAX_PATH is 260 in WIN32 but each path component can be max. 256 in size */
@@ -315,7 +313,8 @@ typedef enum
     BELDIALOG_MAKE_TREE,            /* The make-tree dialog */
     BELDIALOG_EDIT_RESIDUE_COLORS,  /* The edit-residue-colors dialog */
     BELDIALOG_EDIT_CONS_COLORS,     /* The edit-conservation-colors dialog */
-    
+    BELDIALOG_FIND,                 /* The find dialog */
+
     BELDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
   } BelvuDialogId;
 
@@ -553,5 +552,6 @@ void                                      listIdentity(BelvuContext *bc);
 void                                      setTreeHead(BelvuContext *bc, TreeNode *headNode);
 
 void                                      fetchAln(BelvuContext *bc, ALN *alnp);
+gboolean                                  alignmentHighlighted(BelvuContext *bc, ALN *alnp);
 
 #endif /* DEF_BELVU_P_H */

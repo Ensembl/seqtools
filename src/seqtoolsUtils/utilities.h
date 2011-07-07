@@ -43,6 +43,8 @@
 #define UNSET_INT                     -1   /* this value indicates an unset integer */
 #define DEFAULT_LABEL_X_PAD           0    /* default x padding to use for header labels */
 #define DEFAULT_PRINT_RESOLUTION      300  /* default resolution for printing in DPI */
+#define TABLE_XPAD                    12      /* default x padding around table elements */
+#define TABLE_YPAD                    2       /* default y padding around table elements */
 
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
@@ -556,7 +558,18 @@ void                               drawHScale(GtkWidget *widget,
                                               const int minorTickHeight,
                                               const int majorTickHeight);
 
+const char*                        getStringFromTextEntry(GtkEntry *entry);
 
+GtkRadioButton*                    createRadioButton(GtkTable *table,
+                                                     const int col,
+                                                     const int row,
+                                                      GtkRadioButton *existingButton,
+                                                     const char *mnemonic,
+                                                     const gboolean isActive,
+                                                     const gboolean createTextEntry,
+                                                     const gboolean multiline,
+                                                     BlxResponseCallback callbackFunc,
+                                                     GtkWidget *blxWindow);
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);

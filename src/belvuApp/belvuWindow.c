@@ -97,6 +97,7 @@ static void                      onQuitMenu(GtkAction *action, gpointer data);
 static void                      onHelpMenu(GtkAction *action, gpointer data);
 static void                      onAboutMenu(GtkAction *action, gpointer data);
 static void                      onPrintMenu(GtkAction *action, gpointer data);
+static void                      onFindMenu(GtkAction *action, gpointer data);
 static void                      onWrapMenu(GtkAction *action, gpointer data);
 static void                      onShowTreeMenu(GtkAction *action, gpointer data);
 static void                      onRecalcTreeMenu(GtkAction *action, gpointer data);
@@ -149,6 +150,7 @@ static void                      onShowOrgsMenu(GtkAction *action, gpointer data
 
 static void                      showHelpDialog();
 static void                      showAboutDialog(GtkWidget *parent);
+static void                      showFindDialog(BelvuContext *bc, GtkWidget *window);
 static void                      showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow);
 static void                      createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
 static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
@@ -279,13 +281,14 @@ static const GtkActionEntry menuEntries[] = {
   { "HelpMenuAction",  NULL, "_Help"},
 
   { "Close",	           GTK_STOCK_CLOSE,      "_Close",             "<control>W",        "Close",                 G_CALLBACK(onCloseMenu)},
-  { "Quit",	           GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
-  { "Help",	           GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
+  { "Quit", 	           GTK_STOCK_QUIT,       "_Quit",              "<control>Q",        "Quit  Ctrl+Q",          G_CALLBACK(onQuitMenu)},
+  { "Help",	               GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
   { "About",	           GTK_STOCK_ABOUT,      "A_bout",             NULL,                "About",                 G_CALLBACK(onAboutMenu)},
   { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
+  { "Find",                GTK_STOCK_FIND,       "_Find...",           "<control>F",        "Find sequence",         G_CALLBACK(onFindMenu)},
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
   { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
-  { "RecalcTree",          NULL,                 "Calculate tree",     NULL,                "Calculate tree",      G_CALLBACK(onRecalcTreeMenu)},
+  { "RecalcTree",          NULL,                 "Calculate tree",     NULL,                "Calculate tree",        G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PREFERENCES,"Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
   { "Save",                GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
@@ -370,6 +373,7 @@ static const char standardMenuDescription[] =
 "<ui>"
 /* ACCELERATORS */
 "  <accelerator action='togglePalette'/>"
+"  <accelerator action='Find'/>"
 
 /* MAIN MENU BAR */
 "  <menubar name='MenuBar' accelerators='true'>"
@@ -516,6 +520,7 @@ static const char standardMenuDescription[] =
 "    <toolitem action='rmMany'/>"
 "    <toolitem action='editColorScheme'/>"
 "    <toolitem action='alphaSort'/>"
+"    <toolitem action='Find'/>"
 "    <separator/>"
 "  </toolbar>"
 "</ui>";
@@ -654,6 +659,14 @@ static void onPrintMenu(GtkAction *action, gpointer data)
     blxPrintWidget(widgetToPrint, window, &printSettings, &pageSetup, TRUE, PRINT_FIT_WIDTH);
   else
     blxPrintWidget(window, window, &printSettings, &pageSetup, FALSE, PRINT_FIT_BOTH);
+}
+
+static void onFindMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  showFindDialog(bc, window);
 }
 
 static void onWrapMenu(GtkAction *action, gpointer data)
@@ -1843,6 +1856,174 @@ static void showSaveAsDialog(GtkWidget *belvuWindow)
     }
   
   gtk_widget_destroy(dialog);
+}
+
+
+/***********************************************************
+ *                     Find dialog                         *
+ ***********************************************************/
+
+static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean findAgain, const gboolean searchBackwards)
+{
+  /* Loop through each alignment and see if the name matches. If so,
+   * remember the index of the matching alignment. We start searching
+   * from the beginning of the alignment array, unless this is a 'find again'
+   * search, when we search from the next alignment after the previous result */
+  static int startIdx = 0;
+
+  if (findAgain && searchBackwards)
+    --startIdx;
+  else if (findAgain)
+    ++startIdx;
+  else
+    startIdx = 0;
+
+  const int increment = (searchBackwards ? -1 : 1);
+
+  int i = startIdx;
+  gboolean found = FALSE;
+
+  for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+
+      if (wildcardSearch(alnp->name, searchStr))
+        {
+          bc->selectedAln = alnp;
+          onRowSelectionChanged(bc);
+
+          found = TRUE;
+          startIdx = i;
+          break;
+        }
+    }
+
+  /* If it's a find-again search and we failed to find a result, try
+   * again starting from the beginning */
+  if (findAgain && !found &&
+      ((searchBackwards && startIdx != bc->alignArr->len - 1) || (!searchBackwards && startIdx != 0)) )
+    {
+      startIdx = (searchBackwards ? bc->alignArr->len - 1 : 0);
+      i = startIdx;
+
+      for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
+        {
+          ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+
+          if (wildcardSearch(alnp->name, searchStr))
+            {
+              bc->selectedAln = alnp;
+              onRowSelectionChanged(bc);
+
+              found = TRUE;
+              startIdx = i;
+              break;
+            }
+        }
+    }
+
+  if (!found)
+    g_critical("Alignment name '%s' not found.\n", searchStr);
+}
+
+
+//static void findResidues(BelvuContext *bc, const char *searchStr, const gboolean findAgain, const gboolean searchBackwards)
+//{
+//  /* to do */
+//}
+
+
+static gboolean onFindSeqs(GtkWidget *button, const gint responseId, gpointer data)
+{
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      const char *searchStr = getStringFromTextEntry(GTK_ENTRY(data));
+
+      GtkWidget *dialog = gtk_widget_get_toplevel(button);
+      GtkWidget *window = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+      BelvuContext *bc = windowGetContext(window);
+
+      /* If the the user hit forward or back, do a find-again search in the appropriate
+       * direction; otherwise do a normal search */
+      if (responseId == BLX_RESPONSE_FORWARD)
+        findSeqs(bc, searchStr, TRUE, FALSE);
+      else if (responseId == BLX_RESPONSE_BACK)
+        findSeqs(bc, searchStr, TRUE, TRUE);
+      else
+        findSeqs(bc, searchStr, FALSE, FALSE);
+    }
+
+  return TRUE;
+}
+
+
+//static gboolean onFindResidues(GtkWidget *button, const gint responseId, gpointer data)
+//{
+//  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+//    {
+//      const char *searchStr = getStringFromTextEntry(GTK_ENTRY(data));
+//
+//      GtkWidget *dialog = gtk_widget_get_toplevel(button);
+//      GtkWidget *window = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+//      BelvuContext *bc = windowGetContext(window);
+//
+//      /* If the the user hit forward or back, do a find-again search in the appropriate
+//       * direction; otherwise do a normal search */
+//      if (responseId == BLX_RESPONSE_FORWARD)
+//        findResidues(bc, searchStr, TRUE, FALSE);
+//      else if (responseId == BLX_RESPONSE_BACK)
+//        findResidues(bc, searchStr, TRUE, TRUE);
+//      else
+//        findResidues(bc, searchStr, FALSE, FALSE);
+//    }
+//
+//  return TRUE;
+//}
+
+
+static void showFindDialog(BelvuContext *bc, GtkWidget *window)
+{
+  const BelvuDialogId dialogId = BELDIALOG_FIND;
+  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
+
+  if (!dialog)
+    {
+      dialog = gtk_dialog_new_with_buttons("Belvu - Find sequences",
+                                           GTK_WINDOW(window),
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           GTK_STOCK_GO_BACK,
+                                           BLX_RESPONSE_BACK,
+                                           GTK_STOCK_GO_FORWARD,
+                                           BLX_RESPONSE_FORWARD,
+                                           GTK_STOCK_CLOSE,
+                                           GTK_RESPONSE_REJECT,
+                                           GTK_STOCK_OK,
+                                           GTK_RESPONSE_ACCEPT,
+                                           NULL);
+
+      /* These calls are required to make the dialog persistent... */
+      addPersistentDialog(bc->dialogList, dialogId, dialog);
+      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+
+      GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+      const int numRows = 2;
+      const int numCols = 2;
+      GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+      gtk_box_pack_start(contentArea, GTK_WIDGET(table), TRUE, TRUE, 0);
+
+
+      /*GtkRadioButton *button1 =*/ createRadioButton(table, 0, 0, NULL, "_Name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqs, window);
+      //==/*createRadioButton(table, 0, 1, button1, "_Residue sequence search", FALSE, TRUE, FALSE, onFindResidues, window);*/
+
+
+      gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window));
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+    }
+
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  gtk_widget_show_all(dialog);
+  gtk_window_present(GTK_WINDOW(dialog));
 }
 
 
@@ -3449,6 +3630,19 @@ void onRowSelectionChanged(BelvuContext *bc)
 
       /* Copy the selected sequence name to the PRIMARY clipboard */
       setPrimaryClipboardText(bc->selectedAln->name);
+    }
+
+  /* Highlight any alignments that have the same name as the selected alignment */
+  g_slist_free(bc->highlightedAlns); /* clear current list */
+  bc->highlightedAlns = NULL;
+
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len; ++i)
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+
+      if (alignmentHighlighted(bc, alnp))
+        bc->highlightedAlns = g_slist_prepend(bc->highlightedAlns, alnp);
     }
 
   /* Update the feedback box */

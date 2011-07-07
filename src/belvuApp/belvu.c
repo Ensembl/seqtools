@@ -7285,3 +7285,11 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
 }
 
 
+
+/* Utility to return true if the given alignment is highlighted (i.e. has the
+ * same name as the selected alignment) */
+gboolean alignmentHighlighted(BelvuContext *bc, ALN *alnp)
+{
+  /* Return true if this alignment has the same name as the selected alignment */
+  return (bc->selectedAln && stringsEqual(alnp->name, bc->selectedAln->name, TRUE));
+}

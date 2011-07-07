@@ -51,7 +51,6 @@
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
-static gboolean           alignmentHighlighted(BelvuContext *bc, ALN *alnp);
 static void               calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment);
 
 
@@ -289,15 +288,6 @@ static void drawSingleColumn(GtkWidget *widget,
     }
   
   g_object_unref(gc);
-}
-
-
-/* Utility to return true if the given alignment is highlighted (i.e. has the
- * same name as the selected alignment) */
-static gboolean alignmentHighlighted(BelvuContext *bc, ALN *alnp)
-{
-  /* Return true if this alignment has the same name as the selected alignment */
-  return (bc->selectedAln && stringsEqual(alnp->name, bc->selectedAln->name, TRUE));
 }
 
 
@@ -1441,18 +1431,6 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
               break;
             }
         }
-    }
-  
-  /* Highlight any alignments that have the same name as the selected alignment */
-  g_slist_free(bc->highlightedAlns); /* clear current list */
-  bc->highlightedAlns = NULL;
-  
-  for (i = 0; i < bc->alignArr->len; ++i)
-    {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-      
-      if (alignmentHighlighted(bc, alnp))
-        bc->highlightedAlns = g_slist_prepend(bc->highlightedAlns, alnp);
     }
 }
 
