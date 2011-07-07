@@ -3746,41 +3746,15 @@ gboolean findCommand (char *command, char **resultOut)
 {
   gboolean found = FALSE;
   
-#if !defined(NO_POPEN)
   static char result[1025];
-  char fileName[1025];
-  FILE *file = NULL;
+
+  char *path = g_find_program_in_path(command);
   
-  char *pathEnv = g_malloc(strlen(getenv("PATH"))+1);
-  strcpy(pathEnv, getenv("PATH"));
-  
-  /* Try each path in the enviroment var */
-  char *path = strtok(pathEnv, ":");
-  
-  while (path) 
+  if (path)
     {
-      strcpy(fileName, path);
-      strcat(fileName,"/");
-      strcat(fileName, command);
-      
-      /* Check if the file exists in this path */
-      file = fopen(fileName, "r");
-      if (file)  //!access(fileName, F_OK) && !access(fileName, X_OK)) 
-	{
-	  found = TRUE;
-	  fclose(file);
-	  break;
-	}
-      
-      path = strtok(0, ":");
-    }
-  
-  g_free(pathEnv);
-  
-  if (found) 
-    {
-      strcpy(result, fileName);
       found = TRUE;
+      strcpy(result, path);
+      g_free(path);
     }
   else 
     {
@@ -3793,11 +3767,6 @@ gboolean findCommand (char *command, char **resultOut)
     {
       *resultOut = result;
     }
-#else
-  char *msg = blxprintf("Can't open executable '%s' - popen command is not defined.\n", command);
-  strcpy(result, msg);
-  g_free(msg);
-#endif
   
   return found;
 }
