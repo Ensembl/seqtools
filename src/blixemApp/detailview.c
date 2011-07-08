@@ -55,8 +55,6 @@
 #define SORT_BY_POS_STRING		"Position"
 #define SORT_BY_GROUP_ORDER_STRING	"Group"
 #define FONT_INCREMENT_SIZE		1
-#define MIN_FONT_SIZE			2
-#define MAX_FONT_SIZE			20
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
 #define DEFAULT_SNP_CONNECTOR_HEIGHT	0

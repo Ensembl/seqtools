@@ -46,6 +46,10 @@ void                    belvuAlignmentRedrawAll(GtkWidget *belvuAlignment);
 void                    belvuAlignmentRefreshAll(GtkWidget *belvuAlignment);
 void                    updateOnAlignmentLenChanged(GtkWidget *belvuAlignment);
 
+void                    onBelvuAlignmentFontSizeChanged(GtkWidget *belvuAlignment);
+void                    belvuAlignmentDecrementFontSize(GtkWidget *belvuAlignment);
+void                    belvuAlignmentIncrementFontSize(GtkWidget *belvuAlignment);
+
 void                    updateOnVScrollSizeChaged(GtkWidget *belvuAlignment);
 void                    centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment);
 

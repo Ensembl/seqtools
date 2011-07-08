@@ -46,7 +46,7 @@
 
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
-#define DEFAULT_FONT_SIZE_ADJUSTMENT     -2   /* used to start with a smaller font than the default widget font */
+#define DEFAULT_FONT_SIZE_ADJUSTMENT     0   /* used to start with a smaller font than the default widget font */
 #define MAIN_BELVU_WINDOW_NAME           "BelvuWindow"
 #define WRAPPED_BELVU_WINDOW_NAME        "WrappedBelvuWindow"
 #define BELVU_ORGS_WINDOW_NAME           "BelvuOrgsWindow" 
@@ -148,6 +148,10 @@ static void                      onSaveTreeMenu(GtkAction *action, gpointer data
 static void                      onFindOrthogsMenu(GtkAction *action, gpointer data);
 static void                      onShowOrgsMenu(GtkAction *action, gpointer data);
 
+static void                      onZoomInMenu(GtkAction *action, gpointer data);
+static void                      onZoomOutMenu(GtkAction *action, gpointer data);
+static void                      onSetFontMenu(GtkAction *action, gpointer data);
+
 static void                      showHelpDialog();
 static void                      showAboutDialog(GtkWidget *parent);
 static void                      showFindDialog(BelvuContext *bc, GtkWidget *window);
@@ -172,7 +176,10 @@ static void                      showEditConsColorsDialog(GtkWidget *belvuWindow
 static void                      saveOrResetConsColors(BelvuContext *bc, const gboolean save);
 static void                      showSelectGapCharDialog(GtkWidget *belvuWindow);
 
+static GtkWidget*                createPromptDialog(GtkWidget *window, const char *defaultResult, const char *title, const char *text1, const char *text2, GtkWidget **entry);
+
 static gboolean                  saveAlignmentPrompt(GtkWidget *window, BelvuContext *bc);
+static void                      showFontDialog(BelvuContext *bc, GtkWidget *window);
 
 static const char*               saveFasta(BelvuContext *bc, GtkWidget *parent);
 static const char*               saveMul(BelvuContext *bc, GtkWidget *parent);
@@ -285,7 +292,7 @@ static const GtkActionEntry menuEntries[] = {
   { "Help",	               GTK_STOCK_HELP,       "_Help",              "<control>H",        "Display help  Ctrl+H",  G_CALLBACK(onHelpMenu)},
   { "About",	           GTK_STOCK_ABOUT,      "A_bout",             NULL,                "About",                 G_CALLBACK(onAboutMenu)},
   { "Print",	           GTK_STOCK_PRINT,      "_Print...",          "<control>P",        "Print  Ctrl+P",         G_CALLBACK(onPrintMenu)},
-  { "Find",                GTK_STOCK_FIND,       "_Find...",           "<control>F",        "Find sequence",         G_CALLBACK(onFindMenu)},
+  { "Find",                GTK_STOCK_FIND,       "_Find...",           "<control>F",        "Find  Ctrl+F",          G_CALLBACK(onFindMenu)},
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
   { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
   { "RecalcTree",          NULL,                 "Calculate tree",     NULL,                "Calculate tree",        G_CALLBACK(onRecalcTreeMenu)},
@@ -321,7 +328,11 @@ static const GtkActionEntry menuEntries[] = {
 
   {"SaveTree",             GTK_STOCK_SAVE,       SaveTreeStr,          NULL,                SaveTreeDesc,            G_CALLBACK(onSaveTreeMenu)},
   {"ShowOrgs",             NULL,                 ShowOrgsStr,          NULL,                ShowOrgsDesc,            G_CALLBACK(onShowOrgsMenu)},
-  {"PlotOpts",             GTK_STOCK_PROPERTIES, PlotOptsStr,          NULL,                PlotOptsDesc,            G_CALLBACK(onPlotOptsMenu)}
+  {"PlotOpts",             GTK_STOCK_PROPERTIES, PlotOptsStr,          NULL,                PlotOptsDesc,            G_CALLBACK(onPlotOptsMenu)},
+
+  {"ZoomIn",              GTK_STOCK_ZOOM_IN,    "Zoom in",            NULL,                "Zoom in",               G_CALLBACK(onZoomInMenu)},
+  {"ZoomOut",             GTK_STOCK_ZOOM_OUT,   "Zoom out",           NULL,                "Zoom out",              G_CALLBACK(onZoomOutMenu)},
+  {"SetFont",             NULL,                 "Set font size",      NULL,                "Set font size",         G_CALLBACK(onSetFontMenu)}
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -446,6 +457,8 @@ static const char standardMenuDescription[] =
 "      <menuitem action='printColors'/>"
 "      <menuitem action='displayColors'/>"
 "      <menuitem action='lowercase'/>"
+"      <separator/>"
+"      <menuitem action='SetFont'/>"
 "    </menu>"
      /* Sort menu */
 "    <menu action='SortMenuAction'>"
@@ -520,8 +533,10 @@ static const char standardMenuDescription[] =
 "    <toolitem action='rmMany'/>"
 "    <toolitem action='editColorScheme'/>"
 "    <toolitem action='alphaSort'/>"
-"    <toolitem action='Find'/>"
 "    <separator/>"
+//"    <toolitem action='ZoomIn'/>"
+//"    <toolitem action='ZoomOut'/>"
+"    <toolitem action='Find'/>"
 "  </toolbar>"
 "</ui>";
 
@@ -1441,6 +1456,31 @@ static void onShowOrgsMenu(GtkAction *action, gpointer data)
     createOrganismWindow(bc);
 }
 
+static void onZoomInMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  belvuAlignmentIncrementFontSize(bc->belvuAlignment);
+}
+
+static void onZoomOutMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  belvuAlignmentDecrementFontSize(bc->belvuAlignment);
+}
+
+static void onSetFontMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+
+  showFontDialog(bc, window);
+}
+
+
 /***********************************************************
  *                         Properties                      *
  ***********************************************************/
@@ -1562,6 +1602,53 @@ static void genericWindowCreateProperties(GtkWidget *wrapWindow,
       g_object_set_data(G_OBJECT(wrapWindow), "GenericWindowProperties", properties);
       g_signal_connect(G_OBJECT(wrapWindow), "destroy", G_CALLBACK (onDestroyGenericWindow), NULL);
     }
+}
+
+
+/***********************************************************
+ *                        Font size                        *
+ ***********************************************************/
+
+/* Recursively set the font size for this widget and all its children */
+static void widgetSetFontSize(GtkWidget *widget, gpointer data)
+{
+  int newSize = GPOINTER_TO_INT(data);
+
+  pango_font_description_set_size(widget->style->font_desc, newSize * PANGO_SCALE);
+  gtk_widget_modify_font(widget, widget->style->font_desc);
+
+  if (GTK_IS_CONTAINER(widget))
+    gtk_container_foreach(GTK_CONTAINER(widget), widgetSetFontSize, data);
+}
+
+
+static void showFontDialog(BelvuContext *bc, GtkWidget *window)
+{
+  GtkWidget *entry = NULL;
+
+  const int oldSize = pango_font_description_get_size(window->style->font_desc) / PANGO_SCALE;
+  char *defaultText = blxprintf("%d", oldSize);
+
+  GtkWidget *dialog = createPromptDialog(window, defaultText, "Belvu - Font", "Select font size:", "", &entry);
+
+  gtk_widget_show_all(dialog);
+
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      const int newSize = convertStringToInt(gtk_entry_get_text(GTK_ENTRY(entry)));
+
+      if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
+        {
+          widgetSetFontSize(window, GINT_TO_POINTER(newSize));
+          onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
+        }
+      else
+        {
+          g_critical("Invalid font size %d; font size must be between %d and %d.\n", newSize, MIN_FONT_SIZE, MAX_FONT_SIZE);
+        }
+    }
+
+  gtk_widget_destroy(dialog);
 }
 
 
@@ -2031,15 +2118,15 @@ static void showFindDialog(BelvuContext *bc, GtkWidget *window)
  *                Remove sequences dialogs                 *
  ***********************************************************/
 
-static GtkWidget* createPropmtDialog(GtkWidget *belvuWindow,
-			 	     const char *defaultResult,
-				     const char *title,
-			 	     const char *text1,
-			 	     const char *text2,
-				     GtkWidget **entry)
+static GtkWidget* createPromptDialog(GtkWidget *window,
+                                     const char *defaultResult,
+                                     const char *title,
+                                     const char *text1,
+                                     const char *text2,
+                                     GtkWidget **entry)
 { 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-                                                  GTK_WINDOW(belvuWindow), 
+                                                  GTK_WINDOW(window),
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
@@ -2083,7 +2170,7 @@ static void showRemoveGappySeqsDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("50");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are ", "% or more gaps.", &entry);
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are ", "% or more gaps.", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2109,7 +2196,7 @@ static void showMakeNonRedundantDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("80.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are more than ", "% identical.", &entry);
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are more than ", "% identical.", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2135,7 +2222,7 @@ static void showRemoveOutliersDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are less than ", "% identical with any other.", &entry);
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are less than ", "% identical with any other.", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2161,7 +2248,7 @@ static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that have a score less than ", "", &entry);
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that have a score less than ", "", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2331,7 +2418,7 @@ static void showRemoveGappyColumnsDialog(GtkWidget *belvuWindow)
     inputText = blxprintf("%.0f", 50.0);
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - Remove Columns", "Remove columns with more than ", " % gaps", &entry);
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - Remove Columns", "Remove columns with more than ", " % gaps", &entry);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2439,7 +2526,7 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPropmtDialog(belvuWindow, inputText, "Belvu - Color by Residue ID", "Only colour residues above ", "% identity", &entry);
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - Color by Residue ID", "Only colour residues above ", "% identity", &entry);
 
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -4002,5 +4089,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   BelvuWindowProperties *properties = belvuWindowGetProperties(window);
   properties->defaultCursor = gdk_window_get_cursor(window->window);
   
+  onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
+
   return ok;
 }

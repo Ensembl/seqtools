@@ -51,7 +51,8 @@
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
-static void               calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment);
+static void               calculateDrawingSizes(GtkWidget *belvuAlignment);
+static void               updateHeaderColumnsSize(GtkWidget *belvuAlignment);
 
 
 /* Properties specific to the belvu alignment */
@@ -74,7 +75,6 @@ typedef struct _BelvuAlignmentProperties
   char *title;                /* title to display at the top of the alignments */
   int wrapWidth;                    /* Number of characters after which to wrap (or UNSET_INT for no wrapping) */
   
-  PangoFontDescription *fontDesc;   /* The fixed-width font to use for displaying the alignment */
   gdouble charWidth;                /* The width of each character in the display */
   gdouble charHeight;               /* The height of each character in the display */
 } BelvuAlignmentProperties;
@@ -136,6 +136,13 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       properties->title = g_strdup(title);
       properties->wrapWidth = wrapWidth;
       
+      properties->seqRect.x = 0;
+      properties->seqRect.y = DEFAULT_YPAD;
+      properties->seqHeaderRect.x = properties->seqRect.x;
+      properties->seqHeaderRect.y = DEFAULT_YPAD;
+      properties->columnsRect.x = DEFAULT_XPAD;
+      properties->columnsRect.y = DEFAULT_YPAD;
+
       /* Find a fixed-width font */
       const char *fontFamily = findFixedWidthFont(seqArea);
       PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
@@ -145,12 +152,67 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       if (columnsArea)
         gtk_widget_modify_font(columnsArea, fontDesc);
 
-      getFontCharSize(belvuAlignment, fontDesc, &properties->charWidth, &properties->charHeight);
-      properties->fontDesc = fontDesc;
-
       g_object_set_data(G_OBJECT(belvuAlignment), "BelvuAlignmentProperties", properties);
       g_signal_connect(G_OBJECT(belvuAlignment), "destroy", G_CALLBACK (onDestroyBelvuAlignment), NULL);
     }
+}
+
+/***********************************************************
+ *                         Misc                         *
+ ***********************************************************/
+
+/* This should be called after the font has changed. It caches
+ * the new font size in the properties and recalculates all sizes */
+void onBelvuAlignmentFontSizeChanged(GtkWidget *belvuAlignment)
+{
+  if (!belvuAlignment)
+    return;
+
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+  
+  if (!properties || !properties->seqArea)
+    return;
+  
+  getFontCharSize(properties->seqArea, properties->seqArea->style->font_desc, &properties->charWidth, &properties->charHeight);
+
+  /* Update the column padding, which is based on the character width. We use
+   * slightly different padding if the view is wrapped because we don't draw 
+   * column separators */
+  if (properties->wrapWidth != UNSET_INT) /* wrapped */
+    {
+      properties->columnPadding = (DEFAULT_PADDING_CHARS * properties->charWidth);
+      properties->nameColumnPadding = (DEFAULT_NAME_COLUMN_PADDING_CHARS * properties->charWidth);
+    }
+  else /* unwrapped */
+    {
+      properties->columnPadding = (DEFAULT_PADDING_CHARS * properties->charWidth) / 2;
+      properties->nameColumnPadding = 0;
+    }
+  
+  
+  /* The font size affects the height of the header line */
+  properties->seqHeaderRect.height = properties->charHeight + DEFAULT_YPAD;
+
+  if (properties->seqHeader)
+    gtk_widget_set_size_request(properties->seqHeader, -1, properties->seqHeaderRect.y + properties->seqHeaderRect.height);
+
+  /* Set the size of the header columns widget */
+  updateHeaderColumnsSize(belvuAlignment);
+
+  /* Recalculate the size of the drawing areas */
+  calculateDrawingSizes(belvuAlignment);
+
+  belvuAlignmentRedrawAll(belvuAlignment);
+}
+
+void belvuAlignmentIncrementFontSize(GtkWidget *belvuAlignment)
+{
+
+}
+
+void belvuAlignmentDecrementFontSize(GtkWidget *belvuAlignment)
+{
+
 }
 
 
@@ -1077,7 +1139,7 @@ static void updateOnAlignmentSizeChanged(GtkWidget *belvuAlignment)
 void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
 {
   /* Recalculate the borders, because the max name length etc. may have changed */
-  calculateBelvuAlignmentBorders(belvuAlignment);
+  calculateDrawingSizes(belvuAlignment);
   
   /* Update the scroll ranges because the number of rows and columns may have changed */
   updateOnAlignmentSizeChanged(belvuAlignment);
@@ -1158,81 +1220,83 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
 }
 
 
-static void calculateBelvuAlignmentBorders(GtkWidget *belvuAlignment)
+/* Update the size of the header-columns widget. Should be called after any
+ * change that affects the length of the text displayed in the columns area. */
+static void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-
-  /* Set the column padding. We use slightly different padding if the view is
-   * wrapped because we don't draw column separators */
-  if (properties->wrapWidth != UNSET_INT)
-    {
-      properties->columnPadding = (DEFAULT_PADDING_CHARS * properties->charWidth);
-      properties->nameColumnPadding = (DEFAULT_NAME_COLUMN_PADDING_CHARS * properties->charWidth);
-    }
-  else
-    {
-      properties->columnPadding = (DEFAULT_PADDING_CHARS * properties->charWidth) / 2;
-      properties->nameColumnPadding = 0;
-    }
   
-  /* Calculate the size of the drawing area for the sequences */
-  properties->seqRect.x = 0;
-  properties->seqRect.y = DEFAULT_YPAD;
-  properties->seqRect.width = getAlignmentDisplayWidth(properties);
-  properties->seqRect.height = getAlignmentDisplayHeight(properties);
-  
-  properties->seqHeaderRect.x = properties->seqRect.x;
-  properties->seqHeaderRect.y = DEFAULT_YPAD;
-  properties->seqHeaderRect.width = properties->seqRect.width;
-  properties->seqHeaderRect.height = properties->charHeight + DEFAULT_YPAD;
-             
   if (properties->columnsArea)
     {
       /* There is a separate drawing area for the columns that contain the row
        * headers; calculate its size. */
-      properties->columnsRect.x = DEFAULT_XPAD;
-      properties->columnsRect.y = DEFAULT_YPAD;
-      properties->columnsRect.height = properties->seqRect.height;
-      
       properties->columnsRect.width = (properties->bc->maxNameLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->bc->maxStartLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->bc->maxEndLen * properties->charWidth) + (2 * properties->columnPadding) +
-				      properties->columnPadding;
-    
-    if (properties->bc->displayScores)
-      properties->columnsRect.width += (properties->bc->maxScoreLen * properties->charWidth) + (2 * properties->columnPadding);
+                                      properties->columnPadding;
       
-      
+      if (properties->bc->displayScores)
+        properties->columnsRect.width += (properties->bc->maxScoreLen * properties->charWidth) + (2 * properties->columnPadding);
+
+      /* Set the height of the header line to the the same as the sequence header line */
       gtk_widget_set_size_request(properties->columnsHeader, -1, properties->seqHeaderRect.y + properties->seqHeaderRect.height);
+      
+      /* Set the height and width of the drawing area */
       gtk_layout_set_size(GTK_LAYOUT(properties->columnsArea), properties->columnsRect.width, properties->columnsRect.height);
-  
+      
+      /* Force the width of the drawing widget to be the width of the drawing area */
       if (properties->columnsRect.width != properties->columnsArea->allocation.width)
         gtk_widget_set_size_request(properties->columnsArea, properties->columnsRect.width, -1);
     }
+}
 
-  /* Set the initial size for the sequence area (n/a for wrapped view because
-   * this gets done by the draw function). */
+
+/* This function calculates the size of the drawing area for sequences based
+ * on either a) the current allocated size of the sequence area or b) for a 
+ * wrapped alignment, the full size required to draw everything.
+ * It also updates the height of the columns area, if applicable, so that it is
+ * the same height as the sequence area. */
+static void calculateDrawingSizes(GtkWidget *belvuAlignment)
+{
+  BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
+
+  /* Recalculate the size of the drawing area for the sequences (both height
+   * and width may have changed on a size-allocate) */
+  properties->seqRect.width = getAlignmentDisplayWidth(properties);
+  properties->seqRect.height = getAlignmentDisplayHeight(properties);
+
+  /* Update the size of the drawing widget and signal that the scroll range
+   * has changed (n/a for wrapped view because this gets done by the draw function. */
   if (properties->wrapWidth == UNSET_INT)
     {
       gtk_layout_set_size(GTK_LAYOUT(properties->seqArea), properties->seqRect.x + properties->seqRect.width, properties->seqRect.y + properties->seqRect.height);
 
       if (properties->hAdjustment)
         gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
-
+      
       if (properties->vAdjustment)
         gtk_adjustment_changed(properties->vAdjustment);
     }
+  
+  /* Keep the sequence-header area the same width as the sequence area */
+  properties->seqHeaderRect.width = properties->seqRect.width;
 
-  /* Set the height of the header */
-  if (properties->seqHeader)
-    gtk_widget_set_size_request(properties->seqHeader, -1, properties->seqHeaderRect.y + properties->seqHeaderRect.height);
+  if (properties->columnsArea)
+    {
+      /* Update the height of the drawing area (the width shouldn't have
+       * changed for a size-allocate because the table cell does not expand) */
+      properties->columnsRect.height = properties->seqRect.height;
+      gtk_layout_set_size(GTK_LAYOUT(properties->columnsArea), properties->columnsRect.width, properties->columnsRect.height);
+    }
 }
 
 
 static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *allocation, gpointer data)
 {
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
-  calculateBelvuAlignmentBorders(belvuAlignment);
+  
+  /* Update the size of the drawing areas */
+  calculateDrawingSizes(belvuAlignment);
 }
 
 
