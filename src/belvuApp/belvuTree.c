@@ -39,6 +39,7 @@
 #include "belvuApp/belvuTree.h"
 #include "belvuApp/belvuWindow.h"
 #include "seqtoolsUtils/utilities.h"
+#include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h> /* for isspace etc. */
 #include <math.h>
@@ -139,8 +140,8 @@ typedef struct _BelvuTreeProperties
     GtkWidget *treeArea;            /* Drawing widget for the tree */
     GdkRectangle treeRect;          /* Specifies the actual area in which we'll draw the tree within treeAre */
     
-    int charWidth;
-    int charHeight;
+    gdouble charWidth;
+    gdouble charHeight;
     
     BelvuBuildMethod buildMethod;   /* The build method used to build the tree */
     BelvuDistCorr distCorr;         /* The distance-correction method used to build the tree */
@@ -201,8 +202,8 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
       properties->buildMethod = buildMethod;
       properties->distCorr = distCorr;
       
-      properties->charHeight = 14;
-      properties->charWidth = 8;
+      properties->charHeight = 0;
+      properties->charWidth = 0;
 
       properties->clickableRects = g_array_new(FALSE, FALSE, sizeof(ClickableRect));
       
@@ -1873,6 +1874,45 @@ static gboolean onButtonPressBelvuTree(GtkWidget *widget, GdkEventButton *event,
 }
 
 
+/* This should be called if the font size of the tree window has changed. */
+void onBelvuTreeFontSizeChanged(GtkWidget *belvuTree)
+{
+  if (!belvuTree)
+    return;
+  
+  BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+  
+  getFontCharSize(properties->treeArea, properties->treeArea->style->font_desc, &properties->charWidth, &properties->charHeight);
+  
+  calculateBelvuTreeBorders(belvuTree);
+  belvuTreeRedrawAll(belvuTree, NULL);
+}
+
+
+/* Key press handler */
+gboolean onKeyPressBelvuTree(GtkWidget *window, GdkEventKey *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  BelvuContext *bc = (BelvuContext*)data;
+  
+  const gboolean ctrl = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;	
+  const gboolean shift = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;	
+  
+  switch (event->keyval)
+  {
+    case GDK_plus:      /* fall through */
+    case GDK_equal:     handled = onKeyPressPlusMinus(bc, TRUE, ctrl, shift);    break;
+    case GDK_minus:     /* fall through */
+    case GDK_underscore: handled = onKeyPressPlusMinus(bc, FALSE, ctrl, shift);  break;
+      
+    default: break;
+  };
+  
+  return handled;
+}
+
+
 /***********************************************************
  *                    Settings dialog                      *
  ***********************************************************/
@@ -2191,6 +2231,9 @@ static void calculateNodeWidth(BelvuTreeProperties *properties, TreeNode *node, 
 
 static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
 {
+  if (!belvuTree)
+    return;
+  
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
 
   /* This loops through all nodes and calculates the max tree width */
@@ -2309,10 +2352,17 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   gtk_widget_add_events(treeArea, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(treeArea), "expose-event", G_CALLBACK(onExposeBelvuTree), belvuTree);  
   g_signal_connect(G_OBJECT(treeArea), "button-press-event", G_CALLBACK(onButtonPressBelvuTree), belvuTree);  
-
+  g_signal_connect(G_OBJECT(belvuTree), "key-press-event", G_CALLBACK(onKeyPressBelvuTree), bc);
+  
   gtk_widget_show_all(belvuTree);
   gtk_window_present(GTK_WINDOW(belvuTree));
   
+  /* Set the font size to be the same as the main alignment window */
+  if (bc->belvuAlignment)
+    widgetSetFontSize(bc->belvuTree, GINT_TO_POINTER(pango_font_description_get_size(bc->belvuAlignment->style->font_desc) / PANGO_SCALE));
+                      
+  onBelvuTreeFontSizeChanged(bc->belvuTree);
+
   return belvuTree;
 }
 

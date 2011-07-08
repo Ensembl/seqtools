@@ -56,8 +56,10 @@
 #define MAX_ORGS_WINDOW_HEIGHT_FRACTION         0.7    /* max height of organisms window (as fraction of screen height) */
 #define MAX_ANNOTATION_WINDOW_WIDTH_FRACTION    0.6    /* max width of annotation window (as fraction of screen width) */
 #define MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION   0.7    /* max height of annotation window (as fraction of screen height) */
-#define ORGS_WINDOW_XPAD		    20	  /* x padding for the organisms window */
-#define ORGS_WINDOW_YPAD		    20	  /* y padding for the organisms window */
+#define ORGS_WINDOW_XPAD                        20     /* x padding for the organisms window */
+#define ORGS_WINDOW_YPAD                        20     /* y padding for the organisms window */
+#define FONT_SIZE_ENV_VAR                       "BELVU_FONT_SIZE"  /* optional environment variable to specify the default font size in points */
+
 
 /* Utility struct to pass data to the color-changed callback
  * when a color has been changed on the edit-colors dialog */
@@ -330,9 +332,9 @@ static const GtkActionEntry menuEntries[] = {
   {"ShowOrgs",             NULL,                 ShowOrgsStr,          NULL,                ShowOrgsDesc,            G_CALLBACK(onShowOrgsMenu)},
   {"PlotOpts",             GTK_STOCK_PROPERTIES, PlotOptsStr,          NULL,                PlotOptsDesc,            G_CALLBACK(onPlotOptsMenu)},
 
-  {"ZoomIn",              GTK_STOCK_ZOOM_IN,    "Zoom in",            NULL,                "Zoom in",               G_CALLBACK(onZoomInMenu)},
-  {"ZoomOut",             GTK_STOCK_ZOOM_OUT,   "Zoom out",           NULL,                "Zoom out",              G_CALLBACK(onZoomOutMenu)},
-  {"SetFont",             NULL,                 "Set font size",      NULL,                "Set font size",         G_CALLBACK(onSetFontMenu)}
+  {"ZoomIn",              GTK_STOCK_ZOOM_IN,    "Zoom in",            NULL,                 "Zoom in  =",               G_CALLBACK(onZoomInMenu)},
+  {"ZoomOut",             GTK_STOCK_ZOOM_OUT,   "Zoom out",           NULL,                 "Zoom out  -",              G_CALLBACK(onZoomOutMenu)},
+  {"SetFont",             NULL,                 "Set font size",      NULL,                 "Set font size",         G_CALLBACK(onSetFontMenu)}
 };
 
 /* Define the menu actions for toggle menu entries */
@@ -534,8 +536,8 @@ static const char standardMenuDescription[] =
 "    <toolitem action='editColorScheme'/>"
 "    <toolitem action='alphaSort'/>"
 "    <separator/>"
-//"    <toolitem action='ZoomIn'/>"
-//"    <toolitem action='ZoomOut'/>"
+"    <toolitem action='ZoomIn'/>"
+"    <toolitem action='ZoomOut'/>"
 "    <toolitem action='Find'/>"
 "  </toolbar>"
 "</ui>";
@@ -1461,7 +1463,7 @@ static void onZoomInMenu(GtkAction *action, gpointer data)
   GtkWidget *window = GTK_WIDGET(data);
   BelvuContext *bc = windowGetContext(window);
 
-  belvuAlignmentIncrementFontSize(bc->belvuAlignment);
+  incrementFontSize(bc);
 }
 
 static void onZoomOutMenu(GtkAction *action, gpointer data)
@@ -1469,7 +1471,7 @@ static void onZoomOutMenu(GtkAction *action, gpointer data)
   GtkWidget *window = GTK_WIDGET(data);
   BelvuContext *bc = windowGetContext(window);
 
-  belvuAlignmentDecrementFontSize(bc->belvuAlignment);
+  decrementFontSize(bc);
 }
 
 static void onSetFontMenu(GtkAction *action, gpointer data)
@@ -1609,19 +1611,6 @@ static void genericWindowCreateProperties(GtkWidget *wrapWindow,
  *                        Font size                        *
  ***********************************************************/
 
-/* Recursively set the font size for this widget and all its children */
-static void widgetSetFontSize(GtkWidget *widget, gpointer data)
-{
-  int newSize = GPOINTER_TO_INT(data);
-
-  pango_font_description_set_size(widget->style->font_desc, newSize * PANGO_SCALE);
-  gtk_widget_modify_font(widget, widget->style->font_desc);
-
-  if (GTK_IS_CONTAINER(widget))
-    gtk_container_foreach(GTK_CONTAINER(widget), widgetSetFontSize, data);
-}
-
-
 static void showFontDialog(BelvuContext *bc, GtkWidget *window)
 {
   GtkWidget *entry = NULL;
@@ -1639,8 +1628,11 @@ static void showFontDialog(BelvuContext *bc, GtkWidget *window)
 
       if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
         {
-          widgetSetFontSize(window, GINT_TO_POINTER(newSize));
+          widgetSetFontSize(bc->belvuWindow, GINT_TO_POINTER(newSize));
+          widgetSetFontSize(bc->belvuTree, GINT_TO_POINTER(newSize));
+          
           onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
+          onBelvuTreeFontSizeChanged(bc->belvuTree);
         }
       else
         {
@@ -1651,6 +1643,52 @@ static void showFontDialog(BelvuContext *bc, GtkWidget *window)
   gtk_widget_destroy(dialog);
 }
 
+
+/* Utility to set the font size of the given widget to the given size (in
+ * points) and check that the new size is within sensible limits; otherwise 
+ * does nothing. */
+static void widgetSetFontSizeAndCheck(GtkWidget *belvuAlignment, const int newSize)
+{
+  if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
+    {
+      widgetSetFontSize(belvuAlignment, GINT_TO_POINTER(newSize));
+    }
+}
+
+
+void incrementFontSize(BelvuContext *bc)
+{
+  if (bc->belvuAlignment)
+    {
+      int size = pango_font_description_get_size(bc->belvuAlignment->style->font_desc) / PANGO_SCALE;
+      widgetSetFontSizeAndCheck(bc->belvuAlignment, size + 1);
+      onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
+    }
+  
+  if (bc->belvuTree)
+    {
+      int size = pango_font_description_get_size(bc->belvuTree->style->font_desc) / PANGO_SCALE;
+      widgetSetFontSizeAndCheck(bc->belvuTree, size + 1);
+      onBelvuTreeFontSizeChanged(bc->belvuTree);
+    }  
+}
+
+void decrementFontSize(BelvuContext *bc)
+{
+  if (bc->belvuAlignment)
+    {
+      int size = pango_font_description_get_size(bc->belvuAlignment->style->font_desc) / PANGO_SCALE;
+      widgetSetFontSizeAndCheck(bc->belvuAlignment, size - 1);
+      onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
+    }
+  
+  if (bc->belvuTree)
+    {
+      int size = pango_font_description_get_size(bc->belvuTree->style->font_desc) / PANGO_SCALE;
+      widgetSetFontSizeAndCheck(bc->belvuTree, size - 1);
+      onBelvuTreeFontSizeChanged(bc->belvuTree);
+    }
+}
 
 /***********************************************************
  *		      Remove sequences			   *
@@ -2133,6 +2171,9 @@ static GtkWidget* createPromptDialog(GtkWidget *window,
                                                   NULL);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+  
+  if (window)
+    pango_font_description_set_size(dialog->style->font_desc, pango_font_description_get_size(window->style->font_desc));
   
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 12);
@@ -3852,6 +3893,17 @@ static gboolean onKeyPressInsDel(BelvuContext *bc, const gboolean insert, const 
   return TRUE;
 }
 
+gboolean onKeyPressPlusMinus(BelvuContext *bc, const gboolean plus, const gboolean ctrl, const gboolean shift)
+{
+  /* Zoom in/out */
+  if (plus)
+    incrementFontSize(bc);
+  else
+    decrementFontSize(bc);
+    
+  return TRUE;
+}
+
 
 /***********************************************************
  *                           Events                        *
@@ -3888,7 +3940,12 @@ gboolean onKeyPressBelvu(GtkWidget *window, GdkEventKey *event, gpointer data)
         
       case GDK_Insert:    handled = onKeyPressInsDel(bc, TRUE, ctrl, shift);       break;
       case GDK_Delete:    handled = onKeyPressInsDel(bc, FALSE, ctrl, shift);      break;
-        
+
+      case GDK_plus:      /* fall through */
+      case GDK_equal:     handled = onKeyPressPlusMinus(bc, TRUE, ctrl, shift);    break;
+      case GDK_minus:     /* fall through */
+      case GDK_underscore: handled = onKeyPressPlusMinus(bc, FALSE, ctrl, shift);  break;
+
       default: break;
     };
   
@@ -4008,10 +4065,21 @@ static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
   sprintf(parseString, "gtk-font-name = \"%s %d\"", origFamily, origSize + DEFAULT_FONT_SIZE_ADJUSTMENT);
   gtk_rc_parse_string(parseString);
 
-
   /* Set toolbar style properties */
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
+  
+  /* If the BELVU_FONT_SIZE environment variable is set, use it to set the
+   * default font size for all the widgets. */
+  if (getenv(FONT_SIZE_ENV_VAR))
+    {
+      const int newSize = convertStringToInt(getenv(FONT_SIZE_ENV_VAR));
+      
+      if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
+        widgetSetFontSize(window, GINT_TO_POINTER(newSize));
+      else
+        g_warning("BELVU_FONT_SIZE variable specifies an invalid font size (%d); font size must be between %d and %d. Value will be ignored.\n", newSize, MIN_FONT_SIZE, MAX_FONT_SIZE);
+    }
 }
 
 
@@ -4089,6 +4157,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   BelvuWindowProperties *properties = belvuWindowGetProperties(window);
   properties->defaultCursor = gdk_window_get_cursor(window->window);
   
+  /* Update the alignment's font once the widgets have been shown */
   onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
 
   return ok;

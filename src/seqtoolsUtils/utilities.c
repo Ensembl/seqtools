@@ -4371,6 +4371,22 @@ const char* getStringFromTextEntry(GtkEntry *entry)
 }
 
 
+/* Recursively set the font size for this widget and all its children */
+void widgetSetFontSize(GtkWidget *widget, gpointer data)
+{
+  if (!widget)
+    return;
+  
+  int newSize = GPOINTER_TO_INT(data);
+  
+  pango_font_description_set_size(widget->style->font_desc, newSize * PANGO_SCALE);
+  gtk_widget_modify_font(widget, widget->style->font_desc);
+  
+  if (GTK_IS_CONTAINER(widget))
+    gtk_container_foreach(GTK_CONTAINER(widget), widgetSetFontSize, data);
+}
+
+
 /***********************************************************
  *		            Scale			   * 
  ***********************************************************/

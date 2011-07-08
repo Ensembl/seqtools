@@ -55,4 +55,9 @@ void                  onRowSelectionChanged(BelvuContext *bc);
 void                  onColSelectionChanged(BelvuContext *bc);
 void                  onTreeOrderChanged(BelvuContext *bc);
 
+void                  incrementFontSize(BelvuContext *bc);
+void                  decrementFontSize(BelvuContext *bc);
+
+gboolean              onKeyPressPlusMinus(BelvuContext *bc, const gboolean plus, const gboolean ctrl, const gboolean shift);
+
 #endif /* _belvuwindow_h_included_ */

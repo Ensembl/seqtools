@@ -561,6 +561,7 @@ void                               drawHScale(GtkWidget *widget,
                                               const int majorTickHeight);
 
 const char*                        getStringFromTextEntry(GtkEntry *entry);
+void                               widgetSetFontSize(GtkWidget *widget, gpointer data);
 
 GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const int col,

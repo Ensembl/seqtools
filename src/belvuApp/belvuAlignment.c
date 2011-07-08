@@ -205,15 +205,6 @@ void onBelvuAlignmentFontSizeChanged(GtkWidget *belvuAlignment)
   belvuAlignmentRedrawAll(belvuAlignment);
 }
 
-void belvuAlignmentIncrementFontSize(GtkWidget *belvuAlignment)
-{
-
-}
-
-void belvuAlignmentDecrementFontSize(GtkWidget *belvuAlignment)
-{
-
-}
 
 
 /***********************************************************

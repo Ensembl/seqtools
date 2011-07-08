@@ -50,6 +50,7 @@
 GtkWidget*                createAndShowBelvuTree(BelvuContext *bc);
 GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
 void                      belvuTreeRemakeTree(GtkWidget *belvuTree);
+void                      onBelvuTreeFontSizeChanged(GtkWidget *belvuTree);
 
 GtkActionGroup*           belvuTreeGetActionGroup(GtkWidget *belvuTree);
 
