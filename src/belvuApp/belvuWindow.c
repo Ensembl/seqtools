@@ -459,8 +459,6 @@ static const char standardMenuDescription[] =
 "      <menuitem action='printColors'/>"
 "      <menuitem action='displayColors'/>"
 "      <menuitem action='lowercase'/>"
-"      <separator/>"
-"      <menuitem action='SetFont'/>"
 "    </menu>"
      /* Sort menu */
 "    <menu action='SortMenuAction'>"
@@ -4042,18 +4040,6 @@ static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
   /* Set toolbar style properties */
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
-  
-  /* If the BELVU_FONT_SIZE environment variable is set, use it to set the
-   * default font size for all the widgets. */
-  if (getenv(FONT_SIZE_ENV_VAR))
-    {
-      const int newSize = convertStringToInt(getenv(FONT_SIZE_ENV_VAR));
-      
-      if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
-        widgetSetFontSize(window, GINT_TO_POINTER(newSize));
-      else
-        g_warning("BELVU_FONT_SIZE variable specifies an invalid font size (%d); font size must be between %d and %d. Value will be ignored.\n", newSize, MIN_FONT_SIZE, MAX_FONT_SIZE);
-    }
 }
 
 
@@ -4131,8 +4117,15 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   BelvuWindowProperties *properties = belvuWindowGetProperties(window);
   properties->defaultCursor = gdk_window_get_cursor(window->window);
   
-  /* Update the alignment's font once the widgets have been shown */
+  /* If the BELVU_FONT_SIZE environment variable is set, use it to set the
+   * default font size for all the widgets. */
+  const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
+  if (env)
+    widgetSetFontSizeAndCheck(window, convertStringToInt(env));
+
+  /* Make sure the alignment and tree font sizes are up to date*/
   onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
+  onBelvuTreeFontSizeChanged(bc->belvuTree);
 
   return ok;
 }
