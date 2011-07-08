@@ -1889,6 +1889,24 @@ void onBelvuTreeFontSizeChanged(GtkWidget *belvuTree)
 }
 
 
+static gboolean onZoomBelvuTree(BelvuContext *bc, const gboolean zoomIn)
+{
+  if (bc->belvuTree)
+    {
+      int size = pango_font_description_get_size(bc->belvuTree->style->font_desc) / PANGO_SCALE;
+      
+      if (zoomIn)
+        widgetSetFontSizeAndCheck(bc->belvuTree, size + 1);
+      else
+        widgetSetFontSizeAndCheck(bc->belvuTree, size - 1);
+      
+      onBelvuTreeFontSizeChanged(bc->belvuTree);
+    }  
+  
+  return TRUE;
+}
+
+
 /* Key press handler */
 gboolean onKeyPressBelvuTree(GtkWidget *window, GdkEventKey *event, gpointer data)
 {
@@ -1896,15 +1914,12 @@ gboolean onKeyPressBelvuTree(GtkWidget *window, GdkEventKey *event, gpointer dat
   
   BelvuContext *bc = (BelvuContext*)data;
   
-  const gboolean ctrl = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;	
-  const gboolean shift = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;	
-  
   switch (event->keyval)
   {
     case GDK_plus:      /* fall through */
-    case GDK_equal:     handled = onKeyPressPlusMinus(bc, TRUE, ctrl, shift);    break;
+    case GDK_equal:     handled = onZoomBelvuTree(bc, TRUE);    break;
     case GDK_minus:     /* fall through */
-    case GDK_underscore: handled = onKeyPressPlusMinus(bc, FALSE, ctrl, shift);  break;
+    case GDK_underscore: handled = onZoomBelvuTree(bc, FALSE);  break;
       
     default: break;
   };

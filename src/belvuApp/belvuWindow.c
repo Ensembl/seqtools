@@ -1644,18 +1644,6 @@ static void showFontDialog(BelvuContext *bc, GtkWidget *window)
 }
 
 
-/* Utility to set the font size of the given widget to the given size (in
- * points) and check that the new size is within sensible limits; otherwise 
- * does nothing. */
-static void widgetSetFontSizeAndCheck(GtkWidget *belvuAlignment, const int newSize)
-{
-  if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
-    {
-      widgetSetFontSize(belvuAlignment, GINT_TO_POINTER(newSize));
-    }
-}
-
-
 void incrementFontSize(BelvuContext *bc)
 {
   if (bc->belvuAlignment)
@@ -1664,13 +1652,6 @@ void incrementFontSize(BelvuContext *bc)
       widgetSetFontSizeAndCheck(bc->belvuAlignment, size + 1);
       onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
     }
-  
-  if (bc->belvuTree)
-    {
-      int size = pango_font_description_get_size(bc->belvuTree->style->font_desc) / PANGO_SCALE;
-      widgetSetFontSizeAndCheck(bc->belvuTree, size + 1);
-      onBelvuTreeFontSizeChanged(bc->belvuTree);
-    }  
 }
 
 void decrementFontSize(BelvuContext *bc)
@@ -1680,13 +1661,6 @@ void decrementFontSize(BelvuContext *bc)
       int size = pango_font_description_get_size(bc->belvuAlignment->style->font_desc) / PANGO_SCALE;
       widgetSetFontSizeAndCheck(bc->belvuAlignment, size - 1);
       onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
-    }
-  
-  if (bc->belvuTree)
-    {
-      int size = pango_font_description_get_size(bc->belvuTree->style->font_desc) / PANGO_SCALE;
-      widgetSetFontSizeAndCheck(bc->belvuTree, size - 1);
-      onBelvuTreeFontSizeChanged(bc->belvuTree);
     }
 }
 
@@ -3893,7 +3867,7 @@ static gboolean onKeyPressInsDel(BelvuContext *bc, const gboolean insert, const 
   return TRUE;
 }
 
-gboolean onKeyPressPlusMinus(BelvuContext *bc, const gboolean plus, const gboolean ctrl, const gboolean shift)
+static gboolean onKeyPressPlusMinus(BelvuContext *bc, const gboolean plus, const gboolean ctrl, const gboolean shift)
 {
   /* Zoom in/out */
   if (plus)

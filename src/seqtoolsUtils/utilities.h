@@ -562,6 +562,7 @@ void                               drawHScale(GtkWidget *widget,
 
 const char*                        getStringFromTextEntry(GtkEntry *entry);
 void                               widgetSetFontSize(GtkWidget *widget, gpointer data);
+void                               widgetSetFontSizeAndCheck(GtkWidget *belvuAlignment, const int newSize);
 
 GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const int col,

@@ -4387,6 +4387,18 @@ void widgetSetFontSize(GtkWidget *widget, gpointer data)
 }
 
 
+/* Utility to set the font size of the given widget to the given size (in
+ * points) and check that the new size is within sensible limits; otherwise 
+ * does nothing. */
+void widgetSetFontSizeAndCheck(GtkWidget *belvuAlignment, const int newSize)
+{
+  if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
+    {
+      widgetSetFontSize(belvuAlignment, GINT_TO_POINTER(newSize));
+    }
+}
+
+
 /***********************************************************
  *		            Scale			   * 
  ***********************************************************/
