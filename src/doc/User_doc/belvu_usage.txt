@@ -69,6 +69,7 @@
  Note: X options only work after "setenv POSIXLY_CORRECT"
 
  setenv BELVU_FETCH to desired sequence fetching program.
+ setenv BELVU_FONT_SIZE to specify window font size.
 
 -----
  Written by Gemma Barson <gb10@sanger.ac.uk>
