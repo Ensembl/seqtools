@@ -533,32 +533,6 @@ void refreshGridOrder(GtkWidget *bigPicture)
 }
 
 
-/* Adjust upper and/or lower end of the given range as necessary to
- * keep it within the bounds range. Maintains the same length of 'range' 
- * where possible. */
-static void boundRange(IntRange *range, IntRange *bounds)
-{
-  int width = range->max - range->min;
-
-  if (range->max > bounds->max)
-  {
-    range->max = bounds->max;
-    range->min = range->max - width;
-  }
-  
-  if (range->min < bounds->min)
-  {
-    range->min = bounds->min;
-    range->max = range->min + width;
-    
-    if (range->max > bounds->max)
-      {
-	range->max = bounds->max;
-      }
-  }   
-}
-
-
 /* This recalculates the highlight box positions for all relevant child
  * widgets of the big picture */
 static void updateHighlightBox(GtkWidget *bigPicture, BigPictureProperties *properties)
@@ -655,7 +629,7 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
 
   if (changedRange)
     {
-      boundRange(displayRange, fullRange);
+      boundsLimitRange(displayRange, fullRange, TRUE);
   
       /* Recalculate the exon view height, because it may have changed with more/less
        * exons being scrolled into view */
@@ -1139,6 +1113,8 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 				       GtkWidget *fwdExonView,
 				       GtkWidget *revExonView,
 				       int previewBoxCentre,
+                                       const IntRange const *initRange,
+                                       const IntRange const *fullRange,
 				       const int initialZoom,
 				       const gdouble lowestId)
 {
@@ -1170,10 +1146,13 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD;
       properties->initialZoom = initialZoom;
       
-      /* These will be initialized when the detail view size is first allocated,
-       * because the big picture range is a ratio of the detail view range. */
-      properties->displayRange.min = UNSET_INT;
-      properties->displayRange.max = UNSET_INT;
+      /* Set the initial big picture range from that requested. Note that the
+       * intput range may be UNSE_INTs, in which case these values will be
+       * initialized when the detail view size is first allocated, based on
+       * the "initial zoom level" which is a ratio of the detail view range. */
+      properties->displayRange.min = initRange->min;
+      properties->displayRange.max = initRange->max;
+      boundsLimitRange(&properties->displayRange, fullRange, TRUE);
       
       /* Calculate the font size */
       getFontCharSize(bigPicture, bigPicture->style->font_desc, &properties->charWidth, &properties->charHeight);
@@ -1482,6 +1461,8 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
                             GtkWidget *coverageView,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
+                            const IntRange const *initRange,
+                            const IntRange const *fullRange,
 			    const int initialZoom,
 			    const gdouble lowestId)
 {
@@ -1527,6 +1508,8 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
 			     fwdExonView,
 			     revExonView,
 			     UNSET_INT,
+                             initRange,
+                             fullRange,
 			     initialZoom,
 			     lowestId);
   

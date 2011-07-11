@@ -298,6 +298,7 @@ typedef struct _CommandLineOptions
   IntRange refSeqRange;           /* the range of the reference sequence (before any offset is applied) */
   int refSeqOffset;               /* if non-zero, all parsed coords will be offset by this amount */
   int startCoord;		  /* which coord to start the initial display range at */
+  gboolean startCoordSet;	  /* true if the start coord has been specified on the command line */
   MSP *mspList;			  /* the list of alignments */
   char **geneticCode;             /* the genetic code */
   
@@ -305,6 +306,7 @@ typedef struct _CommandLineOptions
   gboolean negateCoords;          /* if this option is true, the display will show coords as negative when the reverse strand is active */
   gboolean zoomWhole;             /* whether to zoom out to view the entire big picture range on startup */
   int bigPictZoom;                /* initial zoom level for the big picture (as a multiple of the initial detail view range) */
+  IntRange bigPictRange;          /* initial range for the big picture (will override bigPictZoom if both are set) */
   gboolean bigPictON;             /* whether to show the big picture by default */
   gboolean hideInactive;          /* whether to show the inactive strand in the big picture/detail view */
   BlxColumnId initSortColumn;     /* initial column to sort by */

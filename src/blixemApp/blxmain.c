@@ -85,25 +85,6 @@ gboolean blixem_debug_G = FALSE ;
   -c <file>, --config-file=<file>\n\
     Read configuration options from 'file'.\n\
 \n\
-  -h, --help\n\
-    More detailed usage information.\n\
-\n\
-  -m <from[:to]>, --map-coords=<from[:to]>\n\
-    Map the coordinate system so that the given 'from' coordinate maps to the given\n\
-    'to' coordinate (or to '1' if 'to' is not given).\n\
-\n\
-  -n, --negate-coords\n\
-    When showing the reverse strand, negate the display coordinates.\n\
-\n\
-  -o <n>, --offset=<n>\n\
-    Offset the reference sequence coordinate system by n.\n\
-\n\
-  -r, --reverse-strand\n\
-    Indicates that the given reference sequence is the reverse strand.\n\
-\n\
-  -s <n>, --start-coord=<n>\n\
-    Start with the display centred on coordinate n.\n\
-\n\
   --compiled\n\
     Show package compile date.\n\
 \n\
@@ -116,6 +97,9 @@ gboolean blixem_debug_G = FALSE ;
   --fetch-server <nodeid:port>\n\
     Causes Blixem to get sequences from a fetch server at machine 'nodeid' on the given\n\
     port (default 22100).\n\
+\n\
+  -h, --help\n\
+    More detailed usage information.\n\
 \n\
   --hide-big-picture\n\
     Hide the big picture section on start-up.\n\
@@ -130,11 +114,24 @@ gboolean blixem_debug_G = FALSE ;
   --invert-sort\n\
     Invert sorting order\n\
 \n\
+  -m <from[:to]>, --map-coords=<from[:to]>\n\
+    Map the coordinate system so that the given 'from' coordinate maps to the given\n\
+    'to' coordinate (or to '1' if 'to' is not given).\n\
+\n\
+  -n, --negate-coords\n\
+    When showing the reverse strand, negate the display coordinates.\n\
+\n\
+  -o <n>, --offset=<n>\n\
+    Offset the reference sequence coordinate system by n.\n\
+\n\
   --optional-data\n\
     Parse additional data such as organism and tissue-type on start-up.\n\
 \n\
   --remove-input-files\n\
     Delete the input files after they have been parsed.\n\
+\n\
+  -r, --reverse-strand\n\
+    Indicates that the given reference sequence is the reverse strand.\n\
 \n\
   --save-temp-files\n\
     Save any temporary files created by Blixem.\n\
@@ -148,6 +145,9 @@ gboolean blixem_debug_G = FALSE ;
   --squash-matches\n\
     Compress the alignment lists on start-up.\n\
 \n\
+  -s <n>, --start-coord=<n>\n\
+    Start with the display centred on coordinate n.\n\
+\n\
   --start-next-match\n\
     Start with the display centred on the first match to the right of the default start coord.\n\
 \n\
@@ -156,6 +156,9 @@ gboolean blixem_debug_G = FALSE ;
 \n\
   --version\n\
     Show package version number.\n\
+\n\
+  -z <start:end>, --zoom-range=<start:end>\n\
+    Specify the initial range of coordinates to zoom the big picture in to.\n\
 \n\
   --zoom-whole\n\
     Start with the big picture zoomed out to view the full reference sequence range.\n\
@@ -253,10 +256,13 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->refSeqRange.max = UNSET_INT;
   options->refSeqOffset = 0;
   options->startCoord = 1;
+  options->startCoordSet = FALSE;
   options->mspList = NULL;
   options->geneticCode = stdcode1;
   options->activeStrand = BLXSTRAND_FORWARD;
   options->bigPictZoom = 10;          
+  options->bigPictRange.min = UNSET_INT;
+  options->bigPictRange.max = UNSET_INT;
   
   options->zoomWhole = FALSE;
   options->bigPictON = TRUE;          
@@ -570,10 +576,11 @@ int main(int argc, char **argv)
       {"start-coord",           required_argument,  0, 's'},
       {"display-type",          required_argument,  0, 't'},
       {"extra-file",            required_argument,  0, 'x'}, /* obsolete? */
+      {"zoom-range",            required_argument,  0, 'z'},
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:c:him:no:rs:t:x:";
+  char        *optstring="a:c:him:no:rs:t:x:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -649,6 +656,7 @@ int main(int argc, char **argv)
           break ;
         case 's': 
 	  options.startCoord = atoi(optarg);
+          options.startCoordSet = TRUE;
 	  break;
         case 't':
           options.seqType = getSeqTypeFromChar(*optarg);
@@ -657,6 +665,30 @@ int main(int argc, char **argv)
 	  xtra_data = TRUE ;
 	  strcpy(xtra_filename, optarg);
 	  break;
+        case 'z': 
+          {
+            int coord1 = atoi(optarg); /* will ignore anything after ':' */
+            const char *cp = strchr(optarg, ':');
+              
+            if (cp)
+              {
+                int coord2 = atoi(cp + 1);
+                intrangeSetValues(&options.bigPictRange, coord1, coord2);
+                
+                /* If the start coord hasn't already been specified on the
+                 * command line, base the default start on the centre of the
+                 * big picture range (can still be overridden if start coord
+                 * arg is found later) */
+                if (!options.startCoordSet)
+                  options.startCoord = getRangeCentre(&options.bigPictRange);
+              }
+            else
+              {
+                g_warning("Invalid parameters for --zoom-range argument; expected <start:end> but got '%s'. Zoom range will be ignored.\n", optarg);
+              }
+              
+            break;
+          }
             
 	default : g_error("Illegal option\n");
 	}

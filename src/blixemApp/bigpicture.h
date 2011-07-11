@@ -174,6 +174,8 @@ GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
 					       GtkWidget *coverageView,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
+                                               const IntRange const *initRange,
+                                               const IntRange const *fullRange,
 					       const int bigPictZoom,
 					       const gdouble lowestId);
 

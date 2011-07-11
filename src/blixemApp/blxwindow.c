@@ -5709,8 +5709,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   printf("Reference sequence [%d - %d], display range [%d - %d]\n", 
 	 refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
   
-  /* Offset the start coord, if applicable, and convert it to display coords */
+  /* Offset the start coords, if applicable, and convert it to display coords */
   int startCoord = options->startCoord + options->refSeqOffset;
+  options->bigPictRange.min += options->refSeqOffset;
+  options->bigPictRange.max += options->refSeqOffset;
+  
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
       startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
@@ -5777,6 +5780,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                            coverageView,
 					   &fwdStrandGrid, 
 					   &revStrandGrid,
+                                           &options->bigPictRange,
+                                           &refSeqRange,
 					   options->bigPictZoom,
 					   lowestId);
 
@@ -5894,6 +5899,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
    * filter updates will be done on affected rows only.) */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  
+  /* Calculate initial size of the exon views (depends on big picture range) */
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  forceResize(bigPicture);
   
   return window;
 }
