@@ -61,8 +61,6 @@
 
 
 /* Debug logging macros. #define DEBUG to enable debug output. */
-#define DEBUG
-
 #ifdef DEBUG
 #define DEBUG_OUT(format, args...) debugLogLevel(0); printf(format, ##args);
 #else
