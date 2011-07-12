@@ -2238,9 +2238,16 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
   {
     case GTK_RESPONSE_ACCEPT:
       /* Call all of the callbacks for each individual widget to update the 
-       * properties. Then refresh the window. Destroy if successful. */
+       * properties. Then refresh the window and show the tree. Destroy dialog
+       * if successful. */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
       belvuTreeUpdateSettings(bc);
+      
+      if (!bc->belvuTree)
+        createAndShowBelvuTree(bc);
+      else
+        gtk_window_present(GTK_WINDOW(bc->belvuTree));
+        
       break;
       
     case GTK_RESPONSE_APPLY:
@@ -2278,7 +2285,7 @@ void showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc)
                                        NULL);
       
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseTreeSettingsDialog), bc);
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_APPLY);
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
   createTreeSettingsDialogContent(bc, dialog, 
                                   &bc->treeScale, &bc->treeLineWidth,
