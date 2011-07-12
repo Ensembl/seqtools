@@ -560,23 +560,16 @@ static double treeSTORMSONN(double od)
 
 static double treeSCOREDIST(char *seq1, char *seq2, BelvuContext *bc)
 {
-  int len,
-  sc = 0, 
-  s1sc = 0, 
-  s2sc = 0;
-  double od, cd, 
-  maxsc, 
-  expect; 
-  char *s1, *s2;
-  
-#define mtx BLOSUM62
-  
-  
-  s1 = seq1;
-  s2 = seq2;
+  char *s1 = seq1;
+  char *s2 = seq2;
   
   
   /* Calc scores */
+  int len = 0;
+  int sc = 0;
+  int s1sc = 0;
+  int s2sc = 0;
+  
   for (len=0; *s1; s1++, s2++) 
     {
       if (bc->penalize_gaps) 
@@ -586,26 +579,33 @@ static double treeSCOREDIST(char *seq1, char *seq2, BelvuContext *bc)
       
       if (!isGap(*s1) && !isGap(*s2)) 
         {
-          sc += mtx[a2b[(unsigned char)(*s1)]-1][a2b[(unsigned char)(*s2)]-1];
-          s1sc += mtx[a2b[(unsigned char)(*s1)]-1][a2b[(unsigned char)(*s1)]-1];
-          s2sc += mtx[a2b[(unsigned char)(*s2)]-1][a2b[(unsigned char)(*s2)]-1];
+          int val1 = a2b[(unsigned char)(*s1)];
+          int val2 = a2b[(unsigned char)(*s2)];
+          
+          if (val1 > 0 && val2 > 0)
+            {
+              sc += (double) BLOSUM62[val1 - 1][val2 - 1];
+              s1sc += (double) BLOSUM62[val1 - 1][val1 - 1];
+              s2sc += (double) BLOSUM62[val2 - 1][val2 - 1];
+            }
+
           len++;
         }
     }
   
-  maxsc = (s1sc + s2sc) / 2.0;
+  double maxsc = (s1sc + s2sc) / 2.0;
   
   /* Calc expected score */
-  expect =  -0.5209 * len;
+  double expect =  -0.5209 * len;
   
-  od = ((double)sc - expect) / (maxsc - expect);
+  double od = ((double)sc - expect) / (maxsc - expect);
   
   if (!len || od < 0.05) od = 0.05;  /* Limit to 300 PAM;  len==0 if no overlap */
   if (od > 1.0) od = 1.0; 
   
-  cd = -log(od);
+  double cd = -log(od);
   
-  /* printf ("len=%d  sc=%.2f  maxsc=%.2f  expect=%.2f  maxsc-expect=%.2f  od=%.3f\n", len, sc, maxsc, expect, maxsc-expect, od); */
+  DEBUG_OUT("SCOREDIST: len=%d  sc=%.2f  maxsc=%.2f  expect=%.2f  maxsc-expect=%.2f  od=%.3f\n", len, sc, maxsc, expect, maxsc-expect, od);
   
   cd = cd * 100.0 * 1.337 /* Magic scaling factor optimized for Dayhoff data */ ;
   
@@ -1026,6 +1026,7 @@ static void printTreeDistances(BelvuContext *bc, double **pairmtx)
 }
 
 
+#ifdef DEBUG
 /* Print the given matrix */
 static void printMtx(BelvuContext *bc, double **mtx) 
 {
@@ -1061,6 +1062,7 @@ static void printTreeStats(BelvuContext *bc, double **pairmtx, double *avgdist, 
   printMtx(bc, Dmtx);
   printf("\n");
 }
+#endif
 
 
 /* Construct the tree using the NJ method. Populates Dmtx */
