@@ -3334,9 +3334,13 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
   
   /* Set properties */
   genericWindowCreateProperties(wrapWindow, properties->bc, actionGroup);
-  
+
+  /* Show window */
   gtk_widget_show_all(wrapWindow);
   gtk_window_present(GTK_WINDOW(wrapWindow));
+  
+  /* Make sure the font size is up to date */
+  onBelvuAlignmentFontSizeChanged(wrappedAlignment);
 }
 
 
