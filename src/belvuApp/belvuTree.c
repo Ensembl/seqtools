@@ -922,8 +922,7 @@ static TreeNode *treeReroot(TreeNode *node)
 
 static gboolean doublesEqual(const double a, const double b)
 {
-  double res = 0.000000001;
-  return (b < a + res && b > a - res);
+  return (b < a + MACHINE_RES && b > a - MACHINE_RES);
 }
 
 
@@ -951,6 +950,262 @@ static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *tree)
 }
 
 
+/* Calculate the pairwise tree distances */
+static void calcPairwiseDistMatrix(BelvuContext *bc, double **pairmtx)
+{
+  /* Calculate pairwise distance matrix. Note that this only calculates
+   * the portion of the array above the diagonal (where j > i); the other
+   * values are left uninitialised and should not be used. */
+  arrayOrder(bc->alignArr);
+  
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len - 1; ++i)
+    {
+      ALN *aln_i = &g_array_index(bc->alignArr, ALN, i);
+      char *alniSeq = alnGetSeq(aln_i);
+      
+      int j = i+1;
+      for (j = i+1; j < bc->alignArr->len; ++j)
+        {
+          ALN *aln_j = &g_array_index(bc->alignArr, ALN, j);
+          char *alnjSeq = alnGetSeq(aln_j);
+          
+          pairmtx[i][j] = 100.0 - identity(alniSeq, alnjSeq, bc->penalize_gaps);
+          
+          if (bc->treeDistCorr == KIMURA) 
+            pairmtx[i][j] = treeKimura(pairmtx[i][j]);
+          else if (bc->treeDistCorr == JUKESCANTOR) 
+            pairmtx[i][j] = treeJUKESCANTOR(pairmtx[i][j]);
+          else if (bc->treeDistCorr == STORMSONN) 
+            pairmtx[i][j] = treeSTORMSONN(pairmtx[i][j]);
+          else if (bc->treeDistCorr == SCOREDIST) 
+            pairmtx[i][j] = treeSCOREDIST(alniSeq, alnjSeq, bc);
+        }
+    }
+}
+
+
+/* Output the tree distances */
+static void printTreeDistances(BelvuContext *bc, double **pairmtx)
+{
+  double dist;
+
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len; i++) 
+    {
+      if (!bc->treeCoordsOn) 
+        {
+          printf("%s\t", g_array_index(bc->alignArr, ALN, i).name);
+        }
+      else
+        {
+          printf("%s/%d-%d\t",
+                 g_array_index(bc->alignArr, ALN, i).name,
+                 g_array_index(bc->alignArr, ALN, i).start,
+                 g_array_index(bc->alignArr, ALN, i).end);
+        }
+    }
+  printf ("\n");
+  
+  for (i = 0; i < bc->alignArr->len; ++i) 
+    {
+      int j = 0;
+      for (j = 0; j < bc->alignArr->len; ++j) 
+        {
+          if (i == j) 
+            dist = 0.0;
+          else if (i < j)
+            dist = pairmtx[i][j];
+          else
+            dist = pairmtx[j][i];
+          
+          printf("%7.3f\t", dist);
+        }
+      printf ("\n");
+    }
+}
+
+
+/* Print the given matrix */
+static void printMtx(BelvuContext *bc, double **mtx) 
+{
+  int i, j;
+  
+  printf ("\n");
+  for (i = 0; i < bc->alignArr->len; i++) 
+    {
+      for (j = 0; j < bc->alignArr->len; j++)
+        printf("%6.2f ", mtx[i][j]);
+      
+      printf ("\n");
+  }
+}
+
+
+/* Print staisitics about the tree construction */
+static void printTreeStats(BelvuContext *bc, double **pairmtx, double *avgdist, double **Dmtx, TreeNode **node)
+{
+  printf("Node status, Avg distance:\n");
+  
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len; i++)
+    printf("%6d ", (node[i] ? 1 : 0)); 
+  
+  printf("\n");
+  
+  for (i = 0; i < bc->alignArr->len; i++)
+    printf("%6.2f ", avgdist[i]); 
+  
+  printf("\n\nPairdistances, corrected pairdistances:");
+  printMtx(bc, pairmtx);
+  printMtx(bc, Dmtx);
+  printf("\n");
+}
+
+
+/* Construct the tree using the NJ method. Populates Dmtx */
+static void constructTreeNJ(BelvuContext *bc, double **pairmtx, double *avgdist, TreeNode **node, double **Dmtx)
+{
+  int count = 0;
+  
+  /* Calculate vector r (avgdist) */
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len; ++i)
+    {
+      if (!node[i]) 
+        continue;
+      
+      avgdist[i] = 0.0;
+      
+      int j = 0;
+      for (count=0, j = 0; j < bc->alignArr->len; j++)
+        {
+          if (!node[j]) 
+            continue;
+          
+          if (i < j)
+            avgdist[i] += pairmtx[i][j];
+          else if (i > j)
+            avgdist[i] += pairmtx[j][i];
+          
+          count++;
+        }
+      
+      if (count == 2)	/* Hack, to accommodate last node */
+        avgdist[i] = 1;
+      else
+        avgdist[i] /= 1.0*(count - 2);
+    }
+  
+  /* Calculate corrected matrix Dij. Note again that only values 
+   * above the diagonal (where j > i) are populated; other values
+   * are uninitialised and should not be used. */
+  if (1 /* gjm */)
+    {
+      for (i = 0; i < bc->alignArr->len - 1; ++i)
+        {
+          if (!node[i])
+            continue;
+          
+          int j = i+1;
+          for (j = i+1; j < bc->alignArr->len; ++j)
+            {
+              if (!node[j]) 
+                continue;
+              
+              Dmtx[i][j] = pairmtx[i][j] - (avgdist[i] + avgdist[j]);
+            }
+        }
+    }
+  else
+    {		/* Felsenstein */
+      double Q = 0.0;
+      
+      for (i = 0; i < bc->alignArr->len - 1; ++i)
+        {
+          if (!node[i])
+            continue;
+          
+          int j = i+1;
+          for (j = i+1; j < bc->alignArr->len; j++)
+            {
+              if (!node[j]) 
+                continue;
+              
+              Q += pairmtx[i][j];
+            }
+        }
+      
+      for (i = 0; i < bc->alignArr->len - 1; ++i)
+        {
+          if (!node[i])
+            continue;
+          
+          int j = i+1;
+          for (j = i+1; j < bc->alignArr->len; j++)
+            {
+              if (!node[j])
+                continue;
+              
+              Dmtx[i][j] = (pairmtx[i][j] +
+                            (2.0*Q)/(count-(count == 2 ? 1 : 2)) - 
+                            avgdist[i] - avgdist[j]) / 2.0;
+            }
+        }
+    }
+}
+
+
+/* Find smallest distance pair in pairmtx */
+static double treeFindSmallestDist(BelvuContext *bc, double **pairmtx, double **curMtx, double **Dmtx, TreeNode **node, int *maxiOut, int *maxjOut)
+{
+  int maxi = -1;
+  int maxj = -1;
+  double maxid = 1000000;
+  double pmaxid = 1000000;
+
+  int i = 0;
+  for (i = 0; i < bc->alignArr->len - 1; ++i) 
+    {
+      if (!node[i]) 
+        continue;
+      
+      int j = i+1;
+      for (j = i+1; j < bc->alignArr->len; ++j) 
+        {
+          if (!node[j]) 
+            continue;
+          
+          /* printf("iter %d, i=%d. j=%d, dist= %f\n", iter, i, j, curMtx[i][j]);*/
+          if (curMtx[i][j] < maxid) 
+            {
+              maxid = curMtx[i][j];
+              pmaxid = pairmtx[i][j];
+              maxi = i;
+              maxj = j;
+            }
+          else if (bc->treeMethod == NJ && doublesEqual(Dmtx[i][j], maxid) && pairmtx[i][j] < pmaxid) 
+            {
+              /* To resolve ties - important for tree look! */
+              maxi = i;
+              maxj = j;
+              pmaxid = pairmtx[i][j];
+            }
+        }
+    }
+  
+  maxid = pairmtx[maxi][maxj]; /* Don't want to point to Dmtx in NJ */
+  
+  if (maxiOut)
+    *maxiOut = maxi;
+  
+  if (maxjOut)
+    *maxjOut = maxj;
+  
+  return maxid;
+}
+
+
 TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 {
   /* This can take a long time, so let the user know we're doing something.
@@ -960,7 +1215,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 
   TreeNode *newnode = NULL ;
   int maxi = -1, maxj = -1;
-  double maxid = 0.0, pmaxid, **pairmtx, **Dmtx, **curMtx, *src, *trg, 
+  double maxid = 0.0, **pairmtx, **Dmtx, **curMtx, *src, *trg, 
   *avgdist,		/* vector r in Durbin et al */
   llen = 0, rlen = 0;
   TreeNode **node ;					    /* Array of (primary) nodes.  Value=0 => stale column */
@@ -1011,174 +1266,31 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       node[i]->box = 0;
       node[i]->color = 0;
     }
-  
-  if (bc->treeReadDistancesOn)
-    {
-      treeReadDistances(bc, pairmtx);
-    }
-  else
-    {
-      /* Calculate pairwise distance matrix. Note that this only calculates
-       * the portion of the array above the diagonal (where j > i); the other
-       * values are left uninitialised and should not be used. */
-      arrayOrder(bc->alignArr);
-      
-      for (i = 0; i < bc->alignArr->len - 1; ++i)
-        {
-          ALN *aln_i = &g_array_index(bc->alignArr, ALN, i);
-          char *alniSeq = alnGetSeq(aln_i);
-          
-          int j = i+1;
-          for (j = i+1; j < bc->alignArr->len; ++j)
-            {
-              ALN *aln_j = &g_array_index(bc->alignArr, ALN, j);
-              char *alnjSeq = alnGetSeq(aln_j);
-              
-              pairmtx[i][j] = 100.0 - identity(alniSeq, alnjSeq, bc->penalize_gaps);
-              
-              if (bc->treeDistCorr == KIMURA) 
-                pairmtx[i][j] = treeKimura(pairmtx[i][j]);
-              else if (bc->treeDistCorr == JUKESCANTOR) 
-                pairmtx[i][j] = treeJUKESCANTOR(pairmtx[i][j]);
-              else if (bc->treeDistCorr == STORMSONN) 
-                pairmtx[i][j] = treeSTORMSONN(pairmtx[i][j]);
-              else if (bc->treeDistCorr == SCOREDIST) 
-                pairmtx[i][j] = treeSCOREDIST(alniSeq, alnjSeq, bc);
-            }
-        }
-    }
 
+  /* Get the pairwise tree distances (from file if given, or calculate them) */
+  if (bc->treeReadDistancesOn)
+    treeReadDistances(bc, pairmtx);
+  else
+    calcPairwiseDistMatrix(bc, pairmtx);
+
+  /* If requested (or if debug is on), print the distance matrix */
   if (bc->treePrintDistances) 
     {
-      double dist;
-      
-      for (i = 0; i < bc->alignArr->len; i++) 
-        {
-          if (!bc->treeCoordsOn) 
-            {
-              printf("%s\t", g_array_index(bc->alignArr, ALN, i).name);
-            }
-          else
-            {
-              printf("%s/%d-%d\t",
-                     g_array_index(bc->alignArr, ALN, i).name,
-                     g_array_index(bc->alignArr, ALN, i).start,
-                     g_array_index(bc->alignArr, ALN, i).end);
-            }
-        }
-      printf ("\n");
-      
-      for (i = 0; i < bc->alignArr->len; ++i) 
-        {
-          int j = 0;
-          for (j = 0; j < bc->alignArr->len; ++j) 
-            {
-              if (i == j) 
-                dist = 0.0;
-              else if (i < j)
-                dist = pairmtx[i][j];
-              else
-                dist = pairmtx[j][i];
-              
-              printf("%7.3f\t", dist);
-            }
-          printf ("\n");
-        }
+      printTreeDistances(bc, pairmtx);
       exit(0);
-    }
+    }  
+
+#ifdef DEBUG
+  printTreeDistances(bc, pairmtx);
+#endif
   
-  /* Construct tree */
+  /* Construct the tree */
   int iter = 0;
   for (iter = 0; iter < bc->alignArr->len - 1; ++iter)
     {
       if (bc->treeMethod == NJ)
-        {	
-          int count = 0;
-          
-          /* Calculate vector r (avgdist) */
-          for (i = 0; i < bc->alignArr->len; ++i)
-            {
-              if (!node[i]) 
-                continue;
-              
-              avgdist[i] = 0.0;
-              
-              int j = 0;
-              for (count=0, j = 0; j < bc->alignArr->len; j++)
-                {
-                  if (!node[j]) 
-                    continue;
-                  
-                  if (i < j)
-                    avgdist[i] += pairmtx[i][j];
-                  else if (i > j)
-                    avgdist[i] += pairmtx[j][i];
-                  
-                  count++;
-                }
-              
-              if (count == 2)	/* Hack, to accommodate last node */
-                avgdist[i] = 1;
-              else
-                avgdist[i] /= 1.0*(count - 2);
-            }
-          
-          /* Calculate corrected matrix Dij. Note again that only values 
-           * above the diagonal (where j > i) are populated; other values
-           * are uninitialised and should not be used. */
-          if (1 /* gjm */)
-            {
-              for (i = 0; i < bc->alignArr->len - 1; ++i)
-                {
-                  if (!node[i])
-                    continue;
-                  
-                  int j = i+1;
-                  for (j = i+1; j < bc->alignArr->len; ++j)
-                    {
-                      if (!node[j]) 
-                        continue;
-                      
-                      Dmtx[i][j] = pairmtx[i][j] - (avgdist[i] + avgdist[j]);
-                    }
-                }
-            }
-          else
-            {		/* Felsenstein */
-              double Q = 0.0;
-              
-              for (i = 0; i < bc->alignArr->len - 1; ++i)
-                {
-                  if (!node[i])
-                    continue;
-                  
-                  int j = i+1;
-                  for (j = i+1; j < bc->alignArr->len; j++)
-                    {
-                      if (!node[j]) 
-                        continue;
-                      
-                      Q += pairmtx[i][j];
-                    }
-                }
-              
-              for (i = 0; i < bc->alignArr->len - 1; ++i)
-                {
-                  if (!node[i])
-                    continue;
-                  
-                  int j = i+1;
-                  for (j = i+1; j < bc->alignArr->len; j++)
-                    {
-                      if (!node[j])
-                        continue;
-                      
-                      Dmtx[i][j] = (pairmtx[i][j] +
-                                    (2.0*Q)/(count-(count == 2 ? 1 : 2)) - 
-                                    avgdist[i] - avgdist[j]) / 2.0;
-                    }
-                }
-            }
+        {
+          constructTreeNJ(bc, pairmtx, avgdist, node, Dmtx);
           curMtx = Dmtx;
         }
       else 
@@ -1187,56 +1299,11 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
         }
       
 #ifdef DEBUG
-      {
-        printf("Node status, Avg distance:\n");
-        for (i = 0; i < bc->alignArr->len; i++)
-          printf("%6d ", (node[i] ? 1 : 0)); 
-        printf("\n");
-        for (i = 0; i < bc->alignArr->len; i++)
-          printf("%6.2f ", avgdist[i]); 
-        printf("\n\nPairdistances, corrected pairdistances:");
-        printMtx(pairmtx);
-        printMtx(Dmtx);
-        printf("\n");
-      }
+      printTreeStats(bc, pairmtx, avgdist, Dmtx, node);
 #endif
       
       /* Find smallest distance pair in pairmtx */
-      maxi = -1;
-      maxj = -1;
-      maxid = 1000000;
-      pmaxid = 1000000;
-
-      for (i = 0; i < bc->alignArr->len - 1; ++i) 
-        {
-          if (!node[i]) 
-            continue;
-          
-          int j = i+1;
-          for (j = i+1; j < bc->alignArr->len; ++j) 
-            {
-              if (!node[j]) 
-                continue;
-              
-              /* printf("iter %d, i=%d. j=%d, dist= %f\n", iter, i, j, curMtx[i][j]);*/
-              if (curMtx[i][j] < maxid) 
-                {
-                  maxid = curMtx[i][j];
-                  pmaxid = pairmtx[i][j];
-                  maxi = i;
-                  maxj = j;
-                }
-              else if (bc->treeMethod == NJ && doublesEqual(Dmtx[i][j], maxid) && pairmtx[i][j] < pmaxid) 
-                {
-                  /* To resolve ties - important for tree look! */
-                  maxi = i;
-                  maxj = j;
-                  pmaxid = pairmtx[i][j];
-                }
-            }
-        }
-      
-      maxid = pairmtx[maxi][maxj]; /* Don't want to point to Dmtx in NJ */
+      maxid = treeFindSmallestDist(bc, pairmtx, curMtx, Dmtx, node, &maxi, &maxj);
 
       /* Merge rows & columns of maxi and maxj into maxi
        Recalculate distances to other nodes */
@@ -1323,10 +1390,6 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 
   fillParents(newnode, newnode->left);
   fillParents(newnode, newnode->right);
-  
-#ifdef DEBUG
-  treeDraw(newnode) ;
-#endif
   
   if (bc->treeMethod == UPGMA)
     newnode->branchlen = 100 - maxid ;

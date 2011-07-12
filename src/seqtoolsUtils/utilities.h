@@ -47,6 +47,7 @@
 #define TABLE_YPAD                    2       /* default y padding around table elements */
 #define MIN_FONT_SIZE                 2
 #define MAX_FONT_SIZE                 20
+#define MACHINE_RES                   0.000000001
 
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
@@ -60,6 +61,8 @@
 
 
 /* Debug logging macros. #define DEBUG to enable debug output. */
+#define DEBUG
+
 #ifdef DEBUG
 #define DEBUG_OUT(format, args...) debugLogLevel(0); printf(format, ##args);
 #else

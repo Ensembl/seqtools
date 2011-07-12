@@ -1951,18 +1951,6 @@ static treeNode *treecpy(treeNode *node)
 }
 
 
-static void printMtx(double **mtx) {
-    int i, j;
-
-    printf ("\n");
-    for (i = 0; i < nseq; i++) {
-	for (j = 0; j < nseq; j++)
-	    printf("%6.2f ", mtx[i][j]);
-	printf ("\n");
-    }
-}
-
-
 static void simSort(void) 
 {
   highlightScoreSort('P');
@@ -4903,6 +4891,7 @@ BelvuContext* createBelvuContext()
   bc->spawnedWindows = NULL;
   bc->belvuTree = NULL;
   bc->belvuAlignment = NULL;
+  bc->consPlot = NULL;
   
   bc->defaultColors = NULL;
   
@@ -5987,7 +5976,7 @@ void rmEmptyColumns(BelvuContext *bc, double cutoff)
 	    }
 	}
       
-      if ((double)gaps/totseq >= cutoff) 
+      if ((double)gaps/totseq >= cutoff - MACHINE_RES) 
         {
           rmColumn(bc, j+1, j+1);
           if (++removed == oldmaxLen)
