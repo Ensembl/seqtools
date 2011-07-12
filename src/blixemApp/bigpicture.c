@@ -601,8 +601,9 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
        * NB We use a shorter big picture range so that we never get the highlight
        * box bumped right up against the edge of the big picture; UNLESS the
        * detail view range is larger than that limited range, in which case use
-       * the original range. */
-      const gdouble borderFraction = 0.1;     /* 10% shorter */
+       * the original range. NOTE: disabled the border because it messes up the
+       * initial big picture range when it is specified using the zoom-range arg */
+      const gdouble borderFraction = 0.0;
       int border = getRangeLength(displayRange) * borderFraction;
 
       if (getRangeLength(detailViewRange) > width - (2 * border))

@@ -3601,9 +3601,14 @@ void toggleStrand(GtkWidget *detailView)
   /* Update the flag */
   blxContext->displayRev = !blxContext->displayRev;
   
-  /* Invert the display range */
-  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  /* Invert the display range for both detail view and big picture */
+  IntRange *bpRange = bigPictureGetDisplayRange(bigPicture);
   const IntRange const *fullRange = &blxContext->fullDisplayRange;
+  const int bpStart = fullRange->max - bpRange->min + fullRange->min;
+  const int bpEnd = fullRange->max - bpRange->max + fullRange->min;
+  intrangeSetValues(bpRange, bpStart, bpEnd);
+
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int newStart = fullRange->max - displayRange->max + fullRange->min;
   setDetailViewStartIdx(detailView, newStart, blxContext->seqType);
 
@@ -3637,7 +3642,7 @@ void toggleStrand(GtkWidget *detailView)
   gtk_widget_queue_draw(detailView);
   
   /* Redraw the grids and grid headers */
-  refreshBigPictureDisplayRange(bigPicture, TRUE);
+  refreshBigPictureDisplayRange(bigPicture, FALSE);
   
   DEBUG_EXIT("toggleStrand returning");
 }
