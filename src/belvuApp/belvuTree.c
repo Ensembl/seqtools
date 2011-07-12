@@ -920,6 +920,13 @@ static TreeNode *treeReroot(TreeNode *node)
 }
 
 
+static gboolean doublesEqual(const double a, const double b)
+{
+  double res = 0.000000001;
+  return (b < a + res && b > a - res);
+}
+
+
 /* Find the node which has most equal balance, return new tree with this as root.
  */
 static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *tree) 
@@ -1219,11 +1226,12 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
                   maxi = i;
                   maxj = j;
                 }
-              else if (bc->treeMethod == NJ && Dmtx[i][j] == maxid && pairmtx[i][j] < pmaxid) 
+              else if (bc->treeMethod == NJ && doublesEqual(Dmtx[i][j], maxid) && pairmtx[i][j] < pmaxid) 
                 {
                   /* To resolve ties - important for tree look! */
                   maxi = i;
                   maxj = j;
+                  pmaxid = pairmtx[i][j];
                 }
             }
         }
