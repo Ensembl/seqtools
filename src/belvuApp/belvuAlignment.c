@@ -48,6 +48,8 @@
 #define TICKMARK_INTERVAL                       10 /* number of coords between each tick marker in the sequence area header */
 #define MAJOR_TICKMARK_HEIGHT                   6  /* height of major tick marks in the sequence area header */
 #define MINOR_TICKMARK_HEIGHT                   3  /* height of minor tick marks in the sequence area header */
+#define MAX_PIXMAP_WIDTH                        10000 /* max width in pixels of a pixmap */
+#define MAX_PIXMAP_HEIGHT                       10000 /* max width in pixels of a pixmap */
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
@@ -544,7 +546,8 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
       line += 2; /* increment, and also add another blank line for spacing */
     }
   
-  while (paragraph * properties->wrapWidth + totCollapsed < bc->maxLen)
+  gboolean quit = FALSE;
+  while (!quit && paragraph * properties->wrapWidth + totCollapsed < bc->maxLen)
     {
       gboolean emptyPara = TRUE;
       
@@ -574,6 +577,12 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
           if (!emptyLine) 
             {
               const int y = line * properties->charHeight;
+              
+              if (y > properties->seqRect.y + properties->seqRect.height)
+                {
+                  quit = TRUE;
+                  break;
+                }
 
               for (collapsePos = 0, oldpos = pos[j], i = alnstart; i < alnend; i++) 
                 {	
@@ -1172,13 +1181,21 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
   else
     {
       /* The sequences are wrapped, so we only have a short width to deal with
-       * and can therefore draw the full width. */
+       * and can therefore draw the full width. (Although specify a size limit
+       * in case the user specifies a very large width because this can cause
+       * a badalloc crash if too big.) */
       result =
         properties->columnPadding + (properties->bc->maxNameLen * properties->charWidth) + 
         properties->nameColumnPadding + (properties->bc->maxEndLen * properties->charWidth) +
         properties->columnPadding + (properties->wrapWidth * properties->charWidth) + 
         properties->columnPadding + (properties->bc->maxEndLen * properties->charWidth) + 
         properties->columnPadding + (properties->bc->maxScoreLen * properties->charWidth);
+      
+      if (result > MAX_PIXMAP_WIDTH)
+        {
+          result = MAX_PIXMAP_WIDTH;
+          g_warning("The alignment drawing is too large; it will be clipped.\n");
+        }
     }
   
   return result;
@@ -1205,6 +1222,12 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
       /* Add space for the title, if given (one line for the title and one as a spacer) */
       if (properties->title)
         result += properties->charHeight * 2;
+      
+      if (result > MAX_PIXMAP_HEIGHT)
+        {
+          result = MAX_PIXMAP_HEIGHT;
+          g_warning("The alignment drawing is too large; it will be clipped.\n");
+        }
     }
   
   return result;
@@ -1255,7 +1278,7 @@ static void calculateDrawingSizes(GtkWidget *belvuAlignment)
    * and width may have changed on a size-allocate) */
   properties->seqRect.width = getAlignmentDisplayWidth(properties);
   properties->seqRect.height = getAlignmentDisplayHeight(properties);
-
+  
   /* Update the size of the drawing widget and signal that the scroll range
    * has changed (n/a for wrapped view because this gets done by the draw function. */
   if (properties->wrapWidth == UNSET_INT)
