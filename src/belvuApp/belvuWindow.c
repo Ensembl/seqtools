@@ -297,7 +297,7 @@ static const GtkActionEntry menuEntries[] = {
   { "Find",                GTK_STOCK_FIND,       "_Find...",           "<control>F",        "Find  Ctrl+F",          G_CALLBACK(onFindMenu)},
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
   { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
-  { "RecalcTree",          NULL,                 "Calculate tree",     NULL,                "Calculate tree",        G_CALLBACK(onRecalcTreeMenu)},
+  { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree (e.g. after alignment has changed", G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PREFERENCES,"Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
   { "Save",                GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
@@ -328,7 +328,7 @@ static const GtkActionEntry menuEntries[] = {
   {"loadColorScheme",      NULL,                 loadColorSchemeStr,   NULL,                loadColorSchemeDesc,     G_CALLBACK(onloadColorSchemeMenu)},
   {"editColorScheme",    GTK_STOCK_SELECT_COLOR, editColorSchemeStr,   NULL,                editColorSchemeDesc,     G_CALLBACK(oneditColorSchemeMenu)},
 
-  {"SaveTree",             GTK_STOCK_SAVE,       SaveTreeStr,          NULL,                SaveTreeDesc,            G_CALLBACK(onSaveTreeMenu)},
+  {"SaveTree",             GTK_STOCK_FLOPPY,     SaveTreeStr,          NULL,                SaveTreeDesc,            G_CALLBACK(onSaveTreeMenu)},
   {"ShowOrgs",             NULL,                 ShowOrgsStr,          NULL,                ShowOrgsDesc,            G_CALLBACK(onShowOrgsMenu)},
   {"PlotOpts",             GTK_STOCK_PROPERTIES, PlotOptsStr,          NULL,                PlotOptsDesc,            G_CALLBACK(onPlotOptsMenu)},
 
@@ -396,9 +396,9 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Wrap'/>"
 "      <menuitem action='Print'/>"
 "      <separator/>"
+"      <menuitem action='ShowTree'/>"
 "      <menuitem action='TreeOpts'/>"
 "      <menuitem action='RecalcTree'/>"
-"      <menuitem action='ShowTree'/>"
 "      <separator/>"
 "      <menuitem action='ConsPlot'/>"
 "      <separator/>"
@@ -485,9 +485,9 @@ static const char standardMenuDescription[] =
 "    <menuitem action='Wrap'/>"
 "    <menuitem action='Print'/>"
 "    <separator/>"
+"    <menuitem action='ShowTree'/>"
 "    <menuitem action='TreeOpts'/>"
 "    <menuitem action='RecalcTree'/>"
-"    <menuitem action='ShowTree'/>"
 "    <separator/>"
 "    <menuitem action='ConsPlot'/>"
 "    <separator/>"
