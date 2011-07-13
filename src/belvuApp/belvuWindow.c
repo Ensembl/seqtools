@@ -159,8 +159,8 @@ static void                      showAboutDialog(GtkWidget *parent);
 static void                      showFindDialog(BelvuContext *bc, GtkWidget *window);
 static void                      showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow);
 static void                      createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gchar *title);
-static void                      getWrappedWindowDrawingArea(GtkWidget *window, gpointer data);
-static void	                     showMakeNonRedundantDialog(GtkWidget *belvuWindow);
+static void                      widgetGetDrawing(GtkWidget *window, gpointer data);
+static void	                 showMakeNonRedundantDialog(GtkWidget *belvuWindow);
 static void                      showRemoveOutliersDialog(GtkWidget *belvuWindow);
 static void                      showRemoveByScoreDialog(GtkWidget *belvuWindow);
 static void                      startRemovingSequences(GtkWidget *belvuWindow);
@@ -186,7 +186,7 @@ static void                      showFontDialog(BelvuContext *bc, GtkWidget *win
 static const char*               saveFasta(BelvuContext *bc, GtkWidget *parent);
 static const char*               saveMul(BelvuContext *bc, GtkWidget *parent);
 static const char*               saveMsf(BelvuContext *bc, GtkWidget *parent);
-static void                      showSaveAsDialog(GtkWidget *belvuWindow);
+static void                      showSaveAsDialog(BelvuContext *bc, GtkWidget *window);
 static gboolean                  saveAlignment(BelvuContext *bc, GtkWidget *window);
 
 static BelvuWindowProperties*    belvuWindowGetProperties(GtkWidget *widget);
@@ -640,6 +640,17 @@ static void onAboutMenu(GtkAction *action, gpointer data)
   showAboutDialog(belvuWindow);
 }
 
+/* For some widget the print function prints the visible window as it is, for
+ * others it prints only the cached drawables. This returns true if the latter. */
+static gboolean printCachedDrawablesOnly(GtkWidget *widget)
+{
+  const char *name = gtk_widget_get_name(widget);
+  
+  return (stringsEqual(name, WRAPPED_BELVU_WINDOW_NAME, TRUE) ||
+          stringsEqual(name, BELVU_TREE_WINDOW_NAME, TRUE) ||
+          stringsEqual(name, BELVU_ORGS_WINDOW_NAME, TRUE));
+}
+
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
@@ -661,19 +672,25 @@ static void onPrintMenu(GtkAction *action, gpointer data)
       gtk_print_settings_set_resolution(printSettings, DEFAULT_PRINT_RESOLUTION);
     }
   
-  /* If this is the wrapped-alignment window, just print the main drawing area */
-  const char *name = gtk_widget_get_name(window);
+  /* If we're just printing the cached drawable, get the actual drawing
+   * area widget that should be drawn. (Otherwise it gets clipped to the 
+   * size of the container widget) */
+  const gboolean printCachedOnly = printCachedDrawablesOnly(window);
+  PrintScaleType scaleType = PRINT_FIT_BOTH;
+
   GtkWidget *widgetToPrint = NULL;
   
-  if (stringsEqual(name, WRAPPED_BELVU_WINDOW_NAME, TRUE))
+  if (printCachedOnly)
     {
-      getWrappedWindowDrawingArea(window, &widgetToPrint);
+      widgetGetDrawing(window, &widgetToPrint);
+      scaleType = PRINT_FIT_WIDTH; /* might be very tall, so allow multiple pages height-wise */
+    }
+  else
+    {
+      widgetToPrint = window;
     }
   
-  if (widgetToPrint)
-    blxPrintWidget(widgetToPrint, window, &printSettings, &pageSetup, TRUE, PRINT_FIT_WIDTH);
-  else
-    blxPrintWidget(window, window, &printSettings, &pageSetup, FALSE, PRINT_FIT_BOTH);
+  blxPrintWidget(widgetToPrint, window, &printSettings, &pageSetup, printCachedOnly, scaleType);
 }
 
 static void onFindMenu(GtkAction *action, gpointer data)
@@ -797,8 +814,10 @@ static void onSaveMenu(GtkAction *action, gpointer data)
 
 static void onSaveAsMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  showSaveAsDialog(belvuWindow);
+  GtkWidget *window = GTK_WIDGET(data);
+  BelvuContext *bc = windowGetContext(window);
+  
+  showSaveAsDialog(bc, window);
 }
 
 static void onOutputMenu(GtkAction *action, gpointer data)
@@ -1266,13 +1285,17 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
 /* Toggle between color-by-conservation and color-by-residue modes */
 static void ontogglePaletteMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *belvuWindow = GTK_WIDGET(data);
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
+  GtkWidget *window = GTK_WIDGET(data);
   
-  if (properties->bc->schemeType == BELVU_SCHEME_TYPE_CONS)
-    setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
-  else
-    setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+  if (stringsEqual(gtk_widget_get_name(window), MAIN_BELVU_WINDOW_NAME, TRUE))
+    {
+      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+      
+      if (properties->bc->schemeType == BELVU_SCHEME_TYPE_CONS)
+        setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
+      else
+        setToggleMenuStatus(properties->actionGroup, "ColorByCons", TRUE);
+    }
 }
 
 /* This controls whether the color-by-residue-id option is toggle on or off */
@@ -1451,9 +1474,18 @@ static void onShowOrgsMenu(GtkAction *action, gpointer data)
   BelvuContext *bc = windowGetContext(window);
   
   if (bc->organismArr->len < 1)
-    g_critical("No organism details found.\n");
+    {
+      g_critical("No organism details found.\n");
+    }
+  else if (bc->orgsWindow)
+    {
+      gtk_widget_show_all(bc->orgsWindow);
+      gtk_window_present(GTK_WINDOW(bc->orgsWindow));
+    }
   else
-    createOrganismWindow(bc);
+    {
+      createOrganismWindow(bc);
+    }
 }
 
 static void onZoomInMenu(GtkAction *action, gpointer data)
@@ -1880,13 +1912,10 @@ static void onSaveCoordsToggled(GtkWidget *button, gpointer data)
 }
 
 
-static void showSaveAsDialog(GtkWidget *belvuWindow)
+static void showSaveAsDialog(BelvuContext *bc, GtkWidget *window)
 {
-  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-  BelvuContext *bc = properties->bc;
-  
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Save As", 
-                                                  GTK_WINDOW(belvuWindow), 
+                                                  GTK_WINDOW(window), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
@@ -1949,7 +1978,7 @@ static void showSaveAsDialog(GtkWidget *belvuWindow)
 	bc->saveSeparator = '=';
     
     
-      saveAlignment(bc, belvuWindow);
+      saveAlignment(bc, window);
     }
   
   gtk_widget_destroy(dialog);
@@ -3261,8 +3290,12 @@ static void showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow)
 }
 
 
-/* Utility function to return the main drawing area of the wrapped-alignment window */
-static void getWrappedWindowDrawingArea(GtkWidget *widget, gpointer data)
+/* Utility function to return the child widget of the given container that
+ * has a cached drawable. Returns the first found (i.e. expects there to be
+ * only one).
+ * Sets the result in the user data, if found. The value of *result must be
+ * null on the first call. */
+static void widgetGetDrawing(GtkWidget *widget, gpointer data)
 {
   GtkWidget **result = (GtkWidget**)data;
 
@@ -3270,13 +3303,13 @@ static void getWrappedWindowDrawingArea(GtkWidget *widget, gpointer data)
     {
       return;
     }
-  else if (GTK_IS_LAYOUT(widget))
+  else if (widgetGetDrawable(widget))
     {
       *result = widget;
     }
   else if (GTK_IS_CONTAINER(widget))
     {
-      gtk_container_foreach(GTK_CONTAINER(widget), getWrappedWindowDrawingArea, result);
+      gtk_container_foreach(GTK_CONTAINER(widget), widgetGetDrawing, result);
     }
 }
 
@@ -3468,8 +3501,8 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
   GdkGC *gc = gdk_gc_new(drawable);
   GdkColor color;
 
-  gdouble height = 0;
-  getFontCharSize(widget, widget->style->font_desc, NULL, &height);
+  gdouble charHeight = 0;
+  getFontCharSize(widget, widget->style->font_desc, NULL, &charHeight);
 
   int y = ORGS_WINDOW_YPAD;
   const int x = ORGS_WINDOW_XPAD;
@@ -3484,7 +3517,7 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
     
       drawText(widget, drawable, gc, x, y, alnp->organism, NULL, NULL);
     
-      y += height;
+      y += charHeight;
     }
  
   g_message("%d organisms found\n", bc->organismArr->len);
@@ -3495,7 +3528,7 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
 /* Expose handler for the organisms view */
 static gboolean onExposeOrganismsView(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-  GdkDrawable *window = widget->window;
+  GdkDrawable *window = GTK_LAYOUT(widget)->bin_window;
   BelvuContext *bc = (BelvuContext*)data;
   
   if (window)
@@ -3505,7 +3538,9 @@ static gboolean onExposeOrganismsView(GtkWidget *widget, GdkEventExpose *event, 
       if (!bitmap)
 	{
 	  /* There isn't a bitmap yet. Create it now. */
-	  bitmap = createBlankPixmap(widget);
+          guint width = 0, height = 0;
+          gtk_layout_get_size(GTK_LAYOUT(widget), &width, &height);
+	  bitmap = createBlankSizedPixmap(widget, window, width, height);
 	  drawOrganisms(widget, bitmap, bc);
 	}
       
@@ -3529,40 +3564,48 @@ static gboolean onExposeOrganismsView(GtkWidget *widget, GdkEventExpose *event, 
 static void createOrganismWindow(BelvuContext *bc)
 {
   /* Create the window */
-  GtkWidget *orgsWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  setOrgsWindowStyleProperties(orgsWindow, bc);
+  bc->orgsWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  setOrgsWindowStyleProperties(bc->orgsWindow, bc);
+  g_signal_connect(bc->orgsWindow, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   
-  gtk_window_set_title(GTK_WINDOW(orgsWindow), "Belvu - Organisms");
+  gtk_window_set_title(GTK_WINDOW(bc->orgsWindow), "Belvu - Organisms");
   
   /* We must add all toplevel windows to the list of spawned windows */
-  bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, orgsWindow);
+  bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, bc->orgsWindow);
   
   /* Create the context menu and set a callback to show it */
   GtkActionGroup *actionGroup = NULL;
-  GtkUIManager *uiManager = createUiManager(orgsWindow, bc, &actionGroup);
-  GtkWidget *contextmenu = createBelvuMenu(orgsWindow, "/OrgsContextMenu", uiManager);
+  GtkUIManager *uiManager = createUiManager(bc->orgsWindow, bc, &actionGroup);
+  GtkWidget *contextmenu = createBelvuMenu(bc->orgsWindow, "/OrgsContextMenu", uiManager);
   
-  gtk_widget_add_events(orgsWindow, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(orgsWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
+  gtk_widget_add_events(bc->orgsWindow, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect(G_OBJECT(bc->orgsWindow), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
   
-  /* We'll place everything in a vbox */
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(orgsWindow), vbox);
+  /* Create a scrollable drawing area */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_container_add(GTK_CONTAINER(bc->orgsWindow), scrollWin);
   
-  /* Add the drawing area */
-  GtkWidget *drawing = gtk_drawing_area_new();
-  gtk_box_pack_start(GTK_BOX(vbox), drawing, TRUE, TRUE, 0);
+  GtkWidget *drawing = gtk_layout_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(scrollWin), drawing);
   g_signal_connect(G_OBJECT(drawing), "expose-event", G_CALLBACK(onExposeOrganismsView), bc);
+
+  /* Set layout size big enough to fit all organisms */
+  gdouble width = 0, height = 0;
+  getFontCharSize(drawing, drawing->style->font_desc, &width, &height);
+  width *= (bc->maxNameLen + 1);
+  height *= (bc->organismArr->len + 1);
+  gtk_layout_set_size(GTK_LAYOUT(drawing), width, height);
   
   /* Set default background color */
   GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);
   gtk_widget_modify_bg(drawing, GTK_STATE_NORMAL, bgColor);
   
   /* Set properties */
-  genericWindowCreateProperties(orgsWindow, bc, actionGroup);
+  genericWindowCreateProperties(bc->orgsWindow, bc, actionGroup);
   
-  gtk_widget_show_all(orgsWindow);
-  gtk_window_present(GTK_WINDOW(orgsWindow));
+  gtk_widget_show_all(bc->orgsWindow);
+  gtk_window_present(GTK_WINDOW(bc->orgsWindow));
 }
 
 

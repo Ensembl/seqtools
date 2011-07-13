@@ -4892,6 +4892,7 @@ BelvuContext* createBelvuContext()
   bc->belvuTree = NULL;
   bc->belvuAlignment = NULL;
   bc->consPlot = NULL;
+  bc->orgsWindow = NULL;
   
   bc->defaultColors = NULL;
   

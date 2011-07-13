@@ -326,6 +326,7 @@ typedef struct BelvuContextStruct
   GtkWidget *belvuTree;            /* The tree window */
   GtkWidget *belvuAlignment;       /* The widget that draws the alignments for the main window */
   GtkWidget *consPlot;             /* The conservation-plot window */
+  GtkWidget *orgsWindow;           /* The organisms window */
 
   GArray *defaultColors;           /* Default colors used by Belvu */
   
