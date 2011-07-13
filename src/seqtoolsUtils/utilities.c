@@ -1227,6 +1227,15 @@ const GdkColor *blxColorGetColor(const BlxColor *blxColor, const gboolean select
 }
 
 
+gboolean colorsEqual(GdkColor *color1, GdkColor *color2)
+{
+  return (color1->pixel == color2->pixel &&
+          color1->red == color2->red &&
+          color1->green == color2->green &&
+          color1->blue == color2->blue);
+}
+
+
 /* Return a char representation of a strand, i.e. "+" for forward strand, "-" for
  * reverse, or "." for none. */
 char getStrandAsChar(const BlxStrand strand)

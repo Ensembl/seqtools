@@ -354,7 +354,14 @@ static gboolean alignmentSelected(BelvuContext *bc, ALN *alnp)
 }
 
 
-/* Draw a single character in the given sequence */
+/* Draw a single character in the given sequence. In standard mode, fgColorsOnly
+ * should be false and the function will draw the background color for the 
+ * base (and will not draw any text). This is because drawing each character
+ * separately is slow, so all text in the default color is drawn at once
+ * by the calling function.
+ * However, if fgColorsOnly is true then this function checks if the required
+ * foreground color is different to the default and, if so, draws the character
+ * in that color. (It does not draw background colors in this mode.) */
 static void drawSequenceChar(BelvuAlignmentProperties *properties, 
                              ALN *alnp,
                              const int colIdx,
@@ -363,39 +370,38 @@ static void drawSequenceChar(BelvuAlignmentProperties *properties,
                              GdkDrawable *drawable,
                              GdkGC *gc,
                              GdkColor *defaultFgColor,
+                             const gboolean fgColorsOnly,
                              const int x, 
                              const int y)
 {
-  GdkColor bgColor;
-  
-  if (properties->bc->displayColors)
+  if (!fgColorsOnly)
     {
       /* Draw the background */
+      GdkColor bgColor;
       findResidueBGcolor(properties->bc, alnp, colIdx, rowHighlighted, &bgColor);
       gdk_gc_set_foreground(gc, &bgColor);
+      
       gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
     }
-  
-//  if (colIdx < alnGetSeqLen(alnp))
-//    {
-//      /* Draw the text. We get the text colour from the background color in 
-//       * color-by-conservation mode (if displaying colours is enabled) */
-//      if (colorByConservation(properties->bc) && properties->bc->displayColors)
-//        {
-//          GdkColor fgColor;
-//          bg2fgColor(properties->bc, &bgColor, &fgColor);
-//          gdk_gc_set_foreground(gc, &fgColor);
-//        }
-//      else
-//        {
-//          gdk_gc_set_foreground(gc, defaultFgColor);
-//        }
-//      
-//      char displayText[2];
-//      displayText[0] = alnGetSeq(alnp)[colIdx];
-//      displayText[1] = '\0';
-//      drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
-//    }
+  else if (colIdx < alnGetSeqLen(alnp) && colorByConservation(properties->bc))
+    {
+      /* Draw the text if it is in a different color to the default. This is only
+       * possible in color by conservation mode. We get the text colour from the 
+       * background color */
+      GdkColor fgColor, bgColor;
+      findResidueBGcolor(properties->bc, alnp, colIdx, rowHighlighted, &bgColor);
+      bg2fgColor(properties->bc, &bgColor, &fgColor);
+      
+      if (!colorsEqual(&fgColor, defaultFgColor))
+        {
+          gdk_gc_set_foreground(gc, &fgColor);
+          
+          char displayText[2];
+          displayText[0] = alnGetSeq(alnp)[colIdx];
+          displayText[1] = '\0';
+          drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
+        }
+    }
   
 }
 
@@ -420,20 +426,21 @@ static void drawSingleSequence(GtkWidget *widget,
   GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
   
   /* Loop through each column in the current display range and color
-   * the text and background according to the relevant highlight colors */
+   * the according to the relevant highlight color */
   int colIdx = hAdjustment->value;
   int iMax = min(properties->bc->maxLen, hAdjustment->value + hAdjustment->page_size);
   const gboolean rowHighlighted = alignmentSelected(properties->bc, alnp);
   
-  for ( ; colIdx < iMax; ++colIdx)
+  if (properties->bc->displayColors)
     {
-      drawSequenceChar(properties, alnp, colIdx, rowHighlighted, widget, drawable, gc, defaultFgColor, x, y);
-      
-      /* Increment the x position */
-      x += properties->charWidth;
-    }
+      for ( ; colIdx < iMax; ++colIdx)
+        {
+          drawSequenceChar(properties, alnp, colIdx, rowHighlighted, widget, drawable, gc, defaultFgColor, FALSE, x, y);
+          x += properties->charWidth;
+        }
+    }  
   
-  /* Draw the text for the current display range */
+  /* Draw the sequence text (current display range only) */
   if (alnGetSeq(alnp))
     {
       GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
@@ -447,16 +454,22 @@ static void drawSingleSequence(GtkWidget *widget,
       g_free(displayText);
     }
   
+  /* Loop again and draw any characters that are not in the default text color.
+   * We don't draw every character individually because the pango layout calls
+   * are expensive, but we can't really avoid it when some characters are in
+   * difference colors.  (We could put markup in the pango layout instead, but
+   * generally the number of characters in a non-default color is small, so 
+   * this should be good enough for most cases.) */
+  if (properties->bc->displayColors)
+    {
+      for (x = startX, colIdx = hAdjustment->value; colIdx < iMax; ++colIdx)
+        {
+          drawSequenceChar(properties, alnp, colIdx, rowHighlighted, widget, drawable, gc, defaultFgColor, TRUE, x, y);
+          x += properties->charWidth;
+        }
+    } 
+  
   g_object_unref(gc);
-}
-
-
-static gboolean colorsEqual(GdkColor *color1, GdkColor *color2)
-{
-  return (color1->pixel == color2->pixel &&
-          color1->red == color2->red &&
-          color1->green == color2->green &&
-          color1->blue == color2->blue);
 }
 
 

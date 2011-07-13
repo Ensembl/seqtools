@@ -461,6 +461,7 @@ GdkColor*	      getGdkColor(int colorId, GArray *defaultColors, const gboolean s
 const GdkColor*	      blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
 char*		      convertColorToString(GdkColor *color);
 void		      destroyBlxColor(BlxColor *blxColor);
+gboolean              colorsEqual(GdkColor *color1, GdkColor *color2);
 
 void		      createBlxColor(GArray *defaultColors,
 				     int colorId,
