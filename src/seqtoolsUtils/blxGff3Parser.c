@@ -153,6 +153,7 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
 
+  addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_SHORT_READ);
   addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
 
   return supportedTypes;
@@ -537,11 +538,14 @@ static BlxStrand readStrand(char *token, GError **error)
 
 
 /* To do: This is a bit of a hack to distinguish short-read matches from other
- * matches. It assumes that anything coming from a "sam/bam" source is a 
+ * matches. It assumes that any match coming from a "sam/bam" source is a 
  * short-read, and anything else is not. This is obviously not ideal but at
  * the time of writing there is no consensus for how to represent short-reads
- * in a GFF file, and with our current input files we have no other way to 
- * distinguish them. */
+ * in a GFF file, and with our original input files we had no other way to 
+ * distinguish them. We are moving to using the 'read' type for short reads
+ * instead of 'match' because we want to use the source for something else, so
+ * we will be able to distinguish them that way, and if this proves to be
+ * accepted then this function can be removed altogether. */
 static void updateInputMspType(BlxGffData *gffData)
 {
   if (gffData->mspType == BLXMSP_MATCH && gffData->source && stringsEqual(gffData->source, "sam/bam", FALSE))
