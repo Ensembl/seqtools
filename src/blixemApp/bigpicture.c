@@ -1153,7 +1153,9 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
        * the "initial zoom level" which is a ratio of the detail view range. */
       properties->displayRange.min = initRange->min;
       properties->displayRange.max = initRange->max;
-      boundsLimitRange(&properties->displayRange, fullRange, TRUE);
+      
+      if (initRange->min != UNSET_INT || initRange->max != UNSET_INT) /* if set */
+        boundsLimitRange(&properties->displayRange, fullRange, TRUE);
       
       /* Calculate the font size */
       getFontCharSize(bigPicture, bigPicture->style->font_desc, &properties->charWidth, &properties->charHeight);
