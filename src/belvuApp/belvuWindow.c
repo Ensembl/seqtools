@@ -2621,7 +2621,8 @@ static void updateColorButton(GtkWidget *combo, gpointer data)
   GdkColor color;
   convertColorNumToGdkColor(colorNum, FALSE, &color);
   
-  gtk_color_button_set_color(GTK_COLOR_BUTTON(colorButton), &color);
+  gtk_widget_modify_bg(colorButton, GTK_STATE_NORMAL, &color);
+  //gtk_color_button_set_color(GTK_COLOR_BUTTON(colorButton), &color);
 }
 
 
@@ -2659,10 +2660,15 @@ static void createColorButton(const int colorNum,
   GdkColor color;
   convertColorNumToGdkColor(colorNum, FALSE, &color);
   
-  /* Create a color-chooser button. To do: we should disable clicking this button
-   * until we are able to use its result. */
-  GtkWidget *colorButton = gtk_color_button_new_with_color(&color);
+  /* Create a color box to display the currently-selected color. NB ideally we would get
+   * rid of the drop-down box and have a color-picker button instead, but this requires
+   * changes to the way colors are stored and saved in order to support more colors than
+   * just the old-style acedb list. */
+//  GtkWidget *colorButton = gtk_color_button_new_with_color(&color);
+  GtkWidget *colorButton = gtk_event_box_new();
   gtk_table_attach(table, colorButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_widget_set_size_request(colorButton, 40, 20);
+  gtk_widget_modify_bg(colorButton, GTK_STATE_NORMAL, &color);
   
   /* Create a drop-down box to allow the user to select one of the old-style acedb colors. */
   GtkWidget *combo = GTK_WIDGET(createColorCombo(colorNum));
