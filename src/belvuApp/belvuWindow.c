@@ -43,6 +43,7 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
+#include <unistd.h>
 
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
@@ -77,9 +78,6 @@ typedef struct _BelvuWindowProperties
     GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
     GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
     GtkActionGroup *actionGroup;
-    
-    GdkCursor *defaultCursor;           /* default cursor */
-    GdkCursor *removeSeqsCursor;        /* cursor to use when removing sequences */
   } BelvuWindowProperties;
 
 
@@ -1580,9 +1578,6 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
       properties->feedbackBox = feedbackBox;
       properties->actionGroup = actionGroup;
       
-      properties->defaultCursor = NULL; /* get from gdkwindow once it is shown */
-      properties->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
-      
       g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", properties);
       g_signal_connect(G_OBJECT(belvuWindow), "destroy", G_CALLBACK (onDestroyBelvuWindow), NULL);
     }
@@ -1705,14 +1700,18 @@ static void updateSequenceRemovalMode(GtkWidget *belvuWindow)
 
   if (properties->bc->removingSeqs)
     {
-      gdk_window_set_cursor(belvuWindow->window, properties->removeSeqsCursor);
+      gdk_window_set_cursor(belvuWindow->window, properties->bc->removeSeqsCursor);
       g_message("Double-click on sequences to remove.  Esc or right-click to cancel.\n");
     }
   else
     {
-      gdk_window_set_cursor(belvuWindow->window, properties->defaultCursor);
+      gdk_window_set_cursor(belvuWindow->window, properties->bc->defaultCursor);
       g_message("Finished removing sequences.\n");
     }
+
+  /* Force cursor to change immediately */
+    while (gtk_events_pending())
+    gtk_main_iteration();
 }
 
 
@@ -4167,8 +4166,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   gtk_widget_show_all(window);
   
   /* Set the default cursor (can only get the window's cursor after window is shown) */
-  BelvuWindowProperties *properties = belvuWindowGetProperties(window);
-  properties->defaultCursor = gdk_window_get_cursor(window->window);
+  bc->defaultCursor = gdk_window_get_cursor(window->window);
   
   /* If the BELVU_FONT_SIZE environment variable is set, use it to set the
    * default font size for all the widgets. */

@@ -1213,7 +1213,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
   /* This can take a long time, so let the user know we're doing something.
    * Force the message to be displayed before we get stuck into the calculations. */
   g_message("Calculating tree...\n");
-  gdk_window_process_all_updates();
+  setBusyCursor(bc, TRUE);
 
   TreeNode *newnode = NULL ;
   int maxi = -1, maxj = -1;
@@ -1404,6 +1404,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
   if (doBootstrap && bc->treebootstraps) 
     treeBootstrapStats(bc, newnode);
   
+  setBusyCursor(bc, FALSE);
   g_message("Finished calculating tree.\n");
   return newnode ;
 }

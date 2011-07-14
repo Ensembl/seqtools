@@ -4894,6 +4894,10 @@ BelvuContext* createBelvuContext()
   bc->consPlot = NULL;
   bc->orgsWindow = NULL;
   
+  bc->defaultCursor = NULL; /* get from gdkwindow once it is shown */
+  bc->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
+  bc->busyCursor = gdk_cursor_new(GDK_WATCH);
+
   bc->defaultColors = NULL;
   
   bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN), 100);  /* was called 'Align' */
@@ -7148,6 +7152,9 @@ void outputProbs(BelvuContext *bc, FILE *fil)
  * results to stdout. */
 void listIdentity(BelvuContext *bc)
 {
+  g_message("Outputting identities...\n");
+  setBusyCursor(bc, TRUE);
+
   int i=0,j=0,n=0 ;
   double totsc=0, maxsc=0, minsc=1000000,
          totid=0.0, maxid=0.0, minid=100.0;
@@ -7200,6 +7207,9 @@ void listIdentity(BelvuContext *bc)
   printf("Maximum score was: %.1f\n", maxsc);
   printf("Minimum score was: %.1f\n", minsc);
   printf("Mean    score was: %.1f\n", (double)totsc/n);
+
+  setBusyCursor(bc, FALSE);
+  g_message("Finished outputting identities.\n");
 }
 
 
@@ -7283,3 +7293,38 @@ gboolean alignmentHighlighted(BelvuContext *bc, ALN *alnp)
   /* Return true if this alignment has the same name as the selected alignment */
   return (bc->selectedAln && stringsEqual(alnp->name, bc->selectedAln->name, TRUE));
 }
+
+
+/***********************************************************
+ *                        Cursors                          *
+ ***********************************************************/
+
+/* Utility to set/unset the busy cursor on all open toplevel windows */
+void setBusyCursor(BelvuContext *bc, const gboolean busy)
+{
+  GdkCursor *cursor = bc->defaultCursor;
+
+  if (busy)
+    cursor = bc->busyCursor;
+  else if (!busy && bc->removingSeqs)
+    cursor = bc->removeSeqsCursor;
+
+  if (bc->belvuWindow)
+    gdk_window_set_cursor(bc->belvuWindow->window, cursor);
+
+  if (bc->belvuTree)
+    gdk_window_set_cursor(bc->belvuTree->window, cursor);
+
+  if (bc->consPlot)
+    gdk_window_set_cursor(bc->consPlot->window, cursor);
+
+  if (bc->orgsWindow)
+    gdk_window_set_cursor(bc->orgsWindow->window, cursor);
+
+  /* Force cursor to change immediately */
+  while (gtk_events_pending())
+      gtk_main_iteration();
+
+  gdk_display_sync(gdk_display_get_default());
+}
+

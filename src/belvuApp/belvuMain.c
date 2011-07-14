@@ -322,7 +322,7 @@ static void readScores(char *filename, BelvuContext *bc)
       bc->displayScores = TRUE;
     
       if (warnings)
-	g_warning("Some sequences in the scores file were not found in the alignment.\n");
+        g_warning("Some sequences in the scores file were not found in the alignment.\n");
     }
   else
     {

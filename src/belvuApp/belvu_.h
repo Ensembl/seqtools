@@ -328,6 +328,10 @@ typedef struct BelvuContextStruct
   GtkWidget *consPlot;             /* The conservation-plot window */
   GtkWidget *orgsWindow;           /* The organisms window */
 
+  GdkCursor *defaultCursor;        /* default cursor */
+  GdkCursor *busyCursor;           /* cursor to use when busy */
+  GdkCursor *removeSeqsCursor;     /* cursor to use when removing sequences */
+
   GArray *defaultColors;           /* Default colors used by Belvu */
   
   GArray *alignArr;
@@ -554,5 +558,7 @@ void                                      setTreeHead(BelvuContext *bc, TreeNode
 
 void                                      fetchAln(BelvuContext *bc, ALN *alnp);
 gboolean                                  alignmentHighlighted(BelvuContext *bc, ALN *alnp);
+
+void                                      setBusyCursor(BelvuContext *bc, const gboolean busy);
 
 #endif /* DEF_BELVU_P_H */
