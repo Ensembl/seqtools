@@ -234,78 +234,11 @@ static int a2b[] =
 
 
 #ifdef OLD_BELVU_CODE
-#include <wh/regular.h>
-#include <wh/aceio.h>
-#include <wh/graph.h>
-#include <wh/gex.h>
-#include <wh/key.h>
-#define BELVU						    /* Fix horrible include mess in dotter_.h */
-#include <wh/dotter_.h>
-#include <wh/menu.h>
-
-
-#define MAXLINE   512
-#define MAXLENGTH 100000
-#define DBL_CLK_DELAY 2 /* seconds */
-#define HSCRWID    1.0  /* Width of Horizontal scroll bar */
-#define SCRBACKCOLOR PALEGRAY
-
-
-#define myGraphDestroyDeclare(FUNCNAME)        \
-  static void FUNCNAME(void) ;
-
-#define myGraphDestroy(FUNCNAME, FUNCGRAPH)    \
-static void FUNCNAME(void)                     \
-{                                              \
-  messAssert(graphActive() == FUNCGRAPH) ;     \
-                                               \
-  graphDestroy() ;                             \
-                                               \
-  FUNCGRAPH = GRAPH_NULL ;                     \
-                                               \
-  return ;                                     \
-}
-
-
-
-
-
-
-
-
-static void     externalCommand();
 
 /* Global variables *******************/
 
-static int    **conservCount=0,	   /* Matrix of conservation values  - 21 x maxLen */
-              **colorMap=0,	   /* Matrix of conservation colours - 21 x maxLen */
-               *conservResidues=0, /* Array of number of residues present in each column */
+static int
 
-                colorScheme = COLORSIM,  /* Current colour scheme mode (used for checkmarks) */
-                color_by_conserv = 1,    /* 1 => by id or similarity; 0 => by residue  */
-                id_blosum=1,	         /* Paint similar residues too */
-                color_by_similarity = 1, /* 0 => by id */
-
-
-                maxLen=0,	/* Columns in alignment */
-                nseq=0,		/* Rows in alignment */
-                verbose=0,
-                debug=0,
-                xmosaic = 0,
-                ip,		/* Int pointer used in array operations */
-                init_sort=0, 
-                init_rmPartial=0, 
-                rmPickLeftOn,
-                selectedCol = 0,	/* Last picked column */
-                colorRectangles=1,
-                maxNameLen,	/* Max string length of any sequence name */
-                maxStartLen=0,	/* Max string length of any sequence start */
-                maxEndLen=0,	/* Max string length of any sequence end */
-                maxScoreLen=0,	/* Max string length of any sequence score */
-                AlignXstart=0,	/* x Start position of alignment in alignment window */
-                AlignYstart=0,	/* y Start position of alignment in alignment window */
-                Alignwid,	/* Witdh of shown alignment */
-                Alignheig,	/* Height of shown alignment */
                 statsBox,
                 HscrollSliderBox,
                 VscrollSliderBox,
