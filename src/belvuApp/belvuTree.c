@@ -605,7 +605,7 @@ static double treeSCOREDIST(char *seq1, char *seq2, BelvuContext *bc)
   
   double cd = -log(od);
   
-  DEBUG_OUT("SCOREDIST: len=%d  sc=%.2f  maxsc=%.2f  expect=%.2f  maxsc-expect=%.2f  od=%.3f\n", len, sc, maxsc, expect, maxsc-expect, od);
+  DEBUG_OUT("SCOREDIST: len=%d  sc=%d  maxsc=%.2f  expect=%.2f  maxsc-expect=%.2f  od=%.3f\n", len, sc, maxsc, expect, maxsc-expect, od);
   
   cd = cd * 100.0 * 1.337 /* Magic scaling factor optimized for Dayhoff data */ ;
   
@@ -1681,8 +1681,11 @@ static double treeDrawNode(BelvuContext *bc,
   
   if (bc->treeShowBranchlen && node->branchlen) 
     {
+      /* Draw the branch label, which shows the branch length */
       char *tmpStr = blxprintf("%.1f", node->branchlen);
-      double pos = x + roundNearest((node->branchlen - (double)strlen(tmpStr)) * (bc->treeScale * properties->charWidth * 0.5));
+
+      const int textWidth = getTextWidth(widget, tmpStr);
+      double pos = min(curX, x) + (abs(curX - x) / 2) - (textWidth * 0.5); /* centre text at middle of branch */
 
       drawText(widget, drawable, gc, pos, y, tmpStr, NULL, NULL);
       
