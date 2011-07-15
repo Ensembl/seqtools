@@ -7085,6 +7085,7 @@ void outputProbs(BelvuContext *bc, FILE *fil)
  * results to stdout. */
 void listIdentity(BelvuContext *bc)
 {
+  /* This may take some time, so feed back to the user what is happening. */
   g_message("Outputting identities...\n");
   setBusyCursor(bc, TRUE);
 
@@ -7094,6 +7095,12 @@ void listIdentity(BelvuContext *bc)
   
   for (i = n = 0; i < bc->alignArr->len - 1; ++i) 
     {
+      /* Update the display periodically, otherwise the busy cursor might not
+       * get updated (e.g. if we were outside the main window when we set the 
+       * cursor and the user later enters the window). */
+      while (gtk_events_pending())
+        gtk_main_iteration();
+
       ALN *alni = &g_array_index(bc->alignArr, ALN, i);
       
       if (alni->markup > 0) /* ignore markup lines */
@@ -7239,7 +7246,7 @@ void setBusyCursor(BelvuContext *bc, const gboolean busy)
 
   if (busy)
     cursor = bc->busyCursor;
-  else if (!busy && bc->removingSeqs)
+  else if (bc->removingSeqs)
     cursor = bc->removeSeqsCursor;
 
   if (bc->belvuWindow)
@@ -7256,8 +7263,6 @@ void setBusyCursor(BelvuContext *bc, const gboolean busy)
 
   /* Force cursor to change immediately */
   while (gtk_events_pending())
-      gtk_main_iteration();
-
-  gdk_display_sync(gdk_display_get_default());
+    gtk_main_iteration();
 }
 
