@@ -75,7 +75,7 @@ typedef struct _ConsPlotProperties
     GdkRectangle xScaleRect;            /* Space for drawing the y scale */
     
     int windowSize;                     /* Size of the sliding window used for smothing the profile */
-    double lineWidth;                   /* Line width of the plot */
+    int lineWidth;                      /* Line width of the plot */
     double xScale;                      /* Used for scaling the x axis */
     double yScale;                      /* Used for scaling the y axis */
     
@@ -124,7 +124,7 @@ static void consPlotCreateProperties(GtkWidget *consPlot,
       properties->drawingArea = drawingArea;
       
       properties->windowSize = 1;
-      properties->lineWidth = 0.2;
+      properties->lineWidth = 1;
       properties->xScale = 10.0;
       properties->yScale = 20.0;
       
@@ -181,6 +181,7 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
   
   BelvuContext *bc = properties->bc;
   GdkGC *gc = gdk_gc_new(drawable);
+  gdk_gc_set_line_attributes(gc, properties->lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
   
   GtkAdjustment *hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(properties->drawingArea));
   const double xMin = hAdjustment->value;
@@ -374,6 +375,8 @@ static void showSettingsDialog(GtkWidget *consPlot)
       /* Redraw if anything has changed */
       if (changed || newLine != properties->lineWidth)
         {
+          changed = TRUE;
+          properties->lineWidth = newLine;
           belvuConsPlotRedrawAll(consPlot);
         }
     }
