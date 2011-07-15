@@ -237,67 +237,7 @@ static int a2b[] =
 
 /* Global variables *******************/
 
-static int
-                matchFooter = 0,
-                maxfgColor = BLACK,
-                midfgColor = BLACK,
-                lowfgColor = BLACK,
-                maxbgColor = CYAN,
-                midbgColor = MIDBLUE,
-                lowbgColor = LIGHTGRAY,
-                oldmaxfgColor,
-                oldmidfgColor,
-                oldlowfgColor,
-                oldmaxbgColor,
-                oldmidbgColor,
-                oldlowbgColor,
-                printColorsOn = 0,
-                wrapLinelen,
-                ignoreGapsOn = 0,
-                treeOrderNr,	/* Tree node number */
-                conservationWindow=1,
-                rmEmptyColumnsOn=1,
-                saveCoordsOn=1,
-                treeMethod,
-/*                treeMethod = NJ, my code....should this be initialised ? */
-                maxTreeWidth = 0,
-                treeColorsOn = 1,
-                treeShowBranchlen = 0,
-                treeShowOrganism = 1,
-                treeCoordsOn = 1,
-                treebootstraps = 0, /* Number of bootstrap trees to be made */
-	outputBootstrapTrees = 0,  /* Output the individual bootstrap trees */
-                treebootstrapsDisplay = 0,  /* Display bootstrap trees on screen */
-                stripCoordTokensOn = 1,
-                lowercaseOn = 0,
-                treePrintDistances = 0,
-                treeReadDistancesON = 0,
-                penalize_gaps = 0;
-
-static double    Xpos,		/* x screen position of alignment window */
-                Aspect,		/* Aspect ratio of coordinate system (width/height) */
-                VSCRWID,	/* Width of Vertical scroll bar - depends on Aspect */
-                HscrollStart,	/* Start of legal Horizontal scrollbar slider area */
-                HscrollEnd,     /* End of -''- */
-                VscrollStart,	/* as above */
-                VscrollEnd,	/* as above */
-                HsliderLen,     /* Length of Horizontal slider */
-                VsliderLen,     /* Length of Vertical slider */
-                SliderOffset,
-                colorByResIdCutoff = 20.0, /* Colour by residue + id cutoff */
-                lowIdCutoff = 0.4,	/* %id cutoff for lowest colour */
-                midIdCutoff = 0.6,	/* %id cutoff for medium colour */
-                maxIdCutoff = 0.8,	/* %id cutoff for maximum colour */
-                lowSimCutoff = 0.5,	/* %id cutoff for lowest colour */
-                midSimCutoff = 1.5,	/* %id cutoff for medium colour */
-                maxSimCutoff = 3.0,	/* %id cutoff for maximum colour */
-                oldMax,
-                oldMid,
-                oldLow,
-                screenWidth,
-                screenHeight,
-                fontwidth, fontheight,
-                tree_y, treeLinewidth = 0.3,
+static double    
                 conservationLinewidth = 0.2,
                *conservation,	        /* The max conservation in each column [0..maxLen] */
                 conservationRange,
