@@ -1639,18 +1639,20 @@ static double treeDrawNode(BelvuContext *bc,
 
       drawText(widget, drawable, gcTmp, textX, textY, node->name, &nameWidth, &nameHeight);
 
-      if (isSelected)
+      if (isSelected || (node->aln && node->aln->color != WHITE))
         {
-          /* The node is selected, so highlight it */
-          GdkColor *color = getGdkColor(BELCOLOR_TREE_BACKGROUND, bc->defaultColors, isSelected, FALSE);
-          gdk_gc_set_foreground(gcTmp, color);
+          /* Highlight this node */
+          GdkColor color;
+          convertColorNumToGdkColor(node->aln->color, isSelected, &color);
+          
+          gdk_gc_set_foreground(gcTmp, &color);
           gdk_draw_rectangle(drawable, gcTmp, TRUE, textX - DEFAULT_XPAD/2, textY - 1, nameWidth + DEFAULT_XPAD, nameHeight + 2);
           
           /* This is a bit hacky because it re-draws text we've already drawn because it was covered by the
            * background. We should rearrange things slightly so that we can get nameWidth and nameHeight another
            * way so we can avoidthis, but it's a very small performance hit so not worth worrying about. */
-          color = getGdkColor(BELCOLOR_TREE_TEXT, bc->defaultColors, isSelected, FALSE);
-          gdk_gc_set_foreground(gcTmp, color);
+          GdkColor *fgColor = getGdkColor(BELCOLOR_TREE_TEXT, bc->defaultColors, isSelected, FALSE);
+          gdk_gc_set_foreground(gcTmp, fgColor);
           drawText(widget, drawable, gcTmp, curX + DEFAULT_XPAD, y - properties->charHeight / 2, node->name, NULL, NULL);
         }
       

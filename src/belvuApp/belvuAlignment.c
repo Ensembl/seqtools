@@ -298,9 +298,6 @@ static void drawSingleColumn(GtkWidget *widget,
       GdkColor bgColor;
       convertColorNumToGdkColor(alnp->color, highlightAln, &bgColor);
       
-      if (highlightAln)
-        getSelectionColor(&bgColor, &bgColor);
-      
       gdk_gc_set_foreground(gc, &bgColor);
       gdk_draw_rectangle(drawable, gc, TRUE, properties->columnsRect.x, y, properties->columnsRect.width, properties->charHeight);
     }
