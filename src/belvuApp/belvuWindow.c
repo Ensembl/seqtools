@@ -169,7 +169,6 @@ static void                      showRemoveColumnsDialog(GtkWidget *belvuWindow)
 static void                      showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow);
 static void                      showRemoveGappyColumnsDialog(GtkWidget *belvuWindow);
 
-//static void                      showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      showColorByResIdDialog(GtkWidget *belvuWindow);
 static void                      showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
 static void                      showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean bringToFront);
@@ -460,7 +459,6 @@ static const char standardMenuDescription[] =
 "    </menu>"
      /* Sort menu */
 "    <menu action='SortMenuAction'>"
-//"      <menuitem action='defaultSort'/>"  /* to do: this is supposed to restore the default start-up sort order but it gets messed up after sorting by tree */
 "      <menuitem action='scoreSort'/>"
 "      <menuitem action='alphaSort'/>"
 "      <menuitem action='organismSort'/>"
@@ -2055,12 +2053,6 @@ static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean fin
 }
 
 
-//static void findResidues(BelvuContext *bc, const char *searchStr, const gboolean findAgain, const gboolean searchBackwards)
-//{
-//  /* to do */
-//}
-
-
 static gboolean onFindSeqs(GtkWidget *button, const gint responseId, gpointer data)
 {
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
@@ -2085,29 +2077,29 @@ static gboolean onFindSeqs(GtkWidget *button, const gint responseId, gpointer da
 }
 
 
-//static gboolean onFindResidues(GtkWidget *button, const gint responseId, gpointer data)
-//{
-//  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
-//    {
-//      const char *searchStr = getStringFromTextEntry(GTK_ENTRY(data));
-//
-//      GtkWidget *dialog = gtk_widget_get_toplevel(button);
-//      GtkWidget *window = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
-//      BelvuContext *bc = windowGetContext(window);
-//
-//      /* If the the user hit forward or back, do a find-again search in the appropriate
-//       * direction; otherwise do a normal search */
-//      if (responseId == BLX_RESPONSE_FORWARD)
-//        findResidues(bc, searchStr, TRUE, FALSE);
-//      else if (responseId == BLX_RESPONSE_BACK)
-//        findResidues(bc, searchStr, TRUE, TRUE);
-//      else
-//        findResidues(bc, searchStr, FALSE, FALSE);
-//    }
-//
-//  return TRUE;
-//}
+/* To do: implement functionality to search for sequences by a pattern of residues */
+/* 
+static gboolean onFindResidues(GtkWidget *button, const gint responseId, gpointer data)
+{
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+    {
+      const char *searchStr = getStringFromTextEntry(GTK_ENTRY(data));
 
+      GtkWidget *dialog = gtk_widget_get_toplevel(button);
+      GtkWidget *window = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+      BelvuContext *bc = windowGetContext(window);
+
+      if (responseId == BLX_RESPONSE_FORWARD)
+        findResidues(bc, searchStr, TRUE, FALSE);
+      else if (responseId == BLX_RESPONSE_BACK)
+        findResidues(bc, searchStr, TRUE, TRUE);
+      else
+        findResidues(bc, searchStr, FALSE, FALSE);
+    }
+
+  return TRUE;
+}
+*/
 
 static void showFindDialog(BelvuContext *bc, GtkWidget *window)
 {
@@ -2141,7 +2133,7 @@ static void showFindDialog(BelvuContext *bc, GtkWidget *window)
 
 
       /*GtkRadioButton *button1 =*/ createRadioButton(table, 0, 0, NULL, "_Name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqs, window);
-      //==/*createRadioButton(table, 0, 1, button1, "_Residue sequence search", FALSE, TRUE, FALSE, onFindResidues, window);*/
+      /*createRadioButton(table, 0, 1, button1, "_Residue sequence search", FALSE, TRUE, FALSE, onFindResidues, window);*/
 
 
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window));
@@ -2624,7 +2616,6 @@ static void updateColorButton(GtkWidget *combo, gpointer data)
   convertColorNumToGdkColor(colorNum, FALSE, &color);
   
   gtk_widget_modify_bg(colorButton, GTK_STATE_NORMAL, &color);
-  //gtk_color_button_set_color(GTK_COLOR_BUTTON(colorButton), &color);
 }
 
 
@@ -2666,7 +2657,6 @@ static void createColorButton(const int colorNum,
    * rid of the drop-down box and have a color-picker button instead, but this requires
    * changes to the way colors are stored and saved in order to support more colors than
    * just the old-style acedb list. */
-//  GtkWidget *colorButton = gtk_color_button_new_with_color(&color);
   GtkWidget *colorButton = gtk_event_box_new();
   gtk_table_attach(table, colorButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_widget_set_size_request(colorButton, 40, 20);
@@ -2702,7 +2692,7 @@ static void createResidueColorBox(GtkTable *table,
   createColorButton(colorNum, table, *row, *col + 1, xpad, ypad, G_CALLBACK(updateColorResidue), residue);
   
   /* Append this residue to the group for this color */
-//  g_string_append(groups[colorNum], residue);
+//to do:  g_string_append(groups[colorNum], residue);
   
   *row += 1;
 }
@@ -3383,94 +3373,6 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
   /* Make sure the font size is up to date */
   onBelvuAlignmentFontSizeChanged(wrappedAlignment);
 }
-
-
-/***********************************************************
- *                    Make tree dialog                     *
- ***********************************************************/
-
-///* Callback when the user makes a response on the 'make tree' dialog */
-//static void onResponseMakeTreeDialog(GtkDialog *dialog, gint responseId, gpointer data)
-//{
-//  gboolean destroy = TRUE;
-//  BelvuContext *bc = (BelvuContext*)data;
-//
-//  switch (responseId)
-//  {
-//    case GTK_RESPONSE_ACCEPT:
-//    {
-//      /* Update the settings by calling all the callbacks, then create the tree.
-//       * Destroy the dialog if successful */
-//      destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-//      createAndShowBelvuTree(bc);
-//      break;
-//    }
-//      
-//    case GTK_RESPONSE_CANCEL:
-//    case GTK_RESPONSE_REJECT:
-//      destroy = TRUE;
-//      break;
-//      
-//    default:
-//      break;
-//  };
-//  
-//  if (destroy)
-//    {
-//      /* This is a persistent dialog, so just hide it */
-//      gtk_widget_hide_all(GTK_WIDGET(dialog));
-//    }
-//
-//  if (bc->belvuTree)
-//    gtk_window_present(GTK_WINDOW(bc->belvuTree));
-//}
-
-
-/* Dialog to prompt the user to make a tree */
-//static void showMakeTreeDialog(GtkWidget *belvuWindow, const gboolean bringToFront)
-//{
-//  BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
-//  BelvuContext *bc = properties->bc;
-//  
-//  const BelvuDialogId dialogId = BELDIALOG_MAKE_TREE;
-//  GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
-//  
-//  if (!dialog)
-//    {
-//      dialog = gtk_dialog_new_with_buttons("Belvu - Make Tree", 
-//                                           GTK_WINDOW(belvuWindow), 
-//                                           GTK_DIALOG_DESTROY_WITH_PARENT,
-//                                           GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
-//                                           GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
-//                                           NULL);
-//      
-//      /* These calls are required to make the dialog persistent... */
-//      addPersistentDialog(bc->dialogList, dialogId, dialog);
-//      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-//      
-//      g_signal_connect(dialog, "response", G_CALLBACK(onResponseMakeTreeDialog), bc);
-//    }
-//  else
-//    {
-//      /* Need to refresh the dialog contents, so clear and re-create content area */
-//      dialogClearContentArea(GTK_DIALOG(dialog));
-//    }
-//  
-//  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-//
-//  /* Add the standard tree settings content */
-//  createTreeSettingsDialogContent(bc, dialog, 
-//                                  &bc->treeScale, &bc->treeLineWidth,
-//                                  &bc->treeShowBranchlen, &bc->treeShowOrganism,
-//                                  &bc->treePickMode, &bc->treeMethod, &bc->treeDistCorr);
-//
-//  gtk_widget_show_all(dialog);
-//  
-//  if (bringToFront)
-//    {
-//      gtk_window_present(GTK_WINDOW(dialog));
-//    }
-//}
 
 
 /***********************************************************

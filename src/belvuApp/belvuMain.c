@@ -346,7 +346,6 @@ int main(int argc, char **argv)
   
   int     
   i,
-//  pw, ph,	 /* pixel width and height */
   output_probs = 0,
   init_tree = 0,
   only_tree = 0,
@@ -774,10 +773,6 @@ int main(int argc, char **argv)
       argvAdd(&argc, &argv, "8x13");
     }
   
-  // to do: get font size?
-//  graphScreenSize(&screenWidth, &screenHeight, &fontwidth, &fontheight, &pw, &ph);
-
-
   if (show_ann) 
     showAnnotationWindow(bc);
 
@@ -796,25 +791,6 @@ int main(int argc, char **argv)
   int scrollbarWidth = 20; /* to do: calculate scrollbar width properly */
   cw += bc->maxLen + scrollbarWidth + 2;
   
-//  colorMenu = menuInitialise ("color", (MENUSPEC*)colorMENU);
-//  colorEditingMenu = menuInitialise ("color", (MENUSPEC*)colorEditingMENU);
-//  sortMenu = menuInitialise ("sort", (MENUSPEC*)sortMENU);
-//  editMenu = menuInitialise ("edit", (MENUSPEC*)editMENU);
-//  showColorMenu =  menuInitialise ("", (MENUSPEC*)showColorMENU);
-//  saveMenu =  menuInitialise ("", (MENUSPEC*)saveMENU);
-//  belvuMenu = menuInitialise ("belvu", (MENUSPEC*)mainMenu);
-//  treeGUIMenu = menuInitialise ("", (MENUSPEC*)treeGUIMENU);
-//  treeDistMenu = menuInitialise ("", (MENUSPEC*)treeDistMENU);
-//  treePickMenu = menuInitialise ("", (MENUSPEC*)treePickMENU);
-//  if (!displayScores) {
-//    menuSetFlags(menuItem(sortMenu, "Sort by score"), MENUFLAG_DISABLED);
-//    menuSetFlags(menuItem(editMenu, "Remove sequences below given score"), MENUFLAG_DISABLED);
-//    menuSetFlags(menuItem(belvuMenu, "Print score and coords of line"), MENUFLAG_DISABLED);
-//    menuSetFlags(menuItem(belvuMenu, "Output score and coords of line"), MENUFLAG_DISABLED);
-//  }
-//  menuSetFlags(menuItem(colorMenu, thresholdStr), MENUFLAG_DISABLED);
-
-
   if (init_tree)
     {
       createAndShowBelvuTree(bc);

@@ -1821,14 +1821,15 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
       lweight = treeSize3way(tree->left, tree);
       rweight = treeSize3way(tree->right, tree);
       
-      char *tmpStr = blxprintf("Tree balance = %.1f", fabsf(lweight - rweight));
+      char *tmpStr = NULL;
+#ifdef DEBUG
+      blxprintf("Tree balance = %.1f (%.1f-%.1f)", fabsf(lweight - rweight), lweight, rweight);
+#else
+      blxprintf("Tree balance = %.1f", fabsf(lweight - rweight));
+#endif
+      
       drawText(widget, drawable, gc, xMax + 2 * DEFAULT_XPAD, y - markerHt, tmpStr, NULL, NULL);
       g_free(tmpStr);
-      
-      //      graphText((debug ? messprintf("Tree balance = %.1f (%.1f-%.1f)", 
-      //                                    fabsf(lweight - rweight), lweight, rweight) :
-      //                 messprintf("Tree balance = %.1f", fabsf(lweight - rweight))),
-      //                14, tree_y-0.5);
     }
   
   destroyTree(&treeStruct);
