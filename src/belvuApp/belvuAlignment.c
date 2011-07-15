@@ -292,11 +292,16 @@ static void drawSingleColumn(GtkWidget *widget,
   const gboolean highlightAln = alignmentHighlighted(properties->bc, alnp);
   GdkGC *gc = gdk_gc_new(drawable);
   
-  if (highlightAln)
+  if (highlightAln || alnp->color != WHITE)
     {
       /* Highlight the background */
-      GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, properties->bc->defaultColors, highlightAln, FALSE);
-      gdk_gc_set_foreground(gc, bgColor);
+      GdkColor bgColor;
+      convertColorNumToGdkColor(alnp->color, highlightAln, &bgColor);
+      
+      if (highlightAln)
+        getSelectionColor(&bgColor, &bgColor);
+      
+      gdk_gc_set_foreground(gc, &bgColor);
       gdk_draw_rectangle(drawable, gc, TRUE, properties->columnsRect.x, y, properties->columnsRect.width, properties->charHeight);
     }
   

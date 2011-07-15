@@ -238,31 +238,6 @@ static int a2b[] =
 /* Global variables *******************/
 
 static int
-
-                statsBox,
-                HscrollSliderBox,
-                VscrollSliderBox,
-                scrLeftBox,
-                scrRightBox,
-                scrUpBox,
-                scrDownBox,
-                scrLeftBigBox,
-                scrRightBigBox,
-                scrUpBigBox,
-                scrDownBigBox,
-                colorButtonBox,
-                sortButtonBox,
-                editButtonBox,
-                maxBox,
-                midBox,
-                lowBox,
-                gridOn = 0,
-                IN_FORMAT = MUL,
-                saved = 1,
-                displayScores = 0,
-                Vcrosshair,
-                Highlight_matches,
-                colorByResIdOn = 0, /* colour by residue type above identity cutoff */
                 matchFooter = 0,
                 maxfgColor = BLACK,
                 midfgColor = BLACK,
@@ -694,83 +669,6 @@ static void fatal(char *format, ...)
     exit(-1);
 }
 
-
-static void menuCheck(MENU menu, int mode, int thismode, char *str)
-{
-    if (mode == thismode)
-	menuSetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
-    else
-	menuUnsetFlags(menuItem(menu, str), MENUFLAG_TOGGLE_STATE);
-}
-static void setMenuCheckmarks(void)
-{
-    menuCheck(colorMenu, colorScheme, COLORBYRESIDUE, colorByResidueStr);
-    menuCheck(colorMenu, colorScheme, COLORSCHEMESTANDARD, colorSchemeStandardStr);
-    menuCheck(colorMenu, colorScheme, COLORSCHEMEGIBSON, colorSchemeGibsonStr);
-    menuCheck(colorMenu, colorScheme, COLORSCHEMECYS, colorSchemeCysStr);
-    menuCheck(colorMenu, colorScheme, COLORSCHEMEEMPTY, colorSchemeEmptyStr);
-    menuCheck(colorMenu, colorScheme, COLORSIM, colorSimStr);
-    menuCheck(colorMenu, colorScheme, COLORID, colorIdStr);
-    menuCheck(colorMenu, colorScheme, COLORIDSIM, colorIdSimStr);
-    menuCheck(colorMenu, 1, colorRectangles, colorRectStr);
-    menuCheck(colorMenu, 1, printColorsOn, printColorsStr);
-    menuCheck(colorMenu, 1, ignoreGapsOn, ignoreGapsStr); 
-    menuCheck(editMenu, 1, bc->rmEmptyColumnsOn, rmEmptyColumnsStr);
-
-    if (!graphExists(showColorGraph))
-	graphNewBoxMenu(colorButtonBox, colorMenu);
-    else
-	graphNewBoxMenu(colorButtonBox, colorEditingMenu);
-
-    graphNewBoxMenu(sortButtonBox, sortMenu);
-
-    graphNewBoxMenu(editButtonBox, editMenu);
-
-    menuCheck(belvuMenu, 1, xmosaic, xmosaicFetchStr);
-    graphNewMenu(belvuMenu);
-}
-
-
-static void Help(void)
-{
-    graphMessage (messprintf("\
-Belvu - a multiple alignment viewer.\n\
-\n\
-Version %s\n\
-Copyright (C) Erik Sonnhammer, 1995\n\
-\n\
-\n\
-ALIGNMENT:\n\
-  %d sequences, %d residues wide.\n\
-\n\
-LEFT MOUSE BUTTON:\n\
-  Click on residue to show coordinate.\n\
-  Double click on sequence to fetch.\n\
-  Scrollbars: drag and page.\n\
-  Toolbar buttons:\n\
-     File:   Display this text.\n\
-     Edit:   Remove many sequences.\n\
-     Colour: Edit colour scheme window.\n\
-     Sort:   Sort alphabetically.\n\
-\n\
-MIDDLE MOUSE BUTTON:\n\
-  In alignment: centre on crosshair.\n\
-  Scrollbars: drag and jump.\n\
-\n\
-RIGHT MOUSE BUTTON:\n\
-  Toolbar menus (file menu elsewhere).\n\
-\n\
-KEYBOARD:\n\
-  Arrow keys: Move screenfulls.\n\
-  Home: Go to Top.\n\
-  End: Go to Bottom.\n\
-  Insert: Go to Start of line.\n\
-  Delete: Go to End of line.\n\
-For more details, see http://www.sanger.ac.uk/~esr/Belvu.html\n\
-", belvuVersion, nseq, maxLen));
-}
-
-
 static void scrRight() { AlignXstart++; belvuRedraw(); }
 static void scrLeft()  { AlignXstart--; belvuRedraw(); }
 static void scrUp()    { AlignYstart--; belvuRedraw(); }
@@ -794,54 +692,6 @@ static void unregister(void)
 }
 
 
-static void HscrollUp(double x, double y) 
-{
-    double X = x - SliderOffset;
-
-    AlignXstart = (X - HscrollStart)/(HscrollEnd - HscrollStart) * maxLen;
-    unregister();
-    belvuRedraw();
-
-    return ;
-}
-
-static void HscrollDrag(double x, double y) 
-{
-    double X = x - SliderOffset;
-
-    if (X < HscrollStart) X = HscrollStart;
-    if (X + HsliderLen > HscrollEnd) X = HscrollEnd - HsliderLen;
-
-    graphBoxShift(HscrollSliderBox, X, VscrollEnd+HSCRWID);
-    graphRegister(LEFT_UP, HscrollUp);
-
-    return ;
-}
-
-
-static void VscrollUp(double x, double y) 
-{
-    double Y = y - SliderOffset;
-
-    AlignYstart = (Y - VscrollStart)/(VscrollEnd - VscrollStart) * nseq;
-    unregister();
-    belvuRedraw();
-
-    return ;
-}
-
-static void VscrollDrag(double x, double y) 
-{
-    double Y = y - SliderOffset;
-
-    if (Y < VscrollStart) Y = VscrollStart;
-    if (Y + VsliderLen > VscrollEnd) Y = VscrollEnd - VsliderLen;
-
-    graphBoxShift(VscrollSliderBox, HscrollEnd+VSCRWID, Y);
-    graphRegister(LEFT_UP, VscrollUp);
-
-    return ;
-}
 
 static int x2col(double *x)
 {
@@ -853,130 +703,6 @@ static int x2col(double *x)
 	*x = HscrollStart - VSCRWID + Alignwid;
 
     return (int) (*x - (HscrollStart - VSCRWID + 0.5) + AlignXstart + 1);
-}
-
-static void updateStatus(ALN *alnp, int col)
-{
-    int i, gaps=0, star;
-
-    if (!alnp)
-      return;
-
-    strcpy(stats, " ");
-
-    if (col)
-      strcat(stats, messprintf("Column %d: ", col));
-
-    strcat(stats, messprintf("%s/%d-%d", alnp->name, alnp->start, alnp->end));
-    
-    if (col)
-      {
-	strcat(stats, messprintf("  %c = ", alnp->seq[col-1]));
-	
-	for (star = i = 0; i < col; i++)
-	  {
-	    if (isGap(alnp->seq[i])) gaps++;
-	    else if (alnp->seq[i] == '*') star = 1;
-	  }
-	
-	if (star)
-	  {
-	    strcat(stats, "(unknown position due to insertion)");
-	  }
-	else
-	  {
-	    strcat(stats, messprintf("%d", col-1 + alnp->start - gaps));
-	  }
-      }
-
-    strcat(stats, messprintf(" (%d match", Highlight_matches));
-    if (Highlight_matches > 1)
-      strcat(stats, "es");
-    strcat(stats, ")");
-
-    graphBoxDraw(statsBox, BLACK, LIGHTBLUE);
-
-    return ;
-}
-
-static void xorVcrosshair(int mode, double x)
-{
-    static double xold;
-
-    if (mode == 1)
-	graphXorLine(xold, VscrollStart-HSCRWID, xold, VscrollEnd+HSCRWID);
-
-    graphXorLine(x, VscrollStart-HSCRWID, x, VscrollEnd+HSCRWID);
-
-    xold = x;
-}
-
-static void middleDrag(double x, double y) 
-{
-    selectedCol = x2col(&x);
-
-    if (selectedCol == Vcrosshair) return;
-
-    updateStatus(bc->selectedAln, selectedCol);
-
-    Vcrosshair = selectedCol;
-
-    xorVcrosshair(1, x);
-}
-static void middleUp(double x, double y) 
-{
-    selectedCol = x2col(&x);
-
-    AlignXstart = selectedCol - Alignwid/2;
-    unregister();
-    belvuRedraw();
-}
-
-static void leftDown(double x, double y) 
-{
-    double oldlinew = graphLinewidth(0.05);
-    
-    graphRectangle(0.5, floor(y), wrapLinelen+0.5, floor(y)+1);
-    graphLinewidth(oldlinew);
-
-    graphRedraw();
-
-}
-
-
-static void middleDown(double x, double y) 
-{
-    if (x > HscrollStart && x < HscrollEnd &&
-	y > VscrollEnd+HSCRWID && y < VscrollEnd+2*HSCRWID)
-      {
-	graphRegister(MIDDLE_DRAG, HscrollDrag);
-	graphRegister(MIDDLE_UP, HscrollUp);
-	SliderOffset = HsliderLen/2;
-	HscrollDrag(x, y);
-      }
-    else if (y > VscrollStart && y < VscrollEnd &&
-	x > HscrollEnd+VSCRWID && x < HscrollEnd+2*VSCRWID)
-      {
-	graphRegister(MIDDLE_DRAG, VscrollDrag);
-	graphRegister(MIDDLE_UP, VscrollUp);
-	SliderOffset = VsliderLen/2;
-	VscrollDrag(x, y);
-      }
-    else if (x > HscrollStart-VSCRWID && x < HscrollEnd+VSCRWID &&
-	     y > VscrollStart-HSCRWID && y < VscrollEnd+HSCRWID) 
-      {
-	/* In alignment */
-
-	graphRegister(MIDDLE_DRAG, middleDrag);
-	graphRegister(MIDDLE_UP, middleUp);
-
-	selectedCol = x2col(&x);
-	updateStatus(bc->selectedAln, selectedCol);
-
-	Vcrosshair = selectedCol;
-
-	xorVcrosshair(0, x);
-    }
 }
 
 
@@ -1002,51 +728,6 @@ static void showOrganisms(void)
     graphRedraw();
 }
 
-
-/* Highlight the box of bc->selectedAln
- */
-static void highlight(int ON)
-{
-    int i, box;
-
-    if (!bc->selectedAln) return;
-
-    box = bc->selectedAln->nr - AlignYstart;
-
-    if (box > 0 && box <= Alignheig) {
-
-	/* The alignment */
-	if (ON) 
-	    graphBoxDraw(box, WHITE, BLACK);
-	else
-	    graphBoxDraw(box, BLACK, WHITE);
-    }
-
-    /* All names * /
-    for (i = Highlight_matches = 0; i < Alignheig; i++)
-	if (!strcmp(arrp(Align, AlignYstart+i, ALN)->name, bc->selectedAln->name)) {
-	    if (ON) {
-		graphBoxDraw(Alignheig+i+1, WHITE, BLACK);
-		Highlight_matches++;
-	    }
-	    else
-		graphBoxDraw(Alignheig+i+1, BLACK, WHITE);
-	}
-*/
-
-    /* All names - also count all matches */
-    for (i = Highlight_matches = 0; i < nseq; i++)
-	if (!strcmp(arrp(Align, i, ALN)->name, bc->selectedAln->name)) {
-	    Highlight_matches++;
-
-	    if (i >= AlignYstart && i < AlignYstart+Alignheig) {
-		if (ON) 
-		    graphBoxDraw(i-AlignYstart+1+Alignheig, WHITE, BLACK);
-		else
-		    graphBoxDraw(i-AlignYstart+1+Alignheig, BLACK, WHITE);
-	    }
-	}
-}
 
 
 /* Action to picking a box in a tree window
@@ -1094,112 +775,6 @@ static void treeboxPick (int box, double x, double y, int modifier_unused)
 	    }
 	}
     }
-}
-
-/* Click on name -> fetch 
- * Click on sequence -> update status bar 
- *
- * NOTE: the first Alignheig boxes are the alignment ones, then come Alignheig name ones.
- */
-static void boxPick (int box, double x, double y, int modifier_unused)
-{
-  static int lastbox=0;
-  static Graph  ga, lastga ;
-  static time_t   lasttime;
-
-    selectedCol = (int)x+1+AlignXstart;
-
-    ga = graphActive();
-
-    /* printf("Picked box %d\n", box); */
-
-    if (box > Alignheig*2)
-      {
-	/* Click outside alignment - check for scrollbar controls */
-	if (box == scrLeftBox) scrLeft();
-	else if (box == scrRightBox) scrRight();
-	else if (box == scrUpBox) scrUp();
-	else if (box == scrDownBox) scrDown();
-	else if (box == scrLeftBigBox) scrLeftBig();
-	else if (box == scrRightBigBox) scrRightBig();
-	else if (box == scrUpBigBox) scrUpBig();
-	else if (box == scrDownBigBox) scrDownBig();
-	else if (box == HscrollSliderBox)
-	  {
-	    graphRegister(LEFT_DRAG, HscrollDrag);
-	    SliderOffset = x;
-	  }
-	else if (box == VscrollSliderBox)
-	  {
-	    graphRegister(LEFT_DRAG, VscrollDrag);
-	    SliderOffset = y;
-	  }
-
-	return;
-      }
-
-
-    /* Alignment clicked */
-
-    /* Turn last box off */
-    if (lastga && lastbox) {
-	graphActivate(lastga);
-    }
-    highlight(0);
-
-    /* Turn all selections off */
-    if (!box) {
-	bc->selectedAln = 0;
-	return;
-    }
-
-    aln.nr = (box > Alignheig ? box-Alignheig : box);
-    aln.nr += AlignYstart;
-    if (!arrayFind(Align, &aln, &ip, (void*)nrorder)) {
-	messout("boxPick: Cannot find row %d in alignment array", aln.nr);
-	return;
-    }
-    bc->selectedAln = alnp = arrp(Align, ip, ALN);
-    
-
-    /* Double click */
-    if (box == lastbox && (time(0) - lasttime < DBL_CLK_DELAY)) 
-      {
-	lasttime = time(0) - DBL_CLK_DELAY;  /* To avoid triple clicks */
-
-	/* 'Remove many sequences' mode */
-	if (rmPickLeftOn)
-	  {
-	    rmPicked();
-	    return;
-	  }
-	
-	/* if (box > Alignheig) */
-	fetchAln(alnp);
-      }
-    else
-      lasttime = time(0);
-
-    /* Single click */
-
-    /* Turn this box on */
-    graphActivate(ga);
-    highlight(1);
-    lastbox = box;
-    lastga = ga;
-
-    if (box <= Alignheig)
-      {
-	/* In alignment - update status bar */
-	updateStatus(alnp, selectedCol);
-      }
-    else
-      {
-	updateStatus(alnp, 0);
-	graphPostBuffer(alnp->name) ;
-      }
-
-    return ;
 }
 
 
@@ -1500,70 +1075,7 @@ static void belvuRedraw(void)
 
   /* Horizontal scrollbar */
 
-  /* arrows */
-  scrLeftBox = graphBoxStart();
-  graphTriangle(HscrollStart-VSCRWID, ny-0.5-0.5*HSCRWID,
-		HscrollStart, ny-0.5-HSCRWID,
-		HscrollStart, ny-0.5);
-  graphBoxEnd();
-  graphBoxDraw(scrLeftBox, BLACK, SCRBACKCOLOR);
-  scrRightBox = graphBoxStart();
-  graphTriangle(HscrollEnd+VSCRWID, ny-0.5-0.5*HSCRWID,
-		HscrollEnd, ny-0.5-HSCRWID,
-		HscrollEnd, ny-0.5);
-  graphBoxEnd();
-  graphBoxDraw(scrRightBox, BLACK, SCRBACKCOLOR);
-    
-  /* big-scroll boxes */
-  scrLeftBigBox = graphBoxStart();
-  graphRectangle(HscrollStart, ny-0.5-HSCRWID,
-		 x1, ny-0.5);
-  graphBoxEnd();
-  graphBoxDraw(scrLeftBigBox, BLACK, SCRBACKCOLOR);
-  scrRightBigBox = graphBoxStart();
-  graphRectangle(x2, ny-0.5-HSCRWID,
-		 HscrollEnd, ny-0.5);
-  graphBoxEnd();
-  graphBoxDraw(scrRightBigBox, BLACK, SCRBACKCOLOR);
 
-  /* slider */
-  HscrollSliderBox = graphBoxStart();
-  graphScrollBar(x1, ny-0.5-HSCRWID, x2, ny-0.5);
-  graphBoxEnd();
-
-
-  /* Vertical scrollbar */
-
-  /* arrows */
-  scrUpBox = graphBoxStart();
-  graphTriangle(nx-0.5-0.5*VSCRWID, VscrollStart-HSCRWID,
-		nx-0.5-VSCRWID, VscrollStart,
-		nx-0.5, VscrollStart);
-  graphBoxEnd();
-  graphBoxDraw(scrUpBox, BLACK, SCRBACKCOLOR);
-  scrDownBox = graphBoxStart();
-  graphTriangle(nx-0.5-0.5*VSCRWID, VscrollEnd+HSCRWID,
-		nx-0.5-VSCRWID, VscrollEnd,
-		nx-0.5, VscrollEnd);
-  graphBoxEnd();
-  graphBoxDraw(scrDownBox, BLACK, SCRBACKCOLOR);
-
-  /* big-scroll boxes */
-  scrUpBigBox = graphBoxStart();
-  graphRectangle(nx-0.5-VSCRWID, VscrollStart,
-		 nx-0.5, y1);
-  graphBoxEnd();
-  graphBoxDraw(scrUpBigBox, BLACK, SCRBACKCOLOR);
-  scrDownBigBox = graphBoxStart();
-  graphRectangle(nx-0.5-VSCRWID, y2,
-		 nx-0.5, VscrollEnd);
-  graphBoxEnd();
-  graphBoxDraw(scrDownBigBox, BLACK, SCRBACKCOLOR);
-
-  /* slider */
-  VscrollSliderBox = graphBoxStart();
-  graphScrollBar(nx-0.5-VSCRWID, y1, nx-0.5, y2);
-  graphBoxEnd();
 
   /* patch up frame of scroll boxes */
   graphRectangle(HscrollStart-VSCRWID, ny-0.5-HSCRWID,
@@ -1974,13 +1486,6 @@ static void setId(char *cp) {
     bc->midIdCutoff = atof(midText);
     bc->lowIdCutoff = atof(lowText);
     showColorCodesRedraw();
-}
-
-static void settingsPick(int box, double x_unused, double y_unused, int modifier_unused)
-{
-    if (box == maxBox) graphTextScrollEntry(maxText,0,0,0,0,0);
-    else if (box == midBox) graphTextScrollEntry(midText,0,0,0,0,0);
-    else if (box == lowBox) graphTextScrollEntry(lowText,0,0,0,0,0);
 }
 
 static void belvuConfColourMenu(KEY key, int box)
@@ -5284,6 +4789,7 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
       seg->qend = atoi(strtok(0, " "));
       seg->start = atoi(strtok(0, " "));
       seg->end = atoi(strtok(0, " "));
+      seg->next = NULL;
     }
 
   for (seg = *SegList; seg; seg = seg->next) 
@@ -5434,7 +4940,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
     Align_gap, Query_gap, gap, inserts, seglen,
     done_one=0, len,  was_saved=bc->saved, insert_counter;
   char *cp, *seq, *rawseq = NULL, *seqp;
-  SEG	*SegList, *seg;
+  SEG	*SegList = NULL, *seg;
   char line[MAXLENGTH+1];
   
   while (!done_one)
@@ -5536,6 +5042,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	  strcpy(rawseq, line);
 
 	  /* Matching segments */
+          
 	  if (!fgets(line, MAXLENGTH, fil))
 	    break;
 
