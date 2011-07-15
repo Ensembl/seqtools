@@ -237,20 +237,6 @@ static int a2b[] =
 
 /* Global variables *******************/
 
-static double    
-                conservationLinewidth = 0.2,
-               *conservation,	        /* The max conservation in each column [0..maxLen] */
-                conservationRange,
-                conservationXScale=1,
-                conservationYScale=2,
-                oldlinew,
-                treeBestBalance,
-                treeBestBalance_subtrees,
-                treeDistCorr,
-                treePickMode,
-                treeScale,
-                mksubfamilies_cutoff = 0.0;
-
 static char     belvuVersion[] = "2.35",
                 line[MAXLENGTH+1],  /* General purpose array */
                 Title[256] = "",    /* Window title */
@@ -5474,7 +5460,7 @@ void rmPartialSeqs(BelvuContext *bc)
         }
     }
 
-  g_message("%d partial sequences removed.  %d seqs left.\n\n", n, bc->alignArr->len);
+  g_message_info("%d partial sequences removed.  %d seqs left.\n\n", n, bc->alignArr->len);
 
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);
@@ -5514,7 +5500,7 @@ void rmGappySeqs(BelvuContext *bc, const double cutoff)
 	}
     }
 
-    g_message("%d gappy sequences removed.  %d seqs left.\n\n", n, bc->alignArr->len);
+    g_message_info("%d gappy sequences removed.  %d seqs left.\n\n", n, bc->alignArr->len);
 
     arrayOrder(bc->alignArr);
 }
@@ -5558,11 +5544,11 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
 
           if (!overhang && id > cutoff)
 	    {
-              g_message("%s/%d-%d and %s/%d-%d are %.1f%% identical. "
-			"The first includes the latter which was removed.\n",
-			alni->name, alni->start, alni->end,
-			alnj->name, alnj->start, alnj->end,
-			id);
+              g_message_info("%s/%d-%d and %s/%d-%d are %.1f%% identical. "
+                             "The first includes the latter which was removed.\n",
+                             alni->name, alni->start, alni->end,
+                             alnj->name, alnj->start, alnj->end,
+                             id);
 		
               /* Remove entry j */
               n++;
@@ -5583,7 +5569,7 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
 	}
     }
 
-  g_message("%d sequences removed at the %.0f%% level.  %d seqs left.\n\n", n, cutoff, bc->alignArr->len);
+  g_message_info("%d sequences removed at the %.0f%% level.  %d seqs left.\n\n", n, cutoff, bc->alignArr->len);
   
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);
@@ -5664,8 +5650,8 @@ void rmScore(BelvuContext *bc, const double cutoff)
 	{ 
 	  ++numRemoved;
 	  
-	  g_message("Removing %s/%d-%d (score %.1f)\n",
-		    alnp->name, alnp->start, alnp->end, alnp->score);
+	  g_message_info("Removing %s/%d-%d (score %.1f)\n",
+                         alnp->name, alnp->start, alnp->end, alnp->score);
 	
 	  if (bc->selectedAln == alnp) 
 	    bc->selectedAln = NULL;
@@ -5681,7 +5667,7 @@ void rmScore(BelvuContext *bc, const double cutoff)
   
   arrayOrder(bc->alignArr);
   
-  g_message("%d sequences with score < %.1f removed.  %d seqs left.\n\n", numRemoved, cutoff, bc->alignArr->len);
+  g_message_info("%d sequences with score < %.1f removed.  %d seqs left.\n\n", numRemoved, cutoff, bc->alignArr->len);
   
   /* Find bc->selectedAln in new array */
   if (bc->selectedAln) 
@@ -6533,7 +6519,7 @@ void outputProbs(BelvuContext *bc, FILE *fil)
 void listIdentity(BelvuContext *bc)
 {
   /* This may take some time, so feed back to the user what is happening. */
-  g_message("Outputting identities...\n");
+  g_message_info("Outputting identities...\n");
   setBusyCursor(bc, TRUE);
 
   int i=0,j=0,n=0 ;
@@ -6596,7 +6582,7 @@ void listIdentity(BelvuContext *bc)
   printf("Mean    score was: %.1f\n", (double)totsc/n);
 
   setBusyCursor(bc, FALSE);
-  g_message("Finished outputting identities.\n");
+  g_message_info("Finished outputting identities.\n");
 }
 
 
@@ -6638,7 +6624,7 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
         {
           char *link = blxprintf(url, alnp->name);
           
-          g_message("Opening URL: %s\n", link);
+          g_message_info("Opening URL: %s\n", link);
           seqtoolsLaunchWebBrowser(link, &error);
           
           g_free(link);

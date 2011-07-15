@@ -1440,7 +1440,7 @@ static void onSaveTreeMenu(GtkAction *action, gpointer data)
       fprintf(file, ";\n");
       fclose(file);
       
-      g_message("Tree saved to %s\n", filename);
+      g_message_info("Tree saved to %s\n", filename);
     }
 }
 
@@ -1701,12 +1701,12 @@ static void updateSequenceRemovalMode(GtkWidget *belvuWindow)
   if (properties->bc->removingSeqs)
     {
       gdk_window_set_cursor(belvuWindow->window, properties->bc->removeSeqsCursor);
-      g_message("Double-click on sequences to remove.  Esc or right-click to cancel.\n");
+      g_message_info("Double-click on sequences to remove.  Esc or right-click to cancel.\n");
     }
   else
     {
       gdk_window_set_cursor(belvuWindow->window, properties->bc->defaultCursor);
-      g_message("Finished removing sequences.\n");
+      g_message_info("Finished removing sequences.\n");
     }
 
   /* Force cursor to change immediately */
@@ -1829,7 +1829,7 @@ static void showHelpDialog()
           
           if (ok)
             {
-              g_message("Opening help page '%s'\n", path);
+              g_message_info("Opening help page '%s'\n", path);
               seqtoolsLaunchWebBrowser(path, &error);
               g_free(path);
             }
@@ -3525,7 +3525,7 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
       y += charHeight;
     }
  
-  g_message("%d organisms found\n", bc->organismArr->len);
+  g_message_info("%d organisms found\n", bc->organismArr->len);
   g_object_unref(gc);
 }
 

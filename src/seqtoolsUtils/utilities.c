@@ -3067,8 +3067,8 @@ gtk_text_buffer_set_markup (GtkTextBuffer *buffer,
 
 /* GLib doesn't have a convenience function to log a message with the 
  * G_LOG_LEVEL_INFO flag, so this provides us one. In seqtools, this is usd
- * to provide overall task progress messages (whereas we use g_message to 
- * provide more detailed sub-task progress messages). */
+ * to provide task progress messages that will be sent to stderr (as opposed
+ * to g_message, which is used for program output that is sent to stdout) */
 void g_message_info(char *formatStr, ...)
 {
   va_list argp;
@@ -3077,6 +3077,28 @@ void g_message_info(char *formatStr, ...)
   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, formatStr, argp);
   
   va_end(argp);
+}
+
+
+static void printMessageToConsole(const char *prefixText, const char *message, GLogLevelFlags log_level)
+{
+  /* If debug is enabled, use DEBUG_OUT so that the output gets indented by
+   * the same amount as other DEBUG_OUT statements. */
+  
+#ifdef DEBUG
+  
+  DEBUG_OUT("%s%s", prefixText, (char*)message);
+  
+#else
+  
+  /* Print messages and debug to stdout; all warnings and info messages to stderr */
+  if (log_level & G_LOG_LEVEL_DEBUG || log_level & G_LOG_LEVEL_MESSAGE)
+    printf("%s%s", prefixText, (char*)message);
+  else
+    fprintf(stderr, "%s%s", prefixText, (char*)message);
+  
+#endif
+  
 }
 
 
@@ -3094,15 +3116,8 @@ void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, co
   else
     prefixText[0] = '\0';
   
-  /* print to console (indented by the same amount as debug output, if relevant) */
-#ifdef DEBUG
-  DEBUG_OUT("%s%s", prefixText, (char*)message);
-#else
-  if (log_level & G_LOG_LEVEL_INFO)
-    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
-  else
-    printf("%s%s", prefixText, (char*)message);
-#endif
+  /* print to console */
+  printMessageToConsole(prefixText, message, log_level);
   
   /* also display the message in the status bar (unless it's debug output) */
   if (!(log_level & G_LOG_LEVEL_DEBUG))
@@ -3131,15 +3146,8 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
   else
     prefixText[0] = '\0';
   
-  /* print to console (indented by the same amount as debug output, if relevant) */
-#ifdef DEBUG
-  DEBUG_OUT("%s%s", prefixText, (char*)message);
-#else
-  if (log_level & G_LOG_LEVEL_INFO)
-    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
-  else
-    printf("%s%s", prefixText, (char*)message);
-#endif
+  /* print to console */
+  printMessageToConsole(prefixText, message, log_level);
 
   BlxMessageData *msgData = data ? (BlxMessageData*)data : NULL;
   GtkWindow *parent = msgData ? msgData->parent : NULL;

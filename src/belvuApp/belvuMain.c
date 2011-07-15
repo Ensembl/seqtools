@@ -368,8 +368,19 @@ int main(int argc, char **argv)
    * There are two handlers: the default one for all non-critical messages, which will just log
    * output to the console, and one for critical messages and errors, which will display a 
    * pop-up message (the idea being that we don't bother the user unless it's something serious).
-   * So, to get a pop-up message use g_critical, and to log a message or warning use g_message, 
-   * g_warning, g_debug etc. Note that g_error is always fatal.
+   * 
+   * All errors and warnings will be sent to stderr, as will info messages (g_message_info).
+   * Program output destined for stdout should use g_message (or printf is fine too).
+   * g_debug will direct to stdout as well.
+   * 
+   * In summary:
+   *   g_error: pop-up error message (always fatal)
+   *   g_critical: pop-up error message
+   *   g_warning: error message logged to stderr
+   *   g_message_info: program info message sent to stderr
+   *   g_message: program output message set to stdout
+   *   (g_debug: not sure of usage scenarios but directs to stdout)
+   *   
    */
   BlxMessageData msgData;
   msgData.titlePrefix = g_strdup("Belvu - ");

@@ -1212,7 +1212,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 {
   /* This can take a long time, so let the user know we're doing something.
    * Force the message to be displayed before we get stuck into the calculations. */
-  g_message("Calculating tree...\n");
+  g_message_info("Calculating tree...\n");
   setBusyCursor(bc, TRUE);
 
   TreeNode *newnode = NULL ;
@@ -1405,7 +1405,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
     treeBootstrapStats(bc, newnode);
   
   setBusyCursor(bc, FALSE);
-  g_message("Finished calculating tree.\n");
+  g_message_info("Finished calculating tree.\n");
   return newnode ;
 }
 
@@ -1458,9 +1458,9 @@ static gboolean treePrintOrthologsRecur(BelvuContext *bc, TreeNode *node)
 void treePrintOrthologs(BelvuContext *bc) 
 {
   if (treePrintOrthologsRecur(bc, bc->treeHead))
-    g_message("Found orthologs\n");
+    g_message_info("Found orthologs\n");
   else
-    g_message("No orthologs\n");
+    g_message_info("No orthologs\n");
 }
 
 
