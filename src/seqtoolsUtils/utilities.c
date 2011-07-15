@@ -2291,8 +2291,10 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
         g_warning("%s", (*error)->message);
       else if (log_level & G_LOG_LEVEL_DEBUG)
         g_debug("%s", (*error)->message);
-      else
-        g_message("%s", (*error)->message); /* message or info */
+      else if (log_level & G_LOG_LEVEL_INFO)
+        g_message_info("%s", (*error)->message);
+      else 
+        g_message("%s", (*error)->message);
             
       g_error_free(*error);
       *error = NULL;
@@ -2652,7 +2654,7 @@ const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families)
   if (match_family)
     {
       result = pango_font_family_get_name(match_family);
-      g_debug("Using fixed-width font '%s'\n", result);
+      DEBUG_OUT("Using fixed-width font '%s'\n", result);
     }
   else
     {
