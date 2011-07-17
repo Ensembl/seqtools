@@ -1197,6 +1197,7 @@ static int stripCoordTokens(char *cp, BelvuContext *bc)
 void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
 {
   char line2[MAXLENGTH+1], *cp=line2, *cq, GRfeat[MAXNAMESIZE+1];
+  GRfeat[0] = 0;
   
   strncpy(cp, line, MAXLENGTH);
   
