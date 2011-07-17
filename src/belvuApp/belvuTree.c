@@ -55,6 +55,11 @@
 #define TABLE_YPAD                              2       /* default y padding around table elements */
 
 
+/* Globals; original build methods in the tree dialog */
+static BelvuBuildMethod origBuildMethod;
+static BelvuDistCorr origDistCorr;
+
+
 /* Utility struct to hold data for the build-changed signal */
 typedef struct _BuildMethodChangedData
 {
@@ -2214,12 +2219,12 @@ gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer 
 {
   BelvuContext *bc = (BelvuContext*)data;
   
-  const int origBuildMethod = bc->treeMethod;
+  const int origVal = bc->treeMethod;
   
   onComboChanged(combo, responseId, &bc->treeMethod);
   
   /* This change invalidates the tree, so set the tree head to null to indicate this */
-  if (origBuildMethod != bc->treeMethod)
+  if (origVal != bc->treeMethod)
     {
       setTreeHead(bc, NULL);
     }
@@ -2233,12 +2238,12 @@ gboolean onDistCorrChanged(GtkWidget *combo, const gint responseId, gpointer dat
 {
   BelvuContext *bc = (BelvuContext*)data;
   
-  const int origDistCorr = bc->treeDistCorr;
+  const int origVal = bc->treeDistCorr;
 
   onComboChanged(combo, responseId, &bc->treeDistCorr);
   
   /* This change invalidates the tree, so set the tree head to null to indicate this */
-  if (origDistCorr != bc->treeDistCorr)
+  if (origVal != bc->treeDistCorr)
     {
       setTreeHead(bc, NULL);
     }
@@ -2273,17 +2278,6 @@ static void updateTreeScaleEntry(GtkComboBox *combo, gpointer data)
 {
   BuildMethodChangedData *userData = (BuildMethodChangedData*)data;
 
-  static gboolean firstTime = TRUE;
-  static BelvuBuildMethod origBuildMethod;
-  static BelvuDistCorr origDistCorr;
-  
-  if (firstTime)
-    {
-      firstTime = FALSE;
-      origBuildMethod = userData->bc->treeMethod;
-      origDistCorr = userData->bc->treeDistCorr;
-    }
-  
   int newBuildMethod, newDistCorr;
   onComboChanged(userData->buildMethodCombo, 0, &newBuildMethod);
   onComboChanged(userData->distCorrCombo, 0, &newDistCorr);
@@ -2346,6 +2340,8 @@ static void createTreeBuildMethodButtons(BelvuContext *bc, GtkBox *box, BelvuBui
   addComboItem(distCorrCombo, iter, STORMSONN, STORMSONNstr, initMode);
   addComboItem(distCorrCombo, iter, SCOREDIST, SCOREDISTstr, initMode);
   
+  origBuildMethod = bc->treeMethod;
+  origDistCorr = bc->treeDistCorr;
   g_signal_connect(G_OBJECT(buildMethodCombo), "changed", G_CALLBACK(updateTreeScaleEntry), &data);
   g_signal_connect(G_OBJECT(distCorrCombo), "changed", G_CALLBACK(updateTreeScaleEntry), &data);
 
