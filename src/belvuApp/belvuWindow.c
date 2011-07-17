@@ -4099,8 +4099,9 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
       createAndShowBelvuTree(bc);
       onBelvuTreeFontSizeChanged(bc->belvuTree);
     }
-    
-  gtk_window_present(GTK_WINDOW(window));
+  
+  if (!bc->onlyTree)
+    gtk_window_present(GTK_WINDOW(window));
 
   return ok;
 }
