@@ -895,7 +895,7 @@ void treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *b
 /* General purpose routine to convert a string to ALN struct.
    Note: only fields Name, Start, End are filled!
  */
-static void str2aln(BelvuContext *bc, char *src, ALN *alnp) 
+void str2aln(BelvuContext *bc, char *src, ALN *alnp) 
 {
   char *tmp = g_strdup(src);
   stripCoordTokens(tmp, bc);
@@ -2470,6 +2470,8 @@ BelvuContext* createBelvuContext()
   bc->printColorsOn = FALSE;
   bc->highlightOrthologs = FALSE;
   bc->useWWWFetch = FALSE;
+  bc->initTree = FALSE;
+  bc->onlyTree = FALSE;
   
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
@@ -4782,16 +4784,16 @@ void setBusyCursor(BelvuContext *bc, const gboolean busy)
   else if (bc->removingSeqs)
     cursor = bc->removeSeqsCursor;
 
-  if (bc->belvuWindow)
+  if (bc->belvuWindow && bc->belvuWindow->window)
     gdk_window_set_cursor(bc->belvuWindow->window, cursor);
 
-  if (bc->belvuTree)
+  if (bc->belvuTree && bc->belvuTree->window)
     gdk_window_set_cursor(bc->belvuTree->window, cursor);
 
-  if (bc->consPlot)
+  if (bc->consPlot && bc->consPlot->window)
     gdk_window_set_cursor(bc->consPlot->window, cursor);
 
-  if (bc->orgsWindow)
+  if (bc->orgsWindow && bc->orgsWindow->window)
     gdk_window_set_cursor(bc->orgsWindow->window, cursor);
 
   /* Force cursor to change immediately */

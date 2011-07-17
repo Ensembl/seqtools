@@ -443,6 +443,8 @@ typedef struct BelvuContextStruct
   gboolean printColorsOn;          /* Whether to use greyscale colors for printing */
   gboolean highlightOrthologs;     /* Whether to highlight orthologs or not in the tree */
   gboolean useWWWFetch;            /* Whether to fetch sequences via a web URL rather than a local program */
+  gboolean initTree;               /* Start up showing the tree */
+  gboolean onlyTree;               /* Start up showing only the tree */
 
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   
@@ -558,6 +560,7 @@ void                                      setTreeHead(BelvuContext *bc, TreeNode
 
 void                                      fetchAln(BelvuContext *bc, ALN *alnp);
 gboolean                                  alignmentHighlighted(BelvuContext *bc, ALN *alnp);
+void					  str2aln(BelvuContext *bc, char *src, ALN *alnp) ;
 
 void                                      setBusyCursor(BelvuContext *bc, const gboolean busy);
 

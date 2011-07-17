@@ -347,8 +347,6 @@ int main(int argc, char **argv)
   int     
   i,
   output_probs = 0,
-  init_tree = 0,
-  only_tree = 0,
   show_ann = 0;
   
   double   
@@ -495,18 +493,18 @@ int main(int argc, char **argv)
                 {
                   case 'n': 
                     strcpy(bc->treeMethodString, NJstr);
-                    bc->treeMethod = NJ;          break;
+                    bc->treeMethod = NJ;                          break;
                   case 'u': 
                     strcpy(bc->treeMethodString, UPGMAstr);
-                    bc->treeMethod = UPGMA;       break;
+                    bc->treeMethod = UPGMA;                       break;
                   case 'c':
-                    bc->treeColorsOn = FALSE;         break;
+                    bc->treeColorsOn = FALSE;                     break;
                   case 'd':
-                    bc->treeShowBranchlen = TRUE;    break;
+                    bc->treeShowBranchlen = TRUE;                 break;
                   case 'I':
-                    only_tree=1;
+                    bc->onlyTree = TRUE; /* fall through */
                   case 'i':
-                    init_tree = 1;            break;
+                    bc->initTree = TRUE;                          break;
                   case 'j':
                     strcpy(bc->treeDistString, JUKESCANTORstr);
                     bc->treeDistCorr = JUKESCANTOR;
@@ -516,12 +514,12 @@ int main(int argc, char **argv)
                     bc->treeDistCorr = KIMURA;
                     setTreeScaleCorr(bc, bc->treeMethod);         break;
                   case 'o':
-                    bc->treeCoordsOn = FALSE;         break;
+                    bc->treeCoordsOn = FALSE;                     break;
                   case 'p':
                     bc->treePrintDistances = TRUE;  
-                    init_tree = 1;            break;
+                    bc->initTree = TRUE;                          break;
                   case 'R':
-                    bc->treeReadDistancesOn = TRUE;  break;
+                    bc->treeReadDistancesOn = TRUE;               break;
                   case 's':
                     strcpy(bc->treeDistString, STORMSONNstr);
                     bc->treeDistCorr = STORMSONN;
@@ -589,8 +587,8 @@ int main(int argc, char **argv)
       bc->treeReadDistancesPipe = pipe;
       nseq = treeReadDistancesNames(bc);
       
-      init_tree = 1;
-      only_tree = 1;
+      bc->initTree = TRUE;
+      bc->onlyTree = TRUE;
       bc->treeCoordsOn = FALSE;
     }
   else
@@ -790,22 +788,6 @@ int main(int argc, char **argv)
 
   int scrollbarWidth = 20; /* to do: calculate scrollbar width properly */
   cw += bc->maxLen + scrollbarWidth + 2;
-  
-  if (init_tree)
-    {
-      createAndShowBelvuTree(bc);
-    
-      if (only_tree)
-        {
-          /*ACEOUT out = aceOutCreateToFile("t", "w", 0);
-            graphGIF(treeGraph, out, 0);*/
-          
-          //graphLoop(FALSE);
-          //graphFinish();
-          
-          exit(0);
-        }
-    }
   
   if (bc->outputBootstrapTrees && bc->treebootstraps < 0)
     {	

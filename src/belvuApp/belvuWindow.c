@@ -4067,21 +4067,40 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBelvu), bc);
 
   belvuWindowCreateProperties(window, bc, statusBar, feedbackBox, actionGroup);
-  
-  gtk_widget_show_all(window);
-  
+
   /* Set the default cursor (can only get the window's cursor after window is shown) */
-  bc->defaultCursor = gdk_window_get_cursor(window->window);
+  bc->defaultCursor = NULL;
+
+  /* Show the main window (unless we only want the tree) */
+  if (!bc->onlyTree)
+    gtk_widget_show_all(window);
   
-  /* If the BELVU_FONT_SIZE environment variable is set, use it to set the
+  /* If the BELVU_FONT_SIZE environment variable is set, we'll use it to set the
    * default font size for all the widgets. */
   const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
+  
   if (env)
-    widgetSetFontSizeAndCheck(window, convertStringToInt(env));
+    {
+      if (bc->belvuWindow)
+        widgetSetFontSizeAndCheck(bc->belvuWindow, convertStringToInt(env));
+      
+      if (bc->belvuTree)
+        widgetSetFontSizeAndCheck(bc->belvuTree, convertStringToInt(env));
+    }
 
-  /* Make sure the alignment and tree font sizes are up to date*/
+  /* Make sure the alignment font size isup to date. Note: do this before
+   * creating the tree, because the tree flushes all pending gtk calls and 
+   * we must update the font size before the alignment is realised. */
   onBelvuAlignmentFontSizeChanged(bc->belvuAlignment);
-  onBelvuTreeFontSizeChanged(bc->belvuTree);
+
+  /* Show the tree on startup, if requested */
+  if (bc->initTree)
+    {
+      createAndShowBelvuTree(bc);
+      onBelvuTreeFontSizeChanged(bc->belvuTree);
+    }
+    
+  gtk_window_present(GTK_WINDOW(window));
 
   return ok;
 }

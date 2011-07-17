@@ -1735,6 +1735,30 @@ static Tree* createEmptyTree()
 }
 
 
+/* Utility to search through the alignment array and set the 
+ * selected alignment to the alignment whose name and coords
+ * are given in alnp. Nasty hack to get around cases where
+ * separatemarkuplines/reinsertmarkuplines messes up the
+ * selected alignment pointer. */
+static void refindSelectedAln(BelvuContext *bc, ALN *alnToSelect)
+{
+  if (!alnToSelect)
+    return;
+  
+  int i = 0;
+  for ( ; i < bc->alignArr->len; ++i)
+    {
+      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      
+      if (alnToSelect->start == alnp->start && alnToSelect->end == alnp->end &&
+	  stringsEqual(alnToSelect->name, alnp->name, TRUE))
+	{
+	  bc->selectedAln = alnp;
+	}
+    }
+}
+
+
 static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreeProperties *properties)
 {
   BelvuContext *bc = properties->bc;
@@ -1855,9 +1879,26 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
           bitmap = createBlankSizedPixmap(widget, window, properties->treeRect.x * 2 + properties->treeRect.width, 
                                           properties->treeRect.y * 2 + properties->treeRect.height);
           
+	  /* Remember the selected alignment name because its pointer
+	   * gets messed up by separate/reinsert markup lines. */
+	  ALN aln;
+	  initAln(&aln);
+	
+	  if (properties->bc->selectedAln && properties->bc->selectedAln->name)
+	    {
+	      strcpy(aln.name, properties->bc->selectedAln->name);
+	      aln.start = properties->bc->selectedAln->start;
+	      aln.end = properties->bc->selectedAln->end;
+	    }
+	
           separateMarkupLines(properties->bc);
           drawBelvuTree(widget, bitmap, properties);
           reInsertMarkupLines(properties->bc);
+	
+	  if (properties->bc->selectedAln)
+	    {
+	      refindSelectedAln(properties->bc, &aln);
+	    }
         }
       
       if (bitmap)
@@ -1891,10 +1932,13 @@ static gboolean pointInRect(const int x, const int y, GdkRectangle *rect)
 static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
 {
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+  BelvuContext *bc = properties->bc;
 
   /* We store a list of rectangles in our properties that tell us where 
    * clickable items lie. Loop through them and see if the click point lies
    * inside any of them. */
+  ClickableRect *foundRect = NULL;
+
   int i = 0;
   for ( ; i < properties->clickableRects->len; ++i)
     {
@@ -1902,41 +1946,59 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
       
       if (pointInRect(x, y, &clickRect->rect))
         {
-          if (clickRect->isBranch)
-            {
-              /* We clicked on a tree branch - swap or re-root */
-              if (properties->bc->treePickMode == NODESWAP)
-                {
-                  treeSwapNode(clickRect->node);
-                }
-              else if (properties->bc->treePickMode == NODEROOT)
-                {
-                  /* Re-routing changes the tree's head node, so make sure
-                   * to update it in the context as well as our properties. */
-                  TreeNode *newHead = treeReroot(clickRect->node);
-                  setTreeHead(properties->bc, newHead);
-                  
-                  /* Re-routing can also affect the drawing area size, so recalculate borders */
-                  calculateBelvuTreeBorders(belvuTree);
-                }
-              else
-                { 
-                  g_warning("Program error: unrecognised tree selection mode '%d'.\n", properties->bc->treePickMode);
-                }
-              
-              onTreeOrderChanged(properties->bc);
-            }
-          else if (clickRect->node)
-            {
-              /* We clicked on a node name - select this alignment */
-              properties->bc->selectedAln = clickRect->node->aln;
-              onRowSelectionChanged(properties->bc);
-            }
-          
+          foundRect= clickRect;
           break; /* we shouldn't have overlapping items, so exit once we have found one */
         }
     }
-  
+
+  if (foundRect)
+    {
+      if (foundRect->isBranch)
+        {
+          /* We clicked on a tree branch - swap or re-root */
+          if (bc->treePickMode == NODESWAP)
+            {
+              treeSwapNode(foundRect->node);
+            }
+          else if (bc->treePickMode == NODEROOT)
+            {
+              /* Re-routing changes the tree's head node, so make sure
+               * to update it in the context as well as our properties. */
+              TreeNode *newHead = treeReroot(foundRect->node);
+
+              setTreeHead(bc, newHead);
+              
+              /* Re-routing can also affect the drawing area size, so recalculate borders */
+              calculateBelvuTreeBorders(belvuTree);
+            }
+          else
+            {
+              g_warning("Program error: unrecognised tree selection mode '%d'.\n", bc->treePickMode);
+            }
+          
+          onTreeOrderChanged(bc);
+        }
+      else if (foundRect->node)
+        {
+	  bc->selectedAln = NULL; /* reset to null in case of any problems */
+	
+          /* We clicked on a node name - select this alignment. We need to separate
+	   * markup lines to get the correct aln, but we can't just use the aln pointer
+	   * because reinsertmarkuplines will change it; therefore we need to find the 
+	   * name in the re-jigged array. */
+	  separateMarkupLines(bc);
+	
+	  ALN aln;
+	  initAln(&aln);
+	  str2aln(bc, foundRect->node->name, &aln);
+	  aln.nr = foundRect->node->aln->nr;
+	    
+	  reInsertMarkupLines(bc);
+	  refindSelectedAln(bc, &aln);
+	
+	  onRowSelectionChanged(bc);
+        }
+    }
 }
 
 static gboolean onButtonPressBelvuTree(GtkWidget *widget, GdkEventButton *event, gpointer data)
