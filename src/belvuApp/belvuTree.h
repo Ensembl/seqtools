@@ -45,6 +45,8 @@
 
 
 #define BELVU_TREE_WINDOW_NAME                  "BelvuTreeWindow"
+#define DEFAULT_TREE_SCALE_CORR			0.3	/* default scale for methods using distance correction */
+#define DEFAULT_TREE_SCALE_NON_CORR		1.0	/* default scale for methods not using distance correction */
 
 
 GtkWidget*                createAndShowBelvuTree(BelvuContext *bc);

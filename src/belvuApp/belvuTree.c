@@ -54,6 +54,17 @@
 #define TABLE_XPAD                              12      /* default x padding around table elements */
 #define TABLE_YPAD                              2       /* default y padding around table elements */
 
+
+/* Utility struct to hold data for the build-changed signal */
+typedef struct _BuildMethodChangedData
+{
+  BelvuContext *bc;
+  GtkWidget **treeScaleEntry;
+  GtkWidget *buildMethodCombo;
+  GtkWidget *distCorrCombo;
+} BuildMethodChangedData;
+
+
 /*  BLOSUM62 930809
  
  #  Matrix made by matblas from blosum62.iij
@@ -2115,7 +2126,7 @@ static void createCheckButton(const char *mnemonic, gboolean *value, GtkTable *t
 /* Utility to create a text entry box for updating the given integer value.
  * The text entry is added to the given box, which should belong to a dialog.
  * The value will be updated when the dialog gets a response. */
-static void createDoubleTextEntry(const char *labelText, double *value, GtkTable *table, int row, int col)
+static GtkWidget* createDoubleTextEntry(const char *labelText, double *value, GtkTable *table, int row, int col)
 {
   g_assert(value);
 
@@ -2138,13 +2149,16 @@ static void createDoubleTextEntry(const char *labelText, double *value, GtkTable
   gtk_widget_set_size_request(entry, defaultLen, -1);
 
   g_free(defaultInput);
+  
+  return entry;
 }
 
 static GtkWidget* createTreeDisplayOptsButtons(GtkBox *box, 
                                                double *treeScale,
                                                double *lineWidth,
                                                gboolean *showBranchLen, 
-                                               gboolean *showOrganism)
+                                               gboolean *showOrganism,
+					       GtkWidget **treeScaleEntry)
 {
   /* Put the display options in a table in a frame */
   GtkContainer *frame = GTK_CONTAINER(gtk_frame_new("Display options"));
@@ -2153,7 +2167,7 @@ static GtkWidget* createTreeDisplayOptsButtons(GtkBox *box,
   GtkTable *table = GTK_TABLE(gtk_table_new(2, 2, FALSE));
   gtk_container_add(frame, GTK_WIDGET(table));
 
-  createDoubleTextEntry("Tree scale:", treeScale, table, 0, 0);
+  *treeScaleEntry = createDoubleTextEntry("Tree scale:", treeScale, table, 0, 0);
   createDoubleTextEntry("Line width:", lineWidth, table, 1, 0);
   createCheckButton("Display branch lengths", showBranchLen, table, 2, 0);
   createCheckButton("Display organism", showOrganism, table, 3, 0);
@@ -2188,17 +2202,27 @@ static void createTreeInteractionButtons(GtkBox *box, BelvuPickMode *pickMode)
 }
 
 
+/* Returns true if the given tree setup is distance-correcting or not */
+static gboolean correctingDistances(const BelvuBuildMethod buildMethod, const BelvuDistCorr distCorr)
+{
+  return (buildMethod != UPGMA && distCorr != UNCORR);
+}
+
+
 /* Callback for when the build method has been changed. */
 gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer data)
 {
   BelvuContext *bc = (BelvuContext*)data;
   
-  const int origVal = bc->treeMethod;
+  const int origBuildMethod = bc->treeMethod;
+  
   onComboChanged(combo, responseId, &bc->treeMethod);
   
   /* This change invalidates the tree, so set the tree head to null to indicate this */
-  if (origVal != bc->treeMethod)
-    setTreeHead(bc, NULL);
+  if (origBuildMethod != bc->treeMethod)
+    {
+      setTreeHead(bc, NULL);
+    }
   
   return TRUE;
 }
@@ -2209,12 +2233,15 @@ gboolean onDistCorrChanged(GtkWidget *combo, const gint responseId, gpointer dat
 {
   BelvuContext *bc = (BelvuContext*)data;
   
-  const int origVal = bc->treeDistCorr;
+  const int origDistCorr = bc->treeDistCorr;
+
   onComboChanged(combo, responseId, &bc->treeDistCorr);
   
   /* This change invalidates the tree, so set the tree head to null to indicate this */
-  if (origVal != bc->treeDistCorr)
-    bc->treeHead = NULL;  
+  if (origDistCorr != bc->treeDistCorr)
+    {
+      setTreeHead(bc, NULL);
+    }
   
   return TRUE;
 }
@@ -2240,10 +2267,52 @@ static GtkComboBox* createComboWithLabel(GtkTable *table,
   widgetSetCallbackData(GTK_WIDGET(combo), callbackFunc, data);
   
   return combo;
+} 
+
+static void updateTreeScaleEntry(GtkComboBox *combo, gpointer data)
+{
+  BuildMethodChangedData *userData = (BuildMethodChangedData*)data;
+
+  static gboolean firstTime = TRUE;
+  static BelvuBuildMethod origBuildMethod;
+  static BelvuDistCorr origDistCorr;
+  
+  if (firstTime)
+    {
+      firstTime = FALSE;
+      origBuildMethod = userData->bc->treeMethod;
+      origDistCorr = userData->bc->treeDistCorr;
+    }
+  
+  int newBuildMethod, newDistCorr;
+  onComboChanged(userData->buildMethodCombo, 0, &newBuildMethod);
+  onComboChanged(userData->distCorrCombo, 0, &newDistCorr);
+  
+  if (correctingDistances(origBuildMethod, origDistCorr) == correctingDistances(newBuildMethod, newDistCorr))
+    return;
+
+  /* If we're now distance-correcting and weren't previously (or vice versa)
+   * then reset the tree scale to the appropriate default value */
+  if (correctingDistances(newBuildMethod, newDistCorr))
+    {
+      char *tmpStr = blxprintf("%.2f", DEFAULT_TREE_SCALE_CORR);
+      gtk_entry_set_text(GTK_ENTRY(*userData->treeScaleEntry), tmpStr);
+      g_free(tmpStr);
+    }
+  else
+    {
+      char *tmpStr = blxprintf("%.2f", DEFAULT_TREE_SCALE_NON_CORR);
+      gtk_entry_set_text(GTK_ENTRY(*userData->treeScaleEntry), tmpStr);
+      g_free(tmpStr);
+    }    
+  
+  origBuildMethod = newBuildMethod;
+  origDistCorr = newDistCorr;
 }
 
 
-static void createTreeBuildMethodButtons(BelvuContext *bc, GtkBox *box, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr)
+/* Create the drop-down boxes for the build methods on the settings dialog */
+static void createTreeBuildMethodButtons(BelvuContext *bc, GtkBox *box, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr, GtkWidget **treeScaleEntry)
 {
   /* We'll put everything in a table inside a frame */
   GtkWidget *frame = gtk_frame_new("Build methods");
@@ -2253,23 +2322,33 @@ static void createTreeBuildMethodButtons(BelvuContext *bc, GtkBox *box, BelvuBui
   gtk_container_add(GTK_CONTAINER(frame), GTK_WIDGET(table));
   
   /* Create the build-method drop-down box */
-  GtkComboBox *combo = createComboWithLabel(table, "Tree building method:", 0, 0, onBuildMethodChanged, bc);
+  static BuildMethodChangedData data;
+  data.bc = bc;
+  data.treeScaleEntry = treeScaleEntry;
+  
+  GtkComboBox *buildMethodCombo = createComboWithLabel(table, "Tree building method:", 0, 0, onBuildMethodChanged, bc);
+  data.buildMethodCombo = GTK_WIDGET(buildMethodCombo);
   
   GtkTreeIter *iter = NULL;
   int initMode = *buildMethod;
-  addComboItem(combo, iter, NJ, NJstr, initMode);
-  addComboItem(combo, iter, UPGMA, UPGMAstr, initMode);
+  addComboItem(buildMethodCombo, iter, NJ, NJstr, initMode);
+  addComboItem(buildMethodCombo, iter, UPGMA, UPGMAstr, initMode);
   
   /* Create the distance-correction method drop-down box */
-  combo = createComboWithLabel(table, "Distance correction method:", 0, 1, onDistCorrChanged, bc);
+  GtkComboBox *distCorrCombo = createComboWithLabel(table, "Distance correction method:", 0, 1, onDistCorrChanged, bc);
+  data.distCorrCombo = GTK_WIDGET(distCorrCombo);
   
   iter = NULL;
   initMode = *distCorr;
-  addComboItem(combo, iter, UNCORR, UNCORRstr, initMode);
-  addComboItem(combo, iter, JUKESCANTOR, JUKESCANTORstr, initMode);
-  addComboItem(combo, iter, KIMURA, KIMURAstr, initMode);
-  addComboItem(combo, iter, STORMSONN, STORMSONNstr, initMode);
-  addComboItem(combo, iter, SCOREDIST, SCOREDISTstr, initMode);
+  addComboItem(distCorrCombo, iter, UNCORR, UNCORRstr, initMode);
+  addComboItem(distCorrCombo, iter, JUKESCANTOR, JUKESCANTORstr, initMode);
+  addComboItem(distCorrCombo, iter, KIMURA, KIMURAstr, initMode);
+  addComboItem(distCorrCombo, iter, STORMSONN, STORMSONNstr, initMode);
+  addComboItem(distCorrCombo, iter, SCOREDIST, SCOREDISTstr, initMode);
+  
+  g_signal_connect(G_OBJECT(buildMethodCombo), "changed", G_CALLBACK(updateTreeScaleEntry), &data);
+  g_signal_connect(G_OBJECT(distCorrCombo), "changed", G_CALLBACK(updateTreeScaleEntry), &data);
+
 }
 
 
@@ -2287,8 +2366,10 @@ GtkWidget* createTreeSettingsDialogContent(BelvuContext *bc,
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), GTK_WIDGET(vbox), FALSE, FALSE, 0);
   
-  createTreeBuildMethodButtons(bc, vbox, buildMethod, distCorr);
-  GtkWidget *content = createTreeDisplayOptsButtons(vbox, treeScale, lineWidth, showBranchLen, showOrganism);
+  static GtkWidget *treeScaleEntry = NULL;
+  
+  createTreeBuildMethodButtons(bc, vbox, buildMethod, distCorr, &treeScaleEntry);
+  GtkWidget *content = createTreeDisplayOptsButtons(vbox, treeScale, lineWidth, showBranchLen, showOrganism, &treeScaleEntry);
   createTreeInteractionButtons(vbox, pickMode);
 
   /* Set the focus on the main content area, because this has widgets that can

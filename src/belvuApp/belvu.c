@@ -2427,7 +2427,7 @@ BelvuContext* createBelvuContext()
   bc->maxSimCutoff = DEFAULT_MAX_SIM_CUTOFF;
   bc->colorByResIdCutoff = 20.0;
   bc->mksubfamilies_cutoff = 0.0;
-  bc->treeScale = 0.3;
+  bc->treeScale = DEFAULT_TREE_SCALE_CORR;
   bc->treeLineWidth = 0.3;
   
   bc->gapChar = '.';
