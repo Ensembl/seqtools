@@ -1882,10 +1882,12 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
 	  /* Remember the selected alignment name because its pointer
 	   * gets messed up by separate/reinsert markup lines. */
 	  ALN aln;
-	  initAln(&aln);
+	  gboolean hasSelection = FALSE;
 	
 	  if (properties->bc->selectedAln && properties->bc->selectedAln->name)
 	    {
+	      hasSelection = TRUE;
+	      initAln(&aln);
 	      strcpy(aln.name, properties->bc->selectedAln->name);
 	      aln.start = properties->bc->selectedAln->start;
 	      aln.end = properties->bc->selectedAln->end;
@@ -1895,7 +1897,7 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
           drawBelvuTree(widget, bitmap, properties);
           reInsertMarkupLines(properties->bc);
 	
-	  if (properties->bc->selectedAln)
+	  if (hasSelection)
 	    {
 	      refindSelectedAln(properties->bc, &aln);
 	    }
