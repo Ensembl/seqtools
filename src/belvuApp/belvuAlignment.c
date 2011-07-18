@@ -48,8 +48,6 @@
 #define TICKMARK_INTERVAL                       10 /* number of coords between each tick marker in the sequence area header */
 #define MAJOR_TICKMARK_HEIGHT                   6  /* height of major tick marks in the sequence area header */
 #define MINOR_TICKMARK_HEIGHT                   3  /* height of minor tick marks in the sequence area header */
-#define MAX_PIXMAP_WIDTH                        10000 /* max width in pixels of a pixmap */
-#define MAX_PIXMAP_HEIGHT                       10000 /* max width in pixels of a pixmap */
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
@@ -1209,7 +1207,7 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
       if (result > MAX_PIXMAP_WIDTH)
         {
           result = MAX_PIXMAP_WIDTH;
-          g_warning("The alignment drawing is too large; it will be clipped.\n");
+          g_warning("The alignment window is too large and will be clipped.\n");
         }
     }
   
@@ -1241,7 +1239,7 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
       if (result > MAX_PIXMAP_HEIGHT)
         {
           result = MAX_PIXMAP_HEIGHT;
-          g_warning("The alignment drawing is too large; it will be clipped.\n");
+          g_warning("The alignment window is too large and will be clipped.\n");
         }
     }
   

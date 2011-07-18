@@ -2482,7 +2482,13 @@ static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
   /* This loops through all nodes and calculates the max tree width */
   calculateNodeWidth(properties, properties->bc->treeHead, properties->treeRect.x);
   
-  const int treeHeight = (properties->bc->alignArr->len + 7) * properties->charHeight;
+  int treeHeight = (properties->bc->alignArr->len + 7) * properties->charHeight;
+  
+  if (treeHeight > MAX_PIXMAP_HEIGHT)
+    {
+      treeHeight = MAX_PIXMAP_WIDTH;
+      g_warning("The tree window is too large and will be clipped.\n");
+    }
 
   properties->treeRect.x = DEFAULT_XPAD;
   properties->treeRect.y = DEFAULT_YPAD;

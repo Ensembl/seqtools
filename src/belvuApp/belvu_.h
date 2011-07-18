@@ -70,6 +70,9 @@ AUTHOR_TEXT "\n"
 #define DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION    0.45   /* default height of belvu window (as fraction of screen height) */
 #define DIALOG_XPAD                             12      /* default x padding around dialog widgets */
 #define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
+#define MAX_PIXMAP_WIDTH                        15000 /* max width in pixels of a pixmap */
+#define MAX_PIXMAP_HEIGHT                       15000 /* max width in pixels of a pixmap */
+
 
 
 /* _MAX_PATH is 260 in WIN32 but each path component can be max. 256 in size */
