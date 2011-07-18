@@ -249,10 +249,21 @@ GtkActionGroup* belvuTreeGetActionGroup(GtkWidget *belvuTree)
 
 static int BSorder(gconstpointer xIn, gconstpointer yIn)
 {
-  const BootstrapGroup *x = (const BootstrapGroup*)xIn;
-  const BootstrapGroup *y = (const BootstrapGroup*)yIn;
+  const BootstrapGroup *x = *((const BootstrapGroup**)xIn);
+  const BootstrapGroup *y = *((const BootstrapGroup**)yIn);
   
-  return strcmp(x->s, y->s);
+  int result = 0;
+  
+  if (x && x->s && y && y->s)
+    result = strcmp(x->s, y->s);
+  else if (x && x->s)
+    result = 1;
+  else if (y && y->s)
+    result = -1;
+  else
+    result = 0;
+  
+  return result;
 }
 
 
@@ -337,8 +348,11 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
                   /* printf("Did not find bootgroup %s\n", BS->s); */
                 }
               
-              g_free(BS->s);
-              g_free(BS);
+              if (BS && BS->s)
+                g_free(BS->s);
+              
+              if (BS)
+                g_free(BS);
             }
           
           result = right;
