@@ -292,8 +292,8 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 
 
 /* Comparison function for sorting/determining if two alignments are identical;
- * they are identical if the DNA sequence, start positions, score and ID are
- * also identical */
+ * they are identical if the DNA sequence, start positions, source, score and ID
+ * are all identical */
 static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
 {
   double result = 0;
@@ -311,6 +311,7 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
       if (result == 0) result = msp1->sRange.min - msp2->sRange.min;
       if (result == 0) result = msp1->score - msp2->score;
       if (result == 0) result = msp1->id - msp2->id;
+      if (result == 0) result = strcmp(msp1->sSequence->source, msp2->sSequence->source);
       if (result == 0) result = strcmp(msp1->sSequence->sequence->str, msp2->sSequence->sequence->str);
     }
   else if (!msp1HasSeq && !msp2HasSeq)
