@@ -649,7 +649,7 @@ int main(int argc, char **argv)
             }
           
           printf("%4d       %c      %4d/%-4d = %5.1f %%  %4.1f\n", 
-                 i+1, b2aIndex(consensus), max, nseq, (double)max/nseq*100, bc->conservation[i]);
+                 i+1, b2aIndex(consensus), max, bc->alignArr->len, (double)max/bc->alignArr->len*100, bc->conservation[i]);
           totcons += bc->conservation[i];
         }
       
