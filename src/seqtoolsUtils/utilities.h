@@ -43,6 +43,11 @@
 #define UNSET_INT                     -1   /* this value indicates an unset integer */
 #define DEFAULT_LABEL_X_PAD           0    /* default x padding to use for header labels */
 #define DEFAULT_PRINT_RESOLUTION      300  /* default resolution for printing in DPI */
+#define TABLE_XPAD                    12      /* default x padding around table elements */
+#define TABLE_YPAD                    2       /* default y padding around table elements */
+#define MIN_FONT_SIZE                 2
+#define MAX_FONT_SIZE                 20
+#define MACHINE_RES                   0.000000001
 
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
@@ -74,6 +79,7 @@
 #define DEBUG_EXIT(format, args...)
 #endif
 
+
 /* Generic SeqTools error domain */
 #define SEQTOOLS_ERROR g_quark_from_string("SeqTools")
 
@@ -82,8 +88,29 @@ typedef enum
 {
   SEQTOOLS_ERROR_PARSING_COLOR,	      /* error parsing color string */
   SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
-  SEQTOOLS_ERROR_NO_STYLE	      /* style does not exist */
+  SEQTOOLS_ERROR_NO_STYLE,            /* style does not exist */
+  SEQTOOLS_ERROR_EXECUTING_CMD	      /* error executing command */
 } SeqToolsError;
+
+
+/* This enum defines the columns for a combo box with the common combination
+ * of two columns: an int relating to an enum, and a text description. */
+typedef enum _BlxComboColumns
+  {
+    COMBO_ENUM_COL,
+    COMBO_TEXT_COL,
+    N_COMBO_COLUMNS
+  } BlxComboColumns;
+
+
+/* Printing scale type - we can scale to fit the page width, or height, or both */
+typedef enum
+{
+  PRINT_FIT_WIDTH,
+  PRINT_FIT_HEIGHT,
+  PRINT_FIT_BOTH
+} PrintScaleType;
+
 
 
 #if defined(MACINTOSH)
@@ -113,15 +140,18 @@ typedef enum
 
 #define BLX_YELLOW	      "#ffff00" 
 #define BLX_DARK_YELLOW       "#d0d000"
+#define BLX_PALE_YELLOW       "#ffffcc"
 
 #define BLX_BLUE	      "#0000ff"
 #define BLX_DARK_BLUE	      "#000080"
 #define BLX_ROYAL_BLUE	      "#4169e1"
 #define BLX_SKY_BLUE          "#87cefa"
+#define BLX_PALE_BLUE         "#c0d8f0"
 #define BLX_CYAN	      "#15ced2"
 #define BLX_LIGHT_CYAN        "#6defe9"
 #define BLX_VIOLET            "#78b4f0"
 #define BLX_DARK_VIOLET       "#5c98d5"
+#define BLX_MID_BLUE          "#6495ED"
 
 #define BLX_RED		      "#ff0000"
 #define BLX_LIGHT_RED	      "#ff7373"
@@ -130,6 +160,12 @@ typedef enum
 #define BLX_VERY_DARK_RED     "#400000"
 #define BLX_ORANGE_RED	      "#ff4500"
 #define BLX_ORANGE	      "#ffa500"
+#define BLX_PALE_ORANGE	      "#ff9c00"
+#define BLX_MAGENTA	      "#ff00ff"
+#define BLX_PALE_MAGENTA      "#ffccff"
+#define BLX_PURPLE            "#A020F0"
+#define BLX_PALE_VIOLET       "#EE82EE"
+#define BLX_CERISE            "#DE3163"
 
 #define BLX_GREEN	      "#00ff00"
 #define BLX_LIGHT_GREEN	      "#C1FFC1" 
@@ -137,6 +173,7 @@ typedef enum
 #define BLX_DARK_GREEN	      "#00bb00"
 #define BLX_VERY_DARK_GREEN   "#015800"
 
+#define BLX_BROWN             "#A52A2A"
 
 typedef struct _BlxColor
   {
@@ -151,9 +188,12 @@ typedef struct _BlxColor
   } BlxColor;
   
   
-/* This handle holds a list of pointers to all memory allocated via this handle. Use handleDestroy
- * to free the handle and all its allocated memory. */
-typedef GSList* BlxHandle;
+/* This handle holds a list of pointers to all memory allocated via this handle. 
+ * Use handleDestroy to free the handle and all its allocated memory. */
+typedef struct _BlxHandle
+  {
+    GSList *memoryList;
+  } BlxHandleStruct, *BlxHandle;
   
   
 /* This struct is used to pass user data to the message handlers */
@@ -258,6 +298,7 @@ void                  callFuncOnAllChildWidgets(GtkWidget *widget, gpointer data
 gboolean	      onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
 GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
+GdkDrawable*          createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height);
 
 BlxSeqType            determineSeqType(char *seq);
 void                  argvAdd(int *argc, char ***argv, char *s);
@@ -411,7 +452,7 @@ void		      debugLogLevel(const int increaseAmt);
 
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
-void		      blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly);
+void		      blxPrintWidget(GtkWidget *widget, GtkWidget *window, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly, const PrintScaleType scaleType);
 char*                 blxprintf(char *formatStr, ...);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
 
@@ -420,6 +461,7 @@ GdkColor*	      getGdkColor(int colorId, GArray *defaultColors, const gboolean s
 const GdkColor*	      blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
 char*		      convertColorToString(GdkColor *color);
 void		      destroyBlxColor(BlxColor *blxColor);
+gboolean              colorsEqual(GdkColor *color1, GdkColor *color2);
 
 void		      createBlxColor(GArray *defaultColors,
 				     int colorId,
@@ -460,6 +502,7 @@ const char*			   findFixedWidthFontFamily(GtkWidget *widget, GList *pref_familie
 void                               getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height);
 
 GtkWidget*                         createToolbarHandle();
+GtkToolItem*			   addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget, const int position);
 
 void                               onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 void                               collatePixmaps(GtkWidget *widget, gpointer data);
@@ -469,8 +512,70 @@ void                               setWidgetBackgroundColor(GtkWidget *widget, g
 gboolean                           findCommand (char *command, char **resultOut);
 void                               forceResize(GtkWidget *widget);
 
+gboolean                           onComboChanged(GtkWidget *combo, const gint responseId, gpointer data);
+GtkComboBox*                       createComboBox();
+void                               addComboItem(GtkComboBox *combo, GtkTreeIter *parent, const int val, const char *text, const int initVal);
+
+const char*                        getSaveFileName(GtkWidget *widget, const char *currentName, const char *defaultPath, const char *defaultExtension, const char *title);
+const char*                        getLoadFileName(GtkWidget *widget, const char *defaultPath, const char *title);
+
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
+void                               setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value);
+
+GtkWidget*                         externalCommand(char *command, char *progName, GtkWidget *widget, GError **error);
+GString*                           getExternalCommandOutput(const char *command, GError **error);
+GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkTextBuffer **textBuffer);
+
+int                                scrollBarWidth();
+void                               getTextSize(GtkWidget *widget, const char *text, int *width, int *height);
+int                                getTextWidth(GtkWidget *widget, const char *text);
+int                                getTextHeight(GtkWidget *widget, const char *text);
+
+GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
+                                                          GtkTable *table, 
+                                                          const int row,
+                                                          const int col,
+                                                          const int xpad,
+                                                          const int ypad,
+                                                          const char *mnemonic,
+                                                          const int value,
+                                                          BlxResponseCallback callback);
+
+GtkWidget*                         createTextEntryFromDouble(GtkWidget *widget,
+                                                             GtkTable *table, 
+                                                             const int row,
+                                                             const int col,
+                                                             const int xpad,
+                                                             const int ypad,
+                                                             const char *mnemonic,
+                                                             const double value,
+                                                             BlxResponseCallback callback);
+
+void                               drawHScale(GtkWidget *widget, 
+                                              GdkDrawable *drawable,
+                                              const IntRange const *range,
+                                              const GdkRectangle const *rect,
+                                              const int widthPerVal,       
+                                              const int majorTickInterval, 
+                                              const int labelInterval,     
+                                              const int minorTickHeight,
+                                              const int majorTickHeight);
+
+const char*                        getStringFromTextEntry(GtkEntry *entry);
+void                               widgetSetFontSize(GtkWidget *widget, gpointer data);
+void                               widgetSetFontSizeAndCheck(GtkWidget *belvuAlignment, const int newSize);
+
+GtkRadioButton*                    createRadioButton(GtkTable *table,
+                                                     const int col,
+                                                     const int row,
+                                                      GtkRadioButton *existingButton,
+                                                     const char *mnemonic,
+                                                     const gboolean isActive,
+                                                     const gboolean createTextEntry,
+                                                     const gboolean multiline,
+                                                     BlxResponseCallback callbackFunc,
+                                                     GtkWidget *blxWindow);
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);

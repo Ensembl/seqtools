@@ -65,6 +65,12 @@ typedef enum {
 } BlxDotterError;
 
 
+typedef struct 
+{
+  GString *seqName;
+  GString *seq;
+} SeqStruct;
+
 
 
 static char *	    nextLine(FILE *file, GString *line_string);
@@ -294,95 +300,143 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 }
 
 
-/* Read in a FASTA sequence from a FASTA file */
-char *readFastaSeq(FILE *seqfile, char *seqName)
+/* Returns true if this is a valid character to expect in a FASTA sequence input */
+static gboolean isValidFastaChar(const char inputChar)
+{
+  return (isalpha(inputChar) || inputChar == SEQUENCE_CHAR_GAP || inputChar == SEQUENCE_CHAR_STOP);
+}
+
+
+/* Read in a FASTA sequence from a FASTA file or stdin */
+static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName)
 {
   char *resultSeq = NULL;
+  char line[MAXLINE+1];
+  
+  if (!fgets(line, MAXLINE, seqfile))
+    {
+      g_error("Error reading seqFile.\n") ;
+    }
+  
+  sscanf(line, "%s", seqName);
+  
+  /* Loop through the input text and copy into an auto-expandable string */
+  GString *resultStr = g_string_sized_new(5000);
+  char currentChar = fgetc(seqfile);
+  
+  while (currentChar != '\n') 
+    {
+      if (isValidFastaChar(currentChar)) 
+        g_string_append_c(resultStr, currentChar);
+      
+      currentChar = fgetc(seqfile);
+    }
+  
+  /* Set the result string and free the GString (but don't free its data) */
+  resultSeq = g_string_free(resultStr, FALSE);
+  
+  return resultSeq;
+}
 
+
+/* Read a fasta sequence from a file */
+static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName)
+{
+  GArray *resultArr = g_array_new(FALSE, FALSE, sizeof(SeqStruct));
   char line[MAXLINE+1];
 
-  /* Read in seqfile */
-  if (seqfile == stdin) 
+  fseek(seqfile, 0, SEEK_END);
+  fseek(seqfile, 0, SEEK_SET);
+
+  SeqStruct *currentSeqPtr = NULL;
+  int curIdx = -1;
+
+  while (!feof(seqfile))
     {
-      if (!fgets(line, MAXLINE, seqfile))
+      /* Get the next line */
+      if (!fgets(line, MAXLINE, seqfile)) 
         {
-          g_error("Error reading seqFile.\n") ;
-        }
-
-      sscanf(line, "%s", seqName);
-
-      /* Loop through the input text and copy into an auto-expandable string */
-      GString *resultStr = g_string_sized_new(5000);
-      char currentChar;
-
-      while ((currentChar = fgetc(seqfile)) != '\n') 
-        {
-          if (isalpha(currentChar) || currentChar == SEQUENCE_CHAR_GAP || currentChar == SEQUENCE_CHAR_STOP) 
-            {
-	      g_string_append_c(resultStr, currentChar);
-            }
+          break;
         }
       
-      /* Set the result string and free the GString (but don't free its data) */
-      resultSeq = g_string_free(resultStr, FALSE);
-    }
-  else
-    {
-      fseek(seqfile, 0, SEEK_END);
-      resultSeq = g_malloc(ftell(seqfile)+1);
-      char *resultPos = resultSeq;
-      fseek(seqfile, 0, SEEK_SET);
-      
-      char *namePos;   /* current position in the seqName */
-      char *linePos;   /* current position in the line */
-
-      while (!feof(seqfile))
+      if (*line == '>')
         {
-          if (!fgets(line, MAXLINE, seqfile)) 
-            {
-              break;
-            }
+          /* This line contains the sequence name, so start a new sequence */
+          SeqStruct currentSeq = {g_string_new(NULL), g_string_new(NULL)};
+          g_array_append_val(resultArr, currentSeq);
+          ++curIdx;
+          currentSeqPtr = &g_array_index(resultArr, SeqStruct, curIdx);
           
-          while (strchr(line, '>'))
-            {
-              /* This line contains the sequence name. Copy it into the result arg */
-              strncpy(seqName, line+1, 255); 
-              seqName[255]=0;
-
-              /* If the name contains a space or newline character, terminate it there */
-              if ((namePos = (char *)strchr(seqName, ' ')))
-                {
-                  *namePos = 0;
-                }
-              
-              if ((namePos = (char *)strchr(seqName, '\n')))
-                {
-                  *namePos = 0;
-                }
-              
-              /* Get the next line */
-              if (!fgets(line, MAXLINE, seqfile))
-                {
-                  break;
-                }
-            }
-
-          /* Ok, this must be a line containing sequence data. Loop through each char in the line. */
-          for (linePos = line; *linePos; linePos++)
-            {
-              /* If this is a valid sequence character, copy it into the result string. Allow
-               * STOPs in the sequence. */
-              if (isalpha(*linePos) || *linePos == SEQUENCE_CHAR_STOP)
-                {
-                  *resultPos++ = *linePos;
-                }
-            }
-        
-          *resultPos = 0;
+          char *linePos = line + 1;
+          
+          for ( ; *linePos && *linePos != ' ' && *linePos != '\n'; ++linePos)
+            g_string_append_c(currentSeqPtr->seqName, *linePos);
         }
+      else if (currentSeqPtr)
+        {
+          /* Ok, this must be a line containing sequence data. Loop through each char in the line. */
+          char *linePos = line;
+          
+          for ( ; *linePos; linePos++)
+            {
+              /* If this is a valid sequence character, copy it into the result string */
+              if (isValidFastaChar(*linePos))
+                {
+                  g_string_append_c(currentSeqPtr->seq, *linePos);
+                }
+            }
+        }      
     }
 
-  return resultSeq;
+  return resultArr;
+}
+
+
+/* Read in multiple FASTA sequences from a file and concatenate them into
+ * a single sequence, using the name of the first sequence. */
+static char *concatenateFastaSeqs(FILE *seqfile, char *seqName)
+{
+  GString *resultStr = g_string_new(NULL);
+  
+  GArray *resultArr = readFastaSeqsFromFile(seqfile, seqName);
+  
+  int i = 0;
+  for ( ; i < resultArr->len; ++i)
+    {
+      SeqStruct *curSeq = &g_array_index(resultArr, SeqStruct, i);
+      
+      if (curSeq && curSeq->seq)
+        g_string_append(resultStr, curSeq->seq->str);
+      
+      if (seqName[0] == 0 && curSeq && curSeq->seqName)
+        strcpy(seqName, curSeq->seqName->str);
+    }
+
+  g_array_unref(resultArr);
+  char *result = g_string_free(resultStr, FALSE);
+  
+  return result;
+}
+
+
+/* Read in a FASTA sequence from an input, which can be a file or stdin.
+ * 
+ * Example file format:
+ * 
+ * >5H1A_HUMAN/53-400 more words 
+ * GNACVVAAIAL...........ERSLQ.....NVANYLIG..S.LAVTDL
+ * MVSVLV..LPMAAL.........YQVL..NKWTL......GQVT.CDL..
+ * >5H1A_RAT more words
+ * GNACVVAAIAL...........ERSLQ.....NVANYLIG..S.LAVTDL
+ * MVSVLV..LPMAAL.........YQVL..NKWTL......GQVT.CDL..
+ * ...
+ */
+char *readFastaSeq(FILE *seqfile, char *seqName)
+{
+  if (seqfile == stdin) 
+    return readFastaSeqFromStdin(seqfile, seqName);
+  else
+    return concatenateFastaSeqs(seqfile, seqName);
 }
 
 

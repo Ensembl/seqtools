@@ -35,3 +35,16 @@
  Some X options:
   -acefont <font> Main font.
   -font    <font> Menu font.
+
+-----
+ Written by Gemma Barson <gb10@sanger.ac.uk>
+ Based on original code by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se> 
+
+ Reference: Sonnhammer ELL & Durbin R (1995). A dot-matrix program
+ 	    with dynamic threshold control suited for genomic DNA and protein
+ 	    sequence analysis. Gene 167(2):GC1-10.
+
+ See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.
+
+ Copyright (c) 2010-2011: Genome Research Ltd.
+ Dotter is distributed under the GNU Public License; see http://www.gnu.org/copyleft/gpl.txt

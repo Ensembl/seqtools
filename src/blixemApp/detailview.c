@@ -55,8 +55,6 @@
 #define SORT_BY_POS_STRING		"Position"
 #define SORT_BY_GROUP_ORDER_STRING	"Group"
 #define FONT_INCREMENT_SIZE		1
-#define MIN_FONT_SIZE			2
-#define MAX_FONT_SIZE			20
 #define NO_SUBJECT_SELECTED_TEXT	"<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT	"<multiple subjects selected>"
 #define DEFAULT_SNP_CONNECTOR_HEIGHT	0
@@ -111,7 +109,6 @@ static int		      snpTrackGetStrand(GtkWidget *snpTrack);
 static void		      getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange const *refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 
 static void		      detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight);
-static GtkToolItem*	      addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget);
 static gboolean		      widgetIsTree(GtkWidget *widget);
 static gboolean		      widgetIsTreeContainer(GtkWidget *widget);
 static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
@@ -123,31 +120,6 @@ static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite
 /***********************************************************
  *		       Utility functions                   *
  ***********************************************************/
-
-/* Utility function to calculate the width of a vertical scrollbar */
-int scrollBarWidth()
-{
-  static int result = UNSET_INT;
-  
-  if (result == UNSET_INT)
-    {
-      /* Create a temp scrollbar and find the default width from the style properties. */
-      GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
-      
-      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
-      gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
-      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
-      gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
-      gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
-      
-      gtk_widget_destroy(scrollbar);
-      
-      result = sliderWidth + separatorWidth*2 + troughBorder*2 + stepperSpacing*2 + 4; /* to do: find out why the extra fudge factor is needed here */
-    }
-  
-  return result;
-}
-
 
 void detailViewRedrawAll(GtkWidget *detailView)
 {
@@ -4202,7 +4174,7 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   const int charWidth = 8; /* guesstimate of char width for default font */
   
   gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox) ;
+  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, -1) ;
   gtk_tool_item_set_expand(item, FALSE); 
   
   /* We want the box to be printed, so connect the expose function that will 
@@ -4223,27 +4195,12 @@ static GtkWidget* createStatusBar(GtkToolbar *toolbar)
   /* Make it expandable so we use all available space. Set minimum size to be 0
    * because it's better to show it small than not at all. */
   gtk_widget_set_size_request(statusBar, 0, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, statusBar) ;
+  GtkToolItem *item = addToolbarWidget(toolbar, statusBar, -1) ;
   gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
 
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
 
   return statusBar;
-}
-
-
-/* Makes the given widget into a toolbar item on the given toolbar */
-static GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget)
-{
-  GtkToolItem *toolItem = gtk_tool_item_new();
-  gtk_container_add(GTK_CONTAINER(toolItem), widget);
-  gtk_toolbar_insert(toolbar, toolItem, -1);	    /* -1 means "append" to the toolbar. */
-  
-  gtk_tool_item_set_visible_horizontal(toolItem, TRUE);
-  gtk_tool_item_set_visible_vertical(toolItem, TRUE);
-  gtk_tool_item_set_is_important(toolItem, TRUE);
-
-  return toolItem;
 }
 
 

@@ -61,7 +61,6 @@
 #include <libpfetch/libpfetch.h>
 #endif
 
-#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
 
 
 /* Blixem config error domain */
@@ -275,104 +274,6 @@ static const char *URL = NULL ;
 static GKeyFile *blx_config_G = NULL ;
 
 
-/* Execute the given external command and return the output from the command as a GString. 
- * The result should be free'd with g_string_free. */
-static GString* getExternalCommandOutput(const char *command)
-{
-  GString *resultText = g_string_new(NULL) ;
-
-  char lineText[MAXLINE+1];
-  
-  FILE *pipe = popen (command, "r") ;
-  
-  while (!feof (pipe))
-    { 
-      if (!fgets (lineText, MAXLINE, pipe))
-        {
-          break;
-        }
-      
-      int len = strlen(lineText);
-      
-      if (len > 0)
-	{ 
-	  if (lineText[len-1] == '\n') 
-            {
-              lineText[len-1] = '\0';
-            }
-          
-          g_string_append_printf(resultText, "%s\n", lineText) ;
-	}
-    }
-  
-  pclose (pipe);
-  
-  return resultText;
-}
-
-
-/* Display a message dialog showing the given display text. This utility functions sets
- * things like the font and default width based on properties of the main blixem window.
- * Returns a pointer to the dialog, and optionally sets a pointer to the text buffer in the
- * textBuffer return argument. */
-static GtkWidget* displayFetchResults(const char *title, const char *displayText, GtkWidget *blxWindow, GtkTextBuffer **textBuffer)
-{
-  /* Use the same fixed-width font that the detail view uses, but* don't use the
-   * detail view's font size, because it may be zoomed in/out. */
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  PangoFontDescription *fontDesc = pango_font_description_copy(detailViewGetFontDesc(detailView));
-  pango_font_description_set_size(fontDesc, pango_font_description_get_size(blxWindow->style->font_desc));
-
-  /* Set the initial width based on the default number of characters wide */
-  PangoContext *context = gtk_widget_get_pango_context(detailView);
-  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-  gdouble charWidth = pango_font_metrics_get_approximate_digit_width(metrics) / PANGO_SCALE;
-
-  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
-  const int maxHeight = blxWindow->allocation.height * 0.5;
-
-  GtkTextView *textView = NULL;
-  GtkWidget *result = showMessageDialog(title, displayText, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
-  
-  if (textBuffer && textView)
-    {
-      *textBuffer = gtk_text_view_get_buffer(textView);
-    }
-
-  /* Clean up */
-  pango_font_metrics_unref(metrics);
-  pango_font_description_free(fontDesc);
-  
-  return result;
-}
-
-
-/* SHOULD BE MERGED INTO libfree.a */
-/* call an external shell command and print output in a text_scroll window
- *
- * This is a replacement for the old graph based text window, it has the advantage
- * that it uses gtk directly and provides cut/paste/scrolling but...it has the
- * disadvantage that it will use more memory as it collects all the output into
- * one string and then this is _copied_ into the text widget.
- * 
- * If this proves to be a problem I expect there is a way to feed the text to the
- * text widget a line a time. */
-static void externalCommand (char *command, GtkWidget *blxWindow)
-{
-#if !defined(MACINTOSH)
-
-  GString *resultText = getExternalCommandOutput(command);
-  char *title = blxprintf("Blixem - %s", command);
-  displayFetchResults(title, resultText->str, blxWindow, NULL);
-  
-  g_free(title);
-  g_string_free(resultText, TRUE);
-
-#endif
-  return ;
-}
-
-
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
 void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
 {
@@ -393,7 +294,7 @@ void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
   else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
     {
       char *command = blxprintf("efetch '%s' &", seqName);
-      externalCommand(command, blxWindow);
+      externalCommand(command, BLIXEM_TITLE, blxWindowGetDetailView(blxWindow), &error);
       g_free(command);
     }
   else if (!strcmp(fetchMode, BLX_FETCH_WWW_EFETCH))
@@ -479,24 +380,25 @@ static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean disp
   GString *command = g_string_sized_new(100);
   g_string_append_printf(command, "pfetch --client=%s_%s_%s -F '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
   
-  GString *resultText = getExternalCommandOutput(command->str);
+  GError *error = NULL;
+  GString *resultText = getExternalCommandOutput(command->str, &error);
 
-  if (!strncasecmp(resultText->str, "no match", 8))
+  if (!error && !strncasecmp(resultText->str, "no match", 8))
     {
       g_string_truncate(command, 0);
       g_string_truncate(resultText, 0);
 
       g_string_append_printf(command, "pfetch --client=%s_%s_%s -C '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
-      resultText = getExternalCommandOutput(command->str);
+      resultText = getExternalCommandOutput(command->str, &error);
     }
   
-  if (displayResults)
+  if (!error && displayResults)
     {
       char *title = blxprintf("Blixem - %s", command->str);
       displayFetchResults(title, resultText->str, blxWindow, NULL);
       g_free(title);
     }
-
+  
   if (result_out)
     {
       *result_out = resultText;

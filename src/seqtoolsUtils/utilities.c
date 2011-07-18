@@ -45,7 +45,8 @@
 
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
-
+#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
+#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.7
 
 
 /* Test char to see if it's a iupac dna/peptide code. */
@@ -69,7 +70,7 @@
 
 /* Globals */
 gboolean g_printCachedOnly = FALSE;
-
+PrintScaleType g_printScaleType = PRINT_FIT_BOTH;
 
 
 /* A struct used to record warning/error messages */
@@ -1226,6 +1227,15 @@ const GdkColor *blxColorGetColor(const BlxColor *blxColor, const gboolean select
 }
 
 
+gboolean colorsEqual(GdkColor *color1, GdkColor *color2)
+{
+  return (color1->pixel == color2->pixel &&
+          color1->red == color2->red &&
+          color1->green == color2->green &&
+          color1->blue == color2->blue);
+}
+
+
 /* Return a char representation of a strand, i.e. "+" for forward strand, "-" for
  * reverse, or "." for none. */
 char getStrandAsChar(const BlxStrand strand)
@@ -1648,7 +1658,11 @@ gboolean widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
 
 /* Generic callback to call all user-specified callbacks for all child widgets of
  * the given dialog if ACCEPT or APPLY responses received. Also closes the dialog 
- * if ACCEPT or REJECT responses received. */
+ * if ACCEPT or REJECT responses received.
+ * The user data must be a boolean (which has been converted to a pointer using
+ * GINT_TO_POINTER), that is true if this dialog is persistent or false 
+ * otherwise. If it is persistent, the dialog will be hidden rather than being 
+ * destroyed. */
 void onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
   gboolean destroy = TRUE;
@@ -2107,7 +2121,8 @@ void setDefaultClipboardText(const char *text)
 }
 
 
-/* Create and cache a blank pixmap drawable in the given widget */
+/* Create and cache a blank pixmap drawable in the given widget. The size of the
+ * resultant pixmap is the same as the widget's allocation size. */
 GdkDrawable* createBlankPixmap(GtkWidget *widget)
 {
   GdkWindow *window = GTK_IS_LAYOUT(widget) ? GTK_LAYOUT(widget)->bin_window : widget->window;
@@ -2126,6 +2141,27 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
   g_object_unref(gc);
   
   return drawable;
+}
+
+
+/* Like createBlankPixmap, but allows the caller to specify a different size to
+ * the widget allocation size */
+GdkDrawable* createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height)
+{
+  GdkDrawable *bitmap = gdk_pixmap_new(window, width, height, -1);
+  gdk_drawable_set_colormap(bitmap, gdk_colormap_get_system());
+  widgetSetDrawable(widget, bitmap); /* deletes the old drawable, if there is one */
+  
+  /* Paint a blank rectangle for the background, the same color as the widget's background */
+  GdkGC *gc = gdk_gc_new(bitmap);
+  
+  GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
+  gdk_gc_set_foreground(gc, bgColor);
+  gdk_draw_rectangle(bitmap, gc, TRUE, 0, 0, width, height);
+  
+  g_object_unref(gc);
+  
+  return bitmap;
 }
 
 
@@ -2255,8 +2291,10 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
         g_warning("%s", (*error)->message);
       else if (log_level & G_LOG_LEVEL_DEBUG)
         g_debug("%s", (*error)->message);
-      else
-        g_message("%s", (*error)->message); /* message or info */
+      else if (log_level & G_LOG_LEVEL_INFO)
+        g_message_info("%s", (*error)->message);
+      else 
+        g_message("%s", (*error)->message);
             
       g_error_free(*error);
       *error = NULL;
@@ -2616,7 +2654,7 @@ const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families)
   if (match_family)
     {
       result = pango_font_family_get_name(match_family);
-      g_debug("Using fixed-width font '%s'\n", result);
+      DEBUG_OUT("Using fixed-width font '%s'\n", result);
     }
   else
     {
@@ -2684,7 +2722,9 @@ void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble 
 /* Create a handle. A handle is just a GSList so should be initialised to NULL */
 BlxHandle handleCreate()
 {
-  return NULL;
+  BlxHandle handle = g_malloc(sizeof(BlxHandleStruct));
+  handle->memoryList = NULL;
+  return handle;
 }
 
 /* Utility to allocate memory of the given size with g_malloc. Returns the allocated memory and
@@ -2695,7 +2735,7 @@ gpointer handleAlloc(BlxHandle *handle, size_t numBytes)
   gpointer result = g_malloc(numBytes);
   
   /* prepend so that we delete data in reverse order */
-  *handle = g_slist_prepend(*handle, result); 
+  (*handle)->memoryList = g_slist_prepend((*handle)->memoryList, result); 
 
   return result;
 }
@@ -2705,14 +2745,15 @@ void handleDestroy(BlxHandle *handle)
 {
   DEBUG_ENTER("handleDestroy");
 
-  GSList *listItem = *handle;
+  GSList *listItem = (*handle)->memoryList;
   for ( ; listItem; listItem = listItem->next)
     {
       g_free(listItem->data);
       listItem->data = NULL;
     }
   
-  g_slist_free(*handle);
+  g_slist_free((*handle)->memoryList);
+  g_free(*handle);
   *handle = NULL;
   
   DEBUG_EXIT("handleDestroy returning ");
@@ -2746,6 +2787,23 @@ GtkWidget *createToolbarHandle()
 
   return handleBox;
 }
+
+
+/* Makes the given widget into a toolbar item on the given toolbar.
+ * 'position' is the position; can be 0 to add to the start or -1 to add to the end. */
+GtkToolItem* addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget, const int position)
+{
+  GtkToolItem *toolItem = gtk_tool_item_new();
+  gtk_container_add(GTK_CONTAINER(toolItem), widget);
+  gtk_toolbar_insert(toolbar, toolItem, position);
+  
+  gtk_tool_item_set_visible_horizontal(toolItem, TRUE);
+  gtk_tool_item_set_visible_vertical(toolItem, TRUE);
+  gtk_tool_item_set_is_important(toolItem, TRUE);
+  
+  return toolItem;
+}
+
 
 
 /***********************************************************
@@ -3011,8 +3069,8 @@ gtk_text_buffer_set_markup (GtkTextBuffer *buffer,
 
 /* GLib doesn't have a convenience function to log a message with the 
  * G_LOG_LEVEL_INFO flag, so this provides us one. In seqtools, this is usd
- * to provide overall task progress messages (whereas we use g_message to 
- * provide more detailed sub-task progress messages). */
+ * to provide task progress messages that will be sent to stderr (as opposed
+ * to g_message, which is used for program output that is sent to stdout) */
 void g_message_info(char *formatStr, ...)
 {
   va_list argp;
@@ -3021,6 +3079,28 @@ void g_message_info(char *formatStr, ...)
   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, formatStr, argp);
   
   va_end(argp);
+}
+
+
+static void printMessageToConsole(const char *prefixText, const char *message, GLogLevelFlags log_level)
+{
+  /* If debug is enabled, use DEBUG_OUT so that the output gets indented by
+   * the same amount as other DEBUG_OUT statements. */
+  
+#ifdef DEBUG
+  
+  DEBUG_OUT("%s%s", prefixText, (char*)message);
+  
+#else
+  
+  /* Print messages and debug to stdout; all warnings and info messages to stderr */
+  if (log_level & G_LOG_LEVEL_DEBUG || log_level & G_LOG_LEVEL_MESSAGE)
+    printf("%s%s", prefixText, (char*)message);
+  else
+    fprintf(stderr, "%s%s", prefixText, (char*)message);
+  
+#endif
+  
 }
 
 
@@ -3038,15 +3118,8 @@ void defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, co
   else
     prefixText[0] = '\0';
   
-  /* print to console (indented by the same amount as debug output, if relevant) */
-#ifdef DEBUG
-  DEBUG_OUT("%s%s", prefixText, (char*)message);
-#else
-  if (log_level & G_LOG_LEVEL_INFO)
-    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
-  else
-    printf("%s%s", prefixText, (char*)message);
-#endif
+  /* print to console */
+  printMessageToConsole(prefixText, message, log_level);
   
   /* also display the message in the status bar (unless it's debug output) */
   if (!(log_level & G_LOG_LEVEL_DEBUG))
@@ -3075,15 +3148,8 @@ void popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, cons
   else
     prefixText[0] = '\0';
   
-  /* print to console (indented by the same amount as debug output, if relevant) */
-#ifdef DEBUG
-  DEBUG_OUT("%s%s", prefixText, (char*)message);
-#else
-  if (log_level & G_LOG_LEVEL_INFO)
-    fprintf(stderr, "%s%s", prefixText, (char*)message); /* info messages to to stderr */
-  else
-    printf("%s%s", prefixText, (char*)message);
-#endif
+  /* print to console */
+  printMessageToConsole(prefixText, message, log_level);
 
   BlxMessageData *msgData = data ? (BlxMessageData*)data : NULL;
   GtkWindow *parent = msgData ? msgData->parent : NULL;
@@ -3437,13 +3503,104 @@ static char* getDialogIcon(GLogLevelFlags log_level)
  *		         Printing			   * 
  ***********************************************************/
 
-/* Called after the user clicks ok in the print dialog. For now just scales the 
- * whole output to fit on a single page. */
+/* Utility to get the drawable to print for the given widget */
+static GdkDrawable* getPrintDrawable(GtkWidget *widget, const gboolean cachedOnly)
+{
+  GdkDrawable *drawable = widget->window; /* draw everything by default */
+  
+  if (cachedOnly)
+    {
+      if (widgetGetDrawable(widget) && (GTK_IS_LAYOUT(widget) || GTK_IS_DRAWING_AREA(widget)))
+        {
+          /* We've been asked to print a drawing area, so print the cached drawable directly */
+          drawable = widgetGetDrawable(widget);
+        }
+      else if (GTK_IS_CONTAINER(widget))
+        {
+          /* Create a blank pixmap to draw the child widgets on to (clear any previous print first) */
+          widgetClearCachedDrawable(widget, NULL);
+          drawable = createBlankPixmap(widget);
+          gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, widget);
+        }
+    }
+  
+  return drawable;
+}
+
+
+/* Get the scale required to fit the image to the required dimension */
+static double getPrintScale(GtkPrintContext *context, GdkDrawable *drawable, PrintScaleType scaleType)
+{
+  /* Get the page size */
+  double ctxWidth = gtk_print_context_get_width(context);
+  double ctxHeight = gtk_print_context_get_height(context);
+  
+  /* Get the image size */
+  int imgWidth, imgHeight;
+  gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
+  
+  double scale = 1;
+  
+  switch (scaleType)
+  {
+    case PRINT_FIT_WIDTH:
+      scale = ctxWidth / (double)imgWidth;
+      break;
+      
+    case PRINT_FIT_HEIGHT:
+      scale = ctxHeight / (double)imgHeight;
+      break;
+      
+    default:
+      scale = min(ctxWidth / (double)imgWidth, ctxHeight / (double)imgHeight);
+      break;
+  };
+  
+  scale = min(scale, 1.0); /* don't scale larger */
+  
+  return scale;
+}
+
+
+/* Called after the user clicks ok in the print dialog. Calcualtes the number
+ * of pages to print. */
 void onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data)
 {
-  /* Always fit the contents to a single page; crude, but this is generally 
-   * what we want when printing a blixem or dotter window. */
-  gtk_print_operation_set_n_pages(print, 1);
+  GtkWidget *widget = GTK_WIDGET(data);
+  
+  GdkDrawable *drawable = getPrintDrawable(widget, g_printCachedOnly);
+  double scale = getPrintScale(context, drawable, g_printScaleType);
+
+  /* Get the scaled image size */
+  int imgWidth, imgHeight;
+  gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
+  imgWidth = (int)((double)imgWidth * scale);
+  imgHeight = (int)((double)imgHeight * scale);
+
+  /* Get the page size */
+  double ctxWidth = gtk_print_context_get_width(context);
+  double ctxHeight = gtk_print_context_get_height(context);
+
+  /* Calculate the number of pages. We always scale to fit in at least one direction
+   * so we should only have multiple pages in one dimension. */
+  int numPages = 1;
+  
+  switch (g_printScaleType)
+  {
+    case PRINT_FIT_WIDTH:
+      numPages = ceil((double)imgHeight / ctxHeight);
+      break;
+      
+    case PRINT_FIT_HEIGHT:
+      numPages = ceil((double)imgWidth / ctxWidth);
+      break;
+      
+    default:
+      numPages = 1;
+      break;
+  };
+  
+  gtk_print_operation_set_n_pages(print, numPages);
 }
 
 
@@ -3481,35 +3638,51 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
 {
   GtkWidget *widget = GTK_WIDGET(data);
   cairo_t *cr = gtk_print_context_get_cairo_context(context);
+
+  GdkDrawable *drawable = getPrintDrawable(widget, g_printCachedOnly);
+
+  double scale = getPrintScale(context, drawable, g_printScaleType);
   
-  GdkDrawable *drawable = widget->window; /* draw everything by default */
-  
-  if (g_printCachedOnly)
-    {
-      /* Create a blank pixmap to draw on to (clear any existing drawing first) */
-      widgetClearCachedDrawable(widget, NULL);
-      drawable = createBlankPixmap(widget);
-      
-      /* For any child widgets that have a drawable, draw them all onto our main drawable */
-      if (GTK_IS_CONTAINER(widget))
-        {
-          gtk_container_foreach(GTK_CONTAINER(widget), collatePixmaps, widget);
-        }
-    }
-  
-  /* Scale the image to fit the page */
   double ctxWidth = gtk_print_context_get_width(context);
   double ctxHeight = gtk_print_context_get_height(context);
-  int imgWidth, imgHeight;
-  gdk_drawable_get_size(drawable, &imgWidth, &imgHeight);
+  ctxWidth /= scale;
+  ctxHeight /= scale;
   
-  double scale = min(ctxWidth / (double)imgWidth, ctxHeight / (double)imgHeight);
-  scale = min(scale, 1.0); /* don't scale larger */
+  /* Get the coords on the image at which this page starts */
+  int x = 0;
+  int y = 0;
+
+  switch (g_printScaleType)
+  {
+    case PRINT_FIT_WIDTH:
+      y = pageNum * ctxHeight;
+      break;
+      
+    case PRINT_FIT_HEIGHT:
+      x = pageNum * ctxWidth;
+      break;
+      
+    default:
+      break;
+  };
   
+  /* Create a new pixmap for drawing just the section for this page */
+  GdkDrawable *pagePixmap = gdk_pixmap_new(widget->window, ctxWidth, ctxHeight, -1);
+  GdkGC *gc = gdk_gc_new(pagePixmap);
+  GdkColor bgColor;
+  gdk_color_parse("#ffffff", &bgColor);
+  gboolean failures[1];
+  gdk_colormap_alloc_colors(gdk_colormap_get_system(), &bgColor, 1, TRUE, TRUE, failures);
+  gdk_gc_set_foreground(gc, &bgColor);
+  gdk_draw_rectangle(pagePixmap, gc, TRUE, 0, 0, ctxWidth, ctxHeight);
+  
+  gdk_draw_drawable(pagePixmap, gc, drawable, x, y, 0, 0, ctxWidth, ctxHeight);
+
+  /* Scale the image */
   cairo_scale(cr, scale, scale); 
   
   /* Paint the image */
-  gdk_cairo_set_source_pixmap(cr, drawable, 0, 0);
+  gdk_cairo_set_source_pixmap(cr, pagePixmap, 0, 0);
   cairo_paint(cr);
 }
 
@@ -3524,9 +3697,15 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
  * in dotter). It's up to the application to set its cached drawables and make
  * sure they include everything necessary if they want to use this option, 
  * otherwise we just draw everything. */
-void blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly)
+void blxPrintWidget(GtkWidget *widget, 
+                    GtkWidget *window,
+                    GtkPrintSettings **printSettings, 
+                    GtkPageSetup **pageSetup, 
+                    const gboolean printCachedOnly,
+                    const PrintScaleType scaleType)
 {
   g_printCachedOnly = printCachedOnly;
+  g_printScaleType = scaleType;
   
   /* Create a print operation, using the same settings as the last print, if there was one */
   GtkPrintOperation *print = gtk_print_operation_new();
@@ -3544,7 +3723,7 @@ void blxPrintWidget(GtkWidget *widget, GtkPrintSettings **printSettings, GtkPage
   /* Pop up the print dialog */
   GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
 								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-								 GTK_WINDOW(widget),
+								 GTK_WINDOW(window),
 								 NULL);
   
   /* If the user hit ok, remember the print settings for next time */
@@ -3586,41 +3765,15 @@ gboolean findCommand (char *command, char **resultOut)
 {
   gboolean found = FALSE;
   
-#if !defined(NO_POPEN)
   static char result[1025];
-  char fileName[1025];
-  FILE *file = NULL;
+
+  char *path = g_find_program_in_path(command);
   
-  char *pathEnv = g_malloc(strlen(getenv("PATH"))+1);
-  strcpy(pathEnv, getenv("PATH"));
-  
-  /* Try each path in the enviroment var */
-  char *path = strtok(pathEnv, ":");
-  
-  while (path) 
+  if (path)
     {
-      strcpy(fileName, path);
-      strcat(fileName,"/");
-      strcat(fileName, command);
-      
-      /* Check if the file exists in this path */
-      file = fopen(fileName, "r");
-      if (file)  //!access(fileName, F_OK) && !access(fileName, X_OK)) 
-	{
-	  found = TRUE;
-	  fclose(file);
-	  break;
-	}
-      
-      path = strtok(0, ":");
-    }
-  
-  g_free(pathEnv);
-  
-  if (found) 
-    {
-      strcpy(result, fileName);
       found = TRUE;
+      strcpy(result, path);
+      g_free(path);
     }
   else 
     {
@@ -3633,11 +3786,6 @@ gboolean findCommand (char *command, char **resultOut)
     {
       *resultOut = result;
     }
-#else
-  char *msg = blxprintf("Can't open executable '%s' - popen command is not defined.\n", command);
-  strcpy(result, msg);
-  g_free(msg);
-#endif
   
   return found;
 }
@@ -3647,6 +3795,157 @@ gboolean findCommand (char *command, char **resultOut)
 void forceResize(GtkWidget *widget)
 {
   g_signal_emit_by_name(G_OBJECT(widget), "size-allocate", &widget->allocation);
+}
+
+
+/***********************************************************
+ *		         Combo boxes			   * 
+ ***********************************************************/
+
+/* Callback for when the value in a 2-column combo box has changed. 
+ * The value to update is an enum, a pointer to which is passed in the user
+ * data.
+ * This is called as a result of a response on a dialog, and the response
+ * function of the dialog is responsible for updating the display. */
+gboolean onComboChanged(GtkWidget *combo, const gint responseId, gpointer data)
+{
+  int *result = (int*)data;
+  GtkTreeIter iter;
+  
+  if (gtk_combo_box_get_active_iter(GTK_COMBO_BOX(combo), &iter))
+    {
+      GtkTreeModel *model = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
+      
+      GValue val = {0};
+      gtk_tree_model_get_value(model, &iter, COMBO_ENUM_COL, &val);
+      
+      *result = g_value_get_int(&val);
+    }
+  
+  return TRUE;
+}
+
+
+/* Utility to add an item to our 2-column combo box */
+void addComboItem(GtkComboBox *combo,
+                         GtkTreeIter *parent, 
+                         const int val,
+                         const char *text,
+                         const int initVal)
+{
+  GtkTreeStore *store = GTK_TREE_STORE(gtk_combo_box_get_model(combo));
+  
+  GtkTreeIter iter;
+  gtk_tree_store_append(store, &iter, parent);
+  
+  gtk_tree_store_set(store, &iter, COMBO_ENUM_COL, val, COMBO_TEXT_COL, text, -1);
+  
+  if (val == initVal)
+    {
+      gtk_combo_box_set_active_iter(combo, &iter);
+    }
+}
+
+
+/* Utility to create a 2-column combo box with column1 as an enum and column2 
+ * as a text description */
+GtkComboBox* createComboBox()
+{
+  /* Create a data-store for the combo box, and the combo itself */
+  GtkTreeStore *store = gtk_tree_store_new(N_COMBO_COLUMNS, G_TYPE_INT, G_TYPE_STRING);
+  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
+  g_object_unref(store);
+  
+  /* Create a cell renderer to display the text column. */
+  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
+  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", COMBO_TEXT_COL, NULL);
+  
+  return combo;
+}
+
+
+/***********************************************************
+ *		         Files    			   * 
+ ***********************************************************/
+
+/* Utility to ask the user for a file to save to. Returns the file name (or
+ * NULL if the user cancels). The current file name, default file path, 
+ * default file extension and dialog title can all be specified, or passed
+ * as null to use defaults. */
+const char* getSaveFileName(GtkWidget *widget, 
+                            const char *currentName,   
+                            const char *defaultPath,
+                            const char *defaultExtension,
+                            const char *title)
+{
+  const char *filename = NULL;
+  
+  GtkWindow *window = widget ? GTK_WINDOW(gtk_widget_get_toplevel(widget)) : NULL;
+  
+  GtkWidget *dialog = gtk_file_chooser_dialog_new (title ? title : "Save File",
+                                                   window,
+                                                   GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                   GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+                                                   NULL);
+  
+  gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+  
+  if (defaultPath)
+    {
+      gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), defaultPath);
+    }
+  
+  if (currentName)
+    {
+      gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), currentName);
+    }
+  else if (defaultExtension)
+    {
+      gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), defaultExtension);
+    }
+  
+  
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+    }
+  
+  gtk_widget_destroy (dialog);
+  return filename;
+}
+
+/* Utility to ask the user for a file to load. Returns the file name (or
+ * NULL if the user cancels). The default file path and dialog title can be
+ * specified, or passed as null to use defaults. */
+const char* getLoadFileName(GtkWidget *widget, 
+                            const char *defaultPath,
+                            const char *title)
+{
+  const char *filename = NULL;
+  
+  GtkWindow *window = widget ? GTK_WINDOW(gtk_widget_get_toplevel(widget)) : NULL;
+  
+  GtkWidget *dialog = gtk_file_chooser_dialog_new (title ? title : "Open File",
+                                                   window,
+                                                   GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                   NULL);
+  
+  if (defaultPath)
+    {
+      gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), defaultPath);
+    }
+  
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+    }
+  
+  gtk_widget_destroy (dialog);
+  return filename;
 }
 
 
@@ -3686,4 +3985,495 @@ void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, c
     }
 }
 
+
+/* Utility to set the status of a radio button item in a menu. The action name must be the name 
+ * of a valid toggle action. */
+void setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value)
+{
+  GtkAction *action = gtk_action_group_get_action(action_group, actionName);
+  
+  if (!action)
+    {
+      g_warning("Error toggling menu item: action '%s' not found.\n", actionName);
+    }
+  else if (!GTK_IS_RADIO_ACTION(action))
+    {
+      g_warning("Error toggling menu item: action '%s' is not a valid toggle action.\n", actionName);
+    }
+  else
+    {
+      gtk_radio_action_set_current_value(GTK_RADIO_ACTION(action), value);
+    }
+}
+
+/***********************************************************
+ *		         External calls			   * 
+ ***********************************************************/
+
+/* call an external shell command and print output in a text_scroll window
+ *
+ * This is a replacement for the old graph based text window, it has the advantage
+ * that it uses gtk directly and provides cut/paste/scrolling but...it has the
+ * disadvantage that it will use more memory as it collects all the output into
+ * one string and then this is _copied_ into the text widget.
+ * 
+ * If this proves to be a problem I expect there is a way to feed the text to the
+ * text widget a line a time. */
+GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GError **error)
+{
+  GtkWidget *resultWindow = NULL;
+
+#if !defined(MACINTOSH)
+  
+  GString *resultText = getExternalCommandOutput(command, error);
+  
+  if (!error || *error == NULL)
+    {
+      char *title = blxprintf("%s - %s", progName, command);
+      resultWindow = displayFetchResults(title, resultText->str, widget, NULL);
+      
+      g_free(title);
+      g_string_free(resultText, TRUE);
+    }
+  
+#endif
+  
+  return resultWindow;
+}
+
+
+/* Execute the given external command and return the output from the command as a GString. 
+ * The result should be free'd with g_string_free. */
+GString* getExternalCommandOutput(const char *command, GError **error)
+{
+  GString *resultText = g_string_new(NULL) ;
+  char lineText[MAXLINE+1];
+
+  g_message_info("Calling external command: %s\n", command);
+  FILE *pipe = popen (command, "r") ;
+  
+  if (pipe && !feof(pipe) && fgets (lineText, MAXLINE, pipe))
+    {
+      while (!feof (pipe))
+        { 
+          int len = strlen(lineText);
+          
+          if (len > 0)
+            { 
+              if (lineText[len-1] == '\n') 
+                {
+                  lineText[len-1] = '\0';
+                }
+              
+              g_string_append_printf(resultText, "%s\n", lineText) ;
+            }
+          
+          if (!fgets (lineText, MAXLINE, pipe))
+            {
+              break;
+            }
+        }
+    }
+  else
+    {
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n", command);
+    }
+
+  pclose (pipe);
+
+  return resultText;
+}
+
+
+/* Display a message dialog showing the given display text. This utility functions sets
+ * things like the font and default width based on properties of the main blixem window.
+ * Returns a pointer to the dialog, and optionally sets a pointer to the text buffer in the
+ * textBuffer return argument. */
+GtkWidget* displayFetchResults(const char *title, 
+                               const char *displayText, 
+                               GtkWidget *widget, 
+                               GtkTextBuffer **textBuffer)
+{
+  /* Use a fixed-width font */
+  const char *fontFamily = findFixedWidthFont(widget);
+  PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
+  
+  /* Set the initial width based on the default number of characters wide */
+//  PangoContext *context = gtk_widget_get_pango_context(widget);
+//  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
+//  getFontCharSize(widget, fontDesc, &charWidth, NULL);
+  int charWidth = 8;
+
+  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
+  const int maxHeight = widget->allocation.height * DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION;
+  
+  GtkTextView *textView = NULL;
+  GtkWidget *result = showMessageDialog(title, displayText, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
+  
+  if (textBuffer && textView)
+    {
+      *textBuffer = gtk_text_view_get_buffer(textView);
+    }
+  
+  /* Clean up */
+//  pango_font_metrics_unref(metrics);
+//  pango_font_description_free(fontDesc);
+  
+  return result;
+}
+
+
+/* Utility function to calculate the width of a vertical scrollbar */
+int scrollBarWidth()
+{
+  static int result = UNSET_INT;
+  
+  if (result == UNSET_INT)
+    {
+      /* Create a temp scrollbar and find the default width from the style properties. */
+      GtkWidget *scrollbar = gtk_vscrollbar_new(NULL);
+      
+      gint sliderWidth = 0, separatorWidth = 0, troughBorder = 0, stepperSpacing = 0;
+      gtk_widget_style_get(scrollbar, "slider-width", &sliderWidth, NULL);
+      gtk_widget_style_get(scrollbar, "separator-width", &separatorWidth, NULL);
+      gtk_widget_style_get(scrollbar, "trough-border", &troughBorder, NULL);
+      gtk_widget_style_get(scrollbar, "stepper-spacing", &stepperSpacing, NULL);
+      
+      gtk_widget_destroy(scrollbar);
+      
+      result = sliderWidth + separatorWidth*2 + troughBorder*2 + stepperSpacing*2 + 4; /* to do: find out why the extra fudge factor is needed here */
+    }
+  
+  return result;
+}
+
+
+/* Utility to get the width and height of the given text as a pango layout
+ * on the given widget. Either width or height may be null if not required. 
+ * The results are in pixels. */
+void getTextSize(GtkWidget *widget, const char *text, int *width, int *height)
+{
+  if (widget && text && (width || height))
+    {
+      PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
+      pango_layout_get_size(layout, width, height);
+      g_object_unref(layout);
+      
+      if (width)
+        *width /= PANGO_SCALE;
+
+      if (height)
+        *height /= PANGO_SCALE;
+    }
+}
+
+
+/* Utility to get the width of the given text as a pango layout on the given
+ * widget. This is really just a convenience function for calling getTextSize. */
+int getTextWidth(GtkWidget *widget, const char *text)
+{
+  int width = 0;
+  getTextSize(widget, text, &width, NULL);
+  return width;
+}
+
+
+/* Utility to get the height of the given text as a pango layout on the given
+ * widget. This is really just a convenience function for calling getTextSize. */
+int getTextHeight(GtkWidget *widget, const char *text)
+{
+  int height = 0;
+  getTextSize(widget, text, NULL, &height);
+  return height;
+}
+
+
+/* Create a text entry box initialised with the given integer. Adds the entry
+ * to the given table. Optionally adds a label with the given mnemonic; if 
+ * a label is included it will be drawn at the column before the given 'col'
+ * Optionally also sets a callback which will be called on the dialog response
+ * (if it uses the standard onResponseDialog function or similar). */
+GtkWidget* createTextEntryFromInt(GtkWidget *widget,
+                                  GtkTable *table, 
+                                  const int row,
+                                  const int col,
+                                  const int xpad,
+                                  const int ypad,
+                                  const char *mnemonic,
+                                  const int value,
+                                  BlxResponseCallback callback)
+{
+  if (mnemonic)
+    {
+      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
+      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
+      gtk_table_attach(table, label, col - 1, col, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+    }
+  
+  GtkWidget *entry = gtk_entry_new();
+  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  
+  char *displayText = convertIntToString(value);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
+  
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  if (callback)
+    widgetSetCallbackData(entry, callback, widget);
+  
+  return entry;
+}
+
+
+/* Similar to createTextEntryFromInt, but for doubles */
+GtkWidget* createTextEntryFromDouble(GtkWidget *widget,
+                                     GtkTable *table, 
+                                     const int row,
+                                     const int col,
+                                     const int xpad,
+                                     const int ypad,
+                                     const char *mnemonic,
+                                     const double value,
+                                     BlxResponseCallback callback)
+{
+  if (mnemonic)
+    {
+      GtkWidget *label = gtk_label_new_with_mnemonic(mnemonic);
+      gtk_misc_set_alignment(GTK_MISC(label), 1, 0);
+      gtk_table_attach(table, label, col - 1, col, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+    }
+  
+  GtkWidget *entry = gtk_entry_new();
+  gtk_table_attach(table, entry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  
+  /* Only display decimal places if not a whole number */
+  const int numDp = value - (int)value > 0 ? 1 : 0;
+  
+  char *displayText = convertDoubleToString(value, numDp);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 3);
+  
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  if (callback)
+    widgetSetCallbackData(entry, callback, widget);
+  
+  return entry;
+}
+
+
+/* Callback for when a radio button with a secondary widget (passed as the user
+ * data) is toggled. It enables/disables the other widget according to whether
+ * the radio button is active or not. */
+static void onRadioButtonToggled(GtkWidget *button, gpointer data)
+{
+  GtkWidget *otherWidget = GTK_WIDGET(data);
+
+  if (otherWidget)
+    {
+      const gboolean isActive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+      //      gtk_widget_set_sensitive(otherWidget, isActive);
+
+      if (isActive)
+    {
+      GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
+      GtkWindow *mainWin = gtk_window_get_transient_for(dialogWindow);
+
+      gtk_window_set_focus(mainWin, otherWidget);
+    }
+    }
+}
+
+
+/* Callback when a text entry box in the groups dialog is clicked (for text that
+ * is associated with a radio button). Clicking the text box activates its radio button */
+static gboolean onRadioButtonTextEntered(GtkWidget *textWidget, GdkEventButton *event, gpointer data)
+{
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(data), TRUE);
+
+  return FALSE;
+}
+
+
+/* Utility to create a radio button with certain given properties, and to pack it
+ * into the given container widget. Returns the radio button (so that further
+ * buttons can be created in the same group by passing it as 'existingButton') */
+GtkRadioButton* createRadioButton(GtkTable *table,
+                                  const int col,
+                                  const int row,
+                                   GtkRadioButton *existingButton,
+                                  const char *mnemonic,
+                                  const gboolean isActive,
+                                  const gboolean createTextEntry,
+                                  const gboolean multiline,
+                                  BlxResponseCallback callbackFunc,
+                                  GtkWidget *window)
+{
+  GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
+
+  GtkBox *box = GTK_BOX(gtk_vbox_new(FALSE, 0));
+  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
+  gtk_box_pack_start(box, button, FALSE, FALSE, 0);
+
+  GtkWidget *entry = NULL;
+
+  if (createTextEntry && multiline)
+    {
+      /* Multi-line text buffer */
+      GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
+      entry = gtk_text_view_new_with_buffer(GTK_TEXT_BUFFER(textBuffer));
+
+      /* Specify a min height */
+      const int numLines = 4;
+      const int charHeight = getTextHeight(entry, "A");
+      gtk_widget_set_size_request(entry, -1, roundNearest(charHeight * numLines));
+
+      GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+      GtkWidget *frame = gtk_frame_new(NULL);
+      gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+
+      gtk_container_add(GTK_CONTAINER(scrollWin), entry);
+      gtk_container_add(GTK_CONTAINER(frame), scrollWin);
+      gtk_box_pack_start(box, frame, TRUE, TRUE, 0);
+    }
+  else if (createTextEntry)
+    {
+      /* Single line text buffer */
+      entry = gtk_entry_new();
+      gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+      gtk_box_pack_start(box, entry, TRUE, TRUE, 0);
+    }
+
+  if (entry)
+    {
+      /* to do: don't want to set insensitive because want to receive clicks on text
+       * box to activate it; however, it would be good to grey out the background */
+//      gtk_widget_set_sensitive(entry, isActive);
+
+      if (isActive)
+        {
+          gtk_window_set_focus(GTK_WINDOW(window), entry);
+        }
+
+      g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onRadioButtonToggled), entry);
+      g_signal_connect(G_OBJECT(entry), "focus-in-event", G_CALLBACK(onRadioButtonTextEntered), button);
+    }
+
+  /* Add the callback data. This specifies what callback to use when the dialog is ok'd. */
+  widgetSetCallbackData(button, callbackFunc, entry);
+
+  return GTK_RADIO_BUTTON(button);
+}
+
+
+/* Utility to extract the contents of a GtkEntry and return it as a string. The result is
+ * owned by the GtkTextEntry and should not be free'd. */
+const char* getStringFromTextEntry(GtkEntry *entry)
+{
+  const char *result = NULL;
+
+  if (!entry || !GTK_WIDGET_SENSITIVE(GTK_WIDGET(entry)))
+    {
+      g_warning("Could not set search string: invalid text entry box\n");
+    }
+  else
+    {
+      result = gtk_entry_get_text(entry);
+    }
+
+  return result;
+}
+
+
+/* Recursively set the font size for this widget and all its children */
+void widgetSetFontSize(GtkWidget *widget, gpointer data)
+{
+  if (!widget)
+    return;
+  
+  int newSize = GPOINTER_TO_INT(data);
+  
+  pango_font_description_set_size(widget->style->font_desc, newSize * PANGO_SCALE);
+  gtk_widget_modify_font(widget, widget->style->font_desc);
+  
+  if (GTK_IS_CONTAINER(widget))
+    gtk_container_foreach(GTK_CONTAINER(widget), widgetSetFontSize, data);
+}
+
+
+/* Utility to set the font size of the given widget to the given size (in
+ * points) and check that the new size is within sensible limits; otherwise 
+ * does nothing. */
+void widgetSetFontSizeAndCheck(GtkWidget *belvuAlignment, const int newSize)
+{
+  if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE)
+    {
+      widgetSetFontSize(belvuAlignment, GINT_TO_POINTER(newSize));
+    }
+}
+
+
+/***********************************************************
+ *		            Scale			   * 
+ ***********************************************************/
+
+/* Utility to draw a horizontal scale. Currently limited to draw a minor
+ * tickmark at every value in the given range. (Could be improved to allow
+ * minor tickmarks at larger intervals.) */
+void drawHScale(GtkWidget *widget, 
+                GdkDrawable *drawable,
+                const IntRange const *range, /* the range of values to draw */
+                const GdkRectangle const *rect, /* the drawing area */
+                const int widthPerVal,       /* the width between each value in the range */
+                const int majorTickInterval, /* how many values at which to draw major tickmarks */
+                const int labelInterval,     /* how many values at which to draw labels */
+                const int minorTickHeight,
+                const int majorTickHeight)
+{
+  GdkGC *gc = gdk_gc_new(drawable);
+  
+  int y = rect->y;
+  const int yBottom = y + rect->height;            /* bottom pos of tickmarks */
+  const int yTopMajor = yBottom - majorTickHeight; /* top position of major tickmarks */
+  const int yTopMinor = yBottom - minorTickHeight; /* top position of major tickmarks */
+  
+  int x = rect->x + widthPerVal / 2;
+  int tickmarkVal = range->min;
+
+  for ( ; tickmarkVal <= range->max; ++tickmarkVal, x += widthPerVal)
+    {
+      const gboolean major = (tickmarkVal % majorTickInterval == 0);
+      const gboolean drawLabel = (tickmarkVal % labelInterval == 0);
+      
+      /* Draw the tick mark */
+      const int yTop = (major ? yTopMajor : yTopMinor);
+      gdk_draw_line(drawable, gc, x, yTop, x, yBottom);
+      
+      if (drawLabel)
+        {
+          char *tmpStr = blxprintf("%d", tickmarkVal);
+          PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
+          g_free(tmpStr);
+          
+          /* Centre the text on the tick-mark position */
+          int width;
+          pango_layout_get_pixel_size(layout, &width, NULL);
+          
+          gdk_draw_layout(drawable, gc, x - width / 2, y, layout);
+          g_object_unref(layout);
+        }
+    }
+  
+  /* Draw a horizontal separator line */
+  y = yBottom - 1;
+  x = 0;
+  gdk_draw_line(drawable, gc, x, y, x + rect->width, y);
+  
+  g_object_unref(gc);
+}
 

@@ -5,33 +5,68 @@
 
 <body>
 <div class="outer">
-  <h1>To do</h1>
-  <h2>Known issues</h2>
+  <h1>SeqTools package to-do lists</h1>
+
+
+  <h2>Blixem</h2>
+  <h3>Issues</h3>
   <p>
     <ul>
       <li>Variations: the variations track is experimental code and will need to be improved, in particular in its handling of overlapping features.
-      <li>Feature-series: this functionality was disabled when Blixem and Dotter were re-written at version 4. We should consider whether this is still a useful feature and, if so, whether to use the original SFS file format or to switch to GFF.  The SFS file format is documented here: http://sfixem.sbc.su.se/SFS_desc.html
+      <li>Feature-series: this functionality was disabled when Blixem and Dotter were re-written at version 4. We should consider whether this is still a useful feature and, if so, whether to use the original SFS file format or to switch to GFF.  The SFS file format is documented <a href="http://sfixem.sbc.su.se/SFS_desc.html">here</a>.
       <li>Multiple row selections: using the up/down arrow keys to move the row selection doesn't always work if there are adjacent rows from the same match sequence.
-      <li>Dotter does not display dots in a sliding-window sized margin at edges of the dot-plot, even if bases are exactly aligned. This is confusing to the users so the dot-plot should be clipped so as not to show the space where the dots cannot be calculated.
-      <li>There is a bug in Dotter where the dot-plot can appear blacked-out if the plot is very wide and you zoom in (say to about half of the default compression factor).
       <li>DNA search: this currently just jumps to the start of the DNA section that was found; we should also highlight the found DNA in the reference sequence.
       <li>Printing: the pfetch window should have a print option.
+      <li>Sorting exons: exons in the big picture Blixem should be sorted in the same order as those in the detail-view.
     </ul>
   </p>
 
-  <h2>Enhancements</h2>
+  <h3>Enhancements</h3>
   <p>
     <ul>
       <li>It would be nice to be able to view the sequence data for an insertion (a vertical yellow line in a match sequence) in Blixem, e.g. by hovering over it with the mouse.
-      <li>Bump exons: add the facility to bump exons in Dotter.
-      <li>Sorting exons: exons in the big picture Blixem should be sorted in the same order as those in the detail-view.
       <li>Selecting exons: when you click on an exon in the exon view in Blixem (when bumped), the exon should be selected.
       <li>When you hover over an exon in the exon view in Blixem (when bumped), it would be nice if info about the exon were shown in the toolbar feedback area.
       <li>When running Dotter on a large range it takes a long time to start up and there is no indication that anything is happening; it would be good to have a status bar of some description, and a cancel button. When running from Blixem, we should report if Dotter fails to start.
       <li>When calling Dotter from Blixem, start Dotter with the crosshair placed at the currently-selected coords in Blixem (if applicable).
-      <li>If you hit the boundary of one sequence when moving along a diagonal in Dotter and continue to press the movement keys (,.[]), then it stops moving on the one sequence but continues to move along the other, i.e. it goes off the diagonal. It would be nicer if it stopped moving altogether.
       <li>Cosmetic: the %ID labels on the big picture grid should be right-aligned.
       <li>Button tooltips: the zoom buttons in the big-picture should have tooltips.
+    </ul>
+  </p>
+
+
+
+  <h2>Dotter</h2>
+  <h3>Issues</h3>
+  <p>
+    <ul>
+      <li>Dotter does not display dots in a sliding-window sized margin at edges of the dot-plot, even if bases are exactly aligned. This is confusing to the users so the dot-plot should be clipped so as not to show the space where the dots cannot be calculated.
+      <li>There is a bug where the dot-plot can appear blacked-out if the plot is very wide and you zoom in (say to about half of the default compression factor).
+    </ul>
+  </p>
+
+  <h3>Enhancements</h3>
+  <p>
+    <ul>
+      <li>Bump exons: add the facility to bump exons in Dotter.
+      <li>If you hit the boundary of one sequence when moving along a diagonal in Dotter and continue to press the movement keys (,.[]), then it stops moving on the one sequence but continues to move along the other, i.e. it goes off the diagonal. It would be nicer if it stopped moving altogether.
+    </ul>
+  </p>
+
+
+
+  <h2>Belvu</h2>
+  <h3>Issues</h3>
+  <p>
+    <ul>
+      <li>In the colour-by-conservation colour schemes, the foreground colour is tied to the background colour.  This means that if the same background colour is specified more than once, the foreground colours are ambiguous.
+      <li>Printing: the pfetch window should have a print option.
+    </ul>
+  </p>
+
+  <h3>Enhancements</h3>
+  <p>
+    <ul>
     </ul>
   </p>
 

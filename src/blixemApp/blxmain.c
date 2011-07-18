@@ -167,13 +167,16 @@ gboolean blixem_debug_G = FALSE ;
  -acefont <font> Main font.\n\
  -font    <font> Menu font.\n\n"
 
+
 /* Text to show the authors, version and compile date */
 #define FOOTER_TEXT "\
 -----\n\
 "AUTHOR_TEXT_FULL" \n\
 \n\
- Reference:  Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
-	     Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
+ Reference: Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale\n\
+            Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.\n\
+\n\
+ See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.\n\
 \n\
  "BLIXEM_COPYRIGHT_STRING"\n\
  "BLIXEM_LICENSE_STRING"\n\
@@ -507,7 +510,6 @@ int main(int argc, char **argv)
   FILE *seqfile, *FSfile;
   char seqfilename[1000] = {'\0'};
   char FSfilename[1000] = {'\0'};
-  char line[MAXLINE+1];
   
   int install = 1;
   static gboolean showVersion = FALSE;	    /* gets set to true if blixem was called with --version option */
@@ -764,74 +766,10 @@ int main(int argc, char **argv)
 	}
 	
       /* Read in query sequence */
-      if (seqfile == stdin)
-	{
-	  /* Same file for query and FS data - sequence on first two lines */
-	    
-	  if (!fgets(line, MAXLINE, seqfile))
-	    {
-	      g_error("Error reading seqFile.\n");
-	    }
-
-	  sscanf(line, "%s", options.refSeqName);
-
-	  /* Scan the input stream and place the chars in an extendable string */
-	  GString *resultStr = g_string_sized_new(5000);
-	  char charFromStream = fgetc(seqfile);
-	  
-	  while (charFromStream != '\n')
-	    {
-	      g_string_append_c(resultStr, charFromStream);
-	      charFromStream = fgetc(seqfile);
-	    }
-	  
-	  /* Set the reference sequence and free the GString (but not its data, which we've used) */
-	  options.refSeq = g_string_free(resultStr, FALSE);
-	}
-      else
-	{
-	  fseek(seqfile, 0, SEEK_END);
-	  options.refSeq = g_malloc(ftell(seqfile)+1);
-	  char *refSeqChar = options.refSeq;
-	  fseek(seqfile, 0, SEEK_SET);
-	  
-	  while (!feof(seqfile))
-	    {
-	      if (!fgets(line, MAXLINE, seqfile))
-		{
-		  break;
-		}
-		  
-	      char *newLineCharPtr = (char *)strchr(line, '\n');
-	      if (newLineCharPtr)
-		{
-		  *newLineCharPtr = 0;
-		}
-		    
-	      if (*line == '>')
-		{
-		  strncpy(options.refSeqName, line+1, 255);
-		  options.refSeqName[255]=0;
-		  
-		  char *spaceCharPtr = (char *)strchr(options.refSeqName, ' ');
-		  if (spaceCharPtr)
-		    {
-		      *spaceCharPtr = 0;
-		    }
-		  
-		  continue;
-		}
-
-	      char *lineChar = NULL;
-	      for (lineChar = line; *lineChar; lineChar++) 
-		{
-		  *refSeqChar++ = *lineChar;
-		}
-		
-	      *refSeqChar = 0;
-	    }
-	  fclose(seqfile);
-	}
+      options.refSeq = readFastaSeq(seqfile, options.refSeqName);
+      
+      if (seqfile != stdin)
+        fclose(seqfile);
     }
 
   /* Set the blast mode from the sequence type, or vice versa, depending on which was supplied.
