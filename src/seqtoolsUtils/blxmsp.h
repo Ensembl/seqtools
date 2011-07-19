@@ -238,6 +238,7 @@ typedef struct _MSP
 /* MSP functions */
 gboolean              typeIsExon(const BlxMspType mspType);
 gboolean              typeIsIntron(const BlxMspType mspType);
+gboolean              typeIsTranscript(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
 gboolean              typeIsShortRead(const BlxMspType mspType);

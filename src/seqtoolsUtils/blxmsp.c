@@ -73,6 +73,11 @@ gboolean typeIsIntron(const BlxMspType mspType)
   return (mspType == BLXMSP_INTRON);
 }
 
+gboolean typeIsTranscript(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_TRANSCRIPT);
+}
+
 gboolean typeIsMatch(const BlxMspType mspType)
 {
   return (mspType == BLXMSP_MATCH);

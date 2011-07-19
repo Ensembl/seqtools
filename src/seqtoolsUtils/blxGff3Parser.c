@@ -594,13 +594,25 @@ static void parseGffColumns(GString *line_string,
     
   if (!tmpError)
     {
-      /* Reference sequence coords - ignore anything not in refSeqRange
-       * (Note though that we accept features that are partially in range) */
+      /* Reference sequence coords - ignore anything not in refSeqRange.
+       * Note though that we accept features that are partially in range, and
+       * also we currently accept all exons/introns. This is because we may, say, 
+       * be given the exons in a transcript and be expected to calculate the
+       * introns ourselves, but if such an intron is not entirely within range 
+       * then we need knowledge of the adjacent exon that is out of range in 
+       * order to be able to calculate that intron. Rather than get into 
+       * complicated filtering to include only those exons we need, we currently 
+       * just include all exons and introns in the input file. Ideally we would
+       * at least filter out transcripts that are entirely out of range, but we
+       * don't fully know the parent/child relationship at this point, so that
+       * is again getting quite tricky (and it will not cause problems if they
+       * are left in). */
       gffData->qStart = convertStringToInt(tokens[3]);
       gffData->qEnd = convertStringToInt(tokens[4]);
 
       /* We can only check the range if the refseqrange is set... */
-      if (refSeqRange->min != UNSET_INT || refSeqRange->max != UNSET_INT)
+      if (!typeIsExon(gffData->mspType) && !typeIsIntron(gffData->mspType) && !typeIsTranscript(gffData->mspType) &&
+          (refSeqRange->min != UNSET_INT || refSeqRange->max != UNSET_INT))
         {
           IntRange featureRange;
           intrangeSetValues(&featureRange, gffData->qStart, gffData->qEnd); /* makes sure min < max */
