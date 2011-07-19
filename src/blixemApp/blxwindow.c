@@ -5774,7 +5774,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Calculate initial size of the exon views (depends on big picture range) */
   calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
   forceResize(bigPicture);
   
   return window;
