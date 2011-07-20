@@ -1899,7 +1899,14 @@ void saveResidueColorScheme(BelvuContext *bc, FILE *fil)
 }
 
 
-void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr)
+/* This reads in residue colors from the given file and places them into
+ * the given array, which is typically one of the active color scheme arrays
+ * 'color' or 'markupColor'. 
+ * If storeCustomColors is true, then it also saves the colors to the 'customColor'
+ * array so that they can be retrieved later (because 'color' gets overwritten
+ * with the current colors every time the user toggles between different color
+ * schemes). */
+void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gboolean storeCustomColors)
 {
   if (!fil) 
     return;

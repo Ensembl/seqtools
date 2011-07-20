@@ -538,7 +538,7 @@ void                                      setColor(const char inputChar, const i
 int*                                      getColorArray();
 int*                                      getMarkupColorArray();
 void                                      saveResidueColorScheme(BelvuContext *bc, FILE *fil);
-void                                      readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr);
+void                                      readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gboolean storeCustomColors);
 
 char*                                     alnGetSeq(ALN *aln);
 int                                       alnGetSeqLen(ALN *aln);

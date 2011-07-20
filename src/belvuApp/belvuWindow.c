@@ -1353,7 +1353,7 @@ static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
       properties->bc->fileName = g_path_get_basename(filename);
     }
   
-  readResidueColorScheme(properties->bc, fil, getColorArray());
+  readResidueColorScheme(properties->bc, fil, getColorArray(), TRUE);
 
   setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", BELVU_SCHEME_CUSTOM);
   setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
