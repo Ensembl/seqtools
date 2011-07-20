@@ -1355,7 +1355,7 @@ static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
   
   readResidueColorScheme(properties->bc, fil, getColorArray());
 
-  setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+  setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", BELVU_SCHEME_CUSTOM);
   setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
   onColorSchemeChanged(properties);
 }
@@ -4101,7 +4101,12 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
     }
   
   if (!bc->onlyTree)
-    gtk_window_present(GTK_WINDOW(window));
-
+    {
+      gtk_window_present(GTK_WINDOW(window));
+      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
+      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
+    }
+  
   return ok;
 }

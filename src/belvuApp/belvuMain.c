@@ -434,57 +434,47 @@ int main(int argc, char **argv)
             /* we get here if getopt_long set a flag; nothing else to do */
             break; 
             
-          case 'a': show_ann = 1;                       break;
-          case 'B': bc->outputBootstrapTrees = TRUE;    break;
-          case 'b': bc->treebootstraps = atoi(optarg);  break;
-          case 'C': bc->saveCoordsOn = FALSE;           break;
-          case 'c': verbose = TRUE;                     break;
-          case 'G': bc->penalize_gaps = TRUE;           break;
-          case 'g': gridOn = TRUE;                      break;
-          case 'l': 
-            colorCodesFile = g_malloc(strlen(optarg)+1);
-            strcpy(colorCodesFile, optarg);             break;
-          case 'h': showHelp = TRUE;                    break;
-          case 'i': bc->ignoreGapsOn = TRUE;            break;
-          case 'L': 
-            markupColorCodesFile = g_malloc(strlen(optarg)+1);
-            strcpy(markupColorCodesFile, optarg);       break;
-          case 'm': 
-            readMatchFile = g_malloc(strlen(optarg)+1);
-            strcpy(readMatchFile, optarg);              break;
-          case 'n':  makeNRinit = atof(optarg);         break;
-          case 'O': strncpy(OrganismLabel, optarg, 2);  break;
-          case 'o': 
-            output_format = g_malloc(strlen(optarg)+1);
-            strcpy(output_format, optarg);              break;
-          case 'P': init_rmPartial = TRUE;              break;
-          case 'Q': init_rmEmptyColumns = atof(optarg); break;
-          case 'q': init_rmGappySeqs = atof(optarg);    break;
-          case 'p': output_probs = 1;                   break;
-          case 'R': bc->stripCoordTokensOn = bc->saveCoordsOn = FALSE;    break;
-          case 'r': bc->IN_FORMAT = RAW;                break;
+          case 'a': show_ann = 1;                                       break;
+          case 'B': bc->outputBootstrapTrees = TRUE;                    break;
+          case 'b': bc->treebootstraps = atoi(optarg);                  break;
+          case 'C': bc->saveCoordsOn = FALSE;                           break;
+          case 'c': verbose = TRUE;                                     break;
+          case 'G': bc->penalize_gaps = TRUE;                           break;
+          case 'g': gridOn = TRUE;                                      break;
+          case 'l': colorCodesFile = g_strdup(optarg);                  break;
+          case 'h': showHelp = TRUE;                                    break;
+          case 'i': bc->ignoreGapsOn = TRUE;                            break;
+          case 'L': markupColorCodesFile = g_strdup(optarg);            break;
+          case 'm': readMatchFile = g_strdup(optarg);                   break;
+          case 'n':  makeNRinit = atof(optarg);                         break;
+          case 'O': strncpy(OrganismLabel, optarg, 2);                  break;
+          case 'o': output_format = g_strdup(optarg);                   break;
+          case 'P': init_rmPartial = TRUE;                              break;
+          case 'Q': init_rmEmptyColumns = atof(optarg);                 break;
+          case 'q': init_rmGappySeqs = atof(optarg);                    break;
+          case 'p': output_probs = 1;                                   break;
+          case 'R': bc->stripCoordTokensOn = bc->saveCoordsOn = FALSE;  break;
+          case 'r': bc->IN_FORMAT = RAW;                                break;
             
           case 'S': 
             switch (*optarg)
             {
-              case 'a': bc->sortType = BELVU_SORT_ALPHA;    break;
-              case 'o': bc->sortType = BELVU_SORT_ORGANISM; break;
-              case 's': bc->sortType = BELVU_SORT_SCORE;    break;
-              case 'S': bc->sortType = BELVU_SORT_SIM;      break;
-              case 'i': bc->sortType = BELVU_SORT_ID;       break;
+              case 'a': bc->sortType = BELVU_SORT_ALPHA;                break;
+              case 'o': bc->sortType = BELVU_SORT_ORGANISM;             break;
+              case 's': bc->sortType = BELVU_SORT_SCORE;                break;
+              case 'S': bc->sortType = BELVU_SORT_SIM;                  break;
+              case 'i': bc->sortType = BELVU_SORT_ID;                   break;
               case 'n': 
                 bc->treeMethod = NJ;
-                bc->sortType = BELVU_SORT_TREE;             break;
+                bc->sortType = BELVU_SORT_TREE;                         break;
               case 'u': 
                 bc->treeMethod = UPGMA; 
-                bc->sortType = BELVU_SORT_TREE;             break;
-              default : g_error("Illegal sorting order: %s", optarg);
+                bc->sortType = BELVU_SORT_TREE;                         break;
+              default : g_error("Illegal sorting order: %s", optarg);   break;
             };
             break;
             
-          case 's': 
-            scoreFile = g_malloc(strlen(optarg)+1);
-            strcpy(scoreFile, optarg);                      break;
+          case 's': scoreFile = g_strdup(optarg);                       break;
             
           case 'T': 
           for (optargc = optarg; *optargc; optargc++) 
@@ -658,8 +648,9 @@ int main(int argc, char **argv)
       exit(0);
     }
   
-  setResidueSchemeColors(bc);
-  
+  initMarkupColors();
+  initCustomColors();
+
   if (colorCodesFile) 
     {
       if (!(file = fopen(colorCodesFile, "r"))) 
@@ -672,8 +663,7 @@ int main(int argc, char **argv)
       bc->colorByResIdOn = FALSE;
     }
   
-  initMarkupColors();
-  initCustomColors();
+  setResidueSchemeColors(bc);
   
   if (markupColorCodesFile) 
     {
