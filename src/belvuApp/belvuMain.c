@@ -192,7 +192,7 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
           
           /* Only insert it if this organism is not already in the array */
           int ip = 0;
-          if (!arrayFind(organismArr, alnp, &ip, (void*)organism_order))
+          if (!alnArrayFind(organismArr, alnp, &ip, (void*)organism_order))
             {
               g_array_append_val(organismArr, *alnp);
               g_array_sort(organismArr, organism_order);
@@ -200,7 +200,7 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
           
           /* Store pointer to unique organism in ALN struct */
           ip = 0;
-          if (arrayFind(organismArr, alnp, &ip, (void*)organism_order))
+          if (alnArrayFind(organismArr, alnp, &ip, (void*)organism_order))
             {
               ALN *alnTmp = &g_array_index(organismArr, ALN, ip);
               alnp->organism = alnTmp->organism;

@@ -1057,7 +1057,7 @@ static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln, char *seq)
     }
 
   int ip = 0;
-  if (arrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder))
+  if (alnArrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder))
     {
       g_error("Sequence name occurs more than once: %s%c%d-%d", 
               aln->name, bc->saveSeparator, aln->start, aln->end);
@@ -1946,7 +1946,7 @@ void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr)
           aln.organism = cp;
           
           int ip = 0;
-          if (!arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
+          if (!alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
             g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok", aln.organism);
           else
             g_array_index(bc->organismArr, ALN, ip).color = colornr;
@@ -2108,12 +2108,12 @@ void setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude)
  *		          Arrays			   *
  ***********************************************************/
 
-/* Finds Entry s from Array  a
+/* Finds Entry s from an array of ALNs  a
  * sorted in ascending order of order()
  * If found, returns TRUE and sets *ip
  * if not, returns FALSE and sets *ip one step left
  */
-gboolean arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer))
+gboolean alnArrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer))
 {
   int ord;
   int i = 0 , j = a->len, k;
@@ -2151,6 +2151,67 @@ gboolean arrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer,
       k = i + ((j-i) >> 1) ; /* midpoint */
 
       if ((ord = orderFunc(s, &g_array_index(a, ALN, k))) == 0)
+	{ 
+          if (ip)
+	    *ip = k; 
+	  return TRUE;
+	}
+      
+      if (ord > 0) 
+	(i = k);
+      else
+	(j = k) ;
+      
+      if (i == (j-1) )
+        break;
+    }
+  
+  if (ip)
+    *ip = i ;
+  
+  return FALSE;
+}
+
+
+/* As alnArrayFind, but for an array of BootstrapGroup*'s */
+gboolean bsArrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer))
+{
+  int ord;
+  int i = 0 , j = a->len, k;
+  
+  if (!j || (ord = orderFunc(s, &g_array_index(a, BootstrapGroup*, 0))) < 0)
+    { 
+      if (ip)
+	*ip = -1; 
+      return FALSE;
+    }   /* not found */
+  
+  if (ord == 0)
+    { 
+      if (ip)
+	*ip = 0;
+      return TRUE;
+    }
+  
+  if ((ord = orderFunc(s, &g_array_index(a, BootstrapGroup*, --j))) > 0)
+    {
+      if (ip)
+	*ip = j; 
+      return FALSE;
+    }
+  
+  if (ord == 0)
+    { 
+      if (ip)
+	*ip = j;
+      return TRUE;
+    }
+  
+  while (TRUE)
+    { 
+      k = i + ((j-i) >> 1) ; /* midpoint */
+      
+      if ((ord = orderFunc(s, &g_array_index(a, BootstrapGroup*, k))) == 0)
 	{ 
           if (ip)
 	    *ip = k; 
@@ -2308,6 +2369,7 @@ GArray *copyAlignArray(GArray *inputArr)
 {
   GArray *result = g_array_sized_new(FALSE, FALSE, sizeof(ALN), inputArr->len);
   memcpy(result->data, inputArr->data, inputArr->len * sizeof(ALN));
+  result->len = inputArr->len;
   
   int i = 0;
   for ( ; i < inputArr->len; ++i)
@@ -3779,7 +3841,7 @@ void rmScore(BelvuContext *bc, const double cutoff)
       ALN aln;
       initAln(&aln);
       
-      if (!arrayFind(bc->alignArr, &aln, &ip, (void*)scoreorder)) 
+      if (!alnArrayFind(bc->alignArr, &aln, &ip, (void*)scoreorder)) 
 	{
 	  bc->selectedAln = NULL;
 	}
@@ -3984,7 +4046,7 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
           parseMulLine(bc, cp, &aln);
 
           int ip = 0;
-          if (arrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder)) 
+          if (alnArrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder)) 
             {
               ALN *alnp = &g_array_index(bc->alignArr, ALN, ip);
               g_string_append(alnp->sequenceStr, seq);
@@ -4066,7 +4128,7 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
       str2aln(bc, namep, &aln);
 
       /* Find the corresponding sequence */
-      if (!arrayFind(bc->alignArr, &aln, &i, (void*)alphaorder))
+      if (!alnArrayFind(bc->alignArr, &aln, &i, (void*)alphaorder))
         {
           g_critical("Cannot find '%s' [%d %d] in alignment.\n", aln.name, aln.start, aln.end);
           return;
@@ -4103,7 +4165,7 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
           /* Find the corresponding sequence */
           int ip = 0;
           
-          if (!arrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder)) 
+          if (!alnArrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder)) 
             {
               g_critical("Cannot find '%s' [%d %d] in alignment.\n", aln.name, aln.start, aln.end);
               return;
@@ -4115,7 +4177,7 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
           aln.organism = valuep;
           ip = 0;
           
-          arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order);
+          alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order);
           alnp->organism = g_array_index(bc->organismArr, ALN, ip).organism;
         }
       else 
@@ -4134,7 +4196,7 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
                   aln.organism = valuep;
                   int ip = 0;
 
-                  arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order);
+                  alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order);
                   alnp->organism = g_array_index(bc->organismArr, ALN, ip).organism;
                 }
             }
@@ -4155,7 +4217,7 @@ static void appendSequenceDataToAln(BelvuContext *bc, char *line, const int alns
 
   /* See if this alignment is in the alignments array */
   int ip = 0;
-  if (arrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder))
+  if (alnArrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder))
     {
       /* Append this bit of sequence to the existing alignment */
       ALN *alnp = &g_array_index(bc->alignArr, ALN, ip);
