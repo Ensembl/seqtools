@@ -110,7 +110,6 @@
               (Negative value -> display bootstrap trees on screen)\n\
   -O <label>  Read organism info after this label (default OS)\n\
   -t <title>  Set window title.\n\
-  -g          Draw grid line (for debugging).\n\
   -u          Start up with uncoloured alignment (faster).\n\
   -h, --help  Show this usage information\n\
   --compiled  Show package compile date\n\
@@ -403,7 +402,6 @@ int main(int argc, char **argv)
   char *OrganismLabel = "OS";
     
   gboolean verbose = FALSE;
-  gboolean gridOn = FALSE;
   gboolean init_rmPartial = FALSE;
   
   static gboolean showHelp = FALSE;
@@ -420,7 +418,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
     };
   
-  char        *optstring="aBb:CcGghil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
+  char        *optstring="aBb:CcGhil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -440,7 +438,6 @@ int main(int argc, char **argv)
           case 'C': bc->saveCoordsOn = FALSE;                           break;
           case 'c': verbose = TRUE;                                     break;
           case 'G': bc->penalize_gaps = TRUE;                           break;
-          case 'g': gridOn = TRUE;                                      break;
           case 'l': colorCodesFile = g_strdup(optarg);                  break;
           case 'h': showHelp = TRUE;                                    break;
           case 'i': bc->ignoreGapsOn = TRUE;                            break;
