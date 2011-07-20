@@ -5583,13 +5583,21 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Offset the start coords, if applicable, and convert it to display coords */
   int startCoord = options->startCoord + options->refSeqOffset;
-  options->bigPictRange.min += options->refSeqOffset;
-  options->bigPictRange.max += options->refSeqOffset;
-  
   if (options->seqType == BLXSEQ_PEPTIDE)
+    startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
+
+  if (options->bigPictRange.min != UNSET_INT && options->bigPictRange.max != UNSET_INT)
     {
-      startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
+      options->bigPictRange.min += options->refSeqOffset;
+      options->bigPictRange.max += options->refSeqOffset;
+      
+      if (options->seqType == BLXSEQ_PEPTIDE)
+        {
+          options->bigPictRange.min = convertDnaIdxToDisplayIdx(options->bigPictRange.min, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
+          options->bigPictRange.max = convertDnaIdxToDisplayIdx(options->bigPictRange.max, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
+        }
     }
+  
   
   
   /* Create the main blixem window */
