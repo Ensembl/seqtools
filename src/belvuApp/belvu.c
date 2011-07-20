@@ -2466,7 +2466,7 @@ BelvuContext* createBelvuContext()
   bc->midbgPrintColor = DEFAULT_MID_BG_PRINT_COLOR;
   bc->lowbgPrintColor = DEFAULT_LOW_BG_PRINT_COLOR;
   
-  bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
+  bc->schemeType = BELVU_SCHEME_TYPE_CONS;
   bc->residueScheme = BELVU_SCHEME_ERIK;
   bc->consScheme = BELVU_SCHEME_BLOSUM;
   
@@ -3328,8 +3328,9 @@ static int countResidueFreqs(BelvuContext *bc)
       for (i = 0; i < bc->maxLen; ++i)
         {
           char *alnSeq = alnGetSeq(alnp);
-          
-          bc->conservCount[a2b[(unsigned char)(alnSeq[i])]][i]++;
+          int val = a2b[(unsigned char)(alnSeq[i])];
+
+          bc->conservCount[val][i]++;
 
           if (isalpha(alnSeq[i]) || alnSeq[i] == '*')
             bc->conservResidues[i]++;
