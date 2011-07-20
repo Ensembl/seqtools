@@ -249,8 +249,8 @@ GtkActionGroup* belvuTreeGetActionGroup(GtkWidget *belvuTree)
 
 static int BSorder(gconstpointer xIn, gconstpointer yIn)
 {
-  const BootstrapGroup *x = *((const BootstrapGroup**)xIn);
-  const BootstrapGroup *y = *((const BootstrapGroup**)yIn);
+  const BootstrapGroup *x = (const BootstrapGroup*)xIn;
+  const BootstrapGroup *y = (const BootstrapGroup*)yIn;
   
   int result = 0;
   
@@ -264,6 +264,15 @@ static int BSorder(gconstpointer xIn, gconstpointer yIn)
     result = 0;
   
   return result;
+}
+
+
+static int BSptrorder(gconstpointer xIn, gconstpointer yIn)
+{
+  const BootstrapGroup *x = *((const BootstrapGroup**)xIn);
+  const BootstrapGroup *y = *((const BootstrapGroup**)yIn);
+  
+  return BSorder(x, y);
 }
 
 
@@ -308,15 +317,17 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
           g_array_unref(left);
           
           /* Create string with group members */
-          int ssize = 0;
+          int ssize = 1;
           for (i = 0 ; i < right->len ; ++i) 
             ssize += (strlen(g_array_index(right, char*, i)) + 1);
           
           BS->s = g_malloc(ssize+1);
+          BS->s[0] = 0;
           
           for (i = 0 ; i < right->len ; ++i) 
             {
-              strcat(BS->s, g_array_index(right, char*, i));
+              char *ch = g_array_index(right, char*, i);
+              strcat(BS->s, ch);
               strcat(BS->s, " ");
             }
           
@@ -329,7 +340,7 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
               
               /* Add group string to array of bootstrap groups */
               g_array_append_val(bc->bootstrapGroups, BS);
-              g_array_sort(bc->bootstrapGroups, BSorder);
+              g_array_sort(bc->bootstrapGroups, BSptrorder);
             }
           else
             {
@@ -337,11 +348,11 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
               BootstrapGroup *BS2;
               
               int ip = 0;
-              if (arrayFind(bc->bootstrapGroups, BS, &ip, (void *)BSorder)) 
+              if (bsArrayFind(bc->bootstrapGroups, &BS, &ip, (void *)BSptrorder)) 
                 {
                   BS2 = &g_array_index(bc->bootstrapGroups, BootstrapGroup, ip);
                   BS2->node->boot++;
-                  /* printf("Found bootgroup %s\n", BS->s); */
+                  printf("Found bootgroup %s (%d)\n", BS->s, ip);
                 }
               else
                 {
@@ -385,7 +396,7 @@ static void normaliseBootstraps(BelvuContext *bc, TreeNode *node)
 static void treeBootstrapStats(BelvuContext *bc, TreeNode *tree)
 {
   /* Traverse tree, fill array bootstrapGroups */
-  bc->bootstrapGroups = g_array_sized_new(FALSE, FALSE, sizeof(BootstrapGroup), bc->alignArr->len);
+  bc->bootstrapGroups = g_array_sized_new(FALSE, TRUE, sizeof(BootstrapGroup), bc->alignArr->len);
   fillBootstrapGroups(bc, tree, tree, 1);
   
   treeBootstrap(bc);
@@ -1647,7 +1658,7 @@ static double treeDrawNode(BelvuContext *bc,
           aln.organism = node->organism;
           
           int ip = 0;
-          if (arrayFind(bc->organismArr, &aln, &ip, (void*)organism_order)) 
+          if (alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order)) 
             {
               GdkColor color;
               int colorNum = g_array_index(bc->organismArr, ALN, ip).color;
@@ -1722,7 +1733,8 @@ static double treeDrawNode(BelvuContext *bc,
       g_free(tmpStr);
     }
   
-  if (bc->treebootstraps && !node->name && node != bc->treeHead  && !bc->treebootstrapsDisplay) 
+  /* This prints the tree bootstrap statistics */
+  if (bc->treebootstraps && !node->name && node != bc->treeHead && !bc->treebootstrapsDisplay) 
     {
       GdkColor *color = getGdkColor(BELCOLOR_TREE_BOOTSTRAP, bc->defaultColors, FALSE, FALSE);
       gdk_gc_set_foreground(gc, color);
@@ -1734,7 +1746,7 @@ static double treeDrawNode(BelvuContext *bc,
         pos = 0;
       
       printf("%f  %f   \n", node->boot, pos);
-      drawText(widget, drawable, gc, pos, y, tmpStr, NULL, NULL);
+      drawText(widget, drawable,  gc, pos, y, tmpStr, NULL, NULL);
 
       g_free(tmpStr);
       gdk_gc_set_foreground(gc, defaultColor);
