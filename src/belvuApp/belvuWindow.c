@@ -4103,9 +4103,13 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   if (!bc->onlyTree)
     {
       gtk_window_present(GTK_WINDOW(window));
+      
       BelvuWindowProperties *properties = belvuWindowGetProperties(window);
       setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
       setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
+      
+      if (bc->initTree)
+        belvuAlignmentRedrawAll(properties->bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
     }
   
   return ok;
