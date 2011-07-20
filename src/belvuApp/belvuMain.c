@@ -591,7 +591,7 @@ int main(int argc, char **argv)
   if (scoreFile) 
     readScores(scoreFile, bc);
   
-  doSort(bc, bc->sortType);
+  doSort(bc, bc->sortType, FALSE);
   
   if (!bc->matchFooter && readMatchFile) 
     {

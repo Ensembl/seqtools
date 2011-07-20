@@ -796,8 +796,11 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 }
 
 
-
-void doSort(BelvuContext *bc, const BelvuSortType sortType)
+/* This sorts the alignment list by the current sort mode specified in the context.
+ * If the mode is to sort by tree, then this function will create the tree if it
+ * does not already exist, and will also display the tree to the user if showTree
+ * is true. */
+void doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean showTree)
 {
   g_array_sort(bc->alignArr, nrorder);
   
@@ -806,7 +809,7 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType)
     case BELVU_SORT_ALPHA :	  alphaSort(bc);                        break;
     case BELVU_SORT_ORGANISM :	  organismSort(bc);                     break;
     case BELVU_SORT_SCORE :	  scoreSort(bc);                        break;
-    case BELVU_SORT_TREE  :	  treeSort(bc);                         break;
+    case BELVU_SORT_TREE  :	  treeSort(bc, showTree);               break;
     case BELVU_SORT_CONS  :	  /* sort by nrorder - already done */  break; 
     
     case BELVU_SORT_SIM :
@@ -937,7 +940,9 @@ static void treeFindAln(BelvuContext *bc, TreeNode *node)
 }
 
 
-void treeSort(BelvuContext *bc)
+/* Sort the alignments by tree order (creates the tree if it does not exist,
+ * and also displays it to the user if showTree is true). */
+void treeSort(BelvuContext *bc, const gboolean showTree)
 {
   ALN aln;
   initAln(&aln);
@@ -967,11 +972,14 @@ void treeSort(BelvuContext *bc)
         }
     }
   
-  /* Show the tree window (create it if necessary) */
-  if (bc->belvuTree)
-    gtk_window_present(GTK_WINDOW(bc->belvuTree));
-  else
-    createBelvuTreeWindow(bc, bc->treeHead);
+  if (showTree)
+    {
+      /* Show the tree window (create it if necessary) */
+      if (bc->belvuTree)
+        gtk_window_present(GTK_WINDOW(bc->belvuTree));
+      else
+        createBelvuTreeWindow(bc, bc->treeHead);
+    }
 }
 
 

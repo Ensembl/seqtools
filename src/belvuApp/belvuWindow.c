@@ -1267,14 +1267,14 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
   properties->bc->sortType = gtk_radio_action_get_current_value(current);
-  doSort(properties->bc, properties->bc->sortType);
+  doSort(properties->bc, properties->bc->sortType, TRUE);
 
   /* To do: This is a hack to overcome a bug where the sort order gets messed
    * up when switching to tree-sort from a different sort order after having
    * changed the tree order by swapping nodes. Calling doSort again seems to
    * sort it out, although obviously this is not ideal. */
   if (properties->bc->sortType == BELVU_SORT_TREE)
-    doSort(properties->bc, properties->bc->sortType);
+    doSort(properties->bc, properties->bc->sortType, TRUE);
 
   centerHighlighted(properties->bc, properties->bc->belvuAlignment);
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
@@ -3724,7 +3724,7 @@ void onTreeOrderChanged(BelvuContext *bc)
 {
   /* If sorting by tree order, we need to refresh the sort order */
   if (bc->sortType == BELVU_SORT_TREE);
-    doSort(bc, bc->sortType);
+    doSort(bc, bc->sortType, FALSE);
 
   /* Recenter on the highlighted alignment */
   centerHighlighted(bc, bc->belvuAlignment);
