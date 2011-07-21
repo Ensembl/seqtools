@@ -472,7 +472,7 @@ gint                                      nrorder(gconstpointer xIn, gconstpoint
 
 void                                      highlightScoreSort(char mode, BelvuContext *bc);
 void                                      treeSortBatch(BelvuContext *bc);
-void					  doSort(BelvuContext *bc, const BelvuSortType sortType);
+void					  doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean showTree);
 
 
 void                                      arrayOrder(GArray *alignArr);
@@ -538,7 +538,7 @@ void                                      setColor(const char inputChar, const i
 int*                                      getColorArray();
 int*                                      getMarkupColorArray();
 void                                      saveResidueColorScheme(BelvuContext *bc, FILE *fil);
-void                                      readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr);
+void                                      readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gboolean storeCustomColors);
 
 char*                                     alnGetSeq(ALN *aln);
 int                                       alnGetSeqLen(ALN *aln);
@@ -556,7 +556,7 @@ void                                      drawIntAsText(GtkWidget *widget, GdkDr
 void                                      drawDoubleAsText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const double value);
 
 void                                      treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode));
-void                                      treeSort(BelvuContext *bc);          
+void                                      treeSort(BelvuContext *bc, const gboolean showTree);
 void                                      saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file);
 
 void                                      listIdentity(BelvuContext *bc);

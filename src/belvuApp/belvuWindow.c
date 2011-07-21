@@ -1267,14 +1267,14 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
   properties->bc->sortType = gtk_radio_action_get_current_value(current);
-  doSort(properties->bc, properties->bc->sortType);
+  doSort(properties->bc, properties->bc->sortType, TRUE);
 
   /* To do: This is a hack to overcome a bug where the sort order gets messed
    * up when switching to tree-sort from a different sort order after having
    * changed the tree order by swapping nodes. Calling doSort again seems to
    * sort it out, although obviously this is not ideal. */
   if (properties->bc->sortType == BELVU_SORT_TREE)
-    doSort(properties->bc, properties->bc->sortType);
+    doSort(properties->bc, properties->bc->sortType, TRUE);
 
   centerHighlighted(properties->bc, properties->bc->belvuAlignment);
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
@@ -1353,9 +1353,9 @@ static void onloadColorSchemeMenu(GtkAction *action, gpointer data)
       properties->bc->fileName = g_path_get_basename(filename);
     }
   
-  readResidueColorScheme(properties->bc, fil, getColorArray());
+  readResidueColorScheme(properties->bc, fil, getColorArray(), TRUE);
 
-  setToggleMenuStatus(properties->actionGroup, "colorSchemeCustom", TRUE);
+  setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", BELVU_SCHEME_CUSTOM);
   setToggleMenuStatus(properties->actionGroup, "ColorByResidue", TRUE);
   onColorSchemeChanged(properties);
 }
@@ -3724,7 +3724,7 @@ void onTreeOrderChanged(BelvuContext *bc)
 {
   /* If sorting by tree order, we need to refresh the sort order */
   if (bc->sortType == BELVU_SORT_TREE);
-    doSort(bc, bc->sortType);
+    doSort(bc, bc->sortType, FALSE);
 
   /* Recenter on the highlighted alignment */
   centerHighlighted(bc, bc->belvuAlignment);
@@ -4101,7 +4101,16 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
     }
   
   if (!bc->onlyTree)
-    gtk_window_present(GTK_WINDOW(window));
-
+    {
+      gtk_window_present(GTK_WINDOW(window));
+      
+      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
+      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
+      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
+      
+      if (bc->initTree)
+        belvuAlignmentRedrawAll(properties->bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
+    }
+  
   return ok;
 }
